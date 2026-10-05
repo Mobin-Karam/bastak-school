@@ -10,7 +10,6 @@ import {
   RefreshCw,
   ShieldCheck,
   UsersRound,
-  type LucideIcon,
 } from "lucide-react";
 import { Link, useSearchParams } from "react-router-dom";
 import { useCallback, useMemo, useState } from "react";
@@ -21,13 +20,13 @@ import { useLocale } from "../../../shared/ui/locale";
 import { DashboardWorkspace } from "../../../shared/ui/dashboard-workspace";
 import type { DashboardWorkItem, RoleDashboardData } from "../model/dashboard.types";
 import { dashboardCopy } from "../model/dashboard-copy";
-import { DashboardWorkQueue } from "./DashboardWorkQueue";
+import { DashboardWorkQueue } from "./work/DashboardWorkQueue";
 import { getRoleConfig } from "../model/role-config";
-import { DashboardQuickActions } from "./DashboardQuickActions";
-import { PlatformHealthPanel } from "./PlatformHealthPanel";
-import { DashboardSchedule } from "./DashboardSchedule";
-import { DashboardPlanHealth } from "./DashboardPlanHealth";
-import { DashboardOperationalPulse } from "./DashboardOperationalPulse";
+import { DashboardQuickActions } from "./work/DashboardQuickActions";
+import { PlatformHealthPanel } from "./health/PlatformHealthPanel";
+import { DashboardSchedule } from "./planning/DashboardSchedule";
+import { DashboardPlanHealth } from "./planning/DashboardPlanHealth";
+import { DashboardOperationalPulse } from "./health/DashboardOperationalPulse";
 import {
   DashboardLayoutBoard,
   type DashboardBoardItem,
@@ -42,14 +41,9 @@ import {
   visibleRoleDashboardWidgets,
 } from "../model/dashboard-layout";
 import { quickActionsForRole } from "../model/role-experience";
+import { Metric } from "../model/dashboard-metrics";
+import { DashboardMetricGrid } from "./metrics/DashboardMetricGrid";
 
-type Metric = {
-  label: string;
-  value: number | string;
-  hint: string;
-  icon: LucideIcon;
-  tone: "green" | "blue" | "amber" | "red";
-};
 const n = (value: unknown) => (typeof value === "number" ? value : 0);
 
 export function roleDashboardMetrics(
@@ -545,7 +539,7 @@ export function RoleDashboard({
       title={roleCopy.title}
       description={roleCopy.description}
       freshness={
-        <span className="inline-flex items-center gap-1.5">
+        <span className="inline-flex items-center lg:gap-1.5 ">
           <Badge tone={tone} title={label}>
             <Icon className="size-3.5" aria-hidden="true" />
             <span className="sr-only">{label}</span>
@@ -683,42 +677,108 @@ export function RoleDashboard({
           </Button>
         </>
       }
-      summary={
-        view.mode === "live" ? (
-          <DashboardLiveOverview
-            title={dashboard.liveOverviewTitle}
-            description={dashboard.liveOverviewDescription}
-            status={dashboard.liveStatus}
-            metrics={boardItems.find((item) => item.id === "summary")?.content}
-            pulse={boardItems.find((item) => item.id === "operational-pulse")?.content}
-            work={boardItems.find((item) => item.id === "priority-work")?.content}
-            supporting={boardItems.filter(
-              (item) => !["summary", "operational-pulse", "priority-work"].includes(item.id),
-            )}
-          />
-        ) : (
-          <DashboardLayoutBoard
-            key={`${editingBoard ? "editable-dashboard" : "dashboard"}:${boardItems.map((item) => item.id).join("|")}`}
-            items={boardItems}
-            editing={editingBoard}
-            onChange={setWidgetLayout}
-            onReorder={setWidgetOrder}
-            labels={{
-              boardLabel: dashboard.dashboardBoard,
-              footprint: dashboard.widgetFootprint,
-              dragHint: dashboard.dragWidgetHint,
-              moveEarlier: dashboard.moveWidgetEarlier,
-              moveLater: dashboard.moveWidgetLater,
-              makeNarrower: dashboard.makeWidgetNarrower,
-              makeWider: dashboard.makeWidgetWider,
-              makeShorter: dashboard.makeWidgetShorter,
-              makeTaller: dashboard.makeWidgetTaller,
-            }}
-          />
-        )
-      }
+    summary={
+  <>
+    {/* =====================================================
+        MOBILE
+        Fixed responsive dashboard.
+        No edit mode.
+        No drag/drop.
+        No resizing.
+        No board/live switch.
+        ===================================================== */}
+    <MobileDashboard items={boardItems} />
+
+    {/* =====================================================
+        TABLET + DESKTOP
+        Keep the customizable dashboard.
+        ===================================================== */}
+    <div className="hidden sm:block">
+      {view.mode === "live" ? (
+        <DashboardLiveOverview
+          title={dashboard.liveOverviewTitle}
+          description={dashboard.liveOverviewDescription}
+          status={dashboard.liveStatus}
+          metrics={
+            boardItems.find(
+              (item) => item.id === "summary",
+            )?.content
+          }
+          pulse={
+            boardItems.find(
+              (item) => item.id === "operational-pulse",
+            )?.content
+          }
+          work={
+            boardItems.find(
+              (item) => item.id === "priority-work",
+            )?.content
+          }
+          supporting={boardItems.filter(
+            (item) =>
+              ![
+                "summary",
+                "operational-pulse",
+                "priority-work",
+              ].includes(item.id),
+          )}
+        />
+      ) : (
+        <DashboardLayoutBoard
+          key={`${
+            editingBoard
+              ? "editable-dashboard"
+              : "dashboard"
+          }:${boardItems
+            .map((item) => item.id)
+            .join("|")}`}
+          items={boardItems}
+          editing={editingBoard}
+          onChange={setWidgetLayout}
+          onReorder={setWidgetOrder}
+          labels={{
+            boardLabel: dashboard.dashboardBoard,
+            footprint: dashboard.widgetFootprint,
+            dragHint: dashboard.dragWidgetHint,
+            moveEarlier: dashboard.moveWidgetEarlier,
+            moveLater: dashboard.moveWidgetLater,
+            makeNarrower: dashboard.makeWidgetNarrower,
+            makeWider: dashboard.makeWidgetWider,
+            makeShorter: dashboard.makeWidgetShorter,
+            makeTaller: dashboard.makeWidgetTaller,
+          }}
+        />
+      )}
+    </div>
+  </>
+}
       primary={null}
     />
+  );
+}
+
+function MobileDashboard({
+  items,
+}: {
+  items: DashboardBoardItem[];
+}) {
+  return (
+    <section
+      aria-label="Dashboard"
+      className="
+        grid min-w-0 gap-3
+        sm:hidden
+      "
+    >
+      {items.map((item) => (
+        <div
+          key={item.id}
+          className="min-w-0"
+        >
+          {item.content}
+        </div>
+      ))}
+    </section>
   );
 }
 
@@ -882,67 +942,3 @@ function OrganizationStudentHealth({ data }: { data: RoleDashboardData }) {
     </Card>
   );
 }
-
-function DashboardMetricGrid({
-  items,
-  locale,
-  density,
-  label,
-}: {
-  items: Metric[];
-  locale: string;
-  density: "comfortable" | "compact";
-  label: string;
-}) {
-  return (
-    <section aria-label={label} className="grid min-w-0 gap-3 sm:grid-cols-2 2xl:grid-cols-4">
-      {items.map((item) => {
-        const MetricIcon = item.icon;
-        return (
-          <Card
-            key={item.label}
-            className={`group relative min-w-0 overflow-hidden border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card))] p-3 ${density === "compact" ? "py-2.5" : ""}`}
-          >
-            <span
-              aria-hidden="true"
-              className={`absolute inset-x-0 top-0 h-1 ${metricAccentClass[item.tone]}`}
-            />
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">
-                  {item.label}
-                </p>
-                <strong className="mt-2 block text-xl font-black tabular-nums tracking-tight text-ink sm:text-2xl">
-                  {typeof item.value === "number" ? item.value.toLocaleString(locale) : item.value}
-                </strong>
-              </div>
-              <span
-                className={`grid size-10 shrink-0 place-items-center rounded-xl ${metricToneClass[item.tone]}`}
-              >
-                <MetricIcon size={18} aria-hidden="true" />
-              </span>
-            </div>
-            <div className="mt-2 flex items-center gap-2 text-xs leading-5 text-slate-500 dark:text-slate-400">
-              <span className={`size-1.5 shrink-0 rounded-full ${metricAccentClass[item.tone]}`} />
-              <p>{item.hint}</p>
-            </div>
-          </Card>
-        );
-      })}
-    </section>
-  );
-}
-
-const metricToneClass = {
-  green: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
-  blue: "bg-sky-500/10 text-sky-700 dark:text-sky-300",
-  amber: "bg-amber-500/10 text-amber-700 dark:text-amber-300",
-  red: "bg-rose-500/10 text-rose-700 dark:text-rose-300",
-} as const;
-
-const metricAccentClass = {
-  green: "bg-emerald-500",
-  blue: "bg-sky-500",
-  amber: "bg-amber-500",
-  red: "bg-rose-500",
-} as const;

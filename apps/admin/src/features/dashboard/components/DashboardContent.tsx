@@ -5,10 +5,10 @@ import type {
   AttentionStudent,
   FollowUpMetric,
 } from "../model/dashboard.types";
-import { AttentionInbox } from "./AttentionInbox";
+import { AttentionInbox } from "./work/AttentionInbox";
 import { DashboardFollowUpCard } from "./DashboardFollowUpCard";
-import { DashboardMetricCards } from "./DashboardMetricCards";
-import { RecentReportsCard } from "./RecentReportsCard";
+import { DashboardMetricCards } from "./metrics/DashboardMetricCards";
+import { RecentReportsCard } from "./reports/RecentReportsCard";
 import { useLocale } from "../../../shared/ui/locale";
 import { dashboardCopy } from "../model/dashboard-copy";
 

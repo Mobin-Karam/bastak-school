@@ -104,8 +104,10 @@ export function AdminHeader({
         </div>
 
         <div className="flex min-w-0 shrink-0 items-center gap-1.5 sm:gap-2">
-          <HeaderClock  classNameClockMain="lg:block hidden " />
-          <AdminLanguageSwitcher />
+          <HeaderClock classNameClockMain="lg:block hidden " />
+          <div className="hidden xl:block">
+            <AdminLanguageSwitcher />
+          </div>
           <div className="hidden xl:block">
             <ThemeSwitcher />
           </div>

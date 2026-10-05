@@ -8,6 +8,7 @@ import { Button } from "../../../shared/ui/ui";
 import { DevBackendSwitcher } from "../../dev/DevBackendSwitcher";
 import { roleLabel, rolePortalTitle } from "../../../shared/lib/role-ui";
 import { useAdminShellCopy, useLocale } from "../../../shared/ui/locale";
+import { AdminLanguageSwitcher } from "./AdminLanguageSwitcher";
 
 export function AdminAccountMenu() {
   const auth = useAuth();
@@ -123,6 +124,8 @@ export function AdminAccountMenu() {
         ) : null}
         <div className="flex items-center justify-between gap-3 rounded-lg bg-slate-50 p-2 dark:bg-slate-900 xl:hidden">
           <span className="text-xs font-semibold text-slate-600">{copy.display}</span>
+          <AdminLanguageSwitcher />
+
           <ThemeSwitcher />
         </div>
         <DevBackendSwitcher />

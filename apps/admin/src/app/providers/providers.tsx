@@ -1,12 +1,16 @@
 import { QueryClientProvider } from "@tanstack/react-query";
-import { ReactNode } from "react";
+import type { ReactNode } from "react";
+
 import { AuthProvider } from "../../features/auth";
-import { AppToaster } from "../../shared/ui/notifications";
-import { queryClient } from "./query-client";
-import { ModalProvider } from "../../shared/ui/modal";
-import { LocaleProvider } from "../../shared/ui/locale";
 import { NotificationProvider } from "../../features/notifications";
+import { PWAProvider } from "../../features/pwa";
+
 import { ThemeProvider } from "../../shared/theme/theme";
+import { LocaleProvider } from "../../shared/ui/locale";
+import { ModalProvider } from "../../shared/ui/modal";
+import { AppToaster } from "../../shared/ui/notifications";
+
+import { queryClient } from "./query-client";
 
 export function AppProviders({ children }: { children: ReactNode }) {
   return (
@@ -15,8 +19,12 @@ export function AppProviders({ children }: { children: ReactNode }) {
         <LocaleProvider>
           <ModalProvider>
             <AuthProvider>
-              <NotificationProvider>{children}</NotificationProvider>
+              <NotificationProvider>
+                {children}
+                <PWAProvider />
+              </NotificationProvider>
             </AuthProvider>
+
             <AppToaster />
           </ModalProvider>
         </LocaleProvider>

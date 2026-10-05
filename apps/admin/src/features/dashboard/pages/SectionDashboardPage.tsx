@@ -5,7 +5,7 @@ import { DashboardWorkspace } from "../../../shared/ui/dashboard-workspace";
 import { Badge, Button, Card, EmptyState } from "../../../shared/ui/ui";
 import { useLocale } from "../../../shared/ui/locale";
 import { useAuth } from "../../auth";
-import { DashboardWorkQueue } from "../components/DashboardWorkQueue";
+import { DashboardWorkQueue } from "../components/work/DashboardWorkQueue";
 import { useDashboardData } from "../hooks/useDashboardData";
 import { dashboardCopy } from "../model/dashboard-copy";
 import { useRoleDashboardView } from "../model/dashboard-layout";

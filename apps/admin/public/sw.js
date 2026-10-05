@@ -1,719 +1,193 @@
 "use strict";
 
-/**
- * Moshaver Admin V2 Service Worker
- * Handles:
- * - App-shell caching
- * - Offline fallback
- * - Safe runtime caching
- * - Push notifications
- * - Notification navigation
- * - Push subscription changes
- * - Service-worker lifecycle updates
- */
-
-const CACHE_VERSION = "2";
-const CACHE_PREFIX = "moshaver-admin-v2";
+const APP_NAME = "zanin";
+const CACHE_VERSION = "3.0.0";
+const CACHE_PREFIX = `${APP_NAME}-pwa`;
 const SHELL_CACHE = `${CACHE_PREFIX}-shell-${CACHE_VERSION}`;
 const RUNTIME_CACHE = `${CACHE_PREFIX}-runtime-${CACHE_VERSION}`;
+const OFFLINE_URL = "/offline";
+const DEFAULT_NOTIFICATION_URL = "/notifications";
 
-const DEFAULT_ADMIN_URL = "/admin/notifications";
-const OFFLINE_FALLBACK = "/";
-
-const SHELL = [
+const APP_SHELL = [
   "/",
-  "/admin",
+  OFFLINE_URL,
   "/manifest.webmanifest",
+  "/version.json",
   "/icons/icon-192.png",
   "/icons/icon-512.png",
 ];
 
-/* -------------------------------------------------------------------------- */
-/*                                   INSTALL                                  */
-/* -------------------------------------------------------------------------- */
-
 self.addEventListener("install", (event) => {
-  event.waitUntil(
-    (async () => {
-      const cache = await caches.open(SHELL_CACHE);
-
-      /**
-       * Do not use cache.addAll() here.
-       *
-       * If a single optional icon/manifest is missing,
-       * addAll() rejects and the entire service-worker installation fails.
-       */
-      await Promise.allSettled(
-        SHELL.map(async (url) => {
-          try {
-            const response = await fetch(url, {
-              cache: "no-cache",
-            });
-
-            if (!response.ok) {
-              return;
-            }
-
-            await cache.put(url, response);
-          } catch {
-            // One failed shell resource must not break SW installation.
-          }
-        }),
-      );
-
-      await self.skipWaiting();
-    })(),
-  );
+  event.waitUntil(warmCache(APP_SHELL));
+  // Deliberately do not skipWaiting here. The UI asks the user first.
 });
-
-/* -------------------------------------------------------------------------- */
-/*                                  ACTIVATE                                  */
-/* -------------------------------------------------------------------------- */
 
 self.addEventListener("activate", (event) => {
-  event.waitUntil(
-    (async () => {
-      const allowedCaches = new Set([SHELL_CACHE, RUNTIME_CACHE]);
-      const keys = await caches.keys();
+  event.waitUntil((async () => {
+    const keys = await caches.keys();
+    await Promise.all(keys
+      .filter((key) => key.startsWith(CACHE_PREFIX) && ![SHELL_CACHE, RUNTIME_CACHE].includes(key))
+      .map((key) => caches.delete(key)));
 
-      await Promise.all(
-        keys
-          .filter(
-            (key) => key.startsWith(CACHE_PREFIX) && !allowedCaches.has(key),
-          )
-          .map((key) => caches.delete(key)),
-      );
-
-      if ("navigationPreload" in self.registration) {
-        try {
-          await self.registration.navigationPreload.enable();
-        } catch {
-          // Navigation preload is optional.
-        }
-      }
-
-      await self.clients.claim();
-    })(),
-  );
+    if ("navigationPreload" in self.registration) {
+      try { await self.registration.navigationPreload.enable(); } catch {}
+    }
+    await self.clients.claim();
+    await broadcast({ type: "ZANIN_SW_ACTIVATED", version: CACHE_VERSION });
+  })());
 });
-
-/* -------------------------------------------------------------------------- */
-/*                                    FETCH                                   */
-/* -------------------------------------------------------------------------- */
 
 self.addEventListener("fetch", (event) => {
   const request = event.request;
-
-  if (request.method !== "GET") {
-    return;
-  }
+  if (request.method !== "GET" || request.headers.has("range")) return;
 
   let url;
-
-  try {
-    url = new URL(request.url);
-  } catch {
-    return;
-  }
-
-  // Service worker should only cache HTTP(S).
-  if (url.protocol !== "http:" && url.protocol !== "https:") {
-    return;
-  }
-
-  /**
-   * Never cache API traffic.
-   *
-   * Authentication/session based responses must always come directly
-   * from the backend.
-   */
-  if (url.origin === self.location.origin && url.pathname.startsWith("/api/")) {
-    return;
-  }
-
-  // Don't interfere with browser range requests.
-  if (request.headers.has("range")) {
-    return;
-  }
+  try { url = new URL(request.url); } catch { return; }
+  if (!["http:", "https:"].includes(url.protocol)) return;
+  if (url.origin !== self.location.origin) return;
+  if (isSensitiveRequest(url)) return;
 
   if (request.mode === "navigate") {
-    event.respondWith(handleNavigationRequest(event));
+    event.respondWith(networkFirstNavigation(event));
     return;
   }
 
-  /**
-   * Runtime caching is deliberately restricted to same-origin assets.
-   * This avoids accidentally caching third-party authenticated resources.
-   */
-  if (url.origin !== self.location.origin) {
-    return;
+  if (isStaticAsset(request, url)) {
+    event.respondWith(staleWhileRevalidate(request));
   }
-
-  event.respondWith(handleAssetRequest(request));
 });
 
-/**
- * Network-first navigation.
- *
- * Admin pages should prefer the newest frontend bundle, but previously
- * cached content is available when the network is unavailable.
- */
-async function handleNavigationRequest(event) {
+function isSensitiveRequest(url) {
+  return url.pathname.startsWith("/api/") ||
+    url.pathname.startsWith("/auth/") ||
+    url.pathname.includes("/session") ||
+    url.pathname.includes("/logout");
+}
+
+function isStaticAsset(request, url) {
+  return ["style", "script", "font", "image", "worker"].includes(request.destination) ||
+    /\.(?:css|js|mjs|woff2?|ttf|otf|png|jpe?g|webp|avif|svg|ico)$/i.test(url.pathname);
+}
+
+async function networkFirstNavigation(event) {
   const request = event.request;
-
   try {
-    const preloadResponse = await event.preloadResponse;
-
-    if (preloadResponse) {
-      if (isCacheableResponse(preloadResponse)) {
-        void putRuntimeCache(request, preloadResponse.clone());
-      }
-
-      return preloadResponse;
-    }
-
-    const response = await fetch(request);
-
-    if (isCacheableResponse(response)) {
-      void putRuntimeCache(request, response.clone());
-    }
-
+    const preload = await event.preloadResponse;
+    const response = preload || await fetch(request);
+    if (cacheable(response)) void put(RUNTIME_CACHE, request, response.clone());
     return response;
   } catch {
-    const cachedRequest = await caches.match(request);
-
-    if (cachedRequest) {
-      return cachedRequest;
-    }
-
-    const adminShell = await caches.match("/admin");
-
-    if (adminShell) {
-      return adminShell;
-    }
-
-    const fallback = await caches.match(OFFLINE_FALLBACK);
-
-    if (fallback) {
-      return fallback;
-    }
-
-    return new Response("Offline", {
-      status: 503,
-      statusText: "Service Unavailable",
-      headers: {
-        "Content-Type": "text/plain; charset=utf-8",
-      },
-    });
+    return (await caches.match(request)) ||
+      (await caches.match(OFFLINE_URL)) ||
+      (await caches.match("/")) ||
+      new Response("Offline", { status: 503, headers: { "Content-Type": "text/plain; charset=utf-8" } });
   }
 }
 
-/**
- * Stale-while-revalidate for static application resources.
- */
-async function handleAssetRequest(request) {
+async function staleWhileRevalidate(request) {
   const cached = await caches.match(request);
-
-  const networkPromise = fetch(request)
-    .then(async (response) => {
-      if (isCacheableResponse(response)) {
-        await putRuntimeCache(request, response.clone());
-      }
-
-      return response;
-    })
-    .catch(() => null);
-
-  if (cached) {
-    void networkPromise;
-    return cached;
-  }
-
-  const networkResponse = await networkPromise;
-
-  if (networkResponse) {
-    return networkResponse;
-  }
-
-  return new Response("", {
-    status: 504,
-    statusText: "Gateway Timeout",
-  });
+  const fresh = fetch(request).then(async (response) => {
+    if (cacheable(response)) await put(RUNTIME_CACHE, request, response.clone());
+    return response;
+  }).catch(() => null);
+  if (cached) { void fresh; return cached; }
+  return (await fresh) || new Response("", { status: 504 });
 }
 
-function isCacheableResponse(response) {
-  if (!response) {
-    return false;
-  }
-
-  if (!response.ok) {
-    return false;
-  }
-
-  return response.type === "basic" || response.type === "cors";
+function cacheable(response) {
+  return Boolean(response && response.ok && ["basic", "cors"].includes(response.type));
 }
 
-async function putRuntimeCache(request, response) {
-  try {
-    const cache = await caches.open(RUNTIME_CACHE);
-    await cache.put(request, response);
-  } catch {
-    // Runtime cache failure should never break the application request.
-  }
+async function put(cacheName, request, response) {
+  try { (await caches.open(cacheName)).put(request, response); } catch {}
 }
 
-/* -------------------------------------------------------------------------- */
-/*                                     PUSH                                   */
-/* -------------------------------------------------------------------------- */
-
-self.addEventListener("push", (event) => {
-  event.waitUntil(handlePushEvent(event));
-});
-
-async function handlePushEvent(event) {
-  const payload = readPushPayload(event);
-
-  const notificationId = String(
-    payload.notificationId || payload.id || `notification-${Date.now()}`,
-  );
-
-  const url = adminUrl(
-    payload.url || payload.link || payload.href || DEFAULT_ADMIN_URL,
-  );
-
-  const title = String(
-    payload.title || payload.notification?.title || "اعلان مشاور",
-  );
-
-  const body = String(
-    payload.body || payload.message || payload.notification?.body || "",
-  );
-
-  const clients = await self.clients.matchAll({
-    type: "window",
-    includeUncontrolled: true,
-  });
-
-  /**
-   * Tell all open tabs about the notification.
-   *
-   * React Query / notification state can then invalidate its notification
-   * query without waiting for the user to reload.
-   */
-  await Promise.allSettled(
-    clients.map((client) =>
-      client.postMessage({
-        type: "PUSH_RECEIVED",
-        notificationId,
-        url,
-        payload,
-      }),
-    ),
-  );
-
-  const visibleClient = clients.some(
-    (client) => client.visibilityState === "visible",
-  );
-
-  /**
-   * When the admin application is already visible we let the in-app
-   * notification UI handle the event instead of creating a duplicate
-   * operating-system notification.
-   */
-  if (visibleClient) {
-    return;
-  }
-
-  const options = {
-    body,
-    tag: notificationId,
-
-    /**
-     * Prevent the same notification ID from producing multiple stacked
-     * system notifications.
-     */
-    renotify: false,
-
-    icon: safeString(payload.icon) || "/icons/icon-192.png",
-    badge: safeString(payload.badge) || "/icons/icon-192.png",
-
-    dir: payload.dir === "ltr" ? "ltr" : "rtl",
-    lang: safeString(payload.lang) || "fa",
-
-    data: {
-      notificationId,
-      url,
-      payload,
-    },
-
-    timestamp:
-      typeof payload.timestamp === "number" ? payload.timestamp : Date.now(),
-
-    requireInteraction: Boolean(payload.requireInteraction),
-    silent: Boolean(payload.silent),
-  };
-
-  /**
-   * `vibrate` is not supported consistently on every browser.
-   */
-  if (!options.silent) {
-    options.vibrate = Array.isArray(payload.vibrate)
-      ? payload.vibrate
-      : [100, 50, 100];
-  }
-
-  /**
-   * Optional notification actions.
-   */
-  if (Array.isArray(payload.actions)) {
-    options.actions = payload.actions
-      .filter(
-        (action) =>
-          action &&
-          typeof action.action === "string" &&
-          typeof action.title === "string",
-      )
-      .slice(0, 2)
-      .map((action) => ({
-        action: action.action,
-        title: action.title,
-        ...(action.icon ? { icon: String(action.icon) } : {}),
-      }));
-  }
-
-  await self.registration.showNotification(title, options);
-}
-
-/* -------------------------------------------------------------------------- */
-/*                           PUSH PAYLOAD PARSING                             */
-/* -------------------------------------------------------------------------- */
-
-function readPushPayload(event) {
-  if (!event.data) {
-    return {};
-  }
-
-  try {
-    const json = event.data.json();
-
-    if (json && typeof json === "object") {
-      return json;
-    }
-  } catch {
-    // Try text format below.
-  }
-
-  try {
-    const text = event.data.text();
-
-    if (!text) {
-      return {};
-    }
-
-    return {
-      body: text,
-    };
-  } catch {
-    return {};
-  }
-}
-
-/* -------------------------------------------------------------------------- */
-/*                            NOTIFICATION CLICK                              */
-/* -------------------------------------------------------------------------- */
-
-self.addEventListener("notificationclick", (event) => {
-  event.notification.close();
-
-  event.waitUntil(handleNotificationClick(event));
-});
-
-async function handleNotificationClick(event) {
-  const notificationData = event.notification?.data || {};
-
-  const destination = adminUrl(notificationData.url || DEFAULT_ADMIN_URL);
-
-  const destinationUrl = new URL(destination, self.location.origin);
-
-  const clients = await self.clients.matchAll({
-    type: "window",
-    includeUncontrolled: true,
-  });
-
-  /**
-   * Prefer an already-open instance of this application.
-   */
-  const existingClient =
-    clients.find((client) => {
-      try {
-        return (
-          new URL(client.url).origin === self.location.origin &&
-          client.visibilityState === "visible"
-        );
-      } catch {
-        return false;
-      }
-    }) ||
-    clients.find((client) => {
-      try {
-        return new URL(client.url).origin === self.location.origin;
-      } catch {
-        return false;
-      }
-    });
-
-  if (existingClient) {
-    const relativeUrl =
-      destinationUrl.pathname + destinationUrl.search + destinationUrl.hash;
-
-    /**
-     * Allow the React app to handle navigation itself if it listens for
-     * service-worker messages.
-     */
-    existingClient.postMessage({
-      type: "NOTIFICATION_CLICK",
-      notificationId: notificationData.notificationId || null,
-      url: relativeUrl,
-      action: event.action || null,
-    });
-
-    /**
-     * client.navigate() gives correct behavior even when the app does not
-     * yet implement the NOTIFICATION_CLICK message handler.
-     */
+async function warmCache(urls) {
+  const cache = await caches.open(SHELL_CACHE);
+  await Promise.allSettled([...new Set(urls)].map(async (url) => {
     try {
-      if ("navigate" in existingClient) {
-        await existingClient.navigate(destinationUrl.href);
-      }
-    } catch {
-      // The postMessage handler may still perform SPA navigation.
-    }
-
-    try {
-      await existingClient.focus();
-    } catch {
-      // Focusing is best-effort.
-    }
-
-    return;
-  }
-
-  if (self.clients.openWindow) {
-    await self.clients.openWindow(destinationUrl.href);
-  }
+      const response = await fetch(url, { cache: url.startsWith("/version.json") ? "no-store" : "reload" });
+      if (response.ok) await cache.put(url, response);
+    } catch {}
+  }));
 }
-
-/* -------------------------------------------------------------------------- */
-/*                           NOTIFICATION CLOSE                               */
-/* -------------------------------------------------------------------------- */
-
-self.addEventListener("notificationclose", (event) => {
-  const data = event.notification?.data || {};
-
-  event.waitUntil(
-    notifyApplicationClients({
-      type: "NOTIFICATION_CLOSED",
-      notificationId: data.notificationId || null,
-    }),
-  );
-});
-
-/* -------------------------------------------------------------------------- */
-/*                        PUSH SUBSCRIPTION CHANGE                            */
-/* -------------------------------------------------------------------------- */
-
-self.addEventListener("pushsubscriptionchange", (event) => {
-  event.waitUntil(
-    notifyApplicationClients({
-      type: "PUSH_SUBSCRIPTION_CHANGED",
-    }),
-  );
-});
-
-/* -------------------------------------------------------------------------- */
-/*                              APP MESSAGING                                 */
-/* -------------------------------------------------------------------------- */
 
 self.addEventListener("message", (event) => {
   const message = event.data;
+  if (!message || typeof message !== "object") return;
 
-  if (!message || typeof message !== "object") {
-    return;
-  }
-
-  switch (message.type) {
-    case "SKIP_WAITING":
-      void self.skipWaiting();
-      break;
-
-    case "CLEAR_NOTIFICATION_CACHE":
-      event.waitUntil(clearRuntimeCache());
-      break;
-
-    case "GET_SW_VERSION":
-      if (event.source) {
-        event.source.postMessage({
-          type: "SW_VERSION",
-          version: CACHE_VERSION,
-          shellCache: SHELL_CACHE,
-          runtimeCache: RUNTIME_CACHE,
-        });
-      }
-      break;
-
-    default:
-      break;
+  if (message.type === "SKIP_WAITING") void self.skipWaiting();
+  if (message.type === "WARM_APP_CACHE") event.waitUntil(warmCache(Array.isArray(message.urls) ? message.urls : []));
+  if (message.type === "CLEAR_RUNTIME_CACHE") event.waitUntil(caches.delete(RUNTIME_CACHE));
+  if (message.type === "GET_SW_VERSION" && event.source) {
+    event.source.postMessage({ type: "SW_VERSION", version: CACHE_VERSION });
   }
 });
 
-/* -------------------------------------------------------------------------- */
-/*                                  HELPERS                                   */
-/* -------------------------------------------------------------------------- */
+self.addEventListener("push", (event) => {
+  event.waitUntil((async () => {
+    const payload = readPushPayload(event);
+    const id = String(payload.notificationId || payload.id || `zanin-${Date.now()}`);
+    const url = safeAppUrl(payload.url || payload.link || DEFAULT_NOTIFICATION_URL);
+    const title = String(payload.title || payload.notification?.title || "زانین");
+    const body = String(payload.body || payload.message || payload.notification?.body || "اعلان جدیدی دارید.");
 
-async function notifyApplicationClients(message) {
-  try {
-    const clients = await self.clients.matchAll({
-      type: "window",
-      includeUncontrolled: true,
+    const windows = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+    await Promise.allSettled(windows.map((client) => client.postMessage({ type: "PUSH_RECEIVED", notificationId: id, url, payload })));
+    if (windows.some((client) => client.visibilityState === "visible")) return;
+
+    await self.registration.showNotification(title, {
+      body,
+      tag: id,
+      icon: safeString(payload.icon) || "/icons/icon-192.png",
+      badge: safeString(payload.badge) || "/icons/icon-192.png",
+      dir: payload.dir === "ltr" ? "ltr" : "rtl",
+      lang: safeString(payload.lang) || "fa",
+      data: { notificationId: id, url },
+      timestamp: typeof payload.timestamp === "number" ? payload.timestamp : Date.now(),
+      silent: Boolean(payload.silent),
+      requireInteraction: Boolean(payload.requireInteraction),
     });
+  })());
+});
 
-    await Promise.allSettled(
-      clients.map((client) => client.postMessage(message)),
-    );
-  } catch {
-    // Messaging failure must not crash the service worker.
-  }
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  event.waitUntil((async () => {
+    const destination = new URL(safeAppUrl(event.notification?.data?.url), self.location.origin);
+    const windows = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+    const existing = windows.find((client) => {
+      try { return new URL(client.url).origin === self.location.origin; } catch { return false; }
+    });
+    if (existing) {
+      try { await existing.navigate(destination.href); } catch {}
+      try { await existing.focus(); } catch {}
+      return;
+    }
+    if (self.clients.openWindow) await self.clients.openWindow(destination.href);
+  })());
+});
+
+self.addEventListener("pushsubscriptionchange", (event) => {
+  event.waitUntil(broadcast({ type: "PUSH_SUBSCRIPTION_CHANGED" }));
+});
+
+function readPushPayload(event) {
+  if (!event.data) return {};
+  try { return event.data.json() || {}; } catch {}
+  try { return { body: event.data.text() }; } catch { return {}; }
 }
 
-async function clearRuntimeCache() {
+function safeAppUrl(value) {
   try {
-    await caches.delete(RUNTIME_CACHE);
-  } catch {
-    // Ignore cache deletion failure.
-  }
+    const url = new URL(typeof value === "string" ? value : DEFAULT_NOTIFICATION_URL, self.location.origin);
+    if (url.origin !== self.location.origin || url.pathname.startsWith("/api/")) return DEFAULT_NOTIFICATION_URL;
+    return `${url.pathname}${url.search}${url.hash}`;
+  } catch { return DEFAULT_NOTIFICATION_URL; }
 }
 
-/**
- * Converts notification destinations into known Admin V2 routes.
- *
- * Important:
- * - External URLs are never allowed.
- * - API URLs are never opened.
- * - Unknown frontend paths fall back to notifications.
- */
-function adminUrl(value) {
-  const fallback = DEFAULT_ADMIN_URL;
-
-  if (typeof value !== "string") {
-    return fallback;
-  }
-
-  const raw = value.trim();
-
-  if (!raw) {
-    return fallback;
-  }
-
-  let parsed;
-
-  try {
-    parsed = new URL(raw, self.location.origin);
-  } catch {
-    return fallback;
-  }
-
-  /**
-   * Never allow a push notification to redirect the admin to another
-   * origin.
-   */
-  if (parsed.origin !== self.location.origin) {
-    return fallback;
-  }
-
-  const pathname = normalizePath(parsed.pathname);
-
-  if (pathname.startsWith("/api/")) {
-    return fallback;
-  }
-
-  let destination;
-
-  if (pathname === "/admin" || pathname.startsWith("/admin/")) {
-    destination = pathname;
-  } else if (
-    pathname.startsWith("/chat") ||
-    pathname.startsWith("/messages") ||
-    pathname.startsWith("/conversation") ||
-    pathname.startsWith("/conversations")
-  ) {
-    destination = "/admin/chat";
-  } else if (pathname.startsWith("/exams") || pathname.startsWith("/exam")) {
-    destination = "/admin/exams";
-  } else if (
-    pathname.startsWith("/plans") ||
-    pathname.startsWith("/plan") ||
-    pathname.startsWith("/planner") ||
-    pathname.startsWith("/schedule")
-  ) {
-    destination = "/admin/planner";
-  } else if (
-    pathname.startsWith("/notifications") ||
-    pathname.startsWith("/notification")
-  ) {
-    destination = "/admin/notifications";
-  } else if (
-    pathname.startsWith("/students") ||
-    pathname.startsWith("/student")
-  ) {
-    destination = pathname.startsWith("/admin/")
-      ? pathname
-      : `/admin${pathname}`;
-  } else if (
-    pathname.startsWith("/reports") ||
-    pathname.startsWith("/report")
-  ) {
-    destination = pathname.startsWith("/admin/")
-      ? pathname
-      : `/admin${pathname}`;
-  } else {
-    destination = fallback;
-  }
-
-  /**
-   * Preserve query parameters and hashes only for routes that are already
-   * inside /admin. This allows links such as:
-   *
-   * /admin/chat?conversation=123
-   */
-  if (pathname.startsWith("/admin/")) {
-    return destination + parsed.search + parsed.hash;
-  }
-
-  return destination;
-}
-
-function normalizePath(pathname) {
-  if (!pathname) {
-    return "/";
-  }
-
-  let path = pathname;
-
-  try {
-    path = decodeURIComponent(pathname);
-  } catch {
-    // Keep original encoded pathname.
-  }
-
-  path = path.replace(/\/{2,}/g, "/");
-
-  if (!path.startsWith("/")) {
-    path = `/${path}`;
-  }
-
-  return path;
-}
-
-function safeString(value) {
-  return typeof value === "string" ? value.trim() : "";
+function safeString(value) { return typeof value === "string" ? value.trim() : ""; }
+async function broadcast(message) {
+  const clients = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+  await Promise.allSettled(clients.map((client) => client.postMessage(message)));
 }

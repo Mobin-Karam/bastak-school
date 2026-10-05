@@ -2,6 +2,7 @@ import http from "node:http";
 import https from "node:https";
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
+import { fileURLToPath } from "node:url";
 
 const backendTargets = {
   local:
@@ -94,5 +95,10 @@ export default defineConfig({
   server: {
     port: 8081,
     strictPort: true,
+  },
+  resolve: {
+    alias: {
+      "@": fileURLToPath(new URL("./src", import.meta.url)),
+    },
   },
 });

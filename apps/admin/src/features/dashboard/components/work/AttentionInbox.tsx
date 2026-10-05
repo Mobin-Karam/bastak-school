@@ -10,12 +10,12 @@ import {
 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { Badge, Button, Card, EmptyState } from "../../../shared/ui/ui";
-import { SegmentedControl } from "../../../shared/ui/segmented-control";
-import { cn } from "../../../shared/lib/utils";
-import { useLocale } from "../../../shared/ui/locale";
-import { dashboardCopy } from "../model/dashboard-copy";
-import type { AttentionSeverity, AttentionStudent } from "../model/dashboard.types";
+import { Badge, Button, Card, EmptyState } from "../../../../shared/ui/ui";
+import { SegmentedControl } from "../../../../shared/ui/segmented-control";
+import { cn } from "../../../../shared/lib/utils";
+import { useLocale } from "../../../../shared/ui/locale";
+import { dashboardCopy } from "../../model/dashboard-copy";
+import type { AttentionSeverity, AttentionStudent } from "../../model/dashboard.types";
 
 type Filter = "all" | "red" | "yellow";
 

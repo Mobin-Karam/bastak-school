@@ -2,6 +2,10 @@
 @tailwind components;
 @tailwind utilities;
 
+/* =========================================================
+   ZANIN FONTS
+   ========================================================= */
+
 @font-face {
   font-family: "Vazirmatn";
   src: url("/fonts/Vazirmatn.woff2") format("woff2");
@@ -10,159 +14,361 @@
   font-display: swap;
 }
 
+/* =========================================================
+   ZANIN DESIGN TOKENS
+   ========================================================= */
+
 :root {
-  /* Twenty-inspired operational density: quiet canvas, clear layers, small radii. */
   --color-ink: 34 35 38;
   --color-paper: 247 247 248;
+
   --color-brand: 15 118 110;
   --color-brand-strong: 17 94 89;
   --color-brand-soft: 220 245 238;
+
   --color-saffron: 180 111 18;
   --color-rosewood: 190 50 72;
+
   --surface-card: 255 255 255;
   --surface-muted: 244 244 245;
   --surface-raised: 255 255 255;
+
   --border-subtle: 228 228 231;
+
   --radius-control: 8px;
   --radius-surface: 8px;
+
   --shadow-surface: 0 1px 2px rgb(24 24 27 / 4%);
+
   --chat-canvas: 238 242 234;
   --chat-incoming: 255 255 252;
   --chat-outgoing: 217 241 232;
+
+  /*
+   * shadcn compatibility aliases.
+   *
+   * They intentionally point to Zanin's existing RGB tokens rather than
+   * introducing a second design system.
+   */
+  --background: var(--color-paper);
+  --foreground: var(--color-ink);
+
+  --card: var(--surface-card);
+  --card-foreground: var(--color-ink);
+
+  --popover: var(--surface-raised);
+  --popover-foreground: var(--color-ink);
+
+  --primary: var(--color-brand);
+  --primary-foreground: 255 255 255;
+
+  --secondary: var(--surface-muted);
+  --secondary-foreground: var(--color-ink);
+
+  --muted: var(--surface-muted);
+  --muted-foreground: 100 116 139;
+
+  --accent: var(--color-brand-soft);
+  --accent-foreground: var(--color-brand-strong);
+
+  --destructive: var(--color-rosewood);
+  --destructive-foreground: 255 255 255;
+
+  --border: var(--border-subtle);
+  --input: var(--border-subtle);
+  --ring: var(--color-brand);
+
+  --radius: var(--radius-control);
+
   color-scheme: light;
+
   font-family: Vazirmatn, Tahoma, Arial, sans-serif;
+
   background: rgb(var(--color-paper));
   accent-color: rgb(var(--color-brand));
 }
+
+/* =========================================================
+   DARK THEME
+   ========================================================= */
 
 :root.dark {
   --color-ink: 244 244 245;
   --color-paper: 24 24 27;
+
   --color-brand: 45 212 191;
   --color-brand-strong: 20 184 166;
   --color-brand-soft: 19 78 70;
+
   --color-saffron: 245 188 86;
   --color-rosewood: 251 113 133;
+
   --surface-card: 39 39 42;
   --surface-muted: 47 47 52;
   --surface-raised: 39 39 42;
+
   --border-subtle: 63 63 70;
+
   --shadow-surface: 0 1px 2px rgb(0 0 0 / 18%);
+
   --chat-canvas: 12 27 24;
   --chat-incoming: 30 43 40;
   --chat-outgoing: 20 75 66;
+
+  --background: var(--color-paper);
+  --foreground: var(--color-ink);
+
+  --card: var(--surface-card);
+  --card-foreground: var(--color-ink);
+
+  --popover: var(--surface-raised);
+  --popover-foreground: var(--color-ink);
+
+  --primary: var(--color-brand);
+  --primary-foreground: 15 23 42;
+
+  --secondary: var(--surface-muted);
+  --secondary-foreground: var(--color-ink);
+
+  --muted: var(--surface-muted);
+  --muted-foreground: 148 163 184;
+
+  --accent: var(--color-brand-soft);
+  --accent-foreground: var(--color-ink);
+
+  --destructive: var(--color-rosewood);
+  --destructive-foreground: 255 255 255;
+
+  --border: var(--border-subtle);
+  --input: var(--border-subtle);
+  --ring: var(--color-brand);
+
   color-scheme: dark;
+
   background: rgb(var(--color-paper));
   accent-color: rgb(var(--color-brand));
 }
 
-/* The active work context changes emphasis, never authorization. Feature pages
-   keep one visual system while each role gets a recognizable accent. */
+/* =========================================================
+   ROLE ACCENTS
+   ========================================================= */
+
 .admin-role-shell[data-role="GUARDIAN"] {
   --color-brand: 190 50 90;
   --color-brand-strong: 159 18 57;
   --color-brand-soft: 255 228 230;
 }
+
 .admin-role-shell[data-role="ADVISOR"] {
   --color-brand: 15 118 110;
   --color-brand-strong: 17 94 89;
   --color-brand-soft: 204 251 241;
 }
+
 .admin-role-shell[data-role="TEACHER"] {
   --color-brand: 2 132 199;
   --color-brand-strong: 3 105 161;
   --color-brand-soft: 224 242 254;
 }
+
 .admin-role-shell[data-role="MENTOR"] {
   --color-brand: 180 83 9;
   --color-brand-strong: 146 64 14;
   --color-brand-soft: 254 243 199;
 }
+
 .admin-role-shell[data-role="CONTENT_MANAGER"] {
   --color-brand: 194 65 12;
   --color-brand-strong: 154 52 18;
   --color-brand-soft: 255 237 213;
 }
+
 .admin-role-shell[data-role="ORGANIZATION_ADMIN"] {
   --color-brand: 37 99 235;
   --color-brand-strong: 29 78 216;
   --color-brand-soft: 219 234 254;
 }
+
 .admin-role-shell[data-role="PLATFORM_ADMIN"] {
   --color-brand: 79 70 229;
   --color-brand-strong: 67 56 202;
   --color-brand-soft: 224 231 255;
 }
 
+/* Dark role accents */
+
 .dark .admin-role-shell[data-role="GUARDIAN"] {
   --color-brand: 251 113 133;
   --color-brand-strong: 244 63 94;
   --color-brand-soft: 76 5 25;
 }
+
 .dark .admin-role-shell[data-role="ADVISOR"] {
   --color-brand: 45 212 191;
   --color-brand-strong: 20 184 166;
   --color-brand-soft: 19 78 74;
 }
+
 .dark .admin-role-shell[data-role="TEACHER"] {
   --color-brand: 56 189 248;
   --color-brand-strong: 14 165 233;
   --color-brand-soft: 12 74 110;
 }
+
 .dark .admin-role-shell[data-role="MENTOR"] {
   --color-brand: 251 191 36;
   --color-brand-strong: 245 158 11;
   --color-brand-soft: 69 26 3;
 }
+
 .dark .admin-role-shell[data-role="CONTENT_MANAGER"] {
   --color-brand: 251 146 60;
   --color-brand-strong: 249 115 22;
   --color-brand-soft: 67 20 7;
 }
+
 .dark .admin-role-shell[data-role="ORGANIZATION_ADMIN"] {
   --color-brand: 96 165 250;
   --color-brand-strong: 59 130 246;
   --color-brand-soft: 23 37 84;
 }
+
 .dark .admin-role-shell[data-role="PLATFORM_ADMIN"] {
   --color-brand: 129 140 248;
   --color-brand-strong: 99 102 241;
   --color-brand-soft: 30 27 75;
 }
 
+/* =========================================================
+   BASE
+   ========================================================= */
+
+@layer base {
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+  }
+
+  html {
+    min-width: 320px;
+    min-height: 100%;
+    font-family: Vazirmatn, Tahoma, Arial, sans-serif;
+
+    background-color: rgb(var(--color-paper));
+
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body {
+    margin: 0;
+    min-width: 320px;
+    min-height: 100dvh;
+
+    color: rgb(var(--color-ink));
+    background-color: rgb(var(--color-paper));
+
+    font-family: Vazirmatn, Tahoma, Arial, sans-serif;
+
+    font-variation-settings: "wght" 400;
+
+    scrollbar-width: thin;
+    scrollbar-color: transparent transparent;
+  }
+
+  button,
+  input,
+  select,
+  textarea {
+    font: inherit;
+  }
+
+  button,
+  [role="button"],
+  a,
+  input,
+  select,
+  textarea {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  button:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]),
+  a[href],
+  label[for],
+  select {
+    cursor: pointer;
+  }
+
+  button:disabled,
+  input:disabled,
+  select:disabled,
+  textarea:disabled {
+    cursor: not-allowed;
+  }
+
+  strong,
+  b,
+  h1,
+  h2,
+  h3,
+  h4 {
+    font-variation-settings: "wght" 700;
+  }
+
+  img,
+  picture,
+  video,
+  canvas,
+  svg {
+    max-width: 100%;
+  }
+
+  input,
+  select,
+  textarea {
+    border-radius: var(--radius-control);
+  }
+
+  ::selection {
+    color: #134e4a;
+    background: #bce8db;
+  }
+
+  .dark ::selection {
+    color: #f0fdfa;
+    background: #0f766e;
+  }
+
+  :focus-visible {
+    outline: 2px solid rgb(var(--color-brand));
+    outline-offset: 2px;
+  }
+}
+
+/* =========================================================
+   ADMIN WORKSPACE
+   ========================================================= */
+
 .admin-page-shell > * {
   animation: admin-page-enter 180ms ease-out;
 }
 
-@keyframes admin-page-enter {
-  from {
-    opacity: 0;
-    transform: translateY(4px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+.admin-page-shell :where(table) {
+  border-collapse: separate;
+  border-spacing: 0;
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .admin-page-shell > * {
-    animation: none;
-  }
+.admin-page-shell :where(input, select, textarea) {
+  border-radius: var(--radius-control);
 }
 
-* {
-  box-sizing: border-box;
-}
+/*
+ * Keep legacy feature surfaces aligned with the compact Zanin geometry.
+ */
 
-:focus-visible {
-  outline: 2px solid rgb(var(--color-brand));
-  outline-offset: 2px;
-}
-
-/* Legacy feature views still carry Tailwind's large radius utilities. Keep
-   every product surface on the compact CRM geometry without changing their
-   behavior or introducing feature-specific overrides. */
 .admin-role-shell .rounded-xl,
 .admin-role-shell .rounded-2xl,
 .admin-role-shell .rounded-3xl {
@@ -175,26 +381,40 @@
   box-shadow: var(--shadow-surface);
 }
 
-button,
-[role="button"],
-a,
-input,
-select,
-textarea {
-  -webkit-tap-highlight-color: transparent;
+/* =========================================================
+   PAGE MOTION
+   ========================================================= */
+
+@keyframes admin-page-enter {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
-body {
-  margin: 0;
-  min-width: 320px;
-  min-height: 100dvh;
-  color: rgb(var(--color-ink));
-  background: rgb(var(--color-paper));
-  font-family: Vazirmatn, Tahoma, Arial, sans-serif;
-  font-variation-settings: "wght" 400;
-  scrollbar-width: thin;
-  scrollbar-color: transparent transparent;
+@media (prefers-reduced-motion: reduce) {
+  .admin-page-shell > * {
+    animation: none;
+  }
+
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }
+
+/* =========================================================
+   SCROLLBARS
+   ========================================================= */
 
 .scroll-reveal {
   scrollbar-gutter: stable;
@@ -202,24 +422,6 @@ body {
   scrollbar-color: transparent transparent;
 }
 
-.collection-toolbar {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.collection-toolbar > * {
-  min-width: 0;
-}
-
-.dark body {
-  color: rgb(var(--color-ink));
-  background: rgb(var(--color-paper));
-}
-
-/* Pages stay naturally scrollable. The viewport bar is deliberately quiet until
-   the user scrolls, hovers the page, or moves focus through it. */
 html.is-scrolling :is(body, .scroll-reveal),
 :is(body, .scroll-reveal):hover,
 :is(body, .scroll-reveal):focus-within {
@@ -253,266 +455,32 @@ html.is-scrolling :is(body, .scroll-reveal)::-webkit-scrollbar-thumb,
   }
 }
 
-/* Shared data-surface vocabulary: lists should read as one continuous workspace. */
-.admin-page-shell :where(table) {
-  border-collapse: separate;
-  border-spacing: 0;
+/* =========================================================
+   COLLECTIONS
+   ========================================================= */
+
+.collection-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
 }
 
-.admin-page-shell :where(input, select, textarea) {
-  border-radius: var(--radius-control);
+.collection-toolbar > * {
+  min-width: 0;
 }
 
-.dark ::selection {
-  color: #f0fdfa;
-  background: #0f766e;
-}
-
-@layer utilities {
-  /* A slightly muted canvas and card white reduce glare during long sessions. */
-  .bg-paper {
-    background-color: rgb(var(--color-paper));
-  }
-  .text-ink {
-    color: rgb(var(--color-ink));
-  }
-  .bg-white {
-    background-color: rgb(var(--surface-card));
-  }
-  .bg-white\/90 {
-    background-color: rgb(var(--surface-card) / 92%);
-  }
-
-  .dark .bg-paper {
-    background-color: rgb(var(--color-paper));
-  }
-  .dark .text-ink {
-    color: rgb(var(--color-ink));
-  }
-  .dark .text-brand {
-    color: rgb(var(--color-brand));
-  }
-  .dark .bg-brand {
-    background-color: rgb(var(--color-brand-strong));
-  }
-  .dark .border-brand {
-    border-color: rgb(var(--color-brand));
-  }
-  .dark .ring-brand {
-    --tw-ring-color: rgb(var(--color-brand));
-  }
-
-  .dark .bg-white {
-    background-color: rgb(var(--surface-card));
-  }
-  .dark .bg-white\/90 {
-    background-color: rgb(var(--surface-card) / 94%);
-  }
-  .dark .bg-white\/95 {
-    background-color: rgb(var(--surface-card) / 97%);
-  }
-  .dark .bg-white\/80 {
-    background-color: rgb(var(--surface-card) / 86%);
-  }
-  .dark .bg-white\/70 {
-    background-color: rgb(var(--surface-card) / 78%);
-  }
-  .dark .bg-slate-50 {
-    background-color: rgb(var(--surface-muted));
-  }
-  .dark .bg-slate-50\/95 {
-    background-color: rgb(var(--surface-muted) / 96%);
-  }
-  .dark .bg-slate-50\/70 {
-    background-color: rgb(var(--surface-muted) / 76%);
-  }
-  .dark .bg-slate-50\/40 {
-    background-color: rgb(var(--surface-muted) / 48%);
-  }
-  .dark .bg-slate-100 {
-    background-color: rgb(var(--surface-raised));
-  }
-  .dark .bg-slate-100\/80 {
-    background-color: rgb(var(--surface-raised) / 86%);
-  }
-  .dark .bg-slate-200 {
-    background-color: #3a514a;
-  }
-  .dark .bg-slate-300 {
-    background-color: #506a62;
-  }
-  .dark .bg-indigo-50 {
-    background-color: rgb(88 70 150 / 24%);
-  }
-  .dark .bg-indigo-50\/70 {
-    background-color: rgb(88 70 150 / 18%);
-  }
-  .dark .bg-indigo-100 {
-    background-color: rgb(88 70 150 / 32%);
-  }
-
-  .dark .border-slate-100 {
-    border-color: #30463f;
-  }
-  .dark .border-slate-200 {
-    border-color: rgb(var(--border-subtle));
-  }
-  .dark .border-slate-300 {
-    border-color: #506a62;
-  }
-  .dark .ring-slate-200 {
-    --tw-ring-color: rgb(var(--border-subtle));
-  }
-  .dark .divide-slate-100 > :not([hidden]) ~ :not([hidden]) {
-    border-color: #30463f;
-  }
-  .dark .divide-slate-200 > :not([hidden]) ~ :not([hidden]) {
-    border-color: rgb(var(--border-subtle));
-  }
-
-  .dark .text-slate-400 {
-    color: #8da39b;
-  }
-  .dark .text-slate-500 {
-    color: #a9bbb5;
-  }
-  .dark .text-slate-600 {
-    color: #c2d0cb;
-  }
-  .dark .text-slate-700 {
-    color: #d3ded9;
-  }
-  .dark .text-slate-800 {
-    color: #e1ebe6;
-  }
-
-  .dark .bg-rose-50 {
-    background-color: rgb(136 19 55 / 28%);
-  }
-  .dark .bg-rose-50\/30 {
-    background-color: rgb(136 19 55 / 18%);
-  }
-  .dark .bg-rose-50\/40 {
-    background-color: rgb(136 19 55 / 22%);
-  }
-  .dark .bg-rose-100 {
-    background-color: rgb(159 18 57 / 38%);
-  }
-  .dark .border-rose-200 {
-    border-color: #9f3757;
-  }
-  .dark .text-rose-600,
-  .dark .text-rose-700,
-  .dark .text-rose-800 {
-    color: #f3a6b5;
-  }
-  .dark .bg-amber-50 {
-    background-color: rgb(120 53 15 / 28%);
-  }
-  .dark .bg-amber-50\/50 {
-    background-color: rgb(120 53 15 / 22%);
-  }
-  .dark .border-amber-200 {
-    border-color: #92400e;
-  }
-  .dark .text-amber-600,
-  .dark .text-amber-700,
-  .dark .text-amber-800 {
-    color: #eacb78;
-  }
-  .dark .bg-emerald-50 {
-    background-color: rgb(6 78 59 / 30%);
-  }
-  .dark .bg-emerald-50\/50 {
-    background-color: rgb(6 78 59 / 24%);
-  }
-  .dark .bg-emerald-100 {
-    background-color: rgb(6 95 70 / 38%);
-  }
-  .dark .border-emerald-200 {
-    border-color: #047857;
-  }
-  .dark .text-emerald-600,
-  .dark .text-emerald-700,
-  .dark .text-emerald-800 {
-    color: #78d8b1;
-  }
-  .dark .bg-sky-50 {
-    background-color: rgb(7 89 133 / 28%);
-  }
-  .dark .border-sky-200 {
-    border-color: #0369a1;
-  }
-  .dark .text-sky-600,
-  .dark .text-sky-700,
-  .dark .text-sky-800 {
-    color: #7dd3fc;
-  }
-  .dark .bg-teal-50 {
-    background-color: rgb(17 94 89 / 28%);
-  }
-  .dark .border-teal-200 {
-    border-color: #0f766e;
-  }
-  .dark .text-teal-600,
-  .dark .text-teal-700,
-  .dark .text-teal-800 {
-    color: #5eead4;
-  }
-
-  .dark .hover\:bg-white:hover {
-    background-color: rgb(var(--surface-raised));
-  }
-  .dark .hover\:bg-white\/70:hover {
-    background-color: rgb(var(--surface-raised) / 82%);
-  }
-  .dark .hover\:bg-slate-50:hover {
-    background-color: rgb(var(--surface-raised));
-  }
-  .dark .hover\:bg-slate-100:hover {
-    background-color: #2b423c;
-  }
-  .dark .hover\:bg-indigo-50:hover {
-    background-color: rgb(79 70 165 / 36%);
-  }
-  .dark .hover\:bg-rose-50:hover {
-    background-color: rgb(136 19 55 / 38%);
-  }
-  .dark .hover\:text-ink:hover {
-    color: #f0fdfa;
-  }
-
-  .dark input,
-  .dark select,
-  .dark textarea {
-    color: rgb(var(--color-ink));
-    background-color: rgb(var(--surface-card));
-    border-color: #506a62;
-  }
-  .dark input::placeholder,
-  .dark textarea::placeholder {
-    color: #82978f;
-  }
-  .dark option {
-    color: rgb(var(--color-ink));
-    background: rgb(var(--surface-card));
-  }
-}
-
-::selection {
-  color: #134e4a;
-  background: #bce8db;
-}
-
-:focus-visible {
-  outline-color: rgb(var(--color-brand));
-}
+/* =========================================================
+   CHAT
+   ========================================================= */
 
 .chat-canvas {
   background-color: rgb(var(--chat-canvas));
+
   background-image:
     radial-gradient(circle at 20% 25%, rgb(var(--color-brand) / 5%) 0 1px, transparent 1.5px),
     radial-gradient(circle at 75% 70%, rgb(var(--color-saffron) / 5%) 0 1px, transparent 1.5px);
+
   background-size:
     28px 28px,
     36px 36px;
@@ -521,28 +489,381 @@ html.is-scrolling :is(body, .scroll-reveal)::-webkit-scrollbar-thumb,
 .chat-bubble-incoming {
   background-color: rgb(var(--chat-incoming));
 }
+
 .chat-bubble-outgoing {
   background-color: rgb(var(--chat-outgoing));
 }
+
 .chat-surface {
   background-color: rgb(var(--surface-card));
 }
+
 .chat-surface-muted {
   background-color: rgb(var(--surface-muted));
 }
 
-button,
-input,
-select,
-textarea {
-  font: inherit;
+/* =========================================================
+   ZANIN UTILITIES
+   ========================================================= */
+
+@layer utilities {
+  .bg-paper {
+    background-color: rgb(var(--color-paper));
+  }
+
+  .text-ink {
+    color: rgb(var(--color-ink));
+  }
+
+  /*
+   * These intentionally adapt old hard-coded white surfaces to the
+   * application surface tokens.
+   */
+
+  .bg-white {
+    background-color: rgb(var(--surface-card));
+  }
+
+  .bg-white\/90 {
+    background-color: rgb(var(--surface-card) / 92%);
+  }
+
+  /* ---------------------------------------------------------
+     DARK MODE
+     --------------------------------------------------------- */
+
+  .dark .bg-paper {
+    background-color: rgb(var(--color-paper));
+  }
+
+  .dark .text-ink {
+    color: rgb(var(--color-ink));
+  }
+
+  .dark .text-brand {
+    color: rgb(var(--color-brand));
+  }
+
+  .dark .bg-brand {
+    background-color: rgb(var(--color-brand-strong));
+  }
+
+  .dark .border-brand {
+    border-color: rgb(var(--color-brand));
+  }
+
+  .dark .ring-brand {
+    --tw-ring-color: rgb(var(--color-brand));
+  }
+
+  /* Surfaces */
+
+  .dark .bg-white {
+    background-color: rgb(var(--surface-card));
+  }
+
+  .dark .bg-white\/90 {
+    background-color: rgb(var(--surface-card) / 94%);
+  }
+
+  .dark .bg-white\/95 {
+    background-color: rgb(var(--surface-card) / 97%);
+  }
+
+  .dark .bg-white\/80 {
+    background-color: rgb(var(--surface-card) / 86%);
+  }
+
+  .dark .bg-white\/70 {
+    background-color: rgb(var(--surface-card) / 78%);
+  }
+
+  .dark .bg-slate-50 {
+    background-color: rgb(var(--surface-muted));
+  }
+
+  .dark .bg-slate-50\/95 {
+    background-color: rgb(var(--surface-muted) / 96%);
+  }
+
+  .dark .bg-slate-50\/70 {
+    background-color: rgb(var(--surface-muted) / 76%);
+  }
+
+  .dark .bg-slate-50\/40 {
+    background-color: rgb(var(--surface-muted) / 48%);
+  }
+
+  .dark .bg-slate-100 {
+    background-color: rgb(var(--surface-raised));
+  }
+
+  .dark .bg-slate-100\/80 {
+    background-color: rgb(var(--surface-raised) / 86%);
+  }
+
+  .dark .bg-slate-200 {
+    background-color: #3a514a;
+  }
+
+  .dark .bg-slate-300 {
+    background-color: #506a62;
+  }
+
+  /* Indigo */
+
+  .dark .bg-indigo-50 {
+    background-color: rgb(88 70 150 / 24%);
+  }
+
+  .dark .bg-indigo-50\/70 {
+    background-color: rgb(88 70 150 / 18%);
+  }
+
+  .dark .bg-indigo-100 {
+    background-color: rgb(88 70 150 / 32%);
+  }
+
+  /* Borders */
+
+  .dark .border-slate-100 {
+    border-color: #30463f;
+  }
+
+  .dark .border-slate-200 {
+    border-color: rgb(var(--border-subtle));
+  }
+
+  .dark .border-slate-300 {
+    border-color: #506a62;
+  }
+
+  .dark .ring-slate-200 {
+    --tw-ring-color: rgb(var(--border-subtle));
+  }
+
+  .dark .divide-slate-100 > :not([hidden]) ~ :not([hidden]) {
+    border-color: #30463f;
+  }
+
+  .dark .divide-slate-200 > :not([hidden]) ~ :not([hidden]) {
+    border-color: rgb(var(--border-subtle));
+  }
+
+  /* Text */
+
+  .dark .text-slate-400 {
+    color: #8da39b;
+  }
+
+  .dark .text-slate-500 {
+    color: #a9bbb5;
+  }
+
+  .dark .text-slate-600 {
+    color: #c2d0cb;
+  }
+
+  .dark .text-slate-700 {
+    color: #d3ded9;
+  }
+
+  .dark .text-slate-800 {
+    color: #e1ebe6;
+  }
+
+  /* Rose */
+
+  .dark .bg-rose-50 {
+    background-color: rgb(136 19 55 / 28%);
+  }
+
+  .dark .bg-rose-50\/30 {
+    background-color: rgb(136 19 55 / 18%);
+  }
+
+  .dark .bg-rose-50\/40 {
+    background-color: rgb(136 19 55 / 22%);
+  }
+
+  .dark .bg-rose-100 {
+    background-color: rgb(159 18 57 / 38%);
+  }
+
+  .dark .border-rose-200 {
+    border-color: #9f3757;
+  }
+
+  .dark .text-rose-600,
+  .dark .text-rose-700,
+  .dark .text-rose-800 {
+    color: #f3a6b5;
+  }
+
+  /* Amber */
+
+  .dark .bg-amber-50 {
+    background-color: rgb(120 53 15 / 28%);
+  }
+
+  .dark .bg-amber-50\/50 {
+    background-color: rgb(120 53 15 / 22%);
+  }
+
+  .dark .border-amber-200 {
+    border-color: #92400e;
+  }
+
+  .dark .text-amber-600,
+  .dark .text-amber-700,
+  .dark .text-amber-800 {
+    color: #eacb78;
+  }
+
+  /* Emerald */
+
+  .dark .bg-emerald-50 {
+    background-color: rgb(6 78 59 / 30%);
+  }
+
+  .dark .bg-emerald-50\/50 {
+    background-color: rgb(6 78 59 / 24%);
+  }
+
+  .dark .bg-emerald-100 {
+    background-color: rgb(6 95 70 / 38%);
+  }
+
+  .dark .border-emerald-200 {
+    border-color: #047857;
+  }
+
+  .dark .text-emerald-600,
+  .dark .text-emerald-700,
+  .dark .text-emerald-800 {
+    color: #78d8b1;
+  }
+
+  /* Sky */
+
+  .dark .bg-sky-50 {
+    background-color: rgb(7 89 133 / 28%);
+  }
+
+  .dark .border-sky-200 {
+    border-color: #0369a1;
+  }
+
+  .dark .text-sky-600,
+  .dark .text-sky-700,
+  .dark .text-sky-800 {
+    color: #7dd3fc;
+  }
+
+  /* Teal */
+
+  .dark .bg-teal-50 {
+    background-color: rgb(17 94 89 / 28%);
+  }
+
+  .dark .border-teal-200 {
+    border-color: #0f766e;
+  }
+
+  .dark .text-teal-600,
+  .dark .text-teal-700,
+  .dark .text-teal-800 {
+    color: #5eead4;
+  }
+
+  /* Hover */
+
+  .dark .hover\:bg-white:hover {
+    background-color: rgb(var(--surface-raised));
+  }
+
+  .dark .hover\:bg-white\/70:hover {
+    background-color: rgb(var(--surface-raised) / 82%);
+  }
+
+  .dark .hover\:bg-slate-50:hover {
+    background-color: rgb(var(--surface-raised));
+  }
+
+  .dark .hover\:bg-slate-100:hover {
+    background-color: #2b423c;
+  }
+
+  .dark .hover\:bg-indigo-50:hover {
+    background-color: rgb(79 70 165 / 36%);
+  }
+
+  .dark .hover\:bg-rose-50:hover {
+    background-color: rgb(136 19 55 / 38%);
+  }
+
+  .dark .hover\:text-ink:hover {
+    color: #f0fdfa;
+  }
+
+  /* Form controls */
+
+  .dark input,
+  .dark select,
+  .dark textarea {
+    color: rgb(var(--color-ink));
+    background-color: rgb(var(--surface-card));
+    border-color: #506a62;
+  }
+
+  .dark input::placeholder,
+  .dark textarea::placeholder {
+    color: #82978f;
+  }
+
+  .dark option {
+    color: rgb(var(--color-ink));
+    background-color: rgb(var(--surface-card));
+  }
 }
 
-strong,
-b,
-h1,
-h2,
-h3,
-h4 {
-  font-variation-settings: "wght" 700;
+/* =========================================================
+   MOBILE / TOUCH
+   ========================================================= */
+
+@media (max-width: 639px) {
+  button,
+  [role="button"],
+  a,
+  input,
+  select,
+  textarea {
+    touch-action: manipulation;
+  }
+
+  input,
+  select,
+  textarea {
+    font-size: 16px;
+  }
+}
+
+/* =========================================================
+   SAFE AREAS — PWA / MOBILE
+   ========================================================= */
+
+.safe-area-top {
+  padding-top: env(safe-area-inset-top);
+}
+
+.safe-area-bottom {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.safe-area-start {
+  padding-inline-start: env(safe-area-inset-left);
+}
+
+.safe-area-end {
+  padding-inline-end: env(safe-area-inset-right);
 }

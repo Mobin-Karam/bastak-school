@@ -1,8 +1,8 @@
 import { Database, ShieldCheck, ServerCog } from "lucide-react";
-import { Badge, Card } from "../../../shared/ui/ui";
-import { useLocale } from "../../../shared/ui/locale";
-import { dashboardCopy } from "../model/dashboard-copy";
-import type { RoleDashboardData } from "../model/dashboard.types";
+import { Badge, Card } from "../../../../shared/ui/ui";
+import { useLocale } from "../../../../shared/ui/locale";
+import { dashboardCopy } from "../../model/dashboard-copy";
+import type { RoleDashboardData } from "../../model/dashboard.types";
 
 export function PlatformHealthPanel({ data }: { data: RoleDashboardData }) {
   const { language } = useLocale();
