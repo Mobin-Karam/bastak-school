@@ -1,0 +1,86 @@
+import { cleanup, render, screen } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import type { ReactElement } from "react";
+import { RetryRequestsPanel } from "./exams/components/RetryRequestsPanel";
+import { LearningHeader } from "./learning/components/LearningHeader";
+import { LearningRow } from "./learning/components/LearningRow";
+import { QuestionsSelector } from "./questions/components/QuestionsSelector";
+import { LocaleProvider } from "../shared/ui/locale";
+
+function renderWithLocale(node: ReactElement) {
+  return render(<LocaleProvider>{node}</LocaleProvider>);
+}
+
+afterEach(cleanup);
+
+describe("read-only role controls", () => {
+  it("does not expose learning creation without a create capability", () => {
+    renderWithLocale(<LearningHeader students={[]} studentId="" onStudentChange={vi.fn()} />);
+
+    expect(screen.queryByRole("button", { name: /مرور جدید/ })).not.toBeInTheDocument();
+  });
+
+  it("keeps learning history available without exposing mutation controls", () => {
+    renderWithLocale(
+      <LearningRow
+        item={{
+          id: "learning-1",
+          studentId: "student-1",
+          subject: "ریاضی",
+          book: "",
+          chapter: "",
+          lesson: "",
+          topic: "",
+          title: "مرور مشتق",
+          note: "",
+          hint: "",
+          dueDate: "2026-09-20",
+          intervalDays: 2,
+          reviewCount: 1,
+          mastery: 3,
+          status: "pending",
+        }}
+        formatDate={() => "۲۹ شهریور"}
+        onHistory={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByRole("button", { name: "تاریخچه مرور" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "ثبت مرور" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "ویرایش" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "حذف" })).not.toBeInTheDocument();
+  });
+
+  it("shows retry state without moderation actions", () => {
+    renderWithLocale(
+      <RetryRequestsPanel
+        requests={[{ id: "retry-1", examTitle: "آزمون آزمایشی", status: "pending" }]}
+      />,
+    );
+
+    expect(screen.getByText("در انتظار بررسی مشاور")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "تأیید" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "رد" })).not.toBeInTheDocument();
+  });
+
+  it("does not expose the optional student directory to a questions-only role", () => {
+    renderWithLocale(
+      <QuestionsSelector
+        students={[]}
+        showStudentPicker={false}
+        showExamsLink={false}
+        studentId=""
+        setStudentId={vi.fn()}
+        examId=""
+        setExamId={vi.fn()}
+        exams={[]}
+        loading={false}
+        error={false}
+        questionCount={0}
+      />,
+    );
+
+    expect(screen.queryByText("دانش‌آموز (اختیاری)")).not.toBeInTheDocument();
+    expect(screen.getByText("آزمون")).toBeInTheDocument();
+  });
+});

@@ -1,0 +1,69 @@
+import { cleanup, render, screen, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { Student } from "../types/domain";
+import { StudentPicker } from "./StudentPicker";
+import { LocaleProvider } from "./locale";
+
+const students: Student[] = Array.from({ length: 100 }, (_, index) => ({
+  id: `student-${index + 1}`,
+  name: index === 74 ? "دانش‌آموز هدف" : `دانش‌آموز ${index + 1}`,
+  grade: index % 2 ? "دوازدهم" : "یازدهم",
+  major: index % 3 ? "تجربی" : "ریاضی",
+  due_learning_count: index === 74 ? 4 : 0,
+}));
+
+describe("StudentPicker at cohort scale", () => {
+  beforeEach(() => localStorage.clear());
+  afterEach(cleanup);
+
+  it("searches 100 students without rendering the entire roster initially", async () => {
+    const user = userEvent.setup(),
+      onChange = vi.fn();
+    render(<StudentPicker students={students} value="student-1" onChange={onChange} />);
+    await user.click(screen.getByRole("button", { name: /دانش‌آموز انتخاب‌شده/ }));
+    expect(screen.getByText("۱۰۰ حساب در دسترس")).toBeInTheDocument();
+    const list = screen.getByRole("listbox");
+    expect(within(list).getAllByRole("option")).toHaveLength(40);
+    await user.type(screen.getByPlaceholderText(/نام، نام کاربری/), "دانش‌آموز هدف");
+    await user.click(within(list).getByRole("option", { name: /دانش‌آموز هدف/ }));
+    expect(onChange).toHaveBeenCalledWith("student-75");
+    expect(localStorage.getItem("admin-recent-student-ids")).toContain("student-75");
+  });
+
+  it("filters students requiring attention", async () => {
+    const user = userEvent.setup();
+    render(<StudentPicker students={students} value="student-1" onChange={() => undefined} />);
+    await user.click(screen.getByRole("button", { name: /دانش‌آموز انتخاب‌شده/ }));
+    await user.click(screen.getByRole("button", { name: "نیازمند توجه" }));
+    expect(screen.getByRole("option", { name: /دانش‌آموز هدف/ })).toBeInTheDocument();
+    expect(within(screen.getByRole("listbox")).getAllByRole("option")).toHaveLength(1);
+  });
+
+  it("moves through options with RTL-safe keyboard navigation", async () => {
+    const user = userEvent.setup();
+    render(<StudentPicker students={students.slice(0, 3)} value="" onChange={() => undefined} />);
+    await user.click(screen.getByRole("button", { name: "انتخاب دانش‌آموز" }));
+    const search = screen.getByPlaceholderText(/نام، نام کاربری/);
+    await user.type(search, "{ArrowDown}");
+    expect(within(screen.getByRole("listbox")).getAllByRole("option")[0]).toHaveFocus();
+    await user.keyboard("{ArrowDown}");
+    expect(within(screen.getByRole("listbox")).getAllByRole("option")[1]).toHaveFocus();
+    await user.keyboard("{End}");
+    expect(within(screen.getByRole("listbox")).getAllByRole("option")[2]).toHaveFocus();
+  });
+
+  it("uses English labels and LTR-safe text when the international workspace is active", async () => {
+    localStorage.setItem("moshaver-admin-location", "international");
+    const user = userEvent.setup();
+    render(
+      <LocaleProvider>
+        <StudentPicker students={students.slice(0, 2)} value="" onChange={() => undefined} />
+      </LocaleProvider>,
+    );
+    await user.click(screen.getByRole("button", { name: "Select student" }));
+    expect(screen.getByText("2 available accounts")).toBeInTheDocument();
+    expect(screen.getByRole("listbox", { name: "Student list" })).toBeInTheDocument();
+    expect(screen.getByPlaceholderText("Name, username, grade, or subject…")).toBeInTheDocument();
+  });
+});

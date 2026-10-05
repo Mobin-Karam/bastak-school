@@ -1,0 +1,43 @@
+:root {
+  --primary: 22 128 91;
+  --primary-hover: 4 120 87;
+  --primary-soft: 232 248 241;
+  --background: 246 248 252;
+  --background-subtle: 240 244 250;
+  --surface: 255 255 255;
+  --surface-muted: 245 248 252;
+  --text-primary: 20 36 61;
+  --text-secondary: 71 85 105;
+  --text-muted: 100 116 139;
+  --border: 224 230 239;
+  --border-strong: 198 209 224;
+  --success: 22 163 74;
+  --warning: 217 119 6;
+  --danger: 220 38 38;
+  --info: 14 116 144;
+  --s1: 4px; --s2: 8px; --s3: 12px; --s4: 16px;
+  --s5: 20px; --s6: 24px; --s8: 32px; --s10: 40px;
+  --r-sm: 8px; --r-md: 12px; --r-lg: 16px; --r-xl: 20px; --r-pill: 999px;
+  --shadow-sm: 0 1px 2px rgb(15 23 42 / 0.04);
+  --shadow-card: 0 8px 24px rgb(30 64 175 / 0.06);
+  --shadow-floating: 0 16px 40px rgb(15 23 42 / 0.14);
+}
+
+.dark {
+  --primary: 52 211 153;
+  --primary-hover: 110 231 183;
+  --primary-soft: 20 66 54;
+  --background: 12 20 34;
+  --background-subtle: 17 28 46;
+  --surface: 23 36 58;
+  --surface-muted: 31 46 68;
+  --text-primary: 239 246 255;
+  --text-secondary: 194 207 226;
+  --text-muted: 145 162 185;
+  --border: 49 67 91;
+  --border-strong: 71 91 117;
+  --success: 74 222 128;
+  --warning: 251 191 36;
+  --danger: 248 113 113;
+  --info: 103 232 249;
+}

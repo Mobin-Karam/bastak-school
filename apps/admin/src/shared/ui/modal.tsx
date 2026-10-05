@@ -1,0 +1,448 @@
+import { X } from "lucide-react";
+import {
+  createContext,
+  ReactNode,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import { createPortal } from "react-dom";
+import { cn } from "../lib/utils";
+import { Button } from "./ui";
+import { SoftConfirmButton } from "./soft-confirmation-button";
+import { useSharedUiCopy } from "./locale";
+
+export type ModalSize = "sm" | "md" | "lg" | "xl";
+export type ModalTone = "default" | "danger";
+
+export type ModalOptions = {
+  title: ReactNode;
+  description?: ReactNode;
+  content?: ReactNode;
+
+  size?: ModalSize;
+  tone?: ModalTone;
+
+  confirmLabel?: string;
+  cancelLabel?: string;
+  /** Exact phrase required before a sensitive confirmation is enabled. */
+  confirmationText?: string;
+
+  showCancel?: boolean;
+  dismissible?: boolean;
+
+  softConfirm?: boolean;
+  softConfirmDuration?: number;
+
+  // new
+  softConfirmProgressColor?: string;
+  softConfirmBackgroundColor?: string;
+
+  onConfirm?: () => void | boolean | Promise<void | boolean>;
+};
+
+type ModalContextValue = {
+  open: (options: ModalOptions) => void;
+  close: () => void;
+  confirm: (options: Omit<ModalOptions, "onConfirm">) => Promise<boolean>;
+};
+
+type ActiveModal = ModalOptions & {
+  resolve?: (result: boolean) => void;
+  parent?: ActiveModal | null;
+};
+
+const ModalContext = createContext<ModalContextValue | null>(null);
+
+export function ModalProvider({ children }: { children: ReactNode }) {
+  const copy = useSharedUiCopy();
+  const [active, setActive] = useState<ActiveModal | null>(null);
+
+  const activeRef = useRef<ActiveModal | null>(null);
+
+  const settle = useCallback((result: boolean) => {
+    const current = activeRef.current;
+
+    current?.resolve?.(result);
+
+    activeRef.current = current?.parent || null;
+
+    setActive(current?.parent || null);
+  }, []);
+
+  const value = useMemo<ModalContextValue>(
+    () => ({
+      open(options) {
+        activeRef.current?.resolve?.(false);
+
+        const next = {
+          dismissible: true,
+          showCancel: false,
+          size: "md" as const,
+          ...options,
+        };
+
+        activeRef.current = next;
+
+        setActive(next);
+      },
+
+      close() {
+        settle(false);
+      },
+
+      confirm(options) {
+        activeRef.current?.resolve?.(false);
+
+        return new Promise<boolean>((resolve) => {
+          const next: ActiveModal = {
+            dismissible: true,
+            showCancel: true,
+            size: "sm",
+            confirmLabel: copy.confirm,
+            cancelLabel: copy.cancel,
+            ...options,
+            resolve,
+            parent: activeRef.current,
+          };
+
+          activeRef.current = next;
+
+          setActive(next);
+        });
+      },
+    }),
+    [copy, settle],
+  );
+
+  return (
+    <ModalContext.Provider value={value}>
+      {children}
+
+      {active && (
+        <ModalSurface
+          modal={active}
+          onCancel={() => settle(false)}
+          onConfirm={() => settle(true)}
+        />
+      )}
+    </ModalContext.Provider>
+  );
+}
+
+function ModalSurface({
+  modal,
+  onCancel,
+  onConfirm,
+}: {
+  modal: ActiveModal;
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
+  const copy = useSharedUiCopy();
+  const panelRef = useRef<HTMLDivElement>(null);
+  const titleId = useRef(`modal-title-${Math.random().toString(36).slice(2)}`);
+  const descriptionId = useRef(`modal-description-${Math.random().toString(36).slice(2)}`);
+
+  const previousFocus = useRef<HTMLElement | null>(null);
+
+  const [busy, setBusy] = useState(false);
+  const [submitError, setSubmitError] = useState("");
+  const [confirmationValue, setConfirmationValue] = useState("");
+
+  const dismissible = modal.dismissible !== false && !busy;
+
+  useEffect(() => {
+    previousFocus.current = document.activeElement as HTMLElement | null;
+
+    const overflow = document.body.style.overflow;
+
+    document.body.style.overflow = "hidden";
+
+    setTimeout(() => {
+      focusable(panelRef.current)[0]?.focus();
+    }, 0);
+
+    return () => {
+      document.body.style.overflow = overflow;
+
+      previousFocus.current?.focus();
+    };
+  }, []);
+
+  useEffect(() => {
+    function keydown(event: KeyboardEvent) {
+      if (event.key === "Escape" && dismissible) {
+        event.preventDefault();
+        onCancel();
+        return;
+      }
+
+      if (event.key !== "Tab") return;
+
+      const items = focusable(panelRef.current);
+
+      if (!items.length) {
+        event.preventDefault();
+        panelRef.current?.focus();
+        return;
+      }
+
+      const first = items[0];
+      const last = items[items.length - 1];
+
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    }
+
+    document.addEventListener("keydown", keydown);
+
+    return () => {
+      document.removeEventListener("keydown", keydown);
+    };
+  }, [dismissible, onCancel]);
+
+  async function submit() {
+    if (modal.confirmationText && confirmationValue.trim() !== modal.confirmationText) return;
+    if (!modal.onConfirm) {
+      onConfirm();
+      return;
+    }
+
+    setBusy(true);
+    setSubmitError("");
+
+    try {
+      const result = await modal.onConfirm();
+
+      if (result !== false) {
+        onConfirm();
+      }
+    } catch (error) {
+      setSubmitError(error instanceof Error ? error.message : copy.operationFailed);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return createPortal(
+    <div
+      className="
+      fixed inset-0 z-[100]
+      grid place-items-center
+      overflow-y-auto
+      bg-slate-950/55
+      p-2 sm:p-4
+      "
+      role="presentation"
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget && dismissible) {
+          onCancel();
+        }
+      }}
+    >
+      <div
+        ref={panelRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId.current}
+        aria-describedby={modal.description ? descriptionId.current : undefined}
+        tabIndex={-1}
+        className={cn(
+          `
+          my-auto flex
+          max-h-[calc(100dvh-1rem)]
+          w-full flex-col
+          overflow-hidden
+          rounded-xl
+          border
+          border-slate-200
+          bg-white
+          dark:border-slate-700
+          text-ink
+          shadow-2xl
+          outline-none
+          `,
+          modal.size === "sm" && "max-w-md",
+
+          modal.size === "md" && "max-w-xl",
+
+          modal.size === "lg" && "max-w-3xl",
+
+          modal.size === "xl" && "max-w-5xl",
+        )}
+      >
+        <header
+          className="
+flex items-start gap-4
+border-b border-slate-200 dark:border-slate-700
+px-5 py-4
+"
+        >
+          <div className="flex-1">
+            <h2
+              id={titleId.current}
+              className={cn("text-lg font-black", modal.tone === "danger" && "text-rosewood")}
+            >
+              {modal.title}
+            </h2>
+
+            {modal.description && (
+              <div
+                id={descriptionId.current}
+                className="
+mt-1 text-sm
+leading-6 text-slate-500
+"
+              >
+                {modal.description}
+              </div>
+            )}
+          </div>
+
+          {dismissible && (
+            <button
+              type="button"
+              aria-label={copy.closeDialog}
+              onClick={onCancel}
+              className="
+grid size-9
+place-items-center
+rounded-md
+text-slate-500
+hover:bg-slate-100
+focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand
+dark:hover:bg-slate-800
+"
+            >
+              <X size={19} />
+            </button>
+          )}
+        </header>
+
+        {modal.content && (
+          <div
+            className="
+min-h-0 flex-1
+overflow-y-auto
+px-4 py-4
+"
+          >
+            {modal.content}
+          </div>
+        )}
+
+        {submitError ? (
+          <p
+            role="alert"
+            className="mx-4 mb-4 rounded-lg bg-rose-50 p-3 text-sm text-rose-700 dark:bg-rose-950/30 dark:text-rose-300"
+          >
+            {submitError}
+          </p>
+        ) : null}
+
+        {modal.confirmationText ? (
+          <label className="mx-4 mb-4 grid gap-1.5 text-sm font-bold text-slate-700 dark:text-slate-200">
+            {copy.confirmationInstruction(modal.confirmationText)}
+            <input
+              type="text"
+              value={confirmationValue}
+              onChange={(event) => setConfirmationValue(event.target.value)}
+              aria-label={copy.confirmationPhrase(modal.confirmationText)}
+              autoComplete="off"
+              className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-normal outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/25 dark:border-slate-600 dark:bg-slate-950"
+            />
+          </label>
+        ) : null}
+
+        {(modal.showCancel || modal.confirmLabel || modal.onConfirm) && (
+          <footer
+            className="
+flex justify-end gap-2
+border-t
+border-slate-200
+bg-slate-50/70
+dark:border-slate-700 dark:bg-slate-900/70
+px-5 py-4
+"
+          >
+            {modal.showCancel && (
+              <Button variant="soft" disabled={busy} onClick={onCancel}>
+                {modal.cancelLabel || copy.cancel}
+              </Button>
+            )}
+
+            {modal.softConfirm ? (
+              <SoftConfirmButton
+                duration={modal.softConfirmDuration ?? 3000}
+                disabled={
+                  busy ||
+                  (modal.confirmationText
+                    ? confirmationValue.trim() !== modal.confirmationText
+                    : false)
+                }
+                onComplete={() => void submit()}
+                variant={modal.tone === "danger" ? "danger" : "primary"}
+                progressColor={modal.softConfirmProgressColor}
+                backgroundColor={modal.softConfirmBackgroundColor}
+                progressLabel={copy.holdToConfirm}
+                successLabel={copy.completed}
+              >
+                {modal.confirmLabel || copy.holdToConfirm}
+              </SoftConfirmButton>
+            ) : (
+              <Button
+                loading={busy}
+                variant={modal.tone === "danger" ? "danger" : "primary"}
+                disabled={
+                  busy ||
+                  (modal.confirmationText
+                    ? confirmationValue.trim() !== modal.confirmationText
+                    : false)
+                }
+                onClick={() => void submit()}
+              >
+                {modal.confirmLabel || copy.confirm}
+              </Button>
+            )}
+          </footer>
+        )}
+      </div>
+    </div>,
+
+    document.body,
+  );
+}
+
+function focusable(root: HTMLElement | null) {
+  if (!root) return [];
+
+  return Array.from(
+    root.querySelectorAll<HTMLElement>(
+      `
+   button:not([disabled]),
+   [href],
+   input:not([disabled]),
+   select:not([disabled]),
+   textarea:not([disabled]),
+   [tabindex]:not([tabindex="-1"])
+   `,
+    ),
+  ).filter((el) => el.offsetParent !== null || el === document.activeElement);
+}
+
+export function useModal() {
+  const context = useContext(ModalContext);
+
+  if (!context) throw new Error("useModal must be used inside ModalProvider");
+
+  return context;
+}

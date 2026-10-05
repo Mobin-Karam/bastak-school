@@ -1,0 +1,216 @@
+{
+  "schemaVersion": 1,
+  "installModel": "leaf-lockfiles",
+  "projects": [
+    {
+      "id": "api-contract",
+      "packageName": "@moshaver/api-contract",
+      "path": "packages/api-contract",
+      "kind": "contract",
+      "dependsOn": [],
+      "install": false,
+      "bootstrapBuild": false,
+      "verifyTasks": []
+    },
+    {
+      "id": "admin-workspace-ui",
+      "packageName": "@moshaver/admin-workspace-ui",
+      "path": "packages/admin-workspace-ui",
+      "kind": "product-package",
+      "dependsOn": [],
+      "install": false,
+      "bootstrapBuild": false,
+      "verifyTasks": ["test"]
+    },
+    {
+      "id": "cmb-kernel",
+      "packageName": "@moshaver/cmb-kernel",
+      "path": "packages/cmb/kernel",
+      "kind": "cmb-kernel",
+      "dependsOn": [],
+      "install": true,
+      "bootstrapBuild": false,
+      "verifyTasks": ["test"]
+    },
+    {
+      "id": "cmb-health",
+      "packageName": "@moshaver/cmb-health",
+      "path": "packages/cmb/health",
+      "kind": "cmb-foundation",
+      "dependsOn": ["cmb-kernel"],
+      "install": true,
+      "bootstrapBuild": false,
+      "verifyTasks": ["test"]
+    },
+    {
+      "id": "cmb-persistence",
+      "packageName": "@moshaver/cmb-persistence",
+      "path": "packages/cmb/persistence",
+      "kind": "cmb-foundation",
+      "dependsOn": ["cmb-kernel"],
+      "install": true,
+      "bootstrapBuild": false,
+      "verifyTasks": ["test"]
+    },
+    {
+      "id": "cmb-infrastructure",
+      "packageName": "@moshaver/cmb-infrastructure",
+      "path": "packages/cmb/infrastructure",
+      "kind": "cmb-adapter",
+      "dependsOn": ["cmb-health", "cmb-kernel"],
+      "install": true,
+      "bootstrapBuild": false,
+      "verifyTasks": ["test"]
+    },
+    {
+      "id": "cmb-realtime",
+      "packageName": "@moshaver/cmb-realtime",
+      "path": "packages/cmb/realtime",
+      "kind": "cmb-platform",
+      "dependsOn": ["cmb-kernel"],
+      "install": true,
+      "bootstrapBuild": false,
+      "verifyTasks": ["test"]
+    },
+    {
+      "id": "cmb-identity",
+      "packageName": "@moshaver/cmb-identity",
+      "path": "packages/cmb/identity",
+      "kind": "cmb-platform",
+      "dependsOn": ["cmb-kernel"],
+      "install": true,
+      "bootstrapBuild": false,
+      "verifyTasks": ["test"]
+    },
+    {
+      "id": "cmb-tenancy",
+      "packageName": "@moshaver/cmb-tenancy",
+      "path": "packages/cmb/tenancy",
+      "kind": "cmb-platform",
+      "dependsOn": ["cmb-kernel"],
+      "install": true,
+      "bootstrapBuild": false,
+      "verifyTasks": ["test"]
+    },
+    {
+      "id": "cmb-system",
+      "packageName": "@moshaver/cmb-system",
+      "path": "packages/cmb/system",
+      "kind": "cmb-platform",
+      "dependsOn": ["cmb-kernel"],
+      "install": true,
+      "bootstrapBuild": false,
+      "verifyTasks": ["test"]
+    },
+    {
+      "id": "cmb-auth",
+      "packageName": "@moshaver/cmb-auth",
+      "path": "packages/cmb/auth",
+      "kind": "cmb-platform",
+      "dependsOn": ["cmb-identity", "cmb-kernel"],
+      "install": true,
+      "bootstrapBuild": false,
+      "verifyTasks": ["test"]
+    },
+    {
+      "id": "cmb-authorization",
+      "packageName": "@moshaver/cmb-authorization",
+      "path": "packages/cmb/authorization",
+      "kind": "cmb-platform",
+      "dependsOn": ["cmb-identity", "cmb-kernel", "cmb-tenancy"],
+      "install": true,
+      "bootstrapBuild": false,
+      "verifyTasks": ["test"]
+    },
+    {
+      "id": "cmb-notifications",
+      "packageName": "@moshaver/cmb-notifications",
+      "path": "packages/cmb/notifications",
+      "kind": "cmb-platform",
+      "dependsOn": ["cmb-kernel"],
+      "install": true,
+      "bootstrapBuild": false,
+      "verifyTasks": ["test"]
+    },
+    {
+      "id": "cmb-activity",
+      "packageName": "@moshaver/cmb-activity",
+      "path": "packages/cmb/activity",
+      "kind": "cmb-platform",
+      "dependsOn": ["cmb-kernel"],
+      "install": true,
+      "bootstrapBuild": false,
+      "verifyTasks": ["test"]
+    },
+    {
+      "id": "cmb-data-transfer",
+      "packageName": "@moshaver/cmb-data-transfer",
+      "path": "packages/cmb/data-transfer",
+      "kind": "cmb-platform",
+      "dependsOn": ["cmb-kernel"],
+      "install": true,
+      "bootstrapBuild": false,
+      "verifyTasks": ["test"]
+    },
+    {
+      "id": "cmb-starter",
+      "packageName": "@moshaver/cmb-starter",
+      "path": "packages/cmb/starter",
+      "kind": "cmb-platform",
+      "dependsOn": ["cmb-activity", "cmb-auth", "cmb-authorization", "cmb-data-transfer", "cmb-health", "cmb-identity", "cmb-infrastructure", "cmb-kernel", "cmb-notifications", "cmb-persistence", "cmb-realtime", "cmb-system", "cmb-tenancy"],
+      "install": true,
+      "bootstrapBuild": false,
+      "verifyTasks": ["test"]
+    },
+    {
+      "id": "cmb-reference",
+      "packageName": "cmb-reference-service",
+      "path": "apps/cmb-reference",
+      "kind": "reference-application",
+      "dependsOn": ["cmb-auth", "cmb-authorization", "cmb-health", "cmb-identity", "cmb-infrastructure", "cmb-kernel", "cmb-notifications", "cmb-persistence", "cmb-realtime", "cmb-tenancy"],
+      "install": true,
+      "bootstrapBuild": false,
+      "verifyTasks": ["test"]
+    },
+    {
+      "id": "backend-v2",
+      "packageName": "moshaver-backend-v2",
+      "path": "apps/api",
+      "kind": "application",
+      "dependsOn": ["cmb-health", "cmb-realtime", "cmb-identity", "cmb-infrastructure", "cmb-kernel", "cmb-persistence", "cmb-tenancy", "cmb-system", "cmb-auth", "cmb-authorization", "cmb-notifications", "cmb-activity", "cmb-data-transfer"],
+      "install": true,
+      "bootstrapBuild": false,
+      "verifyTasks": ["lint", "test", "build"]
+    },
+    {
+      "id": "admin-v2",
+      "packageName": "moshaver-admin-v2",
+      "path": "apps/admin",
+      "kind": "application",
+      "dependsOn": ["admin-workspace-ui", "api-contract"],
+      "install": true,
+      "bootstrapBuild": false,
+      "verifyTasks": ["typecheck", "format:check", "lint", "test", "test:a11y", "build"]
+    },
+    {
+      "id": "student-core",
+      "packageName": "@moshaver/student-core",
+      "path": "student-core",
+      "kind": "product-package",
+      "dependsOn": ["api-contract"],
+      "install": true,
+      "bootstrapBuild": true,
+      "verifyTasks": ["build", "test"]
+    },
+    {
+      "id": "student-app-v2",
+      "packageName": "moshaver-student-app-v2",
+      "path": "apps/student",
+      "kind": "application",
+      "dependsOn": ["student-core"],
+      "install": true,
+      "bootstrapBuild": false,
+      "verifyTasks": ["typecheck", "test", "test:a11y", "build"]
+    }
+  ]
+}

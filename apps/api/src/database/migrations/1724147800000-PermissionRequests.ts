@@ -1,0 +1,13 @@
+import { MigrationInterface, QueryRunner } from "typeorm";
+
+export class PermissionRequests1724147800000 implements MigrationInterface {
+  name = "PermissionRequests1724147800000";
+  async up(q: QueryRunner): Promise<void> {
+    await q.query(`CREATE TABLE permission_requests (id varchar PRIMARY KEY NOT NULL, organizationId varchar NOT NULL, studentId varchar NOT NULL, kind varchar(80) NOT NULL, title varchar(160) NOT NULL, details text NOT NULL, requestedFor datetime, status varchar(16) NOT NULL DEFAULT 'PENDING', supervisorNote text NOT NULL DEFAULT '', resolvedById varchar, resolvedAt datetime, createdAt datetime NOT NULL DEFAULT CURRENT_TIMESTAMP, updatedAt datetime NOT NULL DEFAULT CURRENT_TIMESTAMP, CONSTRAINT FK_permission_request_org FOREIGN KEY(organizationId) REFERENCES organizations(id) ON DELETE CASCADE, CONSTRAINT FK_permission_request_student FOREIGN KEY(studentId) REFERENCES students(id) ON DELETE CASCADE, CONSTRAINT FK_permission_request_resolver FOREIGN KEY(resolvedById) REFERENCES users(id) ON DELETE SET NULL)`);
+    await q.query(`CREATE INDEX IDX_permission_request_org_status_created ON permission_requests(organizationId, status, createdAt)`);
+    await q.query(`CREATE INDEX IDX_permission_request_student_created ON permission_requests(studentId, createdAt)`);
+    for (const [code, description] of [["permission_requests.create", "Create own permission requests"], ["permission_requests.read", "View organization permission requests"], ["permission_requests.review", "Approve or reject organization permission requests"]]) await q.query(`INSERT OR IGNORE INTO permissions(id,code,description) VALUES(lower(hex(randomblob(16))),?,?)`, [code, description]);
+    for (const [role, code] of [["STUDENT", "permission_requests.create"], ["ADVISOR", "permission_requests.read"], ["ADVISOR", "permission_requests.review"], ["MENTOR", "permission_requests.read"], ["MENTOR", "permission_requests.review"], ["ORGANIZATION_ADMIN", "permission_requests.read"], ["ORGANIZATION_ADMIN", "permission_requests.review"], ["PLATFORM_ADMIN", "permission_requests.read"], ["PLATFORM_ADMIN", "permission_requests.review"]]) await q.query(`INSERT OR IGNORE INTO role_permissions(id,roleId,permissionId) SELECT lower(hex(randomblob(16))),r.id,p.id FROM roles r CROSS JOIN permissions p WHERE r.code=? AND p.code=?`, [role, code]);
+  }
+  async down(q: QueryRunner): Promise<void> { await q.query(`DROP TABLE permission_requests`); for (const code of ["permission_requests.create", "permission_requests.read", "permission_requests.review"]) await q.query(`DELETE FROM permissions WHERE code=?`, [code]); }
+}

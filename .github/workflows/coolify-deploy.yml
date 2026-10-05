@@ -1,0 +1,49 @@
+name: Coolify production deployment
+
+on:
+  workflow_run:
+    workflows: [Deployment Readiness]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: coolify-production
+  cancel-in-progress: false
+
+jobs:
+  verify-compose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      CORS_ORIGINS: https://student.example.test,https://admin.example.test
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate Coolify Compose topology
+        run: docker compose -f docker-compose.coolify.yml config --quiet
+
+  deploy:
+    needs: verify-compose
+    if: >-
+      (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success') ||
+      (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main')
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      COOLIFY_DEPLOY_WEBHOOK: ${{ secrets.COOLIFY_DEPLOY_WEBHOOK }}
+      COOLIFY_TOKEN: ${{ secrets.COOLIFY_TOKEN }}
+    steps:
+      - name: Trigger the configured Coolify resource or tag
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -z "$COOLIFY_DEPLOY_WEBHOOK" || -z "$COOLIFY_TOKEN" ]]; then
+            echo "COOLIFY_DEPLOY_WEBHOOK and COOLIFY_TOKEN must be configured as GitHub Actions secrets."
+            exit 1
+          fi
+          curl --fail --show-error --silent --retry 3 --retry-all-errors \
+            --request GET "$COOLIFY_DEPLOY_WEBHOOK" \
+            --header "Authorization: Bearer $COOLIFY_TOKEN"

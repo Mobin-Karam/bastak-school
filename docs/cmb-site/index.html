@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en" dir="ltr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="Composable Modular Backend: framework-neutral Node.js backend primitives." />
+    <title>CMB — Composable Modular Backend</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header class="shell nav"><a class="brand" href="#top">CMB</a><nav aria-label="Primary"><a href="#start" data-en="Start" data-fa="شروع">Start</a><a href="#packages" data-en="Packages" data-fa="پکیج‌ها">Packages</a><a href="#boundary" data-en="Boundary" data-fa="مرز مسئولیت">Boundary</a></nav><button id="language" type="button" aria-label="Switch to Persian">فارسی</button></header>
+    <main id="top">
+      <section class="hero shell"><p class="eyebrow" data-en="FRAMEWORK-NEUTRAL NODE.JS PRIMITIVES" data-fa="ابزارهای Node.js مستقل از فریم‌ورک">FRAMEWORK-NEUTRAL NODE.JS PRIMITIVES</p><h1 data-en="Composable backend building blocks, with clear ownership." data-fa="اجزای قابل‌ترکیب backend، با مرز مسئولیت روشن.">Composable backend building blocks, with clear ownership.</h1><p class="lead" data-en="CMB gives Node.js applications modular lifecycle, health, identity, authorization, notifications, and operational primitives—without taking over your framework or product policy." data-fa="CMB به برنامه‌های Node.js ابزارهای ماژولار برای lifecycle، سلامت، هویت، مجوزدهی، اعلان و عملیات می‌دهد؛ بدون تصاحب فریم‌ورک یا قوانین محصول شما.">CMB gives Node.js applications modular lifecycle, health, identity, authorization, notifications, and operational primitives—without taking over your framework or product policy.</p><div class="actions"><a class="button" href="#start" data-en="Get started" data-fa="شروع کنید">Get started</a><a class="quiet" href="https://github.com/Mobin-Karam/moshaver/tree/main/packages/cmb" data-en="View source" data-fa="مشاهدهٔ کد">View source</a></div></section>
+      <section id="start" class="shell section"><p class="eyebrow" data-en="ONE CONFIGURATION FILE" data-fa="یک فایل پیکربندی">ONE CONFIGURATION FILE</p><h2 data-en="Start with a single CMB config." data-fa="با یک پیکربندی CMB شروع کنید.">Start with a single CMB config.</h2><pre><code>npm install @moshaver/cmb-starter
+
+// cmb.config.cjs
+module.exports = {
+  serviceName: "notes-api",
+  modules: ["auth", "authorization", "notifications", "realtime"],
+};
+
+const { createCmbRuntime } = require("@moshaver/cmb-starter");
+const cmb = createCmbRuntime(require("./cmb.config.cjs"));
+await cmb.start();
+await cmb.ready();</code></pre><p data-en="The starter resolves declared CMB dependencies. Your application still chooses its HTTP server, concrete storage adapters, secrets, routes, and domain rules." data-fa="starter وابستگی‌های تعریف‌شدهٔ CMB را حل می‌کند. برنامهٔ شما همچنان سرور HTTP، adapterهای ذخیره‌سازی، رازها، routeها و قوانین دامنه را انتخاب می‌کند.">The starter resolves declared CMB dependencies. Your application still chooses its HTTP server, concrete storage adapters, secrets, routes, and domain rules.</p></section>
+      <section id="packages" class="shell section"><p class="eyebrow" data-en="PLATFORM MODULES" data-fa="ماژول‌های پلتفرم">PLATFORM MODULES</p><div class="grid"><article><h3>kernel</h3><p data-en="Module descriptors and lifecycle registry." data-fa="descriptor ماژول‌ها و registry چرخهٔ اجرا.">Module descriptors and lifecycle registry.</p></article><article><h3>health</h3><p data-en="Liveness and readiness probes." data-fa="probeهای سلامت و آماده‌بودن.">Liveness and readiness probes.</p></article><article><h3>auth + authorization</h3><p data-en="Session lifecycle and capability checks." data-fa="چرخهٔ session و بررسی capabilityها.">Session lifecycle and capability checks.</p></article><article><h3>notifications + realtime</h3><p data-en="Portable event and delivery mechanics." data-fa="مکانیزم‌های قابل‌انتقال رویداد و تحویل.">Portable event and delivery mechanics.</p></article></div></section>
+      <section id="boundary" class="shell section boundary"><h2 data-en="Reusable primitives, not hidden product policy." data-fa="ابزارهای reusable، نه سیاست پنهان محصول.">Reusable primitives, not hidden product policy.</h2><p data-en="CMB stays framework-neutral. It never imports Moshaver product code; hosts keep their routes, database schema, tenant rules, roles, localized errors, and secrets." data-fa="CMB مستقل از فریم‌ورک می‌ماند. هرگز کد محصول Moshaver را import نمی‌کند؛ برنامهٔ میزبان routeها، schema پایگاه‌داده، قوانین tenant، نقش‌ها، خطاهای بومی‌سازی‌شده و رازها را نگه می‌دارد.">CMB stays framework-neutral. It never imports Moshaver product code; hosts keep their routes, database schema, tenant rules, roles, localized errors, and secrets.</p></section>
+    </main>
+    <footer class="shell"><a href="https://github.com/Mobin-Karam/moshaver">GitHub</a> · <a href="https://github.com/Mobin-Karam/moshaver/blob/main/packages/cmb/README.md" data-en="Documentation" data-fa="مستندات">Documentation</a></footer><script src="app.js"></script>
+  </body>
+</html>

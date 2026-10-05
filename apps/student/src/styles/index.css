@@ -1,0 +1,27 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Foundation */
+@import "./tokens.css";
+@import "./base.css";
+@import "./utilities.css";
+
+/* Shared UI + layout */
+@import "../components/layout/styles/app-shell.css";
+@import "../components/layout/styles/activity-island.css";
+@import "../components/ui/styles/ui.css";
+
+/* Features */
+@import "../features/auth/styles/auth.css";
+@import "../features/home/styles/home.css";
+@import "../features/plan/styles/plan.css";
+@import "../features/learning/styles/learning-items.css";
+@import "../features/notifications/styles/notifications.css";
+@import "../features/exam/styles/exam.css";
+@import "../features/chat/styles/chat.css";
+@import "../features/audio/styles/audio.css";
+@import "../features/more/styles/more.css";
+@import "../features/quiz/styles/quiz.css";
+@import "../features/resources/styles/resources.css";
+@import "../features/sharing/styles/sharing.css";

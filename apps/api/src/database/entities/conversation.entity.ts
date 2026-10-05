@@ -1,0 +1,19 @@
+import { Column, CreateDateColumn, Entity, Index, ManyToOne, OneToMany, PrimaryGeneratedColumn, UpdateDateColumn } from "typeorm";
+import { User } from "./user.entity";
+import { ConversationMember } from "./conversation-member.entity";
+import { Organization } from "./organization.entity";
+export enum ConversationType{DIRECT="DIRECT",GROUP="GROUP"}
+@Entity("conversations")
+export class Conversation{
+ @PrimaryGeneratedColumn("uuid") id!:string;
+ @Column({type:"varchar",length:16}) type!:ConversationType;
+ @Column({default:""}) title!:string;
+ @Column({default:""}) description!:string;
+ @Column({type:"simple-json",default:"{}"}) permissions!:Record<string,boolean>;
+ @Column({type:"datetime",nullable:true}) archivedAt?:Date|null;
+ @ManyToOne(()=>User,{nullable:true,onDelete:"SET NULL"}) owner?:User|null;
+ @Index() @ManyToOne(()=>Organization,{nullable:true,onDelete:"CASCADE"}) organization?:Organization|null;
+ @Column({default:false}) autoManaged!:boolean;
+ @OneToMany(()=>ConversationMember,m=>m.conversation) members!:ConversationMember[];
+ @CreateDateColumn() createdAt!:Date;@UpdateDateColumn() updatedAt!:Date;
+}

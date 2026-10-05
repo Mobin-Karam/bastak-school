@@ -1,0 +1,35 @@
+{
+  "name": "@moshaver/cmb-starter",
+  "version": "0.1.0",
+  "private": true,
+  "type": "commonjs",
+  "main": "src/index.js",
+  "types": "src/index.d.ts",
+  "exports": {
+    ".": {
+      "require": "./src/index.js",
+      "types": "./src/index.d.ts"
+    }
+  },
+  "scripts": {
+    "test": "node --test tests/*.test.js"
+  },
+  "dependencies": {
+    "@moshaver/cmb-activity": "file:../activity",
+    "@moshaver/cmb-auth": "file:../auth",
+    "@moshaver/cmb-authorization": "file:../authorization",
+    "@moshaver/cmb-data-transfer": "file:../data-transfer",
+    "@moshaver/cmb-health": "file:../health",
+    "@moshaver/cmb-identity": "file:../identity",
+    "@moshaver/cmb-infrastructure": "file:../infrastructure",
+    "@moshaver/cmb-kernel": "file:../kernel",
+    "@moshaver/cmb-notifications": "file:../notifications",
+    "@moshaver/cmb-persistence": "file:../persistence",
+    "@moshaver/cmb-realtime": "file:../realtime",
+    "@moshaver/cmb-system": "file:../system",
+    "@moshaver/cmb-tenancy": "file:../tenancy"
+  },
+  "engines": {
+    "node": ">=22.13.0 <23"
+  }
+}

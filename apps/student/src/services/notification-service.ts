@@ -1,0 +1,144 @@
+import type { StudentNotification } from './student-store';
+import { apiClient } from './api-client';
+
+const SEEN_NOTIFICATION_IDS = 'moshaver_v2_seen_notification_ids';
+const isTauri = '__TAURI_INTERNALS__' in window;
+
+type TauriNotificationPlugin = {
+  isPermissionGranted: () => Promise<boolean>;
+  requestPermission: () => Promise<NotificationPermission>;
+  onAction: (handler: (event: unknown) => void) => Promise<() => void>;
+  sendNotification: (notification: { title: string; body: string }) => void;
+};
+
+async function loadTauriNotificationPlugin(): Promise<TauriNotificationPlugin | null> {
+  try {
+    const load = new Function('specifier', 'return import(specifier)') as (specifier: string) => Promise<TauriNotificationPlugin>;
+    return await load('@tauri-apps/plugin-notification');
+  } catch {
+    return null;
+  }
+}
+
+export type NotificationPermission = 'granted' | 'denied' | 'default' | 'unsupported';
+export interface PushPreferences { lessons: boolean; messages: boolean; exams: boolean; announcements: boolean; }
+export interface PushStatus { supported: boolean; permission: NotificationPermission; registered: boolean; serverConfigured: boolean; preferences: PushPreferences; }
+const defaultPreferences: PushPreferences = { lessons: true, messages: true, exams: true, announcements: true };
+
+function readSeenIds(): Set<string> {
+  try {
+    return new Set(JSON.parse(localStorage.getItem(SEEN_NOTIFICATION_IDS) ?? '[]') as string[]);
+  } catch {
+    return new Set();
+  }
+}
+
+function writeSeenIds(ids: Set<string>) {
+  localStorage.setItem(SEEN_NOTIFICATION_IDS, JSON.stringify([...ids].slice(-100)));
+}
+
+export async function getNotificationPermission(): Promise<NotificationPermission> {
+  if (isTauri) {
+    const plugin = await loadTauriNotificationPlugin();
+    return plugin ? (await plugin.isPermissionGranted()) ? 'granted' : 'default' : 'unsupported';
+  }
+  if (!('Notification' in window)) return 'unsupported';
+  return Notification.permission;
+}
+
+export async function requestNotificationPermission(): Promise<NotificationPermission> {
+  if (isTauri) {
+    const plugin = await loadTauriNotificationPlugin();
+    return plugin ? await plugin.requestPermission() : 'unsupported';
+  }
+  if (!('Notification' in window)) return 'unsupported';
+  const permission = await Notification.requestPermission();
+  if (permission === 'granted') await ensurePwaPushSubscription();
+  return permission;
+}
+
+export async function ensurePwaPushSubscription() {
+  if (isTauri || !('serviceWorker' in navigator) || !('PushManager' in window)) return false;
+  const config = await apiClient.request<{ supported: boolean; vapidPublicKey: string }>('GET', '/push/config');
+  if (!config.supported || !config.vapidPublicKey || Notification.permission !== 'granted') return false;
+  const registration = await navigator.serviceWorker.ready;
+  let subscription = await registration.pushManager.getSubscription();
+  subscription ||= await registration.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: vapidKey(config.vapidPublicKey) });
+  await apiClient.request('POST', '/push/subscriptions', subscription.toJSON());
+  return true;
+}
+
+export async function getPushStatus(): Promise<PushStatus> {
+  const permission = await getNotificationPermission();
+  if (isTauri || !('serviceWorker' in navigator) || !('PushManager' in window)) {
+    const remote = await apiClient.request<Omit<PushStatus, 'supported' | 'permission'>>('GET', '/push/status');
+    return { supported: permission !== 'unsupported', permission, registered: remote.registered, serverConfigured: remote.serverConfigured, preferences: remote.preferences || defaultPreferences };
+  }
+  const registration = await navigator.serviceWorker.getRegistration('/').catch(() => undefined);
+  const subscription = await registration?.pushManager.getSubscription().catch(() => null);
+  const endpoint = subscription?.endpoint ? `?endpoint=${encodeURIComponent(subscription.endpoint)}` : '';
+  const remote = await apiClient.request<Omit<PushStatus, 'supported' | 'permission'>>('GET', `/push/status${endpoint}`);
+  return { supported: true, permission, registered: Boolean(subscription && remote.registered), serverConfigured: remote.serverConfigured, preferences: remote.preferences || defaultPreferences };
+}
+
+export async function disablePwaPushSubscription() {
+  if (isTauri || !('serviceWorker' in navigator) || !('PushManager' in window)) {
+    await apiClient.request('DELETE', '/push/subscriptions');
+    return;
+  }
+  const registration = await navigator.serviceWorker.getRegistration('/').catch(() => undefined);
+  const subscription = await registration?.pushManager.getSubscription().catch(() => null);
+  if (!subscription) return;
+  let remoteError: unknown;
+  try { await apiClient.request('DELETE', `/push/subscriptions?endpoint=${encodeURIComponent(subscription.endpoint)}`); } catch (error) { remoteError = error; }
+  await subscription.unsubscribe().catch(() => false);
+  if (remoteError) throw remoteError;
+}
+
+export async function savePushPreferences(preferences: PushPreferences) {
+  return apiClient.request<PushStatus>('PUT', '/push/preferences', { categories: preferences });
+}
+
+export async function sendTestPush() {
+  return apiClient.request<{ notificationId: string; pushConfigured: boolean }>('POST', '/push/test');
+}
+
+function vapidKey(value: string) {
+  const padding = '='.repeat((4 - value.length % 4) % 4);
+  const bytes = atob((value + padding).replace(/-/g, '+').replace(/_/g, '/'));
+  return Uint8Array.from(bytes, (character) => character.charCodeAt(0));
+}
+
+export function registerNotificationClickHandler() {
+  if (!isTauri) return;
+  void loadTauriNotificationPlugin().then((plugin) => {
+    if (plugin) void plugin.onAction(() => window.location.assign('/more'));
+  });
+}
+
+export async function notifyNewNotifications(notifications: StudentNotification[]) {
+  const permission = await getNotificationPermission();
+  if (permission !== 'granted') return;
+
+  const seenIds = readSeenIds();
+  const fresh = notifications.filter((notification) => !seenIds.has(notification.id));
+  notifications.forEach((notification) => seenIds.add(notification.id));
+  writeSeenIds(seenIds);
+  if (!fresh.length) return;
+
+  if (isTauri) {
+    const plugin = await loadTauriNotificationPlugin();
+    if (!plugin) return;
+    fresh.forEach((notification) => plugin.sendNotification({ title: notification.title, body: notification.message }));
+    return;
+  }
+
+  fresh.forEach((notification) => {
+    const instance = new Notification(notification.title, { body: notification.message, tag: notification.id });
+    instance.onclick = () => {
+      window.focus();
+      window.location.assign('/more');
+      instance.close();
+    };
+  });
+}

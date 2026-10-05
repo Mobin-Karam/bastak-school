@@ -1,0 +1,2 @@
+import { MigrationInterface, QueryRunner } from "typeorm";
+export class EducationCatalogOrganizationScope1724146100000 implements MigrationInterface { name = "EducationCatalogOrganizationScope1724146100000"; async up(q: QueryRunner): Promise<void> { await q.query("ALTER TABLE education_books ADD COLUMN organizationId varchar"); await q.query("CREATE INDEX IF NOT EXISTS IDX_education_books_organization ON education_books(organizationId)"); } async down(q: QueryRunner): Promise<void> { await q.query("DROP INDEX IF EXISTS IDX_education_books_organization"); } }

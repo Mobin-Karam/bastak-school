@@ -1,0 +1,14 @@
+{
+  "team": {
+    "members": [{}]
+  },
+  "server": {},
+  "preferences": {},
+  "commands": {},
+  "ai": {
+    "instructions": [],
+    "exclude": []
+  },
+  "safety": {},
+  "metadata": {}
+}

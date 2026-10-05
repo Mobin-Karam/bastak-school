@@ -1,0 +1,39 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+coverage/
+apps/admin/playwright-report/
+apps/admin/test-results/
+build/
+target/
+*.tsbuildinfo
+apps/admin/tailwind.config.js
+apps/admin/tailwind.config.d.ts
+apps/admin/vite.config.js
+apps/admin/vite.config.d.ts
+apps/admin/vitest.config.js
+apps/admin/vitest.config.d.ts
+
+# Environment and local config
+.env
+.env.*
+!.env.coolify.example
+!.env.example
+
+# Runtime data and backups
+**/data/*.sqlite
+**/data/*.sqlite-*
+backup/
+backups/
+
+# Logs and OS/editor files
+*.log
+.run/
+.agent-state/
+graphify-out/
+**/graphify-out/
+.DS_Store
+.idea/
+.vscode/

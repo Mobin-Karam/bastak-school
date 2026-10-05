@@ -1,0 +1,67 @@
+services:
+  backend-v2:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 4000
+      DATABASE_TYPE: sqlite
+      DATABASE_PATH: /data/moshaver-v2.sqlite
+      CORS_ORIGINS: ${CORS_ORIGINS:?Set the public Student and Admin origins in Coolify}
+      # Keep the default secure. Only a private, HTTP-only LAN smoke test may
+      # override this to 0; never do so for an internet-reachable deployment.
+      COOKIE_SECURE: ${COOKIE_SECURE:-1}
+      COOKIE_SAMESITE: ${COOKIE_SAMESITE:-lax}
+      TRUST_PROXY: "1"
+      ACCESS_TOKEN_TTL_MINUTES: ${ACCESS_TOKEN_TTL_MINUTES:-15}
+      REFRESH_TOKEN_TTL_DAYS: ${REFRESH_TOKEN_TTL_DAYS:-30}
+      SQLITE_BUSY_TIMEOUT_MS: ${SQLITE_BUSY_TIMEOUT_MS:-5000}
+    volumes:
+      - moshaver_v2_sqlite:/data
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:4000/ready').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 20s
+
+  student-v2:
+    build:
+      context: .
+      dockerfile: apps/student/Dockerfile
+      args:
+        VITE_API_URL: /api/v2
+    restart: unless-stopped
+    environment:
+      API_PROXY_TARGET: http://backend-v2:4000
+    depends_on:
+      backend-v2:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1/"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  admin-v2:
+    build:
+      context: .
+      dockerfile: apps/admin/Dockerfile
+      args:
+        VITE_API_URL: /api/v2
+    restart: unless-stopped
+    environment:
+      API_PROXY_TARGET: http://backend-v2:4000
+    depends_on:
+      backend-v2:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1/"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+volumes:
+  moshaver_v2_sqlite:

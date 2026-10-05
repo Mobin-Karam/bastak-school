@@ -1,0 +1,91 @@
+.surface {
+  border: 1px solid rgb(32 48 64 / 0.1);
+  border-radius: 8px;
+  background: white;
+}
+
+.metric {
+  border-radius: 8px;
+  background: rgb(79 143 122 / 0.12);
+  padding: 12px;
+}
+
+.primary-action {
+  display: flex;
+  min-height: 48px;
+  width: 100%;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border-radius: 16px;
+  background: #203040;
+  padding: 10px 16px;
+  color: white;
+  font-weight: 800;
+}
+.primary-action:disabled { cursor: not-allowed; opacity: 0.45; }
+
+.back-action {
+  display: flex;
+  min-height: 44px;
+  align-items: center;
+  gap: 8px;
+  color: rgb(32 48 64 / 0.7);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.state-error {
+  border: 1px solid rgb(190 18 60 / 0.18);
+  border-radius: 16px;
+  background: rgb(255 241 242);
+  padding: 12px 16px;
+  color: #9f1239;
+  font-size: 14px;
+  line-height: 1.8;
+}
+
+.status-pill {
+  border-radius: 999px;
+  background: rgb(79 143 122 / 0.12);
+  padding: 4px 8px;
+  color: #377563;
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.text-link {
+  color: rgb(var(--primary));
+  font-size: 12px;
+  font-weight: 800;
+}
+
+/* Dark overrides for legacy utility names */
+.dark body,
+.dark .bg-paper { background: #0f1720; color: #edf2f6; }
+
+.dark .surface,
+.dark .exam-question,
+.dark .answer-card,
+.dark .answer-sheet,
+.dark .exam-footer {
+  border-color: rgb(255 255 255 / 0.1);
+  background: #17212b;
+  color: #edf2f6;
+}
+
+.dark .text-ink,
+.dark .text-ink\/75,
+.dark .text-ink\/70,
+.dark .text-ink\/65,
+.dark .text-ink\/60,
+.dark .text-ink\/55,
+.dark .text-ink\/50 {
+  color: rgb(237 242 246 / 0.72);
+}
+
+.dark .answer-card-selected {
+  border-color: #75b9a3;
+  background: rgb(79 143 122 / 0.22);
+  color: #c7f2e4;
+}

@@ -1,0 +1,390 @@
+import { Clock3, CornerDownLeft, Search, X } from "lucide-react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type KeyboardEvent as ReactKeyboardEvent,
+} from "react";
+import { createPortal } from "react-dom";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "../../features/auth";
+import { normalizePersianText } from "../../shared/lib/utils";
+import { useAdminShellCopy, useLocale } from "../../shared/ui/locale";
+import { adminDestination, navigationForCapabilities } from "./admin-navigation";
+import {
+  matchesCommandPaletteQuery,
+  searchCommandPaletteEntities,
+  type CommandPaletteEntity,
+} from "./command-palette-search";
+import { readStoredList, writeStoredList } from "./layout-storage";
+import type { AdminCurrentNavigation } from "./layout-types";
+
+const RECENT_NAVIGATION_KEY = "admin-recent-navigation";
+const HOME_TOKEN = "__admin_home__";
+
+type NavigationResult = ReturnType<typeof navigationForCapabilities>[number]["items"][number] & {
+  section: string;
+};
+type PaletteResult = NavigationResult | CommandPaletteEntity;
+
+function isEntityResult(item: PaletteResult): item is CommandPaletteEntity {
+  return "destination" in item;
+}
+
+function pathToken(path: string) {
+  return path || HOME_TOKEN;
+}
+
+function resultToken(item: PaletteResult) {
+  return isEntityResult(item) ? item.id : pathToken(item.path);
+}
+
+function tokenPath(token: string) {
+  return token === HOME_TOKEN ? "" : token;
+}
+
+function focusableElements(root: HTMLElement | null) {
+  if (!root) return [] as HTMLElement[];
+  return Array.from(
+    root.querySelectorAll<HTMLElement>(
+      'button:not([disabled]), input:not([disabled]), a[href], [tabindex]:not([tabindex="-1"])',
+    ),
+  );
+}
+
+export function AdminCommandPalette({
+  open,
+  current,
+  selectedStudentId,
+  onClose,
+}: {
+  open: boolean;
+  current: AdminCurrentNavigation;
+  selectedStudentId: string;
+  onClose: () => void;
+}) {
+  const navigate = useNavigate();
+  const auth = useAuth();
+  const shellCopy = useAdminShellCopy();
+  const { language, profile } = useLocale();
+  const copy =
+    language === "en"
+      ? {
+          placeholder: "Search pages, students, users, organizations, or actions…",
+          close: "Close search",
+          recent: "Recent destinations",
+          suggestions: "Suggestions",
+          searching: "Searching…",
+          result: (count: number) => `${count.toLocaleString(profile.locale)} results`,
+          choose: "Choose",
+          open: "Open",
+          noResults: "No destination matches this search.",
+          hint: "Try a different page or section name.",
+        }
+      : {
+          placeholder: "صفحه، دانش‌آموز، کاربر، سازمان یا اقدام را جست‌وجو کنید…",
+          close: "بستن جستجو",
+          recent: "مسیرهای اخیر",
+          suggestions: "پیشنهادها",
+          searching: "در حال جست‌وجو…",
+          result: (count: number) => `${count.toLocaleString(profile.locale)} نتیجه`,
+          choose: "انتخاب",
+          open: "بازکردن",
+          noResults: "مسیری با این عبارت پیدا نشد.",
+          hint: "نام بخش یا صفحه دیگری را امتحان کنید.",
+        };
+  const availableNavigation = useMemo(
+    () =>
+      navigationForCapabilities(auth.capabilities, auth.activeRole).flatMap((group) =>
+        group.items.map((item) => ({ ...item, section: group.section })),
+      ),
+    [auth.capabilities, auth.activeRole],
+  );
+  const inputRef = useRef<HTMLInputElement | null>(null);
+  const dialogRef = useRef<HTMLElement | null>(null);
+  const [query, setQuery] = useState("");
+  const [activeIndex, setActiveIndex] = useState(0);
+  const [recentTokens, setRecentTokens] = useState(() => readStoredList(RECENT_NAVIGATION_KEY));
+  const [entityResults, setEntityResults] = useState<CommandPaletteEntity[]>([]);
+  const [entityLoading, setEntityLoading] = useState(false);
+
+  useEffect(() => {
+    const token = pathToken(current.path);
+    setRecentTokens((previous) => {
+      const next = [token, ...previous.filter((item) => item !== token)].slice(0, 8);
+      writeStoredList(RECENT_NAVIGATION_KEY, next);
+      return next;
+    });
+  }, [current.path]);
+
+  const recentItems = useMemo(
+    () =>
+      recentTokens.flatMap((token) => {
+        const path = tokenPath(token);
+        const item = availableNavigation.find((candidate) => candidate.path === path);
+        return item ? [item] : [];
+      }),
+    [recentTokens, availableNavigation],
+  );
+
+  const normalizedQuery = normalizePersianText(query.trim().toLowerCase());
+  useEffect(() => {
+    if (!open || normalizedQuery.length < 2) {
+      setEntityResults([]);
+      setEntityLoading(false);
+      return;
+    }
+    let current = true;
+    setEntityLoading(true);
+    // Entity sources include several capability-gated API calls. Let people
+    // finish a short query before fanning out, while keeping navigation-only
+    // results available immediately.
+    const timer = window.setTimeout(() => {
+      void searchCommandPaletteEntities({
+        query: normalizedQuery,
+        capabilities: auth.capabilities,
+      }).then((items) => {
+        if (!current) return;
+        setEntityResults(items);
+        setEntityLoading(false);
+      });
+    }, 180);
+    return () => {
+      current = false;
+      window.clearTimeout(timer);
+    };
+  }, [auth.capabilities, normalizedQuery, open]);
+  const results = useMemo(() => {
+    if (!normalizedQuery) return recentItems.length ? recentItems : availableNavigation.slice(0, 8);
+    const navigation = availableNavigation.filter((item) =>
+      matchesCommandPaletteQuery(
+        normalizedQuery,
+        item.title,
+        item.description,
+        item.section,
+        item.path,
+      ),
+    );
+    return [...entityResults, ...navigation];
+  }, [normalizedQuery, recentItems, availableNavigation, entityResults]);
+
+  useEffect(() => {
+    if (!open) return;
+
+    setQuery("");
+    setActiveIndex(0);
+    const previousOverflow = document.body.style.overflow;
+    const previousActive =
+      document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    document.body.style.overflow = "hidden";
+    const timer = window.setTimeout(() => inputRef.current?.focus(), 0);
+
+    function trapFocus(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        onClose();
+        return;
+      }
+      if (event.key !== "Tab") return;
+
+      const items = focusableElements(dialogRef.current);
+      if (!items.length) return;
+      const first = items[0];
+      const last = items[items.length - 1];
+      const active = document.activeElement;
+
+      if (event.shiftKey && active === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && active === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    }
+
+    document.addEventListener("keydown", trapFocus);
+    return () => {
+      window.clearTimeout(timer);
+      document.body.style.overflow = previousOverflow;
+      document.removeEventListener("keydown", trapFocus);
+      previousActive?.focus({ preventScroll: true });
+    };
+  }, [onClose, open]);
+
+  useEffect(() => {
+    if (!open) return;
+    const active = results[activeIndex];
+    if (!active) return;
+    document
+      .getElementById(`admin-command-${resultToken(active)}`)
+      ?.scrollIntoView({ block: "nearest" });
+  }, [activeIndex, open, results]);
+
+  useEffect(() => {
+    setActiveIndex(0);
+  }, [query]);
+
+  if (!open) return null;
+
+  function choose(index: number) {
+    const item = results[index];
+    if (!item) return;
+    if (isEntityResult(item)) {
+      navigate(item.destination);
+    } else {
+      const token = pathToken(item.path);
+      const nextRecent = [token, ...recentTokens.filter((value) => value !== token)].slice(0, 8);
+      setRecentTokens(nextRecent);
+      writeStoredList(RECENT_NAVIGATION_KEY, nextRecent);
+      navigate(adminDestination(item.path, item.section, selectedStudentId));
+    }
+    onClose();
+  }
+
+  function onKeyDown(event: ReactKeyboardEvent<HTMLInputElement>) {
+    if (event.key === "ArrowDown") {
+      event.preventDefault();
+      setActiveIndex((value) => Math.min(value + 1, Math.max(results.length - 1, 0)));
+      return;
+    }
+    if (event.key === "ArrowUp") {
+      event.preventDefault();
+      setActiveIndex((value) => Math.max(value - 1, 0));
+      return;
+    }
+    if (event.key === "Enter") {
+      event.preventDefault();
+      choose(activeIndex);
+    }
+  }
+
+  return createPortal(
+    <div
+      className="fixed inset-0 z-[120] flex items-start justify-center bg-slate-950/40 px-3 pt-[8dvh] backdrop-blur-sm"
+      onMouseDown={onClose}
+    >
+      <section
+        ref={dialogRef}
+        className="w-full max-w-xl overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl dark:border-slate-700 dark:bg-slate-900"
+        role="dialog"
+        aria-modal="true"
+        aria-label={shellCopy.searchAndGo}
+        onMouseDown={(event) => event.stopPropagation()}
+      >
+        <div className="flex items-center gap-2 border-b border-slate-200 px-3 dark:border-slate-700">
+          <Search size={19} className="shrink-0 text-slate-400" />
+          <input
+            ref={inputRef}
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            onKeyDown={onKeyDown}
+            className="h-14 min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-slate-400"
+            placeholder={copy.placeholder}
+            role="combobox"
+            aria-autocomplete="list"
+            aria-expanded="true"
+            aria-controls="admin-command-results"
+            aria-activedescendant={
+              results[activeIndex]
+                ? `admin-command-${resultToken(results[activeIndex])}`
+                : undefined
+            }
+          />
+          <button
+            type="button"
+            className="grid size-9 shrink-0 place-items-center rounded-lg text-slate-400 outline-none transition hover:bg-slate-100 hover:text-slate-700 focus-visible:ring-2 focus-visible:ring-brand dark:hover:bg-slate-800 dark:hover:text-slate-200"
+            onClick={onClose}
+            aria-label={copy.close}
+          >
+            <X size={17} />
+          </button>
+        </div>
+
+        <div
+          className="flex items-center justify-between gap-2 border-b border-slate-100 bg-slate-50/70 px-3 py-2 text-[10px] text-slate-400 dark:border-slate-800 dark:bg-slate-800/60"
+          aria-live="polite"
+          aria-atomic="true"
+        >
+          <span className="flex items-center gap-1 font-bold">
+            {!normalizedQuery ? <Clock3 size={12} /> : <Search size={12} />}
+            {!normalizedQuery
+              ? recentItems.length
+                ? copy.recent
+                : copy.suggestions
+              : entityLoading
+                ? copy.searching
+                : copy.result(results.length)}
+          </span>
+          <span className="hidden items-center gap-2 sm:flex">
+            <kbd className="rounded border border-slate-200 bg-white px-1.5 py-0.5 dark:border-slate-700 dark:bg-slate-900">
+              ↑ ↓
+            </kbd>{" "}
+            {copy.choose}
+            <kbd className="rounded border border-slate-200 bg-white px-1.5 py-0.5 dark:border-slate-700 dark:bg-slate-900">
+              Enter
+            </kbd>{" "}
+            {copy.open}
+            <kbd className="rounded border border-slate-200 bg-white px-1.5 py-0.5 dark:border-slate-700 dark:bg-slate-900">
+              Esc
+            </kbd>{" "}
+            {copy.close}
+          </span>
+        </div>
+
+        <div
+          id="admin-command-results"
+          role="listbox"
+          aria-busy={entityLoading}
+          className="max-h-[min(60dvh,30rem)] overflow-y-auto overscroll-contain p-2"
+        >
+          {results.length ? (
+            results.map((item, index) => {
+              const Icon = isEntityResult(item) ? Search : item.icon;
+              const active = index === activeIndex;
+              return (
+                <button
+                  id={`admin-command-${resultToken(item)}`}
+                  key={resultToken(item)}
+                  type="button"
+                  role="option"
+                  aria-selected={active}
+                  className={`mb-1 flex min-h-14 w-full items-center gap-3 rounded-xl px-3 py-2.5 text-start outline-none transition last:mb-0 focus-visible:ring-2 focus-visible:ring-brand ${active ? "bg-indigo-50 text-brand" : "text-slate-700 hover:bg-slate-50"}`}
+                  onMouseEnter={() => setActiveIndex(index)}
+                  onClick={() => choose(index)}
+                >
+                  <span
+                    className={`grid size-9 shrink-0 place-items-center rounded-lg ${active ? "bg-white" : "bg-slate-50"}`}
+                  >
+                    <Icon size={18} />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="flex min-w-0 items-center gap-2">
+                      <strong className="truncate text-sm">{item.title}</strong>
+                      <small className="shrink-0 rounded-full bg-slate-100 px-2 py-0.5 text-[9px] font-bold text-slate-500">
+                        {item.section}
+                      </small>
+                    </span>
+                    <small className="mt-0.5 block truncate text-[10px] text-slate-400">
+                      {item.description}
+                    </small>
+                  </span>
+                  {active ? <CornerDownLeft size={15} className="shrink-0" /> : null}
+                </button>
+              );
+            })
+          ) : (
+            <div className="grid min-h-36 place-items-center px-4 text-center text-sm text-slate-500">
+              <div>
+                <Search className="mx-auto mb-2" size={24} />
+                {copy.noResults}
+                <p className="mt-1 text-[11px] text-slate-400">{copy.hint}</p>
+              </div>
+            </div>
+          )}
+        </div>
+      </section>
+    </div>,
+    document.body,
+  );
+}

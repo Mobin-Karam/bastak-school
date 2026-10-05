@@ -1,0 +1,119 @@
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Patch,
+  Post,
+  Query,
+} from "@nestjs/common";
+import { CurrentUser } from "../../common/decorators/current-user.decorator";
+import { RequireCapabilities } from "../../common/decorators/capabilities.decorator";
+import { ok } from "../../common/utils/envelope";
+import { AuthenticatedUser } from "../auth";
+import {
+  AssignTeacherSubjectDto,
+  ArchiveSubjectDto,
+  CreateSubjectDto,
+  ImportSubjectsDto,
+  UpdateStudentSubjectDto,
+  UpdateSubjectDto,
+} from "./subject.dto";
+import { SubjectsService } from "./subjects.service";
+@Controller()
+export class SubjectsController {
+  constructor(private service: SubjectsService) {}
+  @Get("subjects") @RequireCapabilities("subjects.read") list(
+    @CurrentUser() u: AuthenticatedUser,
+    @Query("includeArchived") includeArchived?: string,
+  ) {
+    return this.service.list(u, includeArchived === "true").then(ok);
+  }
+  @Post("subjects") @RequireCapabilities("subjects.create") create(
+    @CurrentUser() u: AuthenticatedUser,
+    @Body() d: CreateSubjectDto,
+  ) {
+    return this.service.create(u, d).then(ok);
+  }
+  @Get("subjects/export") @RequireCapabilities("subjects.read") export(@CurrentUser() u: AuthenticatedUser) {
+    return this.service.export(u).then(ok);
+  }
+  @Get("subjects/import-sample") @RequireCapabilities("subjects.create") sample() {
+    return ok(this.service.importSample());
+  }
+  @Post("subjects/import-preview") @RequireCapabilities("subjects.create") previewImport(
+    @CurrentUser() u: AuthenticatedUser,
+    @Body() d: ImportSubjectsDto,
+  ) {
+    return this.service.previewImport(u, d.subjects).then(ok);
+  }
+  @Post("subjects/import-commit") @RequireCapabilities("subjects.create") commitImport(
+    @CurrentUser() u: AuthenticatedUser,
+    @Body() d: ImportSubjectsDto,
+  ) {
+    return this.service.commitImport(u, d.subjects).then(ok);
+  }
+  @Patch("subjects/:id") @RequireCapabilities("subjects.update") update(
+    @CurrentUser() u: AuthenticatedUser,
+    @Param("id") id: string,
+    @Body() d: UpdateSubjectDto,
+  ) {
+    return this.service.update(u, id, d).then(ok);
+  }
+  @Patch("subjects/:id/archive") @RequireCapabilities("subjects.archive") archive(
+    @CurrentUser() u: AuthenticatedUser,
+    @Param("id") id: string,
+    @Body() d: ArchiveSubjectDto,
+  ) {
+    return this.service.setActive(u, id, d.active).then(ok);
+  }
+  @Post("subjects/:id/teachers")
+  @RequireCapabilities("organization.members.manage")
+  assignTeacher(
+    @CurrentUser() u: AuthenticatedUser,
+    @Param("id") id: string,
+    @Body() d: AssignTeacherSubjectDto,
+  ) {
+    return this.service.assignTeacher(u, id, d).then(ok);
+  }
+  @Get("subjects/:id/teachers")
+  @RequireCapabilities("organization.members.manage")
+  teachers(
+    @CurrentUser() u: AuthenticatedUser,
+    @Param("id") id: string,
+    @Query("organizationId") organizationId: string,
+  ) {
+    return this.service.listTeachers(u, id, organizationId).then(ok);
+  }
+  @Delete("subjects/:id/teachers/:teacherId")
+  @RequireCapabilities("organization.members.manage")
+  unassignTeacher(
+    @CurrentUser() u: AuthenticatedUser,
+    @Param("id") id: string,
+    @Param("teacherId") teacherId: string,
+    @Query("organizationId") organizationId: string,
+  ) {
+    return this.service
+      .unassignTeacher(u, id, teacherId, organizationId)
+      .then(ok);
+  }
+  @Get("students/:studentId/subjects")
+  @RequireCapabilities("studentSubjects.read")
+  forStudent(
+    @CurrentUser() u: AuthenticatedUser,
+    @Param("studentId") id: string,
+  ) {
+    return this.service.forStudent(u, id).then(ok);
+  }
+  @Patch("students/:studentId/subjects/:subjectId")
+  @RequireCapabilities("studentSubjects.manage")
+  configure(
+    @CurrentUser() u: AuthenticatedUser,
+    @Param("studentId") studentId: string,
+    @Param("subjectId") subjectId: string,
+    @Body() d: UpdateStudentSubjectDto,
+  ) {
+    return this.service.configure(u, studentId, subjectId, d).then(ok);
+  }
+}

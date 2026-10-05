@@ -1,0 +1,93 @@
+{
+  "schemaVersion": "2.0",
+  "scope": "all",
+  "plans": [
+    {
+      "date": "2026-09-20",
+      "published": false,
+      "title": "شروع هفته با تمرکز",
+      "dayLabel": "شنبه",
+      "persianDate": "۲۹ شهریور ۱۴۰۵",
+      "jalaliId": "1405-06-29",
+      "motivationText": "فقط قدم بعدی را با تمرکز انجام بده.",
+      "tasks": [
+        {
+          "type": "STUDY",
+          "title": "مطالعه فعال فصل اول",
+          "subject": "ریاضی",
+          "description": "صفحه ۱۲ تا ۲۵؛ پس از مطالعه، نکته‌ها را بدون کتاب بازیابی کن.",
+          "startTime": "08:00",
+          "endTime": "09:15",
+          "duration": 75,
+          "testCount": 0,
+          "note": "خلاصه یک‌صفحه‌ای تهیه شود.",
+          "pages": "۱۲ تا ۲۵",
+          "priority": 0
+        },
+        {
+          "type": "TEST",
+          "title": "تست آموزشی فصل اول",
+          "subject": "ریاضی",
+          "description": "تست‌های آموزشی صفحه ۲۶ تا ۲۹",
+          "startTime": "09:30",
+          "endTime": "10:00",
+          "duration": 30,
+          "testCount": 12,
+          "note": "غلط‌ها و نزده‌ها را علامت بزن.",
+          "examRef": "math-week-1",
+          "conflict": false,
+          "priority": 1
+        }
+      ]
+    },
+    {
+      "date": "2026-09-21",
+      "published": false,
+      "title": "مرور و کلاس",
+      "dayLabel": "یکشنبه",
+      "persianDate": "۳۰ شهریور ۱۴۰۵",
+      "tasks": [
+        {
+          "type": "CLASS",
+          "title": "کلاس رفع اشکال فصل اول",
+          "subject": "ریاضی",
+          "description": "رفع اشکال و مرور خلاصه‌های روز قبل",
+          "startTime": "08:00",
+          "endTime": "08:40",
+          "duration": 40,
+          "testCount": 0,
+          "note": "فقط مباحث علامت‌دار را دوباره بخوان.",
+          "priority": 0
+        }
+      ]
+    }
+  ],
+  "exams": [
+    {
+      "title": "آزمون نمونه ریاضی",
+      "externalRef": "math-week-1",
+      "subject": "ریاضی",
+      "published": false,
+      "durationMinutes": 30,
+      "maxAttempts": 1,
+      "openAt": "2026-09-21T08:45:00.000Z",
+      "closeAt": "2026-09-21T10:00:00.000Z",
+      "instructions": ["زمان را مدیریت کن و پاسخ‌ها را پیش از ثبت نهایی مرور کن."],
+      "syllabus": [{
+        "subject": "ریاضی",
+        "description": "فصل اول",
+        "required": true,
+        "track": "دوازدهم"
+      }],
+      "questions": [
+        {
+          "text": "حاصل ۲ + ۲ کدام است؟",
+          "options": ["۱", "۲", "۳", "۴"],
+          "correctAnswer": "۴",
+          "explanation": "جمع دو و دو برابر چهار است.",
+          "sortOrder": 0
+        }
+      ]
+    }
+  ]
+}

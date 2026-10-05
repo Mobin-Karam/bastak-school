@@ -1,0 +1,64 @@
+{
+  "schemaVersion": 1,
+  "ownerPolicy": "Every current-status document inherits an accountable owner and review date from its canonical category. Historical, migration, release, and vendored third-party documents are deliberately excluded.",
+  "categories": [
+    {
+      "path": "docs/architecture",
+      "owner": "@Mobin-Karam",
+      "reviewed": "2026-09-28"
+    },
+    {
+      "path": "docs/components",
+      "owner": "@Mobin-Karam",
+      "reviewed": "2026-09-28"
+    },
+    {
+      "path": "docs/operations",
+      "owner": "@Mobin-Karam",
+      "reviewed": "2026-09-28"
+    },
+    {
+      "path": "docs/product",
+      "owner": "@Mobin-Karam",
+      "reviewed": "2026-09-28"
+    },
+    {
+      "path": "docs/platform",
+      "owner": "@Mobin-Karam",
+      "reviewed": "2026-10-03"
+    },
+    {
+      "path": "docs/README.md",
+      "owner": "@Mobin-Karam",
+      "reviewed": "2026-09-28"
+    },
+    {
+      "path": "docs/ADMIN_V2_CAPABILITY_MATRIX.md",
+      "owner": "@Mobin-Karam",
+      "reviewed": "2026-09-28"
+    },
+    {
+      "path": "docs/ADMIN_V2_PRODUCT_READINESS.md",
+      "owner": "@Mobin-Karam",
+      "reviewed": "2026-09-28"
+    }
+  ],
+  "stalePathPatterns": [
+    {
+      "pattern": "(?<!backup/)\\badmin-app/",
+      "message": "legacy admin-app runtime path; use apps/admin or identify it as archive-only"
+    },
+    {
+      "pattern": "\\bstudent-app/",
+      "message": "legacy student-app runtime path; use apps/student or identify it as archive-only"
+    },
+    {
+      "pattern": "\\b(?:admin-v2|backend-v2|student-app-v2)/",
+      "message": "pre-grouped runtime path; use the active apps/ layout"
+    }
+  ],
+  "allowedLegacyReferences": {
+    "docs/components/admin-v2-application.md": ["admin-app/"],
+    "docs/operations/documentation-maintenance.md": ["admin-app/", "student-app/"]
+  }
+}

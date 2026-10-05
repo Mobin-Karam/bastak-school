@@ -1,0 +1,9 @@
+export { EducationOverviewPage } from "./pages/EducationOverviewPage";
+export { PlannerPage } from "./planner";
+export { LearningPage } from "./learning";
+export { ExamsPage } from "./exams";
+export { QuestionsPage } from "./questions";
+export { QuizzesPage } from "./quizzes";
+export { SubjectsPage } from "./subjects";
+export { ResourcesPage } from "./resources";
+export { ClassesPage } from "./classes";

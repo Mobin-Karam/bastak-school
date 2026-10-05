@@ -1,0 +1,71 @@
+import { Module } from "@nestjs/common";
+import { ConfigModule } from "@nestjs/config";
+import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR } from "@nestjs/core";
+import { TypeOrmModule } from "@nestjs/typeorm";
+import appConfig from "./config/app.config";
+import authConfig from "./config/auth.config";
+import databaseConfig from "./config/database.config";
+import { dataSourceOptions } from "./database/data-source";
+import { HttpExceptionFilter } from "./common/filters/http-exception.filter";
+import { LoggingInterceptor } from "./common/interceptors/logging.interceptor";
+import { RolesGuard } from "./common/guards/roles.guard";
+import { CsrfGuard } from "./common/guards/csrf.guard";
+import { AuthSessionGuard } from "./common/guards/auth-session.guard";
+import { StudentsModule } from "./modules/students/students.module";
+import { SyncModule } from "./modules/sync/sync.module";
+import { AnalyticsModule } from "./modules/analytics/analytics.module";
+import { ChatModule } from "./modules/chat/chat.module";
+import { StudySessionsModule } from "./modules/study-sessions/study-sessions.module";
+import { TasksModule } from "./modules/tasks/tasks.module";
+import { MistakesModule } from "./modules/mistakes/mistakes.module";
+import { ReportsModule } from "./modules/reports/reports.module";
+import { CapabilitiesGuard } from "./common/guards/capabilities.guard";
+import { RelationshipsModule } from "./modules/relationships/relationships.module";
+import { GuardianModule } from "./modules/guardian/guardian.module";
+import { DashboardModule } from "./modules/dashboard/dashboard.module";
+import { ActivityModule } from "./modules/activity/activity.module";
+import { ImportExportModule } from "./modules/import-export/import-export.module";
+import { OnboardingModule } from "./modules/onboarding/onboarding.module";
+import { RelaxationModule } from "./modules/relaxation/relaxation.module";
+import { CmbPlatformModule } from "./platform/cmb-platform.module";
+import { EducationModule } from "./modules/education/education.module";
+import { EducationSharingModule } from "./modules/education-sharing/education-sharing.module";
+import { PermissionRequestsModule } from "./modules/permission-requests/permission-requests.module";
+
+@Module({
+  imports: [
+    ConfigModule.forRoot({
+      isGlobal: true,
+      load: [appConfig, authConfig, databaseConfig],
+    }),
+    TypeOrmModule.forRoot(dataSourceOptions),
+    CmbPlatformModule,
+    EducationModule,
+    EducationSharingModule,
+    PermissionRequestsModule,
+    RelationshipsModule,
+    GuardianModule,
+    DashboardModule,
+    ActivityModule,
+    ImportExportModule,
+    OnboardingModule,
+    RelaxationModule,
+    StudentsModule,
+    SyncModule,
+    AnalyticsModule,
+    ChatModule,
+    StudySessionsModule,
+    TasksModule,
+    MistakesModule,
+    ReportsModule,
+  ],
+  providers: [
+    { provide: APP_FILTER, useClass: HttpExceptionFilter },
+    { provide: APP_INTERCEPTOR, useClass: LoggingInterceptor },
+    { provide: APP_GUARD, useClass: AuthSessionGuard },
+    { provide: APP_GUARD, useClass: RolesGuard },
+    { provide: APP_GUARD, useClass: CapabilitiesGuard },
+    { provide: APP_GUARD, useClass: CsrfGuard },
+  ],
+})
+export class AppModule {}
