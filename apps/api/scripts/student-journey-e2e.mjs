@@ -1,7 +1,7 @@
 const base = (process.env.E2E_API_URL || "http://127.0.0.1:4000/api/v2").replace(/\/$/, "");
-const username = process.env.E2E_STUDENT_USERNAME || "e2e.student.a";
+const phoneNumber = process.env.E2E_STUDENT_PHONE_NUMBER || "09159087768";
 const password = process.env.E2E_PASSWORD || "Moshaver-e2e-2026!";
-const login = await fetch(`${base}/auth/login`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ username, password }) });
+const login = await fetch(`${base}/auth/login`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ phoneNumber, password }) });
 const loginPayload = await login.json();
 if (login.status !== 201) throw new Error(`login failed: ${login.status} ${JSON.stringify(loginPayload)}`);
 const session = { cookie: login.headers.getSetCookie()[0].split(";")[0], csrf: loginPayload.data.csrfToken };
@@ -16,8 +16,9 @@ async function request(method, path, body) {
   return payload.data;
 }
 
+function seedPhoneNumber(identity) { let hash = 0; for (const character of identity) hash = (hash * 31 + character.charCodeAt(0)) >>> 0; return `091${String(hash % 100000000).padStart(8, "0")}`; }
 async function loginAs(name) {
-  const response = await fetch(`${base}/auth/login`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ username: name, password }) });
+  const response = await fetch(`${base}/auth/login`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ phoneNumber: seedPhoneNumber(name), password }) });
   const payload = await response.json();
   if (response.status !== 201) throw new Error(`${name} login failed`);
   return { cookie: response.headers.getSetCookie()[0].split(";")[0], csrf: payload.data.csrfToken };

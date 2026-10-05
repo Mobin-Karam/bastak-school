@@ -11,7 +11,7 @@ type AuthCopy = {
   createFirstAdmin: string;
   loginDescription: string;
   setupDescription: string;
-  username: string;
+  phoneNumber: string;
   password: string;
   email: string;
   firstName: string;
@@ -23,7 +23,7 @@ type AuthCopy = {
   signingIn: string;
   restoringSession: string;
   loginFailed: string;
-  usernameRequired: string;
+  phoneNumberRequired: string;
   passwordRequired: string;
   languageSwitch: string;
   securityNotice: string;
@@ -90,7 +90,7 @@ const copy: Record<AuthLanguage, AuthCopy> = {
       "با حساب سازمانی خود وارد شوید. منوها و امکانات بر اساس نقش فعال شما تنظیم می‌شوند.",
     setupDescription:
       "یک حساب مالک بسازید. پس از این مرحله، ساخت مدیر فقط از داخل سامانه و با دسترسی کنترل‌شده انجام می‌شود.",
-    username: "نام کاربری",
+    phoneNumber: "شماره همراه",
     password: "رمز عبور",
     email: "ایمیل",
     firstName: "نام",
@@ -102,7 +102,7 @@ const copy: Record<AuthLanguage, AuthCopy> = {
     signingIn: "در حال ورود…",
     restoringSession: "در حال بازیابی نشست…",
     loginFailed: "ورود ناموفق بود",
-    usernameRequired: "نام کاربری لازم است",
+    phoneNumberRequired: "شماره همراه معتبر لازم است",
     passwordRequired: "رمز عبور لازم است",
     languageSwitch: "English",
     securityNotice: "ورود شما به معنی پذیرش سیاست‌های امنیت و حریم خصوصی سامانه است.",
@@ -171,7 +171,7 @@ const copy: Record<AuthLanguage, AuthCopy> = {
       "Sign in with your organization account. Your active role determines the tools and navigation you can access.",
     setupDescription:
       "Create the platform owner account. After this step, administrators can only be created from within the platform with controlled access.",
-    username: "Username",
+    phoneNumber: "Mobile number",
     password: "Password",
     email: "Email",
     firstName: "First name",
@@ -183,7 +183,7 @@ const copy: Record<AuthLanguage, AuthCopy> = {
     signingIn: "Signing in…",
     restoringSession: "Restoring session…",
     loginFailed: "Unable to sign in",
-    usernameRequired: "Username is required",
+    phoneNumberRequired: "A valid mobile number is required",
     passwordRequired: "Password is required",
     languageSwitch: "فارسی",
     securityNotice: "By signing in, you agree to the platform security and privacy policies.",

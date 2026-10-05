@@ -1,90 +1,81 @@
 import { createBrowserRouter, Navigate, Outlet, useLocation } from "react-router-dom";
 import { lazy, Suspense, type ReactNode } from "react";
 import { RefreshCw } from "lucide-react";
-import { Button } from "../shared/ui/ui";
-import { useAdminShellCopy } from "../shared/ui/locale";
-import { LoginPage, useAuth } from "../features/auth";
-import { AdminLayout } from "./layout/AdminLayout";
-import { educationCapabilities } from "./layout/admin-navigation";
-import { RouteErrorBoundary } from "../shared/errors";
+import { Button } from "../../shared/ui/ui";
+import { useAdminShellCopy } from "../../shared/ui/locale";
+import { LoginPage, useAuth } from "../../features/auth";
+import { AdminLayout } from "../layout/shell/AdminLayout";
+import { educationCapabilities } from "../layout/navigation/admin-navigation";
+import { RouteErrorBoundary } from "../../shared/errors";
 
 const DashboardPage = lazy(() =>
-  import("../features/dashboard").then((module) => ({ default: module.DashboardPage })),
+  import("../../features/dashboard").then((module) => ({ default: module.DashboardPage })),
 );
 const SectionDashboardPage = lazy(() =>
-  import("../features/dashboard").then((module) => ({ default: module.SectionDashboardPage })),
+  import("../../features/dashboard").then((module) => ({ default: module.SectionDashboardPage })),
 );
 const StudentsPage = lazy(() =>
-  import("../features/students").then((module) => ({ default: module.StudentsPage })),
+  import("../../features/students").then((module) => ({ default: module.StudentsPage })),
 );
 const ChatPage = lazy(() =>
-  import("../features/chat").then((module) => ({ default: module.ChatPage })),
+  import("../../features/chat").then((module) => ({ default: module.ChatPage })),
 );
 const NotificationsPage = lazy(() =>
-  import("../features/notifications").then((module) => ({ default: module.NotificationsPage })),
+  import("../../features/notifications").then((module) => ({ default: module.NotificationsPage })),
 );
 const ReportsPage = lazy(() =>
-  import("../features/reports").then((module) => ({ default: module.ReportsPage })),
+  import("../../features/reports").then((module) => ({ default: module.ReportsPage })),
 );
 const SettingsPage = lazy(() =>
-  import("../features/settings").then((module) => ({ default: module.SettingsPage })),
+  import("../../features/settings").then((module) => ({ default: module.SettingsPage })),
 );
 const LivePage = lazy(() =>
-  import("../features/live").then((module) => ({ default: module.LivePage })),
+  import("../../features/live").then((module) => ({ default: module.LivePage })),
 );
 const SystemPage = lazy(() =>
-  import("../features/system").then((module) => ({ default: module.SystemPage })),
+  import("../../features/system").then((module) => ({ default: module.SystemPage })),
 );
 const FollowUpPage = lazy(() =>
-  import("../features/followup").then((module) => ({ default: module.FollowUpPage })),
+  import("../../features/followup").then((module) => ({ default: module.FollowUpPage })),
 );
 const AttentionPage = lazy(() =>
-  import("../features/attention").then((module) => ({ default: module.AttentionPage })),
+  import("../../features/attention").then((module) => ({ default: module.AttentionPage })),
 );
 const OrganizationsPage = lazy(() =>
-  import("../features/access").then((module) => ({ default: module.OrganizationsPage })),
+  import("../../features/access").then((module) => ({ default: module.OrganizationsPage })),
 );
 const UsersPage = lazy(() =>
-  import("../features/access").then((module) => ({ default: module.UsersPage })),
-);
-const PlannerPage = lazy(() =>
-  import("../features/education/planner").then((module) => ({ default: module.PlannerPage })),
-);
-const PlanTemplatesPage = lazy(() =>
-  import("../features/education/planner").then((module) => ({ default: module.PlanTemplatesPage })),
-);
-const LearningPage = lazy(() =>
-  import("../features/education/learning").then((module) => ({ default: module.LearningPage })),
+  import("../../features/access").then((module) => ({ default: module.UsersPage })),
 );
 const EducationOverviewPage = lazy(() =>
-  import("../features/education").then((module) => ({ default: module.EducationOverviewPage })),
+  import("../../features/education").then((module) => ({ default: module.EducationOverviewPage })),
 );
 const ExamsPage = lazy(() =>
-  import("../features/education/exams").then((module) => ({ default: module.ExamsPage })),
+  import("../../features/education/exams").then((module) => ({ default: module.ExamsPage })),
 );
 const QuestionsPage = lazy(() =>
-  import("../features/education/questions").then((module) => ({ default: module.QuestionsPage })),
+  import("../../features/education/questions").then((module) => ({ default: module.QuestionsPage })),
 );
 const QuizzesPage = lazy(() =>
-  import("../features/education/quizzes").then((module) => ({ default: module.QuizzesPage })),
+  import("../../features/education/quizzes").then((module) => ({ default: module.QuizzesPage })),
 );
 const SubjectsPage = lazy(() =>
-  import("../features/education/subjects").then((module) => ({ default: module.SubjectsPage })),
+  import("../../features/education/subjects").then((module) => ({ default: module.SubjectsPage })),
 );
 const ClassesPage = lazy(() =>
-  import("../features/education/classes").then((module) => ({ default: module.ClassesPage })),
+  import("../../features/education/classes").then((module) => ({ default: module.ClassesPage })),
 );
 const OnboardingPage = lazy(() =>
-  import("../features/onboarding").then((module) => ({ default: module.OnboardingPage })),
+  import("../../features/onboarding").then((module) => ({ default: module.OnboardingPage })),
 );
 const ResourcesPage = lazy(() =>
-  import("../features/education/resources").then((module) => ({ default: module.ResourcesPage })),
+  import("../../features/education/resources").then((module) => ({ default: module.ResourcesPage })),
 );
 const GuardianPage = lazy(() =>
-  import("../features/guardian").then((module) => ({ default: module.GuardianPage })),
+  import("../../features/guardian").then((module) => ({ default: module.GuardianPage })),
 );
 const PermissionRequestsPage = lazy(() =>
-  import("../features/permission-requests").then((module) => ({
+  import("../../features/permission-requests").then((module) => ({
     default: module.PermissionRequestsPage,
   })),
 );
@@ -283,51 +274,11 @@ export const router = createBrowserRouter([
             ),
           },
           {
-            path: "planner",
-            element: (
-              <CapabilityRoute capability="plans.read">
-                <RouteScreen>
-                  <PlannerPage />
-                </RouteScreen>
-              </CapabilityRoute>
-            ),
-          },
-          {
-            path: "plan-templates",
-            element: (
-              <CapabilityRoute capability="plan_templates.read">
-                <RouteScreen>
-                  <PlanTemplatesPage />
-                </RouteScreen>
-              </CapabilityRoute>
-            ),
-          },
-          {
-            path: "learning",
-            element: (
-              <CapabilityRoute capability="learning.read">
-                <RouteScreen>
-                  <LearningPage />
-                </RouteScreen>
-              </CapabilityRoute>
-            ),
-          },
-          {
             path: "education",
             element: (
               <CapabilityRoute capability={educationCapabilities}>
                 <RouteScreen>
                   <EducationOverviewPage />
-                </RouteScreen>
-              </CapabilityRoute>
-            ),
-          },
-          {
-            path: "students/:studentId/learning",
-            element: (
-              <CapabilityRoute capability="learning.read">
-                <RouteScreen>
-                  <LearningPage />
                 </RouteScreen>
               </CapabilityRoute>
             ),

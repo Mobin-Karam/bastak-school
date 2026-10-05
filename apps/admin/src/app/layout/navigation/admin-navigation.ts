@@ -3,13 +3,11 @@ import {
   Bell,
   BookOpen,
   BookOpenCheck,
-  CalendarDays,
   Database,
   GraduationCap,
   LayoutDashboard,
   MessageSquare,
   Settings,
-  Sparkles,
   UsersRound,
   Building2,
   PackageOpen,
@@ -20,7 +18,7 @@ import {
   School,
   HeartHandshake,
 } from "lucide-react";
-import type { AdminLanguage } from "../../shared/ui/locale";
+import type { AdminLanguage } from "../../../shared/ui/locale";
 
 export const educationNavigation = [
   {
@@ -29,28 +27,6 @@ export const educationNavigation = [
     description: "نمای عملیاتی آزمون‌ها، سؤال‌ها، تلاش‌ها و درخواست‌های بازیابی",
     icon: GraduationCap,
     capability: "exams.read",
-  },
-  {
-    path: "planner",
-    title: "برنامه‌ریز",
-    description: "مدیریت برنامه روزانه، هفتگی و وظایف دانش‌آموز",
-    icon: CalendarDays,
-    capability: "plans.read",
-  },
-  {
-    path: "plan-templates",
-    title: "الگوهای برنامه",
-    description: "کتابخانه، انتشار و اعمال الگوهای برنامه سازمان",
-    icon: CalendarDays,
-    capability: "plan_templates.read",
-  },
-  {
-    path: "learning",
-    title: "سیستم یادگیری",
-    description: "مدیریت مرورهای فاصله‌دار، تسلط و الگوهای خطای دانش‌آموز",
-    icon: Sparkles,
-    capability: "learning.read",
-    aliases: ["students/:studentId/learning"],
   },
   {
     path: "exams",
@@ -438,8 +414,7 @@ export function resolveAdminNavigation(pathname: string) {
   return (
     flatAdminNavigation.find(
       (item) =>
-        routeMatches(item.path, path) ||
-        ("aliases" in item && item.aliases.some((alias) => routeMatches(alias, path))),
+        routeMatches(item.path, path),
     ) || flatAdminNavigation[0]
   );
 }

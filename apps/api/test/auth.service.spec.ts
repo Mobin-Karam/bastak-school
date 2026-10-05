@@ -19,7 +19,7 @@ function repo<T>(items: T[] = []) {
 
 describe("AuthService", () => {
   it("creates a session for valid credentials", async () => {
-    const user = { id: "u1", username: "admin", role: UserRole.ADMIN, passwordHash: await bcrypt.hash("secret", 4) } as User;
+    const user = { id: "u1", username: "09123456789", phoneNumber: "09123456789", role: UserRole.ADMIN, passwordHash: await bcrypt.hash("secret", 4) } as User;
     const module = await Test.createTestingModule({
       providers: [
         AuthService,
@@ -30,8 +30,8 @@ describe("AuthService", () => {
       ],
     }).compile();
 
-    const result = await module.get(AuthService).login("admin", "secret");
-    expect(result.user.username).toBe("admin");
+    const result = await module.get(AuthService).login("09123456789", "secret");
+    expect(result.user.phoneNumber).toBe("09123456789");
     expect(result.csrfToken).toBeTruthy();
     expect(result.accessToken).toBeTruthy();
     expect(result.refreshToken).toBeTruthy();
@@ -39,7 +39,7 @@ describe("AuthService", () => {
   });
 
   it("rotates access, refresh, and CSRF credentials together", async () => {
-    const user = { id: "u1", username: "admin", role: UserRole.ADMIN, passwordHash: await bcrypt.hash("secret", 4) } as User;
+    const user = { id: "u1", username: "09123456789", phoneNumber: "09123456789", role: UserRole.ADMIN, passwordHash: await bcrypt.hash("secret", 4) } as User;
     const sessions = repo<Session>();
     const module = await Test.createTestingModule({
       providers: [
@@ -51,7 +51,7 @@ describe("AuthService", () => {
       ],
     }).compile();
     const auth = module.get(AuthService);
-    const original = await auth.login("admin", "secret");
+    const original = await auth.login("09123456789", "secret");
     sessions.findOne.mockResolvedValueOnce({ ...original.session, user });
 
     const rotated = await auth.refresh(original.refreshToken, original.csrfToken);

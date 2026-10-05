@@ -28,6 +28,11 @@ export class User {
   @Column({ length: 120 })
   username!: string;
 
+  /** Required for new accounts; nullable only while pre-v3 accounts are migrated. */
+  @Index({ unique: true })
+  @Column({ type: "varchar", length: 11, nullable: true })
+  phoneNumber?: string | null;
+
   @Index({ unique: true })
   @Column({ type: "varchar", length: 254, nullable: true })
   email?: string | null;

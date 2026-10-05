@@ -360,7 +360,7 @@ export function RoleDashboard({
     [defaultView, setSearchParams],
   );
   const { tone, icon: Icon, label } = getRoleConfig(role);
-  const { view, setDensity, setMode, setWidgetVisible, setWidgetLayout, reset } =
+  const { view, setDensity, setMode, setWidgetVisible, setWidgetLayout, setWidgetOrder, reset } =
     useRoleDashboardView(role, {
       sharedView,
       onChange: syncViewToUrl,
@@ -698,9 +698,11 @@ export function RoleDashboard({
           />
         ) : (
           <DashboardLayoutBoard
+            key={`${editingBoard ? "editable-dashboard" : "dashboard"}:${boardItems.map((item) => item.id).join("|")}`}
             items={boardItems}
             editing={editingBoard}
             onChange={setWidgetLayout}
+            onReorder={setWidgetOrder}
             labels={{
               boardLabel: dashboard.dashboardBoard,
               footprint: dashboard.widgetFootprint,

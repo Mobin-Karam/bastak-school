@@ -7,7 +7,7 @@ import { SignupForm } from './SignupForm';
 
 export function LoginPage() {
   const [mode, setMode] = useState<'login' | 'signup'>('login');
-  const [username, setUsername] = useState('');
+  const [phoneNumber, setPhoneNumber] = useState('');
   const [password, setPassword] = useState('');
   const [validationError, setValidationError] = useState('');
   const [online, setOnline] = useState(() => navigator.onLine);
@@ -15,7 +15,7 @@ export function LoginPage() {
   const login = useStudentStore((state) => state.login);
   const loadStatus = useStudentStore((state) => state.loadStatus);
   const apiError = useStudentStore((state) => state.error);
-  const usernameId = useId();
+  const phoneNumberId = useId();
   const errorId = useId();
   const isLoading = loadStatus === 'loading';
   const error = validationError || apiError;
@@ -43,12 +43,12 @@ export function LoginPage() {
 
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const normalizedUsername = username.trim();
-    if (!normalizedUsername || !password) {
-      setValidationError('نام کاربری و رمز عبور را کامل کنید.');
+    const normalizedPhoneNumber = phoneNumber.trim();
+    if (!/^09\d{9}$/.test(normalizedPhoneNumber) || !password) {
+      setValidationError('شماره همراه معتبر و رمز عبور را وارد کنید.');
       return;
     }
-    if (normalizedUsername.length > 120 || password.length > 300) {
+    if (password.length > 300) {
       setValidationError('اطلاعات ورود طولانی‌تر از حد مجاز است.');
       return;
     }
@@ -57,8 +57,8 @@ export function LoginPage() {
       return;
     }
     setValidationError('');
-    setUsername(normalizedUsername);
-    void login(normalizedUsername, password);
+    setPhoneNumber(normalizedPhoneNumber);
+    void login(normalizedPhoneNumber, password);
   }
 
   return (
@@ -92,25 +92,25 @@ export function LoginPage() {
 
         {!online ? <p className="student-login__offline" role="status"><WifiOff aria-hidden="true" /> اینترنت در دسترس نیست</p> : null}
 
-        <label htmlFor={usernameId}>نام کاربری</label>
+        <label htmlFor={phoneNumberId}>شماره همراه</label>
         <div className="student-login__field">
           <UserRound aria-hidden="true" />
           <input
-            id={usernameId}
+            id={phoneNumberId}
             dir="ltr"
             autoFocus
             autoCapitalize="none"
             autoCorrect="off"
             spellCheck={false}
-            autoComplete="username"
-            inputMode="text"
-            maxLength={120}
-            value={username}
+            autoComplete="tel"
+            inputMode="tel"
+            maxLength={11}
+            value={phoneNumber}
             disabled={isLoading}
             aria-invalid={Boolean(error)}
             aria-describedby={error ? errorId : undefined}
             onChange={(event) => {
-              setUsername(event.target.value);
+              setPhoneNumber(event.target.value.replace(/\D/g, '').slice(0, 11));
               if (validationError) setValidationError('');
             }}
           />

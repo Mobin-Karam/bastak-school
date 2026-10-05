@@ -1,17 +1,17 @@
 import { z } from "zod";
 
 export function createLoginSchema(messages: {
-  usernameRequired: string;
+  phoneNumberRequired: string;
   passwordRequired: string;
 }) {
   return z.object({
-    username: z.string().trim().min(1, messages.usernameRequired),
+    phoneNumber: z.string().trim().regex(/^09\d{9}$/, messages.phoneNumberRequired),
     password: z.string().min(1, messages.passwordRequired),
   });
 }
 
 export const loginSchema = createLoginSchema({
-  usernameRequired: "نام کاربری لازم است",
+  phoneNumberRequired: "شماره همراه معتبر لازم است",
   passwordRequired: "رمز عبور لازم است",
 });
 

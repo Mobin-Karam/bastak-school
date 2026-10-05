@@ -25,6 +25,7 @@ import {
   isValidIranianNationalCode,
   normalizeNationalCode,
 } from "../../modules/onboarding/national-code";
+import { seedPhoneNumber } from "./seed-phone";
 
 const DEVELOPMENT_PASSWORD = "Moshaver-development-2026!";
 const DEVELOPMENT_NATIONAL_CODE = "1000000001";
@@ -272,6 +273,7 @@ async function upsertUser(
   if (!user) user = users.create({ username });
   Object.assign(user, {
     username,
+    phoneNumber: seedPhoneNumber(username),
     firstName,
     lastName,
     role,

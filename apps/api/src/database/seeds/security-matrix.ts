@@ -21,6 +21,7 @@ import { UserRoleAssignment } from "../entities/user-role-assignment.entity";
 import { User, UserRole, UserStatus } from "../entities/user.entity";
 import { Subject } from "../entities/subject.entity";
 import { TeacherSubjectAssignment } from "../entities/teacher-subject-assignment.entity";
+import { seedPhoneNumber } from "./seed-phone";
 
 const password = process.env.E2E_PASSWORD || "Moshaver-e2e-2026!";
 
@@ -229,12 +230,14 @@ export async function seedSecurityMatrix() {
     const found = await repo.findOne({ where: { username } });
     if (found) {
       found.passwordHash = passwordHash;
+      found.phoneNumber = seedPhoneNumber(username);
       found.status = UserStatus.ACTIVE;
       return repo.save(found);
     }
     return repo.save(
       repo.create({
         username,
+        phoneNumber: seedPhoneNumber(username),
         passwordHash,
         role,
         status: UserStatus.ACTIVE,

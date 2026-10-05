@@ -6,7 +6,13 @@ export type RoleCode =
   | "MENTOR"
   | "CONTENT_MANAGER"
   | "ORGANIZATION_ADMIN"
-  | "PLATFORM_ADMIN";
+  | "PLATFORM_ADMIN"
+  | "PRINCIPAL"
+  | "DISCIPLINARIAN"
+  | "RELIGIOUS_EDUCATION_MANAGER"
+  | "GOVERNMENT_EDUCATION_MANAGER"
+  | "STUDENT_AFFAIRS_MENTOR"
+  | "COUNSELOR";
 export type Role = "admin" | "student" | "ADMIN" | "STUDENT" | RoleCode | Lowercase<RoleCode>;
 
 export interface User {

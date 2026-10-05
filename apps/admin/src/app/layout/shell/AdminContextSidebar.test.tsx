@@ -2,9 +2,9 @@ import { UsersRound } from "lucide-react";
 import { render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 import { MemoryRouter } from "react-router-dom";
-import { LocaleProvider } from "../../shared/ui/locale";
-import { localizedAdminCurrentNavigation } from "./admin-navigation";
-import { AdminContextSidebar } from "./AdminContextSidebar";
+import { LocaleProvider } from "../../../shared/ui/locale";
+import { localizedAdminCurrentNavigation } from "../navigation/admin-navigation";
+import { AdminContextSidebar } from "../navigation/AdminContextSidebar";
 
 describe("AdminContextSidebar LTR flow", () => {
   afterEach(() => window.localStorage.clear());

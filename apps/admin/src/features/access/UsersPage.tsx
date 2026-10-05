@@ -13,7 +13,7 @@ import {
   ShieldCheck,
 } from "lucide-react";
 import { useAuth } from "../auth";
-import type { OrganizationSummary, RoleCode } from "../../shared/types/domain";
+import type {  RoleCode } from "../../shared/types/domain";
 import { roleLabel, roleLabels } from "../../shared/lib/role-ui";
 import { useModal } from "../../shared/ui/modal";
 import { notify } from "../../shared/ui/notifications";
@@ -22,29 +22,26 @@ import { Button, Card, EmptyState, Field, Input, Select } from "../../shared/ui/
 import { AdminDataTable } from "../../shared/ui/admin-data-table";
 import { CollectionToolbar } from "../../shared/ui/collection-toolbar";
 import {
-  ManagementPageHeader,
+
   ManagementStat,
   ManagementSummaryBar,
 } from "../../shared/ui/management-workspace";
 import {
-  archiveOrganization,
+
   archiveUser,
-  createOrganization,
+
   createUser,
   listOrganizations,
   listUsers,
   setUserActive,
   setUserRoles,
-  setOrganizationEnabled,
-  organizationFeatures,
-  setOrganizationFeatures,
+
   transferPlatformOwnership,
-  updateOrganization,
+
   updateUser,
   type PortalOrganization,
   type PortalUser,
 } from "./api/access.api";
-import { OrganizationWorkspace } from "./OrganizationWorkspace";
 import { AccessFlowGuidance } from "./components/AccessFlowGuidance";
 import { emptyAccessResult } from "./model/access-flow";
 import { accessCopy } from "./model/access-copy";
@@ -83,10 +80,10 @@ export function UsersPage() {
   });
   const [editing, setEditing] = useState<PortalUser | null>(null);
   const [editDraft, setEditDraft] = useState({
-    username: "",
+    phoneNumber: "",
     firstName: "",
     lastName: "",
-    role: "ADVISOR" as RoleCode,
+    role: "COUNSELOR" as RoleCode,
     organizationId: "",
   });
   const refresh = () => qc.invalidateQueries({ queryKey: ["users"] });
@@ -132,7 +129,7 @@ export function UsersPage() {
     mutationFn: async () => {
       if (!editing) return;
       await updateUser(editing.id, {
-        username: editDraft.username,
+        phoneNumber: editDraft.phoneNumber,
         firstName: editDraft.firstName,
         lastName: editDraft.lastName,
       });
@@ -197,10 +194,10 @@ export function UsersPage() {
       user.assignments[0];
     setEditing(user);
     setEditDraft({
-      username: user.username,
+      phoneNumber: user.phoneNumber ?? user.username,
       firstName: user.firstName ?? "",
       lastName: user.lastName ?? "",
-      role: assignment?.role ?? "ADVISOR",
+      role: assignment?.role ?? "COUNSELOR",
       organizationId: assignment?.organizationId ?? organizationId,
     });
   };
@@ -328,13 +325,14 @@ export function UsersPage() {
               save.mutate();
             }}
           >
-            <Field label={copy.username}>
+            <Field label={copy.phoneNumber}>
               <Input
                 required
-                minLength={2}
+                inputMode="tel"
+                pattern="09[0-9]{9}"
                 dir="ltr"
-                value={editDraft.username}
-                onChange={(e) => setEditDraft({ ...editDraft, username: e.target.value })}
+                value={editDraft.phoneNumber}
+                onChange={(e) => setEditDraft({ ...editDraft, phoneNumber: e.target.value })}
               />
             </Field>
             <Field label={copy.firstName}>
@@ -682,11 +680,11 @@ function UserCreateForm({
   const { language } = useLocale();
   const copy = accessCopy[language];
   const [draft, setDraft] = useState({
-    username: "",
+    phoneNumber: "",
     password: "",
     firstName: "",
     lastName: "",
-    role: "ADVISOR" as RoleCode,
+    role: "COUNSELOR" as RoleCode,
     organizationId: defaultOrganizationId,
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -702,7 +700,7 @@ function UserCreateForm({
         setError("");
         try {
           await onSubmit({
-            username: draft.username,
+            phoneNumber: draft.phoneNumber,
             password: draft.password,
             firstName: draft.firstName,
             lastName: draft.lastName,
@@ -716,13 +714,14 @@ function UserCreateForm({
         }
       }}
     >
-      <Field label={copy.username}>
+      <Field label={copy.phoneNumber}>
         <Input
           required
-          minLength={2}
+          inputMode="tel"
+          pattern="09[0-9]{9}"
           dir="ltr"
-          value={draft.username}
-          onChange={(event) => setDraft({ ...draft, username: event.target.value })}
+          value={draft.phoneNumber}
+          onChange={(event) => setDraft({ ...draft, phoneNumber: event.target.value })}
         />
       </Field>
       <Field label={copy.password}>

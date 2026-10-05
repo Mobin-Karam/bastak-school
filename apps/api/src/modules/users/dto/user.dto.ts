@@ -6,10 +6,11 @@ import {
   IsString,
   IsUUID,
   Length,
+  Matches,
   MinLength,
 } from "class-validator";
 export class CreateUserDto {
-  @IsString() @Length(2, 120) username!: string;
+  @IsString() @Matches(/^09\d{9}$/) phoneNumber!: string;
   @IsString() @MinLength(12) password!: string;
   @IsOptional() @IsString() @Length(0, 100) firstName?: string;
   @IsOptional() @IsString() @Length(0, 100) lastName?: string;
@@ -17,7 +18,7 @@ export class CreateUserDto {
   @IsArray() @ArrayUnique() @IsString({ each: true }) roleCodes!: string[];
 }
 export class UpdateUserDto {
-  @IsOptional() @IsString() @Length(2, 120) username?: string;
+  @IsOptional() @IsString() @Matches(/^09\d{9}$/) phoneNumber?: string;
   @IsOptional() @IsString() @Length(0, 100) firstName?: string;
   @IsOptional() @IsString() @Length(0, 100) lastName?: string;
   @IsOptional() @IsString() @Length(2, 12) locale?: string;

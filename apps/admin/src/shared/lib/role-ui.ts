@@ -10,6 +10,12 @@ export const roleLabels: Record<RoleCode, string> = {
   CONTENT_MANAGER: "مدیر محتوا",
   ORGANIZATION_ADMIN: "مدیر سازمان",
   PLATFORM_ADMIN: "مدیر پلتفرم",
+  PRINCIPAL: "مدیریت مدرسه",
+  DISCIPLINARIAN: "ناظم",
+  RELIGIOUS_EDUCATION_MANAGER: "مسئول آموزش دینی",
+  GOVERNMENT_EDUCATION_MANAGER: "مسئول آموزش دولتی",
+  STUDENT_AFFAIRS_MENTOR: "مربی تربیتی",
+  COUNSELOR: "مشاور",
 };
 export const rolePortalTitles: Partial<Record<RoleCode, string>> = {
   GUARDIAN: "پرتال خانواده",
@@ -29,6 +35,12 @@ const roleLabelsEn: Record<RoleCode, string> = {
   CONTENT_MANAGER: "Content manager",
   ORGANIZATION_ADMIN: "Organization administrator",
   PLATFORM_ADMIN: "Platform administrator",
+  PRINCIPAL: "School principal",
+  DISCIPLINARIAN: "Disciplinarian",
+  RELIGIOUS_EDUCATION_MANAGER: "Religious education manager",
+  GOVERNMENT_EDUCATION_MANAGER: "Government education manager",
+  STUDENT_AFFAIRS_MENTOR: "Student affairs mentor",
+  COUNSELOR: "Counselor",
 };
 const rolePortalTitlesEn: Partial<Record<RoleCode, string>> = {
   GUARDIAN: "Family portal",

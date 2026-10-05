@@ -13,15 +13,15 @@ export function getAccountContext() {
   return request<AccountContext>("GET", "/me/context", undefined, { suppressAuthFailure: true });
 }
 
-export function loginRequest(username: string, password: string) {
+export function loginRequest(phoneNumber: string, password: string) {
   return api.post<LoginResponse>("/auth/login", {
-    username,
+    phoneNumber,
     password,
   });
 }
 
 export type PlatformBootstrapInput = {
-  username: string;
+  phoneNumber: string;
   email: string;
   password: string;
   firstName: string;
@@ -35,7 +35,7 @@ export function getPlatformBootstrapStatus() {
 }
 
 export function bootstrapPlatformAdmin(input: PlatformBootstrapInput) {
-  return api.post<{ username: string }>("/onboarding/platform-bootstrap", input);
+  return api.post<{ phoneNumber: string }>("/onboarding/platform-bootstrap", input);
 }
 
 export function logoutRequest() {

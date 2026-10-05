@@ -1,14 +1,14 @@
 import { ChevronLeft, ChevronRight, Home, Menu } from "lucide-react";
 import { NavLink } from "react-router-dom";
-import { HeaderClock } from "../../features/clock";
-import { HeaderNotifications } from "../../features/notifications";
-import { ThemeSwitcher } from "../../shared/theme/theme";
-import { WorkContextBar } from "../../shared/ui/work-context-bar";
-import { adminDestination, resolveAdminNavigation } from "./admin-navigation";
+import { HeaderClock } from "../../../features/clock";
+import { HeaderNotifications } from "../../../features/notifications";
+import { ThemeSwitcher } from "../../../shared/theme/theme";
+import { WorkContextBar } from "../../../shared/ui/work-context-bar";
+import { adminDestination, resolveAdminNavigation } from "../navigation/admin-navigation";
 import { AdminAccountMenu } from "./AdminAccountMenu";
-import { AdminLanguageSwitcher } from "./AdminLanguageSwitcher";
+import { AdminLanguageSwitcher } from "../shell/AdminLanguageSwitcher";
 import type { AdminBreadcrumb, AdminCurrentNavigation } from "./layout-types";
-import { useAdminShellCopy, useLocale } from "../../shared/ui/locale";
+import { useAdminShellCopy, useLocale } from "../../../shared/ui/locale";
 
 export function AdminHeader({
   current,
@@ -104,7 +104,7 @@ export function AdminHeader({
         </div>
 
         <div className="flex min-w-0 shrink-0 items-center gap-1.5 sm:gap-2">
-          <HeaderClock />
+          <HeaderClock  classNameClockMain="lg:block hidden " />
           <AdminLanguageSwitcher />
           <div className="hidden xl:block">
             <ThemeSwitcher />

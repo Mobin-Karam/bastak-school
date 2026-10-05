@@ -1,8 +1,8 @@
-import { listOrganizations, listUsers } from "../../features/access/api/access.api";
-import { getExams } from "../../features/exams/api/exams.api";
-import { listStudents } from "../../features/students/api/students.api";
-import { api } from "../../shared/api/api";
-import { normalizePersianText } from "../../shared/lib/utils";
+import { listOrganizations, listUsers } from "../../../features/access/api/access.api";
+import { getExams } from "../../../features/exams/api/exams.api";
+import { listStudents } from "../../../features/students/api/students.api";
+import { api } from "../../../shared/api/api";
+import { normalizePersianText } from "../../../shared/lib/utils";
 
 export type CommandPaletteEntity = {
   id: string;

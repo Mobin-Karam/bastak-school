@@ -1,9 +1,9 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import { RouterProvider } from "react-router-dom";
-import { AppProviders } from "./app/providers";
-import { queryClient } from "./app/query-client";
-import { router } from "./app/router";
+import { AppProviders } from "./app/providers/providers";
+import { queryClient } from "./app/providers/query-client";
+import { router } from "./app/routing/router";
 import "./styles/globals.css";
 import "goey-toast/styles.css";
 import { initializeTheme } from "./shared/theme/theme";

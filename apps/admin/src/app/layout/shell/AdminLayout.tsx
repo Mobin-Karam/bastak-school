@@ -1,22 +1,22 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Outlet, useLocation } from "react-router-dom";
-import { useAdminNotifications } from "../../features/notifications";
-import { useAuth } from "../../features/auth";
-import { AdminCommandPalette } from "./AdminCommandPalette";
-import { AdminContextSidebar } from "./AdminContextSidebar";
+import { useAdminNotifications } from "../../../features/notifications";
+import { useAuth } from "../../../features/auth";
+import { AdminCommandPalette } from "../command-palette/AdminCommandPalette";
+import { AdminContextSidebar } from "../navigation/AdminContextSidebar";
 import { AdminHeader } from "./AdminHeader";
-import { AdminMainSidebar } from "./AdminMainSidebar";
-import { AdminMobileBottomNav, AdminMobileDrawer } from "./AdminMobileNavigation";
+import { AdminMainSidebar } from "../navigation/AdminMainSidebar";
+import { AdminMobileBottomNav, AdminMobileDrawer } from "../navigation/AdminMobileNavigation";
 import {
   localizedAdminBreadcrumbs,
   localizedAdminCurrentNavigation,
   localizedNavigationForCapabilities,
   resolveAdminNavigation,
-} from "./admin-navigation";
+} from "../navigation/admin-navigation";
 import { adminContentOffsetClass, shouldAutoCollapseMainRail } from "./layout-geometry";
-import { usePersistentCollapse } from "./layout-storage";
-import { roleLabel } from "../../shared/lib/role-ui";
-import { useLocale } from "../../shared/ui/locale";
+import { usePersistentCollapse } from "../layout-storage";
+import { roleLabel } from "../../../shared/lib/role-ui";
+import { useLocale } from "../../../shared/ui/locale";
 
 function readSelectedStudentId(search: string) {
   const urlValue = new URLSearchParams(search).get("studentId");
@@ -133,7 +133,7 @@ export function AdminLayout() {
           current={current}
           breadcrumbs={breadcrumbs}
           selectedStudentId={selectedStudentId}
-          sticky={current.path !== "planner"}
+          sticky
           onOpenMobileNavigation={openMobileNavigation}
           role={roleLabel(auth.activeRole, language)}
           organization={auth.context?.activeOrganization?.name}

@@ -40,6 +40,7 @@ import {
 } from "../../database/entities/exam-retry-request.entity";
 import { UpdateTaskIssueDto } from "./dto/task-issue.dto";
 import { EducationCatalogService } from "../education-catalog";
+import { normalizeIranianMobile } from "../../common/utils/phone-number";
 
 @Injectable()
 export class StudentAdministrationService {
@@ -155,17 +156,19 @@ export class StudentAdministrationService {
           )
         : null;
     return this.dataSource.transaction(async (manager) => {
-      const username = dto.username.trim().toLowerCase();
-      if (await manager.findOne(User, { where: { username } }))
+      const phoneNumber = normalizeIranianMobile(dto.phoneNumber);
+      const username = phoneNumber;
+      if (await manager.findOne(User, { where: { phoneNumber } }))
         throw new ApiException(
           409,
-          "USERNAME_EXISTS",
-          "نام کاربری تکراری است.",
+          "PHONE_NUMBER_EXISTS",
+          "شماره همراه تکراری است.",
         );
       const user = await manager.save(
         User,
         manager.create(User, {
           username,
+          phoneNumber,
           passwordHash: await bcrypt.hash(dto.password, 12),
           role: UserRole.STUDENT,
           status: UserStatus.ACTIVE,

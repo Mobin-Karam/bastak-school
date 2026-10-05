@@ -25,7 +25,13 @@ import { WorldClockPanel } from "./WorldClockPanel";
 import { useLocale } from "../../../shared/ui/locale";
 import { clockCopy } from "../model/clock-copy";
 
-export function HeaderClock({ userId }: { userId?: string }) {
+export function HeaderClock({
+  userId,
+  classNameClockMain,
+}: {
+  userId?: string;
+  classNameClockMain?: string;
+}) {
   const { language, formatDate } = useLocale();
   const copy = clockCopy[language];
   useClockRuntime();
@@ -68,7 +74,7 @@ export function HeaderClock({ userId }: { userId?: string }) {
   }, [open]);
 
   return (
-    <div ref={containerRef} className="relative">
+    <div ref={containerRef} className={`relative ${classNameClockMain}`}>
       <button
         type="button"
         onClick={() => setOpen((value) => !value)}

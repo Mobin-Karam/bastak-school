@@ -185,7 +185,8 @@ export function StudentList({
     .replace("{total}", filteredTotal.toLocaleString(locale));
 
   return (
-    <Card className="min-w-0 p-0 xl:flex xl:max-h-[calc(100dvh-6rem)] xl:flex-col">
+    <Card className="min-w-0 overflow-hidden p-0 xl:flex xl:h-[calc(100dvh-6rem)] xl:flex-col">
+      {/* Toolbar */}
       <div className="z-10 grid shrink-0 gap-3 border-b border-slate-200 bg-[rgb(var(--surface-card))] p-3 sm:p-4 dark:border-slate-800">
         <StudentOverviewStats
           counts={counts}
@@ -275,6 +276,7 @@ export function StudentList({
         </div>
       </div>
 
+      {/* Item Summary */}
       <div className="z-[1] flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-slate-100 bg-[rgb(var(--surface-card))] px-3 py-2.5 text-[11px] text-slate-500 sm:px-4 dark:border-slate-800 dark:text-slate-400">
         <span>
           {itemSummary}
@@ -294,6 +296,7 @@ export function StudentList({
         ) : null}
       </div>
 
+      {/* Loading State */}
       {loading ? (
         <div className="p-4">
           <LoadingState label={copy.loadingDirectory} />
@@ -313,7 +316,7 @@ export function StudentList({
         </div>
       ) : students.length ? (
         <>
-          <div className="min-h-0 xl:flex-1">
+          <div className="min-h-0 flex-1 overflow-hidden">
             <AdminDataTable
               rows={students}
               rowId={(student) => student.id}
@@ -324,51 +327,144 @@ export function StudentList({
               onSort={(value) => onSort(value as StudentSort)}
               onRowClick={onSelect}
               displayMode={displayMode}
-              scrollClassName="xl:max-h-full xl:overflow-y-auto xl:overscroll-contain"
+              scrollClassName="xl:overflow-y-auto xl:overscroll-y-contain"
+
+              footer={
+                filteredTotal > 0 ? (
+                  <div
+                    className="
+            z-[1]
+            flex flex-wrap
+            items-center justify-between
+            gap-3
+            border-t border-slate-200
+            bg-[rgb(var(--surface-card))]
+            p-3 sm:p-4
+            dark:border-slate-800
+          "
+                  >
+                    {/* Page size */}
+                    <label className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
+                      <span>{copy.itemsPerPage}</span>
+
+                      <select
+                        className="
+                h-9 rounded-lg
+                border border-slate-200
+                bg-white
+                px-2
+                text-xs text-slate-700
+                outline-none
+                transition
+                focus:border-brand
+                focus:ring-2
+                focus:ring-brand/20
+                dark:border-slate-800
+                dark:bg-slate-900
+                dark:text-slate-200
+              "
+                        value={pageSize}
+                        onChange={(event) => setPageSize(Number(event.target.value))}
+                      >
+                        <option value={25}>{(25).toLocaleString(locale)}</option>
+
+                        <option value={50}>{(50).toLocaleString(locale)}</option>
+
+                        <option value={100}>{(100).toLocaleString(locale)}</option>
+                      </select>
+                    </label>
+
+                    {/* Pagination */}
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="soft"
+                        className="h-9 px-2.5"
+                        disabled={page <= 1}
+                        onClick={() => setPage(Math.max(1, page - 1))}
+                      >
+                        <ChevronRight size={15} className="ltr:rotate-180" />
+
+                        <span className="hidden sm:inline">{copy.previousPage}</span>
+                      </Button>
+
+                      <span className="min-w-20 whitespace-nowrap text-center text-xs font-semibold text-slate-600 dark:text-slate-300">
+                        {page.toLocaleString(locale)}
+                        {" / "}
+                        {Math.max(1, pageCount).toLocaleString(locale)}
+                      </span>
+
+                      <Button
+                        variant="soft"
+                        className="h-9 px-2.5"
+                        disabled={page >= pageCount}
+                        onClick={() => setPage(Math.min(pageCount, page + 1))}
+                      >
+                        <span className="hidden sm:inline">{copy.nextPage}</span>
+
+                        <ChevronLeft size={15} className="ltr:rotate-180" />
+                      </Button>
+                    </div>
+                  </div>
+                ) : null
+              }
+
               mobileCard={(student) => {
                 const education =
                   [student.grade, student.major].filter(Boolean).join(" / ") ||
                   copy.educationNotSet;
+
                 return (
                   <div className="grid gap-3">
                     <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-start gap-3">
                       <span className="grid size-10 place-items-center rounded-full bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-300">
                         <UserRound size={18} />
                       </span>
+
                       <span className="min-w-0">
                         <span className="flex flex-wrap items-center gap-2">
                           <strong className="truncate text-sm text-ink">{student.name}</strong>
+
                           <StudentStatus student={student} language={language} />
                         </span>
+
                         <span className="mt-1 block truncate text-xs text-slate-500 dark:text-slate-400">
                           {education}
                         </span>
                       </span>
+
                       <ChevronLeft className="mt-2 text-slate-400 ltr:rotate-180" size={16} />
                     </div>
+
                     <Completeness student={student} language={language} compact />
+
                     <div className="flex items-center justify-between gap-2 text-[11px] text-slate-500 dark:text-slate-400">
                       <span>{formatStudentLastSeen(student.last_seen_at, language)}</span>
+
                       <span className="font-bold text-brand">{copy.openRecord}</span>
                     </div>
                   </div>
                 );
               }}
+
               columns={[
                 {
                   id: "name",
                   header: copy.students,
                   sortLabel: copy.students,
+
                   cell: (student) => (
                     <div className="flex max-w-[260px] items-center gap-3">
                       <span className="grid size-10 shrink-0 place-items-center rounded-full bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-300">
                         <UserRound size={18} />
                       </span>
+
                       <span className="min-w-0">
                         <span className="flex flex-wrap items-center gap-2">
                           <strong className="truncate text-sm text-ink">{student.name}</strong>
+
                           <StudentStatus student={student} language={language} />
                         </span>
+
                         <span className="mt-1 block truncate text-xs text-slate-500" dir="ltr">
                           {getStudentUsername(student) || copy.usernameNotSet}
                         </span>
@@ -376,10 +472,12 @@ export function StudentList({
                     </div>
                   ),
                 },
+
                 {
                   id: "grade",
                   header: copy.gradeAndMajor,
                   sortLabel: copy.gradeAndMajor,
+
                   cell: (student) => (
                     <p className="max-w-[190px] truncate font-semibold text-slate-700 dark:text-slate-200">
                       {[student.grade, student.major].filter(Boolean).join(" / ") ||
@@ -387,13 +485,16 @@ export function StudentList({
                     </p>
                   ),
                 },
+
                 {
                   id: "target",
                   header: copy.goal,
+
                   cell: (student) => (
                     <p className="max-w-[220px] truncate text-xs text-slate-500">
                       {[
                         student.targetField || student.target_major,
+
                         student.targetUniversity || student.target_city,
                       ]
                         .filter(Boolean)
@@ -401,65 +502,29 @@ export function StudentList({
                     </p>
                   ),
                 },
+
                 {
                   id: "lastSeen",
                   header: copy.lastActivity,
                   sortLabel: copy.lastActivity,
+
                   cell: (student) => (
                     <span className="text-xs text-slate-500">
                       {formatStudentLastSeen(student.last_seen_at, language)}
                     </span>
                   ),
                 },
+
                 {
                   id: "completeness",
                   header: copy.directoryProfile,
                   sortLabel: copy.profileCompletionShort,
+
                   cell: (student) => <Completeness student={student} language={language} />,
                 },
               ]}
             />
           </div>
-
-          {filteredTotal > 0 ? (
-            <div className="z-[1] flex shrink-0 flex-wrap items-center justify-between gap-3 border-t border-slate-200 bg-[rgb(var(--surface-card))] p-3 sm:p-4 dark:border-slate-800">
-              <label className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
-                <span>{copy.itemsPerPage}</span>
-                <select
-                  className="h-9 rounded-lg border border-slate-200 bg-white px-2 text-xs text-slate-700 outline-none focus:border-brand focus:ring-2 focus:ring-brand dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200"
-                  value={pageSize}
-                  onChange={(event) => setPageSize(Number(event.target.value))}
-                >
-                  <option value={25}>{(25).toLocaleString(locale)}</option>
-                  <option value={50}>{(50).toLocaleString(locale)}</option>
-                  <option value={100}>{(100).toLocaleString(locale)}</option>
-                </select>
-              </label>
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="soft"
-                  className="h-9 px-2.5"
-                  disabled={page <= 1}
-                  onClick={() => setPage(Math.max(1, page - 1))}
-                >
-                  <ChevronRight size={15} className="ltr:rotate-180" />
-                  {copy.previousPage}
-                </Button>
-                <span className="min-w-20 text-center text-xs font-semibold text-slate-600 dark:text-slate-300">
-                  {page.toLocaleString(locale)} / {Math.max(1, pageCount).toLocaleString(locale)}
-                </span>
-                <Button
-                  variant="soft"
-                  className="h-9 px-2.5"
-                  disabled={page >= pageCount}
-                  onClick={() => setPage(Math.min(pageCount, page + 1))}
-                >
-                  {copy.nextPage}
-                  <ChevronLeft size={15} className="ltr:rotate-180" />
-                </Button>
-              </div>
-            </div>
-          ) : null}
         </>
       ) : (
         <div className="p-4">

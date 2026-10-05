@@ -1,5 +1,5 @@
 import { Languages } from "lucide-react";
-import { useLocale } from "../../shared/ui/locale";
+import { useLocale } from "../../../shared/ui/locale";
 
 export function AdminLanguageSwitcher() {
   const { language, setLanguage } = useLocale();

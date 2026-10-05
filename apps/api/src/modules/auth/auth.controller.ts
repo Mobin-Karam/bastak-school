@@ -17,7 +17,7 @@ export class AuthController {
 
   @Post("login")
   async login(@Body() dto: LoginDto, @Req() req: FastifyRequest, @Res({ passthrough: true }) res: FastifyReply) {
-    const result = await this.auth.login(dto.username, dto.password, req.ip);
+    const result = await this.auth.login(dto.phoneNumber, dto.password, req.ip);
     this.setAuthCookies(res, result);
     return ok({ user: { id: result.user.id, username: result.user.username, role: result.user.role }, csrfToken: result.csrfToken, expiresAt: result.expiresAt, refreshExpiresAt: result.refreshExpiresAt });
   }

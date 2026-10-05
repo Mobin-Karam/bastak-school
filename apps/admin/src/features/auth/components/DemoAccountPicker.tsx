@@ -2,19 +2,19 @@ import { ChevronDown, UserRoundCheck } from "lucide-react";
 import { useAuthLocale } from "../model/auth-locale";
 
 export const demoAccounts = [
-  { role: "platformAdmin", username: "admin", password: "anonymous" },
-  { role: "organizationAdmin", username: "demo.orgadmin.a", password: "Moshaver-demo-2026!", organizationFa: "آکادمی راه روشن", organizationEn: "Roshan Path Academy" },
-  { role: "organizationAdmin", username: "demo.orgadmin.b", password: "Moshaver-demo-2026!", organizationFa: "دبیرستان دانش فردا", organizationEn: "Tomorrow Knowledge School" },
-  { role: "organizationAdmin", username: "demo.orgadmin.c", password: "Moshaver-demo-2026!", organizationFa: "مرکز مشاوره مسیر رشد", organizationEn: "Growth Path Counseling Center" },
-  { role: "advisor", username: "demo.advisor.a", password: "Moshaver-demo-2026!", organizationFa: "آکادمی راه روشن", organizationEn: "Roshan Path Academy" },
-  { role: "advisor", username: "demo.advisor.b", password: "Moshaver-demo-2026!", organizationFa: "دبیرستان دانش فردا", organizationEn: "Tomorrow Knowledge School" },
-  { role: "advisor", username: "demo.advisor.c", password: "Moshaver-demo-2026!", organizationFa: "مرکز مشاوره مسیر رشد", organizationEn: "Growth Path Counseling Center" },
+  { role: "platformAdmin", phoneNumber: "09192668751", password: "anonymous" },
+  { role: "organizationAdmin", phoneNumber: "09127873545", password: "Moshaver-demo-2026!", organizationFa: "آکادمی راه روشن", organizationEn: "Roshan Path Academy" },
+  { role: "organizationAdmin", phoneNumber: "09127873546", password: "Moshaver-demo-2026!", organizationFa: "دبیرستان دانش فردا", organizationEn: "Tomorrow Knowledge School" },
+  { role: "organizationAdmin", phoneNumber: "09127873547", password: "Moshaver-demo-2026!", organizationFa: "مرکز مشاوره مسیر رشد", organizationEn: "Growth Path Counseling Center" },
+  { role: "advisor", phoneNumber: "09176988520", password: "Moshaver-demo-2026!", organizationFa: "آکادمی راه روشن", organizationEn: "Roshan Path Academy" },
+  { role: "advisor", phoneNumber: "09176988521", password: "Moshaver-demo-2026!", organizationFa: "دبیرستان دانش فردا", organizationEn: "Tomorrow Knowledge School" },
+  { role: "advisor", phoneNumber: "09176988522", password: "Moshaver-demo-2026!", organizationFa: "مرکز مشاوره مسیر رشد", organizationEn: "Growth Path Counseling Center" },
 ] as const;
 
 export function DemoAccountPicker({
   onSelect,
 }: {
-  onSelect: (username: string, password: string) => void;
+  onSelect: (phoneNumber: string, password: string) => void;
 }) {
   const { copy, language } = useAuthLocale();
   return (
@@ -35,16 +35,16 @@ export function DemoAccountPicker({
           const role = copy.demoRoles[account.role];
           return (
             <button
-              key={account.username}
+              key={account.phoneNumber}
               type="button"
               className="rounded-xl border border-slate-200 bg-white p-2.5 text-start transition hover:border-brand/40 hover:bg-brand/5 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand/20 dark:border-slate-800 dark:bg-slate-950"
-              onClick={() => onSelect(account.username, account.password)}
+              onClick={() => onSelect(account.phoneNumber, account.password)}
             >
               <strong className="block text-sm">{role.label}</strong>
               <span className="mt-0.5 block text-[11px] text-slate-500">{role.description}</span>
               {"organizationFa" in account ? <span className="mt-1 block text-[11px] font-semibold text-slate-600 dark:text-slate-300">{language === "fa" ? account.organizationFa : account.organizationEn}</span> : null}
               <code dir="ltr" className="mt-1 block text-[10px] text-brand">
-                {account.username}
+                {account.phoneNumber}
               </code>
               <code dir="ltr" className="mt-1 block select-all text-[10px] text-slate-600 dark:text-slate-300">{copy.password}: {account.password}</code>
             </button>

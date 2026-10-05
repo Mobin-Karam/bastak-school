@@ -19,7 +19,7 @@ export function LoginForm() {
   const { register, handleSubmit, formState, setValue } = useForm<LoginFormValues>({
     resolver: zodResolver(createLoginSchema(copy)),
     defaultValues: {
-      username: "",
+      phoneNumber: "",
       password: "",
     },
   });
@@ -33,20 +33,22 @@ export function LoginForm() {
         setError("");
 
         try {
-          await auth.login(data.username, data.password);
+          await auth.login(data.phoneNumber, data.password);
           navigate("/admin");
         } catch (e) {
           setError(e instanceof Error ? e.message : copy.loginFailed);
         }
       })}
     >
-      <Field label={copy.username} error={formState.errors.username?.message}>
+      <Field label={copy.phoneNumber} error={formState.errors.phoneNumber?.message}>
         <Input
           className="h-12"
           dir="ltr"
-          autoComplete="username"
+          autoComplete="tel"
+          inputMode="tel"
+          placeholder="09123456789"
           disabled={checking}
-          {...register("username")}
+          {...register("phoneNumber")}
         />
       </Field>
 
@@ -77,8 +79,8 @@ export function LoginForm() {
 
       {import.meta.env.DEV ? (
         <DemoAccountPicker
-          onSelect={(username, password) => {
-            setValue("username", username, { shouldValidate: true });
+          onSelect={(phoneNumber, password) => {
+            setValue("phoneNumber", phoneNumber, { shouldValidate: true });
             setValue("password", password, { shouldValidate: true });
             setError("");
           }}

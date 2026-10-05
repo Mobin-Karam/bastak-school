@@ -1,5 +1,7 @@
+import { useDragAndDrop } from "@formkit/drag-and-drop/react";
 import { GripVertical, MoveDown, MoveUp, PanelTop, Shrink, StretchHorizontal } from "lucide-react";
-import type { DragEvent, ReactNode } from "react";
+import { useEffect, useMemo, useRef } from "react";
+import type { ReactNode } from "react";
 
 export type DashboardBoardItem = {
   id: string;
@@ -19,6 +21,7 @@ export function DashboardLayoutBoard({
   editing,
   labels,
   onChange,
+  onReorder,
 }: {
   items: DashboardBoardItem[];
   editing: boolean;
@@ -34,35 +37,54 @@ export function DashboardLayoutBoard({
     makeTaller: string;
   };
   onChange: (id: string, patch: { order?: number; width?: number; height?: number }) => void;
+  onReorder: (ids: string[]) => void;
 }) {
+  const sourceIds = useMemo(() => items.map((item) => item.id), [items]);
+  const sourceOrder = sourceIds.join("|");
+  const publishedOrder = useRef(sourceOrder);
+  const onReorderRef = useRef(onReorder);
+  const [parent, orderedIds] = useDragAndDrop<HTMLElement, string>(sourceIds, {
+    disabled: !editing,
+    dragHandle: ".dashboard-widget-drag-handle",
+    draggingClass: "opacity-50",
+    dropZoneClass: "ring-2 ring-brand/40",
+  });
+  const orderedItems = useMemo(
+    () => orderedIds.map((id) => items.find((item) => item.id === id)).filter(Boolean) as DashboardBoardItem[],
+    [items, orderedIds],
+  );
+  const orderedItemIds = orderedItems.map((item) => item.id).join("|");
+
+  useEffect(() => {
+    onReorderRef.current = onReorder;
+  }, [onReorder]);
+
+  useEffect(() => {
+    if (!orderedItemIds || orderedItemIds === publishedOrder.current) return;
+    publishedOrder.current = orderedItemIds;
+    onReorderRef.current(orderedItems.map((item) => item.id));
+  }, [orderedItemIds, orderedItems]);
+
   const move = (sourceId: string, targetId: string) => {
     if (sourceId === targetId) return;
-    const source = items.findIndex((item) => item.id === sourceId);
-    const target = items.findIndex((item) => item.id === targetId);
+    const source = orderedItems.findIndex((item) => item.id === sourceId);
+    const target = orderedItems.findIndex((item) => item.id === targetId);
     if (source < 0 || target < 0) return;
-    const reordered = [...items];
-    const [moved] = reordered.splice(source, 1);
-    reordered.splice(target, 0, moved);
-    reordered.forEach((item, order) => onChange(item.id, { order }));
-  };
-
-  const onDrop = (event: DragEvent<HTMLElement>, targetId: string) => {
-    event.preventDefault();
-    move(event.dataTransfer.getData("text/plain"), targetId);
+    const next = [...orderedItems];
+    const [moved] = next.splice(source, 1);
+    next.splice(target, 0, moved);
+    onReorder(next.map((item) => item.id));
   };
 
   return (
     <section
+      ref={parent}
       aria-label={labels.boardLabel}
       className="grid min-w-0 grid-cols-1 gap-3 md:auto-rows-[minmax(5rem,auto)] md:grid-cols-12"
     >
-      {items.map((item, index) => (
+      {orderedItems.map((item, index) => (
         <article
           key={item.id}
-          draggable={editing}
-          onDragStart={(event) => event.dataTransfer.setData("text/plain", item.id)}
-          onDragOver={(event) => editing && event.preventDefault()}
-          onDrop={(event) => editing && onDrop(event, item.id)}
           className={`group relative min-w-0 ${editing ? "rounded-xl outline outline-1 outline-dashed outline-brand/40" : ""}`}
           style={{
             gridColumn: `span ${Math.min(12, Math.max(1, item.width))} / span ${Math.min(12, Math.max(1, item.width))}`,
@@ -72,7 +94,7 @@ export function DashboardLayoutBoard({
           {editing ? (
             <div className="flex min-h-9 items-center gap-1 border-b border-brand/15 bg-brand/[0.035] px-2 text-[11px] text-slate-600 dark:text-slate-300">
               <GripVertical
-                className="size-4 shrink-0 cursor-grab text-brand active:cursor-grabbing"
+                className="dashboard-widget-drag-handle size-4 shrink-0 cursor-grab touch-none text-brand active:cursor-grabbing"
                 aria-hidden="true"
               />
               <span className="min-w-0 flex-1 truncate font-bold text-ink">{item.title}</span>
@@ -82,14 +104,14 @@ export function DashboardLayoutBoard({
               <BoardButton
                 label={labels.moveEarlier}
                 disabled={index === 0}
-                onClick={() => move(item.id, items[index - 1]?.id || item.id)}
+                onClick={() => move(item.id, orderedItems[index - 1]?.id || item.id)}
               >
                 <MoveUp size={14} />
               </BoardButton>
               <BoardButton
                 label={labels.moveLater}
-                disabled={index === items.length - 1}
-                onClick={() => move(item.id, items[index + 1]?.id || item.id)}
+                disabled={index === orderedItems.length - 1}
+                onClick={() => move(item.id, orderedItems[index + 1]?.id || item.id)}
               >
                 <MoveDown size={14} />
               </BoardButton>

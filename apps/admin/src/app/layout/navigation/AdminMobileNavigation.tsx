@@ -6,9 +6,9 @@ import {
   localizedMainNavigationForCapabilities,
   localizedNavigationForCapabilities,
 } from "./admin-navigation";
-import type { AdminCurrentNavigation } from "./layout-types";
-import { useAuth } from "../../features/auth";
-import { useAdminShellCopy, useLocale } from "../../shared/ui/locale";
+import type { AdminCurrentNavigation } from "../shell/layout-types";
+import { useAuth } from "../../../features/auth";
+import { useAdminShellCopy, useLocale } from "../../../shared/ui/locale";
 
 function focusableElements(root: HTMLElement | null) {
   if (!root) return [] as HTMLElement[];

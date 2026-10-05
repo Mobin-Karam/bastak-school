@@ -1,9 +1,9 @@
 import { ChevronLeft, ChevronRight, Search } from "lucide-react";
 import { NavLink } from "react-router-dom";
 import { adminDestination, localizedMainNavigationForCapabilities } from "./admin-navigation";
-import { useAuth } from "../../features/auth";
-import { rolePortalTitle } from "../../shared/lib/role-ui";
-import { useAdminShellCopy, useLocale } from "../../shared/ui/locale";
+import { useAuth } from "../../../features/auth";
+import { rolePortalTitle } from "../../../shared/lib/role-ui";
+import { useAdminShellCopy, useLocale } from "../../../shared/ui/locale";
 
 export function AdminMainSidebar({
   collapsed,

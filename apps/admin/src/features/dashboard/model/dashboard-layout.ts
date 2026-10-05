@@ -157,6 +157,18 @@ export function useRoleDashboardView(
     save(next);
   };
 
+  const setWidgetOrder = (ids: string[]) => {
+    const orderById = new Map(ids.map((id, order) => [id, order]));
+    const next = createDashboardView({
+      ...view,
+      widgets: view.widgets.map((widget) => ({
+        ...widget,
+        order: orderById.get(widget.id) ?? widget.order,
+      })),
+    });
+    save(next);
+  };
+
   const reset = () => {
     createDashboardPreferenceStore({
       namespace: "moshaver-admin",
@@ -166,7 +178,7 @@ export function useRoleDashboardView(
     options?.onChange?.(defaultView);
   };
 
-  return { view, setDensity, setMode, setWidgetVisible, setWidgetLayout, reset };
+  return { view, setDensity, setMode, setWidgetVisible, setWidgetLayout, setWidgetOrder, reset };
 }
 
 export function visibleRoleDashboardWidgets(

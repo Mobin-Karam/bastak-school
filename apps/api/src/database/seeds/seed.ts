@@ -10,6 +10,7 @@ import { Exam } from "../entities/exam.entity";
 import { ExamAssignment } from "../entities/exam-assignment.entity";
 import { ExamAttempt } from "../entities/exam-attempt.entity";
 import { Question } from "../entities/question.entity";
+import { seedPhoneNumber } from "./seed-phone";
 
 async function main() {
   if (process.env.NODE_ENV === "production") {
@@ -53,7 +54,7 @@ async function main() {
   await students.save(sara);
   await seedSaraExams(sara, admin);
 
-  console.log(`Seeded base users and Sara exam journey: ${admin.username}, ${saraUser.username}`);
+  console.log(`Seeded base users and Sara exam journey: ${admin.phoneNumber}, ${saraUser.phoneNumber}`);
   console.log("Admin v2 role accounts use password: Moshaver-e2e-2026!");
   await dataSource.destroy();
 }
@@ -141,9 +142,10 @@ async function upsertUser(users: ReturnType<typeof dataSource.getRepository<User
   if (existing) {
     existing.role = role;
     existing.passwordHash = passwordHash;
+    existing.phoneNumber = seedPhoneNumber(username);
     return users.save(existing);
   }
-  return users.save(users.create({ username, role, passwordHash }));
+  return users.save(users.create({ username, phoneNumber: seedPhoneNumber(username), role, passwordHash }));
 }
 
 main().catch((error) => {

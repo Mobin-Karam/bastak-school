@@ -11,7 +11,7 @@ import {
 } from "class-validator";
 export class CreateStudentDto {
   @IsString() @Length(2, 160) name!: string;
-  @IsString() @Length(2, 120) username!: string;
+  @IsString() @Length(11, 11) phoneNumber!: string;
   @IsString() @MinLength(12) password!: string;
   @IsOptional() @IsUUID() organizationId?: string;
   @IsOptional() @IsIn(["school", "independent"]) learnerProfile?:
@@ -34,7 +34,7 @@ export class UpdateStudentDto {
   independentType?: "adult" | "gap_year" | "homeschool" | "other";
   @IsOptional() @IsString() @Length(0, 120) learningLevel?: string;
   @IsOptional() @IsString() @Length(2, 160) name?: string;
-  @IsOptional() @IsString() @Length(2, 120) username?: string;
+  @IsOptional() @IsString() @Length(11, 11) phoneNumber?: string;
   @IsOptional() @IsInt() @Min(1) @Max(12) gradeId?: number;
   @IsOptional() @IsString() @Length(1, 40) educationTypeId?: string;
   @IsOptional() @IsString() @Length(1, 80) trackId?: string;

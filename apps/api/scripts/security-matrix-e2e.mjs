@@ -2,12 +2,13 @@ const base = (
   process.env.E2E_API_URL || "http://127.0.0.1:4000/api/v2"
 ).replace(/\/$/, "");
 const password = process.env.E2E_PASSWORD || "Moshaver-e2e-2026!";
+function seedPhoneNumber(identity) { let hash = 0; for (const character of identity) hash = (hash * 31 + character.charCodeAt(0)) >>> 0; return `091${String(hash % 100000000).padStart(8, "0")}`; }
 
 async function login(username) {
   const response = await fetch(`${base}/auth/login`, {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ username, password }),
+    body: JSON.stringify({ phoneNumber: seedPhoneNumber(username), password }),
   });
   const payload = await response.json();
   assert(

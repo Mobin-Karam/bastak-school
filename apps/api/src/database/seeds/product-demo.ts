@@ -69,6 +69,7 @@ import {
   requireSafePlatformDatabase,
 } from "./demo-guard";
 import { seedEducationCatalog } from "../../modules/education-catalog/education-catalog.service";
+import { seedPhoneNumber } from "./seed-phone";
 
 const password = process.env.DEMO_PASSWORD || "Moshaver-demo-2026!";
 const now = new Date();
@@ -1110,6 +1111,7 @@ async function user(
   if (!x)
     x = r.create({
       username,
+      phoneNumber: seedPhoneNumber(username),
       passwordHash: hash,
       role: roleValue,
       firstName,
@@ -1120,6 +1122,7 @@ async function user(
     });
   else
     Object.assign(x, {
+      phoneNumber: seedPhoneNumber(username),
       passwordHash: hash,
       role: roleValue,
       firstName,
@@ -1199,7 +1202,9 @@ async function studentUser(
   );
   const r = m.getRepository(Student);
   let s = await r.findOne({
-    where: { user: { id: u.id } },
+    // Older development datasets may have the same demo learner linked to a
+    // pre-phone account. The national code is the durable identity here.
+    where: [{ user: { id: u.id } }, { nationalCode }],
     relations: { user: true },
   });
   const educationTypeId = gradeId < 10 ? "general" : "theoretical";

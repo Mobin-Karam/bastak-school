@@ -206,7 +206,7 @@ interface StudentState {
   activeSession: FocusSession | null;
   error: string | null;
   restoreSession(): Promise<void>;
-  login(username: string, password: string): Promise<void>;
+  login(phoneNumber: string, password: string): Promise<void>;
   logout(): Promise<void>;
   loadDashboard(): Promise<void>;
   loadPlan(date: string): Promise<void>;
@@ -367,14 +367,14 @@ export const useStudentStore = create<StudentState>((set, get) => ({
       set(clearedAccountState(error instanceof Error && error.name === 'NETWORK' ? readableError(error) : null));
     }
   },
-  async login(username, password) {
+  async login(phoneNumber, password) {
     set({ loadStatus: 'loading', error: null });
     let sessionCreated = false;
     try {
-      const session = await apiClient.request<{ user: BackendUser; csrfToken: string; expiresAt: string }, { username: string; password: string }>(
+      const session = await apiClient.request<{ user: BackendUser; csrfToken: string; expiresAt: string }, { phoneNumber: string; password: string }>(
         'POST',
         '/auth/login',
-        { username: username.trim(), password },
+        { phoneNumber: phoneNumber.trim(), password },
       );
       sessionCreated = true;
       apiClient.setCsrfToken(session.csrfToken);

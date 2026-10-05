@@ -79,6 +79,7 @@ export function SignupForm({ onLogin, organizations }: { onLogin(): void; organi
     containsNonEnglishPasswordCharacters(form.password) ||
     containsNonEnglishPasswordCharacters(form.confirm);
   const nationalCodeValid = validNationalCode(form.nationalCode);
+  const phoneNumberValid = /^09\d{9}$/.test(form.phoneNumber);
   const strength = passwordStrength(form.password);
   const passwordsMatch =
     form.confirm.length > 0 &&
@@ -94,8 +95,8 @@ export function SignupForm({ onLogin, organizations }: { onLogin(): void; organi
     () =>
       form.firstName.trim().length >= 1 &&
       form.lastName.trim().length >= 1 &&
-      nationalCodeValid && Boolean(organizationId),
-    [form.firstName, form.lastName, nationalCodeValid, organizationId],
+      nationalCodeValid && phoneNumberValid && Boolean(organizationId),
+    [form.firstName, form.lastName, nationalCodeValid, phoneNumberValid, organizationId],
   );
 
   const educationValid = useMemo(
@@ -184,6 +185,7 @@ export function SignupForm({ onLogin, organizations }: { onLogin(): void; organi
       firstName: true,
       lastName: true,
       nationalCode: true,
+      phoneNumber: true,
       password: true,
       confirm: true,
       grade: true,
@@ -206,6 +208,7 @@ export function SignupForm({ onLogin, organizations }: { onLogin(): void; organi
           name: `${form.firstName.trim()} ${form.lastName.trim()}`,
           organizationId,
           nationalCode: form.nationalCode,
+          phoneNumber: form.phoneNumber,
           password: form.password,
           grade: Number(form.grade),
           educationTypeId: form.educationTypeId,
@@ -228,8 +231,8 @@ export function SignupForm({ onLogin, organizations }: { onLogin(): void; organi
         <CheckCircle2 />
         <h2>حساب ساخته شد</h2>
         <p>
-          نام کاربری شما همان کد ملی است. پس از ورود، تخصیص مشاور و سازمان
-          پیگیری می‌شود.
+          با شماره همراه و رمز انتخاب‌شده وارد شوید. سازمان آموزشی وضعیت ثبت‌نام
+          شما را پیگیری می‌کند.
         </p>
         <button
           type="button"
@@ -289,7 +292,7 @@ export function SignupForm({ onLogin, organizations }: { onLogin(): void; organi
           {step === 3 && "رمز عبور"}
         </h3>
         <p className="signup-section__subtitle">
-          {step === 1 && "نام و کد ملی خود را وارد کنید."}
+          {step === 1 && "نام، کد ملی و شماره همراه خود را وارد کنید."}
           {step === 2 && "پایه، نوع آموزش و رشته خود را انتخاب کنید."}
           {step === 3 && "یک رمز عبور امن برای حساب خود بسازید."}
         </p>
@@ -343,6 +346,19 @@ export function SignupForm({ onLogin, organizations }: { onLogin(): void; organi
             touched={Boolean(touched.nationalCode)}
             nextId="signup-grade-select"
           />
+          <label className={touched.phoneNumber && !phoneNumberValid ? "is-invalid" : ""}>
+            شماره همراه
+            <input
+              dir="ltr"
+              inputMode="tel"
+              autoComplete="tel"
+              placeholder="09123456789"
+              value={form.phoneNumber}
+              onChange={(event) => field("phoneNumber", event.target.value.replace(/\D/g, "").slice(0, 11))}
+              onBlur={() => blur("phoneNumber")}
+              aria-invalid={touched.phoneNumber && !phoneNumberValid}
+            />
+          </label>
           <label className="student-signup__organization" htmlFor="signup-organization">
             سازمان آموزشی
             <select id="signup-organization" value={organizationId} onChange={(event) => setOrganizationId(event.target.value)} disabled={organizations.length === 1}>

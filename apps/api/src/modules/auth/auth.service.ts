@@ -13,6 +13,7 @@ import { AuthorizationService } from "../authorization";
 import { MembershipStatus, OrganizationMembership } from "../../database/entities/organization-membership.entity";
 import { OrganizationStatus } from "../../database/entities/organization.entity";
 import { LoginThrottleService } from "./login-throttle.service";
+import { isIranianMobile, normalizeIranianMobile } from "../../common/utils/phone-number";
 
 export type AuthenticatedUser = {
   id: string;
@@ -43,12 +44,13 @@ export class AuthService {
     });
   }
 
-  async login(username: string, password: string, ip = "unknown") {
-    const normalizedUsername = this.credentials.normalizeLogin(username);
-    await this.throttle?.assertAllowed(ip, normalizedUsername);
-    const user = await this.users.findOne({ where: { username: normalizedUsername } });
+  async login(phoneNumber: string, password: string, ip = "unknown") {
+    const normalizedPhoneNumber = normalizeIranianMobile(phoneNumber);
+    if (!isIranianMobile(normalizedPhoneNumber)) throw new ApiException(422, "INVALID_PHONE_NUMBER", "شماره همراه معتبر نیست.");
+    await this.throttle?.assertAllowed(ip, normalizedPhoneNumber);
+    const user = await this.users.findOne({ where: { phoneNumber: normalizedPhoneNumber } });
     if (!user || !(await bcrypt.compare(password, user.passwordHash))) {
-      await this.throttle?.failure(ip, normalizedUsername);
+      await this.throttle?.failure(ip, normalizedPhoneNumber);
       throw new ApiException(401, "UNAUTHORIZED", "نام کاربری یا رمز عبور نادرست است.");
     }
     if (user.status && user.status !== UserStatus.ACTIVE) throw new ApiException(403, "ACCOUNT_INACTIVE", "حساب کاربری غیرفعال یا بایگانی شده است.");
@@ -67,7 +69,7 @@ export class AuthService {
       expiresAt: credentials.expiresAt,
       refreshExpiresAt: credentials.refreshExpiresAt,
     }));
-    await this.throttle?.success(ip, normalizedUsername);
+    await this.throttle?.success(ip, normalizedPhoneNumber);
     const now = new Date();
     await this.sessions.delete([
       { refreshExpiresAt: LessThan(now) },

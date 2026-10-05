@@ -48,6 +48,12 @@ const roles: RoleCode[] = [
   "TEACHER",
   "MENTOR",
   "CONTENT_MANAGER",
+  "PRINCIPAL",
+  "DISCIPLINARIAN",
+  "RELIGIOUS_EDUCATION_MANAGER",
+  "GOVERNMENT_EDUCATION_MANAGER",
+  "STUDENT_AFFAIRS_MENTOR",
+  "COUNSELOR",
   "ORGANIZATION_ADMIN",
 ];
 
@@ -126,7 +132,7 @@ export function OrganizationWorkspace({
   const qc = useQueryClient();
   const modal = useModal();
   const [userId, setUserId] = useState("");
-  const [role, setRole] = useState<RoleCode>("ADVISOR");
+  const [role, setRole] = useState<RoleCode>("COUNSELOR");
   const [memberSearch, setMemberSearch] = useState("");
   const [showAddForm, setShowAddForm] = useState(false);
 
@@ -407,7 +413,7 @@ export function OrganizationWorkspace({
                       <div className="relative">
                         <select
                           aria-label={copy.memberRoleFor(member.user.username)}
-                          value={member.roles[0] || "ADVISOR"}
+                          value={member.roles[0] || "COUNSELOR"}
                           disabled={update.isPending}
                           onChange={(event) =>
                             update.mutate({

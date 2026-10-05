@@ -1,6 +1,6 @@
 import { Bell, MessageSquare, RefreshCw, UsersRound } from "lucide-react";
 import { Link } from "react-router-dom";
-import { localizedNavigationForCapabilities } from "../../../app/layout/admin-navigation";
+import { localizedNavigationForCapabilities } from "../../../app/layout/navigation/admin-navigation";
 import { DashboardWorkspace } from "../../../shared/ui/dashboard-workspace";
 import { Badge, Button, Card, EmptyState } from "../../../shared/ui/ui";
 import { useLocale } from "../../../shared/ui/locale";

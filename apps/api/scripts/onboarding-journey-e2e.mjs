@@ -21,8 +21,9 @@ async function raw(method, path, { body, session, role, organizationId } = {}) {
   return { status: response.status, payload: await response.json().catch(() => null), response };
 }
 
+function seedPhoneNumber(identity) { let hash = 0; for (const character of identity) hash = (hash * 31 + character.charCodeAt(0)) >>> 0; return `091${String(hash % 100000000).padStart(8, "0")}`; }
 async function login(username, password = seedPassword) {
-  const result = await raw("POST", "/auth/login", { body: { username, password } });
+  const result = await raw("POST", "/auth/login", { body: { phoneNumber: seedPhoneNumber(username), password } });
   assert(result.status === 201 && result.payload?.ok, `${username} can login`, result);
   return { cookie: result.response.headers.getSetCookie()[0].split(";")[0], csrf: result.payload.data.csrfToken };
 }

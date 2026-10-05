@@ -130,19 +130,17 @@ describe("admin navigation metadata", () => {
 
   it("uses guardian-specific labels for the same capability routes", () => {
     const guardian = navigationForCapabilities(
-      ["students.read", "plans.read", "reports.read", "chat.read"],
+      ["students.read", "reports.read", "chat.read"],
       "GUARDIAN",
     ).flatMap((group) => group.items);
     expect(guardian.find((item) => item.path === "students")?.title).toBe("فرزندان");
-    expect(guardian.find((item) => item.path === "planner")?.title).toBe("برنامه");
     expect(guardian.find((item) => item.path === "settings")?.title).toBe("پروفایل");
   });
 
-  it("resolves browser URLs, nested learning locations, and aliases", () => {
+  it("resolves browser URLs and active education locations", () => {
     expect(normalizeAdminPath("/admin/exams/42?tab=questions")).toBe("exams/42");
     expect(resolveAdminNavigation("/admin/exams/42").path).toBe("exams");
     expect(resolveAdminNavigation("/admin/education").path).toBe("education");
-    expect(resolveAdminNavigation("/admin/students/s-1/learning").path).toBe("learning");
     expect(adminBreadcrumbs("/admin/students/s-1/learning").at(-1)?.title).toBe("سیستم یادگیری");
   });
 

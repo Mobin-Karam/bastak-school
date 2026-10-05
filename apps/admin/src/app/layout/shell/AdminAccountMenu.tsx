@@ -1,13 +1,13 @@
 import { LogOut, ShieldCheck, UserRound } from "lucide-react";
 import { useState } from "react";
-import { useAuth } from "../../features/auth";
-import { ThemeSwitcher } from "../../shared/theme/theme";
-import { useModal } from "../../shared/ui/modal";
-import { ViewportPopover } from "../../shared/ui/popover";
-import { Button } from "../../shared/ui/ui";
-import { DevBackendSwitcher } from "../dev/DevBackendSwitcher";
-import { roleLabel, rolePortalTitle } from "../../shared/lib/role-ui";
-import { useAdminShellCopy, useLocale } from "../../shared/ui/locale";
+import { useAuth } from "../../../features/auth";
+import { ThemeSwitcher } from "../../../shared/theme/theme";
+import { useModal } from "../../../shared/ui/modal";
+import { ViewportPopover } from "../../../shared/ui/popover";
+import { Button } from "../../../shared/ui/ui";
+import { DevBackendSwitcher } from "../../dev/DevBackendSwitcher";
+import { roleLabel, rolePortalTitle } from "../../../shared/lib/role-ui";
+import { useAdminShellCopy, useLocale } from "../../../shared/ui/locale";
 
 export function AdminAccountMenu() {
   const auth = useAuth();

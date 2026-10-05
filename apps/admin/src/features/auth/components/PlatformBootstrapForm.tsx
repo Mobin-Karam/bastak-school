@@ -14,7 +14,7 @@ export function PlatformBootstrapForm({ onBack }: { onBack: () => void }) {
   const [error, setError] = useState("");
   const { copy, direction } = useAuthLocale();
   const [values, setValues] = useState({
-    username: "",
+    phoneNumber: "",
     email: "",
     password: "",
     passwordConfirmation: "",
@@ -38,13 +38,13 @@ export function PlatformBootstrapForm({ onBack }: { onBack: () => void }) {
         setBusy(true);
         try {
           await bootstrapPlatformAdmin({
-            username: values.username.trim(),
+            phoneNumber: values.phoneNumber.trim(),
             email: values.email.trim(),
             password: values.password,
             firstName: values.firstName.trim(),
             lastName: values.lastName.trim(),
           });
-          await auth.login(values.username, values.password);
+          await auth.login(values.phoneNumber, values.password);
           navigate("/admin");
         } catch (reason) {
           setError(reason instanceof Error ? reason.message : copy.accountCreationFailed);
@@ -90,14 +90,15 @@ export function PlatformBootstrapForm({ onBack }: { onBack: () => void }) {
           disabled={busy}
         />
       </Field>
-      <Field label={copy.username}>
+      <Field label={copy.phoneNumber}>
         <Input
           dir="ltr"
-          autoComplete="username"
-          pattern="[A-Za-z0-9._-]{3,80}"
+          autoComplete="tel"
+          inputMode="tel"
+          pattern="09[0-9]{9}"
           required
-          value={values.username}
-          onChange={update("username")}
+          value={values.phoneNumber}
+          onChange={update("phoneNumber")}
           disabled={busy}
         />
       </Field>

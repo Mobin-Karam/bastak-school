@@ -13,11 +13,7 @@ import { CsrfGuard } from "./common/guards/csrf.guard";
 import { AuthSessionGuard } from "./common/guards/auth-session.guard";
 import { StudentsModule } from "./modules/students/students.module";
 import { SyncModule } from "./modules/sync/sync.module";
-import { AnalyticsModule } from "./modules/analytics/analytics.module";
 import { ChatModule } from "./modules/chat/chat.module";
-import { StudySessionsModule } from "./modules/study-sessions/study-sessions.module";
-import { TasksModule } from "./modules/tasks/tasks.module";
-import { MistakesModule } from "./modules/mistakes/mistakes.module";
 import { ReportsModule } from "./modules/reports/reports.module";
 import { CapabilitiesGuard } from "./common/guards/capabilities.guard";
 import { RelationshipsModule } from "./modules/relationships/relationships.module";
@@ -26,7 +22,6 @@ import { DashboardModule } from "./modules/dashboard/dashboard.module";
 import { ActivityModule } from "./modules/activity/activity.module";
 import { ImportExportModule } from "./modules/import-export/import-export.module";
 import { OnboardingModule } from "./modules/onboarding/onboarding.module";
-import { RelaxationModule } from "./modules/relaxation/relaxation.module";
 import { CmbPlatformModule } from "./platform/cmb-platform.module";
 import { EducationModule } from "./modules/education/education.module";
 import { EducationSharingModule } from "./modules/education-sharing/education-sharing.module";
@@ -49,14 +44,9 @@ import { PermissionRequestsModule } from "./modules/permission-requests/permissi
     ActivityModule,
     ImportExportModule,
     OnboardingModule,
-    RelaxationModule,
     StudentsModule,
     SyncModule,
-    AnalyticsModule,
     ChatModule,
-    StudySessionsModule,
-    TasksModule,
-    MistakesModule,
     ReportsModule,
   ],
   providers: [

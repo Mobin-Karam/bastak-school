@@ -1,6 +1,6 @@
 import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { LocaleProvider } from "../shared/ui/locale";
+import { LocaleProvider } from "../../shared/ui/locale";
 
 const can = vi.fn<(capability: string) => boolean>();
 vi.mock("../features/auth", () => ({ LoginPage: () => null, useAuth: () => ({ can }) }));

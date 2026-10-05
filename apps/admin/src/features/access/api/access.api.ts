@@ -4,6 +4,7 @@ import type { RoleCode } from "../../../shared/types/domain";
 export type PortalUser = {
   id: string;
   username: string;
+  phoneNumber?: string | null;
   firstName?: string;
   lastName?: string;
   status: string;
@@ -61,7 +62,7 @@ export const listUsers = (organizationId?: string) =>
     `/users${organizationId ? `?organizationId=${encodeURIComponent(organizationId)}` : ""}`,
   );
 export const createUser = (body: {
-  username: string;
+  phoneNumber: string;
   password: string;
   firstName?: string;
   lastName?: string;
@@ -72,7 +73,7 @@ export const setUserActive = (id: string, active: boolean) =>
   api.post(`/users/${id}/${active ? "activate" : "deactivate"}`, {});
 export const updateUser = (
   id: string,
-  body: { username?: string; firstName?: string; lastName?: string },
+  body: { phoneNumber?: string; firstName?: string; lastName?: string },
 ) => api.patch<PortalUser>(`/users/${id}`, body);
 export const setUserRoles = (
   id: string,

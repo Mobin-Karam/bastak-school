@@ -43,15 +43,16 @@ export class OnboardingService {
       const [reservation] = await manager.query(`SELECT changes() AS changes`);
       if (!Number(reservation?.changes))
         throw new ApiException(409, "ORGANIZATION_SIGNUP_LIMIT_REACHED", "ظرفیت ثبت‌نام مستقیم این سازمان تکمیل شده است. با سازمان تماس بگیرید.");
-      const username = nationalCode;
+      const phoneNumber = dto.phoneNumber;
+      const username = phoneNumber;
       if (await manager.findOne(Student, { where: { nationalCode } })) throw new ApiException(409, "NATIONAL_CODE_EXISTS", "برای این کد ملی قبلاً حساب ساخته شده است.");
-      if (await manager.findOne(User, { where: { username } })) throw new ApiException(409, "NATIONAL_CODE_EXISTS", "برای این کد ملی قبلاً حساب ساخته شده است.");
-      const user = await manager.save(User, manager.create(User, { username, passwordHash: await bcrypt.hash(dto.password, 12), role: UserRole.STUDENT, status: UserStatus.ACTIVE }));
+      if (await manager.findOne(User, { where: { phoneNumber } })) throw new ApiException(409, "PHONE_NUMBER_EXISTS", "برای این شماره همراه قبلاً حساب ساخته شده است.");
+      const user = await manager.save(User, manager.create(User, { username, phoneNumber, passwordHash: await bcrypt.hash(dto.password, 12), role: UserRole.STUDENT, status: UserStatus.ACTIVE }));
       const student = await manager.save(Student, manager.create(Student, { user, name: dto.name.trim(), nationalCode, gradeId: education.gradeId, grade: education.gradeLabel, educationTypeId: education.educationTypeId, trackId: education.trackId, major: education.trackLabel, targetUniversity: "", targetField: "", targetRank: "", dailyCapacity: "", accountStatus: "active", onboardingStatus: "PENDING_ASSIGNMENT" }));
       const role = await manager.findOneByOrFail(Role, { code: "STUDENT" });
       await manager.save(UserRoleAssignment, manager.create(UserRoleAssignment, { user, role, membership: null }));
       await manager.save(OrganizationMembership, manager.create(OrganizationMembership, { organization, user, status: MembershipStatus.ACTIVE }));
-      return { id: student.id, username, nationalCode, grade: student.grade, major: student.major, onboardingStatus: student.onboardingStatus, organization: { id: organization.id, name: organization.name } };
+      return { id: student.id, phoneNumber, nationalCode, grade: student.grade, major: student.major, onboardingStatus: student.onboardingStatus, organization: { id: organization.id, name: organization.name } };
     }); } catch (error) {
       if (String((error as { message?: string })?.message || "").includes("students.nationalCode")) throw new ApiException(409, "NATIONAL_CODE_EXISTS", "برای این کد ملی قبلاً حساب ساخته شده است.");
       throw error;
@@ -120,7 +121,8 @@ export class OnboardingService {
   }
 
   async bootstrapPlatformAdmin(dto: PlatformBootstrapDto) {
-    const username = dto.username.trim().toLowerCase();
+    const phoneNumber = dto.phoneNumber;
+    const username = phoneNumber;
     const email = dto.email.trim().toLowerCase();
     return this.dataSource.transaction(async (manager) => {
       const assignments = manager.getRepository(UserRoleAssignment);
@@ -128,13 +130,14 @@ export class OnboardingService {
         throw new ApiException(409, "PLATFORM_ALREADY_BOOTSTRAPPED", "مدیر پلتفرم قبلاً ایجاد شده است.");
       }
       const users = manager.getRepository(User);
-      if (await users.findOne({ where: [{ username }, { email }] })) {
-        throw new ApiException(409, "ACCOUNT_EXISTS", "نام کاربری یا ایمیل قبلاً استفاده شده است.");
+      if (await users.findOne({ where: [{ phoneNumber }, { email }] })) {
+        throw new ApiException(409, "ACCOUNT_EXISTS", "شماره همراه یا ایمیل قبلاً استفاده شده است.");
       }
       const role = await manager.findOne(Role, { where: { code: "PLATFORM_ADMIN" } });
       if (!role) throw new ApiException(503, "PLATFORM_BOOTSTRAP_UNAVAILABLE", "راه‌اندازی پایگاه داده کامل نشده است.");
       const user = await manager.save(User, manager.create(User, {
         username,
+        phoneNumber,
         email,
         firstName: dto.firstName.trim(),
         lastName: dto.lastName.trim(),
@@ -144,7 +147,7 @@ export class OnboardingService {
         isPlatformOwner: true,
       }));
       await manager.save(UserRoleAssignment, assignments.create({ user, role, membership: null }));
-      return { id: user.id, username: user.username, email: user.email, firstName: user.firstName, lastName: user.lastName };
+      return { id: user.id, phoneNumber: user.phoneNumber, email: user.email, firstName: user.firstName, lastName: user.lastName };
     });
   }
 
