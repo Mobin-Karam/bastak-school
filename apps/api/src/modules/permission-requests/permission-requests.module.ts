@@ -8,4 +8,18 @@ import { UserRoleAssignment } from "../../database/entities/user-role-assignment
 import { NotificationsModule } from "../notifications/notifications.module";
 import { PermissionRequestsController } from "./permission-requests.controller";
 import { PermissionRequestsService } from "./permission-requests.service";
-@Module({ imports: [TypeOrmModule.forFeature([PermissionRequest, Student, OrganizationMembership, UserRoleAssignment, AuditLog]), NotificationsModule], controllers: [PermissionRequestsController], providers: [PermissionRequestsService] }) export class PermissionRequestsModule {}
+@Module({
+  imports: [
+    TypeOrmModule.forFeature([
+      PermissionRequest,
+      Student,
+      OrganizationMembership,
+      UserRoleAssignment,
+      AuditLog,
+    ]),
+    NotificationsModule,
+  ],
+  controllers: [PermissionRequestsController],
+  providers: [PermissionRequestsService],
+})
+export class PermissionRequestsModule {}

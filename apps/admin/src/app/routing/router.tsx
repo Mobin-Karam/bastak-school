@@ -1,83 +1,52 @@
-import { createBrowserRouter, Navigate, Outlet, useLocation } from "react-router-dom";
 import { lazy, Suspense, type ReactNode } from "react";
+import { createBrowserRouter, Navigate, Outlet } from "react-router-dom";
 import { RefreshCw } from "lucide-react";
 import { Button } from "../../shared/ui/ui";
 import { useAdminShellCopy } from "../../shared/ui/locale";
 import { LoginPage, useAuth } from "../../features/auth";
 import { AdminLayout } from "../layout/shell/AdminLayout";
-import { educationCapabilities } from "../layout/navigation/admin-navigation";
 import { RouteErrorBoundary } from "../../shared/errors";
 
-const DashboardPage = lazy(() =>
-  import("../../features/dashboard").then((module) => ({ default: module.DashboardPage })),
+const StudentSignupPage = lazy(() =>
+  import("../../features/auth/pages/StudentSignupPage").then((m) => ({
+    default: m.StudentSignupPage,
+  })),
 );
-const SectionDashboardPage = lazy(() =>
-  import("../../features/dashboard").then((module) => ({ default: module.SectionDashboardPage })),
+const DashboardPage = lazy(() =>
+  import("../../features/dashboard").then((m) => ({ default: m.DashboardPage })),
 );
 const StudentsPage = lazy(() =>
-  import("../../features/students").then((module) => ({ default: module.StudentsPage })),
-);
-const ChatPage = lazy(() =>
-  import("../../features/chat").then((module) => ({ default: module.ChatPage })),
-);
-const NotificationsPage = lazy(() =>
-  import("../../features/notifications").then((module) => ({ default: module.NotificationsPage })),
-);
-const ReportsPage = lazy(() =>
-  import("../../features/reports").then((module) => ({ default: module.ReportsPage })),
-);
-const SettingsPage = lazy(() =>
-  import("../../features/settings").then((module) => ({ default: module.SettingsPage })),
-);
-const LivePage = lazy(() =>
-  import("../../features/live").then((module) => ({ default: module.LivePage })),
-);
-const SystemPage = lazy(() =>
-  import("../../features/system").then((module) => ({ default: module.SystemPage })),
-);
-const FollowUpPage = lazy(() =>
-  import("../../features/followup").then((module) => ({ default: module.FollowUpPage })),
-);
-const AttentionPage = lazy(() =>
-  import("../../features/attention").then((module) => ({ default: module.AttentionPage })),
-);
-const OrganizationsPage = lazy(() =>
-  import("../../features/access").then((module) => ({ default: module.OrganizationsPage })),
-);
-const UsersPage = lazy(() =>
-  import("../../features/access").then((module) => ({ default: module.UsersPage })),
-);
-const EducationOverviewPage = lazy(() =>
-  import("../../features/education").then((module) => ({ default: module.EducationOverviewPage })),
-);
-const ExamsPage = lazy(() =>
-  import("../../features/education/exams").then((module) => ({ default: module.ExamsPage })),
-);
-const QuestionsPage = lazy(() =>
-  import("../../features/education/questions").then((module) => ({ default: module.QuestionsPage })),
-);
-const QuizzesPage = lazy(() =>
-  import("../../features/education/quizzes").then((module) => ({ default: module.QuizzesPage })),
-);
-const SubjectsPage = lazy(() =>
-  import("../../features/education/subjects").then((module) => ({ default: module.SubjectsPage })),
+  import("../../features/students").then((m) => ({ default: m.StudentsPage })),
 );
 const ClassesPage = lazy(() =>
-  import("../../features/education/classes").then((module) => ({ default: module.ClassesPage })),
+  import("../../features/education/classes").then((m) => ({ default: m.ClassesPage })),
 );
-const OnboardingPage = lazy(() =>
-  import("../../features/onboarding").then((module) => ({ default: module.OnboardingPage })),
+const ClassGroupsPage = lazy(() =>
+  import("../../features/class-groups").then((m) => ({ default: m.ClassGroupsPage })),
 );
-const ResourcesPage = lazy(() =>
-  import("../../features/education/resources").then((module) => ({ default: module.ResourcesPage })),
+const AttendancePage = lazy(() =>
+  import("../../features/attendance").then((m) => ({ default: m.AttendancePage })),
 );
-const GuardianPage = lazy(() =>
-  import("../../features/guardian").then((module) => ({ default: module.GuardianPage })),
+const DormitoryPage = lazy(() =>
+  import("../../features/dormitory").then((m) => ({ default: m.DormitoryPage })),
 );
-const PermissionRequestsPage = lazy(() =>
-  import("../../features/permission-requests").then((module) => ({
-    default: module.PermissionRequestsPage,
-  })),
+const RegistrationPage = lazy(() =>
+  import("../../features/registration").then((m) => ({ default: m.RegistrationPage })),
+);
+const StudentTransferPage = lazy(() =>
+  import("../../features/student-transfer").then((m) => ({ default: m.StudentTransferPage })),
+);
+const OrganizationsPage = lazy(() =>
+  import("../../features/access").then((m) => ({ default: m.OrganizationsPage })),
+);
+const UsersPage = lazy(() =>
+  import("../../features/access").then((m) => ({ default: m.UsersPage })),
+);
+const SettingsPage = lazy(() =>
+  import("../../features/settings").then((m) => ({ default: m.SettingsPage })),
+);
+const SystemPage = lazy(() =>
+  import("../../features/system").then((m) => ({ default: m.SystemPage })),
 );
 
 function RouteScreen({ children }: { children: ReactNode }) {
@@ -102,7 +71,7 @@ function RouteLoading() {
 function ProtectedRoute() {
   const auth = useAuth();
   const copy = useAdminShellCopy();
-  if (auth.status === "checking")
+  if (auth.status === "checking") {
     return (
       <div className="grid min-h-screen place-items-center bg-paper p-4">
         <div className="grid max-w-md gap-4 rounded-lg border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card))] p-4 text-center shadow-[var(--shadow-surface)]">
@@ -125,13 +94,9 @@ function ProtectedRoute() {
         </div>
       </div>
     );
+  }
   if (auth.status !== "authenticated") return <Navigate to="/login" replace />;
   return <Outlet />;
-}
-
-function CommunicationRedirect({ page }: { page: "live" | "chat" | "notifications" }) {
-  const location = useLocation();
-  return <Navigate to={`/admin/communication/${page}${location.search}${location.hash}`} replace />;
 }
 
 export function CapabilityRoute({
@@ -147,7 +112,7 @@ export function CapabilityRoute({
     typeof capability === "string"
       ? auth.can(capability)
       : capability.some((item) => auth.can(item));
-  if (!allowed)
+  if (!allowed) {
     return (
       <div
         role="alert"
@@ -157,17 +122,27 @@ export function CapabilityRoute({
         <p className="mt-2 text-sm">{copy.capabilityUnavailableDescription}</p>
         <a
           href="/admin"
-          className="mt-4 inline-flex h-10 items-center rounded-lg bg-brand px-4 text-sm font-bold text-white focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand/20"
+          className="mt-4 inline-flex h-10 items-center rounded-lg bg-brand px-4 text-sm font-bold text-white"
         >
           {copy.returnToWorkspace}
         </a>
       </div>
     );
+  }
   return <>{children}</>;
 }
 
 export const router = createBrowserRouter([
   { path: "/login", element: <LoginPage />, errorElement: <RouteErrorBoundary /> },
+  {
+    path: "/register",
+    element: (
+      <RouteScreen>
+        <StudentSignupPage />
+      </RouteScreen>
+    ),
+    errorElement: <RouteErrorBoundary />,
+  },
   {
     path: "/admin",
     element: <ProtectedRoute />,
@@ -184,25 +159,6 @@ export const router = createBrowserRouter([
               </RouteScreen>
             ),
           },
-          { path: "live", element: <CommunicationRedirect page="live" /> },
-          {
-            path: "family",
-            element: (
-              <CapabilityRoute capability="guardian.students.read">
-                <RouteScreen>
-                  <GuardianPage />
-                </RouteScreen>
-              </CapabilityRoute>
-            ),
-          },
-          {
-            path: "management",
-            element: (
-              <RouteScreen>
-                <SectionDashboardPage section="مدیریت" />
-              </RouteScreen>
-            ),
-          },
           {
             path: "students",
             element: (
@@ -214,21 +170,21 @@ export const router = createBrowserRouter([
             ),
           },
           {
-            path: "onboarding",
+            path: "registration",
             element: (
-              <CapabilityRoute capability="student_onboarding.manage">
+              <CapabilityRoute capability="registration.read">
                 <RouteScreen>
-                  <OnboardingPage />
+                  <RegistrationPage />
                 </RouteScreen>
               </CapabilityRoute>
             ),
           },
           {
-            path: "permission-requests",
+            path: "student-transfer",
             element: (
-              <CapabilityRoute capability="permission_requests.read">
+              <CapabilityRoute capability={["students.import", "students.export"]}>
                 <RouteScreen>
-                  <PermissionRequestsPage />
+                  <StudentTransferPage />
                 </RouteScreen>
               </CapabilityRoute>
             ),
@@ -244,11 +200,31 @@ export const router = createBrowserRouter([
             ),
           },
           {
-            path: "resources",
+            path: "class-groups",
             element: (
-              <CapabilityRoute capability="learning_resources.manage">
+              <CapabilityRoute capability="class_groups.read">
                 <RouteScreen>
-                  <ResourcesPage />
+                  <ClassGroupsPage />
+                </RouteScreen>
+              </CapabilityRoute>
+            ),
+          },
+          {
+            path: "attendance",
+            element: (
+              <CapabilityRoute capability="attendance.read">
+                <RouteScreen>
+                  <AttendancePage />
+                </RouteScreen>
+              </CapabilityRoute>
+            ),
+          },
+          {
+            path: "dormitory",
+            element: (
+              <CapabilityRoute capability="dormitory.read">
+                <RouteScreen>
+                  <DormitoryPage />
                 </RouteScreen>
               </CapabilityRoute>
             ),
@@ -274,163 +250,11 @@ export const router = createBrowserRouter([
             ),
           },
           {
-            path: "education",
-            element: (
-              <CapabilityRoute capability={educationCapabilities}>
-                <RouteScreen>
-                  <EducationOverviewPage />
-                </RouteScreen>
-              </CapabilityRoute>
-            ),
-          },
-          {
-            path: "exams",
-            element: (
-              <CapabilityRoute capability="exams.read">
-                <RouteScreen>
-                  <ExamsPage />
-                </RouteScreen>
-              </CapabilityRoute>
-            ),
-          },
-          {
-            path: "questions",
-            element: (
-              <CapabilityRoute capability="questions.read">
-                <RouteScreen>
-                  <QuestionsPage />
-                </RouteScreen>
-              </CapabilityRoute>
-            ),
-          },
-          {
-            path: "quizzes",
-            element: (
-              <CapabilityRoute capability="quizzes.read">
-                <RouteScreen>
-                  <QuizzesPage />
-                </RouteScreen>
-              </CapabilityRoute>
-            ),
-          },
-          { path: "chat", element: <CommunicationRedirect page="chat" /> },
-          { path: "notifications", element: <CommunicationRedirect page="notifications" /> },
-          {
-            path: "communication",
-            element: <Outlet />,
-            children: [
-              {
-                index: true,
-                element: (
-                  <RouteScreen>
-                    <SectionDashboardPage section="ارتباط" />
-                  </RouteScreen>
-                ),
-              },
-              {
-                path: "live",
-                element: (
-                  <CapabilityRoute capability="student.live.read">
-                    <RouteScreen>
-                      <LivePage />
-                    </RouteScreen>
-                  </CapabilityRoute>
-                ),
-              },
-              {
-                path: "chat",
-                element: (
-                  <CapabilityRoute capability="chat.read">
-                    <RouteScreen>
-                      <ChatPage />
-                    </RouteScreen>
-                  </CapabilityRoute>
-                ),
-              },
-              {
-                path: "notifications",
-                element: (
-                  <RouteScreen>
-                    <NotificationsPage />
-                  </RouteScreen>
-                ),
-              },
-            ],
-          },
-          {
-            path: "follow-up",
-            element: (
-              <CapabilityRoute capability="recovery_requests.read">
-                <RouteScreen>
-                  <FollowUpPage />
-                </RouteScreen>
-              </CapabilityRoute>
-            ),
-          },
-          {
-            path: "attention",
-            element: (
-              <RouteScreen>
-                <AttentionPage />
-              </RouteScreen>
-            ),
-          },
-          {
-            path: "reports",
-            element: (
-              <CapabilityRoute capability="reports.read">
-                <RouteScreen>
-                  <ReportsPage />
-                </RouteScreen>
-              </CapabilityRoute>
-            ),
-          },
-          {
-            path: "subjects",
-            element: (
-              <CapabilityRoute capability="subjects.read">
-                <RouteScreen>
-                  <SubjectsPage />
-                </RouteScreen>
-              </CapabilityRoute>
-            ),
-          },
-          {
             path: "system",
             element: (
               <CapabilityRoute capability="system.manage">
                 <RouteScreen>
                   <SystemPage view="overview" />
-                </RouteScreen>
-              </CapabilityRoute>
-            ),
-          },
-          {
-            path: "releases",
-            element: (
-              <CapabilityRoute capability="release.read">
-                <RouteScreen>
-                  <SystemPage view="releases" />
-                </RouteScreen>
-              </CapabilityRoute>
-            ),
-          },
-          {
-            path: "database",
-            element: (
-              <CapabilityRoute capability="database.read">
-                <RouteScreen>
-                  <SystemPage view="database" />
-                </RouteScreen>
-              </CapabilityRoute>
-            ),
-          },
-          {
-            path: "audit",
-            element: (
-              <CapabilityRoute capability="audit.read">
-                <RouteScreen>
-                  <SystemPage view="audit" />
                 </RouteScreen>
               </CapabilityRoute>
             ),

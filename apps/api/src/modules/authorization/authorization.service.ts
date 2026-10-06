@@ -170,11 +170,19 @@ export class AuthorizationService {
     if (context.roles.includes("PLATFORM_ADMIN")) return true;
     const student = await this.students.findOne({
       where: { id: studentId },
-      relations: { user: true },
+      relations: { user: true, organization: true },
     });
-    if (!student?.user) return false;
-    if (student.user.id === context.id) return true;
-    if (context.roles.includes("ORGANIZATION_ADMIN")) {
+    if (!student) return false;
+    if (student.user?.id === context.id) return true;
+    if ([
+      "ORGANIZATION_ADMIN",
+      "PRINCIPAL",
+      "DISCIPLINARIAN",
+      "RELIGIOUS_EDUCATION_MANAGER",
+      "GOVERNMENT_EDUCATION_MANAGER",
+    ].some((role) => context.roles.includes(role))) {
+      if (student.organization?.id && context.organizationIds.includes(student.organization.id)) return true;
+      if (!student.user?.id) return false;
       const sharedMembership = await this.memberships.findOne({
         where: {
           user: { id: student.user.id },

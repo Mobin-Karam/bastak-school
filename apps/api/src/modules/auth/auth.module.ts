@@ -12,7 +12,16 @@ import { LoginThrottle } from "../../database/entities/login-throttle.entity";
 import { LoginThrottleService } from "./login-throttle.service";
 
 @Module({
-  imports: [TypeOrmModule.forFeature([User, Session, Student, UserRoleAssignment, OrganizationMembership, LoginThrottle])],
+  imports: [
+    TypeOrmModule.forFeature([
+      User,
+      Session,
+      Student,
+      UserRoleAssignment,
+      OrganizationMembership,
+      LoginThrottle,
+    ]),
+  ],
   controllers: [AuthController, MeController],
   providers: [AuthService, LoginThrottleService],
   exports: [AuthService],

@@ -80,11 +80,11 @@ export class ClassesService {
     const student = studentId
       ? await this.students.findOne({
           where: { id: studentId },
-          relations: { user: true },
+          relations: { user: true, organization: true },
         })
       : await this.students.findOne({
           where: { user: { id: actor.id } },
-          relations: { user: true },
+          relations: { user: true, organization: true },
         });
     if (!student)
       throw new ApiException(
@@ -137,7 +137,7 @@ export class ClassesService {
       teachers: staff.filter((member) => member.roles.includes("TEACHER")),
       advisors: staff.filter(
         (member) =>
-          member.roles.includes("ADVISOR") || member.roles.includes("MENTOR"),
+          member.roles.includes("ADVISOR") || member.roles.includes("COUNSELOR") || member.roles.includes("MENTOR") || member.roles.includes("STUDENT_AFFAIRS_MENTOR"),
       ),
       eligibleStudents: students.map((student) => ({
         id: student.id,
@@ -328,7 +328,7 @@ export class ClassesService {
     const students = studentIds.length
       ? await this.students.find({
           where: { id: In(studentIds) },
-          relations: { user: true },
+          relations: { user: true, organization: true },
         })
       : [];
     if (students.length !== studentIds.length)
@@ -403,7 +403,12 @@ export class ClassesService {
   private canManageOrganization(context: UserContext, organizationId: string) {
     return (
       this.isPlatform(context) ||
-      (context.roles.includes("ORGANIZATION_ADMIN") &&
+      ([
+        "ORGANIZATION_ADMIN",
+        "PRINCIPAL",
+        "RELIGIOUS_EDUCATION_MANAGER",
+        "GOVERNMENT_EDUCATION_MANAGER",
+      ].some((role) => context.roles.includes(role)) &&
         context.organizationIds.includes(organizationId))
     );
   }
@@ -479,24 +484,17 @@ export class ClassesService {
       .filter((member) => member.roles.length);
   }
   private async eligibleStudents(classroom: EducationClass) {
-    const members = await this.memberships.find({
+    return this.students.find({
       where: {
         organization: { id: classroom.organization.id },
-        status: MembershipStatus.ACTIVE,
+        gradeId: classroom.gradeId,
+        educationTypeId: classroom.educationTypeId,
+        trackId: classroom.trackId,
+        accountStatus: "active",
       },
-      relations: { user: { student: true } },
+      relations: { user: true, organization: true },
+      order: { name: "ASC" },
     });
-    return members
-      .map((member) => member.user.student)
-      .filter((student): student is Student => {
-        if (!student) return false;
-        return (
-          student.gradeId === classroom.gradeId &&
-          student.educationTypeId === classroom.educationTypeId &&
-          student.trackId === classroom.trackId &&
-          student.accountStatus === "active"
-        );
-      });
   }
   private async assertEligibleStudent(
     classroom: EducationClass,
@@ -512,20 +510,11 @@ export class ClassesService {
         "CLASS_STUDENT_PROFILE_MISMATCH",
         "دانش‌آموز باید پایه، نوع و رشتهٔ سازگار و حساب فعال داشته باشد.",
       );
-    const membership = student.user
-      ? await this.memberships.findOne({
-          where: {
-            organization: { id: classroom.organization.id },
-            user: { id: student.user.id },
-            status: MembershipStatus.ACTIVE,
-          },
-        })
-      : null;
-    if (!membership)
+    if (student.organization?.id !== classroom.organization.id)
       throw new ApiException(
         422,
         "CLASS_STUDENT_ORGANIZATION_MISMATCH",
-        "دانش‌آموز عضو فعال سازمان کلاس نیست.",
+        "دانش‌آموز متعلق به مدرسه این کلاس نیست.",
       );
   }
   private view(classroom: EducationClass) {

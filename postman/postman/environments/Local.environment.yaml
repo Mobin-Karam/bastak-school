@@ -1,0 +1,30 @@
+name: Local
+
+values:
+  - key: baseUrl
+    value: http://localhost:4000
+    enabled: true
+
+  - key: organizationId
+    value: ""
+    enabled: true
+
+  - key: studentId
+    value: ""
+    enabled: true
+
+  - key: userId
+    value: ""
+    enabled: true
+
+  - key: attendanceSessionId
+    value: ""
+    enabled: true
+
+  - key: phone
+    value: "09123456789"
+    enabled: true
+
+  - key: password
+    value: "test-password"
+    enabled: true

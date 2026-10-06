@@ -1,0 +1,79 @@
+{
+  "name": "@bastak/registration-feature",
+  "version": "1.0.0",
+  "description": "Student registration feature for Bastak School platform",
+  "main": "index.ts",
+  "types": "index.ts",
+  "exports": {
+    ".": {
+      "import": "./index.ts",
+      "require": "./index.ts"
+    },
+    "./index": {
+      "import": "./index.ts",
+      "require": "./index.ts"
+    },
+    "./module": {
+      "import": "./module.ts",
+      "require": "./module.ts"
+    }
+  },
+  "files": [
+    "index.ts",
+    "module.ts",
+    "registration.feature.tsx",
+    "registration.config.ts",
+    "registration.constants.ts",
+    "registration.context.tsx",
+    "registration.entry.tsx",
+    "registration.hooks.ts",
+    "registration.provider.tsx",
+    "registration.router.tsx",
+    "registration.types.ts",
+    "registration.utils.ts",
+    "api/registration.api.ts",
+    "RegistrationLayout.tsx",
+    "RegistrationDashboardPage.tsx",
+    "sections/BasicInformationSection.tsx",
+    "sections/IdentityInformationSection.tsx",
+    "sections/DocumentsSection.tsx",
+    "sections/ContactInformationSection.tsx",
+    "sections/FamilyInformationSection.tsx",
+    "sections/EducationalBackgroundSection.tsx",
+    "sections/HealthInformationSection.tsx",
+    "sections/ExtracurricularActivitiesSection.tsx",
+    "sections/AcademicInterestsSection.tsx",
+    "sections/TransportationSection.tsx",
+    "sections/FinancialInformationSection.tsx",
+    "sections/ConsentAndAgreementsSection.tsx",
+    "sections/EmergencyContactsSection.tsx",
+    "sections/AcademicHistorySection.tsx",
+    "sections/RegistrationCompletionSection.tsx"
+  ],
+  "peerDependencies": {
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "@tanstack/react-query": "^4.36.1",
+    "react-router-dom": "^6.22.3"
+  },
+  "devDependencies": {
+    "@testing-library/react": "^14.2.2",
+    "@storybook/react": "^7.6.15",
+    "@types/react": "^18.2.69",
+    "@types/react-dom": "^18.2.22"
+  },
+  "keywords": [
+    "school",
+    "registration",
+    "student",
+    "education",
+    "persian",
+    "rtl"
+  ],
+  "author": "Bastak School Platform",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/bastak-school/platform.git"
+  }
+}

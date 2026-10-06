@@ -9,10 +9,12 @@ const databasePath = process.env.DATABASE_PATH || path.resolve(process.cwd(), "d
 const dir = path.dirname(databasePath);
 if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
 
+const entityClasses = Object.values(entities).filter((value) => typeof value === "function") as any[];
+
 export const dataSourceOptions: DataSourceOptions = {
   type: "better-sqlite3",
   database: databasePath,
-  entities: Object.values(entities),
+  entities: entityClasses as any,
   migrations: ["dist/database/migrations/*.js"],
   synchronize: false,
   migrationsRun: true,

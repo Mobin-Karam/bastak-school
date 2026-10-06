@@ -30,6 +30,7 @@ import {
 } from "./dto/learning.dto";
 import { TaskIssue } from "../../database/entities/task-issue.entity";
 import { RecoveryRequest } from "../../database/entities/recovery-request.entity";
+import { AttendanceRecord } from "../../database/entities/attendance-record.entity";
 import {
   LearningItem,
   LearningStatus,
@@ -46,6 +47,8 @@ import { normalizeIranianMobile } from "../../common/utils/phone-number";
 export class StudentAdministrationService {
   constructor(
     @InjectRepository(Student) private students: Repository<Student>,
+    @InjectRepository(User) private users: Repository<User>,
+    @InjectRepository(AttendanceRecord) private attendanceRecords: Repository<AttendanceRecord>,
     @InjectRepository(OrganizationMembership)
     private memberships: Repository<OrganizationMembership>,
     @InjectRepository(UserRelationship)
@@ -71,45 +74,37 @@ export class StudentAdministrationService {
       organizationIds: user.organizationIds ?? [],
     };
   }
-  async list(user: AuthenticatedUser) {
+  async list(user: AuthenticatedUser, organizationId?: string) {
     const context = this.context(user);
-    if (context.roles.includes("PLATFORM_ADMIN")) {
+    const schoolWide = context.roles.includes("PLATFORM_ADMIN") ||
+      ["ORGANIZATION_ADMIN", "PRINCIPAL", "DISCIPLINARIAN", "RELIGIOUS_EDUCATION_MANAGER", "GOVERNMENT_EDUCATION_MANAGER"]
+        .some((role) => context.roles.includes(role));
+
+    if (schoolWide) {
+      const allowedOrganizationIds = context.roles.includes("PLATFORM_ADMIN")
+        ? (organizationId ? [organizationId] : undefined)
+        : (organizationId ? context.organizationIds.filter((id) => id === organizationId) : context.organizationIds);
+      if (organizationId && allowedOrganizationIds && !allowedOrganizationIds.length) return [];
       const rows = await this.students.find({
-        relations: { user: true },
+        where: allowedOrganizationIds?.length ? { organization: { id: In(allowedOrganizationIds) } } : undefined,
+        relations: { user: true, organization: true },
         order: { createdAt: "DESC" },
       });
       return rows.map((student) => this.project(student));
     }
-    if (context.roles.includes("ORGANIZATION_ADMIN")) {
-      const members = await this.memberships.find({
-        where: {
-          organization: { id: In(context.organizationIds) },
-          status: MembershipStatus.ACTIVE,
-        },
-        relations: { user: true },
-      });
-      const userIds = members.map((membership) => membership.user.id);
-      if (!userIds.length) return [];
-      const rows = await this.students.find({
-        where: { user: { id: In(userIds) } },
-        relations: { user: true },
-        order: { createdAt: "DESC" },
-      });
-      return rows.map((student) => this.project(student));
-    }
+
     const links = await this.relationships.find({
       where: { fromUser: { id: user.id }, status: RelationshipStatus.ACTIVE },
-      relations: { toStudent: { user: true } },
+      relations: { toStudent: { user: true, organization: true } },
     });
-    const ids = links.map((link) => link.toStudent.id);
-    if (!ids.length) return [];
-    const rows = await this.students.find({
-      where: { id: In(ids) },
-      relations: { user: true },
-      order: { createdAt: "DESC" },
-    });
-    return rows.map((student) => this.project(student));
+    const own = context.roles.includes("STUDENT")
+      ? await this.students.find({ where: { user: { id: user.id } }, relations: { user: true, organization: true } })
+      : [];
+    const linked = links.map((link) => link.toStudent);
+    const unique = new Map([...own, ...linked].map((student) => [student.id, student]));
+    return [...unique.values()].map((student) => this.project(student));
   }
+
   async get(user: AuthenticatedUser, id: string, capability = "students.read") {
     if (
       !(await this.authorization.canAccessStudent(
@@ -121,11 +116,120 @@ export class StudentAdministrationService {
       throw new ApiException(404, "NOT_FOUND", "دانش‌آموز یافت نشد.");
     const student = await this.students.findOne({
       where: { id },
-      relations: { user: true },
+      relations: { user: true, organization: true },
     });
     if (!student)
       throw new ApiException(404, "NOT_FOUND", "دانش‌آموز یافت نشد.");
     return this.project(student);
+  }
+
+  async profile(user: AuthenticatedUser, id: string) {
+    await this.get(user, id, "students.read");
+    const student = await this.students.findOne({
+      where: { id },
+      relations: { user: true, organization: true },
+    });
+    if (!student) {
+      throw new ApiException(404, "NOT_FOUND", "دانش‌آموز یافت نشد.");
+    }
+
+    const records = await this.attendanceRecords.find({
+      where: { student: { id } },
+      relations: { session: { organization: true } },
+      order: { createdAt: "DESC" },
+      take: 10,
+    });
+
+    const summary = { totalSessions: records.length, present: 0, absent: 0, late: 0, excused: 0 };
+    for (const record of records) {
+      if (record.status === "present") summary.present += 1;
+      if (record.status === "absent") summary.absent += 1;
+      if (record.status === "late") summary.late += 1;
+      if (record.status === "excused") summary.excused += 1;
+    }
+
+    return {
+      ...this.project(student),
+      identity: {
+        firstName: student.user?.firstName ?? "",
+        lastName: student.user?.lastName ?? "",
+        fullName: student.name,
+        nationalCode: student.nationalCode ?? null,
+        phoneNumber: student.user?.phoneNumber ?? null,
+        email: student.user?.email ?? null,
+        profilePhoto: student.user?.chatAvatarUrl ?? "",
+      },
+      contact: {
+        phoneNumber: student.user?.phoneNumber ?? null,
+        email: student.user?.email ?? null,
+      },
+      education: {
+        learnerProfile: student.learnerProfile,
+        independentType: student.independentType ?? null,
+        learningLevel: student.learningLevel,
+        gradeId: student.gradeId ?? null,
+        educationTypeId: student.educationTypeId,
+        trackId: student.trackId,
+        grade: student.grade,
+        major: student.major,
+        targetUniversity: student.targetUniversity,
+        targetField: student.targetField,
+        targetRank: student.targetRank,
+        dailyCapacity: student.dailyCapacity,
+      },
+      attendanceSummary: summary,
+      recentAttendance: records.map((record) => ({
+        id: record.id,
+        sessionId: record.session.id,
+        status: record.status,
+        sessionDate: record.session.sessionDate.toISOString(),
+        contextType: record.session.contextType,
+        contextId: record.session.contextId,
+        organizationId: record.session.organization.id,
+        recordedAt: record.createdAt.toISOString(),
+      })),
+    };
+  }
+
+  async updateProfile(user: AuthenticatedUser, id: string, dto: UpdateStudentDto) {
+    await this.get(user, id, "students.update");
+    const student = await this.students.findOne({ where: { id }, relations: { user: true } });
+    if (!student) {
+      throw new ApiException(404, "NOT_FOUND", "دانش‌آموز یافت نشد.");
+    }
+
+    const change = await this.legacy.update(id, {
+      ...(dto.name ? { name: dto.name } : {}),
+      ...(dto.learnerProfile ? { learnerProfile: dto.learnerProfile } : {}),
+      ...(dto.independentType ? { independentType: dto.independentType } : {}),
+      ...(dto.learningLevel !== undefined ? { learningLevel: dto.learningLevel } : {}),
+      ...(dto.gradeId !== undefined ? { gradeId: dto.gradeId } : {}),
+      ...(dto.educationTypeId !== undefined ? { educationTypeId: dto.educationTypeId } : {}),
+      ...(dto.trackId !== undefined ? { trackId: dto.trackId } : {}),
+      ...(dto.grade !== undefined ? { grade: dto.grade } : {}),
+      ...(dto.major !== undefined ? { major: dto.major } : {}),
+      ...(dto.targetUniversity !== undefined ? { targetUniversity: dto.targetUniversity } : {}),
+      ...(dto.targetField !== undefined ? { targetField: dto.targetField } : {}),
+      ...(dto.targetRank !== undefined ? { targetRank: dto.targetRank } : {}),
+      ...(dto.dailyCapacity !== undefined ? { dailyCapacity: dto.dailyCapacity } : {}),
+    });
+
+    if (student.user && dto.phoneNumber) {
+      const normalized = normalizeIranianMobile(dto.phoneNumber);
+      await this.users.update(student.user.id, {
+        phoneNumber: normalized,
+        username: normalized,
+      });
+    }
+
+    if (student.user && (dto.name || dto.phoneNumber)) {
+      const merged = { ...(dto.name ? { firstName: dto.name.split(" ")[0] ?? "" } : {}), ...(dto.name ? { lastName: dto.name.split(" ").slice(1).join(" ") ?? "" } : {}) };
+      if (Object.keys(merged).length) {
+        await this.users.update(student.user.id, merged);
+      }
+    }
+
+    return this.profile(user, id);
   }
   async create(actor: AuthenticatedUser, dto: CreateStudentDto) {
     const context = this.context(actor);
@@ -174,10 +278,16 @@ export class StudentAdministrationService {
           status: UserStatus.ACTIVE,
         }),
       );
+      const organization = dto.organizationId
+        ? await manager.findOne(Organization, { where: { id: dto.organizationId } })
+        : null;
+      if (dto.organizationId && !organization)
+        throw new ApiException(404, "NOT_FOUND", "سازمان یافت نشد.");
       const student = await manager.save(
         Student,
         manager.create(Student, {
           user,
+          organization,
           name: dto.name,
           learnerProfile: profile,
           independentType:
@@ -201,12 +311,7 @@ export class StudentAdministrationService {
         UserRoleAssignment,
         manager.create(UserRoleAssignment, { user, role, membership: null }),
       );
-      if (dto.organizationId) {
-        const organization = await manager.findOne(Organization, {
-          where: { id: dto.organizationId },
-        });
-        if (!organization)
-          throw new ApiException(404, "NOT_FOUND", "سازمان یافت نشد.");
+      if (organization) {
         await manager.save(
           OrganizationMembership,
           manager.create(OrganizationMembership, {
@@ -432,6 +537,8 @@ export class StudentAdministrationService {
       targetRank: student.targetRank,
       dailyCapacity: student.dailyCapacity,
       accountStatus: student.accountStatus,
+      registrationStatus: student.registrationStatus,
+      organization: student.organization ? { id: student.organization.id, name: student.organization.name } : null,
       user: student.user
         ? {
             id: student.user.id,

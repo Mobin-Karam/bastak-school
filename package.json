@@ -34,5 +34,8 @@
   "moshaver": {
     "workspaceGraph": "tooling/workspace/projects.json",
     "installModel": "leaf-lockfiles"
+  },
+  "dependencies": {
+    "bcrypt": "^6.0.0"
   }
 }

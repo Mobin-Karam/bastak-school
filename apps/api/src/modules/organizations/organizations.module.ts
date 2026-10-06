@@ -7,5 +7,17 @@ import { User } from "../../database/entities/user.entity";
 import { UserRoleAssignment } from "../../database/entities/user-role-assignment.entity";
 import { OrganizationsController } from "./organizations.controller";
 import { OrganizationsService } from "./organizations.service";
-@Module({ imports: [TypeOrmModule.forFeature([Organization, OrganizationMembership, User, Role, UserRoleAssignment])], controllers: [OrganizationsController], providers: [OrganizationsService] })
+@Module({
+  imports: [
+    TypeOrmModule.forFeature([
+      Organization,
+      OrganizationMembership,
+      User,
+      Role,
+      UserRoleAssignment,
+    ]),
+  ],
+  controllers: [OrganizationsController],
+  providers: [OrganizationsService],
+})
 export class OrganizationsModule {}

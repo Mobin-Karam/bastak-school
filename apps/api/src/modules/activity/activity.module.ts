@@ -11,7 +11,14 @@ import { ActivityController } from "./activity.controller";
 import { ActivityService } from "./activity.service";
 @Module({
   imports: [
-    TypeOrmModule.forFeature([StudentPresence, StudentSyncHealth, ActivityEvent, Student, Task, AuditLog]),
+    TypeOrmModule.forFeature([
+      StudentPresence,
+      StudentSyncHealth,
+      ActivityEvent,
+      Student,
+      Task,
+      AuditLog,
+    ]),
     AuthorizationModule,
   ],
   controllers: [ActivityController],

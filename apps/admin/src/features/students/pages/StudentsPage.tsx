@@ -74,8 +74,23 @@ function readableError(error: unknown, fallback: string) {
   return fallback;
 }
 
-function normalizedUsername(value: string) {
-  return normalizePersianText(value).trim().toLocaleLowerCase("en-US");
+function normalizeIranianPhoneNumber(value: string): string {
+  const englishDigits = value
+    .trim()
+    .replace(/[۰-۹]/g, (digit) => String("۰۱۲۳۴۵۶۷۸۹".indexOf(digit)))
+    .replace(/[٠-٩]/g, (digit) => String("٠١٢٣٤٥٦٧٨٩".indexOf(digit)));
+
+  let phone = englishDigits.replace(/[^\d+]/g, "");
+
+  if (phone.startsWith("+98")) {
+    phone = `0${phone.slice(3)}`;
+  } else if (phone.startsWith("0098")) {
+    phone = `0${phone.slice(4)}`;
+  } else if (phone.startsWith("98") && phone.length === 12) {
+    phone = `0${phone.slice(2)}`;
+  }
+
+  return phone;
 }
 
 function dateValue(value?: string) {
@@ -185,12 +200,13 @@ export function StudentsPage() {
   );
 
   const usernameConflict = useMemo(() => {
-    const username = normalizedUsername(form.username);
+    const username = normalizeIranianPhoneNumber(form.username);
     if (!username) return null;
     return (
       students.find(
         (student) =>
-          student.id !== selectedId && normalizedUsername(getStudentUsername(student)) === username,
+          student.id !== selectedId &&
+          normalizeIranianPhoneNumber(getStudentUsername(student)) === username,
       ) ?? null
     );
   }, [form.username, selectedId, students]);

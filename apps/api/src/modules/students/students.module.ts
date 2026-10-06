@@ -6,6 +6,8 @@ import { TopicMastery } from "../../database/entities/topic-mastery.entity";
 import { LearningItem } from "../../database/entities/learning-item.entity";
 import { LearningReview } from "../../database/entities/learning-review.entity";
 import { Session } from "../../database/entities/session.entity";
+import { AttendanceRecord } from "../../database/entities/attendance-record.entity";
+import { AttendanceSession } from "../../database/entities/attendance-session.entity";
 import {
   StudentController,
   StudentParityController,
@@ -31,6 +33,8 @@ import { EducationCatalogModule } from "../education-catalog";
       LearningItem,
       LearningReview,
       Session,
+      AttendanceSession,
+      AttendanceRecord,
       OrganizationMembership,
       UserRelationship,
       TaskIssue,

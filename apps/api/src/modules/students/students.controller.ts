@@ -131,4 +131,42 @@ export class StudentsController {
   me(@CurrentUser() user: AuthenticatedUser) {
     return this.students.find(user.id).then(ok);
   }
+
+  @Get("me/profile")
+  @Roles(UserRole.STUDENT)
+  meProfile(@CurrentUser() user: AuthenticatedUser) {
+    return this.students.find(user.id).then((student) => ok({
+      ...student,
+      identity: {
+        firstName: student?.user?.firstName ?? "",
+        lastName: student?.user?.lastName ?? "",
+        fullName: student?.name ?? "",
+        nationalCode: student?.nationalCode ?? null,
+        phoneNumber: student?.user?.phoneNumber ?? null,
+        email: student?.user?.email ?? null,
+        profilePhoto: student?.user?.chatAvatarUrl ?? "",
+      },
+      education: {
+        learnerProfile: student?.learnerProfile ?? "school",
+        independentType: student?.independentType ?? null,
+        learningLevel: student?.learningLevel ?? "",
+        gradeId: student?.gradeId ?? null,
+        educationTypeId: student?.educationTypeId ?? "",
+        trackId: student?.trackId ?? "",
+        grade: student?.grade ?? "",
+        major: student?.major ?? "",
+        targetUniversity: student?.targetUniversity ?? "",
+        targetField: student?.targetField ?? "",
+        targetRank: student?.targetRank ?? "",
+        dailyCapacity: student?.dailyCapacity ?? "",
+      },
+      attendanceSummary: {
+        totalSessions: 0,
+        present: 0,
+        absent: 0,
+        late: 0,
+        excused: 0,
+      },
+    }));
+  }
 }

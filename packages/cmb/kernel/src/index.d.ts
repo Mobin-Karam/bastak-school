@@ -1,4 +1,10 @@
-export const CMB_MODULE_KINDS: readonly ["kernel", "foundation", "platform", "adapter", "product"];
+export const CMB_MODULE_KINDS: readonly [
+  "kernel",
+  "foundation",
+  "platform",
+  "adapter",
+  "product",
+];
 export type CmbModuleKind = (typeof CMB_MODULE_KINDS)[number];
 
 export type CmbModuleDescriptor = Readonly<{
@@ -13,7 +19,10 @@ export type CmbModuleDescriptor = Readonly<{
   migrations?: readonly string[];
   health?: readonly string[];
   permissions?: readonly string[];
-  events?: Readonly<{ publishes: readonly string[]; subscribes: readonly string[] }>;
+  events?: Readonly<{
+    publishes: readonly string[];
+    subscribes: readonly string[];
+  }>;
   configuration?: Readonly<Record<string, unknown>>;
 }>;
 
@@ -26,11 +35,22 @@ export type CmbModuleRegistration<TContext = unknown> = Readonly<{
 export const KERNEL_MODULE: CmbModuleDescriptor;
 
 export class CmbModuleRegistry<TContext = unknown> {
-  constructor(registrations?: Iterable<CmbModuleDescriptor | CmbModuleRegistration<TContext>>);
-  register(registration: CmbModuleDescriptor | CmbModuleRegistration<TContext>): this;
-  resolve(enabledIds?: Iterable<string>): readonly CmbModuleRegistration<TContext>[];
+  constructor(
+    registrations?: Iterable<
+      CmbModuleDescriptor | CmbModuleRegistration<TContext>
+    >,
+  );
+  register(
+    registration: CmbModuleDescriptor | CmbModuleRegistration<TContext>,
+  ): this;
+  resolve(
+    enabledIds?: Iterable<string>,
+  ): readonly CmbModuleRegistration<TContext>[];
   metadata(enabledIds?: Iterable<string>): readonly CmbModuleDescriptor[];
-  start(context?: TContext, enabledIds?: Iterable<string>): Promise<readonly CmbModuleDescriptor[]>;
+  start(
+    context?: TContext,
+    enabledIds?: Iterable<string>,
+  ): Promise<readonly CmbModuleDescriptor[]>;
   stop(context?: TContext): Promise<void>;
 }
 

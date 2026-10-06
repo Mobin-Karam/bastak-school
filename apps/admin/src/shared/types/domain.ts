@@ -69,6 +69,14 @@ export interface Student {
   active?: number | boolean;
   account_status?: "active" | "inactive" | "archived";
   accountStatus?: "active" | "inactive" | "archived";
+  registrationStatus?:
+    | "ACCOUNT_CREATED"
+    | "IN_PROGRESS"
+    | "WAITING_REVIEW"
+    | "NEEDS_CORRECTION"
+    | "APPROVED"
+    | "REJECTED"
+    | "ACTIVE";
   account_active?: number | boolean;
   last_seen_at?: string;
   attempt_count?: number;

@@ -114,7 +114,8 @@ export const updateOrganizationMember = (
 export const removeOrganizationMember = (id: string, userId: string) =>
   api.delete(`/organizations/${id}/members/${userId}`);
 export const listRelationships = () => api.get<UserRelationship[]>("/relationships");
-export const listRelationshipStudents = () => api.get<RelationshipStudent[]>("/students");
+export const listRelationshipStudents = (organizationId?: string) =>
+  api.get<RelationshipStudent[]>(`/students${organizationId ? `?organizationId=${encodeURIComponent(organizationId)}` : ""}`);
 export const createRelationship = (body: {
   fromUserId: string;
   toStudentId: string;

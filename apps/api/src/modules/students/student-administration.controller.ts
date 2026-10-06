@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post } from "@nestjs/common";
+import { Body, Controller, Delete, Get, Param, Patch, Post, Query } from "@nestjs/common";
 import { CurrentUser } from "../../common/decorators/current-user.decorator";
 import { RequireCapabilities } from "../../common/decorators/capabilities.decorator";
 import { ok } from "../../common/utils/envelope";
@@ -9,10 +9,12 @@ import { CreateLearningItemDto, ReviewLearningItemDto, UpdateLearningItemDto } f
 import { UpdateTaskIssueDto } from "./dto/task-issue.dto";
 @Controller("students")
 export class StudentAdministrationController{constructor(private service:StudentAdministrationService){}
-@Get() @RequireCapabilities("students.read") list(@CurrentUser()u:AuthenticatedUser){return this.service.list(u).then(ok)}
+@Get() @RequireCapabilities("students.read") list(@CurrentUser()u:AuthenticatedUser,@Query("organizationId") organizationId?: string){return this.service.list(u, organizationId).then(ok)}
 @Post() @RequireCapabilities("students.create") create(@CurrentUser()u:AuthenticatedUser,@Body()d:CreateStudentDto){return this.service.create(u,d).then(ok)}
 @Get(":id") @RequireCapabilities("students.read") get(@CurrentUser()u:AuthenticatedUser,@Param("id")id:string){return this.service.get(u,id).then(ok)}
 @Get(":id/overview") @RequireCapabilities("students.read") overview(@CurrentUser()u:AuthenticatedUser,@Param("id")id:string){return this.service.get(u,id).then(ok)}
+@Get(":id/profile") @RequireCapabilities("students.read") profile(@CurrentUser()u:AuthenticatedUser,@Param("id")id:string){return this.service.profile(u,id).then(ok)}
+@Patch(":id/profile") @RequireCapabilities("students.update") updateProfile(@CurrentUser()u:AuthenticatedUser,@Param("id")id:string,@Body()d:UpdateStudentDto){return this.service.updateProfile(u,id,d).then(ok)}
 @Patch(":id") @RequireCapabilities("students.update") update(@CurrentUser()u:AuthenticatedUser,@Param("id")id:string,@Body()d:UpdateStudentDto){return this.service.update(u,id,d).then(ok)}
 @Delete(":id") @RequireCapabilities("students.archive") remove(@CurrentUser()u:AuthenticatedUser,@Param("id")id:string){return this.service.remove(u,id).then(ok)}
 @Post(":id/activate") @RequireCapabilities("students.update") activate(@CurrentUser()u:AuthenticatedUser,@Param("id")id:string){return this.service.lifecycle(u,id,"activate").then(ok)}

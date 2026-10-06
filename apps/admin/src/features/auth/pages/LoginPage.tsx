@@ -1,5 +1,5 @@
 import { LockKeyhole } from "lucide-react";
-import { Navigate } from "react-router-dom";
+import { Link, Navigate } from "react-router-dom";
 
 import { useLocale } from "../../../shared/ui/locale";
 
@@ -158,6 +158,12 @@ function LoginPageContent() {
             ) : (
               <>
                 <LoginForm />
+                <Link
+                  to="/register"
+                  className="mt-3 flex min-h-10 w-full items-center justify-center rounded-lg px-3 text-xs font-bold text-brand transition-colors hover:bg-brand/5"
+                >
+                  ثبت‌نام طلبه جدید
+                </Link>
 
                 {setupRequired ? (
                   <button

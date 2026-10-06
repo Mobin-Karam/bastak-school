@@ -12,7 +12,18 @@ import { EducationCatalogController } from "./education-catalog.controller";
 import { EducationCatalogService } from "./education-catalog.service";
 
 @Module({
-  imports: [TypeOrmModule.forFeature([EducationBook, Student, Plan, LearningResourceAssignment, ExamAttempt, DailyReport, AuditLog, OrganizationMembership])],
+  imports: [
+    TypeOrmModule.forFeature([
+      EducationBook,
+      Student,
+      Plan,
+      LearningResourceAssignment,
+      ExamAttempt,
+      DailyReport,
+      AuditLog,
+      OrganizationMembership,
+    ]),
+  ],
   controllers: [EducationCatalogController],
   providers: [EducationCatalogService],
   exports: [EducationCatalogService],

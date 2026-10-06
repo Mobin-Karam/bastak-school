@@ -3,62 +3,36 @@ import bcrypt from "bcryptjs";
 import { EntityManager } from "typeorm";
 import dataSource from "../data-source";
 import {
-  ActivityEvent,
-  ChatMessage,
-  Conversation,
-  ConversationMember,
-  DailyReport,
-  EducationBook,
+  AttendanceRecord,
+  AttendanceSession,
+  DormRoom,
+  DormRoomAssignment,
   EducationClass,
-  EducationClassBook,
   EducationClassEnrollment,
-  Exam,
-  ExamAssignment,
-  ExamAttempt,
-  ExamRetryRequest,
-  ExamSyllabus,
-  LearningItem,
-  MessageReaction,
-  Mistake,
-  Notification,
   Organization,
   OrganizationMembership,
-  Plan,
-  Question,
-  QuestionBankItem,
-  Quiz,
-  QuizAttempt,
-  QuizQuestion,
-  Recommendation,
-  RecoveryRequest,
+  RegistrationProgress,
+  RegistrationRequirement,
   Role,
   Student,
-  StudentSubject,
-  StudySession,
-  Subject,
-  SyllabusProgress,
-  Task,
-  TaskIssue,
-  TeacherSubjectAssignment,
+  StudentContact,
+  StudentProfile,
+  StudyGroup,
+  StudyGroupMembership,
   User,
   UserRelationship,
   UserRoleAssignment,
 } from "../entities";
+import { AttendanceStatus } from "../entities/attendance-record.entity";
 import {
   OrganizationStatus,
   OrganizationType,
 } from "../entities/organization.entity";
 import { MembershipStatus } from "../entities/organization-membership.entity";
-import { ConversationMemberRole } from "../entities/conversation-member.entity";
-import { ConversationType } from "../entities/conversation.entity";
-import { ChatMessageType } from "../entities/chat-message.entity";
-import { PlanStatus } from "../entities/plan.entity";
-import { RecoveryRequestStatus } from "../entities/recovery-request.entity";
-import { RecommendationStatus } from "../entities/recommendation.entity";
-import { RetryRequestStatus } from "../entities/exam-retry-request.entity";
-import { SyllabusProgressStatus } from "../entities/syllabus-progress.entity";
-import { TaskType } from "../entities/task.entity";
-import { StudySessionStatus } from "../entities/study-session.entity";
+import {
+  REGISTRATION_SECTIONS,
+  RegistrationSectionCode,
+} from "../entities/registration-requirement.entity";
 import {
   RelationshipStatus,
   RelationshipType,
@@ -68,23 +42,81 @@ import {
   requireSafeDemoDatabase,
   requireSafePlatformDatabase,
 } from "./demo-guard";
-import { seedEducationCatalog } from "../../modules/education-catalog/education-catalog.service";
 import { seedPhoneNumber } from "./seed-phone";
 
-const password = process.env.DEMO_PASSWORD || "Moshaver-demo-2026!";
-const now = new Date();
-const day = (offset: number) =>
-  new Date(now.getTime() + offset * 86_400_000).toISOString().slice(0, 10);
-const at = (offset: number, hour: number) =>
-  new Date(`${day(offset)}T${String(hour).padStart(2, "0")}:00:00+03:30`);
+const password = process.env.DEMO_PASSWORD || "Bastak-demo-2026!";
+const SCHOOL_YEAR = "1405-1406";
+
+const STAFF = {
+  platform: { identity: "school.platform", first: "مدیر", last: "سامانه" },
+  principal: { identity: "school.principal", first: "محمد", last: "کریمی" },
+  disciplinarian: {
+    identity: "school.disciplinarian",
+    first: "احمد",
+    last: "حیدری",
+  },
+  counselor: { identity: "school.counselor", first: "سارا", last: "مرادی" },
+  religiousManager: {
+    identity: "school.religious-manager",
+    first: "حسین",
+    last: "موسوی",
+  },
+  governmentManager: {
+    identity: "school.government-manager",
+    first: "زهرا",
+    last: "احمدی",
+  },
+  mentor: { identity: "school.student-affairs", first: "علی", last: "صادقی" },
+  diniTeacher: { identity: "school.teacher.dini", first: "رضا", last: "محمدی" },
+  governmentTeacher: {
+    identity: "school.teacher.government",
+    first: "مریم",
+    last: "اکبری",
+  },
+  secondTeacher: {
+    identity: "school.teacher.second",
+    first: "مجتبی",
+    last: "نوروزی",
+  },
+} as const;
+
+const DEMO_STUDENTS = [
+  ["امیرحسین", "رضایی"],
+  ["محمدمهدی", "کریمی"],
+  ["علی", "محمدی"],
+  ["حسین", "احمدی"],
+  ["مهدی", "صادقی"],
+  ["رضا", "موسوی"],
+  ["یاسین", "حیدری"],
+  ["ابوالفضل", "مرادی"],
+  ["محمد", "نوری"],
+  ["طاها", "کاظمی"],
+  ["سجاد", "اکبری"],
+  ["مصطفی", "رحیمی"],
+  ["پارسا", "جعفری"],
+  ["عرفان", "قاسمی"],
+  ["امین", "حسینی"],
+  ["علیرضا", "رستمی"],
+  ["محمدرضا", "امینی"],
+  ["یوسف", "باقری"],
+] as const;
+
+const IMPORTED_STUDENTS = [
+  ["محمدامین", "فرهادی"],
+  ["سینا", "نادری"],
+  ["میلاد", "یوسفی"],
+  ["آریا", "رحمانی"],
+] as const;
 
 export async function seedProductDemo() {
   const database =
     process.env.ALLOW_PLATFORM_SEED === "true"
       ? requireSafePlatformDatabase("seed")
       : requireSafeDemoDatabase("seed");
+
   await dataSource.initialize();
   await dataSource.runMigrations();
+
   try {
     const summary = await dataSource.transaction(async (manager) =>
       seed(manager),
@@ -97,1787 +129,1155 @@ export async function seedProductDemo() {
 
 async function seed(manager: EntityManager) {
   const hash = await bcrypt.hash(password, 12);
-  const orgA = await organization(
-    manager,
-    "آکادمی راه روشن",
-    OrganizationType.ACADEMY,
-    OrganizationStatus.ACTIVE,
-  );
-  const orgB = await organization(
-    manager,
-    "دبیرستان دانش فردا",
-    OrganizationType.SCHOOL,
-    OrganizationStatus.ACTIVE,
-  );
-  const orgC = await organization(
-    manager,
-    "مرکز مشاوره مسیر رشد",
-    OrganizationType.COUNSELING_CENTER,
-    OrganizationStatus.ACTIVE,
-  );
-  const textbookCount = await seedEducationCatalog(manager);
-  await seedQuestionBank(manager, orgA);
 
-  const platform = await user(
+  const school = await ensureSchool(manager);
+
+  const platform = await ensureUser(manager, {
+    ...STAFF.platform,
+    legacyRole: UserRole.PLATFORM_ADMIN,
+    hash,
+    platformOwner: true,
+  });
+  await ensureRoleAssignment(manager, platform, "PLATFORM_ADMIN", null);
+
+  const principal = await ensureScopedStaff(
     manager,
-    "admin",
-    "مدیر",
-    "سامانه",
-    UserRole.PLATFORM_ADMIN,
-    await bcrypt.hash("anonymous", 12),
-  );
-  await role(manager, platform, "PLATFORM_ADMIN", null);
-  const orgAdminA = await scopedUser(
-    manager,
-    orgA,
-    "demo.orgadmin.a",
-    "مدیر",
-    "راه روشن",
+    school,
+    STAFF.principal,
     UserRole.ORGANIZATION_ADMIN,
-    "ORGANIZATION_ADMIN",
+    "PRINCIPAL",
     hash,
   );
-  await scopedUser(
+  const disciplinarian = await ensureScopedStaff(
     manager,
-    orgB,
-    "demo.orgadmin.b",
-    "مدیر",
-    "دانش فردا",
-    UserRole.ORGANIZATION_ADMIN,
-    "ORGANIZATION_ADMIN",
-    hash,
-  );
-  await scopedUser(
-    manager,
-    orgC,
-    "demo.orgadmin.c",
-    "مدیر",
-    "مسیر رشد",
-    UserRole.ORGANIZATION_ADMIN,
-    "ORGANIZATION_ADMIN",
-    hash,
-  );
-  const advisorA = await scopedUser(
-    manager,
-    orgA,
-    "demo.advisor.a",
-    "نگار",
-    "احمدی",
-    UserRole.ADVISOR,
-    "ADVISOR",
-    hash,
-  );
-  const advisorB = await scopedUser(
-    manager,
-    orgB,
-    "demo.advisor.b",
-    "سارا",
-    "کاظمی",
-    UserRole.ADVISOR,
-    "ADVISOR",
-    hash,
-  );
-  const advisorC = await scopedUser(
-    manager,
-    orgC,
-    "demo.advisor.c",
-    "بهاره",
-    "رستمی",
-    UserRole.ADVISOR,
-    "ADVISOR",
-    hash,
-  );
-  const mathTeacher = await scopedUser(
-    manager,
-    orgA,
-    "demo.teacher.math.a",
-    "رضا",
-    "نیک‌فر",
-    UserRole.TEACHER,
-    "TEACHER",
-    hash,
-  );
-  const physicsTeacher = await scopedUser(
-    manager,
-    orgA,
-    "demo.teacher.physics.a",
-    "مریم",
-    "توکلی",
-    UserRole.TEACHER,
-    "TEACHER",
-    hash,
-  );
-  const teacherB = await scopedUser(
-    manager,
-    orgB,
-    "demo.teacher.b",
-    "علی",
-    "دانش",
-    UserRole.TEACHER,
-    "TEACHER",
-    hash,
-  );
-  const teacherC = await scopedUser(
-    manager,
-    orgC,
-    "demo.teacher.c",
-    "ناهید",
-    "امین",
-    UserRole.TEACHER,
-    "TEACHER",
-    hash,
-  );
-  const mentor = await scopedUser(
-    manager,
-    orgA,
-    "demo.mentor.a",
-    "الهام",
-    "رستگار",
+    school,
+    STAFF.disciplinarian,
     UserRole.MENTOR,
-    "MENTOR",
+    "DISCIPLINARIAN",
     hash,
   );
-  await scopedUser(
+  const counselor = await ensureScopedStaff(
     manager,
-    orgB,
-    "demo.mentor.b",
-    "امیر",
-    "نوری",
-    UserRole.MENTOR,
-    "MENTOR",
-    hash,
-  );
-  const mentorC = await scopedUser(
-    manager,
-    orgC,
-    "demo.mentor.c",
-    "ترانه",
-    "صالحی",
-    UserRole.MENTOR,
-    "MENTOR",
-    hash,
-  );
-  const content = await scopedUser(
-    manager,
-    orgA,
-    "demo.content.a",
-    "مدیر",
-    "محتوا",
-    UserRole.CONTENT_MANAGER,
-    "CONTENT_MANAGER",
-    hash,
-  );
-  const contentB = await scopedUser(
-    manager,
-    orgB,
-    "demo.content.b",
-    "کارشناس",
-    "محتوا",
-    UserRole.CONTENT_MANAGER,
-    "CONTENT_MANAGER",
-    hash,
-  );
-  const contentC = await scopedUser(
-    manager,
-    orgC,
-    "demo.content.c",
-    "کارشناس",
-    "آموزش",
-    UserRole.CONTENT_MANAGER,
-    "CONTENT_MANAGER",
-    hash,
-  );
-  const guardian1 = await scopedUser(
-    manager,
-    orgA,
-    "demo.guardian.a1",
-    "محمد",
-    "رضایی",
-    UserRole.GUARDIAN,
-    "GUARDIAN",
-    hash,
-  );
-  const guardian2 = await scopedUser(
-    manager,
-    orgA,
-    "demo.guardian.a2",
-    "لیلا",
-    "رضایی",
-    UserRole.GUARDIAN,
-    "GUARDIAN",
-    hash,
-  );
-  const multi = await scopedUser(
-    manager,
-    orgA,
-    "demo.multi.a",
-    "کیوان",
-    "مرادی",
+    school,
+    STAFF.counselor,
     UserRole.ADVISOR,
-    "ADVISOR",
+    "COUNSELOR",
     hash,
   );
-  await role(manager, multi, "TEACHER", await membership(manager, multi, orgA));
-  const disabled = await user(
+  const religiousManager = await ensureScopedStaff(
     manager,
-    "demo.disabled",
-    "کاربر",
-    "غیرفعال",
-    UserRole.STUDENT,
-    hash,
-    UserStatus.DISABLED,
-  );
-  const suspended = await scopedUser(
-    manager,
-    orgC,
-    "demo.suspended.member",
-    "عضو",
-    "تعلیقی",
-    UserRole.ADVISOR,
-    "ADVISOR",
-    hash,
-    MembershipStatus.INACTIVE,
-  );
-  void disabled;
-  void suspended;
-
-  const studentA1 = await studentUser(
-    manager,
-    orgA,
-    "demo.student.a1",
-    "آرمان رضایی",
-    hash,
-    12,
-    "پایه دوازدهم",
-    "experimental_sciences",
-    "علوم تجربی",
-    "9000000017",
-  );
-  const studentA2 = await studentUser(
-    manager,
-    orgA,
-    "demo.student.a2",
-    "هستی کریمی",
-    hash,
-    11,
-    "پایه یازدهم",
-    "math_physics",
-    "ریاضی و فیزیک",
-    "9000000025",
-  );
-  const studentA3 = await studentUser(
-    manager,
-    orgA,
-    "demo.student.a3",
-    "پارسا محمدی",
-    hash,
-    12,
-    "پایه دوازدهم",
-    "math_physics",
-    "ریاضی و فیزیک",
-    "9000000033",
-  );
-  const studentB1 = await studentUser(
-    manager,
-    orgB,
-    "demo.student.b1",
-    "نرگس اکبری",
-    hash,
-    12,
-    "پایه دوازدهم",
-    "experimental_sciences",
-    "علوم تجربی",
-    "9000000041",
-  );
-  const studentB2 = await studentUser(
-    manager,
-    orgB,
-    "demo.student.b2",
-    "سام یوسفی",
-    hash,
-    10,
-    "پایه دهم",
-    "humanities",
-    "ادبیات و علوم انسانی",
-    "9000000051",
-  );
-  const studentC1 = await studentUser(
-    manager,
-    orgC,
-    "demo.student.c1",
-    "یگانه شریفی",
-    hash,
-    9,
-    "پایه نهم",
-    "general",
-    "عمومی",
-    "9000000068",
-  );
-  const guardianB = await scopedUser(
-    manager,
-    orgB,
-    "demo.guardian.b1",
-    "مهدی",
-    "اکبری",
-    UserRole.GUARDIAN,
-    "GUARDIAN",
+    school,
+    STAFF.religiousManager,
+    UserRole.CONTENT_MANAGER,
+    "RELIGIOUS_EDUCATION_MANAGER",
     hash,
   );
-  const guardianC = await scopedUser(
+  const governmentManager = await ensureScopedStaff(
     manager,
-    orgC,
-    "demo.guardian.c1",
-    "نیلوفر",
-    "شریفی",
-    UserRole.GUARDIAN,
-    "GUARDIAN",
+    school,
+    STAFF.governmentManager,
+    UserRole.CONTENT_MANAGER,
+    "GOVERNMENT_EDUCATION_MANAGER",
+    hash,
+  );
+  const mentor = await ensureScopedStaff(
+    manager,
+    school,
+    STAFF.mentor,
+    UserRole.MENTOR,
+    "STUDENT_AFFAIRS_MENTOR",
+    hash,
+  );
+  const diniTeacher = await ensureScopedStaff(
+    manager,
+    school,
+    STAFF.diniTeacher,
+    UserRole.TEACHER,
+    "TEACHER",
+    hash,
+  );
+  const governmentTeacher = await ensureScopedStaff(
+    manager,
+    school,
+    STAFF.governmentTeacher,
+    UserRole.TEACHER,
+    "TEACHER",
+    hash,
+  );
+  const secondTeacher = await ensureScopedStaff(
+    manager,
+    school,
+    STAFF.secondTeacher,
+    UserRole.TEACHER,
+    "TEACHER",
     hash,
   );
 
-  // Keep these figures deliberate: the featured accounts above are part of the
-  // operational team, while this fills each organisation to a realistic team
-  // of 30 people without creating a different population on every re-seed.
-  await Promise.all([
-    seedWorkforce(manager, orgA, "a", hash, 7),
-    seedWorkforce(manager, orgB, "b", hash, 5),
-    seedWorkforce(manager, orgC, "c", hash, 5),
-  ]);
-  const studentsA = await seedStudentPopulation(manager, orgA, "a", hash, [
-    studentA1,
-    studentA2,
-    studentA3,
-  ]);
-  const studentsB = await seedStudentPopulation(manager, orgB, "b", hash, [
-    studentB1,
-    studentB2,
-  ]);
-  const studentsC = await seedStudentPopulation(manager, orgC, "c", hash, [
-    studentC1,
-  ]);
-  await Promise.all([
-    seedDemoClass(manager, orgA, "1405-1406-12-exp-a", "دوازدهم تجربی الف", 12, "theoretical", "experimental_sciences", advisorA, [mathTeacher, physicsTeacher], studentsA.filter((student) => student.grade === "پایه دوازدهم" && student.major === "علوم تجربی").slice(0, 28)),
-    seedDemoClass(manager, orgB, "1405-1406-10-humanities-a", "دهم انسانی الف", 10, "theoretical", "humanities", advisorB, [teacherB], studentsB.filter((student) => student.grade === "پایه دهم" && student.major.includes("انسانی")).slice(0, 26)),
-    seedDemoClass(manager, orgC, "1405-1406-9-general-a", "نهم عمومی الف", 9, "general", "general", advisorC, [teacherC, mentorC], studentsC.filter((student) => student.grade === "پایه نهم").slice(0, 24)),
-  ]);
+  const students: Student[] = [];
+  for (let index = 0; index < DEMO_STUDENTS.length; index += 1) {
+    const [first, last] = DEMO_STUDENTS[index];
+    const student = await ensureStudentWithAccount(manager, school, {
+      identity: `school.student.${index + 1}`,
+      first,
+      last,
+      hash,
+      nationalCode: `990000${String(index + 1).padStart(4, "0")}`,
+      registrationStatus: registrationStatusFor(index),
+    });
+    students.push(student);
+  }
 
-  await relationship(
-    manager,
-    guardian1,
-    studentA1,
-    orgA,
-    RelationshipType.GUARDIAN_OF,
-    RelationshipStatus.ACTIVE,
-  );
-  await relationship(
-    manager,
-    guardian2,
-    studentA1,
-    orgA,
-    RelationshipType.GUARDIAN_OF,
-    RelationshipStatus.ACTIVE,
-  );
-  await relationship(
-    manager,
-    guardian1,
-    studentA2,
-    orgA,
-    RelationshipType.GUARDIAN_OF,
-    RelationshipStatus.PENDING,
-  );
-  await relationship(
-    manager,
-    guardian2,
-    studentA2,
-    orgA,
-    RelationshipType.GUARDIAN_OF,
-    RelationshipStatus.REJECTED,
-  );
-  await relationship(
-    manager,
-    advisorA,
-    studentA1,
-    orgA,
-    RelationshipType.ADVISOR_OF,
-    RelationshipStatus.ACTIVE,
-  );
-  await relationship(
-    manager,
-    advisorA,
-    studentA3,
-    orgA,
-    RelationshipType.ADVISOR_OF,
-    RelationshipStatus.ACTIVE,
-  );
-  await relationship(
-    manager,
-    mentor,
-    studentA1,
-    orgA,
-    RelationshipType.MENTOR_OF,
-    RelationshipStatus.ACTIVE,
-  );
-  await relationship(
-    manager,
-    mathTeacher,
-    studentA1,
-    orgA,
-    RelationshipType.TEACHER_OF,
-    RelationshipStatus.ACTIVE,
-  );
-  await relationship(
-    manager,
-    physicsTeacher,
-    studentA3,
-    orgA,
-    RelationshipType.TEACHER_OF,
-    RelationshipStatus.REVOKED,
-  );
-  await relationship(
-    manager,
-    guardianB,
-    studentB1,
-    orgB,
-    RelationshipType.GUARDIAN_OF,
-    RelationshipStatus.ACTIVE,
-  );
-  await relationship(
-    manager,
-    guardianC,
-    studentC1,
-    orgC,
-    RelationshipType.GUARDIAN_OF,
-    RelationshipStatus.ACTIVE,
-  );
-  await relationship(
-    manager,
-    advisorB,
-    studentB1,
-    orgB,
-    RelationshipType.ADVISOR_OF,
-    RelationshipStatus.ACTIVE,
-  );
-  await relationship(
-    manager,
-    advisorC,
-    studentC1,
-    orgC,
-    RelationshipType.ADVISOR_OF,
-    RelationshipStatus.ACTIVE,
-  );
-
-  const math = await subject(manager, orgA, "demo-math", "ریاضی");
-  const physics = await subject(manager, orgA, "demo-physics", "فیزیک");
-  const biology = await subject(manager, orgA, "demo-biology", "زیست‌شناسی");
-  const chemistry = await subject(manager, orgA, "demo-chemistry", "شیمی");
-  const bMath = await subject(manager, orgB, "demo-b-math", "ریاضی");
-  await teacherSubject(manager, mathTeacher, math, orgA);
-  await teacherSubject(manager, physicsTeacher, physics, orgA);
-  await studentSubject(manager, studentA1, biology, 420);
-  await studentSubject(manager, studentA1, chemistry, 300);
-  await studentSubject(manager, studentA1, math, 240);
-  await studentSubject(manager, studentA3, math, 480);
-  await studentSubject(manager, studentA3, physics, 360);
-  await studentSubject(manager, studentB1, bMath, 300);
-
-  const planRows: Plan[] = [];
-  for (let offset = -6; offset <= 2; offset += 1) {
-    planRows.push(
-      await plan(
-        manager,
-        studentA1,
-        day(offset),
-        offset <= 0 ? PlanStatus.PUBLISHED : PlanStatus.DRAFT,
-        [
-          {
-            type: TaskType.STUDY,
-            title: "مطالعه مفهومی",
-            subject: offset % 2 ? "شیمی" : "زیست‌شناسی",
-            startTime: "08:00",
-            endTime: "09:30",
-            duration: 90,
-            testCount: 0,
-            status: offset < 0 ? "DONE" : "PLANNED",
-            completedAt: offset < 0 ? at(offset, 10) : null,
-          },
-          {
-            type: TaskType.TEST,
-            title: "تست زمان‌دار",
-            subject: "ریاضی",
-            startTime: "17:00",
-            endTime: "18:00",
-            duration: 60,
-            testCount: 30,
-            status: offset < -2 ? "DONE" : "PLANNED",
-            completedAt: offset < -2 ? at(offset, 18) : null,
-          },
-        ],
-      ),
+  const importedStudents: Student[] = [];
+  for (let index = 0; index < IMPORTED_STUDENTS.length; index += 1) {
+    const [first, last] = IMPORTED_STUDENTS[index];
+    importedStudents.push(
+      await ensureImportedStudent(manager, school, {
+        first,
+        last,
+        nationalCode: `980000${String(index + 1).padStart(4, "0")}`,
+      }),
     );
   }
-  const weakPlan = await plan(
+
+  await seedStudentProfiles(manager, students);
+  await seedRegistrationRequirements(manager, school);
+  await seedRegistrationProgress(manager, school, students);
+
+  const guardianA = await ensureScopedStaff(
     manager,
-    studentA3,
-    day(-1),
-    PlanStatus.PUBLISHED,
-    [
-      {
-        type: TaskType.STUDY,
-        title: "مرور مشتق",
-        subject: "ریاضی",
-        startTime: "16:00",
-        endTime: "17:30",
-        duration: 90,
-        testCount: 0,
-        status: "MISSED",
-        completedAt: null,
-      },
-    ],
+    school,
+    { identity: "school.guardian.1", first: "جواد", last: "رضایی" },
+    UserRole.GUARDIAN,
+    "GUARDIAN",
+    hash,
   );
-  const activeTask = planRows.find((item) => item.date === day(0))!.tasks[0];
-  await singleton(
+  const guardianB = await ensureScopedStaff(
     manager,
-    StudySession,
-    {
-      student: { id: studentA1.id },
-      task: { id: activeTask.id },
-      status: StudySessionStatus.ACTIVE,
-    },
-    {
-      student: studentA1,
-      task: activeTask,
-      status: StudySessionStatus.ACTIVE,
-      startedAt: new Date(now.getTime() - 1_800_000),
-      lastStartedAt: new Date(now.getTime() - 1_800_000),
-      lastHeartbeatAt: now,
-      elapsedSeconds: 1800,
-      actualTests: 0,
-      difficulty: "متوسط",
-      note: "جلسه فعال نمایشی",
-    },
+    school,
+    { identity: "school.guardian.2", first: "حمید", last: "کریمی" },
+    UserRole.GUARDIAN,
+    "GUARDIAN",
+    hash,
   );
 
-  for (const [index, topic] of [
-    "ژنتیک",
-    "استوکیومتری",
-    "تابع",
-    "حرکت‌شناسی",
-  ].entries())
-    await singleton(
+  await seedContacts(manager, students, guardianA, guardianB);
+  await seedRelationships(
+    manager,
+    school,
+    students,
+    counselor,
+    mentor,
+    [diniTeacher, governmentTeacher, secondTeacher],
+    [guardianA, guardianB],
+  );
+
+  const diniClass = await ensureClass(manager, school, {
+    code: `${SCHOOL_YEAR}-DINI-1-A`,
+    name: "پایه یک دینی - الف",
+    gradeId: 1,
+    educationTypeId: "religious",
+    trackId: "dini",
+    advisor: religiousManager,
+    capacity: 30,
+  });
+  const governmentClass = await ensureClass(manager, school, {
+    code: `${SCHOOL_YEAR}-GOV-10-A`,
+    name: "پایه دهم دولتی - الف",
+    gradeId: 10,
+    educationTypeId: "government",
+    trackId: "general",
+    advisor: governmentManager,
+    capacity: 30,
+  });
+
+  for (const student of students) {
+    await ensureClassEnrollment(manager, diniClass, student);
+    await ensureClassEnrollment(manager, governmentClass, student);
+  }
+
+  const diniGroups = [
+    await ensureClassGroup(
       manager,
-      LearningItem,
-      { student: { id: studentA1.id }, title: `مرور ${topic}` },
-      {
-        student: studentA1,
-        subject:
-          index < 2
-            ? ["زیست‌شناسی", "شیمی"][index]
-            : ["ریاضی", "فیزیک"][index - 2],
-        book: "کتاب درسی",
-        chapter: `فصل ${index + 1}`,
-        lesson: "درس منتخب",
-        topic,
-        title: `مرور ${topic}`,
-        note: "از آزمون و برنامه هفتگی",
-        hint: "خلاصه‌نویسی و پنج تست",
-        dueDate: day(index - 2),
-        intervalDays: 3,
-        reviewCount: index,
-        mastery: 45 + index * 12,
-        status: "pending",
-        completedAt: null,
-      },
-    );
-  for (let offset = -5; offset <= -1; offset += 1)
-    await singleton(
+      school,
+      diniClass,
+      "DINI-1-A-G1",
+      "گروه دینی ۱",
+    ),
+    await ensureClassGroup(
       manager,
-      DailyReport,
-      { student: { id: studentA1.id }, planDate: day(offset) },
-      {
-        student: studentA1,
-        planDate: day(offset),
-        studyHours: 4.5 + (offset + 5) * 0.4,
-        tests: 45 + offset * -2,
-        correct: 30,
-        wrong: 10,
-        blank: 5,
-        focus: 6 + (offset % 2),
-        fatigue: 4,
-        motivation: 7,
-        problem: offset === -2 ? "کندی در محاسبات" : "",
-        tomorrow: "ادامه طبق برنامه",
-      },
+      school,
+      diniClass,
+      "DINI-1-A-G2",
+      "گروه دینی ۲",
+    ),
+  ];
+  const governmentGroups = [
+    await ensureClassGroup(
+      manager,
+      school,
+      governmentClass,
+      "GOV-10-A-G1",
+      "گروه دولتی ۱",
+    ),
+    await ensureClassGroup(
+      manager,
+      school,
+      governmentClass,
+      "GOV-10-A-G2",
+      "گروه دولتی ۲",
+    ),
+    await ensureClassGroup(
+      manager,
+      school,
+      governmentClass,
+      "GOV-10-A-G3",
+      "گروه دولتی ۳",
+    ),
+  ];
+
+  for (let index = 0; index < students.length; index += 1) {
+    await ensureGroupMembership(
+      manager,
+      diniGroups[index % diniGroups.length],
+      students[index],
     );
-  await singleton(
-    manager,
-    RecoveryRequest,
-    { student: { id: studentA3.id }, planDate: day(-1) },
-    {
-      student: studentA3,
-      planDate: day(-1),
-      reason: "بیماری و از دست رفتن برنامه",
-      note: "درخواست برنامه جبرانی",
-      status: RecoveryRequestStatus.PENDING,
-    },
-  );
-  await singleton(
-    manager,
-    TaskIssue,
-    { student: { id: studentA3.id }, task: { id: weakPlan.tasks[0].id } },
-    {
-      student: studentA3,
-      task: weakPlan.tasks[0],
-      type: "CONTENT_DIFFICULTY",
-      description: "مبحث مشتق نیاز به توضیح بیشتر دارد.",
-      status: "OPEN",
-      advisorNote: "",
-    },
-  );
-  await singleton(
-    manager,
-    Recommendation,
-    { student: { id: studentA1.id }, title: "مرور ترکیبی زیست و شیمی" },
-    {
-      student: studentA1,
-      createdByType: "ADVISOR",
-      createdByUser: advisorA,
-      type: "STUDY_BALANCE",
-      title: "مرور ترکیبی زیست و شیمی",
-      reason: "دقت شیمی در دو گزارش اخیر پایین‌تر بوده است.",
-      evidence: { source: "demo", reports: 2 },
-      status: RecommendationStatus.PROPOSED,
-    },
-  );
+    await ensureGroupMembership(
+      manager,
+      governmentGroups[index % governmentGroups.length],
+      students[index],
+    );
+  }
 
-  const completed = await exam(
-    manager,
-    orgA,
-    content,
-    "آزمون جامع منتشرشده",
-    "تجربی",
-    true,
-    "konkur",
-    at(-8, 8),
-    at(-8, 12),
-    "immediate",
-    true,
-    [studentA1, studentA3],
-    [
-      ["کدام ساختار در همانندسازی نقش دارد؟", "زیست‌شناسی", "ژنتیک", "a"],
-      ["عدد اکسایش را تعیین کنید.", "شیمی", "اکسایش کاهش", "b"],
-      ["دامنه تابع کدام است؟", "ریاضی", "تابع", "c"],
-      ["شتاب متوسط چقدر است؟", "فیزیک", "حرکت", "d"],
-    ],
-  );
-  const upcoming = await exam(
-    manager,
-    orgA,
-    content,
-    "آزمون آزمایشی پیش رو",
-    "چنددرس",
-    true,
-    "konkur",
-    at(2, 8),
-    at(2, 12),
-    "scheduled",
-    false,
-    [studentA1, studentA2, studentA3],
-    [["پرسش نمونه آینده", "زیست‌شناسی", "سلول", "a"]],
-  );
-  await exam(
-    manager,
-    orgA,
-    content,
-    "آزمون پیش‌نویس دبیر",
-    "ریاضی",
-    false,
-    "standard",
-    null,
-    null,
-    "manual",
-    false,
-    [studentA1],
-    [["حاصل مشتق؟", "ریاضی", "مشتق", "b"]],
-  );
-  await exam(
-    manager,
-    orgB,
-    teacherB,
-    "آزمون مستقل سازمان ب",
-    "ریاضی",
-    true,
-    "standard",
-    at(1, 9),
-    at(1, 11),
-    "immediate",
-    true,
-    [studentB1, studentB2],
-    [["پرسش سازمان ب", "ریاضی", "تابع", "c"]],
-  );
-  await completedAttempt(manager, completed, studentA1, 67);
-  await completedAttempt(manager, completed, studentA3, 25);
-  const active = await exam(
-    manager,
-    orgA,
-    content,
-    "آزمون فعال قابل ادامه",
-    "زیست‌شناسی",
-    true,
-    "standard",
-    at(0, 0),
-    at(0, 23),
-    "manual",
-    false,
-    [studentA1],
-    [["سلول چیست؟", "زیست‌شناسی", "سلول", "a"]],
-  );
-  await activeAttempt(manager, active, studentA1);
-  const retryExam = await exam(
-    manager,
-    orgA,
-    mathTeacher,
-    "آزمون ریاضی نیازمند جبران",
-    "ریاضی",
-    true,
-    "standard",
-    at(-4, 9),
-    at(-4, 10),
-    "immediate",
-    true,
-    [studentA3],
-    [["معادله را حل کنید.", "ریاضی", "معادله", "a"]],
-  );
-  await singleton(
-    manager,
-    ExamRetryRequest,
-    { exam: { id: retryExam.id }, student: { id: studentA3.id } },
-    {
-      exam: retryExam,
-      student: studentA3,
-      message: "قطع اینترنت هنگام آزمون",
-      status: RetryRequestStatus.PENDING,
-      moderatorNote: "",
-      resolvedBy: null,
-      resolvedAt: null,
-    },
-  );
-  const syllabus = await singleton(
-    manager,
-    ExamSyllabus,
-    { exam: { id: upcoming.id }, subject: "زیست‌شناسی" },
-    {
-      exam: upcoming,
-      subject: "زیست‌شناسی",
-      description: "فصل‌های یک تا سه",
-      required: true,
-      track: "تجربی",
-    },
-  );
-  await singleton(
-    manager,
-    SyllabusProgress,
-    { student: { id: studentA1.id }, syllabus: { id: syllabus.id } },
-    {
-      student: studentA1,
-      syllabus,
-      status: SyllabusProgressStatus.REVIEW,
-      accuracy: 68,
-      note: "فصل دوم نیاز به مرور",
-    },
-  );
-  await quiz(manager, orgA, upcoming, "کوییز گرم‌کردن زیست");
+  const rooms = [
+    await ensureDormRoom(manager, school, "D-101", "اتاق ۱۰۱", 6),
+    await ensureDormRoom(manager, school, "D-102", "اتاق ۱۰۲", 6),
+    await ensureDormRoom(manager, school, "D-103", "اتاق ۱۰۳", 6),
+  ];
 
-  // A complete seven-day journey for every demo learner gives the admin and
-  // student applications enough density to exercise pagination, filters,
-  // completion states and the weekly planner without relying on fake counts.
-  await Promise.all([
-    seedWeeklyPlans(manager, studentsA, ["زیست‌شناسی", "شیمی", "ریاضی"]),
-    seedWeeklyPlans(manager, studentsB, ["ریاضی", "علوم", "فارسی"]),
-    seedWeeklyPlans(manager, studentsC, ["ریاضی", "مهارت مطالعه", "علوم"]),
-  ]);
+  for (let index = 0; index < students.length; index += 1) {
+    await ensureDormAssignment(
+      manager,
+      rooms[index % rooms.length],
+      students[index],
+    );
+  }
 
-  const academyCohortExam = await exam(
-    manager,
-    orgA,
-    content,
-    "ارزیابی هفتگی آکادمی راه روشن",
-    "چنددرس",
-    true,
-    "konkur",
-    at(1, 8),
-    at(1, 10),
-    "immediate",
-    true,
-    studentsA.slice(0, 30),
-    [["پرسش مرور هفتگی", "زیست‌شناسی", "سلول", "a"]],
-  );
-  const schoolCohortExam = await exam(
-    manager,
-    orgB,
-    contentB,
-    "ارزیابی کلاسی دبیرستان دانش فردا",
-    "چنددرس",
-    true,
-    "standard",
-    at(1, 9),
-    at(1, 10),
-    "scheduled",
-    false,
-    studentsB.slice(0, 32),
-    [["پرسش ارزیابی کلاسی", "ریاضی", "تابع", "b"]],
-  );
-  const counselingCohortExam = await exam(
-    manager,
-    orgC,
-    contentC,
-    "سنجش مسیر رشد",
-    "مهارت‌های پایه",
-    true,
-    "standard",
-    at(2, 10),
-    at(2, 11),
-    "manual",
-    false,
-    studentsC.slice(0, 25),
-    [["پرسش مهارت مطالعه", "مهارت مطالعه", "تمرکز", "c"]],
-  );
-  const academyQuiz = await quiz(
-    manager,
-    orgA,
-    academyCohortExam,
-    "کوییز مرور آکادمی",
-    "زیست‌شناسی",
-  );
-  const schoolQuiz = await quiz(
-    manager,
-    orgB,
-    schoolCohortExam,
-    "کوییز کلاسی دانش فردا",
-    "ریاضی",
-  );
-  const counselingQuiz = await quiz(
-    manager,
-    orgC,
-    counselingCohortExam,
-    "کوییز تمرکز مسیر رشد",
-    "مهارت مطالعه",
-  );
-  await Promise.all([
-    completedQuizAttempt(manager, academyQuiz, studentsA[4], 100),
-    completedQuizAttempt(manager, schoolQuiz, studentsB[3], 0),
-    completedQuizAttempt(manager, counselingQuiz, studentsC[2], 100),
-  ]);
-
-  const conversation = await directConversation(
-    manager,
-    advisorA,
-    studentA1.user!,
-    "گفتگوی آرمان و مشاور",
-  );
-  const firstMessage = await message(
-    manager,
-    conversation,
-    advisorA,
-    studentA1.user!,
-    "آرمان جان، برنامه امروز را دیدی؟",
-    null,
-    false,
-  );
-  await message(
-    manager,
-    conversation,
-    studentA1.user!,
-    advisorA,
-    "بله، از زیست شروع می‌کنم.",
-    firstMessage,
-    true,
-  );
-  await groupConversation(
-    manager,
-    advisorA,
-    [studentA1.user!, studentA3.user!, guardian1],
-    "گروه پیگیری هفته کنکور",
-  );
-  await singleton(
-    manager,
-    MessageReaction,
-    {
-      message: { id: firstMessage.id },
-      user: { id: studentA1.user!.id },
-      emoji: "👍",
-    },
-    { message: firstMessage, user: studentA1.user!, emoji: "👍" },
-  );
-  await notification(
-    manager,
-    studentA1.user!,
-    orgA,
-    "EXAM_REMINDER",
-    "آزمون پیش رو",
-    "آزمون جامع دو روز دیگر برگزار می‌شود.",
-    false,
-  );
-  await notification(
-    manager,
-    studentA1.user!,
-    orgA,
-    "MESSAGE",
-    "پیام تازه مشاور",
-    "برنامه امروز را بررسی کن.",
-    false,
-  );
-  await notification(
-    manager,
-    guardian1,
-    orgA,
-    "GUARDIAN_PROGRESS",
-    "گزارش هفتگی آرمان",
-    "پیشرفت هفتگی برای مشاهده آماده است.",
-    true,
-  );
-  await notification(
-    manager,
-    orgAdminA,
-    orgA,
-    "SYSTEM_UPDATE",
-    "نسخه نمایشی آماده است",
-    "داده‌های نقش‌ها و گردش‌های اصلی برای بازبینی آماده‌اند.",
-    false,
-  );
-  await singleton(
-    manager,
-    ActivityEvent,
-    {
-      student: { id: studentA1.id },
-      type: "DEMO_PLAN_OPENED",
-      resourceId: planRows[0].id,
-    },
-    {
-      student: studentA1,
-      type: "DEMO_PLAN_OPENED",
-      resourceType: "plan",
-      resourceId: planRows[0].id,
-      data: { source: "product-demo" },
-    },
-  );
+  await seedAttendance(manager, {
+    school,
+    principal,
+    disciplinarian,
+    diniTeacher,
+    governmentTeacher,
+    diniClass,
+    governmentClass,
+    governmentGroups,
+    rooms,
+    students,
+  });
 
   return {
-    organizations: 3,
-    students: 300,
-    activeWorkersPerOrganization: 30,
-    textbooks: textbookCount,
-    classes: 3,
-    exams: 9,
-    quizzes: 4,
-    plans: 2102,
-    passwordNote: "Override with DEMO_PASSWORD",
+    organizations: 1,
+    users: 1 + 9 + 2 + students.length,
+    students: students.length + importedStudents.length,
+    studentsWithAccounts: students.length,
+    importedStudentsWithoutAccounts: importedStudents.length,
+    classes: 2,
+    classGroups: diniGroups.length + governmentGroups.length,
+    dormRooms: rooms.length,
+    attendanceContexts: ["class", "class_group", "dorm"],
+    registrationSections: REGISTRATION_SECTIONS.length,
+    demoAccounts: {
+      platformAdmin: account(STAFF.platform.identity),
+      principal: account(STAFF.principal.identity),
+      disciplinarian: account(STAFF.disciplinarian.identity),
+      counselor: account(STAFF.counselor.identity),
+      religiousEducationManager: account(STAFF.religiousManager.identity),
+      governmentEducationManager: account(STAFF.governmentManager.identity),
+      studentAffairsMentor: account(STAFF.mentor.identity),
+      teacher: account(STAFF.diniTeacher.identity),
+      student: account("school.student.1"),
+      guardian: account("school.guardian.1"),
+    },
+    passwordNote:
+      "All demo accounts use DEMO_PASSWORD (or the default shown above).",
   };
 }
 
-async function seedQuestionBank(m: EntityManager, organization: Organization) {
-  const repo = m.getRepository(QuestionBankItem);
-  const samples = [
-    { text: "کدام گزینه دربارهٔ برنامه‌ریزی هفتگی درست است؟", options: ["هدف مشخص دارد", "بدون مرور است", "فقط یک روز را پوشش می‌دهد", "نیازی به اولویت ندارد"], correctAnswer: "هدف مشخص دارد", subject: "مهارت مطالعه", topic: "برنامه‌ریزی", difficulty: "easy", tags: ["مطالعه", "برنامه"] },
-    { text: "برای مرور مؤثر پس از آزمون چه کاری مناسب‌تر است؟", options: ["بررسی خطاها", "نادیده گرفتن پاسخ‌ها", "تکرار تصادفی", "حذف یادداشت‌ها"], correctAnswer: "بررسی خطاها", subject: "مهارت مطالعه", topic: "تحلیل آزمون", difficulty: "medium", tags: ["مرور", "اشتباهات"] },
-  ];
-  for (const sample of samples) {
-    const row = await repo.findOne({ where: { text: sample.text, organization: { id: organization.id } } });
-    if (!row) await repo.save(repo.create({ ...sample, explanation: "", book: "", grade: "", chapter: "", lesson: "", source: "product-demo", organization }));
-  }
+function account(identity: string) {
+  return { username: seedPhoneNumber(identity), password };
 }
 
-async function organization(
-  m: EntityManager,
-  name: string,
-  type: OrganizationType,
-  status: OrganizationStatus,
-) {
-  const r = m.getRepository(Organization);
-  let x = await r.findOne({ where: { name } });
-  if (!x) x = r.create({ name, type, status });
-  else Object.assign(x, { type, status });
-  return r.save(x);
+async function ensureSchool(manager: EntityManager) {
+  const repo = manager.getRepository(Organization);
+  const name = "مدرسه و حوزه آموزشی بستک";
+  let school = await repo.findOne({ where: { name } });
+  const value = {
+    name,
+    type: OrganizationType.SCHOOL,
+    status: OrganizationStatus.ACTIVE,
+    disabledFeatures: [],
+    studentSignupManagedByOrganization: true,
+    studentSignupEnabled: true,
+    studentSignupLimit: 500,
+  };
+  if (!school) school = repo.create(value);
+  else Object.assign(school, value);
+  return repo.save(school);
 }
-async function user(
-  m: EntityManager,
-  username: string,
-  firstName: string,
-  lastName: string,
-  roleValue: UserRole,
-  hash: string,
-  status = UserStatus.ACTIVE,
+
+async function ensureUser(
+  manager: EntityManager,
+  input: {
+    identity: string;
+    first: string;
+    last: string;
+    legacyRole: UserRole;
+    hash: string;
+    status?: UserStatus;
+    platformOwner?: boolean;
+  },
 ) {
-  const r = m.getRepository(User);
-  let x = await r.findOne({ where: { username } });
-  if (!x)
-    x = r.create({
-      username,
-      phoneNumber: seedPhoneNumber(username),
-      passwordHash: hash,
-      role: roleValue,
-      firstName,
-      lastName,
-      status,
-      locale: "fa-IR",
-      timezone: "Asia/Tehran",
+  const repo = manager.getRepository(User);
+  const phone = seedPhoneNumber(input.identity);
+  let user = await repo.findOne({ where: { username: phone } });
+
+  let platformOwner = false;
+  if (input.platformOwner) {
+    const existingOwner = await repo.findOne({
+      where: { isPlatformOwner: true },
     });
-  else
-    Object.assign(x, {
-      phoneNumber: seedPhoneNumber(username),
-      passwordHash: hash,
-      role: roleValue,
-      firstName,
-      lastName,
-      status,
-    });
-  return r.save(x);
+    platformOwner = !existingOwner || existingOwner.id === user?.id;
+  }
+
+  const value = {
+    username: phone,
+    phoneNumber: phone,
+    passwordHash: input.hash,
+    role: input.legacyRole,
+    firstName: input.first,
+    lastName: input.last,
+    status: input.status ?? UserStatus.ACTIVE,
+    isPlatformOwner: platformOwner,
+    locale: "fa-IR",
+    timezone: "Asia/Tehran",
+  };
+
+  if (!user) user = repo.create(value);
+  else Object.assign(user, value);
+  return repo.save(user);
 }
-async function membership(
-  m: EntityManager,
-  u: User,
-  o: Organization,
+
+async function ensureMembership(
+  manager: EntityManager,
+  user: User,
+  organization: Organization,
   status = MembershipStatus.ACTIVE,
 ) {
-  const r = m.getRepository(OrganizationMembership);
-  let x = await r.findOne({
-    where: { user: { id: u.id }, organization: { id: o.id } },
+  const repo = manager.getRepository(OrganizationMembership);
+  let membership = await repo.findOne({
+    where: { user: { id: user.id }, organization: { id: organization.id } },
   });
-  if (!x) x = r.create({ user: u, organization: o, status });
-  else x.status = status;
-  return r.save(x);
+  if (!membership) membership = repo.create({ user, organization, status });
+  else membership.status = status;
+  return repo.save(membership);
 }
-async function role(
-  m: EntityManager,
-  u: User,
-  code: string,
-  scope: OrganizationMembership | null,
+
+async function ensureRoleAssignment(
+  manager: EntityManager,
+  user: User,
+  roleCode: string,
+  membership: OrganizationMembership | null,
 ) {
-  const roleRow = await m.getRepository(Role).findOneByOrFail({ code });
-  const r = m.getRepository(UserRoleAssignment);
-  let x = await r.findOne({
-    where: {
-      user: { id: u.id },
-      role: { id: roleRow.id },
-      ...(scope ? { membership: { id: scope.id } } : {}),
-    },
+  const roleRepo = manager.getRepository(Role);
+  const assignmentRepo = manager.getRepository(UserRoleAssignment);
+  const role = await roleRepo.findOne({ where: { code: roleCode } });
+  if (!role) {
+    throw new Error(
+      `Role ${roleCode} does not exist. Run all database migrations before running the school demo seed.`,
+    );
+  }
+
+  const assignments = await assignmentRepo.find({
+    where: { user: { id: user.id }, role: { id: role.id } },
+    relations: { membership: true },
   });
-  return x || r.save(r.create({ user: u, role: roleRow, membership: scope }));
+  const found = assignments.find(
+    (assignment) =>
+      (assignment.membership?.id ?? null) === (membership?.id ?? null),
+  );
+  if (found) return found;
+
+  return assignmentRepo.save(
+    assignmentRepo.create({ user, role, membership: membership ?? null }),
+  );
 }
-async function scopedUser(
-  m: EntityManager,
-  o: Organization,
-  username: string,
-  first: string,
-  last: string,
-  legacy: UserRole,
-  code: string,
+
+async function ensureScopedStaff(
+  manager: EntityManager,
+  organization: Organization,
+  identity: { identity: string; first: string; last: string },
+  legacyRole: UserRole,
+  roleCode: string,
   hash: string,
-  status = MembershipStatus.ACTIVE,
 ) {
-  const u = await user(m, username, first, last, legacy, hash);
-  const mem = await membership(m, u, o, status);
-  await role(m, u, code, mem);
-  return u;
+  const user = await ensureUser(manager, {
+    ...identity,
+    legacyRole,
+    hash,
+  });
+  const membership = await ensureMembership(manager, user, organization);
+  await ensureRoleAssignment(manager, user, roleCode, membership);
+  return user;
 }
-async function studentUser(
-  m: EntityManager,
-  o: Organization,
-  username: string,
-  name: string,
-  hash: string,
-  gradeId: number,
-  grade: string,
-  trackId: string,
-  major: string,
-  nationalCode: string,
+
+async function ensureStudentWithAccount(
+  manager: EntityManager,
+  organization: Organization,
+  input: {
+    identity: string;
+    first: string;
+    last: string;
+    hash: string;
+    nationalCode: string;
+    registrationStatus: Student["registrationStatus"];
+  },
 ) {
-  const u = await scopedUser(
-    m,
-    o,
-    username,
-    name.split(" ")[0],
-    name.split(" ").slice(1).join(" "),
+  const user = await ensureScopedStaff(
+    manager,
+    organization,
+    input,
     UserRole.STUDENT,
     "STUDENT",
-    hash,
+    input.hash,
   );
-  const r = m.getRepository(Student);
-  let s = await r.findOne({
-    // Older development datasets may have the same demo learner linked to a
-    // pre-phone account. The national code is the durable identity here.
-    where: [{ user: { id: u.id } }, { nationalCode }],
-    relations: { user: true },
+
+  const repo = manager.getRepository(Student);
+  let student = await repo.findOne({
+    where: [{ user: { id: user.id } }, { nationalCode: input.nationalCode }],
+    relations: { user: true, organization: true },
   });
-  const educationTypeId = gradeId < 10 ? "general" : "theoretical";
-  if (!s)
-    s = r.create({
-      user: u,
-      name,
-      nationalCode,
-      gradeId,
-      grade,
-      educationTypeId,
-      trackId,
-      major,
-      targetUniversity: "دانشگاه تهران",
-      targetField:
-        trackId === "experimental_sciences" ? "پزشکی" : "مهندسی کامپیوتر",
-      targetRank: "زیر ۱۰۰۰",
-      dailyCapacity: "۶ ساعت",
-      accountStatus: "active",
-    });
-  else
-    Object.assign(s, {
-      user: u,
-      name,
-      nationalCode,
-      gradeId,
-      grade,
-      educationTypeId,
-      trackId,
-      major,
-    });
-  return r.save(s);
+
+  const value = {
+    user,
+    organization,
+    name: `${input.first} ${input.last}`,
+    nationalCode: input.nationalCode,
+    gradeId: 10,
+    learnerProfile: "school" as const,
+    independentType: null,
+    learningLevel: "پایه دهم",
+    educationTypeId: "government",
+    trackId: "general",
+    grade: "پایه دهم",
+    major: "عمومی",
+    targetUniversity: "",
+    targetField: "",
+    targetRank: "",
+    dailyCapacity: "",
+    accountStatus: "active" as const,
+    onboardingStatus: "ASSIGNED" as const,
+    registrationStatus: input.registrationStatus,
+  };
+
+  if (!student) student = repo.create(value);
+  else Object.assign(student, value);
+  return repo.save(student);
 }
 
-type StudentSeedProfile = {
-  gradeId: number;
-  grade: string;
-  trackId: string;
-  major: string;
-};
-
-const studentProfiles: StudentSeedProfile[] = [
-  { gradeId: 9, grade: "پایه نهم", trackId: "general", major: "عمومی" },
-  {
-    gradeId: 10,
-    grade: "پایه دهم",
-    trackId: "experimental_sciences",
-    major: "علوم تجربی",
-  },
-  {
-    gradeId: 10,
-    grade: "پایه دهم",
-    trackId: "humanities",
-    major: "ادبیات و علوم انسانی",
-  },
-  {
-    gradeId: 11,
-    grade: "پایه یازدهم",
-    trackId: "math_physics",
-    major: "ریاضی و فیزیک",
-  },
-  {
-    gradeId: 11,
-    grade: "پایه یازدهم",
-    trackId: "experimental_sciences",
-    major: "علوم تجربی",
-  },
-  {
-    gradeId: 12,
-    grade: "پایه دوازدهم",
-    trackId: "humanities",
-    major: "ادبیات و علوم انسانی",
-  },
-  {
-    gradeId: 12,
-    grade: "پایه دوازدهم",
-    trackId: "math_physics",
-    major: "ریاضی و فیزیک",
-  },
-];
-
-async function seedDemoClass(
-  m: EntityManager,
+async function ensureImportedStudent(
+  manager: EntityManager,
   organization: Organization,
-  code: string,
-  name: string,
-  gradeId: number,
-  educationTypeId: string,
-  trackId: string,
-  advisor: User,
-  teachers: User[],
+  input: { first: string; last: string; nationalCode: string },
+) {
+  const repo = manager.getRepository(Student);
+  let student = await repo.findOne({
+    where: { nationalCode: input.nationalCode },
+  });
+  const value = {
+    user: null,
+    organization,
+    name: `${input.first} ${input.last}`,
+    nationalCode: input.nationalCode,
+    gradeId: 10,
+    learnerProfile: "school" as const,
+    independentType: null,
+    learningLevel: "پایه دهم",
+    educationTypeId: "government",
+    trackId: "general",
+    grade: "پایه دهم",
+    major: "عمومی",
+    targetUniversity: "",
+    targetField: "",
+    targetRank: "",
+    dailyCapacity: "",
+    accountStatus: "active" as const,
+    onboardingStatus: "PENDING_ASSIGNMENT" as const,
+    registrationStatus: "ACCOUNT_CREATED" as const,
+  };
+  if (!student) student = repo.create(value);
+  else Object.assign(student, value);
+  return repo.save(student);
+}
+
+function registrationStatusFor(index: number): Student["registrationStatus"] {
+  if (index < 8) return "ACTIVE";
+  if (index < 11) return "APPROVED";
+  if (index < 14) return "WAITING_REVIEW";
+  if (index < 16) return "NEEDS_CORRECTION";
+  return "IN_PROGRESS";
+}
+
+async function seedStudentProfiles(
+  manager: EntityManager,
   students: Student[],
 ) {
-  const classrooms = m.getRepository(EducationClass);
-  const classBooks = m.getRepository(EducationClassBook);
-  const enrollments = m.getRepository(EducationClassEnrollment);
-  let classroom = await classrooms.findOne({ where: { organization: { id: organization.id }, code } });
-  if (!classroom) classroom = classrooms.create({ organization, code });
-  Object.assign(classroom, { name, schoolYear: "1405-1406", gradeId, educationTypeId, trackId, capacity: 35, status: "ACTIVE", description: "کلاس نمونه برای سنجش پیوستگی کتاب، دبیر، مشاور و دانش‌آموز.", advisor });
-  classroom = await classrooms.save(classroom);
-  const books = await m.getRepository(EducationBook).find({ where: { grade: gradeId, track: trackId, state: "PUBLISHED" }, take: 2 });
-  await classBooks.delete({ classroom: { id: classroom.id } });
-  await enrollments.delete({ classroom: { id: classroom.id } });
-  await classBooks.save(books.map((book, index) => classBooks.create({ classroom, book, teacher: teachers[index % teachers.length] })));
-  await enrollments.save(students.map((student) => enrollments.create({ classroom, student })));
-}
-
-async function seedStudentPopulation(
-  m: EntityManager,
-  organization: Organization,
-  organizationCode: string,
-  hash: string,
-  featured: Student[],
-) {
-  const students = [...featured];
-  const firstNames = [
-    "آوا",
-    "مانی",
-    "رها",
-    "سامان",
-    "نازنین",
-    "بردیا",
-    "هلیا",
-    "آرین",
-  ];
-  const lastNames = [
-    "نوری",
-    "حسینی",
-    "مرادی",
-    "فرهادی",
-    "صادقی",
-    "علوی",
-    "موسوی",
-    "قاسمی",
-  ];
-  const nationalOffset = { a: 100, b: 300, c: 500 }[organizationCode] ?? 700;
-  for (let index = featured.length; index < 100; index += 1) {
-    const profile = studentProfiles[index % studentProfiles.length];
-    const serial = index + 1;
-    students.push(
-      await studentUser(
-        m,
-        organization,
-        `demo.student.${organizationCode}${serial}`,
-        `${firstNames[index % firstNames.length]} ${lastNames[(index * 3) % lastNames.length]}`,
-        hash,
-        profile.gradeId,
-        profile.grade,
-        profile.trackId,
-        profile.major,
-        String(9_100_000_000 + nationalOffset + serial),
-      ),
-    );
-  }
-  return students;
-}
-
-async function seedWorkforce(
-  m: EntityManager,
-  organization: Organization,
-  organizationCode: string,
-  hash: string,
-  existingStaff: number,
-) {
-  const roles: Array<[UserRole, string, string]> = [
-    [UserRole.ADVISOR, "ADVISOR", "مشاور"],
-    [UserRole.TEACHER, "TEACHER", "دبیر"],
-    [UserRole.MENTOR, "MENTOR", "مربی"],
-    [UserRole.CONTENT_MANAGER, "CONTENT_MANAGER", "کارشناس محتوا"],
-  ];
-  for (let index = existingStaff + 1; index <= 30; index += 1) {
-    const [legacyRole, code, title] = roles[(index - 1) % roles.length];
-    await scopedUser(
-      m,
-      organization,
-      `demo.staff.${organizationCode}${index}`,
-      title,
-      `نمایشی ${index}`,
-      legacyRole,
-      code,
-      hash,
-    );
+  const repo = manager.getRepository(StudentProfile);
+  for (let index = 0; index < students.length; index += 1) {
+    const student = students[index];
+    let profile = await repo.findOne({
+      where: { student: { id: student.id } },
+    });
+    const complete = index < 12;
+    const value = {
+      student,
+      birthCertificateNumber: complete ? `BC-${10000 + index}` : null,
+      birthDate: complete
+        ? new Date(
+            `2009-${String((index % 9) + 1).padStart(2, "0")}-15T00:00:00+03:30`,
+          )
+        : null,
+      birthPlace: complete ? "بستک" : null,
+      certificateIssuePlace: complete ? "بستک" : null,
+      gender: "MALE",
+      previousSchool: complete ? "مدرسه نمونه قبلی" : null,
+      address: complete ? `بستک، محله نمونه، پلاک ${20 + index}` : null,
+      postalCode: complete ? `79610${String(10000 + index).slice(-5)}` : null,
+      homePhone: complete ? `076442${String(1000 + index)}` : null,
+      emergencyPhone: complete
+        ? seedPhoneNumber(`student.emergency.${index}`)
+        : null,
+      healthNotes: index === 2 ? "حساسیت فصلی" : null,
+      insuranceProvider: complete ? "بیمه سلامت" : null,
+      insuranceNumber: complete ? `INS-${9000 + index}` : null,
+      transportNotes: index % 3 === 0 ? "سرویس مدرسه" : null,
+    };
+    if (!profile) profile = repo.create(value);
+    else Object.assign(profile, value);
+    await repo.save(profile);
   }
 }
 
-async function seedWeeklyPlans(
-  m: EntityManager,
+async function seedContacts(
+  manager: EntityManager,
   students: Student[],
-  subjects: string[],
+  guardianA: User,
+  guardianB: User,
 ) {
-  for (const [studentIndex, student] of students.entries()) {
-    for (let offset = -6; offset <= 0; offset += 1) {
-      const subject =
-        subjects[(studentIndex + offset + subjects.length) % subjects.length];
-      const completed = offset < 0 && (studentIndex + offset) % 3 !== 0;
-      await plan(m, student, day(offset), PlanStatus.PUBLISHED, [
-        {
-          type: TaskType.STUDY,
-          title: "مطالعه برنامه هفتگی",
-          subject,
-          startTime: "08:00",
-          endTime: "09:15",
-          duration: 75,
-          status: completed ? "DONE" : "PLANNED",
-          completedAt: completed ? at(offset, 9) : null,
-          actualMinutes: completed ? 70 : 0,
-        },
-        {
-          type: TaskType.TEST,
-          title: "تمرین و سنجش روزانه",
-          subject,
-          startTime: "17:00",
-          endTime: "17:45",
-          duration: 45,
-          testCount: 15 + (studentIndex % 4) * 5,
-          status: completed && studentIndex % 4 !== 0 ? "DONE" : "PLANNED",
-          completedAt:
-            completed && studentIndex % 4 !== 0 ? at(offset, 18) : null,
-          actualTests: completed ? 12 : 0,
-        },
-      ]);
+  const repo = manager.getRepository(StudentContact);
+  for (let index = 0; index < students.length; index += 1) {
+    const student = students[index];
+    const familyName = student.name.split(" ").slice(-1)[0];
+    const contacts: Array<
+      Partial<StudentContact> & Pick<StudentContact, "type" | "fullName">
+    > = [
+      {
+        type: "FATHER",
+        fullName: `پدر ${familyName}`,
+        nationalCode: `110000${String(index + 1).padStart(4, "0")}`,
+        phoneNumber: seedPhoneNumber(`father.${index}`),
+        occupation: index % 2 === 0 ? "آزاد" : "کارمند",
+        linkedUser: index === 0 ? guardianA : index === 1 ? guardianB : null,
+      },
+      {
+        type: "MOTHER",
+        fullName: `مادر ${familyName}`,
+        nationalCode: `120000${String(index + 1).padStart(4, "0")}`,
+        phoneNumber: seedPhoneNumber(`mother.${index}`),
+        occupation: "خانه‌دار",
+        linkedUser: null,
+      },
+      {
+        type: "EMERGENCY",
+        fullName: `تماس اضطراری ${familyName}`,
+        phoneNumber: seedPhoneNumber(`emergency.${index}`),
+        linkedUser: null,
+      },
+    ];
+
+    for (const contact of contacts) {
+      let row = await repo.findOne({
+        where: { student: { id: student.id }, type: contact.type },
+      });
+      const value = { student, ...contact };
+      if (!row) row = repo.create(value);
+      else Object.assign(row, value);
+      await repo.save(row);
     }
   }
 }
-async function relationship(
-  m: EntityManager,
-  u: User,
-  s: Student,
-  o: Organization,
-  type: RelationshipType,
-  status: RelationshipStatus,
+
+async function seedRegistrationRequirements(
+  manager: EntityManager,
+  organization: Organization,
 ) {
-  const r = m.getRepository(UserRelationship);
-  let x = await r.findOne({
+  const repo = manager.getRepository(RegistrationRequirement);
+  const config: Array<{
+    code: RegistrationSectionCode;
+    enabled: boolean;
+    required: boolean;
+    announcement: string;
+  }> = [
+    {
+      code: "BASIC_INFORMATION",
+      enabled: true,
+      required: true,
+      announcement: "اطلاعات پایه خود را تکمیل کنید.",
+    },
+    {
+      code: "IDENTITY_INFORMATION",
+      enabled: true,
+      required: true,
+      announcement: "اطلاعات هویتی و شناسنامه‌ای را ثبت کنید.",
+    },
+    {
+      code: "ADDRESS_CONTACT",
+      enabled: true,
+      required: true,
+      announcement: "نشانی و اطلاعات تماس را تکمیل کنید.",
+    },
+    {
+      code: "PARENTS",
+      enabled: true,
+      required: true,
+      announcement: "اطلاعات والدین یا سرپرست را ثبت کنید.",
+    },
+    {
+      code: "PREVIOUS_EDUCATION",
+      enabled: true,
+      required: true,
+      announcement: "سوابق تحصیلی قبلی را ثبت کنید.",
+    },
+    {
+      code: "DOCUMENTS",
+      enabled: true,
+      required: true,
+      announcement: "مدارک اعلام‌شده مدرسه را بارگذاری کنید.",
+    },
+    {
+      code: "HEALTH",
+      enabled: true,
+      required: false,
+      announcement: "اطلاعات سلامت موردنیاز مدرسه را تکمیل کنید.",
+    },
+    {
+      code: "INSURANCE",
+      enabled: false,
+      required: false,
+      announcement: "این مرحله هنوز باز نشده است.",
+    },
+    {
+      code: "CONSENTS",
+      enabled: false,
+      required: false,
+      announcement: "رضایت‌نامه‌ها در مرحله بعد اعلام می‌شوند.",
+    },
+    {
+      code: "TRANSPORT",
+      enabled: false,
+      required: false,
+      announcement: "در صورت استفاده از سرویس مدرسه فعال می‌شود.",
+    },
+    {
+      code: "TUITION",
+      enabled: false,
+      required: false,
+      announcement: "برای مدارس غیردولتی قابل فعال‌سازی است.",
+    },
+  ];
+
+  for (let index = 0; index < config.length; index += 1) {
+    const item = config[index];
+    let row = await repo.findOne({
+      where: { organization: { id: organization.id }, sectionCode: item.code },
+    });
+    const value = {
+      organization,
+      sectionCode: item.code,
+      enabled: item.enabled,
+      required: item.required,
+      sortOrder: index + 1,
+      announcement: item.announcement,
+      opensAt: item.enabled ? new Date() : null,
+      closesAt: null,
+    };
+    if (!row) row = repo.create(value);
+    else Object.assign(row, value);
+    await repo.save(row);
+  }
+}
+
+async function seedRegistrationProgress(
+  manager: EntityManager,
+  organization: Organization,
+  students: Student[],
+) {
+  const repo = manager.getRepository(RegistrationProgress);
+  const enabledSections = REGISTRATION_SECTIONS.slice(0, 7);
+
+  for (
+    let studentIndex = 0;
+    studentIndex < students.length;
+    studentIndex += 1
+  ) {
+    const student = students[studentIndex];
+    for (
+      let sectionIndex = 0;
+      sectionIndex < enabledSections.length;
+      sectionIndex += 1
+    ) {
+      const sectionCode = enabledSections[sectionIndex];
+      const status = progressStatus(student.registrationStatus, sectionIndex);
+      let row = await repo.findOne({
+        where: {
+          student: { id: student.id },
+          organization: { id: organization.id },
+          sectionCode,
+        },
+      });
+      const value = {
+        student,
+        organization,
+        sectionCode,
+        status,
+        reviewNote:
+          status === "NEEDS_CORRECTION"
+            ? "شماره شناسنامه را دوباره بررسی و اصلاح کنید."
+            : "",
+      };
+      if (!row) row = repo.create(value);
+      else Object.assign(row, value);
+      await repo.save(row);
+    }
+  }
+}
+
+function progressStatus(
+  registrationStatus: Student["registrationStatus"],
+  sectionIndex: number,
+): RegistrationProgress["status"] {
+  if (registrationStatus === "ACTIVE" || registrationStatus === "APPROVED") {
+    return sectionIndex < 6 ? "APPROVED" : "SUBMITTED";
+  }
+  if (registrationStatus === "WAITING_REVIEW") {
+    return sectionIndex < 3
+      ? "APPROVED"
+      : sectionIndex < 5
+        ? "SUBMITTED"
+        : "NOT_STARTED";
+  }
+  if (registrationStatus === "NEEDS_CORRECTION") {
+    if (sectionIndex === 1) return "NEEDS_CORRECTION";
+    return sectionIndex === 0 ? "APPROVED" : "NOT_STARTED";
+  }
+  if (registrationStatus === "IN_PROGRESS") {
+    if (sectionIndex === 0) return "APPROVED";
+    if (sectionIndex === 1) return "IN_PROGRESS";
+  }
+  return "NOT_STARTED";
+}
+
+async function seedRelationships(
+  manager: EntityManager,
+  organization: Organization,
+  students: Student[],
+  counselor: User,
+  mentor: User,
+  teachers: User[],
+  guardians: User[],
+) {
+  for (let index = 0; index < students.length; index += 1) {
+    const student = students[index];
+    if (index < 10) {
+      await ensureRelationship(
+        manager,
+        counselor,
+        student,
+        organization,
+        RelationshipType.ADVISOR_OF,
+      );
+    }
+    if (index < 8) {
+      await ensureRelationship(
+        manager,
+        mentor,
+        student,
+        organization,
+        RelationshipType.MENTOR_OF,
+      );
+    }
+    await ensureRelationship(
+      manager,
+      teachers[index % teachers.length],
+      student,
+      organization,
+      RelationshipType.TEACHER_OF,
+    );
+  }
+
+  await ensureRelationship(
+    manager,
+    guardians[0],
+    students[0],
+    organization,
+    RelationshipType.GUARDIAN_OF,
+  );
+  await ensureRelationship(
+    manager,
+    guardians[1],
+    students[1],
+    organization,
+    RelationshipType.GUARDIAN_OF,
+  );
+}
+
+async function ensureRelationship(
+  manager: EntityManager,
+  fromUser: User,
+  toStudent: Student,
+  organization: Organization,
+  type: RelationshipType,
+) {
+  const repo = manager.getRepository(UserRelationship);
+  let row = await repo.findOne({
     where: {
-      fromUser: { id: u.id },
-      toStudent: { id: s.id },
-      organization: { id: o.id },
+      fromUser: { id: fromUser.id },
+      toStudent: { id: toStudent.id },
+      organization: { id: organization.id },
       type,
     },
   });
-  if (!x)
-    x = r.create({
-      fromUser: u,
-      toStudent: s,
-      organization: o,
-      type,
-      status,
-      acceptedAt: status === RelationshipStatus.ACTIVE ? now : null,
-      revokedAt: status === RelationshipStatus.REVOKED ? now : null,
-    });
-  else x.status = status;
-  return r.save(x);
+  const value = {
+    fromUser,
+    toStudent,
+    organization,
+    type,
+    status: RelationshipStatus.ACTIVE,
+    acceptedAt: new Date(),
+    revokedAt: null,
+  };
+  if (!row) row = repo.create(value);
+  else Object.assign(row, value);
+  return repo.save(row);
 }
-async function subject(
-  m: EntityManager,
-  o: Organization,
+
+async function ensureClass(
+  manager: EntityManager,
+  organization: Organization,
+  input: {
+    code: string;
+    name: string;
+    gradeId: number;
+    educationTypeId: string;
+    trackId: string;
+    advisor: User;
+    capacity: number;
+  },
+) {
+  const repo = manager.getRepository(EducationClass);
+  let row = await repo.findOne({
+    where: { organization: { id: organization.id }, code: input.code },
+  });
+  const value = {
+    organization,
+    code: input.code,
+    name: input.name,
+    schoolYear: SCHOOL_YEAR,
+    gradeId: input.gradeId,
+    educationTypeId: input.educationTypeId,
+    trackId: input.trackId,
+    capacity: input.capacity,
+    status: "ACTIVE" as const,
+    description: "کلاس نمایشی مدرسه برای تست سامانه",
+    advisor: input.advisor,
+  };
+  if (!row) row = repo.create(value);
+  else Object.assign(row, value);
+  return repo.save(row);
+}
+
+async function ensureClassEnrollment(
+  manager: EntityManager,
+  classroom: EducationClass,
+  student: Student,
+) {
+  const repo = manager.getRepository(EducationClassEnrollment);
+  const found = await repo.findOne({
+    where: { classroom: { id: classroom.id }, student: { id: student.id } },
+  });
+  return found ?? repo.save(repo.create({ classroom, student }));
+}
+
+async function ensureClassGroup(
+  manager: EntityManager,
+  organization: Organization,
+  classroom: EducationClass,
   code: string,
   name: string,
 ) {
-  const r = m.getRepository(Subject);
-  let x = await r.findOne({ where: { organization: { id: o.id }, code } });
-  return x || r.save(r.create({ organization: o, code, name, active: true }));
-}
-async function teacherSubject(
-  m: EntityManager,
-  u: User,
-  s: Subject,
-  o: Organization,
-) {
-  return singleton(
-    m,
-    TeacherSubjectAssignment,
-    {
-      teacher: { id: u.id },
-      subject: { id: s.id },
-      organization: { id: o.id },
-    },
-    { teacher: u, subject: s, organization: o },
-  );
-}
-async function studentSubject(
-  m: EntityManager,
-  s: Student,
-  subjectRow: Subject,
-  target: number,
-) {
-  return singleton(
-    m,
-    StudentSubject,
-    { student: { id: s.id }, subject: { id: subjectRow.id } },
-    {
-      student: s,
-      subject: subjectRow,
-      enabled: true,
-      displayName: subjectRow.name,
-      weeklyTargetMinutes: target,
-    },
-  );
-}
-async function plan(
-  m: EntityManager,
-  s: Student,
-  date: string,
-  status: PlanStatus,
-  tasks: Array<Partial<Task>>,
-) {
-  const r = m.getRepository(Plan);
-  let x = await r.findOne({
-    where: { student: { id: s.id }, date },
-    relations: { tasks: true },
+  const repo = manager.getRepository(StudyGroup);
+  let row = await repo.findOne({
+    where: { organization: { id: organization.id }, code },
   });
-  if (!x) x = await r.save(r.create({ student: s, date, status, tasks: [] }));
-  x.status = status;
-  const taskRepo = m.getRepository(Task);
-  for (const spec of tasks) {
-    let task = x.tasks?.find(
-      (t) => t.title === spec.title && t.subject === spec.subject,
-    );
-    if (!task) task = taskRepo.create({ plan: x, ...spec } as Task);
-    else Object.assign(task, spec);
-    await taskRepo.save(task);
-  }
-  x.tasks = await taskRepo.find({ where: { plan: { id: x.id } } });
-  return r.save(x);
-}
-async function exam(
-  m: EntityManager,
-  o: Organization,
-  creator: User,
-  title: string,
-  subjectName: string,
-  published: boolean,
-  mode: "standard" | "konkur",
-  start: Date | null,
-  end: Date | null,
-  resultPolicy: "immediate" | "scheduled" | "manual",
-  released: boolean,
-  students: Student[],
-  questions: Array<[string, string, string, string]>,
-) {
-  const r = m.getRepository(Exam);
-  let x = await r.findOne({
-    where: { title, organization: { id: o.id } },
-    relations: { questions: true },
-  });
-  if (!x)
-    x = r.create({ title, organization: o, createdBy: creator, questions: [] });
-  Object.assign(x, {
-    subject: subjectName,
-    published,
-    mode,
-    duration: 120,
-    attemptLimit: 2,
-    startTime: start,
-    endTime: end,
-    resultPolicy,
-    resultsReleased: released,
-    resultReleaseAt: resultPolicy === "scheduled" ? at(3, 12) : null,
-    instructions: [
-      "پاسخ‌ها خودکار ذخیره می‌شوند.",
-      "پس از ثبت نهایی امکان ویرایش نیست.",
-    ],
-    allowBackNavigation: mode !== "konkur",
-    scoring: { correct: 3, wrong: -1, unanswered: 0, negativeMarking: true },
-    sections: [],
-  });
-  x = await r.save(x);
-  const qr = m.getRepository(Question);
-  for (const [text, sub, topic, correct] of questions) {
-    let q = await qr.findOne({ where: { exam: { id: x.id }, text } });
-    if (!q)
-      q = qr.create({
-        exam: x,
-        text,
-        options: ["گزینه یک", "گزینه دو", "گزینه سه", "گزینه چهار"],
-        correctAnswer: correct,
-        explanation: `پاسخ تشریحی ${topic}`,
-        subject: sub,
-        topic,
-        sectionId: mode === "konkur" ? "booklet-1" : "",
-        mediaUrl: "",
-        difficulty: "medium",
-        source: "بانک نمایشی",
-        tags: ["demo", topic],
-      });
-    await qr.save(q);
-  }
-  const savedQuestions = await qr.find({ where: { exam: { id: x.id } } });
-  if (mode === "konkur") {
-    x.sections = [
-      {
-        id: "booklet-1",
-        name: "دفترچه عمومی",
-        questionIds: savedQuestions.map((q) => q.id),
-        allocatedMinutes: 120,
-      },
-    ];
-    await r.save(x);
-  }
-  for (const s of students)
-    await singleton(
-      m,
-      ExamAssignment,
-      { exam: { id: x.id }, student: { id: s.id } },
-      { exam: x, student: s, assignedBy: creator },
-    );
-  return r.findOneOrFail({
-    where: { id: x.id },
-    relations: { questions: true },
-  });
-}
-async function completedAttempt(
-  m: EntityManager,
-  e: Exam,
-  s: Student,
-  score: number,
-) {
-  const answers = e.questions.map((q, i) => ({
-    questionId: q.id,
-    selectedOption: i % 3 === 0 ? q.correctAnswer : "a",
-    visited: true,
-    revision: 1,
-    clientUpdatedAt: at(-8, 10).toISOString(),
-  }));
-  const attempt = await singleton(
-    m,
-    ExamAttempt,
-    { exam: { id: e.id }, student: { id: s.id } },
-    {
-      exam: e,
-      student: s,
-      score,
-      answers,
-      startedAt: at(-8, 8),
-      finishedAt: at(-8, 11),
-    },
-  );
-  for (const q of e.questions.filter((_, i) => i % 3 !== 0))
-    await singleton(
-      m,
-      Mistake,
-      { studentId: s.id, questionId: q.id },
-      { studentId: s.id, questionId: q.id, reason: "بی‌دقتی", resolved: false },
-    );
-  return attempt;
-}
-async function activeAttempt(m: EntityManager, e: Exam, s: Student) {
-  return singleton(
-    m,
-    ExamAttempt,
-    { exam: { id: e.id }, student: { id: s.id } },
-    {
-      exam: e,
-      student: s,
-      score: 0,
-      answers: e.questions.slice(0, 1).map((q) => ({
-        questionId: q.id,
-        selectedOption: "a",
-        visited: true,
-        revision: 1,
-        clientUpdatedAt: now.toISOString(),
-      })),
-      startedAt: new Date(now.getTime() - 900000),
-      finishedAt: null,
-    },
-  );
-}
-async function quiz(
-  m: EntityManager,
-  o: Organization,
-  e: Exam,
-  title: string,
-  subject = "زیست‌شناسی",
-) {
-  const r = m.getRepository(Quiz);
-  let x = await r.findOne({ where: { title, organization: { id: o.id } } });
-  if (!x)
-    x = await r.save(
-      r.create({
-        title,
-        subject,
-        durationMinutes: 10,
-        active: true,
-        exam: e,
-        organization: o,
-      }),
-    );
-  await singleton(
-    m,
-    QuizQuestion,
-    { quiz: { id: x.id }, text: "کدام گزینه درست است؟" },
-    {
-      quiz: x,
-      text: "کدام گزینه درست است؟",
-      options: ["الف", "ب", "ج", "د"],
-      correctAnswer: "a",
-      explanation: "گزینه الف درست است.",
-      sortOrder: 1,
-    },
-  );
-  return r.findOneOrFail({
-    where: { id: x.id },
-    relations: { questions: true },
-  });
+  const value = {
+    organization,
+    classroom,
+    code,
+    name,
+    description: `گروه مربوط به ${classroom.name}`,
+    status: "ACTIVE" as const,
+  };
+  if (!row) row = repo.create(value);
+  else Object.assign(row, value);
+  return repo.save(row);
 }
 
-async function completedQuizAttempt(
-  m: EntityManager,
-  quizRow: Quiz,
+async function ensureGroupMembership(
+  manager: EntityManager,
+  group: StudyGroup,
   student: Student,
-  percent: number,
 ) {
-  const question = quizRow.questions[0];
-  return singleton(
-    m,
-    QuizAttempt,
-    { quiz: { id: quizRow.id }, student: { id: student.id } },
-    {
-      quiz: quizRow,
-      student,
-      startedAt: at(-1, 15),
-      submittedAt: at(-1, 15),
-      answers: [
-        {
-          questionId: question.id,
-          selectedOption: percent === 100 ? "a" : "b",
-        },
-      ],
-      correct: percent === 100 ? 1 : 0,
-      wrong: percent === 100 ? 0 : 1,
-      blank: 0,
-      percent,
-    },
-  );
-}
-async function directConversation(
-  m: EntityManager,
-  owner: User,
-  other: User,
-  title: string,
-) {
-  const r = m.getRepository(Conversation);
-  let x = await r.findOne({ where: { title }, relations: { members: true } });
-  if (!x)
-    x = await r.save(
-      r.create({
-        type: ConversationType.DIRECT,
-        title,
-        description: "گفتگوی خصوصی عضو-محور",
-        permissions: { membersCanPost: true },
-        owner,
-      }),
-    );
-  await conversationMember(m, x, owner, ConversationMemberRole.OWNER);
-  await conversationMember(m, x, other, ConversationMemberRole.MEMBER);
-  return x;
-}
-async function groupConversation(
-  m: EntityManager,
-  owner: User,
-  users: User[],
-  title: string,
-) {
-  const r = m.getRepository(Conversation);
-  let x = await r.findOne({ where: { title } });
-  if (!x)
-    x = await r.save(
-      r.create({
-        type: ConversationType.GROUP,
-        title,
-        description: "گروه پیگیری آموزشی",
-        permissions: { membersCanPost: true },
-        owner,
-      }),
-    );
-  await conversationMember(m, x, owner, ConversationMemberRole.OWNER);
-  for (const u of users)
-    await conversationMember(m, x, u, ConversationMemberRole.MEMBER);
-  return x;
-}
-async function conversationMember(
-  m: EntityManager,
-  c: Conversation,
-  u: User,
-  memberRole: ConversationMemberRole,
-) {
-  return singleton(
-    m,
-    ConversationMember,
-    { conversation: { id: c.id }, user: { id: u.id } },
-    {
-      conversation: c,
-      user: u,
-      role: memberRole,
-      muted: false,
-      leftAt: null,
-      lastReadAt: memberRole === ConversationMemberRole.OWNER ? now : null,
-    },
-  );
-}
-async function message(
-  m: EntityManager,
-  c: Conversation,
-  sender: User,
-  receiver: User,
-  content: string,
-  reply: ChatMessage | null,
-  read: boolean,
-) {
-  return singleton(
-    m,
-    ChatMessage,
-    { conversation: { id: c.id }, sender: { id: sender.id }, content },
-    {
-      conversation: c,
-      sender,
-      receiverId: receiver.id,
-      type: ChatMessageType.TEXT,
-      content,
-      mentions: [],
-      replyTo: reply,
-      readAt: read ? now : null,
-    },
-  );
-}
-async function notification(
-  m: EntityManager,
-  u: User,
-  o: Organization,
-  type: string,
-  title: string,
-  body: string,
-  read: boolean,
-) {
-  return singleton(
-    m,
-    Notification,
-    { user: { id: u.id }, dedupeKey: `demo:${u.username}:${type}:${title}` },
-    {
-      user: u,
-      organization: o,
-      type,
-      title,
-      body,
-      category: "demo",
-      url: "/",
-      data: { seed: "product-demo" },
-      priority: "normal",
-      dedupeKey: `demo:${u.username}:${type}:${title}`,
-      readAt: read ? now : null,
-    },
-  );
-}
-async function singleton<T extends object>(
-  m: EntityManager,
-  entity: new () => T,
-  where: any,
-  value: any,
-): Promise<T> {
-  const r = m.getRepository<T>(entity);
-  const found = await r.findOne({ where });
-  if (found) {
-    Object.assign(found, value);
-    return r.save(found);
-  }
-  const created = r.create(value) as T;
-  return r.save(created);
+  const repo = manager.getRepository(StudyGroupMembership);
+  const found = await repo.findOne({
+    where: { group: { id: group.id }, student: { id: student.id } },
+  });
+  return found ?? repo.save(repo.create({ group, student }));
 }
 
-if (require.main === module)
+async function ensureDormRoom(
+  manager: EntityManager,
+  organization: Organization,
+  code: string,
+  name: string,
+  capacity: number,
+) {
+  const repo = manager.getRepository(DormRoom);
+  let room = await repo.findOne({
+    where: { organization: { id: organization.id }, code },
+  });
+  const value = {
+    organization,
+    code,
+    name,
+    capacity,
+    status: "ACTIVE" as const,
+  };
+  if (!room) room = repo.create(value);
+  else Object.assign(room, value);
+  return repo.save(room);
+}
+
+async function ensureDormAssignment(
+  manager: EntityManager,
+  room: DormRoom,
+  student: Student,
+) {
+  const repo = manager.getRepository(DormRoomAssignment);
+  const existingForStudent = await repo.findOne({
+    where: { student: { id: student.id } },
+    relations: { room: true },
+  });
+  if (existingForStudent) {
+    existingForStudent.room = room;
+    return repo.save(existingForStudent);
+  }
+  return repo.save(repo.create({ room, student }));
+}
+
+async function seedAttendance(
+  manager: EntityManager,
+  input: {
+    school: Organization;
+    principal: User;
+    disciplinarian: User;
+    diniTeacher: User;
+    governmentTeacher: User;
+    diniClass: EducationClass;
+    governmentClass: EducationClass;
+    governmentGroups: StudyGroup[];
+    rooms: DormRoom[];
+    students: Student[];
+  },
+) {
+  const classSession = await ensureAttendanceSession(manager, {
+    organization: input.school,
+    contextType: "class",
+    contextId: input.governmentClass.id,
+    sessionDate: localDayAt(-1, 8, 0),
+    note: "حضور صبح کلاس دولتی",
+    createdBy: input.governmentTeacher,
+  });
+  await seedAttendanceRecords(
+    manager,
+    classSession,
+    input.students,
+    input.governmentTeacher,
+    (index) =>
+      index === 3
+        ? AttendanceStatus.ABSENT
+        : index === 7
+          ? AttendanceStatus.LATE
+          : AttendanceStatus.PRESENT,
+  );
+
+  const diniSession = await ensureAttendanceSession(manager, {
+    organization: input.school,
+    contextType: "class",
+    contextId: input.diniClass.id,
+    sessionDate: localDayAt(-1, 10, 0),
+    note: "حضور کلاس دینی",
+    createdBy: input.diniTeacher,
+  });
+  await seedAttendanceRecords(
+    manager,
+    diniSession,
+    input.students,
+    input.diniTeacher,
+    (index) =>
+      index === 5 ? AttendanceStatus.EXCUSED : AttendanceStatus.PRESENT,
+  );
+
+  for (
+    let groupIndex = 0;
+    groupIndex < input.governmentGroups.length;
+    groupIndex += 1
+  ) {
+    const group = input.governmentGroups[groupIndex];
+    const groupStudents = input.students.filter(
+      (_, studentIndex) =>
+        studentIndex % input.governmentGroups.length === groupIndex,
+    );
+    const session = await ensureAttendanceSession(manager, {
+      organization: input.school,
+      contextType: "class_group",
+      contextId: group.id,
+      sessionDate: localDayAt(0, 14, 0),
+      note: `حضور ${group.name}`,
+      createdBy: input.disciplinarian,
+    });
+    await seedAttendanceRecords(
+      manager,
+      session,
+      groupStudents,
+      input.disciplinarian,
+      (index) =>
+        index === 1 && groupIndex === 1
+          ? AttendanceStatus.LATE
+          : AttendanceStatus.PRESENT,
+    );
+  }
+
+  for (let roomIndex = 0; roomIndex < input.rooms.length; roomIndex += 1) {
+    const room = input.rooms[roomIndex];
+    const roomStudents = input.students.filter(
+      (_, studentIndex) => studentIndex % input.rooms.length === roomIndex,
+    );
+    const session = await ensureAttendanceSession(manager, {
+      organization: input.school,
+      contextType: "dorm",
+      contextId: room.id,
+      sessionDate: localDayAt(-1, 22, 30),
+      note: "حضور شبانه خوابگاه ساعت ۲۲:۳۰",
+      createdBy: input.disciplinarian,
+    });
+    await seedAttendanceRecords(
+      manager,
+      session,
+      roomStudents,
+      input.disciplinarian,
+      (index) =>
+        roomIndex === 0 && index === 0
+          ? AttendanceStatus.ABSENT
+          : AttendanceStatus.PRESENT,
+    );
+  }
+
+  // Touch principal in the seed so the role is represented in operational data too.
+  void input.principal;
+}
+
+async function ensureAttendanceSession(
+  manager: EntityManager,
+  input: {
+    organization: Organization;
+    contextType: AttendanceSession["contextType"];
+    contextId: string;
+    sessionDate: Date;
+    note: string;
+    createdBy: User;
+  },
+) {
+  const repo = manager.getRepository(AttendanceSession);
+  let row = await repo.findOne({
+    where: {
+      organization: { id: input.organization.id },
+      contextType: input.contextType,
+      contextId: input.contextId,
+      sessionDate: input.sessionDate,
+    },
+  });
+  const value = {
+    organization: input.organization,
+    contextType: input.contextType,
+    contextId: input.contextId,
+    sessionDate: input.sessionDate,
+    note: input.note,
+    createdBy: input.createdBy,
+  };
+  if (!row) row = repo.create(value);
+  else Object.assign(row, value);
+  return repo.save(row);
+}
+
+async function seedAttendanceRecords(
+  manager: EntityManager,
+  session: AttendanceSession,
+  students: Student[],
+  recordedBy: User,
+  statusForIndex: (index: number) => AttendanceStatus,
+) {
+  const repo = manager.getRepository(AttendanceRecord);
+  for (let index = 0; index < students.length; index += 1) {
+    const student = students[index];
+    let row = await repo.findOne({
+      where: { session: { id: session.id }, student: { id: student.id } },
+    });
+    const status = statusForIndex(index);
+    const value = {
+      session,
+      student,
+      status,
+      note: status === AttendanceStatus.PRESENT ? "" : "داده نمایشی",
+      recordedBy,
+    };
+    if (!row) row = repo.create(value);
+    else Object.assign(row, value);
+    await repo.save(row);
+  }
+}
+
+function localDayAt(offset: number, hour: number, minute: number) {
+  const now = new Date();
+  const local = new Date(now.getTime() + offset * 86_400_000);
+  const date = local.toISOString().slice(0, 10);
+  return new Date(
+    `${date}T${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}:00+03:30`,
+  );
+}
+
+if (require.main === module) {
   seedProductDemo().catch(async (error) => {
     console.error(error);
     if (dataSource.isInitialized) await dataSource.destroy();
     process.exitCode = 1;
   });
+}

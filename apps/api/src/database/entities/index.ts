@@ -65,4 +65,18 @@ export { EducationBook } from "./education-book.entity";
 export { EducationClass } from "./education-class.entity";
 export { EducationClassBook } from "./education-class-book.entity";
 export { EducationClassEnrollment } from "./education-class-enrollment.entity";
+export { StudyGroup } from "./study-group.entity";
+export { StudyGroupMembership } from "./study-group-membership.entity";
+export { DormRoom } from "./dorm-room.entity";
+export { DormRoomAssignment } from "./dorm-room-assignment.entity";
 export { PermissionRequest } from "./permission-request.entity";
+export { AttendanceSession } from "./attendance-session.entity";
+export { AttendanceRecord, AttendanceStatus } from "./attendance-record.entity";
+export { LeaveRequest, LeaveRequestStatus } from "./leave-request.entity";
+export { ExitPermission, ExitPermissionStatus } from "./exit-permission.entity";
+export { RequestLetter, RequestLetterStatus } from "./request-letter.entity";
+
+export { StudentProfile } from "./student-profile.entity";
+export { StudentContact } from "./student-contact.entity";
+export { RegistrationRequirement, REGISTRATION_SECTIONS } from "./registration-requirement.entity";
+export { RegistrationProgress } from "./registration-progress.entity";

@@ -6,5 +6,9 @@ import { UserRoleAssignment } from "../../database/entities/user-role-assignment
 import { UsersController } from "./users.controller";
 import { UsersService } from "./users.service";
 
-@Module({imports:[TypeOrmModule.forFeature([User,UserRoleAssignment,Session])],controllers:[UsersController],providers:[UsersService]})
+@Module({
+  imports: [TypeOrmModule.forFeature([User, UserRoleAssignment, Session])],
+  controllers: [UsersController],
+  providers: [UsersService],
+})
 export class UsersModule {}

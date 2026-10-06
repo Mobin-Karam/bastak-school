@@ -14,7 +14,6 @@ import { ConversationMember } from "../../database/entities/conversation-member.
 import { ConversationType } from "../../database/entities/conversation.entity";
 import { AssignStudentOnboardingDto, PlatformBootstrapDto, SetOrganizationStudentSignupDto, StudentSignupDto } from "./onboarding.dto";
 import { EducationCatalogService } from "../education-catalog";
-import { isValidIranianNationalCode, normalizeNationalCode } from "./national-code";
 import { AuthenticatedUser } from "../auth";
 
 @Injectable()
@@ -22,39 +21,89 @@ export class OnboardingService {
   constructor(private dataSource: DataSource, private catalog: EducationCatalogService) {}
 
   async signup(dto: StudentSignupDto) {
-    const nationalCode = normalizeNationalCode(dto.nationalCode);
-    if (!isValidIranianNationalCode(nationalCode)) throw new ApiException(422, "INVALID_NATIONAL_CODE", "کد ملی معتبر نیست.");
-    const education = this.catalog.validateSelection(dto.grade, dto.educationTypeId, dto.trackId);
-    try { return await this.dataSource.transaction(async (manager) => {
-      const policy = await this.platformSignupPolicy(manager);
-      if (!policy.enabled) throw new ApiException(403, "STUDENT_SIGNUP_DISABLED", "ثبت‌نام مستقیم دانش‌آموز توسط پلتفرم غیرفعال است. اطلاعات خود را به سازمان آموزشی بدهید.");
-      const organization = await manager.findOne(Organization, { where: { id: dto.organizationId, status: OrganizationStatus.ACTIVE } });
-      if (!organization || !organization.studentSignupEnabled || organization.studentSignupLimit < 1)
-        throw new ApiException(403, "ORGANIZATION_SIGNUP_DISABLED", "این سازمان ثبت‌نام مستقیم دانش‌آموز را فعال نکرده است.");
-      await manager.query(
-        `UPDATE organizations SET studentSignupCount=studentSignupCount+1
-         WHERE id=? AND status='ACTIVE' AND studentSignupEnabled=1
-           AND studentSignupCount<studentSignupLimit`,
-        [organization.id],
-      );
-      // SQLite's raw UPDATE result differs across TypeORM drivers. `changes()` is
-      // connection-local, so inside this transaction it is the reliable capacity
-      // reservation outcome and prevents concurrent signups from exceeding a cap.
-      const [reservation] = await manager.query(`SELECT changes() AS changes`);
-      if (!Number(reservation?.changes))
-        throw new ApiException(409, "ORGANIZATION_SIGNUP_LIMIT_REACHED", "ظرفیت ثبت‌نام مستقیم این سازمان تکمیل شده است. با سازمان تماس بگیرید.");
-      const phoneNumber = dto.phoneNumber;
-      const username = phoneNumber;
-      if (await manager.findOne(Student, { where: { nationalCode } })) throw new ApiException(409, "NATIONAL_CODE_EXISTS", "برای این کد ملی قبلاً حساب ساخته شده است.");
-      if (await manager.findOne(User, { where: { phoneNumber } })) throw new ApiException(409, "PHONE_NUMBER_EXISTS", "برای این شماره همراه قبلاً حساب ساخته شده است.");
-      const user = await manager.save(User, manager.create(User, { username, phoneNumber, passwordHash: await bcrypt.hash(dto.password, 12), role: UserRole.STUDENT, status: UserStatus.ACTIVE }));
-      const student = await manager.save(Student, manager.create(Student, { user, name: dto.name.trim(), nationalCode, gradeId: education.gradeId, grade: education.gradeLabel, educationTypeId: education.educationTypeId, trackId: education.trackId, major: education.trackLabel, targetUniversity: "", targetField: "", targetRank: "", dailyCapacity: "", accountStatus: "active", onboardingStatus: "PENDING_ASSIGNMENT" }));
-      const role = await manager.findOneByOrFail(Role, { code: "STUDENT" });
-      await manager.save(UserRoleAssignment, manager.create(UserRoleAssignment, { user, role, membership: null }));
-      await manager.save(OrganizationMembership, manager.create(OrganizationMembership, { organization, user, status: MembershipStatus.ACTIVE }));
-      return { id: student.id, phoneNumber, nationalCode, grade: student.grade, major: student.major, onboardingStatus: student.onboardingStatus, organization: { id: organization.id, name: organization.name } };
-    }); } catch (error) {
-      if (String((error as { message?: string })?.message || "").includes("students.nationalCode")) throw new ApiException(409, "NATIONAL_CODE_EXISTS", "برای این کد ملی قبلاً حساب ساخته شده است.");
+    try {
+      return await this.dataSource.transaction(async (manager) => {
+        const policy = await this.platformSignupPolicy(manager);
+        if (!policy.enabled)
+          throw new ApiException(403, "STUDENT_SIGNUP_DISABLED", "ثبت‌نام مستقیم دانش‌آموز توسط پلتفرم غیرفعال است.");
+
+        const organization = await manager.findOne(Organization, {
+          where: { id: dto.organizationId, status: OrganizationStatus.ACTIVE },
+        });
+        if (!organization || !organization.studentSignupEnabled || organization.studentSignupLimit < 1)
+          throw new ApiException(403, "ORGANIZATION_SIGNUP_DISABLED", "این سازمان ثبت‌نام مستقیم دانش‌آموز را فعال نکرده است.");
+
+        await manager.query(
+          `UPDATE organizations SET studentSignupCount=studentSignupCount+1
+           WHERE id=? AND status='ACTIVE' AND studentSignupEnabled=1
+             AND studentSignupCount<studentSignupLimit`,
+          [organization.id],
+        );
+        const [reservation] = await manager.query(`SELECT changes() AS changes`);
+        if (!Number(reservation?.changes))
+          throw new ApiException(409, "ORGANIZATION_SIGNUP_LIMIT_REACHED", "ظرفیت ثبت‌نام مستقیم این سازمان تکمیل شده است.");
+
+        const phoneNumber = dto.phoneNumber;
+        if (await manager.findOne(User, { where: { phoneNumber } }))
+          throw new ApiException(409, "PHONE_NUMBER_EXISTS", "برای این شماره همراه قبلاً حساب ساخته شده است.");
+
+        const firstName = dto.firstName.trim();
+        const lastName = dto.lastName.trim();
+        const user = await manager.save(
+          User,
+          manager.create(User, {
+            username: phoneNumber,
+            phoneNumber,
+            firstName,
+            lastName,
+            passwordHash: await bcrypt.hash(dto.password, 12),
+            role: UserRole.STUDENT,
+            status: UserStatus.ACTIVE,
+          }),
+        );
+        const student = await manager.save(
+          Student,
+          manager.create(Student, {
+            user,
+            organization,
+            name: `${firstName} ${lastName}`.trim(),
+            nationalCode: null,
+            gradeId: null,
+            grade: "",
+            educationTypeId: "general",
+            trackId: "general",
+            major: "",
+            targetUniversity: "",
+            targetField: "",
+            targetRank: "",
+            dailyCapacity: "",
+            accountStatus: "active",
+            onboardingStatus: "PENDING_ASSIGNMENT",
+            registrationStatus: "ACCOUNT_CREATED",
+          }),
+        );
+        const role = await manager.findOneByOrFail(Role, { code: "STUDENT" });
+        const membership = await manager.save(
+          OrganizationMembership,
+          manager.create(OrganizationMembership, {
+            organization,
+            user,
+            status: MembershipStatus.ACTIVE,
+          }),
+        );
+        await manager.save(
+          UserRoleAssignment,
+          manager.create(UserRoleAssignment, { user, role, membership: role.organizationScoped ? membership : null }),
+        );
+        return {
+          id: student.id,
+          phoneNumber,
+          name: student.name,
+          registrationStatus: student.registrationStatus,
+          organization: { id: organization.id, name: organization.name },
+        };
+      });
+    } catch (error) {
       throw error;
     }
   }

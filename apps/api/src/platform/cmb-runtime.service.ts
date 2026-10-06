@@ -6,7 +6,10 @@ import { AUTHORIZATION_MODULE } from "@moshaver/cmb-authorization";
 import { DATA_TRANSFER_MODULE } from "@moshaver/cmb-data-transfer";
 import { HEALTH_MODULE } from "@moshaver/cmb-health";
 import { IDENTITY_MODULE } from "@moshaver/cmb-identity";
-import { CmbAdapterRegistry, INFRASTRUCTURE_MODULE } from "@moshaver/cmb-infrastructure";
+import {
+  CmbAdapterRegistry,
+  INFRASTRUCTURE_MODULE,
+} from "@moshaver/cmb-infrastructure";
 import { CmbModuleRegistry } from "@moshaver/cmb-kernel";
 import { NOTIFICATIONS_MODULE } from "@moshaver/cmb-notifications";
 import { PERSISTENCE_MODULE } from "@moshaver/cmb-persistence";
@@ -60,7 +63,15 @@ export class CmbRuntimeService {
   readinessProbes() {
     return [
       { name: "modules", check: async () => void this.modules.resolve() },
-      ...this.adapters.readinessProbes().map((probe) => ({ ...probe, name: probe.name === "adapter:persistence.database" ? "database" : probe.name })),
+      ...this.adapters
+        .readinessProbes()
+        .map((probe) => ({
+          ...probe,
+          name:
+            probe.name === "adapter:persistence.database"
+              ? "database"
+              : probe.name,
+        })),
     ];
   }
 }

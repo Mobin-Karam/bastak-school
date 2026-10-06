@@ -183,7 +183,7 @@ export function StudentEditor({
               spellCheck={false}
               value={form.username}
               onChange={(event) => setField("username", event.target.value)}
-              placeholder="username"
+              placeholder="phonenumber"
             />
           </Field>
         </div>

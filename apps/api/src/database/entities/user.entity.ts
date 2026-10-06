@@ -1,4 +1,13 @@
-import { Column, CreateDateColumn, Entity, Index, OneToMany, OneToOne, PrimaryGeneratedColumn, UpdateDateColumn } from "typeorm";
+import {
+  Column,
+  CreateDateColumn,
+  Entity,
+  Index,
+  OneToMany,
+  OneToOne,
+  PrimaryGeneratedColumn,
+  UpdateDateColumn,
+} from "typeorm";
 import { Session } from "./session.entity";
 import { Student } from "./student.entity";
 import { ChatMessage } from "./chat-message.entity";
@@ -17,7 +26,11 @@ export enum UserRole {
   PLATFORM_ADMIN = "PLATFORM_ADMIN",
 }
 
-export enum UserStatus { ACTIVE = "ACTIVE", DISABLED = "DISABLED", ARCHIVED = "ARCHIVED" }
+export enum UserStatus {
+  ACTIVE = "ACTIVE",
+  DISABLED = "DISABLED",
+  ARCHIVED = "ARCHIVED",
+}
 
 @Entity("users")
 export class User {
@@ -46,7 +59,8 @@ export class User {
 
   @Column({ length: 100, default: "" }) firstName!: string;
   @Column({ length: 100, default: "" }) lastName!: string;
-  @Column({ type: "varchar", length: 20, default: UserStatus.ACTIVE }) status!: UserStatus;
+  @Column({ type: "varchar", length: 20, default: UserStatus.ACTIVE })
+  status!: UserStatus;
   /** Exactly one active account owns platform-level administration. */
   @Column({ type: "boolean", default: false }) isPlatformOwner!: boolean;
   @Column({ length: 12, default: "fa-IR" }) locale!: string;

@@ -2,7 +2,10 @@ import "reflect-metadata";
 import { ValidationPipe } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { NestFactory } from "@nestjs/core";
-import { FastifyAdapter, NestFastifyApplication } from "@nestjs/platform-fastify";
+import {
+  FastifyAdapter,
+  NestFastifyApplication,
+} from "@nestjs/platform-fastify";
 import cookie from "@fastify/cookie";
 import cors from "@fastify/cors";
 import helmet from "@fastify/helmet";
@@ -10,31 +13,64 @@ import { AppModule } from "./app.module";
 import { DocumentBuilder, SwaggerModule } from "@nestjs/swagger";
 
 async function bootstrap() {
-  const app = await NestFactory.create<NestFastifyApplication>(AppModule, new FastifyAdapter({
-    logger: false,
-    bodyLimit: Number(process.env.MAX_RESTORE_BODY || 64 * 1024 * 1024),
-    trustProxy: process.env.TRUST_PROXY === "1",
-  }));
+  const app = await NestFactory.create<NestFastifyApplication>(
+    AppModule,
+    new FastifyAdapter({
+      logger: false,
+      // bodyLimit: Number(process.env.MAX_RESTORE_BODY || 64 * 1024 * 1024),
+      bodyLimit: Number(process.env.MAX_BODY_SIZE || 2 * 1024 * 1024),
+      trustProxy: process.env.TRUST_PROXY === "1",
+    }),
+  );
   const config = app.get(ConfigService);
   const corsOrigins = config.get<string[]>("corsOrigins") || [];
 
   await app.register(helmet);
   await app.register(cookie);
   await app.register(cors, { origin: corsOrigins, credentials: true });
-  app.getHttpAdapter().getInstance().addContentTypeParser(["application/octet-stream", "application/vnd.sqlite3"], { parseAs: "buffer" }, (_request: unknown, body: Buffer, done: (error: Error | null, value?: Buffer) => void) => done(null, body));
+  // app
+  //   .getHttpAdapter()
+  //   .getInstance()
+  //   .addContentTypeParser(
+  //     ["application/octet-stream", "application/vnd.sqlite3"],
+  //     { parseAs: "buffer" },
+  //     (
+  //       _request: unknown,
+  //       body: Buffer,
+  //       done: (error: Error | null, value?: Buffer) => void,
+  //     ) => done(null, body),
+  //   );
 
   app.setGlobalPrefix("api/v2", { exclude: ["health", "ready"] });
-  app.useGlobalPipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }));
+  app.useGlobalPipes(
+    new ValidationPipe({
+      whitelist: true,
+      forbidNonWhitelisted: true,
+      transform: true,
+    }),
+  );
 
   const openApi = new DocumentBuilder()
-    .setTitle("Moshaver API v2")
-    .setDescription("User-scoped Moshaver v2 API. Protected operations use short-lived HttpOnly access cookies, rotating HttpOnly refresh cookies, and a CSRF header for mutations. Capability requirements are enforced server-side.")
+    .setTitle("Zanin API v2")
+    .setDescription(
+      "User-scoped Zanin v2 API. Protected operations use short-lived HttpOnly access cookies, rotating HttpOnly refresh cookies, and a CSRF header for mutations. Capability requirements are enforced server-side.",
+    )
     .setVersion("2.0.0")
-    .addCookieAuth(config.get<string>("cookieName", "moshaver_v2_session"))
-    .addApiKey({ type: "apiKey", in: "header", name: "X-CSRF-Token", description: "Required for authenticated state-changing requests." }, "csrf")
+    .addCookieAuth(config.get<string>("cookieName", "zanin_v2_session"))
+    .addApiKey(
+      {
+        type: "apiKey",
+        in: "header",
+        name: "X-CSRF-Token",
+        description: "Required for authenticated state-changing requests.",
+      },
+      "csrf",
+    )
     .addServer("/api/v2")
     .build();
-  const document = SwaggerModule.createDocument(app, openApi, { operationIdFactory: (controller, method) => `${controller}.${method}` });
+  const document = SwaggerModule.createDocument(app, openApi, {
+    operationIdFactory: (controller, method) => `${controller}.${method}`,
+  });
   document.components = document.components || {};
   document.components.schemas = {
     ...document.components.schemas,
@@ -60,13 +96,22 @@ async function bootstrap() {
       required: ["items", "nextCursor"],
       properties: {
         items: { type: "array", items: {} },
-        nextCursor: { type: "string", nullable: true, description: "Opaque cursor; clients must not parse it." },
+        nextCursor: {
+          type: "string",
+          nullable: true,
+          description: "Opaque cursor; clients must not parse it.",
+        },
       },
     },
   };
-  SwaggerModule.setup("api/v2/docs", app, document, { jsonDocumentUrl: "/api/v2/openapi.json" });
+  SwaggerModule.setup("api/v2/docs", app, document, {
+    jsonDocumentUrl: "/api/v2/openapi.json",
+  });
 
-  const server = await app.listen(config.get<number>("port") || 4000, "0.0.0.0");
+  const server = await app.listen(
+    config.get<number>("port") || 4000,
+    "0.0.0.0",
+  );
   const shutdown = async () => {
     await app.close();
     process.exit(0);

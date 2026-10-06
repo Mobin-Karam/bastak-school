@@ -46,13 +46,13 @@ export class RelationshipsService {
       Boolean(
         organizationId &&
         user.organizationIds?.includes(organizationId) &&
-        user.capabilities?.includes("organization.members.manage"),
+        (user.capabilities?.includes("organization.members.manage") || user.capabilities?.includes("relationships.manage")),
       )
     );
   }
   async list(user: AuthenticatedUser) {
     const canManageOrganizations =
-      user.capabilities?.includes("organization.members.manage") &&
+      (user.capabilities?.includes("organization.members.manage") || user.capabilities?.includes("relationships.manage")) &&
       user.organizationIds?.length;
     const where = this.platform(user)
       ? {}
@@ -190,9 +190,11 @@ export class RelationshipsService {
     const self = await this.students.findOne({
       where: { id: studentId, user: { id: user.id } },
     });
+    const targetStudent = await this.students.findOne({ where: { id: studentId }, relations: { organization: true } });
     const allowed =
       Boolean(self) ||
       this.platform(user) ||
+      Boolean(targetStudent?.organization?.id && this.canManage(user, targetStudent.organization.id)) ||
       Boolean(
         await this.relationships.findOne({
           where: {

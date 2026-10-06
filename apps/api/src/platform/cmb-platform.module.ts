@@ -9,7 +9,7 @@ import { SystemModule } from "../modules/system/system.module";
 import { UsersModule } from "../modules/users/users.module";
 import { CmbRuntimeModule } from "./cmb-runtime.module";
 
-const platformAdapters = [
+const platformModules = [
   CmbRuntimeModule,
   AuthorizationModule,
   HealthModule,
@@ -22,7 +22,7 @@ const platformAdapters = [
 ];
 
 @Module({
-  imports: platformAdapters,
-  exports: platformAdapters,
+  imports: platformModules,
+  exports: platformModules,
 })
 export class CmbPlatformModule {}

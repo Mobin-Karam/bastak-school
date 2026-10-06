@@ -10,7 +10,7 @@ import { RelationshipsService } from "./relationships.service";
 export class RelationshipsController {
   constructor(private service: RelationshipsService) {}
   @Get("relationships") list(@CurrentUser() user: AuthenticatedUser) { return this.service.list(user).then(ok); }
-  @Post("relationships") @RequireCapabilities("organization.members.manage") create(@CurrentUser() user: AuthenticatedUser, @Body() dto: CreateRelationshipDto) { return this.service.create(user, dto).then(ok); }
+  @Post("relationships") @RequireCapabilities("relationships.manage") create(@CurrentUser() user: AuthenticatedUser, @Body() dto: CreateRelationshipDto) { return this.service.create(user, dto).then(ok); }
   @Get("relationships/:id") get(@CurrentUser() user: AuthenticatedUser, @Param("id") id: string) { return this.service.get(user, id).then(ok); }
   @Patch("relationships/:id") update(@CurrentUser() user: AuthenticatedUser, @Param("id") id: string, @Body() dto: UpdateRelationshipDto) { return this.service.update(user, id, dto).then(ok); }
   @Delete("relationships/:id") remove(@CurrentUser() user: AuthenticatedUser, @Param("id") id: string) { return this.service.remove(user, id).then(ok); }

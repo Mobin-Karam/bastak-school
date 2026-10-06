@@ -10,10 +10,16 @@ import { User, UserRole } from "../../database/entities/user.entity";
 import { Student } from "../../database/entities/student.entity";
 import { UserStatus } from "../../database/entities/user.entity";
 import { AuthorizationService } from "../authorization";
-import { MembershipStatus, OrganizationMembership } from "../../database/entities/organization-membership.entity";
+import {
+  MembershipStatus,
+  OrganizationMembership,
+} from "../../database/entities/organization-membership.entity";
 import { OrganizationStatus } from "../../database/entities/organization.entity";
 import { LoginThrottleService } from "./login-throttle.service";
-import { isIranianMobile, normalizeIranianMobile } from "../../common/utils/phone-number";
+import {
+  isIranianMobile,
+  normalizeIranianMobile,
+} from "../../common/utils/phone-number";
 
 export type AuthenticatedUser = {
   id: string;
@@ -34,41 +40,70 @@ export class AuthService {
     @InjectRepository(Session) private readonly sessions: Repository<Session>,
     @InjectRepository(Student) private readonly students: Repository<Student>,
     private readonly config: ConfigService,
-    @Optional() @InjectRepository(OrganizationMembership) private readonly memberships?: Repository<OrganizationMembership>,
+    @Optional()
+    @InjectRepository(OrganizationMembership)
+    private readonly memberships?: Repository<OrganizationMembership>,
     @Optional() private readonly authorization?: AuthorizationService,
     @Optional() private readonly throttle?: LoginThrottleService,
   ) {
     this.credentials = new SessionCredentialService({
-      accessTokenTtlMinutes: this.config.get<number>("accessTokenTtlMinutes", 15),
+      accessTokenTtlMinutes: this.config.get<number>(
+        "accessTokenTtlMinutes",
+        15,
+      ),
       refreshTokenTtlDays: this.config.get<number>("refreshTokenTtlDays", 30),
     });
   }
 
   async login(phoneNumber: string, password: string, ip = "unknown") {
     const normalizedPhoneNumber = normalizeIranianMobile(phoneNumber);
-    if (!isIranianMobile(normalizedPhoneNumber)) throw new ApiException(422, "INVALID_PHONE_NUMBER", "شماره همراه معتبر نیست.");
+    if (!isIranianMobile(normalizedPhoneNumber))
+      throw new ApiException(
+        422,
+        "INVALID_PHONE_NUMBER",
+        "شماره همراه معتبر نیست.",
+      );
     await this.throttle?.assertAllowed(ip, normalizedPhoneNumber);
-    const user = await this.users.findOne({ where: { phoneNumber: normalizedPhoneNumber } });
+    const user = await this.users.findOne({
+      where: { phoneNumber: normalizedPhoneNumber },
+    });
     if (!user || !(await bcrypt.compare(password, user.passwordHash))) {
       await this.throttle?.failure(ip, normalizedPhoneNumber);
-      throw new ApiException(401, "UNAUTHORIZED", "نام کاربری یا رمز عبور نادرست است.");
+      throw new ApiException(
+        401,
+        "UNAUTHORIZED",
+        "نام کاربری یا رمز عبور نادرست است.",
+      );
     }
-    if (user.status && user.status !== UserStatus.ACTIVE) throw new ApiException(403, "ACCOUNT_INACTIVE", "حساب کاربری غیرفعال یا بایگانی شده است.");
+    if (user.status && user.status !== UserStatus.ACTIVE)
+      throw new ApiException(
+        403,
+        "ACCOUNT_INACTIVE",
+        "حساب کاربری غیرفعال یا بایگانی شده است.",
+      );
     if (user.role === "STUDENT") {
-      const student = await this.students.findOne({ where: { user: { id: user.id } } });
+      const student = await this.students.findOne({
+        where: { user: { id: user.id } },
+      });
       if (!student || student.accountStatus !== "active")
-        throw new ApiException(403, "ACCOUNT_INACTIVE", "حساب دانش‌آموز غیرفعال یا بایگانی شده است.");
+        throw new ApiException(
+          403,
+          "ACCOUNT_INACTIVE",
+          "حساب دانش‌آموز غیرفعال یا بایگانی شده است.",
+        );
     }
 
     const credentials = this.newCredentials();
-    const session = await this.sessions.save(this.sessions.create({
-      user,
-      tokenHash: this.credentials.hash(credentials.accessToken),
-      refreshTokenHash: this.credentials.hash(credentials.refreshToken),
-      csrfToken: credentials.csrfToken,
-      expiresAt: credentials.expiresAt,
-      refreshExpiresAt: credentials.refreshExpiresAt,
-    }));
+    const session = await this.sessions.save(
+      this.sessions.create({
+        user,
+        tokenHash: this.credentials.hash(credentials.accessToken),
+        refreshTokenHash: this.credentials.hash(credentials.refreshToken),
+        csrfToken: credentials.csrfToken,
+        expiresAt: credentials.expiresAt,
+        refreshExpiresAt: credentials.refreshExpiresAt,
+      }),
+    );
     await this.throttle?.success(ip, normalizedPhoneNumber);
     const now = new Date();
     await this.sessions.delete([
@@ -79,19 +114,44 @@ export class AuthService {
   }
 
   async refresh(refreshToken?: string, csrfToken?: string) {
-    if (!refreshToken || !csrfToken) throw new ApiException(401, "REFRESH_REQUIRED", "نشست شما منقضی شده است. دوباره وارد شوید.");
-    const session = await this.sessions.findOne({ where: { refreshTokenHash: this.credentials.hash(refreshToken) }, relations: { user: true } });
-    if (!session || !session.refreshExpiresAt || session.refreshExpiresAt.getTime() <= Date.now()) {
-      throw new ApiException(401, "REFRESH_EXPIRED", "نشست شما منقضی شده است. دوباره وارد شوید.");
+    if (!refreshToken || !csrfToken)
+      throw new ApiException(
+        401,
+        "REFRESH_REQUIRED",
+        "نشست شما منقضی شده است. دوباره وارد شوید.",
+      );
+    const session = await this.sessions.findOne({
+      where: { refreshTokenHash: this.credentials.hash(refreshToken) },
+      relations: { user: true },
+    });
+    if (
+      !session ||
+      !session.refreshExpiresAt ||
+      session.refreshExpiresAt.getTime() <= Date.now()
+    ) {
+      throw new ApiException(
+        401,
+        "REFRESH_EXPIRED",
+        "نشست شما منقضی شده است. دوباره وارد شوید.",
+      );
     }
-    if (!this.credentials.safeEqual(session.csrfToken, csrfToken)) throw new ApiException(403, "CSRF", "نشست امنیتی نامعتبر است.");
+    if (!this.credentials.safeEqual(session.csrfToken, csrfToken))
+      throw new ApiException(403, "CSRF", "نشست امنیتی نامعتبر است.");
     if (session.user.status && session.user.status !== UserStatus.ACTIVE) {
       await this.sessions.delete({ id: session.id });
-      throw new ApiException(403, "ACCOUNT_INACTIVE", "حساب کاربری غیرفعال یا بایگانی شده است.");
+      throw new ApiException(
+        403,
+        "ACCOUNT_INACTIVE",
+        "حساب کاربری غیرفعال یا بایگانی شده است.",
+      );
     }
     if (!(await this.hasActiveStudentAccount(session.user))) {
       await this.sessions.delete({ id: session.id });
-      throw new ApiException(403, "ACCOUNT_INACTIVE", "حساب دانش‌آموز غیرفعال یا بایگانی شده است.");
+      throw new ApiException(
+        403,
+        "ACCOUNT_INACTIVE",
+        "حساب دانش‌آموز غیرفعال یا بایگانی شده است.",
+      );
     }
     const credentials = this.newCredentials();
     session.tokenHash = this.credentials.hash(credentials.accessToken);
@@ -103,76 +163,174 @@ export class AuthService {
     return { ...credentials, session, user: session.user };
   }
 
-  async userFromToken(token?: string, requestedRole?: string, requestedOrganizationId?: string): Promise<AuthenticatedUser | null> {
+  async userFromToken(
+    token?: string,
+    requestedRole?: string,
+    requestedOrganizationId?: string,
+  ): Promise<AuthenticatedUser | null> {
     if (!token) return null;
-    const session = await this.sessions.findOne({ where: { tokenHash: this.credentials.hash(token) }, relations: { user: true } });
+    const session = await this.sessions.findOne({
+      where: { tokenHash: this.credentials.hash(token) },
+      relations: { user: true },
+    });
     if (!session || session.expiresAt.getTime() <= Date.now()) return null;
-    if (session.user.status && session.user.status !== UserStatus.ACTIVE) return null;
+    if (session.user.status && session.user.status !== UserStatus.ACTIVE)
+      return null;
     if (!(await this.hasActiveStudentAccount(session.user))) {
       await this.sessions.delete({ id: session.id });
       return null;
     }
-    const base = { id: session.user.id, username: session.user.username, role: session.user.role, sessionId: session.id };
-    return this.authorization ? this.authorization.enrich(base, requestedRole, requestedOrganizationId) : { ...base, roles: [session.user.role], capabilities: [], membershipIds: [], organizationIds: [] };
+    const base = {
+      id: session.user.id,
+      username: session.user.username,
+      role: session.user.role,
+      sessionId: session.id,
+    };
+    return this.authorization
+      ? this.authorization.enrich(base, requestedRole, requestedOrganizationId)
+      : {
+          ...base,
+          roles: [session.user.role],
+          capabilities: [],
+          membershipIds: [],
+          organizationIds: [],
+        };
   }
 
   async logout(token?: string, refreshToken?: string) {
     const where = [
       ...(token ? [{ tokenHash: this.credentials.hash(token) }] : []),
-      ...(refreshToken ? [{ refreshTokenHash: this.credentials.hash(refreshToken) }] : []),
+      ...(refreshToken
+        ? [{ refreshTokenHash: this.credentials.hash(refreshToken) }]
+        : []),
     ];
     if (where.length) await this.sessions.delete(where);
   }
 
   async me(user: AuthenticatedUser) {
-    const session = await this.sessions.findOne({ where: { id: user.sessionId } });
-    return { id: user.id, username: user.username, role: user.role, roles: user.roles, capabilities: user.capabilities, csrfToken: session?.csrfToken };
+    const session = await this.sessions.findOne({
+      where: { id: user.sessionId },
+    });
+    return {
+      id: user.id,
+      username: user.username,
+      role: user.role,
+      roles: user.roles,
+      capabilities: user.capabilities,
+      csrfToken: session?.csrfToken,
+    };
   }
 
   async context(user: AuthenticatedUser, activeOrganizationId?: string) {
     const organizationIds = user.organizationIds ?? [];
     const roles = user.roles ?? (user.role === "ADMIN" ? [] : [user.role]);
-    if (activeOrganizationId && !organizationIds.includes(activeOrganizationId) && !roles.includes("PLATFORM_ADMIN")) throw new ApiException(403, "ORGANIZATION_FORBIDDEN", "به این سازمان دسترسی ندارید.");
+    if (
+      activeOrganizationId &&
+      !organizationIds.includes(activeOrganizationId) &&
+      !roles.includes("PLATFORM_ADMIN")
+    )
+      throw new ApiException(
+        403,
+        "ORGANIZATION_FORBIDDEN",
+        "به این سازمان دسترسی ندارید.",
+      );
     const account = await this.users.findOne({ where: { id: user.id } });
-    if (!this.authorization || !this.memberships) throw new ApiException(503, "CONTEXT_UNAVAILABLE", "اطلاعات دسترسی در دسترس نیست.");
-    const assignments = await this.authorization.enrich(user as Required<AuthenticatedUser>);
-    const memberships = await this.memberships.find({ where: { user: { id: user.id }, status: MembershipStatus.ACTIVE, organization: { status: OrganizationStatus.ACTIVE } }, relations: { organization: true } });
-    const organizations = memberships.map((membership) => ({ membershipId: membership.id, id: membership.organization.id, name: membership.organization.name, type: membership.organization.type }));
-    const workContexts = await Promise.all(assignments.roles.map(async (role) => {
-      const scoped = await this.authorization!.enrich(user as Required<AuthenticatedUser>, role);
-      return { role, capabilities: scoped.capabilities };
+    if (!this.authorization || !this.memberships)
+      throw new ApiException(
+        503,
+        "CONTEXT_UNAVAILABLE",
+        "اطلاعات دسترسی در دسترس نیست.",
+      );
+    const assignments = await this.authorization.enrich(
+      user as Required<AuthenticatedUser>,
+    );
+    const memberships = await this.memberships.find({
+      where: {
+        user: { id: user.id },
+        status: MembershipStatus.ACTIVE,
+        organization: { status: OrganizationStatus.ACTIVE },
+      },
+      relations: { organization: true },
+    });
+    const organizations = memberships.map((membership) => ({
+      membershipId: membership.id,
+      id: membership.organization.id,
+      name: membership.organization.name,
+      type: membership.organization.type,
     }));
+    const workContexts = await Promise.all(
+      assignments.roles.map(async (role) => {
+        const scoped = await this.authorization!.enrich(
+          user as Required<AuthenticatedUser>,
+          role,
+        );
+        return { role, capabilities: scoped.capabilities };
+      }),
+    );
     return {
-      user: { id: account!.id, username: account!.username, firstName: account!.firstName, lastName: account!.lastName, status: account!.status, isPlatformOwner: account!.isPlatformOwner, locale: account!.locale, timezone: account!.timezone },
+      user: {
+        id: account!.id,
+        username: account!.username,
+        firstName: account!.firstName,
+        lastName: account!.lastName,
+        status: account!.status,
+        isPlatformOwner: account!.isPlatformOwner,
+        locale: account!.locale,
+        timezone: account!.timezone,
+      },
       roles: assignments.roles,
       capabilities: assignments.capabilities,
       workContexts,
       memberships: organizations,
-      activeOrganization: organizations.find((item) => item.id === activeOrganizationId) ?? (organizations.length === 1 ? organizations[0] : null),
+      activeOrganization:
+        organizations.find((item) => item.id === activeOrganizationId) ??
+        (organizations.length === 1 ? organizations[0] : null),
       availableOrganizations: organizations,
     };
   }
 
-  async changePassword(user: AuthenticatedUser, currentPassword: string, newPassword: string) {
+  async changePassword(
+    user: AuthenticatedUser,
+    currentPassword: string,
+    newPassword: string,
+  ) {
     const account = await this.users.findOne({ where: { id: user.id } });
-    if (!account || !(await bcrypt.compare(currentPassword, account.passwordHash))) {
+    if (
+      !account ||
+      !(await bcrypt.compare(currentPassword, account.passwordHash))
+    ) {
       throw new ApiException(401, "INVALID_CREDENTIALS", "رمز فعلی درست نیست.");
     }
 
     account.passwordHash = await bcrypt.hash(newPassword, 12);
     await this.users.save(account);
-    await this.sessions.delete({ user: { id: user.id }, id: Not(user.sessionId) });
+    await this.sessions.delete({
+      user: { id: user.id },
+      id: Not(user.sessionId),
+    });
     return { changed: true, otherSessionsRevoked: true };
   }
 
   async listSessions(user: AuthenticatedUser) {
-    const sessions = await this.sessions.find({ where: { user: { id: user.id } }, order: { createdAt: "DESC" } });
-    return sessions.map((session) => ({ id: session.id, createdAt: session.createdAt, expiresAt: session.refreshExpiresAt ?? session.expiresAt, current: session.id === user.sessionId }));
+    const sessions = await this.sessions.find({
+      where: { user: { id: user.id } },
+      order: { createdAt: "DESC" },
+    });
+    return sessions.map((session) => ({
+      id: session.id,
+      createdAt: session.createdAt,
+      expiresAt: session.refreshExpiresAt ?? session.expiresAt,
+      current: session.id === user.sessionId,
+    }));
   }
 
   async revokeSession(user: AuthenticatedUser, id: string) {
     if (id === user.sessionId) {
-      throw new ApiException(400, "CURRENT_SESSION", "برای خروج از نشست فعلی از دکمه خروج استفاده کنید.");
+      throw new ApiException(
+        400,
+        "CURRENT_SESSION",
+        "برای خروج از نشست فعلی از دکمه خروج استفاده کنید.",
+      );
     }
     const result = await this.sessions.delete({ id, user: { id: user.id } });
     return { id, revoked: Boolean(result.affected) };
@@ -190,7 +348,9 @@ export class AuthService {
 
   private async hasActiveStudentAccount(user: User) {
     if (user.role !== UserRole.STUDENT) return true;
-    const student = await this.students.findOne({ where: { user: { id: user.id } } });
+    const student = await this.students.findOne({
+      where: { user: { id: user.id } },
+    });
     return student?.accountStatus === "active";
   }
 }

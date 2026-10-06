@@ -1,0 +1,9 @@
+baseUrl: http://localhost:4000
+
+organizationId: ""
+studentId: ""
+userId: ""
+attendanceSessionId: ""
+
+phone: "09123456789"
+password: "test-password"

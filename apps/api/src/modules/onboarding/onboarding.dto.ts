@@ -1,17 +1,16 @@
 import { Transform, Type } from "class-transformer";
 import { IsBoolean, IsEmail, IsIn, IsInt, IsOptional, IsString, IsUUID, Matches, Max, MaxLength, Min, MinLength, ValidateIf } from "class-validator";
-import { normalizeNationalCode } from "./national-code";
 import { normalizeIranianMobile } from "../../common/utils/phone-number";
 
 export class StudentSignupDto {
   @IsUUID() organizationId!: string;
-  @Transform(({ value }) => normalizeNationalCode(String(value ?? ""))) @IsString() @Matches(/^\d{10}$/) nationalCode!: string;
-  @Transform(({ value }) => normalizeIranianMobile(String(value ?? ""))) @IsString() @Matches(/^09\d{9}$/, { message: "شماره همراه معتبر نیست." }) phoneNumber!: string;
+  @Transform(({ value }) => normalizeIranianMobile(String(value ?? "")))
+  @IsString()
+  @Matches(/^09\d{9}$/, { message: "شماره همراه معتبر نیست." })
+  phoneNumber!: string;
   @IsString() @MinLength(12) @MaxLength(300) password!: string;
-  @IsString() @MinLength(2) @MaxLength(160) name!: string;
-  @Type(() => Number) @IsInt() @Min(1) @Max(12) grade!: number;
-  @IsString() @MaxLength(40) educationTypeId!: string;
-  @IsOptional() @IsString() @MaxLength(80) trackId?: string;
+  @IsString() @MinLength(2) @MaxLength(100) firstName!: string;
+  @IsString() @MinLength(2) @MaxLength(100) lastName!: string;
 }
 export class SetPlatformStudentSignupDto { @IsBoolean() enabled!: boolean; }
 export class SetOrganizationStudentSignupDto {

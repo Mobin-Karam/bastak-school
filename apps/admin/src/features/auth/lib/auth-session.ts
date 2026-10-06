@@ -4,6 +4,7 @@ export const AUTH_SIGNAL_KEY = "moshaver_admin_auth_signal";
 export const PENDING_LOGOUT_KEY = "moshaver_admin_logout_pending";
 
 export const ADMIN_PORTAL_ROLES = [
+  "STUDENT",
   "GUARDIAN",
   "ADVISOR",
   "TEACHER",
@@ -11,6 +12,12 @@ export const ADMIN_PORTAL_ROLES = [
   "CONTENT_MANAGER",
   "ORGANIZATION_ADMIN",
   "PLATFORM_ADMIN",
+  "PRINCIPAL",
+  "DISCIPLINARIAN",
+  "RELIGIOUS_EDUCATION_MANAGER",
+  "GOVERNMENT_EDUCATION_MANAGER",
+  "STUDENT_AFFAIRS_MENTOR",
+  "COUNSELOR",
 ] as const satisfies readonly RoleCode[];
 
 export function adminPortalRole(roles: readonly RoleCode[]) {

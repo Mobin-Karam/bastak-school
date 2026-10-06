@@ -11,22 +11,25 @@ import { LoggingInterceptor } from "./common/interceptors/logging.interceptor";
 import { RolesGuard } from "./common/guards/roles.guard";
 import { CsrfGuard } from "./common/guards/csrf.guard";
 import { AuthSessionGuard } from "./common/guards/auth-session.guard";
-import { StudentsModule } from "./modules/students/students.module";
-import { SyncModule } from "./modules/sync/sync.module";
-import { ChatModule } from "./modules/chat/chat.module";
-import { ReportsModule } from "./modules/reports/reports.module";
 import { CapabilitiesGuard } from "./common/guards/capabilities.guard";
-import { RelationshipsModule } from "./modules/relationships/relationships.module";
-import { GuardianModule } from "./modules/guardian/guardian.module";
-import { DashboardModule } from "./modules/dashboard/dashboard.module";
-import { ActivityModule } from "./modules/activity/activity.module";
-import { ImportExportModule } from "./modules/import-export/import-export.module";
-import { OnboardingModule } from "./modules/onboarding/onboarding.module";
 import { CmbPlatformModule } from "./platform/cmb-platform.module";
-import { EducationModule } from "./modules/education/education.module";
-import { EducationSharingModule } from "./modules/education-sharing/education-sharing.module";
-import { PermissionRequestsModule } from "./modules/permission-requests/permission-requests.module";
+import { StudentsModule } from "./modules/students/students.module";
+import { OnboardingModule } from "./modules/onboarding/onboarding.module";
+import { RegistrationModule } from "./modules/registration/registration.module";
+import { SchoolEducationModule } from "./modules/school-education/school-education.module";
+import { AttendanceModule } from "./modules/attendance/attendance.module";
+import { DormitoryModule } from "./modules/dormitory/dormitory.module";
+import { RelationshipsModule } from "./modules/relationships/relationships.module";
+import { StudentTransferModule } from "./modules/student-transfer/student-transfer.module";
+import { DashboardModule } from "./modules/dashboard/dashboard.module";
+import { StudentDocumentsModule } from "./modules/student-documents/student-documents.module";
 
+/**
+ * School application composition root. CMB provides reusable platform
+ * capabilities; modules below it are school-specific product features.
+ * Legacy Moshaver modules remain in source control but are intentionally not
+ * mounted here until the school MVP needs them.
+ */
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -35,19 +38,16 @@ import { PermissionRequestsModule } from "./modules/permission-requests/permissi
     }),
     TypeOrmModule.forRoot(dataSourceOptions),
     CmbPlatformModule,
-    EducationModule,
-    EducationSharingModule,
-    PermissionRequestsModule,
-    RelationshipsModule,
-    GuardianModule,
-    DashboardModule,
-    ActivityModule,
-    ImportExportModule,
-    OnboardingModule,
+    // OnboardingModule,
     StudentsModule,
-    SyncModule,
-    ChatModule,
-    ReportsModule,
+    // RegistrationModule,
+    SchoolEducationModule,
+    AttendanceModule,
+    // DormitoryModule,
+    // RelationshipsModule,
+    // StudentTransferModule,
+    // DashboardModule,
+    // StudentDocumentsModule,
   ],
   providers: [
     { provide: APP_FILTER, useClass: HttpExceptionFilter },

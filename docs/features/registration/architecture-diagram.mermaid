@@ -1,0 +1,113 @@
+```mermaid
+graph TD
+    subgraph Frontend
+        A[RegistrationLayout] --> B[RegistrationDashboardPage]
+        B --> C[Section Components]
+        C --> D[RegistrationContext]
+        D --> E[Custom Hooks]
+        E --> F[API Service]
+        F --> G[Backend API]
+    end
+    
+    subgraph Backend
+        G --> H[API Gateway]
+        H --> I[Registration Service]
+        I --> J[Database]
+        I --> K[Document Storage]
+        I --> L[Cache]
+        I --> M[Notification Service]
+        I --> N[Audit Service]
+    end
+    
+    subgraph Infrastructure
+        J --> O[PostgreSQL]
+        K --> P[Object Storage]
+        L --> Q[Redis]
+        M --> R[Email/SMS Gateways]
+        N --> S[Logging System]
+    end
+    
+    style A fill:#4CAF50,stroke:#388E3C,color:white
+    style B fill:#2196F3,stroke:#1976D2,color:white
+    style C fill:#FF9800,stroke:#EF6C00,color:white
+    style D fill:#9C27B0,stroke:#7B1FA2,color:white
+    style E fill:#3F51B5,stroke:#303F9F,color:white
+    style F fill:#009688,stroke:#00796B,color:white
+    style G fill:#E91E63,stroke:#C2185B,color:white
+    style H fill:#607D8B,stroke:#455A64,color:white
+    style I fill:#795548,stroke:#5D4037,color:white
+    style J fill:#00BCD4,stroke:#0097A7,color:white
+    style K fill:#FF5722,stroke:#E64A19,color:white
+    style L fill:#673AB7,stroke:#512DA8,color:white
+    style M fill:#8BC34A,stroke:#689F38,color:white
+    style N fill:#FFC107,stroke:#FFA000,color:black
+    
+    classDef frontend fill:#4CAF50,stroke:#388E3C,color:white;
+    classDef backend fill:#2196F3,stroke:#1976D2,color:white;
+    classDef infrastructure fill:#9C27B0,stroke:#7B1FA2,color:white;
+    
+    class A,B,C,D,E,F frontend;
+    class G,H,I,J,K,L,M,N backend;
+    class O,P,Q,R,S infrastructure;
+```
+
+## Architecture Diagram Explanation
+
+This diagram shows the complete architecture of the Registration Feature, from frontend components to backend services and infrastructure.
+
+### Frontend Layer
+- **RegistrationLayout**: Main layout component with header and progress bar
+- **RegistrationDashboardPage**: Dashboard with sidebar navigation and content area
+- **Section Components**: 15 individual components for each registration section
+- **RegistrationContext**: React context for global state management
+- **Custom Hooks**: React Query hooks for data fetching and caching
+- **API Service**: TypeScript service layer for API calls
+- **Backend API**: Integration with backend services
+
+### Backend Layer
+- **API Gateway**: Entry point for all API requests
+- **Registration Service**: Core business logic service
+- **Database**: PostgreSQL database for structured data
+- **Document Storage**: Object storage for document files
+- **Cache**: Redis cache for performance optimization
+- **Notification Service**: Email and SMS notifications
+- **Audit Service**: Logging and audit trail
+
+### Infrastructure Layer
+- **PostgreSQL**: Relational database for student and registration data
+- **Object Storage**: Cloud storage for document files
+- **Redis**: In-memory cache for session and query caching
+- **Email/SMS Gateways**: Third-party services for notifications
+- **Logging System**: Centralized logging and monitoring
+
+## Data Flow
+
+1. **User Interaction**: User navigates through registration sections
+2. **Frontend Processing**: Components render and handle user input
+3. **State Management**: Context and hooks manage application state
+4. **API Communication**: API service makes requests to backend
+5. **Backend Processing**: Registration service processes requests
+6. **Data Persistence**: Database and storage systems persist data
+7. **Response Handling**: Backend responds to frontend requests
+8. **UI Update**: Frontend updates UI based on responses
+
+## Security Considerations
+
+- All communication uses HTTPS encryption
+- Authentication tokens are validated at API gateway
+- Sensitive data is encrypted at rest
+- Input validation prevents injection attacks
+- Rate limiting protects against abuse
+- Audit logs track all critical operations
+
+## Scalability Features
+
+- Horizontal scaling of frontend and backend services
+- Database read replicas for high-read scenarios
+- Caching layer reduces database load
+- Load balancing distributes traffic evenly
+- Auto-scaling based on demand metrics
+
+## License
+
+MIT License
