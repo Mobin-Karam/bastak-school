@@ -12,11 +12,16 @@ import { AccountSecurityPanel } from "../../system/components/AccountSecurityPan
 import { ChatProfileSettings } from "../components/ChatProfileSettings";
 import { ManagementPageHeader } from "../../../shared/ui/management-workspace";
 import { settingsCopy } from "../settings-locale";
+import { PWAInstallSettingsCard } from "../../pwa";
+import { useAuth } from "../../auth";
+import { PhoneNumberSettings } from "../components/PhoneNumberSettings";
+import { PhoneChangeRequests } from "../components/PhoneChangeRequests";
 export function SettingsPage() {
   const qc = useQueryClient(),
     modal = useModal(),
     locale = useLocale();
   const copy = settingsCopy(locale.language);
+  const auth = useAuth();
   const [passwords, setPasswords] = useState({
     currentPassword: "",
     newPassword: "",
@@ -49,6 +54,9 @@ export function SettingsPage() {
         <LocationSettings locale={locale} onChange={() => notify(copy.locationChanged)} />
         <ApiConnectionCard />
       </section>
+      <PWAInstallSettingsCard />
+      <PhoneNumberSettings />
+      {auth.can("account_change_requests.read") ? <PhoneChangeRequests /> : null}
       <section aria-labelledby="account-security-title">
         <h2 id="account-security-title" className="mb-3 flex items-center gap-2 text-sm font-bold">
           <ShieldCheck size={17} />

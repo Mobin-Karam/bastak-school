@@ -50,7 +50,7 @@ export function AdminMainSidebar({
             className="grid size-8 place-items-center rounded-lg bg-brand text-sm font-black text-white"
             aria-hidden="true"
           >
-            M
+            Z
           </div>
         )}
         <button

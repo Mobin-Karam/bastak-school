@@ -10,6 +10,14 @@ export const ROLE_CODES = [
   "CONTENT_MANAGER",
   "ORGANIZATION_ADMIN",
   "PLATFORM_ADMIN",
+  "SCHOOL_ADMIN",
+  "SCHOOL_SUPERVISOR",
+  "PRINCIPAL",
+  "DISCIPLINARIAN",
+  "RELIGIOUS_EDUCATION_MANAGER",
+  "GOVERNMENT_EDUCATION_MANAGER",
+  "STUDENT_AFFAIRS_MENTOR",
+  "COUNSELOR",
 ] as const;
 export type RoleCode = (typeof ROLE_CODES)[number];
 
@@ -108,6 +116,23 @@ export const CAPABILITIES = [
   "database.read",
   "database.backup",
   "database.restore",
+  "principal.permissions.manage",
+  "schedule.read",
+  "schedule.create",
+  "schedule.update",
+  "schedule.delete",
+  "schedule.archive",
+  "schedule.import",
+  "schedule.export",
+  "prayer_times.read",
+  "prayer_times.manage",
+  "announcements.read",
+  "announcements.manage",
+  "account_change_requests.read",
+  "account_change_requests.manage",
+  "student.absence.create",
+  "student.absence.read",
+  "student.absence.manage",
 ] as const;
 export type Capability = (typeof CAPABILITIES)[number];
 

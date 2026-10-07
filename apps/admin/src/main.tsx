@@ -19,6 +19,7 @@ let scrollRevealTimer: number | undefined;
 window.addEventListener(
   "scroll",
   () => {
+    if (document.documentElement.dataset.adminMotion === "reduce") return;
     document.documentElement.classList.add("is-scrolling");
     window.clearTimeout(scrollRevealTimer);
     scrollRevealTimer = window.setTimeout(() => {

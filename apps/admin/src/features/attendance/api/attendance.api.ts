@@ -32,13 +32,18 @@ export const contextLabelMap: Record<AttendanceContextType, string> = {
   dorm: "خوابگاه",
 };
 
-export const listAttendanceSessions = () => api.get<AttendanceSessionSummary[]>("/student/attendance/sessions");
+export const listAttendanceSessions = () =>
+  api.get<AttendanceSessionSummary[]>("/student/attendance/sessions");
 
 export const listAttendanceContexts = (organizationId?: string) =>
-  api.get<AttendanceContextOption[]>(`/attendance/contexts${organizationId ? `?organizationId=${encodeURIComponent(organizationId)}` : ""}`);
+  api.get<AttendanceContextOption[]>(
+    `/attendance/contexts${organizationId ? `?organizationId=${encodeURIComponent(organizationId)}` : ""}`,
+  );
 
 export const getAttendanceParticipants = (contextType: AttendanceContextType, contextId: string) =>
-  api.get<Array<{ id: string; name: string; userId?: string | null; nationalCode?: string | null }>>(
+  api.get<
+    Array<{ id: string; name: string; userId?: string | null; nationalCode?: string | null }>
+  >(
     `/attendance/context/${encodeURIComponent(contextType)}/${encodeURIComponent(contextId)}/participants`,
   );
 
@@ -47,5 +52,22 @@ export const bulkMarkAttendance = (body: {
   contextType: AttendanceContextType;
   contextId: string;
   sessionDate: string;
-  entries: Array<{ studentId: string; status: "present" | "absent" | "late" | "excused"; note?: string }>;
+  entries: Array<{
+    studentId: string;
+    status: "present" | "absent" | "late" | "excused";
+    note?: string;
+  }>;
 }) => api.post<{ sessionId: string; count: number }>("/attendance/bulk-mark", body);
+
+export type SelfAttendanceRecord = {
+  id: string;
+  status: "present" | "absent" | "late" | "excused";
+  note: string;
+  sessionDate: string;
+  contextType: AttendanceContextType;
+  contextId: string;
+  organizationId: string;
+  recordedAt: string;
+};
+
+export const listSelfAttendance = () => api.get<SelfAttendanceRecord[]>("/student/attendance");

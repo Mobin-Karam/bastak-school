@@ -439,7 +439,9 @@ export class WorkflowsService {
     const organizationIds = memberships.map((membership) => membership.organization.id);
     const requestedOrgId = organizationId && organizationIds.includes(organizationId) ? organizationId : undefined;
     const rows = await this.leaveRequests.find({
-      where: requestedOrgId ? { organization: { id: requestedOrgId } } : { organization: { id: In(organizationIds) } },
+      where: this.canReviewSchoolWorkflows(user)
+        ? (requestedOrgId ? { organization: { id: requestedOrgId } } : { organization: { id: In(organizationIds) } })
+        : { student: { user: { id: user.id } } },
       relations: { organization: true, student: { user: true }, approver: true },
       order: { createdAt: "DESC" },
     });
@@ -487,6 +489,7 @@ export class WorkflowsService {
       throw new ApiException(404, "LEAVE_REQUEST_NOT_FOUND", "درخواست مرخصی پیدا نشد.");
     }
     await this.organizationForUser(user.id, row.organization.id);
+    this.assertWorkflowReviewer(user);
     const status = this.parseLeaveStatus(input.status);
     row.status = status;
     row.note = input.note?.trim() || row.note || "";
@@ -501,7 +504,9 @@ export class WorkflowsService {
     const organizationIds = memberships.map((membership) => membership.organization.id);
     const requestedOrgId = organizationId && organizationIds.includes(organizationId) ? organizationId : undefined;
     const rows = await this.exitPermissions.find({
-      where: requestedOrgId ? { organization: { id: requestedOrgId } } : { organization: { id: In(organizationIds) } },
+      where: this.canReviewSchoolWorkflows(user)
+        ? (requestedOrgId ? { organization: { id: requestedOrgId } } : { organization: { id: In(organizationIds) } })
+        : { student: { user: { id: user.id } } },
       relations: { organization: true, student: { user: true }, approver: true },
       order: { createdAt: "DESC" },
     });
@@ -547,6 +552,7 @@ export class WorkflowsService {
       throw new ApiException(404, "EXIT_PERMISSION_NOT_FOUND", "درخواست مجوز خروج پیدا نشد.");
     }
     await this.organizationForUser(user.id, row.organization.id);
+    this.assertWorkflowReviewer(user);
     const status = this.parseExitStatus(input.status);
     row.status = status;
     row.note = input.note?.trim() || row.note || "";
@@ -554,6 +560,53 @@ export class WorkflowsService {
     row.reviewedAt = new Date();
     const saved = await this.exitPermissions.save(row);
     return this.serializeExitPermission(saved);
+  }
+
+  /** A supervisor records the physical gate event; approval alone never changes occupancy. */
+  async recordExitMovement(user: AuthenticatedUser, exitPermissionId: string, movement: "departure" | "return") {
+    const row = await this.exitPermissions.findOne({ where: { id: exitPermissionId }, relations: { organization: true, student: { user: true }, approver: true } });
+    if (!row) throw new ApiException(404, "EXIT_PERMISSION_NOT_FOUND", "مجوز خروج پیدا نشد.");
+    await this.organizationForUser(user.id, row.organization.id);
+    this.assertWorkflowReviewer(user);
+    if (movement === "departure") {
+      if (row.status !== ExitPermissionStatus.APPROVED) throw new ApiException(409, "EXIT_NOT_APPROVED", "فقط مجوز تأییدشده قابل ثبت خروج است.");
+      if (row.actualReturnAt) throw new ApiException(409, "EXIT_ALREADY_RETURNED", "برای این مجوز بازگشت ثبت شده است.");
+      row.actualDepartureAt = row.actualDepartureAt ?? new Date();
+    } else {
+      if (!row.actualDepartureAt) throw new ApiException(409, "EXIT_NOT_DEPARTED", "ابتدا خروج دانش‌آموز را ثبت کنید.");
+      row.actualReturnAt = new Date();
+      row.status = ExitPermissionStatus.COMPLETED;
+    }
+    return this.serializeExitPermission(await this.exitPermissions.save(row));
+  }
+
+  async occupancy(user: AuthenticatedUser, organizationId?: string) {
+    this.assertWorkflowReviewer(user);
+    const memberships = await this.activeMemberships(user.id);
+    const ids = memberships.map((membership) => membership.organization.id);
+    if (!ids.length) return [];
+    const scoped = organizationId ? (ids.includes(organizationId) ? [organizationId] : []) : ids;
+    const result = [];
+    for (const id of scoped) {
+      const total = await this.students.count({ where: { organization: { id }, accountStatus: "active" } });
+      // TypeORM's object where cannot express IS NOT NULL and IS NULL together reliably across SQLite versions.
+      const rows = await this.exitPermissions.createQueryBuilder("exit")
+        .where("exit.organizationId = :id", { id })
+        .andWhere("exit.status = :status", { status: ExitPermissionStatus.APPROVED })
+        .andWhere("exit.actualDepartureAt IS NOT NULL")
+        .andWhere("exit.actualReturnAt IS NULL")
+        .getCount();
+      result.push({ organizationId: id, totalStudents: total, currentlyOut: rows, currentlyInSchool: Math.max(0, total - rows), generatedAt: new Date().toISOString() });
+    }
+    return result;
+  }
+
+  private canReviewSchoolWorkflows(user: AuthenticatedUser) {
+    return ["PLATFORM_ADMIN", "ORGANIZATION_ADMIN", "PRINCIPAL", "DISCIPLINARIAN", "SCHOOL_ADMIN", "SCHOOL_SUPERVISOR"].some((role) => user.roles?.includes(role) || user.role === role);
+  }
+
+  private assertWorkflowReviewer(user: AuthenticatedUser) {
+    if (!this.canReviewSchoolWorkflows(user)) throw new ApiException(403, "WORKFLOW_REVIEW_FORBIDDEN", "فقط مدیریت یا ناظم مدرسه می‌تواند این عملیات را انجام دهد.");
   }
 
   async listLetters(user: AuthenticatedUser, organizationId?: string) {

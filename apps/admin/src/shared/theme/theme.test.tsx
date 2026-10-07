@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ThemeProvider, ThemeSwitcher } from "./theme";
 import { LocaleProvider } from "../ui/locale";
@@ -22,7 +22,38 @@ describe("admin theme switcher", () => {
     );
   });
 
-  afterEach(() => vi.unstubAllGlobals());
+  afterEach(() => {
+    cleanup();
+    vi.unstubAllGlobals();
+  });
+
+  it("defaults to light mode instead of following the system setting", () => {
+    vi.stubGlobal(
+      "matchMedia",
+      vi.fn((query: string) => ({
+        matches: query === "(prefers-color-scheme: dark)",
+        media: query,
+        onchange: null,
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+        dispatchEvent: vi.fn(),
+      })),
+    );
+
+    render(
+      <ThemeProvider>
+        <ThemeSwitcher />
+      </ThemeProvider>,
+    );
+
+    expect(document.documentElement).not.toHaveClass("dark");
+    expect(screen.getByRole("button", { name: "حالت روشن" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+  });
 
   it("offers light, dark and system modes and persists the selection", () => {
     render(

@@ -347,7 +347,7 @@ describe("multi-role authorization isolation", () => {
       pipe.transform(
         {
           name: "Student",
-          username: "student-x",
+          phoneNumber: "09123456789",
           password: "a-secure-password",
           role: "PLATFORM_ADMIN",
           permissions: ["system.manage"],

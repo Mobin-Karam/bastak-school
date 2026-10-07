@@ -1,3 +1,4 @@
+import { useId } from "react";
 import { Database, ShieldCheck, ServerCog } from "lucide-react";
 import { Badge, Card } from "../../../../shared/ui/ui";
 import { useLocale } from "../../../../shared/ui/locale";
@@ -5,6 +6,7 @@ import { dashboardCopy } from "../../model/dashboard-copy";
 import type { RoleDashboardData } from "../../model/dashboard.types";
 
 export function PlatformHealthPanel({ data }: { data: RoleDashboardData }) {
+  const titleId = useId();
   const { language } = useLocale();
   const copy = dashboardCopy[language];
   const healthy = data.systemHealth?.database === "ok";
@@ -12,10 +14,10 @@ export function PlatformHealthPanel({ data }: { data: RoleDashboardData }) {
   const environment = data.releaseStatus?.environment || copy.unknownEnvironment;
 
   return (
-    <Card className="p-0" aria-labelledby="platform-health-title">
+    <Card className="p-0" aria-labelledby={titleId}>
       <header className="border-b border-[rgb(var(--border-subtle))] px-4 py-3">
         <div className="flex items-center justify-between gap-2">
-          <h2 id="platform-health-title" className="text-sm font-bold text-ink">
+          <h2 id={titleId} className="text-sm font-bold text-ink">
             {copy.platformHealthTitle}
           </h2>
           <Badge tone={healthy ? "green" : "amber"}>

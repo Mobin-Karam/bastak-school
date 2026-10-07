@@ -25,6 +25,7 @@ export { Role } from "./role.entity";
 export { Permission } from "./permission.entity";
 export { RolePermission } from "./role-permission.entity";
 export { UserRoleAssignment } from "./user-role-assignment.entity";
+export { UserCapabilityGrant } from "./user-capability-grant.entity";
 export { Organization } from "./organization.entity";
 export { OrganizationMembership } from "./organization-membership.entity";
 export { UserRelationship } from "./user-relationship.entity";
@@ -65,6 +66,10 @@ export { EducationBook } from "./education-book.entity";
 export { EducationClass } from "./education-class.entity";
 export { EducationClassBook } from "./education-class-book.entity";
 export { EducationClassEnrollment } from "./education-class-enrollment.entity";
+export { SchoolScheduleEntry } from "./school-schedule-entry.entity";
+export { SchoolPrayerTime } from "./school-prayer-time.entity";
+export { SchoolAnnouncement } from "./school-announcement.entity";
+export { AccountChangeRequest } from "./account-change-request.entity";
 export { StudyGroup } from "./study-group.entity";
 export { StudyGroupMembership } from "./study-group-membership.entity";
 export { DormRoom } from "./dorm-room.entity";
@@ -78,5 +83,8 @@ export { RequestLetter, RequestLetterStatus } from "./request-letter.entity";
 
 export { StudentProfile } from "./student-profile.entity";
 export { StudentContact } from "./student-contact.entity";
-export { RegistrationRequirement, REGISTRATION_SECTIONS } from "./registration-requirement.entity";
+export {
+  RegistrationRequirement,
+  REGISTRATION_SECTIONS,
+} from "./registration-requirement.entity";
 export { RegistrationProgress } from "./registration-progress.entity";

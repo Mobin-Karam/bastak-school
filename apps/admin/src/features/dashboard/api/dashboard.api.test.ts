@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { getDashboardWorkQueue, normalizeAttentionStudent } from "./dashboard.api";
+import { getAdminDashboard, getDashboardWorkQueue, normalizeAttentionStudent } from "./dashboard.api";
 import { api } from "../../../shared/api/api";
 import { beforeEach, vi } from "vitest";
 
@@ -11,7 +11,15 @@ describe("normalizeAttentionStudent", () => {
 
     await getDashboardWorkQueue(500);
 
-    expect(get).toHaveBeenCalledWith("/dashboard/attention?limit=100");
+    expect(get).toHaveBeenCalledWith("/dashboard/home/work-queue?limit=100");
+  });
+
+  it("requests the selected work role for a multi-role dashboard", async () => {
+    const get = vi.spyOn(api, "get").mockResolvedValue({ context: "TEACHER" } as never);
+
+    await getAdminDashboard("TEACHER");
+
+    expect(get).toHaveBeenCalledWith("/dashboard/home?context=TEACHER");
   });
 
   it("maps the nested API v2 attention contract into the dashboard view model", () => {

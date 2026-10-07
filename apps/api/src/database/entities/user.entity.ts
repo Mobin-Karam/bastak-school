@@ -70,6 +70,8 @@ export class User {
   @Column({ length: 1200, default: "" }) chatAvatarUrl!: string;
   @Column({ default: 0 }) usernameChangeCount!: number;
   @Column({ type: "datetime", nullable: true }) usernameChangedAt?: Date | null;
+  /** A student or guardian can correct the login phone once without review. */
+  @Column({ default: 0 }) phoneNumberChangeCount!: number;
 
   @CreateDateColumn()
   createdAt!: Date;

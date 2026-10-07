@@ -1,3 +1,4 @@
+import { AlertTriangle } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Outlet, useLocation } from "react-router-dom";
 import { useAdminNotifications } from "../../../features/notifications";
@@ -6,7 +7,7 @@ import { AdminCommandPalette } from "../command-palette/AdminCommandPalette";
 import { AdminContextSidebar } from "../navigation/AdminContextSidebar";
 import { AdminHeader } from "./AdminHeader";
 import { AdminMainSidebar } from "../navigation/AdminMainSidebar";
-import { AdminMobileBottomNav, AdminMobileDrawer } from "../navigation/AdminMobileNavigation";
+import { AdminMobileBottomNav } from "../navigation/AdminMobileNavigation";
 import {
   localizedAdminBreadcrumbs,
   localizedAdminCurrentNavigation,
@@ -17,6 +18,7 @@ import { adminContentOffsetClass, shouldAutoCollapseMainRail } from "./layout-ge
 import { usePersistentCollapse } from "../layout-storage";
 import { roleLabel } from "../../../shared/lib/role-ui";
 import { useLocale } from "../../../shared/ui/locale";
+import { useDevicePerformance } from "./use-device-performance";
 
 function readSelectedStudentId(search: string) {
   const urlValue = new URLSearchParams(search).get("studentId");
@@ -47,9 +49,9 @@ export function AdminLayout() {
   const [contextCollapsed, setContextCollapsed] = usePersistentCollapse(
     "admin-context-sidebar-collapsed",
   );
-  const [mobileNavigationOpen, setMobileNavigationOpen] = useState(false);
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
   const wasContextRailVisible = useRef(false);
+  const performance = useDevicePerformance();
 
   const sourceCurrent = resolveAdminNavigation(location.pathname);
   const current = localizedAdminCurrentNavigation(location.pathname, language);
@@ -69,14 +71,15 @@ export function AdminLayout() {
     wasContextRailVisible.current = showContextRail;
   }, [showContextRail, setMainCollapsed]);
 
-  const openMobileNavigation = useCallback(() => setMobileNavigationOpen(true), []);
-  const closeMobileNavigation = useCallback(() => setMobileNavigationOpen(false), []);
   const openCommandPalette = useCallback(() => setCommandPaletteOpen(true), []);
   const closeCommandPalette = useCallback(() => setCommandPaletteOpen(false), []);
 
   useEffect(() => {
-    setMobileNavigationOpen(false);
-  }, [location.pathname, location.search]);
+    document.documentElement.dataset.adminMotion = performance === "reduced" ? "reduce" : "full";
+    return () => {
+      delete document.documentElement.dataset.adminMotion;
+    };
+  }, [performance]);
 
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
@@ -95,6 +98,7 @@ export function AdminLayout() {
     <div
       className="admin-role-shell h-dvh overflow-hidden bg-paper text-ink"
       data-role={auth.activeRole ?? "DEFAULT"}
+      data-performance={performance}
       dir={profile.direction}
     >
       <AdminMainSidebar
@@ -129,17 +133,44 @@ export function AdminLayout() {
           direction: profile.direction,
         })} scroll-reveal h-dvh min-w-0 overflow-y-auto overscroll-contain transition-[margin] duration-200 motion-reduce:transition-none`}
       >
-        <AdminHeader
-          current={current}
-          breadcrumbs={breadcrumbs}
-          selectedStudentId={selectedStudentId}
-          sticky
-          onOpenMobileNavigation={openMobileNavigation}
-          role={roleLabel(auth.activeRole, language)}
-          organization={auth.context?.activeOrganization?.name}
-          multipleRoles={(auth.context?.roles.filter((role) => role !== "STUDENT").length || 0) > 1}
-          showStudent={sourceCurrent.section === "آموزش"}
-        />
+        <div className="sticky top-0 z-30 flex min-h-[calc(3.5rem+env(safe-area-inset-top))] items-end justify-center bg-paper pb-2 pt-[env(safe-area-inset-top)] lg:hidden">
+          <img
+            src="/logo-bastak.webp"
+            width={120}
+            height={40}
+            alt="زانین"
+            decoding="async"
+            className="h-10 w-auto max-w-[min(10rem,65vw)] object-contain"
+          />
+        </div>
+        {auth.activeRole === "PLATFORM_ADMIN" ? (
+          <section
+            className="mx-3 mt-2 flex items-start gap-2 rounded-lg border border-amber-300/80 bg-amber-50 px-3 py-2.5 text-xs leading-5 text-amber-950 dark:border-amber-700 dark:bg-amber-950/35 dark:text-amber-100 lg:hidden"
+            role="status"
+            aria-label="هشدار استفاده از مدیریت پلتفرم در موبایل"
+          >
+            <AlertTriangle className="mt-0.5 shrink-0" size={16} aria-hidden="true" />
+            <p>
+              مدیریت پلتفرم برای صفحه‌نمایش بزرگ طراحی شده است. می‌توانید ادامه دهید، اما
+              جدول‌ها و ابزارهای مدیریتی کامل‌تر در دسکتاپ در دسترس‌اند.
+            </p>
+          </section>
+        ) : null}
+        <div className="hidden lg:block">
+          <AdminHeader
+            current={current}
+            breadcrumbs={breadcrumbs}
+            selectedStudentId={selectedStudentId}
+            sticky
+            role={roleLabel(auth.activeRole, language)}
+            organization={auth.context?.activeOrganization?.name}
+            multipleRoles={
+              (auth.context?.roles.filter((role) => role !== "STUDENT").length || 0) > 1
+            }
+            showStudent={sourceCurrent.section === "آموزش"}
+            performance={performance}
+          />
+        </div>
 
         <main className="w-full min-w-0 px-3 py-4 pb-[calc(5rem+env(safe-area-inset-bottom))] sm:px-5 sm:py-5 lg:px-6 lg:pb-6 xl:px-8">
           <div className="admin-page-shell mx-auto w-full max-w-[1600px]">
@@ -151,16 +182,7 @@ export function AdminLayout() {
       <AdminMobileBottomNav
         current={current}
         selectedStudentId={selectedStudentId}
-        direction={profile.direction}
-      />
-      <AdminMobileDrawer
-        open={mobileNavigationOpen}
-        current={current}
-        selectedStudentId={selectedStudentId}
-        unreadNotifications={notificationState.unread}
-        onClose={closeMobileNavigation}
-        onOpenSearch={openCommandPalette}
-        direction={profile.direction}
+        performance={performance}
       />
       <AdminCommandPalette
         open={commandPaletteOpen}

@@ -57,69 +57,6 @@ export class WorkflowsController {
     );
   }
 
-  @Get("student/attendance/sessions")
-  @RequireCapabilities("attendance.read")
-  async listStudentAttendanceSessions(
-    @CurrentUser() user: AuthenticatedUser,
-    @Query("organizationId") organizationId?: string,
-  ) {
-    return ok(await this.service.listAttendanceSessions(user, organizationId));
-  }
-
-  @Post("student/attendance/sessions")
-  @RequireCapabilities("attendance.manage")
-  async createStudentAttendanceSession(
-    @CurrentUser() user: AuthenticatedUser,
-    @Body() body: any,
-  ) {
-    return ok(await this.service.createAttendanceSession(user, body as any));
-  }
-
-  @Post("attendance/bulk-mark")
-  @RequireCapabilities("attendance.manage")
-  async bulkMarkAttendance(
-    @CurrentUser() user: AuthenticatedUser,
-    @Body() body: any,
-  ) {
-    return ok(await this.service.bulkMarkAttendance(user, body as any));
-  }
-
-  @Get("attendance/contexts")
-  @RequireCapabilities("attendance.read")
-  async listAttendanceContexts(
-    @CurrentUser() user: AuthenticatedUser,
-    @Query("organizationId") organizationId?: string,
-  ) {
-    return ok(await this.service.listAttendanceContexts(user, organizationId));
-  }
-
-  @Get("attendance/context/:contextType/:contextId/participants")
-  @RequireCapabilities("attendance.read")
-  async listAttendanceParticipants(
-    @CurrentUser() user: AuthenticatedUser,
-    @Param("contextType") contextType: string,
-    @Param("contextId") contextId: string,
-  ) {
-    return ok(
-      await this.service.listContextParticipants(user, contextType, contextId),
-    );
-  }
-
-  @Get("student/attendance-summary")
-  @RequireCapabilities("student.profile.read")
-  async myAttendanceSummary(@CurrentUser() user: AuthenticatedUser) {
-    return ok(await this.service.getStudentAttendanceSummary(user));
-  }
-
-  @Get("students/:id/attendance-summary")
-  @RequireCapabilities("student.profile.read")
-  async studentAttendanceSummary(
-    @CurrentUser() user: AuthenticatedUser,
-    @Param("id") studentId: string,
-  ) {
-    return ok(await this.service.getStudentAttendanceSummary(user, studentId));
-  }
-
   @Get("student/leave-requests")
   @RequireCapabilities("leave.read")
   async listStudentLeaveRequests(
@@ -192,6 +129,24 @@ export class WorkflowsController {
     @Body() body: { status: string; note?: string },
   ) {
     return ok(await this.service.reviewExitPermission(user, id, body as any));
+  }
+
+  @Post("exit-permissions/:id/departure")
+  @RequireCapabilities("exit.manage")
+  departure(@CurrentUser() user: AuthenticatedUser, @Param("id") id: string) {
+    return this.service.recordExitMovement(user, id, "departure").then(ok);
+  }
+
+  @Post("exit-permissions/:id/return")
+  @RequireCapabilities("exit.manage")
+  return(@CurrentUser() user: AuthenticatedUser, @Param("id") id: string) {
+    return this.service.recordExitMovement(user, id, "return").then(ok);
+  }
+
+  @Get("attendance/occupancy")
+  @RequireCapabilities("attendance.read")
+  occupancy(@CurrentUser() user: AuthenticatedUser, @Query("organizationId") organizationId?: string) {
+    return this.service.occupancy(user, organizationId).then(ok);
   }
 
   @Get("student/letters")

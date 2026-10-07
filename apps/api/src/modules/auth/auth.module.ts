@@ -10,6 +10,8 @@ import { OrganizationMembership } from "../../database/entities/organization-mem
 import { MeController } from "./me.controller";
 import { LoginThrottle } from "../../database/entities/login-throttle.entity";
 import { LoginThrottleService } from "./login-throttle.service";
+import { Organization } from "../../database/entities/organization.entity";
+import { AccountChangeRequest } from "../../database/entities/account-change-request.entity";
 
 @Module({
   imports: [
@@ -20,6 +22,8 @@ import { LoginThrottleService } from "./login-throttle.service";
       UserRoleAssignment,
       OrganizationMembership,
       LoginThrottle,
+      Organization,
+      AccountChangeRequest,
     ]),
   ],
   controllers: [AuthController, MeController],

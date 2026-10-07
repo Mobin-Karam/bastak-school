@@ -23,6 +23,19 @@ server {
     proxy_read_timeout 3600s;
   }
 
+  # These are installability-critical PWA resources. They must always be
+  # fetched from the current release and must never fall back to index.html,
+  # because a cached or HTML response makes Chromium reject installation.
+  location = /manifest.webmanifest {
+    add_header Cache-Control "no-cache, no-store, must-revalidate" always;
+    try_files $uri =404;
+  }
+
+  location = /sw.js {
+    add_header Cache-Control "no-cache, no-store, must-revalidate" always;
+    try_files $uri =404;
+  }
+
   location / {
     try_files $uri $uri/ /index.html;
   }

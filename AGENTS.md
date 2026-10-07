@@ -124,7 +124,25 @@ When changing backend architecture:
 - For API changes, identify admin/student/other consumers and synchronize shared contracts.
 - Do not promote code into a shared package without a clear ownership reason or real second consumer.
 
+## Modular Excel import/export
+
+- Reuse `apps/admin/src/shared/lib/spreadsheet-transfer.ts` for feature-specific Excel workbook schemas, parsing, template generation, and downloads; do not duplicate `exceljs` row-index parsing in feature pages.
+- Reuse `@moshaver/cmb-data-transfer` only for framework-neutral transfer safety checks and normalization. It must not know Moshaver entities or make persistence decisions.
+- Every API feature owns an explicit allowlisted DTO/schema, a capability-gated preview endpoint, per-row errors/conflicts, a bounded transactional commit, scoped export, and import history/audit where data is changed. Never accept a client-provided table/entity name or authorize import from the UI alone.
+- Keep organization and student scope server-enforced on preview, commit, and export. Reject authority fields (`roles`, permissions, passwords, sessions, capabilities) and cap batch size. New adapters for teachers, schedules, or other school data should follow `student-transfer` as the product example.
+
 ## Validation
+
+## Admin role and capability UX
+
+- Treat `/me/context` as the Admin authority for active roles, organization scope, and capabilities. On any role or organization switch, refresh that context before rendering new capability-gated UI or issuing feature requests.
+- Use `auth.can`, `auth.canAny`, `auth.canAll`, and `CapabilityGate` for Admin visibility and interaction states; do not gate a new page or action with a role name. Declare the actual capability on its navigation item and protect the route with `CapabilityRoute`. API authorization is still mandatory.
+
+## Admin responsive shell
+
+- Keep one capability-aware page and data flow for every viewport. Compose it with the desktop rail workspace and the mobile drawer/bottom-navigation shell; do not fork feature pages by device type.
+- Use `useDevicePerformance` for optional Admin shell presentation effects. `reduced` is for reduced-motion, Data Saver, slow network, or constrained browser hints and must remove decorative motion and backdrop filters without removing functionality. `enhanced` may add lightweight decorative motion only after those signals permit it.
+- Do not use Android user-agent sniffing for performance decisions. Respect user motion preferences, safe-area insets, keyboard focus, RTL/LTR logical properties, and the existing mobile focus trap.
 
 Use the root workspace graph for repository-level ordering, but keep component-defined scripts authoritative.
 

@@ -19,26 +19,27 @@
    ========================================================= */
 
 :root {
-  --color-ink: 34 35 38;
-  --color-paper: 247 247 248;
+  /* Zanin emblem: deep book-blue, oasis teal, and warm gold. */
+  --color-ink: 14 50 77;
+  --color-paper: 244 250 249;
 
-  --color-brand: 15 118 110;
-  --color-brand-strong: 17 94 89;
-  --color-brand-soft: 220 245 238;
+  --color-brand: 0 122 112;
+  --color-brand-strong: 0 82 83;
+  --color-brand-soft: 218 244 239;
 
-  --color-saffron: 180 111 18;
+  --color-saffron: 205 149 39;
   --color-rosewood: 190 50 72;
 
-  --surface-card: 255 255 255;
-  --surface-muted: 244 244 245;
-  --surface-raised: 255 255 255;
+  --surface-card: 255 255 254;
+  --surface-muted: 235 246 244;
+  --surface-raised: 250 253 252;
 
-  --border-subtle: 228 228 231;
+  --border-subtle: 205 227 222;
 
   --radius-control: 8px;
   --radius-surface: 8px;
 
-  --shadow-surface: 0 1px 2px rgb(24 24 27 / 4%);
+  --shadow-surface: 0 1px 2px rgb(0 64 72 / 6%);
 
   --chat-canvas: 238 242 234;
   --chat-incoming: 255 255 252;
@@ -93,21 +94,21 @@
    ========================================================= */
 
 :root.dark {
-  --color-ink: 244 244 245;
-  --color-paper: 24 24 27;
+  --color-ink: 239 247 245;
+  --color-paper: 9 29 39;
 
-  --color-brand: 45 212 191;
+  --color-brand: 53 211 191;
   --color-brand-strong: 20 184 166;
-  --color-brand-soft: 19 78 70;
+  --color-brand-soft: 13 80 78;
 
   --color-saffron: 245 188 86;
   --color-rosewood: 251 113 133;
 
-  --surface-card: 39 39 42;
-  --surface-muted: 47 47 52;
-  --surface-raised: 39 39 42;
+  --surface-card: 15 45 55;
+  --surface-muted: 20 57 64;
+  --surface-raised: 18 51 60;
 
-  --border-subtle: 63 63 70;
+  --border-subtle: 38 83 88;
 
   --shadow-surface: 0 1px 2px rgb(0 0 0 / 18%);
 
@@ -356,6 +357,26 @@
   animation: admin-page-enter 180ms ease-out;
 }
 
+/*
+ * The shell applies this profile from user preferences and optional browser
+ * device hints. It changes presentation only: all routes and controls remain
+ * available on low-power devices.
+ */
+.admin-role-shell[data-performance="reduced"] .admin-page-shell > * {
+  animation: none;
+}
+
+.admin-role-shell[data-performance="reduced"] .admin-expensive-surface {
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+.admin-role-shell[data-performance="reduced"] .admin-motion,
+.admin-role-shell[data-performance="reduced"] .admin-mobile-drawer-enhanced {
+  animation: none;
+  transition: none;
+}
+
 .admin-page-shell :where(table) {
   border-collapse: separate;
   border-spacing: 0;
@@ -395,6 +416,42 @@
     opacity: 1;
     transform: translateY(0);
   }
+}
+
+@keyframes admin-mobile-drawer-enter {
+  from {
+    opacity: 0;
+    transform: translateX(var(--admin-drawer-enter-offset, -0.75rem));
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes admin-mobile-dock-sheet-enter {
+  from {
+    opacity: 0;
+    transform: translateY(0.75rem);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.admin-mobile-drawer-enhanced {
+  animation: admin-mobile-drawer-enter 180ms ease-out;
+}
+
+.admin-mobile-dock-sheet-enhanced {
+  animation: admin-mobile-dock-sheet-enter 180ms ease-out;
+}
+
+[dir="rtl"] .admin-mobile-drawer-enhanced {
+  --admin-drawer-enter-offset: 0.75rem;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -866,4 +923,16 @@ html.is-scrolling :is(body, .scroll-reveal)::-webkit-scrollbar-thumb,
 
 .safe-area-end {
   padding-inline-end: env(safe-area-inset-right);
+}
+
+/*
+ * Installed mobile PWAs can draw into the system status and navigation areas
+ * when viewport-fit=cover is active. The shell reserves those areas so neither
+ * the centered masthead nor page content is obscured by the device chrome.
+ */
+@media (max-width: 1023px) {
+  .admin-role-shell {
+    min-height: 100dvh;
+    padding-inline: env(safe-area-inset-right) env(safe-area-inset-left);
+  }
 }

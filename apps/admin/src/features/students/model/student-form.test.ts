@@ -1,7 +1,18 @@
 import { describe, expect, it } from "vitest";
-import { emptyStudentForm, studentPayload, studentToForm } from "./student-form";
+import {
+  emptyStudentForm,
+  normalizeIranianPhoneNumber,
+  studentPayload,
+  studentToForm,
+} from "./student-form";
 
 describe("student education form", () => {
+  it("normalizes Persian digits and international Iranian mobile formats", () => {
+    expect(normalizeIranianPhoneNumber("۰۹۱۲۳۴۵۶۷۸۹")).toBe("09123456789");
+    expect(normalizeIranianPhoneNumber("+989123456789")).toBe("09123456789");
+    expect(normalizeIranianPhoneNumber("00989123456789")).toBe("09123456789");
+  });
+
   it("keeps the structured grade, education type and track from an account", () => {
     const form = studentToForm({
       id: "student-1",
@@ -19,12 +30,21 @@ describe("student education form", () => {
     });
   });
 
+  it("uses the account phone number as the editable login contact", () => {
+    const form = studentToForm({
+      id: "student-2",
+      name: "مها کرام",
+      user: { id: "user-2", username: "09123456789", phoneNumber: "09123456789" },
+    });
+    expect(form.username).toBe("09123456789");
+  });
+
   it("sends structured education identifiers for server-side catalog validation", () => {
     const payload = studentPayload(
       {
         ...emptyStudentForm(),
         name: "مها کرام",
-        username: "mahakaram",
+        username: "۰۹۱۲۳۴۵۶۷۸۹",
         password: "secure-development-password",
         gradeId: "12",
         educationTypeId: "theoretical",
@@ -37,6 +57,7 @@ describe("student education form", () => {
       educationTypeId: "theoretical",
       trackId: "experimental_sciences",
     });
+    expect(normalizeIranianPhoneNumber(payload.username)).toBe("09123456789");
   });
 
   it("does not invent a school grade for an independent learner", () => {

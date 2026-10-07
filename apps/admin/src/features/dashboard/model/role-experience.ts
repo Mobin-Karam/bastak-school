@@ -64,6 +64,13 @@ const sharedActions: Record<string, RoleQuickAction> = {
     capability: "plans.read",
     icon: Calendar,
   },
+  schedule: {
+    to: "/admin/schedule",
+    label: "برنامه هفتگی",
+    description: "کلاس‌ها و برنامه هفتگی مرتبط با شما را ببینید",
+    capability: "schedule.read",
+    icon: Calendar,
+  },
   learning: {
     to: "/admin/learning",
     label: "یادگیری و مرور",
@@ -167,6 +174,13 @@ const sharedActions: Record<string, RoleQuickAction> = {
     description: "پیشرفت، برنامه و ارتباط خانوادگی را دنبال کنید",
     capability: "guardian.students.read",
     icon: Home,
+  },
+  myAttendance: {
+    to: "/admin/my-attendance",
+    label: "حضور من",
+    description: "وضعیت حضور و غیاب ثبت‌شده خود را ببینید",
+    capability: "attendance.self.read",
+    icon: ClipboardCheck,
   },
   live: {
     to: "/admin/communication/live",
@@ -302,8 +316,10 @@ const englishActionCopy: Record<string, Pick<RoleQuickAction, "label" | "descrip
 };
 
 const roleActions: Partial<Record<RoleCode, RoleQuickAction[]>> = {
+  STUDENT: [sharedActions.schedule, sharedActions.myAttendance, sharedActions.settings],
   GUARDIAN: [
     sharedActions.family,
+    sharedActions.schedule,
     sharedActions.students,
     sharedActions.planner,
     sharedActions.reports,
@@ -311,6 +327,7 @@ const roleActions: Partial<Record<RoleCode, RoleQuickAction[]>> = {
     sharedActions.settings,
   ],
   ADVISOR: [
+    sharedActions.schedule,
     sharedActions.students,
     sharedActions.planner,
     sharedActions.learning,
@@ -321,6 +338,7 @@ const roleActions: Partial<Record<RoleCode, RoleQuickAction[]>> = {
     sharedActions.followUp,
   ],
   TEACHER: [
+    sharedActions.schedule,
     sharedActions.education,
     sharedActions.exams,
     sharedActions.questions,
@@ -333,6 +351,7 @@ const roleActions: Partial<Record<RoleCode, RoleQuickAction[]>> = {
     sharedActions.followUp,
   ],
   MENTOR: [
+    sharedActions.schedule,
     sharedActions.students,
     sharedActions.planner,
     sharedActions.reports,
@@ -351,6 +370,7 @@ const roleActions: Partial<Record<RoleCode, RoleQuickAction[]>> = {
     sharedActions.subjects,
   ],
   ORGANIZATION_ADMIN: [
+    sharedActions.schedule,
     sharedActions.education,
     sharedActions.students,
     sharedActions.permissionRequests,

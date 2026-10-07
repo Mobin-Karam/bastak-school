@@ -20,6 +20,7 @@ import {
 import type { AuthState, AuthStatus } from "../model/auth.types";
 import { authSessionCopy } from "../model/auth-locale";
 import { useOptionalAdminLanguage } from "../../../shared/ui/locale";
+import { hasAllCapabilities, hasAnyCapability, hasCapability } from "../lib/capabilities";
 
 export const AuthContext = createContext<AuthState | null>(null);
 
@@ -267,23 +268,41 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       context: accountContext,
       can(capability) {
         const scoped = accountContext?.workContexts?.find((item) => item.role === activeRole);
-        return (scoped?.capabilities ?? accountContext?.capabilities ?? []).includes(capability);
+        return hasCapability(
+          scoped?.capabilities ?? accountContext?.capabilities ?? [],
+          capability,
+        );
+      },
+      canAny(capabilities) {
+        const scoped = accountContext?.workContexts?.find((item) => item.role === activeRole);
+        return hasAnyCapability(
+          scoped?.capabilities ?? accountContext?.capabilities ?? [],
+          capabilities,
+        );
+      },
+      canAll(capabilities) {
+        const scoped = accountContext?.workContexts?.find((item) => item.role === activeRole);
+        return hasAllCapabilities(
+          scoped?.capabilities ?? accountContext?.capabilities ?? [],
+          capabilities,
+        );
       },
       activeRole,
       capabilities:
         accountContext?.workContexts?.find((item) => item.role === activeRole)?.capabilities ??
         accountContext?.capabilities ??
         [],
-      setActiveRole(role) {
+      async setActiveRole(role) {
         if (!accountContext?.roles.includes(role) || adminPortalRole([role]) !== role) return;
-        setActiveRoleState(role);
         setApiWorkContext(role, accountContext.activeOrganization?.id);
+        const refreshed = await getAccountContext();
+        setAccountContext(refreshed);
+        setActiveRoleState(role);
       },
-      setActiveOrganization(organization: OrganizationSummary | null) {
-        setAccountContext((current) =>
-          current ? { ...current, activeOrganization: organization } : current,
-        );
+      async setActiveOrganization(organization: OrganizationSummary | null) {
         setApiWorkContext(activeRole ?? undefined, organization?.id);
+        const refreshed = await getAccountContext();
+        setAccountContext(refreshed);
       },
     }),
     [copy, finishLocalLogout, message, restore, status, user, accountContext, activeRole],

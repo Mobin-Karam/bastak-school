@@ -2,9 +2,12 @@ import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   AlertTriangle,
+  BookOpenCheck,
+  CalendarCheck2,
   ChevronLeft,
   ChevronRight,
   ChevronsUpDown,
+  Clock3,
   Plus,
   Search,
   Share2,
@@ -23,6 +26,7 @@ import {
 import { StudentPicker } from "../../../shared/ui/StudentPicker";
 import { DataTransferWorkspace } from "../../../shared/ui/data-transfer";
 import { DatePicker } from "../../../shared/ui/date-picker";
+import { DateNavigator } from "../../../shared/ui/date-navigator";
 import { useLocale } from "../../../shared/ui/locale";
 import { plannerCopy, plannerFilterLabel } from "../model/planner-copy";
 import { useModal } from "../../../shared/ui/modal";
@@ -59,6 +63,7 @@ import { useDebouncedValue } from "../hooks/useDebouncedValue";
 import {
   addMinutes,
   comparePlanTasks,
+  dateRange,
   errorMessage,
   filterPlans,
   minutesBetween,
@@ -237,6 +242,46 @@ export function PlannerPage() {
   const totals = summarizePlans(visiblePlans),
     warnings = planWarnings(plans.data ?? []),
     refresh = () => qc.invalidateQueries({ queryKey: ["plans"] });
+  const navigatorDays = useMemo(() => {
+    const byDate = new Map(visiblePlans.map((plan) => [plan.planDate, plan]));
+    return dateRange(range.from, range.to).map((day) => {
+      const plan = byDate.get(day);
+      const complete = Boolean(plan?.tasks.length) && plan?.tasks.every((task) => task.completedAt);
+      return {
+        date: day,
+        items: plan
+          ? [
+              {
+                id: `${day}-activities`,
+                label: `${plan.tasks.length.toLocaleString(profile.locale)} ${copy.activities}`,
+                icon: BookOpenCheck,
+                tone: "brand" as const,
+              },
+              {
+                id: `${day}-state`,
+                label: complete
+                  ? language === "fa"
+                    ? "تکمیل"
+                    : "Complete"
+                  : plan.published
+                    ? language === "fa"
+                      ? "منتشرشده"
+                      : "Published"
+                    : language === "fa"
+                      ? "پیش‌نویس"
+                      : "Draft",
+                icon: complete ? CalendarCheck2 : Clock3,
+                tone: complete
+                  ? ("success" as const)
+                  : plan.published
+                    ? ("brand" as const)
+                    : ("warning" as const),
+              },
+            ]
+          : [],
+      };
+    });
+  }, [copy.activities, language, profile.locale, range.from, range.to, visiblePlans]);
   const savePlan = useMutation({
     mutationFn: (body: ReturnType<typeof toPlanDraft>) => createPlan(students.studentId, body),
     onSuccess: refresh,
@@ -692,6 +737,16 @@ export function PlannerPage() {
           </div>
         ) : null}
       </header>
+      <DateNavigator
+        value={date}
+        onChange={setDate}
+        days={navigatorDays}
+        view={mode === "list" ? "week" : mode}
+        onPrevious={() => setDate(shiftView(date, mode, -1, profile.locale, profile.calendar))}
+        onNext={() => setDate(shiftView(date, mode, 1, profile.locale, profile.calendar))}
+        onToday={() => setDate(todayIso())}
+        ariaLabel={language === "fa" ? "تقویم و برنامه‌های آموزشی" : "Academic calendar and plans"}
+      />
       <section className="flex min-h-10 flex-wrap items-center gap-3 rounded-lg border border-slate-200 bg-white px-3 py-2">
         <button
           className="flex items-center gap-2 text-xs font-bold"

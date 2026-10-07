@@ -4,6 +4,7 @@ import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AuthProvider } from "./AuthProvider";
 import { LoginPage } from "./LoginPage";
+import { ThemeProvider } from "../../shared/theme/theme";
 import { LocaleProvider } from "../../shared/ui/locale";
 
 afterEach(cleanup);
@@ -24,17 +25,19 @@ describe("LoginPage", () => {
 
     render(
       <MemoryRouter>
-        <LocaleProvider>
-          <AuthProvider>
-            <LoginPage />
-          </AuthProvider>
-        </LocaleProvider>
+        <ThemeProvider>
+          <LocaleProvider>
+            <AuthProvider>
+              <LoginPage />
+            </AuthProvider>
+          </LocaleProvider>
+        </ThemeProvider>
       </MemoryRouter>,
     );
 
     await userEvent.click(await screen.findByRole("button", { name: "ورود" }));
 
-    expect(await screen.findByText("نام کاربری لازم است")).toBeInTheDocument();
+    expect(await screen.findByText("شماره همراه معتبر لازم است")).toBeInTheDocument();
 
     expect(screen.getByText("رمز عبور لازم است")).toBeInTheDocument();
   });
@@ -48,45 +51,46 @@ describe("LoginPage", () => {
     ) as typeof fetch;
     render(
       <MemoryRouter>
-        <LocaleProvider>
-          <AuthProvider>
-            <LoginPage />
-          </AuthProvider>
-        </LocaleProvider>
+        <ThemeProvider>
+          <LocaleProvider>
+            <AuthProvider>
+              <LoginPage />
+            </AuthProvider>
+          </LocaleProvider>
+        </ThemeProvider>
       </MemoryRouter>,
     );
     await userEvent.click(await screen.findByText("ورود سریع نقش‌های آزمایشی"));
-    await userEvent.click(screen.getByRole("button", { name: /مدیر سازمان/ }));
-    expect(screen.getByLabelText("نام کاربری")).toHaveValue("e2e.orgadmin.a");
-    expect(screen.getByLabelText("رمز عبور")).toHaveValue("Moshaver-e2e-2026!");
+    await userEvent.click(screen.getAllByRole("button", { name: /مدیر سازمان/ })[0]);
+    expect(screen.getByLabelText("شماره همراه")).toHaveValue("09127873545");
+    expect(screen.getByLabelText("رمز عبور")).toHaveValue("Moshaver-demo-2026!");
     expect(
       screen.getAllByRole("button", {
         name: /سرپرست|مشاور|دبیر|منتور|مدیر محتوا|مدیر سازمان|مدیر پلتفرم|چندنقشی/,
       }),
-    ).toHaveLength(8);
+    ).toHaveLength(7);
   });
 
-  it("switches the sign-in flow to English and changes document direction", async () => {
+  it("keeps localization available while omitting the language-switch control", async () => {
     globalThis.fetch = vi.fn(
       async () => new Response(JSON.stringify({ ok: true, data: { status: "ok" } })),
     ) as typeof fetch;
 
     render(
       <MemoryRouter>
-        <LocaleProvider>
-          <AuthProvider>
-            <LoginPage />
-          </AuthProvider>
-        </LocaleProvider>
+        <ThemeProvider>
+          <LocaleProvider>
+            <AuthProvider>
+              <LoginPage />
+            </AuthProvider>
+          </LocaleProvider>
+        </ThemeProvider>
       </MemoryRouter>,
     );
 
-    await userEvent.click(await screen.findByRole("button", { name: "English" }));
-
-    expect(await screen.findByRole("heading", { name: "Welcome back" })).toBeInTheDocument();
-    expect(screen.getByLabelText("Username")).toHaveAttribute("dir", "ltr");
-    expect(screen.getByRole("button", { name: "Show password" })).toBeInTheDocument();
-    expect(document.documentElement).toHaveAttribute("dir", "ltr");
-    expect(document.documentElement).toHaveAttribute("lang", "en-US");
+    expect(await screen.findByRole("heading", { name: "خوش آمدید" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "English" })).not.toBeInTheDocument();
+    expect(document.documentElement).toHaveAttribute("dir", "rtl");
+    expect(document.documentElement).toHaveAttribute("lang", "fa-IR");
   });
 });

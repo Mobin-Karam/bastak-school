@@ -49,6 +49,7 @@ import {
 import {
   countData,
   emptyStudentForm,
+  normalizeIranianPhoneNumber,
   studentToForm,
   type StudentForm,
 } from "../model/student-form";
@@ -72,25 +73,6 @@ function readableError(error: unknown, fallback: string) {
   )
     return (error as { message: string }).message;
   return fallback;
-}
-
-function normalizeIranianPhoneNumber(value: string): string {
-  const englishDigits = value
-    .trim()
-    .replace(/[۰-۹]/g, (digit) => String("۰۱۲۳۴۵۶۷۸۹".indexOf(digit)))
-    .replace(/[٠-٩]/g, (digit) => String("٠١٢٣٤٥٦٧٨٩".indexOf(digit)));
-
-  let phone = englishDigits.replace(/[^\d+]/g, "");
-
-  if (phone.startsWith("+98")) {
-    phone = `0${phone.slice(3)}`;
-  } else if (phone.startsWith("0098")) {
-    phone = `0${phone.slice(4)}`;
-  } else if (phone.startsWith("98") && phone.length === 12) {
-    phone = `0${phone.slice(2)}`;
-  }
-
-  return phone;
 }
 
 function dateValue(value?: string) {
@@ -201,7 +183,7 @@ export function StudentsPage() {
 
   const usernameConflict = useMemo(() => {
     const username = normalizeIranianPhoneNumber(form.username);
-    if (!username) return null;
+    if (!username || !/^09\d{9}$/.test(username)) return null;
     return (
       students.find(
         (student) =>
@@ -210,9 +192,14 @@ export function StudentsPage() {
       ) ?? null
     );
   }, [form.username, selectedId, students]);
+  const normalizedPhoneNumber = normalizeIranianPhoneNumber(form.username);
+  const phoneNumberInvalid =
+    normalizedPhoneNumber.length > 0 && !/^09\d{9}$/.test(normalizedPhoneNumber);
   const usernameError = usernameConflict
     ? copy.usernameInUse.replace("{name}", usernameConflict.name)
-    : undefined;
+    : phoneNumberInvalid
+      ? copy.phoneNumberInvalid
+      : undefined;
 
   const counts = useMemo(
     () => ({

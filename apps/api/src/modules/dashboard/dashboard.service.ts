@@ -4,22 +4,29 @@ import { ApiException } from "../../common/exceptions/api.exception";
 import { AuthenticatedUser } from "../auth";
 import { AuthorizationService, UserContext } from "../authorization";
 @Injectable()
-export class DashboardService {
+/**
+ * Archived v1 dashboard aggregation. It remains injectable only so the new
+ * home contract can be migrated safely; it is no longer exposed at /dashboard.
+ */
+export class LegacyDashboardService {
   constructor(
     private db: DataSource,
     private authorization: AuthorizationService,
   ) {}
   async get(user: AuthenticatedUser, requested?: string) {
     const roles = user.roles || (user.role === "ADMIN" ? [] : [user.role]);
-    const context = String(
+    const activeRole = String(
       requested || roles.find((r) => r !== "STUDENT") || roles[0] || "",
     ).toUpperCase();
-    if (!context || !roles.includes(context))
+    if (!activeRole || !roles.includes(activeRole))
       throw new ApiException(
         403,
         "CONTEXT_FORBIDDEN",
         "این زمینه برای حساب شما فعال نیست.",
       );
+    // Related school roles use the same server-authorized operational surface
+    // while retaining their actual active role in the response contract.
+    const context = this.dashboardContext(activeRole);
     const ids = await this.studentIds(user.id, context);
     const values = ids.length ? ids : ["__none__"];
     const marks = values.map(() => "?").join(",");
@@ -27,6 +34,7 @@ export class DashboardService {
       (await this.db.query(sql, args))[0]?.n || 0;
     const common = {
       context,
+      activeRole,
       generatedAt: new Date().toISOString(),
       assignedStudents: ids.length,
       unreadConversations: await scalar(
@@ -146,9 +154,15 @@ export class DashboardService {
         organizations: await scalar(`SELECT COUNT(*)n FROM organizations`),
         users: await scalar(`SELECT COUNT(*)n FROM users`),
         signupOverview: {
-          enabledOrganizations: await scalar(`SELECT COUNT(*)n FROM organizations WHERE status='ACTIVE' AND studentSignupEnabled=1 AND studentSignupLimit>studentSignupCount`),
-          remainingCapacity: await scalar(`SELECT COALESCE(SUM(studentSignupLimit-studentSignupCount),0)n FROM organizations WHERE status='ACTIVE' AND studentSignupEnabled=1 AND studentSignupLimit>studentSignupCount`),
-          pendingAssignments: await scalar(`SELECT COUNT(*)n FROM students WHERE onboardingStatus='PENDING_ASSIGNMENT'`),
+          enabledOrganizations: await scalar(
+            `SELECT COUNT(*)n FROM organizations WHERE status='ACTIVE' AND studentSignupEnabled=1 AND studentSignupLimit>studentSignupCount`,
+          ),
+          remainingCapacity: await scalar(
+            `SELECT COALESCE(SUM(studentSignupLimit-studentSignupCount),0)n FROM organizations WHERE status='ACTIVE' AND studentSignupEnabled=1 AND studentSignupLimit>studentSignupCount`,
+          ),
+          pendingAssignments: await scalar(
+            `SELECT COUNT(*)n FROM students WHERE onboardingStatus='PENDING_ASSIGNMENT'`,
+          ),
         },
         systemHealth: { database: "ok", sqlite: true },
         releaseStatus: {
@@ -164,6 +178,7 @@ export class DashboardService {
           ),
         },
       };
+    if (context === "STUDENT") return { ...common };
     if (context === "GUARDIAN") return { ...common, children: ids.length };
     throw new ApiException(
       400,
@@ -183,6 +198,22 @@ export class DashboardService {
       return rows.map((r: { id: string }) => r.id);
     }
     return [];
+  }
+  private dashboardContext(role: string) {
+    if (
+      [
+        "SCHOOL_ADMIN",
+        "SCHOOL_SUPERVISOR",
+        "PRINCIPAL",
+        "DISCIPLINARIAN",
+        "RELIGIOUS_EDUCATION_MANAGER",
+        "GOVERNMENT_EDUCATION_MANAGER",
+      ].includes(role)
+    )
+      return "ORGANIZATION_ADMIN";
+    if (role === "STUDENT_AFFAIRS_MENTOR") return "MENTOR";
+    if (role === "COUNSELOR") return "ADVISOR";
+    return role;
   }
   /**
    * Organization-admin visibility is deliberately derived from active
@@ -283,13 +314,31 @@ export class DashboardService {
     const marks = organizationIds.map(() => "?").join(",");
     const scope = `FROM students s WHERE EXISTS(SELECT 1 FROM organization_memberships m WHERE m.userId=s.userId AND m.organizationId IN (${marks}) AND m.status='ACTIVE')`;
     const scalar = async (condition: string, args = organizationIds) =>
-      Number((await this.db.query(`SELECT COUNT(DISTINCT s.id) n ${scope} AND (${condition})`, args))[0]?.n || 0);
+      Number(
+        (
+          await this.db.query(
+            `SELECT COUNT(DISTINCT s.id) n ${scope} AND (${condition})`,
+            args,
+          )
+        )[0]?.n || 0,
+      );
     return {
-      noPlan: await scalar("NOT EXISTS(SELECT 1 FROM plans p WHERE p.studentId=s.id AND p.date=date('now') AND p.status='PUBLISHED')"),
-      noReport: await scalar("NOT EXISTS(SELECT 1 FROM daily_reports dr WHERE dr.studentId=s.id AND dr.planDate=date('now'))"),
-      syncFailed: await scalar("EXISTS(SELECT 1 FROM student_presence sp WHERE sp.studentId=s.id AND sp.syncStatus='failed')"),
-      openIssues: await scalar("EXISTS(SELECT 1 FROM task_issues ti WHERE ti.studentId=s.id AND ti.status='OPEN')"),
-      noAdvisor: await scalar(`NOT EXISTS(SELECT 1 FROM user_relationships ur WHERE ur.toStudentId=s.id AND ur.organizationId IN (${marks}) AND ur.type='ADVISOR_OF' AND ur.status='ACTIVE')`, [...organizationIds, ...organizationIds]),
+      noPlan: await scalar(
+        "NOT EXISTS(SELECT 1 FROM plans p WHERE p.studentId=s.id AND p.date=date('now') AND p.status='PUBLISHED')",
+      ),
+      noReport: await scalar(
+        "NOT EXISTS(SELECT 1 FROM daily_reports dr WHERE dr.studentId=s.id AND dr.planDate=date('now'))",
+      ),
+      syncFailed: await scalar(
+        "EXISTS(SELECT 1 FROM student_presence sp WHERE sp.studentId=s.id AND sp.syncStatus='failed')",
+      ),
+      openIssues: await scalar(
+        "EXISTS(SELECT 1 FROM task_issues ti WHERE ti.studentId=s.id AND ti.status='OPEN')",
+      ),
+      noAdvisor: await scalar(
+        `NOT EXISTS(SELECT 1 FROM user_relationships ur WHERE ur.toStudentId=s.id AND ur.organizationId IN (${marks}) AND ur.type='ADVISOR_OF' AND ur.status='ACTIVE')`,
+        [...organizationIds, ...organizationIds],
+      ),
     };
   }
   private async organizationAdvisorCoverage(organizationIds: string[]) {

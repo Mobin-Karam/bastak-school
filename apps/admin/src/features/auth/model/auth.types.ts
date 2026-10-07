@@ -13,10 +13,12 @@ export type AuthState = {
   hasRole: (role: User["role"]) => boolean;
   context: AccountContext | null;
   can: (capability: string) => boolean;
+  canAny: (capabilities: readonly string[]) => boolean;
+  canAll: (capabilities: readonly string[]) => boolean;
   activeRole: AccountContext["roles"][number] | null;
   capabilities: string[];
-  setActiveRole: (role: AccountContext["roles"][number]) => void;
-  setActiveOrganization: (organization: OrganizationSummary | null) => void;
+  setActiveRole: (role: AccountContext["roles"][number]) => Promise<void>;
+  setActiveOrganization: (organization: OrganizationSummary | null) => Promise<void>;
 };
 
 export type LoginResponse = {

@@ -1,7 +1,19 @@
+import { useAuth } from "../../auth";
+import { GuardianPage } from "../../guardian";
 import { RoleDashboard } from "../components/RoleDashboard";
+import { StudentDashboard } from "../components/StudentDashboard";
 import { useDashboardData } from "../hooks/useDashboardData";
 
 export function DashboardPage() {
+  const auth = useAuth();
+
+  if (auth.activeRole === "STUDENT") return <StudentDashboard />;
+  if (auth.activeRole === "GUARDIAN") return <GuardianPage />;
+
+  return <OperationalDashboard />;
+}
+
+function OperationalDashboard() {
   const dashboard = useDashboardData();
 
   return (

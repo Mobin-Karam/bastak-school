@@ -16,6 +16,25 @@ export type StudentForm = {
   targetRank: string;
   dailyCapacity: string;
 };
+export function normalizeIranianPhoneNumber(value: string) {
+  const englishDigits = value
+    .trim()
+    .replace(/[۰-۹]/g, (digit) => String("۰۱۲۳۴۵۶۷۸۹".indexOf(digit)))
+    .replace(/[٠-٩]/g, (digit) => String("٠١٢٣٤٥٦٧٨٩".indexOf(digit)));
+
+  let phone = englishDigits.replace(/[^\d+]/g, "");
+
+  if (phone.startsWith("+98")) {
+    phone = `0${phone.slice(3)}`;
+  } else if (phone.startsWith("0098")) {
+    phone = `0${phone.slice(4)}`;
+  } else if (phone.startsWith("98") && phone.length === 12) {
+    phone = `0${phone.slice(2)}`;
+  }
+
+  return phone;
+}
+
 export function emptyStudentForm(): StudentForm {
   return {
     name: "",
@@ -38,7 +57,12 @@ export function emptyStudentForm(): StudentForm {
 export function studentToForm(student: Student): StudentForm {
   return {
     name: student.name || "",
-    username: student.user?.username || student.username || "",
+    username:
+      student.user?.phoneNumber ||
+      student.user?.username ||
+      student.phoneNumber ||
+      student.username ||
+      "",
     password: "",
     learnerProfile: student.learnerProfile || "school",
     independentType: student.independentType || "",

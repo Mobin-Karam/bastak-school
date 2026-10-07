@@ -25,14 +25,14 @@ function isThemePreference(value: string | null): value is ThemePreference {
 }
 
 function storedPreference(): ThemePreference {
-  if (typeof window === "undefined") return "system";
+  if (typeof window === "undefined") return "light";
   const stored = window.localStorage.getItem(STORAGE_KEY);
-  return isThemePreference(stored) ? stored : "system";
+  return isThemePreference(stored) ? stored : "light";
 }
 
 function resolveTheme(preference: ThemePreference) {
   if (preference !== "system") return preference;
-  return window.matchMedia(SYSTEM_QUERY).matches ? "dark" : "light";
+  return window.matchMedia?.(SYSTEM_QUERY).matches ? "dark" : "light";
 }
 
 export function applyTheme(preference: ThemePreference) {
@@ -54,10 +54,13 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   );
 
   useEffect(() => {
-    const media = window.matchMedia(SYSTEM_QUERY);
     const sync = () => setResolvedTheme(applyTheme(preference));
     sync();
-    if (preference === "system") media.addEventListener("change", sync);
+    if (preference !== "system") return undefined;
+
+    const media = window.matchMedia?.(SYSTEM_QUERY);
+    if (!media) return undefined;
+    media.addEventListener("change", sync);
     return () => media.removeEventListener("change", sync);
   }, [preference]);
 

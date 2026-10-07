@@ -16,6 +16,12 @@ import { ok } from "../../common/utils/envelope";
 import { AuthenticatedUser, AuthService } from "./auth.service";
 import { ChangePasswordDto } from "./dto/change-password.dto";
 import { LoginDto } from "./dto/login.dto";
+import {
+  CreatePhoneNumberChangeRequestDto,
+  ChangeOwnPhoneNumberDto,
+  ReviewPhoneNumberChangeRequestDto,
+} from "./dto/phone-number-change.dto";
+import { RequireCapabilities } from "../../common/decorators/capabilities.decorator";
 
 @Controller("auth")
 export class AuthController {
@@ -82,6 +88,72 @@ export class AuthController {
       throw new ApiException(401, "UNAUTHORIZED", "لطفاً وارد حساب شوید.");
     return this.auth
       .changePassword(user, dto.currentPassword, dto.newPassword)
+      .then(ok);
+  }
+
+  @Post("profile/phone")
+  async changeOwnPhoneNumber(
+    @CurrentUser() user: AuthenticatedUser | null,
+    @Body() dto: ChangeOwnPhoneNumberDto,
+  ) {
+    if (!user)
+      throw new ApiException(401, "UNAUTHORIZED", "لطفاً وارد حساب شوید.");
+    return this.auth.changeOwnPhoneNumber(user, dto.phoneNumber).then(ok);
+  }
+
+  @Post("profile/phone-requests")
+  async requestPhoneNumberChange(
+    @CurrentUser() user: AuthenticatedUser | null,
+    @Body() dto: CreatePhoneNumberChangeRequestDto,
+  ) {
+    if (!user)
+      throw new ApiException(401, "UNAUTHORIZED", "لطفاً وارد حساب شوید.");
+    return this.auth
+      .createPhoneNumberChangeRequest(
+        user,
+        dto.organizationId,
+        dto.phoneNumber,
+        dto.reason,
+      )
+      .then(ok);
+  }
+
+  @Get("phone-change-requests")
+  @RequireCapabilities("account_change_requests.read")
+  phoneChangeRequests(
+    @CurrentUser() user: AuthenticatedUser,
+    @Req() req: FastifyRequest,
+  ) {
+    const organizationId = req.headers["x-organization-id"];
+    return this.auth
+      .listPhoneNumberChangeRequests(
+        user,
+        typeof organizationId === "string" ? organizationId : undefined,
+      )
+      .then(ok);
+  }
+
+  @Post("phone-change-requests/:id/approve")
+  @RequireCapabilities("account_change_requests.manage")
+  approvePhoneChange(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param("id") id: string,
+    @Body() dto: ReviewPhoneNumberChangeRequestDto,
+  ) {
+    return this.auth
+      .reviewPhoneNumberChangeRequest(user, id, true, dto.reviewNote)
+      .then(ok);
+  }
+
+  @Post("phone-change-requests/:id/reject")
+  @RequireCapabilities("account_change_requests.manage")
+  rejectPhoneChange(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param("id") id: string,
+    @Body() dto: ReviewPhoneNumberChangeRequestDto,
+  ) {
+    return this.auth
+      .reviewPhoneNumberChangeRequest(user, id, false, dto.reviewNote)
       .then(ok);
   }
 

@@ -1,16 +1,26 @@
 import {
   Building2,
+  CalendarDays,
   ClipboardCheck,
+  CalendarClock,
   FileSpreadsheet,
   LayoutDashboard,
   School,
   Settings,
+  UserRound,
   UserRoundCheck,
   UsersRound,
 } from "lucide-react";
 import type { AdminLanguage } from "../../../shared/ui/locale";
 
 export const educationNavigation = [
+  {
+    path: "schedule",
+    title: "برنامه هفتگی",
+    description: "کلاس‌ها و برنامه هفتگی مدرسه",
+    icon: CalendarClock,
+    capability: "schedule.read",
+  },
   {
     path: "classes",
     title: "کلاس‌ها",
@@ -32,12 +42,28 @@ export const educationNavigation = [
     icon: ClipboardCheck,
     capability: "attendance.read",
   },
+  {
+    path: "my-attendance",
+    title: "حضور و غیاب من",
+    description: "وضعیت‌های حضور ثبت‌شده برای حساب من",
+    icon: ClipboardCheck,
+    capability: "attendance.self.read",
+  },
+  {
+    path: "leave-requests",
+    title: "درخواست‌های مرخصی",
+    description: "مدیریت درخواست‌های مرخصی دانش‌آموزان",
+    icon: ClipboardCheck,
+    capability: "leave.read",
+  },
 ] as const;
 
 export const educationCapabilities = [
   "classes.read",
+  "schedule.read",
   "class_groups.read",
   "attendance.read",
+  "leave.read",
 ] as const;
 
 export const adminNavigation = [
@@ -65,6 +91,13 @@ export const adminNavigation = [
         description: "فهرست و پرونده طلبه‌های در دسترس شما",
         icon: UsersRound,
         capability: "students.read",
+      },
+      {
+        path: "family",
+        title: "خانه خانواده",
+        description: "پیگیری اطلاعات و حضور فرزندان مرتبط",
+        icon: UsersRound,
+        capability: "guardian.students.read",
       },
       {
         path: "registration",
@@ -153,6 +186,8 @@ const roleSectionTitles: Record<
   STUDENT: { خانه: "خانه من", مدیریت: "پرونده من" },
   GUARDIAN: { خانه: "خانه اولیاء", مدیریت: "فرزند من" },
   ORGANIZATION_ADMIN: { خانه: "نمای مدرسه", آموزش: "عملیات آموزشی", مدیریت: "مدیریت مدرسه" },
+  SCHOOL_ADMIN: { خانه: "نمای مدرسه", آموزش: "عملیات آموزشی", مدیریت: "مدیریت مدرسه" },
+  SCHOOL_SUPERVISOR: { خانه: "میز ناظر", آموزش: "کلاس و حضور", مدیریت: "طلبه‌ها" },
   PLATFORM_ADMIN: { خانه: "نمای پلتفرم", مدیریت: "مدارس و کاربران", سامانه: "سامانه" },
 };
 
@@ -162,9 +197,81 @@ const roleTitles: Record<string, Record<string, string>> = {
   COUNSELOR: { "": "میز مشاور", students: "طلبه‌های من" },
   DISCIPLINARIAN: { "": "میز ناظم", students: "طلبه‌ها", dormitory: "خوابگاه" },
   PRINCIPAL: { "": "داشبورد مدیریت" },
+  SCHOOL_ADMIN: { "": "داشبورد مدیریت" },
+  SCHOOL_SUPERVISOR: { "": "میز ناظر", students: "طلبه‌ها" },
 };
 
+/** Student navigation is intentionally a small, personal product surface. */
+const studentNavigation = [
+  {
+    section: "خانه",
+    items: [
+      {
+        path: "",
+        title: "خانه",
+        description: "تقویم، کلاس جاری، اوقات شرعی و حضور من",
+        icon: LayoutDashboard,
+      },
+    ],
+  },
+  {
+    section: "برنامه من",
+    items: [
+      {
+        path: "schedule",
+        title: "برنامه هفتگی",
+        description: "کلاس‌ها و استادهای هر روز هفته",
+        icon: CalendarDays,
+        capability: "schedule.read",
+      },
+    ],
+  },
+  {
+    section: "ثبت‌نام",
+    items: [
+      {
+        path: "student-registration",
+        title: "ثبت‌نام و پرونده",
+        description: "این بخش به‌زودی در دسترس قرار می‌گیرد",
+        icon: UserRoundCheck,
+      },
+    ],
+  },
+  {
+    section: "پروفایل",
+    items: [
+      {
+        path: "profile",
+        title: "پروفایل من",
+        description: "نام نمایشی و اطلاعات پروفایل",
+        icon: UserRound,
+      },
+    ],
+  },
+  {
+    section: "تنظیمات",
+    items: [
+      {
+        path: "settings",
+        title: "تنظیمات",
+        description: "شماره همراه، گذرواژه و نشست‌ها",
+        icon: Settings,
+      },
+    ],
+  },
+] as const;
+
 export function navigationForCapabilities(capabilities: readonly string[], role?: string | null) {
+  if (role === "STUDENT") {
+    return studentNavigation
+      .map((group) => ({
+        ...group,
+        items: group.items.filter(
+          (item) => !("capability" in item) || capabilities.includes(item.capability),
+        ),
+      }))
+      .filter((group) => group.items.length);
+  }
   const titles = role ? roleTitles[role] : undefined;
   return adminNavigation
     .map((group) => ({
@@ -209,8 +316,13 @@ function routeMatches(pattern: string, path: string) {
 
 export function resolveAdminNavigation(pathname: string) {
   const path = normalizeAdminPath(pathname);
+  const personalItems = studentNavigation.flatMap((group) =>
+    group.items.map((item) => ({ ...item, section: group.section })),
+  );
   return (
-    flatAdminNavigation.find((item) => routeMatches(item.path, path)) || flatAdminNavigation[0]
+    flatAdminNavigation.find((item) => routeMatches(item.path, path)) ||
+    personalItems.find((item) => routeMatches(item.path, path)) ||
+    flatAdminNavigation[0]
   );
 }
 

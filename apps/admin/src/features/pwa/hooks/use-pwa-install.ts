@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 type BeforeInstallPromptEvent = Event & {
   prompt: () => Promise<void>;
@@ -16,14 +16,19 @@ export function usePWAInstall() {
   const [dismissed, setDismissed] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [isIOS, setIsIOS] = useState(false);
+  const [isAndroid, setIsAndroid] = useState(false);
 
   useEffect(() => {
-    const standalone = window.matchMedia("(display-mode: standalone)").matches ||
+    const standalone =
+      window.matchMedia("(display-mode: standalone)").matches ||
       Boolean((navigator as Navigator & { standalone?: boolean }).standalone);
     setInstalled(standalone);
     setIsMobile(window.matchMedia("(max-width: 767px), (pointer: coarse)").matches);
-    setIsIOS(/iPad|iPhone|iPod/.test(navigator.userAgent) ||
-      (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1));
+    setIsIOS(
+      /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+        (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1),
+    );
+    setIsAndroid(/Android/i.test(navigator.userAgent));
 
     const raw = localStorage.getItem(DISMISS_KEY);
     if (raw) setDismissed(Date.now() - Number(raw) < DISMISS_DAYS * 86400000);
@@ -32,7 +37,11 @@ export function usePWAInstall() {
       event.preventDefault();
       setDeferredPrompt(event as BeforeInstallPromptEvent);
     };
-    const onInstalled = () => { setInstalled(true); setDeferredPrompt(null); localStorage.removeItem(DISMISS_KEY); };
+    const onInstalled = () => {
+      setInstalled(true);
+      setDeferredPrompt(null);
+      localStorage.removeItem(DISMISS_KEY);
+    };
     window.addEventListener("beforeinstallprompt", onBeforeInstall);
     window.addEventListener("appinstalled", onInstalled);
     return () => {
@@ -64,9 +73,13 @@ export function usePWAInstall() {
     dismissInstall,
     installApp,
     isIOS,
+    isAndroid,
     isMobile,
     isInstalled: installed,
-    shouldShowPrompt: !installed && !dismissed && (Boolean(deferredPrompt) || isIOS),
+    // The welcome modal can explain installation before Chromium emits its
+    // deferred prompt; its primary action is enabled as soon as the browser
+    // makes installation available.
+    shouldShowPrompt: !installed && !dismissed,
     trackPWAEvent,
   };
 }

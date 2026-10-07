@@ -15,6 +15,8 @@ import {
   OrganizationMembership,
 } from "../../database/entities/organization-membership.entity";
 import { OrganizationStatus } from "../../database/entities/organization.entity";
+import { Organization } from "../../database/entities/organization.entity";
+import { AccountChangeRequest } from "../../database/entities/account-change-request.entity";
 import { LoginThrottleService } from "./login-throttle.service";
 import {
   isIranianMobile,
@@ -45,6 +47,12 @@ export class AuthService {
     private readonly memberships?: Repository<OrganizationMembership>,
     @Optional() private readonly authorization?: AuthorizationService,
     @Optional() private readonly throttle?: LoginThrottleService,
+    @Optional()
+    @InjectRepository(Organization)
+    private readonly organizations?: Repository<Organization>,
+    @Optional()
+    @InjectRepository(AccountChangeRequest)
+    private readonly accountChangeRequests?: Repository<AccountChangeRequest>,
   ) {
     this.credentials = new SessionCredentialService({
       accessTokenTtlMinutes: this.config.get<number>(
@@ -208,9 +216,10 @@ export class AuthService {
   }
 
   async me(user: AuthenticatedUser) {
-    const session = await this.sessions.findOne({
-      where: { id: user.sessionId },
-    });
+    const [session, account] = await Promise.all([
+      this.sessions.findOne({ where: { id: user.sessionId } }),
+      this.users.findOneBy({ id: user.id }),
+    ]);
     return {
       id: user.id,
       username: user.username,
@@ -218,6 +227,8 @@ export class AuthService {
       roles: user.roles,
       capabilities: user.capabilities,
       csrfToken: session?.csrfToken,
+      phoneNumber: account?.phoneNumber ?? null,
+      phoneNumberChangeAvailable: (account?.phoneNumberChangeCount ?? 0) === 0,
     };
   }
 
@@ -241,9 +252,6 @@ export class AuthService {
         "CONTEXT_UNAVAILABLE",
         "اطلاعات دسترسی در دسترس نیست.",
       );
-    const assignments = await this.authorization.enrich(
-      user as Required<AuthenticatedUser>,
-    );
     const memberships = await this.memberships.find({
       where: {
         user: { id: user.id },
@@ -251,6 +259,7 @@ export class AuthService {
         organization: { status: OrganizationStatus.ACTIVE },
       },
       relations: { organization: true },
+      order: { joinedAt: "ASC" },
     });
     const organizations = memberships.map((membership) => ({
       membershipId: membership.id,
@@ -258,11 +267,23 @@ export class AuthService {
       name: membership.organization.name,
       type: membership.organization.type,
     }));
+    // A regular member must always receive a usable organization work context.
+    // Without this fallback, members of more than one organization authenticate
+    // successfully but make every scoped request without X-Organization-Id.
+    const effectiveOrganizationId =
+      activeOrganizationId ??
+      (roles.includes("PLATFORM_ADMIN") ? undefined : organizations[0]?.id);
+    const assignments = await this.authorization.enrich(
+      user as Required<AuthenticatedUser>,
+      undefined,
+      effectiveOrganizationId,
+    );
     const workContexts = await Promise.all(
       assignments.roles.map(async (role) => {
         const scoped = await this.authorization!.enrich(
           user as Required<AuthenticatedUser>,
           role,
+          effectiveOrganizationId,
         );
         return { role, capabilities: scoped.capabilities };
       }),
@@ -283,8 +304,8 @@ export class AuthService {
       workContexts,
       memberships: organizations,
       activeOrganization:
-        organizations.find((item) => item.id === activeOrganizationId) ??
-        (organizations.length === 1 ? organizations[0] : null),
+        organizations.find((item) => item.id === effectiveOrganizationId) ??
+        null,
       availableOrganizations: organizations,
     };
   }
@@ -309,6 +330,228 @@ export class AuthService {
       id: Not(user.sessionId),
     });
     return { changed: true, otherSessionsRevoked: true };
+  }
+
+  async changeOwnPhoneNumber(user: AuthenticatedUser, phoneNumber: string) {
+    const account = await this.users.findOneBy({ id: user.id });
+    if (!account)
+      throw new ApiException(404, "USER_NOT_FOUND", "حساب کاربری پیدا نشد.");
+    if (!this.isStudentOrGuardian(user))
+      throw new ApiException(
+        403,
+        "PHONE_CHANGE_REVIEW_REQUIRED",
+        "تغییر شماره این حساب باید توسط مدرسه بررسی شود.",
+      );
+    if (account.phoneNumberChangeCount > 0)
+      throw new ApiException(
+        409,
+        "PHONE_CHANGE_REQUEST_REQUIRED",
+        "برای تغییر دوباره شماره، درخواست ثبت کنید.",
+      );
+    const normalized = normalizeIranianMobile(phoneNumber);
+    if (!isIranianMobile(normalized))
+      throw new ApiException(
+        422,
+        "INVALID_PHONE_NUMBER",
+        "شماره همراه معتبر نیست.",
+      );
+    const existing = await this.users.findOne({
+      where: { phoneNumber: normalized },
+    });
+    if (existing && existing.id !== account.id)
+      throw new ApiException(
+        409,
+        "PHONE_NUMBER_TAKEN",
+        "این شماره همراه قبلاً استفاده شده است.",
+      );
+    account.phoneNumber = normalized;
+    account.username = normalized;
+    account.phoneNumberChangeCount += 1;
+    await this.users.save(account);
+    await this.sessions.delete({
+      user: { id: user.id },
+      id: Not(user.sessionId),
+    });
+    return {
+      phoneNumber: account.phoneNumber,
+      changed: true,
+      otherSessionsRevoked: true,
+      requiresReviewForNextChange: true,
+    };
+  }
+
+  async createPhoneNumberChangeRequest(
+    user: AuthenticatedUser,
+    organizationId: string,
+    phoneNumber: string,
+    reason?: string,
+  ) {
+    if (!this.accountChangeRequests || !this.organizations)
+      throw new ApiException(
+        503,
+        "ACCOUNT_CHANGE_UNAVAILABLE",
+        "سامانه درخواست تغییر در دسترس نیست.",
+      );
+    if (!this.isStudentOrGuardian(user))
+      throw new ApiException(
+        403,
+        "FORBIDDEN",
+        "این درخواست فقط برای دانش‌آموز و سرپرست است.",
+      );
+    if (!(user.organizationIds ?? []).includes(organizationId))
+      throw new ApiException(
+        403,
+        "ORGANIZATION_FORBIDDEN",
+        "به این مدرسه دسترسی ندارید.",
+      );
+    const normalized = normalizeIranianMobile(phoneNumber);
+    if (!isIranianMobile(normalized))
+      throw new ApiException(
+        422,
+        "INVALID_PHONE_NUMBER",
+        "شماره همراه معتبر نیست.",
+      );
+    const existing = await this.users.findOne({
+      where: { phoneNumber: normalized },
+    });
+    if (existing && existing.id !== user.id)
+      throw new ApiException(
+        409,
+        "PHONE_NUMBER_TAKEN",
+        "این شماره همراه قبلاً استفاده شده است.",
+      );
+    const pending = await this.accountChangeRequests.findOne({
+      where: {
+        organization: { id: organizationId },
+        user: { id: user.id },
+        kind: "PHONE_NUMBER",
+        status: "PENDING",
+      },
+    });
+    if (pending)
+      throw new ApiException(
+        409,
+        "PHONE_CHANGE_REQUEST_PENDING",
+        "یک درخواست در انتظار بررسی دارید.",
+      );
+    const organization = await this.organizations.findOneBy({
+      id: organizationId,
+    });
+    if (!organization)
+      throw new ApiException(404, "ORGANIZATION_NOT_FOUND", "مدرسه پیدا نشد.");
+    const request = await this.accountChangeRequests.save(
+      this.accountChangeRequests.create({
+        organization,
+        user: { id: user.id } as User,
+        kind: "PHONE_NUMBER",
+        requestedValue: normalized,
+        reason: reason?.trim() || "",
+      }),
+    );
+    return {
+      id: request.id,
+      status: request.status,
+      requestedValue: request.requestedValue,
+      createdAt: request.createdAt,
+    };
+  }
+
+  async listPhoneNumberChangeRequests(
+    user: AuthenticatedUser,
+    organizationId?: string,
+  ) {
+    if (!this.accountChangeRequests || !this.authorization)
+      throw new ApiException(
+        503,
+        "ACCOUNT_CHANGE_UNAVAILABLE",
+        "سامانه درخواست تغییر در دسترس نیست.",
+      );
+    const context = await this.authorization.enrich(
+      user,
+      undefined,
+      organizationId,
+    );
+    this.authorization.requireCapability(
+      context,
+      "account_change_requests.read",
+    );
+    const scope = organizationId ?? context.organizationIds[0];
+    if (!scope)
+      throw new ApiException(
+        422,
+        "ORGANIZATION_REQUIRED",
+        "مدرسه فعال را انتخاب کنید.",
+      );
+    return this.accountChangeRequests.find({
+      where: { organization: { id: scope }, kind: "PHONE_NUMBER" },
+      relations: { user: true, organization: true },
+      order: { createdAt: "DESC" },
+    });
+  }
+
+  async reviewPhoneNumberChangeRequest(
+    user: AuthenticatedUser,
+    id: string,
+    approved: boolean,
+    reviewNote?: string,
+  ) {
+    if (!this.accountChangeRequests || !this.authorization)
+      throw new ApiException(
+        503,
+        "ACCOUNT_CHANGE_UNAVAILABLE",
+        "سامانه درخواست تغییر در دسترس نیست.",
+      );
+    const request = await this.accountChangeRequests.findOne({
+      where: { id, kind: "PHONE_NUMBER" },
+      relations: { organization: true, user: true },
+    });
+    if (!request)
+      throw new ApiException(
+        404,
+        "PHONE_CHANGE_REQUEST_NOT_FOUND",
+        "درخواست پیدا نشد.",
+      );
+    const context = await this.authorization.enrich(
+      user,
+      undefined,
+      request.organization.id,
+    );
+    this.authorization.requireCapability(
+      context,
+      "account_change_requests.manage",
+    );
+    if (request.status !== "PENDING")
+      throw new ApiException(
+        409,
+        "PHONE_CHANGE_REQUEST_REVIEWED",
+        "این درخواست قبلاً بررسی شده است.",
+      );
+    if (approved) {
+      const existing = await this.users.findOne({
+        where: { phoneNumber: request.requestedValue },
+      });
+      if (existing && existing.id !== request.user.id)
+        throw new ApiException(
+          409,
+          "PHONE_NUMBER_TAKEN",
+          "این شماره همراه قبلاً استفاده شده است.",
+        );
+      request.user.phoneNumber = request.requestedValue;
+      request.user.username = request.requestedValue;
+      request.user.phoneNumberChangeCount += 1;
+      await this.users.save(request.user);
+      await this.sessions.delete({ user: { id: request.user.id } });
+    }
+    request.status = approved ? "APPROVED" : "REJECTED";
+    request.reviewNote = reviewNote?.trim() || "";
+    request.reviewedBy = { id: user.id } as User;
+    request.reviewedAt = new Date();
+    await this.accountChangeRequests.save(request);
+    return {
+      id: request.id,
+      status: request.status,
+      reviewedAt: request.reviewedAt,
+    };
   }
 
   async listSessions(user: AuthenticatedUser) {
@@ -352,5 +595,11 @@ export class AuthService {
       where: { user: { id: user.id } },
     });
     return student?.accountStatus === "active";
+  }
+
+  private isStudentOrGuardian(user: AuthenticatedUser) {
+    return (user.roles ?? [user.role]).some(
+      (role) => role === "STUDENT" || role === "GUARDIAN",
+    );
   }
 }

@@ -48,7 +48,8 @@ export class StudentAdministrationService {
   constructor(
     @InjectRepository(Student) private students: Repository<Student>,
     @InjectRepository(User) private users: Repository<User>,
-    @InjectRepository(AttendanceRecord) private attendanceRecords: Repository<AttendanceRecord>,
+    @InjectRepository(AttendanceRecord)
+    private attendanceRecords: Repository<AttendanceRecord>,
     @InjectRepository(OrganizationMembership)
     private memberships: Repository<OrganizationMembership>,
     @InjectRepository(UserRelationship)
@@ -76,17 +77,34 @@ export class StudentAdministrationService {
   }
   async list(user: AuthenticatedUser, organizationId?: string) {
     const context = this.context(user);
-    const schoolWide = context.roles.includes("PLATFORM_ADMIN") ||
-      ["ORGANIZATION_ADMIN", "PRINCIPAL", "DISCIPLINARIAN", "RELIGIOUS_EDUCATION_MANAGER", "GOVERNMENT_EDUCATION_MANAGER"]
-        .some((role) => context.roles.includes(role));
+    const schoolWide =
+      context.roles.includes("PLATFORM_ADMIN") ||
+      [
+        "ORGANIZATION_ADMIN",
+        "PRINCIPAL",
+        "DISCIPLINARIAN",
+        "RELIGIOUS_EDUCATION_MANAGER",
+        "GOVERNMENT_EDUCATION_MANAGER",
+      ].some((role) => context.roles.includes(role));
 
     if (schoolWide) {
       const allowedOrganizationIds = context.roles.includes("PLATFORM_ADMIN")
-        ? (organizationId ? [organizationId] : undefined)
-        : (organizationId ? context.organizationIds.filter((id) => id === organizationId) : context.organizationIds);
-      if (organizationId && allowedOrganizationIds && !allowedOrganizationIds.length) return [];
+        ? organizationId
+          ? [organizationId]
+          : undefined
+        : organizationId
+          ? context.organizationIds.filter((id) => id === organizationId)
+          : context.organizationIds;
+      if (
+        organizationId &&
+        allowedOrganizationIds &&
+        !allowedOrganizationIds.length
+      )
+        return [];
       const rows = await this.students.find({
-        where: allowedOrganizationIds?.length ? { organization: { id: In(allowedOrganizationIds) } } : undefined,
+        where: allowedOrganizationIds?.length
+          ? { organization: { id: In(allowedOrganizationIds) } }
+          : undefined,
         relations: { user: true, organization: true },
         order: { createdAt: "DESC" },
       });
@@ -98,10 +116,15 @@ export class StudentAdministrationService {
       relations: { toStudent: { user: true, organization: true } },
     });
     const own = context.roles.includes("STUDENT")
-      ? await this.students.find({ where: { user: { id: user.id } }, relations: { user: true, organization: true } })
+      ? await this.students.find({
+          where: { user: { id: user.id } },
+          relations: { user: true, organization: true },
+        })
       : [];
     const linked = links.map((link) => link.toStudent);
-    const unique = new Map([...own, ...linked].map((student) => [student.id, student]));
+    const unique = new Map(
+      [...own, ...linked].map((student) => [student.id, student]),
+    );
     return [...unique.values()].map((student) => this.project(student));
   }
 
@@ -140,7 +163,13 @@ export class StudentAdministrationService {
       take: 10,
     });
 
-    const summary = { totalSessions: records.length, present: 0, absent: 0, late: 0, excused: 0 };
+    const summary = {
+      totalSessions: records.length,
+      present: 0,
+      absent: 0,
+      late: 0,
+      excused: 0,
+    };
     for (const record of records) {
       if (record.status === "present") summary.present += 1;
       if (record.status === "absent") summary.absent += 1;
@@ -191,9 +220,16 @@ export class StudentAdministrationService {
     };
   }
 
-  async updateProfile(user: AuthenticatedUser, id: string, dto: UpdateStudentDto) {
+  async updateProfile(
+    user: AuthenticatedUser,
+    id: string,
+    dto: UpdateStudentDto,
+  ) {
     await this.get(user, id, "students.update");
-    const student = await this.students.findOne({ where: { id }, relations: { user: true } });
+    const student = await this.students.findOne({
+      where: { id },
+      relations: { user: true },
+    });
     if (!student) {
       throw new ApiException(404, "NOT_FOUND", "دانش‌آموز یافت نشد.");
     }
@@ -202,16 +238,26 @@ export class StudentAdministrationService {
       ...(dto.name ? { name: dto.name } : {}),
       ...(dto.learnerProfile ? { learnerProfile: dto.learnerProfile } : {}),
       ...(dto.independentType ? { independentType: dto.independentType } : {}),
-      ...(dto.learningLevel !== undefined ? { learningLevel: dto.learningLevel } : {}),
+      ...(dto.learningLevel !== undefined
+        ? { learningLevel: dto.learningLevel }
+        : {}),
       ...(dto.gradeId !== undefined ? { gradeId: dto.gradeId } : {}),
-      ...(dto.educationTypeId !== undefined ? { educationTypeId: dto.educationTypeId } : {}),
+      ...(dto.educationTypeId !== undefined
+        ? { educationTypeId: dto.educationTypeId }
+        : {}),
       ...(dto.trackId !== undefined ? { trackId: dto.trackId } : {}),
       ...(dto.grade !== undefined ? { grade: dto.grade } : {}),
       ...(dto.major !== undefined ? { major: dto.major } : {}),
-      ...(dto.targetUniversity !== undefined ? { targetUniversity: dto.targetUniversity } : {}),
-      ...(dto.targetField !== undefined ? { targetField: dto.targetField } : {}),
+      ...(dto.targetUniversity !== undefined
+        ? { targetUniversity: dto.targetUniversity }
+        : {}),
+      ...(dto.targetField !== undefined
+        ? { targetField: dto.targetField }
+        : {}),
       ...(dto.targetRank !== undefined ? { targetRank: dto.targetRank } : {}),
-      ...(dto.dailyCapacity !== undefined ? { dailyCapacity: dto.dailyCapacity } : {}),
+      ...(dto.dailyCapacity !== undefined
+        ? { dailyCapacity: dto.dailyCapacity }
+        : {}),
     });
 
     if (student.user && dto.phoneNumber) {
@@ -223,7 +269,12 @@ export class StudentAdministrationService {
     }
 
     if (student.user && (dto.name || dto.phoneNumber)) {
-      const merged = { ...(dto.name ? { firstName: dto.name.split(" ")[0] ?? "" } : {}), ...(dto.name ? { lastName: dto.name.split(" ").slice(1).join(" ") ?? "" } : {}) };
+      const merged = {
+        ...(dto.name ? { firstName: dto.name.split(" ")[0] ?? "" } : {}),
+        ...(dto.name
+          ? { lastName: dto.name.split(" ").slice(1).join(" ") ?? "" }
+          : {}),
+      };
       if (Object.keys(merged).length) {
         await this.users.update(student.user.id, merged);
       }
@@ -279,7 +330,9 @@ export class StudentAdministrationService {
         }),
       );
       const organization = dto.organizationId
-        ? await manager.findOne(Organization, { where: { id: dto.organizationId } })
+        ? await manager.findOne(Organization, {
+            where: { id: dto.organizationId },
+          })
         : null;
       if (dto.organizationId && !organization)
         throw new ApiException(404, "NOT_FOUND", "سازمان یافت نشد.");
@@ -359,9 +412,16 @@ export class StudentAdministrationService {
             dto.trackId,
           )
         : null;
-    return this.legacy
-      .update(id, {
-        ...dto,
+    const updated = await this.dataSource.transaction(async (manager) => {
+      const student = await manager.findOneOrFail(Student, {
+        where: { id },
+        relations: { user: true },
+      });
+      const { phoneNumber: requestedPhoneNumber, ...studentFields } = dto;
+      const requestedStudentName = dto.name?.trim();
+      const studentUpdate = {
+        ...studentFields,
+        ...(requestedStudentName ? { name: requestedStudentName } : {}),
         ...(education
           ? {
               gradeId: education.gradeId,
@@ -384,12 +444,47 @@ export class StudentAdministrationService {
               major: "",
             }
           : {
-              learnerProfile: "school",
+              learnerProfile: "school" as const,
               independentType: null,
               learningLevel: "",
             }),
-      })
-      .then((student) => this.project(student!));
+      };
+      manager.merge(Student, student, studentUpdate);
+
+      if (
+        student.user &&
+        (requestedPhoneNumber !== undefined || requestedStudentName)
+      ) {
+        const phoneNumber =
+          requestedPhoneNumber !== undefined
+            ? normalizeIranianMobile(requestedPhoneNumber)
+            : student.user.phoneNumber;
+        if (phoneNumber) {
+          const duplicate = await manager.findOne(User, {
+            where: { phoneNumber },
+          });
+          if (duplicate && duplicate.id !== student.user.id) {
+            throw new ApiException(
+              409,
+              "PHONE_NUMBER_EXISTS",
+              "شماره همراه تکراری است.",
+            );
+          }
+        }
+        const [firstName = "", ...lastNameParts] = student.name
+          .trim()
+          .split(/\s+/);
+        manager.merge(User, student.user, {
+          ...(phoneNumber ? { phoneNumber, username: phoneNumber } : {}),
+          firstName,
+          lastName: lastNameParts.join(" "),
+        });
+        await manager.save(User, student.user);
+      }
+
+      return manager.save(Student, student);
+    });
+    return this.project({ ...updated, user: updated.user ?? undefined });
   }
   async lifecycle(
     actor: AuthenticatedUser,
@@ -538,11 +633,15 @@ export class StudentAdministrationService {
       dailyCapacity: student.dailyCapacity,
       accountStatus: student.accountStatus,
       registrationStatus: student.registrationStatus,
-      organization: student.organization ? { id: student.organization.id, name: student.organization.name } : null,
+      organization: student.organization
+        ? { id: student.organization.id, name: student.organization.name }
+        : null,
+      phoneNumber: student.user?.phoneNumber ?? null,
       user: student.user
         ? {
             id: student.user.id,
             username: student.user.username,
+            phoneNumber: student.user.phoneNumber ?? null,
             status: student.user.status,
           }
         : null,

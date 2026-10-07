@@ -2,12 +2,12 @@ import { api } from "../../../shared/api/api";
 import type { Student } from "../../../shared/types/domain";
 import type { LearningResponse } from "../../learning/learning-model";
 import type { StudentForm } from "../model/student-form";
-import { studentPayload } from "../model/student-form";
+import { normalizeIranianPhoneNumber, studentPayload } from "../model/student-form";
 export const createStudent = (body: StudentForm, organizationId?: string) => {
   const payload = studentPayload(body, true);
   return api.post<Student>("/students", {
     name: payload.name,
-    username: payload.username,
+    phoneNumber: normalizeIranianPhoneNumber(payload.username),
     password: payload.password,
     learnerProfile: payload.learnerProfile,
     independentType: payload.independentType,
@@ -20,8 +20,13 @@ export const createStudent = (body: StudentForm, organizationId?: string) => {
     ...(organizationId ? { organizationId } : {}),
   });
 };
-export const updateStudent = (id: string, body: StudentForm) =>
-  api.patch<Student>(`/students/${id}`, studentPayload(body, false));
+export const updateStudent = (id: string, body: StudentForm) => {
+  const { username, ...payload } = studentPayload(body, false);
+  return api.patch<Student>(`/students/${id}`, {
+    ...payload,
+    ...(username ? { phoneNumber: normalizeIranianPhoneNumber(username) } : {}),
+  });
+};
 export const archiveStudent = (id: string) => api.delete(`/students/${id}`);
 export const listStudents = () => api.get<Student[]>("/students");
 export const studentLifecycle = (

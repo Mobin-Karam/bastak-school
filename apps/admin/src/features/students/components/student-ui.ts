@@ -23,7 +23,13 @@ export function getStudentStatus(student: Student): Exclude<StudentStatusFilter,
 }
 
 export function getStudentUsername(student: Student) {
-  return student.user?.username || student.username || "";
+  return (
+    student.user?.phoneNumber ||
+    student.user?.username ||
+    student.phoneNumber ||
+    student.username ||
+    ""
+  );
 }
 
 export function getStudentProfileCompleteness(student: Student) {

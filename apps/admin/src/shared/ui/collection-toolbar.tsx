@@ -1,9 +1,10 @@
 import { Search, SlidersHorizontal, X } from "lucide-react";
+
 import type { ComponentProps, ReactNode } from "react";
+
 import { useSharedUiCopy } from "./locale";
 import { Button, Input } from "./ui";
 
-/** Compact collection controls modelled after CRM record-index toolbars. */
 export function CollectionToolbar({
   search,
   onSearchChange,
@@ -26,65 +27,247 @@ export function CollectionToolbar({
   actions?: ReactNode;
   resultLabel?: ReactNode;
   onClear?: () => void;
-  /** Gives screen readers a feature-specific name for this collection's controls. */
   label?: string;
-  /** Use inside a bounded scrolling collection when filters must remain reachable. */
   sticky?: boolean;
 }) {
   const copy = useSharedUiCopy();
+
   const resolvedPlaceholder =
     placeholder || (copy.locale.startsWith("en") ? "Search…" : "جست‌وجو…");
+
   const resolvedLabel =
     label || (copy.locale.startsWith("en") ? "Collection tools" : "ابزارهای فهرست");
+
   return (
     <div
-      className={`collection-toolbar min-w-0 ${sticky ? "sticky top-0 z-20 bg-[rgb(var(--surface-card))] py-2 shadow-[0_1px_0_rgb(var(--border-subtle))]" : ""}`}
+      className={`
+        collection-toolbar
+
+        flex
+        min-w-0
+        flex-col
+        gap-2.5
+
+        sm:flex-row
+        sm:flex-wrap
+        sm:items-center
+
+        ${
+          sticky
+            ? `
+              sticky
+              top-0
+              z-20
+
+              bg-[rgb(var(--surface-card)_/_96%)]
+
+              py-2
+
+              shadow-[
+                0_1px_0_rgb(var(--border-subtle))
+              ]
+
+              backdrop-blur-md
+            `
+            : ""
+        }
+      `}
       aria-label={resolvedLabel}
     >
+      {/* Search — primary mobile action */}
       {onSearchChange ? (
-        <label className="relative min-w-0 flex-1 basis-52">
+        <label
+          className="
+            relative
+            order-1
+
+            block
+            w-full
+            min-w-0
+
+            sm:flex-1
+            sm:basis-64
+          "
+        >
           <Search
-            size={16}
-            className="pointer-events-none absolute start-3 top-1/2 -translate-y-1/2 text-slate-400"
+            size={17}
+            className="
+              pointer-events-none
+
+              absolute
+              start-3.5
+              top-1/2
+
+              z-10
+
+              -translate-y-1/2
+
+              text-slate-400
+            "
             aria-hidden="true"
           />
+
           <Input
             type={searchInputType}
             value={search || ""}
             onChange={(event) => onSearchChange(event.target.value)}
             placeholder={resolvedPlaceholder}
-            className="h-9 ps-9 text-xs"
             aria-label={searchLabel || resolvedPlaceholder}
+            className="
+              h-11
+              w-full
+
+              rounded-xl
+
+              ps-10
+              pe-3
+
+              text-sm
+
+              shadow-[
+                0_2px_7px_rgb(15_23_42_/_5%)
+              ]
+
+              sm:h-9
+              sm:text-xs
+            "
           />
         </label>
       ) : null}
-      {filters ? (
-        <div
-          className="flex min-h-9 max-w-full items-center gap-1 overflow-x-auto rounded-md border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-muted))] p-1 scroll-reveal"
-          aria-label={copy.listFilters}
-        >
-          <SlidersHorizontal size={14} className="ms-1 text-slate-400" aria-hidden="true" />
-          {filters}
-        </div>
-      ) : null}
-      {onClear ? (
-        <Button size="sm" variant="ghost" onClick={onClear} aria-label={copy.clearFilters}>
-          <X size={14} /> {copy.clearFilters}
-        </Button>
-      ) : null}
-      {actions ? (
-        <div className="flex min-w-0 flex-1 flex-wrap items-center justify-start gap-2 sm:flex-none sm:justify-end">
-          {actions}
-        </div>
-      ) : null}
+
+      {/* Result count */}
       {resultLabel ? (
         <span
-          className="basis-full text-xs text-slate-500 sm:ms-auto sm:basis-auto"
+          className="
+            order-2
+
+            flex
+            min-h-6
+            items-center
+
+            text-[11px]
+            font-medium
+
+            text-slate-500
+
+            sm:order-5
+            sm:ms-auto
+            sm:text-xs
+
+            dark:text-slate-400
+          "
           role="status"
           aria-live="polite"
         >
           {resultLabel}
         </span>
+      ) : null}
+
+      {/* View / collection actions */}
+      {actions ? (
+        <div
+          className="
+            order-3
+
+            flex
+            w-full
+            min-w-0
+
+            items-center
+
+            [&>*]:w-full
+
+            sm:order-2
+            sm:w-auto
+            sm:flex-none
+
+            sm:[&>*]:w-auto
+          "
+        >
+          {actions}
+        </div>
+      ) : null}
+
+      {/* Active filters */}
+      {filters ? (
+        <div
+          className="
+            order-4
+
+            flex
+            min-h-10
+            w-full
+            max-w-full
+
+            items-center
+            gap-1
+
+            overflow-x-auto
+            overscroll-x-contain
+
+            rounded-xl
+
+            border
+            border-[rgb(var(--border-subtle))]
+
+            bg-[rgb(var(--surface-muted))]
+
+            p-1
+
+            [scrollbar-width:none]
+            [&::-webkit-scrollbar]:hidden
+
+            sm:order-3
+            sm:min-h-9
+            sm:w-auto
+            sm:max-w-[32rem]
+          "
+          aria-label={copy.listFilters}
+        >
+          <SlidersHorizontal
+            size={14}
+            className="
+              ms-1
+              shrink-0
+              text-slate-400
+            "
+            aria-hidden="true"
+          />
+
+          <div
+            className="
+              flex
+              min-w-max
+              items-center
+              gap-1
+            "
+          >
+            {filters}
+          </div>
+        </div>
+      ) : null}
+
+      {/* Clear */}
+      {onClear ? (
+        <Button
+          size="sm"
+          variant="ghost"
+          onClick={onClear}
+          aria-label={copy.clearFilters}
+          className="
+            order-5
+
+            min-h-10
+            self-start
+
+            sm:order-4
+            sm:min-h-9
+          "
+        >
+          <X size={14} aria-hidden="true" />
+
+          <span>{copy.clearFilters}</span>
+        </Button>
       ) : null}
     </div>
   );

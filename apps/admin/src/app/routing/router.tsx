@@ -27,6 +27,18 @@ const ClassGroupsPage = lazy(() =>
 const AttendancePage = lazy(() =>
   import("../../features/attendance").then((m) => ({ default: m.AttendancePage })),
 );
+const MyAttendancePage = lazy(() =>
+  import("../../features/attendance").then((m) => ({ default: m.MyAttendancePage })),
+);
+const GuardianPage = lazy(() =>
+  import("../../features/guardian").then((m) => ({ default: m.GuardianPage })),
+);
+const SchedulePage = lazy(() =>
+  import("../../features/schedule").then((m) => ({ default: m.SchedulePage })),
+);
+const LeaveRequestsPage = lazy(() =>
+  import("../../features/leave-requests").then((m) => ({ default: m.LeaveRequestsPage })),
+);
 const DormitoryPage = lazy(() =>
   import("../../features/dormitory").then((m) => ({ default: m.DormitoryPage })),
 );
@@ -47,6 +59,9 @@ const SettingsPage = lazy(() =>
 );
 const SystemPage = lazy(() =>
   import("../../features/system").then((m) => ({ default: m.SystemPage })),
+);
+const MobileMorePage = lazy(() =>
+  import("../../features/mobile/MobileMorePage").then((m) => ({ default: m.MobileMorePage })),
 );
 
 function RouteScreen({ children }: { children: ReactNode }) {
@@ -101,18 +116,17 @@ function ProtectedRoute() {
 
 export function CapabilityRoute({
   capability,
+  allOf,
   children,
 }: {
   capability: string | readonly string[];
+  allOf?: readonly string[];
   children: ReactNode;
 }) {
   const auth = useAuth();
   const copy = useAdminShellCopy();
-  const allowed =
-    typeof capability === "string"
-      ? auth.can(capability)
-      : capability.some((item) => auth.can(item));
-  if (!allowed) {
+  const allowed = typeof capability === "string" ? auth.can(capability) : auth.canAny(capability);
+  if (!allowed || (allOf?.length && !auth.canAll(allOf))) {
     return (
       <div
         role="alert"
@@ -190,6 +204,16 @@ export const router = createBrowserRouter([
             ),
           },
           {
+            path: "schedule",
+            element: (
+              <CapabilityRoute capability="schedule.read">
+                <RouteScreen>
+                  <SchedulePage />
+                </RouteScreen>
+              </CapabilityRoute>
+            ),
+          },
+          {
             path: "classes",
             element: (
               <CapabilityRoute capability="classes.read">
@@ -215,6 +239,36 @@ export const router = createBrowserRouter([
               <CapabilityRoute capability="attendance.read">
                 <RouteScreen>
                   <AttendancePage />
+                </RouteScreen>
+              </CapabilityRoute>
+            ),
+          },
+          {
+            path: "my-attendance",
+            element: (
+              <CapabilityRoute capability="attendance.self.read">
+                <RouteScreen>
+                  <MyAttendancePage />
+                </RouteScreen>
+              </CapabilityRoute>
+            ),
+          },
+          {
+            path: "family",
+            element: (
+              <CapabilityRoute capability="guardian.students.read">
+                <RouteScreen>
+                  <GuardianPage />
+                </RouteScreen>
+              </CapabilityRoute>
+            ),
+          },
+          {
+            path: "leave-requests",
+            element: (
+              <CapabilityRoute capability="leave.read">
+                <RouteScreen>
+                  <LeaveRequestsPage />
                 </RouteScreen>
               </CapabilityRoute>
             ),
@@ -264,6 +318,14 @@ export const router = createBrowserRouter([
             element: (
               <RouteScreen>
                 <SettingsPage />
+              </RouteScreen>
+            ),
+          },
+          {
+            path: "more",
+            element: (
+              <RouteScreen>
+                <MobileMorePage />
               </RouteScreen>
             ),
           },

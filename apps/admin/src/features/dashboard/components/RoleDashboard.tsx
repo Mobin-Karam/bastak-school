@@ -3,9 +3,11 @@ import {
   BookOpenCheck,
   Building2,
   CalendarDays,
+  Clock3,
   FileQuestion,
   MessageSquare,
   MonitorDot,
+  MapPin,
   PanelsTopLeft,
   RefreshCw,
   ShieldCheck,
@@ -18,6 +20,7 @@ import { useAuth } from "../../auth";
 import { Badge, Button, Card, EmptyState, LoadingState } from "../../../shared/ui/ui";
 import { useLocale } from "../../../shared/ui/locale";
 import { DashboardWorkspace } from "../../../shared/ui/dashboard-workspace";
+import { ZaninBrand } from "../../../shared/ui/zanin-brand";
 import type { DashboardWorkItem, RoleDashboardData } from "../model/dashboard.types";
 import { dashboardCopy } from "../model/dashboard-copy";
 import { DashboardWorkQueue } from "./work/DashboardWorkQueue";
@@ -43,8 +46,28 @@ import {
 import { quickActionsForRole } from "../model/role-experience";
 import { Metric } from "../model/dashboard-metrics";
 import { DashboardMetricGrid } from "./metrics/DashboardMetricGrid";
+import { DashboardCalendar } from "./DashboardCalendar";
+import { MobileDashboardHome } from "./MobileDashboardHome";
+import { todayIso } from "../../../shared/lib/utils";
 
 const n = (value: unknown) => (typeof value === "number" ? value : 0);
+
+function dashboardDisplayRole(role: string) {
+  if (
+    [
+      "SCHOOL_ADMIN",
+      "SCHOOL_SUPERVISOR",
+      "PRINCIPAL",
+      "DISCIPLINARIAN",
+      "RELIGIOUS_EDUCATION_MANAGER",
+      "GOVERNMENT_EDUCATION_MANAGER",
+    ].includes(role)
+  )
+    return "ORGANIZATION_ADMIN";
+  if (role === "STUDENT_AFFAIRS_MENTOR") return "MENTOR";
+  if (role === "COUNSELOR") return "ADVISOR";
+  return role;
+}
 
 export function roleDashboardMetrics(
   data: RoleDashboardData,
@@ -300,7 +323,7 @@ export function RoleDashboard({
   const auth = useAuth();
   const { language, profile } = useLocale();
   const dashboard = dashboardCopy[language];
-  const roleKey = data?.context || auth.activeRole || "";
+  const roleKey = dashboardDisplayRole(data?.activeRole || data?.context || auth.activeRole || "");
   const roleCopy = {
     GUARDIAN: {
       title: dashboard.guardianWorkspaceTitle,
@@ -360,6 +383,7 @@ export function RoleDashboard({
       onChange: syncViewToUrl,
     });
   const [editingBoard, setEditingBoard] = useState(false);
+  const [calendarDate, setCalendarDate] = useState(todayIso);
 
   if (loading) return <LoadingState label={dashboard.workspaceLoading} />;
   if (error || !data)
@@ -548,6 +572,7 @@ export function RoleDashboard({
         </span>
       }
       density={view.density}
+      brand={<ZaninBrand className="max-w-[13rem]" showName={false} />}
       onDensityChange={setDensity}
       densityLabels={{
         label: dashboard.dashboardDensity,
@@ -677,108 +702,117 @@ export function RoleDashboard({
           </Button>
         </>
       }
-    summary={
-  <>
-    {/* =====================================================
-        MOBILE
-        Fixed responsive dashboard.
-        No edit mode.
-        No drag/drop.
-        No resizing.
-        No board/live switch.
-        ===================================================== */}
-    <MobileDashboard items={boardItems} />
-
-    {/* =====================================================
-        TABLET + DESKTOP
-        Keep the customizable dashboard.
-        ===================================================== */}
-    <div className="hidden sm:block">
-      {view.mode === "live" ? (
-        <DashboardLiveOverview
-          title={dashboard.liveOverviewTitle}
-          description={dashboard.liveOverviewDescription}
-          status={dashboard.liveStatus}
-          metrics={
-            boardItems.find(
-              (item) => item.id === "summary",
-            )?.content
-          }
-          pulse={
-            boardItems.find(
-              (item) => item.id === "operational-pulse",
-            )?.content
-          }
-          work={
-            boardItems.find(
-              (item) => item.id === "priority-work",
-            )?.content
-          }
-          supporting={boardItems.filter(
-            (item) =>
-              ![
-                "summary",
-                "operational-pulse",
-                "priority-work",
-              ].includes(item.id),
-          )}
-        />
-      ) : (
-        <DashboardLayoutBoard
-          key={`${
-            editingBoard
-              ? "editable-dashboard"
-              : "dashboard"
-          }:${boardItems
-            .map((item) => item.id)
-            .join("|")}`}
-          items={boardItems}
-          editing={editingBoard}
-          onChange={setWidgetLayout}
-          onReorder={setWidgetOrder}
-          labels={{
-            boardLabel: dashboard.dashboardBoard,
-            footprint: dashboard.widgetFootprint,
-            dragHint: dashboard.dragWidgetHint,
-            moveEarlier: dashboard.moveWidgetEarlier,
-            moveLater: dashboard.moveWidgetLater,
-            makeNarrower: dashboard.makeWidgetNarrower,
-            makeWider: dashboard.makeWidgetWider,
-            makeShorter: dashboard.makeWidgetShorter,
-            makeTaller: dashboard.makeWidgetTaller,
-          }}
-        />
-      )}
-    </div>
-  </>
-}
+      summary={
+        <>
+          <MobileDashboardHome
+            data={data}
+            activeRole={auth.activeRole}
+            capabilities={auth.capabilities}
+            calendarDate={calendarDate}
+            onCalendarDateChange={setCalendarDate}
+          />
+          <div className="hidden min-w-0 gap-3 md:grid">
+            <DashboardCalendar
+              value={calendarDate}
+              onChange={setCalendarDate}
+              capabilities={auth.capabilities}
+              schedule={data.home?.calendar.entries}
+            />
+            <div className="grid gap-3 md:grid-cols-2">
+              <Card className="p-3" aria-label="اوقات شرعی">
+                <div className="flex items-start gap-2">
+                  <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-amber-100 text-amber-700 dark:bg-amber-950/50 dark:text-amber-300">
+                    <MapPin size={18} />
+                  </span>
+                  <div>
+                    <h2 className="text-sm font-black text-ink">اوقات شرعی</h2>
+                    <p className="mt-1 text-xs leading-5 text-slate-500">
+                      {data.home?.prayer?.times
+                        ? `صبح ${data.home.prayer.times.fajr} · ظهر ${data.home.prayer.times.dhuhr} · مغرب ${data.home.prayer.times.maghrib}`
+                        : "اوقات شرعی مدرسه هنوز ثبت نشده است."}
+                    </p>
+                  </div>
+                </div>
+              </Card>
+              <Card className="p-3" aria-label="کلاس اکنون">
+                <div className="flex items-start gap-2">
+                  <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-brand/10 text-brand">
+                    <Clock3 size={18} />
+                  </span>
+                  <div className="min-w-0">
+                    <h2 className="text-sm font-black text-ink">کلاس اکنون</h2>
+                    {data.home?.currentClass ? (
+                      <p className="mt-1 text-xs leading-5 text-slate-500">
+                        {data.home.currentClass.title} · {data.home.currentClass.startTime} تا{" "}
+                        {data.home.currentClass.endTime}
+                        {data.home.currentClass.room ? ` · ${data.home.currentClass.room}` : ""}
+                      </p>
+                    ) : (
+                      <p className="mt-1 text-xs leading-5 text-slate-500">
+                        در این بازه، کلاسی برای شما ثبت نشده است.
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </Card>
+            </div>
+            {data.home?.announcements?.length ? (
+              <Card className="p-3" aria-label="پیام‌های مدرسه">
+                <div className="flex items-center gap-2">
+                  <MessageSquare size={18} className="text-brand" />
+                  <h2 className="text-sm font-black text-ink">پیام‌های مدرسه</h2>
+                </div>
+                <div className="mt-3 grid gap-2 md:grid-cols-2">
+                  {data.home.announcements.slice(0, 4).map((announcement) => (
+                    <article key={announcement.id} className="rounded-lg bg-brand/[0.04] p-3">
+                      <h3 className="text-sm font-bold text-ink">{announcement.title}</h3>
+                      <p className="mt-1 line-clamp-2 text-xs leading-5 text-slate-600">
+                        {announcement.body}
+                      </p>
+                    </article>
+                  ))}
+                </div>
+              </Card>
+            ) : null}
+            {view.mode === "live" ? (
+              <DashboardLiveOverview
+                title={dashboard.liveOverviewTitle}
+                description={dashboard.liveOverviewDescription}
+                status={dashboard.liveStatus}
+                metrics={boardItems.find((item) => item.id === "summary")?.content}
+                pulse={boardItems.find((item) => item.id === "operational-pulse")?.content}
+                work={boardItems.find((item) => item.id === "priority-work")?.content}
+                supporting={boardItems.filter(
+                  (item) => !["summary", "operational-pulse", "priority-work"].includes(item.id),
+                )}
+              />
+            ) : (
+              <DashboardLayoutBoard
+                key={`${editingBoard ? "editable-dashboard" : "dashboard"}:${boardItems
+                  .map((item) => item.id)
+                  .join("|")}`}
+                items={boardItems}
+                editing={editingBoard}
+                onChange={setWidgetLayout}
+                onReorder={setWidgetOrder}
+                labels={{
+                  boardLabel: dashboard.dashboardBoard,
+                  footprint: dashboard.widgetFootprint,
+                  dragHint: dashboard.dragWidgetHint,
+                  moveEarlier: dashboard.moveWidgetEarlier,
+                  moveLater: dashboard.moveWidgetLater,
+                  makeNarrower: dashboard.makeWidgetNarrower,
+                  makeWider: dashboard.makeWidgetWider,
+                  makeShorter: dashboard.makeWidgetShorter,
+                  makeTaller: dashboard.makeWidgetTaller,
+                }}
+              />
+            )}
+          </div>
+        </>
+      }
       primary={null}
     />
-  );
-}
-
-function MobileDashboard({
-  items,
-}: {
-  items: DashboardBoardItem[];
-}) {
-  return (
-    <section
-      aria-label="Dashboard"
-      className="
-        grid min-w-0 gap-3
-        sm:hidden
-      "
-    >
-      {items.map((item) => (
-        <div
-          key={item.id}
-          className="min-w-0"
-        >
-          {item.content}
-        </div>
-      ))}
-    </section>
   );
 }
 

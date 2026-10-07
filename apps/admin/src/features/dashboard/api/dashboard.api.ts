@@ -59,8 +59,10 @@ export function normalizeAttentionStudent(student: V2AttentionStudent): Attentio
   };
 }
 
-export function getAdminDashboard() {
-  return api.get<RoleDashboardData>("/dashboard");
+/** The server verifies this against the authenticated work context. */
+export function getAdminDashboard(context?: string) {
+  const query = context ? `?context=${encodeURIComponent(context)}` : "";
+  return api.get<RoleDashboardData>(`/dashboard/home${query}`);
 }
 
 export function getAdminAttention(limit = 50) {
@@ -72,5 +74,5 @@ export function getAdminAttention(limit = 50) {
 
 export function getDashboardWorkQueue(limit = 20) {
   const safeLimit = Math.min(100, Math.max(1, limit));
-  return api.get<DashboardWorkQueue>(`/dashboard/attention?limit=${safeLimit}`);
+  return api.get<DashboardWorkQueue>(`/dashboard/home/work-queue?limit=${safeLimit}`);
 }

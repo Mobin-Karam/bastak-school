@@ -3,7 +3,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { LocaleProvider } from "../../shared/ui/locale";
 
 const can = vi.fn<(capability: string) => boolean>();
-vi.mock("../features/auth", () => ({ LoginPage: () => null, useAuth: () => ({ can }) }));
+const canAny = vi.fn<(capabilities: readonly string[]) => boolean>();
+const canAll = vi.fn<(capabilities: readonly string[]) => boolean>();
+vi.mock("../../features/auth", () => ({
+  LoginPage: () => null,
+  useAuth: () => ({ can, canAny, canAll }),
+}));
 
 import { CapabilityRoute } from "./router";
 
@@ -12,6 +17,8 @@ describe("protected portal routes", () => {
 
   beforeEach(() => {
     can.mockReset();
+    canAny.mockReset();
+    canAll.mockReset();
     localStorage.clear();
   });
 
@@ -19,11 +26,14 @@ describe("protected portal routes", () => {
     capability: React.ComponentProps<typeof CapabilityRoute>["capability"],
     children: React.ReactNode,
     language: "fa" | "en" = "fa",
+    allOf?: readonly string[],
   ) {
     if (language === "en") localStorage.setItem("moshaver-admin-location", "international");
     return render(
       <LocaleProvider>
-        <CapabilityRoute capability={capability}>{children}</CapabilityRoute>
+        <CapabilityRoute capability={capability} allOf={allOf}>
+          {children}
+        </CapabilityRoute>
       </LocaleProvider>,
     );
   }
@@ -56,11 +66,18 @@ describe("protected portal routes", () => {
     expect(screen.getByText("student directory")).toBeInTheDocument();
   });
   it("renders a section hub when any one of its capabilities is authorized", () => {
-    can.mockImplementation((capability) => capability === "plans.read");
+    canAny.mockImplementation((capabilities) => capabilities.includes("plans.read"));
     renderCapabilityRoute(
       ["exams.read", "plans.read", "learning.read"],
       <span>education hub</span>,
     );
     expect(screen.getByText("education hub")).toBeInTheDocument();
+  });
+
+  it("requires every explicitly required capability", () => {
+    can.mockReturnValue(true);
+    canAll.mockReturnValue(false);
+    renderCapabilityRoute("students.read", <span>student export</span>, "fa", ["students.export"]);
+    expect(screen.queryByText("student export")).not.toBeInTheDocument();
   });
 });

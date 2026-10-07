@@ -1,6 +1,21 @@
-export const DATA_TRANSFER_MODULE: Readonly<{ id: "data-transfer"; version: string; kind: "platform"; dependencies: readonly string[] }>;
+export const DATA_TRANSFER_MODULE: Readonly<{
+  id: "data-transfer";
+  version: string;
+  kind: "platform";
+  dependencies: readonly string[];
+}>;
 export const DEFAULT_FORBIDDEN_FIELDS: readonly string[];
-export function containsForbiddenFields(payload: unknown, fields?: readonly string[]): boolean;
+export const DEFAULT_MAX_TRANSFER_ROWS: number;
+export function containsForbiddenFields(
+  payload: unknown,
+  fields?: readonly string[],
+): boolean;
 export function nonNegativeNumber(value: unknown): number;
 export function positiveNumber(value: unknown, fallback?: number): number;
-export function summarizeCollections(collections: Record<string, unknown[] | number>): Record<string, number>;
+export function summarizeCollections(
+  collections: Record<string, unknown[] | number>,
+): Record<string, number>;
+export function validateTransferRows(
+  rows: unknown,
+  options?: { maxRows?: number; forbiddenFields?: readonly string[] },
+): string[];

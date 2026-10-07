@@ -2,11 +2,11 @@ import { Controller, Get, Query } from "@nestjs/common";
 import { CurrentUser } from "../../common/decorators/current-user.decorator";
 import { ok } from "../../common/utils/envelope";
 import { AuthenticatedUser } from "../auth";
-import { DashboardService } from "./dashboard.service";
+import { LegacyDashboardService } from "./dashboard.service";
 
-@Controller("dashboard")
-export class DashboardController {
-  constructor(private dashboard: DashboardService) {}
+@Controller("archive/dashboard")
+export class LegacyDashboardController {
+  constructor(private dashboard: LegacyDashboardService) {}
 
   @Get()
   get(

@@ -1,6 +1,17 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { BookOpen, GraduationCap, Pencil, Plus, Save, Trash2, UsersRound } from "lucide-react";
+import {
+  BookOpen,
+  Check,
+  ClipboardCheck,
+  GraduationCap,
+  Pencil,
+  Plus,
+  Save,
+  Trash2,
+  UsersRound,
+} from "lucide-react";
 import { useMemo, useState, type ReactNode } from "react";
+import { Link } from "react-router-dom";
 import { listOrganizations } from "../../access/api/access.api";
 import { useAuth } from "../../auth";
 import { useModal } from "../../../shared/ui/modal";
@@ -47,13 +58,16 @@ export function ClassesPage() {
   const copy = useClassesCopy();
   const canManage = auth.can("classes.manage");
   const canRoster = auth.can("classes.roster.manage");
+  const canReadOrganizations = auth.can("organization.read");
   const organizations = useQuery({
     queryKey: ["organizations", "classes"],
     queryFn: listOrganizations,
+    enabled: canReadOrganizations,
   });
   const classes = useQuery({ queryKey: ["classes"], queryFn: () => listClasses() });
-  const [form, setForm] = useState<ClassDraft>(initial);
-  const [editing, setEditing] = useState<string | null>(null);
+  const organizationOptions = canReadOrganizations
+    ? (organizations.data ?? [])
+    : (auth.context?.availableOrganizations ?? []);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const selected = (classes.data || []).find((item) => item.id === selectedId) || null;
   const options = useQuery({
@@ -68,7 +82,6 @@ export function ClassesPage() {
     onSuccess: (row) => {
       refresh();
       setSelectedId(row.id);
-      setEditing(row.id);
       modal.close();
       notify(copy.saved, "success");
     },
@@ -79,8 +92,6 @@ export function ClassesPage() {
     onSuccess: () => {
       refresh();
       setSelectedId(null);
-      setEditing(null);
-      setForm(initial());
       notify(copy.deleted, "success");
     },
     onError: () => notify(copy.deleteFailed, "error"),
@@ -113,31 +124,6 @@ export function ClassesPage() {
     },
     onError: (error) => notify(error instanceof Error ? error.message : copy.saveFailed, "error"),
   });
-  const start = (row?: EducationClass) => {
-    if (!row) {
-      setEditing(null);
-      setSelectedId(null);
-      setForm({
-        ...initial(),
-        organizationId: organizations.data?.length === 1 ? organizations.data[0].id : "",
-      });
-      return;
-    }
-    setSelectedId(row.id);
-    setEditing(row.id);
-    setForm({
-      organizationId: row.organization.id,
-      code: row.code,
-      name: row.name,
-      schoolYear: row.schoolYear,
-      gradeId: row.gradeId,
-      educationTypeId: row.educationTypeId,
-      trackId: row.trackId,
-      capacity: row.capacity,
-      description: row.description,
-      advisorId: row.advisor?.id || null,
-    });
-  };
   const openEditor = (row?: EducationClass) => {
     const draft: ClassDraft = row
       ? {
@@ -154,7 +140,7 @@ export function ClassesPage() {
         }
       : {
           ...initial(),
-          organizationId: organizations.data?.length === 1 ? organizations.data[0].id : "",
+          organizationId: organizationOptions.length === 1 ? organizationOptions[0].id : "",
         };
     modal.open({
       title: row ? copy.editClass : copy.newClass,
@@ -164,7 +150,7 @@ export function ClassesPage() {
         <ClassEditorModal
           initialDraft={draft}
           editingId={row?.id || null}
-          organizations={organizations.data || []}
+          organizations={organizationOptions}
           saving={save.isPending}
           onClose={modal.close}
           onSave={(next) => save.mutate({ id: row?.id || null, draft: next })}
@@ -172,15 +158,11 @@ export function ClassesPage() {
       ),
     });
   };
-  const visible = useMemo(
-    () =>
-      (classes.data || []).filter(
-        (row) => !form.organizationId || row.organization.id === form.organizationId,
-      ),
-    [classes.data, form.organizationId],
-  );
-  if (classes.isLoading || organizations.isLoading) return <LoadingState label={copy.loading} />;
-  if (classes.isError || organizations.isError) return <EmptyState title={copy.loadFailed} />;
+  const visible = useMemo(() => classes.data || [], [classes.data]);
+  if (classes.isLoading || (canReadOrganizations && organizations.isLoading))
+    return <LoadingState label={copy.loading} />;
+  if (classes.isError || (canReadOrganizations && organizations.isError))
+    return <EmptyState title={copy.loadFailed} />;
   if (!auth.can("classes.read")) return <EmptyState title={copy.noAccess} />;
   return (
     <section className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_23rem] xl:items-start">
@@ -261,6 +243,7 @@ export function ClassesPage() {
         loading={options.isLoading}
         canManage={canManage}
         canRoster={canRoster}
+        canTakeAttendance={auth.can("attendance.manage")}
         onBooks={(rows) => saveBooks.mutate(rows)}
         onRoster={(ids) => saveRoster.mutate(ids)}
         onAdvisor={(advisorId) => saveAdvisor.mutate(advisorId)}
@@ -281,6 +264,7 @@ function ClassDetail({
   loading,
   canManage,
   canRoster,
+  canTakeAttendance,
   onBooks,
   onRoster,
   onAdvisor,
@@ -296,6 +280,7 @@ function ClassDetail({
   loading: boolean;
   canManage: boolean;
   canRoster: boolean;
+  canTakeAttendance: boolean;
   onBooks: (books: Array<{ bookId: string; teacherId: string }>) => void;
   onRoster: (ids: string[]) => void;
   onAdvisor: (advisorId: string | null) => void;
@@ -308,20 +293,12 @@ function ClassDetail({
 }) {
   const modal = useModal();
   const copy = useClassesCopy();
-  const [books, setBooks] = useState<Array<{ bookId: string; teacherId: string }>>([]);
-  const [students, setStudents] = useState<string[]>([]);
   if (!classroom)
     return (
       <Card className="p-3 xl:sticky xl:top-16">
         <p className="text-sm text-slate-500">{copy.selectClass}</p>
       </Card>
     );
-  const activeBooks = books.length
-    ? books
-    : classroom.books.map((book) => ({ bookId: book.bookId, teacherId: book.teacher.id }));
-  const activeStudents = students.length
-    ? students
-    : classroom.students.map((student) => student.id);
   const openBooks = () =>
     options &&
     modal.open({
@@ -379,6 +356,9 @@ function ClassDetail({
     });
     if (confirmed) onDelete();
   };
+  const hasStudents = classroom.students.length > 0;
+  const hasTeacher = classroom.books.length > 0;
+  const readyForAttendance = hasStudents && hasTeacher;
   return (
     <Card className="grid gap-3 p-3 xl:sticky xl:top-16">
       <div>
@@ -387,6 +367,12 @@ function ClassDetail({
           {classroom.code} · {classroom.enrollmentCount}/{classroom.capacity} {copy.students}
         </p>
       </div>
+      <section aria-label={copy.setupFlow} className="grid grid-cols-2 gap-2">
+        <ClassSetupStep label={copy.setupClass} complete />
+        <ClassSetupStep label={copy.setupStudents} complete={hasStudents} />
+        <ClassSetupStep label={copy.setupTeachers} complete={hasTeacher} />
+        <ClassSetupStep label={copy.setupAttendance} complete={readyForAttendance} />
+      </section>
       <div className="grid grid-cols-2 gap-2">
         {canManage ? (
           <Button size="sm" variant="ghost" onClick={onEdit}>
@@ -411,7 +397,26 @@ function ClassDetail({
             {copy.manageStudents}
           </Button>
         ) : null}
+        {canTakeAttendance && readyForAttendance ? (
+          <Link
+            to={`/admin/attendance?contextType=class&contextId=${encodeURIComponent(classroom.id)}`}
+            className="col-span-2 inline-flex h-9 items-center justify-center gap-2 rounded-lg bg-brand px-3 text-xs font-semibold text-white transition hover:brightness-95 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand/20"
+          >
+            <ClipboardCheck size={14} />
+            {copy.takeAttendance}
+          </Link>
+        ) : canTakeAttendance ? (
+          <Button className="col-span-2" size="sm" disabled title={copy.attendanceLocked}>
+            <ClipboardCheck size={14} />
+            {copy.takeAttendance}
+          </Button>
+        ) : null}
       </div>
+      {!readyForAttendance ? (
+        <p className="rounded-lg border border-brand/15 bg-brand/5 px-3 py-2 text-xs text-slate-600 dark:text-slate-300">
+          {copy.setupHint}
+        </p>
+      ) : null}
       {loading ? (
         <LoadingState label={copy.loadingOptions} />
       ) : options ? (
@@ -421,135 +426,34 @@ function ClassDetail({
               <BookOpen size={14} />
               {copy.booksAndTeachers}
             </h3>
-            {false && canManage && options ? (
-              <>
-                {options!.books.map((book) => {
-                  const selected = activeBooks.find((item) => item.bookId === book.id);
-                  return (
-                    <div
-                      key={book.id}
-                      className="grid grid-cols-[auto_minmax(0,1fr)] gap-2 rounded-lg bg-slate-50 p-2 dark:bg-slate-900"
-                    >
-                      <input
-                        type="checkbox"
-                        aria-label={`انتخاب ${book.title}`}
-                        checked={!!selected}
-                        onChange={() =>
-                          setBooks(
-                            selected
-                              ? activeBooks.filter((item) => item.bookId !== book.id)
-                              : [
-                                  ...activeBooks,
-                                  { bookId: book.id, teacherId: options!.teachers[0]?.id || "" },
-                                ],
-                          )
-                        }
-                      />
-                      <span className="min-w-0">
-                        <strong className="block truncate text-xs">{book.title}</strong>
-                        <small className="text-xs text-slate-500">{book.category}</small>
-                        {selected ? (
-                          <select
-                            className="mt-1 h-8 w-full rounded border bg-white px-1 text-xs dark:bg-slate-950"
-                            value={selected.teacherId}
-                            onChange={(event) =>
-                              setBooks(
-                                activeBooks.map((item) =>
-                                  item.bookId === book.id
-                                    ? { ...item, teacherId: event.target.value }
-                                    : item,
-                                ),
-                              )
-                            }
-                          >
-                            <option value="">دبیر را انتخاب کنید</option>
-                            {options!.teachers.map((teacher) => (
-                              <option key={teacher.id} value={teacher.id}>
-                                {teacher.name}
-                              </option>
-                            ))}
-                          </select>
-                        ) : null}
-                      </span>
-                    </div>
-                  );
-                })}
-                <Button
-                  size="sm"
-                  variant="soft"
-                  disabled={activeBooks.some((item) => !item.teacherId)}
-                  loading={savingBooks}
-                  onClick={() => onBooks(activeBooks)}
-                >
-                  <Save size={14} />
-                  ذخیره کتاب‌ها
-                </Button>
-              </>
-            ) : (
-              classroom.books.map((book) => (
-                <p
-                  key={book.id}
-                  className="rounded bg-slate-50 px-2 py-1.5 text-xs dark:bg-slate-900"
-                >
-                  {book.title} · {book.teacher.name}
-                </p>
-              ))
-            )}
+            {classroom.books.map((book) => (
+              <p
+                key={book.id}
+                className="rounded bg-slate-50 px-2 py-1.5 text-xs dark:bg-slate-900"
+              >
+                {book.title} · {book.teacher.name}
+              </p>
+            ))}
+            {!classroom.books.length ? (
+              <p className="text-xs text-slate-500">{copy.noTeachers}</p>
+            ) : null}
           </section>
           <section className="grid gap-2 border-t pt-3 dark:border-slate-800">
             <h3 className="flex items-center gap-1 text-xs font-black">
               <UsersRound size={14} />
               {copy.eligibleStudents}
             </h3>
-            {false && canRoster && options ? (
-              <>
-                <div className="grid max-h-56 gap-1 overflow-auto">
-                  {options!.eligibleStudents.map((student) => (
-                    <label
-                      key={student.id}
-                      className="flex items-center gap-2 rounded-lg border border-slate-200 px-2 py-1.5 text-xs dark:border-slate-800"
-                    >
-                      <input
-                        type="checkbox"
-                        checked={activeStudents.includes(student.id)}
-                        onChange={() =>
-                          setStudents(
-                            activeStudents.includes(student.id)
-                              ? activeStudents.filter((id) => id !== student.id)
-                              : [...activeStudents, student.id],
-                          )
-                        }
-                      />
-                      <span>
-                        {student.name}
-                        <small className="me-1 text-slate-500">
-                          {student.major || student.grade}
-                        </small>
-                      </span>
-                    </label>
-                  ))}
-                </div>
-                <Button
-                  size="sm"
-                  variant="soft"
-                  disabled={activeStudents.length > classroom!.capacity}
-                  loading={savingRoster}
-                  onClick={() => onRoster(activeStudents)}
-                >
-                  <Save size={14} />
-                  ذخیره دانش‌آموزان
-                </Button>
-              </>
-            ) : (
-              classroom.students.map((student) => (
-                <p
-                  key={student.id}
-                  className="rounded bg-slate-50 px-2 py-1.5 text-xs dark:bg-slate-900"
-                >
-                  {student.name}
-                </p>
-              ))
-            )}
+            {classroom.students.map((student) => (
+              <p
+                key={student.id}
+                className="rounded bg-slate-50 px-2 py-1.5 text-xs dark:bg-slate-900"
+              >
+                {student.name}
+              </p>
+            ))}
+            {!classroom.students.length ? (
+              <p className="text-xs text-slate-500">{copy.noStudents}</p>
+            ) : null}
           </section>
           {canManage ? (
             <Button
@@ -566,6 +470,25 @@ function ClassDetail({
         </>
       ) : null}
     </Card>
+  );
+}
+
+function ClassSetupStep({ label, complete }: { label: string; complete: boolean }) {
+  return (
+    <div
+      className={`flex min-w-0 items-center gap-2 rounded-lg border px-2 py-2 ${complete ? "border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-emerald-200" : "border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-muted))] text-slate-600 dark:text-slate-300"}`}
+    >
+      <span
+        className={`grid size-5 shrink-0 place-items-center rounded-full text-[10px] font-black ${complete ? "bg-emerald-600 text-white" : "bg-slate-200 text-slate-600 dark:bg-slate-700 dark:text-slate-200"}`}
+      >
+        {complete ? (
+          <Check size={12} strokeWidth={3} aria-hidden="true" />
+        ) : (
+          <span aria-hidden="true">•</span>
+        )}
+      </span>
+      <span className="min-w-0 truncate text-[11px] font-bold">{label}</span>
+    </div>
   );
 }
 function ClassBooksModal({

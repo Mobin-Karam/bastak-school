@@ -1,19 +1,20 @@
 import { useEffect, useState } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { CalendarDays, GraduationCap, Heart, RefreshCw } from "lucide-react";
-import { useAuth } from "../../auth";
-import { useLocale } from "../../../shared/ui/locale";
-import { notify } from "../../../shared/ui/notifications";
+import { useQuery } from "@tanstack/react-query";
 import {
-  Badge,
-  Button,
-  Card,
-  EmptyState,
-  ErrorState,
-  Field,
-  Select,
-  Textarea,
-} from "../../../shared/ui/ui";
+  CalendarCheck2,
+  CalendarDays,
+  Clock3,
+  GraduationCap,
+  MapPin,
+  RefreshCw,
+} from "lucide-react";
+import { useAuth } from "../../auth";
+import { getAdminDashboard } from "../../dashboard/api/dashboard.api";
+import { DashboardCalendar } from "../../dashboard/components/DashboardCalendar";
+import { listSchedule } from "../../schedule/api/schedule.api";
+import { todayIso } from "../../../shared/lib/utils";
+import { useLocale } from "../../../shared/ui/locale";
+import { Badge, Button, Card, EmptyState, ErrorState, Field, Select } from "../../../shared/ui/ui";
 import { guardianApi } from "../api/guardian.api";
 import { ManagementPageHeader } from "../../../shared/ui/management-workspace";
 import { guardianCopy } from "../model/guardian-copy";
@@ -24,9 +25,8 @@ export function GuardianPage() {
   const copy = guardianCopy[language];
   const formatNumber = (value: number) =>
     value.toLocaleString(language === "fa" ? "fa-IR" : "en-US");
-  const queryClient = useQueryClient();
   const [studentId, setStudentId] = useState("");
-  const [message, setMessage] = useState("");
+  const [calendarDate, setCalendarDate] = useState(todayIso);
   const children = useQuery({ queryKey: ["guardian", "students"], queryFn: guardianApi.students });
   const relatedStudents = useQuery({
     queryKey: ["guardian", "relationships"],
@@ -67,19 +67,29 @@ export function GuardianPage() {
     queryFn: () => guardianApi.reports(studentId),
     enabled,
   });
-  const detailQueries = [dashboard, progress, schedule, exams, reports];
-  const encouragement = useMutation({
-    mutationFn: () => guardianApi.encourage(studentId, { message, kind: "SUPPORT" }),
-    onSuccess: async () => {
-      setMessage("");
-      notify(copy.encouragementSent, "success");
-      await queryClient.invalidateQueries({ queryKey: ["guardian", studentId] });
-    },
-    onError: () => notify(copy.encouragementFailed, "error"),
+  const attendance = useQuery({
+    queryKey: ["guardian", studentId, "attendance"],
+    queryFn: () => guardianApi.attendance(studentId),
+    enabled,
   });
+  const schoolHome = useQuery({
+    queryKey: ["dashboard", "guardian-home"],
+    queryFn: () => getAdminDashboard("GUARDIAN"),
+  });
+  const schoolSchedule = useQuery({
+    queryKey: ["schedule", "guardian"],
+    queryFn: listSchedule,
+  });
+  const detailQueries = [dashboard, progress, schedule, exams, reports, attendance];
   const loading = children.isLoading || (enabled && detailQueries.some((query) => query.isLoading));
   const failed = children.isError || detailQueries.some((query) => query.isError);
   const weekly = progress.data?.weekly ?? dashboard.data?.weekly;
+  const selectedWeekday = new Date(`${calendarDate}T12:00:00`).getDay();
+  const selectedSchoolClasses = (schoolSchedule.data ?? []).filter(
+    (entry) => entry.status === "ACTIVE" && entry.weekday === selectedWeekday,
+  );
+  const prayer = schoolHome.data?.home?.prayer;
+  const prayerTimes = prayer && "times" in prayer ? prayer.times : null;
 
   if (children.isLoading)
     return (
@@ -121,6 +131,53 @@ export function GuardianPage() {
           </Select>
         </Field>
       </Card>
+      <DashboardCalendar
+        value={calendarDate}
+        onChange={setCalendarDate}
+        capabilities={auth.capabilities}
+        schedule={schoolSchedule.data ?? []}
+      />
+      <div className="grid gap-3 lg:grid-cols-2">
+        <Card className="p-3">
+          <h2 className="flex items-center gap-2 font-bold">
+            <CalendarDays size={18} className="text-brand" /> برنامه مدرسه
+          </h2>
+          <div className="mt-3 grid gap-2">
+            {selectedSchoolClasses.slice(0, 3).map((entry) => (
+              <div
+                key={entry.id}
+                className="flex items-center gap-3 rounded-lg border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-muted))] p-3 text-sm"
+              >
+                <Clock3 size={16} className="shrink-0 text-brand" />
+                <div className="min-w-0 flex-1">
+                  <p className="truncate font-bold text-ink">{entry.title}</p>
+                  <p className="mt-1 text-xs text-slate-500">
+                    {entry.startTime} تا {entry.endTime}
+                    {entry.room ? ` · ${entry.room}` : ""}
+                  </p>
+                </div>
+              </div>
+            ))}
+            {!selectedSchoolClasses.length ? (
+              <EmptyState title="برنامه‌ای برای این روز ثبت نشده است." />
+            ) : null}
+          </div>
+        </Card>
+        <Card className="p-3">
+          <h2 className="flex items-center gap-2 font-bold">
+            <MapPin size={18} className="text-amber-600" /> اوقات شرعی
+          </h2>
+          {prayerTimes ? (
+            <div className="mt-3 grid grid-cols-3 gap-2 text-center text-sm">
+              <PrayerTime label="صبح" value={prayerTimes.fajr} />
+              <PrayerTime label="ظهر" value={prayerTimes.dhuhr} />
+              <PrayerTime label="مغرب" value={prayerTimes.maghrib} />
+            </div>
+          ) : (
+            <p className="mt-3 text-sm text-slate-500">اوقات شرعی مدرسه هنوز ثبت نشده است.</p>
+          )}
+        </Card>
+      </div>
       {failed ? (
         <ErrorState
           title={copy.detailLoadFailed}
@@ -206,6 +263,46 @@ export function GuardianPage() {
             </Card>
           </div>
           <Card className="p-3">
+            <h2 className="flex items-center gap-2 font-bold">
+              <CalendarCheck2 size={18} /> حضور و غیاب اخیر
+            </h2>
+            <div className="mt-3 grid gap-2 sm:grid-cols-2">
+              {(attendance.data ?? []).slice(0, 6).map((record) => (
+                <div
+                  key={record.id}
+                  className="flex items-center justify-between gap-2 rounded-lg border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-muted))] p-3 text-sm"
+                >
+                  <div>
+                    <p className="font-bold text-ink">{formatDate(record.sessionDate)}</p>
+                    {record.note ? (
+                      <p className="mt-1 text-xs text-slate-500">{record.note}</p>
+                    ) : null}
+                  </div>
+                  <Badge
+                    tone={
+                      record.status === "present"
+                        ? "green"
+                        : record.status === "absent"
+                          ? "red"
+                          : record.status === "late"
+                            ? "amber"
+                            : "blue"
+                    }
+                  >
+                    {record.status === "present"
+                      ? "حاضر"
+                      : record.status === "absent"
+                        ? "غایب"
+                        : record.status === "late"
+                          ? "با تأخیر"
+                          : "موجه"}
+                  </Badge>
+                </div>
+              ))}
+              {!attendance.data?.length ? <EmptyState title="وضعیت حضوری ثبت نشده است." /> : null}
+            </div>
+          </Card>
+          <Card className="p-3">
             <h2 className="font-bold">{copy.relatedResources}</h2>
             <p className="mt-1 text-xs text-slate-500">
               {relatedStudents.data?.find((item) => item.student.id === studentId)?.relationship
@@ -230,36 +327,6 @@ export function GuardianPage() {
               ) : null}
             </div>
           </Card>
-          {auth.can("guardian.encouragement.create") ? (
-            <Card className="p-3">
-              <h2 className="flex items-center gap-2 font-bold">
-                <Heart size={18} /> {copy.encouragement}
-              </h2>
-              <form
-                className="mt-4 grid gap-3"
-                onSubmit={(event) => {
-                  event.preventDefault();
-                  encouragement.mutate();
-                }}
-              >
-                <Field label={copy.encouragementMessage}>
-                  <Textarea
-                    required
-                    maxLength={500}
-                    value={message}
-                    onChange={(event) => setMessage(event.target.value)}
-                  />
-                </Field>
-                <Button
-                  className="w-fit"
-                  loading={encouragement.isPending}
-                  disabled={!message.trim()}
-                >
-                  {copy.sendToStudent}
-                </Button>
-              </form>
-            </Card>
-          ) : null}
         </>
       ) : null}
     </section>
@@ -272,5 +339,14 @@ function Metric({ label, value }: { label: string; value: string }) {
       <p className="text-xs text-slate-500">{label}</p>
       <p className="mt-2 text-xl font-bold">{value}</p>
     </Card>
+  );
+}
+
+function PrayerTime({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-lg bg-amber-50 p-2 dark:bg-amber-950/25">
+      <p className="text-xs text-amber-800 dark:text-amber-200">{label}</p>
+      <p className="mt-1 font-bold text-amber-950 dark:text-amber-100">{value}</p>
+    </div>
   );
 }

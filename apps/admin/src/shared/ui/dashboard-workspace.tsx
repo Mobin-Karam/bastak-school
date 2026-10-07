@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { LayoutGrid, Rows3, Settings2, SlidersHorizontal } from "lucide-react";
+import { LayoutGrid, Rows3, Settings2 } from "lucide-react";
 import { SegmentedControl } from "./segmented-control";
 import { ViewportPopover } from "./popover";
 import { DashboardPreferencesContent } from "./dashboard-preferences-content.tsx/DashboardPreferencesContent";
@@ -21,6 +21,7 @@ export function DashboardWorkspace({
   primary,
   secondary,
   preferences,
+  brand,
 }: {
   title: string;
   description: string;
@@ -42,6 +43,7 @@ export function DashboardWorkspace({
     onVisibilityChange: (id: string, visible: boolean) => void;
     onReset: () => void;
   };
+  brand?: ReactNode;
 }) {
   return (
     <section
@@ -57,18 +59,18 @@ export function DashboardWorkspace({
         className="
   sticky top-16 z-30
     -mx-3
-    flex min-w-0 items-center justify-between gap-3
+     min-w-0 items-center justify-between gap-3
     border-b border-[rgb(var(--border-subtle))]
     bg-[rgb(var(--surface-page))]/95
     px-3 py-2.5
     backdrop-blur-md
     supports-[backdrop-filter]:bg-[rgb(var(--surface-page))]/85
 
-    sm:hidden
+    hidden
   "
       >
         <div className="min-w-0">
-          <h1 className="truncate text-base font-black tracking-tight text-ink">{title}</h1>
+          {/* <h1 className="truncate text-base font-black tracking-tight text-ink">{title}</h1> */}
 
           {freshness ? (
             <div className="mt-0.5 truncate text-[10px] text-slate-500 dark:text-slate-400">
@@ -76,91 +78,6 @@ export function DashboardWorkspace({
             </div>
           ) : null}
         </div>
-
-        <ViewportPopover
-          width={380}
-          align="end"
-          trigger={(triggerProps) => (
-            <button
-              ref={triggerProps.ref}
-              type="button"
-              onClick={triggerProps.onClick}
-              aria-expanded={triggerProps["aria-expanded"]}
-              aria-haspopup={triggerProps["aria-haspopup"]}
-              aria-label={preferences?.label ?? title}
-              title={preferences?.label ?? title}
-              className="
-          inline-flex size-9 shrink-0
-          items-center justify-center
-          rounded-lg
-          border border-[rgb(var(--border-subtle))]
-          bg-[rgb(var(--surface-card))]
-          text-slate-600
-          shadow-sm
-          transition
-
-          hover:border-brand/30
-          hover:bg-[rgb(var(--surface-muted))]
-          hover:text-brand
-
-          focus-visible:outline-none
-          focus-visible:ring-2
-          focus-visible:ring-brand/40
-
-          dark:text-slate-300
-        "
-            >
-              <Settings2 size={17} aria-hidden="true" />
-            </button>
-          )}
-        >
-          <div className="min-w-0">
-            {/* Density */}
-            <div className="border-b border-[rgb(var(--border-subtle))] p-3">
-              <div className="mb-2 text-[11px] font-bold text-slate-500 dark:text-slate-400">
-                {densityLabels.label}
-              </div>
-
-              <SegmentedControl
-                ariaLabel={densityLabels.label}
-                value={density}
-                onValueChange={(value) => onDensityChange(value as "comfortable" | "compact")}
-                options={[
-                  {
-                    value: "comfortable",
-                    label: (
-                      <>
-                        <LayoutGrid size={14} aria-hidden="true" />
-                        {densityLabels.comfortable}
-                      </>
-                    ),
-                  },
-                  {
-                    value: "compact",
-                    label: (
-                      <>
-                        <Rows3 size={14} aria-hidden="true" />
-                        {densityLabels.compact}
-                      </>
-                    ),
-                  },
-                ]}
-              />
-            </div>
-
-            {/* Preferences */}
-            {preferences?.widgets.length ? (
-              <DashboardPreferencesContent preferences={preferences} />
-            ) : null}
-
-            {/* Actions */}
-            {actions ? (
-              <div className="flex flex-wrap items-center gap-2 border-t border-[rgb(var(--border-subtle))] p-3">
-                {actions}
-              </div>
-            ) : null}
-          </div>
-        </ViewportPopover>
       </header>
 
       {/* =========================================================
@@ -177,9 +94,9 @@ export function DashboardWorkspace({
     backdrop-blur-md
     supports-[backdrop-filter]:bg-[rgb(var(--surface-page))]/85
 
-    sm:flex
-    sm:flex-col
-    sm:gap-2
+    md:flex
+    md:flex-col
+    md:gap-2
 
     lg:flex-row
     lg:items-center
@@ -188,6 +105,7 @@ export function DashboardWorkspace({
       >
         {/* Title */}
         <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1.5">
+          {brand ? <div className="shrink-0">{brand}</div> : null}
           <h1 className="shrink-0 text-lg font-black tracking-tight text-ink">{title}</h1>
 
           <p className="min-w-0 text-xs leading-5 text-slate-600 dark:text-slate-300">

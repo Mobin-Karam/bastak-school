@@ -12,7 +12,7 @@ describe("student page locale copy", () => {
     expect(copy.preparingRecords).toBe("Preparing student records...");
     expect(copy.selectStudentTitle).toBe("Select a student");
     expect(copy.usernameInUse.replace("{name}", "Avery")).toBe(
-      "This username is already used by “Avery”.",
+      "This phone number is already used by “Avery”.",
     );
   });
 });

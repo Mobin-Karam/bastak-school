@@ -106,9 +106,11 @@ export function AdminDataTable<T>({
 }) {
   const copy = useSharedUiCopy();
 
-  const showCards = Boolean(mobileCard && displayMode !== "table");
+  // Mobile is always card-first.
+  // displayMode controls the desktop representation.
+  const showCards = Boolean(mobileCard);
 
-  const showTable = displayMode !== "cards" || !mobileCard;
+  const showTable = !mobileCard || displayMode !== "cards";
 
   const selectable = Boolean(onSelectionChange);
 
@@ -225,9 +227,10 @@ export function AdminDataTable<T>({
       {/* Mobile cards */}
       {showCards ? (
         <div
-          className={["grid gap-3", displayMode === "auto" ? "md:hidden" : ""]
+          className={["grid gap-2.5", displayMode !== "cards" ? "md:hidden" : ""]
             .filter(Boolean)
             .join(" ")}
+
           aria-label={copy.cardView(label)}
         >
           {rows.map((row) => {
@@ -328,7 +331,7 @@ export function AdminDataTable<T>({
             "overflow-x-auto",
             "overscroll-x-contain",
 
-            mobileCard && displayMode === "auto" ? "hidden md:block" : "",
+            mobileCard ? "hidden md:block" : "",
 
             scrollClassName,
           ]

@@ -22,6 +22,7 @@ import {
 } from "@/shared/lib/pwa/register-service-worker";
 import { usePWAInstall } from "./hooks/use-pwa-install";
 import { syncOfflineChanges, warmOfflineCache } from "@/shared/lib/offline/offline-sync";
+import { PWA_OPEN_INSTALL_EVENT } from "./install-launcher";
 
 const CORE_ROUTES = ["/", "/offline", "/manifest.webmanifest", "/version.json"];
 
@@ -30,6 +31,7 @@ export function PWAProvider() {
     canInstall,
     dismissInstall,
     installApp,
+    isAndroid,
     isIOS,
     isMobile,
     shouldShowPrompt,
@@ -116,9 +118,19 @@ export function PWAProvider() {
     const timer = window.setTimeout(() => {
       setModalOpen(true);
       trackPWAEvent("pwa_install_shown", { surface: "modal" });
-    }, 5000);
+    }, 900);
     return () => window.clearTimeout(timer);
   }, [shouldShowPrompt, trackPWAEvent]);
+
+  useEffect(() => {
+    const openInstall = () => {
+      setModalOpen(true);
+      setBannerDismissed(false);
+      trackPWAEvent("pwa_install_shown", { surface: "settings" });
+    };
+    window.addEventListener(PWA_OPEN_INSTALL_EVENT, openInstall);
+    return () => window.removeEventListener(PWA_OPEN_INSTALL_EVENT, openInstall);
+  }, [trackPWAEvent]);
 
   const handleUpdate = useCallback(() => {
     if (remoteVersion) {
@@ -163,6 +175,8 @@ export function PWAProvider() {
       />
       <PWAInstallModal
         open={modalOpen}
+        canInstall={canInstall}
+        isAndroid={isAndroid}
         isIOS={isIOS}
         onInstall={handleInstall}
         onDismiss={dismissInstallUI}

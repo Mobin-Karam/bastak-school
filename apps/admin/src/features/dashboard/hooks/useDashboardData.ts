@@ -8,7 +8,7 @@ export function useDashboardData() {
   const organization = auth.context?.activeOrganization?.id || "platform";
   const summary = useQuery({
     queryKey: ["role-dashboard", context, organization],
-    queryFn: getAdminDashboard,
+    queryFn: () => getAdminDashboard(auth.activeRole ?? undefined),
     refetchInterval: 30_000,
     staleTime: 10_000,
   });

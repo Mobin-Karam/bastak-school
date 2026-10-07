@@ -85,12 +85,12 @@ export function DashboardMetricGrid({
           [scrollbar-width:none]
           [&::-webkit-scrollbar]:hidden
 
-          sm:mx-0
-          sm:grid
-          sm:grid-cols-2
-          sm:overflow-visible
-          sm:px-0
-          sm:pb-0
+          md:mx-0
+          md:grid
+          md:grid-cols-2
+          md:overflow-visible
+          md:px-0
+          md:pb-0
 
           lg:grid-cols-3
           2xl:grid-cols-4
@@ -115,11 +115,11 @@ export function DashboardMetricGrid({
 
                 transition-shadow
 
-                sm:w-auto
-                sm:min-w-0
-                sm:shrink
+                md:w-auto
+                md:min-w-0
+                md:shrink
 
-                ${density === "compact" ? "sm:py-2.5" : ""}
+                ${density === "compact" ? "md:py-2.5" : ""}
               `}
             >
               {/* Top accent */}
@@ -139,7 +139,7 @@ export function DashboardMetricGrid({
                     text-[11px] font-semibold
                     text-slate-500
                     dark:text-slate-400
-                    sm:text-xs
+                    md:text-xs
                   "
                 >
                   {item.label}
@@ -149,11 +149,11 @@ export function DashboardMetricGrid({
                   className={`
                     grid size-6 shrink-0
                     place-items-center rounded-md
-                    sm:size-8
+                    md:size-8
                     ${metricToneClass[item.tone]}
                   `}
                 >
-                  <MetricIcon className="size-3 sm:size-3.5" aria-hidden="true" />
+                  <MetricIcon className="size-3 md:size-3.5" aria-hidden="true" />
                 </span>
               </div>
 
@@ -164,7 +164,7 @@ export function DashboardMetricGrid({
                   text-lg font-black
                   tabular-nums tracking-tight
                   text-ink
-                  sm:text-xl
+                  md:text-xl
                 "
               >
                 {typeof item.value === "number" ? item.value.toLocaleString(locale) : item.value}
@@ -177,7 +177,7 @@ export function DashboardMetricGrid({
                   text-[10px] leading-4
                   text-slate-400
                   dark:text-slate-500
-                  sm:text-xs
+                  md:text-xs
                 "
               >
                 {item.hint}
@@ -205,7 +205,7 @@ export function DashboardMetricGrid({
           dark:from-black/35
           dark:via-black/10
 
-          sm:hidden
+          md:hidden
 
           ${showLeftShadow ? "opacity-100" : "opacity-0"}
         `}
@@ -229,7 +229,7 @@ export function DashboardMetricGrid({
           dark:from-black/35
           dark:via-black/10
 
-          sm:hidden
+          md:hidden
 
           ${showRightShadow ? "opacity-100" : "opacity-0"}
         `}

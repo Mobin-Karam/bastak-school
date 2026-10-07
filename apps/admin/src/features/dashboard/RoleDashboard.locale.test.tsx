@@ -41,8 +41,8 @@ describe("RoleDashboard localization", () => {
       </MemoryRouter>,
     );
 
-    expect(screen.getByRole("heading", { name: "Advisor workspace" })).toBeVisible();
-    expect(screen.getByText("Assigned students")).toBeVisible();
+    expect(screen.getAllByRole("heading", { name: "Advisor workspace" })[0]).toBeVisible();
+    expect(screen.getAllByText("Assigned students")[0]).toBeVisible();
     expect(screen.queryByRole("link", { name: "Assessments" })).not.toBeInTheDocument();
     expect(document.documentElement).toHaveAttribute("dir", "ltr");
   });
@@ -84,7 +84,7 @@ describe("RoleDashboard localization", () => {
       </MemoryRouter>,
     );
 
-    expect(screen.getByRole("heading", { name: "Advisor workspace" })).toBeVisible();
+    expect(screen.getAllByRole("heading", { name: "Advisor workspace" })[0]).toBeVisible();
   });
 
   it("keeps unrelated URL context while sharing only presentation choices", () => {
@@ -153,16 +153,16 @@ describe("RoleDashboard localization", () => {
       </MemoryRouter>,
     );
 
-    expect(screen.getByRole("heading", { name: "Platform health" })).toBeVisible();
-    expect(screen.getByText("2.1.0")).toBeVisible();
+    expect(screen.getAllByRole("heading", { name: "Platform health" })[0]).toBeVisible();
+    expect(screen.getAllByText("2.1.0")[0]).toBeVisible();
     expect(screen.getByRole("group", { name: "Dashboard density" })).toBeVisible();
     fireEvent.click(screen.getByRole("button", { name: "Compact" }));
     expect(
       window.localStorage.getItem("moshaver-admin:dashboard-view:role-workspace:PLATFORM_ADMIN"),
     ).toContain('"density":"compact"');
-    fireEvent.click(screen.getByText("Layout"));
-    fireEvent.click(screen.getByRole("checkbox", { name: "Platform health" }));
-    expect(screen.queryByRole("heading", { name: "Platform health" })).not.toBeInTheDocument();
+    fireEvent.click(screen.getAllByRole("button", { name: "Layout" })[0]);
+    fireEvent.click(screen.getAllByRole("checkbox", { name: "Platform health" })[0]);
+    expect(screen.queryAllByRole("heading", { name: "Platform health" })).toHaveLength(0);
     expect(
       window.localStorage.getItem("moshaver-admin:dashboard-view:role-workspace:PLATFORM_ADMIN"),
     ).toContain('"id":"platform-health","zone":"secondary","order":5,"visible":false');

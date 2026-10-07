@@ -1,7 +1,7 @@
 "use strict";
 
 const APP_NAME = "zanin";
-const CACHE_VERSION = "3.0.0";
+const CACHE_VERSION = "3.1.0";
 const CACHE_PREFIX = `${APP_NAME}-pwa`;
 const SHELL_CACHE = `${CACHE_PREFIX}-shell-${CACHE_VERSION}`;
 const RUNTIME_CACHE = `${CACHE_PREFIX}-runtime-${CACHE_VERSION}`;
@@ -15,6 +15,10 @@ const APP_SHELL = [
   "/version.json",
   "/icons/icon-192.png",
   "/icons/icon-512.png",
+  "/app-logo.png",
+  "/zanin-install-promo.webp",
+  "/pwa-install-android-guide.webp",
+  "/pwa-install-ios-guide.webp",
 ];
 
 self.addEventListener("install", (event) => {

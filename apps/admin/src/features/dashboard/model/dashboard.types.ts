@@ -102,6 +102,8 @@ export type FollowUpMetric = {
 
 export type RoleDashboardData = {
   context: string;
+  /** The selected role; context may be a shared dashboard surface for that role. */
+  activeRole?: string;
   generatedAt: string;
   assignedStudents: number;
   unreadConversations: number;
@@ -138,7 +140,13 @@ export type RoleDashboardData = {
   activeUsers?: number;
   inactiveUsers?: number;
   analytics?: { plans?: number };
-  studentHealthSummary?: { noPlan?: number; noReport?: number; syncFailed?: number; openIssues?: number; noAdvisor?: number };
+  studentHealthSummary?: {
+    noPlan?: number;
+    noReport?: number;
+    syncFailed?: number;
+    openIssues?: number;
+    noAdvisor?: number;
+  };
   studentHealth?: Array<{
     id: string;
     name: string;
@@ -158,6 +166,65 @@ export type RoleDashboardData = {
   systemHealth?: { database?: string; sqlite?: boolean };
   releaseStatus?: { version?: string; environment?: string };
   auditSummary?: { events24h?: number; lockedLogins?: number };
-  signupOverview?: { enabledOrganizations?: number; remainingCapacity?: number; pendingAssignments?: number };
+  signupOverview?: {
+    enabledOrganizations?: number;
+    remainingCapacity?: number;
+    pendingAssignments?: number;
+  };
   children?: number;
+  home?: {
+    calendar: {
+      date: string;
+      audience: string;
+      entries: Array<{
+        id: string;
+        title: string;
+        weekday: number;
+        startTime: string;
+        endTime: string;
+        room: string;
+        className: string | null;
+        classId: string | null;
+      }>;
+    };
+    prayer?:
+      | {
+          organizationId: string;
+          date: string;
+          times?: {
+            id: string;
+            date: string;
+            fajr: string;
+            sunrise: string;
+            dhuhr: string;
+            maghrib: string;
+            isha: string;
+            source: string;
+            updatedAt: string;
+          } | null;
+        }
+      | { status: "LOCATION_REQUIRED"; message: string }
+      | null;
+    announcements?: Array<{
+      id: string;
+      audience: "STAFF" | "STUDENTS" | "CLASS";
+      classroomId: string | null;
+      title: string;
+      body: string;
+      status: "DRAFT" | "ACTIVE" | "ARCHIVED";
+      publishedAt: string | null;
+      expiresAt: string | null;
+      createdAt: string;
+    }>;
+    currentClass: {
+      id: string;
+      title: string;
+      weekday: number;
+      startTime: string;
+      endTime: string;
+      room: string;
+      className: string | null;
+      classId: string | null;
+    } | null;
+  };
 };

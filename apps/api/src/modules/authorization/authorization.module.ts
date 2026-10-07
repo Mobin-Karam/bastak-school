@@ -6,6 +6,7 @@ import { UserRoleAssignment } from "../../database/entities/user-role-assignment
 import { AuthorizationService } from "./authorization.service";
 import { Student } from "../../database/entities/student.entity";
 import { Permission } from "../../database/entities/permission.entity";
+import { UserCapabilityGrant } from "../../database/entities/user-capability-grant.entity";
 
 @Global()
 @Module({
@@ -16,6 +17,7 @@ import { Permission } from "../../database/entities/permission.entity";
       UserRelationship,
       Student,
       Permission,
+      UserCapabilityGrant,
     ]),
   ],
   providers: [AuthorizationService],

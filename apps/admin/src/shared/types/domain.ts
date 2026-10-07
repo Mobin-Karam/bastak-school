@@ -7,6 +7,8 @@ export type RoleCode =
   | "CONTENT_MANAGER"
   | "ORGANIZATION_ADMIN"
   | "PLATFORM_ADMIN"
+  | "SCHOOL_ADMIN"
+  | "SCHOOL_SUPERVISOR"
   | "PRINCIPAL"
   | "DISCIPLINARIAN"
   | "RELIGIOUS_EDUCATION_MANAGER"
@@ -48,8 +50,9 @@ export interface AccountContext {
 export interface Student {
   id: string;
   name: string;
-  user?: { id: string; username?: string; role?: Role };
+  user?: { id: string; username?: string; phoneNumber?: string | null; role?: Role };
   username?: string;
+  phoneNumber?: string | null;
   gradeId?: number | null;
   learnerProfile?: "school" | "independent";
   independentType?: "adult" | "gap_year" | "homeschool" | "other" | null;

@@ -60,6 +60,14 @@ export type GuardianDashboard = {
   schedule: GuardianSchedule;
   attention: Array<{ type: string; message: string }>;
 };
+export type GuardianAttendance = Array<{
+  id: string;
+  status: "present" | "absent" | "late" | "excused";
+  note: string;
+  sessionDate: string;
+  organizationId: string;
+  recordedAt: string;
+}>;
 export type GuardianResource = { id: string; title: string; description?: string; url?: string };
 export type RelatedStudent = {
   student: { id: string; name: string };
@@ -79,6 +87,8 @@ export const guardianApi = {
     api.get<GuardianProgress>(`/guardian/students/${studentId}/progress`),
   schedule: (studentId: string) =>
     api.get<GuardianSchedule>(`/guardian/students/${studentId}/schedule`),
+  attendance: (studentId: string) =>
+    api.get<GuardianAttendance>(`/guardian/students/${studentId}/attendance`),
   exams: (studentId: string) => api.get<GuardianExam[]>(`/guardian/students/${studentId}/exams`),
   reports: (studentId: string) =>
     api.get<GuardianReport[]>(`/guardian/students/${studentId}/reports`),

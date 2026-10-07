@@ -10,6 +10,8 @@ export const roleLabels: Record<RoleCode, string> = {
   CONTENT_MANAGER: "مدیر محتوا",
   ORGANIZATION_ADMIN: "مدیر سازمان",
   PLATFORM_ADMIN: "مدیر پلتفرم",
+  SCHOOL_ADMIN: "مدیر مدرسه",
+  SCHOOL_SUPERVISOR: "ناظر مدرسه",
   PRINCIPAL: "مدیریت مدرسه",
   DISCIPLINARIAN: "ناظم",
   RELIGIOUS_EDUCATION_MANAGER: "مسئول آموزش دینی",
@@ -35,6 +37,8 @@ const roleLabelsEn: Record<RoleCode, string> = {
   CONTENT_MANAGER: "Content manager",
   ORGANIZATION_ADMIN: "Organization administrator",
   PLATFORM_ADMIN: "Platform administrator",
+  SCHOOL_ADMIN: "School administrator",
+  SCHOOL_SUPERVISOR: "School supervisor",
   PRINCIPAL: "School principal",
   DISCIPLINARIAN: "Disciplinarian",
   RELIGIOUS_EDUCATION_MANAGER: "Religious education manager",
@@ -50,6 +54,8 @@ const rolePortalTitlesEn: Partial<Record<RoleCode, string>> = {
   CONTENT_MANAGER: "Content studio",
   ORGANIZATION_ADMIN: "Organization administration",
   PLATFORM_ADMIN: "Platform administration",
+  SCHOOL_ADMIN: "School administration",
+  SCHOOL_SUPERVISOR: "School supervision",
 };
 export const roleLabel = (role?: string | null, language: AdminLanguage = "fa") =>
   (language === "en" ? roleLabelsEn : roleLabels)[role as RoleCode] ||

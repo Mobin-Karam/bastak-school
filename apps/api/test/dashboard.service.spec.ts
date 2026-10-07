@@ -1,4 +1,4 @@
-import { DashboardService } from "../src/modules/dashboard/dashboard.service";
+import { LegacyDashboardService } from "../src/modules/dashboard/dashboard.service";
 
 const advisor = {
   id: "advisor-1",
@@ -40,7 +40,10 @@ describe("DashboardService attentionQueue", () => {
         (_: unknown, studentId: string) => studentId === "student-allowed",
       ),
     };
-    const service = new DashboardService(db as never, authorization as never);
+    const service = new LegacyDashboardService(
+      db as never,
+      authorization as never,
+    );
 
     const queue = await service.attentionQueue(advisor, 20);
 
@@ -98,7 +101,7 @@ describe("DashboardService organization dashboard", () => {
         return [{ n: 1 }];
       }),
     };
-    const service = new DashboardService(db as never, {} as never);
+    const service = new LegacyDashboardService(db as never, {} as never);
     const data = await service.get({
       id: "org-admin-1",
       username: "org-admin",
@@ -111,7 +114,13 @@ describe("DashboardService organization dashboard", () => {
     expect(data).toMatchObject({
       context: "ORGANIZATION_ADMIN",
       todayPlanHealth: { plans: 2, tasks: 4, completed: 1 },
-      studentHealthSummary: { noPlan: 2, noReport: 2, syncFailed: 2, openIssues: 2, noAdvisor: 2 },
+      studentHealthSummary: {
+        noPlan: 2,
+        noReport: 2,
+        syncFailed: 2,
+        openIssues: 2,
+        noAdvisor: 2,
+      },
       studentHealth: [
         expect.objectContaining({
           id: "student-1",
@@ -129,21 +138,75 @@ describe("DashboardService platform enrollment overview", () => {
     const db = {
       query: jest.fn(async (sql: string) => {
         if (sql.includes("COUNT(*)n FROM organizations")) return [{ n: 4 }];
-        if (sql.includes("SUM(studentSignupLimit-studentSignupCount)")) return [{ n: 27 }];
-        if (sql.includes("onboardingStatus='PENDING_ASSIGNMENT'")) return [{ n: 3 }];
+        if (sql.includes("SUM(studentSignupLimit-studentSignupCount)"))
+          return [{ n: 27 }];
+        if (sql.includes("onboardingStatus='PENDING_ASSIGNMENT'"))
+          return [{ n: 3 }];
         if (sql.includes("COUNT(*)n FROM users")) return [{ n: 19 }];
         if (sql.includes("chat_messages")) return [{ n: 0 }];
         return [{ n: 0 }];
       }),
     };
-    const service = new DashboardService(db as never, {} as never);
+    const service = new LegacyDashboardService(db as never, {} as never);
     const data = await service.get({
-      id: "platform-1", username: "platform", role: "PLATFORM_ADMIN", roles: ["PLATFORM_ADMIN"], sessionId: "session-1",
+      id: "platform-1",
+      username: "platform",
+      role: "PLATFORM_ADMIN",
+      roles: ["PLATFORM_ADMIN"],
+      sessionId: "session-1",
     });
 
     expect(data).toMatchObject({
       context: "PLATFORM_ADMIN",
-      signupOverview: { enabledOrganizations: 4, remainingCapacity: 27, pendingAssignments: 3 },
+      signupOverview: {
+        enabledOrganizations: 4,
+        remainingCapacity: 27,
+        pendingAssignments: 3,
+      },
+    });
+  });
+});
+
+describe("DashboardService school role surfaces", () => {
+  it("provides a personal dashboard context for a student account", async () => {
+    const service = new LegacyDashboardService(
+      { query: jest.fn(async () => [{ n: 0 }]) } as never,
+      {} as never,
+    );
+
+    const data = await service.get({
+      id: "student-1",
+      username: "student",
+      role: "STUDENT",
+      roles: ["STUDENT"],
+      sessionId: "session-1",
+    });
+
+    expect(data).toMatchObject({
+      context: "STUDENT",
+      activeRole: "STUDENT",
+      assignedStudents: 0,
+    });
+  });
+
+  it("gives a principal the organization dashboard surface without changing the active role", async () => {
+    const service = new LegacyDashboardService(
+      { query: jest.fn(async () => [{ n: 0 }]) } as never,
+      {} as never,
+    );
+
+    const data = await service.get({
+      id: "principal-1",
+      username: "principal",
+      role: "PRINCIPAL",
+      roles: ["PRINCIPAL"],
+      organizationIds: ["org-1"],
+      sessionId: "session-1",
+    });
+
+    expect(data).toMatchObject({
+      context: "ORGANIZATION_ADMIN",
+      activeRole: "PRINCIPAL",
     });
   });
 });

@@ -18,6 +18,7 @@ import {
 import { UserRoleAssignment } from "../../database/entities/user-role-assignment.entity";
 import { Student } from "../../database/entities/student.entity";
 import { Permission } from "../../database/entities/permission.entity";
+import { UserCapabilityGrant } from "../../database/entities/user-capability-grant.entity";
 import { OrganizationStatus } from "../../database/entities/organization.entity";
 import { isCapabilityEnabledForOrganization } from "../organizations/organization-features";
 
@@ -45,6 +46,8 @@ export class AuthorizationService {
     private readonly students: Repository<Student>,
     @InjectRepository(Permission)
     private readonly permissions?: Repository<Permission>,
+    @InjectRepository(UserCapabilityGrant)
+    private readonly grants?: Repository<UserCapabilityGrant>,
   ) {}
 
   async enrich(
@@ -132,14 +135,18 @@ export class AuthorizationService {
       })),
       { requestedRole, requestedOrganizationId },
     );
+    const grantCapabilities = this.grants ? (await this.grants.find({ where: { user: { id: base.id }, organization: { id: In(memberships.map((item) => item.organization.id)) } }, relations: { organization: true } }))
+      .filter((grant) => !requestedOrganizationId || grant.organization.id === requestedOrganizationId)
+      .filter((grant) => isCapabilityEnabledForOrganization(grant.capability, disabledFeatures)).map((grant) => grant.capability) : [];
     if (!context.roles.includes("PLATFORM_ADMIN") || !this.permissions)
-      return context;
+      return { ...context, capabilities: [...new Set([...context.capabilities, ...grantCapabilities])].sort() };
     const permissions = await this.permissions.find({ select: { code: true } });
     return {
       ...context,
       capabilities: [
         ...new Set([
           ...context.capabilities,
+          ...grantCapabilities,
           ...permissions.map((item) => item.code),
         ]),
       ].sort(),

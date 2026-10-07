@@ -1,6 +1,7 @@
 import { Module } from "@nestjs/common";
 import { TypeOrmModule } from "@nestjs/typeorm";
 import { AuditLog } from "../../database/entities/audit-log.entity";
+import { AttendanceRecord } from "../../database/entities/attendance-record.entity";
 import { DailyReport } from "../../database/entities/daily-report.entity";
 import { Encouragement } from "../../database/entities/encouragement.entity";
 import { ExamAssignment } from "../../database/entities/exam-assignment.entity";
@@ -25,6 +26,7 @@ import { GuardianService } from "./guardian.service";
       Encouragement,
       User,
       AuditLog,
+      AttendanceRecord,
     ]),
     NotificationsModule,
     ExamsModule,
