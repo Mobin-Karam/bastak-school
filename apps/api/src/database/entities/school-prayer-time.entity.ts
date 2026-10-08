@@ -20,6 +20,7 @@ export class SchoolPrayerTime {
   @Column({ length: 5, default: "" }) fajr!: string;
   @Column({ length: 5, default: "" }) sunrise!: string;
   @Column({ length: 5, default: "" }) dhuhr!: string;
+  @Column({ length: 5, default: "" }) asr!: string;
   @Column({ length: 5, default: "" }) maghrib!: string;
   @Column({ length: 5, default: "" }) isha!: string;
   @Column({ length: 160, default: "" }) source!: string;

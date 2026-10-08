@@ -31,6 +31,7 @@ export function PWAProvider() {
     canInstall,
     dismissInstall,
     installApp,
+    isInstalling,
     isAndroid,
     isIOS,
     isMobile,
@@ -153,10 +154,14 @@ export function PWAProvider() {
     if (result.outcome === "accepted") {
       toast.success("زانین با موفقیت نصب شد");
       setModalOpen(false);
+    } else if (result.outcome === "dismissed") {
+      dismissInstall();
+      setModalOpen(false);
+      setBannerDismissed(true);
     } else if (result.outcome === "ios-instructions") {
       setModalOpen(true);
     }
-  }, [installApp]);
+  }, [dismissInstall, installApp]);
 
   const dismissInstallUI = useCallback(() => {
     dismissInstall();
@@ -176,6 +181,7 @@ export function PWAProvider() {
       <PWAInstallModal
         open={modalOpen}
         canInstall={canInstall}
+        installing={isInstalling}
         isAndroid={isAndroid}
         isIOS={isIOS}
         onInstall={handleInstall}

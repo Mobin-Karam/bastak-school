@@ -31,13 +31,9 @@ describe("MobileDashboardHome", () => {
 
     expect(screen.getByRole("region", { name: "کلاس‌های امروز" })).toBeVisible();
     expect(screen.getByRole("region", { name: "اوقات شرعی" })).toBeVisible();
-    expect(screen.getByText(/۰۴:۵۰ صبح/)).toBeVisible();
+    expect(screen.getByRole("region", { name: "اوقات شرعی" }).querySelector("time")).toBeVisible();
     expect(screen.getByRole("region", { name: "پیام‌های مدرسه" })).toBeVisible();
     expect(screen.getByText("یادآوری جلسه اولیا")).toBeVisible();
-    expect(screen.getByRole("link", { name: "تنظیم اوقات شرعی" })).toHaveAttribute(
-      "href",
-      "/admin/organizations",
-    );
     expect(
       screen.getByRole("navigation", { name: "دسترسی سریع" }).querySelectorAll("a"),
     ).toHaveLength(6);
@@ -90,6 +86,7 @@ const dashboardData = {
         fajr: "۰۴:۵۰",
         sunrise: "۰۶:۱۲",
         dhuhr: "۱۱:۵۴",
+        asr: "۱۵:۲۰",
         maghrib: "۱۸:۱۰",
         isha: "۱۹:۲۵",
         source: "مدرسه",

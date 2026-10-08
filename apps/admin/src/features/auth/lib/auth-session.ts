@@ -22,11 +22,30 @@ export const ADMIN_PORTAL_ROLES = [
   "COUNSELOR",
 ] as const satisfies readonly RoleCode[];
 
+/** The school experiences released in the current Zanin Admin version. */
+export const SUPPORTED_ADMIN_PORTAL_ROLES = [
+  "PLATFORM_ADMIN",
+  "PRINCIPAL",
+  "SCHOOL_SUPERVISOR",
+  "TEACHER",
+  "STUDENT",
+  "GUARDIAN",
+] as const satisfies readonly RoleCode[];
+
+export function isSupportedAdminPortalRole(role?: RoleCode | null) {
+  return Boolean(
+    role &&
+    SUPPORTED_ADMIN_PORTAL_ROLES.includes(role as (typeof SUPPORTED_ADMIN_PORTAL_ROLES)[number]),
+  );
+}
+
 export function adminPortalRole(roles: readonly RoleCode[]) {
   return (
+    roles.find((role) => isSupportedAdminPortalRole(role)) ??
     roles.find((role) =>
       ADMIN_PORTAL_ROLES.includes(role as (typeof ADMIN_PORTAL_ROLES)[number]),
-    ) ?? null
+    ) ??
+    null
   );
 }
 

@@ -43,18 +43,26 @@ export class SchoolHomeService {
       organizationId,
       "prayer_times.read",
     );
-    const day = date ?? new Date().toISOString().slice(0, 10);
-    const row =
-      (await this.prayers.findOne({
-        where: { organization: { id: organization.id }, date: day },
-      })) ??
-      (await this.prayers.findOne({
-        where: { organization: { id: organization.id }, date: "" },
-      }));
+    // `date=` is an intentional request for the school-wide default. It must
+    // not be replaced by today's override when managers open Settings.
+    const isDefault = date === "";
+    const day = isDefault
+      ? ""
+      : (date ?? new Date().toISOString().slice(0, 10));
+    const row = await this.prayers.findOne({
+      where: { organization: { id: organization.id }, date: day },
+    });
+    const fallback =
+      !row && !isDefault
+        ? await this.prayers.findOne({
+            where: { organization: { id: organization.id }, date: "" },
+          })
+        : null;
+    const resolved = row ?? fallback;
     return {
       organizationId: organization.id,
       date: day,
-      times: row ? this.prayerView(row) : null,
+      times: resolved ? this.prayerView(resolved) : null,
     };
   }
 
@@ -77,11 +85,30 @@ export class SchoolHomeService {
       fajr: dto.fajr,
       sunrise: dto.sunrise,
       dhuhr: dto.dhuhr,
+      asr: dto.asr,
       maghrib: dto.maghrib,
       isha: dto.isha,
       source: dto.source?.trim() || "",
     });
     return this.prayerView(await this.prayers.save(row));
+  }
+
+  async deletePrayerTimes(
+    user: AuthenticatedUser,
+    organizationId: string,
+    date?: string,
+  ) {
+    const organization = await this.scopedOrganization(
+      user,
+      organizationId,
+      "prayer_times.manage",
+    );
+    const row = await this.prayers.findOne({
+      where: { organization: { id: organization.id }, date: date ?? "" },
+    });
+    if (!row) return { deleted: false };
+    await this.prayers.remove(row);
+    return { deleted: true };
   }
 
   async announcements(user: AuthenticatedUser, organizationId?: string) {
@@ -146,6 +173,7 @@ export class SchoolHomeService {
       dto.classroomId,
     );
     const status = dto.status ?? "ACTIVE";
+    const publishedAt = status === "ACTIVE" ? new Date() : null;
     const row = this.announcementsRepo.create({
       organization,
       classroom,
@@ -153,8 +181,12 @@ export class SchoolHomeService {
       title: dto.title.trim(),
       body: dto.body.trim(),
       status,
-      publishedAt: status === "ACTIVE" ? new Date() : null,
-      expiresAt: dto.expiresAt ? new Date(dto.expiresAt) : null,
+      publishedAt,
+      // School notices are intentionally short-lived. Client-supplied expiry
+      // is ignored so a manager cannot accidentally publish a permanent notice.
+      expiresAt: publishedAt
+        ? new Date(publishedAt.getTime() + 24 * 60 * 60 * 1000)
+        : null,
       createdBy: { id: user.id } as any,
     });
     return this.announcementView(await this.announcementsRepo.save(row));
@@ -182,14 +214,19 @@ export class SchoolHomeService {
       dto.classroomId,
     );
     const status = dto.status ?? row.status;
+    const publishedAt =
+      status === "ACTIVE" ? (row.publishedAt ?? new Date()) : null;
     Object.assign(row, {
       classroom,
       audience: dto.audience,
       title: dto.title.trim(),
       body: dto.body.trim(),
       status,
-      publishedAt: status === "ACTIVE" ? (row.publishedAt ?? new Date()) : null,
-      expiresAt: dto.expiresAt ? new Date(dto.expiresAt) : null,
+      publishedAt,
+      expiresAt: publishedAt
+        ? (row.expiresAt ??
+          new Date(publishedAt.getTime() + 24 * 60 * 60 * 1000))
+        : null,
     });
     return this.announcementView(await this.announcementsRepo.save(row));
   }
@@ -279,7 +316,12 @@ export class SchoolHomeService {
 
   private isManager(context: UserContext) {
     return context.roles.some((role) =>
-      ["PLATFORM_ADMIN", "ORGANIZATION_ADMIN", "PRINCIPAL"].includes(role),
+      [
+        "PLATFORM_ADMIN",
+        "ORGANIZATION_ADMIN",
+        "PRINCIPAL",
+        "SCHOOL_SUPERVISOR",
+      ].includes(role),
     );
   }
   private isStudentAudience(context: UserContext) {
@@ -301,6 +343,7 @@ export class SchoolHomeService {
       fajr: row.fajr,
       sunrise: row.sunrise,
       dhuhr: row.dhuhr,
+      asr: row.asr,
       maghrib: row.maghrib,
       isha: row.isha,
       source: row.source,

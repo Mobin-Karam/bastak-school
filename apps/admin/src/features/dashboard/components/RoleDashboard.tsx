@@ -7,7 +7,6 @@ import {
   FileQuestion,
   MessageSquare,
   MonitorDot,
-  MapPin,
   PanelsTopLeft,
   RefreshCw,
   ShieldCheck,
@@ -49,6 +48,7 @@ import { DashboardMetricGrid } from "./metrics/DashboardMetricGrid";
 import { DashboardCalendar } from "./DashboardCalendar";
 import { MobileDashboardHome } from "./MobileDashboardHome";
 import { todayIso } from "../../../shared/lib/utils";
+import { CurrentPrayerCard } from "../../school-home/components/CurrentPrayerCard";
 
 const n = (value: unknown) => (typeof value === "number" ? value : 0);
 
@@ -384,6 +384,8 @@ export function RoleDashboard({
     });
   const [editingBoard, setEditingBoard] = useState(false);
   const [calendarDate, setCalendarDate] = useState(todayIso);
+  const prayer = data?.home?.prayer;
+  const prayerTimes = prayer && "times" in prayer ? prayer.times : null;
 
   if (loading) return <LoadingState label={dashboard.workspaceLoading} />;
   if (error || !data)
@@ -719,21 +721,7 @@ export function RoleDashboard({
               schedule={data.home?.calendar.entries}
             />
             <div className="grid gap-3 md:grid-cols-2">
-              <Card className="p-3" aria-label="اوقات شرعی">
-                <div className="flex items-start gap-2">
-                  <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-amber-100 text-amber-700 dark:bg-amber-950/50 dark:text-amber-300">
-                    <MapPin size={18} />
-                  </span>
-                  <div>
-                    <h2 className="text-sm font-black text-ink">اوقات شرعی</h2>
-                    <p className="mt-1 text-xs leading-5 text-slate-500">
-                      {data.home?.prayer?.times
-                        ? `صبح ${data.home.prayer.times.fajr} · ظهر ${data.home.prayer.times.dhuhr} · مغرب ${data.home.prayer.times.maghrib}`
-                        : "اوقات شرعی مدرسه هنوز ثبت نشده است."}
-                    </p>
-                  </div>
-                </div>
-              </Card>
+              <CurrentPrayerCard times={prayerTimes} />
               <Card className="p-3" aria-label="کلاس اکنون">
                 <div className="flex items-start gap-2">
                   <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-brand/10 text-brand">

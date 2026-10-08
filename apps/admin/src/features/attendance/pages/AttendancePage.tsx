@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { BookOpenCheck, Building2, UserRoundCheck } from "lucide-react";
 import { useSearchParams } from "react-router-dom";
 import { Button, Card } from "../../../shared/ui/ui";
+import { api } from "../../../shared/api/api";
 import { ManagementPageHeader } from "../../../shared/ui/management-workspace";
 import {
   bulkMarkAttendance,
@@ -36,6 +37,7 @@ export function AttendancePage() {
   const [sessions, setSessions] = useState<Awaited<ReturnType<typeof listAttendanceSessions>>>([]);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
+  const [hasLocalChanges, setHasLocalChanges] = useState(false);
   const requestedContextId = searchParams.get("contextId");
   const requestedContextType = searchParams.get("contextType") as AttendanceContextType | null;
 
@@ -92,6 +94,22 @@ export function AttendancePage() {
       });
   }, [contextId, selected]);
 
+  useEffect(() => {
+    const events = api.openEvents((type, payload) => {
+      if (type !== "attendance.updated") return;
+      if (payload.contextId !== selected?.id) return;
+      void listAttendanceSessions().then(setSessions);
+      if (hasLocalChanges) {
+        setMessage(
+          "حضور این کلاس توسط کاربر دیگری به‌روزرسانی شد؛ پیش از ثبت، تغییرات را بررسی کنید.",
+        );
+      } else {
+        setMessage("حضور این کلاس به‌صورت زنده به‌روزرسانی شد.");
+      }
+    });
+    return () => events.close();
+  }, [hasLocalChanges, selected?.id]);
+
   const counts = useMemo(
     () =>
       participants.reduce(
@@ -128,6 +146,7 @@ export function AttendancePage() {
         sessionDate: new Date().toISOString(),
         entries,
       });
+      setHasLocalChanges(false);
       setMessage(`حضور ${entries.length} نفر ثبت شد.`);
       setSessions(await listAttendanceSessions());
     } catch (error) {
@@ -191,9 +210,10 @@ export function AttendancePage() {
             <Button
               variant="soft"
               disabled={!participants.length}
-              onClick={() =>
-                setParticipants((all) => all.map((item) => ({ ...item, status: "present" })))
-              }
+              onClick={() => {
+                setHasLocalChanges(true);
+                setParticipants((all) => all.map((item) => ({ ...item, status: "present" })));
+              }}
             >
               همه حاضر
             </Button>
@@ -237,11 +257,12 @@ export function AttendancePage() {
                   <button
                     key={status}
                     type="button"
-                    onClick={() =>
+                    onClick={() => {
+                      setHasLocalChanges(true);
                       setParticipants((all) =>
                         all.map((item) => (item.id === student.id ? { ...item, status } : item)),
-                      )
-                    }
+                      );
+                    }}
                     className={`rounded-lg border px-3 py-2 text-xs font-bold ${student.status === status ? statusMeta[status].className : "border-[rgb(var(--border-subtle))] bg-transparent text-slate-500"}`}
                   >
                     {statusMeta[status].label}

@@ -4,9 +4,12 @@ import { In, Repository } from "typeorm";
 import { ApiException } from "../../common/exceptions/api.exception";
 import { EducationClass } from "../../database/entities/education-class.entity";
 import { EducationClassEnrollment } from "../../database/entities/education-class-enrollment.entity";
+import {
+  MembershipStatus,
+  OrganizationMembership,
+} from "../../database/entities/organization-membership.entity";
 import { Organization } from "../../database/entities/organization.entity";
 import { SchoolScheduleEntry } from "../../database/entities/school-schedule-entry.entity";
-import { User } from "../../database/entities/user.entity";
 import { UserRelationship } from "../../database/entities/user-relationship.entity";
 import { AuthenticatedUser } from "../auth";
 import { AuthorizationService, UserContext } from "../authorization";
@@ -19,9 +22,10 @@ export class ScheduleService {
     private readonly entries: Repository<SchoolScheduleEntry>,
     @InjectRepository(Organization)
     private readonly organizations: Repository<Organization>,
+    @InjectRepository(OrganizationMembership)
+    private readonly memberships: Repository<OrganizationMembership>,
     @InjectRepository(EducationClass)
     private readonly classes: Repository<EducationClass>,
-    @InjectRepository(User) private readonly users: Repository<User>,
     private readonly authorization: AuthorizationService,
   ) {}
   private context(user: AuthenticatedUser): UserContext {
@@ -41,6 +45,12 @@ export class ScheduleService {
   async list(user: AuthenticatedUser, organizationId?: string) {
     const context = this.context(user);
     this.authorization.requireCapability(context, "schedule.read");
+    if (
+      organizationId &&
+      !context.roles.includes("PLATFORM_ADMIN") &&
+      !context.organizationIds.includes(organizationId)
+    )
+      throw new ApiException(403, "FORBIDDEN", "دسترسی کافی ندارید.");
     if (context.roles.includes("PLATFORM_ADMIN"))
       return this.entries.find({
         where: organizationId ? { organization: { id: organizationId } } : {},
@@ -59,7 +69,13 @@ export class ScheduleService {
       });
     if (context.roles.includes("TEACHER"))
       return this.entries.find({
-        where: { teacher: { id: user.id }, status: "ACTIVE" },
+        where: {
+          teacher: { id: user.id },
+          organization: {
+            id: In(organizationId ? [organizationId] : context.organizationIds),
+          },
+          status: "ACTIVE",
+        },
         relations: { organization: true, classroom: true, teacher: true },
         order: { weekday: "ASC", startTime: "ASC" },
       });
@@ -70,8 +86,15 @@ export class ScheduleService {
         ),
       )
     ) {
+      if (!context.organizationIds.length) return [];
       return this.entries.find({
-        where: { classroom: { advisor: { id: user.id } }, status: "ACTIVE" },
+        where: {
+          classroom: { advisor: { id: user.id } },
+          organization: {
+            id: In(organizationId ? [organizationId] : context.organizationIds),
+          },
+          status: "ACTIVE",
+        },
         relations: {
           organization: true,
           classroom: { advisor: true },
@@ -81,6 +104,10 @@ export class ScheduleService {
       });
     }
     if (context.roles.includes("GUARDIAN")) {
+      const organizationIds = organizationId
+        ? [organizationId]
+        : context.organizationIds;
+      if (!organizationIds.length) return [];
       return this.entries
         .createQueryBuilder("entry")
         .leftJoinAndSelect("entry.organization", "organization")
@@ -98,12 +125,19 @@ export class ScheduleService {
           { userId: user.id },
         )
         .where("entry.status = 'ACTIVE'")
+        .andWhere("entry.organizationId IN (:...organizationIds)", {
+          organizationIds,
+        })
         .andWhere("entry.classroomId IS NULL OR relationship.id IS NOT NULL")
         .orderBy("entry.weekday", "ASC")
         .addOrderBy("entry.startTime", "ASC")
         .getMany();
     }
     if (context.roles.includes("STUDENT")) {
+      const organizationIds = organizationId
+        ? [organizationId]
+        : context.organizationIds;
+      if (!organizationIds.length) return [];
       return this.entries
         .createQueryBuilder("entry")
         .leftJoinAndSelect("entry.organization", "organization")
@@ -116,6 +150,9 @@ export class ScheduleService {
           { userId: user.id },
         )
         .where("entry.status = 'ACTIVE'")
+        .andWhere("entry.organizationId IN (:...organizationIds)", {
+          organizationIds,
+        })
         .andWhere("entry.classroomId IS NULL OR enrollment.id IS NOT NULL")
         .orderBy("entry.weekday", "ASC")
         .addOrderBy("entry.startTime", "ASC")
@@ -163,12 +200,14 @@ export class ScheduleService {
     });
     if (!organization)
       throw new ApiException(404, "ORGANIZATION_NOT_FOUND", "مدرسه پیدا نشد.");
-    const classroom = dto.classroomId
-      ? await this.classes.findOneBy({ id: dto.classroomId })
-      : null;
-    const teacher = dto.teacherId
-      ? await this.users.findOneBy({ id: dto.teacherId })
-      : null;
+    const classroom = await this.classroomForOrganization(
+      dto.classroomId,
+      organization.id,
+    );
+    const teacher = await this.teacherForOrganization(
+      dto.teacherId,
+      organization.id,
+    );
     if (dto.endTime <= dto.startTime)
       throw new ApiException(
         422,
@@ -212,12 +251,14 @@ export class ScheduleService {
         "INVALID_TIME_RANGE",
         "زمان پایان باید بعد از شروع باشد.",
       );
-    const classroom = dto.classroomId
-      ? await this.classes.findOneBy({ id: dto.classroomId })
-      : null;
-    const teacher = dto.teacherId
-      ? await this.users.findOneBy({ id: dto.teacherId })
-      : null;
+    const classroom = await this.classroomForOrganization(
+      dto.classroomId,
+      item.organization.id,
+    );
+    const teacher = await this.teacherForOrganization(
+      dto.teacherId,
+      item.organization.id,
+    );
     Object.assign(item, {
       title: dto.title.trim(),
       weekday: dto.weekday,
@@ -324,5 +365,44 @@ export class ScheduleService {
     )
       errors.push("بازه زمانی نامعتبر است.");
     return errors;
+  }
+
+  private async classroomForOrganization(
+    classroomId: string | undefined,
+    organizationId: string,
+  ) {
+    if (!classroomId) return null;
+    const classroom = await this.classes.findOne({
+      where: { id: classroomId, organization: { id: organizationId } },
+    });
+    if (!classroom)
+      throw new ApiException(
+        422,
+        "SCHEDULE_CLASS_OUTSIDE_ORGANIZATION",
+        "کلاس انتخاب‌شده متعلق به این مدرسه نیست.",
+      );
+    return classroom;
+  }
+
+  private async teacherForOrganization(
+    teacherId: string | undefined,
+    organizationId: string,
+  ) {
+    if (!teacherId) return null;
+    const membership = await this.memberships.findOne({
+      where: {
+        user: { id: teacherId },
+        organization: { id: organizationId },
+        status: MembershipStatus.ACTIVE,
+      },
+      relations: { user: true },
+    });
+    if (!membership?.user)
+      throw new ApiException(
+        422,
+        "SCHEDULE_TEACHER_OUTSIDE_ORGANIZATION",
+        "استاد انتخاب‌شده عضو فعال این مدرسه نیست.",
+      );
+    return membership.user;
   }
 }

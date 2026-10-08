@@ -123,19 +123,23 @@ export function AdminMobileBottomNav({
     visibleMainNavigation.find((item) => item.section === "خانه") ??
     visibleMainNavigation[0];
 
-  const studentNavigationMode = auth.activeRole === "STUDENT";
+  const personalNavigationMode = ["STUDENT", "TEACHER"].includes(auth.activeRole ?? "");
 
-  const dockItems = studentNavigationMode
+  const dockItems = personalNavigationMode
     ? visibleMainNavigation
     : centerItem
-    ? [
-        ...visibleMainNavigation.filter((item) => item.section !== centerItem.section).slice(0, 2),
+      ? [
+          ...visibleMainNavigation
+            .filter((item) => item.section !== centerItem.section)
+            .slice(0, 2),
 
-        centerItem,
+          centerItem,
 
-        ...visibleMainNavigation.filter((item) => item.section !== centerItem.section).slice(2, 3),
-      ]
-    : [];
+          ...visibleMainNavigation
+            .filter((item) => item.section !== centerItem.section)
+            .slice(2, 3),
+        ]
+      : [];
 
   const moreActive = location.pathname === "/admin/more";
 
@@ -530,6 +534,7 @@ export function AdminMobileBottomNav({
 
             <div
               id="admin-mobile-radial-menu"
+              role="complementary"
               className="
                 fixed
                 left-1/2
@@ -963,16 +968,17 @@ export function AdminMobileBottomNav({
           );
         })}
 
-        {/* Students have exactly five destinations; other roles retain the expanded More menu. */}
-        {!studentNavigationMode ? <NavLink
-          to="/admin/more"
-          aria-current={moreActive ? "page" : undefined}
-          aria-expanded={moreExpanded}
-          aria-controls={moreExpanded ? "admin-mobile-more-menu" : undefined}
-          aria-label={copy.allRoutes}
-          title={copy.allRoutes}
-          onClick={(event) => handleDockClick(event, "__more")}
-          className="
+        {/* Personal workspaces have five direct destinations; other roles retain More. */}
+        {!personalNavigationMode ? (
+          <NavLink
+            to="/admin/more"
+            aria-current={moreActive ? "page" : undefined}
+            aria-expanded={moreExpanded}
+            aria-controls={moreExpanded ? "admin-mobile-more-menu" : undefined}
+            aria-label={copy.allRoutes}
+            title={copy.allRoutes}
+            onClick={(event) => handleDockClick(event, "__more")}
+            className="
             group/dock
 
             relative
@@ -991,9 +997,9 @@ export function AdminMobileBottomNav({
             focus-visible:ring-2
             focus-visible:ring-brand
           "
-        >
-          <span
-            className={`
+          >
+            <span
+              className={`
               relative
 
               grid
@@ -1049,11 +1055,11 @@ export function AdminMobileBottomNav({
                   `
               }
             `}
-          >
-            {moreActive || moreExpanded ? (
-              <span
-                aria-hidden="true"
-                className="
+            >
+              {moreActive || moreExpanded ? (
+                <span
+                  aria-hidden="true"
+                  className="
                   pointer-events-none
 
                   absolute
@@ -1066,20 +1072,21 @@ export function AdminMobileBottomNav({
 
                   bg-white/40
                 "
-              />
-            ) : null}
+                />
+              ) : null}
 
-            <MoreHorizontal
-              size={moreActive || moreExpanded ? 24 : 21}
-              strokeWidth={moreActive || moreExpanded ? 2.4 : 2}
-              aria-hidden="true"
-              className="
+              <MoreHorizontal
+                size={moreActive || moreExpanded ? 24 : 21}
+                strokeWidth={moreActive || moreExpanded ? 2.4 : 2}
+                aria-hidden="true"
+                className="
                 relative
                 z-10
               "
-            />
-          </span>
-        </NavLink> : null}
+              />
+            </span>
+          </NavLink>
+        ) : null}
       </nav>
     </>
   );

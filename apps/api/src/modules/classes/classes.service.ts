@@ -137,7 +137,10 @@ export class ClassesService {
       teachers: staff.filter((member) => member.roles.includes("TEACHER")),
       advisors: staff.filter(
         (member) =>
-          member.roles.includes("ADVISOR") || member.roles.includes("COUNSELOR") || member.roles.includes("MENTOR") || member.roles.includes("STUDENT_AFFAIRS_MENTOR"),
+          member.roles.includes("ADVISOR") ||
+          member.roles.includes("COUNSELOR") ||
+          member.roles.includes("MENTOR") ||
+          member.roles.includes("STUDENT_AFFAIRS_MENTOR"),
       ),
       eligibleStudents: students.map((student) => ({
         id: student.id,
@@ -406,6 +409,7 @@ export class ClassesService {
       ([
         "ORGANIZATION_ADMIN",
         "PRINCIPAL",
+        "SCHOOL_SUPERVISOR",
         "RELIGIOUS_EDUCATION_MANAGER",
         "GOVERNMENT_EDUCATION_MANAGER",
       ].some((role) => context.roles.includes(role)) &&

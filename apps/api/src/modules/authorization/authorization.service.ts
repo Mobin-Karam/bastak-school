@@ -69,7 +69,11 @@ export class AuthorizationService {
         },
       }),
       this.memberships.find({
-        where: { user: { id: base.id }, status: MembershipStatus.ACTIVE, organization: { status: OrganizationStatus.ACTIVE } },
+        where: {
+          user: { id: base.id },
+          status: MembershipStatus.ACTIVE,
+          organization: { status: OrganizationStatus.ACTIVE },
+        },
         relations: { organization: true },
       }),
     ]);
@@ -112,22 +116,30 @@ export class AuthorizationService {
         "ORGANIZATION_FORBIDDEN",
         "به این سازمان دسترسی ندارید.",
       );
-    const featureOrganization = memberships.find((membership) => membership.organization.id === requestedOrganizationId);
+    const featureOrganization = memberships.find(
+      (membership) => membership.organization.id === requestedOrganizationId,
+    );
     // Requests normally carry the active organization header. Without one, use
     // the restrictive union so a multi-organization account cannot bypass an
     // entitlement simply by omitting its work context.
     const disabledFeatures = allRoles.includes("PLATFORM_ADMIN")
       ? []
       : featureOrganization
-        ? featureOrganization.organization.disabledFeatures ?? []
-        : memberships.flatMap((membership) => membership.organization.disabledFeatures ?? []);
+        ? (featureOrganization.organization.disabledFeatures ?? [])
+        : memberships.flatMap(
+            (membership) => membership.organization.disabledFeatures ?? [],
+          );
     const context = buildAuthorizationContext(
       base,
       activeAssignments.map((item) => ({
         role: item.role.code,
         organizationScoped: item.role.organizationScoped,
         organizationId: item.membership?.organization?.id,
-        capabilities: item.role.permissions.map((rp) => rp.permission.code).filter((capability) => isCapabilityEnabledForOrganization(capability, disabledFeatures)),
+        capabilities: item.role.permissions
+          .map((rp) => rp.permission.code)
+          .filter((capability) =>
+            isCapabilityEnabledForOrganization(capability, disabledFeatures),
+          ),
       })),
       memberships.map((item) => ({
         id: item.id,
@@ -135,17 +147,62 @@ export class AuthorizationService {
       })),
       { requestedRole, requestedOrganizationId },
     );
-    const grantCapabilities = this.grants ? (await this.grants.find({ where: { user: { id: base.id }, organization: { id: In(memberships.map((item) => item.organization.id)) } }, relations: { organization: true } }))
-      .filter((grant) => !requestedOrganizationId || grant.organization.id === requestedOrganizationId)
-      .filter((grant) => isCapabilityEnabledForOrganization(grant.capability, disabledFeatures)).map((grant) => grant.capability) : [];
+    // Global roles (for example STUDENT and GUARDIAN) are not tenant roles,
+    // but their permissions remain valid while a school is selected. Keep the
+    // host adapter compatible with an already-installed 0.1.x authorization
+    // package that filtered those roles too aggressively; the set merge is a
+    // no-op with the corrected package implementation.
+    const unscopedCapabilities = activeAssignments
+      .filter(
+        (item) =>
+          !item.role.organizationScoped &&
+          (!requestedRole || item.role.code === requestedRole),
+      )
+      .flatMap((item) => item.role.permissions.map((rp) => rp.permission.code))
+      .filter((capability) =>
+        isCapabilityEnabledForOrganization(capability, disabledFeatures),
+      );
+    const effectiveCapabilities = [
+      ...new Set([...context.capabilities, ...unscopedCapabilities]),
+    ].sort();
+    const grantCapabilities = this.grants
+      ? (
+          await this.grants.find({
+            where: {
+              user: { id: base.id },
+              organization: {
+                id: In(memberships.map((item) => item.organization.id)),
+              },
+            },
+            relations: { organization: true },
+          })
+        )
+          .filter(
+            (grant) =>
+              !requestedOrganizationId ||
+              grant.organization.id === requestedOrganizationId,
+          )
+          .filter((grant) =>
+            isCapabilityEnabledForOrganization(
+              grant.capability,
+              disabledFeatures,
+            ),
+          )
+          .map((grant) => grant.capability)
+      : [];
     if (!context.roles.includes("PLATFORM_ADMIN") || !this.permissions)
-      return { ...context, capabilities: [...new Set([...context.capabilities, ...grantCapabilities])].sort() };
+      return {
+        ...context,
+        capabilities: [
+          ...new Set([...effectiveCapabilities, ...grantCapabilities]),
+        ].sort(),
+      };
     const permissions = await this.permissions.find({ select: { code: true } });
     return {
       ...context,
       capabilities: [
         ...new Set([
-          ...context.capabilities,
+          ...effectiveCapabilities,
           ...grantCapabilities,
           ...permissions.map((item) => item.code),
         ]),
@@ -181,14 +238,20 @@ export class AuthorizationService {
     });
     if (!student) return false;
     if (student.user?.id === context.id) return true;
-    if ([
-      "ORGANIZATION_ADMIN",
-      "PRINCIPAL",
-      "DISCIPLINARIAN",
-      "RELIGIOUS_EDUCATION_MANAGER",
-      "GOVERNMENT_EDUCATION_MANAGER",
-    ].some((role) => context.roles.includes(role))) {
-      if (student.organization?.id && context.organizationIds.includes(student.organization.id)) return true;
+    if (
+      [
+        "ORGANIZATION_ADMIN",
+        "PRINCIPAL",
+        "DISCIPLINARIAN",
+        "RELIGIOUS_EDUCATION_MANAGER",
+        "GOVERNMENT_EDUCATION_MANAGER",
+      ].some((role) => context.roles.includes(role))
+    ) {
+      if (
+        student.organization?.id &&
+        context.organizationIds.includes(student.organization.id)
+      )
+        return true;
       if (!student.user?.id) return false;
       const sharedMembership = await this.memberships.findOne({
         where: {

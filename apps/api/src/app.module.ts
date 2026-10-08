@@ -23,10 +23,8 @@ import { DormitoryModule } from "./modules/dormitory/dormitory.module";
 import { RelationshipsModule } from "./modules/relationships/relationships.module";
 import { StudentTransferModule } from "./modules/student-transfer/student-transfer.module";
 import { DashboardModule } from "./modules/dashboard/dashboard.module";
-import { StudentDocumentsModule } from "./modules/student-documents/student-documents.module";
 import { ImportExportModule } from "./modules/import-export/import-export.module";
 import { ScheduleModule } from "./modules/schedule/schedule.module";
-import { ClassesModule } from "./modules/classes/classes.module";
 import { GuardianModule } from "./modules/guardian/guardian.module";
 import { SchoolHomeModule } from "./modules/school-home/school-home.module";
 
@@ -52,22 +50,26 @@ import { SchoolHomeModule } from "./modules/school-home/school-home.module";
     // Existing plans/exams data-transfer endpoints; the Admin Excel adapter
     // converts workbooks to their validated API payloads.
     ImportExportModule,
-    // SchoolEducationModule,
+    // The education bundle is the single composition point for the catalogue,
+    // classes and class groups.  Do not mount ClassesModule separately here:
+    // SchoolEducationModule already owns that dependency chain.
+    SchoolEducationModule,
     AttendanceModule, // حضور و غیاب
-    // WorkflowsModule,
+    WorkflowsModule,
     DormitoryModule, // خوابگاه و ساخت و تقسیم دانش آموزان در بین آنها
-    // RelationshipsModule,
+    // Guardian/student links are the authority behind guardian-scoped home,
+    // schedule and attendance reads.
+    RelationshipsModule,
     // First school data-transfer adapter; future feature adapters follow the
     // same preview → validated transactional commit → scoped export pattern.
     StudentTransferModule,
-    // A principal creates classes and their roster here; assigned teachers use
-    // the same class context to record attendance.
-    ClassesModule,
     DashboardModule,
     ScheduleModule,
     GuardianModule,
     SchoolHomeModule,
-    // StudentDocumentsModule,
+    // StudentDocumentsModule deliberately stays dormant until it has a
+    // Fastify-compatible upload storage adapter.  Its current Express/Multer
+    // controller must not be mounted in this Fastify application.
   ],
   providers: [
     { provide: APP_FILTER, useClass: HttpExceptionFilter },

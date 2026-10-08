@@ -2,12 +2,18 @@ import { useAuth } from "../../auth";
 import { GuardianPage } from "../../guardian";
 import { RoleDashboard } from "../components/RoleDashboard";
 import { StudentDashboard } from "../components/StudentDashboard";
+import { TeacherDashboard } from "../../teacher-portal";
+import { SchoolManagerDashboard } from "../../school-home";
 import { useDashboardData } from "../hooks/useDashboardData";
 
 export function DashboardPage() {
   const auth = useAuth();
 
   if (auth.activeRole === "STUDENT") return <StudentDashboard />;
+  if (auth.activeRole === "TEACHER") return <TeacherDashboard />;
+  if (["PRINCIPAL", "SCHOOL_SUPERVISOR"].includes(auth.activeRole ?? "")) {
+    return <SchoolManagerDashboard />;
+  }
   if (auth.activeRole === "GUARDIAN") return <GuardianPage />;
 
   return <OperationalDashboard />;

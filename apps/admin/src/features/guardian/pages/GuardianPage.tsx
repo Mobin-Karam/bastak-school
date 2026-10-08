@@ -1,13 +1,6 @@
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import {
-  CalendarCheck2,
-  CalendarDays,
-  Clock3,
-  GraduationCap,
-  MapPin,
-  RefreshCw,
-} from "lucide-react";
+import { CalendarCheck2, CalendarDays, Clock3, GraduationCap, RefreshCw } from "lucide-react";
 import { useAuth } from "../../auth";
 import { getAdminDashboard } from "../../dashboard/api/dashboard.api";
 import { DashboardCalendar } from "../../dashboard/components/DashboardCalendar";
@@ -18,6 +11,7 @@ import { Badge, Button, Card, EmptyState, ErrorState, Field, Select } from "../.
 import { guardianApi } from "../api/guardian.api";
 import { ManagementPageHeader } from "../../../shared/ui/management-workspace";
 import { guardianCopy } from "../model/guardian-copy";
+import { CurrentPrayerCard } from "../../school-home/components/CurrentPrayerCard";
 
 export function GuardianPage() {
   const auth = useAuth();
@@ -163,20 +157,7 @@ export function GuardianPage() {
             ) : null}
           </div>
         </Card>
-        <Card className="p-3">
-          <h2 className="flex items-center gap-2 font-bold">
-            <MapPin size={18} className="text-amber-600" /> اوقات شرعی
-          </h2>
-          {prayerTimes ? (
-            <div className="mt-3 grid grid-cols-3 gap-2 text-center text-sm">
-              <PrayerTime label="صبح" value={prayerTimes.fajr} />
-              <PrayerTime label="ظهر" value={prayerTimes.dhuhr} />
-              <PrayerTime label="مغرب" value={prayerTimes.maghrib} />
-            </div>
-          ) : (
-            <p className="mt-3 text-sm text-slate-500">اوقات شرعی مدرسه هنوز ثبت نشده است.</p>
-          )}
-        </Card>
+        <CurrentPrayerCard times={prayerTimes} />
       </div>
       {failed ? (
         <ErrorState
@@ -339,14 +320,5 @@ function Metric({ label, value }: { label: string; value: string }) {
       <p className="text-xs text-slate-500">{label}</p>
       <p className="mt-2 text-xl font-bold">{value}</p>
     </Card>
-  );
-}
-
-function PrayerTime({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-lg bg-amber-50 p-2 dark:bg-amber-950/25">
-      <p className="text-xs text-amber-800 dark:text-amber-200">{label}</p>
-      <p className="mt-1 font-bold text-amber-950 dark:text-amber-100">{value}</p>
-    </div>
   );
 }

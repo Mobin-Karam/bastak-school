@@ -3,7 +3,12 @@ import { createBrowserRouter, Navigate, Outlet } from "react-router-dom";
 import { RefreshCw } from "lucide-react";
 import { Button } from "../../shared/ui/ui";
 import { useAdminShellCopy } from "../../shared/ui/locale";
-import { LoginPage, useAuth } from "../../features/auth";
+import {
+  isSupportedAdminPortalRole,
+  LoginPage,
+  UnsupportedRoleModal,
+  useAuth,
+} from "../../features/auth";
 import { AdminLayout } from "../layout/shell/AdminLayout";
 import { RouteErrorBoundary } from "../../shared/errors";
 
@@ -42,8 +47,10 @@ const LeaveRequestsPage = lazy(() =>
 const DormitoryPage = lazy(() =>
   import("../../features/dormitory").then((m) => ({ default: m.DormitoryPage })),
 );
-const RegistrationPage = lazy(() =>
-  import("../../features/registration").then((m) => ({ default: m.RegistrationPage })),
+const RegistrationComingSoonPage = lazy(() =>
+  import("../../features/registration").then((m) => ({
+    default: m.RegistrationComingSoonPage,
+  })),
 );
 const StudentTransferPage = lazy(() =>
   import("../../features/student-transfer").then((m) => ({ default: m.StudentTransferPage })),
@@ -56,6 +63,20 @@ const UsersPage = lazy(() =>
 );
 const SettingsPage = lazy(() =>
   import("../../features/settings").then((m) => ({ default: m.SettingsPage })),
+);
+const StudentProfilePage = lazy(() =>
+  import("../../features/student-portal").then((m) => ({ default: m.StudentProfilePage })),
+);
+const StudentLeaveRequestsPage = lazy(() =>
+  import("../../features/student-portal").then((m) => ({ default: m.StudentLeaveRequestsPage })),
+);
+const TeacherProfilePage = lazy(() =>
+  import("../../features/teacher-portal").then((m) => ({ default: m.TeacherProfilePage })),
+);
+const TeacherChatComingSoonPage = lazy(() =>
+  import("../../features/teacher-portal").then((m) => ({
+    default: m.TeacherChatComingSoonPage,
+  })),
 );
 const SystemPage = lazy(() =>
   import("../../features/system").then((m) => ({ default: m.SystemPage })),
@@ -111,6 +132,7 @@ function ProtectedRoute() {
     );
   }
   if (auth.status !== "authenticated") return <Navigate to="/login" replace />;
+  if (!isSupportedAdminPortalRole(auth.activeRole)) return <UnsupportedRoleModal />;
   return <Outlet />;
 }
 
@@ -188,7 +210,7 @@ export const router = createBrowserRouter([
             element: (
               <CapabilityRoute capability="registration.read">
                 <RouteScreen>
-                  <RegistrationPage />
+                  <RegistrationComingSoonPage />
                 </RouteScreen>
               </CapabilityRoute>
             ),
@@ -211,6 +233,22 @@ export const router = createBrowserRouter([
                   <SchedulePage />
                 </RouteScreen>
               </CapabilityRoute>
+            ),
+          },
+          {
+            path: "teacher-profile",
+            element: (
+              <RouteScreen>
+                <TeacherProfilePage />
+              </RouteScreen>
+            ),
+          },
+          {
+            path: "teacher-chat",
+            element: (
+              <RouteScreen>
+                <TeacherChatComingSoonPage />
+              </RouteScreen>
             ),
           },
           {
@@ -319,6 +357,35 @@ export const router = createBrowserRouter([
               <RouteScreen>
                 <SettingsPage />
               </RouteScreen>
+            ),
+          },
+          {
+            path: "profile",
+            element: (
+              <RouteScreen>
+                <StudentProfilePage />
+              </RouteScreen>
+            ),
+          },
+          {
+            path: "student-registration",
+            element: (
+              <CapabilityRoute capability="registration.read">
+                <Navigate to="/admin/registration" replace />
+              </CapabilityRoute>
+            ),
+          },
+          {
+            path: "student-leave",
+            element: (
+              <CapabilityRoute
+                capability={["leave.read", "leave.manage"]}
+                allOf={["leave.read", "leave.manage"]}
+              >
+                <RouteScreen>
+                  <StudentLeaveRequestsPage />
+                </RouteScreen>
+              </CapabilityRoute>
             ),
           },
           {

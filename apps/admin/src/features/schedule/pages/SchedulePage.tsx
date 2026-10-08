@@ -1,5 +1,14 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Archive, CalendarClock, Download, Pencil, Plus, Trash2, Upload } from "lucide-react";
+import {
+  Archive,
+  CalendarClock,
+  Download,
+  GraduationCap,
+  Pencil,
+  Plus,
+  Trash2,
+  Upload,
+} from "lucide-react";
 import { useRef, useState } from "react";
 import { listOrganizations } from "../../access/api/access.api";
 import { useAuth } from "../../auth";
@@ -22,6 +31,8 @@ import {
   type ScheduleDraft,
   updateScheduleEntry,
 } from "../api/schedule.api";
+import type { ScheduleEntry } from "../api/schedule.api";
+import { TeacherSchedulePage } from "../../teacher-portal";
 
 const weekdays = ["یکشنبه", "دوشنبه", "سه‌شنبه", "چهارشنبه", "پنجشنبه", "جمعه", "شنبه"];
 const blank = (): ScheduleDraft => ({
@@ -62,8 +73,14 @@ export function SchedulePage() {
   const organizationOptions = canReadOrganizations
     ? (organizations.data ?? [])
     : (auth.context?.availableOrganizations ?? []);
-  const classes = useQuery({ queryKey: ["classes", "schedule"], queryFn: () => listClasses() });
   const canWrite = auth.canAny(["schedule.create", "schedule.update"]);
+  const isStudent = auth.activeRole === "STUDENT";
+  const isTeacher = auth.activeRole === "TEACHER";
+  const classes = useQuery({
+    queryKey: ["classes", "schedule"],
+    queryFn: () => listClasses(),
+    enabled: canWrite,
+  });
   const reload = () => void client.invalidateQueries({ queryKey: ["schedule"] });
   const save = useMutation({
     mutationFn: () => (editing ? updateScheduleEntry(editing, draft) : createScheduleEntry(draft)),
@@ -120,10 +137,20 @@ export function SchedulePage() {
       if (upload.current) upload.current.value = "";
     }
   }
-  if (entries.isLoading || (canReadOrganizations && organizations.isLoading) || classes.isLoading)
+  if (
+    entries.isLoading ||
+    (canReadOrganizations && organizations.isLoading) ||
+    (canWrite && classes.isLoading)
+  )
     return <LoadingState label="در حال دریافت برنامه…" />;
-  if (entries.isError || (canReadOrganizations && organizations.isError) || classes.isError)
+  if (
+    entries.isError ||
+    (canReadOrganizations && organizations.isError) ||
+    (canWrite && classes.isError)
+  )
     return <EmptyState title="دریافت برنامه انجام نشد." />;
+  if (isStudent) return <StudentWeeklySchedule entries={entries.data ?? []} />;
+  if (isTeacher) return <TeacherSchedulePage entries={entries.data ?? []} />;
   return (
     <section className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_22rem]" dir="rtl">
       <Card className="order-2 p-3 xl:order-1">
@@ -304,5 +331,70 @@ export function SchedulePage() {
         </Card>
       ) : null}
     </section>
+  );
+}
+
+function StudentWeeklySchedule({ entries }: { entries: ScheduleEntry[] }) {
+  return (
+    <section className="mx-auto grid w-full max-w-4xl gap-4" dir="rtl" aria-label="برنامه هفتگی من">
+      <header className="px-1">
+        <p className="text-xs font-bold text-brand">فضای آموزشی من</p>
+        <h1 className="mt-1 text-xl font-black text-ink">برنامه هفتگی کلاس‌ها</h1>
+        <p className="mt-1 text-xs leading-5 text-slate-500">
+          زمان هر درس، کلاس و استاد مربوط به آن را ببینید.
+        </p>
+      </header>
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+        {weekdays.map((day, weekday) => {
+          const dailyEntries = entries
+            .filter((entry) => entry.status === "ACTIVE" && entry.weekday === weekday)
+            .sort((a, b) => a.startTime.localeCompare(b.startTime));
+          return (
+            <Card key={day} className="min-w-0 p-3">
+              <h2 className="text-sm font-black text-ink">{day}</h2>
+              <div className="mt-3 grid gap-2">
+                {dailyEntries.map((entry) => (
+                  <article key={entry.id} className="rounded-xl bg-[rgb(var(--surface-muted))] p-3">
+                    <div className="flex items-start gap-2">
+                      <CalendarClock
+                        size={17}
+                        className="mt-0.5 shrink-0 text-brand"
+                        aria-hidden="true"
+                      />
+                      <div className="min-w-0 flex-1">
+                        <h3 className="truncate text-sm font-bold text-ink">{entry.title}</h3>
+                        <p className="mt-1 text-xs font-semibold text-brand">
+                          {entry.startTime} تا {entry.endTime}
+                        </p>
+                        <p className="mt-2 text-xs text-slate-500">
+                          {entry.classroom?.name || entry.room || entry.organization.name}
+                        </p>
+                        <p className="mt-1 flex items-center gap-1 text-xs text-slate-600 dark:text-slate-300">
+                          <GraduationCap size={14} aria-hidden="true" />
+                          {teacherName(entry) || "استاد این کلاس هنوز ثبت نشده است."}
+                        </p>
+                      </div>
+                    </div>
+                  </article>
+                ))}
+                {!dailyEntries.length ? (
+                  <p className="rounded-xl bg-[rgb(var(--surface-muted))] p-3 text-xs text-slate-500">
+                    کلاسی برای این روز ثبت نشده است.
+                  </p>
+                ) : null}
+              </div>
+            </Card>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
+function teacherName(entry: ScheduleEntry) {
+  if (!entry.teacher) return "";
+  return (
+    [entry.teacher.firstName, entry.teacher.lastName].filter(Boolean).join(" ") ||
+    entry.teacher.username
   );
 }

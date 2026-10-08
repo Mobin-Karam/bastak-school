@@ -4,7 +4,7 @@ const AUTHORIZATION_MODULE = defineModule({ id: "authorization", version: "0.1.0
 function buildAuthorizationContext(base, assignments, memberships, options = {}) {
   const requestedRole = options.requestedRole; const requestedOrganizationId = options.requestedOrganizationId; const fallback = base.role === "ADMIN" ? null : base.role;
   const allRoles = uniqueValues(assignments.map((item) => item.role).concat(assignments.length || !fallback ? [] : [fallback]));
-  const effectiveAssignments = assignments.filter((item) => (!requestedRole || item.role === requestedRole) && (!requestedOrganizationId || (!item.organizationScoped ? item.role === "PLATFORM_ADMIN" : item.organizationId === requestedOrganizationId)));
+  const effectiveAssignments = assignments.filter((item) => (!requestedRole || item.role === requestedRole) && (!requestedOrganizationId || !item.organizationScoped || item.organizationId === requestedOrganizationId));
   const scopedMemberships = requestedOrganizationId ? memberships.filter((item) => item.organizationId === requestedOrganizationId) : memberships;
   return { ...base, roles: requestedRole ? [requestedRole] : allRoles, capabilities: uniqueValues(effectiveAssignments.flatMap((item) => item.capabilities)), membershipIds: scopedMemberships.map((item) => item.id), organizationIds: scopedMemberships.map((item) => item.organizationId) };
 }

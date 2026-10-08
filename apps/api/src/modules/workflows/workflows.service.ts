@@ -2,12 +2,32 @@ import { Injectable } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { In, Repository } from "typeorm";
 import { ApiException } from "../../common/exceptions/api.exception";
-import { AttendanceRecord, AttendanceStatus } from "../../database/entities/attendance-record.entity";
-import { AttendanceSession, AttendanceContextType } from "../../database/entities/attendance-session.entity";
-import { ExitPermission, ExitPermissionStatus } from "../../database/entities/exit-permission.entity";
-import { LeaveRequest, LeaveRequestStatus } from "../../database/entities/leave-request.entity";
-import { OrganizationMembership, MembershipStatus } from "../../database/entities/organization-membership.entity";
-import { RequestLetter, RequestLetterStatus } from "../../database/entities/request-letter.entity";
+import {
+  AttendanceRecord,
+  AttendanceStatus,
+} from "../../database/entities/attendance-record.entity";
+import {
+  AttendanceSession,
+  AttendanceContextType,
+} from "../../database/entities/attendance-session.entity";
+import {
+  ExitPermission,
+  ExitPermissionStatus,
+} from "../../database/entities/exit-permission.entity";
+import {
+  LeaveRequest,
+  LeaveRequestReviewerRole,
+  LeaveRequestStatus,
+  LeaveRequestType,
+} from "../../database/entities/leave-request.entity";
+import {
+  OrganizationMembership,
+  MembershipStatus,
+} from "../../database/entities/organization-membership.entity";
+import {
+  RequestLetter,
+  RequestLetterStatus,
+} from "../../database/entities/request-letter.entity";
 import { Student } from "../../database/entities/student.entity";
 import { User } from "../../database/entities/user.entity";
 import { EducationClass } from "../../database/entities/education-class.entity";
@@ -21,30 +41,52 @@ import { AuthenticatedUser } from "../auth";
 @Injectable()
 export class WorkflowsService {
   constructor(
-    @InjectRepository(AttendanceSession) private readonly sessions: Repository<AttendanceSession>,
-    @InjectRepository(AttendanceRecord) private readonly attendanceRecords: Repository<AttendanceRecord>,
-    @InjectRepository(LeaveRequest) private readonly leaveRequests: Repository<LeaveRequest>,
-    @InjectRepository(ExitPermission) private readonly exitPermissions: Repository<ExitPermission>,
-    @InjectRepository(RequestLetter) private readonly letters: Repository<RequestLetter>,
+    @InjectRepository(AttendanceSession)
+    private readonly sessions: Repository<AttendanceSession>,
+    @InjectRepository(AttendanceRecord)
+    private readonly attendanceRecords: Repository<AttendanceRecord>,
+    @InjectRepository(LeaveRequest)
+    private readonly leaveRequests: Repository<LeaveRequest>,
+    @InjectRepository(ExitPermission)
+    private readonly exitPermissions: Repository<ExitPermission>,
+    @InjectRepository(RequestLetter)
+    private readonly letters: Repository<RequestLetter>,
     @InjectRepository(Student) private readonly students: Repository<Student>,
-    @InjectRepository(EducationClass) private readonly classes: Repository<EducationClass>,
-    @InjectRepository(EducationClassEnrollment) private readonly classEnrollments: Repository<EducationClassEnrollment>,
-    @InjectRepository(StudyGroup) private readonly studyGroups: Repository<StudyGroup>,
-    @InjectRepository(StudyGroupMembership) private readonly studyGroupMemberships: Repository<StudyGroupMembership>,
-    @InjectRepository(DormRoom) private readonly dormRooms: Repository<DormRoom>,
-    @InjectRepository(DormRoomAssignment) private readonly dormAssignments: Repository<DormRoomAssignment>,
-    @InjectRepository(OrganizationMembership) private readonly memberships: Repository<OrganizationMembership>,
+    @InjectRepository(EducationClass)
+    private readonly classes: Repository<EducationClass>,
+    @InjectRepository(EducationClassEnrollment)
+    private readonly classEnrollments: Repository<EducationClassEnrollment>,
+    @InjectRepository(StudyGroup)
+    private readonly studyGroups: Repository<StudyGroup>,
+    @InjectRepository(StudyGroupMembership)
+    private readonly studyGroupMemberships: Repository<StudyGroupMembership>,
+    @InjectRepository(DormRoom)
+    private readonly dormRooms: Repository<DormRoom>,
+    @InjectRepository(DormRoomAssignment)
+    private readonly dormAssignments: Repository<DormRoomAssignment>,
+    @InjectRepository(OrganizationMembership)
+    private readonly memberships: Repository<OrganizationMembership>,
     @InjectRepository(User) private readonly users: Repository<User>,
   ) {}
 
-  async listAttendanceContexts(user: AuthenticatedUser, organizationId?: string) {
+  async listAttendanceContexts(
+    user: AuthenticatedUser,
+    organizationId?: string,
+  ) {
     const memberships = await this.activeMemberships(user.id);
-    const organizationIds = memberships.map((membership) => membership.organization.id);
+    const organizationIds = memberships.map(
+      (membership) => membership.organization.id,
+    );
     if (!organizationIds.length) {
       return [];
     }
-    const effectiveOrgId = organizationId && organizationIds.includes(organizationId) ? organizationId : undefined;
-    const orgFilter = effectiveOrgId ? { id: effectiveOrgId } : { id: In(organizationIds) };
+    const effectiveOrgId =
+      organizationId && organizationIds.includes(organizationId)
+        ? organizationId
+        : undefined;
+    const orgFilter = effectiveOrgId
+      ? { id: effectiveOrgId }
+      : { id: In(organizationIds) };
 
     const [classes, rooms, groups] = await Promise.all([
       this.classes.find({
@@ -94,13 +136,20 @@ export class WorkflowsService {
 
   async listDormRooms(user: AuthenticatedUser, organizationId?: string) {
     const memberships = await this.activeMemberships(user.id);
-    const organizationIds = memberships.map((membership) => membership.organization.id);
+    const organizationIds = memberships.map(
+      (membership) => membership.organization.id,
+    );
     if (!organizationIds.length) {
       return [];
     }
-    const effectiveOrgId = organizationId && organizationIds.includes(organizationId) ? organizationId : undefined;
+    const effectiveOrgId =
+      organizationId && organizationIds.includes(organizationId)
+        ? organizationId
+        : undefined;
     const rooms = await this.dormRooms.find({
-      where: effectiveOrgId ? { organization: { id: effectiveOrgId } } : { organization: { id: In(organizationIds) } },
+      where: effectiveOrgId
+        ? { organization: { id: effectiveOrgId } }
+        : { organization: { id: In(organizationIds) } },
       relations: { organization: true, assignments: { student: true } },
       order: { name: "ASC" },
     });
@@ -117,21 +166,37 @@ export class WorkflowsService {
     }));
   }
 
-  async createDormRoom(user: AuthenticatedUser, input: {
-    organizationId: string;
-    code: string;
-    name: string;
-    capacity?: number;
-  }) {
-    const organization = await this.organizationForUser(user.id, input.organizationId);
+  async createDormRoom(
+    user: AuthenticatedUser,
+    input: {
+      organizationId: string;
+      code: string;
+      name: string;
+      capacity?: number;
+    },
+  ) {
+    const organization = await this.organizationForUser(
+      user.id,
+      input.organizationId,
+    );
     const code = (input.code || "").trim();
     const name = (input.name || "").trim();
     if (!code || !name) {
-      throw new ApiException(400, "DORM_ROOM_INVALID", "کد و نام اتاق خوابگاه الزامی است.");
+      throw new ApiException(
+        400,
+        "DORM_ROOM_INVALID",
+        "کد و نام اتاق خوابگاه الزامی است.",
+      );
     }
-    const existing = await this.dormRooms.findOne({ where: { organization: { id: organization.id }, code } });
+    const existing = await this.dormRooms.findOne({
+      where: { organization: { id: organization.id }, code },
+    });
     if (existing) {
-      throw new ApiException(409, "DORM_ROOM_EXISTS", "این کد اتاق در سازمان تکراری است.");
+      throw new ApiException(
+        409,
+        "DORM_ROOM_EXISTS",
+        "این کد اتاق در سازمان تکراری است.",
+      );
     }
     const room = await this.dormRooms.save(
       this.dormRooms.create({
@@ -169,7 +234,11 @@ export class WorkflowsService {
     }));
   }
 
-  async setDormAssignments(user: AuthenticatedUser, roomId: string, studentIds: string[]) {
+  async setDormAssignments(
+    user: AuthenticatedUser,
+    roomId: string,
+    studentIds: string[],
+  ) {
     const room = await this.requireDormRoom(user, roomId);
     const uniqueStudentIds = [...new Set((studentIds || []).filter(Boolean))];
     if (!uniqueStudentIds.length) {
@@ -181,40 +250,73 @@ export class WorkflowsService {
       relations: { user: true },
     });
     if (students.length !== uniqueStudentIds.length) {
-      throw new ApiException(400, "DORM_STUDENT_NOT_FOUND", "یکی از دانش‌آموزان پیدا نشد.");
+      throw new ApiException(
+        400,
+        "DORM_STUDENT_NOT_FOUND",
+        "یکی از دانش‌آموزان پیدا نشد.",
+      );
     }
     const validStudentIds = new Set<string>();
     for (const student of students) {
       if (!student.user?.id) continue;
       const membership = await this.memberships.findOne({
-        where: { user: { id: student.user.id }, organization: { id: room.organization.id }, status: MembershipStatus.ACTIVE },
+        where: {
+          user: { id: student.user.id },
+          organization: { id: room.organization.id },
+          status: MembershipStatus.ACTIVE,
+        },
         relations: { user: true, organization: true },
       });
       if (membership) validStudentIds.add(student.id);
     }
     if (validStudentIds.size !== uniqueStudentIds.length) {
-      throw new ApiException(403, "DORM_STUDENT_FORBIDDEN", "بعضی از دانش‌آموزان به این سازمان تعلق ندارند.");
+      throw new ApiException(
+        403,
+        "DORM_STUDENT_FORBIDDEN",
+        "بعضی از دانش‌آموزان به این سازمان تعلق ندارند.",
+      );
     }
     if (uniqueStudentIds.length > room.capacity) {
-      throw new ApiException(400, "DORM_ROOM_CAPACITY", "تعداد دانش‌آموزان بیشتر از ظرفیت اتاق است.");
+      throw new ApiException(
+        400,
+        "DORM_ROOM_CAPACITY",
+        "تعداد دانش‌آموزان بیشتر از ظرفیت اتاق است.",
+      );
     }
 
     await this.dormAssignments.delete({ room: { id: room.id } });
     const saved = await Promise.all(
-      uniqueStudentIds.map(async (studentId) => this.dormAssignments.save(this.dormAssignments.create({ room, student: { id: studentId } as Student }))),
+      uniqueStudentIds.map(async (studentId) =>
+        this.dormAssignments.save(
+          this.dormAssignments.create({
+            room,
+            student: { id: studentId } as Student,
+          }),
+        ),
+      ),
     );
     return { roomId: room.id, count: saved.length };
   }
 
-  async listAttendanceSessions(user: AuthenticatedUser, organizationId?: string) {
+  async listAttendanceSessions(
+    user: AuthenticatedUser,
+    organizationId?: string,
+  ) {
     const memberships = await this.activeMemberships(user.id);
-    const organizationIds = memberships.map((membership) => membership.organization.id);
+    const organizationIds = memberships.map(
+      (membership) => membership.organization.id,
+    );
     if (!organizationIds.length) {
       return [];
     }
-    const effectiveOrgId = organizationId && organizationIds.includes(organizationId) ? organizationId : undefined;
+    const effectiveOrgId =
+      organizationId && organizationIds.includes(organizationId)
+        ? organizationId
+        : undefined;
     const rows = await this.sessions.find({
-      where: effectiveOrgId ? { organization: { id: effectiveOrgId } } : { organization: { id: In(organizationIds) } },
+      where: effectiveOrgId
+        ? { organization: { id: effectiveOrgId } }
+        : { organization: { id: In(organizationIds) } },
       relations: { organization: true, createdBy: true },
       order: { sessionDate: "DESC" },
     });
@@ -231,18 +333,28 @@ export class WorkflowsService {
     }));
   }
 
-  async createAttendanceSession(user: AuthenticatedUser, input: {
-    organizationId: string;
-    contextType: string;
-    contextId: string;
-    sessionDate: string;
-    note?: string;
-  }) {
-    const organization = await this.organizationForUser(user.id, input.organizationId);
+  async createAttendanceSession(
+    user: AuthenticatedUser,
+    input: {
+      organizationId: string;
+      contextType: string;
+      contextId: string;
+      sessionDate: string;
+      note?: string;
+    },
+  ) {
+    const organization = await this.organizationForUser(
+      user.id,
+      input.organizationId,
+    );
     const contextType = this.parseContextType(input.contextType);
     const date = new Date(input.sessionDate);
     if (Number.isNaN(date.getTime())) {
-      throw new ApiException(400, "ATTENDANCE_DATE_INVALID", "تاریخ جلسه معتبر نیست.");
+      throw new ApiException(
+        400,
+        "ATTENDANCE_DATE_INVALID",
+        "تاریخ جلسه معتبر نیست.",
+      );
     }
     const row = await this.sessions.save(
       this.sessions.create({
@@ -264,26 +376,45 @@ export class WorkflowsService {
     };
   }
 
-  async bulkMarkAttendance(user: AuthenticatedUser, input: {
-    organizationId: string;
-    sessionId?: string;
-    contextType?: string;
-    contextId?: string;
-    sessionDate?: string;
-    entries: Array<{ studentId: string; status?: string; note?: string }>;
-  }) {
-    const organization = await this.organizationForUser(user.id, input.organizationId);
+  async bulkMarkAttendance(
+    user: AuthenticatedUser,
+    input: {
+      organizationId: string;
+      sessionId?: string;
+      contextType?: string;
+      contextId?: string;
+      sessionDate?: string;
+      entries: Array<{ studentId: string; status?: string; note?: string }>;
+    },
+  ) {
+    const organization = await this.organizationForUser(
+      user.id,
+      input.organizationId,
+    );
     if (!input.entries?.length) {
-      throw new ApiException(400, "ATTENDANCE_EMPTY", "هیچ ورودی حضوری ارسال نشده است.");
+      throw new ApiException(
+        400,
+        "ATTENDANCE_EMPTY",
+        "هیچ ورودی حضوری ارسال نشده است.",
+      );
     }
     let session = input.sessionId
-      ? await this.sessions.findOne({ where: { id: input.sessionId, organization: { id: organization.id } }, relations: { organization: true } })
+      ? await this.sessions.findOne({
+          where: { id: input.sessionId, organization: { id: organization.id } },
+          relations: { organization: true },
+        })
       : null;
     if (!session) {
-      const contextType = input.contextType ? this.parseContextType(input.contextType) : "class";
+      const contextType = input.contextType
+        ? this.parseContextType(input.contextType)
+        : "class";
       const date = input.sessionDate ? new Date(input.sessionDate) : new Date();
       if (Number.isNaN(date.getTime())) {
-        throw new ApiException(400, "ATTENDANCE_DATE_INVALID", "تاریخ جلسه معتبر نیست.");
+        throw new ApiException(
+          400,
+          "ATTENDANCE_DATE_INVALID",
+          "تاریخ جلسه معتبر نیست.",
+        );
       }
       session = await this.sessions.save(
         this.sessions.create({
@@ -299,12 +430,21 @@ export class WorkflowsService {
 
     const created = await Promise.all(
       input.entries.map(async (entry) => {
-        const student = await this.students.findOne({ where: { id: entry.studentId }, relations: { user: true } });
+        const student = await this.students.findOne({
+          where: { id: entry.studentId },
+          relations: { user: true },
+        });
         if (!student) {
-          throw new ApiException(404, "STUDENT_NOT_FOUND", "دانش‌آموز مورد نظر پیدا نشد.");
+          throw new ApiException(
+            404,
+            "STUDENT_NOT_FOUND",
+            "دانش‌آموز مورد نظر پیدا نشد.",
+          );
         }
         const status = this.parseAttendanceStatus(entry.status || "present");
-        const existing = await this.attendanceRecords.findOne({ where: { session: { id: session!.id }, student: { id: student.id } } });
+        const existing = await this.attendanceRecords.findOne({
+          where: { session: { id: session!.id }, student: { id: student.id } },
+        });
         if (existing) {
           existing.status = status;
           existing.note = entry.note?.trim() || existing.note || "";
@@ -335,13 +475,27 @@ export class WorkflowsService {
     };
   }
 
-  async listContextParticipants(user: AuthenticatedUser, contextType: string, contextId: string) {
+  async listContextParticipants(
+    user: AuthenticatedUser,
+    contextType: string,
+    contextId: string,
+  ) {
     const context = this.parseContextType(contextType);
-    const organizationId = await this.resolveOrganizationIdForContext(user, context, contextId);
-    const organization = await this.organizationForUser(user.id, organizationId);
+    const organizationId = await this.resolveOrganizationIdForContext(
+      user,
+      context,
+      contextId,
+    );
+    const organization = await this.organizationForUser(
+      user.id,
+      organizationId,
+    );
 
     if (context === "class") {
-      const classroom = await this.classes.findOne({ where: { id: contextId, organization: { id: organization.id } }, relations: { organization: true } });
+      const classroom = await this.classes.findOne({
+        where: { id: contextId, organization: { id: organization.id } },
+        relations: { organization: true },
+      });
       if (!classroom) {
         throw new ApiException(404, "CLASS_NOT_FOUND", "کلاس پیدا نشد.");
       }
@@ -360,9 +514,16 @@ export class WorkflowsService {
     }
 
     if (context === "study_group") {
-      const group = await this.studyGroups.findOne({ where: { id: contextId, organization: { id: organization.id } }, relations: { organization: true } });
+      const group = await this.studyGroups.findOne({
+        where: { id: contextId, organization: { id: organization.id } },
+        relations: { organization: true },
+      });
       if (!group) {
-        throw new ApiException(404, "STUDY_GROUP_NOT_FOUND", "گروه درسی پیدا نشد.");
+        throw new ApiException(
+          404,
+          "STUDY_GROUP_NOT_FOUND",
+          "گروه درسی پیدا نشد.",
+        );
       }
       const rows = await this.studyGroupMemberships.find({
         where: { group: { id: group.id } },
@@ -379,9 +540,16 @@ export class WorkflowsService {
     }
 
     if (context === "dorm") {
-      const room = await this.dormRooms.findOne({ where: { id: contextId, organization: { id: organization.id } }, relations: { organization: true } });
+      const room = await this.dormRooms.findOne({
+        where: { id: contextId, organization: { id: organization.id } },
+        relations: { organization: true },
+      });
       if (!room) {
-        throw new ApiException(404, "DORM_ROOM_NOT_FOUND", "اتاق خوابگاه پیدا نشد.");
+        throw new ApiException(
+          404,
+          "DORM_ROOM_NOT_FOUND",
+          "اتاق خوابگاه پیدا نشد.",
+        );
       }
       const rows = await this.dormAssignments.find({
         where: { room: { id: room.id } },
@@ -400,14 +568,24 @@ export class WorkflowsService {
     return [];
   }
 
-  async getStudentAttendanceSummary(user: AuthenticatedUser, studentId?: string) {
-    const targetStudentId = studentId || (await this.studentForUser(user.id)).id;
+  async getStudentAttendanceSummary(
+    user: AuthenticatedUser,
+    studentId?: string,
+  ) {
+    const targetStudentId =
+      studentId || (await this.studentForUser(user.id)).id;
     const records = await this.attendanceRecords.find({
       where: { student: { id: targetStudentId } },
       relations: { session: { organization: true } },
       order: { createdAt: "DESC" },
     });
-    const summary = { present: 0, absent: 0, late: 0, excused: 0, total: records.length };
+    const summary = {
+      present: 0,
+      absent: 0,
+      late: 0,
+      excused: 0,
+      total: records.length,
+    };
     for (const record of records) {
       if (record.status === AttendanceStatus.PRESENT) summary.present += 1;
       if (record.status === AttendanceStatus.ABSENT) summary.absent += 1;
@@ -436,60 +614,127 @@ export class WorkflowsService {
 
   async listLeaveRequests(user: AuthenticatedUser, organizationId?: string) {
     const memberships = await this.activeMemberships(user.id);
-    const organizationIds = memberships.map((membership) => membership.organization.id);
-    const requestedOrgId = organizationId && organizationIds.includes(organizationId) ? organizationId : undefined;
+    const organizationIds = memberships.map(
+      (membership) => membership.organization.id,
+    );
+    const requestedOrgId =
+      organizationId && organizationIds.includes(organizationId)
+        ? organizationId
+        : undefined;
+    const reviewScope = this.leaveReviewScope(user);
     const rows = await this.leaveRequests.find({
-      where: this.canReviewSchoolWorkflows(user)
-        ? (requestedOrgId ? { organization: { id: requestedOrgId } } : { organization: { id: In(organizationIds) } })
-        : { student: { user: { id: user.id } } },
-      relations: { organization: true, student: { user: true }, approver: true },
+      where:
+        reviewScope === "all"
+          ? requestedOrgId
+            ? { organization: { id: requestedOrgId } }
+            : { organization: { id: In(organizationIds) } }
+          : reviewScope === "supervisor"
+            ? requestedOrgId
+              ? {
+                  organization: { id: requestedOrgId },
+                  reviewerRole: LeaveRequestReviewerRole.SCHOOL_SUPERVISOR,
+                }
+              : {
+                  organization: { id: In(organizationIds) },
+                  reviewerRole: LeaveRequestReviewerRole.SCHOOL_SUPERVISOR,
+                }
+            : { student: { user: { id: user.id } } },
+      relations: {
+        organization: true,
+        student: { user: true },
+        approver: true,
+      },
       order: { createdAt: "DESC" },
     });
     return rows.map((row) => this.serializeLeaveRequest(row));
   }
 
-  async createLeaveRequest(user: AuthenticatedUser, input: {
-    organizationId: string;
-    leaveType?: string;
-    startDate: string;
-    endDate: string;
-    reason: string;
-    note?: string;
-    attachments?: string[];
-  }) {
+  async createLeaveRequest(
+    user: AuthenticatedUser,
+    input: {
+      organizationId: string;
+      leaveType?: string;
+      startDate: string;
+      endDate: string;
+      reason: string;
+      note?: string;
+      attachments?: string[];
+    },
+  ) {
     const student = await this.studentForUser(user.id);
-    const organization = await this.organizationForUser(user.id, input.organizationId);
+    const organization = await this.organizationForUser(
+      user.id,
+      input.organizationId,
+    );
     const startDate = new Date(input.startDate);
     const endDate = new Date(input.endDate);
     if (Number.isNaN(startDate.getTime()) || Number.isNaN(endDate.getTime())) {
-      throw new ApiException(400, "LEAVE_DATE_INVALID", "تاریخ شروع یا پایان مرخصی معتبر نیست.");
+      throw new ApiException(
+        400,
+        "LEAVE_DATE_INVALID",
+        "تاریخ شروع یا پایان مرخصی معتبر نیست.",
+      );
+    }
+    if (endDate < startDate) {
+      throw new ApiException(
+        400,
+        "LEAVE_DATE_RANGE_INVALID",
+        "تاریخ پایان نمی‌تواند قبل از تاریخ شروع باشد.",
+      );
     }
     if (!input.reason?.trim()) {
-      throw new ApiException(400, "LEAVE_REASON_REQUIRED", "دلیل مرخصی الزامی است.");
+      throw new ApiException(
+        400,
+        "LEAVE_REASON_REQUIRED",
+        "دلیل مرخصی الزامی است.",
+      );
     }
+    const leaveType = this.parseLeaveRequestType(input.leaveType);
+    const reviewerRole =
+      leaveType === LeaveRequestType.SCHOOL_EXIT
+        ? LeaveRequestReviewerRole.SCHOOL_SUPERVISOR
+        : LeaveRequestReviewerRole.PRINCIPAL;
     const row = await this.leaveRequests.save(
       this.leaveRequests.create({
         organization,
         student,
-        leaveType: input.leaveType?.trim() || "general",
+        leaveType,
+        reviewerRole,
         startDate,
         endDate,
         reason: input.reason.trim(),
         note: input.note?.trim() || "",
-        attachments: Array.isArray(input.attachments) ? input.attachments.filter(Boolean) : [],
+        attachments: Array.isArray(input.attachments)
+          ? input.attachments.filter(Boolean)
+          : [],
         status: LeaveRequestStatus.PENDING,
       }),
     );
     return this.serializeLeaveRequest(row);
   }
 
-  async reviewLeaveRequest(user: AuthenticatedUser, leaveRequestId: string, input: { status: string; note?: string }) {
-    const row = await this.leaveRequests.findOne({ where: { id: leaveRequestId }, relations: { organization: true, student: { user: true }, approver: true } });
+  async reviewLeaveRequest(
+    user: AuthenticatedUser,
+    leaveRequestId: string,
+    input: { status: string; note?: string },
+  ) {
+    const row = await this.leaveRequests.findOne({
+      where: { id: leaveRequestId },
+      relations: {
+        organization: true,
+        student: { user: true },
+        approver: true,
+      },
+    });
     if (!row) {
-      throw new ApiException(404, "LEAVE_REQUEST_NOT_FOUND", "درخواست مرخصی پیدا نشد.");
+      throw new ApiException(
+        404,
+        "LEAVE_REQUEST_NOT_FOUND",
+        "درخواست مرخصی پیدا نشد.",
+      );
     }
     await this.organizationForUser(user.id, row.organization.id);
-    this.assertWorkflowReviewer(user);
+    this.assertLeaveRequestReviewer(user, row);
     const status = this.parseLeaveStatus(input.status);
     row.status = status;
     row.note = input.note?.trim() || row.note || "";
@@ -501,35 +746,62 @@ export class WorkflowsService {
 
   async listExitPermissions(user: AuthenticatedUser, organizationId?: string) {
     const memberships = await this.activeMemberships(user.id);
-    const organizationIds = memberships.map((membership) => membership.organization.id);
-    const requestedOrgId = organizationId && organizationIds.includes(organizationId) ? organizationId : undefined;
+    const organizationIds = memberships.map(
+      (membership) => membership.organization.id,
+    );
+    const requestedOrgId =
+      organizationId && organizationIds.includes(organizationId)
+        ? organizationId
+        : undefined;
     const rows = await this.exitPermissions.find({
       where: this.canReviewSchoolWorkflows(user)
-        ? (requestedOrgId ? { organization: { id: requestedOrgId } } : { organization: { id: In(organizationIds) } })
+        ? requestedOrgId
+          ? { organization: { id: requestedOrgId } }
+          : { organization: { id: In(organizationIds) } }
         : { student: { user: { id: user.id } } },
-      relations: { organization: true, student: { user: true }, approver: true },
+      relations: {
+        organization: true,
+        student: { user: true },
+        approver: true,
+      },
       order: { createdAt: "DESC" },
     });
     return rows.map((row) => this.serializeExitPermission(row));
   }
 
-  async createExitPermission(user: AuthenticatedUser, input: {
-    organizationId: string;
-    destination: string;
-    reason: string;
-    requestedDepartureAt: string;
-    expectedReturnAt?: string;
-    note?: string;
-  }) {
+  async createExitPermission(
+    user: AuthenticatedUser,
+    input: {
+      organizationId: string;
+      destination: string;
+      reason: string;
+      requestedDepartureAt: string;
+      expectedReturnAt?: string;
+      note?: string;
+    },
+  ) {
     const student = await this.studentForUser(user.id);
-    const organization = await this.organizationForUser(user.id, input.organizationId);
+    const organization = await this.organizationForUser(
+      user.id,
+      input.organizationId,
+    );
     const departure = new Date(input.requestedDepartureAt);
     if (Number.isNaN(departure.getTime())) {
-      throw new ApiException(400, "EXIT_DEPARTURE_INVALID", "زمان خروج معتبر نیست.");
+      throw new ApiException(
+        400,
+        "EXIT_DEPARTURE_INVALID",
+        "زمان خروج معتبر نیست.",
+      );
     }
-    const expectedReturn = input.expectedReturnAt ? new Date(input.expectedReturnAt) : null;
+    const expectedReturn = input.expectedReturnAt
+      ? new Date(input.expectedReturnAt)
+      : null;
     if (expectedReturn && Number.isNaN(expectedReturn.getTime())) {
-      throw new ApiException(400, "EXIT_RETURN_INVALID", "زمان بازگشت معتبر نیست.");
+      throw new ApiException(
+        400,
+        "EXIT_RETURN_INVALID",
+        "زمان بازگشت معتبر نیست.",
+      );
     }
     const row = await this.exitPermissions.save(
       this.exitPermissions.create({
@@ -546,10 +818,25 @@ export class WorkflowsService {
     return this.serializeExitPermission(row);
   }
 
-  async reviewExitPermission(user: AuthenticatedUser, exitPermissionId: string, input: { status: string; note?: string }) {
-    const row = await this.exitPermissions.findOne({ where: { id: exitPermissionId }, relations: { organization: true, student: { user: true }, approver: true } });
+  async reviewExitPermission(
+    user: AuthenticatedUser,
+    exitPermissionId: string,
+    input: { status: string; note?: string },
+  ) {
+    const row = await this.exitPermissions.findOne({
+      where: { id: exitPermissionId },
+      relations: {
+        organization: true,
+        student: { user: true },
+        approver: true,
+      },
+    });
     if (!row) {
-      throw new ApiException(404, "EXIT_PERMISSION_NOT_FOUND", "درخواست مجوز خروج پیدا نشد.");
+      throw new ApiException(
+        404,
+        "EXIT_PERMISSION_NOT_FOUND",
+        "درخواست مجوز خروج پیدا نشد.",
+      );
     }
     await this.organizationForUser(user.id, row.organization.id);
     this.assertWorkflowReviewer(user);
@@ -563,17 +850,48 @@ export class WorkflowsService {
   }
 
   /** A supervisor records the physical gate event; approval alone never changes occupancy. */
-  async recordExitMovement(user: AuthenticatedUser, exitPermissionId: string, movement: "departure" | "return") {
-    const row = await this.exitPermissions.findOne({ where: { id: exitPermissionId }, relations: { organization: true, student: { user: true }, approver: true } });
-    if (!row) throw new ApiException(404, "EXIT_PERMISSION_NOT_FOUND", "مجوز خروج پیدا نشد.");
+  async recordExitMovement(
+    user: AuthenticatedUser,
+    exitPermissionId: string,
+    movement: "departure" | "return",
+  ) {
+    const row = await this.exitPermissions.findOne({
+      where: { id: exitPermissionId },
+      relations: {
+        organization: true,
+        student: { user: true },
+        approver: true,
+      },
+    });
+    if (!row)
+      throw new ApiException(
+        404,
+        "EXIT_PERMISSION_NOT_FOUND",
+        "مجوز خروج پیدا نشد.",
+      );
     await this.organizationForUser(user.id, row.organization.id);
     this.assertWorkflowReviewer(user);
     if (movement === "departure") {
-      if (row.status !== ExitPermissionStatus.APPROVED) throw new ApiException(409, "EXIT_NOT_APPROVED", "فقط مجوز تأییدشده قابل ثبت خروج است.");
-      if (row.actualReturnAt) throw new ApiException(409, "EXIT_ALREADY_RETURNED", "برای این مجوز بازگشت ثبت شده است.");
+      if (row.status !== ExitPermissionStatus.APPROVED)
+        throw new ApiException(
+          409,
+          "EXIT_NOT_APPROVED",
+          "فقط مجوز تأییدشده قابل ثبت خروج است.",
+        );
+      if (row.actualReturnAt)
+        throw new ApiException(
+          409,
+          "EXIT_ALREADY_RETURNED",
+          "برای این مجوز بازگشت ثبت شده است.",
+        );
       row.actualDepartureAt = row.actualDepartureAt ?? new Date();
     } else {
-      if (!row.actualDepartureAt) throw new ApiException(409, "EXIT_NOT_DEPARTED", "ابتدا خروج دانش‌آموز را ثبت کنید.");
+      if (!row.actualDepartureAt)
+        throw new ApiException(
+          409,
+          "EXIT_NOT_DEPARTED",
+          "ابتدا خروج دانش‌آموز را ثبت کنید.",
+        );
       row.actualReturnAt = new Date();
       row.status = ExitPermissionStatus.COMPLETED;
     }
@@ -585,36 +903,115 @@ export class WorkflowsService {
     const memberships = await this.activeMemberships(user.id);
     const ids = memberships.map((membership) => membership.organization.id);
     if (!ids.length) return [];
-    const scoped = organizationId ? (ids.includes(organizationId) ? [organizationId] : []) : ids;
+    const scoped = organizationId
+      ? ids.includes(organizationId)
+        ? [organizationId]
+        : []
+      : ids;
     const result = [];
     for (const id of scoped) {
-      const total = await this.students.count({ where: { organization: { id }, accountStatus: "active" } });
+      const total = await this.students.count({
+        where: { organization: { id }, accountStatus: "active" },
+      });
       // TypeORM's object where cannot express IS NOT NULL and IS NULL together reliably across SQLite versions.
-      const rows = await this.exitPermissions.createQueryBuilder("exit")
+      const rows = await this.exitPermissions
+        .createQueryBuilder("exit")
         .where("exit.organizationId = :id", { id })
-        .andWhere("exit.status = :status", { status: ExitPermissionStatus.APPROVED })
+        .andWhere("exit.status = :status", {
+          status: ExitPermissionStatus.APPROVED,
+        })
         .andWhere("exit.actualDepartureAt IS NOT NULL")
         .andWhere("exit.actualReturnAt IS NULL")
         .getCount();
-      result.push({ organizationId: id, totalStudents: total, currentlyOut: rows, currentlyInSchool: Math.max(0, total - rows), generatedAt: new Date().toISOString() });
+      result.push({
+        organizationId: id,
+        totalStudents: total,
+        currentlyOut: rows,
+        currentlyInSchool: Math.max(0, total - rows),
+        generatedAt: new Date().toISOString(),
+      });
     }
     return result;
   }
 
   private canReviewSchoolWorkflows(user: AuthenticatedUser) {
-    return ["PLATFORM_ADMIN", "ORGANIZATION_ADMIN", "PRINCIPAL", "DISCIPLINARIAN", "SCHOOL_ADMIN", "SCHOOL_SUPERVISOR"].some((role) => user.roles?.includes(role) || user.role === role);
+    return [
+      "PLATFORM_ADMIN",
+      "ORGANIZATION_ADMIN",
+      "PRINCIPAL",
+      "DISCIPLINARIAN",
+      "SCHOOL_ADMIN",
+      "SCHOOL_SUPERVISOR",
+    ].some((role) => user.roles?.includes(role) || user.role === role);
+  }
+
+  /** Principals retain the school-wide audit view; supervisors receive only gate-exit requests. */
+  private leaveReviewScope(
+    user: AuthenticatedUser,
+  ): "all" | "supervisor" | "own" {
+    if (
+      this.hasAnyRole(user, [
+        "PLATFORM_ADMIN",
+        "ORGANIZATION_ADMIN",
+        "PRINCIPAL",
+        "SCHOOL_ADMIN",
+      ])
+    ) {
+      return "all";
+    }
+    if (this.hasAnyRole(user, ["SCHOOL_SUPERVISOR", "DISCIPLINARIAN"])) {
+      return "supervisor";
+    }
+    return "own";
+  }
+
+  private assertLeaveRequestReviewer(
+    user: AuthenticatedUser,
+    request: LeaveRequest,
+  ) {
+    const scope = this.leaveReviewScope(user);
+    if (
+      scope === "all" ||
+      (scope === "supervisor" &&
+        request.reviewerRole === LeaveRequestReviewerRole.SCHOOL_SUPERVISOR)
+    ) {
+      return;
+    }
+    throw new ApiException(
+      403,
+      "LEAVE_REQUEST_REVIEW_FORBIDDEN",
+      "این درخواست باید توسط مسئول تعیین‌شده بررسی شود.",
+    );
+  }
+
+  private hasAnyRole(user: AuthenticatedUser, roles: readonly string[]) {
+    return roles.some(
+      (role) => user.roles?.includes(role) || user.role === role,
+    );
   }
 
   private assertWorkflowReviewer(user: AuthenticatedUser) {
-    if (!this.canReviewSchoolWorkflows(user)) throw new ApiException(403, "WORKFLOW_REVIEW_FORBIDDEN", "فقط مدیریت یا ناظم مدرسه می‌تواند این عملیات را انجام دهد.");
+    if (!this.canReviewSchoolWorkflows(user))
+      throw new ApiException(
+        403,
+        "WORKFLOW_REVIEW_FORBIDDEN",
+        "فقط مدیریت یا ناظم مدرسه می‌تواند این عملیات را انجام دهد.",
+      );
   }
 
   async listLetters(user: AuthenticatedUser, organizationId?: string) {
     const memberships = await this.activeMemberships(user.id);
-    const organizationIds = memberships.map((membership) => membership.organization.id);
-    const requestedOrgId = organizationId && organizationIds.includes(organizationId) ? organizationId : undefined;
+    const organizationIds = memberships.map(
+      (membership) => membership.organization.id,
+    );
+    const requestedOrgId =
+      organizationId && organizationIds.includes(organizationId)
+        ? organizationId
+        : undefined;
     const rows = await this.letters.find({
-      where: requestedOrgId ? { organization: { id: requestedOrgId } } : { organization: { id: In(organizationIds) } },
+      where: requestedOrgId
+        ? { organization: { id: requestedOrgId } }
+        : { organization: { id: In(organizationIds) } },
       relations: { organization: true, sender: true, recipient: true },
       order: { createdAt: "DESC" },
     });
@@ -623,9 +1020,15 @@ export class WorkflowsService {
       organizationId: row.organization.id,
       organizationName: row.organization.name,
       senderId: row.sender?.id || null,
-      senderName: row.sender ? `${row.sender.firstName} ${row.sender.lastName}`.trim() || row.sender.username : null,
+      senderName: row.sender
+        ? `${row.sender.firstName} ${row.sender.lastName}`.trim() ||
+          row.sender.username
+        : null,
       recipientId: row.recipient?.id || null,
-      recipientName: row.recipient ? `${row.recipient.firstName} ${row.recipient.lastName}`.trim() || row.recipient.username : null,
+      recipientName: row.recipient
+        ? `${row.recipient.firstName} ${row.recipient.lastName}`.trim() ||
+          row.recipient.username
+        : null,
       recipientRole: row.recipientRole,
       subject: row.subject,
       body: row.body,
@@ -638,24 +1041,40 @@ export class WorkflowsService {
     }));
   }
 
-  async createLetter(user: AuthenticatedUser, input: {
-    organizationId: string;
-    recipientUserId?: string;
-    recipientRole?: string;
-    subject: string;
-    body: string;
-    priority?: string;
-    attachments?: string[];
-  }) {
-    const organization = await this.organizationForUser(user.id, input.organizationId);
+  async createLetter(
+    user: AuthenticatedUser,
+    input: {
+      organizationId: string;
+      recipientUserId?: string;
+      recipientRole?: string;
+      subject: string;
+      body: string;
+      priority?: string;
+      attachments?: string[];
+    },
+  ) {
+    const organization = await this.organizationForUser(
+      user.id,
+      input.organizationId,
+    );
     if (!input.subject?.trim() || !input.body?.trim()) {
-      throw new ApiException(400, "LETTER_REQUIRED_FIELDS", "موضوع و متن نامه الزامی است.");
+      throw new ApiException(
+        400,
+        "LETTER_REQUIRED_FIELDS",
+        "موضوع و متن نامه الزامی است.",
+      );
     }
     let recipient: User | null = null;
     if (input.recipientUserId) {
-      recipient = await this.users.findOne({ where: { id: input.recipientUserId } });
+      recipient = await this.users.findOne({
+        where: { id: input.recipientUserId },
+      });
       if (!recipient) {
-        throw new ApiException(404, "LETTER_RECIPIENT_NOT_FOUND", "گیرنده نامه پیدا نشد.");
+        throw new ApiException(
+          404,
+          "LETTER_RECIPIENT_NOT_FOUND",
+          "گیرنده نامه پیدا نشد.",
+        );
       }
     }
     const row = await this.letters.save(
@@ -666,7 +1085,9 @@ export class WorkflowsService {
         recipientRole: input.recipientRole?.trim() || "general",
         subject: input.subject.trim(),
         body: input.body.trim(),
-        attachments: Array.isArray(input.attachments) ? input.attachments.filter(Boolean) : [],
+        attachments: Array.isArray(input.attachments)
+          ? input.attachments.filter(Boolean)
+          : [],
         priority: input.priority?.trim() || "normal",
         status: RequestLetterStatus.SENT,
       }),
@@ -674,8 +1095,15 @@ export class WorkflowsService {
     return this.serializeLetter(row);
   }
 
-  async reviewLetter(user: AuthenticatedUser, letterId: string, input: { status?: string; read?: boolean }) {
-    const row = await this.letters.findOne({ where: { id: letterId }, relations: { organization: true, sender: true, recipient: true } });
+  async reviewLetter(
+    user: AuthenticatedUser,
+    letterId: string,
+    input: { status?: string; read?: boolean },
+  ) {
+    const row = await this.letters.findOne({
+      where: { id: letterId },
+      relations: { organization: true, sender: true, recipient: true },
+    });
     if (!row) {
       throw new ApiException(404, "LETTER_NOT_FOUND", "نامه پیدا نشد.");
     }
@@ -702,35 +1130,64 @@ export class WorkflowsService {
 
   private async organizationForUser(userId: string, organizationId: string) {
     const membership = await this.memberships.findOne({
-      where: { user: { id: userId }, organization: { id: organizationId }, status: MembershipStatus.ACTIVE },
+      where: {
+        user: { id: userId },
+        organization: { id: organizationId },
+        status: MembershipStatus.ACTIVE,
+      },
       relations: { organization: true },
     });
     if (!membership?.organization) {
-      throw new ApiException(403, "ORGANIZATION_FORBIDDEN", "به این سازمان دسترسی ندارید.");
+      throw new ApiException(
+        403,
+        "ORGANIZATION_FORBIDDEN",
+        "به این سازمان دسترسی ندارید.",
+      );
     }
     return membership.organization;
   }
 
   private async studentForUser(userId: string) {
-    const student = await this.students.findOne({ where: { user: { id: userId } }, relations: { user: true } });
+    const student = await this.students.findOne({
+      where: { user: { id: userId } },
+      relations: { user: true },
+    });
     if (!student) {
-      throw new ApiException(404, "STUDENT_NOT_FOUND", "پرونده دانش‌آموز پیدا نشد.");
+      throw new ApiException(
+        404,
+        "STUDENT_NOT_FOUND",
+        "پرونده دانش‌آموز پیدا نشد.",
+      );
     }
     return student;
   }
 
   private async requireDormRoom(user: AuthenticatedUser, roomId: string) {
-    const room = await this.dormRooms.findOne({ where: { id: roomId }, relations: { organization: true } });
+    const room = await this.dormRooms.findOne({
+      where: { id: roomId },
+      relations: { organization: true },
+    });
     if (!room) {
-      throw new ApiException(404, "DORM_ROOM_NOT_FOUND", "اتاق خوابگاه پیدا نشد.");
+      throw new ApiException(
+        404,
+        "DORM_ROOM_NOT_FOUND",
+        "اتاق خوابگاه پیدا نشد.",
+      );
     }
     await this.organizationForUser(user.id, room.organization.id);
     return room;
   }
 
-  private async resolveOrganizationIdForContext(user: AuthenticatedUser, contextType: AttendanceContextType, contextId: string) {
+  private async resolveOrganizationIdForContext(
+    user: AuthenticatedUser,
+    contextType: AttendanceContextType,
+    contextId: string,
+  ) {
     if (contextType === "class") {
-      const classroom = await this.classes.findOne({ where: { id: contextId }, relations: { organization: true } });
+      const classroom = await this.classes.findOne({
+        where: { id: contextId },
+        relations: { organization: true },
+      });
       if (!classroom) {
         throw new ApiException(404, "CLASS_NOT_FOUND", "کلاس پیدا نشد.");
       }
@@ -739,18 +1196,32 @@ export class WorkflowsService {
     }
 
     if (contextType === "study_group") {
-      const group = await this.studyGroups.findOne({ where: { id: contextId }, relations: { organization: true } });
+      const group = await this.studyGroups.findOne({
+        where: { id: contextId },
+        relations: { organization: true },
+      });
       if (!group) {
-        throw new ApiException(404, "STUDY_GROUP_NOT_FOUND", "گروه درسی پیدا نشد.");
+        throw new ApiException(
+          404,
+          "STUDY_GROUP_NOT_FOUND",
+          "گروه درسی پیدا نشد.",
+        );
       }
       await this.organizationForUser(user.id, group.organization.id);
       return group.organization.id;
     }
 
     if (contextType === "dorm") {
-      const room = await this.dormRooms.findOne({ where: { id: contextId }, relations: { organization: true } });
+      const room = await this.dormRooms.findOne({
+        where: { id: contextId },
+        relations: { organization: true },
+      });
       if (!room) {
-        throw new ApiException(404, "DORM_ROOM_NOT_FOUND", "اتاق خوابگاه پیدا نشد.");
+        throw new ApiException(
+          404,
+          "DORM_ROOM_NOT_FOUND",
+          "اتاق خوابگاه پیدا نشد.",
+        );
       }
       await this.organizationForUser(user.id, room.organization.id);
       return room.organization.id;
@@ -758,7 +1229,11 @@ export class WorkflowsService {
 
     const memberships = await this.activeMemberships(user.id);
     if (!memberships.length) {
-      throw new ApiException(403, "ORGANIZATION_FORBIDDEN", "به این سازمان دسترسی ندارید.");
+      throw new ApiException(
+        403,
+        "ORGANIZATION_FORBIDDEN",
+        "به این سازمان دسترسی ندارید.",
+      );
     }
     return memberships[0].organization.id;
   }
@@ -766,7 +1241,11 @@ export class WorkflowsService {
   private parseContextType(value: string): AttendanceContextType {
     if (value === "dorm" || value === "study_group") return value;
     if (value === "class") return "class";
-    throw new ApiException(400, "ATTENDANCE_CONTEXT_INVALID", "نوع زمینه حضور معتبر نیست.");
+    throw new ApiException(
+      400,
+      "ATTENDANCE_CONTEXT_INVALID",
+      "نوع زمینه حضور معتبر نیست.",
+    );
   }
 
   private parseAttendanceStatus(value: string): AttendanceStatus {
@@ -774,7 +1253,11 @@ export class WorkflowsService {
     if (value === "absent") return AttendanceStatus.ABSENT;
     if (value === "late") return AttendanceStatus.LATE;
     if (value === "excused") return AttendanceStatus.EXCUSED;
-    throw new ApiException(400, "ATTENDANCE_STATUS_INVALID", "وضعیت حضور معتبر نیست.");
+    throw new ApiException(
+      400,
+      "ATTENDANCE_STATUS_INVALID",
+      "وضعیت حضور معتبر نیست.",
+    );
   }
 
   private parseLeaveStatus(value: string): LeaveRequestStatus {
@@ -812,6 +1295,7 @@ export class WorkflowsService {
       studentId: row.student.id,
       studentName: row.student.name,
       leaveType: row.leaveType,
+      reviewerRole: row.reviewerRole ?? LeaveRequestReviewerRole.PRINCIPAL,
       startDate: row.startDate.toISOString(),
       endDate: row.endDate.toISOString(),
       reason: row.reason,
@@ -822,6 +1306,19 @@ export class WorkflowsService {
       reviewedAt: row.reviewedAt?.toISOString() || null,
       createdAt: row.createdAt.toISOString(),
     };
+  }
+
+  private parseLeaveRequestType(value?: string): LeaveRequestType {
+    if (value === LeaveRequestType.SCHOOL_EXIT)
+      return LeaveRequestType.SCHOOL_EXIT;
+    if (value === LeaveRequestType.LEAVE || !value || value === "general") {
+      return LeaveRequestType.LEAVE;
+    }
+    throw new ApiException(
+      400,
+      "LEAVE_TYPE_INVALID",
+      "نوع درخواست باید خروج از مدرسه یا مرخصی باشد.",
+    );
   }
 
   private serializeExitPermission(row: ExitPermission) {
@@ -851,9 +1348,15 @@ export class WorkflowsService {
       organizationId: row.organization.id,
       organizationName: row.organization.name,
       senderId: row.sender?.id || null,
-      senderName: row.sender ? `${row.sender.firstName} ${row.sender.lastName}`.trim() || row.sender.username : null,
+      senderName: row.sender
+        ? `${row.sender.firstName} ${row.sender.lastName}`.trim() ||
+          row.sender.username
+        : null,
       recipientId: row.recipient?.id || null,
-      recipientName: row.recipient ? `${row.recipient.firstName} ${row.recipient.lastName}`.trim() || row.recipient.username : null,
+      recipientName: row.recipient
+        ? `${row.recipient.firstName} ${row.recipient.lastName}`.trim() ||
+          row.recipient.username
+        : null,
       recipientRole: row.recipientRole,
       subject: row.subject,
       body: row.body,

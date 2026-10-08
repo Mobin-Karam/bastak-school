@@ -1,0 +1,136 @@
+import { Repository } from "typeorm";
+import { AttendanceRecord, AttendanceStatus } from "../../database/entities/attendance-record.entity";
+import { AttendanceContextType, AttendanceSession } from "../../database/entities/attendance-session.entity";
+import { DormRoomAssignment } from "../../database/entities/dorm-room-assignment.entity";
+import { DormRoom } from "../../database/entities/dorm-room.entity";
+import { EducationClassEnrollment } from "../../database/entities/education-class-enrollment.entity";
+import { EducationClass } from "../../database/entities/education-class.entity";
+import { Student } from "../../database/entities/student.entity";
+import { StudyGroupMembership } from "../../database/entities/study-group-membership.entity";
+import { StudyGroup } from "../../database/entities/study-group.entity";
+import { OrganizationMembership } from "../../database/entities/organization-membership.entity";
+import { AuthenticatedUser } from "../auth";
+import { AuthorizationService } from "../authorization";
+import { SchoolAccessService } from "../school-access/school-access.service";
+import { RealtimeService } from "../realtime/realtime.service";
+import { BulkMarkAttendanceDto, CreateAttendanceSessionDto } from "./attendance.dto";
+export declare class AttendanceService {
+    private readonly sessions;
+    private readonly records;
+    private readonly students;
+    private readonly classes;
+    private readonly enrollments;
+    private readonly groups;
+    private readonly groupMemberships;
+    private readonly rooms;
+    private readonly roomAssignments;
+    private readonly memberships;
+    private readonly access;
+    private readonly authorization;
+    private readonly realtime;
+    constructor(sessions: Repository<AttendanceSession>, records: Repository<AttendanceRecord>, students: Repository<Student>, classes: Repository<EducationClass>, enrollments: Repository<EducationClassEnrollment>, groups: Repository<StudyGroup>, groupMemberships: Repository<StudyGroupMembership>, rooms: Repository<DormRoom>, roomAssignments: Repository<DormRoomAssignment>, memberships: Repository<OrganizationMembership>, access: SchoolAccessService, authorization: AuthorizationService, realtime: RealtimeService);
+    listContexts(user: AuthenticatedUser, organizationId?: string): Promise<({
+        id: string;
+        contextType: "class";
+        code: string;
+        name: string;
+        label: string;
+        total: number;
+        activeOrganizationId: string;
+    } | {
+        id: string;
+        contextType: "class_group";
+        code: string;
+        name: string;
+        label: string;
+        total: number;
+        activeOrganizationId: string;
+    } | {
+        id: string;
+        contextType: "dorm";
+        code: string;
+        name: string;
+        label: string;
+        total: number;
+        activeOrganizationId: string;
+    })[]>;
+    listSessions(user: AuthenticatedUser, organizationId?: string): Promise<{
+        remaining: number;
+        note: string;
+        createdById: string | null;
+        createdAt: string;
+        present: number;
+        absent: number;
+        late: number;
+        excused: number;
+        id: string;
+        organizationId: string;
+        organizationName: string;
+        contextType: "class" | "class_group" | "dorm" | "night";
+        contextId: string;
+        contextLabel: string;
+        sessionDate: string;
+        total: number;
+    }[]>;
+    createSession(user: AuthenticatedUser, dto: CreateAttendanceSessionDto): Promise<{
+        id: string;
+        organizationId: string;
+        contextType: AttendanceContextType;
+        contextId: string;
+        sessionDate: string;
+        note: string;
+    }>;
+    bulkMark(user: AuthenticatedUser, dto: BulkMarkAttendanceDto): Promise<{
+        sessionId: string;
+        count: number;
+        records: {
+            id: string;
+            studentId: string;
+            status: AttendanceStatus;
+            note: string;
+        }[];
+    }>;
+    listParticipants(user: AuthenticatedUser, contextType: string, contextId: string): Promise<{
+        id: string;
+        name: string;
+        userId: string | null;
+        nationalCode: string | null | undefined;
+        accountStatus: "active" | "archived" | "inactive";
+    }[]>;
+    summary(user: AuthenticatedUser, studentId?: string): Promise<{
+        recent: {
+            id: string;
+            sessionId: string;
+            status: AttendanceStatus;
+            sessionDate: string;
+            contextType: "class" | "class_group" | "dorm" | "night";
+            contextId: string;
+            organizationId: string;
+            recordedAt: string;
+        }[];
+        present: number;
+        absent: number;
+        late: number;
+        excused: number;
+        studentId: string;
+        totalSessions: number;
+    }>;
+    listSelfRecords(user: AuthenticatedUser): Promise<{
+        id: string;
+        status: AttendanceStatus;
+        note: string;
+        sessionDate: string;
+        contextType: "class" | "class_group" | "dorm" | "night";
+        contextId: string;
+        organizationId: string;
+        recordedAt: string;
+    }[]>;
+    private participantIds;
+    private assertContextAccess;
+    private schoolWide;
+    private contextOrganizationId;
+    private context;
+    private status;
+    private studentView;
+    private userContext;
+}

@@ -53,9 +53,9 @@ export function AdminLayout() {
   const wasContextRailVisible = useRef(false);
   const performance = useDevicePerformance();
 
-  const sourceCurrent = resolveAdminNavigation(location.pathname);
-  const current = localizedAdminCurrentNavigation(location.pathname, language);
-  const breadcrumbs = localizedAdminBreadcrumbs(location.pathname, language);
+  const sourceCurrent = resolveAdminNavigation(location.pathname, auth.activeRole);
+  const current = localizedAdminCurrentNavigation(location.pathname, language, auth.activeRole);
+  const breadcrumbs = localizedAdminBreadcrumbs(location.pathname, language, auth.activeRole);
   const contextual =
     localizedNavigationForCapabilities(auth.capabilities, auth.activeRole, language).find(
       (group) => group.sectionKey === sourceCurrent.section,
@@ -133,14 +133,32 @@ export function AdminLayout() {
           direction: profile.direction,
         })} scroll-reveal h-dvh min-w-0 overflow-y-auto overscroll-contain transition-[margin] duration-200 motion-reduce:transition-none`}
       >
-        <div className="sticky top-0 z-30 flex min-h-[calc(3.5rem+env(safe-area-inset-top))] items-end justify-center bg-paper pb-2 pt-[env(safe-area-inset-top)] lg:hidden">
+        <div className="sticky top-0 z-30 flex min-h-[calc(3.5rem+env(safe-area-inset-top))] items-end justify-center overflow-hidden bg-paper pb-2 pt-[env(safe-area-inset-top)] lg:hidden">
+          <img
+            src="/right-left-angel.png"
+            width={136}
+            height={46}
+            alt=""
+            aria-hidden="true"
+            decoding="async"
+            className="pointer-events-none absolute end-[calc(50%+3.5rem)] bottom-1 h-9 w-[8.5rem] max-w-[31vw] object-contain object-right"
+          />
           <img
             src="/logo-bastak.webp"
             width={120}
             height={40}
             alt="زانین"
             decoding="async"
-            className="h-10 w-auto max-w-[min(10rem,65vw)] object-contain"
+            className="relative z-10 h-10 w-auto max-w-[min(10rem,65vw)] object-contain"
+          />
+          <img
+            src="/right-left-angel.png"
+            width={136}
+            height={46}
+            alt=""
+            aria-hidden="true"
+            decoding="async"
+            className="pointer-events-none absolute start-[calc(50%+3.5rem)] bottom-1 h-9 w-[8.5rem] max-w-[31vw] scale-x-[-1] object-contain object-right"
           />
         </div>
         {auth.activeRole === "PLATFORM_ADMIN" ? (
@@ -151,8 +169,8 @@ export function AdminLayout() {
           >
             <AlertTriangle className="mt-0.5 shrink-0" size={16} aria-hidden="true" />
             <p>
-              مدیریت پلتفرم برای صفحه‌نمایش بزرگ طراحی شده است. می‌توانید ادامه دهید، اما
-              جدول‌ها و ابزارهای مدیریتی کامل‌تر در دسکتاپ در دسترس‌اند.
+              مدیریت پلتفرم برای صفحه‌نمایش بزرگ طراحی شده است. می‌توانید ادامه دهید، اما جدول‌ها و
+              ابزارهای مدیریتی کامل‌تر در دسکتاپ در دسترس‌اند.
             </p>
           </section>
         ) : null}

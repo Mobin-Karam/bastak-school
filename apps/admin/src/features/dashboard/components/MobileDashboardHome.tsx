@@ -1,10 +1,11 @@
-import { BellRing, CalendarClock, Clock3, MapPin, Settings2 } from "lucide-react";
+import { BellRing, CalendarClock, Clock3 } from "lucide-react";
 import { Link } from "react-router-dom";
 import type { RoleCode } from "../../../shared/types/domain";
 import { Card } from "../../../shared/ui/ui";
 import { DashboardCalendar } from "./DashboardCalendar";
 import { quickActionsForRole, type RoleQuickAction } from "../model/role-experience";
 import type { RoleDashboardData } from "../model/dashboard.types";
+import { CurrentPrayerCard } from "../../school-home/components/CurrentPrayerCard";
 
 type MobileDashboardHomeProps = {
   data: RoleDashboardData;
@@ -33,9 +34,8 @@ export function MobileDashboardHome({
   const dateEntries = entriesForDate(data, calendarDate);
   const currentClass = data.home?.currentClass ?? dateEntries[0] ?? null;
   const nextClass = dateEntries.find((entry) => entry.id !== currentClass?.id) ?? null;
-  const canManagePrayer =
-    capabilities.includes("organization.manage") || capabilities.includes("prayer_times.manage");
-  const prayerTimes = data.home?.prayer?.times;
+  const prayer = data.home?.prayer;
+  const prayerTimes = prayer && "times" in prayer ? prayer.times : null;
 
   return (
     <section aria-label="خانه موبایل" className="grid min-w-0 gap-3 md:hidden">
@@ -51,31 +51,7 @@ export function MobileDashboardHome({
         <ClassCard title="کلاس بعدی" entry={nextClass} />
       </section>
 
-      <Card className="p-3" aria-label="اوقات شرعی">
-        <div className="flex items-center gap-3">
-          <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-amber-100 text-amber-700 dark:bg-amber-950/50 dark:text-amber-300">
-            <MapPin size={19} aria-hidden="true" />
-          </span>
-          <div className="min-w-0 flex-1">
-            <h2 className="text-sm font-black text-ink">اوقات شرعی</h2>
-            <p className="mt-0.5 line-clamp-2 text-[11px] leading-5 text-slate-500 dark:text-slate-400">
-              {prayerTimes
-                ? `${prayerTimes.fajr} صبح · ${prayerTimes.dhuhr} ظهر · ${prayerTimes.maghrib} مغرب`
-                : "اوقات شرعی مدرسه هنوز ثبت نشده است."}
-            </p>
-          </div>
-          {canManagePrayer ? (
-            <Link
-              to="/admin/organizations"
-              className="grid size-9 shrink-0 place-items-center rounded-lg bg-brand/10 text-brand outline-none transition hover:bg-brand/15 focus-visible:ring-2 focus-visible:ring-brand"
-              aria-label="تنظیم اوقات شرعی"
-              title="تنظیم اوقات شرعی"
-            >
-              <Settings2 size={17} aria-hidden="true" />
-            </Link>
-          ) : null}
-        </div>
-      </Card>
+      <CurrentPrayerCard times={prayerTimes} />
 
       {data.home?.announcements?.length ? (
         <Card className="p-3" aria-label="پیام‌های مدرسه">

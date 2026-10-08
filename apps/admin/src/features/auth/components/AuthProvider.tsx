@@ -1,12 +1,4 @@
-import {
-  createContext,
-  type ReactNode,
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api, ApiError, onAuthFailure, setApiWorkContext } from "../../../shared/api/api";
 import type { AccountContext, OrganizationSummary, User } from "../../../shared/types/domain";
 import { getCurrentUser, getAccountContext, loginRequest, logoutRequest } from "../api/auth.api";
@@ -21,8 +13,7 @@ import type { AuthState, AuthStatus } from "../model/auth.types";
 import { authSessionCopy } from "../model/auth-locale";
 import { useOptionalAdminLanguage } from "../../../shared/ui/locale";
 import { hasAllCapabilities, hasAnyCapability, hasCapability } from "../lib/capabilities";
-
-export const AuthContext = createContext<AuthState | null>(null);
+import { AuthContext } from "../context";
 
 const MAX_RESTORE_ATTEMPTS = 3;
 const RESTORE_RETRY_DELAY_MS = 1_800;

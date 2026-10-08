@@ -12,7 +12,9 @@ export type RealtimeEventType =
   | "exam.created"
   | "learning-resource.updated"
   | "system.update"
-  | "chat.message.created";
+  | "chat.message.created"
+  | "attendance.updated"
+  | "school-home.updated";
 
 export type RealtimeEvent = CmbRealtimeEvent<RealtimeEventType>;
 

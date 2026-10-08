@@ -15,6 +15,7 @@ export { ConsentAndAgreementsSection } from "./sections/ConsentAndAgreementsSect
 export { EmergencyContactsSection } from "./sections/EmergencyContactsSection";
 export { AcademicHistorySection } from "./sections/AcademicHistorySection";
 export { RegistrationCompletionSection } from "./sections/RegistrationCompletionSection";
+export { RegistrationComingSoonPage } from "./pages/RegistrationComingSoonPage";
 export { registrationFeature } from "./registration.feature";
 export { registrationRouter, registrationRoutes } from "./registration.router";
 export * as registrationApi from "./api/registration.api";

@@ -19,6 +19,18 @@ export enum LeaveRequestStatus {
   COMPLETED = "COMPLETED",
 }
 
+/** The only student-requestable workflow paths. */
+export enum LeaveRequestType {
+  SCHOOL_EXIT = "SCHOOL_EXIT",
+  LEAVE = "LEAVE",
+}
+
+/** Role that owns the first approval decision for a request. */
+export enum LeaveRequestReviewerRole {
+  PRINCIPAL = "PRINCIPAL",
+  SCHOOL_SUPERVISOR = "SCHOOL_SUPERVISOR",
+}
+
 @Entity("leave_requests")
 export class LeaveRequest {
   @PrimaryGeneratedColumn("uuid")
@@ -32,8 +44,11 @@ export class LeaveRequest {
   @ManyToOne(() => Student, { onDelete: "CASCADE" })
   student!: Student;
 
-  @Column({ length: 80, default: "general" })
+  @Column({ length: 80, default: LeaveRequestType.LEAVE })
   leaveType!: string;
+
+  @Column({ length: 32, default: LeaveRequestReviewerRole.PRINCIPAL })
+  reviewerRole!: LeaveRequestReviewerRole;
 
   @Column({ type: "datetime" })
   startDate!: Date;

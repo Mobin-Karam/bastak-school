@@ -10,10 +10,23 @@ export class LoggingInterceptor implements NestInterceptor {
     const started = Date.now();
     const requestId = request.headers["x-request-id"] || crypto.randomUUID();
     request.requestId = requestId;
+    // Server-sent events are intentionally long-lived. Logging every normal
+    // disconnect as a multi-minute HTTP request hides real API latency.
+    const isEventStream = String(request.url).split("?")[0].endsWith("/events");
 
     return next.handle().pipe(
       tap({
-        next: () => this.logger.log(JSON.stringify({ requestId, method: request.method, path: request.url, durationMs: Date.now() - started })),
+        next: () => {
+          if (isEventStream) return;
+          this.logger.log(
+            JSON.stringify({
+              requestId,
+              method: request.method,
+              path: request.url,
+              durationMs: Date.now() - started,
+            }),
+          );
+        },
         error: (error) => {
           const status = typeof error?.getStatus === "function" ? error.getStatus() : Number(error?.status || error?.statusCode || 500);
           const entry = JSON.stringify({ requestId, method: request.method, path: request.url, status, durationMs: Date.now() - started, error: error?.message });

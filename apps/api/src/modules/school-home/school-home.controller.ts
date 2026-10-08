@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   Patch,
@@ -39,6 +40,16 @@ export class SchoolHomeController {
     @Body() dto: SavePrayerTimeDto,
   ) {
     return this.schoolHome.savePrayerTimes(user, organizationId, dto).then(ok);
+  }
+
+  @Delete("organizations/:organizationId/prayer-times")
+  @RequireCapabilities("prayer_times.manage")
+  deletePrayerTimes(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param("organizationId") organizationId: string,
+    @Query("date") date?: string,
+  ) {
+    return this.schoolHome.deletePrayerTimes(user, organizationId, date).then(ok);
   }
 
   @Get("announcements")

@@ -5,13 +5,24 @@ import {
   CalendarClock,
   FileSpreadsheet,
   LayoutDashboard,
+  MessageCircle,
   School,
   Settings,
   UserRound,
   UserRoundCheck,
   UsersRound,
 } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import type { AdminLanguage } from "../../../shared/ui/locale";
+
+type NavigationItem = {
+  path: string;
+  title: string;
+  description: string;
+  icon: LucideIcon;
+  capability?: string;
+};
+type NavigationGroup = { section: string; items: readonly NavigationItem[] };
 
 export const educationNavigation = [
   {
@@ -172,10 +183,7 @@ export const mainAdminNavigation = adminNavigation.map((group) => ({
   section: group.section,
 }));
 
-const roleSectionTitles: Record<
-  string,
-  Partial<Record<(typeof adminNavigation)[number]["section"], string>>
-> = {
+const roleSectionTitles: Record<string, Partial<Record<string, string>>> = {
   PRINCIPAL: { خانه: "میز مدیریت", آموزش: "آموزش مدرسه", مدیریت: "مدیریت مدرسه" },
   DISCIPLINARIAN: { خانه: "میز ناظم", آموزش: "کلاس و حضور", مدیریت: "طلبه‌ها و خوابگاه" },
   COUNSELOR: { خانه: "میز مشاور", آموزش: "کلاس‌های مرتبط", مدیریت: "طلبه‌های من" },
@@ -201,8 +209,23 @@ const roleTitles: Record<string, Record<string, string>> = {
   SCHOOL_SUPERVISOR: { "": "میز ناظر", students: "طلبه‌ها" },
 };
 
+const registrationNavigation: readonly NavigationGroup[] = [
+  {
+    section: "ثبت‌نام",
+    items: [
+      {
+        path: "registration",
+        title: "ثبت‌نام و پرونده",
+        description: "این بخش به‌زودی در دسترس قرار می‌گیرد",
+        icon: UserRoundCheck,
+        capability: "registration.read",
+      },
+    ],
+  },
+];
+
 /** Student navigation is intentionally a small, personal product surface. */
-const studentNavigation = [
+const studentNavigation: readonly NavigationGroup[] = [
   {
     section: "خانه",
     items: [
@@ -226,17 +249,7 @@ const studentNavigation = [
       },
     ],
   },
-  {
-    section: "ثبت‌نام",
-    items: [
-      {
-        path: "student-registration",
-        title: "ثبت‌نام و پرونده",
-        description: "این بخش به‌زودی در دسترس قرار می‌گیرد",
-        icon: UserRoundCheck,
-      },
-    ],
-  },
+  ...registrationNavigation,
   {
     section: "پروفایل",
     items: [
@@ -261,24 +274,91 @@ const studentNavigation = [
   },
 ] as const;
 
+/** Teachers get a deliberately small, class-first workspace on every device. */
+const teacherNavigation: readonly NavigationGroup[] = [
+  {
+    section: "خانه",
+    items: [
+      {
+        path: "",
+        title: "خانه استاد",
+        description: "تقویم، کلاس جاری و اوقات شرعی مدرسه",
+        icon: LayoutDashboard,
+      },
+    ],
+  },
+  {
+    section: "برنامه من",
+    items: [
+      {
+        path: "schedule",
+        title: "برنامه هفتگی",
+        description: "کلاس‌های هفته و فهرست دانش‌آموزان هر کلاس",
+        icon: CalendarDays,
+        capability: "schedule.read",
+      },
+    ],
+  },
+  {
+    section: "گفت‌وگو",
+    items: [
+      {
+        path: "teacher-chat",
+        title: "گفت‌وگو",
+        description: "پیام‌رسانی مدرسه به‌زودی فعال می‌شود",
+        icon: MessageCircle,
+      },
+    ],
+  },
+  {
+    section: "پروفایل",
+    items: [
+      {
+        path: "teacher-profile",
+        title: "پروفایل من",
+        description: "اطلاعات نمایشی حساب استاد",
+        icon: UserRound,
+      },
+    ],
+  },
+  {
+    section: "تنظیمات",
+    items: [
+      {
+        path: "settings",
+        title: "تنظیمات",
+        description: "شماره همراه، گذرواژه و نشست‌ها",
+        icon: Settings,
+      },
+    ],
+  },
+] as const;
+
 export function navigationForCapabilities(capabilities: readonly string[], role?: string | null) {
   if (role === "STUDENT") {
-    return studentNavigation
-      .map((group) => ({
-        ...group,
-        items: group.items.filter(
-          (item) => !("capability" in item) || capabilities.includes(item.capability),
-        ),
-      }))
-      .filter((group) => group.items.length);
+    return visibleNavigation(studentNavigation, capabilities);
+  }
+  if (role === "TEACHER") {
+    return visibleNavigation([...teacherNavigation, ...registrationNavigation], capabilities);
   }
   const titles = role ? roleTitles[role] : undefined;
-  return adminNavigation
+  return (adminNavigation as readonly NavigationGroup[])
     .map((group) => ({
       ...group,
       items: group.items
-        .filter((item) => !("capability" in item) || capabilities.includes(item.capability))
+        .filter((item) => !item.capability || capabilities.includes(item.capability))
         .map((item) => (titles?.[item.path] ? { ...item, title: titles[item.path] } : item)),
+    }))
+    .filter((group) => group.items.length);
+}
+
+function visibleNavigation(groups: readonly NavigationGroup[], capabilities: readonly string[]) {
+  return groups
+    .map((group) => ({
+      ...group,
+      items: group.items.filter(
+        (item) => !item.capability || capabilities.includes(item.capability),
+      ),
     }))
     .filter((group) => group.items.length);
 }
@@ -314,14 +394,20 @@ function routeMatches(pattern: string, path: string) {
   return expected.every((part, index) => part.startsWith(":") || part === actual[index]);
 }
 
-export function resolveAdminNavigation(pathname: string) {
+export function resolveAdminNavigation(pathname: string, role?: string | null) {
   const path = normalizeAdminPath(pathname);
   const personalItems = studentNavigation.flatMap((group) =>
     group.items.map((item) => ({ ...item, section: group.section })),
   );
+  const teacherItems = teacherNavigation.flatMap((group) =>
+    group.items.map((item) => ({ ...item, section: group.section })),
+  );
   return (
+    (role === "STUDENT" && personalItems.find((item) => routeMatches(item.path, path))) ||
+    (role === "TEACHER" && teacherItems.find((item) => routeMatches(item.path, path))) ||
     flatAdminNavigation.find((item) => routeMatches(item.path, path)) ||
     personalItems.find((item) => routeMatches(item.path, path)) ||
+    teacherItems.find((item) => routeMatches(item.path, path)) ||
     flatAdminNavigation[0]
   );
 }
@@ -330,10 +416,16 @@ export function adminDestination(path: string, _section: string, _studentId = ""
   return path ? `/admin/${path}` : "/admin";
 }
 
-export function adminBreadcrumbs(path: string) {
-  const current = resolveAdminNavigation(path);
+export function adminBreadcrumbs(path: string, role?: string | null) {
+  const current = resolveAdminNavigation(path, role);
   if (!current.path) return [{ title: "خانه", path: "" }];
-  const group = adminNavigation.find((item) => item.section === current.section);
+  const groups =
+    role === "STUDENT"
+      ? studentNavigation
+      : role === "TEACHER"
+        ? teacherNavigation
+        : adminNavigation;
+  const group = groups.find((item) => item.section === current.section);
   const sectionPath = group?.items[0].path || current.path;
   if (current.path === sectionPath)
     return [
@@ -399,8 +491,12 @@ export function localizedMainNavigationForCapabilities(
   }));
 }
 
-export function localizedAdminCurrentNavigation(pathname: string, language: AdminLanguage) {
-  const current = resolveAdminNavigation(pathname);
+export function localizedAdminCurrentNavigation(
+  pathname: string,
+  language: AdminLanguage,
+  role?: string | null,
+) {
+  const current = resolveAdminNavigation(pathname, role);
 
   return {
     ...current,
@@ -411,8 +507,12 @@ export function localizedAdminCurrentNavigation(pathname: string, language: Admi
   };
 }
 
-export function localizedAdminBreadcrumbs(path: string, language: AdminLanguage) {
-  return adminBreadcrumbs(path).map((item) => ({
+export function localizedAdminBreadcrumbs(
+  path: string,
+  language: AdminLanguage,
+  role?: string | null,
+) {
+  return adminBreadcrumbs(path, role).map((item) => ({
     ...item,
     title: localizeText(item.title, language),
   }));

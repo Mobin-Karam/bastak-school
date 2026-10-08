@@ -49,9 +49,10 @@ export const getAttendanceParticipants = (contextType: AttendanceContextType, co
 
 export const bulkMarkAttendance = (body: {
   organizationId: string;
-  contextType: AttendanceContextType;
-  contextId: string;
-  sessionDate: string;
+  sessionId?: string;
+  contextType?: AttendanceContextType;
+  contextId?: string;
+  sessionDate?: string;
   entries: Array<{
     studentId: string;
     status: "present" | "absent" | "late" | "excused";
@@ -70,4 +71,16 @@ export type SelfAttendanceRecord = {
   recordedAt: string;
 };
 
+export type SelfAttendanceSummary = {
+  studentId: string;
+  totalSessions: number;
+  present: number;
+  absent: number;
+  late: number;
+  excused: number;
+  recent: SelfAttendanceRecord[];
+};
+
 export const listSelfAttendance = () => api.get<SelfAttendanceRecord[]>("/student/attendance");
+export const getSelfAttendanceSummary = () =>
+  api.get<SelfAttendanceSummary>("/student/attendance-summary");

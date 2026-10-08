@@ -18,9 +18,14 @@ import { Student } from "../../database/entities/student.entity";
 import { StudyGroupMembership } from "../../database/entities/study-group-membership.entity";
 import { StudyGroup } from "../../database/entities/study-group.entity";
 import { User } from "../../database/entities/user.entity";
+import {
+  MembershipStatus,
+  OrganizationMembership,
+} from "../../database/entities/organization-membership.entity";
 import { AuthenticatedUser } from "../auth";
 import { AuthorizationService, UserContext } from "../authorization";
 import { SchoolAccessService } from "../school-access/school-access.service";
+import { RealtimeService } from "../realtime/realtime.service";
 import {
   BulkMarkAttendanceDto,
   CreateAttendanceSessionDto,
@@ -45,8 +50,11 @@ export class AttendanceService {
     @InjectRepository(DormRoom) private readonly rooms: Repository<DormRoom>,
     @InjectRepository(DormRoomAssignment)
     private readonly roomAssignments: Repository<DormRoomAssignment>,
+    @InjectRepository(OrganizationMembership)
+    private readonly memberships: Repository<OrganizationMembership>,
     private readonly access: SchoolAccessService,
     private readonly authorization: AuthorizationService,
+    private readonly realtime: RealtimeService,
   ) {}
 
   async listContexts(user: AuthenticatedUser, organizationId?: string) {
@@ -280,7 +288,7 @@ export class AttendanceService {
       }
       saved.push(await this.records.save(record));
     }
-    return {
+    const result = {
       sessionId: session.id,
       count: saved.length,
       records: saved.map((item) => ({
@@ -290,6 +298,25 @@ export class AttendanceService {
         note: item.note,
       })),
     };
+    const members = await this.memberships.find({
+      where: {
+        organization: { id: organization.id },
+        status: MembershipStatus.ACTIVE,
+      },
+      relations: { user: true },
+    });
+    this.realtime.emitToUsers(
+      members.map((member) => member.user.id),
+      "attendance.updated",
+      {
+        organizationId: organization.id,
+        sessionId: session.id,
+        contextType: session.contextType,
+        contextId: session.contextId,
+        updatedBy: user.id,
+      },
+    );
+    return result;
   }
 
   async listParticipants(
@@ -364,21 +391,19 @@ export class AttendanceService {
       studentId: target,
       totalSessions: rows.length,
       ...counts,
-      recent: rows
-        .slice(0, 10)
-        .map((row) => ({
-          id: row.id,
-          sessionId: row.session.id,
-          status: row.status,
-          sessionDate: row.session.sessionDate.toISOString(),
-          contextType:
-            row.session.contextType === "study_group"
-              ? "class_group"
-              : row.session.contextType,
-          contextId: row.session.contextId,
-          organizationId: row.session.organization.id,
-          recordedAt: row.createdAt.toISOString(),
-        })),
+      recent: rows.slice(0, 10).map((row) => ({
+        id: row.id,
+        sessionId: row.session.id,
+        status: row.status,
+        sessionDate: row.session.sessionDate.toISOString(),
+        contextType:
+          row.session.contextType === "study_group"
+            ? "class_group"
+            : row.session.contextType,
+        contextId: row.session.contextId,
+        organizationId: row.session.organization.id,
+        recordedAt: row.createdAt.toISOString(),
+      })),
     };
   }
 
@@ -489,6 +514,7 @@ export class AttendanceService {
       "DISCIPLINARIAN",
       "RELIGIOUS_EDUCATION_MANAGER",
       "GOVERNMENT_EDUCATION_MANAGER",
+      "SCHOOL_SUPERVISOR",
     ].some((role) => user.roles?.includes(role) || user.role === role);
   }
 

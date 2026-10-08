@@ -112,7 +112,7 @@ export function DateNavigator({
     if (frame.current !== null) window.cancelAnimationFrame(frame.current);
     frame.current = window.requestAnimationFrame(() => nearestDay(false));
     if (settleTimer.current !== null) window.clearTimeout(settleTimer.current);
-    settleTimer.current = window.setTimeout(() => nearestDay(true), 130);
+    settleTimer.current = window.setTimeout(() => nearestDay(true), 85);
   }, [nearestDay]);
 
   // Native horizontal scrolling keeps the navigator responsive on low-end
@@ -131,7 +131,7 @@ export function DateNavigator({
       behavior: reducedMotion ? "auto" : "smooth",
     });
     setCenteredDate(value);
-    const timer = window.setTimeout(() => nearestDay(false), reducedMotion ? 0 : 220);
+    const timer = window.setTimeout(() => nearestDay(false), reducedMotion ? 0 : 110);
     return () => window.clearTimeout(timer);
   }, [nearestDay, selectedIndex, value]);
 
@@ -203,7 +203,7 @@ export function DateNavigator({
         onKeyDown={moveByKeyboard}
         onScroll={scheduleCenterCheck}
         className={cn(
-          "flex w-full min-w-0 snap-x snap-mandatory gap-2 overflow-x-auto overscroll-x-contain px-[calc((100%_-_((100%_-_1rem)_/_3))_/_2)] pb-3 pt-2 outline-none [scrollbar-width:none] focus-visible:ring-2 focus-visible:ring-brand/60 [&::-webkit-scrollbar]:hidden md:px-[calc((100%_-_7rem)_/_2)]",
+          "flex w-full min-w-0 snap-x snap-mandatory gap-2 overflow-x-auto overscroll-x-contain px-[calc((100%_-_((100%_-_1rem)_/_3))_/_2)] pb-2 pt-2 outline-none [scrollbar-width:none] focus-visible:ring-2 focus-visible:ring-brand/60 [&::-webkit-scrollbar]:hidden md:px-[calc((100%_-_7rem)_/_2)]",
           view === "month" && "md:px-[calc((100%_-_7rem)_/_2)]",
         )}
       >
@@ -233,7 +233,7 @@ export function DateNavigator({
               aria-label={context.label}
               onClick={() => selectDate(day.date)}
               className={cn(
-                "group relative min-h-28 w-[calc((100%_-_1rem)/3)] shrink-0 snap-center snap-always overflow-hidden rounded-2xl border px-1.5 py-2 text-center outline-none transition-[transform,background-color,border-color,box-shadow,opacity] duration-300 ease-out focus-visible:ring-2 focus-visible:ring-brand motion-reduce:transition-none md:min-h-32 md:w-28 md:px-2",
+                "group relative min-h-[6.5rem] shrink-0 snap-center snap-always overflow-hidden rounded-2xl border px-1.5 py-2 text-center outline-none transition-[transform,background-color,border-color,box-shadow,opacity] duration-200 ease-out focus-visible:ring-2 focus-visible:ring-brand motion-reduce:transition-none md:!min-h-32 md:!w-28 md:!min-w-28 md:!max-w-28 md:px-2",
                 selected
                   ? "z-20 border-teal-300/70 bg-[linear-gradient(145deg,#2dd4bf,#0f9488_58%,#0d766f)] text-white shadow-[0_14px_25px_rgb(13_118_111_/_34%),inset_0_1px_0_rgb(255_255_255_/_42%),inset_0_-5px_0_rgb(4_89_85_/_42%)]"
                   : "z-10 border-slate-600/60 bg-[linear-gradient(145deg,#173d57,#0a2436_70%,#061b2a)] text-slate-100 shadow-[0_7px_14px_rgb(7_25_39_/_22%),inset_0_1px_0_rgb(255_255_255_/_14%),inset_0_-4px_0_rgb(2_13_22_/_40%)] hover:border-teal-300/50",
@@ -242,6 +242,13 @@ export function DateNavigator({
               style={{
                 scrollSnapAlign: "center",
                 scrollSnapStop: "always",
+                // Do not rely on a percentage flex basis here: a few Android
+                // WebViews resolve it against the rail's scroll width and
+                // squeeze every buffered day onto the screen. This viewport
+                // width consistently leaves room for only three mobile cards.
+                width: "calc((100vw - 3rem) / 3)",
+                minWidth: "calc((100vw - 3rem) / 3)",
+                maxWidth: "calc((100vw - 3rem) / 3)",
                 transform: `translateY(${selected ? -6 : -Math.round((1 - distanceFromCenter) * 3)}px) scale(${selected ? 1.1 : 0.9 + (1 - distanceFromCenter) * 0.05})`,
                 opacity: selected ? 1 : 0.65 + (1 - distanceFromCenter) * 0.15,
               }}

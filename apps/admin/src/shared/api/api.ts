@@ -328,6 +328,9 @@ export const api = {
     onEvent: (type: string, data: Record<string, unknown>) => void,
     onState?: (state: "open" | "reconnecting") => void,
   ) {
+    // SSR and unit-test environments do not provide EventSource. The caller
+    // still receives a safe close handle; the next browser mount reconnects.
+    if (typeof EventSource === "undefined") return { close: () => undefined };
     const source = new EventSource(`${getApiBaseUrl()}/events`, {
       withCredentials: true,
     });
@@ -360,6 +363,8 @@ export const api = {
       "exam.retry_requested",
       "exam.retry_reviewed",
       "exam.updated",
+      "attendance.updated",
+      "school-home.updated",
     ];
     names.forEach((name) =>
       source.addEventListener(name, (event) =>

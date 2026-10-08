@@ -31,7 +31,7 @@ afterEach(() => {
 });
 
 describe("AuthProvider", () => {
-  it("rejects a Student-only account even when its session is valid", async () => {
+  it("accepts a Student-only account as a released workspace", async () => {
     globalThis.fetch = vi.fn(async (input) => {
       if (String(input).endsWith("/auth/me")) {
         return new Response(
@@ -67,13 +67,9 @@ describe("AuthProvider", () => {
       </AuthProvider>,
     );
 
-    expect(await screen.findByText("این حساب مدیر نیست.")).toBeInTheDocument();
-    expect(screen.getByText("anonymous")).toBeInTheDocument();
-    expect(sessionStorage.getItem("moshaver_admin_csrf")).toBeNull();
-    expect(vi.mocked(globalThis.fetch)).toHaveBeenCalledWith(
-      expect.stringMatching(/\/auth\/logout$/),
-      expect.objectContaining({ method: "POST" }),
-    );
+    expect(await screen.findByText("authenticated")).toBeInTheDocument();
+    expect(screen.queryByText("این حساب مدیر نیست.")).not.toBeInTheDocument();
+    expect(sessionStorage.getItem("moshaver_admin_csrf")).toBe("csrf");
   });
 
   it("does not erase a possible session when the server is temporarily unreachable", async () => {

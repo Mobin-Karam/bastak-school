@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 type BeforeInstallPromptEvent = Event & {
   prompt: () => Promise<void>;
@@ -12,6 +12,8 @@ const DISMISS_DAYS = 14;
 
 export function usePWAInstall() {
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
+  const [installing, setInstalling] = useState(false);
+  const prompting = useRef(false);
   const [installed, setInstalled] = useState(false);
   const [dismissed, setDismissed] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
@@ -34,6 +36,8 @@ export function usePWAInstall() {
     if (raw) setDismissed(Date.now() - Number(raw) < DISMISS_DAYS * 86400000);
 
     const onBeforeInstall = (event: Event) => {
+      // We intentionally replace Chromium's automatic banner with Zanin's
+      // install sheet. The stored event must be prompted from a user gesture.
       event.preventDefault();
       setDeferredPrompt(event as BeforeInstallPromptEvent);
     };
@@ -57,11 +61,25 @@ export function usePWAInstall() {
 
   const installApp = useCallback(async () => {
     if (isIOS && !deferredPrompt) return { outcome: "ios-instructions" as const };
-    if (!deferredPrompt) return { outcome: "unavailable" as const };
-    await deferredPrompt.prompt();
-    const choice = await deferredPrompt.userChoice;
-    if (choice.outcome === "accepted") setDeferredPrompt(null);
-    return { outcome: choice.outcome };
+    const prompt = deferredPrompt;
+    if (!prompt || prompting.current) return { outcome: "unavailable" as const };
+
+    prompting.current = true;
+    setInstalling(true);
+    try {
+      // `prompt()` can only be used once, so consume this event for both an
+      // accepted and dismissed choice. A future browser event will replace it.
+      await prompt.prompt();
+      const choice = await prompt.userChoice;
+      setDeferredPrompt((current) => (current === prompt ? null : current));
+      return { outcome: choice.outcome };
+    } catch {
+      setDeferredPrompt((current) => (current === prompt ? null : current));
+      return { outcome: "unavailable" as const };
+    } finally {
+      prompting.current = false;
+      setInstalling(false);
+    }
   }, [deferredPrompt, isIOS]);
 
   const trackPWAEvent = useCallback((name: string, detail?: Record<string, unknown>) => {
@@ -72,6 +90,7 @@ export function usePWAInstall() {
     canInstall: Boolean(deferredPrompt) || (isIOS && !installed),
     dismissInstall,
     installApp,
+    isInstalling: installing,
     isIOS,
     isAndroid,
     isMobile,

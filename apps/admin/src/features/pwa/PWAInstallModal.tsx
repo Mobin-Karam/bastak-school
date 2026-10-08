@@ -16,6 +16,7 @@ const benefits = [
 export function PWAInstallModal({
   open,
   canInstall,
+  installing,
   isAndroid,
   isIOS,
   onInstall,
@@ -24,6 +25,7 @@ export function PWAInstallModal({
 }: {
   open: boolean;
   canInstall: boolean;
+  installing: boolean;
   isAndroid: boolean;
   isIOS: boolean;
   onInstall: () => void;
@@ -154,7 +156,8 @@ export function PWAInstallModal({
         <div className="mt-7 grid gap-2 sm:grid-cols-[1fr_auto_auto]">
           <Button
             className="min-h-12 rounded-xl"
-            disabled={!isIOS && !isAndroid && !canInstall}
+            disabled={installing || (!isIOS && !isAndroid && !canInstall)}
+            loading={installing}
             onClick={canInstall || isIOS ? onInstall : () => setGuideOpen(true)}
           >
             <Download size={17} aria-hidden="true" />

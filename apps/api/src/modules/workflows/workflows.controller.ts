@@ -5,7 +5,6 @@ import {
   Param,
   Patch,
   Post,
-  Put,
   Query,
 } from "@nestjs/common";
 import { RequireCapabilities } from "../../common/decorators/capabilities.decorator";
@@ -17,45 +16,6 @@ import { WorkflowsService } from "./workflows.service";
 @Controller()
 export class WorkflowsController {
   constructor(private readonly service: WorkflowsService) {}
-
-  @Get("dormitory/rooms")
-  @RequireCapabilities("attendance.read")
-  async listDormRooms(
-    @CurrentUser() user: AuthenticatedUser,
-    @Query("organizationId") organizationId?: string,
-  ) {
-    return ok(await this.service.listDormRooms(user, organizationId));
-  }
-
-  @Post("dormitory/rooms")
-  @RequireCapabilities("attendance.manage")
-  async createDormRoom(
-    @CurrentUser() user: AuthenticatedUser,
-    @Body() body: any,
-  ) {
-    return ok(await this.service.createDormRoom(user, body as any));
-  }
-
-  @Get("dormitory/rooms/:id/assignments")
-  @RequireCapabilities("attendance.read")
-  async listDormAssignments(
-    @CurrentUser() user: AuthenticatedUser,
-    @Param("id") roomId: string,
-  ) {
-    return ok(await this.service.listDormAssignments(user, roomId));
-  }
-
-  @Put("dormitory/rooms/:id/assignments")
-  @RequireCapabilities("attendance.manage")
-  async setDormAssignments(
-    @CurrentUser() user: AuthenticatedUser,
-    @Param("id") roomId: string,
-    @Body("studentIds") studentIds: string[],
-  ) {
-    return ok(
-      await this.service.setDormAssignments(user, roomId, studentIds || []),
-    );
-  }
 
   @Get("student/leave-requests")
   @RequireCapabilities("leave.read")
@@ -145,7 +105,10 @@ export class WorkflowsController {
 
   @Get("attendance/occupancy")
   @RequireCapabilities("attendance.read")
-  occupancy(@CurrentUser() user: AuthenticatedUser, @Query("organizationId") organizationId?: string) {
+  occupancy(
+    @CurrentUser() user: AuthenticatedUser,
+    @Query("organizationId") organizationId?: string,
+  ) {
     return this.service.occupancy(user, organizationId).then(ok);
   }
 

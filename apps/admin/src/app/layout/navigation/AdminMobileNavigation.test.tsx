@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
+import { cleanup, render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { LocaleProvider } from "../../../shared/ui/locale";
@@ -14,7 +14,7 @@ vi.mock("../../../features/auth", () => ({
 describe("AdminMobileBottomNav", () => {
   afterEach(cleanup);
 
-  it("opens the related capability-filtered pages on tap and closes on a second tap", () => {
+  it("gives teachers five direct personal destinations without an expanded menu", () => {
     render(
       <MemoryRouter>
         <LocaleProvider>
@@ -27,25 +27,23 @@ describe("AdminMobileBottomNav", () => {
       </MemoryRouter>,
     );
 
-    const education = screen.getByRole("link", { name: "کلاس‌ها و حضور" });
-    fireEvent.click(education);
-
-    const relatedPages = screen.getByRole("complementary", { name: "آموزش" });
-    expect(relatedPages).toBeVisible();
-    expect(within(relatedPages).getByRole("link", { name: /^کلاس‌های من/ })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: "میز استاد" })).toHaveAttribute("href", "/admin");
+    expect(screen.getByRole("link", { name: "برنامه من" })).toHaveAttribute(
       "href",
-      "/admin/classes",
+      "/admin/schedule",
     );
-    expect(within(relatedPages).getByRole("link", { name: /^حضور و غیاب/ })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: "گفت‌وگو" })).toHaveAttribute(
       "href",
-      "/admin/attendance",
+      "/admin/teacher-chat",
     );
-
-    fireEvent.click(education);
-    expect(screen.queryByRole("complementary", { name: "آموزش" })).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "پروفایل" })).toHaveAttribute(
+      "href",
+      "/admin/teacher-profile",
+    );
+    expect(screen.queryByRole("link", { name: "همه صفحه‌ها" })).not.toBeInTheDocument();
   });
 
-  it("closes the related-page panel when the user taps outside it", () => {
+  it("keeps all teacher destinations directly reachable in reduced-performance mode", () => {
     render(
       <MemoryRouter>
         <LocaleProvider>
@@ -58,8 +56,10 @@ describe("AdminMobileBottomNav", () => {
       </MemoryRouter>,
     );
 
-    fireEvent.click(screen.getByRole("link", { name: "کلاس‌ها و حضور" }));
-    fireEvent.click(screen.getByRole("button", { name: "بستن منوی مرتبط" }));
-    expect(screen.queryByRole("complementary", { name: "آموزش" })).not.toBeInTheDocument();
+    expect(screen.getAllByRole("link")).toHaveLength(5);
+    expect(screen.getByRole("link", { name: "تنظیمات" })).toHaveAttribute(
+      "href",
+      "/admin/settings",
+    );
   });
 });
