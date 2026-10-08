@@ -3,11 +3,13 @@ import {
   api,
   ApiError,
   getApiBaseUrl,
+  getBackendRootUrl,
   getBackendTargetUrl,
   getSelectedApiVersion,
   setSelectedBackend,
   setApiWorkContext,
   setCsrf,
+  request,
 } from "./api";
 
 const originalFetch = globalThis.fetch;
@@ -72,6 +74,18 @@ describe("api client", () => {
     await api.get("/auth/me");
 
     expect(globalThis.fetch).toHaveBeenCalledWith("/api/v2/auth/me", expect.any(Object));
+  });
+
+  it("keeps unversioned infrastructure probes outside the API prefix", async () => {
+    globalThis.fetch = vi.fn(
+      async () =>
+        new Response(JSON.stringify({ ok: true, data: { status: "ok" } }), { status: 200 }),
+    ) as typeof fetch;
+
+    await request("GET", "/health", undefined, { unversioned: true, suppressAuthFailure: true });
+
+    expect(getBackendRootUrl()).toBe("");
+    expect(globalThis.fetch).toHaveBeenCalledWith("/health", expect.any(Object));
   });
 
   it("refreshes an expired access session and retries the request once", async () => {

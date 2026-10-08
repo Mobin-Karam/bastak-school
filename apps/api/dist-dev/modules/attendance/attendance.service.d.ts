@@ -66,7 +66,7 @@ export declare class AttendanceService {
         id: string;
         organizationId: string;
         organizationName: string;
-        contextType: "class" | "class_group" | "dorm" | "night";
+        contextType: "class" | "dorm" | "class_group" | "night";
         contextId: string;
         contextLabel: string;
         sessionDate: string;
@@ -95,7 +95,7 @@ export declare class AttendanceService {
         name: string;
         userId: string | null;
         nationalCode: string | null | undefined;
-        accountStatus: "active" | "archived" | "inactive";
+        accountStatus: "active" | "inactive" | "archived";
     }[]>;
     summary(user: AuthenticatedUser, studentId?: string): Promise<{
         recent: {
@@ -103,7 +103,7 @@ export declare class AttendanceService {
             sessionId: string;
             status: AttendanceStatus;
             sessionDate: string;
-            contextType: "class" | "class_group" | "dorm" | "night";
+            contextType: "class" | "dorm" | "class_group" | "night";
             contextId: string;
             organizationId: string;
             recordedAt: string;
@@ -120,7 +120,7 @@ export declare class AttendanceService {
         status: AttendanceStatus;
         note: string;
         sessionDate: string;
-        contextType: "class" | "class_group" | "dorm" | "night";
+        contextType: "class" | "dorm" | "class_group" | "night";
         contextId: string;
         organizationId: string;
         recordedAt: string;

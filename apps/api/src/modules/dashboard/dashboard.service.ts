@@ -177,6 +177,9 @@ export class LegacyDashboardService {
             `SELECT COUNT(*)n FROM login_throttles WHERE lockedUntil>datetime('now')`,
           ),
         },
+        platformOrganizations: await this.platformOrganizationOverview(
+          user.activeOrganizationId,
+        ),
       };
     if (context === "STUDENT") return { ...common };
     if (context === "GUARDIAN") return { ...common, children: ids.length };
@@ -214,6 +217,44 @@ export class LegacyDashboardService {
     if (role === "STUDENT_AFFAIRS_MENTOR") return "MENTOR";
     if (role === "COUNSELOR") return "ADVISOR";
     return role;
+  }
+  /**
+   * Platform administrators need an explicit tenant boundary in their overview.
+   * Counts are grouped in SQL so this remains bounded as the tenant count grows.
+   */
+  private async platformOrganizationOverview(organizationId?: string) {
+    const rows = await this.db.query(
+      `
+      SELECT
+        o.id,
+        o.name,
+        o.type,
+        o.status,
+        COUNT(DISTINCT CASE WHEN m.status='ACTIVE' THEN m.userId END) members,
+        COUNT(DISTINCT CASE WHEN m.status='ACTIVE' AND s.id IS NOT NULL THEN s.id END) students,
+        COUNT(DISTINCT CASE WHEN m.status='ACTIVE' AND s.id IS NULL THEN m.userId END) staff,
+        COUNT(DISTINCT schedule.id) scheduleEntries
+      FROM organizations o
+      LEFT JOIN organization_memberships m ON m.organizationId=o.id
+      LEFT JOIN students s ON s.userId=m.userId
+      LEFT JOIN school_schedule_entries schedule ON schedule.organizationId=o.id AND schedule.status='ACTIVE'
+      WHERE (? IS NULL OR o.id = ?)
+      GROUP BY o.id, o.name, o.type, o.status
+      ORDER BY CASE o.status WHEN 'ACTIVE' THEN 0 WHEN 'INACTIVE' THEN 1 ELSE 2 END, o.name ASC
+      LIMIT 24
+    `,
+      [organizationId ?? null, organizationId ?? null],
+    );
+    return rows.map((row: Record<string, unknown>) => ({
+      id: String(row.id),
+      name: String(row.name),
+      type: String(row.type),
+      status: String(row.status),
+      members: Number(row.members || 0),
+      students: Number(row.students || 0),
+      staff: Number(row.staff || 0),
+      scheduleEntries: Number(row.scheduleEntries || 0),
+    }));
   }
   /**
    * Organization-admin visibility is deliberately derived from active

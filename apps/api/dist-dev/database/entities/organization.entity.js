@@ -16,10 +16,8 @@ const organization_membership_entity_1 = require("./organization-membership.enti
 var OrganizationType;
 (function (OrganizationType) {
     OrganizationType["SCHOOL"] = "SCHOOL";
-    OrganizationType["ACADEMY"] = "ACADEMY";
-    OrganizationType["COUNSELING_CENTER"] = "COUNSELING_CENTER";
-    OrganizationType["PRIVATE_PRACTICE"] = "PRIVATE_PRACTICE";
-    OrganizationType["OTHER"] = "OTHER";
+    OrganizationType["INSTITUTION"] = "INSTITUTION";
+    OrganizationType["ORGANIZATION"] = "ORGANIZATION";
 })(OrganizationType || (exports.OrganizationType = OrganizationType = {}));
 var OrganizationStatus;
 (function (OrganizationStatus) {

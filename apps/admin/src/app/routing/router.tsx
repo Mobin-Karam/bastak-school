@@ -1,4 +1,4 @@
-import { lazy, Suspense, type ReactNode } from "react";
+import { lazy, Suspense, type ReactNode, useEffect, useState } from "react";
 import { createBrowserRouter, Navigate, Outlet } from "react-router-dom";
 import { RefreshCw } from "lucide-react";
 import { Button } from "../../shared/ui/ui";
@@ -6,9 +6,11 @@ import { useAdminShellCopy } from "../../shared/ui/locale";
 import {
   isSupportedAdminPortalRole,
   LoginPage,
+  LoginSuccessSplash,
   UnsupportedRoleModal,
   useAuth,
 } from "../../features/auth";
+import { AUTH_SUCCESS_SPLASH_KEY } from "../../features/auth/lib/auth-session";
 import { AdminLayout } from "../layout/shell/AdminLayout";
 import { RouteErrorBoundary } from "../../shared/errors";
 
@@ -25,6 +27,9 @@ const StudentsPage = lazy(() =>
 );
 const ClassesPage = lazy(() =>
   import("../../features/education/classes").then((m) => ({ default: m.ClassesPage })),
+);
+const BookShelfPage = lazy(() =>
+  import("../../features/education/books").then((m) => ({ default: m.BookShelfPage })),
 );
 const ClassGroupsPage = lazy(() =>
   import("../../features/class-groups").then((m) => ({ default: m.ClassGroupsPage })),
@@ -44,6 +49,9 @@ const SchedulePage = lazy(() =>
 const LeaveRequestsPage = lazy(() =>
   import("../../features/leave-requests").then((m) => ({ default: m.LeaveRequestsPage })),
 );
+const ExitPermissionsPage = lazy(() =>
+  import("../../features/exit-permissions").then((m) => ({ default: m.ExitPermissionsPage })),
+);
 const DormitoryPage = lazy(() =>
   import("../../features/dormitory").then((m) => ({ default: m.DormitoryPage })),
 );
@@ -51,9 +59,6 @@ const RegistrationComingSoonPage = lazy(() =>
   import("../../features/registration").then((m) => ({
     default: m.RegistrationComingSoonPage,
   })),
-);
-const StudentTransferPage = lazy(() =>
-  import("../../features/student-transfer").then((m) => ({ default: m.StudentTransferPage })),
 );
 const OrganizationsPage = lazy(() =>
   import("../../features/access").then((m) => ({ default: m.OrganizationsPage })),
@@ -107,6 +112,17 @@ function RouteLoading() {
 function ProtectedRoute() {
   const auth = useAuth();
   const copy = useAdminShellCopy();
+  const [showLoginSplash, setShowLoginSplash] = useState(
+    () => sessionStorage.getItem(AUTH_SUCCESS_SPLASH_KEY) === "1",
+  );
+
+  useEffect(() => {
+    if (!showLoginSplash || auth.status !== "authenticated") return;
+    sessionStorage.removeItem(AUTH_SUCCESS_SPLASH_KEY);
+    const timer = window.setTimeout(() => setShowLoginSplash(false), 3_000);
+    return () => window.clearTimeout(timer);
+  }, [auth.status, showLoginSplash]);
+
   if (auth.status === "checking") {
     return (
       <div className="grid min-h-screen place-items-center bg-paper p-4">
@@ -132,6 +148,7 @@ function ProtectedRoute() {
     );
   }
   if (auth.status !== "authenticated") return <Navigate to="/login" replace />;
+  if (showLoginSplash) return <LoginSuccessSplash />;
   if (!isSupportedAdminPortalRole(auth.activeRole)) return <UnsupportedRoleModal />;
   return <Outlet />;
 }
@@ -216,16 +233,6 @@ export const router = createBrowserRouter([
             ),
           },
           {
-            path: "student-transfer",
-            element: (
-              <CapabilityRoute capability={["students.import", "students.export"]}>
-                <RouteScreen>
-                  <StudentTransferPage />
-                </RouteScreen>
-              </CapabilityRoute>
-            ),
-          },
-          {
             path: "schedule",
             element: (
               <CapabilityRoute capability="schedule.read">
@@ -259,6 +266,14 @@ export const router = createBrowserRouter([
                   <ClassesPage />
                 </RouteScreen>
               </CapabilityRoute>
+            ),
+          },
+          {
+            path: "books",
+            element: (
+              <RouteScreen>
+                <BookShelfPage />
+              </RouteScreen>
             ),
           },
           {
@@ -307,6 +322,16 @@ export const router = createBrowserRouter([
               <CapabilityRoute capability="leave.read">
                 <RouteScreen>
                   <LeaveRequestsPage />
+                </RouteScreen>
+              </CapabilityRoute>
+            ),
+          },
+          {
+            path: "exit-permissions",
+            element: (
+              <CapabilityRoute capability="exit.read">
+                <RouteScreen>
+                  <ExitPermissionsPage />
                 </RouteScreen>
               </CapabilityRoute>
             ),

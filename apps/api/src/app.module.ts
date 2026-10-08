@@ -27,6 +27,7 @@ import { ImportExportModule } from "./modules/import-export/import-export.module
 import { ScheduleModule } from "./modules/schedule/schedule.module";
 import { GuardianModule } from "./modules/guardian/guardian.module";
 import { SchoolHomeModule } from "./modules/school-home/school-home.module";
+import { ChatModule } from "./modules/chat/chat.module";
 
 /**
  * School application composition root. CMB provides reusable platform
@@ -67,6 +68,8 @@ import { SchoolHomeModule } from "./modules/school-home/school-home.module";
     ScheduleModule,
     GuardianModule,
     SchoolHomeModule,
+    // Conversation/profile endpoints consumed by the Admin workspace.
+    ChatModule,
     // StudentDocumentsModule deliberately stays dormant until it has a
     // Fastify-compatible upload storage adapter.  Its current Express/Multer
     // controller must not be mounted in this Fastify application.

@@ -10,8 +10,15 @@ import { todayIso } from "../../../shared/lib/utils";
 import { notify } from "../../../shared/ui/notifications";
 import { api } from "../../../shared/api/api";
 import { Button, Card, Input, LoadingState, Textarea } from "../../../shared/ui/ui";
-import { createAnnouncement, getPrayerTimes, listAnnouncements } from "../api/school-home.api";
+import {
+  createAnnouncement,
+  getPrayerTimes,
+  listAnnouncements,
+  type SchoolAnnouncement,
+  updateAnnouncement,
+} from "../api/school-home.api";
 import { CurrentPrayerCard } from "./CurrentPrayerCard";
+import { SchoolOccupancyBanner } from "./SchoolOccupancyBanner";
 
 /** Principal and supervisor home: school calendar, live prayer time, announcements and attendance totals. */
 export function SchoolManagerDashboard() {
@@ -61,6 +68,22 @@ export function SchoolManagerDashboard() {
     onError: (error) =>
       notify(error instanceof Error ? error.message : "انتشار اعلان انجام نشد.", "error"),
   });
+  const archiveAnnouncement = useMutation({
+    mutationFn: (item: SchoolAnnouncement) =>
+      updateAnnouncement(item.id, {
+        title: item.title,
+        body: item.body,
+        audience: item.audience,
+        classroomId: item.classroomId,
+        status: "ARCHIVED",
+      }),
+    onSuccess: () => {
+      void client.invalidateQueries({ queryKey: ["announcements", organizationId] });
+      notify("اعلان بایگانی شد.", "success");
+    },
+    onError: (error) =>
+      notify(error instanceof Error ? error.message : "بایگانی اعلان انجام نشد.", "error"),
+  });
   const totals = (attendance.data ?? []).reduce(
     (total, session) => ({
       present: total.present + session.present,
@@ -94,6 +117,7 @@ export function SchoolManagerDashboard() {
         capabilities={auth.capabilities}
         schedule={schedule.data ?? []}
       />
+      <SchoolOccupancyBanner />
       <div className="grid gap-3 lg:grid-cols-2">
         <CurrentPrayerCard times={prayerValues} className="h-full" />
         <Card className="p-4">
@@ -173,7 +197,20 @@ export function SchoolManagerDashboard() {
           <div className="mt-3 grid gap-2">
             {announcements.data.slice(0, 3).map((item) => (
               <article key={item.id} className="rounded-xl bg-[rgb(var(--surface-muted))] p-3">
-                <h3 className="text-sm font-bold text-ink">{item.title}</h3>
+                <div className="flex items-start justify-between gap-2">
+                  <h3 className="text-sm font-bold text-ink">{item.title}</h3>
+                  {auth.can("announcements.manage") && item.status !== "ARCHIVED" ? (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      loading={archiveAnnouncement.isPending}
+                      aria-label={`بایگانی اعلان ${item.title}`}
+                      onClick={() => archiveAnnouncement.mutate(item)}
+                    >
+                      بایگانی
+                    </Button>
+                  ) : null}
+                </div>
                 <p className="mt-1 text-xs leading-5 text-slate-500">{item.body}</p>
               </article>
             ))}

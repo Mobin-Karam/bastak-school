@@ -1,9 +1,10 @@
 import {
   Building2,
+  BookOpen,
   CalendarDays,
   ClipboardCheck,
   CalendarClock,
-  FileSpreadsheet,
+  DoorOpen,
   LayoutDashboard,
   MessageCircle,
   School,
@@ -40,6 +41,12 @@ export const educationNavigation = [
     capability: "classes.read",
   },
   {
+    path: "books",
+    title: "قفسه کتاب‌ها",
+    description: "کتاب‌های درسی، کلاس‌های مرتبط و دبیر مسئول",
+    icon: BookOpen,
+  },
+  {
     path: "class-groups",
     title: "گروه‌های کلاس",
     description: "تقسیم هر کلاس به چند گروه و مدیریت اعضای گروه",
@@ -67,6 +74,13 @@ export const educationNavigation = [
     icon: ClipboardCheck,
     capability: "leave.read",
   },
+  {
+    path: "exit-permissions",
+    title: "خروج و بازگشت",
+    description: "مجوزهای خروج، ثبت حرکت دروازه و آمار حاضرین مدرسه",
+    icon: DoorOpen,
+    capability: "exit.read",
+  },
 ] as const;
 
 export const educationCapabilities = [
@@ -75,6 +89,7 @@ export const educationCapabilities = [
   "class_groups.read",
   "attendance.read",
   "leave.read",
+  "exit.read",
 ] as const;
 
 export const adminNavigation = [
@@ -116,13 +131,6 @@ export const adminNavigation = [
         description: "تکمیل پرونده یا مدیریت مراحل ثبت‌نام مدرسه",
         icon: UserRoundCheck,
         capability: "registration.read",
-      },
-      {
-        path: "student-transfer",
-        title: "Excel طلبه‌ها",
-        description: "پیش‌نمایش، ورود و خروجی فهرست طلبه‌ها",
-        icon: FileSpreadsheet,
-        capability: "students.import",
       },
       {
         path: "dormitory",
@@ -246,6 +254,17 @@ const studentNavigation: readonly NavigationGroup[] = [
         description: "کلاس‌ها و استادهای هر روز هفته",
         icon: CalendarDays,
         capability: "schedule.read",
+      },
+    ],
+  },
+  {
+    section: "کتابخانه",
+    items: [
+      {
+        path: "books",
+        title: "قفسه کتاب‌ها",
+        description: "مرور کتاب‌های درسی مدرسه",
+        icon: BookOpen,
       },
     ],
   },
@@ -448,6 +467,11 @@ const en: Record<string, string> = {
   "نمای کلی": "Overview",
   کلاس‌ها: "Classes",
   "گروه‌های کلاس": "Class groups",
+  کتابخانه: "Library",
+  "قفسه کتاب‌ها": "Book shelves",
+  "کتاب‌های درسی، کلاس‌های مرتبط و دبیر مسئول":
+    "Textbooks, their classes, and responsible teachers",
+  "مرور کتاب‌های درسی مدرسه": "Browse the school's textbooks",
   "حضور و غیاب": "Attendance",
   طلبه‌ها: "Students",
   "ثبت‌نام و پرونده": "Registration & profile",

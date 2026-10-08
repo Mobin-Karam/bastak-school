@@ -1,5 +1,4 @@
-import { ChangeEvent, useState } from "react";
-import { useAuth } from "../../auth";
+import { type ChangeEvent, useState } from "react";
 import { api } from "../../../shared/api/api";
 import {
   defineSpreadsheet,
@@ -35,8 +34,7 @@ const studentSheet = defineSpreadsheet<ImportRow>({
     { key: "trackId", header: "رشته" },
   ],
 });
-
-const studentExportSheet = defineSpreadsheet<ExportRow>({
+const exportSheet = defineSpreadsheet<ExportRow>({
   ...studentSheet,
   columns: [
     ...studentSheet.columns,
@@ -45,17 +43,26 @@ const studentExportSheet = defineSpreadsheet<ExportRow>({
   ],
 });
 
-export function StudentTransferPage() {
-  const auth = useAuth();
-  const organizationId =
-    auth.context?.activeOrganization?.id ?? auth.context?.memberships?.[0]?.id ?? "";
+export function StudentTransferWorkspace({
+  organizationId,
+  canImport,
+  canExport,
+  onCompleted,
+}: {
+  organizationId: string;
+  canImport: boolean;
+  canExport: boolean;
+  onCompleted: () => void;
+}) {
   const [rows, setRows] = useState<ImportRow[]>([]);
   const [preview, setPreview] = useState<Preview | null>(null);
   const [message, setMessage] = useState("");
+  const ready = Boolean(organizationId);
 
   async function pick(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
-    if (!file || !organizationId) return;
+    event.target.value = "";
+    if (!file || !ready) return;
     try {
       const parsed = await readSpreadsheet(file, studentSheet);
       setRows(parsed);
@@ -69,9 +76,8 @@ export function StudentTransferPage() {
       setMessage("ساختار فایل Excel معتبر نیست.");
     }
   }
-
   async function commit() {
-    if (!organizationId || !rows.length) return;
+    if (!ready || !rows.length) return;
     const result = await api.post<{ committed: boolean; count?: number; invalid?: number }>(
       "/students/transfer/commit",
       { organizationId, rows },
@@ -81,17 +87,16 @@ export function StudentTransferPage() {
         ? `${result.count ?? 0} طلبه وارد شد.`
         : `فایل ${result.invalid ?? 0} ردیف نامعتبر دارد.`,
     );
+    if (result.committed) onCompleted();
   }
-
   async function exportXlsx() {
-    if (!organizationId) return;
+    if (!ready) return;
     const data = await api.get<ExportRow[]>(
       `/students/transfer/export?organizationId=${encodeURIComponent(organizationId)}`,
     );
-    await downloadSpreadsheet(studentExportSheet, data, "students.xlsx");
+    await downloadSpreadsheet(exportSheet, data, "students.xlsx");
   }
-
-  async function downloadTemplate() {
+  async function template() {
     await downloadSpreadsheet(
       studentSheet,
       [
@@ -109,43 +114,58 @@ export function StudentTransferPage() {
   }
 
   return (
-    <section className="space-y-4" dir="rtl">
-      <div>
-        <h1 className="text-2xl font-black text-ink">ورود و خروجی Excel طلبه‌ها</h1>
-        <p className="text-sm text-slate-500">
-          ستون‌ها: نام، نام خانوادگی، کد ملی، پایه، نوع آموزش، رشته. قبل از ورود نهایی فایل
-          اعتبارسنجی می‌شود.
+    <section className="grid gap-4" dir="rtl">
+      <p className="text-sm leading-6 text-slate-500">
+        ورود و خروجی فقط برای سازمان فعال انجام می‌شود. ورود، ابتدا اعتبارسنجی می‌شود و سپس در فهرست
+        طلبه‌ها همگام خواهد شد.
+      </p>
+      {!ready ? (
+        <p role="alert" className="rounded-lg bg-amber-50 p-3 text-sm text-amber-800">
+          ابتدا سازمان فعال را انتخاب کنید.
         </p>
-      </div>
+      ) : null}
       <Card className="p-4">
         <div className="flex flex-wrap gap-2">
-          <label className="inline-flex h-10 cursor-pointer items-center rounded-lg border border-[rgb(var(--border-subtle))] px-3 text-sm font-bold">
-            <input
-              className="hidden"
-              type="file"
-              accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-              onChange={(event) => void pick(event)}
-            />
-            انتخاب Excel
-          </label>
-          <Button variant="ghost" onClick={() => void downloadTemplate()}>
-            نمونه Excel
-          </Button>
-          <Button variant="soft" onClick={() => void exportXlsx()} disabled={!organizationId}>
-            خروجی Excel
-          </Button>
-          <Button onClick={() => void commit()} disabled={!preview || preview.invalid > 0}>
-            ثبت {preview?.valid ?? 0} ردیف معتبر
-          </Button>
+          {canImport ? (
+            <label className="inline-flex h-10 cursor-pointer items-center rounded-lg border border-[rgb(var(--border-subtle))] px-3 text-sm font-bold">
+              <input
+                className="hidden"
+                type="file"
+                accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                disabled={!ready}
+                onChange={(event) => void pick(event)}
+              />
+              انتخاب Excel
+            </label>
+          ) : null}
+          {canImport ? (
+            <Button variant="ghost" onClick={() => void template()}>
+              نمونه Excel
+            </Button>
+          ) : null}
+          {canExport ? (
+            <Button variant="soft" disabled={!ready} onClick={() => void exportXlsx()}>
+              خروجی Excel
+            </Button>
+          ) : null}
+          {canImport ? (
+            <Button disabled={!preview || preview.invalid > 0} onClick={() => void commit()}>
+              ثبت {preview?.valid ?? 0} ردیف معتبر
+            </Button>
+          ) : null}
         </div>
         {preview ? (
-          <div className="mt-4 grid grid-cols-3 gap-2 text-center">
+          <div className="mt-4 grid grid-cols-3 gap-2 text-center text-sm">
             <div>کل: {preview.total}</div>
             <div className="text-emerald-700">معتبر: {preview.valid}</div>
             <div className="text-rose-700">خطا: {preview.invalid}</div>
           </div>
         ) : null}
-        {message ? <p className="mt-3 text-sm">{message}</p> : null}
+        {message ? (
+          <p className="mt-3 text-sm" role="status">
+            {message}
+          </p>
+        ) : null}
         {preview?.rows.some((row) => row.errors.length) ? (
           <div className="mt-4 max-h-64 overflow-auto text-xs">
             {preview.rows

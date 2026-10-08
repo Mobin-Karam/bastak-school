@@ -6,7 +6,7 @@ import type {
   FollowUpMetric,
 } from "../model/dashboard.types";
 import { AttentionInbox } from "./work/AttentionInbox";
-import { DashboardFollowUpCard } from "./DashboardFollowUpCard";
+import { DashboardFollowUpCard } from "./work/DashboardFollowUpCard";
 import { DashboardMetricCards } from "./metrics/DashboardMetricCards";
 import { RecentReportsCard } from "./reports/RecentReportsCard";
 import { useLocale } from "../../../shared/ui/locale";

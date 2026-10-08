@@ -1,202 +1,59 @@
+import { Building2, Megaphone, Plus, Users } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import { Button, Card } from "../../../shared/ui/ui";
+import { Button, Card, ErrorState, Field, Input, Textarea } from "../../../shared/ui/ui";
 import { ManagementPageHeader } from "../../../shared/ui/management-workspace";
+import { ResponsiveDrawer } from "../../../shared/ui/responsive-drawer";
 import { useAuth } from "../../auth";
 import { listRelationshipStudents } from "../../access/api/access.api";
-import { createDormRoom, listDormAssignments, listDormRooms, setDormAssignments, type DormAssignment, type DormRoom } from "../api/dormitory.api";
+import { createDormRoom, findDormitoryStudents, listDormAssignments, listDormRooms, sendDormitoryAnnouncement, setDormAssignments, type DormAssignment, type DormitoryStudent, type DormRoom } from "../api/dormitory.api";
 
-const EMPTY_FORM = { code: "", name: "", capacity: 12 };
-
-type RoomDraft = typeof EMPTY_FORM;
+const emptyRoom = { building: "ساختمان اصلی", floor: 1, code: "", name: "", capacity: 12 };
 
 export function DormitoryPage() {
   const auth = useAuth();
-  const activeOrganizationId = auth.context?.activeOrganization?.id || "";
+  const organizationId = auth.context?.activeOrganization?.id || "";
   const [rooms, setRooms] = useState<DormRoom[]>([]);
-  const [selectedRoomId, setSelectedRoomId] = useState<string>("");
+  const [selectedId, setSelectedId] = useState("");
   const [assigned, setAssigned] = useState<DormAssignment[]>([]);
-  const [allStudents, setAllStudents] = useState<Array<{ id: string; name: string; nationalCode?: string | null }>>([]);
-  const [draft, setDraft] = useState<RoomDraft>(EMPTY_FORM);
-  const [saving, setSaving] = useState(false);
+  const [students, setStudents] = useState<Array<{ id: string; name: string }>>([]);
+  const [roomDraft, setRoomDraft] = useState(emptyRoom);
+  const [drawer, setDrawer] = useState<"room" | "announcement" | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
   const [message, setMessage] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [target, setTarget] = useState<"ROOM" | "STUDENT">("ROOM");
+  const [announcement, setAnnouncement] = useState({ title: "", body: "" });
+  const [recipientQuery, setRecipientQuery] = useState("");
+  const [results, setResults] = useState<DormitoryStudent[]>([]);
+  const [recipient, setRecipient] = useState<DormitoryStudent | null>(null);
 
-  const selectedRoom = useMemo(
-    () => rooms.find((room) => room.id === selectedRoomId) ?? rooms[0] ?? null,
-    [rooms, selectedRoomId],
-  );
-
-  useEffect(() => {
-    void listDormRooms(activeOrganizationId).then((result) => {
-      setRooms(result);
-      if (result[0]) setSelectedRoomId(result[0].id);
-    }).catch(() => setRooms([]));
-  }, [activeOrganizationId]);
-
-  useEffect(() => {
-    if (!selectedRoom) return;
-    void listDormAssignments(selectedRoom.id)
-      .then((result) => setAssigned(result))
-      .catch(() => setAssigned([]));
-  }, [selectedRoom]);
-
-  useEffect(() => {
-    if (!selectedRoom) return;
-    void listRelationshipStudents(activeOrganizationId)
-      .then((result) => {
-        setAllStudents(result.map((student) => ({ id: student.id, name: student.name, nationalCode: null })));
-      })
-      .catch(() => setAllStudents([]));
-  }, [selectedRoom, activeOrganizationId]);
-
+  const selected = useMemo(() => rooms.find((room) => room.id === selectedId) ?? rooms[0] ?? null, [rooms, selectedId]);
+  const groups = useMemo(() => Object.entries(rooms.reduce<Record<string, DormRoom[]>>((acc, room) => { (acc[room.building || "ساختمان اصلی"] ||= []).push(room); return acc; }, {})), [rooms]);
   const assignedIds = useMemo(() => new Set(assigned.map((item) => item.studentId)), [assigned]);
 
-  const toggleStudent = (studentId: string) => {
-    setAssigned((current) => {
-      const exists = current.some((item) => item.studentId === studentId);
-      const next = exists ? current.filter((item) => item.studentId !== studentId) : [...current, { id: studentId, studentId, name: allStudents.find((student) => student.id === studentId)?.name ?? "", nationalCode: allStudents.find((student) => student.id === studentId)?.nationalCode ?? null, userId: null }];
-      return next;
-    });
-  };
+  useEffect(() => { let alive = true; setLoading(true); setError(""); void listDormRooms(organizationId).then((next) => { if (!alive) return; setRooms(next); setSelectedId((id) => next.some((room) => room.id === id) ? id : next[0]?.id || ""); }).catch(() => alive && setError("دریافت اتاق‌های خوابگاه انجام نشد.")).finally(() => alive && setLoading(false)); return () => { alive = false; }; }, [organizationId]);
+  useEffect(() => { if (!selected) return; void listDormAssignments(selected.id).then(setAssigned).catch(() => setAssigned([])); void listRelationshipStudents(organizationId).then((next) => setStudents(next.map((student) => ({ id: student.id, name: student.name })))).catch(() => setStudents([])); }, [selected?.id, organizationId]);
+  useEffect(() => { if (target !== "STUDENT" || recipientQuery.trim().length < 2) { setResults([]); return; } const timer = window.setTimeout(() => void findDormitoryStudents(organizationId, recipientQuery).then(setResults).catch(() => setResults([])), 250); return () => window.clearTimeout(timer); }, [target, recipientQuery, organizationId]);
 
-  const createRoom = async () => {
-    const organizationId = rooms[0]?.organizationId ?? selectedRoom?.organizationId ?? activeOrganizationId;
-    if (!draft.code.trim() || !draft.name.trim()) {
-      setMessage("کد و نام اتاق الزامی است.");
-      return;
-    }
-    if (!organizationId) {
-      setMessage("برای ایجاد اتاق، ابتدا دسترسی به سازمان فعال مشخص شود.");
-      return;
-    }
+  const toggle = (studentId: string) => setAssigned((current) => {
+    if (current.some((item) => item.studentId === studentId)) return current.filter((item) => item.studentId !== studentId);
+    if (selected && current.length >= selected.capacity) { setMessage(`ظرفیت ${selected.name} کامل است.`); return current; }
+    return [...current, { id: studentId, studentId, name: students.find((student) => student.id === studentId)?.name || "", userId: null }];
+  });
+  const createRoom = async () => { if (!organizationId || !roomDraft.code.trim() || !roomDraft.name.trim()) { setMessage("ساختمان، کد و نام اتاق را تکمیل کنید."); return; } setSaving(true); try { const room = await createDormRoom({ organizationId, ...roomDraft, capacity: Math.min(12, Number(roomDraft.capacity) || 12) }); setRooms((current) => [...current, room]); setSelectedId(room.id); setRoomDraft(emptyRoom); setDrawer(null); setMessage("اتاق جدید ایجاد شد."); } catch { setMessage("ایجاد اتاق انجام نشد. کد اتاق باید یکتا باشد."); } finally { setSaving(false); } };
+  const save = async () => { if (!selected) return; setSaving(true); try { await setDormAssignments(selected.id, assigned.map((item) => item.studentId)); setRooms((current) => current.map((room) => room.id === selected.id ? { ...room, studentCount: assigned.length } : room)); setMessage(`اعضای «${selected.name}» ذخیره شد.`); } catch { setMessage("ذخیره اعضا انجام نشد."); } finally { setSaving(false); } };
+  const announce = async () => { if (!organizationId || !announcement.title.trim() || !announcement.body.trim() || (target === "ROOM" ? !selected : !recipient)) { setMessage("گیرنده، عنوان و متن پیام را مشخص کنید."); return; } setSaving(true); try { const result = await sendDormitoryAnnouncement({ organizationId, title: announcement.title, body: announcement.body, target, roomId: target === "ROOM" ? selected?.id : undefined, studentId: target === "STUDENT" ? recipient?.id : undefined }); setAnnouncement({ title: "", body: "" }); setDrawer(null); setMessage(`اعلان برای ${result.delivered} نفر ارسال شد.`); } catch { setMessage("ارسال اعلان انجام نشد."); } finally { setSaving(false); } };
 
-    try {
-      const room = await createDormRoom({
-        organizationId,
-        code: draft.code.trim(),
-        name: draft.name.trim(),
-        capacity: Number(draft.capacity) || 1,
-      });
-      setRooms((current) => [room, ...current]);
-      setSelectedRoomId(room.id);
-      setDraft(EMPTY_FORM);
-      setMessage("اتاق خوابگاه ایجاد شد.");
-    } catch {
-      setMessage("ایجاد اتاق خوابگاه انجام نشد. دوباره تلاش کنید.");
-    }
-  };
-
-  const saveAssignments = async () => {
-    if (!selectedRoom) return;
-    setSaving(true);
-    try {
-      await setDormAssignments(selectedRoom.id, assigned.map((item) => item.studentId));
-      setMessage(`اتاق «${selectedRoom.name}» به‌روزرسانی شد.`);
-      const refreshed = await listDormAssignments(selectedRoom.id);
-      setAssigned(refreshed);
-      setRooms((current) => current.map((room) => (room.id === selectedRoom.id ? { ...room, studentCount: refreshed.length } : room)));
-    } catch {
-      setMessage("ذخیره‌سازی اعضای اتاق انجام نشد.");
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  return (
-    <section className="space-y-4">
-      <ManagementPageHeader
-        eyebrow="V1"
-        title="اتاق‌های خوابگاه"
-        description="ساخت اتاق، تخصیص طلبه‌ها به هر اتاق و ثبت حضور شبانه اعضا."
-      />
-
-      <div className="grid gap-4 lg:grid-cols-[360px_1fr]">
-        <Card className="p-4">
-          <h3 className="font-black text-ink">ایجاد اتاق جدید</h3>
-          <div className="mt-3 space-y-3">
-            <input
-              value={draft.code}
-              onChange={(event) => setDraft((current) => ({ ...current, code: event.target.value }))}
-              className="w-full rounded-lg border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card))] px-3 py-2"
-              placeholder="کد اتاق"
-            />
-            <input
-              value={draft.name}
-              onChange={(event) => setDraft((current) => ({ ...current, name: event.target.value }))}
-              className="w-full rounded-lg border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card))] px-3 py-2"
-              placeholder="نام اتاق"
-            />
-            <input
-              type="number"
-              min={1}
-              value={draft.capacity}
-              onChange={(event) => setDraft((current) => ({ ...current, capacity: Number(event.target.value || 1) }))}
-              className="w-full rounded-lg border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card))] px-3 py-2"
-              placeholder="ظرفیت"
-            />
-            <Button type="button" onClick={createRoom}>ایجاد اتاق</Button>
-          </div>
-        </Card>
-
-        <Card className="p-4">
-          <div className="flex items-center justify-between gap-3">
-            <h3 className="font-black text-ink">اتاق‌ها</h3>
-            <Button type="button" variant="soft" size="sm" onClick={saveAssignments} loading={saving}>ذخیره اعضا</Button>
-          </div>
-
-          <div className="mt-3 flex flex-wrap gap-2">
-            {rooms.length === 0 ? (
-              <p className="text-sm text-slate-500">هیچ اتاقی برای این سازمان ثبت نشده است.</p>
-            ) : (
-              rooms.map((room) => (
-                <button
-                  key={room.id}
-                  type="button"
-                  onClick={() => setSelectedRoomId(room.id)}
-                  className={`rounded-full border px-3 py-1 text-sm font-bold ${
-                    room.id === selectedRoom?.id ? "border-brand bg-brand/10 text-brand" : "border-[rgb(var(--border-subtle))] bg-white text-slate-600"
-                  }`}
-                >
-                  {room.name} ({room.studentCount}/{room.capacity})
-                </button>
-              ))
-            )}
-          </div>
-
-          {selectedRoom && (
-            <div className="mt-4 rounded-xl border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-muted))] p-3">
-              <p className="text-xs text-slate-500">کد اتاق</p>
-              <p className="mt-1 text-lg font-black text-ink">{selectedRoom.code}</p>
-              <p className="mt-2 text-sm text-slate-600">{selectedRoom.studentCount} نفر در این اتاق هستند.</p>
-            </div>
-          )}
-
-          <div className="mt-4 space-y-2">
-            {allStudents.length === 0 ? (
-              <p className="text-sm text-slate-500">دانش‌آموزی برای این سازمان پیدا نشد.</p>
-            ) : (
-              allStudents.map((student) => {
-                const isChecked = assignedIds.has(student.id);
-                return (
-                  <label key={student.id} className="flex cursor-pointer items-center justify-between gap-3 rounded-xl border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card))] px-3 py-2">
-                    <div>
-                      <p className="font-bold text-ink">{student.name}</p>
-                      <p className="text-xs text-slate-500">{student.nationalCode || "بدون کد ملی"}</p>
-                    </div>
-                    <input
-                      type="checkbox"
-                      checked={isChecked}
-                      onChange={() => toggleStudent(student.id)}
-                      className="h-4 w-4"
-                    />
-                  </label>
-                );
-              })
-            )}
-          </div>
-
-          {message && <p className="mt-3 text-xs text-slate-500">{message}</p>}
-        </Card>
-      </div>
-    </section>
-  );
+  return <section className="space-y-4"><ManagementPageHeader eyebrow="خوابگاه" title="مدیریت اتاق‌های خوابگاه" description="نمای ساختمان، طبقه و ظرفیت اتاق‌ها؛ تخصیص ساکنان و ارسال اعلان هدفمند." />
+    {message ? <p role="status" className="rounded-lg bg-brand/10 px-3 py-2 text-sm text-brand">{message}</p> : null}
+    {error ? <ErrorState title="اتاق‌ها در دسترس نیستند" description={error} action={<Button variant="soft" onClick={() => window.location.reload()}>تلاش دوباره</Button>} /> : null}
+    {!error && loading ? <Card className="p-6 text-sm text-slate-500">در حال دریافت اتاق‌ها…</Card> : null}
+    {!error && !loading && rooms.length === 0 ? <Card className="grid min-h-72 place-items-center p-6 text-center"><div><Building2 className="mx-auto size-10 text-brand" aria-hidden="true" /><h2 className="mt-4 text-lg font-black text-ink">هنوز اتاقی ثبت نشده است</h2><p className="mt-2 text-sm text-slate-500">اولین اتاق را بسازید؛ ظرفیت پیش‌فرض هر اتاق ۱۲ نفر است.</p><Button className="mt-5" onClick={() => setDrawer("room")}><Plus size={17} aria-hidden="true" />ایجاد اولین اتاق</Button></div></Card> : null}
+    {!error && !loading && rooms.length > 0 ? <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_23rem]"><div className="space-y-4">{groups.map(([building, buildingRooms]) => <Card key={building} className="p-4"><div className="flex items-center gap-2"><Building2 size={18} className="text-brand" aria-hidden="true" /><h2 className="font-black text-ink">{building}</h2></div>{[...new Set(buildingRooms.map((room) => room.floor))].sort().map((floor) => <div key={floor} className="mt-4"><h3 className="mb-2 text-xs font-bold text-slate-500">طبقه {floor}</h3><div className="grid grid-cols-2 gap-2 sm:grid-cols-4 xl:grid-cols-8">{buildingRooms.filter((room) => room.floor === floor).map((room) => <button key={room.id} type="button" onClick={() => setSelectedId(room.id)} className={`min-h-24 rounded-xl border p-3 text-start focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand ${room.id === selected?.id ? "border-brand bg-brand/10" : "border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-muted))]"}`}><span className="text-xs text-slate-500">{room.code}</span><strong className="mt-1 block text-sm text-ink">{room.name}</strong><span className={`mt-2 block text-xs font-bold ${room.studentCount >= room.capacity ? "text-rosewood" : "text-emerald-700"}`}>{room.studentCount}/{room.capacity} نفر</span></button>)}</div></div>)}</Card>)}</div>
+      <Card className="h-fit p-4 xl:sticky xl:top-4"><div className="flex items-start justify-between gap-2"><div><h2 className="font-black text-ink">{selected?.name}</h2><p className="mt-1 text-xs text-slate-500">طبقه {selected?.floor} · {assigned.length}/{selected?.capacity} نفر</p></div><Button size="icon" variant="soft" aria-label="ارسال اعلان" onClick={() => setDrawer("announcement")}><Megaphone size={18} aria-hidden="true" /></Button></div><div className="mt-4 max-h-96 space-y-2 overflow-y-auto">{students.map((student) => <label key={student.id} className="flex cursor-pointer items-center justify-between gap-3 rounded-lg border border-[rgb(var(--border-subtle))] px-3 py-2"><span className="text-sm font-semibold text-ink">{student.name}</span><input aria-label={`تخصیص ${student.name}`} type="checkbox" checked={assignedIds.has(student.id)} onChange={() => toggle(student.id)} /></label>)}</div><Button className="mt-4 w-full" loading={saving} onClick={save}><Users size={17} aria-hidden="true" />ذخیره اعضای اتاق</Button></Card></div> : null}
+    {!loading && !error && rooms.length > 0 ? <Button variant="soft" onClick={() => setDrawer("room")}><Plus size={17} aria-hidden="true" />ایجاد اتاق</Button> : null}
+    <ResponsiveDrawer open={drawer === "room"} onOpenChange={(open) => !open && setDrawer(null)} title="ایجاد اتاق جدید" description="دسکتاپ: پنل سمت چپ. موبایل: شیت پایین صفحه."><div className="space-y-4"><Field label="ساختمان" required><Input value={roomDraft.building} onChange={(event) => setRoomDraft((current) => ({ ...current, building: event.target.value }))} /></Field><div className="grid grid-cols-2 gap-3"><Field label="طبقه" required><Input type="number" min={1} value={roomDraft.floor} onChange={(event) => setRoomDraft((current) => ({ ...current, floor: Number(event.target.value) || 1 }))} /></Field><Field label="ظرفیت" required><Input type="number" min={1} max={12} value={roomDraft.capacity} onChange={(event) => setRoomDraft((current) => ({ ...current, capacity: Math.min(12, Number(event.target.value) || 1) }))} /></Field></div><Field label="کد اتاق" required><Input dir="ltr" value={roomDraft.code} onChange={(event) => setRoomDraft((current) => ({ ...current, code: event.target.value }))} placeholder="A-101" /></Field><Field label="نام اتاق" required><Input value={roomDraft.name} onChange={(event) => setRoomDraft((current) => ({ ...current, name: event.target.value }))} /></Field><Button className="w-full" loading={saving} onClick={createRoom}>ایجاد اتاق</Button></div></ResponsiveDrawer>
+    <ResponsiveDrawer open={drawer === "announcement"} onOpenChange={(open) => !open && setDrawer(null)} title="ارسال اعلان خوابگاه" description="فقط ساکنان اتاق یا طلبه انتخاب‌شده پیام را می‌گیرند."><div className="space-y-4"><div className="grid grid-cols-2 gap-2"><Button variant={target === "ROOM" ? "primary" : "soft"} onClick={() => setTarget("ROOM")}>ساکنان این اتاق</Button><Button variant={target === "STUDENT" ? "primary" : "soft"} onClick={() => setTarget("STUDENT")}>یک طلبه</Button></div>{target === "ROOM" ? <p className="rounded-lg bg-[rgb(var(--surface-muted))] p-3 text-sm">گیرنده: {selected?.name}</p> : <Field label="نام یا شماره همراه" required><div className="space-y-2"><Input value={recipientQuery} onChange={(event) => { setRecipientQuery(event.target.value); setRecipient(null); }} placeholder="حداقل دو حرف یا رقم" />{results.map((item) => <button key={item.id} type="button" onClick={() => { setRecipient(item); setRecipientQuery(item.name); setResults([]); }} className="w-full rounded-lg border border-[rgb(var(--border-subtle))] p-3 text-start text-sm">{item.name} <span dir="ltr" className="text-xs text-slate-500">{item.phoneNumber}</span></button>)}</div></Field>}<Field label="عنوان" required><Input value={announcement.title} onChange={(event) => setAnnouncement((current) => ({ ...current, title: event.target.value }))} /></Field><Field label="متن اعلان" required><Textarea value={announcement.body} onChange={(event) => setAnnouncement((current) => ({ ...current, body: event.target.value }))} /></Field><Button className="w-full" loading={saving} onClick={announce}><Megaphone size={17} aria-hidden="true" />ارسال اعلان</Button></div></ResponsiveDrawer>
+  </section>;
 }

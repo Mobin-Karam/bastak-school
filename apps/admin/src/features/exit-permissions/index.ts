@@ -1,0 +1,1 @@
+export { ExitPermissionsPage } from "./ExitPermissionsPage";

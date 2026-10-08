@@ -108,6 +108,7 @@ export declare class LegacyDashboardController {
                 events24h: any;
                 lockedLogins: any;
             };
+            platformOrganizations: any;
             context: string;
             activeRole: string;
             generatedAt: string;

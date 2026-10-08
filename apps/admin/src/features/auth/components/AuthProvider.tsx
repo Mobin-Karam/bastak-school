@@ -4,6 +4,7 @@ import type { AccountContext, OrganizationSummary, User } from "../../../shared/
 import { getCurrentUser, getAccountContext, loginRequest, logoutRequest } from "../api/auth.api";
 import {
   AUTH_SIGNAL_KEY,
+  AUTH_SUCCESS_SPLASH_KEY,
   adminPortalRole,
   normalizeUser,
   PENDING_LOGOUT_KEY,
@@ -33,6 +34,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const finishLocalLogout = useCallback((text: string, broadcast = true) => {
     operation.current += 1;
+    sessionStorage.removeItem(AUTH_SUCCESS_SPLASH_KEY);
     api.setCsrf();
     setUser(null);
     setAccountContext(null);
@@ -226,6 +228,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setAccountContext(context);
         setActiveRoleState(role);
         setApiWorkContext(role, context.activeOrganization?.id);
+        sessionStorage.setItem(AUTH_SUCCESS_SPLASH_KEY, "1");
         setStatus("authenticated");
         restoreAttempts.current = 0;
         lastCheck.current = Date.now();

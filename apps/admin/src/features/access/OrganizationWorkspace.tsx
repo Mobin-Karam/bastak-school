@@ -24,6 +24,10 @@ import { useAuth } from "../auth";
 import { useLocale } from "../../shared/ui/locale";
 import { accessCopy } from "./model/access-copy";
 import {
+  rolesForOrganizationType,
+  type AdminOrganizationType,
+} from "../../shared/lib/organization-role-policy";
+import {
   acceptRelationship,
   addOrganizationMember,
   allowGuardianChange,
@@ -40,22 +44,6 @@ import {
   type OrganizationMember,
   type RelationshipStudent,
 } from "./api/access.api";
-
-const roles: RoleCode[] = [
-  "STUDENT",
-  "GUARDIAN",
-  "ADVISOR",
-  "TEACHER",
-  "MENTOR",
-  "CONTENT_MANAGER",
-  "PRINCIPAL",
-  "DISCIPLINARIAN",
-  "RELIGIOUS_EDUCATION_MANAGER",
-  "GOVERNMENT_EDUCATION_MANAGER",
-  "STUDENT_AFFAIRS_MENTOR",
-  "COUNSELOR",
-  "ORGANIZATION_ADMIN",
-];
 
 const statusTones: Record<string, string> = {
   PENDING:
@@ -93,8 +81,6 @@ function SectionHeader({
   description?: string;
   action?: React.ReactNode;
 }) {
-  const { language } = useLocale();
-  const copy = accessCopy[language];
   return (
     <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
       <div className="flex items-start gap-3">
@@ -114,6 +100,7 @@ function SectionHeader({
 export function OrganizationWorkspace({
   organizationId,
   organizationName,
+  organizationType,
   studentSignupManagedByOrganization = false,
   studentSignupEnabled = false,
   studentSignupLimit = 0,
@@ -121,6 +108,7 @@ export function OrganizationWorkspace({
 }: {
   organizationId: string;
   organizationName: string;
+  organizationType: AdminOrganizationType;
   studentSignupManagedByOrganization?: boolean;
   studentSignupEnabled?: boolean;
   studentSignupLimit?: number;
@@ -132,7 +120,8 @@ export function OrganizationWorkspace({
   const qc = useQueryClient();
   const modal = useModal();
   const [userId, setUserId] = useState("");
-  const [role, setRole] = useState<RoleCode>("COUNSELOR");
+  const roles = rolesForOrganizationType(organizationType);
+  const [role, setRole] = useState<RoleCode>(roles.includes("COUNSELOR") ? "COUNSELOR" : roles[0]);
   const [memberSearch, setMemberSearch] = useState("");
   const [showAddForm, setShowAddForm] = useState(false);
 
@@ -147,7 +136,7 @@ export function OrganizationWorkspace({
   const relationships = useQuery({ queryKey: ["relationships"], queryFn: listRelationships });
   const relationshipStudents = useQuery({
     queryKey: ["students", "relationship-picker"],
-    queryFn: listRelationshipStudents,
+    queryFn: () => listRelationshipStudents(organizationId),
   });
 
   const refresh = async () => {
@@ -222,8 +211,10 @@ export function OrganizationWorkspace({
     onSuccess: () => notify(copy.guardianChangeAllowed),
   });
   const signupPolicy = useMutation({
-    mutationFn: (body: { enabled: boolean; limit: number }) => setOrganizationStudentSignupPolicy(organizationId, body),
-    onSuccess: () => notify(language === "fa" ? "تنظیمات ثبت‌نام ذخیره شد." : "Signup settings saved."),
+    mutationFn: (body: { enabled: boolean; limit: number }) =>
+      setOrganizationStudentSignupPolicy(organizationId, body),
+    onSuccess: () =>
+      notify(language === "fa" ? "تنظیمات ثبت‌نام ذخیره شد." : "Signup settings saved."),
   });
 
   const available = (users.data || []).filter(
@@ -269,7 +260,14 @@ export function OrganizationWorkspace({
         </div>
       </Card>
       {!auth.hasRole("PLATFORM_ADMIN") && auth.can("organization.manage") ? (
-        <OrganizationSignupControl delegated={studentSignupManagedByOrganization} enabled={studentSignupEnabled} limit={studentSignupLimit} used={studentSignupCount} pending={signupPolicy.isPending} onSave={(body) => signupPolicy.mutate(body)} />
+        <OrganizationSignupControl
+          delegated={studentSignupManagedByOrganization}
+          enabled={studentSignupEnabled}
+          limit={studentSignupLimit}
+          used={studentSignupCount}
+          pending={signupPolicy.isPending}
+          onSave={(body) => signupPolicy.mutate(body)}
+        />
       ) : null}
 
       {/* ── Two-column main layout ─────────────────────────────────── */}
@@ -659,13 +657,77 @@ export function OrganizationWorkspace({
   );
 }
 
-function OrganizationSignupControl({ delegated, enabled: initialEnabled, limit: initialLimit, used, pending, onSave }: { delegated: boolean; enabled: boolean; limit: number; used: number; pending: boolean; onSave(body: { enabled: boolean; limit: number }): void }) {
+function OrganizationSignupControl({
+  delegated,
+  enabled: initialEnabled,
+  limit: initialLimit,
+  used,
+  pending,
+  onSave,
+}: {
+  delegated: boolean;
+  enabled: boolean;
+  limit: number;
+  used: number;
+  pending: boolean;
+  onSave(body: { enabled: boolean; limit: number }): void;
+}) {
   const { language } = useLocale();
   const fa = language === "fa";
   const [enabled, setEnabled] = useState(initialEnabled);
   const [limit, setLimit] = useState(initialLimit);
-  if (!delegated) return <Card className="border-dashed p-4"><h3 className="font-bold">{fa ? "ثبت‌نام مستقیم دانش‌آموز" : "Student self-signup"}</h3><p className="mt-1 text-sm text-slate-500">{fa ? "مدیر پلتفرم هنوز مدیریت ثبت‌نام را به این سازمان واگذار نکرده است. دانش‌آموزان باید اطلاعات خود را به سازمان بدهند." : "The platform administrator has not delegated signup management. Students should provide their details to the organization."}</p></Card>;
-  return <Card className="p-4"><form className="grid gap-3 sm:grid-cols-[1fr_180px_auto] sm:items-end" onSubmit={(event) => { event.preventDefault(); onSave({ enabled, limit }); }}><div><h3 className="font-bold">{fa ? "ثبت‌نام مستقیم دانش‌آموز" : "Student self-signup"}</h3><p className="mt-1 text-xs text-slate-500">{fa ? `${used} از ${limit} ظرفیت استفاده شده است.` : `${used} of ${limit} places used.`}</p><label className="mt-3 flex items-center gap-2 text-sm"><input type="checkbox" checked={enabled} onChange={(event) => setEnabled(event.target.checked)} />{fa ? "اجازه ساخت حساب برای دانش‌آموز" : "Allow students to create accounts"}</label></div><Field label={fa ? "ظرفیت" : "Capacity"}><Select value={String(limit)} onChange={(event) => setLimit(Math.max(0, Number(event.target.value) || 0))}>{[0, 10, 25, 50, 100, 250, 500, 1000].map((value) => <option key={value} value={value}>{value}</option>)}</Select></Field><Button size="sm" loading={pending}>{fa ? "ذخیره" : "Save"}</Button></form></Card>;
+  if (!delegated)
+    return (
+      <Card className="border-dashed p-4">
+        <h3 className="font-bold">{fa ? "ثبت‌نام مستقیم دانش‌آموز" : "Student self-signup"}</h3>
+        <p className="mt-1 text-sm text-slate-500">
+          {fa
+            ? "مدیر پلتفرم هنوز مدیریت ثبت‌نام را به این سازمان واگذار نکرده است. دانش‌آموزان باید اطلاعات خود را به سازمان بدهند."
+            : "The platform administrator has not delegated signup management. Students should provide their details to the organization."}
+        </p>
+      </Card>
+    );
+  return (
+    <Card className="p-4">
+      <form
+        className="grid gap-3 sm:grid-cols-[1fr_180px_auto] sm:items-end"
+        onSubmit={(event) => {
+          event.preventDefault();
+          onSave({ enabled, limit });
+        }}
+      >
+        <div>
+          <h3 className="font-bold">{fa ? "ثبت‌نام مستقیم دانش‌آموز" : "Student self-signup"}</h3>
+          <p className="mt-1 text-xs text-slate-500">
+            {fa ? `${used} از ${limit} ظرفیت استفاده شده است.` : `${used} of ${limit} places used.`}
+          </p>
+          <label className="mt-3 flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={enabled}
+              onChange={(event) => setEnabled(event.target.checked)}
+            />
+            {fa ? "اجازه ساخت حساب برای دانش‌آموز" : "Allow students to create accounts"}
+          </label>
+        </div>
+        <Field label={fa ? "ظرفیت" : "Capacity"}>
+          <Select
+            value={String(limit)}
+            onChange={(event) => setLimit(Math.max(0, Number(event.target.value) || 0))}
+          >
+            {[0, 10, 25, 50, 100, 250, 500, 1000].map((value) => (
+              <option key={value} value={value}>
+                {value}
+              </option>
+            ))}
+          </Select>
+        </Field>
+        <Button size="sm" loading={pending}>
+          {fa ? "ذخیره" : "Save"}
+        </Button>
+      </form>
+    </Card>
+  );
 }
 
 function RelationshipCreateForm({

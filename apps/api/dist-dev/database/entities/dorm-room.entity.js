@@ -19,13 +19,15 @@ let DormRoom = class DormRoom {
     organization;
     code;
     name;
+    building;
+    floor;
     capacity;
     status;
     assignments;
     createdAt;
     updatedAt;
     static _OPENAPI_METADATA_FACTORY() {
-        return { id: { required: true, type: () => String }, organization: { required: true, type: () => require("./organization.entity").Organization }, code: { required: true, type: () => String }, name: { required: true, type: () => String }, capacity: { required: true, type: () => Number }, status: { required: true, enum: ["ARCHIVED", "ACTIVE"] }, assignments: { required: true, type: () => [require("./dorm-room-assignment.entity").DormRoomAssignment] }, createdAt: { required: true, type: () => Date }, updatedAt: { required: true, type: () => Date } };
+        return { id: { required: true, type: () => String }, organization: { required: true, type: () => require("./organization.entity").Organization }, code: { required: true, type: () => String }, name: { required: true, type: () => String }, building: { required: true, type: () => String, description: "A residence can have several buildings; room codes remain unique per school." }, floor: { required: true, type: () => Number }, capacity: { required: true, type: () => Number }, status: { required: true, enum: ["ACTIVE", "ARCHIVED"] }, assignments: { required: true, type: () => [require("./dorm-room-assignment.entity").DormRoomAssignment] }, createdAt: { required: true, type: () => Date }, updatedAt: { required: true, type: () => Date } };
     }
 };
 exports.DormRoom = DormRoom;
@@ -45,6 +47,14 @@ __decorate([
     (0, typeorm_1.Column)({ length: 160 }),
     __metadata("design:type", String)
 ], DormRoom.prototype, "name", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ length: 120, default: "ساختمان اصلی" }),
+    __metadata("design:type", String)
+], DormRoom.prototype, "building", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: "integer", default: 1 }),
+    __metadata("design:type", Number)
+], DormRoom.prototype, "floor", void 0);
 __decorate([
     (0, typeorm_1.Column)({ type: "integer", default: 1 }),
     __metadata("design:type", Number)

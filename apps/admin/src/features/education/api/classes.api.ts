@@ -10,7 +10,7 @@ export type EducationClassBook = {
 export type EducationClassStudent = { id: string; name: string; grade: string; major: string };
 export type EducationClass = {
   id: string;
-  organization: { id: string; name: string };
+  organization: { id: string; name: string; type?: string; status?: string };
   code: string;
   name: string;
   schoolYear: string;

@@ -31,6 +31,7 @@ export type UserContext = {
   capabilities: string[];
   membershipIds: string[];
   organizationIds: string[];
+  activeOrganizationId?: string;
 };
 
 @Injectable()
@@ -193,6 +194,7 @@ export class AuthorizationService {
     if (!context.roles.includes("PLATFORM_ADMIN") || !this.permissions)
       return {
         ...context,
+        activeOrganizationId: requestedOrganizationId,
         capabilities: [
           ...new Set([...effectiveCapabilities, ...grantCapabilities]),
         ].sort(),
@@ -200,6 +202,7 @@ export class AuthorizationService {
     const permissions = await this.permissions.find({ select: { code: true } });
     return {
       ...context,
+      activeOrganizationId: requestedOrganizationId,
       capabilities: [
         ...new Set([
           ...effectiveCapabilities,

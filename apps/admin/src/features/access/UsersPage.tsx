@@ -1,19 +1,9 @@
-import { useEffect, useMemo, useState, type ComponentProps, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import {
-  Archive,
-  Building2,
-  CheckCircle2,
-  Crown,
-  Pencil,
-  Plus,
-  Power,
-  RotateCcw,
-  ShieldCheck,
-} from "lucide-react";
+import { Crown, Pencil, Plus, ShieldCheck } from "lucide-react";
 import { useAuth } from "../auth";
-import type {  RoleCode } from "../../shared/types/domain";
+import type { RoleCode } from "../../shared/types/domain";
 import { roleLabel, roleLabels } from "../../shared/lib/role-ui";
 import { useModal } from "../../shared/ui/modal";
 import { notify } from "../../shared/ui/notifications";
@@ -21,23 +11,15 @@ import { useLocale } from "../../shared/ui/locale";
 import { Button, Card, EmptyState, Field, Input, Select } from "../../shared/ui/ui";
 import { AdminDataTable } from "../../shared/ui/admin-data-table";
 import { CollectionToolbar } from "../../shared/ui/collection-toolbar";
+import { ManagementStat, ManagementSummaryBar } from "../../shared/ui/management-workspace";
 import {
-
-  ManagementStat,
-  ManagementSummaryBar,
-} from "../../shared/ui/management-workspace";
-import {
-
   archiveUser,
-
   createUser,
   listOrganizations,
   listUsers,
   setUserActive,
   setUserRoles,
-
   transferPlatformOwnership,
-
   updateUser,
   type PortalOrganization,
   type PortalUser,
@@ -45,6 +27,8 @@ import {
 import { AccessFlowGuidance } from "./components/AccessFlowGuidance";
 import { emptyAccessResult } from "./model/access-flow";
 import { accessCopy } from "./model/access-copy";
+import { rolesForOrganizationType } from "../../shared/lib/organization-role-policy";
+import { OrganizationTag } from "../../shared/ui/organization-tag";
 
 const allRoles = Object.keys(roleLabels) as RoleCode[];
 const nameOf = (user: PortalUser) =>
@@ -70,6 +54,9 @@ export function UsersPage() {
   const [organizationId, setOrganizationId] = useState(
     () => searchParams.get("organizationId") ?? auth.context?.activeOrganization?.id ?? "",
   );
+  useEffect(() => {
+    if (isPlatform) setOrganizationId(auth.context?.activeOrganization?.id ?? "");
+  }, [auth.context?.activeOrganization?.id, isPlatform]);
   const [search, setSearch] = useState(() => searchParams.get("q") ?? ""),
     [status, setStatus] = useState(() => searchParams.get("status") ?? "ALL"),
     [selectedUserId, setSelectedUserId] = useState(() => searchParams.get("userId") ?? ""),
@@ -352,6 +339,10 @@ export function UsersPage() {
                 value={editDraft.role}
                 onChange={(role) => setEditDraft({ ...editDraft, role })}
                 allowPlatform={isPlatformOwner}
+                organizationType={
+                  (organizations.data || []).find((item) => item.id === editDraft.organizationId)
+                    ?.type
+                }
               />
             ) : (
               <p className="self-end rounded-xl bg-slate-100 p-3 text-xs leading-5 text-slate-600 dark:bg-slate-800 dark:text-slate-300">
@@ -362,7 +353,18 @@ export function UsersPage() {
               <OrganizationField
                 organizations={organizations.data || []}
                 value={editDraft.organizationId}
-                onChange={(value) => setEditDraft({ ...editDraft, organizationId: value })}
+                onChange={(value) => {
+                  const roles = rolesForOrganizationType(
+                    (organizations.data || []).find((item) => item.id === value)?.type,
+                  );
+                  setEditDraft({
+                    ...editDraft,
+                    organizationId: value,
+                    role: roles.includes(editDraft.role)
+                      ? editDraft.role
+                      : (roles[0] ?? "COUNSELOR"),
+                  });
+                }}
               />
             ) : null}
             <div className="flex items-end gap-2">
@@ -504,15 +506,26 @@ export function UsersPage() {
                       </p>
                       <div className="mt-2 flex flex-wrap gap-1.5">
                         {user.assignments.map((item, index) => (
-                          <span
+                          <div
                             key={`${item.role}-${item.organizationId}-${index}`}
-                            className="rounded-full bg-brand/10 px-2 py-1 text-[11px] font-bold text-brand"
+                            className="flex flex-wrap items-center gap-1"
                           >
-                            {roleLabel(item.role, language)}
-                            {item.organizationId
-                              ? ` · ${organizations.data?.find((org) => org.id === item.organizationId)?.name || copy.organization}`
-                              : ` · ${copy.platformLevel}`}
-                          </span>
+                            <span className="rounded-full bg-brand/10 px-2 py-1 text-[11px] font-bold text-brand">
+                              {roleLabel(item.role, language)}
+                            </span>
+                            {item.organizationId ? (
+                              <OrganizationTag
+                                compact
+                                organization={organizations.data?.find(
+                                  (org) => org.id === item.organizationId,
+                                )}
+                              />
+                            ) : (
+                              <span className="rounded-full bg-slate-100 px-2 py-1 text-[11px] font-bold text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+                                {copy.platformLevel}
+                              </span>
+                            )}
+                          </div>
                         ))}
                       </div>
                     </div>
@@ -690,6 +703,7 @@ function UserCreateForm({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
   const requiresOrganization = draft.role !== "PLATFORM_ADMIN";
+  const selectedOrganization = organizations.find((item) => item.id === draft.organizationId);
 
   return (
     <form
@@ -738,6 +752,7 @@ function UserCreateForm({
         value={draft.role}
         onChange={(role) => setDraft({ ...draft, role })}
         allowPlatform={allowPlatform}
+        organizationType={selectedOrganization?.type}
       />
       <Field label={copy.firstName}>
         <Input
@@ -755,7 +770,16 @@ function UserCreateForm({
         <OrganizationField
           organizations={organizations}
           value={draft.organizationId}
-          onChange={(organizationId) => setDraft({ ...draft, organizationId })}
+          onChange={(organizationId) => {
+            const roles = rolesForOrganizationType(
+              organizations.find((item) => item.id === organizationId)?.type,
+            );
+            setDraft({
+              ...draft,
+              organizationId,
+              role: roles.includes(draft.role) ? draft.role : (roles[0] ?? "COUNSELOR"),
+            });
+          }}
         />
       ) : null}
       {error ? (
@@ -797,17 +821,19 @@ function RoleField({
   value,
   onChange,
   allowPlatform,
+  organizationType,
 }: {
   value: RoleCode;
   onChange: (role: RoleCode) => void;
   allowPlatform: boolean;
+  organizationType?: string | null;
 }) {
   const { language } = useLocale();
   const copy = accessCopy[language];
   return (
     <Field label={copy.role}>
       <Select value={value} onChange={(e) => onChange(e.target.value as RoleCode)}>
-        {allRoles
+        {(organizationType ? rolesForOrganizationType(organizationType) : allRoles)
           .filter((role) => allowPlatform || role !== "PLATFORM_ADMIN")
           .map((role) => (
             <option key={role} value={role}>
@@ -844,27 +870,6 @@ function OrganizationField({
     </Field>
   );
 }
-function OrganizationTypeField({
-  value,
-  onChange,
-}: {
-  value: string;
-  onChange: (value: string) => void;
-}) {
-  const { language } = useLocale();
-  const copy = accessCopy[language];
-  return (
-    <Field label={copy.organizationKind}>
-      <Select value={value} onChange={(e) => onChange(e.target.value)}>
-        {["SCHOOL", "ACADEMY", "COUNSELING_CENTER", "PRIVATE_PRACTICE", "OTHER"].map((type) => (
-          <option key={type} value={type}>
-            {copy.organizationType(type)}
-          </option>
-        ))}
-      </Select>
-    </Field>
-  );
-}
 function StatusPill({ status }: { status: string }) {
   const { language } = useLocale();
   const copy = accessCopy[language];
@@ -880,29 +885,6 @@ function StatusPill({ status }: { status: string }) {
             ? copy.inactiveStatus
             : status}
     </span>
-  );
-}
-function IconAction({
-  label,
-  active = false,
-  tone = "soft",
-  children,
-  ...props
-}: Omit<ComponentProps<typeof Button>, "aria-label" | "title" | "size" | "variant"> & {
-  label: string;
-  active?: boolean;
-  tone?: "soft" | "primary" | "danger";
-}) {
-  return (
-    <Button
-      size="icon"
-      variant={active ? "primary" : tone}
-      aria-label={label}
-      title={label}
-      {...props}
-    >
-      {children}
-    </Button>
   );
 }
 function LoadingRows() {

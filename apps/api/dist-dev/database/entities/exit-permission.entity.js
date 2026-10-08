@@ -31,6 +31,10 @@ let ExitPermission = class ExitPermission {
     expectedReturnAt;
     actualDepartureAt;
     actualReturnAt;
+    returnRequestedAt;
+    returnRequestNote;
+    returnVerifiedBy;
+    returnVerifiedAt;
     destination;
     reason;
     note;
@@ -40,7 +44,7 @@ let ExitPermission = class ExitPermission {
     createdAt;
     updatedAt;
     static _OPENAPI_METADATA_FACTORY() {
-        return { id: { required: true, type: () => String }, organization: { required: true, type: () => require("./organization.entity").Organization }, student: { required: true, type: () => require("./student.entity").Student }, requestedDepartureAt: { required: true, type: () => Date }, expectedReturnAt: { required: false, type: () => Date, nullable: true }, actualDepartureAt: { required: false, type: () => Date, nullable: true }, actualReturnAt: { required: false, type: () => Date, nullable: true }, destination: { required: true, type: () => String }, reason: { required: true, type: () => String }, note: { required: true, type: () => String }, status: { required: true, enum: require("./exit-permission.entity").ExitPermissionStatus }, approver: { required: false, type: () => require("./user.entity").User, nullable: true }, reviewedAt: { required: false, type: () => Date, nullable: true }, createdAt: { required: true, type: () => Date }, updatedAt: { required: true, type: () => Date } };
+        return { id: { required: true, type: () => String }, organization: { required: true, type: () => require("./organization.entity").Organization }, student: { required: true, type: () => require("./student.entity").Student }, requestedDepartureAt: { required: true, type: () => Date }, expectedReturnAt: { required: false, type: () => Date, nullable: true }, actualDepartureAt: { required: false, type: () => Date, nullable: true }, actualReturnAt: { required: false, type: () => Date, nullable: true }, returnRequestedAt: { required: false, type: () => Date, nullable: true, description: "The student asks to be checked back in; a gate staff member confirms it." }, returnRequestNote: { required: true, type: () => String }, returnVerifiedBy: { required: false, type: () => require("./user.entity").User, nullable: true }, returnVerifiedAt: { required: false, type: () => Date, nullable: true }, destination: { required: true, type: () => String }, reason: { required: true, type: () => String }, note: { required: true, type: () => String }, status: { required: true, enum: require("./exit-permission.entity").ExitPermissionStatus }, approver: { required: false, type: () => require("./user.entity").User, nullable: true }, reviewedAt: { required: false, type: () => Date, nullable: true }, createdAt: { required: true, type: () => Date }, updatedAt: { required: true, type: () => Date } };
     }
 };
 exports.ExitPermission = ExitPermission;
@@ -74,6 +78,22 @@ __decorate([
     (0, typeorm_1.Column)({ type: "datetime", nullable: true }),
     __metadata("design:type", Object)
 ], ExitPermission.prototype, "actualReturnAt", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: "datetime", nullable: true }),
+    __metadata("design:type", Object)
+], ExitPermission.prototype, "returnRequestedAt", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: "text", default: "" }),
+    __metadata("design:type", String)
+], ExitPermission.prototype, "returnRequestNote", void 0);
+__decorate([
+    (0, typeorm_1.ManyToOne)(() => user_entity_1.User, { nullable: true, onDelete: "SET NULL" }),
+    __metadata("design:type", Object)
+], ExitPermission.prototype, "returnVerifiedBy", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: "datetime", nullable: true }),
+    __metadata("design:type", Object)
+], ExitPermission.prototype, "returnVerifiedAt", void 0);
 __decorate([
     (0, typeorm_1.Column)({ length: 200 }),
     __metadata("design:type", String)

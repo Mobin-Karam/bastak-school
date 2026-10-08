@@ -25,12 +25,16 @@ const study_group_entity_1 = require("../../database/entities/study-group.entity
 const study_group_membership_entity_1 = require("../../database/entities/study-group-membership.entity");
 const workflows_controller_1 = require("./workflows.controller");
 const workflows_service_1 = require("./workflows.service");
+const realtime_module_1 = require("../realtime/realtime.module");
+const notifications_module_1 = require("../notifications/notifications.module");
 let WorkflowsModule = class WorkflowsModule {
 };
 exports.WorkflowsModule = WorkflowsModule;
 exports.WorkflowsModule = WorkflowsModule = __decorate([
     (0, common_1.Module)({
         imports: [
+            realtime_module_1.RealtimeModule,
+            notifications_module_1.NotificationsModule,
             typeorm_1.TypeOrmModule.forFeature([
                 attendance_session_entity_1.AttendanceSession,
                 attendance_record_entity_1.AttendanceRecord,

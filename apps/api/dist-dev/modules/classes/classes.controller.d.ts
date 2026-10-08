@@ -11,6 +11,8 @@ export declare class ClassesController {
             organization: {
                 id: string;
                 name: string;
+                type: import("../../database/entities/organization.entity").OrganizationType;
+                status: import("../../database/entities/organization.entity").OrganizationStatus;
             };
             code: string;
             name: string;
@@ -19,7 +21,7 @@ export declare class ClassesController {
             educationTypeId: string;
             trackId: string;
             capacity: number;
-            status: "ARCHIVED" | "ACTIVE";
+            status: "ACTIVE" | "ARCHIVED";
             description: string;
             advisor: {
                 id: string;
@@ -52,6 +54,8 @@ export declare class ClassesController {
             organization: {
                 id: string;
                 name: string;
+                type: import("../../database/entities/organization.entity").OrganizationType;
+                status: import("../../database/entities/organization.entity").OrganizationStatus;
             };
             code: string;
             name: string;
@@ -60,7 +64,7 @@ export declare class ClassesController {
             educationTypeId: string;
             trackId: string;
             capacity: number;
-            status: "ARCHIVED" | "ACTIVE";
+            status: "ACTIVE" | "ARCHIVED";
             description: string;
             advisor: {
                 id: string;
@@ -86,6 +90,8 @@ export declare class ClassesController {
             organization: {
                 id: string;
                 name: string;
+                type: import("../../database/entities/organization.entity").OrganizationType;
+                status: import("../../database/entities/organization.entity").OrganizationStatus;
             };
             code: string;
             name: string;
@@ -94,7 +100,7 @@ export declare class ClassesController {
             educationTypeId: string;
             trackId: string;
             capacity: number;
-            status: "ARCHIVED" | "ACTIVE";
+            status: "ACTIVE" | "ARCHIVED";
             description: string;
             advisor: {
                 id: string;
@@ -127,6 +133,8 @@ export declare class ClassesController {
                 organization: {
                     id: string;
                     name: string;
+                    type: import("../../database/entities/organization.entity").OrganizationType;
+                    status: import("../../database/entities/organization.entity").OrganizationStatus;
                 };
                 code: string;
                 name: string;
@@ -135,7 +143,7 @@ export declare class ClassesController {
                 educationTypeId: string;
                 trackId: string;
                 capacity: number;
-                status: "ARCHIVED" | "ACTIVE";
+                status: "ACTIVE" | "ARCHIVED";
                 description: string;
                 advisor: {
                     id: string;
@@ -190,6 +198,8 @@ export declare class ClassesController {
             organization: {
                 id: string;
                 name: string;
+                type: import("../../database/entities/organization.entity").OrganizationType;
+                status: import("../../database/entities/organization.entity").OrganizationStatus;
             };
             code: string;
             name: string;
@@ -198,7 +208,7 @@ export declare class ClassesController {
             educationTypeId: string;
             trackId: string;
             capacity: number;
-            status: "ARCHIVED" | "ACTIVE";
+            status: "ACTIVE" | "ARCHIVED";
             description: string;
             advisor: {
                 id: string;
@@ -230,6 +240,8 @@ export declare class ClassesController {
             organization: {
                 id: string;
                 name: string;
+                type: import("../../database/entities/organization.entity").OrganizationType;
+                status: import("../../database/entities/organization.entity").OrganizationStatus;
             };
             code: string;
             name: string;
@@ -238,7 +250,7 @@ export declare class ClassesController {
             educationTypeId: string;
             trackId: string;
             capacity: number;
-            status: "ARCHIVED" | "ACTIVE";
+            status: "ACTIVE" | "ARCHIVED";
             description: string;
             advisor: {
                 id: string;
@@ -270,6 +282,8 @@ export declare class ClassesController {
             organization: {
                 id: string;
                 name: string;
+                type: import("../../database/entities/organization.entity").OrganizationType;
+                status: import("../../database/entities/organization.entity").OrganizationStatus;
             };
             code: string;
             name: string;
@@ -278,7 +292,7 @@ export declare class ClassesController {
             educationTypeId: string;
             trackId: string;
             capacity: number;
-            status: "ARCHIVED" | "ACTIVE";
+            status: "ACTIVE" | "ARCHIVED";
             description: string;
             advisor: {
                 id: string;

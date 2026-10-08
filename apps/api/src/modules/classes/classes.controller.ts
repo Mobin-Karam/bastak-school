@@ -55,7 +55,9 @@ export class ClassesController {
   ) {
     return this.classes.update(actor, id, dto).then(ok);
   }
-  @Put("classes/:id/books") @RequireCapabilities("classes.manage") books(
+  @Put("classes/:id/books")
+  @RequireCapabilities("education.catalog.manage")
+  books(
     @CurrentUser() actor: AuthenticatedUser,
     @Param("id") id: string,
     @Body() dto: SetClassBooksDto,

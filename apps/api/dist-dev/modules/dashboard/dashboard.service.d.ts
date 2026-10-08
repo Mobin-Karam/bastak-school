@@ -108,6 +108,7 @@ export declare class LegacyDashboardService {
             events24h: any;
             lockedLogins: any;
         };
+        platformOrganizations: any;
         context: string;
         activeRole: string;
         generatedAt: string;
@@ -129,6 +130,7 @@ export declare class LegacyDashboardService {
     }>;
     private studentIds;
     private dashboardContext;
+    private platformOrganizationOverview;
     private planHealthForOrganizations;
     private weeklyPlanHealthForOrganizations;
     private organizationStudentHealth;

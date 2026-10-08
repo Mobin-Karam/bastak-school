@@ -130,7 +130,7 @@ async function seed(manager, config) {
     });
     if (!organization)
         organization = organizations.create({ name: config.organizationName });
-    organization.type = organization_entity_1.OrganizationType.PRIVATE_PRACTICE;
+    organization.type = organization_entity_1.OrganizationType.ORGANIZATION;
     organization.status = organization_entity_1.OrganizationStatus.ACTIVE;
     organization = await organizations.save(organization);
     const seededAccounts = await Promise.all(Object.entries(PRIVATE_ORGANIZATION_ACCOUNTS).map(async ([key, account]) => {

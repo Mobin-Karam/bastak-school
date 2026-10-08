@@ -54,7 +54,16 @@ export function createRoleDashboardView(role?: string | null) {
         ? [{ id: "plan-health", zone: "secondary" as const, order: 5, width: 4, height: 1 }]
         : []),
       ...(role === "PLATFORM_ADMIN"
-        ? [{ id: "platform-health", zone: "secondary" as const, order: 5, width: 4, height: 1 }]
+        ? [
+            { id: "platform-health", zone: "secondary" as const, order: 5, width: 4, height: 1 },
+            {
+              id: "platform-organizations",
+              zone: "primary" as const,
+              order: 6,
+              width: 8,
+              height: 2,
+            },
+          ]
         : []),
       ...(role === "ORGANIZATION_ADMIN"
         ? [
@@ -109,7 +118,8 @@ export function useRoleDashboardView(
 ) {
   const defaultView = useMemo(() => createRoleDashboardView(role), [role]);
   const [view, setView] = useState<DashboardView>(defaultView);
-  const sharedViewKey = options?.sharedView ? JSON.stringify(options.sharedView) : "";
+  const sharedView = options?.sharedView;
+  const sharedViewKey = sharedView ? JSON.stringify(sharedView) : "";
 
   useEffect(() => {
     const store = createDashboardPreferenceStore({
@@ -117,8 +127,8 @@ export function useRoleDashboardView(
       storage: storageAdapter(),
     });
     const saved = store.load(defaultView.id);
-    setView(options?.sharedView ?? (saved ? mergeDashboardView(defaultView, saved) : defaultView));
-  }, [defaultView, sharedViewKey]);
+    setView(sharedView ?? (saved ? mergeDashboardView(defaultView, saved) : defaultView));
+  }, [defaultView, sharedView, sharedViewKey]);
 
   const save = (next: DashboardView) => {
     setView(next);

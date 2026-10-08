@@ -1,6 +1,6 @@
 import { Observable } from "rxjs";
 import { type RealtimeEvent as CmbRealtimeEvent } from "@moshaver/cmb-realtime";
-export type RealtimeEventType = "message" | "notification.created" | "plan.updated" | "exam.created" | "learning-resource.updated" | "system.update" | "chat.message.created" | "attendance.updated" | "school-home.updated";
+export type RealtimeEventType = "message" | "notification.created" | "plan.updated" | "exam.created" | "learning-resource.updated" | "system.update" | "chat.message.created" | "attendance.updated" | "school-home.updated" | "school.occupancy.updated";
 export type RealtimeEvent = CmbRealtimeEvent<RealtimeEventType>;
 export declare class RealtimeService {
     private readonly hub;

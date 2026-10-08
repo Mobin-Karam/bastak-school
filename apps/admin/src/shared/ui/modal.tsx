@@ -15,7 +15,7 @@ import { Button } from "./ui";
 import { SoftConfirmButton } from "./soft-confirmation-button";
 import { useSharedUiCopy } from "./locale";
 
-export type ModalSize = "sm" | "md" | "lg" | "xl";
+export type ModalSize = "sm" | "md" | "lg" | "xl" | "full";
 export type ModalTone = "default" | "danger";
 
 export type ModalOptions = {
@@ -278,6 +278,8 @@ function ModalSurface({
           modal.size === "lg" && "max-w-3xl",
 
           modal.size === "xl" && "max-w-5xl",
+
+          modal.size === "full" && "h-[100dvh] max-h-[100dvh] max-w-none rounded-none border-0",
         )}
       >
         <header

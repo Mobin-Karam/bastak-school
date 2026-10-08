@@ -14,6 +14,7 @@ describe("role dashboard layout", () => {
         expect.objectContaining({ id: "summary", zone: "full" }),
         expect.objectContaining({ id: "priority-work", zone: "primary" }),
         expect.objectContaining({ id: "platform-health", zone: "secondary" }),
+        expect.objectContaining({ id: "platform-organizations", zone: "primary" }),
         expect.objectContaining({ id: "operational-pulse", zone: "full" }),
       ]),
     );

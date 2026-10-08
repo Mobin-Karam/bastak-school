@@ -71,8 +71,28 @@ for (const file of walk(apiRoot, (path) => path.endsWith("controller.ts"))) {
 
 const routeText = (node) => {
   if (ts.isStringLiteralLike(node)) return node.text;
-  if (ts.isTemplateExpression(node))
-    return node.head.text + node.templateSpans.map((span) => `:id${span.literal.text}`).join("");
+  if (ts.isTemplateExpression(node)) {
+    let route = node.head.text;
+
+    for (const span of node.templateSpans) {
+      // Optional query strings such as
+      // `/classes${organizationId ? `?organizationId=${…}` : ""}` are not
+      // route parameters. Keep the canonical path before the query instead
+      // of producing the incorrect `/classes:id` synthetic route.
+      if (
+        route.includes("?") ||
+        ts.isConditionalExpression(span.expression) ||
+        (ts.isCallExpression(span.expression) &&
+          span.expression.expression.getText() === "URLSearchParams")
+      ) {
+        return route.split("?")[0];
+      }
+
+      route += `:id${span.literal.text}`;
+    }
+
+    return route;
+  }
   return "";
 };
 const requests = new Set();
@@ -120,6 +140,12 @@ const dynamicConsumers = {
   "/export/json": ["GET /export/json"],
   "/import/template": ["GET /import/template"],
   "/push/status": ["GET /push/status"],
+  "const suffix = query.size ?": ["GET /prayer-times"],
+  "const query = context ?": ["GET /dashboard/home"],
+  'approved ? "approve" : "reject"': [
+    "POST /auth/phone-change-requests/:id/approve",
+    "POST /auth/phone-change-requests/:id/reject",
+  ],
   'action: "activate" | "deactivate" | "restore" | "force-logout"': [
     "POST /students/:id/activate",
     "POST /students/:id/deactivate",

@@ -32,7 +32,7 @@ export function AdminMainSidebar({
   );
   return (
     <aside
-      className={`fixed inset-y-0 start-0 z-50 hidden flex-col border-e border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card))] transition-[width,padding] duration-200 motion-reduce:transition-none lg:flex ${direction === "rtl" ? "shadow-[-1px_0_0_rgb(24_24_27_/_2%)]" : "shadow-[1px_0_0_rgb(24_24_27_/_2%)]"} ${collapsed ? "w-[4.25rem] p-2" : "w-60 p-3"}`}
+      className={`admin-main-rail fixed inset-y-0 start-0 z-50 hidden flex-col border-e border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card))] transition-[width,padding] duration-200 motion-reduce:transition-none lg:flex ${direction === "rtl" ? "shadow-[-1px_0_0_rgb(24_24_27_/_2%)]" : "shadow-[1px_0_0_rgb(24_24_27_/_2%)]"} ${collapsed ? "w-[4.25rem] p-2" : "w-60 p-3"}`}
       aria-label={copy.primaryNavigation}
     >
       <div
@@ -40,7 +40,7 @@ export function AdminMainSidebar({
       >
         {!collapsed ? (
           <div className="min-w-0">
-            <h1 className="truncate text-lg font-black tracking-tight">{copy.appTitle}</h1>
+            <h1 className="truncate text-lg font-black tracking-tight text-ink">{copy.appTitle}</h1>
             <p className="truncate text-[11px] font-semibold text-slate-400">
               {rolePortalTitle(auth.activeRole, language)}
             </p>
@@ -55,7 +55,7 @@ export function AdminMainSidebar({
         )}
         <button
           type="button"
-          className="grid size-9 shrink-0 place-items-center rounded-lg text-slate-500 outline-none transition hover:bg-slate-100 focus-visible:ring-2 focus-visible:ring-brand"
+          className="grid size-9 shrink-0 place-items-center rounded-lg text-slate-500 outline-none transition hover:bg-white/70 hover:text-brand focus-visible:ring-2 focus-visible:ring-brand dark:hover:bg-white/10"
           title={collapsed ? copy.openMainRail : copy.closeMainRail}
           aria-label={collapsed ? copy.openMainRail : copy.closeMainRail}
           aria-expanded={!collapsed}
@@ -71,7 +71,7 @@ export function AdminMainSidebar({
 
       <button
         type="button"
-        className={`mb-3 flex h-9 w-full shrink-0 items-center rounded-md border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-muted))] text-slate-500 outline-none transition hover:bg-[rgb(var(--surface-card))] focus-visible:ring-2 focus-visible:ring-brand ${collapsed ? "justify-center px-2" : "gap-2 px-3"}`}
+        className={`mb-3 flex h-10 w-full shrink-0 items-center rounded-lg border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-muted))] text-slate-500 outline-none transition hover:bg-[rgb(var(--surface-card))] hover:text-brand focus-visible:ring-2 focus-visible:ring-brand ${collapsed ? "justify-center px-2" : "gap-2 px-3"}`}
         onClick={onOpenSearch}
         title={collapsed ? copy.searchAndGo : undefined}
         aria-label={copy.searchAndGo}
@@ -103,7 +103,7 @@ export function AdminMainSidebar({
               title={collapsed ? title : undefined}
               aria-label={title}
               aria-current={active ? "location" : undefined}
-              className={`relative flex h-10 items-center rounded-md text-sm font-medium outline-none transition focus-visible:ring-2 focus-visible:ring-brand ${collapsed ? "justify-center px-2" : "gap-3 px-3"} ${active ? "bg-brand/10 text-brand" : "text-slate-600 hover:bg-[rgb(var(--surface-muted))] hover:text-ink"}`}
+              className={`relative flex h-10 items-center rounded-lg text-sm font-medium outline-none transition focus-visible:ring-2 focus-visible:ring-brand ${collapsed ? "justify-center px-2" : "gap-3 px-3"} ${active ? "admin-rail-item-active bg-brand/10 text-brand" : "text-slate-600 hover:bg-[rgb(var(--surface-muted))] hover:text-ink dark:text-slate-300"}`}
             >
               {active ? (
                 <span

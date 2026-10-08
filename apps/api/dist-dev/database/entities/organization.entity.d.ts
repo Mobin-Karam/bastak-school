@@ -1,10 +1,8 @@
 import { OrganizationMembership } from "./organization-membership.entity";
 export declare enum OrganizationType {
     SCHOOL = "SCHOOL",
-    ACADEMY = "ACADEMY",
-    COUNSELING_CENTER = "COUNSELING_CENTER",
-    PRIVATE_PRACTICE = "PRIVATE_PRACTICE",
-    OTHER = "OTHER"
+    INSTITUTION = "INSTITUTION",
+    ORGANIZATION = "ORGANIZATION"
 }
 export declare enum OrganizationStatus {
     ACTIVE = "ACTIVE",

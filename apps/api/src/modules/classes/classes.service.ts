@@ -50,12 +50,17 @@ export class ClassesService {
   async list(actor: AuthenticatedUser, organizationId?: string) {
     const context = this.context(actor);
     this.authorization.requireCapability(context, "classes.read");
+    const requestedOrganizationId =
+      organizationId ?? actor.activeOrganizationId;
     const allowedOrganizations = this.isPlatform(context)
-      ? organizationId
-        ? [organizationId]
+      ? requestedOrganizationId
+        ? [requestedOrganizationId]
         : undefined
       : context.organizationIds;
-    if (organizationId && !this.canReadOrganization(context, organizationId))
+    if (
+      requestedOrganizationId &&
+      !this.canReadOrganization(context, requestedOrganizationId)
+    )
       this.forbidden();
     const rows = await this.classes.find({
       where: allowedOrganizations?.length
@@ -264,7 +269,7 @@ export class ClassesService {
     const classroom = await this.requireClass(
       actor,
       id,
-      "classes.manage",
+      "education.catalog.manage",
       true,
     );
     const requested = dto.books || [];
@@ -406,6 +411,8 @@ export class ClassesService {
   private canManageOrganization(context: UserContext, organizationId: string) {
     return (
       this.isPlatform(context) ||
+      (context.capabilities.includes("education.catalog.manage") &&
+        context.organizationIds.includes(organizationId)) ||
       ([
         "ORGANIZATION_ADMIN",
         "PRINCIPAL",
@@ -527,6 +534,8 @@ export class ClassesService {
       organization: {
         id: classroom.organization.id,
         name: classroom.organization.name,
+        type: classroom.organization.type,
+        status: classroom.organization.status,
       },
       code: classroom.code,
       name: classroom.name,

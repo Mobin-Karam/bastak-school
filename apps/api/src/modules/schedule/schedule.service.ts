@@ -43,17 +43,20 @@ export class ScheduleService {
     );
   }
   async list(user: AuthenticatedUser, organizationId?: string) {
+    const requestedOrganizationId = organizationId ?? user.activeOrganizationId;
     const context = this.context(user);
     this.authorization.requireCapability(context, "schedule.read");
     if (
-      organizationId &&
+      requestedOrganizationId &&
       !context.roles.includes("PLATFORM_ADMIN") &&
-      !context.organizationIds.includes(organizationId)
+      !context.organizationIds.includes(requestedOrganizationId)
     )
       throw new ApiException(403, "FORBIDDEN", "دسترسی کافی ندارید.");
     if (context.roles.includes("PLATFORM_ADMIN"))
       return this.entries.find({
-        where: organizationId ? { organization: { id: organizationId } } : {},
+        where: requestedOrganizationId
+          ? { organization: { id: requestedOrganizationId } }
+          : {},
         relations: { organization: true, classroom: true, teacher: true },
         order: { weekday: "ASC", startTime: "ASC" },
       });
@@ -61,7 +64,11 @@ export class ScheduleService {
       return this.entries.find({
         where: {
           organization: {
-            id: In(organizationId ? [organizationId] : context.organizationIds),
+            id: In(
+              requestedOrganizationId
+                ? [requestedOrganizationId]
+                : context.organizationIds,
+            ),
           },
         },
         relations: { organization: true, classroom: true, teacher: true },
@@ -72,7 +79,11 @@ export class ScheduleService {
         where: {
           teacher: { id: user.id },
           organization: {
-            id: In(organizationId ? [organizationId] : context.organizationIds),
+            id: In(
+              requestedOrganizationId
+                ? [requestedOrganizationId]
+                : context.organizationIds,
+            ),
           },
           status: "ACTIVE",
         },
@@ -91,7 +102,11 @@ export class ScheduleService {
         where: {
           classroom: { advisor: { id: user.id } },
           organization: {
-            id: In(organizationId ? [organizationId] : context.organizationIds),
+            id: In(
+              requestedOrganizationId
+                ? [requestedOrganizationId]
+                : context.organizationIds,
+            ),
           },
           status: "ACTIVE",
         },
@@ -104,8 +119,8 @@ export class ScheduleService {
       });
     }
     if (context.roles.includes("GUARDIAN")) {
-      const organizationIds = organizationId
-        ? [organizationId]
+      const organizationIds = requestedOrganizationId
+        ? [requestedOrganizationId]
         : context.organizationIds;
       if (!organizationIds.length) return [];
       return this.entries
@@ -134,8 +149,8 @@ export class ScheduleService {
         .getMany();
     }
     if (context.roles.includes("STUDENT")) {
-      const organizationIds = organizationId
-        ? [organizationId]
+      const organizationIds = requestedOrganizationId
+        ? [requestedOrganizationId]
         : context.organizationIds;
       if (!organizationIds.length) return [];
       return this.entries
@@ -162,7 +177,11 @@ export class ScheduleService {
       return this.entries.find({
         where: {
           organization: {
-            id: In(organizationId ? [organizationId] : context.organizationIds),
+            id: In(
+              requestedOrganizationId
+                ? [requestedOrganizationId]
+                : context.organizationIds,
+            ),
           },
           status: "ACTIVE",
         },

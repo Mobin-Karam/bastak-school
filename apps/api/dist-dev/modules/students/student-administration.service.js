@@ -275,12 +275,15 @@ let StudentAdministrationService = class StudentAdministrationService {
         return this.dataSource.transaction(async (manager) => {
             const phoneNumber = (0, phone_number_1.normalizeIranianMobile)(dto.phoneNumber);
             const username = phoneNumber;
+            const [firstName = "", ...lastNameParts] = dto.name.trim().split(/\s+/);
             if (await manager.findOne(user_entity_1.User, { where: { phoneNumber } }))
                 throw new api_exception_1.ApiException(409, "PHONE_NUMBER_EXISTS", "شماره همراه تکراری است.");
             const user = await manager.save(user_entity_1.User, manager.create(user_entity_1.User, {
                 username,
                 phoneNumber,
                 passwordHash: await bcryptjs_1.default.hash(dto.password, 12),
+                firstName,
+                lastName: lastNameParts.join(" "),
                 role: user_entity_1.UserRole.STUDENT,
                 status: user_entity_1.UserStatus.ACTIVE,
             }));
@@ -303,21 +306,25 @@ let StudentAdministrationService = class StudentAdministrationService {
                 trackId: education?.trackId ?? "independent",
                 grade: education?.gradeLabel ?? "",
                 major: education?.trackLabel ?? "",
-                targetUniversity: "",
-                targetField: "",
-                targetRank: "",
-                dailyCapacity: "",
+                targetUniversity: dto.targetUniversity?.trim() || "",
+                targetField: dto.targetField?.trim() || "",
+                targetRank: dto.targetRank?.trim() || "",
+                dailyCapacity: dto.dailyCapacity?.trim() || "",
                 accountStatus: "active",
             }));
             const role = await manager.findOneByOrFail(role_entity_1.Role, { code: "STUDENT" });
-            await manager.save(user_role_assignment_entity_1.UserRoleAssignment, manager.create(user_role_assignment_entity_1.UserRoleAssignment, { user, role, membership: null }));
-            if (organization) {
-                await manager.save(organization_membership_entity_1.OrganizationMembership, manager.create(organization_membership_entity_1.OrganizationMembership, {
+            const membership = organization
+                ? await manager.save(organization_membership_entity_1.OrganizationMembership, manager.create(organization_membership_entity_1.OrganizationMembership, {
                     user,
                     organization,
                     status: organization_membership_entity_1.MembershipStatus.ACTIVE,
-                }));
-            }
+                }))
+                : null;
+            await manager.save(user_role_assignment_entity_1.UserRoleAssignment, manager.create(user_role_assignment_entity_1.UserRoleAssignment, {
+                user,
+                role,
+                membership: role.organizationScoped ? membership : null,
+            }));
             return this.project(student);
         });
     }
@@ -389,7 +396,7 @@ let StudentAdministrationService = class StudentAdministrationService {
                         throw new api_exception_1.ApiException(409, "PHONE_NUMBER_EXISTS", "شماره همراه تکراری است.");
                     }
                 }
-                const [firstName = "", ...lastNameParts] = student.name
+                const [firstName = "", ...lastNameParts] = (requestedStudentName ?? student.name)
                     .trim()
                     .split(/\s+/);
                 manager.merge(user_entity_1.User, student.user, {

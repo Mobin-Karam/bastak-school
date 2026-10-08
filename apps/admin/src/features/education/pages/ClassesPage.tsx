@@ -16,6 +16,7 @@ import { listOrganizations } from "../../access/api/access.api";
 import { useAuth } from "../../auth";
 import { useModal } from "../../../shared/ui/modal";
 import { notify } from "../../../shared/ui/notifications";
+import { OrganizationTag } from "../../../shared/ui/organization-tag";
 import {
   Badge,
   Button,
@@ -64,7 +65,11 @@ export function ClassesPage() {
     queryFn: listOrganizations,
     enabled: canReadOrganizations,
   });
-  const classes = useQuery({ queryKey: ["classes"], queryFn: () => listClasses() });
+  const selectedOrganizationId = auth.context?.activeOrganization?.id;
+  const classes = useQuery({
+    queryKey: ["classes", selectedOrganizationId ?? "all"],
+    queryFn: () => listClasses(selectedOrganizationId),
+  });
   const organizationOptions = canReadOrganizations
     ? (organizations.data ?? [])
     : (auth.context?.availableOrganizations ?? []);
@@ -200,6 +205,11 @@ export function ClassesPage() {
                     <small className="text-xs text-slate-500">
                       {row.organization.name} · {row.schoolYear}
                     </small>
+                    {auth.hasRole("PLATFORM_ADMIN") ? (
+                      <span className="mt-1 block">
+                        <OrganizationTag organization={row.organization} compact />
+                      </span>
+                    ) : null}
                   </span>
                 </span>
                 <Badge tone={row.status === "ACTIVE" ? "green" : "neutral"}>

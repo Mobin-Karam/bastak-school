@@ -119,6 +119,7 @@ let LegacyDashboardService = class LegacyDashboardService {
                     events24h: await scalar(`SELECT COUNT(*)n FROM audit_logs WHERE createdAt>=datetime('now','-1 day')`),
                     lockedLogins: await scalar(`SELECT COUNT(*)n FROM login_throttles WHERE lockedUntil>datetime('now')`),
                 },
+                platformOrganizations: await this.platformOrganizationOverview(user.activeOrganizationId),
             };
         if (context === "STUDENT")
             return { ...common };
@@ -149,6 +150,37 @@ let LegacyDashboardService = class LegacyDashboardService {
         if (role === "COUNSELOR")
             return "ADVISOR";
         return role;
+    }
+    async platformOrganizationOverview(organizationId) {
+        const rows = await this.db.query(`
+      SELECT
+        o.id,
+        o.name,
+        o.type,
+        o.status,
+        COUNT(DISTINCT CASE WHEN m.status='ACTIVE' THEN m.userId END) members,
+        COUNT(DISTINCT CASE WHEN m.status='ACTIVE' AND s.id IS NOT NULL THEN s.id END) students,
+        COUNT(DISTINCT CASE WHEN m.status='ACTIVE' AND s.id IS NULL THEN m.userId END) staff,
+        COUNT(DISTINCT schedule.id) scheduleEntries
+      FROM organizations o
+      LEFT JOIN organization_memberships m ON m.organizationId=o.id
+      LEFT JOIN students s ON s.userId=m.userId
+      LEFT JOIN school_schedule_entries schedule ON schedule.organizationId=o.id AND schedule.status='ACTIVE'
+      WHERE (? IS NULL OR o.id = ?)
+      GROUP BY o.id, o.name, o.type, o.status
+      ORDER BY CASE o.status WHEN 'ACTIVE' THEN 0 WHEN 'INACTIVE' THEN 1 ELSE 2 END, o.name ASC
+      LIMIT 24
+    `, [organizationId ?? null, organizationId ?? null]);
+        return rows.map((row) => ({
+            id: String(row.id),
+            name: String(row.name),
+            type: String(row.type),
+            status: String(row.status),
+            members: Number(row.members || 0),
+            students: Number(row.students || 0),
+            staff: Number(row.staff || 0),
+            scheduleEntries: Number(row.scheduleEntries || 0),
+        }));
     }
     async planHealthForOrganizations(organizationIds) {
         const marks = organizationIds.map(() => "?").join(",");

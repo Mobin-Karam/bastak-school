@@ -17,6 +17,10 @@ export const createStudent = (body: StudentForm, organizationId?: string) => {
     trackId: payload.trackId,
     grade: payload.grade,
     major: payload.major,
+    targetUniversity: payload.targetUniversity,
+    targetField: payload.targetField,
+    targetRank: payload.targetRank,
+    dailyCapacity: payload.dailyCapacity,
     ...(organizationId ? { organizationId } : {}),
   });
 };

@@ -106,7 +106,7 @@ __decorate([
 ], ClassesController.prototype, "update", null);
 __decorate([
     (0, common_1.Put)("classes/:id/books"),
-    (0, capabilities_decorator_1.RequireCapabilities)("classes.manage"),
+    (0, capabilities_decorator_1.RequireCapabilities)("education.catalog.manage"),
     openapi.ApiResponse({ status: 200 }),
     __param(0, (0, current_user_decorator_1.CurrentUser)()),
     __param(1, (0, common_1.Param)("id")),

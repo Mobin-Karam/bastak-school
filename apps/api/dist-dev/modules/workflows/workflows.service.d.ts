@@ -14,6 +14,8 @@ import { DormRoomAssignment } from "../../database/entities/dorm-room-assignment
 import { StudyGroup } from "../../database/entities/study-group.entity";
 import { StudyGroupMembership } from "../../database/entities/study-group-membership.entity";
 import { AuthenticatedUser } from "../auth";
+import { RealtimeService } from "../realtime/realtime.service";
+import { NotificationsService } from "../notifications/notifications.service";
 export declare class WorkflowsService {
     private readonly sessions;
     private readonly attendanceRecords;
@@ -29,7 +31,9 @@ export declare class WorkflowsService {
     private readonly dormAssignments;
     private readonly memberships;
     private readonly users;
-    constructor(sessions: Repository<AttendanceSession>, attendanceRecords: Repository<AttendanceRecord>, leaveRequests: Repository<LeaveRequest>, exitPermissions: Repository<ExitPermission>, letters: Repository<RequestLetter>, students: Repository<Student>, classes: Repository<EducationClass>, classEnrollments: Repository<EducationClassEnrollment>, studyGroups: Repository<StudyGroup>, studyGroupMemberships: Repository<StudyGroupMembership>, dormRooms: Repository<DormRoom>, dormAssignments: Repository<DormRoomAssignment>, memberships: Repository<OrganizationMembership>, users: Repository<User>);
+    private readonly realtime;
+    private readonly notifications;
+    constructor(sessions: Repository<AttendanceSession>, attendanceRecords: Repository<AttendanceRecord>, leaveRequests: Repository<LeaveRequest>, exitPermissions: Repository<ExitPermission>, letters: Repository<RequestLetter>, students: Repository<Student>, classes: Repository<EducationClass>, classEnrollments: Repository<EducationClassEnrollment>, studyGroups: Repository<StudyGroup>, studyGroupMemberships: Repository<StudyGroupMembership>, dormRooms: Repository<DormRoom>, dormAssignments: Repository<DormRoomAssignment>, memberships: Repository<OrganizationMembership>, users: Repository<User>, realtime: RealtimeService, notifications: NotificationsService);
     listAttendanceContexts(user: AuthenticatedUser, organizationId?: string): Promise<({
         id: string;
         contextType: "class";
@@ -62,7 +66,7 @@ export declare class WorkflowsService {
         code: string;
         name: string;
         capacity: number;
-        status: "ARCHIVED" | "ACTIVE";
+        status: "ACTIVE" | "ARCHIVED";
         studentCount: number;
     }[]>;
     createDormRoom(user: AuthenticatedUser, input: {
@@ -76,7 +80,7 @@ export declare class WorkflowsService {
         code: string;
         name: string;
         capacity: number;
-        status: "ARCHIVED" | "ACTIVE";
+        status: "ACTIVE" | "ARCHIVED";
         studentCount: number;
     }>;
     listDormAssignments(user: AuthenticatedUser, roomId: string): Promise<{
@@ -141,7 +145,7 @@ export declare class WorkflowsService {
         name: string;
         userId: string | null;
         nationalCode: string | null | undefined;
-        accountStatus: "active" | "archived" | "inactive";
+        accountStatus: "active" | "inactive" | "archived";
     }[]>;
     getStudentAttendanceSummary(user: AuthenticatedUser, studentId?: string): Promise<{
         studentId: string;
@@ -238,6 +242,10 @@ export declare class WorkflowsService {
         expectedReturnAt: string | null;
         actualDepartureAt: string | null;
         actualReturnAt: string | null;
+        returnRequestedAt: string | null;
+        returnRequestNote: string;
+        returnVerifiedById: string | null;
+        returnVerifiedAt: string | null;
         note: string;
         status: ExitPermissionStatus;
         approverId: string | null;
@@ -263,6 +271,10 @@ export declare class WorkflowsService {
         expectedReturnAt: string | null;
         actualDepartureAt: string | null;
         actualReturnAt: string | null;
+        returnRequestedAt: string | null;
+        returnRequestNote: string;
+        returnVerifiedById: string | null;
+        returnVerifiedAt: string | null;
         note: string;
         status: ExitPermissionStatus;
         approverId: string | null;
@@ -284,6 +296,86 @@ export declare class WorkflowsService {
         expectedReturnAt: string | null;
         actualDepartureAt: string | null;
         actualReturnAt: string | null;
+        returnRequestedAt: string | null;
+        returnRequestNote: string;
+        returnVerifiedById: string | null;
+        returnVerifiedAt: string | null;
+        note: string;
+        status: ExitPermissionStatus;
+        approverId: string | null;
+        reviewedAt: string | null;
+        createdAt: string;
+    }>;
+    requestExitReturn(user: AuthenticatedUser, exitPermissionId: string, note?: string): Promise<{
+        id: string;
+        organizationId: string;
+        organizationName: string;
+        studentId: string;
+        studentName: string;
+        destination: string;
+        reason: string;
+        requestedDepartureAt: string;
+        expectedReturnAt: string | null;
+        actualDepartureAt: string | null;
+        actualReturnAt: string | null;
+        returnRequestedAt: string | null;
+        returnRequestNote: string;
+        returnVerifiedById: string | null;
+        returnVerifiedAt: string | null;
+        note: string;
+        status: ExitPermissionStatus;
+        approverId: string | null;
+        reviewedAt: string | null;
+        createdAt: string;
+    }>;
+    recordGateDeparture(user: AuthenticatedUser, input: {
+        organizationId: string;
+        phoneNumber: string;
+        destination?: string;
+        reason?: string;
+        expectedReturnAt?: string;
+    }): Promise<{
+        id: string;
+        organizationId: string;
+        organizationName: string;
+        studentId: string;
+        studentName: string;
+        destination: string;
+        reason: string;
+        requestedDepartureAt: string;
+        expectedReturnAt: string | null;
+        actualDepartureAt: string | null;
+        actualReturnAt: string | null;
+        returnRequestedAt: string | null;
+        returnRequestNote: string;
+        returnVerifiedById: string | null;
+        returnVerifiedAt: string | null;
+        note: string;
+        status: ExitPermissionStatus;
+        approverId: string | null;
+        reviewedAt: string | null;
+        createdAt: string;
+    }>;
+    recordGateReturn(user: AuthenticatedUser, input: {
+        organizationId: string;
+        phoneNumber: string;
+        note?: string;
+    }): Promise<{
+        id: string;
+        organizationId: string;
+        organizationName: string;
+        studentId: string;
+        studentName: string;
+        destination: string;
+        reason: string;
+        requestedDepartureAt: string;
+        expectedReturnAt: string | null;
+        actualDepartureAt: string | null;
+        actualReturnAt: string | null;
+        returnRequestedAt: string | null;
+        returnRequestNote: string;
+        returnVerifiedById: string | null;
+        returnVerifiedAt: string | null;
         note: string;
         status: ExitPermissionStatus;
         approverId: string | null;
@@ -302,6 +394,10 @@ export declare class WorkflowsService {
         expectedReturnAt: string | null;
         actualDepartureAt: string | null;
         actualReturnAt: string | null;
+        returnRequestedAt: string | null;
+        returnRequestNote: string;
+        returnVerifiedById: string | null;
+        returnVerifiedAt: string | null;
         note: string;
         status: ExitPermissionStatus;
         approverId: string | null;
@@ -386,7 +482,10 @@ export declare class WorkflowsService {
         createdAt: string;
     }>;
     private activeMemberships;
+    private notifyRequestReviewers;
+    private emitOccupancyUpdate;
     private organizationForUser;
+    private studentForPhoneInOrganization;
     private studentForUser;
     private requireDormRoom;
     private resolveOrganizationIdForContext;

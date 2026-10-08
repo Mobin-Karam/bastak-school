@@ -26,6 +26,7 @@ import { DashboardWorkQueue } from "./work/DashboardWorkQueue";
 import { getRoleConfig } from "../model/role-config";
 import { DashboardQuickActions } from "./work/DashboardQuickActions";
 import { PlatformHealthPanel } from "./health/PlatformHealthPanel";
+import { PlatformOrganizationOverview } from "./health/PlatformOrganizationOverview";
 import { DashboardSchedule } from "./planning/DashboardSchedule";
 import { DashboardPlanHealth } from "./planning/DashboardPlanHealth";
 import { DashboardOperationalPulse } from "./health/DashboardOperationalPulse";
@@ -404,6 +405,8 @@ export function RoleDashboard({
   const visibleWidget = (id: string) =>
     visibleRoleDashboardWidgets(view).some((widget) => widget.id === id);
   const showPlatformHealth = data.context === "PLATFORM_ADMIN" && visibleWidget("platform-health");
+  const showPlatformOrganizations =
+    data.context === "PLATFORM_ADMIN" && visibleWidget("platform-organizations");
   const showOperationalPulse =
     ["PLATFORM_ADMIN", "ORGANIZATION_ADMIN"].includes(data.context) &&
     visibleWidget("operational-pulse");
@@ -522,6 +525,18 @@ export function RoleDashboard({
           },
         ]
       : []),
+    ...(showPlatformOrganizations
+      ? [
+          {
+            id: "platform-organizations",
+            title: "سازمان‌های پلتفرم",
+            description: "مرز داده و وضعیت عملیاتی هر سازمان",
+            width: widgetById.get("platform-organizations")?.width ?? 8,
+            height: widgetById.get("platform-organizations")?.height ?? 2,
+            content: <PlatformOrganizationOverview data={data} />,
+          },
+        ]
+      : []),
     ...(showStudentHealth
       ? [
           {
@@ -595,6 +610,16 @@ export function RoleDashboard({
                   label: dashboard.operationalPulseWidget,
                   description: dashboard.operationalPulseWidgetDescription,
                   visible: visibleWidget("operational-pulse"),
+                },
+              ]
+            : []),
+          ...(data.context === "PLATFORM_ADMIN"
+            ? [
+                {
+                  id: "platform-organizations",
+                  label: "سازمان‌های پلتفرم",
+                  description: "نمایش برچسب و آمار هر سازمان",
+                  visible: visibleWidget("platform-organizations"),
                 },
               ]
             : []),

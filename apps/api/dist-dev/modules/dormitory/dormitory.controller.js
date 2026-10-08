@@ -37,6 +37,12 @@ let DormitoryController = class DormitoryController {
     setAssignments(user, id, dto) {
         return this.dormitory.setAssignments(user, id, dto.studentIds).then(envelope_1.ok);
     }
+    students(user, organizationId, query = "") {
+        return this.dormitory.findStudents(user, organizationId, query).then(envelope_1.ok);
+    }
+    announce(user, dto) {
+        return this.dormitory.sendAnnouncement(user, dto).then(envelope_1.ok);
+    }
 };
 exports.DormitoryController = DormitoryController;
 __decorate([
@@ -81,6 +87,28 @@ __decorate([
     __metadata("design:paramtypes", [Object, String, dormitory_dto_1.SetDormRoomAssignmentsDto]),
     __metadata("design:returntype", void 0)
 ], DormitoryController.prototype, "setAssignments", null);
+__decorate([
+    openapi.ApiQuery({ name: "q", required: false }),
+    (0, common_1.Get)("students"),
+    (0, capabilities_decorator_1.RequireCapabilities)("dormitory.read"),
+    openapi.ApiResponse({ status: 200 }),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __param(1, (0, common_1.Query)("organizationId")),
+    __param(2, (0, common_1.Query)("q")),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String, Object]),
+    __metadata("design:returntype", void 0)
+], DormitoryController.prototype, "students", null);
+__decorate([
+    (0, common_1.Post)("announcements"),
+    (0, capabilities_decorator_1.RequireCapabilities)("announcements.manage"),
+    openapi.ApiResponse({ status: 201 }),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, dormitory_dto_1.SendDormAnnouncementDto]),
+    __metadata("design:returntype", void 0)
+], DormitoryController.prototype, "announce", null);
 exports.DormitoryController = DormitoryController = __decorate([
     (0, common_1.Controller)("dormitory"),
     __metadata("design:paramtypes", [dormitory_service_1.DormitoryService])

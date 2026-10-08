@@ -104,6 +104,10 @@ export declare class WorkflowsController {
             expectedReturnAt: string | null;
             actualDepartureAt: string | null;
             actualReturnAt: string | null;
+            returnRequestedAt: string | null;
+            returnRequestNote: string;
+            returnVerifiedById: string | null;
+            returnVerifiedAt: string | null;
             note: string;
             status: import("../../database/entities").ExitPermissionStatus;
             approverId: string | null;
@@ -125,6 +129,10 @@ export declare class WorkflowsController {
             expectedReturnAt: string | null;
             actualDepartureAt: string | null;
             actualReturnAt: string | null;
+            returnRequestedAt: string | null;
+            returnRequestNote: string;
+            returnVerifiedById: string | null;
+            returnVerifiedAt: string | null;
             note: string;
             status: import("../../database/entities").ExitPermissionStatus;
             approverId: string | null;
@@ -146,6 +154,10 @@ export declare class WorkflowsController {
             expectedReturnAt: string | null;
             actualDepartureAt: string | null;
             actualReturnAt: string | null;
+            returnRequestedAt: string | null;
+            returnRequestNote: string;
+            returnVerifiedById: string | null;
+            returnVerifiedAt: string | null;
             note: string;
             status: import("../../database/entities").ExitPermissionStatus;
             approverId: string | null;
@@ -170,6 +182,97 @@ export declare class WorkflowsController {
             expectedReturnAt: string | null;
             actualDepartureAt: string | null;
             actualReturnAt: string | null;
+            returnRequestedAt: string | null;
+            returnRequestNote: string;
+            returnVerifiedById: string | null;
+            returnVerifiedAt: string | null;
+            note: string;
+            status: import("../../database/entities").ExitPermissionStatus;
+            approverId: string | null;
+            reviewedAt: string | null;
+            createdAt: string;
+        };
+    }>;
+    requestReturn(user: AuthenticatedUser, id: string, body: {
+        note?: string;
+    }): Promise<{
+        ok: boolean;
+        data: {
+            id: string;
+            organizationId: string;
+            organizationName: string;
+            studentId: string;
+            studentName: string;
+            destination: string;
+            reason: string;
+            requestedDepartureAt: string;
+            expectedReturnAt: string | null;
+            actualDepartureAt: string | null;
+            actualReturnAt: string | null;
+            returnRequestedAt: string | null;
+            returnRequestNote: string;
+            returnVerifiedById: string | null;
+            returnVerifiedAt: string | null;
+            note: string;
+            status: import("../../database/entities").ExitPermissionStatus;
+            approverId: string | null;
+            reviewedAt: string | null;
+            createdAt: string;
+        };
+    }>;
+    gateDeparture(user: AuthenticatedUser, body: {
+        organizationId: string;
+        phoneNumber: string;
+        destination?: string;
+        reason?: string;
+        expectedReturnAt?: string;
+    }): Promise<{
+        ok: boolean;
+        data: {
+            id: string;
+            organizationId: string;
+            organizationName: string;
+            studentId: string;
+            studentName: string;
+            destination: string;
+            reason: string;
+            requestedDepartureAt: string;
+            expectedReturnAt: string | null;
+            actualDepartureAt: string | null;
+            actualReturnAt: string | null;
+            returnRequestedAt: string | null;
+            returnRequestNote: string;
+            returnVerifiedById: string | null;
+            returnVerifiedAt: string | null;
+            note: string;
+            status: import("../../database/entities").ExitPermissionStatus;
+            approverId: string | null;
+            reviewedAt: string | null;
+            createdAt: string;
+        };
+    }>;
+    gateReturn(user: AuthenticatedUser, body: {
+        organizationId: string;
+        phoneNumber: string;
+        note?: string;
+    }): Promise<{
+        ok: boolean;
+        data: {
+            id: string;
+            organizationId: string;
+            organizationName: string;
+            studentId: string;
+            studentName: string;
+            destination: string;
+            reason: string;
+            requestedDepartureAt: string;
+            expectedReturnAt: string | null;
+            actualDepartureAt: string | null;
+            actualReturnAt: string | null;
+            returnRequestedAt: string | null;
+            returnRequestNote: string;
+            returnVerifiedById: string | null;
+            returnVerifiedAt: string | null;
             note: string;
             status: import("../../database/entities").ExitPermissionStatus;
             approverId: string | null;
@@ -191,6 +294,10 @@ export declare class WorkflowsController {
             expectedReturnAt: string | null;
             actualDepartureAt: string | null;
             actualReturnAt: string | null;
+            returnRequestedAt: string | null;
+            returnRequestNote: string;
+            returnVerifiedById: string | null;
+            returnVerifiedAt: string | null;
             note: string;
             status: import("../../database/entities").ExitPermissionStatus;
             approverId: string | null;
@@ -212,6 +319,10 @@ export declare class WorkflowsController {
             expectedReturnAt: string | null;
             actualDepartureAt: string | null;
             actualReturnAt: string | null;
+            returnRequestedAt: string | null;
+            returnRequestNote: string;
+            returnVerifiedById: string | null;
+            returnVerifiedAt: string | null;
             note: string;
             status: import("../../database/entities").ExitPermissionStatus;
             approverId: string | null;

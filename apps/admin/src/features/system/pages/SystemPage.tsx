@@ -1,5 +1,14 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Activity, Database, FileClock, PackageOpen, RefreshCw, ShieldCheck } from "lucide-react";
+import {
+  Activity,
+  AlertTriangle,
+  Database,
+  FileClock,
+  PackageOpen,
+  RefreshCw,
+  RotateCcw,
+  ShieldCheck,
+} from "lucide-react";
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../../auth/hooks/useAuth";
@@ -16,6 +25,7 @@ import {
   getReadiness,
   getReleases,
   getServiceHealth,
+  resetSystemData,
   restoreDatabase,
   saveAppRelease,
   saveAppVersion,
@@ -57,7 +67,8 @@ export function SystemPage({ view = "overview" }: { view?: SystemView }) {
     canReadReleases = auth.can("release.read"),
     canManageReleases = auth.can("release.manage"),
     canReadAudit = auth.can("audit.read"),
-    canReadImports = auth.can("import.preview");
+    canReadImports = auth.can("import.preview"),
+    canResetSystem = auth.hasRole("PLATFORM_ADMIN") && auth.can("system.reset");
   const health = useQuery({
     queryKey: ["system-health"],
     queryFn: getServiceHealth,
@@ -109,6 +120,19 @@ export function SystemPage({ view = "overview" }: { view?: SystemView }) {
       void qc.invalidateQueries({ queryKey: ["audit"] });
     },
     onError: (e) => notify(e instanceof Error ? e.message : copy.restoreFailed, "error"),
+  });
+  const reset = useMutation({
+    mutationFn: resetSystemData,
+    onSuccess: async (result) => {
+      await auth.setActiveOrganization(null);
+      qc.clear();
+      notify(
+        `${result.clearedTables.toLocaleString(profile.locale)} بخش داده پاک شد؛ ${result.retainedPlatformAccounts.toLocaleString(profile.locale)} حساب مدیر پلتفرم حفظ شد.`,
+        "success",
+      );
+    },
+    onError: (error) =>
+      notify(error instanceof Error ? error.message : "بازنشانی سامانه انجام نشد.", "error"),
   });
   const databaseAuditRows = (audit.data ?? []).filter((row) =>
     String(row.action || "").startsWith("database."),
@@ -332,6 +356,47 @@ export function SystemPage({ view = "overview" }: { view?: SystemView }) {
               .then((ok) => ok && restore.mutate())
           }
         />
+        {canResetSystem ? (
+          <Card className="border-rose-300/80 bg-rose-50/70 p-4 dark:border-rose-900 dark:bg-rose-950/20">
+            <div className="flex flex-wrap items-start justify-between gap-4">
+              <div className="flex min-w-0 gap-3">
+                <AlertTriangle
+                  className="mt-0.5 shrink-0 text-rose-700 dark:text-rose-300"
+                  size={20}
+                />
+                <div>
+                  <h2 className="font-black text-rose-950 dark:text-rose-100">
+                    بازنشانی کامل داده‌های سامانه
+                  </h2>
+                  <p className="mt-1 max-w-2xl text-sm leading-6 text-rose-900/80 dark:text-rose-200">
+                    همه سازمان‌ها، اعضا، دانش‌آموزان، برنامه‌ها و داده‌های عملیاتی حذف می‌شوند. فقط
+                    حساب‌های مدیر پلتفرم، نقش‌ها، مجوزها و نشست فعلی شما حفظ می‌شود. پیش از ادامه از
+                    پایگاه داده نسخه پشتیبان بگیرید.
+                  </p>
+                </div>
+              </div>
+              <Button
+                variant="danger"
+                loading={reset.isPending}
+                onClick={() =>
+                  void modal
+                    .confirm({
+                      title: "بازنشانی کامل سامانه؟",
+                      description:
+                        "این عملیات قابل بازگشت نیست. برای فعال شدن دکمه، عبارت RESET_SYSTEM_DATA را وارد کنید.",
+                      tone: "danger",
+                      confirmLabel: "حذف همه داده‌ها",
+                      confirmationText: "RESET_SYSTEM_DATA",
+                    })
+                    .then((confirmed) => confirmed && reset.mutate())
+                }
+              >
+                <RotateCcw size={16} />
+                بازنشانی داده‌ها
+              </Button>
+            </div>
+          </Card>
+        ) : null}
         {canReadAudit ? (
           <SystemHistory
             title={copy.backupHistory}

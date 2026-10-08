@@ -1,4 +1,3 @@
-import { LockKeyhole } from "lucide-react";
 import { Link, Navigate } from "react-router-dom";
 
 import { useLocale } from "../../../shared/ui/locale";
@@ -37,7 +36,7 @@ export function LoginPage() {
 
 function LoginPageContent() {
   const auth = useAuth();
-  const { copy } = useAuthLocale();
+  const { copy, direction } = useAuthLocale();
 
   const { loading, setupRequired, showBootstrap, openBootstrap, closeBootstrap } =
     usePlatformBootstrap();
@@ -47,7 +46,7 @@ function LoginPageContent() {
   }
 
   return (
-    <LoginShell>
+    <LoginShell direction={direction}>
       <section
         className="
           flex min-h-dvh
@@ -90,52 +89,18 @@ function LoginPageContent() {
           "
         >
           <div className="w-full max-w-[26rem]">
+            <div className="mb-6 text-center sm:text-start">
+              <span className="inline-flex rounded-full bg-brand/10 px-3 py-1 text-[11px] font-black text-brand">
+                {copy.workspaceLogin}
+              </span>
+              <h1 className="mt-3 text-2xl font-black tracking-tight text-ink sm:text-3xl">
+                {copy.welcome}
+              </h1>
+              <p className="mt-2 text-sm leading-7 text-slate-500">{copy.loginDescription}</p>
+            </div>
             {/* ---------------------------------------------
                 PAGE HEADING
                 --------------------------------------------- */}
-
-            <header className="mb-5 sm:mb-6">
-              <div
-                className="
-                  mb-2
-                  inline-flex items-center gap-1.5
-                  text-[11px] font-bold
-                  text-brand
-                "
-              >
-                <LockKeyhole size={13} aria-hidden="true" />
-
-                {showBootstrap ? copy.setupPlatform : copy.workspaceLogin}
-              </div>
-
-              <h1
-                className="
-                  text-2xl font-black
-                  leading-tight
-                  tracking-tight
-                  text-ink
-
-                  sm:text-[1.75rem]
-                  lg:text-3xl
-                "
-              >
-                {showBootstrap ? copy.createFirstAdmin : copy.welcome}
-              </h1>
-
-              <p
-                className="
-                  mt-2
-                  max-w-sm
-                  text-xs leading-6
-                  text-slate-500
-                  dark:text-slate-400
-
-                  sm:text-sm
-                "
-              >
-                {showBootstrap ? copy.setupDescription : copy.loginDescription}
-              </p>
-            </header>
 
             {/* ---------------------------------------------
                 BACKEND STATUS
@@ -160,7 +125,7 @@ function LoginPageContent() {
                 <LoginForm />
                 <Link
                   to="/register"
-                  className="mt-3 flex min-h-10 w-full items-center justify-center rounded-lg px-3 text-xs font-bold text-brand transition-colors hover:bg-brand/5"
+                  className="mt-4 flex min-h-11 w-full items-center justify-center rounded-xl border border-brand/15 bg-brand/5 px-3 text-xs font-bold text-brand transition-colors hover:bg-brand/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
                 >
                   ثبت‌نام طلبه جدید
                 </Link>

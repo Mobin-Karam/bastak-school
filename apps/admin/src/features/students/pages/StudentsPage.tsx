@@ -1,6 +1,6 @@
 import { useDeferredValue, useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowRight, UserPlus, X } from "lucide-react";
+import { ArrowRight, FileSpreadsheet, UserPlus, X } from "lucide-react";
 import { useSearchParams } from "react-router-dom";
 import type { Student } from "../../../shared/types/domain";
 import { useStudents } from "../../../shared/hooks/useStudents";
@@ -35,6 +35,7 @@ import { StudentList } from "../components/StudentList";
 import { StudentOverview } from "../components/StudentOverview";
 import { StudentSecurity } from "../components/StudentSecurity";
 import { StudentSupportWorkspace } from "../components/StudentSupportWorkspace";
+import { StudentTransferWorkspace } from "../components/StudentTransferWorkspace";
 import { getStudentSyncHealth, reviewStudentSyncHealth } from "../api/student-activity.api";
 import {
   getStudentProfileCompleteness,
@@ -162,6 +163,7 @@ export function StudentsPage() {
   const qc = useQueryClient();
   const modal = useModal();
   const studentsQueryKey = ["students", getApiWorkContextKey()] as const;
+  const canTransfer = auth.canAny(["students.import", "students.export"]);
 
   const selected = useMemo(
     () => (selectedId ? (students.find((student) => student.id === selectedId) ?? null) : null),
@@ -868,6 +870,34 @@ export function StudentsPage() {
 
   return (
     <div className="grid gap-4 sm:gap-5">
+      {canTransfer ? (
+        <div className="flex justify-end">
+          <Button
+            variant="soft"
+            onClick={() =>
+              modal.open({
+                title: language === "fa" ? "ورود و خروجی طلبه‌ها" : "Student import and export",
+                description:
+                  language === "fa"
+                    ? "فایل را پیش‌نمایش بگیرید و سپس فقط ردیف‌های معتبر را ثبت کنید."
+                    : "Preview the workbook before committing valid rows.",
+                size: "xl",
+                content: (
+                  <StudentTransferWorkspace
+                    organizationId={auth.context?.activeOrganization?.id ?? ""}
+                    canImport={auth.can("students.import")}
+                    canExport={auth.can("students.export")}
+                    onCompleted={() => void qc.invalidateQueries({ queryKey: ["students"] })}
+                  />
+                ),
+              })
+            }
+          >
+            <FileSpreadsheet size={16} aria-hidden="true" />
+            {language === "fa" ? "ورود / خروجی Excel" : "Excel import / export"}
+          </Button>
+        </div>
+      ) : null}
       <ManagementMasterDetail
         directoryVisible={mobileDirectory}
         detailVisible={!mobileDirectory}

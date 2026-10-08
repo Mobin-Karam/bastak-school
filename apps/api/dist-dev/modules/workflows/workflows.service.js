@@ -31,6 +31,9 @@ const dorm_room_entity_1 = require("../../database/entities/dorm-room.entity");
 const dorm_room_assignment_entity_1 = require("../../database/entities/dorm-room-assignment.entity");
 const study_group_entity_1 = require("../../database/entities/study-group.entity");
 const study_group_membership_entity_1 = require("../../database/entities/study-group-membership.entity");
+const realtime_service_1 = require("../realtime/realtime.service");
+const notifications_service_1 = require("../notifications/notifications.service");
+const phone_number_1 = require("../../common/utils/phone-number");
 let WorkflowsService = class WorkflowsService {
     sessions;
     attendanceRecords;
@@ -46,7 +49,9 @@ let WorkflowsService = class WorkflowsService {
     dormAssignments;
     memberships;
     users;
-    constructor(sessions, attendanceRecords, leaveRequests, exitPermissions, letters, students, classes, classEnrollments, studyGroups, studyGroupMemberships, dormRooms, dormAssignments, memberships, users) {
+    realtime;
+    notifications;
+    constructor(sessions, attendanceRecords, leaveRequests, exitPermissions, letters, students, classes, classEnrollments, studyGroups, studyGroupMemberships, dormRooms, dormAssignments, memberships, users, realtime, notifications) {
         this.sessions = sessions;
         this.attendanceRecords = attendanceRecords;
         this.leaveRequests = leaveRequests;
@@ -61,6 +66,8 @@ let WorkflowsService = class WorkflowsService {
         this.dormAssignments = dormAssignments;
         this.memberships = memberships;
         this.users = users;
+        this.realtime = realtime;
+        this.notifications = notifications;
     }
     async listAttendanceContexts(user, organizationId) {
         const memberships = await this.activeMemberships(user.id);
@@ -525,6 +532,7 @@ let WorkflowsService = class WorkflowsService {
                 : [],
             status: leave_request_entity_1.LeaveRequestStatus.PENDING,
         }));
+        await this.notifyRequestReviewers(organization.id, reviewerRole, "درخواست جدید دانش‌آموز", `درخواست ${leaveType === leave_request_entity_1.LeaveRequestType.SCHOOL_EXIT ? "خروج" : "مرخصی"} برای بررسی ثبت شد.`, `/admin/leave-requests?requestId=${row.id}`);
         return this.serializeLeaveRequest(row);
     }
     async reviewLeaveRequest(user, leaveRequestId, input) {
@@ -565,6 +573,7 @@ let WorkflowsService = class WorkflowsService {
                 organization: true,
                 student: { user: true },
                 approver: true,
+                returnVerifiedBy: true,
             },
             order: { createdAt: "DESC" },
         });
@@ -593,6 +602,7 @@ let WorkflowsService = class WorkflowsService {
             note: input.note?.trim() || "",
             status: exit_permission_entity_1.ExitPermissionStatus.PENDING,
         }));
+        await this.notifyRequestReviewers(organization.id, leave_request_entity_1.LeaveRequestReviewerRole.SCHOOL_SUPERVISOR, "درخواست خروج جدید", "یک درخواست خروج دانش‌آموز برای بررسی ثبت شد.", `/admin/exit-permissions?requestId=${row.id}`);
         return this.serializeExitPermission(row);
     }
     async reviewExitPermission(user, exitPermissionId, input) {
@@ -602,6 +612,7 @@ let WorkflowsService = class WorkflowsService {
                 organization: true,
                 student: { user: true },
                 approver: true,
+                returnVerifiedBy: true,
             },
         });
         if (!row) {
@@ -617,6 +628,117 @@ let WorkflowsService = class WorkflowsService {
         const saved = await this.exitPermissions.save(row);
         return this.serializeExitPermission(saved);
     }
+    async requestExitReturn(user, exitPermissionId, note) {
+        const row = await this.exitPermissions.findOne({
+            where: { id: exitPermissionId },
+            relations: {
+                organization: true,
+                student: { user: true },
+                approver: true,
+                returnVerifiedBy: true,
+            },
+        });
+        if (!row) {
+            throw new api_exception_1.ApiException(404, "EXIT_PERMISSION_NOT_FOUND", "مجوز خروج پیدا نشد.");
+        }
+        if (row.student.user?.id !== user.id) {
+            throw new api_exception_1.ApiException(403, "EXIT_RETURN_REQUEST_FORBIDDEN", "فقط خود دانش‌آموز می‌تواند بازگشت را درخواست کند.");
+        }
+        await this.organizationForUser(user.id, row.organization.id);
+        if (row.status !== exit_permission_entity_1.ExitPermissionStatus.APPROVED ||
+            !row.actualDepartureAt) {
+            throw new api_exception_1.ApiException(409, "EXIT_NOT_DEPARTED", "بازگشت فقط پس از ثبت خروج امکان‌پذیر است.");
+        }
+        if (row.actualReturnAt) {
+            throw new api_exception_1.ApiException(409, "EXIT_ALREADY_RETURNED", "برای این مجوز بازگشت ثبت شده است.");
+        }
+        if (row.returnRequestedAt) {
+            throw new api_exception_1.ApiException(409, "EXIT_RETURN_ALREADY_REQUESTED", "درخواست بازگشت قبلاً ارسال شده است.");
+        }
+        row.returnRequestedAt = new Date();
+        row.returnRequestNote = note?.trim() || "";
+        const saved = await this.exitPermissions.save(row);
+        await this.emitOccupancyUpdate(row.organization.id, row.id, "return-requested");
+        return this.serializeExitPermission(saved);
+    }
+    async recordGateDeparture(user, input) {
+        this.assertWorkflowReviewer(user);
+        const organization = await this.organizationForUser(user.id, input.organizationId);
+        const student = await this.studentForPhoneInOrganization(input.phoneNumber, organization.id);
+        const existing = await this.exitPermissions
+            .createQueryBuilder("exit")
+            .where("exit.organizationId = :organizationId", {
+            organizationId: organization.id,
+        })
+            .andWhere("exit.studentId = :studentId", { studentId: student.id })
+            .andWhere("exit.status = :status", {
+            status: exit_permission_entity_1.ExitPermissionStatus.APPROVED,
+        })
+            .andWhere("exit.actualDepartureAt IS NOT NULL")
+            .andWhere("exit.actualReturnAt IS NULL")
+            .getOne();
+        if (existing) {
+            throw new api_exception_1.ApiException(409, "STUDENT_ALREADY_OUT", "برای این دانش‌آموز خروج فعال ثبت شده است.");
+        }
+        const expectedReturnAt = input.expectedReturnAt
+            ? new Date(input.expectedReturnAt)
+            : null;
+        if (expectedReturnAt && Number.isNaN(expectedReturnAt.getTime())) {
+            throw new api_exception_1.ApiException(400, "EXIT_RETURN_INVALID", "زمان بازگشت معتبر نیست.");
+        }
+        const now = new Date();
+        const saved = await this.exitPermissions.save(this.exitPermissions.create({
+            organization,
+            student,
+            destination: input.destination?.trim() || "خروج با تأیید مدرسه",
+            reason: input.reason?.trim() || "ثبت مستقیم توسط مسئول مدرسه",
+            requestedDepartureAt: now,
+            expectedReturnAt,
+            actualDepartureAt: now,
+            note: "مجوز و خروج فیزیکی توسط مسئول مدرسه ثبت شد.",
+            status: exit_permission_entity_1.ExitPermissionStatus.APPROVED,
+            approver: { id: user.id },
+            reviewedAt: now,
+        }));
+        await this.emitOccupancyUpdate(organization.id, saved.id, "departure-recorded");
+        return this.serializeExitPermission(saved);
+    }
+    async recordGateReturn(user, input) {
+        this.assertWorkflowReviewer(user);
+        const organization = await this.organizationForUser(user.id, input.organizationId);
+        const student = await this.studentForPhoneInOrganization(input.phoneNumber, organization.id);
+        const row = await this.exitPermissions
+            .createQueryBuilder("exit")
+            .leftJoinAndSelect("exit.organization", "organization")
+            .leftJoinAndSelect("exit.student", "student")
+            .leftJoinAndSelect("exit.approver", "approver")
+            .leftJoinAndSelect("exit.returnVerifiedBy", "returnVerifiedBy")
+            .where("exit.organizationId = :organizationId", {
+            organizationId: organization.id,
+        })
+            .andWhere("exit.studentId = :studentId", { studentId: student.id })
+            .andWhere("exit.status = :status", {
+            status: exit_permission_entity_1.ExitPermissionStatus.APPROVED,
+        })
+            .andWhere("exit.actualDepartureAt IS NOT NULL")
+            .andWhere("exit.actualReturnAt IS NULL")
+            .orderBy("exit.actualDepartureAt", "DESC")
+            .getOne();
+        if (!row) {
+            throw new api_exception_1.ApiException(409, "STUDENT_NOT_OUT", "برای این دانش‌آموز خروج فعال ثبت نشده است.");
+        }
+        const now = new Date();
+        row.returnRequestedAt = row.returnRequestedAt ?? now;
+        row.returnRequestNote =
+            input.note?.trim() || "بازگشت حضوری توسط مسئول مدرسه ثبت شد.";
+        row.actualReturnAt = now;
+        row.returnVerifiedBy = { id: user.id };
+        row.returnVerifiedAt = now;
+        row.status = exit_permission_entity_1.ExitPermissionStatus.COMPLETED;
+        const saved = await this.exitPermissions.save(row);
+        await this.emitOccupancyUpdate(organization.id, saved.id, "return-confirmed");
+        return this.serializeExitPermission(saved);
+    }
     async recordExitMovement(user, exitPermissionId, movement) {
         const row = await this.exitPermissions.findOne({
             where: { id: exitPermissionId },
@@ -624,6 +746,7 @@ let WorkflowsService = class WorkflowsService {
                 organization: true,
                 student: { user: true },
                 approver: true,
+                returnVerifiedBy: true,
             },
         });
         if (!row)
@@ -640,13 +763,18 @@ let WorkflowsService = class WorkflowsService {
         else {
             if (!row.actualDepartureAt)
                 throw new api_exception_1.ApiException(409, "EXIT_NOT_DEPARTED", "ابتدا خروج دانش‌آموز را ثبت کنید.");
+            if (!row.returnRequestedAt)
+                throw new api_exception_1.ApiException(409, "EXIT_RETURN_NOT_REQUESTED", "دانش‌آموز باید ابتدا درخواست بازگشت را ثبت کند.");
             row.actualReturnAt = new Date();
             row.status = exit_permission_entity_1.ExitPermissionStatus.COMPLETED;
+            row.returnVerifiedBy = { id: user.id };
+            row.returnVerifiedAt = new Date();
         }
-        return this.serializeExitPermission(await this.exitPermissions.save(row));
+        const saved = await this.exitPermissions.save(row);
+        await this.emitOccupancyUpdate(row.organization.id, row.id, movement === "departure" ? "departure-recorded" : "return-confirmed");
+        return this.serializeExitPermission(saved);
     }
     async occupancy(user, organizationId) {
-        this.assertWorkflowReviewer(user);
         const memberships = await this.activeMemberships(user.id);
         const ids = memberships.map((membership) => membership.organization.id);
         if (!ids.length)
@@ -814,6 +942,40 @@ let WorkflowsService = class WorkflowsService {
             relations: { organization: true },
         });
     }
+    async notifyRequestReviewers(organizationId, reviewer, title, body, url) {
+        const roles = reviewer === leave_request_entity_1.LeaveRequestReviewerRole.SCHOOL_SUPERVISOR
+            ? ["SCHOOL_SUPERVISOR", "PRINCIPAL"]
+            : ["PRINCIPAL", "ORGANIZATION_ADMIN"];
+        const memberships = await this.memberships.find({
+            where: {
+                organization: { id: organizationId },
+                status: organization_membership_entity_1.MembershipStatus.ACTIVE,
+            },
+            relations: { user: true, roleAssignments: { role: true } },
+        });
+        const recipients = memberships
+            .filter((membership) => membership.roleAssignments.some((assignment) => roles.includes(assignment.role.code)))
+            .map((membership) => membership.user.id);
+        if (recipients.length)
+            await this.notifications.createForUsers(recipients, {
+                type: "ANNOUNCEMENT",
+                category: "student_request",
+                title,
+                body,
+                url,
+                priority: "high",
+            });
+    }
+    async emitOccupancyUpdate(organizationId, exitPermissionId, action) {
+        const memberships = await this.memberships.find({
+            where: {
+                organization: { id: organizationId },
+                status: organization_membership_entity_1.MembershipStatus.ACTIVE,
+            },
+            relations: { user: true },
+        });
+        this.realtime.emitToUsers(memberships.map((membership) => membership.user.id), "school.occupancy.updated", { organizationId, exitPermissionId, action });
+    }
     async organizationForUser(userId, organizationId) {
         const membership = await this.memberships.findOne({
             where: {
@@ -827,6 +989,23 @@ let WorkflowsService = class WorkflowsService {
             throw new api_exception_1.ApiException(403, "ORGANIZATION_FORBIDDEN", "به این سازمان دسترسی ندارید.");
         }
         return membership.organization;
+    }
+    async studentForPhoneInOrganization(phoneNumber, organizationId) {
+        const phone = (0, phone_number_1.normalizeIranianMobile)(phoneNumber);
+        if (!(0, phone_number_1.isIranianMobile)(phone)) {
+            throw new api_exception_1.ApiException(400, "STUDENT_PHONE_INVALID", "شماره همراه دانش‌آموز معتبر نیست.");
+        }
+        const student = await this.students.findOne({
+            where: [
+                { organization: { id: organizationId }, user: { phoneNumber: phone } },
+                { organization: { id: organizationId }, user: { username: phone } },
+            ],
+            relations: { user: true, organization: true },
+        });
+        if (!student) {
+            throw new api_exception_1.ApiException(404, "STUDENT_PHONE_NOT_FOUND", "دانش‌آموزی با این شماره در مدرسه فعال پیدا نشد.");
+        }
+        return student;
     }
     async studentForUser(userId) {
         const student = await this.students.findOne({
@@ -987,6 +1166,10 @@ let WorkflowsService = class WorkflowsService {
             expectedReturnAt: row.expectedReturnAt?.toISOString() || null,
             actualDepartureAt: row.actualDepartureAt?.toISOString() || null,
             actualReturnAt: row.actualReturnAt?.toISOString() || null,
+            returnRequestedAt: row.returnRequestedAt?.toISOString() || null,
+            returnRequestNote: row.returnRequestNote || "",
+            returnVerifiedById: row.returnVerifiedBy?.id || null,
+            returnVerifiedAt: row.returnVerifiedAt?.toISOString() || null,
             note: row.note,
             status: row.status,
             approverId: row.approver?.id || null,
@@ -1051,6 +1234,8 @@ exports.WorkflowsService = WorkflowsService = __decorate([
         typeorm_2.Repository,
         typeorm_2.Repository,
         typeorm_2.Repository,
-        typeorm_2.Repository])
+        typeorm_2.Repository,
+        realtime_service_1.RealtimeService,
+        notifications_service_1.NotificationsService])
 ], WorkflowsService);
 //# sourceMappingURL=workflows.service.js.map

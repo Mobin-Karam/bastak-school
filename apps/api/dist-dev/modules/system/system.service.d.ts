@@ -3,6 +3,7 @@ import { AppRelease } from "../../database/entities/app-release.entity";
 import { AppVersion } from "../../database/entities/app-version.entity";
 import { AuditLog } from "../../database/entities/audit-log.entity";
 import { User } from "../../database/entities/user.entity";
+import { AuthenticatedUser } from "../auth";
 export declare class SystemService {
     private db;
     private versions;
@@ -52,6 +53,12 @@ export declare class SystemService {
         tables: number;
         rollbackFilename: string;
     }>;
+    resetSystemData(actor: AuthenticatedUser): Promise<{
+        reset: boolean;
+        retainedPlatformAccounts: number;
+        clearedTables: number;
+    }>;
+    private identifier;
     private validate;
     private databasePath;
     private tempRoot;

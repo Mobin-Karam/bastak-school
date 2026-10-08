@@ -11,6 +11,10 @@ export declare class CreateStudentDto {
     trackId?: string;
     grade?: string;
     major?: string;
+    targetUniversity?: string;
+    targetField?: string;
+    targetRank?: string;
+    dailyCapacity?: string;
 }
 export declare class UpdateStudentDto {
     learnerProfile?: "school" | "independent";

@@ -39,7 +39,7 @@ export declare class AttendanceController {
             name: string;
             userId: string | null;
             nationalCode: string | null | undefined;
-            accountStatus: "active" | "archived" | "inactive";
+            accountStatus: "active" | "inactive" | "archived";
         }[];
     }>;
     sessions(user: AuthenticatedUser, organizationId?: string): Promise<{
@@ -56,7 +56,7 @@ export declare class AttendanceController {
             id: string;
             organizationId: string;
             organizationName: string;
-            contextType: "class" | "class_group" | "dorm" | "night";
+            contextType: "class" | "dorm" | "class_group" | "night";
             contextId: string;
             contextLabel: string;
             sessionDate: string;
@@ -95,7 +95,7 @@ export declare class AttendanceController {
                 sessionId: string;
                 status: import("../../database/entities").AttendanceStatus;
                 sessionDate: string;
-                contextType: "class" | "class_group" | "dorm" | "night";
+                contextType: "class" | "dorm" | "class_group" | "night";
                 contextId: string;
                 organizationId: string;
                 recordedAt: string;
@@ -115,7 +115,7 @@ export declare class AttendanceController {
             status: import("../../database/entities").AttendanceStatus;
             note: string;
             sessionDate: string;
-            contextType: "class" | "class_group" | "dorm" | "night";
+            contextType: "class" | "dorm" | "class_group" | "night";
             contextId: string;
             organizationId: string;
             recordedAt: string;
@@ -129,7 +129,7 @@ export declare class AttendanceController {
                 sessionId: string;
                 status: import("../../database/entities").AttendanceStatus;
                 sessionDate: string;
-                contextType: "class" | "class_group" | "dorm" | "night";
+                contextType: "class" | "dorm" | "class_group" | "night";
                 contextId: string;
                 organizationId: string;
                 recordedAt: string;

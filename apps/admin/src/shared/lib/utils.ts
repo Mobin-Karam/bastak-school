@@ -23,8 +23,17 @@ export function englishDigits(value: unknown) {
   return digitsFaToEn(String(value ?? ""));
 }
 
-export function todayIso() {
-  return new Date().toISOString().slice(0, 10);
+/** Returns the current calendar day in the school/user timezone, not UTC. */
+export function todayIso(timeZone = "Asia/Tehran") {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(new Date());
+  const part = (type: Intl.DateTimeFormatPartTypes) =>
+    parts.find((item) => item.type === type)?.value ?? "";
+  return `${part("year")}-${part("month")}-${part("day")}`;
 }
 
 export function addDays(iso: string, days: number) {

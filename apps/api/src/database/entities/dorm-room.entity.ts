@@ -26,6 +26,13 @@ export class DormRoom {
   @Column({ length: 160 })
   name!: string;
 
+  /** A residence can have several buildings; room codes remain unique per school. */
+  @Column({ length: 120, default: "ساختمان اصلی" })
+  building!: string;
+
+  @Column({ type: "integer", default: 1 })
+  floor!: number;
+
   @Column({ type: "integer", default: 1 })
   capacity!: number;
 

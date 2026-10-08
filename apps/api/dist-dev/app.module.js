@@ -39,6 +39,7 @@ const import_export_module_1 = require("./modules/import-export/import-export.mo
 const schedule_module_1 = require("./modules/schedule/schedule.module");
 const guardian_module_1 = require("./modules/guardian/guardian.module");
 const school_home_module_1 = require("./modules/school-home/school-home.module");
+const chat_module_1 = require("./modules/chat/chat.module");
 let AppModule = class AppModule {
 };
 exports.AppModule = AppModule;
@@ -65,6 +66,7 @@ exports.AppModule = AppModule = __decorate([
             schedule_module_1.ScheduleModule,
             guardian_module_1.GuardianModule,
             school_home_module_1.SchoolHomeModule,
+            chat_module_1.ChatModule,
         ],
         providers: [
             { provide: core_1.APP_FILTER, useClass: http_exception_filter_1.HttpExceptionFilter },

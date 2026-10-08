@@ -22,6 +22,10 @@ import { AuthenticatedUser } from "../auth";
 import { CreateUserDto, SetRolesDto, UpdateUserDto } from "./dto/user.dto";
 import { ensureOrganizationChat } from "../chat";
 import { normalizeIranianMobile } from "../../common/utils/phone-number";
+import {
+  assertPlatformRolesAreUnscoped,
+  assertRoleCodesCompatibleWithOrganization,
+} from "../organizations/organization-role-policy";
 
 @Injectable()
 export class UsersService {
@@ -94,6 +98,47 @@ export class UsersService {
       );
   }
 
+  /**
+   * A role assignment is not a substitute for school membership.  Keep this
+   * in one place because both account creation and a later role change can
+   * introduce a user to an organization.  In particular, an account that
+   * existed before it was assigned a staff role must be activated as a member
+   * instead of failing with "membership required".
+   */
+  private async ensureActiveMembership(
+    manager: EntityManager,
+    user: User,
+    organizationId: string,
+  ) {
+    const organization = await manager.findOne(Organization, {
+      where: { id: organizationId },
+    });
+    if (!organization)
+      throw new ApiException(404, "NOT_FOUND", "سازمان یافت نشد.");
+
+    let membership = await manager.findOne(OrganizationMembership, {
+      where: {
+        user: { id: user.id },
+        organization: { id: organization.id },
+      },
+      relations: { organization: true },
+    });
+    if (membership) {
+      membership.status = MembershipStatus.ACTIVE;
+      membership = await manager.save(OrganizationMembership, membership);
+    } else {
+      membership = await manager.save(
+        OrganizationMembership,
+        manager.create(OrganizationMembership, {
+          user,
+          organization,
+          status: MembershipStatus.ACTIVE,
+        }),
+      );
+    }
+    return membership;
+  }
+
   // // Public methods
   async list(
     actor: AuthenticatedUser,
@@ -161,6 +206,7 @@ export class UsersService {
   }
   async create(actor: AuthenticatedUser, dto: CreateUserDto) {
     await this.assertRoles(actor, dto.roleCodes);
+    assertPlatformRolesAreUnscoped(dto.roleCodes, dto.organizationId);
     if (dto.organizationId) this.assertOrg(actor, dto.organizationId);
     if (!this.platform(actor) && !dto.organizationId)
       throw new ApiException(
@@ -193,20 +239,17 @@ export class UsersService {
         }),
       );
       let membership: OrganizationMembership | null = null;
-      if (dto.organizationId) {
-        const org = await manager.findOne(Organization, {
-          where: { id: dto.organizationId },
-        });
-        if (!org) throw new ApiException(404, "NOT_FOUND", "سازمان یافت نشد.");
-        membership = await manager.save(
-          OrganizationMembership,
-          manager.create(OrganizationMembership, {
-            user,
-            organization: org,
-            status: MembershipStatus.ACTIVE,
-          }),
+      if (dto.organizationId)
+        membership = await this.ensureActiveMembership(
+          manager,
+          user,
+          dto.organizationId,
         );
-      }
+      if (membership)
+        assertRoleCodesCompatibleWithOrganization(
+          membership.organization.type,
+          dto.roleCodes,
+        );
       const roles = await manager.find(Role, {
         where: { code: In(uniqueValues(dto.roleCodes)) },
       });
@@ -269,6 +312,7 @@ export class UsersService {
   }
   async setRoles(actor: AuthenticatedUser, id: string, dto: SetRolesDto) {
     await this.assertRoles(actor, dto.roleCodes);
+    assertPlatformRolesAreUnscoped(dto.roleCodes, dto.organizationId);
     if (dto.organizationId) this.assertOrg(actor, dto.organizationId);
     const target = await this.get(actor, id);
     this.assertProtectedAccount(actor, target);
@@ -281,18 +325,15 @@ export class UsersService {
         throw new ApiException(400, "INVALID_ROLE", "نقش نامعتبر است.");
       let membership: OrganizationMembership | null = null;
       if (dto.organizationId)
-        membership = await manager.findOne(OrganizationMembership, {
-          where: {
-            user: { id },
-            organization: { id: dto.organizationId },
-            status: MembershipStatus.ACTIVE,
-          },
-        });
-      if (dto.organizationId && !membership)
-        throw new ApiException(
-          400,
-          "MEMBERSHIP_REQUIRED",
-          "عضویت فعال یافت نشد.",
+        membership = await this.ensureActiveMembership(
+          manager,
+          user,
+          dto.organizationId,
+        );
+      if (membership)
+        assertRoleCodesCompatibleWithOrganization(
+          membership.organization.type,
+          dto.roleCodes,
         );
       if (roles.some((role) => role.organizationScoped) && !membership)
         throw new ApiException(
@@ -319,6 +360,8 @@ export class UsersService {
             membership: role.organizationScoped ? membership : null,
           }),
         );
+      if (membership)
+        await ensureOrganizationChat(manager, membership.organization, user);
       return {
         userId: id,
         roles: roles.map((role) => role.code),

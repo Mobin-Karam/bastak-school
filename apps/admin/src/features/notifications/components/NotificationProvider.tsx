@@ -6,11 +6,14 @@ import { useNotificationRealtime } from "../hooks/useNotificationRealtime";
 import { useNotificationSound } from "../hooks/useNotificationSound";
 import { usePushNotifications } from "../hooks/usePushNotifications";
 import type { NotificationContextValue } from "../model/notification.types";
+import { useModal } from "../../../shared/ui/modal";
+import { Button } from "../../../shared/ui/ui";
 
 export const NotificationContext = createContext<NotificationContextValue | null>(null);
 
 export function NotificationProvider({ children }: { children: ReactNode }) {
   const auth = useAuth();
+  const modal = useModal();
   const queryClient = useQueryClient();
   const notifications = useNotificationInbox(auth.status === "authenticated");
   const sound = useNotificationSound();
@@ -22,6 +25,34 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
     soundEnabled: sound.soundEnabled,
     chatSoundEnabled: sound.chatSoundEnabled,
     playSound: sound.playSound,
+    onStudentRequest: (item) => {
+      if (!auth.hasRole("PRINCIPAL") && !auth.hasRole("SCHOOL_SUPERVISOR")) return;
+      modal.open({
+        title: item.title || "درخواست جدید دانش‌آموز",
+        description: "یک درخواست تازه برای بررسی شما ثبت شده است.",
+        size: "full",
+        content: (
+          <section className="grid h-full content-center gap-6 p-6 text-center" dir="rtl">
+            <p className="text-lg font-black text-ink">{item.body}</p>
+            <p className="text-sm text-slate-500">
+              برای مشاهده جزئیات، تصمیم‌گیری و ثبت نتیجه وارد پرونده درخواست شوید.
+            </p>
+            <div className="flex justify-center gap-2">
+              <Button
+                onClick={() =>
+                  window.location.assign(item.url || "/admin/communication/notifications")
+                }
+              >
+                باز کردن درخواست
+              </Button>
+              <Button variant="ghost" onClick={modal.close}>
+                بعداً بررسی می‌کنم
+              </Button>
+            </div>
+          </section>
+        ),
+      });
+    },
   });
 
   const value = useMemo<NotificationContextValue>(

@@ -9,12 +9,12 @@ export function LoginBrand({ brandName, productName, variant = "compact" }: Logi
     return (
       <div className="flex min-w-0 items-center gap-3">
         <img
-          src="/app-logo.png"
-          width={48}
-          height={48}
+          src="/logo-bastak.webp"
+          width={150}
+          height={50}
           alt="نشان زانین"
           decoding="async"
-          className="size-12 shrink-0 object-contain drop-shadow-sm"
+          className="h-12 w-[7.5rem] shrink-0 object-contain object-center drop-shadow-sm"
         />
 
         <div className="min-w-0">
@@ -38,12 +38,12 @@ export function LoginBrand({ brandName, productName, variant = "compact" }: Logi
   return (
     <div className="flex min-w-0 items-center gap-2.5">
       <img
-        src="/app-logo.png"
-        width={40}
-        height={40}
+        src="/logo-bastak.webp"
+        width={112}
+        height={42}
         alt="نشان زانین"
         decoding="async"
-        className="size-10 shrink-0 object-contain"
+        className="h-10 w-24 shrink-0 object-contain object-center"
       />
 
       <div className="min-w-0">

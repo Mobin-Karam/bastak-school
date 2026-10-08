@@ -31,6 +31,11 @@ export const getAppVersions = () => api.get<AppVersion[]>("/app-versions");
 export const saveAppVersion = (app: string, body: { version: string; notes: string }) =>
   api.put<AppVersion>(`/app-versions/${encodeURIComponent(app)}`, body);
 export const downloadDatabaseBackup = () => api.download("/system/database-backup");
+export const resetSystemData = () =>
+  api.post<{ reset: true; retainedPlatformAccounts: number; clearedTables: number }>(
+    "/system/reset-data",
+    { confirmation: "RESET_SYSTEM_DATA" },
+  );
 export type RelaxationTrack = {
   id: string;
   title: string;

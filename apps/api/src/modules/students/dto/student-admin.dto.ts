@@ -25,6 +25,10 @@ export class CreateStudentDto {
   @IsOptional() @IsString() @Length(1, 80) trackId?: string;
   @IsOptional() @IsString() @Length(0, 80) grade?: string;
   @IsOptional() @IsString() @Length(0, 80) major?: string;
+  @IsOptional() @IsString() @Length(0, 160) targetUniversity?: string;
+  @IsOptional() @IsString() @Length(0, 160) targetField?: string;
+  @IsOptional() @IsString() @Length(0, 40) targetRank?: string;
+  @IsOptional() @IsString() @Length(0, 40) dailyCapacity?: string;
 }
 export class UpdateStudentDto {
   @IsOptional() @IsIn(["school", "independent"]) learnerProfile?:

@@ -44,7 +44,7 @@ export declare class DashboardHomeController {
                     classroomId: string | null;
                     title: string;
                     body: string;
-                    status: "DRAFT" | "ACTIVE" | "ARCHIVED";
+                    status: "DRAFT" | "ARCHIVED" | "ACTIVE";
                     publishedAt: Date | null | undefined;
                     expiresAt: Date | null | undefined;
                     createdAt: Date;
@@ -110,7 +110,7 @@ export declare class DashboardHomeController {
                     classroomId: string | null;
                     title: string;
                     body: string;
-                    status: "DRAFT" | "ACTIVE" | "ARCHIVED";
+                    status: "DRAFT" | "ARCHIVED" | "ACTIVE";
                     publishedAt: Date | null | undefined;
                     expiresAt: Date | null | undefined;
                     createdAt: Date;
@@ -178,7 +178,7 @@ export declare class DashboardHomeController {
                     classroomId: string | null;
                     title: string;
                     body: string;
-                    status: "DRAFT" | "ACTIVE" | "ARCHIVED";
+                    status: "DRAFT" | "ARCHIVED" | "ACTIVE";
                     publishedAt: Date | null | undefined;
                     expiresAt: Date | null | undefined;
                     createdAt: Date;
@@ -241,7 +241,7 @@ export declare class DashboardHomeController {
                     classroomId: string | null;
                     title: string;
                     body: string;
-                    status: "DRAFT" | "ACTIVE" | "ARCHIVED";
+                    status: "DRAFT" | "ARCHIVED" | "ACTIVE";
                     publishedAt: Date | null | undefined;
                     expiresAt: Date | null | undefined;
                     createdAt: Date;
@@ -308,7 +308,7 @@ export declare class DashboardHomeController {
                     classroomId: string | null;
                     title: string;
                     body: string;
-                    status: "DRAFT" | "ACTIVE" | "ARCHIVED";
+                    status: "DRAFT" | "ARCHIVED" | "ACTIVE";
                     publishedAt: Date | null | undefined;
                     expiresAt: Date | null | undefined;
                     createdAt: Date;
@@ -397,7 +397,7 @@ export declare class DashboardHomeController {
                     classroomId: string | null;
                     title: string;
                     body: string;
-                    status: "DRAFT" | "ACTIVE" | "ARCHIVED";
+                    status: "DRAFT" | "ARCHIVED" | "ACTIVE";
                     publishedAt: Date | null | undefined;
                     expiresAt: Date | null | undefined;
                     createdAt: Date;
@@ -432,6 +432,7 @@ export declare class DashboardHomeController {
                 events24h: any;
                 lockedLogins: any;
             };
+            platformOrganizations: any;
             context: string;
             activeRole: string;
             generatedAt: string;
@@ -476,7 +477,7 @@ export declare class DashboardHomeController {
                     classroomId: string | null;
                     title: string;
                     body: string;
-                    status: "DRAFT" | "ACTIVE" | "ARCHIVED";
+                    status: "DRAFT" | "ARCHIVED" | "ACTIVE";
                     publishedAt: Date | null | undefined;
                     expiresAt: Date | null | undefined;
                     createdAt: Date;
@@ -536,7 +537,7 @@ export declare class DashboardHomeController {
                     classroomId: string | null;
                     title: string;
                     body: string;
-                    status: "DRAFT" | "ACTIVE" | "ARCHIVED";
+                    status: "DRAFT" | "ARCHIVED" | "ACTIVE";
                     publishedAt: Date | null | undefined;
                     expiresAt: Date | null | undefined;
                     createdAt: Date;

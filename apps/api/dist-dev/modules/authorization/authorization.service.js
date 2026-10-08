@@ -118,6 +118,7 @@ let AuthorizationService = class AuthorizationService {
         if (!context.roles.includes("PLATFORM_ADMIN") || !this.permissions)
             return {
                 ...context,
+                activeOrganizationId: requestedOrganizationId,
                 capabilities: [
                     ...new Set([...effectiveCapabilities, ...grantCapabilities]),
                 ].sort(),
@@ -125,6 +126,7 @@ let AuthorizationService = class AuthorizationService {
         const permissions = await this.permissions.find({ select: { code: true } });
         return {
             ...context,
+            activeOrganizationId: requestedOrganizationId,
             capabilities: [
                 ...new Set([
                     ...effectiveCapabilities,

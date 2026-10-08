@@ -1,5 +1,5 @@
 import { AuthenticatedUser } from "../auth";
-import { CreateDormRoomDto, SetDormRoomAssignmentsDto } from "./dormitory.dto";
+import { CreateDormRoomDto, SendDormAnnouncementDto, SetDormRoomAssignmentsDto } from "./dormitory.dto";
 import { DormitoryService } from "./dormitory.service";
 export declare class DormitoryController {
     private readonly dormitory;
@@ -12,8 +12,10 @@ export declare class DormitoryController {
             organizationName: string;
             code: string;
             name: string;
+            building: string;
+            floor: number;
             capacity: number;
-            status: "ARCHIVED" | "ACTIVE";
+            status: "ACTIVE" | "ARCHIVED";
             studentCount: number;
         }[];
     }>;
@@ -24,8 +26,10 @@ export declare class DormitoryController {
             organizationId: string;
             code: string;
             name: string;
+            building: string;
+            floor: number;
             capacity: number;
-            status: "ARCHIVED" | "ACTIVE";
+            status: "ACTIVE" | "ARCHIVED";
             studentCount: number;
         };
     }>;
@@ -44,6 +48,22 @@ export declare class DormitoryController {
         data: {
             roomId: string;
             count: number;
+        };
+    }>;
+    students(user: AuthenticatedUser, organizationId: string, query?: string): Promise<{
+        ok: boolean;
+        data: {
+            id: string;
+            name: string;
+            phoneNumber: string | null;
+        }[];
+    }>;
+    announce(user: AuthenticatedUser, dto: SendDormAnnouncementDto): Promise<{
+        ok: boolean;
+        data: {
+            delivered: number;
+            target: "ROOM" | "STUDENT";
+            targetLabel: string;
         };
     }>;
 }

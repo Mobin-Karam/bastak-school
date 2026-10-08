@@ -63,6 +63,21 @@ export type EducationBookInput = Pick<
     Pick<ManagedEducationBook, "titleEn" | "textbookCode" | "notes" | "state" | "organizationId">
   >;
 
+/** Published curriculum books are deliberately readable by every signed-in staff workspace. */
+export type PublishedEducationBook = Pick<
+  ManagedEducationBook,
+  | "id"
+  | "schoolYear"
+  | "grade"
+  | "titleFa"
+  | "titleEn"
+  | "branch"
+  | "track"
+  | "category"
+  | "textbookCode"
+  | "appliesTo"
+>;
+
 export const getEducationOperations = (filters?: {
   period?: { from: string; to: string } | null;
   grade?: number | null;
@@ -79,6 +94,10 @@ export const getEducationOperations = (filters?: {
 };
 export const getManagedBooks = () =>
   api.get<ManagedEducationBook[]>("/education-catalog/admin/books");
+export const getPublishedEducationBooks = (grade?: number) =>
+  api.get<PublishedEducationBook[]>(
+    `/education-catalog/books${grade ? `?grade=${encodeURIComponent(grade)}` : ""}`,
+  );
 export const getEducationBookImpact = (id: string) =>
   api.get<{
     bookId: string;

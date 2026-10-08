@@ -44,6 +44,19 @@ export class ExitPermission {
   @Column({ type: "datetime", nullable: true })
   actualReturnAt?: Date | null;
 
+  /** The student asks to be checked back in; a gate staff member confirms it. */
+  @Column({ type: "datetime", nullable: true })
+  returnRequestedAt?: Date | null;
+
+  @Column({ type: "text", default: "" })
+  returnRequestNote!: string;
+
+  @ManyToOne(() => User, { nullable: true, onDelete: "SET NULL" })
+  returnVerifiedBy?: User | null;
+
+  @Column({ type: "datetime", nullable: true })
+  returnVerifiedAt?: Date | null;
+
   @Column({ length: 200 })
   destination!: string;
 

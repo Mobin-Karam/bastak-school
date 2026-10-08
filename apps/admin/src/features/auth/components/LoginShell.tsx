@@ -1,16 +1,14 @@
 import type { ReactNode } from "react";
 
-import { useAuthLocale } from "../model/auth-locale";
-
 import { LoginHero } from "./LoginHero";
 
 type LoginShellProps = {
   children: ReactNode;
+  direction?: "rtl" | "ltr";
+  showHero?: boolean;
 };
 
-export function LoginShell({ children }: LoginShellProps) {
-  const { direction } = useAuthLocale();
-
+export function LoginShell({ children, direction = "rtl", showHero = true }: LoginShellProps) {
   return (
     <main
       dir={direction}
@@ -18,7 +16,7 @@ export function LoginShell({ children }: LoginShellProps) {
         relative
         min-h-dvh
         overflow-x-hidden
-        bg-paper
+        bg-[#0e324d]
         text-ink
 
         md:grid
@@ -29,30 +27,21 @@ export function LoginShell({ children }: LoginShellProps) {
         xl:p-8
       "
     >
-      {/* Large-screen decoration only */}
       <div
         aria-hidden="true"
         className="
-          pointer-events-none
-          absolute -start-40 -top-40
-          hidden size-[32rem]
-          rounded-full
-          bg-brand/[0.05]
-          blur-3xl
-          md:block
+          absolute inset-0 bg-cover bg-center bg-no-repeat
+          opacity-35
+          md:opacity-45
         "
+        style={{ backgroundImage: "url('/bg-login.png')" }}
       />
 
       <div
         aria-hidden="true"
         className="
-          pointer-events-none
-          absolute -bottom-48 -end-40
-          hidden size-[34rem]
-          rounded-full
-          bg-saffron/[0.05]
-          blur-3xl
-          md:block
+          absolute inset-0
+          bg-[linear-gradient(110deg,rgb(5_42_61_/_92%),rgb(8_68_74_/_72%),rgb(12_44_63_/_88%))]
         "
       />
 
@@ -64,7 +53,9 @@ export function LoginShell({ children }: LoginShellProps) {
           min-h-dvh
           w-full
 
-          bg-[rgb(var(--surface-card))]
+          bg-[rgb(var(--surface-card))]/[0.97]
+          shadow-[0_24px_70px_rgb(3_28_42_/_35%)]
+          backdrop-blur-sm
 
           md:min-h-0
           md:max-w-xl
@@ -80,7 +71,7 @@ export function LoginShell({ children }: LoginShellProps) {
           xl:grid-cols-[minmax(0,0.9fr)_minmax(28rem,1fr)]
         "
       >
-        <LoginHero />
+        {showHero ? <LoginHero /> : null}
 
         {children}
       </div>

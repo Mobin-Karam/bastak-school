@@ -4,6 +4,7 @@ import { HeaderClock } from "../../../features/clock";
 // import { HeaderNotifications } from "../../../features/notifications";
 import { ThemeSwitcher } from "../../../shared/theme/theme";
 import { WorkContextBar } from "../../../shared/ui/work-context-bar";
+import { PlatformOrganizationPicker } from "../../../shared/ui/platform-organization-picker";
 import { adminDestination, resolveAdminNavigation } from "../navigation/admin-navigation";
 import { AdminAccountMenu } from "./AdminAccountMenu";
 import type { AdminBreadcrumb, AdminCurrentNavigation } from "./layout-types";
@@ -36,9 +37,9 @@ export function AdminHeader({
   const BreadcrumbChevron = profile.direction === "rtl" ? ChevronLeft : ChevronRight;
   return (
     <header
-      className={`${sticky ? "sticky top-0" : "relative"} admin-expensive-surface z-30 border-b border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card)_/_94%)] text-slate-900 ${performance === "reduced" ? "" : "backdrop-blur-md"} dark:text-slate-100`}
+      className={`${sticky ? "sticky top-0" : "relative"} admin-header-surface admin-expensive-surface z-30 border-b border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card)_/_94%)] text-slate-900 ${performance === "reduced" ? "" : "backdrop-blur-md"} dark:text-slate-100`}
     >
-      <div className="flex min-h-14 items-center justify-between gap-2 px-3 py-2 sm:px-4">
+      <div className="flex min-h-[4.25rem] items-center justify-between gap-2 px-3 py-2 sm:px-4 lg:px-5">
         <div className="flex min-w-0 flex-1 items-center gap-2">
           <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3">
             <div className="min-w-0 flex-1">
@@ -91,6 +92,7 @@ export function AdminHeader({
               studentId={selectedStudentId}
               showStudent={showStudent}
             />
+            <PlatformOrganizationPicker />
           </div>
         </div>
 

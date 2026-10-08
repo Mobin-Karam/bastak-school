@@ -59,10 +59,8 @@ export const accessCopy = {
     organizationType: (type: string) =>
       ({
         SCHOOL: "مدرسه",
-        ACADEMY: "آکادمی",
-        COUNSELING_CENTER: "مرکز مشاوره",
-        PRIVATE_PRACTICE: "مجموعه خصوصی",
-        OTHER: "سایر",
+        INSTITUTION: "مؤسسه",
+        ORGANIZATION: "سازمان",
       })[type] || type,
     enabledFeatureCount: (count: number, locale: string) =>
       `${count.toLocaleString(locale)} قابلیت فعال`,
@@ -275,10 +273,8 @@ export const accessCopy = {
     organizationType: (type: string) =>
       ({
         SCHOOL: "School",
-        ACADEMY: "Academy",
-        COUNSELING_CENTER: "Counseling center",
-        PRIVATE_PRACTICE: "Private practice",
-        OTHER: "Other",
+        INSTITUTION: "Institution",
+        ORGANIZATION: "Organization",
       })[type] || type,
     enabledFeatureCount: (count: number, locale: string) =>
       `${count.toLocaleString(locale)} enabled features`,

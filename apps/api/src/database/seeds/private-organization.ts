@@ -177,7 +177,7 @@ async function seed(
   });
   if (!organization)
     organization = organizations.create({ name: config.organizationName });
-  organization.type = OrganizationType.PRIVATE_PRACTICE;
+  organization.type = OrganizationType.ORGANIZATION;
   organization.status = OrganizationStatus.ACTIVE;
   organization = await organizations.save(organization);
 

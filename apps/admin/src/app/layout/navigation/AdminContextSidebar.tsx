@@ -41,7 +41,7 @@ export function AdminContextSidebar({
 
   return (
     <aside
-      className={`fixed inset-y-0 start-0 z-40 hidden flex-col border-e border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-muted))] transition-[inset-inline-start,width,padding] duration-200 motion-reduce:transition-none lg:flex ${mainCollapsed ? "start-[4.25rem]" : "start-60"} ${widthClasses}`}
+      className={`admin-context-rail fixed inset-y-0 start-0 z-40 hidden flex-col border-e border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-muted))] transition-[inset-inline-start,width,padding] duration-200 motion-reduce:transition-none lg:flex ${mainCollapsed ? "start-[4.25rem]" : "start-60"} ${widthClasses}`}
       aria-label={copy.sectionNavigation(current.section)}
     >
       <div
@@ -55,7 +55,7 @@ export function AdminContextSidebar({
         ) : null}
         <button
           type="button"
-          className="hidden size-9 shrink-0 place-items-center rounded-lg text-slate-500 outline-none transition hover:bg-white focus-visible:ring-2 focus-visible:ring-brand xl:grid"
+          className="hidden size-9 shrink-0 place-items-center rounded-lg text-slate-500 outline-none transition hover:bg-white/80 hover:text-brand focus-visible:ring-2 focus-visible:ring-brand dark:hover:bg-white/10 xl:grid"
           title={collapsed ? copy.openSectionRail : copy.closeSectionRail}
           aria-label={collapsed ? copy.openSectionRail : copy.closeSectionRail}
           aria-expanded={!collapsed}
@@ -87,7 +87,7 @@ export function AdminContextSidebar({
               title={title}
               aria-label={title}
               aria-current={active ? "page" : undefined}
-              className={`relative flex h-10 items-center rounded-md text-sm outline-none transition focus-visible:ring-2 focus-visible:ring-brand ${compactClasses} ${active ? "bg-brand/10 font-semibold text-brand ring-1 ring-brand/15" : "text-slate-600 hover:bg-[rgb(var(--surface-card))] hover:text-ink"}`}
+              className={`relative flex h-10 items-center rounded-lg text-sm outline-none transition focus-visible:ring-2 focus-visible:ring-brand ${compactClasses} ${active ? "admin-rail-item-active bg-brand/10 font-semibold text-brand ring-1 ring-brand/15" : "text-slate-600 hover:bg-[rgb(var(--surface-card))] hover:text-ink dark:text-slate-300"}`}
             >
               {active ? (
                 <span

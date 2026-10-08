@@ -75,9 +75,7 @@ export function DateNavigator({
   );
   const dayRail = useRef<HTMLDivElement>(null);
   const settleTimer = useRef<number | null>(null);
-  const frame = useRef<number | null>(null);
   const [centeredDate, setCenteredDate] = useState(value);
-  const [depth, setDepth] = useState<Record<string, number>>({});
   const label = ariaLabel ?? (language === "fa" ? "ناوبری تاریخ" : "Date navigation");
 
   const nearestDay = useCallback(
@@ -89,17 +87,13 @@ export function DateNavigator({
       const cards = Array.from(rail.querySelectorAll<HTMLElement>("[data-date-card]"));
       if (!cards.length) return;
       let closest: { date: string; distance: number } | undefined;
-      const nextDepth: Record<string, number> = {};
       for (const card of cards) {
         const box = card.getBoundingClientRect();
         const distance = Math.abs(box.left + box.width / 2 - center);
-        const normalized = Math.min(1, distance / Math.max(box.width * 1.15, 1));
-        nextDepth[card.dataset.date ?? ""] = normalized;
         if (!closest || distance < closest.distance) {
           closest = { date: card.dataset.date ?? "", distance };
         }
       }
-      setDepth(nextDepth);
       if (closest?.date) {
         setCenteredDate(closest.date);
         if (commit && closest.date !== value) onChange(closest.date);
@@ -109,10 +103,11 @@ export function DateNavigator({
   );
 
   const scheduleCenterCheck = useCallback(() => {
-    if (frame.current !== null) window.cancelAnimationFrame(frame.current);
-    frame.current = window.requestAnimationFrame(() => nearestDay(false));
     if (settleTimer.current !== null) window.clearTimeout(settleTimer.current);
-    settleTimer.current = window.setTimeout(() => nearestDay(true), 85);
+    // Do not rerender the buffered 61 cards on every touch-scroll frame. The
+    // browser performs the carousel motion; React commits only after native
+    // scroll snapping settles on a date.
+    settleTimer.current = window.setTimeout(() => nearestDay(true), 110);
   }, [nearestDay]);
 
   // Native horizontal scrolling keeps the navigator responsive on low-end
@@ -138,7 +133,6 @@ export function DateNavigator({
   useEffect(
     () => () => {
       if (settleTimer.current !== null) window.clearTimeout(settleTimer.current);
-      if (frame.current !== null) window.cancelAnimationFrame(frame.current);
     },
     [],
   );
@@ -159,10 +153,20 @@ export function DateNavigator({
     onChange(date);
   };
 
+  const selectToday = () => {
+    const date = todayIso(profile.timeZone);
+    if (onToday) {
+      setCenteredDate(date);
+      onToday();
+      return;
+    }
+    selectDate(date);
+  };
+
   const moveByKeyboard = (event: React.KeyboardEvent<HTMLDivElement>) => {
     if (event.key === "Home") {
       event.preventDefault();
-      onToday?.();
+      selectToday();
       return;
     }
     if (event.key === "PageUp") {
@@ -209,9 +213,8 @@ export function DateNavigator({
       >
         {visibleDays.map((day, index) => {
           const selected = day.date === centeredDate;
-          const distanceFromCenter =
-            depth[day.date] ?? Math.min(1, Math.abs(index - selectedIndex) / 2);
-          const isToday = day.date === todayIso();
+          const distanceFromCenter = Math.min(1, Math.abs(index - selectedIndex) / 2);
+          const isToday = day.date === todayIso(profile.timeZone);
           const items = day.items ?? [];
           const context: DateNavigatorRenderContext = {
             date: day.date,
@@ -325,6 +328,15 @@ export function DateNavigator({
             </button>
           );
         })}
+      </div>
+      <div className="-mt-0.5 flex justify-center pb-1">
+        <button
+          type="button"
+          onClick={selectToday}
+          className="inline-flex min-h-9 items-center gap-1.5 rounded-full border border-teal-200 bg-white/90 px-3.5 text-xs font-black text-teal-800 shadow-[0_8px_16px_-12px_rgba(13,118,111,.55),inset_0_1px_0_rgba(255,255,255,.96)] transition hover:-translate-y-0.5 hover:bg-teal-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 motion-reduce:transition-none dark:border-teal-400/20 dark:bg-teal-950/60 dark:text-teal-100 dark:hover:bg-teal-900/70"
+        >
+          <CalendarDays size={15} aria-hidden="true" /> امروز
+        </button>
       </div>
     </section>
   );

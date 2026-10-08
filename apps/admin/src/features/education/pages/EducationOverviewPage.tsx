@@ -82,7 +82,9 @@ export function EducationOverviewPage() {
     enabled: canReadOperations,
   });
   const visibleActions = actionDefinitions.filter((action) => auth.can(action.capability));
-  const visibleSections = educationNavigation.filter((section) => auth.can(section.capability));
+  const visibleSections = educationNavigation.filter(
+    (section) => !("capability" in section) || auth.can(section.capability),
+  );
 
   return (
     <div className="grid gap-4">

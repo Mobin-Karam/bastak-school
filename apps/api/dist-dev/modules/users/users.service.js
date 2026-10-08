@@ -31,6 +31,7 @@ const user_role_assignment_entity_1 = require("../../database/entities/user-role
 const user_entity_1 = require("../../database/entities/user.entity");
 const chat_1 = require("../chat");
 const phone_number_1 = require("../../common/utils/phone-number");
+const organization_role_policy_1 = require("../organizations/organization-role-policy");
 let UsersService = class UsersService {
     users;
     assignments;
@@ -72,6 +73,32 @@ let UsersService = class UsersService {
             throw new api_exception_1.ApiException(400, "SELF_ACCOUNT_PROTECTED", "برای حفظ امکان ورود، نمی‌توانید حساب خودتان را غیرفعال، بایگانی یا تغییر نقش دهید.");
         if (target.isPlatformOwner)
             throw new api_exception_1.ApiException(400, "PLATFORM_OWNER_PROTECTED", "ابتدا مالکیت پلتفرم را واگذار کنید؛ حساب مالک قابل غیرفعال‌سازی، بایگانی یا تغییر نقش نیست.");
+    }
+    async ensureActiveMembership(manager, user, organizationId) {
+        const organization = await manager.findOne(organization_entity_1.Organization, {
+            where: { id: organizationId },
+        });
+        if (!organization)
+            throw new api_exception_1.ApiException(404, "NOT_FOUND", "سازمان یافت نشد.");
+        let membership = await manager.findOne(organization_membership_entity_1.OrganizationMembership, {
+            where: {
+                user: { id: user.id },
+                organization: { id: organization.id },
+            },
+            relations: { organization: true },
+        });
+        if (membership) {
+            membership.status = organization_membership_entity_1.MembershipStatus.ACTIVE;
+            membership = await manager.save(organization_membership_entity_1.OrganizationMembership, membership);
+        }
+        else {
+            membership = await manager.save(organization_membership_entity_1.OrganizationMembership, manager.create(organization_membership_entity_1.OrganizationMembership, {
+                user,
+                organization,
+                status: organization_membership_entity_1.MembershipStatus.ACTIVE,
+            }));
+        }
+        return membership;
     }
     async list(actor, organizationId, roleCode, status) {
         const scopedOrganizationId = organizationId ??
@@ -122,6 +149,7 @@ let UsersService = class UsersService {
     }
     async create(actor, dto) {
         await this.assertRoles(actor, dto.roleCodes);
+        (0, organization_role_policy_1.assertPlatformRolesAreUnscoped)(dto.roleCodes, dto.organizationId);
         if (dto.organizationId)
             this.assertOrg(actor, dto.organizationId);
         if (!this.platform(actor) && !dto.organizationId)
@@ -144,18 +172,10 @@ let UsersService = class UsersService {
                         : user_entity_1.UserRole.ADMIN,
             }));
             let membership = null;
-            if (dto.organizationId) {
-                const org = await manager.findOne(organization_entity_1.Organization, {
-                    where: { id: dto.organizationId },
-                });
-                if (!org)
-                    throw new api_exception_1.ApiException(404, "NOT_FOUND", "سازمان یافت نشد.");
-                membership = await manager.save(organization_membership_entity_1.OrganizationMembership, manager.create(organization_membership_entity_1.OrganizationMembership, {
-                    user,
-                    organization: org,
-                    status: organization_membership_entity_1.MembershipStatus.ACTIVE,
-                }));
-            }
+            if (dto.organizationId)
+                membership = await this.ensureActiveMembership(manager, user, dto.organizationId);
+            if (membership)
+                (0, organization_role_policy_1.assertRoleCodesCompatibleWithOrganization)(membership.organization.type, dto.roleCodes);
             const roles = await manager.find(role_entity_1.Role, {
                 where: { code: (0, typeorm_2.In)((0, cmb_identity_1.uniqueValues)(dto.roleCodes)) },
             });
@@ -208,6 +228,7 @@ let UsersService = class UsersService {
     }
     async setRoles(actor, id, dto) {
         await this.assertRoles(actor, dto.roleCodes);
+        (0, organization_role_policy_1.assertPlatformRolesAreUnscoped)(dto.roleCodes, dto.organizationId);
         if (dto.organizationId)
             this.assertOrg(actor, dto.organizationId);
         const target = await this.get(actor, id);
@@ -221,15 +242,9 @@ let UsersService = class UsersService {
                 throw new api_exception_1.ApiException(400, "INVALID_ROLE", "نقش نامعتبر است.");
             let membership = null;
             if (dto.organizationId)
-                membership = await manager.findOne(organization_membership_entity_1.OrganizationMembership, {
-                    where: {
-                        user: { id },
-                        organization: { id: dto.organizationId },
-                        status: organization_membership_entity_1.MembershipStatus.ACTIVE,
-                    },
-                });
-            if (dto.organizationId && !membership)
-                throw new api_exception_1.ApiException(400, "MEMBERSHIP_REQUIRED", "عضویت فعال یافت نشد.");
+                membership = await this.ensureActiveMembership(manager, user, dto.organizationId);
+            if (membership)
+                (0, organization_role_policy_1.assertRoleCodesCompatibleWithOrganization)(membership.organization.type, dto.roleCodes);
             if (roles.some((role) => role.organizationScoped) && !membership)
                 throw new api_exception_1.ApiException(400, "ORGANIZATION_REQUIRED", "نقش سازمانی به عضویت نیاز دارد.");
             if (dto.organizationId)
@@ -248,6 +263,8 @@ let UsersService = class UsersService {
                     role,
                     membership: role.organizationScoped ? membership : null,
                 }));
+            if (membership)
+                await (0, chat_1.ensureOrganizationChat)(manager, membership.organization, user);
             return {
                 userId: id,
                 roles: roles.map((role) => role.code),

@@ -17,22 +17,52 @@ const openapi = require("@nestjs/swagger");
 const common_1 = require("@nestjs/common");
 const current_user_decorator_1 = require("../../common/decorators/current-user.decorator");
 const capabilities_decorator_1 = require("../../common/decorators/capabilities.decorator");
+const roles_decorator_1 = require("../../common/decorators/roles.decorator");
+const api_exception_1 = require("../../common/exceptions/api.exception");
 const envelope_1 = require("../../common/utils/envelope");
+const user_entity_1 = require("../../database/entities/user.entity");
 const system_service_1 = require("./system.service");
 let SystemController = class SystemController {
     system;
     constructor(system) {
         this.system = system;
     }
-    version(app) { return this.system.publicVersion(app).then(envelope_1.ok); }
-    versions() { return this.system.listVersions().then(envelope_1.ok); }
-    setVersion(app, body) { return this.system.updateVersion(app, body).then(envelope_1.ok); }
-    releases() { return this.system.listReleases().then(envelope_1.ok); }
-    setRelease(app, body) { return this.system.updateRelease(app, body).then(envelope_1.ok); }
-    audit() { return this.system.auditLogs().then(envelope_1.ok); }
-    database() { return this.system.metadata().then(envelope_1.ok); }
-    async backup(user) { const file = await this.system.backup(user.id); return new common_1.StreamableFile(file.buffer, { type: "application/vnd.sqlite3", disposition: `attachment; filename="${file.filename}"` }); }
-    restore(user, body) { return this.system.restore(user.id, body).then(envelope_1.ok); }
+    version(app) {
+        return this.system.publicVersion(app).then(envelope_1.ok);
+    }
+    versions() {
+        return this.system.listVersions().then(envelope_1.ok);
+    }
+    setVersion(app, body) {
+        return this.system.updateVersion(app, body).then(envelope_1.ok);
+    }
+    releases() {
+        return this.system.listReleases().then(envelope_1.ok);
+    }
+    setRelease(app, body) {
+        return this.system.updateRelease(app, body).then(envelope_1.ok);
+    }
+    audit() {
+        return this.system.auditLogs().then(envelope_1.ok);
+    }
+    database() {
+        return this.system.metadata().then(envelope_1.ok);
+    }
+    async backup(user) {
+        const file = await this.system.backup(user.id);
+        return new common_1.StreamableFile(file.buffer, {
+            type: "application/vnd.sqlite3",
+            disposition: `attachment; filename="${file.filename}"`,
+        });
+    }
+    restore(user, body) {
+        return this.system.restore(user.id, body).then(envelope_1.ok);
+    }
+    resetData(user, body) {
+        if (body?.confirmation !== "RESET_SYSTEM_DATA")
+            throw new api_exception_1.ApiException(422, "RESET_CONFIRMATION_REQUIRED", "عبارت تأیید بازنشانی معتبر نیست.");
+        return this.system.resetSystemData(user).then(envelope_1.ok);
+    }
 };
 exports.SystemController = SystemController;
 __decorate([
@@ -114,6 +144,17 @@ __decorate([
     __metadata("design:paramtypes", [Object, Buffer]),
     __metadata("design:returntype", void 0)
 ], SystemController.prototype, "restore", null);
+__decorate([
+    (0, common_1.Post)("system/reset-data"),
+    (0, roles_decorator_1.Roles)(user_entity_1.UserRole.PLATFORM_ADMIN),
+    (0, capabilities_decorator_1.RequireCapabilities)("system.reset"),
+    openapi.ApiResponse({ status: 201 }),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, Object]),
+    __metadata("design:returntype", void 0)
+], SystemController.prototype, "resetData", null);
 exports.SystemController = SystemController = __decorate([
     (0, common_1.Controller)(),
     __metadata("design:paramtypes", [system_service_1.SystemService])

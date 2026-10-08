@@ -29,6 +29,69 @@ function repo<T>(items: T[] = []) {
 }
 
 describe("AuthService", () => {
+  it("allows a platform administrator to select any active organization context", async () => {
+    const user = {
+      id: "platform-1",
+      username: "platform",
+      role: UserRole.PLATFORM_ADMIN,
+      isPlatformOwner: true,
+    } as User;
+    const organizations = repo([
+      { id: "org-a", name: "School A", type: "SCHOOL", status: "ACTIVE" },
+      {
+        id: "org-b",
+        name: "Institute B",
+        type: "INSTITUTION",
+        status: "ACTIVE",
+      },
+    ] as any[]);
+    const authorization = {
+      enrich: jest.fn(async (_user, role, organizationId) => ({
+        id: user.id,
+        username: user.username,
+        role: UserRole.PLATFORM_ADMIN,
+        roles: ["PLATFORM_ADMIN"],
+        capabilities: ["organization.manage"],
+        organizationIds: organizationId ? [organizationId] : [],
+        membershipIds: [],
+        ...(role ? { role } : {}),
+      })),
+    };
+    const service = new AuthService(
+      repo([user]) as any,
+      repo() as any,
+      repo() as any,
+      { get: (_key: string, fallback: unknown) => fallback } as ConfigService,
+      repo() as any,
+      authorization as any,
+      undefined,
+      organizations as any,
+    );
+
+    const context = await service.context(
+      {
+        id: user.id,
+        username: user.username,
+        role: UserRole.PLATFORM_ADMIN,
+        sessionId: "session-1",
+        roles: ["PLATFORM_ADMIN"],
+        organizationIds: [],
+      },
+      "org-b",
+    );
+
+    expect(context.activeOrganization).toMatchObject({
+      id: "org-b",
+      name: "Institute B",
+    });
+    expect(context.availableOrganizations).toHaveLength(2);
+    expect(authorization.enrich).toHaveBeenCalledWith(
+      expect.anything(),
+      undefined,
+      "org-b",
+    );
+  });
+
   it("selects the first active membership as a non-platform user's organization context", async () => {
     const user = {
       id: "teacher-1",
@@ -278,18 +341,16 @@ describe("AuthService", () => {
     }).compile();
 
     await expect(
-      module
-        .get(AuthService)
-        .changePassword(
-          {
-            id: "u1",
-            username: "student",
-            role: UserRole.STUDENT,
-            sessionId: "current",
-          },
-          "current-password",
-          "a-new-password-long-enough",
-        ),
+      module.get(AuthService).changePassword(
+        {
+          id: "u1",
+          username: "student",
+          role: UserRole.STUDENT,
+          sessionId: "current",
+        },
+        "current-password",
+        "a-new-password-long-enough",
+      ),
     ).resolves.toEqual({ changed: true, otherSessionsRevoked: true });
     expect(users.save).toHaveBeenCalledWith(
       expect.objectContaining({ id: "u1", passwordHash: expect.any(String) }),
@@ -317,18 +378,16 @@ describe("AuthService", () => {
     }).compile();
 
     await expect(
-      module
-        .get(AuthService)
-        .changePassword(
-          {
-            id: "u1",
-            username: "student",
-            role: UserRole.STUDENT,
-            sessionId: "current",
-          },
-          "wrong-password",
-          "a-new-password-long-enough",
-        ),
+      module.get(AuthService).changePassword(
+        {
+          id: "u1",
+          username: "student",
+          role: UserRole.STUDENT,
+          sessionId: "current",
+        },
+        "wrong-password",
+        "a-new-password-long-enough",
+      ),
     ).rejects.toMatchObject({
       response: { error: { code: "INVALID_CREDENTIALS" } },
     });
@@ -351,17 +410,15 @@ describe("AuthService", () => {
     }).compile();
 
     await expect(
-      module
-        .get(AuthService)
-        .revokeSession(
-          {
-            id: "u1",
-            username: "student",
-            role: UserRole.STUDENT,
-            sessionId: "current",
-          },
-          "current",
-        ),
+      module.get(AuthService).revokeSession(
+        {
+          id: "u1",
+          username: "student",
+          role: UserRole.STUDENT,
+          sessionId: "current",
+        },
+        "current",
+      ),
     ).rejects.toMatchObject({
       response: { error: { code: "CURRENT_SESSION" } },
     });

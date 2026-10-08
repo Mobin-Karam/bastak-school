@@ -15,12 +15,14 @@ export function useNotificationRealtime({
   soundEnabled,
   chatSoundEnabled,
   playSound,
+  onStudentRequest,
 }: {
   authenticated: boolean;
   queryClient: QueryClient;
   soundEnabled: boolean;
   chatSoundEnabled: boolean;
   playSound: (chat?: boolean) => void;
+  onStudentRequest: (item: AdminNotification) => void;
 }) {
   useEffect(() => {
     if (!authenticated || typeof window === "undefined") {
@@ -33,6 +35,7 @@ export function useNotificationRealtime({
       source = api.openEvents((type, data) => {
         if (type === "notification.created") {
           const item = normalizeAdminNotification(data as AdminNotification);
+          if (item.category === "student_request") onStudentRequest(item);
 
           queryClient.setQueryData<InfiniteData<NotificationPage>>(["notifications"], (current) => {
             if (
@@ -138,5 +141,5 @@ export function useNotificationRealtime({
     }
 
     return () => source?.close();
-  }, [authenticated, soundEnabled, chatSoundEnabled, queryClient, playSound]);
+  }, [authenticated, soundEnabled, chatSoundEnabled, queryClient, playSound, onStudentRequest]);
 }

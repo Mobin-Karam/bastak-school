@@ -1,8 +1,4 @@
-import {
-  BookOpenCheck,
-  ShieldCheck,
-  UsersRound,
-} from "lucide-react";
+import { BookOpenCheck, ShieldCheck, UsersRound } from "lucide-react";
 
 import { useAuthLocale } from "../model/auth-locale";
 
@@ -18,10 +14,7 @@ export function LoginHero() {
         relative hidden
         min-h-[620px]
         overflow-hidden
-        bg-gradient-to-br
-        from-teal-950
-        via-teal-900
-        to-slate-950
+        bg-[#0e324d]
         p-9 text-white
 
         xl:flex
@@ -34,31 +27,20 @@ export function LoginHero() {
       <div
         aria-hidden="true"
         className="
-          pointer-events-none
-          absolute -start-24 top-20
-          size-72 rounded-full
-          bg-teal-300/10
-          blur-3xl
+          absolute inset-0 bg-cover bg-center bg-no-repeat opacity-35
         "
+        style={{ backgroundImage: "url('/bg-login.png')" }}
       />
 
       <div
         aria-hidden="true"
         className="
-          pointer-events-none
-          absolute -bottom-32 -end-24
-          size-80 rounded-full
-          bg-sky-400/[0.06]
-          blur-3xl
+          absolute inset-0 bg-[linear-gradient(160deg,rgb(7_44_65_/_86%),rgb(0_95_92_/_58%),rgb(7_38_61_/_91%))]
         "
       />
 
       <div className="relative z-[1]">
-        <LoginBrand
-          variant="hero"
-          brandName={copy.brandName}
-          productName={copy.productName}
-        />
+        <LoginBrand variant="hero" brandName={copy.brandName} productName={copy.productName} />
 
         <div className="mt-12 max-w-md">
           <h2
@@ -73,9 +55,7 @@ export function LoginHero() {
             {copy.heroTitle}
           </h2>
 
-          <p className="mt-3 text-sm leading-7 text-slate-300">
-            {copy.heroDescription}
-          </p>
+          <p className="mt-3 text-sm leading-7 text-slate-300">{copy.heroDescription}</p>
         </div>
       </div>
 

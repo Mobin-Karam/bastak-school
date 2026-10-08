@@ -18,6 +18,7 @@ export type AuthenticatedUser = {
     capabilities?: string[];
     membershipIds?: string[];
     organizationIds?: string[];
+    activeOrganizationId?: string;
 };
 export declare class AuthService {
     private readonly users;

@@ -76,7 +76,7 @@ class SaveSchoolAnnouncementDto {
     classroomId;
     status;
     static _OPENAPI_METADATA_FACTORY() {
-        return { title: { required: true, type: () => String, maxLength: 180 }, body: { required: true, type: () => String, maxLength: 4000 }, audience: { required: true, enum: ["STAFF", "STUDENTS", "CLASS"], enum: ["STAFF", "STUDENTS", "CLASS"] }, classroomId: { required: false, type: () => String }, status: { required: false, enum: ["DRAFT", "ACTIVE", "ARCHIVED"], enum: ["DRAFT", "ACTIVE", "ARCHIVED"] } };
+        return { title: { required: true, type: () => String, maxLength: 180 }, body: { required: true, type: () => String, maxLength: 4000 }, audience: { required: true, enum: ["CLASS", "STAFF", "STUDENTS"], enum: ["STAFF", "STUDENTS", "CLASS"] }, classroomId: { required: false, type: () => String }, status: { required: false, enum: ["DRAFT", "ARCHIVED", "ACTIVE"], enum: ["DRAFT", "ACTIVE", "ARCHIVED"] } };
     }
 }
 exports.SaveSchoolAnnouncementDto = SaveSchoolAnnouncementDto;

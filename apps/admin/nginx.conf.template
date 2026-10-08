@@ -23,6 +23,19 @@ server {
     proxy_read_timeout 3600s;
   }
 
+  # Health endpoints are deliberately outside Nest's API prefix. Keep them
+  # same-origin so the login connection indicator works in production too.
+  location ~ ^/(health|ready)$ {
+    proxy_pass ${API_PROXY_TARGET};
+    proxy_http_version 1.1;
+    proxy_set_header Host $proxy_host;
+    proxy_set_header X-Forwarded-Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_cache off;
+  }
+
   # These are installability-critical PWA resources. They must always be
   # fetched from the current release and must never fall back to index.html,
   # because a cached or HTML response makes Chromium reject installation.

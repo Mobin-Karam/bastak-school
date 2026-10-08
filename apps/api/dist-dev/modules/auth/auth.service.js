@@ -189,9 +189,10 @@ let AuthService = class AuthService {
     async context(user, activeOrganizationId) {
         const organizationIds = user.organizationIds ?? [];
         const roles = user.roles ?? (user.role === "ADMIN" ? [] : [user.role]);
+        const isPlatformAdmin = roles.includes("PLATFORM_ADMIN");
         if (activeOrganizationId &&
             !organizationIds.includes(activeOrganizationId) &&
-            !roles.includes("PLATFORM_ADMIN"))
+            !isPlatformAdmin)
             throw new api_exception_1.ApiException(403, "ORGANIZATION_FORBIDDEN", "به این سازمان دسترسی ندارید.");
         const account = await this.users.findOne({ where: { id: user.id } });
         if (!this.authorization || !this.memberships)
@@ -205,14 +206,29 @@ let AuthService = class AuthService {
             relations: { organization: true },
             order: { joinedAt: "ASC" },
         });
-        const organizations = memberships.map((membership) => ({
+        const membershipsForContext = memberships.map((membership) => ({
             membershipId: membership.id,
             id: membership.organization.id,
             name: membership.organization.name,
             type: membership.organization.type,
         }));
+        const selectableOrganizations = isPlatformAdmin
+            ? ((await this.organizations?.find({
+                where: { status: organization_entity_1.OrganizationStatus.ACTIVE },
+                order: { name: "ASC" },
+            }))?.map((organization) => ({
+                membershipId: membershipsForContext.find((item) => item.id === organization.id)
+                    ?.membershipId ?? "",
+                id: organization.id,
+                name: organization.name,
+                type: organization.type,
+            })) ?? [])
+            : membershipsForContext;
+        if (activeOrganizationId &&
+            !selectableOrganizations.some((item) => item.id === activeOrganizationId))
+            throw new api_exception_1.ApiException(404, "ORGANIZATION_NOT_FOUND", "سازمان فعال پیدا نشد.");
         const effectiveOrganizationId = activeOrganizationId ??
-            (roles.includes("PLATFORM_ADMIN") ? undefined : organizations[0]?.id);
+            (isPlatformAdmin ? undefined : selectableOrganizations[0]?.id);
         const assignments = await this.authorization.enrich(user, undefined, effectiveOrganizationId);
         const workContexts = await Promise.all(assignments.roles.map(async (role) => {
             const scoped = await this.authorization.enrich(user, role, effectiveOrganizationId);
@@ -232,10 +248,9 @@ let AuthService = class AuthService {
             roles: assignments.roles,
             capabilities: assignments.capabilities,
             workContexts,
-            memberships: organizations,
-            activeOrganization: organizations.find((item) => item.id === effectiveOrganizationId) ??
-                null,
-            availableOrganizations: organizations,
+            memberships: membershipsForContext,
+            activeOrganization: selectableOrganizations.find((item) => item.id === effectiveOrganizationId) ?? null,
+            availableOrganizations: selectableOrganizations,
         };
     }
     async changePassword(user, currentPassword, newPassword) {

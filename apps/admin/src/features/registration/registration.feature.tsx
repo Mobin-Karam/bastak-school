@@ -1,29 +1,17 @@
-import { RegistrationDashboardPage } from "./RegistrationDashboardPage";
-import { RegistrationLayout } from "./RegistrationLayout";
+import { RegistrationComingSoonPage } from "./pages/RegistrationComingSoonPage";
 
 // Export for routing
-export { RegistrationLayout, RegistrationDashboardPage };
+export { RegistrationComingSoonPage };
 
 // Feature metadata
 export const registrationFeature = {
   name: 'registration',
-  title: 'ثبت‌نام دانش‌آموزان',
-  description: 'سیستم کامل ثبت‌نام دانش‌آموزان با ۱۵ بخش مختلف',
-  icon: '📝',
+  title: "ثبت‌نام و پرونده",
+  description: "این بخش به‌زودی در دسترس قرار می‌گیرد.",
   routes: [
     {
       path: '/admin/registration',
-      element: <RegistrationLayout />,
-      children: [
-        {
-          index: true,
-          element: <RegistrationDashboardPage />,
-        },
-        {
-          path: 'dashboard',
-          element: <RegistrationDashboardPage />,
-        },
-      ],
+      element: <RegistrationComingSoonPage />,
     },
   ],
 };

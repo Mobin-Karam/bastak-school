@@ -2,7 +2,6 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Eye, EyeOff } from "lucide-react";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
-import { useNavigate } from "react-router-dom";
 import { Button, Field, Input } from "../../../shared/ui/ui";
 import { useAuth } from "../hooks/useAuth";
 import { createLoginSchema, type LoginFormValues } from "../model/login.schema";
@@ -11,7 +10,6 @@ import { DemoAccountPicker } from "./DemoAccountPicker";
 
 export function LoginForm() {
   const auth = useAuth();
-  const navigate = useNavigate();
   const [error, setError] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const { copy, direction } = useAuthLocale();
@@ -28,13 +26,12 @@ export function LoginForm() {
 
   return (
     <form
-      className="grid gap-5"
+      className="grid gap-4 rounded-2xl border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card))] p-4 shadow-[0_12px_30px_rgb(0_64_72_/_8%)] sm:p-5"
       onSubmit={handleSubmit(async (data) => {
         setError("");
 
         try {
           await auth.login(data.phoneNumber, data.password);
-          navigate("/admin");
         } catch (e) {
           setError(e instanceof Error ? e.message : copy.loginFailed);
         }

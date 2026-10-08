@@ -1,5 +1,6 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
+import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AttendancePage } from "./AttendancePage";
 
@@ -31,17 +32,43 @@ describe("AttendancePage", () => {
     bulkMarkAttendanceMock.mockResolvedValue({ sessionId: "mock-session", count: 0 });
   });
 
-  it("renders the V1 attendance layout without falling back to mock student names", async () => {
+  it("waits for an attendance type and target instead of auto-loading a roster", async () => {
     render(<AttendancePage />, { wrapper: MemoryRouter });
 
     await waitFor(() => {
-      expect(screen.getByText("حضور و غیاب")).toBeInTheDocument();
+      expect(listAttendanceContextsMock).toHaveBeenCalledOnce();
     });
 
-    expect(screen.getByText("برای این مورد طلبه‌ای پیدا نشد.")).toBeInTheDocument();
+    expect(screen.getByText("نوع حضور و غیاب را انتخاب کنید")).toBeInTheDocument();
+    expect(screen.getByText("ابتدا کلاس، گروه یا اتاق را انتخاب کنید.")).toBeInTheDocument();
     expect(screen.queryByText("احمد محمدی")).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "همه حاضر" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "ثبت حضور" })).toBeInTheDocument();
+    expect(getAttendanceParticipantsMock).not.toHaveBeenCalled();
+    expect(screen.getByRole("button", { name: /ثبت حضور/ })).toBeDisabled();
+  });
+
+  it("loads a roster only after selecting an attendance type and target", async () => {
+    listAttendanceContextsMock.mockResolvedValue([
+      {
+        id: "class-1",
+        contextType: "class",
+        code: "10-A",
+        name: "دهم الف",
+        label: "دهم الف (10-A)",
+        total: 2,
+        activeOrganizationId: "org-1",
+      },
+    ]);
+    const user = userEvent.setup();
+    render(<AttendancePage />, { wrapper: MemoryRouter });
+
+    await waitFor(() => expect(screen.getByRole("button", { name: "کلاس 1 مورد" })).toBeEnabled());
+    await user.click(screen.getByRole("button", { name: "کلاس 1 مورد" }));
+    expect(getAttendanceParticipantsMock).not.toHaveBeenCalled();
+
+    await user.selectOptions(screen.getByRole("combobox", { name: /مرحله ۲/ }), "class-1");
+    await waitFor(() => {
+      expect(getAttendanceParticipantsMock).toHaveBeenCalledWith("class", "class-1");
+    });
   });
 
   it("opens a class selected from the class workspace", async () => {

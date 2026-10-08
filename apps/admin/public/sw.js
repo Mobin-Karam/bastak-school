@@ -1,7 +1,7 @@
 "use strict";
 
 const APP_NAME = "zanin";
-const CACHE_VERSION = "3.1.0";
+const CACHE_VERSION = "3.1.1";
 const CACHE_PREFIX = `${APP_NAME}-pwa`;
 const SHELL_CACHE = `${CACHE_PREFIX}-shell-${CACHE_VERSION}`;
 const RUNTIME_CACHE = `${CACHE_PREFIX}-runtime-${CACHE_VERSION}`;
@@ -23,7 +23,9 @@ const APP_SHELL = [
 
 self.addEventListener("install", (event) => {
   event.waitUntil(warmCache(APP_SHELL));
-  // Deliberately do not skipWaiting here. The UI asks the user first.
+  // Development servers must never leave an old worker in control of Vite's
+  // changing module graph. Production keeps the explicit update confirmation.
+  if (isLocalDevelopmentHost()) void self.skipWaiting();
 });
 
 self.addEventListener("activate", (event) => {
@@ -50,6 +52,10 @@ self.addEventListener("fetch", (event) => {
   if (!["http:", "https:"].includes(url.protocol)) return;
   if (url.origin !== self.location.origin) return;
   if (isSensitiveRequest(url)) return;
+  // Never cache Vite's live development graph. Mixing a cached optimized
+  // dependency with a fresh lazy route can load two React runtimes and make
+  // hooks fail until the page is manually reloaded.
+  if (isViteDevelopmentAsset(url)) return;
 
   if (request.mode === "navigate") {
     event.respondWith(networkFirstNavigation(event));
@@ -71,6 +77,26 @@ function isSensitiveRequest(url) {
 function isStaticAsset(request, url) {
   return ["style", "script", "font", "image", "worker"].includes(request.destination) ||
     /\.(?:css|js|mjs|woff2?|ttf|otf|png|jpe?g|webp|avif|svg|ico)$/i.test(url.pathname);
+}
+
+function isViteDevelopmentAsset(url) {
+  return (
+    url.pathname.startsWith("/@vite/") ||
+    url.pathname.startsWith("/src/") ||
+    url.pathname.startsWith("/node_modules/.vite")
+  );
+}
+
+function isLocalDevelopmentHost() {
+  const host = self.location.hostname;
+  return (
+    host === "localhost" ||
+    host === "127.0.0.1" ||
+    host === "::1" ||
+    /^192\.168\./.test(host) ||
+    /^10\./.test(host) ||
+    /^172\.(?:1[6-9]|2\d|3[01])\./.test(host)
+  );
 }
 
 async function networkFirstNavigation(event) {

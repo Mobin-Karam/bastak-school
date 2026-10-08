@@ -14,6 +14,7 @@ export type UserContext = {
     capabilities: string[];
     membershipIds: string[];
     organizationIds: string[];
+    activeOrganizationId?: string;
 };
 export declare class AuthorizationService {
     private readonly assignments;

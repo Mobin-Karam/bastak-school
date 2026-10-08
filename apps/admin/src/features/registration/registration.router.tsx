@@ -1,26 +1,10 @@
-import { createBrowserRouter, Outlet } from "react-router-dom";
-import { RegistrationLayout } from "./RegistrationLayout";
-import { RegistrationDashboardPage } from "./RegistrationDashboardPage";
+import { createBrowserRouter } from "react-router-dom";
+import { RegistrationComingSoonPage } from "./pages/RegistrationComingSoonPage";
 
 export const registrationRouter = createBrowserRouter([
   {
     path: "/admin/registration",
-    element: <RegistrationLayout />,
-    children: [
-      {
-        index: true,
-        element: <RegistrationDashboardPage />,
-      },
-      {
-        path: "dashboard",
-        element: <RegistrationDashboardPage />,
-      },
-      // Add more routes for individual sections if needed
-      // {
-      //   path: "basic-information",
-      //   element: <BasicInformationSection />,
-      // },
-    ],
+    element: <RegistrationComingSoonPage />,
   },
 ]);
 
@@ -28,16 +12,6 @@ export const registrationRouter = createBrowserRouter([
 export const registrationRoutes = [
   {
     path: "/admin/registration",
-    element: <RegistrationLayout />,
-    children: [
-      {
-        index: true,
-        element: <RegistrationDashboardPage />,
-      },
-      {
-        path: "dashboard",
-        element: <RegistrationDashboardPage />,
-      },
-    ],
+    element: <RegistrationComingSoonPage />,
   },
 ];

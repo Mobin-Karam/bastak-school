@@ -32,6 +32,8 @@ export type AuthenticatedUser = {
   capabilities?: string[];
   membershipIds?: string[];
   organizationIds?: string[];
+  /** Explicit tenant selected through the Admin work-context header. */
+  activeOrganizationId?: string;
 };
 
 @Injectable()
@@ -235,10 +237,11 @@ export class AuthService {
   async context(user: AuthenticatedUser, activeOrganizationId?: string) {
     const organizationIds = user.organizationIds ?? [];
     const roles = user.roles ?? (user.role === "ADMIN" ? [] : [user.role]);
+    const isPlatformAdmin = roles.includes("PLATFORM_ADMIN");
     if (
       activeOrganizationId &&
       !organizationIds.includes(activeOrganizationId) &&
-      !roles.includes("PLATFORM_ADMIN")
+      !isPlatformAdmin
     )
       throw new ApiException(
         403,
@@ -261,18 +264,45 @@ export class AuthService {
       relations: { organization: true },
       order: { joinedAt: "ASC" },
     });
-    const organizations = memberships.map((membership) => ({
+    const membershipsForContext = memberships.map((membership) => ({
       membershipId: membership.id,
       id: membership.organization.id,
       name: membership.organization.name,
       type: membership.organization.type,
     }));
+    // A platform administrator may deliberately enter any active tenant
+    // context. This is still authorized again by the request guard; exposing
+    // the list here only powers the explicit tenant picker in Admin.
+    const selectableOrganizations = isPlatformAdmin
+      ? ((
+          await this.organizations?.find({
+            where: { status: OrganizationStatus.ACTIVE },
+            order: { name: "ASC" },
+          })
+        )?.map((organization) => ({
+          membershipId:
+            membershipsForContext.find((item) => item.id === organization.id)
+              ?.membershipId ?? "",
+          id: organization.id,
+          name: organization.name,
+          type: organization.type,
+        })) ?? [])
+      : membershipsForContext;
+    if (
+      activeOrganizationId &&
+      !selectableOrganizations.some((item) => item.id === activeOrganizationId)
+    )
+      throw new ApiException(
+        404,
+        "ORGANIZATION_NOT_FOUND",
+        "سازمان فعال پیدا نشد.",
+      );
     // A regular member must always receive a usable organization work context.
     // Without this fallback, members of more than one organization authenticate
     // successfully but make every scoped request without X-Organization-Id.
     const effectiveOrganizationId =
       activeOrganizationId ??
-      (roles.includes("PLATFORM_ADMIN") ? undefined : organizations[0]?.id);
+      (isPlatformAdmin ? undefined : selectableOrganizations[0]?.id);
     const assignments = await this.authorization.enrich(
       user as Required<AuthenticatedUser>,
       undefined,
@@ -302,11 +332,12 @@ export class AuthService {
       roles: assignments.roles,
       capabilities: assignments.capabilities,
       workContexts,
-      memberships: organizations,
+      memberships: membershipsForContext,
       activeOrganization:
-        organizations.find((item) => item.id === effectiveOrganizationId) ??
-        null,
-      availableOrganizations: organizations,
+        selectableOrganizations.find(
+          (item) => item.id === effectiveOrganizationId,
+        ) ?? null,
+      availableOrganizations: selectableOrganizations,
     };
   }
 

@@ -91,6 +91,36 @@ export class WorkflowsController {
     return ok(await this.service.reviewExitPermission(user, id, body as any));
   }
 
+  @Post("student/exit-permissions/:id/return-request")
+  @RequireCapabilities("exit.manage")
+  requestReturn(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param("id") id: string,
+    @Body() body: { note?: string },
+  ) {
+    return this.service.requestExitReturn(user, id, body?.note).then(ok);
+  }
+
+  /** Gate staff can issue an immediate, auditable exit for a student found by phone. */
+  @Post("exit-permissions/gate-departure")
+  @RequireCapabilities("exit.manage")
+  gateDeparture(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() body: { organizationId: string; phoneNumber: string; destination?: string; reason?: string; expectedReturnAt?: string },
+  ) {
+    return this.service.recordGateDeparture(user, body).then(ok);
+  }
+
+  /** A physical gate check-in may be confirmed by phone without waiting on the app. */
+  @Post("exit-permissions/gate-return")
+  @RequireCapabilities("exit.manage")
+  gateReturn(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() body: { organizationId: string; phoneNumber: string; note?: string },
+  ) {
+    return this.service.recordGateReturn(user, body).then(ok);
+  }
+
   @Post("exit-permissions/:id/departure")
   @RequireCapabilities("exit.manage")
   departure(@CurrentUser() user: AuthenticatedUser, @Param("id") id: string) {
@@ -104,7 +134,7 @@ export class WorkflowsController {
   }
 
   @Get("attendance/occupancy")
-  @RequireCapabilities("attendance.read")
+  @RequireCapabilities("school.occupancy.read")
   occupancy(
     @CurrentUser() user: AuthenticatedUser,
     @Query("organizationId") organizationId?: string,

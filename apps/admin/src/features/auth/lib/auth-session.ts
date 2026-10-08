@@ -2,6 +2,8 @@ import type { RoleCode, User } from "../../../shared/types/domain";
 
 export const AUTH_SIGNAL_KEY = "moshaver_admin_auth_signal";
 export const PENDING_LOGOUT_KEY = "moshaver_admin_logout_pending";
+/** Set only by an explicit sign-in; restored sessions should enter without a splash. */
+export const AUTH_SUCCESS_SPLASH_KEY = "zanin_auth_success_splash";
 
 export const ADMIN_PORTAL_ROLES = [
   "STUDENT",
@@ -30,6 +32,7 @@ export const SUPPORTED_ADMIN_PORTAL_ROLES = [
   "TEACHER",
   "STUDENT",
   "GUARDIAN",
+  // "DISCIPLINARIAN"
 ] as const satisfies readonly RoleCode[];
 
 export function isSupportedAdminPortalRole(role?: RoleCode | null) {

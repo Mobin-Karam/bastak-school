@@ -313,6 +313,7 @@ export class StudentAdministrationService {
     return this.dataSource.transaction(async (manager) => {
       const phoneNumber = normalizeIranianMobile(dto.phoneNumber);
       const username = phoneNumber;
+      const [firstName = "", ...lastNameParts] = dto.name.trim().split(/\s+/);
       if (await manager.findOne(User, { where: { phoneNumber } }))
         throw new ApiException(
           409,
@@ -325,6 +326,8 @@ export class StudentAdministrationService {
           username,
           phoneNumber,
           passwordHash: await bcrypt.hash(dto.password, 12),
+          firstName,
+          lastName: lastNameParts.join(" "),
           role: UserRole.STUDENT,
           status: UserStatus.ACTIVE,
         }),
@@ -352,28 +355,35 @@ export class StudentAdministrationService {
           trackId: education?.trackId ?? "independent",
           grade: education?.gradeLabel ?? "",
           major: education?.trackLabel ?? "",
-          targetUniversity: "",
-          targetField: "",
-          targetRank: "",
-          dailyCapacity: "",
+          targetUniversity: dto.targetUniversity?.trim() || "",
+          targetField: dto.targetField?.trim() || "",
+          targetRank: dto.targetRank?.trim() || "",
+          dailyCapacity: dto.dailyCapacity?.trim() || "",
           accountStatus: "active",
         }),
       );
       const role = await manager.findOneByOrFail(Role, { code: "STUDENT" });
+      // Create the school link before the role assignment.  The STUDENT role
+      // is currently global for backwards compatibility, but this preserves
+      // the correct association if its scope is tightened later.
+      const membership = organization
+        ? await manager.save(
+            OrganizationMembership,
+            manager.create(OrganizationMembership, {
+              user,
+              organization,
+              status: MembershipStatus.ACTIVE,
+            }),
+          )
+        : null;
       await manager.save(
         UserRoleAssignment,
-        manager.create(UserRoleAssignment, { user, role, membership: null }),
+        manager.create(UserRoleAssignment, {
+          user,
+          role,
+          membership: role.organizationScoped ? membership : null,
+        }),
       );
-      if (organization) {
-        await manager.save(
-          OrganizationMembership,
-          manager.create(OrganizationMembership, {
-            user,
-            organization,
-            status: MembershipStatus.ACTIVE,
-          }),
-        );
-      }
       return this.project(student);
     });
   }
@@ -471,7 +481,7 @@ export class StudentAdministrationService {
             );
           }
         }
-        const [firstName = "", ...lastNameParts] = student.name
+        const [firstName = "", ...lastNameParts] = (requestedStudentName ?? student.name)
           .trim()
           .split(/\s+/);
         manager.merge(User, student.user, {

@@ -56,12 +56,14 @@ let ClassesService = class ClassesService {
     async list(actor, organizationId) {
         const context = this.context(actor);
         this.authorization.requireCapability(context, "classes.read");
+        const requestedOrganizationId = organizationId ?? actor.activeOrganizationId;
         const allowedOrganizations = this.isPlatform(context)
-            ? organizationId
-                ? [organizationId]
+            ? requestedOrganizationId
+                ? [requestedOrganizationId]
                 : undefined
             : context.organizationIds;
-        if (organizationId && !this.canReadOrganization(context, organizationId))
+        if (requestedOrganizationId &&
+            !this.canReadOrganization(context, requestedOrganizationId))
             this.forbidden();
         const rows = await this.classes.find({
             where: allowedOrganizations?.length
@@ -210,7 +212,7 @@ let ClassesService = class ClassesService {
         return { deleted: true };
     }
     async setBooks(actor, id, dto) {
-        const classroom = await this.requireClass(actor, id, "classes.manage", true);
+        const classroom = await this.requireClass(actor, id, "education.catalog.manage", true);
         const requested = dto.books || [];
         const eligible = await this.catalog.listBooks(classroom.gradeId, classroom.educationTypeId, classroom.trackId, [classroom.organization.id]);
         const eligibleIds = new Set(eligible.map((book) => book.id));
@@ -294,6 +296,8 @@ let ClassesService = class ClassesService {
     }
     canManageOrganization(context, organizationId) {
         return (this.isPlatform(context) ||
+            (context.capabilities.includes("education.catalog.manage") &&
+                context.organizationIds.includes(organizationId)) ||
             ([
                 "ORGANIZATION_ADMIN",
                 "PRINCIPAL",
@@ -388,6 +392,8 @@ let ClassesService = class ClassesService {
             organization: {
                 id: classroom.organization.id,
                 name: classroom.organization.name,
+                type: classroom.organization.type,
+                status: classroom.organization.status,
             },
             code: classroom.code,
             name: classroom.name,

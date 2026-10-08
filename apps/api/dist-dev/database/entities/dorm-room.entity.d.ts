@@ -5,6 +5,8 @@ export declare class DormRoom {
     organization: Organization;
     code: string;
     name: string;
+    building: string;
+    floor: number;
     capacity: number;
     status: "ACTIVE" | "ARCHIVED";
     assignments: DormRoomAssignment[];

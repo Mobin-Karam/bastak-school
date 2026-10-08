@@ -61,11 +61,16 @@ export const listAnnouncements = (organizationId?: string) =>
     `/announcements${organizationId ? `?organizationId=${encodeURIComponent(organizationId)}` : ""}`,
   );
 
-export const createAnnouncement = (
-  organizationId: string,
-  body: Pick<SchoolAnnouncement, "title" | "body" | "audience" | "status">,
-) =>
+export type SaveAnnouncementInput = Pick<
+  SchoolAnnouncement,
+  "title" | "body" | "audience" | "status"
+> & { classroomId?: string | null };
+
+export const createAnnouncement = (organizationId: string, body: SaveAnnouncementInput) =>
   api.post<SchoolAnnouncement>(
     `/organizations/${encodeURIComponent(organizationId)}/announcements`,
     body,
   );
+
+export const updateAnnouncement = (id: string, body: SaveAnnouncementInput) =>
+  api.patch<SchoolAnnouncement>(`/announcements/${encodeURIComponent(id)}`, body);

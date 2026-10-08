@@ -25,8 +25,12 @@ class CreateStudentDto {
     trackId;
     grade;
     major;
+    targetUniversity;
+    targetField;
+    targetRank;
+    dailyCapacity;
     static _OPENAPI_METADATA_FACTORY() {
-        return { name: { required: true, type: () => String, minLength: 2, maxLength: 160 }, phoneNumber: { required: true, type: () => String, minLength: 11, maxLength: 11 }, password: { required: true, type: () => String, minLength: 12 }, organizationId: { required: false, type: () => String, format: "uuid" }, learnerProfile: { required: false, enum: ["school", "independent"], enum: ["school", "independent"] }, independentType: { required: false, enum: ["adult", "gap_year", "homeschool", "other"], enum: ["adult", "gap_year", "homeschool", "other"] }, learningLevel: { required: false, type: () => String, minLength: 0, maxLength: 120 }, gradeId: { required: false, type: () => Number, minimum: 1, maximum: 12 }, educationTypeId: { required: false, type: () => String, minLength: 1, maxLength: 40 }, trackId: { required: false, type: () => String, minLength: 1, maxLength: 80 }, grade: { required: false, type: () => String, minLength: 0, maxLength: 80 }, major: { required: false, type: () => String, minLength: 0, maxLength: 80 } };
+        return { name: { required: true, type: () => String, minLength: 2, maxLength: 160 }, phoneNumber: { required: true, type: () => String, minLength: 11, maxLength: 11 }, password: { required: true, type: () => String, minLength: 12 }, organizationId: { required: false, type: () => String, format: "uuid" }, learnerProfile: { required: false, enum: ["school", "independent"], enum: ["school", "independent"] }, independentType: { required: false, enum: ["adult", "gap_year", "homeschool", "other"], enum: ["adult", "gap_year", "homeschool", "other"] }, learningLevel: { required: false, type: () => String, minLength: 0, maxLength: 120 }, gradeId: { required: false, type: () => Number, minimum: 1, maximum: 12 }, educationTypeId: { required: false, type: () => String, minLength: 1, maxLength: 40 }, trackId: { required: false, type: () => String, minLength: 1, maxLength: 80 }, grade: { required: false, type: () => String, minLength: 0, maxLength: 80 }, major: { required: false, type: () => String, minLength: 0, maxLength: 80 }, targetUniversity: { required: false, type: () => String, minLength: 0, maxLength: 160 }, targetField: { required: false, type: () => String, minLength: 0, maxLength: 160 }, targetRank: { required: false, type: () => String, minLength: 0, maxLength: 40 }, dailyCapacity: { required: false, type: () => String, minLength: 0, maxLength: 40 } };
     }
 }
 exports.CreateStudentDto = CreateStudentDto;
@@ -97,6 +101,30 @@ __decorate([
     (0, class_validator_1.Length)(0, 80),
     __metadata("design:type", String)
 ], CreateStudentDto.prototype, "major", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.Length)(0, 160),
+    __metadata("design:type", String)
+], CreateStudentDto.prototype, "targetUniversity", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.Length)(0, 160),
+    __metadata("design:type", String)
+], CreateStudentDto.prototype, "targetField", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.Length)(0, 40),
+    __metadata("design:type", String)
+], CreateStudentDto.prototype, "targetRank", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.Length)(0, 40),
+    __metadata("design:type", String)
+], CreateStudentDto.prototype, "dailyCapacity", void 0);
 class UpdateStudentDto {
     learnerProfile;
     independentType;

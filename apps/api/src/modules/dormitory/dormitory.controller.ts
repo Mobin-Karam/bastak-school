@@ -3,7 +3,7 @@ import { RequireCapabilities } from "../../common/decorators/capabilities.decora
 import { CurrentUser } from "../../common/decorators/current-user.decorator";
 import { ok } from "../../common/utils/envelope";
 import { AuthenticatedUser } from "../auth";
-import { CreateDormRoomDto, SetDormRoomAssignmentsDto } from "./dormitory.dto";
+import { CreateDormRoomDto, SendDormAnnouncementDto, SetDormRoomAssignmentsDto } from "./dormitory.dto";
 import { DormitoryService } from "./dormitory.service";
 
 @Controller("dormitory")
@@ -32,5 +32,17 @@ export class DormitoryController {
   @RequireCapabilities("dormitory.manage")
   setAssignments(@CurrentUser() user: AuthenticatedUser, @Param("id") id: string, @Body() dto: SetDormRoomAssignmentsDto) {
     return this.dormitory.setAssignments(user, id, dto.studentIds).then(ok);
+  }
+
+  @Get("students")
+  @RequireCapabilities("dormitory.read")
+  students(@CurrentUser() user: AuthenticatedUser, @Query("organizationId") organizationId: string, @Query("q") query = "") {
+    return this.dormitory.findStudents(user, organizationId, query).then(ok);
+  }
+
+  @Post("announcements")
+  @RequireCapabilities("announcements.manage")
+  announce(@CurrentUser() user: AuthenticatedUser, @Body() dto: SendDormAnnouncementDto) {
+    return this.dormitory.sendAnnouncement(user, dto).then(ok);
   }
 }

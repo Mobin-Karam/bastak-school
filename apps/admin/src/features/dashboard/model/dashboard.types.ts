@@ -166,6 +166,17 @@ export type RoleDashboardData = {
   systemHealth?: { database?: string; sqlite?: boolean };
   releaseStatus?: { version?: string; environment?: string };
   auditSummary?: { events24h?: number; lockedLogins?: number };
+  /** Platform-admin-only, server-authorized tenant overview. */
+  platformOrganizations?: Array<{
+    id: string;
+    name: string;
+    type: string;
+    status: string;
+    members: number;
+    students: number;
+    staff: number;
+    scheduleEntries: number;
+  }>;
   signupOverview?: {
     enabledOrganizations?: number;
     remainingCapacity?: number;

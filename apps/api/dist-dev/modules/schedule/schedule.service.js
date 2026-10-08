@@ -50,15 +50,18 @@ let ScheduleService = class ScheduleService {
         return context.roles.some((role) => ["PLATFORM_ADMIN", "ORGANIZATION_ADMIN", "PRINCIPAL"].includes(role));
     }
     async list(user, organizationId) {
+        const requestedOrganizationId = organizationId ?? user.activeOrganizationId;
         const context = this.context(user);
         this.authorization.requireCapability(context, "schedule.read");
-        if (organizationId &&
+        if (requestedOrganizationId &&
             !context.roles.includes("PLATFORM_ADMIN") &&
-            !context.organizationIds.includes(organizationId))
+            !context.organizationIds.includes(requestedOrganizationId))
             throw new api_exception_1.ApiException(403, "FORBIDDEN", "دسترسی کافی ندارید.");
         if (context.roles.includes("PLATFORM_ADMIN"))
             return this.entries.find({
-                where: organizationId ? { organization: { id: organizationId } } : {},
+                where: requestedOrganizationId
+                    ? { organization: { id: requestedOrganizationId } }
+                    : {},
                 relations: { organization: true, classroom: true, teacher: true },
                 order: { weekday: "ASC", startTime: "ASC" },
             });
@@ -66,7 +69,9 @@ let ScheduleService = class ScheduleService {
             return this.entries.find({
                 where: {
                     organization: {
-                        id: (0, typeorm_2.In)(organizationId ? [organizationId] : context.organizationIds),
+                        id: (0, typeorm_2.In)(requestedOrganizationId
+                            ? [requestedOrganizationId]
+                            : context.organizationIds),
                     },
                 },
                 relations: { organization: true, classroom: true, teacher: true },
@@ -77,7 +82,9 @@ let ScheduleService = class ScheduleService {
                 where: {
                     teacher: { id: user.id },
                     organization: {
-                        id: (0, typeorm_2.In)(organizationId ? [organizationId] : context.organizationIds),
+                        id: (0, typeorm_2.In)(requestedOrganizationId
+                            ? [requestedOrganizationId]
+                            : context.organizationIds),
                     },
                     status: "ACTIVE",
                 },
@@ -91,7 +98,9 @@ let ScheduleService = class ScheduleService {
                 where: {
                     classroom: { advisor: { id: user.id } },
                     organization: {
-                        id: (0, typeorm_2.In)(organizationId ? [organizationId] : context.organizationIds),
+                        id: (0, typeorm_2.In)(requestedOrganizationId
+                            ? [requestedOrganizationId]
+                            : context.organizationIds),
                     },
                     status: "ACTIVE",
                 },
@@ -104,8 +113,8 @@ let ScheduleService = class ScheduleService {
             });
         }
         if (context.roles.includes("GUARDIAN")) {
-            const organizationIds = organizationId
-                ? [organizationId]
+            const organizationIds = requestedOrganizationId
+                ? [requestedOrganizationId]
                 : context.organizationIds;
             if (!organizationIds.length)
                 return [];
@@ -126,8 +135,8 @@ let ScheduleService = class ScheduleService {
                 .getMany();
         }
         if (context.roles.includes("STUDENT")) {
-            const organizationIds = organizationId
-                ? [organizationId]
+            const organizationIds = requestedOrganizationId
+                ? [requestedOrganizationId]
                 : context.organizationIds;
             if (!organizationIds.length)
                 return [];
@@ -150,7 +159,9 @@ let ScheduleService = class ScheduleService {
             return this.entries.find({
                 where: {
                     organization: {
-                        id: (0, typeorm_2.In)(organizationId ? [organizationId] : context.organizationIds),
+                        id: (0, typeorm_2.In)(requestedOrganizationId
+                            ? [requestedOrganizationId]
+                            : context.organizationIds),
                     },
                     status: "ACTIVE",
                 },

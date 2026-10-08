@@ -53,4 +53,5 @@ export declare class OrganizationsService {
         removed: boolean;
     }>;
     private assertAssignable;
+    private assertTypeChangeIsCompatible;
 }

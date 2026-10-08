@@ -44,6 +44,10 @@ export function logoutRequest() {
 
 export function checkBackendHealth() {
   return request<BackendHealth>("GET", "/health", undefined, {
+    // Login must remain usable even if a reverse proxy or a sleeping backend
+    // does not answer. This is a display-only probe, not an auth dependency.
+    timeoutMs: 5_000,
     suppressAuthFailure: true,
+    unversioned: true,
   });
 }

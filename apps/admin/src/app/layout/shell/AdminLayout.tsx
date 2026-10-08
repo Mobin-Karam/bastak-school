@@ -131,9 +131,9 @@ export function AdminLayout() {
           mainCollapsed,
           contextCollapsed,
           direction: profile.direction,
-        })} scroll-reveal h-dvh min-w-0 overflow-y-auto overscroll-contain transition-[margin] duration-200 motion-reduce:transition-none`}
+        })} flex h-dvh min-w-0 flex-col overflow-hidden transition-[margin] duration-200 motion-reduce:transition-none`}
       >
-        <div className="sticky top-0 z-30 flex min-h-[calc(3.5rem+env(safe-area-inset-top))] items-end justify-center overflow-hidden bg-paper pb-2 pt-[env(safe-area-inset-top)] lg:hidden">
+        <div className="admin-mobile-masthead relative z-30 flex min-h-[calc(3.5rem+env(safe-area-inset-top))] shrink-0 items-end justify-center overflow-hidden bg-paper pb-2 pt-[env(safe-area-inset-top)] lg:hidden">
           <img
             src="/right-left-angel.png"
             width={136}
@@ -163,7 +163,7 @@ export function AdminLayout() {
         </div>
         {auth.activeRole === "PLATFORM_ADMIN" ? (
           <section
-            className="mx-3 mt-2 flex items-start gap-2 rounded-lg border border-amber-300/80 bg-amber-50 px-3 py-2.5 text-xs leading-5 text-amber-950 dark:border-amber-700 dark:bg-amber-950/35 dark:text-amber-100 lg:hidden"
+            className="mx-3 mt-2 flex shrink-0 items-start gap-2 rounded-lg border border-amber-300/80 bg-amber-50 px-3 py-2.5 text-xs leading-5 text-amber-950 dark:border-amber-700 dark:bg-amber-950/35 dark:text-amber-100 lg:hidden"
             role="status"
             aria-label="هشدار استفاده از مدیریت پلتفرم در موبایل"
           >
@@ -174,12 +174,12 @@ export function AdminLayout() {
             </p>
           </section>
         ) : null}
-        <div className="hidden lg:block">
+        <div className="hidden shrink-0 lg:block">
           <AdminHeader
             current={current}
             breadcrumbs={breadcrumbs}
             selectedStudentId={selectedStudentId}
-            sticky
+            sticky={false}
             role={roleLabel(auth.activeRole, language)}
             organization={auth.context?.activeOrganization?.name}
             multipleRoles={
@@ -190,11 +190,13 @@ export function AdminLayout() {
           />
         </div>
 
-        <main className="w-full min-w-0 px-3 py-4 pb-[calc(5rem+env(safe-area-inset-bottom))] sm:px-5 sm:py-5 lg:px-6 lg:pb-6 xl:px-8">
-          <div className="admin-page-shell mx-auto w-full max-w-[1600px]">
-            <Outlet />
-          </div>
-        </main>
+        <div className="scroll-reveal min-h-0 flex-1 overflow-y-auto overscroll-contain">
+          <main className="w-full min-w-0 px-3 py-4 pb-[calc(5rem+env(safe-area-inset-bottom))] sm:px-5 sm:py-5 lg:px-6 lg:pb-6 xl:px-8">
+            <div className="admin-page-shell mx-auto w-full max-w-[1600px]">
+              <Outlet />
+            </div>
+          </main>
+        </div>
       </div>
 
       <AdminMobileBottomNav

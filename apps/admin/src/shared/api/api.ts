@@ -122,6 +122,11 @@ export function getBackendTargetUrl() {
   return getApiBaseUrl();
 }
 
+/** Base path for infrastructure routes excluded from Nest's `/api/v2` prefix. */
+export function getBackendRootUrl() {
+  return getBackendTargetUrl().replace(/\/api\/v[12]$/, "");
+}
+
 function csrf() {
   return sessionStorage.getItem(CSRF_KEY) || "";
 }
@@ -165,6 +170,8 @@ export async function request<T>(
     noCsrfRetry?: boolean;
     noAuthRefresh?: boolean;
     suppressAuthFailure?: boolean;
+    /** Use for public infrastructure routes such as `/health`, outside `/api/v2`. */
+    unversioned?: boolean;
   } = {},
 ): Promise<T> {
   const controller = new AbortController();
@@ -177,7 +184,8 @@ export async function request<T>(
   if (isMutating(method) && token) headers.set("X-CSRF-Token", token);
 
   try {
-    const response = await fetch(`${getBackendTargetUrl()}${path}`, {
+    const baseUrl = options.unversioned ? getBackendRootUrl() : getBackendTargetUrl();
+    const response = await fetch(`${baseUrl}${path}`, {
       method,
       headers,
       credentials: "include",
@@ -365,6 +373,7 @@ export const api = {
       "exam.updated",
       "attendance.updated",
       "school-home.updated",
+      "school.occupancy.updated",
     ];
     names.forEach((name) =>
       source.addEventListener(name, (event) =>

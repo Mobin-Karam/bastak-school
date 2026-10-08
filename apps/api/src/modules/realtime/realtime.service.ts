@@ -14,7 +14,8 @@ export type RealtimeEventType =
   | "system.update"
   | "chat.message.created"
   | "attendance.updated"
-  | "school-home.updated";
+  | "school-home.updated"
+  | "school.occupancy.updated";
 
 export type RealtimeEvent = CmbRealtimeEvent<RealtimeEventType>;
 

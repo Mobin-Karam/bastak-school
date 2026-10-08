@@ -1,15 +1,20 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Archive,
+  CalendarDays,
   CalendarClock,
+  BookOpenCheck,
+  Clock3,
   Download,
   GraduationCap,
+  MapPin,
   Pencil,
   Plus,
   Trash2,
   Upload,
+  UserRound,
 } from "lucide-react";
-import { useRef, useState } from "react";
+import { useMemo, useRef, useState, type ReactNode } from "react";
 import { listOrganizations } from "../../access/api/access.api";
 import { useAuth } from "../../auth";
 import { listClasses } from "../../education/api/classes.api";
@@ -33,6 +38,9 @@ import {
 } from "../api/schedule.api";
 import type { ScheduleEntry } from "../api/schedule.api";
 import { TeacherSchedulePage } from "../../teacher-portal";
+import { OrganizationTag } from "../../../shared/ui/organization-tag";
+import { todayIso } from "../../../shared/lib/utils";
+import { useModal } from "../../../shared/ui/modal";
 
 const weekdays = ["یکشنبه", "دوشنبه", "سه‌شنبه", "چهارشنبه", "پنجشنبه", "جمعه", "شنبه"];
 const blank = (): ScheduleDraft => ({
@@ -59,11 +67,17 @@ const spreadsheet = defineSpreadsheet<ScheduleDraft>({
 
 export function SchedulePage() {
   const auth = useAuth();
+  const modal = useModal();
   const client = useQueryClient();
-  const [draft, setDraft] = useState<ScheduleDraft>(blank);
-  const [editing, setEditing] = useState<string | null>(null);
+  const [activeWeekday, setActiveWeekday] = useState(() =>
+    new Date(`${todayIso()}T12:00:00`).getDay(),
+  );
   const upload = useRef<HTMLInputElement>(null);
-  const entries = useQuery({ queryKey: ["schedule"], queryFn: listSchedule });
+  const selectedOrganizationId = auth.context?.activeOrganization?.id;
+  const entries = useQuery({
+    queryKey: ["schedule", selectedOrganizationId ?? "all"],
+    queryFn: listSchedule,
+  });
   const canReadOrganizations = auth.can("organization.read");
   const organizations = useQuery({
     queryKey: ["organizations", "schedule"],
@@ -83,11 +97,10 @@ export function SchedulePage() {
   });
   const reload = () => void client.invalidateQueries({ queryKey: ["schedule"] });
   const save = useMutation({
-    mutationFn: () => (editing ? updateScheduleEntry(editing, draft) : createScheduleEntry(draft)),
+    mutationFn: ({ id, draft }: { id?: string; draft: ScheduleDraft }) =>
+      id ? updateScheduleEntry(id, draft) : createScheduleEntry(draft),
     onSuccess: () => {
       reload();
-      setDraft(blank());
-      setEditing(null);
       notify("برنامه ذخیره شد.", "success");
     },
     onError: (e) => notify(e instanceof Error ? e.message : "ذخیره برنامه انجام نشد.", "error"),
@@ -97,7 +110,15 @@ export function SchedulePage() {
       archiveScheduleEntry(id, status),
     onSuccess: reload,
   });
-  const remove = useMutation({ mutationFn: deleteScheduleEntry, onSuccess: reload });
+  const remove = useMutation({
+    mutationFn: deleteScheduleEntry,
+    onSuccess: () => {
+      reload();
+      notify("برنامه حذف شد.", "success");
+    },
+    onError: (error) =>
+      notify(error instanceof Error ? error.message : "حذف برنامه انجام نشد.", "error"),
+  });
   async function download() {
     try {
       const rows = await exportSchedule();
@@ -151,182 +172,413 @@ export function SchedulePage() {
     return <EmptyState title="دریافت برنامه انجام نشد." />;
   if (isStudent) return <StudentWeeklySchedule entries={entries.data ?? []} />;
   if (isTeacher) return <TeacherSchedulePage entries={entries.data ?? []} />;
+  const editEntry = (entry?: ScheduleEntry) => {
+    modal.open({
+      title: entry ? "ویرایش جلسه" : "افزودن جلسه به برنامه",
+      description: entry
+        ? "جزئیات جلسه را اصلاح کنید؛ تغییرات فقط پس از ذخیره اعمال می‌شود."
+        : "گام ۱: مدرسه و کلاس را مشخص کنید. گام ۲: زمان و فضای جلسه را وارد کنید.",
+      size: "lg",
+      content: (
+        <ScheduleEditorForm
+          initial={entry ? draftFromEntry(entry) : blank()}
+          organizations={organizationOptions}
+          classes={classes.data ?? []}
+          isSaving={save.isPending}
+          onCancel={modal.close}
+          onSubmit={async (draft) => {
+            await save.mutateAsync({ id: entry?.id, draft });
+            modal.close();
+          }}
+        />
+      ),
+    });
+  };
+  const confirmDelete = (entry: ScheduleEntry) => {
+    void modal
+      .confirm({
+        title: "حذف جلسه از برنامه؟",
+        description: `«${entry.title}» برای همیشه از برنامه حذف می‌شود. این کار قابل بازگشت نیست.`,
+        tone: "danger",
+        confirmLabel: "حذف جلسه",
+        cancelLabel: "انصراف",
+        softConfirm: true,
+      })
+      .then((confirmed) => confirmed && remove.mutate(entry.id));
+  };
+  const openDetails = (entry: ScheduleEntry) => {
+    modal.open({
+      title: "جزئیات جلسه",
+      description: "زمان، کلاس و فضای آموزشی جلسه انتخاب‌شده",
+      size: "md",
+      content: (
+        <SchedulePlanModal
+          entry={entry}
+          showOrganization={auth.hasRole("PLATFORM_ADMIN")}
+          canWrite={canWrite}
+          canDelete={auth.can("schedule.delete")}
+          onClose={modal.close}
+          onEdit={() => {
+            modal.close();
+            editEntry(entry);
+          }}
+          onArchive={() => {
+            modal.close();
+            archive.mutate({
+              id: entry.id,
+              status: entry.status === "ACTIVE" ? "ARCHIVED" : "ACTIVE",
+            });
+          }}
+          onDelete={() => {
+            modal.close();
+            confirmDelete(entry);
+          }}
+        />
+      ),
+    });
+  };
   return (
-    <section className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_22rem]" dir="rtl">
-      <Card className="order-2 p-3 xl:order-1">
-        <div className="mb-3 flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2">
-            <CalendarClock className="text-brand" size={19} />
+    <section
+      className="mx-auto grid w-full max-w-7xl gap-4 pb-[calc(6rem+env(safe-area-inset-bottom))] xl:grid-cols-[minmax(0,1fr)_22rem] xl:pb-6"
+      dir="rtl"
+    >
+      <div className="order-2 grid gap-3 xl:order-1">
+        <ScheduleWorkspace
+          entries={entries.data ?? []}
+          activeWeekday={activeWeekday}
+          onWeekdayChange={setActiveWeekday}
+          canWrite={canWrite}
+          showOrganization={auth.hasRole("PLATFORM_ADMIN")}
+          canDelete={auth.can("schedule.delete")}
+          onEdit={editEntry}
+          onArchive={(entry) =>
+            archive.mutate({
+              id: entry.id,
+              status: entry.status === "ACTIVE" ? "ARCHIVED" : "ACTIVE",
+            })
+          }
+          onDelete={confirmDelete}
+          onOpenDetails={openDetails}
+          toolbar={
+            auth.can("schedule.export") ? (
+              <div className="flex shrink-0 gap-1">
+                <Button size="sm" variant="soft" onClick={() => void download()}>
+                  <Download size={14} /> Excel
+                </Button>
+                {auth.can("schedule.import") ? (
+                  <>
+                    <input
+                      ref={upload}
+                      className="hidden"
+                      type="file"
+                      accept=".xlsx"
+                      onChange={(e) => void importFile(e.target.files?.[0])}
+                    />
+                    <Button size="sm" variant="soft" onClick={() => upload.current?.click()}>
+                      <Upload size={14} /> Excel
+                    </Button>
+                  </>
+                ) : null}
+              </div>
+            ) : null
+          }
+        />
+      </div>
+      {canWrite ? (
+        <Card className="order-1 border-brand/15 bg-[rgb(var(--surface-card))] p-4 xl:order-2 xl:sticky xl:top-3 xl:self-start">
+          <span className="grid size-10 place-items-center rounded-xl bg-brand/10 text-brand">
+            <Plus size={20} />
+          </span>
+          <h2 className="mt-3 font-black text-ink">ساخت جلسه، بدون ترک جدول</h2>
+          <p className="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-300">
+            در یک فرم کوتاه، مدرسه، زمان و فضای جلسه را مشخص کنید.
+          </p>
+          <Button className="mt-4 w-full" onClick={() => editEntry()}>
+            <Plus size={16} /> افزودن جلسه
+          </Button>
+        </Card>
+      ) : null}
+    </section>
+  );
+}
+
+const displayWeekdays = [6, 0, 1, 2, 3, 4, 5] as const;
+
+type ScheduleWorkspaceProps = {
+  entries: ScheduleEntry[];
+  activeWeekday: number;
+  onWeekdayChange: (weekday: number) => void;
+  canWrite: boolean;
+  canDelete: boolean;
+  showOrganization: boolean;
+  onEdit: (entry: ScheduleEntry) => void;
+  onArchive: (entry: ScheduleEntry) => void;
+  onDelete: (entry: ScheduleEntry) => void;
+  onOpenDetails: (entry: ScheduleEntry) => void;
+  toolbar?: ReactNode;
+};
+
+function ScheduleWorkspace({
+  entries,
+  activeWeekday,
+  onWeekdayChange,
+  canWrite,
+  canDelete,
+  showOrganization,
+  onEdit,
+  onArchive,
+  onDelete,
+  onOpenDetails,
+  toolbar,
+}: ScheduleWorkspaceProps) {
+  const activeScheduleEntries = useMemo(
+    () => entries.filter((entry) => entry.status === "ACTIVE"),
+    [entries],
+  );
+  const archivedEntries = useMemo(
+    () => entries.filter((entry) => entry.status === "ARCHIVED"),
+    [entries],
+  );
+  const entriesByWeekday = useMemo(
+    () =>
+      new Map(
+        weekdays.map((_, weekday) => [
+          weekday,
+          activeScheduleEntries
+            .filter((entry) => entry.weekday === weekday)
+            .sort((left, right) => left.startTime.localeCompare(right.startTime)),
+        ]),
+      ),
+    [activeScheduleEntries],
+  );
+  const today = new Date(`${todayIso()}T12:00:00`).getDay();
+  const activeEntries = entriesByWeekday.get(activeWeekday) ?? [];
+  const classLanes = useMemo(() => {
+    const lanes = new Map<string, ScheduleEntry[]>();
+
+    activeScheduleEntries.forEach((entry) => {
+      const label = entry.classroom?.name || entry.room || "برنامه عمومی مدرسه";
+      lanes.set(label, [...(lanes.get(label) ?? []), entry]);
+    });
+
+    return Array.from(lanes, ([label, laneEntries]) => ({
+      label,
+      entries: laneEntries.sort((left, right) => {
+        const weekdayOrder = left.weekday - right.weekday;
+        return weekdayOrder || left.startTime.localeCompare(right.startTime);
+      }),
+    })).sort((left, right) => left.label.localeCompare(right.label, "fa"));
+  }, [activeScheduleEntries]);
+
+  return (
+    <section className="grid gap-3" aria-label="برنامه هفتگی مدرسه">
+      <header className="relative overflow-hidden rounded-[1.4rem] border border-sky-100 bg-[linear-gradient(135deg,#f8fdff,#edf8ff_58%,#f5f4ff)] p-4 shadow-[0_14px_26px_-24px_rgba(21,90,150,.55),inset_0_1px_0_rgba(255,255,255,.98)] dark:border-sky-300/10 dark:bg-[linear-gradient(135deg,#123548,#102b3e_58%,#172646)] sm:p-5">
+        <span
+          className="pointer-events-none absolute -end-10 -top-12 size-36 rounded-full bg-sky-300/25 blur-3xl"
+          aria-hidden="true"
+        />
+        <div className="relative flex flex-wrap items-start justify-between gap-3">
+          <div className="flex min-w-0 items-center gap-3">
+            <span className="grid size-11 shrink-0 place-items-center rounded-2xl bg-[linear-gradient(145deg,#1687f5,#0768d8)] text-white shadow-[0_10px_18px_-12px_rgba(0,79,180,.9),inset_0_1px_0_rgba(255,255,255,.45)]">
+              <CalendarDays size={23} aria-hidden="true" />
+            </span>
             <div>
-              <h1 className="font-black">برنامه هفتگی</h1>
-              <p className="text-xs text-slate-500">برنامه‌های خواندنیِ مجاز برای نقش فعلی شما</p>
+              <p className="text-xs font-bold text-brand">مدیریت آموزشی</p>
+              <h1 className="mt-0.5 text-xl font-black text-ink sm:text-2xl">برنامه هفتگی مدرسه</h1>
+              <p className="mt-1 text-xs text-slate-500 dark:text-slate-300">
+                کلاس‌ها، زمان‌ها و فضاهای آموزشی در یک نمای عملیاتی
+              </p>
             </div>
           </div>
-          {auth.can("schedule.export") ? (
-            <div className="flex gap-1">
-              <Button size="sm" variant="soft" onClick={() => void download()}>
-                <Download size={14} />
-                Excel
-              </Button>
-              {auth.can("schedule.import") ? (
-                <>
-                  <input
-                    ref={upload}
-                    className="hidden"
-                    type="file"
-                    accept=".xlsx"
-                    onChange={(e) => void importFile(e.target.files?.[0])}
-                  />
-                  <Button size="sm" variant="soft" onClick={() => upload.current?.click()}>
-                    <Upload size={14} />
-                    Excel
-                  </Button>
-                </>
-              ) : null}
+          {toolbar}
+        </div>
+        <div className="relative mt-4 grid grid-cols-3 gap-2 sm:max-w-lg">
+          <ScheduleMetric label="جلسه فعال" value={activeScheduleEntries.length} tone="blue" />
+          <ScheduleMetric
+            label="امروز"
+            value={(entriesByWeekday.get(today) ?? []).length}
+            tone="teal"
+          />
+          <ScheduleMetric
+            label="روزهای دارای کلاس"
+            value={Array.from(entriesByWeekday.values()).filter((rows) => rows.length).length}
+            tone="violet"
+          />
+        </div>
+      </header>
+
+      <Card className="overflow-hidden p-0 shadow-[0_16px_28px_-26px_rgba(18,52,86,.45)]">
+        <div className="flex items-center justify-between gap-3 border-b border-[rgb(var(--border-subtle))] px-3 py-3 sm:px-4">
+          <div className="flex min-w-0 items-center gap-2">
+            <CalendarClock size={19} className="shrink-0 text-brand" aria-hidden="true" />
+            <div>
+              <h2 className="text-sm font-black text-ink">جدول کلاس‌ها</h2>
+              <p className="text-[11px] text-slate-500">
+                برای مشاهده جزئیات، یک روز را انتخاب کنید.
+              </p>
             </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => onWeekdayChange(today)}
+            className="shrink-0 rounded-full bg-brand/10 px-3 py-1.5 text-xs font-black text-brand transition hover:bg-brand/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+          >
+            امروز · {weekdays[today]}
+          </button>
+        </div>
+
+        <div className="border-b border-[rgb(var(--border-subtle))] px-3 py-2 md:hidden">
+          <div
+            className="flex gap-1.5 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+            aria-label="انتخاب روز برنامه"
+          >
+            {displayWeekdays.map((weekday) => (
+              <button
+                key={weekday}
+                type="button"
+                aria-pressed={weekday === activeWeekday}
+                onClick={() => onWeekdayChange(weekday)}
+                className={`min-h-9 shrink-0 rounded-xl px-3 text-xs font-bold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand ${
+                  weekday === activeWeekday
+                    ? "bg-brand text-white shadow-[0_7px_12px_-8px_rgba(13,118,111,.85)]"
+                    : "bg-[rgb(var(--surface-muted))] text-slate-600 dark:text-slate-300"
+                }`}
+              >
+                {weekdays[weekday]}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="grid gap-2 p-3 md:hidden">
+          {activeEntries.map((entry) => (
+            <ScheduleEntryCard
+              key={entry.id}
+              entry={entry}
+              showOrganization={showOrganization}
+              compact={false}
+              canWrite={canWrite}
+              canDelete={canDelete}
+              onEdit={onEdit}
+              onArchive={onArchive}
+              onDelete={onDelete}
+              onOpenPlan={onOpenDetails}
+            />
+          ))}
+          {!activeEntries.length ? (
+            <EmptyState title={`برای ${weekdays[activeWeekday]} کلاسی ثبت نشده است.`} />
           ) : null}
         </div>
-        <div className="grid gap-2 sm:grid-cols-2">
-          {entries.data?.map((entry) => (
-            <article
-              key={entry.id}
-              className="rounded-xl border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-raised))] p-3"
+
+        <div className="hidden overflow-x-auto p-3 md:block">
+          {classLanes.length ? (
+            <table
+              className="w-full min-w-[72rem] table-fixed overflow-hidden rounded-xl border border-slate-300 bg-white text-right text-[11px] dark:border-white/15 dark:bg-slate-950"
+              aria-label="دفتر برنامه هفتگی کلاس‌ها"
             >
-              <div className="flex justify-between gap-2">
-                <b>{entry.title}</b>
-                <span className="text-xs text-slate-500">{weekdays[entry.weekday]}</span>
-              </div>
-              <p className="mt-2 text-sm text-brand">
-                {entry.startTime} تا {entry.endTime}
-              </p>
-              <p className="mt-1 text-xs text-slate-500">
-                {entry.classroom?.name || entry.organization.name}
-                {entry.room ? ` · ${entry.room}` : ""}
-              </p>
-              {canWrite ? (
-                <div className="mt-3 flex gap-1">
-                  <Button
-                    size="sm"
-                    variant="soft"
-                    onClick={() => {
-                      setEditing(entry.id);
-                      setDraft({
-                        organizationId: entry.organization.id,
-                        classroomId: entry.classroom?.id,
-                        teacherId: entry.teacher?.id,
-                        title: entry.title,
-                        weekday: entry.weekday,
-                        startTime: entry.startTime,
-                        endTime: entry.endTime,
-                        room: entry.room,
-                      });
-                    }}
+              <thead>
+                <tr className="bg-[#f2b600] text-slate-950 dark:bg-amber-500">
+                  <th
+                    scope="col"
+                    className="sticky right-0 z-20 w-36 border-s border-amber-700/35 bg-[#f2b600] px-3 py-2.5 text-center text-xs font-black dark:bg-amber-500"
                   >
-                    <Pencil size={14} />
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() =>
-                      archive.mutate({
-                        id: entry.id,
-                        status: entry.status === "ACTIVE" ? "ARCHIVED" : "ACTIVE",
-                      })
-                    }
+                    کلاس / گروه
+                  </th>
+                  {displayWeekdays.map((weekday) => (
+                    <th
+                      key={weekday}
+                      scope="col"
+                      className={`border-s border-amber-700/30 px-2 py-2 text-center ${weekday === today ? "bg-[#e3a900] dark:bg-amber-400" : ""}`}
+                    >
+                      <button
+                        type="button"
+                        onClick={() => onWeekdayChange(weekday)}
+                        className="w-full rounded-md px-2 py-1 text-xs font-black transition hover:bg-white/25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900"
+                      >
+                        {weekdays[weekday]}
+                        {weekday === today ? (
+                          <span className="mt-0.5 block text-[10px]">امروز</span>
+                        ) : null}
+                      </button>
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {classLanes.map((lane, rowIndex) => (
+                  <tr
+                    key={lane.label}
+                    className={rowIndex % 2 ? "bg-slate-50/70 dark:bg-white/[.025]" : ""}
                   >
-                    <Archive size={14} />
-                  </Button>
-                  {auth.can("schedule.delete") ? (
-                    <Button size="sm" variant="ghost" onClick={() => remove.mutate(entry.id)}>
-                      <Trash2 size={14} />
-                    </Button>
-                  ) : null}
-                </div>
-              ) : null}
-            </article>
-          ))}
-          {!entries.data?.length ? <EmptyState title="برنامه‌ای برای نمایش ندارید." /> : null}
+                    <th
+                      scope="row"
+                      className="sticky right-0 z-10 border-s border-t border-slate-200 bg-inherit px-3 py-3 text-right text-xs font-black text-slate-700 dark:border-white/10 dark:text-slate-100"
+                    >
+                      <span className="block leading-5">{lane.label}</span>
+                      <span className="mt-1 block text-[10px] font-bold text-slate-400">
+                        {lane.entries.length.toLocaleString("fa-IR")} جلسه
+                      </span>
+                    </th>
+                    {displayWeekdays.map((weekday) => {
+                      const cellEntries = lane.entries.filter((entry) => entry.weekday === weekday);
+                      return (
+                        <td
+                          key={weekday}
+                          className={`align-top border-s border-t border-slate-200 p-1.5 dark:border-white/10 ${weekday === today ? "bg-brand/[.045]" : ""}`}
+                        >
+                          {cellEntries.length ? (
+                            <div className="grid min-h-14 gap-1">
+                              {cellEntries.map((entry) => (
+                                <ScheduleMatrixCell
+                                  key={entry.id}
+                                  entry={entry}
+                                  canWrite={canWrite}
+                                  canDelete={canDelete}
+                                  showOrganization={showOrganization}
+                                  onEdit={onEdit}
+                                  onArchive={onArchive}
+                                  onDelete={onDelete}
+                                  onOpenPlan={onOpenDetails}
+                                />
+                              ))}
+                            </div>
+                          ) : (
+                            <span className="block min-h-14" aria-label="کلاسی ثبت نشده است" />
+                          )}
+                        </td>
+                      );
+                    })}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          ) : (
+            <EmptyState title="برنامه فعالی برای نمایش ندارید." />
+          )}
         </div>
       </Card>
-      {canWrite ? (
-        <Card className="order-1 p-4 xl:order-2">
-          <h2 className="font-black">{editing ? "ویرایش برنامه" : "افزودن برنامه"}</h2>
-          <div className="mt-3 grid gap-3">
-            <label className="grid gap-1 text-sm font-bold">
-              مدرسه
-              <select
-                value={draft.organizationId}
-                onChange={(e) => setDraft({ ...draft, organizationId: e.target.value })}
-                className="h-10 rounded-lg border bg-[rgb(var(--surface-card))] px-3"
-              >
-                <option value="">انتخاب کنید</option>
-                {organizationOptions.map((item) => (
-                  <option key={item.id} value={item.id}>
-                    {item.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="grid gap-1 text-sm font-bold">
-              کلاس
-              <select
-                value={draft.classroomId || ""}
-                onChange={(e) => setDraft({ ...draft, classroomId: e.target.value || undefined })}
-                className="h-10 rounded-lg border bg-[rgb(var(--surface-card))] px-3"
-              >
-                <option value="">بدون کلاس</option>
-                {classes.data
-                  ?.filter(
-                    (item) =>
-                      !draft.organizationId || item.organization.id === draft.organizationId,
-                  )
-                  .map((item) => (
-                    <option key={item.id} value={item.id}>
-                      {item.name}
-                    </option>
-                  ))}
-              </select>
-            </label>
-            <Input
-              placeholder="عنوان درس یا برنامه"
-              value={draft.title}
-              onChange={(e) => setDraft({ ...draft, title: e.target.value })}
-            />
-            <div className="grid grid-cols-2 gap-2">
-              <Input
-                type="time"
-                value={draft.startTime}
-                onChange={(e) => setDraft({ ...draft, startTime: e.target.value })}
+
+      {canWrite && archivedEntries.length ? (
+        <Card className="p-3">
+          <div className="flex items-center gap-2">
+            <Archive size={17} className="text-slate-500" aria-hidden="true" />
+            <h2 className="text-sm font-black text-ink">برنامه‌های بایگانی‌شده</h2>
+          </div>
+          <div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+            {archivedEntries.map((entry) => (
+              <ScheduleEntryCard
+                key={entry.id}
+                entry={entry}
+                showOrganization={showOrganization}
+                compact={false}
+                canWrite={canWrite}
+                canDelete={canDelete}
+                onEdit={onEdit}
+                onArchive={onArchive}
+                onDelete={onDelete}
+                onOpenPlan={onOpenDetails}
               />
-              <Input
-                type="time"
-                value={draft.endTime}
-                onChange={(e) => setDraft({ ...draft, endTime: e.target.value })}
-              />
-            </div>
-            <select
-              value={draft.weekday}
-              onChange={(e) => setDraft({ ...draft, weekday: Number(e.target.value) })}
-              className="h-10 rounded-lg border bg-[rgb(var(--surface-card))] px-3"
-            >
-              {weekdays.map((label, index) => (
-                <option key={label} value={index}>
-                  {label}
-                </option>
-              ))}
-            </select>
-            <Input
-              placeholder="کلاس / اتاق"
-              value={draft.room || ""}
-              onChange={(e) => setDraft({ ...draft, room: e.target.value })}
-            />
-            <Button
-              disabled={!draft.organizationId || !draft.title || save.isPending}
-              onClick={() => save.mutate()}
-            >
-              <Plus size={16} />
-              {editing ? "ذخیره تغییرات" : "افزودن"}
-            </Button>
+            ))}
           </div>
         </Card>
       ) : null}
@@ -334,17 +586,513 @@ export function SchedulePage() {
   );
 }
 
-function StudentWeeklySchedule({ entries }: { entries: ScheduleEntry[] }) {
+function ScheduleMetric({
+  label,
+  value,
+  tone,
+}: {
+  label: string;
+  value: number;
+  tone: "blue" | "teal" | "violet";
+}) {
+  const colors = {
+    blue: "bg-sky-100/70 text-sky-800 dark:bg-sky-900/40 dark:text-sky-100",
+    teal: "bg-teal-100/70 text-teal-800 dark:bg-teal-900/40 dark:text-teal-100",
+    violet: "bg-violet-100/70 text-violet-800 dark:bg-violet-900/40 dark:text-violet-100",
+  };
   return (
-    <section className="mx-auto grid w-full max-w-4xl gap-4" dir="rtl" aria-label="برنامه هفتگی من">
-      <header className="px-1">
-        <p className="text-xs font-bold text-brand">فضای آموزشی من</p>
-        <h1 className="mt-1 text-xl font-black text-ink">برنامه هفتگی کلاس‌ها</h1>
-        <p className="mt-1 text-xs leading-5 text-slate-500">
-          زمان هر درس، کلاس و استاد مربوط به آن را ببینید.
+    <div className={`rounded-xl px-3 py-2 ${colors[tone]}`}>
+      <b className="block text-lg font-black tabular-nums">{value.toLocaleString("fa-IR")}</b>
+      <span className="text-[10px] font-bold">{label}</span>
+    </div>
+  );
+}
+
+function ScheduleMatrixCell({
+  entry,
+  canWrite,
+  canDelete,
+  showOrganization,
+  onEdit,
+  onArchive,
+  onDelete,
+  onOpenPlan,
+}: {
+  entry: ScheduleEntry;
+  showOrganization: boolean;
+  canWrite: boolean;
+  canDelete: boolean;
+  onEdit: (entry: ScheduleEntry) => void;
+  onArchive: (entry: ScheduleEntry) => void;
+  onDelete: (entry: ScheduleEntry) => void;
+  onOpenPlan: (entry: ScheduleEntry) => void;
+}) {
+  return (
+    <article
+      className={`rounded-md border px-1.5 py-1 shadow-[0_5px_9px_-9px_rgba(20,81,138,.7)] dark:border-white/10 ${
+        isSchoolWidePlan(entry)
+          ? "border-amber-300 bg-[#fff7cc] dark:border-amber-400/30 dark:bg-amber-500/15"
+          : "border-slate-200 bg-white/90 dark:bg-white/[.04]"
+      }`}
+    >
+      <button
+        type="button"
+        onClick={() => onOpenPlan(entry)}
+        className="block w-full rounded-md text-right transition hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand motion-reduce:transform-none"
+        aria-label={`مشاهده جزئیات برنامه ${entry.title}`}
+      >
+        <p className="truncate text-[11px] font-black text-ink" title={entry.title}>
+          {entry.title}
         </p>
+        <p className="mt-0.5 truncate text-[10px] font-bold tabular-nums text-brand" dir="ltr">
+          {entry.startTime}–{entry.endTime}
+        </p>
+        {showOrganization ? (
+          <span className="mt-1 block scale-90 origin-right">
+            <OrganizationTag organization={entry.organization} compact />
+          </span>
+        ) : null}
+      </button>
+      {canWrite ? (
+        <div className="mt-1 flex gap-0.5">
+          <button
+            type="button"
+            aria-label={`ویرایش ${entry.title}`}
+            onClick={() => onEdit(entry)}
+            className="rounded p-1 text-brand hover:bg-brand/10 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-brand"
+          >
+            <Pencil size={12} />
+          </button>
+          <button
+            type="button"
+            aria-label={`${entry.status === "ARCHIVED" ? "بازیابی" : "بایگانی"} ${entry.title}`}
+            onClick={() => onArchive(entry)}
+            className="rounded p-1 text-slate-500 hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-brand dark:hover:bg-white/10"
+          >
+            <Archive size={12} />
+          </button>
+          {canDelete ? (
+            <button
+              type="button"
+              aria-label={`حذف ${entry.title}`}
+              onClick={() => onDelete(entry)}
+              className="rounded p-1 text-rose-600 hover:bg-rose-50 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-rose-500 dark:hover:bg-rose-950/30"
+            >
+              <Trash2 size={12} />
+            </button>
+          ) : null}
+        </div>
+      ) : null}
+    </article>
+  );
+}
+
+function ScheduleEntryCard({
+  entry,
+  showOrganization,
+  compact,
+  canWrite,
+  canDelete,
+  onEdit,
+  onArchive,
+  onDelete,
+  onOpenPlan,
+}: {
+  entry: ScheduleEntry;
+  showOrganization: boolean;
+  compact: boolean;
+  canWrite: boolean;
+  canDelete: boolean;
+  onEdit: (entry: ScheduleEntry) => void;
+  onArchive: (entry: ScheduleEntry) => void;
+  onDelete: (entry: ScheduleEntry) => void;
+  onOpenPlan: (entry: ScheduleEntry) => void;
+}) {
+  return (
+    <article
+      className={`rounded-xl border border-sky-100 bg-[linear-gradient(145deg,#ffffff,#f3f9ff)] p-2.5 shadow-[0_8px_14px_-14px_rgba(20,81,138,.6)] dark:border-white/10 dark:bg-white/[.03] ${compact ? "" : "p-3"}`}
+    >
+      <button
+        type="button"
+        onClick={() => onOpenPlan(entry)}
+        aria-label={`مشاهده جزئیات برنامه ${entry.title}`}
+        className="flex w-full gap-2 rounded-lg text-right transition hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand motion-reduce:transform-none"
+      >
+        <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-brand/10 text-brand">
+          <Clock3 size={15} aria-hidden="true" />
+        </span>
+        <div className="min-w-0 flex-1">
+          <h3 className="truncate text-xs font-black text-ink">{entry.title}</h3>
+          <p className="mt-1 text-[11px] font-bold text-brand" dir="ltr">
+            {entry.startTime} — {entry.endTime}
+          </p>
+          {!compact ? (
+            <p className="mt-1.5 flex items-center gap-1 text-[11px] text-slate-500">
+              <MapPin size={13} aria-hidden="true" />
+              {entry.classroom?.name || entry.organization.name}
+              {entry.room ? ` · ${entry.room}` : ""}
+            </p>
+          ) : null}
+          {showOrganization ? (
+            <div className="mt-2">
+              <OrganizationTag organization={entry.organization} compact />
+            </div>
+          ) : null}
+        </div>
+      </button>
+      {canWrite ? (
+        <div className="mt-2 flex gap-1">
+          <Button
+            size="sm"
+            variant="soft"
+            aria-label={`ویرایش ${entry.title}`}
+            onClick={() => onEdit(entry)}
+          >
+            <Pencil size={13} />
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            aria-label={`${entry.status === "ARCHIVED" ? "بازیابی" : "بایگانی"} ${entry.title}`}
+            onClick={() => onArchive(entry)}
+          >
+            <Archive size={13} />
+          </Button>
+          {canDelete ? (
+            <Button
+              size="sm"
+              variant="ghost"
+              aria-label={`حذف ${entry.title}`}
+              onClick={() => onDelete(entry)}
+            >
+              <Trash2 size={13} />
+            </Button>
+          ) : null}
+        </div>
+      ) : null}
+    </article>
+  );
+}
+
+function SchedulePlanModal({
+  entry,
+  showOrganization,
+  canWrite,
+  canDelete,
+  onEdit,
+  onArchive,
+  onDelete,
+  onClose,
+}: {
+  entry: ScheduleEntry;
+  showOrganization: boolean;
+  canWrite: boolean;
+  canDelete: boolean;
+  onEdit: () => void;
+  onArchive: () => void;
+  onDelete: () => void;
+  onClose: () => void;
+}) {
+  return (
+    <div className="grid gap-4" dir="rtl">
+      <section className="relative overflow-hidden rounded-2xl border border-brand/15 bg-[linear-gradient(135deg,rgba(13,148,136,.15),rgba(239,250,250,.8)_50%,rgba(236,246,255,.8))] p-4 dark:bg-[linear-gradient(135deg,rgba(13,148,136,.22),rgba(10,37,49,.92))]">
+        <span
+          className="absolute -end-6 -top-8 size-28 rounded-full bg-brand/15 blur-2xl"
+          aria-hidden="true"
+        />
+        <div className="relative flex items-start gap-3">
+          <span className="grid size-11 shrink-0 place-items-center rounded-2xl bg-brand text-white shadow-[0_10px_20px_-13px_rgba(13,118,111,.95)]">
+            <BookOpenCheck size={21} aria-hidden="true" />
+          </span>
+          <div className="min-w-0">
+            <h3 className="text-base font-black text-ink">{entry.title}</h3>
+            <p className="mt-1 text-sm font-black tabular-nums text-brand" dir="ltr">
+              {entry.startTime} — {entry.endTime}
+            </p>
+            <p className="mt-2 text-xs font-bold text-slate-600 dark:text-slate-300">
+              {weekdays[entry.weekday]}
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <dl className="grid gap-2">
+        <PlanDetail
+          icon={GraduationCap}
+          label="کلاس"
+          value={entry.classroom?.name || "کلاس ثبت نشده"}
+        />
+        <PlanDetail icon={MapPin} label="فضا / اتاق" value={entry.room || "فضای آموزشی ثبت نشده"} />
+        <PlanDetail
+          icon={UserRound}
+          label="استاد"
+          value={teacherName(entry) || "استاد این جلسه ثبت نشده است"}
+        />
+      </dl>
+
+      {showOrganization ? (
+        <section className="rounded-xl border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-muted))] p-3">
+          <p className="mb-2 text-xs font-bold text-slate-500">سازمان مالک برنامه</p>
+          <OrganizationTag organization={entry.organization} />
+        </section>
+      ) : null}
+
+      {canWrite ? (
+        <div className="grid gap-2 border-t border-[rgb(var(--border-subtle))] pt-4 sm:grid-cols-2">
+          <Button variant="soft" onClick={onEdit}>
+            <Pencil size={16} /> ویرایش برنامه
+          </Button>
+          <Button variant="ghost" onClick={onArchive}>
+            <Archive size={16} />
+            {entry.status === "ARCHIVED" ? "بازیابی برنامه" : "بایگانی برنامه"}
+          </Button>
+          {canDelete ? (
+            <Button className="sm:col-span-2" variant="ghost" onClick={onDelete}>
+              <Trash2 size={16} className="text-rose-600" /> حذف برنامه
+            </Button>
+          ) : null}
+        </div>
+      ) : null}
+      <Button variant="ghost" onClick={onClose}>
+        بستن
+      </Button>
+    </div>
+  );
+}
+
+function ScheduleEditorForm({
+  initial,
+  organizations,
+  classes,
+  isSaving,
+  onCancel,
+  onSubmit,
+}: {
+  initial: ScheduleDraft;
+  organizations: Array<{ id: string; name: string }>;
+  classes: Array<{ id: string; name: string; organization: { id: string } }>;
+  isSaving: boolean;
+  onCancel: () => void;
+  onSubmit: (draft: ScheduleDraft) => Promise<void>;
+}) {
+  const [draft, setDraft] = useState(initial);
+  const [attempted, setAttempted] = useState(false);
+  const invalidTime = draft.startTime >= draft.endTime;
+  const canSubmit = Boolean(draft.organizationId && draft.title.trim() && !invalidTime);
+  const update = (changes: Partial<ScheduleDraft>) =>
+    setDraft((current) => ({ ...current, ...changes }));
+
+  return (
+    <form
+      className="grid gap-5"
+      dir="rtl"
+      onSubmit={(event) => {
+        event.preventDefault();
+        setAttempted(true);
+        if (canSubmit) void onSubmit({ ...draft, title: draft.title.trim() });
+      }}
+    >
+      <fieldset className="grid gap-3 rounded-2xl border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-muted))]/60 p-3">
+        <legend className="px-1 text-sm font-black text-ink">۱. محل برگزاری</legend>
+        <label className="grid gap-1.5 text-sm font-bold">
+          مدرسه
+          <select
+            value={draft.organizationId}
+            onChange={(event) =>
+              update({ organizationId: event.target.value, classroomId: undefined })
+            }
+            className="h-11 rounded-xl border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card))] px-3 text-sm text-ink focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20"
+          >
+            <option value="">مدرسه را انتخاب کنید</option>
+            {organizations.map((organization) => (
+              <option key={organization.id} value={organization.id}>
+                {organization.name}
+              </option>
+            ))}
+          </select>
+        </label>
+        {attempted && !draft.organizationId ? (
+          <p className="text-xs font-bold text-rose-600">انتخاب مدرسه ضروری است.</p>
+        ) : null}
+        <label className="grid gap-1.5 text-sm font-bold">
+          کلاس <span className="font-normal text-slate-500">(اختیاری)</span>
+          <select
+            value={draft.classroomId || ""}
+            onChange={(event) => update({ classroomId: event.target.value || undefined })}
+            className="h-11 rounded-xl border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card))] px-3 text-sm text-ink focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20"
+          >
+            <option value="">کلاس عمومی / بدون کلاس</option>
+            {classes
+              .filter(
+                (item) => !draft.organizationId || item.organization.id === draft.organizationId,
+              )
+              .map((item) => (
+                <option key={item.id} value={item.id}>
+                  {item.name}
+                </option>
+              ))}
+          </select>
+        </label>
+      </fieldset>
+      <fieldset className="grid gap-3 rounded-2xl border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-muted))]/60 p-3">
+        <legend className="px-1 text-sm font-black text-ink">۲. زمان و محتوا</legend>
+        <label className="grid gap-1.5 text-sm font-bold">
+          عنوان درس یا برنامه
+          <Input
+            value={draft.title}
+            onChange={(event) => update({ title: event.target.value })}
+            placeholder="مثلاً ریاضی پایه هفتم"
+            aria-invalid={attempted && !draft.title.trim()}
+          />
+        </label>
+        {attempted && !draft.title.trim() ? (
+          <p className="text-xs font-bold text-rose-600">عنوان جلسه را وارد کنید.</p>
+        ) : null}
+        <label className="grid gap-1.5 text-sm font-bold">
+          روز هفته
+          <select
+            value={draft.weekday}
+            onChange={(event) => update({ weekday: Number(event.target.value) })}
+            className="h-11 rounded-xl border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card))] px-3 text-sm text-ink focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20"
+          >
+            {weekdays.map((label, index) => (
+              <option key={label} value={index}>
+                {label}
+              </option>
+            ))}
+          </select>
+        </label>
+        <div className="grid grid-cols-2 gap-3">
+          <label className="grid gap-1.5 text-sm font-bold">
+            شروع{" "}
+            <Input
+              type="time"
+              value={draft.startTime}
+              onChange={(event) => update({ startTime: event.target.value })}
+            />
+          </label>
+          <label className="grid gap-1.5 text-sm font-bold">
+            پایان{" "}
+            <Input
+              type="time"
+              value={draft.endTime}
+              onChange={(event) => update({ endTime: event.target.value })}
+            />
+          </label>
+        </div>
+        {attempted && invalidTime ? (
+          <p className="text-xs font-bold text-rose-600">زمان پایان باید پس از زمان شروع باشد.</p>
+        ) : null}
+        <label className="grid gap-1.5 text-sm font-bold">
+          فضا / اتاق <span className="font-normal text-slate-500">(اختیاری)</span>
+          <Input
+            value={draft.room || ""}
+            onChange={(event) => update({ room: event.target.value })}
+            placeholder="مثلاً اتاق ۲۰۴"
+          />
+        </label>
+      </fieldset>
+      <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+        <Button type="button" variant="ghost" onClick={onCancel}>
+          انصراف
+        </Button>
+        <Button type="submit" disabled={isSaving}>
+          {isSaving ? "در حال ذخیره…" : "ذخیره جلسه"}
+        </Button>
+      </div>
+    </form>
+  );
+}
+
+function draftFromEntry(entry: ScheduleEntry): ScheduleDraft {
+  return {
+    organizationId: entry.organization.id,
+    classroomId: entry.classroom?.id || undefined,
+    teacherId: entry.teacher?.id || undefined,
+    title: entry.title,
+    weekday: entry.weekday,
+    startTime: entry.startTime,
+    endTime: entry.endTime,
+    room: entry.room,
+  };
+}
+
+function PlanDetail({
+  icon: Icon,
+  label,
+  value,
+}: {
+  icon: typeof GraduationCap;
+  label: string;
+  value: string;
+}) {
+  return (
+    <div className="flex items-center gap-3 rounded-xl border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-muted))]/70 px-3 py-3">
+      <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-white text-brand shadow-sm dark:bg-white/10">
+        <Icon size={17} aria-hidden="true" />
+      </span>
+      <div className="min-w-0">
+        <dt className="text-[11px] font-bold text-slate-500">{label}</dt>
+        <dd className="mt-0.5 truncate text-sm font-black text-ink" title={value}>
+          {value}
+        </dd>
+      </div>
+    </div>
+  );
+}
+
+function StudentWeeklySchedule({ entries }: { entries: ScheduleEntry[] }) {
+  const today = new Date(`${todayIso()}T12:00:00`).getDay();
+  const [activeWeekday, setActiveWeekday] = useState(today);
+  const activeEntries = entries
+    .filter((entry) => entry.status === "ACTIVE" && entry.weekday === activeWeekday)
+    .sort((a, b) => a.startTime.localeCompare(b.startTime));
+
+  return (
+    <section
+      className="mx-auto grid w-full max-w-5xl gap-3 pb-[calc(6rem+env(safe-area-inset-bottom))] md:pb-4"
+      dir="rtl"
+      aria-label="برنامه هفتگی من"
+    >
+      <header className="rounded-[1.35rem] border border-sky-100 bg-[linear-gradient(135deg,#fafdff,#edf8ff)] p-4 shadow-[0_14px_26px_-24px_rgba(21,90,150,.48)] dark:border-sky-300/10 dark:bg-sky-950/20">
+        <div className="flex items-center gap-3">
+          <span className="grid size-10 place-items-center rounded-2xl bg-brand text-white shadow-[0_10px_18px_-12px_rgba(13,118,111,.9)]">
+            <CalendarDays size={20} aria-hidden="true" />
+          </span>
+          <div>
+            <p className="text-xs font-bold text-brand">فضای آموزشی من</p>
+            <h1 className="mt-0.5 text-xl font-black text-ink">برنامه هفتگی کلاس‌ها</h1>
+            <p className="mt-1 text-xs leading-5 text-slate-500">
+              روز را انتخاب کنید تا فقط کلاس‌های همان روز نمایش داده شود.
+            </p>
+          </div>
+        </div>
       </header>
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+      <div
+        className="flex gap-1.5 overflow-x-auto px-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        aria-label="انتخاب روز برنامه"
+      >
+        {displayWeekdays.map((weekday) => (
+          <button
+            key={weekday}
+            type="button"
+            aria-pressed={weekday === activeWeekday}
+            onClick={() => setActiveWeekday(weekday)}
+            className={`min-h-10 shrink-0 rounded-xl px-3 text-xs font-bold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand ${weekday === activeWeekday ? "bg-brand text-white shadow-[0_7px_12px_-8px_rgba(13,118,111,.85)]" : "bg-[rgb(var(--surface-muted))] text-slate-600 dark:text-slate-300"}`}
+          >
+            {weekdays[weekday]}
+          </button>
+        ))}
+      </div>
+      <div className="grid gap-2 md:hidden">
+        {activeEntries.map((entry) => (
+          <StudentScheduleCard key={entry.id} entry={entry} />
+        ))}
+        {!activeEntries.length ? (
+          <EmptyState title={`برای ${weekdays[activeWeekday]} کلاسی ثبت نشده است.`} />
+        ) : null}
+      </div>
+      <div className="hidden grid-cols-2 gap-3 xl:grid-cols-3 md:grid">
         {weekdays.map((day, weekday) => {
           const dailyEntries = entries
             .filter((entry) => entry.status === "ACTIVE" && entry.weekday === weekday)
@@ -354,28 +1102,7 @@ function StudentWeeklySchedule({ entries }: { entries: ScheduleEntry[] }) {
               <h2 className="text-sm font-black text-ink">{day}</h2>
               <div className="mt-3 grid gap-2">
                 {dailyEntries.map((entry) => (
-                  <article key={entry.id} className="rounded-xl bg-[rgb(var(--surface-muted))] p-3">
-                    <div className="flex items-start gap-2">
-                      <CalendarClock
-                        size={17}
-                        className="mt-0.5 shrink-0 text-brand"
-                        aria-hidden="true"
-                      />
-                      <div className="min-w-0 flex-1">
-                        <h3 className="truncate text-sm font-bold text-ink">{entry.title}</h3>
-                        <p className="mt-1 text-xs font-semibold text-brand">
-                          {entry.startTime} تا {entry.endTime}
-                        </p>
-                        <p className="mt-2 text-xs text-slate-500">
-                          {entry.classroom?.name || entry.room || entry.organization.name}
-                        </p>
-                        <p className="mt-1 flex items-center gap-1 text-xs text-slate-600 dark:text-slate-300">
-                          <GraduationCap size={14} aria-hidden="true" />
-                          {teacherName(entry) || "استاد این کلاس هنوز ثبت نشده است."}
-                        </p>
-                      </div>
-                    </div>
-                  </article>
+                  <StudentScheduleCard key={entry.id} entry={entry} />
                 ))}
                 {!dailyEntries.length ? (
                   <p className="rounded-xl bg-[rgb(var(--surface-muted))] p-3 text-xs text-slate-500">
@@ -391,10 +1118,39 @@ function StudentWeeklySchedule({ entries }: { entries: ScheduleEntry[] }) {
   );
 }
 
+function StudentScheduleCard({ entry }: { entry: ScheduleEntry }) {
+  return (
+    <article className="rounded-xl border border-sky-100 bg-[linear-gradient(145deg,#fff,#f3f9ff)] p-3 shadow-[0_9px_16px_-14px_rgba(20,81,138,.55)] dark:border-white/10 dark:bg-white/[.03]">
+      <div className="flex items-start gap-2">
+        <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-brand/10 text-brand">
+          <CalendarClock size={17} aria-hidden="true" />
+        </span>
+        <div className="min-w-0 flex-1">
+          <h3 className="truncate text-sm font-black text-ink">{entry.title}</h3>
+          <p className="mt-1 text-xs font-bold text-brand" dir="ltr">
+            {entry.startTime} — {entry.endTime}
+          </p>
+          <p className="mt-2 text-xs text-slate-500">
+            {entry.classroom?.name || entry.room || entry.organization.name}
+          </p>
+          <p className="mt-1 flex items-center gap-1 text-xs text-slate-600 dark:text-slate-300">
+            <GraduationCap size={14} aria-hidden="true" />
+            {teacherName(entry) || "استاد این کلاس هنوز ثبت نشده است."}
+          </p>
+        </div>
+      </div>
+    </article>
+  );
+}
+
 function teacherName(entry: ScheduleEntry) {
   if (!entry.teacher) return "";
   return (
     [entry.teacher.firstName, entry.teacher.lastName].filter(Boolean).join(" ") ||
     entry.teacher.username
   );
+}
+
+function isSchoolWidePlan(entry: ScheduleEntry) {
+  return !entry.classroom && !entry.room;
 }

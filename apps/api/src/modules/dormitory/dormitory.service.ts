@@ -1,13 +1,15 @@
 import { Injectable } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { In, Not, Repository } from "typeorm";
+import { In, Like, Repository } from "typeorm";
 import { ApiException } from "../../common/exceptions/api.exception";
 import { DormRoomAssignment } from "../../database/entities/dorm-room-assignment.entity";
 import { DormRoom } from "../../database/entities/dorm-room.entity";
 import { Student } from "../../database/entities/student.entity";
 import { AuthenticatedUser } from "../auth";
 import { SchoolAccessService } from "../school-access/school-access.service";
-import { CreateDormRoomDto } from "./dormitory.dto";
+import { NotificationsService } from "../notifications";
+import { NotificationType } from "../../database/entities/notification.entity";
+import { CreateDormRoomDto, SendDormAnnouncementDto } from "./dormitory.dto";
 
 @Injectable()
 export class DormitoryService {
@@ -16,6 +18,7 @@ export class DormitoryService {
     @InjectRepository(DormRoomAssignment) private readonly assignments: Repository<DormRoomAssignment>,
     @InjectRepository(Student) private readonly students: Repository<Student>,
     private readonly access: SchoolAccessService,
+    private readonly notifications: NotificationsService,
   ) {}
 
   async listRooms(user: AuthenticatedUser, organizationId?: string) {
@@ -27,7 +30,7 @@ export class DormitoryService {
       order: { name: "ASC" },
     });
     return rows.map((room) => ({
-      id: room.id, organizationId: room.organization.id, organizationName: room.organization.name, code: room.code, name: room.name, capacity: room.capacity, status: room.status, studentCount: room.assignments?.length ?? 0,
+      id: room.id, organizationId: room.organization.id, organizationName: room.organization.name, code: room.code, name: room.name, building: room.building, floor: room.floor, capacity: room.capacity, status: room.status, studentCount: room.assignments?.length ?? 0,
     }));
   }
 
@@ -37,9 +40,9 @@ export class DormitoryService {
     if (await this.rooms.findOne({ where: { organization: { id: organization.id }, code } }))
       throw new ApiException(409, "DORM_ROOM_EXISTS", "این کد اتاق در مدرسه تکراری است.");
     const room = await this.rooms.save(this.rooms.create({
-      organization, code, name: dto.name.trim(), capacity: dto.capacity ?? 1, status: "ACTIVE",
+      organization, code, name: dto.name.trim(), building: dto.building?.trim() || "ساختمان اصلی", floor: dto.floor ?? 1, capacity: Math.min(12, dto.capacity ?? 12), status: "ACTIVE",
     }));
-    return { id: room.id, organizationId: organization.id, code: room.code, name: room.name, capacity: room.capacity, status: room.status, studentCount: 0 };
+    return { id: room.id, organizationId: organization.id, code: room.code, name: room.name, building: room.building, floor: room.floor, capacity: room.capacity, status: room.status, studentCount: 0 };
   }
 
   async listAssignments(user: AuthenticatedUser, roomId: string) {
@@ -68,6 +71,48 @@ export class DormitoryService {
     await this.assignments.delete({ room: { id: room.id } });
     if (students.length) await this.assignments.save(students.map((student) => this.assignments.create({ room, student })));
     return { roomId: room.id, count: students.length };
+  }
+
+  async findStudents(user: AuthenticatedUser, organizationId: string, query: string) {
+    const organization = await this.access.organizationForUser(user, organizationId);
+    const term = query.trim();
+    if (term.length < 2) return [];
+    const rows = await this.students.find({
+      where: [
+        { organization: { id: organization.id }, name: Like(`%${term}%`) },
+        { organization: { id: organization.id }, user: { phoneNumber: Like(`%${term}%`) } },
+      ],
+      relations: { user: true },
+      take: 20,
+      order: { name: "ASC" },
+    });
+    return rows.map((student) => ({ id: student.id, name: student.name, phoneNumber: student.user?.phoneNumber ?? null }));
+  }
+
+  async sendAnnouncement(user: AuthenticatedUser, dto: SendDormAnnouncementDto) {
+    const organization = await this.access.organizationForUser(user, dto.organizationId);
+    let recipients: Student[] = [];
+    let targetLabel = "";
+    if (dto.target === "ROOM") {
+      const room = await this.rooms.findOne({ where: { id: dto.roomId, organization: { id: organization.id } }, relations: { assignments: { student: { user: true } } } });
+      if (!room) throw new ApiException(404, "DORM_ROOM_NOT_FOUND", "اتاق خوابگاه پیدا نشد.");
+      recipients = room.assignments.map((item) => item.student);
+      targetLabel = room.name;
+    } else {
+      const student = await this.students.findOne({ where: { id: dto.studentId, organization: { id: organization.id } }, relations: { user: true } });
+      if (!student) throw new ApiException(404, "DORM_STUDENT_NOT_FOUND", "طلبه پیدا نشد.");
+      recipients = [student];
+      targetLabel = student.name;
+    }
+    const userIds = recipients.flatMap((student) => student.user?.id ? [student.user.id] : []);
+    await this.notifications.createForUsers(userIds, {
+      type: NotificationType.MESSAGE,
+      category: "announcements",
+      title: dto.title.trim(),
+      body: dto.body.trim(),
+      data: { source: "dormitory", target: dto.target, targetLabel },
+    });
+    return { delivered: userIds.length, target: dto.target, targetLabel };
   }
 
   private async requireRoom(user: AuthenticatedUser, id: string) {

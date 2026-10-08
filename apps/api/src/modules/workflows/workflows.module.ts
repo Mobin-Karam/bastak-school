@@ -16,9 +16,13 @@ import { StudyGroup } from "../../database/entities/study-group.entity";
 import { StudyGroupMembership } from "../../database/entities/study-group-membership.entity";
 import { WorkflowsController } from "./workflows.controller";
 import { WorkflowsService } from "./workflows.service";
+import { RealtimeModule } from "../realtime/realtime.module";
+import { NotificationsModule } from "../notifications/notifications.module";
 
 @Module({
   imports: [
+    RealtimeModule,
+    NotificationsModule,
     TypeOrmModule.forFeature([
       AttendanceSession,
       AttendanceRecord,

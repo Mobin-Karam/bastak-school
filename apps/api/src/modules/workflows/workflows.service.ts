@@ -37,6 +37,12 @@ import { DormRoomAssignment } from "../../database/entities/dorm-room-assignment
 import { StudyGroup } from "../../database/entities/study-group.entity";
 import { StudyGroupMembership } from "../../database/entities/study-group-membership.entity";
 import { AuthenticatedUser } from "../auth";
+import { RealtimeService } from "../realtime/realtime.service";
+import { NotificationsService } from "../notifications/notifications.service";
+import {
+  isIranianMobile,
+  normalizeIranianMobile,
+} from "../../common/utils/phone-number";
 
 @Injectable()
 export class WorkflowsService {
@@ -67,6 +73,8 @@ export class WorkflowsService {
     @InjectRepository(OrganizationMembership)
     private readonly memberships: Repository<OrganizationMembership>,
     @InjectRepository(User) private readonly users: Repository<User>,
+    private readonly realtime: RealtimeService,
+    private readonly notifications: NotificationsService,
   ) {}
 
   async listAttendanceContexts(
@@ -710,6 +718,13 @@ export class WorkflowsService {
         status: LeaveRequestStatus.PENDING,
       }),
     );
+    await this.notifyRequestReviewers(
+      organization.id,
+      reviewerRole,
+      "درخواست جدید دانش‌آموز",
+      `درخواست ${leaveType === LeaveRequestType.SCHOOL_EXIT ? "خروج" : "مرخصی"} برای بررسی ثبت شد.`,
+      `/admin/leave-requests?requestId=${row.id}`,
+    );
     return this.serializeLeaveRequest(row);
   }
 
@@ -763,6 +778,7 @@ export class WorkflowsService {
         organization: true,
         student: { user: true },
         approver: true,
+        returnVerifiedBy: true,
       },
       order: { createdAt: "DESC" },
     });
@@ -815,6 +831,13 @@ export class WorkflowsService {
         status: ExitPermissionStatus.PENDING,
       }),
     );
+    await this.notifyRequestReviewers(
+      organization.id,
+      LeaveRequestReviewerRole.SCHOOL_SUPERVISOR,
+      "درخواست خروج جدید",
+      "یک درخواست خروج دانش‌آموز برای بررسی ثبت شد.",
+      `/admin/exit-permissions?requestId=${row.id}`,
+    );
     return this.serializeExitPermission(row);
   }
 
@@ -829,6 +852,7 @@ export class WorkflowsService {
         organization: true,
         student: { user: true },
         approver: true,
+        returnVerifiedBy: true,
       },
     });
     if (!row) {
@@ -849,6 +873,203 @@ export class WorkflowsService {
     return this.serializeExitPermission(saved);
   }
 
+  /** A student can report their return, but cannot place themselves back in occupancy. */
+  async requestExitReturn(
+    user: AuthenticatedUser,
+    exitPermissionId: string,
+    note?: string,
+  ) {
+    const row = await this.exitPermissions.findOne({
+      where: { id: exitPermissionId },
+      relations: {
+        organization: true,
+        student: { user: true },
+        approver: true,
+        returnVerifiedBy: true,
+      },
+    });
+    if (!row) {
+      throw new ApiException(
+        404,
+        "EXIT_PERMISSION_NOT_FOUND",
+        "مجوز خروج پیدا نشد.",
+      );
+    }
+    if (row.student.user?.id !== user.id) {
+      throw new ApiException(
+        403,
+        "EXIT_RETURN_REQUEST_FORBIDDEN",
+        "فقط خود دانش‌آموز می‌تواند بازگشت را درخواست کند.",
+      );
+    }
+    await this.organizationForUser(user.id, row.organization.id);
+    if (
+      row.status !== ExitPermissionStatus.APPROVED ||
+      !row.actualDepartureAt
+    ) {
+      throw new ApiException(
+        409,
+        "EXIT_NOT_DEPARTED",
+        "بازگشت فقط پس از ثبت خروج امکان‌پذیر است.",
+      );
+    }
+    if (row.actualReturnAt) {
+      throw new ApiException(
+        409,
+        "EXIT_ALREADY_RETURNED",
+        "برای این مجوز بازگشت ثبت شده است.",
+      );
+    }
+    if (row.returnRequestedAt) {
+      throw new ApiException(
+        409,
+        "EXIT_RETURN_ALREADY_REQUESTED",
+        "درخواست بازگشت قبلاً ارسال شده است.",
+      );
+    }
+    row.returnRequestedAt = new Date();
+    row.returnRequestNote = note?.trim() || "";
+    const saved = await this.exitPermissions.save(row);
+    await this.emitOccupancyUpdate(
+      row.organization.id,
+      row.id,
+      "return-requested",
+    );
+    return this.serializeExitPermission(saved);
+  }
+
+  /**
+   * Gate-only fallback for students who cannot open the app. This both grants
+   * the permission and records the physical departure, so occupancy remains
+   * derived from movements rather than an untracked verbal approval.
+   */
+  async recordGateDeparture(
+    user: AuthenticatedUser,
+    input: {
+      organizationId: string;
+      phoneNumber: string;
+      destination?: string;
+      reason?: string;
+      expectedReturnAt?: string;
+    },
+  ) {
+    this.assertWorkflowReviewer(user);
+    const organization = await this.organizationForUser(
+      user.id,
+      input.organizationId,
+    );
+    const student = await this.studentForPhoneInOrganization(
+      input.phoneNumber,
+      organization.id,
+    );
+    const existing = await this.exitPermissions
+      .createQueryBuilder("exit")
+      .where("exit.organizationId = :organizationId", {
+        organizationId: organization.id,
+      })
+      .andWhere("exit.studentId = :studentId", { studentId: student.id })
+      .andWhere("exit.status = :status", {
+        status: ExitPermissionStatus.APPROVED,
+      })
+      .andWhere("exit.actualDepartureAt IS NOT NULL")
+      .andWhere("exit.actualReturnAt IS NULL")
+      .getOne();
+    if (existing) {
+      throw new ApiException(
+        409,
+        "STUDENT_ALREADY_OUT",
+        "برای این دانش‌آموز خروج فعال ثبت شده است.",
+      );
+    }
+    const expectedReturnAt = input.expectedReturnAt
+      ? new Date(input.expectedReturnAt)
+      : null;
+    if (expectedReturnAt && Number.isNaN(expectedReturnAt.getTime())) {
+      throw new ApiException(
+        400,
+        "EXIT_RETURN_INVALID",
+        "زمان بازگشت معتبر نیست.",
+      );
+    }
+    const now = new Date();
+    const saved = await this.exitPermissions.save(
+      this.exitPermissions.create({
+        organization,
+        student,
+        destination: input.destination?.trim() || "خروج با تأیید مدرسه",
+        reason: input.reason?.trim() || "ثبت مستقیم توسط مسئول مدرسه",
+        requestedDepartureAt: now,
+        expectedReturnAt,
+        actualDepartureAt: now,
+        note: "مجوز و خروج فیزیکی توسط مسئول مدرسه ثبت شد.",
+        status: ExitPermissionStatus.APPROVED,
+        approver: { id: user.id } as User,
+        reviewedAt: now,
+      }),
+    );
+    await this.emitOccupancyUpdate(
+      organization.id,
+      saved.id,
+      "departure-recorded",
+    );
+    return this.serializeExitPermission(saved);
+  }
+
+  /** Gate staff confirm physical return by a student's phone when app access is unavailable. */
+  async recordGateReturn(
+    user: AuthenticatedUser,
+    input: { organizationId: string; phoneNumber: string; note?: string },
+  ) {
+    this.assertWorkflowReviewer(user);
+    const organization = await this.organizationForUser(
+      user.id,
+      input.organizationId,
+    );
+    const student = await this.studentForPhoneInOrganization(
+      input.phoneNumber,
+      organization.id,
+    );
+    const row = await this.exitPermissions
+      .createQueryBuilder("exit")
+      .leftJoinAndSelect("exit.organization", "organization")
+      .leftJoinAndSelect("exit.student", "student")
+      .leftJoinAndSelect("exit.approver", "approver")
+      .leftJoinAndSelect("exit.returnVerifiedBy", "returnVerifiedBy")
+      .where("exit.organizationId = :organizationId", {
+        organizationId: organization.id,
+      })
+      .andWhere("exit.studentId = :studentId", { studentId: student.id })
+      .andWhere("exit.status = :status", {
+        status: ExitPermissionStatus.APPROVED,
+      })
+      .andWhere("exit.actualDepartureAt IS NOT NULL")
+      .andWhere("exit.actualReturnAt IS NULL")
+      .orderBy("exit.actualDepartureAt", "DESC")
+      .getOne();
+    if (!row) {
+      throw new ApiException(
+        409,
+        "STUDENT_NOT_OUT",
+        "برای این دانش‌آموز خروج فعال ثبت نشده است.",
+      );
+    }
+    const now = new Date();
+    row.returnRequestedAt = row.returnRequestedAt ?? now;
+    row.returnRequestNote =
+      input.note?.trim() || "بازگشت حضوری توسط مسئول مدرسه ثبت شد.";
+    row.actualReturnAt = now;
+    row.returnVerifiedBy = { id: user.id } as User;
+    row.returnVerifiedAt = now;
+    row.status = ExitPermissionStatus.COMPLETED;
+    const saved = await this.exitPermissions.save(row);
+    await this.emitOccupancyUpdate(
+      organization.id,
+      saved.id,
+      "return-confirmed",
+    );
+    return this.serializeExitPermission(saved);
+  }
+
   /** A supervisor records the physical gate event; approval alone never changes occupancy. */
   async recordExitMovement(
     user: AuthenticatedUser,
@@ -861,6 +1082,7 @@ export class WorkflowsService {
         organization: true,
         student: { user: true },
         approver: true,
+        returnVerifiedBy: true,
       },
     });
     if (!row)
@@ -892,14 +1114,27 @@ export class WorkflowsService {
           "EXIT_NOT_DEPARTED",
           "ابتدا خروج دانش‌آموز را ثبت کنید.",
         );
+      if (!row.returnRequestedAt)
+        throw new ApiException(
+          409,
+          "EXIT_RETURN_NOT_REQUESTED",
+          "دانش‌آموز باید ابتدا درخواست بازگشت را ثبت کند.",
+        );
       row.actualReturnAt = new Date();
       row.status = ExitPermissionStatus.COMPLETED;
+      row.returnVerifiedBy = { id: user.id } as User;
+      row.returnVerifiedAt = new Date();
     }
-    return this.serializeExitPermission(await this.exitPermissions.save(row));
+    const saved = await this.exitPermissions.save(row);
+    await this.emitOccupancyUpdate(
+      row.organization.id,
+      row.id,
+      movement === "departure" ? "departure-recorded" : "return-confirmed",
+    );
+    return this.serializeExitPermission(saved);
   }
 
   async occupancy(user: AuthenticatedUser, organizationId?: string) {
-    this.assertWorkflowReviewer(user);
     const memberships = await this.activeMemberships(user.id);
     const ids = memberships.map((membership) => membership.organization.id);
     if (!ids.length) return [];
@@ -1128,6 +1363,61 @@ export class WorkflowsService {
     });
   }
 
+  private async notifyRequestReviewers(
+    organizationId: string,
+    reviewer: LeaveRequestReviewerRole,
+    title: string,
+    body: string,
+    url: string,
+  ) {
+    const roles =
+      reviewer === LeaveRequestReviewerRole.SCHOOL_SUPERVISOR
+        ? ["SCHOOL_SUPERVISOR", "PRINCIPAL"]
+        : ["PRINCIPAL", "ORGANIZATION_ADMIN"];
+    const memberships = await this.memberships.find({
+      where: {
+        organization: { id: organizationId },
+        status: MembershipStatus.ACTIVE,
+      },
+      relations: { user: true, roleAssignments: { role: true } },
+    });
+    const recipients = memberships
+      .filter((membership) =>
+        membership.roleAssignments.some((assignment) =>
+          roles.includes(assignment.role.code),
+        ),
+      )
+      .map((membership) => membership.user.id);
+    if (recipients.length)
+      await this.notifications.createForUsers(recipients, {
+        type: "ANNOUNCEMENT",
+        category: "student_request",
+        title,
+        body,
+        url,
+        priority: "high",
+      });
+  }
+
+  private async emitOccupancyUpdate(
+    organizationId: string,
+    exitPermissionId: string,
+    action: "departure-recorded" | "return-requested" | "return-confirmed",
+  ) {
+    const memberships = await this.memberships.find({
+      where: {
+        organization: { id: organizationId },
+        status: MembershipStatus.ACTIVE,
+      },
+      relations: { user: true },
+    });
+    this.realtime.emitToUsers(
+      memberships.map((membership) => membership.user.id),
+      "school.occupancy.updated",
+      { organizationId, exitPermissionId, action },
+    );
+  }
+
   private async organizationForUser(userId: string, organizationId: string) {
     const membership = await this.memberships.findOne({
       where: {
@@ -1145,6 +1435,35 @@ export class WorkflowsService {
       );
     }
     return membership.organization;
+  }
+
+  private async studentForPhoneInOrganization(
+    phoneNumber: string,
+    organizationId: string,
+  ) {
+    const phone = normalizeIranianMobile(phoneNumber);
+    if (!isIranianMobile(phone)) {
+      throw new ApiException(
+        400,
+        "STUDENT_PHONE_INVALID",
+        "شماره همراه دانش‌آموز معتبر نیست.",
+      );
+    }
+    const student = await this.students.findOne({
+      where: [
+        { organization: { id: organizationId }, user: { phoneNumber: phone } },
+        { organization: { id: organizationId }, user: { username: phone } },
+      ],
+      relations: { user: true, organization: true },
+    });
+    if (!student) {
+      throw new ApiException(
+        404,
+        "STUDENT_PHONE_NOT_FOUND",
+        "دانش‌آموزی با این شماره در مدرسه فعال پیدا نشد.",
+      );
+    }
+    return student;
   }
 
   private async studentForUser(userId: string) {
@@ -1334,6 +1653,10 @@ export class WorkflowsService {
       expectedReturnAt: row.expectedReturnAt?.toISOString() || null,
       actualDepartureAt: row.actualDepartureAt?.toISOString() || null,
       actualReturnAt: row.actualReturnAt?.toISOString() || null,
+      returnRequestedAt: row.returnRequestedAt?.toISOString() || null,
+      returnRequestNote: row.returnRequestNote || "",
+      returnVerifiedById: row.returnVerifiedBy?.id || null,
+      returnVerifiedAt: row.returnVerifiedAt?.toISOString() || null,
       note: row.note,
       status: row.status,
       approverId: row.approver?.id || null,

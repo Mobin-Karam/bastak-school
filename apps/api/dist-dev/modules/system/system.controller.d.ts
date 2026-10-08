@@ -66,4 +66,14 @@ export declare class SystemController {
             rollbackFilename: string;
         };
     }>;
+    resetData(user: AuthenticatedUser, body: {
+        confirmation?: string;
+    }): Promise<{
+        ok: boolean;
+        data: {
+            reset: boolean;
+            retainedPlatformAccounts: number;
+            clearedTables: number;
+        };
+    }>;
 }

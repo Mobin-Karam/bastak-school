@@ -16,6 +16,10 @@ export declare class ExitPermission {
     expectedReturnAt?: Date | null;
     actualDepartureAt?: Date | null;
     actualReturnAt?: Date | null;
+    returnRequestedAt?: Date | null;
+    returnRequestNote: string;
+    returnVerifiedBy?: User | null;
+    returnVerifiedAt?: Date | null;
     destination: string;
     reason: string;
     note: string;

@@ -13,6 +13,7 @@ const dorm_room_assignment_entity_1 = require("../../database/entities/dorm-room
 const dorm_room_entity_1 = require("../../database/entities/dorm-room.entity");
 const student_entity_1 = require("../../database/entities/student.entity");
 const school_access_module_1 = require("../school-access/school-access.module");
+const notifications_module_1 = require("../notifications/notifications.module");
 const dormitory_controller_1 = require("./dormitory.controller");
 const dormitory_service_1 = require("./dormitory.service");
 let DormitoryModule = class DormitoryModule {
@@ -20,7 +21,7 @@ let DormitoryModule = class DormitoryModule {
 exports.DormitoryModule = DormitoryModule;
 exports.DormitoryModule = DormitoryModule = __decorate([
     (0, common_1.Module)({
-        imports: [typeorm_1.TypeOrmModule.forFeature([dorm_room_entity_1.DormRoom, dorm_room_assignment_entity_1.DormRoomAssignment, student_entity_1.Student]), school_access_module_1.SchoolAccessModule],
+        imports: [typeorm_1.TypeOrmModule.forFeature([dorm_room_entity_1.DormRoom, dorm_room_assignment_entity_1.DormRoomAssignment, student_entity_1.Student]), school_access_module_1.SchoolAccessModule, notifications_module_1.NotificationsModule],
         controllers: [dormitory_controller_1.DormitoryController],
         providers: [dormitory_service_1.DormitoryService],
         exports: [dormitory_service_1.DormitoryService],
