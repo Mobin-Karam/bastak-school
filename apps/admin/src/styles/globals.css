@@ -138,7 +138,7 @@
   --accent-foreground: var(--color-ink);
 
   --destructive: var(--color-rosewood);
-  --destructive-foreground: 255 255 255;
+  --destructive-foreground: 15 23 42;
 
   --border: var(--border-subtle);
   --input: var(--border-subtle);

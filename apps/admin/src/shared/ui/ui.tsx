@@ -73,7 +73,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
         variant === "primary" &&
           `
             bg-brand
-            text-white
+            text-[rgb(var(--primary-foreground))]
 
           shadow-none
 
@@ -99,7 +99,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
         variant === "danger" &&
           `
             bg-rosewood
-            text-white
+            text-[rgb(var(--destructive-foreground))]
 
             hover:brightness-95
             hover:shadow-md
