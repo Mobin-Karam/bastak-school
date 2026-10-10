@@ -189,7 +189,7 @@ export function LearningPage() {
         <>
           <LearningSummaryMetrics summary={data.summary} />
 
-          <section className="grid min-h-0 gap-4 xl:grid-cols-[minmax(0,1fr)_320px]">
+          <section className="grid min-h-0 gap-4 min-[1200px]:grid-cols-[minmax(0,1fr)_320px]">
             <LearningList
               loading={data.learning.isLoading}
               items={data.items}

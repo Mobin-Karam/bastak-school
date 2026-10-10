@@ -38,7 +38,7 @@ export function MobileDashboardHome({
   const prayerTimes = prayer && "times" in prayer ? prayer.times : null;
 
   return (
-    <section aria-label="خانه موبایل" className="grid min-w-0 gap-3 md:hidden">
+    <section aria-label="خانه موبایل" className="mobile-dashboard grid min-w-0 gap-3">
       <DashboardCalendar
         value={calendarDate}
         onChange={onCalendarDateChange}
@@ -54,7 +54,7 @@ export function MobileDashboardHome({
       <CurrentPrayerCard times={prayerTimes} />
 
       {data.home?.announcements?.length ? (
-        <Card className="p-3" aria-label="پیام‌های مدرسه">
+        <Card className="mobile-task-card p-3" aria-label="پیام‌های مدرسه">
           <div className="flex items-center gap-2 text-brand">
             <BellRing size={17} aria-hidden="true" />
             <h2 className="text-sm font-black text-ink">پیام‌های مدرسه</h2>
@@ -91,7 +91,7 @@ function ClassCard({
   emphasized?: boolean;
 }) {
   return (
-    <Card className={emphasized ? "border-brand/25 bg-brand/[0.04] p-3" : "p-3"}>
+    <Card className={`mobile-task-card ${emphasized ? "border-brand/25 bg-brand/[0.04]" : ""} p-3`}>
       <div className="flex items-center gap-2 text-brand">
         <CalendarClock size={16} aria-hidden="true" />
         <h2 className="text-xs font-black text-ink">{title}</h2>
@@ -124,7 +124,7 @@ function Shortcut({ action }: { action: RoleQuickAction }) {
     <Link
       to={action.to}
       title={action.description}
-      className="flex min-h-20 flex-col items-center justify-center gap-1.5 rounded-xl border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card))] px-1 text-center text-slate-600 outline-none transition hover:border-brand/30 hover:bg-brand/[0.04] hover:text-brand focus-visible:ring-2 focus-visible:ring-brand dark:text-slate-300"
+      className="mobile-quick-action flex min-h-[4.75rem] flex-col items-center justify-center gap-1.5 rounded-xl border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card))] px-1 text-center text-slate-600 outline-none transition hover:border-brand/30 hover:bg-brand/[0.04] hover:text-brand focus-visible:ring-2 focus-visible:ring-brand dark:text-slate-300"
     >
       <Icon size={20} strokeWidth={1.9} aria-hidden="true" />
       <span className="line-clamp-2 text-[10px] font-bold leading-4">{action.label}</span>

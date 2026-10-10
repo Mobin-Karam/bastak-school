@@ -56,7 +56,7 @@ export function DashboardContent({
         <DashboardMetricCards refreshing={refreshing} onRefresh={onRefresh} summary={summary} />
       )}
 
-      <section className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_340px]">
+      <section className="grid gap-4 min-[1200px]:grid-cols-[minmax(0,1fr)_340px]">
         <AttentionInbox
           students={attention}
           loading={attentionLoading}

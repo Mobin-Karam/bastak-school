@@ -1,16 +1,23 @@
 import { CalendarClock, MapPin, UsersRound } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { useAuth } from "../../auth";
-import type { ScheduleEntry } from "../../schedule/api/schedule.api";
-import { Card, EmptyState } from "../../../shared/ui/ui";
+import { listSchedule, type ScheduleEntry } from "../../schedule/api/schedule.api";
+import { Card, EmptyState, LoadingState } from "../../../shared/ui/ui";
 import { TeacherClassAttendanceSheet } from "../components/TeacherClassAttendanceSheet";
 
 const weekdays = ["یکشنبه", "دوشنبه", "سه‌شنبه", "چهارشنبه", "پنجشنبه", "جمعه", "شنبه"];
 
-/** A read-only weekly timetable for teachers, with roster access per assigned class. */
-export function TeacherSchedulePage({ entries }: { entries: ScheduleEntry[] }) {
+/** A read-only, server-scoped weekly timetable for teachers. */
+export function TeacherSchedulePage({ entries: suppliedEntries }: { entries?: ScheduleEntry[] }) {
   const auth = useAuth();
   const [selectedClass, setSelectedClass] = useState<ScheduleEntry | null>(null);
+  const schedule = useQuery({
+    queryKey: ["schedule", "teacher"],
+    queryFn: listSchedule,
+    enabled: suppliedEntries === undefined,
+  });
+  const entries = suppliedEntries ?? schedule.data ?? [];
   const active = entries.filter((entry) => entry.status === "ACTIVE");
 
   return (
@@ -26,10 +33,14 @@ export function TeacherSchedulePage({ entries }: { entries: ScheduleEntry[] }) {
           </p>
         </div>
       </header>
-      {!active.length ? (
+      {suppliedEntries === undefined && schedule.isLoading ? (
+        <LoadingState label="در حال دریافت برنامه هفتگی…" />
+      ) : suppliedEntries === undefined && schedule.isError ? (
+        <EmptyState title="برنامه هفتگی دریافت نشد." />
+      ) : !active.length ? (
         <EmptyState title="کلاسی در برنامه شما ثبت نشده است." />
       ) : (
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+        <div className="grid gap-3 sm:grid-cols-2 min-[1200px]:grid-cols-3">
           {weekdays.map((day, weekday) => {
             const dayEntries = active.filter((entry) => entry.weekday === weekday);
             return (

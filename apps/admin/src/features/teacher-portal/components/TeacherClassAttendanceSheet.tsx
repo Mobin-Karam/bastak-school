@@ -1,14 +1,16 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Check, Clock3, MapPin, UsersRound, X } from "lucide-react";
+import { Check, MessageSquareText } from "lucide-react";
 import { useEffect, useState } from "react";
 import {
   bulkMarkAttendance,
   getAttendanceParticipants,
+  listMyAttendanceAbsenceReviews,
   type SelfAttendanceRecord,
 } from "../../attendance/api/attendance.api";
 import type { ScheduleEntry } from "../../schedule/api/schedule.api";
 import { notify } from "../../../shared/ui/notifications";
-import { MobileSheet } from "../../../shared/ui/mobile-sheet";
+import { api } from "../../../shared/api/api";
+import { ResponsiveDrawer } from "../../../shared/ui/responsive-drawer";
 import { Button, EmptyState, LoadingState } from "../../../shared/ui/ui";
 
 type AttendanceStatus = SelfAttendanceRecord["status"];
@@ -38,20 +40,43 @@ export function TeacherClassAttendanceSheet({
 }) {
   const client = useQueryClient();
   const [marks, setMarks] = useState<Record<string, AttendanceStatus>>({});
+  const [reasons, setReasons] = useState<Record<string, string>>({});
   const participants = useQuery({
     queryKey: ["attendance", "participants", "class", entry?.classroom?.id],
     queryFn: () => getAttendanceParticipants("class", entry!.classroom!.id),
     enabled: open && Boolean(entry?.classroom?.id),
   });
+  const reviews = useQuery({
+    queryKey: ["attendance", "my-absence-reviews"],
+    queryFn: listMyAttendanceAbsenceReviews,
+    enabled: open,
+  });
+  const classReviews = (reviews.data ?? []).filter(
+    (review) => review.contextType === "class" && review.contextId === entry?.classroom?.id,
+  );
 
   useEffect(() => {
     setMarks({});
+    setReasons({});
   }, [entry?.id, open]);
+
+  useEffect(() => {
+    if (!open) return;
+    const stream = api.openEvents((type) => {
+      if (type === "attendance.reviewed")
+        void client.invalidateQueries({ queryKey: ["attendance", "my-absence-reviews"] });
+    });
+    return () => stream.close();
+  }, [client, open]);
 
   const save = useMutation({
     mutationFn: () => {
       if (!entry?.classroom?.id) throw new Error("این کلاس هنوز به برنامه متصل نشده است.");
-      const entries = Object.entries(marks).map(([studentId, status]) => ({ studentId, status }));
+      const entries = Object.entries(marks).map(([studentId, status]) => ({
+        studentId,
+        status,
+        note: status === "absent" ? reasons[studentId]?.trim() || undefined : undefined,
+      }));
       if (!entries.length) throw new Error("برای ثبت، وضعیت دست‌کم یک دانش‌آموز را انتخاب کنید.");
       return bulkMarkAttendance({
         organizationId: entry.organization.id,
@@ -71,45 +96,18 @@ export function TeacherClassAttendanceSheet({
   });
 
   return (
-    <MobileSheet open={open} onOpenChange={onOpenChange}>
-      <section className="mx-auto w-full max-w-2xl p-4 pb-[max(1.25rem,env(safe-area-inset-bottom))]">
-        <div
-          aria-hidden="true"
-          className="mx-auto mb-4 h-1.5 w-12 rounded-full bg-slate-200 dark:bg-slate-700"
-        />
-        <header className="flex items-start justify-between gap-3">
-          <div className="flex min-w-0 items-center gap-3">
-            <span className="grid size-11 shrink-0 place-items-center rounded-2xl bg-brand/10 text-brand">
-              <UsersRound size={21} aria-hidden="true" />
-            </span>
-            <div className="min-w-0">
-              <h2 className="truncate text-base font-black text-ink">
-                {entry?.title ?? "فهرست کلاس"}
-              </h2>
-              <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-slate-500">
-                <span className="inline-flex items-center gap-1">
-                  <Clock3 size={13} aria-hidden="true" />
-                  {entry ? `${entry.startTime} تا ${entry.endTime}` : ""}
-                </span>
-                {entry?.room ? (
-                  <span className="inline-flex items-center gap-1">
-                    <MapPin size={13} aria-hidden="true" />
-                    {entry.room}
-                  </span>
-                ) : null}
-              </p>
-            </div>
-          </div>
-          <Button
-            variant="ghost"
-            size="icon"
-            aria-label="بستن فهرست کلاس"
-            onClick={() => onOpenChange(false)}
-          >
-            <X size={19} aria-hidden="true" />
-          </Button>
-        </header>
-
+    <ResponsiveDrawer
+      open={open}
+      onOpenChange={onOpenChange}
+      title={entry?.title ?? "فهرست کلاس"}
+      description={
+        entry
+          ? `${entry.startTime} تا ${entry.endTime}${entry.room ? ` · ${entry.room}` : ""}`
+          : undefined
+      }
+      className="md:w-[min(34rem,92vw)]"
+    >
+      <section aria-label="فهرست دانش‌آموزان کلاس">
         {!entry?.classroom?.id ? (
           <div className="mt-5">
             <EmptyState title="برای این برنامه کلاس مشخص نشده است." />
@@ -133,6 +131,26 @@ export function TeacherClassAttendanceSheet({
                 ? "برای هر دانش‌آموز یک وضعیت انتخاب کنید؛ سپس تغییرات را ثبت کنید."
                 : "فهرست دانش‌آموزان این کلاس در اختیار شماست."}
             </p>
+            {classReviews.length ? (
+              <div className="mt-3 rounded-xl border border-sky-200 bg-sky-50 p-3 text-xs dark:border-sky-900/60 dark:bg-sky-950/25">
+                <p className="flex items-center gap-1.5 font-black text-sky-900 dark:text-sky-100">
+                  <MessageSquareText size={15} aria-hidden="true" /> نتیجه بررسی مدیر
+                </p>
+                <ul className="mt-2 grid gap-1.5 text-slate-700 dark:text-slate-200">
+                  {classReviews.slice(0, 4).map((review) => (
+                    <li key={review.id}>
+                      <span className="font-bold">{review.studentName}: </span>
+                      {review.reviewStatus === "pending"
+                        ? "در انتظار بررسی دلیل غیبت"
+                        : review.reviewStatus === "approved"
+                          ? "دلیل پذیرفته شد و غیبت موجه است"
+                          : "دلیل غیبت رد شد"}
+                      {review.reviewNote ? ` — ${review.reviewNote}` : ""}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
             <ul className="mt-3 grid gap-2" aria-label="فهرست دانش‌آموزان کلاس">
               {participants.data.map((student) => (
                 <li
@@ -169,6 +187,20 @@ export function TeacherClassAttendanceSheet({
                       })}
                     </div>
                   ) : null}
+                  {canManage && marks[student.id] === "absent" ? (
+                    <label className="mt-2 block text-xs font-bold text-slate-600 dark:text-slate-300">
+                      دلیل غیبت
+                      <input
+                        value={reasons[student.id] ?? ""}
+                        onChange={(event) =>
+                          setReasons((current) => ({ ...current, [student.id]: event.target.value }))
+                        }
+                        maxLength={500}
+                        placeholder="دلیل اعلام‌شده توسط دانش‌آموز یا ولی"
+                        className="mt-1 min-h-10 w-full rounded-lg border border-[rgb(var(--border-subtle))] bg-card px-3 text-xs font-normal text-ink outline-none focus-visible:ring-2 focus-visible:ring-brand"
+                      />
+                    </label>
+                  ) : null}
                 </li>
               ))}
             </ul>
@@ -178,7 +210,7 @@ export function TeacherClassAttendanceSheet({
                   variant="soft"
                   className="flex-1"
                   disabled={!Object.keys(marks).length || save.isPending}
-                  onClick={() => setMarks({})}
+                  onClick={() => { setMarks({}); setReasons({}); }}
                 >
                   پاک کردن
                 </Button>
@@ -195,6 +227,6 @@ export function TeacherClassAttendanceSheet({
           </>
         )}
       </section>
-    </MobileSheet>
+    </ResponsiveDrawer>
   );
 }

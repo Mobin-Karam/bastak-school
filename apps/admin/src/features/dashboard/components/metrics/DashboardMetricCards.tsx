@@ -96,7 +96,7 @@ gap-4
 
 sm:grid-cols-2
 
-xl:grid-cols-[160px_repeat(4,minmax(0,1fr))]
+min-[1200px]:grid-cols-[160px_repeat(4,minmax(0,1fr))]
 
 "
     >

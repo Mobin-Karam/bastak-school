@@ -8,7 +8,7 @@ export function LearningSidebar({ summary }: { summary?: LearningSummary }) {
   const copy = learningCopy(language);
   const numberLocale = language === "fa" ? "fa-IR" : "en-US";
   return (
-    <aside className="grid content-start gap-4 xl:sticky xl:top-20">
+    <aside className="grid content-start gap-4 min-[1200px]:sticky min-[1200px]:top-20">
       <Card>
         <h3 className="mb-3 font-bold">{copy.subjectStatus}</h3>
 

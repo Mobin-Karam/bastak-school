@@ -1,9 +1,10 @@
 import { useQuery } from "@tanstack/react-query";
-import { CalendarClock, ChevronLeft, Clock3 } from "lucide-react";
+import { BookOpenCheck, CalendarClock, ChevronLeft, Clock3, UsersRound } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../../auth";
 import { listSchedule, type ScheduleEntry } from "../../schedule/api/schedule.api";
+import { listClasses } from "../../education/api/classes.api";
 import { todayIso } from "../../../shared/lib/utils";
 import { useLocale } from "../../../shared/ui/locale";
 import { Card, EmptyState, LoadingState } from "../../../shared/ui/ui";
@@ -24,6 +25,14 @@ export function TeacherDashboard() {
     queryFn: () => getAdminDashboard("TEACHER"),
   });
   const schedule = useQuery({ queryKey: ["schedule", "teacher"], queryFn: listSchedule });
+  // The API limits this list to classes where the current teacher is assigned
+  // to at least one class book. Books are displayed from that same scoped
+  // response; the client never selects a teacher or class by itself.
+  const classes = useQuery({
+    queryKey: ["classes", "teacher"],
+    queryFn: () => listClasses(auth.context?.activeOrganization?.id),
+    enabled: auth.can("classes.read"),
+  });
   const weekday = new Date(`${calendarDate}T12:00:00`).getDay();
   const classesToday = useMemo(
     () =>
@@ -111,6 +120,61 @@ export function TeacherDashboard() {
 
         <CurrentPrayerCard times={prayerTimes} />
       </div>
+
+      <section aria-labelledby="teacher-classes-title" className="grid gap-3">
+        <div className="flex items-center justify-between gap-3 px-1">
+          <div>
+            <h2 id="teacher-classes-title" className="text-sm font-black text-ink">
+              کلاس‌ها و کتاب‌های من
+            </h2>
+            <p className="mt-0.5 text-[11px] text-slate-500">
+              فقط کلاس‌ها و کتاب‌هایی که به شما واگذار شده‌اند.
+            </p>
+          </div>
+          <Link
+            className="inline-flex shrink-0 items-center gap-1 text-xs font-bold text-brand"
+            to="/admin/schedule"
+          >
+            برنامه هفتگی <ChevronLeft size={15} aria-hidden="true" />
+          </Link>
+        </div>
+        {classes.isLoading ? (
+          <LoadingState label="در حال دریافت کلاس‌ها و کتاب‌های شما…" />
+        ) : classes.isError ? (
+          <EmptyState title="کلاس‌ها و کتاب‌های شما دریافت نشد." />
+        ) : classes.data?.length ? (
+          <div className="grid gap-3 sm:grid-cols-2 min-[1200px]:grid-cols-3">
+            {classes.data.map((classroom) => (
+              <Card key={classroom.id} className="min-w-0 p-3">
+                <div className="flex items-start gap-2">
+                  <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-brand/10 text-brand">
+                    <UsersRound size={17} aria-hidden="true" />
+                  </span>
+                  <div className="min-w-0">
+                    <h3 className="truncate text-sm font-black text-ink">{classroom.name}</h3>
+                    <p className="mt-0.5 text-[11px] text-slate-500">
+                      {classroom.enrollmentCount.toLocaleString("fa-IR")} دانش‌آموز
+                    </p>
+                  </div>
+                </div>
+                <ul className="mt-3 grid gap-1.5" aria-label={`کتاب‌های ${classroom.name}`}>
+                  {classroom.books.map((book) => (
+                    <li
+                      key={book.id}
+                      className="flex min-w-0 items-center gap-1.5 rounded-lg bg-[rgb(var(--surface-muted))] px-2.5 py-2 text-xs text-slate-700 dark:text-slate-200"
+                    >
+                      <BookOpenCheck size={14} className="shrink-0 text-brand" aria-hidden="true" />
+                      <span className="truncate font-bold">{book.title}</span>
+                    </li>
+                  ))}
+                </ul>
+              </Card>
+            ))}
+          </div>
+        ) : (
+          <EmptyState title="هنوز کلاس یا کتابی به شما واگذار نشده است." />
+        )}
+      </section>
 
       <TeacherClassAttendanceSheet
         entry={selectedClass}

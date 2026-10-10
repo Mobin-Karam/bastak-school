@@ -4,14 +4,23 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { LocaleProvider } from "../../shared/ui/locale";
 import { RoleDashboard } from "./components/RoleDashboard";
 
+const { viewportShellMock } = vi.hoisted(() => ({
+  viewportShellMock: vi.fn(() => "desktop"),
+}));
+
 vi.mock("../auth", () => ({
   useAuth: () => ({ activeRole: "ADVISOR", capabilities: ["exams.read"], can: () => false }),
+}));
+
+vi.mock("../../app/layout/shell/viewport-shell", () => ({
+  useViewportShell: viewportShellMock,
 }));
 
 describe("RoleDashboard localization", () => {
   afterEach(() => {
     cleanup();
     window.localStorage.clear();
+    viewportShellMock.mockReturnValue("desktop");
   });
 
   it("renders the active English role workspace in LTR", () => {
@@ -119,6 +128,36 @@ describe("RoleDashboard localization", () => {
     expect(screen.getByTestId("dashboard-location")).toHaveTextContent(
       "?studentId=student-1&dashboard-density=compact",
     );
+  });
+
+  it("mounts the task-focused home only for the mobile shell", () => {
+    viewportShellMock.mockReturnValue("mobile");
+
+    render(
+      <MemoryRouter>
+        <LocaleProvider>
+          <RoleDashboard
+            data={{
+              context: "ADVISOR",
+              generatedAt: "2026-01-01T00:00:00.000Z",
+              assignedStudents: 2,
+              unreadConversations: 1,
+            }}
+            loading={false}
+            error={false}
+            refreshing={false}
+            workItems={[]}
+            workLoading={false}
+            workError={false}
+            onRefresh={vi.fn()}
+            onRetry={vi.fn()}
+            onRetryWork={vi.fn()}
+          />
+        </LocaleProvider>
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByRole("region", { name: "خانه موبایل" })).toBeVisible();
   });
 
   it("renders the platform health decision widget for the platform role", () => {

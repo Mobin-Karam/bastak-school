@@ -44,31 +44,16 @@ import {
   visibleRoleDashboardWidgets,
 } from "../model/dashboard-layout";
 import { quickActionsForRole } from "../model/role-experience";
+import { dashboardWidgetRole } from "../model/role-dashboard-composition";
 import { Metric } from "../model/dashboard-metrics";
 import { DashboardMetricGrid } from "./metrics/DashboardMetricGrid";
 import { DashboardCalendar } from "./DashboardCalendar";
 import { MobileDashboardHome } from "./MobileDashboardHome";
 import { todayIso } from "../../../shared/lib/utils";
 import { CurrentPrayerCard } from "../../school-home/components/CurrentPrayerCard";
+import { useViewportShell } from "../../../app/layout/shell/viewport-shell";
 
 const n = (value: unknown) => (typeof value === "number" ? value : 0);
-
-function dashboardDisplayRole(role: string) {
-  if (
-    [
-      "SCHOOL_ADMIN",
-      "SCHOOL_SUPERVISOR",
-      "PRINCIPAL",
-      "DISCIPLINARIAN",
-      "RELIGIOUS_EDUCATION_MANAGER",
-      "GOVERNMENT_EDUCATION_MANAGER",
-    ].includes(role)
-  )
-    return "ORGANIZATION_ADMIN";
-  if (role === "STUDENT_AFFAIRS_MENTOR") return "MENTOR";
-  if (role === "COUNSELOR") return "ADVISOR";
-  return role;
-}
 
 export function roleDashboardMetrics(
   data: RoleDashboardData,
@@ -322,9 +307,10 @@ export function RoleDashboard({
   onRetryWork: () => void;
 }) {
   const auth = useAuth();
+  const isMobileShell = useViewportShell() === "mobile";
   const { language, profile } = useLocale();
   const dashboard = dashboardCopy[language];
-  const roleKey = dashboardDisplayRole(data?.activeRole || data?.context || auth.activeRole || "");
+  const roleKey = dashboardWidgetRole(data?.activeRole || data?.context || auth.activeRole || "");
   const roleCopy = {
     GUARDIAN: {
       title: dashboard.guardianWorkspaceTitle,
@@ -730,7 +716,7 @@ export function RoleDashboard({
         </>
       }
       summary={
-        <>
+        isMobileShell ? (
           <MobileDashboardHome
             data={data}
             activeRole={auth.activeRole}
@@ -738,7 +724,8 @@ export function RoleDashboard({
             calendarDate={calendarDate}
             onCalendarDateChange={setCalendarDate}
           />
-          <div className="hidden min-w-0 gap-3 md:grid">
+        ) : (
+          <div className="grid min-w-0 gap-3">
             <DashboardCalendar
               value={calendarDate}
               onChange={setCalendarDate}
@@ -822,7 +809,7 @@ export function RoleDashboard({
               />
             )}
           </div>
-        </>
+        )
       }
       primary={null}
     />
@@ -860,9 +847,9 @@ function DashboardLiveOverview({
       </header>
       {metrics}
       {pulse ? <div className="min-w-0">{pulse}</div> : null}
-      <div className="grid min-w-0 gap-3 xl:grid-cols-12">
-        <div className="min-w-0 xl:col-span-7">{work}</div>
-        <div className="grid min-w-0 gap-3 sm:grid-cols-2 xl:col-span-5 xl:grid-cols-1">
+      <div className="grid min-w-0 gap-3 min-[1200px]:grid-cols-12">
+        <div className="min-w-0 min-[1200px]:col-span-7">{work}</div>
+        <div className="grid min-w-0 gap-3 sm:grid-cols-2 min-[1200px]:col-span-5 min-[1200px]:grid-cols-1">
           {supporting.slice(0, 2).map((item) => (
             <div key={item.id} className="min-w-0">
               {item.content}
@@ -871,7 +858,7 @@ function DashboardLiveOverview({
         </div>
       </div>
       {supporting.length > 2 ? (
-        <div className="grid min-w-0 gap-3 md:grid-cols-2 xl:grid-cols-3">
+        <div className="grid min-w-0 gap-3 md:grid-cols-2 min-[1200px]:grid-cols-3">
           {supporting.slice(2).map((item) => (
             <div key={item.id} className="min-w-0">
               {item.content}

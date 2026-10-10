@@ -34,7 +34,7 @@ export function DashboardFollowUpCard({ items }: { items: FollowUpMetric[] }) {
         </p>
       </header>
 
-      <div className="grid gap-2 p-3 sm:grid-cols-2 xl:grid-cols-1">
+      <div className="grid gap-2 p-3 sm:grid-cols-2 min-[1200px]:grid-cols-1">
         {items.map((item) => {
           const Icon = icons[item.key];
           const content = (
