@@ -27,7 +27,10 @@ import {
   ORGANIZATION_FEATURES,
   isOrganizationFeatureCode,
 } from "./organization-features";
-import { assertRoleCodesCompatibleWithOrganization } from "./organization-role-policy";
+import {
+  assertRoleCodesAssignableByActor,
+  assertRoleCodesCompatibleWithOrganization,
+} from "./organization-role-policy";
 
 @Injectable()
 export class OrganizationsService {
@@ -306,6 +309,7 @@ export class OrganizationsService {
         "ROLE_ESCALATION",
         "تخصیص این نقش مجاز نیست.",
       );
+    assertRoleCodesAssignableByActor(actor, roles);
   }
   private async assertTypeChangeIsCompatible(
     organizationId: string,

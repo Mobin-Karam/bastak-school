@@ -19,6 +19,7 @@ import { SegmentedControl } from "../../../shared/ui/segmented-control";
 import { useLocale } from "../../../shared/ui/locale";
 import { examsCopy } from "../exams-locale";
 import { ExamCard } from "./ExamCard";
+import { useViewportShell } from "../../../app/layout/shell/viewport-shell";
 
 type ViewMode = "grid" | "list";
 
@@ -64,6 +65,7 @@ export function ExamList({
   const { language, formatDate } = useLocale();
   const copy = examsCopy(language);
   const [viewMode, setViewMode] = useState<ViewMode>("list");
+  const isMobileShell = useViewportShell() === "mobile";
 
   const allSelected =
     Boolean(filtered.length) && filtered.every((exam) => selected.includes(exam.id));
@@ -190,8 +192,8 @@ export function ExamList({
             ))}
           </div>
         ) : (
-          <>
-            <div className="grid gap-3 md:hidden">
+          isMobileShell ? (
+            <div className="grid gap-3">
               {filtered.map((exam) => (
                 <ExamCard
                   key={exam.id}
@@ -213,7 +215,8 @@ export function ExamList({
                 />
               ))}
             </div>
-            <div className="hidden overflow-hidden rounded-lg border border-[rgb(var(--border-subtle))] md:block">
+          ) : (
+            <div className="overflow-hidden rounded-lg border border-[rgb(var(--border-subtle))]">
               <div className="overflow-x-auto">
                 <div className="min-w-[1060px]">
                   <div className="grid grid-cols-[40px_minmax(240px,2fr)_130px_130px_110px_90px_minmax(330px,1fr)] items-center gap-3 border-b border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-muted))] px-3 py-2.5 text-xs font-bold text-slate-600 dark:text-slate-300">
@@ -405,7 +408,7 @@ export function ExamList({
                 </div>
               </div>
             </div>
-          </>
+          )
         )}
       </div>
     </Card>

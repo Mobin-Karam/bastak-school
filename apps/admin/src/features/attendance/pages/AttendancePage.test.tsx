@@ -1,7 +1,9 @@
+import type { PropsWithChildren } from "react";
 import { render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { LocaleProvider } from "../../../shared/ui/locale";
 import { AttendancePage } from "./AttendancePage";
 
 const {
@@ -24,6 +26,18 @@ vi.mock("../api/attendance.api", () => ({
   bulkMarkAttendance: bulkMarkAttendanceMock,
 }));
 
+vi.mock("../../auth", () => ({
+  useAuth: () => ({ can: () => false }),
+}));
+
+function TestProviders({ children }: PropsWithChildren) {
+  return (
+    <MemoryRouter>
+      <LocaleProvider>{children}</LocaleProvider>
+    </MemoryRouter>
+  );
+}
+
 describe("AttendancePage", () => {
   beforeEach(() => {
     listAttendanceSessionsMock.mockResolvedValue([]);
@@ -33,7 +47,7 @@ describe("AttendancePage", () => {
   });
 
   it("waits for an attendance type and target instead of auto-loading a roster", async () => {
-    render(<AttendancePage />, { wrapper: MemoryRouter });
+    render(<AttendancePage />, { wrapper: TestProviders });
 
     await waitFor(() => {
       expect(listAttendanceContextsMock).toHaveBeenCalledOnce();
@@ -59,13 +73,13 @@ describe("AttendancePage", () => {
       },
     ]);
     const user = userEvent.setup();
-    render(<AttendancePage />, { wrapper: MemoryRouter });
+    render(<AttendancePage />, { wrapper: TestProviders });
 
     await waitFor(() => expect(screen.getByRole("button", { name: "کلاس 1 مورد" })).toBeEnabled());
     await user.click(screen.getByRole("button", { name: "کلاس 1 مورد" }));
     expect(getAttendanceParticipantsMock).not.toHaveBeenCalled();
 
-    await user.selectOptions(screen.getByRole("combobox", { name: /مرحله ۲/ }), "class-1");
+    await user.click(screen.getByRole("button", { name: "دهم الف 10-A · ۲ نفر" }));
     await waitFor(() => {
       expect(getAttendanceParticipantsMock).toHaveBeenCalledWith("class", "class-1");
     });
@@ -95,15 +109,18 @@ describe("AttendancePage", () => {
 
     render(
       <MemoryRouter initialEntries={["/admin/attendance?contextType=class&contextId=class-2"]}>
-        <AttendancePage />
+        <LocaleProvider>
+          <AttendancePage />
+        </LocaleProvider>
       </MemoryRouter>,
     );
 
     await waitFor(() => {
       expect(getAttendanceParticipantsMock).toHaveBeenCalledWith("class", "class-2");
     });
-    expect(
-      (screen.getByRole("option", { name: "دهم ب (10-B)" }) as HTMLOptionElement).selected,
-    ).toBe(true);
+    expect(screen.getByRole("button", { name: "دهم ب 10-B · ۲ نفر" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
   });
 });

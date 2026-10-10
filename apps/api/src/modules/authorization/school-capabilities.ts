@@ -22,6 +22,7 @@ export const SCHOOL_CAPABILITIES = {
   attendance: {
     read: "attendance.read",
     manage: "attendance.manage",
+    review: "attendance.review",
     classRead: "attendance.class.read",
     classManage: "attendance.class.manage",
     groupRead: "attendance.group.read",

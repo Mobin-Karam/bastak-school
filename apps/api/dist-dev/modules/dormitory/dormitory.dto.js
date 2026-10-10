@@ -81,7 +81,7 @@ class SendDormAnnouncementDto {
     roomId;
     studentId;
     static _OPENAPI_METADATA_FACTORY() {
-        return { organizationId: { required: true, type: () => String, format: "uuid" }, title: { required: true, type: () => String, minLength: 1, maxLength: 180 }, body: { required: true, type: () => String, minLength: 1, maxLength: 4000 }, target: { required: true, enum: ["ROOM", "STUDENT"], enum: ["ROOM", "STUDENT"] }, roomId: { required: false, type: () => String, format: "uuid" }, studentId: { required: false, type: () => String, format: "uuid" } };
+        return { organizationId: { required: true, type: () => String, format: "uuid" }, title: { required: true, type: () => String, minLength: 1, maxLength: 180 }, body: { required: true, type: () => String, minLength: 1, maxLength: 4000 }, target: { required: true, enum: ["STUDENT", "ROOM"], enum: ["ROOM", "STUDENT"] }, roomId: { required: false, type: () => String, format: "uuid" }, studentId: { required: false, type: () => String, format: "uuid" } };
     }
 }
 exports.SendDormAnnouncementDto = SendDormAnnouncementDto;

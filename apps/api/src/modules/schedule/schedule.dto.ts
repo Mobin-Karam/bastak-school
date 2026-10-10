@@ -3,6 +3,7 @@ import { IsIn, IsInt, IsOptional, IsString, IsUUID, Matches, Max, Min } from "cl
 export class SaveScheduleEntryDto {
   @IsUUID() organizationId!: string;
   @IsOptional() @IsUUID() classroomId?: string;
+  @IsOptional() @IsUUID() classBookId?: string;
   @IsOptional() @IsUUID() teacherId?: string;
   @IsString() title!: string;
   @IsInt() @Min(0) @Max(6) weekday!: number;

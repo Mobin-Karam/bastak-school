@@ -13,7 +13,7 @@ Date: 2026-09-14.
 - `AdminDataTable`: semantic `aria-sort`, keyboard-activatable rows, contextual shared error output, caption, selection semantics and responsive overflow.
 - `StudentPicker`: dark-mode surfaces and Arrow/Home/End keyboard traversal while retaining Persian search and bounded cohort rendering.
 - `DatePicker`: invalid-value safety, constrained Today action, named month navigation, required-date safety, keyboard clear for optional dates and Moshaver-owned time input styling.
-- Notifications: Sonner-facing adapter replaced with a Moshaver-owned `goey-toast` adapter while preserving the application API; repeated typed feedback is deduplicated by stable active-toast IDs.
+- Notifications: a Moshaver-owned adapter now uses Sonner while preserving the application API; repeated typed feedback is deduplicated by stable active-toast IDs, and the bottom-left surface has responsive, high-contrast light/dark styling.
 
 ## API changes and examples
 
@@ -47,7 +47,7 @@ Existing `notify(...)` and `notifications.success/error/loading/update/dismiss/u
 
 ## Deprecated patterns
 
-- Feature-local toast providers or direct `sonner`/`goey-toast` imports.
+- Feature-local toast providers or direct `sonner` imports.
 - Error text detached from its control.
 - Unnamed icon-only dialog controls.
 - Click-only data-table rows and ad-hoc feature error placeholders where `ErrorState` fits.

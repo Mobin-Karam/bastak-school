@@ -1,7 +1,13 @@
 import { ApiException } from "../../common/exceptions/api.exception";
 import { OrganizationType } from "../../database/entities/organization.entity";
+import type { AuthenticatedUser } from "../auth";
 
 export const PLATFORM_ROLE_CODES = ["PLATFORM_ADMIN"] as const;
+export const PRINCIPAL_ASSIGNABLE_ROLE_CODES = [
+  "STUDENT",
+  "SCHOOL_SUPERVISOR",
+  "TEACHER",
+] as const;
 
 const sharedOrganizationRoles = [
   "ORGANIZATION_ADMIN",
@@ -66,6 +72,33 @@ export function assertPlatformRolesAreUnscoped(
       400,
       "PLATFORM_ROLE_MUST_BE_UNSCOPED",
       "نقش مدیر پلتفرم به سازمان متصل نمی‌شود.",
+    );
+  }
+}
+
+/**
+ * The current school rollout lets a Principal provision only the three
+ * operational account types they supervise. Platform administrators retain
+ * their broader tenant-administration authority.
+ */
+export function assertRoleCodesAssignableByActor(
+  actor: Pick<AuthenticatedUser, "role" | "roles">,
+  roleCodes: readonly string[],
+) {
+  const actorRoles = actor.roles?.length ? actor.roles : [actor.role];
+  const isPrincipal = actorRoles.includes("PRINCIPAL");
+  const isPlatformAdmin = actorRoles.includes("PLATFORM_ADMIN");
+  const allowed = new Set<string>(PRINCIPAL_ASSIGNABLE_ROLE_CODES);
+
+  if (
+    isPrincipal &&
+    !isPlatformAdmin &&
+    roleCodes.some((roleCode) => !allowed.has(roleCode))
+  ) {
+    throw new ApiException(
+      403,
+      "PRINCIPAL_ROLE_ASSIGNMENT_RESTRICTED",
+      "مدیر فقط می‌تواند حساب دانش‌آموز، ناظم یا دبیر ایجاد و به‌روزرسانی کند.",
     );
   }
 }

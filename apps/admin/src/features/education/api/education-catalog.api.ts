@@ -120,3 +120,19 @@ export const previewEducationImport = (books: EducationBookInput[]) =>
   api.post<EducationImportPreview>("/education-catalog/admin/books/import-preview", { books });
 export const commitEducationImport = (books: EducationBookInput[]) =>
   api.post<{ imported: number }>("/education-catalog/admin/books/import-commit", { books });
+export const exportEducationBooks = () =>
+  api.get<
+    Array<
+      Pick<
+        EducationBookInput,
+        | "id"
+        | "schoolYear"
+        | "titleFa"
+        | "titleEn"
+        | "category"
+        | "textbookCode"
+        | "notes"
+        | "organizationId"
+      >
+    >
+  >("/education-catalog/admin/books/export");

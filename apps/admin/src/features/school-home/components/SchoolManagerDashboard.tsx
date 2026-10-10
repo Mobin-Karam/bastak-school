@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { BellRing, UsersRound } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../../auth";
 import { listAttendanceSessions } from "../../attendance/api/attendance.api";
@@ -19,12 +19,15 @@ import {
 } from "../api/school-home.api";
 import { CurrentPrayerCard } from "./CurrentPrayerCard";
 import { SchoolOccupancyBanner } from "./SchoolOccupancyBanner";
+import { ResponsiveDrawer } from "../../../shared/ui/responsive-drawer";
 
 /** Principal and supervisor home: school calendar, live prayer time, announcements and attendance totals. */
 export function SchoolManagerDashboard() {
   const auth = useAuth();
   const client = useQueryClient();
   const [date, setDate] = useState(todayIso);
+  const [announcementsOpen, setAnnouncementsOpen] = useState(false);
+  const [now, setNow] = useState(() => Date.now());
   const organizationId =
     auth.context?.activeOrganization?.id ?? auth.context?.availableOrganizations[0]?.id;
   const schedule = useQuery({ queryKey: ["schedule", "manager"], queryFn: listSchedule });
@@ -101,6 +104,14 @@ export function SchoolManagerDashboard() {
     });
     return () => events.close();
   }, [client, organizationId]);
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(Date.now()), 60_000);
+    return () => window.clearInterval(timer);
+  }, []);
+  const activeAnnouncements = useMemo(
+    () => (announcements.data ?? []).filter((item) => item.status === "ACTIVE"),
+    [announcements.data],
+  );
 
   if (schedule.isLoading) return <LoadingState label="در حال آماده‌سازی میز مدرسه…" />;
   return (
@@ -145,78 +156,119 @@ export function SchoolManagerDashboard() {
           </div>
         </Card>
       </div>
-      {auth.can("announcements.manage") ? (
-        <Card className="p-4">
-          <div className="flex items-center gap-2">
-            <BellRing className="text-brand" size={19} />
-            <h2 className="font-black text-ink">اعلان جدید</h2>
+      <Card className="p-4">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <h2 className="font-black text-ink">اعلان‌های مدرسه</h2>
+            <p className="mt-1 text-xs text-slate-500">
+              {activeAnnouncements.length.toLocaleString("fa-IR")} اعلان فعال
+            </p>
           </div>
-          <div className="mt-3 grid gap-2 sm:grid-cols-[1fr_auto]">
-            <Input
-              placeholder="عنوان اعلان"
-              value={announcement.title}
-              onChange={(event) =>
-                setAnnouncement((current) => ({ ...current, title: event.target.value }))
-              }
-            />
-            <select
-              className="h-10 rounded-lg border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card))] px-3 text-sm"
-              value={announcement.audience}
-              onChange={(event) =>
-                setAnnouncement((current) => ({
-                  ...current,
-                  audience: event.target.value as "STAFF" | "STUDENTS",
-                }))
-              }
-            >
-              <option value="STUDENTS">دانش‌آموزان</option>
-              <option value="STAFF">کارکنان</option>
-            </select>
-          </div>
-          <Textarea
-            className="mt-2"
-            placeholder="متن اعلان"
-            value={announcement.body}
-            onChange={(event) =>
-              setAnnouncement((current) => ({ ...current, body: event.target.value }))
-            }
-          />
-          <Button
-            className="mt-2"
-            disabled={!announcement.title.trim() || !announcement.body.trim()}
-            loading={publish.isPending}
-            onClick={() => publish.mutate()}
-          >
-            انتشار اعلان
+          <Button onClick={() => setAnnouncementsOpen(true)}>
+            <BellRing size={16} /> مدیریت اعلان‌ها
           </Button>
-        </Card>
-      ) : null}
-      {announcements.data?.length ? (
-        <Card className="p-4" aria-label="اعلان‌های فعال مدرسه">
-          <h2 className="font-black text-ink">اعلان‌های فعال</h2>
-          <div className="mt-3 grid gap-2">
-            {announcements.data.slice(0, 3).map((item) => (
-              <article key={item.id} className="rounded-xl bg-[rgb(var(--surface-muted))] p-3">
-                <div className="flex items-start justify-between gap-2">
-                  <h3 className="text-sm font-bold text-ink">{item.title}</h3>
-                  {auth.can("announcements.manage") && item.status !== "ARCHIVED" ? (
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      loading={archiveAnnouncement.isPending}
-                      aria-label={`بایگانی اعلان ${item.title}`}
-                      onClick={() => archiveAnnouncement.mutate(item)}
-                    >
-                      بایگانی
-                    </Button>
-                  ) : null}
-                </div>
-                <p className="mt-1 text-xs leading-5 text-slate-500">{item.body}</p>
-              </article>
-            ))}
-          </div>
-        </Card>
-      ) : null}
+        </div>
+      </Card>
+      <ResponsiveDrawer
+        open={announcementsOpen}
+        onOpenChange={setAnnouncementsOpen}
+        title="اعلان‌های مدرسه"
+        description="اعلان‌ها حداکثر ۲۴ ساعت پس از انتشار فعال هستند."
+      >
+        <div className="grid gap-4">
+          {auth.can("announcements.manage") ? (
+            <Card className="p-4">
+              <div className="flex items-center gap-2">
+                <BellRing className="text-brand" size={19} />
+                <h2 className="font-black text-ink">اعلان جدید</h2>
+              </div>
+              <div className="mt-3 grid gap-2 sm:grid-cols-[1fr_auto]">
+                <Input
+                  placeholder="عنوان اعلان"
+                  value={announcement.title}
+                  onChange={(event) =>
+                    setAnnouncement((current) => ({ ...current, title: event.target.value }))
+                  }
+                />
+                <select
+                  className="h-10 rounded-lg border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card))] px-3 text-sm"
+                  value={announcement.audience}
+                  onChange={(event) =>
+                    setAnnouncement((current) => ({
+                      ...current,
+                      audience: event.target.value as "STAFF" | "STUDENTS",
+                    }))
+                  }
+                >
+                  <option value="STUDENTS">دانش‌آموزان</option>
+                  <option value="STAFF">کارکنان</option>
+                </select>
+              </div>
+              <Textarea
+                className="mt-2"
+                placeholder="متن اعلان"
+                value={announcement.body}
+                onChange={(event) =>
+                  setAnnouncement((current) => ({ ...current, body: event.target.value }))
+                }
+              />
+              <Button
+                className="mt-2"
+                disabled={!announcement.title.trim() || !announcement.body.trim()}
+                loading={publish.isPending}
+                onClick={() => publish.mutate()}
+              >
+                انتشار اعلان
+              </Button>
+            </Card>
+          ) : null}
+          {activeAnnouncements.length ? (
+            <Card className="p-4" aria-label="اعلان‌های فعال مدرسه">
+              <h2 className="font-black text-ink">اعلان‌های فعال</h2>
+              <div className="mt-3 grid gap-2">
+                {activeAnnouncements.map((item) => (
+                  <article key={item.id} className="rounded-xl bg-[rgb(var(--surface-muted))] p-3">
+                    <div className="flex items-start justify-between gap-2">
+                      <h3 className="text-sm font-bold text-ink">{item.title}</h3>
+                      {auth.can("announcements.manage") && item.status !== "ARCHIVED" ? (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          loading={archiveAnnouncement.isPending}
+                          aria-label={`بایگانی اعلان ${item.title}`}
+                          onClick={() => archiveAnnouncement.mutate(item)}
+                        >
+                          بایگانی
+                        </Button>
+                      ) : null}
+                    </div>
+                    <p className="mt-1 text-xs leading-5 text-slate-500">{item.body}</p>
+                    {item.expiresAt ? (
+                      <p className="mt-2 text-[11px] font-bold text-amber-700 dark:text-amber-300">
+                        {remainingAnnouncementTime(item.expiresAt, now)}
+                      </p>
+                    ) : null}
+                  </article>
+                ))}
+              </div>
+            </Card>
+          ) : (
+            <p className="py-6 text-center text-sm text-slate-500">اعلان فعالی وجود ندارد.</p>
+          )}
+          <p className="text-xs text-slate-500">
+            بایگانی‌ها پس از پایان زمان در تاریخچه سرور قابل فیلتر خواهند بود.
+          </p>
+        </div>
+      </ResponsiveDrawer>
     </section>
   );
+}
+
+function remainingAnnouncementTime(expiresAt: string, now: number) {
+  const remaining = Math.max(0, new Date(expiresAt).getTime() - now);
+  const hours = Math.floor(remaining / 3_600_000);
+  const minutes = Math.floor((remaining % 3_600_000) / 60_000);
+  return remaining
+    ? `باقی‌مانده: ${hours.toLocaleString("fa-IR")}:${minutes.toLocaleString("fa-IR")} ساعت`
+    : "زمان اعلان به پایان رسیده است";
 }

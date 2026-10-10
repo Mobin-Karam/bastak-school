@@ -1,5 +1,5 @@
 import { Repository } from "typeorm";
-import { AttendanceRecord, AttendanceStatus } from "../../database/entities/attendance-record.entity";
+import { AttendanceRecord, AttendanceReviewStatus, AttendanceStatus } from "../../database/entities/attendance-record.entity";
 import { AttendanceContextType, AttendanceSession } from "../../database/entities/attendance-session.entity";
 import { DormRoomAssignment } from "../../database/entities/dorm-room-assignment.entity";
 import { DormRoom } from "../../database/entities/dorm-room.entity";
@@ -13,7 +13,7 @@ import { AuthenticatedUser } from "../auth";
 import { AuthorizationService } from "../authorization";
 import { SchoolAccessService } from "../school-access/school-access.service";
 import { RealtimeService } from "../realtime/realtime.service";
-import { BulkMarkAttendanceDto, CreateAttendanceSessionDto } from "./attendance.dto";
+import { BulkMarkAttendanceDto, CreateAttendanceSessionDto, ReviewAttendanceAbsenceDto } from "./attendance.dto";
 export declare class AttendanceService {
     private readonly sessions;
     private readonly records;
@@ -53,6 +53,8 @@ export declare class AttendanceService {
         label: string;
         total: number;
         activeOrganizationId: string;
+        building: string;
+        floor: number;
     })[]>;
     listSessions(user: AuthenticatedUser, organizationId?: string): Promise<{
         remaining: number;
@@ -66,7 +68,7 @@ export declare class AttendanceService {
         id: string;
         organizationId: string;
         organizationName: string;
-        contextType: "class" | "dorm" | "class_group" | "night";
+        contextType: "class" | "class_group" | "dorm" | "night";
         contextId: string;
         contextLabel: string;
         sessionDate: string;
@@ -90,12 +92,76 @@ export declare class AttendanceService {
             note: string;
         }[];
     }>;
+    listAbsenceReviews(user: AuthenticatedUser, organizationId?: string): Promise<{
+        id: string;
+        studentId: string;
+        studentName: string;
+        status: AttendanceStatus;
+        reason: string;
+        reviewStatus: AttendanceReviewStatus | null;
+        reviewNote: string;
+        reviewedAt: string | null;
+        sessionDate: string;
+        contextType: "class" | "class_group" | "dorm" | "night";
+        contextId: string;
+        organizationId: string;
+        organizationName: string;
+        teacherName: string;
+    }[]>;
+    listLiveRecords(user: AuthenticatedUser, organizationId?: string): Promise<{
+        id: string;
+        studentId: string;
+        studentName: string;
+        status: AttendanceStatus;
+        reason: string;
+        reviewStatus: AttendanceReviewStatus | null;
+        reviewNote: string;
+        reviewedAt: string | null;
+        sessionDate: string;
+        contextType: "class" | "class_group" | "dorm" | "night";
+        contextId: string;
+        organizationId: string;
+        organizationName: string;
+        teacherName: string;
+    }[]>;
+    reviewAbsence(user: AuthenticatedUser, recordId: string, dto: ReviewAttendanceAbsenceDto): Promise<{
+        id: string;
+        studentId: string;
+        studentName: string;
+        status: AttendanceStatus;
+        reason: string;
+        reviewStatus: AttendanceReviewStatus | null;
+        reviewNote: string;
+        reviewedAt: string | null;
+        sessionDate: string;
+        contextType: "class" | "class_group" | "dorm" | "night";
+        contextId: string;
+        organizationId: string;
+        organizationName: string;
+        teacherName: string;
+    }>;
+    listMyAbsenceReviews(user: AuthenticatedUser): Promise<{
+        id: string;
+        studentId: string;
+        studentName: string;
+        status: AttendanceStatus;
+        reason: string;
+        reviewStatus: AttendanceReviewStatus | null;
+        reviewNote: string;
+        reviewedAt: string | null;
+        sessionDate: string;
+        contextType: "class" | "class_group" | "dorm" | "night";
+        contextId: string;
+        organizationId: string;
+        organizationName: string;
+        teacherName: string;
+    }[]>;
     listParticipants(user: AuthenticatedUser, contextType: string, contextId: string): Promise<{
         id: string;
         name: string;
         userId: string | null;
         nationalCode: string | null | undefined;
-        accountStatus: "active" | "inactive" | "archived";
+        accountStatus: "active" | "archived" | "inactive";
     }[]>;
     summary(user: AuthenticatedUser, studentId?: string): Promise<{
         recent: {
@@ -103,7 +169,7 @@ export declare class AttendanceService {
             sessionId: string;
             status: AttendanceStatus;
             sessionDate: string;
-            contextType: "class" | "dorm" | "class_group" | "night";
+            contextType: "class" | "class_group" | "dorm" | "night";
             contextId: string;
             organizationId: string;
             recordedAt: string;
@@ -120,7 +186,7 @@ export declare class AttendanceService {
         status: AttendanceStatus;
         note: string;
         sessionDate: string;
-        contextType: "class" | "dorm" | "class_group" | "night";
+        contextType: "class" | "class_group" | "dorm" | "night";
         contextId: string;
         organizationId: string;
         recordedAt: string;
@@ -128,6 +194,8 @@ export declare class AttendanceService {
     private participantIds;
     private assertContextAccess;
     private schoolWide;
+    private assertReviewAccess;
+    private reviewView;
     private contextOrganizationId;
     private context;
     private status;

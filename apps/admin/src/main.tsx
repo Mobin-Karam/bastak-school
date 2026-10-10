@@ -5,7 +5,7 @@ import { AppProviders } from "./app/providers/providers";
 import { queryClient } from "./app/providers/query-client";
 import { router } from "./app/routing/router";
 import "./styles/globals.css";
-import "goey-toast/styles.css";
+import "sonner/dist/styles.css";
 import { initializeTheme } from "./shared/theme/theme";
 import { API_WORK_CONTEXT_EVENT } from "./shared/api/api";
 import { AppErrorBoundary } from "./shared/errors";

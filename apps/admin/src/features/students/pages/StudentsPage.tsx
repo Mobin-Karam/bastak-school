@@ -1,6 +1,6 @@
 import { useDeferredValue, useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowRight, FileSpreadsheet, UserPlus, X } from "lucide-react";
+import { ArrowRight, UserPlus, X } from "lucide-react";
 import { useSearchParams } from "react-router-dom";
 import type { Student } from "../../../shared/types/domain";
 import { useStudents } from "../../../shared/hooks/useStudents";
@@ -36,6 +36,7 @@ import { StudentOverview } from "../components/StudentOverview";
 import { StudentSecurity } from "../components/StudentSecurity";
 import { StudentSupportWorkspace } from "../components/StudentSupportWorkspace";
 import { StudentTransferWorkspace } from "../components/StudentTransferWorkspace";
+import { SpreadsheetTransferLauncher } from "../../../shared/ui/spreadsheet-transfer-launcher";
 import { getStudentSyncHealth, reviewStudentSyncHealth } from "../api/student-activity.api";
 import {
   getStudentProfileCompleteness,
@@ -872,30 +873,22 @@ export function StudentsPage() {
     <div className="grid gap-4 sm:gap-5">
       {canTransfer ? (
         <div className="flex justify-end">
-          <Button
-            variant="soft"
-            onClick={() =>
-              modal.open({
-                title: language === "fa" ? "ورود و خروجی طلبه‌ها" : "Student import and export",
-                description:
-                  language === "fa"
-                    ? "فایل را پیش‌نمایش بگیرید و سپس فقط ردیف‌های معتبر را ثبت کنید."
-                    : "Preview the workbook before committing valid rows.",
-                size: "xl",
-                content: (
-                  <StudentTransferWorkspace
-                    organizationId={auth.context?.activeOrganization?.id ?? ""}
-                    canImport={auth.can("students.import")}
-                    canExport={auth.can("students.export")}
-                    onCompleted={() => void qc.invalidateQueries({ queryKey: ["students"] })}
-                  />
-                ),
-              })
+          <SpreadsheetTransferLauncher
+            title={language === "fa" ? "ورود و خروجی طلبه‌ها" : "Student import and export"}
+            description={
+              language === "fa"
+                ? "فایل را پیش‌نمایش بگیرید و سپس فقط ردیف‌های معتبر را ثبت کنید."
+                : "Preview the workbook before committing valid rows."
             }
+            trigger={language === "fa" ? "ورود / خروجی Excel" : "Excel import / export"}
           >
-            <FileSpreadsheet size={16} aria-hidden="true" />
-            {language === "fa" ? "ورود / خروجی Excel" : "Excel import / export"}
-          </Button>
+            <StudentTransferWorkspace
+              organizationId={auth.context?.activeOrganization?.id ?? ""}
+              canImport={auth.can("students.import")}
+              canExport={auth.can("students.export")}
+              onCompleted={() => void qc.invalidateQueries({ queryKey: ["students"] })}
+            />
+          </SpreadsheetTransferLauncher>
         </div>
       ) : null}
       <ManagementMasterDetail
@@ -938,8 +931,8 @@ export function StudentsPage() {
         detail={
           <div>
             {mode === "create" ? (
-              <Card className="overflow-hidden p-0 xl:flex xl:max-h-[calc(100dvh-6rem)] xl:flex-col">
-                <div className="border-b border-slate-200 p-3 xl:hidden dark:border-slate-800">
+              <Card className="overflow-hidden p-0 min-[1200px]:flex min-[1200px]:max-h-[calc(100dvh-6rem)] min-[1200px]:flex-col">
+                <div className="border-b border-slate-200 p-3 min-[1200px]:hidden dark:border-slate-800">
                   <button
                     type="button"
                     onClick={cancelCreate}
@@ -949,7 +942,7 @@ export function StudentsPage() {
                     {copy.backToDirectory}
                   </button>
                 </div>
-                <div className="min-h-0 p-3 sm:p-4 xl:flex-1 xl:overflow-y-auto xl:overscroll-contain">
+                <div className="min-h-0 p-3 sm:p-4 min-[1200px]:flex-1 min-[1200px]:overflow-y-auto min-[1200px]:overscroll-contain">
                   <FeedbackBanner
                     feedback={feedback}
                     onDismiss={() => setFeedback(null)}
@@ -988,7 +981,7 @@ export function StudentsPage() {
                 {detailContent}
               </StudentDetail>
             ) : (
-              <Card className="hidden xl:block">
+              <Card className="hidden min-[1200px]:block">
                 <div className="grid min-h-64 place-items-center text-center">
                   {studentStore.isLoading ? (
                     <LoadingState label={copy.preparingRecords} />

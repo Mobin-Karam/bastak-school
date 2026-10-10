@@ -184,21 +184,29 @@ export function ManagementMasterDetail({
   detailScroll?: boolean;
 }) {
   const detailLayout = detailScroll
-    ? "xl:sticky xl:top-20 xl:max-h-[calc(100dvh-6rem)] xl:overflow-y-auto xl:overscroll-contain xl:pe-1"
-    : "xl:sticky xl:top-20 xl:pe-1";
+    ? "management-master-detail__detail--scroll min-[1200px]:sticky min-[1200px]:top-20 min-[1200px]:max-h-[calc(100dvh-6rem)] min-[1200px]:overflow-y-auto min-[1200px]:overscroll-contain min-[1200px]:pe-1"
+    : "management-master-detail__detail--static min-[1200px]:sticky min-[1200px]:top-20 min-[1200px]:pe-1";
 
   return (
     <section
-      className="grid items-start gap-4 xl:grid-cols-[minmax(0,1.25fr)_var(--management-detail)] 2xl:grid-cols-[minmax(0,1.4fr)_var(--management-detail)]"
+      className="management-master-detail"
       style={{ "--management-detail": detailWidth } as CSSProperties}
     >
-      <div className={directoryVisible ? "min-w-0" : "hidden min-w-0 xl:block"}>{directory}</div>
-      <div
-        className={
-          detailVisible ? `min-w-0 ${detailLayout}` : `hidden min-w-0 xl:block ${detailLayout}`
-        }
-      >
-        {detail}
+      <div className="management-master-detail__layout grid items-start gap-4">
+        <div
+          className={directoryVisible ? "management-master-detail__directory min-w-0" : "hidden min-w-0 min-[1200px]:block"}
+        >
+          {directory}
+        </div>
+        <div
+          className={
+            detailVisible
+              ? `management-master-detail__detail min-w-0 ${detailLayout}`
+              : `management-master-detail__detail hidden min-w-0 min-[1200px]:block ${detailLayout}`
+          }
+        >
+          {detail}
+        </div>
       </div>
     </section>
   );

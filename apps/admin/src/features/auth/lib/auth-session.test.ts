@@ -1,24 +1,27 @@
 import { describe, expect, it } from "vitest";
 import { adminPortalRole, isSupportedAdminPortalRole } from "./auth-session";
 
-describe("released Admin role selection", () => {
-  it("selects a released workspace before an unreleased secondary role", () => {
-    expect(adminPortalRole(["COUNSELOR", "TEACHER"])).toBe("TEACHER");
+describe("Admin role selection", () => {
+  it("keeps the AccountContext role order when every existing Admin role is supported", () => {
+    expect(adminPortalRole(["COUNSELOR", "SCHOOL_SUPERVISOR"])).toBe("COUNSELOR");
   });
 
-  it("keeps an unreleased role authenticated so it can receive the coming-soon modal", () => {
+  it("supports valid contextual school roles without fabricating a migration", () => {
     expect(adminPortalRole(["COUNSELOR"])).toBe("COUNSELOR");
-    expect(isSupportedAdminPortalRole("COUNSELOR")).toBe(false);
+    expect(isSupportedAdminPortalRole("COUNSELOR")).toBe(true);
   });
 
-  it.each([
-    "PLATFORM_ADMIN",
-    "PRINCIPAL",
-    "SCHOOL_SUPERVISOR",
-    "TEACHER",
-    "STUDENT",
-    "GUARDIAN",
-  ] as const)("allows the released %s role", (role) => {
-    expect(isSupportedAdminPortalRole(role)).toBe(true);
-  });
+  it.each(["PRINCIPAL", "SCHOOL_SUPERVISOR", "STUDENT", "TEACHER"] as const)(
+    "allows the released %s role",
+    (role) => {
+      expect(isSupportedAdminPortalRole(role)).toBe(true);
+    },
+  );
+
+  it.each(["PLATFORM_ADMIN", "GUARDIAN", "RELIGIOUS_EDUCATION_MANAGER"] as const)(
+    "supports the valid %s account",
+    (role) => {
+      expect(isSupportedAdminPortalRole(role)).toBe(true);
+    },
+  );
 });

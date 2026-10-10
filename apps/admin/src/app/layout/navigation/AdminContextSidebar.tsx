@@ -41,7 +41,7 @@ export function AdminContextSidebar({
 
   return (
     <aside
-      className={`admin-context-rail fixed inset-y-0 start-0 z-40 hidden flex-col border-e border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-muted))] transition-[inset-inline-start,width,padding] duration-200 motion-reduce:transition-none lg:flex ${mainCollapsed ? "start-[4.25rem]" : "start-60"} ${widthClasses}`}
+      className={`admin-context-rail fixed inset-y-0 start-0 z-40 hidden flex-col border-e border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-muted))] transition-[inset-inline-start,width,padding] duration-200 motion-reduce:transition-none min-[1200px]:flex ${mainCollapsed ? "start-[4.25rem]" : "start-60"} ${widthClasses}`}
       aria-label={copy.sectionNavigation(current.section)}
     >
       <div

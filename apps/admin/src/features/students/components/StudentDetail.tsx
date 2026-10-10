@@ -70,12 +70,12 @@ export function StudentDetail({
   }
 
   return (
-    <Card className="min-w-0 overflow-hidden p-0 xl:flex xl:max-h-[calc(100dvh-6rem)] xl:flex-col">
+    <Card className="min-w-0 overflow-hidden p-0 min-[1200px]:flex min-[1200px]:max-h-[calc(100dvh-6rem)] min-[1200px]:flex-col">
       <div className="z-[1] shrink-0 border-b border-slate-200 bg-slate-50/70 p-3 sm:p-4 dark:border-slate-800 dark:bg-slate-900/60">
         <button
           type="button"
           onClick={onBack}
-          className="mb-3 inline-flex items-center gap-1 rounded-lg px-2 py-1.5 text-xs font-bold text-slate-600 hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand xl:hidden dark:text-slate-300 dark:hover:bg-slate-800"
+          className="mb-3 inline-flex items-center gap-1 rounded-lg px-2 py-1.5 text-xs font-bold text-slate-600 hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand min-[1200px]:hidden dark:text-slate-300 dark:hover:bg-slate-800"
         >
           <ArrowLeft size={15} className="rtl:rotate-180" />
           {copy.backToList}
@@ -172,7 +172,7 @@ export function StudentDetail({
         </div>
       </nav>
 
-      <div className="min-h-0 p-3 sm:p-4 xl:flex-1 xl:overflow-y-auto xl:overscroll-contain">
+      <div className="min-h-0 p-3 sm:p-4 min-[1200px]:flex-1 min-[1200px]:overflow-y-auto min-[1200px]:overscroll-contain">
         {children}
       </div>
     </Card>

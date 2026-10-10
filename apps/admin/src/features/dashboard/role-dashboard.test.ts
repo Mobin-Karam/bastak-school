@@ -72,6 +72,22 @@ describe("role dashboard workflows", () => {
     expect(actions.some((item) => item.to === "/admin/questions")).toBe(false);
   });
 
+  it("puts daily school workflows first while still filtering them by capabilities", () => {
+    expect(
+      quickActionsForRole("PRINCIPAL", [
+        "attendance.read",
+        "registration.read",
+        "students.read",
+        "classes.read",
+      ]).map((item) => item.to),
+    ).toEqual(["/admin/attendance", "/admin/registration", "/admin/students", "/admin/classes"]);
+
+    expect(
+      quickActionsForRole("COUNSELOR", ["students.read", "schedule.read"])
+        .map((item) => item.to),
+    ).toEqual(["/admin/students", "/admin/schedule"]);
+  });
+
   it("surfaces additional permitted operational tools without exposing unavailable ones", () => {
     const actions = quickActionsForRole(
       "ORGANIZATION_ADMIN",

@@ -18,6 +18,7 @@ const typeorm_1 = require("@nestjs/typeorm");
 const typeorm_2 = require("typeorm");
 const api_exception_1 = require("../../common/exceptions/api.exception");
 const education_class_entity_1 = require("../../database/entities/education-class.entity");
+const education_class_book_entity_1 = require("../../database/entities/education-class-book.entity");
 const education_class_enrollment_entity_1 = require("../../database/entities/education-class-enrollment.entity");
 const organization_membership_entity_1 = require("../../database/entities/organization-membership.entity");
 const organization_entity_1 = require("../../database/entities/organization.entity");
@@ -29,12 +30,14 @@ let ScheduleService = class ScheduleService {
     organizations;
     memberships;
     classes;
+    classBooks;
     authorization;
-    constructor(entries, organizations, memberships, classes, authorization) {
+    constructor(entries, organizations, memberships, classes, classBooks, authorization) {
         this.entries = entries;
         this.organizations = organizations;
         this.memberships = memberships;
         this.classes = classes;
+        this.classBooks = classBooks;
         this.authorization = authorization;
     }
     context(user) {
@@ -62,7 +65,7 @@ let ScheduleService = class ScheduleService {
                 where: requestedOrganizationId
                     ? { organization: { id: requestedOrganizationId } }
                     : {},
-                relations: { organization: true, classroom: true, teacher: true },
+                relations: { organization: true, classroom: true, teacher: true, classBook: { book: true, teacher: true } },
                 order: { weekday: "ASC", startTime: "ASC" },
             });
         if (this.isOperator(context))
@@ -74,13 +77,14 @@ let ScheduleService = class ScheduleService {
                             : context.organizationIds),
                     },
                 },
-                relations: { organization: true, classroom: true, teacher: true },
+                relations: { organization: true, classroom: true, teacher: true, classBook: { book: true, teacher: true } },
                 order: { weekday: "ASC", startTime: "ASC" },
             });
         if (context.roles.includes("TEACHER"))
             return this.entries.find({
                 where: {
                     teacher: { id: user.id },
+                    classBook: { teacher: { id: user.id } },
                     organization: {
                         id: (0, typeorm_2.In)(requestedOrganizationId
                             ? [requestedOrganizationId]
@@ -88,7 +92,7 @@ let ScheduleService = class ScheduleService {
                     },
                     status: "ACTIVE",
                 },
-                relations: { organization: true, classroom: true, teacher: true },
+                relations: { organization: true, classroom: true, teacher: true, classBook: { book: true, teacher: true } },
                 order: { weekday: "ASC", startTime: "ASC" },
             });
         if (context.roles.some((role) => ["ADVISOR", "MENTOR", "COUNSELOR", "STUDENT_AFFAIRS_MENTOR"].includes(role))) {
@@ -123,6 +127,9 @@ let ScheduleService = class ScheduleService {
                 .leftJoinAndSelect("entry.organization", "organization")
                 .leftJoinAndSelect("entry.classroom", "classroom")
                 .leftJoinAndSelect("entry.teacher", "teacher")
+                .leftJoinAndSelect("entry.classBook", "classBook")
+                .leftJoinAndSelect("classBook.book", "classBookBook")
+                .leftJoinAndSelect("classBook.teacher", "classBookTeacher")
                 .leftJoin(education_class_enrollment_entity_1.EducationClassEnrollment, "enrollment", "enrollment.classroomId = entry.classroomId")
                 .leftJoin(user_relationship_entity_1.UserRelationship, "relationship", "relationship.toStudentId = enrollment.studentId AND relationship.fromUserId = :userId AND relationship.status = 'ACTIVE' AND relationship.type = 'GUARDIAN_OF'", { userId: user.id })
                 .where("entry.status = 'ACTIVE'")
@@ -145,6 +152,9 @@ let ScheduleService = class ScheduleService {
                 .leftJoinAndSelect("entry.organization", "organization")
                 .leftJoinAndSelect("entry.classroom", "classroom")
                 .leftJoinAndSelect("entry.teacher", "teacher")
+                .leftJoinAndSelect("entry.classBook", "classBook")
+                .leftJoinAndSelect("classBook.book", "classBookBook")
+                .leftJoinAndSelect("classBook.teacher", "classBookTeacher")
                 .leftJoin(education_class_enrollment_entity_1.EducationClassEnrollment, "enrollment", "enrollment.classroomId = entry.classroomId AND enrollment.studentId = (SELECT id FROM students WHERE userId = :userId LIMIT 1)", { userId: user.id })
                 .where("entry.status = 'ACTIVE'")
                 .andWhere("entry.organizationId IN (:...organizationIds)", {
@@ -195,6 +205,7 @@ let ScheduleService = class ScheduleService {
             throw new api_exception_1.ApiException(404, "ORGANIZATION_NOT_FOUND", "مدرسه پیدا نشد.");
         const classroom = await this.classroomForOrganization(dto.classroomId, organization.id);
         const teacher = await this.teacherForOrganization(dto.teacherId, organization.id);
+        const classBook = await this.classBookForSession(classroom, teacher, dto.classBookId);
         if (dto.endTime <= dto.startTime)
             throw new api_exception_1.ApiException(422, "INVALID_TIME_RANGE", "زمان پایان باید بعد از شروع باشد.");
         return this.entries.save(this.entries.create({
@@ -202,6 +213,7 @@ let ScheduleService = class ScheduleService {
             room: dto.room?.trim() || "",
             organization,
             classroom,
+            classBook,
             teacher,
         }));
     }
@@ -224,6 +236,7 @@ let ScheduleService = class ScheduleService {
             throw new api_exception_1.ApiException(422, "INVALID_TIME_RANGE", "زمان پایان باید بعد از شروع باشد.");
         const classroom = await this.classroomForOrganization(dto.classroomId, item.organization.id);
         const teacher = await this.teacherForOrganization(dto.teacherId, item.organization.id);
+        const classBook = await this.classBookForSession(classroom, teacher, dto.classBookId);
         Object.assign(item, {
             title: dto.title.trim(),
             weekday: dto.weekday,
@@ -231,6 +244,7 @@ let ScheduleService = class ScheduleService {
             endTime: dto.endTime,
             room: dto.room?.trim() || "",
             classroom,
+            classBook,
             teacher,
         });
         return this.entries.save(item);
@@ -332,6 +346,22 @@ let ScheduleService = class ScheduleService {
             throw new api_exception_1.ApiException(422, "SCHEDULE_TEACHER_OUTSIDE_ORGANIZATION", "استاد انتخاب‌شده عضو فعال این مدرسه نیست.");
         return membership.user;
     }
+    async classBookForSession(classroom, teacher, classBookId) {
+        if (!classroom) {
+            if (classBookId)
+                throw new api_exception_1.ApiException(422, "SCHEDULE_BOOK_REQUIRES_CLASS", "کتاب جلسه باید به یک کلاس متصل باشد.");
+            return null;
+        }
+        if (!classBookId || !teacher)
+            throw new api_exception_1.ApiException(422, "SCHEDULE_CLASS_BOOK_REQUIRED", "برای جلسهٔ کلاسی، کتاب و استاد مسئول را انتخاب کنید.");
+        const classBook = await this.classBooks.findOne({
+            where: { id: classBookId, classroom: { id: classroom.id }, teacher: { id: teacher.id } },
+            relations: { book: true, teacher: true },
+        });
+        if (!classBook)
+            throw new api_exception_1.ApiException(422, "SCHEDULE_BOOK_TEACHER_MISMATCH", "کتاب انتخاب‌شده به این کلاس و استاد واگذار نشده است.");
+        return classBook;
+    }
 };
 exports.ScheduleService = ScheduleService;
 exports.ScheduleService = ScheduleService = __decorate([
@@ -340,7 +370,9 @@ exports.ScheduleService = ScheduleService = __decorate([
     __param(1, (0, typeorm_1.InjectRepository)(organization_entity_1.Organization)),
     __param(2, (0, typeorm_1.InjectRepository)(organization_membership_entity_1.OrganizationMembership)),
     __param(3, (0, typeorm_1.InjectRepository)(education_class_entity_1.EducationClass)),
+    __param(4, (0, typeorm_1.InjectRepository)(education_class_book_entity_1.EducationClassBook)),
     __metadata("design:paramtypes", [typeorm_2.Repository,
+        typeorm_2.Repository,
         typeorm_2.Repository,
         typeorm_2.Repository,
         typeorm_2.Repository,

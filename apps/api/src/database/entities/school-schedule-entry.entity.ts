@@ -1,5 +1,6 @@
 import { Column, CreateDateColumn, Entity, Index, ManyToOne, PrimaryGeneratedColumn, UpdateDateColumn } from "typeorm";
 import { EducationClass } from "./education-class.entity";
+import { EducationClassBook } from "./education-class-book.entity";
 import { Organization } from "./organization.entity";
 import { User } from "./user.entity";
 
@@ -9,6 +10,7 @@ export class SchoolScheduleEntry {
   @PrimaryGeneratedColumn("uuid") id!: string;
   @ManyToOne(() => Organization, { onDelete: "CASCADE" }) organization!: Organization;
   @ManyToOne(() => EducationClass, { nullable: true, onDelete: "SET NULL" }) classroom?: EducationClass | null;
+  @ManyToOne(() => EducationClassBook, { nullable: true, onDelete: "SET NULL" }) classBook?: EducationClassBook | null;
   @ManyToOne(() => User, { nullable: true, onDelete: "SET NULL" }) teacher?: User | null;
   @Column({ length: 160 }) title!: string;
   @Column({ type: "integer" }) weekday!: number;

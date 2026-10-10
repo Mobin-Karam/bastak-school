@@ -5,6 +5,7 @@ import { EducationClassEnrollment } from "../../database/entities/education-clas
 import { OrganizationMembership } from "../../database/entities/organization-membership.entity";
 import { Organization } from "../../database/entities/organization.entity";
 import { SchoolScheduleEntry } from "../../database/entities/school-schedule-entry.entity";
+import { EducationClassBook } from "../../database/entities/education-class-book.entity";
 import { UserRelationship } from "../../database/entities/user-relationship.entity";
 import { ScheduleController } from "./schedule.controller";
 import { ScheduleService } from "./schedule.service";
@@ -12,6 +13,7 @@ import { ScheduleService } from "./schedule.service";
   imports: [
     TypeOrmModule.forFeature([
       SchoolScheduleEntry,
+      EducationClassBook,
       Organization,
       OrganizationMembership,
       EducationClass,

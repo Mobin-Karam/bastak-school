@@ -9,7 +9,7 @@ import {
 } from "../../attendance/api/attendance.api";
 import { listSchedule } from "../../schedule/api/schedule.api";
 import { useAuth } from "../../auth";
-import { todayIso } from "../../../shared/lib/utils";
+import { fa, todayIso } from "../../../shared/lib/utils";
 import { useLocale } from "../../../shared/ui/locale";
 import { Badge, Card, EmptyState, LoadingState } from "../../../shared/ui/ui";
 import { getAdminDashboard } from "../api/dashboard.api";
@@ -88,8 +88,8 @@ export function StudentDashboard() {
 
       <AnnouncementEnvelope announcements={home.data?.home?.announcements} />
 
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-        <Card className="col-span-2 min-w-0 p-3 sm:col-span-1" aria-label="کلاس جاری">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <Card className="min-w-0 p-3" aria-label="کلاس جاری">
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-2">
               <span className="grid size-9 place-items-center rounded-xl bg-brand/10 text-brand">
@@ -124,6 +124,31 @@ export function StudentDashboard() {
         </Card>
 
         <CurrentPrayerCard times={prayerTimes} />
+        <Card className="min-w-0 p-3" aria-label="زمان کلاس‌های امروز">
+          <div className="flex items-center gap-2">
+            <span className="grid size-9 place-items-center rounded-xl bg-brand/10 text-brand">
+              <Clock3 size={18} aria-hidden="true" />
+            </span>
+            <div>
+              <h2 className="text-sm font-black text-ink">زمان کلاس‌های امروز</h2>
+              <p className="mt-0.5 text-[11px] text-slate-500">ثبت‌شده توسط مدیریت مدرسه</p>
+            </div>
+          </div>
+          {selectedClasses.length ? (
+            <ul className="mt-3 grid gap-2">
+              {selectedClasses.slice(0, 3).map((entry) => (
+                <li key={entry.id} className="flex items-center justify-between gap-2 rounded-xl bg-[rgb(var(--surface-muted))] px-3 py-2">
+                  <span className="min-w-0 truncate text-xs font-bold text-ink">{entry.title}</span>
+                  <time dateTime={entry.startTime} dir="ltr" className="shrink-0 text-xs font-black text-brand">
+                    {fa(entry.startTime)}
+                  </time>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="mt-3 text-xs text-slate-500">امروز کلاسی در برنامه شما نیست.</p>
+          )}
+        </Card>
         <Card className="p-3" aria-label="خلاصه حضور و غیاب">
           <div className="flex items-center gap-2">
             <div className="flex items-center gap-2">

@@ -27,7 +27,10 @@ import {
 import { AccessFlowGuidance } from "./components/AccessFlowGuidance";
 import { emptyAccessResult } from "./model/access-flow";
 import { accessCopy } from "./model/access-copy";
-import { rolesForOrganizationType } from "../../shared/lib/organization-role-policy";
+import {
+  principalAssignableRoles,
+  rolesForOrganizationType,
+} from "../../shared/lib/organization-role-policy";
 import { OrganizationTag } from "../../shared/ui/organization-tag";
 
 const allRoles = Object.keys(roleLabels) as RoleCode[];
@@ -45,7 +48,8 @@ export function UsersPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const canManage = auth.can("users.manage"),
     isPlatform = auth.hasRole("PLATFORM_ADMIN"),
-    isPlatformOwner = auth.context?.user.isPlatformOwner === true;
+    isPlatformOwner = auth.context?.user.isPlatformOwner === true,
+    principalProvisioningOnly = auth.activeRole === "PRINCIPAL";
   const organizations = useQuery({
     queryKey: ["organizations"],
     queryFn: listOrganizations,
@@ -120,7 +124,11 @@ export function UsersPage() {
         firstName: editDraft.firstName,
         lastName: editDraft.lastName,
       });
-      if (!editing.isPlatformOwner && editing.id !== auth.context?.user.id) {
+      if (
+        !editing.isPlatformOwner &&
+        editing.id !== auth.context?.user.id &&
+        (!principalProvisioningOnly || principalAssignableRoles.includes(editDraft.role))
+      ) {
         await setUserRoles(editing.id, {
           roleCodes: [editDraft.role],
           ...(editDraft.role !== "PLATFORM_ADMIN"
@@ -224,6 +232,9 @@ export function UsersPage() {
                         }
                         isPlatform={isPlatform}
                         allowPlatform={isPlatformOwner}
+                        allowedRoles={
+                          principalProvisioningOnly ? principalAssignableRoles : undefined
+                        }
                         onSubmit={(body) => create.mutateAsync(body)}
                       />
                     ),
@@ -339,6 +350,7 @@ export function UsersPage() {
                 value={editDraft.role}
                 onChange={(role) => setEditDraft({ ...editDraft, role })}
                 allowPlatform={isPlatformOwner}
+                allowedRoles={principalProvisioningOnly ? principalAssignableRoles : undefined}
                 organizationType={
                   (organizations.data || []).find((item) => item.id === editDraft.organizationId)
                     ?.type
@@ -682,12 +694,14 @@ function UserCreateForm({
   defaultOrganizationId,
   isPlatform,
   allowPlatform,
+  allowedRoles,
   onSubmit,
 }: {
   organizations: PortalOrganization[];
   defaultOrganizationId: string;
   isPlatform: boolean;
   allowPlatform: boolean;
+  allowedRoles?: readonly RoleCode[];
   onSubmit: (body: Parameters<typeof createUser>[0]) => Promise<unknown>;
 }) {
   const { language } = useLocale();
@@ -697,7 +711,7 @@ function UserCreateForm({
     password: "",
     firstName: "",
     lastName: "",
-    role: "COUNSELOR" as RoleCode,
+    role: (allowedRoles?.[0] ?? "COUNSELOR") as RoleCode,
     organizationId: defaultOrganizationId,
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -753,6 +767,7 @@ function UserCreateForm({
         onChange={(role) => setDraft({ ...draft, role })}
         allowPlatform={allowPlatform}
         organizationType={selectedOrganization?.type}
+        allowedRoles={allowedRoles}
       />
       <Field label={copy.firstName}>
         <Input
@@ -777,7 +792,9 @@ function UserCreateForm({
             setDraft({
               ...draft,
               organizationId,
-              role: roles.includes(draft.role) ? draft.role : (roles[0] ?? "COUNSELOR"),
+              role:
+                allowedRoles?.find((role) => roles.includes(role)) ??
+                (roles.includes(draft.role) ? draft.role : (roles[0] ?? "COUNSELOR")),
             });
           }}
         />
@@ -822,24 +839,38 @@ function RoleField({
   onChange,
   allowPlatform,
   organizationType,
+  allowedRoles,
 }: {
   value: RoleCode;
   onChange: (role: RoleCode) => void;
   allowPlatform: boolean;
   organizationType?: string | null;
+  allowedRoles?: readonly RoleCode[];
 }) {
   const { language } = useLocale();
   const copy = accessCopy[language];
   return (
     <Field label={copy.role}>
       <Select value={value} onChange={(e) => onChange(e.target.value as RoleCode)}>
-        {(organizationType ? rolesForOrganizationType(organizationType) : allRoles)
-          .filter((role) => allowPlatform || role !== "PLATFORM_ADMIN")
-          .map((role) => (
-            <option key={role} value={role}>
-              {roleLabel(role, language)}
-            </option>
-          ))}
+        {(() => {
+          const roles = (organizationType ? rolesForOrganizationType(organizationType) : allRoles)
+            .filter((role) => !allowedRoles || allowedRoles.includes(role))
+            .filter((role) => allowPlatform || role !== "PLATFORM_ADMIN");
+          return (
+            <>
+              {!roles.includes(value) ? (
+                <option value={value} disabled>
+                  {roleLabel(value, language)}
+                </option>
+              ) : null}
+              {roles.map((role) => (
+                <option key={role} value={role}>
+                  {roleLabel(role, language)}
+                </option>
+              ))}
+            </>
+          );
+        })()}
       </Select>
     </Field>
   );

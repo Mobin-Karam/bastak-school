@@ -15,6 +15,26 @@ export type SpreadsheetDefinition<T extends Record<string, unknown>> = {
   rightToLeft?: boolean;
 };
 
+export type SpreadsheetIssue = {
+  sheet: string;
+  row?: number;
+  column?: string;
+};
+
+export class SpreadsheetValidationError extends Error {
+  constructor(
+    message: string,
+    readonly issues: SpreadsheetIssue[],
+  ) {
+    super(message);
+    this.name = "SpreadsheetValidationError";
+  }
+}
+
+export function spreadsheetIssues(error: unknown) {
+  return error instanceof SpreadsheetValidationError ? error.issues : [];
+}
+
 export function defineSpreadsheet<T extends Record<string, unknown>>(
   definition: SpreadsheetDefinition<T>,
 ) {
@@ -47,6 +67,12 @@ export async function readSpreadsheet<T extends Record<string, unknown>>(
     });
     rows.push(item);
   });
+  const requiredIssues = rows.flatMap((item, index) =>
+    definition.columns
+      .filter((column) => column.required && isBlank(item[column.key]))
+      .map((column) => ({ sheet: sheet.name, row: index + 2, column: column.header })),
+  );
+  if (requiredIssues.length) throw new SpreadsheetValidationError("REQUIRED_CELLS", requiredIssues);
   return rows;
 }
 
@@ -104,7 +130,10 @@ function columnIndexes<T extends Record<string, unknown>>(
     (column) => column.required && !indexes.has(column.header),
   );
   if (missing.length)
-    throw new Error(`MISSING_COLUMNS:${missing.map((column) => column.header).join(",")}`);
+    throw new SpreadsheetValidationError(
+      `MISSING_COLUMNS:${missing.map((column) => column.header).join(",")}`,
+      missing.map((column) => ({ sheet: sheet.name, column: column.header })),
+    );
   return indexes;
 }
 

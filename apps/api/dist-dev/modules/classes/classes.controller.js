@@ -34,6 +34,15 @@ let ClassesController = class ClassesController {
     create(actor, dto) {
         return this.classes.create(actor, dto).then(envelope_1.ok);
     }
+    previewTransfer(actor, dto) {
+        return this.classes.previewTransfer(actor, dto).then(envelope_1.ok);
+    }
+    commitTransfer(actor, dto) {
+        return this.classes.commitTransfer(actor, dto).then(envelope_1.ok);
+    }
+    exportTransfer(actor, organizationId) {
+        return this.classes.exportTransfer(actor, organizationId).then(envelope_1.ok);
+    }
     options(actor, id) {
         return this.classes.options(actor, id).then(envelope_1.ok);
     }
@@ -83,6 +92,36 @@ __decorate([
     __metadata("design:paramtypes", [Object, classes_dto_1.SaveEducationClassDto]),
     __metadata("design:returntype", void 0)
 ], ClassesController.prototype, "create", null);
+__decorate([
+    (0, common_1.Post)("classes/transfer/preview"),
+    (0, capabilities_decorator_1.RequireCapabilities)("classes.manage"),
+    openapi.ApiResponse({ status: 201 }),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, classes_dto_1.ClassTransferDto]),
+    __metadata("design:returntype", void 0)
+], ClassesController.prototype, "previewTransfer", null);
+__decorate([
+    (0, common_1.Post)("classes/transfer/commit"),
+    (0, capabilities_decorator_1.RequireCapabilities)("classes.manage"),
+    openapi.ApiResponse({ status: 201 }),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, classes_dto_1.ClassTransferDto]),
+    __metadata("design:returntype", void 0)
+], ClassesController.prototype, "commitTransfer", null);
+__decorate([
+    (0, common_1.Get)("classes/transfer/export"),
+    (0, capabilities_decorator_1.RequireCapabilities)("classes.manage"),
+    openapi.ApiResponse({ status: 200 }),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __param(1, (0, common_1.Query)("organizationId")),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String]),
+    __metadata("design:returntype", void 0)
+], ClassesController.prototype, "exportTransfer", null);
 __decorate([
     (0, common_1.Get)("classes/:id/options"),
     (0, capabilities_decorator_1.RequireCapabilities)("classes.read"),

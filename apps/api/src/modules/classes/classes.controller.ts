@@ -15,6 +15,7 @@ import { ok } from "../../common/utils/envelope";
 import { AuthenticatedUser } from "../auth";
 import {
   SaveEducationClassDto,
+  ClassTransferDto,
   SetClassBooksDto,
   SetClassEnrollmentsDto,
   UpdateEducationClassDto,
@@ -41,6 +42,30 @@ export class ClassesController {
     @Body() dto: SaveEducationClassDto,
   ) {
     return this.classes.create(actor, dto).then(ok);
+  }
+  @Post("classes/transfer/preview")
+  @RequireCapabilities("classes.manage")
+  previewTransfer(
+    @CurrentUser() actor: AuthenticatedUser,
+    @Body() dto: ClassTransferDto,
+  ) {
+    return this.classes.previewTransfer(actor, dto).then(ok);
+  }
+  @Post("classes/transfer/commit")
+  @RequireCapabilities("classes.manage")
+  commitTransfer(
+    @CurrentUser() actor: AuthenticatedUser,
+    @Body() dto: ClassTransferDto,
+  ) {
+    return this.classes.commitTransfer(actor, dto).then(ok);
+  }
+  @Get("classes/transfer/export")
+  @RequireCapabilities("classes.manage")
+  exportTransfer(
+    @CurrentUser() actor: AuthenticatedUser,
+    @Query("organizationId") organizationId: string,
+  ) {
+    return this.classes.exportTransfer(actor, organizationId).then(ok);
   }
   @Get("classes/:id/options") @RequireCapabilities("classes.read") options(
     @CurrentUser() actor: AuthenticatedUser,

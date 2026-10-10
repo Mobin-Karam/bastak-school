@@ -1,6 +1,7 @@
 export declare class SaveScheduleEntryDto {
     organizationId: string;
     classroomId?: string;
+    classBookId?: string;
     teacherId?: string;
     title: string;
     weekday: number;

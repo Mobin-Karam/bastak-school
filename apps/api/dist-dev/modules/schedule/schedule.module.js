@@ -14,6 +14,7 @@ const education_class_enrollment_entity_1 = require("../../database/entities/edu
 const organization_membership_entity_1 = require("../../database/entities/organization-membership.entity");
 const organization_entity_1 = require("../../database/entities/organization.entity");
 const school_schedule_entry_entity_1 = require("../../database/entities/school-schedule-entry.entity");
+const education_class_book_entity_1 = require("../../database/entities/education-class-book.entity");
 const user_relationship_entity_1 = require("../../database/entities/user-relationship.entity");
 const schedule_controller_1 = require("./schedule.controller");
 const schedule_service_1 = require("./schedule.service");
@@ -25,6 +26,7 @@ exports.ScheduleModule = ScheduleModule = __decorate([
         imports: [
             typeorm_1.TypeOrmModule.forFeature([
                 school_schedule_entry_entity_1.SchoolScheduleEntry,
+                education_class_book_entity_1.EducationClassBook,
                 organization_entity_1.Organization,
                 organization_membership_entity_1.OrganizationMembership,
                 education_class_entity_1.EducationClass,

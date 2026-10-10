@@ -27,7 +27,7 @@ let DormRoom = class DormRoom {
     createdAt;
     updatedAt;
     static _OPENAPI_METADATA_FACTORY() {
-        return { id: { required: true, type: () => String }, organization: { required: true, type: () => require("./organization.entity").Organization }, code: { required: true, type: () => String }, name: { required: true, type: () => String }, building: { required: true, type: () => String, description: "A residence can have several buildings; room codes remain unique per school." }, floor: { required: true, type: () => Number }, capacity: { required: true, type: () => Number }, status: { required: true, enum: ["ACTIVE", "ARCHIVED"] }, assignments: { required: true, type: () => [require("./dorm-room-assignment.entity").DormRoomAssignment] }, createdAt: { required: true, type: () => Date }, updatedAt: { required: true, type: () => Date } };
+        return { id: { required: true, type: () => String }, organization: { required: true, type: () => require("./organization.entity").Organization }, code: { required: true, type: () => String }, name: { required: true, type: () => String }, building: { required: true, type: () => String, description: "A residence can have several buildings; room codes remain unique per school." }, floor: { required: true, type: () => Number }, capacity: { required: true, type: () => Number }, status: { required: true, enum: ["ARCHIVED", "ACTIVE"] }, assignments: { required: true, type: () => [require("./dorm-room-assignment.entity").DormRoomAssignment] }, createdAt: { required: true, type: () => Date }, updatedAt: { required: true, type: () => Date } };
     }
 };
 exports.DormRoom = DormRoom;

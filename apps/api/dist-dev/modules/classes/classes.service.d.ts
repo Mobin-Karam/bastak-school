@@ -11,7 +11,7 @@ import { User } from "../../database/entities/user.entity";
 import { AuthenticatedUser } from "../auth";
 import { AuthorizationService } from "../authorization";
 import { EducationCatalogService } from "../education-catalog/education-catalog.service";
-import { SaveEducationClassDto, SetClassBooksDto, SetClassEnrollmentsDto, UpdateEducationClassDto } from "./classes.dto";
+import { SaveEducationClassDto, ClassTransferDto, SetClassBooksDto, SetClassEnrollmentsDto, UpdateEducationClassDto } from "./classes.dto";
 export declare class ClassesService {
     private readonly classes;
     private readonly classBooks;
@@ -36,11 +36,11 @@ export declare class ClassesService {
         code: string;
         name: string;
         schoolYear: string;
-        gradeId: number;
-        educationTypeId: string;
-        trackId: string;
+        gradeId: number | null;
+        educationTypeId: string | null;
+        trackId: string | null;
         capacity: number;
-        status: "ACTIVE" | "ARCHIVED";
+        status: "ARCHIVED" | "ACTIVE";
         description: string;
         advisor: {
             id: string;
@@ -50,7 +50,7 @@ export declare class ClassesService {
             id: string;
             bookId: string;
             title: string;
-            category: string;
+            code: string;
             teacher: {
                 id: string;
                 name: string;
@@ -76,11 +76,11 @@ export declare class ClassesService {
         code: string;
         name: string;
         schoolYear: string;
-        gradeId: number;
-        educationTypeId: string;
-        trackId: string;
+        gradeId: number | null;
+        educationTypeId: string | null;
+        trackId: string | null;
         capacity: number;
-        status: "ACTIVE" | "ARCHIVED";
+        status: "ARCHIVED" | "ACTIVE";
         description: string;
         advisor: {
             id: string;
@@ -90,7 +90,7 @@ export declare class ClassesService {
             id: string;
             bookId: string;
             title: string;
-            category: string;
+            code: string;
             teacher: {
                 id: string;
                 name: string;
@@ -110,11 +110,11 @@ export declare class ClassesService {
             code: string;
             name: string;
             schoolYear: string;
-            gradeId: number;
-            educationTypeId: string;
-            trackId: string;
+            gradeId: number | null;
+            educationTypeId: string | null;
+            trackId: string | null;
             capacity: number;
-            status: "ACTIVE" | "ARCHIVED";
+            status: "ARCHIVED" | "ACTIVE";
             description: string;
             advisor: {
                 id: string;
@@ -124,7 +124,7 @@ export declare class ClassesService {
                 id: string;
                 bookId: string;
                 title: string;
-                category: string;
+                code: string;
                 teacher: {
                     id: string;
                     name: string;
@@ -172,11 +172,11 @@ export declare class ClassesService {
         code: string;
         name: string;
         schoolYear: string;
-        gradeId: number;
-        educationTypeId: string;
-        trackId: string;
+        gradeId: number | null;
+        educationTypeId: string | null;
+        trackId: string | null;
         capacity: number;
-        status: "ACTIVE" | "ARCHIVED";
+        status: "ARCHIVED" | "ACTIVE";
         description: string;
         advisor: {
             id: string;
@@ -186,7 +186,7 @@ export declare class ClassesService {
             id: string;
             bookId: string;
             title: string;
-            category: string;
+            code: string;
             teacher: {
                 id: string;
                 name: string;
@@ -211,11 +211,11 @@ export declare class ClassesService {
         code: string;
         name: string;
         schoolYear: string;
-        gradeId: number;
-        educationTypeId: string;
-        trackId: string;
+        gradeId: number | null;
+        educationTypeId: string | null;
+        trackId: string | null;
         capacity: number;
-        status: "ACTIVE" | "ARCHIVED";
+        status: "ARCHIVED" | "ACTIVE";
         description: string;
         advisor: {
             id: string;
@@ -225,7 +225,7 @@ export declare class ClassesService {
             id: string;
             bookId: string;
             title: string;
-            category: string;
+            code: string;
             teacher: {
                 id: string;
                 name: string;
@@ -239,6 +239,43 @@ export declare class ClassesService {
             major: string;
         }[];
     }>;
+    previewTransfer(actor: AuthenticatedUser, dto: ClassTransferDto): Promise<{
+        total: number;
+        valid: number;
+        invalid: number;
+        rows: {
+            row: number;
+            code: string;
+            name: string;
+            schoolYear: string;
+            capacity: number | undefined;
+            errors: string[];
+        }[];
+    }>;
+    commitTransfer(actor: AuthenticatedUser, dto: ClassTransferDto): Promise<{
+        committed: boolean;
+        count: number;
+        invalid: number;
+        rows: {
+            row: number;
+            code: string;
+            name: string;
+            schoolYear: string;
+            capacity: number | undefined;
+            errors: string[];
+        }[];
+    } | {
+        committed: boolean;
+        count: number;
+        invalid: number;
+        rows?: undefined;
+    }>;
+    exportTransfer(actor: AuthenticatedUser, organizationId: string): Promise<{
+        code: string;
+        name: string;
+        schoolYear: string;
+        capacity: number;
+    }[]>;
     remove(actor: AuthenticatedUser, id: string): Promise<{
         deleted: boolean;
     }>;
@@ -253,11 +290,11 @@ export declare class ClassesService {
         code: string;
         name: string;
         schoolYear: string;
-        gradeId: number;
-        educationTypeId: string;
-        trackId: string;
+        gradeId: number | null;
+        educationTypeId: string | null;
+        trackId: string | null;
         capacity: number;
-        status: "ACTIVE" | "ARCHIVED";
+        status: "ARCHIVED" | "ACTIVE";
         description: string;
         advisor: {
             id: string;
@@ -267,7 +304,7 @@ export declare class ClassesService {
             id: string;
             bookId: string;
             title: string;
-            category: string;
+            code: string;
             teacher: {
                 id: string;
                 name: string;
@@ -292,11 +329,11 @@ export declare class ClassesService {
         code: string;
         name: string;
         schoolYear: string;
-        gradeId: number;
-        educationTypeId: string;
-        trackId: string;
+        gradeId: number | null;
+        educationTypeId: string | null;
+        trackId: string | null;
         capacity: number;
-        status: "ACTIVE" | "ARCHIVED";
+        status: "ARCHIVED" | "ACTIVE";
         description: string;
         advisor: {
             id: string;
@@ -306,7 +343,7 @@ export declare class ClassesService {
             id: string;
             bookId: string;
             title: string;
-            category: string;
+            code: string;
             teacher: {
                 id: string;
                 name: string;
@@ -328,6 +365,11 @@ export declare class ClassesService {
     private canManageOrganization;
     private canSeeClass;
     private forbidden;
+    private requireTransferOrganization;
+    private inspectTransfer;
+    private assertSchoolYear;
+    private isAcademicYear;
+    private normalizedAcademicYear;
     private resolveTeacher;
     private resolveAdvisor;
     private staffMember;
@@ -335,5 +377,6 @@ export declare class ClassesService {
     private eligibleStudents;
     private assertEligibleStudent;
     private view;
+    private hasCurriculumProfile;
     private studentView;
 }

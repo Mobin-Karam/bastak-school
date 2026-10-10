@@ -9,14 +9,14 @@ describe("admin layout geometry", () => {
         mainCollapsed: false,
         contextCollapsed: false,
       }),
-    ).toBe("lg:mr-64");
+    ).toBe("min-[1200px]:mr-64");
     expect(
       adminContentOffsetClass({
         showContextRail: false,
         mainCollapsed: true,
         contextCollapsed: false,
       }),
-    ).toBe("lg:mr-[4.5rem]");
+    ).toBe("min-[1200px]:mr-[4.5rem]");
   });
 
   it("moves the workspace away from the LTR start rail without changing its width budget", () => {
@@ -27,7 +27,7 @@ describe("admin layout geometry", () => {
         contextCollapsed: false,
         direction: "ltr",
       }),
-    ).toBe("lg:ml-64");
+    ).toBe("min-[1200px]:ml-64");
     expect(
       adminContentOffsetClass({
         showContextRail: true,
@@ -35,38 +35,38 @@ describe("admin layout geometry", () => {
         contextCollapsed: false,
         direction: "ltr",
       }),
-    ).toBe("lg:ml-[8.5rem] xl:ml-[17.5rem]");
+    ).toBe("min-[1200px]:ml-[8.5rem] min-[1280px]:ml-[17.5rem]");
   });
 
-  it("keeps the contextual rail compact on lg and respects its saved state on xl", () => {
+  it("keeps the contextual rail compact at desktop entry and respects its saved state at 1280px", () => {
     expect(
       adminContentOffsetClass({
         showContextRail: true,
         mainCollapsed: false,
         contextCollapsed: false,
       }),
-    ).toBe("lg:mr-80 xl:mr-[29rem]");
+    ).toBe("min-[1200px]:mr-80 min-[1280px]:mr-[29rem]");
     expect(
       adminContentOffsetClass({
         showContextRail: true,
         mainCollapsed: false,
         contextCollapsed: true,
       }),
-    ).toBe("lg:mr-80");
+    ).toBe("min-[1200px]:mr-80");
     expect(
       adminContentOffsetClass({
         showContextRail: true,
         mainCollapsed: true,
         contextCollapsed: false,
       }),
-    ).toBe("lg:mr-[8.5rem] xl:mr-[17.5rem]");
+    ).toBe("min-[1200px]:mr-[8.5rem] min-[1280px]:mr-[17.5rem]");
     expect(
       adminContentOffsetClass({
         showContextRail: true,
         mainCollapsed: true,
         contextCollapsed: true,
       }),
-    ).toBe("lg:mr-[8.5rem]");
+    ).toBe("min-[1200px]:mr-[8.5rem]");
   });
 
   it("collapses the primary rail only when the contextual rail appears", () => {

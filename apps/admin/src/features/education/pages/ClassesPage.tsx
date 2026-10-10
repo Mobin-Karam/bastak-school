@@ -17,15 +17,8 @@ import { useAuth } from "../../auth";
 import { useModal } from "../../../shared/ui/modal";
 import { notify } from "../../../shared/ui/notifications";
 import { OrganizationTag } from "../../../shared/ui/organization-tag";
-import {
-  Badge,
-  Button,
-  Card,
-  EmptyState,
-  Input,
-  LoadingState,
-  Textarea,
-} from "../../../shared/ui/ui";
+import { SpreadsheetTransferLauncher } from "../../../shared/ui/spreadsheet-transfer-launcher";
+import { Badge, Button, Card, EmptyState, Input, LoadingState } from "../../../shared/ui/ui";
 import {
   createClass,
   deleteClass,
@@ -37,6 +30,7 @@ import {
   type EducationClass,
   updateClass,
 } from "../api/classes.api";
+import { ClassTransferWorkspace } from "../components/ClassTransferWorkspace";
 import { useClassesCopy } from "../model/classes-copy";
 
 const initial = (): ClassDraft => ({
@@ -44,12 +38,7 @@ const initial = (): ClassDraft => ({
   code: "",
   name: "",
   schoolYear: "1405-1406",
-  gradeId: 10,
-  educationTypeId: "theoretical",
-  trackId: "experimental_sciences",
   capacity: 35,
-  description: "",
-  advisorId: null,
 });
 
 export function ClassesPage() {
@@ -135,13 +124,8 @@ export function ClassesPage() {
           organizationId: row.organization.id,
           code: row.code,
           name: row.name,
-          schoolYear: row.schoolYear,
-          gradeId: row.gradeId,
-          educationTypeId: row.educationTypeId,
-          trackId: row.trackId,
+          schoolYear: normalizeSchoolYear(row.schoolYear),
           capacity: row.capacity,
-          description: row.description,
-          advisorId: row.advisor?.id || null,
         }
       : {
           ...initial(),
@@ -170,7 +154,7 @@ export function ClassesPage() {
     return <EmptyState title={copy.loadFailed} />;
   if (!auth.can("classes.read")) return <EmptyState title={copy.noAccess} />;
   return (
-    <section className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_23rem] xl:items-start">
+    <section className="grid gap-3 min-[960px]:grid-cols-[minmax(0,1fr)_23rem] min-[960px]:items-start">
       <Card className="min-w-0 p-3">
         <div className="mb-3 flex items-center justify-between">
           <div>
@@ -179,6 +163,20 @@ export function ClassesPage() {
           </div>
           <div className="flex items-center gap-2">
             <Badge tone="blue">{visible.length.toLocaleString(copy.locale)}</Badge>
+            {canManage ? (
+              <SpreadsheetTransferLauncher
+                title={copy.transferTitle}
+                description={copy.transferDescription}
+                trigger={copy.transfer}
+              >
+                <ClassTransferWorkspace
+                  organizationId={selectedOrganizationId ?? ""}
+                  canImport={canManage}
+                  canExport={canManage}
+                  onCompleted={refresh}
+                />
+              </SpreadsheetTransferLauncher>
+            ) : null}
             {canManage ? (
               <Button size="sm" onClick={() => openEditor()}>
                 <Plus size={15} />
@@ -216,12 +214,7 @@ export function ClassesPage() {
                   {row.status === "ACTIVE" ? copy.active : copy.archived}
                 </Badge>
               </span>
-              <span className="flex flex-wrap gap-1">
-                <Badge tone="blue">{copy.grade(row.gradeId)}</Badge>
-                <Badge tone="neutral">
-                  {localizedEducationLabel(row.educationTypeId, copy)} ·{" "}
-                  {localizedTrackLabel(row.trackId, copy)}
-                </Badge>
+              <span className="flex flex-wrap items-center gap-1">
                 <small className="ms-auto flex items-center gap-1 text-xs text-slate-500">
                   <UsersRound size={13} />
                   {row.enrollmentCount}/{row.capacity}
@@ -268,6 +261,12 @@ export function ClassesPage() {
   );
 }
 
+function normalizeSchoolYear(value: string) {
+  if (value.includes("-")) return value;
+  const start = Number(value);
+  return Number.isFinite(start) ? `${start}-${start + 1}` : "1405-1406";
+}
+
 function ClassDetail({
   classroom,
   options,
@@ -305,7 +304,7 @@ function ClassDetail({
   const copy = useClassesCopy();
   if (!classroom)
     return (
-      <Card className="p-3 xl:sticky xl:top-16">
+      <Card className="p-3 min-[960px]:sticky min-[960px]:top-16">
         <p className="text-sm text-slate-500">{copy.selectClass}</p>
       </Card>
     );
@@ -370,7 +369,7 @@ function ClassDetail({
   const hasTeacher = classroom.books.length > 0;
   const readyForAttendance = hasStudents && hasTeacher;
   return (
-    <Card className="grid gap-3 p-3 xl:sticky xl:top-16">
+    <Card className="grid gap-3 p-3 min-[960px]:sticky min-[960px]:top-16">
       <div>
         <h2 className="text-sm font-bold">{classroom.name}</h2>
         <p className="mt-1 text-xs text-slate-500">
@@ -643,10 +642,10 @@ function ClassEditorModal({
           </select>
         </Field>
         <Field label={copy.schoolYear}>
-          <Input
-            required
+          <ClassYearPicker
             value={draft.schoolYear}
-            onChange={(event) => setDraft({ ...draft, schoolYear: event.target.value })}
+            onChange={(schoolYear) => setDraft({ ...draft, schoolYear })}
+            label={copy.schoolYear}
           />
         </Field>
         <Field label={copy.className}>
@@ -666,18 +665,6 @@ function ClassEditorModal({
             dir="ltr"
           />
         </Field>
-        <Field label={copy.grade(0).replace(/0|۰/, "").trim()}>
-          <select
-            value={draft.gradeId}
-            onChange={(event) => setDraft({ ...draft, gradeId: Number(event.target.value) })}
-          >
-            {Array.from({ length: 12 }, (_, index) => index + 1).map((grade) => (
-              <option key={grade} value={grade}>
-                {copy.grade(grade)}
-              </option>
-            ))}
-          </select>
-        </Field>
         <Field label={copy.capacity}>
           <Input
             type="number"
@@ -687,44 +674,7 @@ function ClassEditorModal({
             onChange={(event) => setDraft({ ...draft, capacity: Number(event.target.value) || 1 })}
           />
         </Field>
-        <Field label={copy.educationType}>
-          <select
-            value={draft.educationTypeId}
-            onChange={(event) =>
-              setDraft({
-                ...draft,
-                educationTypeId: event.target.value,
-                trackId: event.target.value === "general" ? "general" : draft.trackId,
-              })
-            }
-          >
-            {educationTypeOptions(copy).map((type) => (
-              <option key={type.id} value={type.id}>
-                {type.label}
-              </option>
-            ))}
-          </select>
-        </Field>
-        <Field label={copy.track}>
-          <select
-            value={draft.trackId}
-            onChange={(event) => setDraft({ ...draft, trackId: event.target.value })}
-          >
-            {trackOptions(draft.educationTypeId, copy).map((track) => (
-              <option key={track.id} value={track.id}>
-                {track.label}
-              </option>
-            ))}
-          </select>
-        </Field>
       </div>
-      <Field label={copy.description}>
-        <Textarea
-          className="min-h-24"
-          value={draft.description}
-          onChange={(event) => setDraft({ ...draft, description: event.target.value })}
-        />
-      </Field>
       <div className="flex justify-end gap-2 border-t pt-3 dark:border-slate-800">
         <Button type="button" variant="ghost" onClick={onClose}>
           {copy.cancel}
@@ -888,44 +838,45 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
     </label>
   );
 }
-function trackOptions(type: string, copy: ReturnType<typeof useClassesCopy>) {
-  const english = copy.locale === "en-US";
-  if (type === "general") return [{ id: "general", label: english ? "General" : "عمومی" }];
-  if (type === "theoretical")
-    return [
-      { id: "experimental_sciences", label: english ? "Experimental sciences" : "علوم تجربی" },
-      { id: "math_physics", label: english ? "Mathematics and physics" : "ریاضی و فیزیک" },
-      { id: "humanities", label: english ? "Humanities" : "علوم انسانی" },
-    ];
-  return [
-    { id: "industry", label: english ? "Industry" : "صنعت" },
-    { id: "services", label: english ? "Services" : "خدمات" },
-    { id: "agriculture", label: english ? "Agriculture" : "کشاورزی" },
-    { id: "art", label: english ? "Art" : "هنر" },
-  ];
-}
-
-function educationTypeOptions(copy: ReturnType<typeof useClassesCopy>) {
-  const english = copy.locale === "en-US";
-  return [
-    { id: "general", label: english ? "General" : "عمومی" },
-    { id: "theoretical", label: english ? "Theoretical" : "نظری" },
-    {
-      id: "technical_vocational",
-      label: english ? "Technical and vocational" : "فنی و حرفه‌ای",
-    },
-    { id: "kar_danesh", label: english ? "Skills and knowledge" : "کاردانش" },
-  ];
-}
-
-function localizedEducationLabel(id: string, copy: ReturnType<typeof useClassesCopy>) {
-  return educationTypeOptions(copy).find((type) => type.id === id)?.label || id;
-}
-
-function localizedTrackLabel(id: string, copy: ReturnType<typeof useClassesCopy>) {
-  const trackTypes = ["general", "theoretical", "technical_vocational", "kar_danesh"];
+function ClassYearPicker({
+  value,
+  onChange,
+  label,
+}: {
+  value: string;
+  onChange: (year: string) => void;
+  label: string;
+}) {
+  const years = Array.from({ length: 26 }, (_, index) => String(1405 + index));
+  const start = value.split("-")[0];
+  const end = Number(start) + 1;
   return (
-    trackTypes.flatMap((type) => trackOptions(type, copy)).find((track) => track.id === id)
-      ?.label || id
+    <div className="grid gap-2" aria-label={label}>
+      <div className="flex items-center justify-between rounded-lg bg-brand/5 px-3 py-2 text-xs font-bold text-brand dark:bg-brand/10">
+        <span>{start}</span>
+        <span aria-hidden="true">←</span>
+        <span>{Number.isFinite(end) ? end : "—"}</span>
+      </div>
+      <div className="flex max-h-48 flex-col gap-2 overflow-y-auto overscroll-y-contain pe-1 md:max-h-none md:flex-row md:overflow-x-auto md:overflow-y-hidden md:pb-1 md:pe-0 md:[scrollbar-width:thin] md:[&::-webkit-scrollbar]:h-1.5 md:[&::-webkit-scrollbar-thumb]:rounded-full md:[&::-webkit-scrollbar-thumb]:bg-slate-300 dark:[&::-webkit-scrollbar-thumb]:bg-slate-700">
+        {years.map((year) => {
+          const selected = year === start;
+          return (
+            <button
+              key={year}
+              type="button"
+              aria-pressed={selected}
+              onClick={() => onChange(`${year}-${Number(year) + 1}`)}
+              className={`min-h-10 shrink-0 rounded-lg border px-3 text-sm font-bold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand ${
+                selected
+                  ? "border-brand bg-brand text-white"
+                  : "border-slate-200 bg-white text-slate-700 hover:border-brand/40 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
+              }`}
+            >
+              {year}–{Number(year) + 1}
+            </button>
+          );
+        })}
+      </div>
+    </div>
   );
 }

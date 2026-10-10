@@ -148,10 +148,16 @@ let EducationCatalogService = class EducationCatalogService {
     }
     async listManaged(actor, schoolYear, state) {
         const books = await this.books.find({
-            where: { ...(schoolYear ? { schoolYear } : {}), ...(state ? { state: state } : {}) },
+            where: {
+                ...(schoolYear ? { schoolYear } : {}),
+                ...(state ? { state: state } : {}),
+            },
             order: { schoolYear: "DESC", grade: "ASC", titleFa: "ASC" },
         });
-        return this.isPlatform(actor) ? books : books.filter((book) => !book.organizationId || (actor.organizationIds || []).includes(book.organizationId));
+        return this.isPlatform(actor)
+            ? books
+            : books.filter((book) => !book.organizationId ||
+                (actor.organizationIds || []).includes(book.organizationId));
     }
     async createBook(actor, input) {
         this.requireOrganizationScope(actor, input.organizationId);
@@ -159,7 +165,13 @@ let EducationCatalogService = class EducationCatalogService {
         if (existing)
             throw new api_exception_1.ApiException(409, "EDUCATION_BOOK_EXISTS", "شناسه کتاب تکراری است.");
         const state = input.state || "DRAFT";
-        const book = this.books.create({ id: input.id.trim(), ...this.cleanBook(input), state, version: 1, publishedAt: state === "PUBLISHED" ? new Date() : null });
+        const book = this.books.create({
+            id: input.id.trim(),
+            ...this.cleanBook(input),
+            state,
+            version: 1,
+            publishedAt: state === "PUBLISHED" ? new Date() : null,
+        });
         const saved = await this.books.save(book);
         await this.record(actor, "education.catalog_book_created", saved);
         return saved;
@@ -179,7 +191,9 @@ let EducationCatalogService = class EducationCatalogService {
                 seen.add(id);
             if (!input.titleFa?.trim())
                 errors.push("عنوان فارسی لازم است");
-            if (!Number.isInteger(input.grade) || input.grade < 1 || input.grade > 12)
+            if (!Number.isInteger(input.grade) ||
+                input.grade < 0 ||
+                input.grade > 12)
                 errors.push("پایه نامعتبر است");
             try {
                 this.requireOrganizationScope(actor, input.organizationId);
@@ -187,11 +201,21 @@ let EducationCatalogService = class EducationCatalogService {
             catch {
                 errors.push("سازمان خارج از دسترس است");
             }
-            if (id && await this.books.findOneBy({ id }))
+            if (id && (await this.books.findOneBy({ id })))
                 errors.push("شناسه در کاتالوگ موجود است");
-            return { row: index + 1, id: id || null, valid: !errors.length, errors };
+            return {
+                row: index + 1,
+                id: id || null,
+                valid: !errors.length,
+                errors,
+            };
         }));
-        return { valid: rows.every((row) => row.valid), accepted: rows.filter((row) => row.valid).length, rejected: rows.filter((row) => !row.valid).length, rows };
+        return {
+            valid: rows.every((row) => row.valid),
+            accepted: rows.filter((row) => row.valid).length,
+            rejected: rows.filter((row) => !row.valid).length,
+            rows,
+        };
     }
     async commitImport(actor, inputs) {
         const preview = await this.previewImport(actor, inputs);
@@ -199,9 +223,33 @@ let EducationCatalogService = class EducationCatalogService {
             throw new api_exception_1.ApiException(422, "EDUCATION_IMPORT_INVALID", "پیش‌نمایش ورود خطا دارد.", preview);
         const saved = [];
         for (const input of inputs)
-            saved.push(await this.createBook(actor, { ...input, state: "DRAFT" }));
-        await this.audit.save(this.audit.create({ user: { id: actor.id }, action: "education.catalog_imported", entity: "education_book", metadata: { count: saved.length, ids: saved.map((book) => book.id) } }));
-        return { imported: saved.length, state: "DRAFT", books: saved };
+            saved.push(await this.createBook(actor, input));
+        await this.audit.save(this.audit.create({
+            user: { id: actor.id },
+            action: "education.catalog_imported",
+            entity: "education_book",
+            metadata: { count: saved.length, ids: saved.map((book) => book.id) },
+        }));
+        return {
+            imported: saved.length,
+            state: saved.every((book) => book.state === "PUBLISHED")
+                ? "PUBLISHED"
+                : "DRAFT",
+            books: saved,
+        };
+    }
+    async exportBooks(actor) {
+        const books = await this.listManaged(actor);
+        return books.map((book) => ({
+            id: book.id,
+            schoolYear: book.schoolYear,
+            titleFa: book.titleFa,
+            titleEn: book.titleEn,
+            category: book.category,
+            textbookCode: book.textbookCode ?? "",
+            notes: book.notes ?? "",
+            organizationId: book.organizationId ?? "",
+        }));
     }
     async updateBook(actor, id, input) {
         const book = await this.books.findOneBy({ id });
@@ -209,7 +257,9 @@ let EducationCatalogService = class EducationCatalogService {
             throw new api_exception_1.ApiException(404, "EDUCATION_BOOK_NOT_FOUND", "کتاب پیدا نشد.");
         this.requireOrganizationScope(actor, input.organizationId ?? book.organizationId);
         const state = input.state;
-        Object.assign(book, this.cleanBook(input), state === "PUBLISHED" && book.state !== "PUBLISHED" ? { publishedAt: new Date() } : {}, { version: book.version + 1 });
+        Object.assign(book, this.cleanBook(input), state === "PUBLISHED" && book.state !== "PUBLISHED"
+            ? { publishedAt: new Date() }
+            : {}, { version: book.version + 1 });
         const saved = await this.books.save(book);
         await this.record(actor, "education.catalog_book_updated", saved);
         return saved;
@@ -233,13 +283,22 @@ let EducationCatalogService = class EducationCatalogService {
         this.requireOrganizationScope(actor, book.organizationId);
         const students = await this.scopedStudents(actor);
         const organizationUserIds = book.organizationId
-            ? new Set((await this.memberships.find({ where: { organization: { id: book.organizationId }, status: organization_membership_entity_1.MembershipStatus.ACTIVE }, relations: { user: true } })).map((membership) => membership.user.id))
+            ? new Set((await this.memberships.find({
+                where: {
+                    organization: { id: book.organizationId },
+                    status: organization_membership_entity_1.MembershipStatus.ACTIVE,
+                },
+                relations: { user: true },
+            })).map((membership) => membership.user.id))
             : null;
         const affected = [];
         for (const student of students) {
-            if (!student.gradeId || !student.educationTypeId || student.gradeId !== book.grade)
+            if (!student.gradeId ||
+                !student.educationTypeId ||
+                student.gradeId !== book.grade)
                 continue;
-            if (organizationUserIds && !organizationUserIds.has(student.user?.id || ""))
+            if (organizationUserIds &&
+                !organizationUserIds.has(student.user?.id || ""))
                 continue;
             let selection;
             try {
@@ -250,24 +309,51 @@ let EducationCatalogService = class EducationCatalogService {
             }
             if (!this.bookMatchesSelection(book, selection.educationTypeId, selection.trackId))
                 continue;
-            affected.push({ id: student.id, name: student.name, grade: student.gradeId });
+            affected.push({
+                id: student.id,
+                name: student.name,
+                grade: student.gradeId,
+            });
         }
-        return { bookId: book.id, affectedStudents: affected.length, sample: affected.slice(0, 10) };
+        return {
+            bookId: book.id,
+            affectedStudents: affected.length,
+            sample: affected.slice(0, 10),
+        };
     }
     async operationsOverview(actor, from, to, grade) {
         const period = this.normalizePeriod(from, to);
-        if (grade !== undefined && (!Number.isInteger(grade) || grade < 1 || grade > 12))
+        if (grade !== undefined &&
+            (!Number.isInteger(grade) || grade < 1 || grade > 12))
             throw new api_exception_1.ApiException(422, "EDUCATION_COHORT_INVALID", "پایه گروه آموزشی معتبر نیست.");
         const students = (await this.scopedStudents(actor)).filter((student) => grade === undefined || student.gradeId === grade);
         const books = await this.books.find({ where: { state: "PUBLISHED" } });
         const complete = students.filter((student) => Boolean(student.gradeId && student.educationTypeId));
         const ids = students.map((student) => student.id);
-        const [plans, resources, attempts, reports] = ids.length && this.plans && this.resources && this.attempts && this.reports ? await Promise.all([
-            this.plans.find({ where: { student: { id: (0, typeorm_3.In)(ids) }, status: plan_entity_1.PlanStatus.PUBLISHED }, relations: { student: true } }),
-            this.resources.find({ where: { student: { id: (0, typeorm_3.In)(ids) } }, relations: { student: true } }),
-            this.attempts.find({ where: { student: { id: (0, typeorm_3.In)(ids) } }, relations: { student: true } }),
-            this.reports.find({ where: { student: { id: (0, typeorm_3.In)(ids) } }, relations: { student: true } }),
-        ]) : [[], [], [], []];
+        const [plans, resources, attempts, reports] = ids.length &&
+            this.plans &&
+            this.resources &&
+            this.attempts &&
+            this.reports
+            ? await Promise.all([
+                this.plans.find({
+                    where: { student: { id: (0, typeorm_3.In)(ids) }, status: plan_entity_1.PlanStatus.PUBLISHED },
+                    relations: { student: true },
+                }),
+                this.resources.find({
+                    where: { student: { id: (0, typeorm_3.In)(ids) } },
+                    relations: { student: true },
+                }),
+                this.attempts.find({
+                    where: { student: { id: (0, typeorm_3.In)(ids) } },
+                    relations: { student: true },
+                }),
+                this.reports.find({
+                    where: { student: { id: (0, typeorm_3.In)(ids) } },
+                    relations: { student: true },
+                }),
+            ])
+            : [[], [], [], []];
         const covered = (rows) => new Set(rows.map((row) => row.student.id));
         const planned = covered(plans), resourced = covered(resources), examined = covered(attempts), reported = covered(reports);
         const remediationItem = (student, reason) => ({
@@ -280,10 +366,17 @@ let EducationCatalogService = class EducationCatalogService {
         const withoutResources = students.filter((student) => !resourced.has(student.id));
         const withoutExam = students.filter((student) => !examined.has(student.id));
         const withoutReport = students.filter((student) => !reported.has(student.id));
-        const withinPeriod = (value) => !period || (Boolean(value) && String(value).slice(0, 10) >= period.from && String(value).slice(0, 10) <= period.to);
-        const submittedAttempts = attempts.filter((attempt) => attempt.status === "submitted" && Number.isFinite(attempt.percentage ?? attempt.score) && withinPeriod(attempt.submittedAt || attempt.finishedAt || attempt.startedAt));
+        const withinPeriod = (value) => !period ||
+            (Boolean(value) &&
+                String(value).slice(0, 10) >= period.from &&
+                String(value).slice(0, 10) <= period.to);
+        const submittedAttempts = attempts.filter((attempt) => attempt.status === "submitted" &&
+            Number.isFinite(attempt.percentage ?? attempt.score) &&
+            withinPeriod(attempt.submittedAt || attempt.finishedAt || attempt.startedAt));
         const averageExamPercentage = submittedAttempts.length
-            ? Math.round((submittedAttempts.reduce((sum, attempt) => sum + (attempt.percentage ?? attempt.score), 0) / submittedAttempts.length) * 10) / 10
+            ? Math.round((submittedAttempts.reduce((sum, attempt) => sum + (attempt.percentage ?? attempt.score), 0) /
+                submittedAttempts.length) *
+                10) / 10
             : null;
         const periodReports = reports.filter((report) => withinPeriod(report.planDate));
         const totalStudyHours = Math.round(periodReports.reduce((sum, report) => sum + (Number(report.studyHours) || 0), 0) * 10) / 10;
@@ -298,78 +391,196 @@ let EducationCatalogService = class EducationCatalogService {
                 missingMappings += 1;
         }
         return {
-            scope: actor.roles?.includes("PLATFORM_ADMIN") || actor.role === "PLATFORM_ADMIN" ? "platform" : "organization",
+            scope: actor.roles?.includes("PLATFORM_ADMIN") ||
+                actor.role === "PLATFORM_ADMIN"
+                ? "platform"
+                : "organization",
             period,
             cohort: grade === undefined ? null : { grade },
-            students: { total: students.length, complete: complete.length, incomplete: students.length - complete.length, missingMappings },
-            coverage: { planned: planned.size, withoutPlan: withoutPlan.length, resourced: resourced.size, withoutResources: withoutResources.length, examined: examined.size, reported: reported.size },
+            students: {
+                total: students.length,
+                complete: complete.length,
+                incomplete: students.length - complete.length,
+                missingMappings,
+            },
+            coverage: {
+                planned: planned.size,
+                withoutPlan: withoutPlan.length,
+                resourced: resourced.size,
+                withoutResources: withoutResources.length,
+                examined: examined.size,
+                reported: reported.size,
+            },
             trends: {
                 submittedAttempts: submittedAttempts.length,
                 averageExamPercentage,
                 totalStudyHours,
-                averageStudyHours: periodReports.length ? Math.round((totalStudyHours / periodReports.length) * 10) / 10 : null,
+                averageStudyHours: periodReports.length
+                    ? Math.round((totalStudyHours / periodReports.length) * 10) / 10
+                    : null,
             },
             remediation: {
-                incompleteProfiles: students.filter((student) => !student.gradeId || !student.educationTypeId).slice(0, 10).map((student) => remediationItem(student, "پرونده آموزشی ناقص")),
-                withoutPlan: withoutPlan.slice(0, 10).map((student) => remediationItem(student, "بدون برنامه منتشرشده")),
-                withoutResources: withoutResources.slice(0, 10).map((student) => remediationItem(student, "بدون منبع یادگیری")),
-                withoutExam: withoutExam.slice(0, 10).map((student) => remediationItem(student, "بدون تلاش آزمون")),
-                withoutReport: withoutReport.slice(0, 10).map((student) => remediationItem(student, "بدون گزارش روزانه")),
+                incompleteProfiles: students
+                    .filter((student) => !student.gradeId || !student.educationTypeId)
+                    .slice(0, 10)
+                    .map((student) => remediationItem(student, "پرونده آموزشی ناقص")),
+                withoutPlan: withoutPlan
+                    .slice(0, 10)
+                    .map((student) => remediationItem(student, "بدون برنامه منتشرشده")),
+                withoutResources: withoutResources
+                    .slice(0, 10)
+                    .map((student) => remediationItem(student, "بدون منبع یادگیری")),
+                withoutExam: withoutExam
+                    .slice(0, 10)
+                    .map((student) => remediationItem(student, "بدون تلاش آزمون")),
+                withoutReport: withoutReport
+                    .slice(0, 10)
+                    .map((student) => remediationItem(student, "بدون گزارش روزانه")),
             },
-            catalog: { published: books.length, draft: await this.books.countBy({ state: "DRAFT" }), archived: await this.books.countBy({ state: "ARCHIVED" }) },
-            distribution: [...distribution.entries()].map(([label, count]) => ({ label, count })).sort((a, b) => b.count - a.count || a.label.localeCompare(b.label, "fa")),
+            catalog: {
+                published: books.length,
+                draft: await this.books.countBy({ state: "DRAFT" }),
+                archived: await this.books.countBy({ state: "ARCHIVED" }),
+            },
+            distribution: [...distribution.entries()]
+                .map(([label, count]) => ({ label, count }))
+                .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label, "fa")),
         };
     }
     async scopedStudents(actor) {
-        if (actor.roles?.includes("PLATFORM_ADMIN") || actor.role === "PLATFORM_ADMIN")
+        if (actor.roles?.includes("PLATFORM_ADMIN") ||
+            actor.role === "PLATFORM_ADMIN")
             return this.students.find({ relations: { user: true } });
         const organizationIds = actor.organizationIds || [];
         if (!organizationIds.length)
             return [];
-        const memberships = await this.memberships.find({ where: { organization: { id: (0, typeorm_3.In)(organizationIds) }, status: organization_membership_entity_1.MembershipStatus.ACTIVE }, relations: { user: true } });
+        const memberships = await this.memberships.find({
+            where: {
+                organization: { id: (0, typeorm_3.In)(organizationIds) },
+                status: organization_membership_entity_1.MembershipStatus.ACTIVE,
+            },
+            relations: { user: true },
+        });
         const userIds = memberships.map((item) => item.user.id);
-        return userIds.length ? this.students.find({ where: { user: { id: (0, typeorm_3.In)(userIds) } }, relations: { user: true } }) : [];
+        return userIds.length
+            ? this.students.find({
+                where: { user: { id: (0, typeorm_3.In)(userIds) } },
+                relations: { user: true },
+            })
+            : [];
     }
     cleanBook(input) {
         const trim = (value) => value === undefined ? undefined : value.trim();
         return {
-            ...(input.country !== undefined ? { country: trim(input.country) } : {}), ...(input.schoolYear !== undefined ? { schoolYear: trim(input.schoolYear) } : {}), ...(input.grade !== undefined ? { grade: input.grade } : {}), ...(input.level !== undefined ? { level: trim(input.level) } : {}), ...(input.branch !== undefined ? { branch: trim(input.branch) } : {}), ...(input.track !== undefined ? { track: trim(input.track) } : {}), ...(input.category !== undefined ? { category: trim(input.category) } : {}), ...(input.titleFa !== undefined ? { titleFa: trim(input.titleFa) } : {}), ...(input.titleEn !== undefined ? { titleEn: trim(input.titleEn) } : {}), ...(input.textbookCode !== undefined ? { textbookCode: trim(input.textbookCode) || null } : {}), ...(input.appliesTo !== undefined ? { appliesTo: input.appliesTo.map((value) => value.trim()).filter(Boolean) } : {}), ...(input.notes !== undefined ? { notes: trim(input.notes) || null } : {}), ...(input.state !== undefined ? { state: input.state } : {}), ...(input.organizationId !== undefined ? { organizationId: input.organizationId || null } : {}),
+            ...(input.country !== undefined ? { country: trim(input.country) } : {}),
+            ...(input.schoolYear !== undefined
+                ? { schoolYear: trim(input.schoolYear) }
+                : {}),
+            ...(input.grade !== undefined ? { grade: input.grade } : {}),
+            ...(input.level !== undefined ? { level: trim(input.level) } : {}),
+            ...(input.branch !== undefined ? { branch: trim(input.branch) } : {}),
+            ...(input.track !== undefined ? { track: trim(input.track) } : {}),
+            ...(input.category !== undefined
+                ? { category: trim(input.category) }
+                : {}),
+            ...(input.titleFa !== undefined ? { titleFa: trim(input.titleFa) } : {}),
+            ...(input.titleEn !== undefined ? { titleEn: trim(input.titleEn) } : {}),
+            ...(input.textbookCode !== undefined
+                ? { textbookCode: trim(input.textbookCode) || null }
+                : {}),
+            ...(input.appliesTo !== undefined
+                ? {
+                    appliesTo: input.appliesTo
+                        .map((value) => value.trim())
+                        .filter(Boolean),
+                }
+                : {}),
+            ...(input.notes !== undefined
+                ? { notes: trim(input.notes) || null }
+                : {}),
+            ...(input.state !== undefined ? { state: input.state } : {}),
+            ...(input.organizationId !== undefined
+                ? { organizationId: input.organizationId || null }
+                : {}),
         };
     }
     normalizePeriod(from, to) {
         if (!from && !to)
             return null;
         const datePattern = /^\d{4}-\d{2}-\d{2}$/;
-        if (!from || !to || !datePattern.test(from) || !datePattern.test(to) || from > to)
+        if (!from ||
+            !to ||
+            !datePattern.test(from) ||
+            !datePattern.test(to) ||
+            from > to)
             throw new api_exception_1.ApiException(422, "EDUCATION_PERIOD_INVALID", "بازه زمانی آموزش معتبر نیست.");
         return { from, to };
     }
     async record(actor, action, book) {
-        await this.audit.save(this.audit.create({ user: { id: actor.id }, action, entity: "education_book", organizationId: book.organizationId || null, metadata: { id: book.id, version: book.version, state: book.state, schoolYear: book.schoolYear } }));
+        await this.audit.save(this.audit.create({
+            user: { id: actor.id },
+            action,
+            entity: "education_book",
+            organizationId: book.organizationId || null,
+            metadata: {
+                id: book.id,
+                version: book.version,
+                state: book.state,
+                schoolYear: book.schoolYear,
+            },
+        }));
     }
     applyOrganizationOverrides(rows, organizationIds) {
         const visible = rows.filter((book) => !book.organizationId || organizationIds.includes(book.organizationId));
         const resolved = new Map();
-        for (const book of visible.sort((left, right) => Number(Boolean(left.organizationId)) - Number(Boolean(right.organizationId)))) {
+        for (const book of visible.sort((left, right) => Number(Boolean(left.organizationId)) -
+            Number(Boolean(right.organizationId)))) {
             const identity = `${book.schoolYear}:${book.grade}:${book.textbookCode || book.titleFa}:${book.track}`;
             resolved.set(identity, book);
         }
         return [...resolved.values()];
     }
     bookMatchesSelection(book, educationTypeId, trackId) {
-        const branchMatches = book.branch === "مشترک" || (educationTypeId === "general" ? book.branch === "عمومی" : educationTypeId === "theoretical" ? book.branch === "نظری" : educationTypeId === "technical_vocational" ? book.branch.includes("فنی و حرفه‌ای") : educationTypeId === "kar_danesh" ? book.branch.includes("کاردانش") : false);
+        const branchMatches = book.branch === "مشترک" ||
+            (educationTypeId === "general"
+                ? book.branch === "عمومی"
+                : educationTypeId === "theoretical"
+                    ? book.branch === "نظری"
+                    : educationTypeId === "technical_vocational"
+                        ? book.branch.includes("فنی و حرفه‌ای")
+                        : educationTypeId === "kar_danesh"
+                            ? book.branch.includes("کاردانش")
+                            : false);
         if (!branchMatches)
             return false;
         if (!trackId || trackId === "general")
             return true;
-        const track = [...taxonomy.theoretical_tracks, ...taxonomy.common_vocational_fields].find((item) => item.id === trackId)?.fa;
-        return Boolean(track && (book.track === "مشترک" || book.branch === "مشترک" || book.appliesTo.includes(track)));
+        const track = [
+            ...taxonomy.theoretical_tracks,
+            ...taxonomy.common_vocational_fields,
+        ].find((item) => item.id === trackId)?.fa;
+        return Boolean(track &&
+            (book.track === "مشترک" ||
+                book.branch === "مشترک" ||
+                book.appliesTo.includes(track)));
     }
-    isPlatform(actor) { return actor.role === "PLATFORM_ADMIN" || actor.roles?.includes("PLATFORM_ADMIN"); }
-    requireOrganizationScope(actor, organizationId) { if (organizationId && !this.isPlatform(actor) && !(actor.organizationIds || []).includes(organizationId))
-        throw new api_exception_1.ApiException(403, "ORGANIZATION_FORBIDDEN", "به این کاتالوگ سازمانی دسترسی ندارید."); }
-    async organizationIdsForUser(userId) { if (!userId || !this.memberships?.find)
-        return []; return (await this.memberships.find({ where: { user: { id: userId }, status: organization_membership_entity_1.MembershipStatus.ACTIVE }, relations: { organization: true } })).map((membership) => membership.organization.id); }
+    isPlatform(actor) {
+        return (actor.role === "PLATFORM_ADMIN" || actor.roles?.includes("PLATFORM_ADMIN"));
+    }
+    requireOrganizationScope(actor, organizationId) {
+        if (organizationId &&
+            !this.isPlatform(actor) &&
+            !(actor.organizationIds || []).includes(organizationId))
+            throw new api_exception_1.ApiException(403, "ORGANIZATION_FORBIDDEN", "به این کاتالوگ سازمانی دسترسی ندارید.");
+    }
+    async organizationIdsForUser(userId) {
+        if (!userId || !this.memberships?.find)
+            return [];
+        return (await this.memberships.find({
+            where: { user: { id: userId }, status: organization_membership_entity_1.MembershipStatus.ACTIVE },
+            relations: { organization: true },
+        })).map((membership) => membership.organization.id);
+    }
     async seed() {
         return seedEducationCatalog(this.books.manager);
     }

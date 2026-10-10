@@ -93,7 +93,7 @@ export function ThemeSwitcher() {
   ];
   return (
     <div
-      className="flex h-9 shrink-0 items-center rounded-lg border border-slate-200 bg-slate-100/80 p-0.5"
+      className="flex h-9 shrink-0 items-center rounded-lg border border-slate-200 bg-slate-100/80 p-0.5 dark:border-slate-700 dark:bg-slate-800"
       role="group"
       aria-label={labels.group}
     >
@@ -103,7 +103,7 @@ export function ThemeSwitcher() {
           <button
             key={value}
             type="button"
-            className={`grid size-8 place-items-center rounded-md transition ${selected ? "bg-white text-brand shadow-sm" : "text-slate-500 hover:bg-white/70 hover:text-ink"}`}
+            className={`grid size-8 place-items-center rounded-md transition ${selected ? "bg-white text-brand shadow-sm dark:bg-slate-700" : "text-slate-500 hover:bg-white/70 hover:text-ink dark:text-slate-300 dark:hover:bg-slate-700"}`}
             title={`${labels.prefix} ${label}`}
             aria-label={`${labels.prefix} ${label}`}
             aria-pressed={selected}

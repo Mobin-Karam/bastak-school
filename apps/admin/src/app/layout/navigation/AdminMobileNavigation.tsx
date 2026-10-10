@@ -119,15 +119,10 @@ export function AdminMobileBottomNav({
   }, [expandedSection]);
 
   const centerItem =
-    visibleMainNavigation.find((item) => item.section === "مدیریت") ??
-    visibleMainNavigation.find((item) => item.section === "خانه") ??
-    visibleMainNavigation[0];
+    visibleMainNavigation.find((item) => item.path === "") ?? visibleMainNavigation[0];
 
-  const personalNavigationMode = ["STUDENT", "TEACHER"].includes(auth.activeRole ?? "");
-
-  const dockItems = personalNavigationMode
-    ? visibleMainNavigation
-    : centerItem
+  const dockItems = (
+    centerItem
       ? [
           ...visibleMainNavigation
             .filter((item) => item.section !== centerItem.section)
@@ -139,7 +134,8 @@ export function AdminMobileBottomNav({
             .filter((item) => item.section !== centerItem.section)
             .slice(2, 3),
         ]
-      : [];
+      : []
+  ).slice(0, 4);
 
   const moreActive = location.pathname === "/admin/more";
 
@@ -191,7 +187,7 @@ export function AdminMobileBottomNav({
 
               bg-slate-950/25
 
-              lg:hidden
+              min-[1200px]:hidden
 
               ${performance === "enhanced" ? "backdrop-blur-[5px]" : "bg-slate-950/35"}
             `}
@@ -243,7 +239,7 @@ export function AdminMobileBottomNav({
 
                 motion-reduce:transition-none
 
-                lg:hidden
+                min-[1200px]:hidden
               `}
               style={{
                 opacity: expandedVisible ? 1 : 0,
@@ -543,7 +539,7 @@ export function AdminMobileBottomNav({
                 h-0
                 w-0
 
-                lg:hidden
+                min-[1200px]:hidden
               "
               style={{
                 bottom: "calc(max(env(safe-area-inset-bottom), 0.25rem) + 7.5rem)",
@@ -780,7 +776,7 @@ export function AdminMobileBottomNav({
 
       <nav
         className={`
-          admin-expensive-surface
+          admin-mobile-bottom-nav
 
           fixed
           inset-x-3
@@ -803,7 +799,7 @@ export function AdminMobileBottomNav({
           px-1.5
           py-1.5
 
-          lg:hidden
+          min-[1200px]:hidden
 
           ${
             performance === "enhanced"
@@ -968,17 +964,16 @@ export function AdminMobileBottomNav({
           );
         })}
 
-        {/* Personal workspaces have five direct destinations; other roles retain More. */}
-        {!personalNavigationMode ? (
-          <NavLink
-            to="/admin/more"
-            aria-current={moreActive ? "page" : undefined}
-            aria-expanded={moreExpanded}
-            aria-controls={moreExpanded ? "admin-mobile-more-menu" : undefined}
-            aria-label={copy.allRoutes}
-            title={copy.allRoutes}
-            onClick={(event) => handleDockClick(event, "__more")}
-            className="
+        {/* The fifth dock item is always the complete, capability-filtered page menu. */}
+        <NavLink
+          to="/admin/more"
+          aria-current={moreActive ? "page" : undefined}
+          aria-expanded={moreExpanded}
+          aria-controls={moreExpanded ? "admin-mobile-more-menu" : undefined}
+          aria-label={copy.allRoutes}
+          title={copy.allRoutes}
+          onClick={(event) => handleDockClick(event, "__more")}
+          className="
             group/dock
 
             relative
@@ -997,9 +992,9 @@ export function AdminMobileBottomNav({
             focus-visible:ring-2
             focus-visible:ring-brand
           "
-          >
-            <span
-              className={`
+        >
+          <span
+            className={`
               relative
 
               grid
@@ -1055,11 +1050,11 @@ export function AdminMobileBottomNav({
                   `
               }
             `}
-            >
-              {moreActive || moreExpanded ? (
-                <span
-                  aria-hidden="true"
-                  className="
+          >
+            {moreActive || moreExpanded ? (
+              <span
+                aria-hidden="true"
+                className="
                   pointer-events-none
 
                   absolute
@@ -1072,21 +1067,20 @@ export function AdminMobileBottomNav({
 
                   bg-white/40
                 "
-                />
-              ) : null}
+              />
+            ) : null}
 
-              <MoreHorizontal
-                size={moreActive || moreExpanded ? 24 : 21}
-                strokeWidth={moreActive || moreExpanded ? 2.4 : 2}
-                aria-hidden="true"
-                className="
+            <MoreHorizontal
+              size={moreActive || moreExpanded ? 24 : 21}
+              strokeWidth={moreActive || moreExpanded ? 2.4 : 2}
+              aria-hidden="true"
+              className="
                 relative
                 z-10
               "
-              />
-            </span>
-          </NavLink>
-        ) : null}
+            />
+          </span>
+        </NavLink>
       </nav>
     </>
   );

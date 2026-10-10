@@ -71,6 +71,16 @@ export declare class EducationCatalogService {
         state: string;
         books: EducationBook[];
     }>;
+    exportBooks(actor: AuthenticatedUser): Promise<{
+        id: string;
+        schoolYear: string;
+        titleFa: string;
+        titleEn: string;
+        category: string;
+        textbookCode: string;
+        notes: string;
+        organizationId: string;
+    }[]>;
     updateBook(actor: AuthenticatedUser, id: string, input: UpdateEducationBookDto): Promise<EducationBook>;
     publishBook(actor: AuthenticatedUser, id: string): Promise<EducationBook>;
     bookImpact(actor: AuthenticatedUser, id: string): Promise<{

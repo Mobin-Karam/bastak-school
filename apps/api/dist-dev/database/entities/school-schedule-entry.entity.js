@@ -13,12 +13,14 @@ exports.SchoolScheduleEntry = void 0;
 const openapi = require("@nestjs/swagger");
 const typeorm_1 = require("typeorm");
 const education_class_entity_1 = require("./education-class.entity");
+const education_class_book_entity_1 = require("./education-class-book.entity");
 const organization_entity_1 = require("./organization.entity");
 const user_entity_1 = require("./user.entity");
 let SchoolScheduleEntry = class SchoolScheduleEntry {
     id;
     organization;
     classroom;
+    classBook;
     teacher;
     title;
     weekday;
@@ -29,7 +31,7 @@ let SchoolScheduleEntry = class SchoolScheduleEntry {
     createdAt;
     updatedAt;
     static _OPENAPI_METADATA_FACTORY() {
-        return { id: { required: true, type: () => String }, organization: { required: true, type: () => require("./organization.entity").Organization }, classroom: { required: false, type: () => require("./education-class.entity").EducationClass, nullable: true }, teacher: { required: false, type: () => require("./user.entity").User, nullable: true }, title: { required: true, type: () => String }, weekday: { required: true, type: () => Number }, startTime: { required: true, type: () => String }, endTime: { required: true, type: () => String }, room: { required: true, type: () => String }, status: { required: true, enum: ["ARCHIVED", "ACTIVE"] }, createdAt: { required: true, type: () => Date }, updatedAt: { required: true, type: () => Date } };
+        return { id: { required: true, type: () => String }, organization: { required: true, type: () => require("./organization.entity").Organization }, classroom: { required: false, type: () => require("./education-class.entity").EducationClass, nullable: true }, classBook: { required: false, type: () => require("./education-class-book.entity").EducationClassBook, nullable: true }, teacher: { required: false, type: () => require("./user.entity").User, nullable: true }, title: { required: true, type: () => String }, weekday: { required: true, type: () => Number }, startTime: { required: true, type: () => String }, endTime: { required: true, type: () => String }, room: { required: true, type: () => String }, status: { required: true, enum: ["ARCHIVED", "ACTIVE"] }, createdAt: { required: true, type: () => Date }, updatedAt: { required: true, type: () => Date } };
     }
 };
 exports.SchoolScheduleEntry = SchoolScheduleEntry;
@@ -45,6 +47,10 @@ __decorate([
     (0, typeorm_1.ManyToOne)(() => education_class_entity_1.EducationClass, { nullable: true, onDelete: "SET NULL" }),
     __metadata("design:type", Object)
 ], SchoolScheduleEntry.prototype, "classroom", void 0);
+__decorate([
+    (0, typeorm_1.ManyToOne)(() => education_class_book_entity_1.EducationClassBook, { nullable: true, onDelete: "SET NULL" }),
+    __metadata("design:type", Object)
+], SchoolScheduleEntry.prototype, "classBook", void 0);
 __decorate([
     (0, typeorm_1.ManyToOne)(() => user_entity_1.User, { nullable: true, onDelete: "SET NULL" }),
     __metadata("design:type", Object)

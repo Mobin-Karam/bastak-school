@@ -32,12 +32,26 @@ export class DashboardHomeService {
     const context = summary.context as DashboardContext;
     if (!context)
       throw new ApiException(403, "CONTEXT_FORBIDDEN", "زمینه کاری فعال نیست.");
-    const date = new Date().toISOString().slice(0, 10);
+    const tehranDateParts = new Intl.DateTimeFormat("en-CA", {
+      timeZone: "Asia/Tehran",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).formatToParts(new Date());
+    const datePart = (type: Intl.DateTimeFormatPartTypes) =>
+      tehranDateParts.find((part) => part.type === type)?.value ?? "";
+    const date = `${datePart("year")}-${datePart("month")}-${datePart("day")}`;
 
     const entries = user.capabilities?.includes("schedule.read")
       ? await this.schedule.list(user)
       : [];
-    const weekday = new Date(`${date}T12:00:00`).getDay();
+    const weekdayNames = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
+    const weekday = weekdayNames.indexOf(
+      new Intl.DateTimeFormat("en-US", {
+        timeZone: "Asia/Tehran",
+        weekday: "short",
+      }).format(new Date()).toLowerCase().slice(0, 3),
+    );
     const calendarEntries = entries
       .filter((entry) => entry.status === "ACTIVE")
       .map((entry) => ({

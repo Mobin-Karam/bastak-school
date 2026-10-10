@@ -24,6 +24,7 @@ import { useAuth } from "../auth";
 import { useLocale } from "../../shared/ui/locale";
 import { accessCopy } from "./model/access-copy";
 import {
+  principalAssignableRoles,
   rolesForOrganizationType,
   type AdminOrganizationType,
 } from "../../shared/lib/organization-role-policy";
@@ -121,7 +122,13 @@ export function OrganizationWorkspace({
   const modal = useModal();
   const [userId, setUserId] = useState("");
   const roles = rolesForOrganizationType(organizationType);
-  const [role, setRole] = useState<RoleCode>(roles.includes("COUNSELOR") ? "COUNSELOR" : roles[0]);
+  const assignableRoles =
+    auth.activeRole === "PRINCIPAL"
+      ? roles.filter((item) => principalAssignableRoles.includes(item))
+      : roles;
+  const [role, setRole] = useState<RoleCode>(
+    assignableRoles.includes("COUNSELOR") ? "COUNSELOR" : assignableRoles[0],
+  );
   const [memberSearch, setMemberSearch] = useState("");
   const [showAddForm, setShowAddForm] = useState(false);
 
@@ -323,7 +330,7 @@ export function OrganizationWorkspace({
               </Field>
               <Field label={copy.organizationRole}>
                 <Select value={role} onChange={(e) => setRole(e.target.value as RoleCode)}>
-                  {roles.map((item) => (
+                  {assignableRoles.map((item) => (
                     <option key={item} value={item}>
                       {roleLabel(item, language)}
                     </option>
@@ -421,7 +428,10 @@ export function OrganizationWorkspace({
                           }
                           className="h-9 appearance-none rounded-lg border border-slate-200 bg-white pe-7 ps-3 text-xs outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/20 disabled:opacity-50 dark:border-slate-700 dark:bg-slate-900"
                         >
-                          {roles.map((item) => (
+                          {(assignableRoles.includes(member.roles[0] as RoleCode)
+                            ? assignableRoles
+                            : [member.roles[0] as RoleCode, ...assignableRoles]
+                          ).map((item) => (
                             <option key={item} value={item}>
                               {roleLabel(item, language)}
                             </option>

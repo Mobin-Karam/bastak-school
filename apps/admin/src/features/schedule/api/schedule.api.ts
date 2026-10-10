@@ -10,11 +10,13 @@ export type ScheduleEntry = {
   status: "ACTIVE" | "ARCHIVED";
   organization: { id: string; name: string; type?: string; status?: string };
   classroom?: { id: string; name: string } | null;
+  classBook?: { id: string; book: { id: string; titleFa: string }; teacher: { id: string; firstName?: string; lastName?: string; username: string } } | null;
   teacher?: { id: string; firstName?: string; lastName?: string; username: string } | null;
 };
 export type ScheduleDraft = {
   organizationId: string;
   classroomId?: string;
+  classBookId?: string;
   teacherId?: string;
   title: string;
   weekday: number;

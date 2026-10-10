@@ -8,7 +8,12 @@ import { Card } from "../../../shared/ui/ui";
 export function TeacherProfilePage() {
   const auth = useAuth();
   const profile = useQuery({ queryKey: ["account", "profile"], queryFn: getAccountProfile });
-  const name = auth.user?.displayName || auth.user?.display_name || auth.user?.username || "استاد";
+  const fullName = [auth.user?.firstName, auth.user?.lastName]
+    .map((part) => part?.trim())
+    .filter(Boolean)
+    .join(" ");
+  const name =
+    fullName || auth.user?.displayName || auth.user?.display_name || auth.user?.username || "استاد";
   return (
     <section className="mx-auto grid w-full max-w-2xl gap-4">
       <ManagementPageHeader

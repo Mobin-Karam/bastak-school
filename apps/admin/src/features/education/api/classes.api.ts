@@ -4,7 +4,7 @@ export type EducationClassBook = {
   id: string;
   bookId: string;
   title: string;
-  category: string;
+  code: string;
   teacher: { id: string; name: string };
 };
 export type EducationClassStudent = { id: string; name: string; grade: string; major: string };
@@ -14,9 +14,9 @@ export type EducationClass = {
   code: string;
   name: string;
   schoolYear: string;
-  gradeId: number;
-  educationTypeId: string;
-  trackId: string;
+  gradeId: number | null;
+  educationTypeId: string | null;
+  trackId: string | null;
   capacity: number;
   status: "ACTIVE" | "ARCHIVED";
   description: string;
@@ -37,12 +37,20 @@ export type ClassDraft = {
   code: string;
   name: string;
   schoolYear: string;
-  gradeId: number;
-  educationTypeId: string;
-  trackId: string;
   capacity: number;
-  description: string;
+};
+export type ClassTransferRow = Pick<ClassDraft, "code" | "name" | "schoolYear" | "capacity">;
+export type ClassTransferPreview = {
+  total: number;
+  valid: number;
+  invalid: number;
+  rows: Array<ClassTransferRow & { row: number; errors: string[] }>;
+};
+
+export type ClassUpdate = Partial<ClassDraft> & {
   advisorId?: string | null;
+  description?: string;
+  status?: EducationClass["status"];
 };
 
 export const listClasses = (organizationId?: string) =>
@@ -50,10 +58,8 @@ export const listClasses = (organizationId?: string) =>
     `/classes${organizationId ? `?organizationId=${encodeURIComponent(organizationId)}` : ""}`,
   );
 export const createClass = (body: ClassDraft) => api.post<EducationClass>("/classes", body);
-export const updateClass = (
-  id: string,
-  body: Partial<ClassDraft & { status: EducationClass["status"] }>,
-) => api.patch<EducationClass>(`/classes/${encodeURIComponent(id)}`, body);
+export const updateClass = (id: string, body: ClassUpdate) =>
+  api.patch<EducationClass>(`/classes/${encodeURIComponent(id)}`, body);
 export const deleteClass = (id: string) => api.delete(`/classes/${encodeURIComponent(id)}`);
 export const getClassOptions = (id: string) =>
   api.get<ClassOptions>(`/classes/${encodeURIComponent(id)}/options`);
@@ -61,3 +67,14 @@ export const setClassBooks = (id: string, books: Array<{ bookId: string; teacher
   api.put<EducationClass>(`/classes/${encodeURIComponent(id)}/books`, { books });
 export const setClassEnrollments = (id: string, studentIds: string[]) =>
   api.put<EducationClass>(`/classes/${encodeURIComponent(id)}/enrollments`, { studentIds });
+export const previewClassTransfer = (organizationId: string, rows: ClassTransferRow[]) =>
+  api.post<ClassTransferPreview>("/classes/transfer/preview", { organizationId, rows });
+export const commitClassTransfer = (organizationId: string, rows: ClassTransferRow[]) =>
+  api.post<{ committed: boolean; count: number; invalid: number }>("/classes/transfer/commit", {
+    organizationId,
+    rows,
+  });
+export const exportClassTransfer = (organizationId: string) =>
+  api.get<ClassTransferRow[]>(
+    `/classes/transfer/export?organizationId=${encodeURIComponent(organizationId)}`,
+  );

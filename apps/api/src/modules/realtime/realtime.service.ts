@@ -14,6 +14,7 @@ export type RealtimeEventType =
   | "system.update"
   | "chat.message.created"
   | "attendance.updated"
+  | "attendance.reviewed"
   | "school-home.updated"
   | "school.occupancy.updated";
 

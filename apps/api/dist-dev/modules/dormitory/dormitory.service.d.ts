@@ -22,7 +22,7 @@ export declare class DormitoryService {
         building: string;
         floor: number;
         capacity: number;
-        status: "ACTIVE" | "ARCHIVED";
+        status: "ARCHIVED" | "ACTIVE";
         studentCount: number;
     }[]>;
     createRoom(user: AuthenticatedUser, dto: CreateDormRoomDto): Promise<{
@@ -33,7 +33,7 @@ export declare class DormitoryService {
         building: string;
         floor: number;
         capacity: number;
-        status: "ACTIVE" | "ARCHIVED";
+        status: "ARCHIVED" | "ACTIVE";
         studentCount: number;
     }>;
     listAssignments(user: AuthenticatedUser, roomId: string): Promise<{
@@ -54,7 +54,7 @@ export declare class DormitoryService {
     }[]>;
     sendAnnouncement(user: AuthenticatedUser, dto: SendDormAnnouncementDto): Promise<{
         delivered: number;
-        target: "ROOM" | "STUDENT";
+        target: "STUDENT" | "ROOM";
         targetLabel: string;
     }>;
     private requireRoom;

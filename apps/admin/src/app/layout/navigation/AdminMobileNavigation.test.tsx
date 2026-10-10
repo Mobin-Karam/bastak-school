@@ -14,7 +14,7 @@ vi.mock("../../../features/auth", () => ({
 describe("AdminMobileBottomNav", () => {
   afterEach(cleanup);
 
-  it("gives teachers five direct personal destinations without an expanded menu", () => {
+  it("keeps a five-icon dock and reserves its last icon for more pages", () => {
     render(
       <MemoryRouter>
         <LocaleProvider>
@@ -32,18 +32,11 @@ describe("AdminMobileBottomNav", () => {
       "href",
       "/admin/schedule",
     );
-    expect(screen.getByRole("link", { name: "گفت‌وگو" })).toHaveAttribute(
-      "href",
-      "/admin/teacher-chat",
-    );
-    expect(screen.getByRole("link", { name: "پروفایل" })).toHaveAttribute(
-      "href",
-      "/admin/teacher-profile",
-    );
-    expect(screen.queryByRole("link", { name: "همه صفحه‌ها" })).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "همه مسیرهای مدیریت" })).toBeVisible();
+    expect(screen.getAllByRole("link")[2]).toHaveAccessibleName("میز استاد");
   });
 
-  it("keeps all teacher destinations directly reachable in reduced-performance mode", () => {
+  it("keeps exactly four destination links plus the more-pages button in reduced mode", () => {
     render(
       <MemoryRouter>
         <LocaleProvider>
@@ -57,9 +50,6 @@ describe("AdminMobileBottomNav", () => {
     );
 
     expect(screen.getAllByRole("link")).toHaveLength(5);
-    expect(screen.getByRole("link", { name: "تنظیمات" })).toHaveAttribute(
-      "href",
-      "/admin/settings",
-    );
+    expect(screen.getByRole("link", { name: "همه مسیرهای مدیریت" })).toHaveAttribute("href", "/admin/more");
   });
 });

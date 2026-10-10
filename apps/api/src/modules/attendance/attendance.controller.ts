@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post, Query } from "@nestjs/common";
+import { Body, Controller, Get, Param, Patch, Post, Query } from "@nestjs/common";
 import { RequireCapabilities } from "../../common/decorators/capabilities.decorator";
 import { CurrentUser } from "../../common/decorators/current-user.decorator";
 import { ok } from "../../common/utils/envelope";
@@ -7,6 +7,7 @@ import { AttendanceService } from "./attendance.service";
 import {
   BulkMarkAttendanceDto,
   CreateAttendanceSessionDto,
+  ReviewAttendanceAbsenceDto,
 } from "./attendance.dto";
 
 @Controller()
@@ -59,6 +60,40 @@ export class AttendanceController {
     @Body() dto: BulkMarkAttendanceDto,
   ) {
     return this.attendance.bulkMark(user, dto).then(ok);
+  }
+
+  @Get("attendance/absence-reviews")
+  @RequireCapabilities("attendance.review")
+  absenceReviews(
+    @CurrentUser() user: AuthenticatedUser,
+    @Query("organizationId") organizationId?: string,
+  ) {
+    return this.attendance.listAbsenceReviews(user, organizationId).then(ok);
+  }
+
+  @Get("attendance/live-records")
+  @RequireCapabilities("attendance.read")
+  liveRecords(
+    @CurrentUser() user: AuthenticatedUser,
+    @Query("organizationId") organizationId?: string,
+  ) {
+    return this.attendance.listLiveRecords(user, organizationId).then(ok);
+  }
+
+  @Patch("attendance/absence-reviews/:id")
+  @RequireCapabilities("attendance.review")
+  reviewAbsence(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param("id") id: string,
+    @Body() dto: ReviewAttendanceAbsenceDto,
+  ) {
+    return this.attendance.reviewAbsence(user, id, dto).then(ok);
+  }
+
+  @Get("attendance/my-absence-reviews")
+  @RequireCapabilities("attendance.read")
+  myAbsenceReviews(@CurrentUser() user: AuthenticatedUser) {
+    return this.attendance.listMyAbsenceReviews(user).then(ok);
   }
 
   @Get("student/attendance-summary")

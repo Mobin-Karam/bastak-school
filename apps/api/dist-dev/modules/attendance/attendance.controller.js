@@ -42,6 +42,18 @@ let AttendanceController = class AttendanceController {
     bulk(user, dto) {
         return this.attendance.bulkMark(user, dto).then(envelope_1.ok);
     }
+    absenceReviews(user, organizationId) {
+        return this.attendance.listAbsenceReviews(user, organizationId).then(envelope_1.ok);
+    }
+    liveRecords(user, organizationId) {
+        return this.attendance.listLiveRecords(user, organizationId).then(envelope_1.ok);
+    }
+    reviewAbsence(user, id, dto) {
+        return this.attendance.reviewAbsence(user, id, dto).then(envelope_1.ok);
+    }
+    myAbsenceReviews(user) {
+        return this.attendance.listMyAbsenceReviews(user).then(envelope_1.ok);
+    }
     selfSummary(user) {
         return this.attendance.summary(user).then(envelope_1.ok);
     }
@@ -106,6 +118,48 @@ __decorate([
     __metadata("design:paramtypes", [Object, attendance_dto_1.BulkMarkAttendanceDto]),
     __metadata("design:returntype", void 0)
 ], AttendanceController.prototype, "bulk", null);
+__decorate([
+    openapi.ApiQuery({ name: "organizationId", required: false }),
+    (0, common_1.Get)("attendance/absence-reviews"),
+    (0, capabilities_decorator_1.RequireCapabilities)("attendance.review"),
+    openapi.ApiResponse({ status: 200 }),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __param(1, (0, common_1.Query)("organizationId")),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String]),
+    __metadata("design:returntype", void 0)
+], AttendanceController.prototype, "absenceReviews", null);
+__decorate([
+    openapi.ApiQuery({ name: "organizationId", required: false }),
+    (0, common_1.Get)("attendance/live-records"),
+    (0, capabilities_decorator_1.RequireCapabilities)("attendance.read"),
+    openapi.ApiResponse({ status: 200 }),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __param(1, (0, common_1.Query)("organizationId")),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String]),
+    __metadata("design:returntype", void 0)
+], AttendanceController.prototype, "liveRecords", null);
+__decorate([
+    (0, common_1.Patch)("attendance/absence-reviews/:id"),
+    (0, capabilities_decorator_1.RequireCapabilities)("attendance.review"),
+    openapi.ApiResponse({ status: 200 }),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __param(1, (0, common_1.Param)("id")),
+    __param(2, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String, attendance_dto_1.ReviewAttendanceAbsenceDto]),
+    __metadata("design:returntype", void 0)
+], AttendanceController.prototype, "reviewAbsence", null);
+__decorate([
+    (0, common_1.Get)("attendance/my-absence-reviews"),
+    (0, capabilities_decorator_1.RequireCapabilities)("attendance.read"),
+    openapi.ApiResponse({ status: 200 }),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", void 0)
+], AttendanceController.prototype, "myAbsenceReviews", null);
 __decorate([
     (0, common_1.Get)("student/attendance-summary"),
     (0, capabilities_decorator_1.RequireCapabilities)("attendance.self.read"),

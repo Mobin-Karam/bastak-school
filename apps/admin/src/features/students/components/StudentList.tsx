@@ -1,6 +1,4 @@
 import {
-  ArrowDown,
-  ArrowUp,
   CheckCircle2,
   ChevronLeft,
   ChevronRight,
@@ -185,7 +183,7 @@ export function StudentList({
     .replace("{total}", filteredTotal.toLocaleString(locale));
 
   return (
-    <Card className="min-w-0 overflow-hidden p-0 xl:flex xl:h-[calc(100dvh-6rem)] xl:flex-col">
+    <Card className="min-w-0 overflow-hidden p-0 min-[1200px]:flex min-[1200px]:h-[calc(100dvh-6rem)] min-[1200px]:flex-col">
       {/* Toolbar */}
       <div
         className="
@@ -332,7 +330,7 @@ export function StudentList({
               onSort={(value) => onSort(value as StudentSort)}
               onRowClick={onSelect}
               displayMode={displayMode}
-              scrollClassName="xl:overflow-y-auto xl:overscroll-y-contain"
+              scrollClassName="min-[1200px]:overflow-y-auto min-[1200px]:overscroll-y-contain"
 
               footer={
                 filteredTotal > 0 ? (
@@ -419,7 +417,7 @@ export function StudentList({
                   copy.educationNotSet;
 
                 return (
-                  <div className="grid gap-3">
+                  <div className="mobile-student-card grid min-h-[5.25rem] gap-3">
                     <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-start gap-3">
                       <span className="grid size-10 place-items-center rounded-full bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-300">
                         <UserRound size={18} />

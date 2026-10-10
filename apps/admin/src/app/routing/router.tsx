@@ -148,8 +148,8 @@ function ProtectedRoute() {
     );
   }
   if (auth.status !== "authenticated") return <Navigate to="/login" replace />;
-  if (showLoginSplash) return <LoginSuccessSplash />;
   if (!isSupportedAdminPortalRole(auth.activeRole)) return <UnsupportedRoleModal />;
+  if (showLoginSplash) return <LoginSuccessSplash />;
   return <Outlet />;
 }
 

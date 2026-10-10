@@ -231,6 +231,7 @@ let OrganizationsService = class OrganizationsService {
     assertAssignable(actor, roles) {
         if (!this.tenancy.canAssignRoles(actor, roles))
             throw new api_exception_1.ApiException(403, "ROLE_ESCALATION", "تخصیص این نقش مجاز نیست.");
+        (0, organization_role_policy_1.assertRoleCodesAssignableByActor)(actor, roles);
     }
     async assertTypeChangeIsCompatible(organizationId, type) {
         const assignments = await this.assignments.find({

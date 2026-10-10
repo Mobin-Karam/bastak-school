@@ -15,6 +15,7 @@ const class_validator_1 = require("class-validator");
 class SaveScheduleEntryDto {
     organizationId;
     classroomId;
+    classBookId;
     teacherId;
     title;
     weekday;
@@ -22,7 +23,7 @@ class SaveScheduleEntryDto {
     endTime;
     room;
     static _OPENAPI_METADATA_FACTORY() {
-        return { organizationId: { required: true, type: () => String, format: "uuid" }, classroomId: { required: false, type: () => String, format: "uuid" }, teacherId: { required: false, type: () => String, format: "uuid" }, title: { required: true, type: () => String }, weekday: { required: true, type: () => Number, minimum: 0, maximum: 6 }, startTime: { required: true, type: () => String, pattern: "^([01]\\d|2[0-3]):[0-5]\\d$" }, endTime: { required: true, type: () => String, pattern: "^([01]\\d|2[0-3]):[0-5]\\d$" }, room: { required: false, type: () => String } };
+        return { organizationId: { required: true, type: () => String, format: "uuid" }, classroomId: { required: false, type: () => String, format: "uuid" }, classBookId: { required: false, type: () => String, format: "uuid" }, teacherId: { required: false, type: () => String, format: "uuid" }, title: { required: true, type: () => String }, weekday: { required: true, type: () => Number, minimum: 0, maximum: 6 }, startTime: { required: true, type: () => String, pattern: "^([01]\\d|2[0-3]):[0-5]\\d$" }, endTime: { required: true, type: () => String, pattern: "^([01]\\d|2[0-3]):[0-5]\\d$" }, room: { required: false, type: () => String } };
     }
 }
 exports.SaveScheduleEntryDto = SaveScheduleEntryDto;
@@ -35,6 +36,11 @@ __decorate([
     (0, class_validator_1.IsUUID)(),
     __metadata("design:type", String)
 ], SaveScheduleEntryDto.prototype, "classroomId", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsUUID)(),
+    __metadata("design:type", String)
+], SaveScheduleEntryDto.prototype, "classBookId", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsUUID)(),

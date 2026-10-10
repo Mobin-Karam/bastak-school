@@ -13,6 +13,7 @@ export function AdminMainSidebar({
   onToggle,
   onOpenSearch,
   direction,
+  viewport = "desktop",
 }: {
   collapsed: boolean;
   currentSection: string;
@@ -21,6 +22,7 @@ export function AdminMainSidebar({
   onToggle: () => void;
   onOpenSearch: () => void;
   direction: "rtl" | "ltr";
+  viewport?: "tablet" | "desktop";
 }) {
   const auth = useAuth();
   const { language } = useLocale();
@@ -32,7 +34,7 @@ export function AdminMainSidebar({
   );
   return (
     <aside
-      className={`admin-main-rail fixed inset-y-0 start-0 z-50 hidden flex-col border-e border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card))] transition-[width,padding] duration-200 motion-reduce:transition-none lg:flex ${direction === "rtl" ? "shadow-[-1px_0_0_rgb(24_24_27_/_2%)]" : "shadow-[1px_0_0_rgb(24_24_27_/_2%)]"} ${collapsed ? "w-[4.25rem] p-2" : "w-60 p-3"}`}
+      className={`admin-main-rail fixed inset-y-0 start-0 z-50 hidden flex-col border-e border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card))] transition-[width,padding] duration-200 motion-reduce:transition-none ${viewport === "tablet" ? "md:flex min-[1200px]:hidden" : "min-[1200px]:flex"} ${direction === "rtl" ? "shadow-[-1px_0_0_rgb(24_24_27_/_2%)]" : "shadow-[1px_0_0_rgb(24_24_27_/_2%)]"} ${collapsed ? "w-[4.25rem] p-2" : "w-60 p-3"}`}
       aria-label={copy.primaryNavigation}
     >
       <div

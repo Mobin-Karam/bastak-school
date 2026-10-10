@@ -25,6 +25,7 @@ export declare const SCHOOL_CAPABILITIES: {
     readonly attendance: {
         readonly read: "attendance.read";
         readonly manage: "attendance.manage";
+        readonly review: "attendance.review";
         readonly classRead: "attendance.class.read";
         readonly classManage: "attendance.class.manage";
         readonly groupRead: "attendance.group.read";

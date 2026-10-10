@@ -20,6 +20,8 @@ export type Role = "admin" | "student" | "ADMIN" | "STUDENT" | RoleCode | Lowerc
 export interface User {
   id: string;
   username?: string;
+  firstName?: string;
+  lastName?: string;
   displayName?: string;
   display_name?: string;
   role: Role;

@@ -5,16 +5,14 @@ import {
   CalendarClock,
   BookOpenCheck,
   Clock3,
-  Download,
   GraduationCap,
   MapPin,
   Pencil,
   Plus,
   Trash2,
-  Upload,
   UserRound,
 } from "lucide-react";
-import { useMemo, useRef, useState, type ReactNode } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { listOrganizations } from "../../access/api/access.api";
 import { useAuth } from "../../auth";
 import { listClasses } from "../../education/api/classes.api";
@@ -41,6 +39,9 @@ import { TeacherSchedulePage } from "../../teacher-portal";
 import { OrganizationTag } from "../../../shared/ui/organization-tag";
 import { todayIso } from "../../../shared/lib/utils";
 import { useModal } from "../../../shared/ui/modal";
+import { SpreadsheetTransferActions } from "../../../shared/ui/spreadsheet-transfer-actions";
+import { SpreadsheetTransferLauncher } from "../../../shared/ui/spreadsheet-transfer-launcher";
+import { useViewportShell } from "../../../app/layout/shell/viewport-shell";
 
 const weekdays = ["یکشنبه", "دوشنبه", "سه‌شنبه", "چهارشنبه", "پنجشنبه", "جمعه", "شنبه"];
 const blank = (): ScheduleDraft => ({
@@ -72,7 +73,6 @@ export function SchedulePage() {
   const [activeWeekday, setActiveWeekday] = useState(() =>
     new Date(`${todayIso()}T12:00:00`).getDay(),
   );
-  const upload = useRef<HTMLInputElement>(null);
   const selectedOrganizationId = auth.context?.activeOrganization?.id;
   const entries = useQuery({
     queryKey: ["schedule", selectedOrganizationId ?? "all"],
@@ -154,9 +154,25 @@ export function SchedulePage() {
       notify(`${result.imported} برنامه وارد شد.`, "success");
     } catch (error) {
       notify(error instanceof Error ? error.message : "ورود برنامه انجام نشد.", "error");
-    } finally {
-      if (upload.current) upload.current.value = "";
     }
+  }
+  async function downloadTemplate() {
+    await downloadSpreadsheet(
+      spreadsheet,
+      [
+        {
+          organizationId: selectedOrganizationId ?? "",
+          classroomId: "",
+          teacherId: "",
+          title: "نمونه جلسه",
+          weekday: 0,
+          startTime: "08:00",
+          endTime: "09:00",
+          room: "کلاس ۱",
+        },
+      ],
+      "schedule-import-template.xlsx",
+    );
   }
   if (
     entries.isLoading ||
@@ -239,10 +255,10 @@ export function SchedulePage() {
   };
   return (
     <section
-      className="mx-auto grid w-full max-w-7xl gap-4 pb-[calc(6rem+env(safe-area-inset-bottom))] xl:grid-cols-[minmax(0,1fr)_22rem] xl:pb-6"
+      className="mx-auto grid w-full max-w-7xl gap-4 pb-[calc(6rem+env(safe-area-inset-bottom))] min-[960px]:grid-cols-[minmax(0,1fr)_22rem] min-[960px]:pb-6"
       dir="rtl"
     >
-      <div className="order-2 grid gap-3 xl:order-1">
+      <div className="order-2 grid gap-3 min-[960px]:order-1">
         <ScheduleWorkspace
           entries={entries.data ?? []}
           activeWeekday={activeWeekday}
@@ -260,32 +276,31 @@ export function SchedulePage() {
           onDelete={confirmDelete}
           onOpenDetails={openDetails}
           toolbar={
-            auth.can("schedule.export") ? (
-              <div className="flex shrink-0 gap-1">
-                <Button size="sm" variant="soft" onClick={() => void download()}>
-                  <Download size={14} /> Excel
-                </Button>
-                {auth.can("schedule.import") ? (
-                  <>
-                    <input
-                      ref={upload}
-                      className="hidden"
-                      type="file"
-                      accept=".xlsx"
-                      onChange={(e) => void importFile(e.target.files?.[0])}
-                    />
-                    <Button size="sm" variant="soft" onClick={() => upload.current?.click()}>
-                      <Upload size={14} /> Excel
-                    </Button>
-                  </>
-                ) : null}
-              </div>
+            auth.canAny(["schedule.import", "schedule.export"]) ? (
+              <SpreadsheetTransferLauncher
+                title="ورود و خروجی برنامه"
+                description="نمونه را دریافت کنید، فایل را وارد کنید یا خروجی فعلی را بگیرید. خطاها با شماره ردیف و ستون نمایش داده می‌شوند."
+                trigger="Excel"
+              >
+                <div className="grid gap-3">
+                  <p className="text-sm leading-6 text-slate-500">
+                    فایل باید ستون‌های برنامه هفتگی را داشته باشد.
+                  </p>
+                  <SpreadsheetTransferActions
+                    canImport={auth.can("schedule.import")}
+                    canExport={auth.can("schedule.export")}
+                    onImport={(file) => void importFile(file)}
+                    onTemplate={() => void downloadTemplate()}
+                    onExport={() => void download()}
+                  />
+                </div>
+              </SpreadsheetTransferLauncher>
             ) : null
           }
         />
       </div>
       {canWrite ? (
-        <Card className="order-1 border-brand/15 bg-[rgb(var(--surface-card))] p-4 xl:order-2 xl:sticky xl:top-3 xl:self-start">
+        <Card className="order-1 border-brand/15 bg-[rgb(var(--surface-card))] p-4 min-[960px]:order-2 min-[960px]:sticky min-[960px]:top-3 min-[960px]:self-start">
           <span className="grid size-10 place-items-center rounded-xl bg-brand/10 text-brand">
             <Plus size={20} />
           </span>
@@ -331,6 +346,7 @@ function ScheduleWorkspace({
   onOpenDetails,
   toolbar,
 }: ScheduleWorkspaceProps) {
+  const isMobileShell = useViewportShell() === "mobile";
   const activeScheduleEntries = useMemo(
     () => entries.filter((entry) => entry.status === "ACTIVE"),
     [entries],
@@ -450,7 +466,7 @@ function ScheduleWorkspace({
           </div>
         </div>
 
-        <div className="grid gap-2 p-3 md:hidden">
+        {isMobileShell ? <div className="grid gap-2 p-3">
           {activeEntries.map((entry) => (
             <ScheduleEntryCard
               key={entry.id}
@@ -468,9 +484,8 @@ function ScheduleWorkspace({
           {!activeEntries.length ? (
             <EmptyState title={`برای ${weekdays[activeWeekday]} کلاسی ثبت نشده است.`} />
           ) : null}
-        </div>
+        </div> : <div className="overflow-x-auto p-3">
 
-        <div className="hidden overflow-x-auto p-3 md:block">
           {classLanes.length ? (
             <table
               className="w-full min-w-[72rem] table-fixed overflow-hidden rounded-xl border border-slate-300 bg-white text-right text-[11px] dark:border-white/15 dark:bg-slate-950"
@@ -555,7 +570,7 @@ function ScheduleWorkspace({
           ) : (
             <EmptyState title="برنامه فعالی برای نمایش ندارید." />
           )}
-        </div>
+        </div>}
       </Card>
 
       {canWrite && archivedEntries.length ? (
@@ -870,7 +885,7 @@ function ScheduleEditorForm({
 }: {
   initial: ScheduleDraft;
   organizations: Array<{ id: string; name: string }>;
-  classes: Array<{ id: string; name: string; organization: { id: string } }>;
+  classes: Array<{ id: string; name: string; organization: { id: string }; books: Array<{ id: string; title: string; teacher: { id: string; name: string } }> }>;
   isSaving: boolean;
   onCancel: () => void;
   onSubmit: (draft: ScheduleDraft) => Promise<void>;
@@ -878,7 +893,8 @@ function ScheduleEditorForm({
   const [draft, setDraft] = useState(initial);
   const [attempted, setAttempted] = useState(false);
   const invalidTime = draft.startTime >= draft.endTime;
-  const canSubmit = Boolean(draft.organizationId && draft.title.trim() && !invalidTime);
+  const canSubmit = Boolean(draft.organizationId && draft.title.trim() && !invalidTime && (!draft.classroomId || draft.classBookId));
+  const selectedClass = classes.find((item) => item.id === draft.classroomId);
   const update = (changes: Partial<ScheduleDraft>) =>
     setDraft((current) => ({ ...current, ...changes }));
 
@@ -899,7 +915,7 @@ function ScheduleEditorForm({
           <select
             value={draft.organizationId}
             onChange={(event) =>
-              update({ organizationId: event.target.value, classroomId: undefined })
+              update({ organizationId: event.target.value, classroomId: undefined, classBookId: undefined, teacherId: undefined })
             }
             className="h-11 rounded-xl border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card))] px-3 text-sm text-ink focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20"
           >
@@ -918,7 +934,7 @@ function ScheduleEditorForm({
           کلاس <span className="font-normal text-slate-500">(اختیاری)</span>
           <select
             value={draft.classroomId || ""}
-            onChange={(event) => update({ classroomId: event.target.value || undefined })}
+            onChange={(event) => update({ classroomId: event.target.value || undefined, classBookId: undefined, teacherId: undefined })}
             className="h-11 rounded-xl border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card))] px-3 text-sm text-ink focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20"
           >
             <option value="">کلاس عمومی / بدون کلاس</option>
@@ -933,6 +949,22 @@ function ScheduleEditorForm({
               ))}
           </select>
         </label>
+        {selectedClass ? (
+          <label className="grid gap-1.5 text-sm font-bold">
+            کتاب و استاد مسئول
+            <select
+              value={draft.classBookId || ""}
+              onChange={(event) => {
+                const book = selectedClass.books.find((item) => item.id === event.target.value);
+                update({ classBookId: book?.id, teacherId: book?.teacher.id });
+              }}
+              className="h-11 rounded-xl border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card))] px-3 text-sm text-ink focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20"
+            >
+              <option value="">کتاب و استاد را انتخاب کنید</option>
+              {selectedClass.books.map((book) => <option key={book.id} value={book.id}>{book.title} — {book.teacher.name}</option>)}
+            </select>
+          </label>
+        ) : null}
       </fieldset>
       <fieldset className="grid gap-3 rounded-2xl border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-muted))]/60 p-3">
         <legend className="px-1 text-sm font-black text-ink">۲. زمان و محتوا</legend>
@@ -1008,6 +1040,7 @@ function draftFromEntry(entry: ScheduleEntry): ScheduleDraft {
   return {
     organizationId: entry.organization.id,
     classroomId: entry.classroom?.id || undefined,
+    classBookId: entry.classBook?.id || undefined,
     teacherId: entry.teacher?.id || undefined,
     title: entry.title,
     weekday: entry.weekday,
@@ -1044,6 +1077,7 @@ function PlanDetail({
 function StudentWeeklySchedule({ entries }: { entries: ScheduleEntry[] }) {
   const today = new Date(`${todayIso()}T12:00:00`).getDay();
   const [activeWeekday, setActiveWeekday] = useState(today);
+  const isMobileShell = useViewportShell() === "mobile";
   const activeEntries = entries
     .filter((entry) => entry.status === "ACTIVE" && entry.weekday === activeWeekday)
     .sort((a, b) => a.startTime.localeCompare(b.startTime));
@@ -1084,15 +1118,14 @@ function StudentWeeklySchedule({ entries }: { entries: ScheduleEntry[] }) {
           </button>
         ))}
       </div>
-      <div className="grid gap-2 md:hidden">
+      {isMobileShell ? <div className="grid gap-2">
         {activeEntries.map((entry) => (
           <StudentScheduleCard key={entry.id} entry={entry} />
         ))}
         {!activeEntries.length ? (
           <EmptyState title={`برای ${weekdays[activeWeekday]} کلاسی ثبت نشده است.`} />
         ) : null}
-      </div>
-      <div className="hidden grid-cols-2 gap-3 xl:grid-cols-3 md:grid">
+      </div> : <div className="grid grid-cols-2 gap-3 min-[1200px]:grid-cols-3">
         {weekdays.map((day, weekday) => {
           const dailyEntries = entries
             .filter((entry) => entry.status === "ACTIVE" && entry.weekday === weekday)
@@ -1113,7 +1146,7 @@ function StudentWeeklySchedule({ entries }: { entries: ScheduleEntry[] }) {
             </Card>
           );
         })}
-      </div>
+      </div>}
     </section>
   );
 }
@@ -1133,6 +1166,11 @@ function StudentScheduleCard({ entry }: { entry: ScheduleEntry }) {
           <p className="mt-2 text-xs text-slate-500">
             {entry.classroom?.name || entry.room || entry.organization.name}
           </p>
+          {entry.classBook?.book?.titleFa ? (
+            <p className="mt-1 truncate text-xs font-bold text-brand">
+              {entry.classBook.book.titleFa}
+            </p>
+          ) : null}
           <p className="mt-1 flex items-center gap-1 text-xs text-slate-600 dark:text-slate-300">
             <GraduationCap size={14} aria-hidden="true" />
             {teacherName(entry) || "استاد این کلاس هنوز ثبت نشده است."}

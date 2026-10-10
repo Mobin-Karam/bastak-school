@@ -8,6 +8,13 @@ export const organizationTypes: readonly AdminOrganizationType[] = [
   "ORGANIZATION",
 ];
 
+/** Roles a Principal can provision in the current school release. */
+export const principalAssignableRoles: readonly RoleCode[] = [
+  "STUDENT",
+  "SCHOOL_SUPERVISOR",
+  "TEACHER",
+];
+
 const sharedRoles: readonly RoleCode[] = [
   "ORGANIZATION_ADMIN",
   "TEACHER",

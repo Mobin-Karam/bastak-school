@@ -1,5 +1,5 @@
 import { AuthenticatedUser } from "../auth";
-import { SaveEducationClassDto, SetClassBooksDto, SetClassEnrollmentsDto, UpdateEducationClassDto } from "./classes.dto";
+import { SaveEducationClassDto, ClassTransferDto, SetClassBooksDto, SetClassEnrollmentsDto, UpdateEducationClassDto } from "./classes.dto";
 import { ClassesService } from "./classes.service";
 export declare class ClassesController {
     private readonly classes;
@@ -17,11 +17,11 @@ export declare class ClassesController {
             code: string;
             name: string;
             schoolYear: string;
-            gradeId: number;
-            educationTypeId: string;
-            trackId: string;
+            gradeId: number | null;
+            educationTypeId: string | null;
+            trackId: string | null;
             capacity: number;
-            status: "ACTIVE" | "ARCHIVED";
+            status: "ARCHIVED" | "ACTIVE";
             description: string;
             advisor: {
                 id: string;
@@ -31,7 +31,7 @@ export declare class ClassesController {
                 id: string;
                 bookId: string;
                 title: string;
-                category: string;
+                code: string;
                 teacher: {
                     id: string;
                     name: string;
@@ -60,11 +60,11 @@ export declare class ClassesController {
             code: string;
             name: string;
             schoolYear: string;
-            gradeId: number;
-            educationTypeId: string;
-            trackId: string;
+            gradeId: number | null;
+            educationTypeId: string | null;
+            trackId: string | null;
             capacity: number;
-            status: "ACTIVE" | "ARCHIVED";
+            status: "ARCHIVED" | "ACTIVE";
             description: string;
             advisor: {
                 id: string;
@@ -74,7 +74,7 @@ export declare class ClassesController {
                 id: string;
                 bookId: string;
                 title: string;
-                category: string;
+                code: string;
                 teacher: {
                     id: string;
                     name: string;
@@ -96,11 +96,11 @@ export declare class ClassesController {
             code: string;
             name: string;
             schoolYear: string;
-            gradeId: number;
-            educationTypeId: string;
-            trackId: string;
+            gradeId: number | null;
+            educationTypeId: string | null;
+            trackId: string | null;
             capacity: number;
-            status: "ACTIVE" | "ARCHIVED";
+            status: "ARCHIVED" | "ACTIVE";
             description: string;
             advisor: {
                 id: string;
@@ -110,7 +110,7 @@ export declare class ClassesController {
                 id: string;
                 bookId: string;
                 title: string;
-                category: string;
+                code: string;
                 teacher: {
                     id: string;
                     name: string;
@@ -124,6 +124,52 @@ export declare class ClassesController {
                 major: string;
             }[];
         };
+    }>;
+    previewTransfer(actor: AuthenticatedUser, dto: ClassTransferDto): Promise<{
+        ok: boolean;
+        data: {
+            total: number;
+            valid: number;
+            invalid: number;
+            rows: {
+                row: number;
+                code: string;
+                name: string;
+                schoolYear: string;
+                capacity: number | undefined;
+                errors: string[];
+            }[];
+        };
+    }>;
+    commitTransfer(actor: AuthenticatedUser, dto: ClassTransferDto): Promise<{
+        ok: boolean;
+        data: {
+            committed: boolean;
+            count: number;
+            invalid: number;
+            rows: {
+                row: number;
+                code: string;
+                name: string;
+                schoolYear: string;
+                capacity: number | undefined;
+                errors: string[];
+            }[];
+        } | {
+            committed: boolean;
+            count: number;
+            invalid: number;
+            rows?: undefined;
+        };
+    }>;
+    exportTransfer(actor: AuthenticatedUser, organizationId: string): Promise<{
+        ok: boolean;
+        data: {
+            code: string;
+            name: string;
+            schoolYear: string;
+            capacity: number;
+        }[];
     }>;
     options(actor: AuthenticatedUser, id: string): Promise<{
         ok: boolean;
@@ -139,11 +185,11 @@ export declare class ClassesController {
                 code: string;
                 name: string;
                 schoolYear: string;
-                gradeId: number;
-                educationTypeId: string;
-                trackId: string;
+                gradeId: number | null;
+                educationTypeId: string | null;
+                trackId: string | null;
                 capacity: number;
-                status: "ACTIVE" | "ARCHIVED";
+                status: "ARCHIVED" | "ACTIVE";
                 description: string;
                 advisor: {
                     id: string;
@@ -153,7 +199,7 @@ export declare class ClassesController {
                     id: string;
                     bookId: string;
                     title: string;
-                    category: string;
+                    code: string;
                     teacher: {
                         id: string;
                         name: string;
@@ -204,11 +250,11 @@ export declare class ClassesController {
             code: string;
             name: string;
             schoolYear: string;
-            gradeId: number;
-            educationTypeId: string;
-            trackId: string;
+            gradeId: number | null;
+            educationTypeId: string | null;
+            trackId: string | null;
             capacity: number;
-            status: "ACTIVE" | "ARCHIVED";
+            status: "ARCHIVED" | "ACTIVE";
             description: string;
             advisor: {
                 id: string;
@@ -218,7 +264,7 @@ export declare class ClassesController {
                 id: string;
                 bookId: string;
                 title: string;
-                category: string;
+                code: string;
                 teacher: {
                     id: string;
                     name: string;
@@ -246,11 +292,11 @@ export declare class ClassesController {
             code: string;
             name: string;
             schoolYear: string;
-            gradeId: number;
-            educationTypeId: string;
-            trackId: string;
+            gradeId: number | null;
+            educationTypeId: string | null;
+            trackId: string | null;
             capacity: number;
-            status: "ACTIVE" | "ARCHIVED";
+            status: "ARCHIVED" | "ACTIVE";
             description: string;
             advisor: {
                 id: string;
@@ -260,7 +306,7 @@ export declare class ClassesController {
                 id: string;
                 bookId: string;
                 title: string;
-                category: string;
+                code: string;
                 teacher: {
                     id: string;
                     name: string;
@@ -288,11 +334,11 @@ export declare class ClassesController {
             code: string;
             name: string;
             schoolYear: string;
-            gradeId: number;
-            educationTypeId: string;
-            trackId: string;
+            gradeId: number | null;
+            educationTypeId: string | null;
+            trackId: string | null;
             capacity: number;
-            status: "ACTIVE" | "ARCHIVED";
+            status: "ARCHIVED" | "ACTIVE";
             description: string;
             advisor: {
                 id: string;
@@ -302,7 +348,7 @@ export declare class ClassesController {
                 id: string;
                 bookId: string;
                 title: string;
-                category: string;
+                code: string;
                 teacher: {
                     id: string;
                     name: string;

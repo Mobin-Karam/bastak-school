@@ -124,6 +124,8 @@ let AttendanceService = class AttendanceService {
                     label: `${item.name} (${item.code})`,
                     total: item.assignments?.length ?? 0,
                     activeOrganizationId: item.organization.id,
+                    building: item.building || "ساختمان اصلی",
+                    floor: item.floor ?? 1,
                 }))
                 : []),
         ];
@@ -232,6 +234,10 @@ let AttendanceService = class AttendanceService {
                 record.note = entry.note?.trim() || "";
                 record.recordedBy = { id: user.id };
             }
+            record.reviewStatus = status === attendance_record_entity_1.AttendanceStatus.ABSENT ? attendance_record_entity_1.AttendanceReviewStatus.PENDING : null;
+            record.reviewNote = "";
+            record.reviewedBy = null;
+            record.reviewedAt = null;
             saved.push(await this.records.save(record));
         }
         const result = {
@@ -259,6 +265,72 @@ let AttendanceService = class AttendanceService {
             updatedBy: user.id,
         });
         return result;
+    }
+    async listAbsenceReviews(user, organizationId) {
+        this.assertReviewAccess(user);
+        const ids = await this.access.scopedOrganizationIds(user, organizationId);
+        if (!ids.length)
+            return [];
+        const rows = await this.records.find({
+            where: {
+                session: { organization: { id: (0, typeorm_2.In)(ids) } },
+                status: attendance_record_entity_1.AttendanceStatus.ABSENT,
+            },
+            relations: { session: { organization: true }, student: true, recordedBy: true, reviewedBy: true },
+            order: { updatedAt: "DESC" },
+            take: 100,
+        });
+        return rows.map((row) => this.reviewView(row));
+    }
+    async listLiveRecords(user, organizationId) {
+        const ids = await this.access.scopedOrganizationIds(user, organizationId);
+        if (!ids.length)
+            return [];
+        const rows = await this.records.find({
+            where: { session: { organization: { id: (0, typeorm_2.In)(ids) } } },
+            relations: { session: { organization: true }, student: true, recordedBy: true, reviewedBy: true },
+            order: { updatedAt: "DESC" },
+            take: 120,
+        });
+        return rows.map((row) => this.reviewView(row));
+    }
+    async reviewAbsence(user, recordId, dto) {
+        this.assertReviewAccess(user);
+        const record = await this.records.findOne({
+            where: { id: recordId },
+            relations: { session: { organization: true }, student: true, recordedBy: true, reviewedBy: true },
+        });
+        if (!record)
+            throw new api_exception_1.ApiException(404, "ATTENDANCE_RECORD_NOT_FOUND", "رکورد حضور پیدا نشد.");
+        await this.access.organizationForUser(user, record.session.organization.id);
+        if (record.status !== attendance_record_entity_1.AttendanceStatus.ABSENT || record.reviewStatus !== attendance_record_entity_1.AttendanceReviewStatus.PENDING)
+            throw new api_exception_1.ApiException(409, "ATTENDANCE_REVIEW_CLOSED", "این غیبت دیگر در انتظار بررسی نیست.");
+        record.reviewStatus = dto.decision === "approved" ? attendance_record_entity_1.AttendanceReviewStatus.APPROVED : attendance_record_entity_1.AttendanceReviewStatus.REJECTED;
+        record.reviewNote = dto.note?.trim() || "";
+        record.reviewedBy = { id: user.id };
+        record.reviewedAt = new Date();
+        if (dto.decision === "approved")
+            record.status = attendance_record_entity_1.AttendanceStatus.EXCUSED;
+        const saved = await this.records.save(record);
+        const recipientIds = [saved.recordedBy?.id, user.id].filter((id) => Boolean(id));
+        this.realtime.emitToUsers(recipientIds, "attendance.reviewed", {
+            organizationId: saved.session.organization.id,
+            sessionId: saved.session.id,
+            contextType: saved.session.contextType,
+            contextId: saved.session.contextId,
+            recordId: saved.id,
+            decision: dto.decision,
+        });
+        return this.reviewView(saved);
+    }
+    async listMyAbsenceReviews(user) {
+        const rows = await this.records.find({
+            where: { recordedBy: { id: user.id } },
+            relations: { session: { organization: true }, student: true, recordedBy: true, reviewedBy: true },
+            order: { updatedAt: "DESC" },
+            take: 100,
+        });
+        return rows.filter((row) => row.reviewStatus).map((row) => this.reviewView(row));
     }
     async listParticipants(user, contextType, contextId) {
         const context = this.context(contextType);
@@ -405,6 +477,31 @@ let AttendanceService = class AttendanceService {
             "GOVERNMENT_EDUCATION_MANAGER",
             "SCHOOL_SUPERVISOR",
         ].some((role) => user.roles?.includes(role) || user.role === role);
+    }
+    assertReviewAccess(user) {
+        if (["PRINCIPAL", "SCHOOL_SUPERVISOR", "ORGANIZATION_ADMIN", "PLATFORM_ADMIN"].some((role) => user.roles?.includes(role) || user.role === role))
+            return;
+        throw new api_exception_1.ApiException(403, "FORBIDDEN", "بررسی دلیل غیبت فقط برای مدیر و ناظر مدرسه مجاز است.");
+    }
+    reviewView(row) {
+        return {
+            id: row.id,
+            studentId: row.student.id,
+            studentName: row.student.name,
+            status: row.status,
+            reason: row.note,
+            reviewStatus: row.reviewStatus ?? null,
+            reviewNote: row.reviewNote,
+            reviewedAt: row.reviewedAt?.toISOString() ?? null,
+            sessionDate: row.session.sessionDate.toISOString(),
+            contextType: row.session.contextType === "study_group" ? "class_group" : row.session.contextType,
+            contextId: row.session.contextId,
+            organizationId: row.session.organization.id,
+            organizationName: row.session.organization.name,
+            teacherName: [row.recordedBy?.firstName, row.recordedBy?.lastName].filter(Boolean).join(" ") ||
+                row.recordedBy?.username ||
+                "استاد کلاس",
+        };
     }
     async contextOrganizationId(type, id) {
         if (type === "class") {

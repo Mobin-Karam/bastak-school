@@ -40,10 +40,15 @@ let EducationCatalogController = class EducationCatalogController {
         return (0, envelope_1.ok)(this.catalog.datasets());
     }
     overview(user, from, to, grade) {
-        return this.catalog.operationsOverview(user, from, to, grade ? Number(grade) : undefined).then(envelope_1.ok);
+        return this.catalog
+            .operationsOverview(user, from, to, grade ? Number(grade) : undefined)
+            .then(envelope_1.ok);
     }
     managedBooks(user, schoolYear, state) {
         return this.catalog.listManaged(user, schoolYear, state).then(envelope_1.ok);
+    }
+    exportBooks(user) {
+        return this.catalog.exportBooks(user).then(envelope_1.ok);
     }
     impact(user, id) {
         return this.catalog.bookImpact(user, id).then(envelope_1.ok);
@@ -51,8 +56,12 @@ let EducationCatalogController = class EducationCatalogController {
     createBook(user, dto) {
         return this.catalog.createBook(user, dto).then(envelope_1.ok);
     }
-    importPreview(user, dto) { return this.catalog.previewImport(user, dto.books).then(envelope_1.ok); }
-    importCommit(user, dto) { return this.catalog.commitImport(user, dto.books).then(envelope_1.ok); }
+    importPreview(user, dto) {
+        return this.catalog.previewImport(user, dto.books).then(envelope_1.ok);
+    }
+    importCommit(user, dto) {
+        return this.catalog.commitImport(user, dto.books).then(envelope_1.ok);
+    }
     updateBook(user, id, dto) {
         return this.catalog.updateBook(user, id, dto).then(envelope_1.ok);
     }
@@ -126,6 +135,15 @@ __decorate([
     __metadata("design:paramtypes", [Object, String, String]),
     __metadata("design:returntype", void 0)
 ], EducationCatalogController.prototype, "managedBooks", null);
+__decorate([
+    (0, common_1.Get)("admin/books/export"),
+    (0, capabilities_decorator_1.RequireCapabilities)("education.catalog.manage"),
+    openapi.ApiResponse({ status: 200 }),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", void 0)
+], EducationCatalogController.prototype, "exportBooks", null);
 __decorate([
     (0, common_1.Get)("admin/books/:id/impact"),
     (0, capabilities_decorator_1.RequireCapabilities)("education.catalog.read"),

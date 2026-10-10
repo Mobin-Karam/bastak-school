@@ -9,7 +9,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.BulkMarkAttendanceDto = exports.AttendanceEntryDto = exports.CreateAttendanceSessionDto = void 0;
+exports.ReviewAttendanceAbsenceDto = exports.BulkMarkAttendanceDto = exports.AttendanceEntryDto = exports.CreateAttendanceSessionDto = void 0;
 const openapi = require("@nestjs/swagger");
 const class_transformer_1 = require("class-transformer");
 const class_validator_1 = require("class-validator");
@@ -111,4 +111,22 @@ __decorate([
     (0, class_transformer_1.Type)(() => AttendanceEntryDto),
     __metadata("design:type", Array)
 ], BulkMarkAttendanceDto.prototype, "entries", void 0);
+class ReviewAttendanceAbsenceDto {
+    decision;
+    note;
+    static _OPENAPI_METADATA_FACTORY() {
+        return { decision: { required: true, enum: ["approved", "rejected"], enum: ["approved", "rejected"] }, note: { required: false, type: () => String, maxLength: 500 } };
+    }
+}
+exports.ReviewAttendanceAbsenceDto = ReviewAttendanceAbsenceDto;
+__decorate([
+    (0, class_validator_1.IsIn)(["approved", "rejected"]),
+    __metadata("design:type", String)
+], ReviewAttendanceAbsenceDto.prototype, "decision", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.MaxLength)(500),
+    __metadata("design:type", String)
+], ReviewAttendanceAbsenceDto.prototype, "note", void 0);
 //# sourceMappingURL=attendance.dto.js.map

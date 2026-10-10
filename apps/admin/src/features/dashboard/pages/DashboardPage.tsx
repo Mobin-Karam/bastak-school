@@ -6,18 +6,23 @@ import { TeacherDashboard } from "../../teacher-portal";
 import { SchoolManagerDashboard } from "../../school-home";
 import { useDashboardData } from "../hooks/useDashboardData";
 import { SchoolOccupancyBanner } from "../../school-home/components/SchoolOccupancyBanner";
+import { dashboardCompositionForRole } from "../model/role-dashboard-composition";
 
 export function DashboardPage() {
   const auth = useAuth();
 
-  if (auth.activeRole === "STUDENT") return <StudentDashboard />;
-  if (auth.activeRole === "TEACHER") return <TeacherDashboard />;
-  if (["PRINCIPAL", "SCHOOL_SUPERVISOR"].includes(auth.activeRole ?? "")) {
-    return <SchoolManagerDashboard />;
+  switch (dashboardCompositionForRole(auth.activeRole)) {
+    case "student":
+      return <StudentDashboard />;
+    case "teacher":
+      return <TeacherDashboard />;
+    case "school":
+      return <SchoolManagerDashboard />;
+    case "guardian":
+      return <GuardianPage />;
+    default:
+      return <OperationalDashboard />;
   }
-  if (auth.activeRole === "GUARDIAN") return <GuardianPage />;
-
-  return <OperationalDashboard />;
 }
 
 function OperationalDashboard() {

@@ -79,7 +79,9 @@ let ClassesService = class ClassesService {
         });
         return rows
             .filter((row) => this.canSeeClass(context, row))
-            .map((row) => this.view(row));
+            .map((row) => this.view(row, context.roles.length === 1 && context.roles[0] === "TEACHER"
+            ? context.id
+            : undefined));
     }
     async assigned(actor, studentId) {
         const context = this.context(actor);
@@ -113,7 +115,9 @@ let ClassesService = class ClassesService {
     async options(actor, id) {
         const classroom = await this.requireClass(actor, id, "classes.read");
         const [books, staff, students] = await Promise.all([
-            this.catalog.listBooks(classroom.gradeId, classroom.educationTypeId, classroom.trackId, [classroom.organization.id]),
+            this.catalog.listBooks(this.hasCurriculumProfile(classroom) ? classroom.gradeId : undefined, this.hasCurriculumProfile(classroom)
+                ? classroom.educationTypeId
+                : undefined, this.hasCurriculumProfile(classroom) ? classroom.trackId : undefined, [classroom.organization.id]),
             this.staffForOrganization(classroom.organization.id),
             this.eligibleStudents(classroom),
         ]);
@@ -148,7 +152,7 @@ let ClassesService = class ClassesService {
         });
         if (!organization)
             throw new api_exception_1.ApiException(404, "ORGANIZATION_NOT_FOUND", "سازمان پیدا نشد.");
-        const advisor = await this.resolveAdvisor(dto.organizationId, dto.advisorId);
+        this.assertSchoolYear(dto.schoolYear);
         const code = dto.code.trim().toLowerCase();
         const existing = await this.classes.findOne({
             where: { organization: { id: organization.id }, code },
@@ -160,27 +164,23 @@ let ClassesService = class ClassesService {
             code,
             name: dto.name.trim(),
             schoolYear: dto.schoolYear.trim(),
-            gradeId: dto.gradeId,
-            educationTypeId: dto.educationTypeId.trim(),
-            trackId: dto.trackId.trim(),
+            gradeId: 0,
+            educationTypeId: "universal",
+            trackId: "universal",
             capacity: dto.capacity ?? 35,
-            description: dto.description?.trim() || "",
-            advisor,
+            description: "",
+            advisor: null,
             status: "ACTIVE",
         }));
         return this.view(await this.load(classroom.id));
     }
     async update(actor, id, dto) {
         const classroom = await this.requireClass(actor, id, "classes.manage", true);
-        const profileChanged = dto.gradeId !== undefined ||
-            dto.educationTypeId !== undefined ||
-            dto.trackId !== undefined ||
-            dto.schoolYear !== undefined;
-        if (profileChanged && classroom.books.length)
-            throw new api_exception_1.ApiException(409, "CLASS_PROFILE_LOCKED", "برای تغییر پایه، نوع، رشته یا سال، ابتدا کتاب‌های کلاس را بازبینی کنید.");
         const advisor = dto.advisorId === undefined
             ? classroom.advisor
             : await this.resolveAdvisor(classroom.organization.id, dto.advisorId);
+        if (dto.schoolYear !== undefined)
+            this.assertSchoolYear(dto.schoolYear);
         Object.assign(classroom, {
             ...(dto.code !== undefined
                 ? { code: dto.code.trim().toLowerCase() }
@@ -189,11 +189,6 @@ let ClassesService = class ClassesService {
             ...(dto.schoolYear !== undefined
                 ? { schoolYear: dto.schoolYear.trim() }
                 : {}),
-            ...(dto.gradeId !== undefined ? { gradeId: dto.gradeId } : {}),
-            ...(dto.educationTypeId !== undefined
-                ? { educationTypeId: dto.educationTypeId.trim() }
-                : {}),
-            ...(dto.trackId !== undefined ? { trackId: dto.trackId.trim() } : {}),
             ...(dto.capacity !== undefined ? { capacity: dto.capacity } : {}),
             ...(dto.description !== undefined
                 ? { description: dto.description.trim() }
@@ -206,6 +201,55 @@ let ClassesService = class ClassesService {
         await this.classes.save(classroom);
         return this.view(await this.load(id));
     }
+    async previewTransfer(actor, dto) {
+        await this.requireTransferOrganization(actor, dto.organizationId);
+        return this.inspectTransfer(dto.organizationId, dto.rows);
+    }
+    async commitTransfer(actor, dto) {
+        await this.requireTransferOrganization(actor, dto.organizationId);
+        const preview = await this.inspectTransfer(dto.organizationId, dto.rows);
+        if (preview.invalid)
+            return {
+                committed: false,
+                count: 0,
+                invalid: preview.invalid,
+                rows: preview.rows,
+            };
+        const organization = await this.organizations.findOneBy({
+            id: dto.organizationId,
+        });
+        if (!organization)
+            throw new api_exception_1.ApiException(404, "ORGANIZATION_NOT_FOUND", "سازمان پیدا نشد.");
+        await this.classes.manager.transaction(async (manager) => {
+            await manager.getRepository(education_class_entity_1.EducationClass).save(dto.rows.map((row) => manager.getRepository(education_class_entity_1.EducationClass).create({
+                organization,
+                code: row.code.trim().toLowerCase(),
+                name: row.name.trim(),
+                schoolYear: row.schoolYear.trim(),
+                gradeId: 0,
+                educationTypeId: "universal",
+                trackId: "universal",
+                capacity: row.capacity ?? 35,
+                description: "",
+                advisor: null,
+                status: "ACTIVE",
+            })));
+        });
+        return { committed: true, count: dto.rows.length, invalid: 0 };
+    }
+    async exportTransfer(actor, organizationId) {
+        await this.requireTransferOrganization(actor, organizationId);
+        const rows = await this.classes.find({
+            where: { organization: { id: organizationId } },
+            order: { schoolYear: "DESC", name: "ASC" },
+        });
+        return rows.map((row) => ({
+            code: row.code,
+            name: row.name,
+            schoolYear: this.normalizedAcademicYear(row.schoolYear),
+            capacity: row.capacity,
+        }));
+    }
     async remove(actor, id) {
         const classroom = await this.requireClass(actor, id, "classes.manage", true);
         await this.classes.remove(classroom);
@@ -214,7 +258,9 @@ let ClassesService = class ClassesService {
     async setBooks(actor, id, dto) {
         const classroom = await this.requireClass(actor, id, "education.catalog.manage", true);
         const requested = dto.books || [];
-        const eligible = await this.catalog.listBooks(classroom.gradeId, classroom.educationTypeId, classroom.trackId, [classroom.organization.id]);
+        const eligible = await this.catalog.listBooks(this.hasCurriculumProfile(classroom) ? classroom.gradeId : undefined, this.hasCurriculumProfile(classroom)
+            ? classroom.educationTypeId
+            : undefined, this.hasCurriculumProfile(classroom) ? classroom.trackId : undefined, [classroom.organization.id]);
         const eligibleIds = new Set(eligible.map((book) => book.id));
         if (requested.some((item) => !eligibleIds.has(item.bookId)))
             throw new api_exception_1.ApiException(422, "CLASS_BOOK_PROFILE_MISMATCH", "یک یا چند کتاب با پایه یا نوع آموزشی کلاس سازگار نیست.");
@@ -315,6 +361,80 @@ let ClassesService = class ClassesService {
     forbidden() {
         throw new api_exception_1.ApiException(403, "FORBIDDEN", "دسترسی کافی ندارید.");
     }
+    async requireTransferOrganization(actor, organizationId) {
+        const context = this.context(actor);
+        this.authorization.requireCapability(context, "classes.manage");
+        if (!this.canManageOrganization(context, organizationId))
+            this.forbidden();
+        const organization = await this.organizations.findOneBy({
+            id: organizationId,
+        });
+        if (!organization)
+            throw new api_exception_1.ApiException(404, "ORGANIZATION_NOT_FOUND", "سازمان پیدا نشد.");
+        return organization;
+    }
+    async inspectTransfer(organizationId, rows) {
+        const existing = await this.classes.find({
+            where: { organization: { id: organizationId } },
+            select: { code: true },
+        });
+        const existingCodes = new Set(existing.map((item) => item.code.toLowerCase()));
+        const seenCodes = new Set();
+        const inspected = rows.map((row, index) => {
+            const code = row.code?.trim().toLowerCase();
+            const errors = [];
+            if (!code)
+                errors.push("ستون «کد کلاس» الزامی است.");
+            else if (seenCodes.has(code))
+                errors.push("ستون «کد کلاس» در همین فایل تکراری است.");
+            else if (existingCodes.has(code))
+                errors.push("این «کد کلاس» از قبل در سازمان وجود دارد.");
+            if (code)
+                seenCodes.add(code);
+            if (!row.name?.trim())
+                errors.push("ستون «نام کلاس» الزامی است.");
+            if (!this.isAcademicYear(row.schoolYear))
+                errors.push("ستون «سال تحصیلی» باید دو سال پیاپی باشد.");
+            if (row.capacity !== undefined &&
+                (row.capacity < 1 || row.capacity > 200))
+                errors.push("ستون «ظرفیت» باید بین ۱ تا ۲۰۰ باشد.");
+            return {
+                row: index + 2,
+                code: row.code,
+                name: row.name,
+                schoolYear: row.schoolYear,
+                capacity: row.capacity,
+                errors,
+            };
+        });
+        const invalid = inspected.filter((row) => row.errors.length).length;
+        return {
+            total: rows.length,
+            valid: rows.length - invalid,
+            invalid,
+            rows: inspected,
+        };
+    }
+    assertSchoolYear(value) {
+        if (!this.isAcademicYear(value))
+            throw new api_exception_1.ApiException(422, "SCHOOL_YEAR_INVALID", "سال تحصیلی باید از دو سال پیاپی تشکیل شود.");
+    }
+    isAcademicYear(value) {
+        const match = /^(\d{4})-(\d{4})$/.exec(value?.trim());
+        if (!match)
+            return false;
+        const start = Number(match[1]);
+        const end = Number(match[2]);
+        return start >= 1405 && start <= 1430 && end === start + 1;
+    }
+    normalizedAcademicYear(value) {
+        if (this.isAcademicYear(value))
+            return value.trim();
+        const start = Number(value);
+        return Number.isInteger(start) && start >= 1405 && start <= 1430
+            ? `${start}-${start + 1}`
+            : value;
+    }
     async resolveTeacher(organizationId, userId) {
         const member = await this.staffMember(organizationId, userId);
         if (!member.roles.includes("TEACHER"))
@@ -368,9 +488,6 @@ let ClassesService = class ClassesService {
         return this.students.find({
             where: {
                 organization: { id: classroom.organization.id },
-                gradeId: classroom.gradeId,
-                educationTypeId: classroom.educationTypeId,
-                trackId: classroom.trackId,
                 accountStatus: "active",
             },
             relations: { user: true, organization: true },
@@ -378,15 +495,17 @@ let ClassesService = class ClassesService {
         });
     }
     async assertEligibleStudent(classroom, student) {
-        const matchesProfile = student.gradeId === classroom.gradeId &&
-            student.educationTypeId === classroom.educationTypeId &&
-            student.trackId === classroom.trackId;
+        const matchesProfile = !this.hasCurriculumProfile(classroom) ||
+            (student.gradeId === classroom.gradeId &&
+                student.educationTypeId === classroom.educationTypeId &&
+                student.trackId === classroom.trackId);
         if (!matchesProfile || student.accountStatus !== "active")
             throw new api_exception_1.ApiException(422, "CLASS_STUDENT_PROFILE_MISMATCH", "دانش‌آموز باید پایه، نوع و رشتهٔ سازگار و حساب فعال داشته باشد.");
         if (student.organization?.id !== classroom.organization.id)
             throw new api_exception_1.ApiException(422, "CLASS_STUDENT_ORGANIZATION_MISMATCH", "دانش‌آموز متعلق به مدرسه این کلاس نیست.");
     }
-    view(classroom) {
+    view(classroom, assignedTeacherId) {
+        const hasCurriculumProfile = this.hasCurriculumProfile(classroom);
         return {
             id: classroom.id,
             organization: {
@@ -397,10 +516,10 @@ let ClassesService = class ClassesService {
             },
             code: classroom.code,
             name: classroom.name,
-            schoolYear: classroom.schoolYear,
-            gradeId: classroom.gradeId,
-            educationTypeId: classroom.educationTypeId,
-            trackId: classroom.trackId,
+            schoolYear: this.normalizedAcademicYear(classroom.schoolYear),
+            gradeId: hasCurriculumProfile ? classroom.gradeId : null,
+            educationTypeId: hasCurriculumProfile ? classroom.educationTypeId : null,
+            trackId: hasCurriculumProfile ? classroom.trackId : null,
             capacity: classroom.capacity,
             status: classroom.status,
             description: classroom.description,
@@ -412,11 +531,13 @@ let ClassesService = class ClassesService {
                         .join(" ") || classroom.advisor.username,
                 }
                 : null,
-            books: classroom.books.map((item) => ({
+            books: classroom.books
+                .filter((item) => !assignedTeacherId || item.teacher.id === assignedTeacherId)
+                .map((item) => ({
                 id: item.id,
                 bookId: item.book.id,
                 title: item.book.titleFa,
-                category: item.book.category,
+                code: item.book.textbookCode || item.book.id,
                 teacher: {
                     id: item.teacher.id,
                     name: [item.teacher.firstName, item.teacher.lastName]
@@ -432,6 +553,9 @@ let ClassesService = class ClassesService {
                 major: item.student.major,
             })),
         };
+    }
+    hasCurriculumProfile(classroom) {
+        return classroom.gradeId >= 1 && classroom.gradeId <= 12;
     }
     studentView(classroom) {
         const view = this.view(classroom);

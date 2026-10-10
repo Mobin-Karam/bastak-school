@@ -13,6 +13,7 @@ import { useFilteredNotifications } from "../hooks/useFilteredNotifications";
 import { useAuth } from "../../auth";
 import { useLocale } from "../../../shared/ui/locale";
 import { notificationCopy } from "../model/notification-copy";
+import { useViewportShell } from "../../../app/layout/shell/viewport-shell";
 
 const notificationTypes = ["all", "message", "exam", "lesson", "announcement"] as const;
 
@@ -45,6 +46,7 @@ export function NotificationsPage() {
   const typeFilter = notificationTypeFilter(params.get("type"));
   const search = params.get("q") || "";
   const [mobilePanel, setMobilePanel] = useState<"notifications" | "inbox">("notifications");
+  const isMobileShell = useViewportShell() === "mobile";
 
   function setNotificationView(nextView: { filter?: "all" | "unread"; type?: string; q?: string }) {
     setParams(
@@ -62,7 +64,7 @@ export function NotificationsPage() {
   }
 
   const advisor = useAdvisorInbox(students.studentId, {
-    enabled: access.advisorInbox,
+    enabled: access.advisorInbox && (!isMobileShell || mobilePanel === "inbox"),
     scopeKey: `${auth.activeRole || "none"}:${auth.context?.activeOrganization?.id || "global"}`,
   });
   const items = useFilteredNotifications({
@@ -86,7 +88,7 @@ export function NotificationsPage() {
         }
       />
 
-      {access.advisorInbox ? (
+      {access.advisorInbox && isMobileShell ? (
         <MobileNotificationTabs
           panel={mobilePanel}
           inboxCount={advisor.rows.length}
@@ -101,8 +103,7 @@ export function NotificationsPage() {
             : "grid min-h-0 flex-1"
         }
       >
-        <NotificationCenterPanel
-          mobilePanel={access.advisorInbox ? mobilePanel : "notifications"}
+        {!isMobileShell || !access.advisorInbox || mobilePanel === "notifications" ? <NotificationCenterPanel
           filter={filter}
           setFilter={(next) =>
             setNotificationView({ filter: typeof next === "function" ? next(filter) : next })
@@ -116,11 +117,10 @@ export function NotificationsPage() {
             setNotificationView({ q: typeof next === "function" ? next(search) : next })
           }
           items={items}
-        />
+        /> : null}
 
-        {access.advisorInbox ? (
+        {access.advisorInbox && (!isMobileShell || mobilePanel === "inbox") ? (
           <AdvisorInboxPanel
-            mobilePanel={mobilePanel}
             rows={advisor.rows}
             students={students.students}
             studentId={students.studentId}

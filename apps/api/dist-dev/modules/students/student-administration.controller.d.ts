@@ -23,8 +23,8 @@ export declare class StudentAdministrationController {
             targetField: string;
             targetRank: string;
             dailyCapacity: string;
-            accountStatus: "active" | "inactive" | "archived";
-            registrationStatus: "ACCOUNT_CREATED" | "IN_PROGRESS" | "WAITING_REVIEW" | "NEEDS_CORRECTION" | "APPROVED" | "REJECTED" | "ACTIVE";
+            accountStatus: "active" | "archived" | "inactive";
+            registrationStatus: "ACTIVE" | "ACCOUNT_CREATED" | "IN_PROGRESS" | "WAITING_REVIEW" | "NEEDS_CORRECTION" | "APPROVED" | "REJECTED";
             organization: {
                 id: string;
                 name: string;
@@ -57,8 +57,8 @@ export declare class StudentAdministrationController {
             targetField: string;
             targetRank: string;
             dailyCapacity: string;
-            accountStatus: "active" | "inactive" | "archived";
-            registrationStatus: "ACCOUNT_CREATED" | "IN_PROGRESS" | "WAITING_REVIEW" | "NEEDS_CORRECTION" | "APPROVED" | "REJECTED" | "ACTIVE";
+            accountStatus: "active" | "archived" | "inactive";
+            registrationStatus: "ACTIVE" | "ACCOUNT_CREATED" | "IN_PROGRESS" | "WAITING_REVIEW" | "NEEDS_CORRECTION" | "APPROVED" | "REJECTED";
             organization: {
                 id: string;
                 name: string;
@@ -91,8 +91,8 @@ export declare class StudentAdministrationController {
             targetField: string;
             targetRank: string;
             dailyCapacity: string;
-            accountStatus: "active" | "inactive" | "archived";
-            registrationStatus: "ACCOUNT_CREATED" | "IN_PROGRESS" | "WAITING_REVIEW" | "NEEDS_CORRECTION" | "APPROVED" | "REJECTED" | "ACTIVE";
+            accountStatus: "active" | "archived" | "inactive";
+            registrationStatus: "ACTIVE" | "ACCOUNT_CREATED" | "IN_PROGRESS" | "WAITING_REVIEW" | "NEEDS_CORRECTION" | "APPROVED" | "REJECTED";
             organization: {
                 id: string;
                 name: string;
@@ -125,8 +125,8 @@ export declare class StudentAdministrationController {
             targetField: string;
             targetRank: string;
             dailyCapacity: string;
-            accountStatus: "active" | "inactive" | "archived";
-            registrationStatus: "ACCOUNT_CREATED" | "IN_PROGRESS" | "WAITING_REVIEW" | "NEEDS_CORRECTION" | "APPROVED" | "REJECTED" | "ACTIVE";
+            accountStatus: "active" | "archived" | "inactive";
+            registrationStatus: "ACTIVE" | "ACCOUNT_CREATED" | "IN_PROGRESS" | "WAITING_REVIEW" | "NEEDS_CORRECTION" | "APPROVED" | "REJECTED";
             organization: {
                 id: string;
                 name: string;
@@ -203,8 +203,8 @@ export declare class StudentAdministrationController {
             targetField: string;
             targetRank: string;
             dailyCapacity: string;
-            accountStatus: "active" | "inactive" | "archived";
-            registrationStatus: "ACCOUNT_CREATED" | "IN_PROGRESS" | "WAITING_REVIEW" | "NEEDS_CORRECTION" | "APPROVED" | "REJECTED" | "ACTIVE";
+            accountStatus: "active" | "archived" | "inactive";
+            registrationStatus: "ACTIVE" | "ACCOUNT_CREATED" | "IN_PROGRESS" | "WAITING_REVIEW" | "NEEDS_CORRECTION" | "APPROVED" | "REJECTED";
             organization: {
                 id: string;
                 name: string;
@@ -281,8 +281,8 @@ export declare class StudentAdministrationController {
             targetField: string;
             targetRank: string;
             dailyCapacity: string;
-            accountStatus: "active" | "inactive" | "archived";
-            registrationStatus: "ACCOUNT_CREATED" | "IN_PROGRESS" | "WAITING_REVIEW" | "NEEDS_CORRECTION" | "APPROVED" | "REJECTED" | "ACTIVE";
+            accountStatus: "active" | "archived" | "inactive";
+            registrationStatus: "ACTIVE" | "ACCOUNT_CREATED" | "IN_PROGRESS" | "WAITING_REVIEW" | "NEEDS_CORRECTION" | "APPROVED" | "REJECTED";
             organization: {
                 id: string;
                 name: string;
@@ -315,8 +315,8 @@ export declare class StudentAdministrationController {
             targetField: string;
             targetRank: string;
             dailyCapacity: string;
-            accountStatus: "active" | "inactive" | "archived";
-            registrationStatus: "ACCOUNT_CREATED" | "IN_PROGRESS" | "WAITING_REVIEW" | "NEEDS_CORRECTION" | "APPROVED" | "REJECTED" | "ACTIVE";
+            accountStatus: "active" | "archived" | "inactive";
+            registrationStatus: "ACTIVE" | "ACCOUNT_CREATED" | "IN_PROGRESS" | "WAITING_REVIEW" | "NEEDS_CORRECTION" | "APPROVED" | "REJECTED";
             organization: {
                 id: string;
                 name: string;

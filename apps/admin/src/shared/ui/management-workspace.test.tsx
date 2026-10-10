@@ -15,7 +15,13 @@ describe("ManagementMasterDetail", () => {
     );
 
     const detailPane = screen.getByRole("button", { name: "ثبت تغییرات" }).parentElement;
-    expect(detailPane).toHaveClass("xl:sticky", "xl:overflow-y-auto", "xl:overscroll-contain");
+    expect(detailPane).toHaveClass(
+      "management-master-detail__detail",
+      "management-master-detail__detail--scroll",
+      "min-[1200px]:sticky",
+      "min-[1200px]:overflow-y-auto",
+      "min-[1200px]:overscroll-contain",
+    );
     expect(container).toHaveTextContent("فهرست");
   });
 
@@ -29,8 +35,16 @@ describe("ManagementMasterDetail", () => {
     );
 
     const detailPane = screen.getByText("پرونده دانش‌آموز").parentElement;
-    expect(detailPane).toHaveClass("xl:sticky", "xl:top-20");
-    expect(detailPane).not.toHaveClass("xl:overflow-y-auto", "xl:max-h-[calc(100dvh-6rem)]");
+    expect(detailPane).toHaveClass(
+      "management-master-detail__detail",
+      "management-master-detail__detail--static",
+      "min-[1200px]:sticky",
+      "min-[1200px]:top-20",
+    );
+    expect(detailPane).not.toHaveClass(
+      "min-[1200px]:overflow-y-auto",
+      "min-[1200px]:max-h-[calc(100dvh-6rem)]",
+    );
   });
 
   it("localizes generic workspace defaults and numeric formatting", () => {

@@ -3,6 +3,7 @@ import { InjectRepository } from "@nestjs/typeorm";
 import { In, Repository } from "typeorm";
 import { ApiException } from "../../common/exceptions/api.exception";
 import { EducationClass } from "../../database/entities/education-class.entity";
+import { EducationClassBook } from "../../database/entities/education-class-book.entity";
 import { EducationClassEnrollment } from "../../database/entities/education-class-enrollment.entity";
 import {
   MembershipStatus,
@@ -10,6 +11,7 @@ import {
 } from "../../database/entities/organization-membership.entity";
 import { Organization } from "../../database/entities/organization.entity";
 import { SchoolScheduleEntry } from "../../database/entities/school-schedule-entry.entity";
+import { User } from "../../database/entities/user.entity";
 import { UserRelationship } from "../../database/entities/user-relationship.entity";
 import { AuthenticatedUser } from "../auth";
 import { AuthorizationService, UserContext } from "../authorization";
@@ -26,6 +28,8 @@ export class ScheduleService {
     private readonly memberships: Repository<OrganizationMembership>,
     @InjectRepository(EducationClass)
     private readonly classes: Repository<EducationClass>,
+    @InjectRepository(EducationClassBook)
+    private readonly classBooks: Repository<EducationClassBook>,
     private readonly authorization: AuthorizationService,
   ) {}
   private context(user: AuthenticatedUser): UserContext {
@@ -57,7 +61,7 @@ export class ScheduleService {
         where: requestedOrganizationId
           ? { organization: { id: requestedOrganizationId } }
           : {},
-        relations: { organization: true, classroom: true, teacher: true },
+        relations: { organization: true, classroom: true, teacher: true, classBook: { book: true, teacher: true } },
         order: { weekday: "ASC", startTime: "ASC" },
       });
     if (this.isOperator(context))
@@ -71,13 +75,14 @@ export class ScheduleService {
             ),
           },
         },
-        relations: { organization: true, classroom: true, teacher: true },
+        relations: { organization: true, classroom: true, teacher: true, classBook: { book: true, teacher: true } },
         order: { weekday: "ASC", startTime: "ASC" },
       });
     if (context.roles.includes("TEACHER"))
       return this.entries.find({
         where: {
           teacher: { id: user.id },
+          classBook: { teacher: { id: user.id } },
           organization: {
             id: In(
               requestedOrganizationId
@@ -87,7 +92,7 @@ export class ScheduleService {
           },
           status: "ACTIVE",
         },
-        relations: { organization: true, classroom: true, teacher: true },
+        relations: { organization: true, classroom: true, teacher: true, classBook: { book: true, teacher: true } },
         order: { weekday: "ASC", startTime: "ASC" },
       });
     if (
@@ -128,6 +133,9 @@ export class ScheduleService {
         .leftJoinAndSelect("entry.organization", "organization")
         .leftJoinAndSelect("entry.classroom", "classroom")
         .leftJoinAndSelect("entry.teacher", "teacher")
+        .leftJoinAndSelect("entry.classBook", "classBook")
+        .leftJoinAndSelect("classBook.book", "classBookBook")
+        .leftJoinAndSelect("classBook.teacher", "classBookTeacher")
         .leftJoin(
           EducationClassEnrollment,
           "enrollment",
@@ -158,6 +166,9 @@ export class ScheduleService {
         .leftJoinAndSelect("entry.organization", "organization")
         .leftJoinAndSelect("entry.classroom", "classroom")
         .leftJoinAndSelect("entry.teacher", "teacher")
+        .leftJoinAndSelect("entry.classBook", "classBook")
+        .leftJoinAndSelect("classBook.book", "classBookBook")
+        .leftJoinAndSelect("classBook.teacher", "classBookTeacher")
         .leftJoin(
           EducationClassEnrollment,
           "enrollment",
@@ -227,6 +238,7 @@ export class ScheduleService {
       dto.teacherId,
       organization.id,
     );
+    const classBook = await this.classBookForSession(classroom, teacher, dto.classBookId);
     if (dto.endTime <= dto.startTime)
       throw new ApiException(
         422,
@@ -239,6 +251,7 @@ export class ScheduleService {
         room: dto.room?.trim() || "",
         organization,
         classroom,
+        classBook,
         teacher,
       }),
     );
@@ -278,6 +291,7 @@ export class ScheduleService {
       dto.teacherId,
       item.organization.id,
     );
+    const classBook = await this.classBookForSession(classroom, teacher, dto.classBookId);
     Object.assign(item, {
       title: dto.title.trim(),
       weekday: dto.weekday,
@@ -285,6 +299,7 @@ export class ScheduleService {
       endTime: dto.endTime,
       room: dto.room?.trim() || "",
       classroom,
+      classBook,
       teacher,
     });
     return this.entries.save(item);
@@ -423,5 +438,25 @@ export class ScheduleService {
         "استاد انتخاب‌شده عضو فعال این مدرسه نیست.",
       );
     return membership.user;
+  }
+
+  private async classBookForSession(
+    classroom: EducationClass | null,
+    teacher: User | null,
+    classBookId: string | undefined,
+  ) {
+    if (!classroom) {
+      if (classBookId) throw new ApiException(422, "SCHEDULE_BOOK_REQUIRES_CLASS", "کتاب جلسه باید به یک کلاس متصل باشد.");
+      return null;
+    }
+    if (!classBookId || !teacher)
+      throw new ApiException(422, "SCHEDULE_CLASS_BOOK_REQUIRED", "برای جلسهٔ کلاسی، کتاب و استاد مسئول را انتخاب کنید.");
+    const classBook = await this.classBooks.findOne({
+      where: { id: classBookId, classroom: { id: classroom.id }, teacher: { id: teacher.id } },
+      relations: { book: true, teacher: true },
+    });
+    if (!classBook)
+      throw new ApiException(422, "SCHEDULE_BOOK_TEACHER_MISMATCH", "کتاب انتخاب‌شده به این کلاس و استاد واگذار نشده است.");
+    return classBook;
   }
 }

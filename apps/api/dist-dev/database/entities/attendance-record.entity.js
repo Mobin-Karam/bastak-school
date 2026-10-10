@@ -9,7 +9,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.AttendanceRecord = exports.AttendanceStatus = void 0;
+exports.AttendanceRecord = exports.AttendanceReviewStatus = exports.AttendanceStatus = void 0;
 const openapi = require("@nestjs/swagger");
 const typeorm_1 = require("typeorm");
 const attendance_session_entity_1 = require("./attendance-session.entity");
@@ -22,17 +22,27 @@ var AttendanceStatus;
     AttendanceStatus["LATE"] = "late";
     AttendanceStatus["EXCUSED"] = "excused";
 })(AttendanceStatus || (exports.AttendanceStatus = AttendanceStatus = {}));
+var AttendanceReviewStatus;
+(function (AttendanceReviewStatus) {
+    AttendanceReviewStatus["PENDING"] = "pending";
+    AttendanceReviewStatus["APPROVED"] = "approved";
+    AttendanceReviewStatus["REJECTED"] = "rejected";
+})(AttendanceReviewStatus || (exports.AttendanceReviewStatus = AttendanceReviewStatus = {}));
 let AttendanceRecord = class AttendanceRecord {
     id;
     session;
     student;
     status;
     note;
+    reviewStatus;
+    reviewNote;
+    reviewedBy;
+    reviewedAt;
     recordedBy;
     createdAt;
     updatedAt;
     static _OPENAPI_METADATA_FACTORY() {
-        return { id: { required: true, type: () => String }, session: { required: true, type: () => require("./attendance-session.entity").AttendanceSession }, student: { required: true, type: () => require("./student.entity").Student }, status: { required: true, enum: require("./attendance-record.entity").AttendanceStatus }, note: { required: true, type: () => String }, recordedBy: { required: false, type: () => require("./user.entity").User, nullable: true }, createdAt: { required: true, type: () => Date }, updatedAt: { required: true, type: () => Date } };
+        return { id: { required: true, type: () => String }, session: { required: true, type: () => require("./attendance-session.entity").AttendanceSession }, student: { required: true, type: () => require("./student.entity").Student }, status: { required: true, enum: require("./attendance-record.entity").AttendanceStatus }, note: { required: true, type: () => String }, reviewStatus: { required: false, nullable: true, enum: require("./attendance-record.entity").AttendanceReviewStatus }, reviewNote: { required: true, type: () => String }, reviewedBy: { required: false, type: () => require("./user.entity").User, nullable: true }, reviewedAt: { required: false, type: () => Date, nullable: true }, recordedBy: { required: false, type: () => require("./user.entity").User, nullable: true }, createdAt: { required: true, type: () => Date }, updatedAt: { required: true, type: () => Date } };
     }
 };
 exports.AttendanceRecord = AttendanceRecord;
@@ -56,6 +66,22 @@ __decorate([
     (0, typeorm_1.Column)({ type: "text", default: "" }),
     __metadata("design:type", String)
 ], AttendanceRecord.prototype, "note", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: "varchar", length: 16, nullable: true }),
+    __metadata("design:type", Object)
+], AttendanceRecord.prototype, "reviewStatus", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: "text", default: "" }),
+    __metadata("design:type", String)
+], AttendanceRecord.prototype, "reviewNote", void 0);
+__decorate([
+    (0, typeorm_1.ManyToOne)(() => user_entity_1.User, { nullable: true, onDelete: "SET NULL" }),
+    __metadata("design:type", Object)
+], AttendanceRecord.prototype, "reviewedBy", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: "datetime", nullable: true }),
+    __metadata("design:type", Object)
+], AttendanceRecord.prototype, "reviewedAt", void 0);
 __decorate([
     (0, typeorm_1.ManyToOne)(() => user_entity_1.User, { nullable: true, onDelete: "SET NULL" }),
     __metadata("design:type", Object)

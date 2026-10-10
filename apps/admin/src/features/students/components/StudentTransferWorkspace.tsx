@@ -1,11 +1,13 @@
-import { type ChangeEvent, useState } from "react";
+import { useState } from "react";
 import { api } from "../../../shared/api/api";
 import {
   defineSpreadsheet,
   downloadSpreadsheet,
   readSpreadsheet,
+  spreadsheetIssues,
 } from "../../../shared/lib/spreadsheet-transfer";
 import { Button, Card } from "../../../shared/ui/ui";
+import { SpreadsheetTransferActions } from "../../../shared/ui/spreadsheet-transfer-actions";
 
 type ImportRow = {
   firstName: string;
@@ -57,23 +59,32 @@ export function StudentTransferWorkspace({
   const [rows, setRows] = useState<ImportRow[]>([]);
   const [preview, setPreview] = useState<Preview | null>(null);
   const [message, setMessage] = useState("");
+  const [fileIssues, setFileIssues] = useState<string[]>([]);
   const ready = Boolean(organizationId);
 
-  async function pick(event: ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0];
-    event.target.value = "";
+  async function pick(file?: File) {
     if (!file || !ready) return;
     try {
       const parsed = await readSpreadsheet(file, studentSheet);
       setRows(parsed);
+      setFileIssues([]);
       setPreview(
         await api.post<Preview>("/students/transfer/preview", { organizationId, rows: parsed }),
       );
       setMessage("");
-    } catch {
+    } catch (error) {
       setPreview(null);
       setRows([]);
-      setMessage("ساختار فایل Excel معتبر نیست.");
+      const issues = spreadsheetIssues(error);
+      setFileIssues(
+        issues.map(
+          (issue) =>
+            `برگه «${issue.sheet}» · ردیف ${issue.row ?? 1} · ستون «${issue.column ?? "نامشخص"}»`,
+        ),
+      );
+      setMessage(
+        issues.length ? "خانه‌های مشخص‌شده را اصلاح کنید." : "ساختار فایل Excel معتبر نیست.",
+      );
     }
   }
   async function commit() {
@@ -125,35 +136,34 @@ export function StudentTransferWorkspace({
         </p>
       ) : null}
       <Card className="p-4">
-        <div className="flex flex-wrap gap-2">
-          {canImport ? (
-            <label className="inline-flex h-10 cursor-pointer items-center rounded-lg border border-[rgb(var(--border-subtle))] px-3 text-sm font-bold">
-              <input
-                className="hidden"
-                type="file"
-                accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                disabled={!ready}
-                onChange={(event) => void pick(event)}
-              />
-              انتخاب Excel
-            </label>
-          ) : null}
-          {canImport ? (
-            <Button variant="ghost" onClick={() => void template()}>
-              نمونه Excel
-            </Button>
-          ) : null}
-          {canExport ? (
-            <Button variant="soft" disabled={!ready} onClick={() => void exportXlsx()}>
-              خروجی Excel
-            </Button>
-          ) : null}
+        <div className="grid gap-3">
+          <SpreadsheetTransferActions
+            canImport={canImport}
+            canExport={canExport}
+            busy={!ready}
+            onImport={(file) => void pick(file)}
+            onTemplate={() => void template()}
+            onExport={() => void exportXlsx()}
+          />
           {canImport ? (
             <Button disabled={!preview || preview.invalid > 0} onClick={() => void commit()}>
               ثبت {preview?.valid ?? 0} ردیف معتبر
             </Button>
           ) : null}
         </div>
+        {fileIssues.length ? (
+          <div
+            role="alert"
+            className="mt-4 max-h-40 overflow-auto rounded-lg border border-rose-200 bg-rose-50 p-3 text-sm text-rose-800"
+          >
+            <strong>فایل نیاز به اصلاح دارد:</strong>
+            <ul className="mt-2 list-inside list-disc space-y-1">
+              {fileIssues.map((issue) => (
+                <li key={issue}>{issue}</li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
         {preview ? (
           <div className="mt-4 grid grid-cols-3 gap-2 text-center text-sm">
             <div>کل: {preview.total}</div>

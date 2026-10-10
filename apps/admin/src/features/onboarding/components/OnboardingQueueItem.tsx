@@ -5,7 +5,6 @@ import { Button, Card } from "../../../shared/ui/ui";
 import { useLocale } from "../../../shared/ui/locale";
 import { onboardingCopy } from "../onboarding-locale";
 import {
-  assignmentInputFor,
   canSubmitManualAssignment,
   displayAdvisor,
   eligibleAdvisorsForOrganization,
@@ -45,7 +44,7 @@ export function OnboardingQueueItem({
 
   return (
     <Card className="overflow-hidden p-0">
-      <div className="grid gap-4 p-4 sm:p-5 lg:grid-cols-[minmax(220px,1fr)_minmax(320px,1.5fr)] lg:items-center">
+      <div className="grid gap-4 p-4 sm:p-5 min-[1200px]:grid-cols-[minmax(220px,1fr)_minmax(320px,1.5fr)] min-[1200px]:items-center">
         <div className="flex items-start gap-3">
           <span className="grid size-11 shrink-0 place-items-center rounded-lg bg-brand/10 font-bold text-brand">
             {student.name.slice(0, 1)}

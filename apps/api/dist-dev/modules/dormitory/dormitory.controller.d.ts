@@ -15,7 +15,7 @@ export declare class DormitoryController {
             building: string;
             floor: number;
             capacity: number;
-            status: "ACTIVE" | "ARCHIVED";
+            status: "ARCHIVED" | "ACTIVE";
             studentCount: number;
         }[];
     }>;
@@ -29,7 +29,7 @@ export declare class DormitoryController {
             building: string;
             floor: number;
             capacity: number;
-            status: "ACTIVE" | "ARCHIVED";
+            status: "ARCHIVED" | "ACTIVE";
             studentCount: number;
         };
     }>;
@@ -62,7 +62,7 @@ export declare class DormitoryController {
         ok: boolean;
         data: {
             delivered: number;
-            target: "ROOM" | "STUDENT";
+            target: "STUDENT" | "ROOM";
             targetLabel: string;
         };
     }>;

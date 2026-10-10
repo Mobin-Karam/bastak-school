@@ -9,10 +9,11 @@ var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.ImportEducationBooksDto = exports.UpdateEducationBookDto = exports.SaveEducationBookDto = void 0;
+exports.ImportEducationBooksDto = exports.UpdateEducationBookDto = exports.SaveEducationBookDto = exports.CLASS_MANAGED_BOOK_GRADE = void 0;
 const openapi = require("@nestjs/swagger");
 const class_validator_1 = require("class-validator");
 const states = ["DRAFT", "PUBLISHED", "ARCHIVED"];
+exports.CLASS_MANAGED_BOOK_GRADE = 0;
 class SaveEducationBookDto {
     id;
     country;
@@ -30,7 +31,7 @@ class SaveEducationBookDto {
     state;
     organizationId;
     static _OPENAPI_METADATA_FACTORY() {
-        return { id: { required: true, type: () => String, maxLength: 120 }, country: { required: true, type: () => String, maxLength: 12 }, schoolYear: { required: true, type: () => String, maxLength: 16 }, grade: { required: true, type: () => Number, minimum: 1 }, level: { required: true, type: () => String, maxLength: 80 }, branch: { required: true, type: () => String, maxLength: 120 }, track: { required: true, type: () => String, maxLength: 160 }, category: { required: true, type: () => String, maxLength: 160 }, titleFa: { required: true, type: () => String, maxLength: 240 }, titleEn: { required: false, type: () => String, maxLength: 240 }, textbookCode: { required: false, type: () => String, maxLength: 80 }, appliesTo: { required: true, type: () => [String] }, notes: { required: false, type: () => String }, state: { required: false, enum: ["DRAFT", "PUBLISHED", "ARCHIVED"], enum: states }, organizationId: { required: false, type: () => String, nullable: true, format: "uuid" } };
+        return { id: { required: true, type: () => String, maxLength: 120 }, country: { required: true, type: () => String, maxLength: 12 }, schoolYear: { required: true, type: () => String, maxLength: 16 }, grade: { required: true, type: () => Number, minimum: exports.CLASS_MANAGED_BOOK_GRADE }, level: { required: true, type: () => String, maxLength: 80 }, branch: { required: true, type: () => String, maxLength: 120 }, track: { required: true, type: () => String, maxLength: 160 }, category: { required: true, type: () => String, maxLength: 160 }, titleFa: { required: true, type: () => String, maxLength: 240 }, titleEn: { required: false, type: () => String, maxLength: 240 }, textbookCode: { required: false, type: () => String, maxLength: 80 }, appliesTo: { required: true, type: () => [String] }, notes: { required: false, type: () => String }, state: { required: false, enum: ["DRAFT", "PUBLISHED", "ARCHIVED"], enum: states }, organizationId: { required: false, type: () => String, nullable: true, format: "uuid" } };
     }
 }
 exports.SaveEducationBookDto = SaveEducationBookDto;
@@ -51,7 +52,7 @@ __decorate([
 ], SaveEducationBookDto.prototype, "schoolYear", void 0);
 __decorate([
     (0, class_validator_1.IsInt)(),
-    (0, class_validator_1.Min)(1),
+    (0, class_validator_1.Min)(exports.CLASS_MANAGED_BOOK_GRADE),
     __metadata("design:type", Number)
 ], SaveEducationBookDto.prototype, "grade", void 0);
 __decorate([
@@ -127,7 +128,7 @@ class UpdateEducationBookDto {
     state;
     organizationId;
     static _OPENAPI_METADATA_FACTORY() {
-        return { country: { required: false, type: () => String, maxLength: 12 }, schoolYear: { required: false, type: () => String, maxLength: 16 }, grade: { required: false, type: () => Number, minimum: 1 }, level: { required: false, type: () => String, maxLength: 80 }, branch: { required: false, type: () => String, maxLength: 120 }, track: { required: false, type: () => String, maxLength: 160 }, category: { required: false, type: () => String, maxLength: 160 }, titleFa: { required: false, type: () => String, maxLength: 240 }, titleEn: { required: false, type: () => String, maxLength: 240 }, textbookCode: { required: false, type: () => String, maxLength: 80 }, appliesTo: { required: false, type: () => [String] }, notes: { required: false, type: () => String }, state: { required: false, enum: ["DRAFT", "PUBLISHED", "ARCHIVED"], enum: states }, organizationId: { required: false, type: () => String, nullable: true, format: "uuid" } };
+        return { country: { required: false, type: () => String, maxLength: 12 }, schoolYear: { required: false, type: () => String, maxLength: 16 }, grade: { required: false, type: () => Number, minimum: exports.CLASS_MANAGED_BOOK_GRADE }, level: { required: false, type: () => String, maxLength: 80 }, branch: { required: false, type: () => String, maxLength: 120 }, track: { required: false, type: () => String, maxLength: 160 }, category: { required: false, type: () => String, maxLength: 160 }, titleFa: { required: false, type: () => String, maxLength: 240 }, titleEn: { required: false, type: () => String, maxLength: 240 }, textbookCode: { required: false, type: () => String, maxLength: 80 }, appliesTo: { required: false, type: () => [String] }, notes: { required: false, type: () => String }, state: { required: false, enum: ["DRAFT", "PUBLISHED", "ARCHIVED"], enum: states }, organizationId: { required: false, type: () => String, nullable: true, format: "uuid" } };
     }
 }
 exports.UpdateEducationBookDto = UpdateEducationBookDto;
@@ -146,7 +147,7 @@ __decorate([
 __decorate([
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsInt)(),
-    (0, class_validator_1.Min)(1),
+    (0, class_validator_1.Min)(exports.CLASS_MANAGED_BOOK_GRADE),
     __metadata("design:type", Number)
 ], UpdateEducationBookDto.prototype, "grade", void 0);
 __decorate([

@@ -1,22 +1,15 @@
+export declare const SCHOOL_YEAR_PATTERN: RegExp;
 export declare class SaveEducationClassDto {
     organizationId: string;
     code: string;
     name: string;
     schoolYear: string;
-    gradeId: number;
-    educationTypeId: string;
-    trackId: string;
     capacity?: number;
-    description?: string;
-    advisorId?: string | null;
 }
 export declare class UpdateEducationClassDto {
     code?: string;
     name?: string;
     schoolYear?: string;
-    gradeId?: number;
-    educationTypeId?: string;
-    trackId?: string;
     capacity?: number;
     description?: string;
     advisorId?: string | null;
@@ -30,4 +23,14 @@ export declare class SetClassBooksDto {
 }
 export declare class SetClassEnrollmentsDto {
     studentIds: string[];
+}
+export declare class ClassTransferRowDto {
+    code: string;
+    name: string;
+    schoolYear: string;
+    capacity?: number;
+}
+export declare class ClassTransferDto {
+    organizationId: string;
+    rows: ClassTransferRowDto[];
 }

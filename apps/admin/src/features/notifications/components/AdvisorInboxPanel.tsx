@@ -14,7 +14,6 @@ import { notificationCopy } from "../model/notification-copy";
 type StudentPickerProps = ComponentProps<typeof StudentPicker>;
 
 export function AdvisorInboxPanel({
-  mobilePanel,
   rows,
   students,
   studentId,
@@ -29,7 +28,8 @@ export function AdvisorInboxPanel({
   canManageRecovery,
   canManageIssues,
 }: {
-  mobilePanel: "notifications" | "inbox";
+  /** Kept for existing callers; shell composition now decides whether to mount this panel. */
+  mobilePanel?: "notifications" | "inbox";
   rows: AdvisorInboxRow[];
   students: StudentPickerProps["students"];
   studentId: string;
@@ -59,10 +59,7 @@ export function AdvisorInboxPanel({
       error={error}
       errorTitle={copy.inboxFailed}
       onRetry={onRetry}
-      className={[
-        mobilePanel === "notifications" ? "hidden lg:flex" : "flex",
-        "min-h-0 flex-col dark:border-slate-800 dark:bg-slate-900",
-      ].join(" ")}
+      className="flex min-h-0 flex-col dark:border-slate-800 dark:bg-slate-900"
       contentClassName="min-h-0 flex-1 overflow-hidden"
       stickyHeader
       emptyTitle={copy.noItems}

@@ -11,7 +11,7 @@ export function NotificationsToolbar({ onOpenSettings }: { onOpenSettings: () =>
   const copy = notificationCopy[language];
 
   return (
-    <Card className="flex shrink-0 flex-wrap items-center gap-2 p-2 sm:gap-3 dark:border-slate-800 dark:bg-slate-900">
+    <Card className="mobile-notification-toolbar flex shrink-0 flex-wrap items-center gap-2 p-2 sm:gap-3 dark:border-slate-800 dark:bg-slate-900">
       <div className="flex min-w-40 flex-1 items-center gap-2">
         <span className="grid size-9 place-items-center rounded-full bg-rose-50 text-rose-700 dark:bg-rose-950/30 dark:text-rose-300">
           <BellRing size={18} />
@@ -24,31 +24,29 @@ export function NotificationsToolbar({ onOpenSettings }: { onOpenSettings: () =>
         </div>
       </div>
 
-      <ToggleButton
-        active={notifications.soundEnabled}
-        onClick={() => {
-          const enabled = !notifications.soundEnabled;
-          notifications.setSoundEnabled(enabled);
-          if (enabled) {
-            notifications.testSound(false);
-          }
-        }}
-        icon={notifications.soundEnabled ? <Volume2 size={16} /> : <VolumeX size={16} />}
-        label={copy.notificationSound}
-      />
+      <div className="hidden sm:contents">
+        <ToggleButton
+          active={notifications.soundEnabled}
+          onClick={() => {
+            const enabled = !notifications.soundEnabled;
+            notifications.setSoundEnabled(enabled);
+            if (enabled) notifications.testSound(false);
+          }}
+          icon={notifications.soundEnabled ? <Volume2 size={16} /> : <VolumeX size={16} />}
+          label={copy.notificationSound}
+        />
 
-      <ToggleButton
-        active={notifications.chatSoundEnabled}
-        onClick={() => {
-          const enabled = !notifications.chatSoundEnabled;
-          notifications.setChatSoundEnabled(enabled);
-          if (enabled) {
-            notifications.testSound(true);
-          }
-        }}
-        icon={<MessageSquare size={16} />}
-        label={copy.messageSound}
-      />
+        <ToggleButton
+          active={notifications.chatSoundEnabled}
+          onClick={() => {
+            const enabled = !notifications.chatSoundEnabled;
+            notifications.setChatSoundEnabled(enabled);
+            if (enabled) notifications.testSound(true);
+          }}
+          icon={<MessageSquare size={16} />}
+          label={copy.messageSound}
+        />
+      </div>
 
       <Button variant="soft" onClick={onOpenSettings}>
         <Settings2 size={16} />

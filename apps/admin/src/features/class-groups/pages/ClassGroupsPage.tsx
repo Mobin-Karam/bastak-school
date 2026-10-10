@@ -147,7 +147,7 @@ export function ClassGroupsPage() {
           </Button>
         </form>
       </Card>
-      <div className="grid gap-4 lg:grid-cols-[minmax(220px,0.8fr)_minmax(0,1.4fr)]">
+      <div className="grid gap-4 min-[1200px]:grid-cols-[minmax(220px,0.8fr)_minmax(0,1.4fr)]">
         <Card className="p-3">
           <h2 className="mb-2 font-black text-ink">گروه‌ها</h2>
           <div className="grid gap-2">
@@ -166,7 +166,7 @@ export function ClassGroupsPage() {
             ))}
           </div>
         </Card>
-        <Card className="p-4">
+        <Card className="p-4 min-[1200px]:sticky min-[1200px]:top-4 min-[1200px]:max-h-[calc(100dvh-7rem)] min-[1200px]:overflow-y-auto min-[1200px]:overscroll-contain">
           <div className="flex items-center justify-between gap-2">
             <div>
               <h2 className="font-black text-ink">اعضای {selectedGroup?.name ?? "گروه"}</h2>

@@ -16,7 +16,6 @@ import {
 } from "../model/notification-model";
 
 export function NotificationCenterPanel({
-  mobilePanel,
   filter,
   setFilter,
   typeFilter,
@@ -25,7 +24,8 @@ export function NotificationCenterPanel({
   setSearch,
   items,
 }: {
-  mobilePanel: "notifications" | "inbox";
+  /** Kept for existing callers; shell composition now decides whether to mount this panel. */
+  mobilePanel?: "notifications" | "inbox";
   filter: "all" | "unread";
   setFilter: Dispatch<SetStateAction<"all" | "unread">>;
   typeFilter: string;
@@ -48,10 +48,7 @@ export function NotificationCenterPanel({
       error={notifications.error}
       errorTitle={notifications.errorMessage || copy.loadFailed}
       onRetry={notifications.refresh}
-      className={[
-        mobilePanel === "inbox" ? "hidden lg:flex" : "flex",
-        "min-h-0 flex-col dark:border-slate-800 dark:bg-slate-900",
-      ].join(" ")}
+      className="flex min-h-0 flex-col dark:border-slate-800 dark:bg-slate-900"
       contentClassName="min-h-0 flex-1 overflow-hidden"
       stickyHeader
       emptyTitle={

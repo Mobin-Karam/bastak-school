@@ -18,6 +18,13 @@ export enum AttendanceStatus {
   EXCUSED = "excused",
 }
 
+/** A manager's decision on the reason recorded for an absence. */
+export enum AttendanceReviewStatus {
+  PENDING = "pending",
+  APPROVED = "approved",
+  REJECTED = "rejected",
+}
+
 @Entity("attendance_records")
 @Index(["session", "student"], { unique: true })
 export class AttendanceRecord {
@@ -35,6 +42,18 @@ export class AttendanceRecord {
 
   @Column({ type: "text", default: "" })
   note!: string;
+
+  @Column({ type: "varchar", length: 16, nullable: true })
+  reviewStatus?: AttendanceReviewStatus | null;
+
+  @Column({ type: "text", default: "" })
+  reviewNote!: string;
+
+  @ManyToOne(() => User, { nullable: true, onDelete: "SET NULL" })
+  reviewedBy?: User | null;
+
+  @Column({ type: "datetime", nullable: true })
+  reviewedAt?: Date | null;
 
   @ManyToOne(() => User, { nullable: true, onDelete: "SET NULL" })
   recordedBy?: User | null;

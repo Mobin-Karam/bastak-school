@@ -26,4 +26,14 @@ describe("spreadsheet transfer", () => {
       readSpreadsheet({ arrayBuffer: async () => bytes.slice(0) as ArrayBuffer }, students),
     ).rejects.toThrow("MISSING_COLUMNS:نام");
   });
+
+  it("reports the exact Excel row and header for empty required cells", async () => {
+    const bytes = await createSpreadsheet(students, [{ firstName: "", gradeId: 8 }]);
+    await expect(
+      readSpreadsheet({ arrayBuffer: async () => bytes.slice(0) as ArrayBuffer }, students),
+    ).rejects.toMatchObject({
+      message: "REQUIRED_CELLS",
+      issues: [{ sheet: "Students", row: 2, column: "نام" }],
+    });
+  });
 });

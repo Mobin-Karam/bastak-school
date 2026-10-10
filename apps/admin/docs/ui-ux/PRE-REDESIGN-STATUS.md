@@ -5,7 +5,7 @@ Date: 2026-09-14.
 ## Improved and standardized
 
 - Shared buttons, fields, inputs, loading/empty states, modal semantics, tables and notifications now expose consistent interaction and accessibility behavior.
-- All feature feedback is routed through the Moshaver-owned notification adapter, backed by `goey-toast` v0.5.0 with RTL placement, typed states, bounded queues, progress, promise/update support, Escape close and touch swipe dismissal.
+- All feature feedback is routed through the Moshaver-owned notification adapter, backed by Sonner with bottom-left placement, typed states, visible status colors, dark-mode support, depth, promise/update support, keyboard close and touch swipe dismissal.
 - Education has a capability-aware landing workspace. Exam and Question Bank workflows no longer depend on irrelevant student selection.
 - Exam assignments have a scoped directory, searchable bulk add, guarded remove and real attempt/not-started counts.
 - Existing role, organization and student context remains explicit and backend-authoritative.

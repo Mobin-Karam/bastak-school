@@ -1,26 +1,23 @@
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { BookOpen, FilePlus2, GraduationCap, Plus, Search, UserRoundCheck } from "lucide-react";
+import { BookOpen, Pencil, Plus, Search, Trash2 } from "lucide-react";
 import { ManagementPageHeader } from "../../../shared/ui/management-workspace";
-import {
-  Button,
-  Card,
-  EmptyState,
-  Field,
-  Input,
-  LoadingState,
-  Textarea,
-} from "../../../shared/ui/ui";
+import { Button, Card, EmptyState, Field, Input, LoadingState } from "../../../shared/ui/ui";
 import { notify } from "../../../shared/ui/notifications";
 import { useLocale } from "../../../shared/ui/locale";
 import { useModal } from "../../../shared/ui/modal";
+import { useDevicePerformance } from "../../../app/layout/shell/use-device-performance";
 import { useAuth } from "../../auth";
-import { getClassOptions, listClasses, setClassBooks } from "../api/classes.api";
+import {
+  getClassOptions,
+  listClasses,
+  setClassBooks,
+  type EducationClassBook,
+} from "../api/classes.api";
 import {
   createEducationBook,
-  getPublishedEducationBooks,
+  updateEducationBook,
   type EducationBookInput,
-  type PublishedEducationBook,
 } from "../api/education-catalog.api";
 
 const spineColors = [
@@ -30,219 +27,223 @@ const spineColors = [
   "from-rose-700 to-rose-950",
   "from-sky-700 to-sky-950",
   "from-emerald-700 to-emerald-950",
-  "from-orange-700 to-orange-950",
 ];
-
-function colorFor(id: string) {
-  return spineColors[
-    [...id].reduce((total, letter) => total + letter.charCodeAt(0), 0) % spineColors.length
+const colorFor = (id: string) =>
+  spineColors[
+    [...id].reduce((sum, character) => sum + character.charCodeAt(0), 0) % spineColors.length
   ];
-}
-
-function gradeLabel(grade: number, locale: string) {
-  return locale === "fa-IR" ? `پایه ${grade.toLocaleString(locale)}` : `Grade ${grade}`;
-}
 
 export function BookShelfPage() {
   const auth = useAuth();
   const { language, profile } = useLocale();
-  const locale = profile.locale;
   const queryClient = useQueryClient();
   const modal = useModal();
-  const canReadClasses = auth.can("classes.read");
-  const canManageCatalog = auth.can("education.catalog.manage");
-  const [grade, setGrade] = useState<number | "all">("all");
-  const [query, setQuery] = useState("");
+  const performance = useDevicePerformance();
   const [selectedClassId, setSelectedClassId] = useState("");
-  const [selectedBook, setSelectedBook] = useState<PublishedEducationBook | null>(null);
-  const [teacherId, setTeacherId] = useState("");
-  const books = useQuery({
-    queryKey: ["education-catalog", "published", grade],
-    queryFn: () => getPublishedEducationBooks(grade === "all" ? undefined : grade),
-  });
+  const [query, setQuery] = useState("");
+  const canReadClasses = auth.can("classes.read");
+  const canManageBooks = auth.can("education.catalog.manage");
   const classes = useQuery({
-    queryKey: ["classes", "bookshelf", auth.context?.activeOrganization?.id ?? "all"],
+    queryKey: ["classes", "book-shelves", auth.context?.activeOrganization?.id ?? "all"],
     queryFn: () => listClasses(auth.context?.activeOrganization?.id),
     enabled: canReadClasses,
   });
   const selectedClass = (classes.data ?? []).find((item) => item.id === selectedClassId) ?? null;
   const classOptions = useQuery({
-    queryKey: ["class-options", "bookshelf", selectedClassId],
+    queryKey: ["class-options", "book-shelf", selectedClassId],
     queryFn: () => getClassOptions(selectedClassId),
     enabled: Boolean(selectedClassId) && canReadClasses,
   });
-  const bookFitsSelectedClass =
-    !selectedBook ||
-    !selectedClassId ||
-    Boolean(classOptions.data?.books.some((book) => book.id === selectedBook.id));
-  const assign = useMutation({
-    mutationFn: async () => {
-      if (!selectedClass || !selectedBook || !teacherId) throw new Error("INCOMPLETE_ASSIGNMENT");
-      const current = selectedClass.books
-        .filter((item) => item.bookId !== selectedBook.id)
-        .map((item) => ({ bookId: item.bookId, teacherId: item.teacher.id }));
-      return setClassBooks(selectedClass.id, [...current, { bookId: selectedBook.id, teacherId }]);
+  const books = useMemo(() => {
+    const needle = query.trim().toLocaleLowerCase(profile.locale);
+    return (selectedClass?.books ?? []).filter((book) =>
+      `${book.title} ${book.code} ${book.teacher.name}`
+        .toLocaleLowerCase(profile.locale)
+        .includes(needle),
+    );
+  }, [profile.locale, query, selectedClass?.books]);
+  const refreshShelf = () =>
+    Promise.all([
+      queryClient.invalidateQueries({ queryKey: ["classes"] }),
+      queryClient.invalidateQueries({ queryKey: ["class-options", "book-shelf", selectedClassId] }),
+      queryClient.invalidateQueries({ queryKey: ["education-catalog"] }),
+    ]);
+  const addBook = useMutation({
+    mutationFn: async (draft: EducationBookInput & { teacherId: string }) => {
+      if (!selectedClass) throw new Error("CLASS_REQUIRED");
+      const { teacherId, ...book } = draft;
+      const created = await createEducationBook(book);
+      await setClassBooks(selectedClass.id, [
+        ...selectedClass.books.map((item) => ({ bookId: item.bookId, teacherId: item.teacher.id })),
+        { bookId: created.id, teacherId },
+      ]);
     },
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ["classes"] });
-      void classOptions.refetch();
-      setTeacherId("");
+      void refreshShelf();
       modal.close();
       notify(
         language === "fa"
-          ? "کتاب و دبیر کلاس ذخیره شد."
-          : "The class textbook and teacher were saved.",
+          ? "کتاب روی قفسه این کلاس قرار گرفت."
+          : "The book was placed on this class shelf.",
+        "success",
+      );
+    },
+    onError: () =>
+      notify(language === "fa" ? "افزودن کتاب انجام نشد." : "Could not add the book.", "error"),
+  });
+  const editBook = useMutation({
+    mutationFn: ({ id, changes }: { id: string; changes: Partial<EducationBookInput> }) =>
+      updateEducationBook(id, changes),
+    onSuccess: () => {
+      void refreshShelf();
+      modal.close();
+      notify(
+        language === "fa" ? "اطلاعات کتاب به‌روزرسانی شد." : "Book details were updated.",
+        "success",
+      );
+    },
+    onError: () =>
+      notify(language === "fa" ? "ویرایش کتاب انجام نشد." : "Could not update the book.", "error"),
+  });
+  const removeBook = useMutation({
+    mutationFn: (book: EducationClassBook) => {
+      if (!selectedClass) throw new Error("CLASS_REQUIRED");
+      return setClassBooks(
+        selectedClass.id,
+        selectedClass.books
+          .filter((item) => item.bookId !== book.bookId)
+          .map((item) => ({ bookId: item.bookId, teacherId: item.teacher.id })),
+      );
+    },
+    onSuccess: () => {
+      void refreshShelf();
+      modal.close();
+      notify(
+        language === "fa"
+          ? "کتاب از قفسه کلاس برداشته شد."
+          : "The book was removed from the class shelf.",
         "success",
       );
     },
     onError: () =>
       notify(
-        language === "fa" ? "اتصال کتاب به کلاس ذخیره نشد." : "Could not save the class textbook.",
+        language === "fa" ? "حذف از قفسه انجام نشد." : "Could not remove the book from this shelf.",
         "error",
       ),
   });
-  const createBook = useMutation({
-    mutationFn: createEducationBook,
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ["education-catalog"] });
-      modal.close();
-      notify(
-        language === "fa"
-          ? "کتاب به‌صورت پیش‌نویس ایجاد شد. آن را از کاتالوگ آموزشی منتشر کنید."
-          : "The textbook was created as a draft. Publish it from the education catalog.",
-        "success",
-      );
-    },
-    onError: (error) =>
-      notify(
-        error instanceof Error
-          ? error.message
-          : language === "fa"
-            ? "ایجاد کتاب انجام نشد."
-            : "Could not create the textbook.",
-        "error",
-      ),
-  });
-  const filteredBooks = useMemo(
-    () =>
-      (books.data ?? []).filter((book) =>
-        `${book.titleFa} ${book.titleEn} ${book.category} ${book.textbookCode ?? ""}`
-          .toLocaleLowerCase(locale)
-          .includes(query.trim().toLocaleLowerCase(locale)),
-      ),
-    [books.data, locale, query],
-  );
-  const shelves = useMemo(() => {
-    const byGrade = new Map<number, PublishedEducationBook[]>();
-    filteredBooks.forEach((book) =>
-      byGrade.set(book.grade, [...(byGrade.get(book.grade) ?? []), book]),
-    );
-    return [...byGrade.entries()].sort(([first], [second]) => first - second);
-  }, [filteredBooks]);
   const copy =
     language === "fa"
       ? {
-          eyebrow: "کتابخانه آموزشی",
-          title: "قفسه درس‌ها",
+          eyebrow: "کتابخانه کلاس",
+          title: "قفسه کتاب‌های کلاس",
           description:
-            "کتاب‌های مصوب را بر پایه ببینید و برای هر کلاس، دبیر مسئول آن را مشخص کنید.",
-          search: "جست‌وجوی عنوان یا درس",
-          all: "همه پایه‌ها",
-          chooseClass: "انتخاب کلاس برای اتصال کتاب",
-          chooseTeacher: "انتخاب دبیر مسئول",
-          assign: "اتصال به کلاس",
-          assignment: "اتصال به کلاس و دبیر",
-          openAssignment: "افزودن به قفسه کلاس",
-          existingAssignment: "دبیر این کتاب در کلاس",
-          noBooks: "کتابی برای این جست‌وجو وجود ندارد.",
-          access:
-            "قفسه برای همه کارکنان قابل مشاهده است؛ فقط مدیران کلاس می‌توانند اتصال را تغییر دهند.",
-          classUnavailable: "برای انتخاب کلاس، این نقش باید دسترسی مشاهده کلاس‌ها داشته باشد.",
-          compatible: "کتاب‌های سازگار با پایه و رشته کلاس نمایش داده می‌شوند.",
-          selected: "کتاب انتخاب‌شده",
+            "یک کلاس را انتخاب کنید؛ فقط کتاب‌های همان کلاس را اضافه، ویرایش یا از قفسه حذف کنید.",
+          choose: "۱. کلاس را انتخاب کنید",
+          search: "جست‌وجو در قفسه",
+          add: "افزودن کتاب به این قفسه",
+          empty: "این کلاس هنوز کتابی ندارد.",
+          selectPrompt: "برای دیدن قفسه، ابتدا یک کلاس را انتخاب کنید.",
+          access: "برای مدیریت کتاب‌ها دسترسی لازم را ندارید.",
+          edit: "ویرایش کتاب",
+          remove: "برداشتن از قفسه",
         }
       : {
-          eyebrow: "Curriculum library",
-          title: "Course shelves",
+          eyebrow: "Class library",
+          title: "Class book shelf",
           description:
-            "Browse approved books by grade and set the responsible teacher for each class.",
-          search: "Search a title or subject",
-          all: "All grades",
-          chooseClass: "Choose a class to connect a book",
-          chooseTeacher: "Choose responsible teacher",
-          assign: "Connect to class",
-          assignment: "Class and teacher assignment",
-          openAssignment: "Add to a class shelf",
-          existingAssignment: "Teacher for this book in class",
-          noBooks: "No books match this search.",
-          access: "All staff can browse these shelves; only class managers can change assignments.",
-          classUnavailable: "This role needs class-read access to select a class.",
-          compatible: "Only books that fit the selected class profile are shown.",
-          selected: "Selected book",
+            "Choose a class and add, edit, or remove only the books on that class shelf.",
+          choose: "1. Choose a class",
+          search: "Search this shelf",
+          add: "Add a book to this shelf",
+          empty: "This class has no books yet.",
+          selectPrompt: "Choose a class first to open its shelf.",
+          access: "You do not have permission to manage books.",
+          edit: "Edit book",
+          remove: "Remove from shelf",
         };
-
-  if (books.isLoading)
-    return (
-      <LoadingState label={language === "fa" ? "در حال چیدن قفسه‌ها…" : "Arranging shelves…"} />
-    );
-  if (books.isError)
-    return (
-      <Card className="p-4 text-sm text-red-700">
-        {language === "fa" ? "کتابخانه دریافت نشد." : "The library could not be loaded."}
-      </Card>
-    );
-
-  const openAssignment = () => {
-    if (!selectedBook) return;
+  const openAdd = () => {
+    if (!selectedClass) return;
     modal.open({
-      title: copy.assignment,
-      description: copy.compatible,
-      size: "lg",
-      content: (
-        <ClassBookAssignmentEditor
-          copy={copy}
-          language={language}
-          locale={locale}
-          canReadClasses={canReadClasses}
-          canManageClasses={canManageCatalog}
-          classes={classes.data ?? []}
-          selectedBook={selectedBook}
-          selectedClassId={selectedClassId}
-          onSelectClass={(id) => {
-            setSelectedClassId(id);
-            setTeacherId("");
-          }}
-          classOptions={classOptions.data}
-          classOptionsLoading={classOptions.isLoading}
-          teacherId={teacherId}
-          onSelectTeacher={setTeacherId}
-          bookFitsSelectedClass={bookFitsSelectedClass}
-          assigning={assign.isPending}
-          onAssign={() => assign.mutate()}
-        />
-      ),
-    });
-  };
-  const openCreateBook = () => {
-    modal.open({
-      title: language === "fa" ? "افزودن کتاب به کاتالوگ" : "Add a textbook to the catalog",
+      title: copy.add,
       description:
         language === "fa"
-          ? "کتاب ابتدا به‌صورت پیش‌نویس ذخیره می‌شود و پس از بررسی از کاتالوگ منتشر خواهد شد."
-          : "The textbook is saved as a draft first, then published from the catalog after review.",
+          ? `کتاب مستقیماً به قفسه «${selectedClass.name}» اضافه می‌شود.`
+          : `The book will be added directly to ${selectedClass.name}'s shelf.`,
       size: "lg",
       content: (
-        <BookCreationForm
+        <BookEditor
           language={language}
-          saving={createBook.isPending}
-          organizationId={selectedClass?.organization.id}
+          schoolYear={selectedClass.schoolYear}
+          teachers={classOptions.data?.teachers ?? []}
+          saving={addBook.isPending}
           onCancel={modal.close}
-          onSubmit={(draft) => createBook.mutate(draft)}
+          onSubmit={(draft) => addBook.mutate(draft)}
         />
       ),
     });
   };
-
+  const openEdit = (book: EducationClassBook) =>
+    modal.open({
+      title: copy.edit,
+      description:
+        language === "fa"
+          ? "این تغییر فقط اطلاعات همین کتاب را به‌روزرسانی می‌کند."
+          : "This updates this book’s details.",
+      size: "md",
+      content: (
+        <BookEditor
+          language={language}
+          schoolYear={selectedClass?.schoolYear ?? "1405-1406"}
+          initial={book}
+          saving={editBook.isPending}
+          onCancel={modal.close}
+          onSubmit={(draft) => editBook.mutate({ id: book.bookId, changes: draft })}
+        />
+      ),
+    });
+  const openRemove = (book: EducationClassBook) =>
+    modal.open({
+      title: copy.remove,
+      description:
+        language === "fa"
+          ? `«${book.title}» فقط از قفسه «${selectedClass?.name}» برداشته می‌شود.`
+          : `${book.title} will only be removed from ${selectedClass?.name}'s shelf.`,
+      tone: "danger",
+      content: (
+        <div className="grid gap-4">
+          <p className="text-sm text-slate-600 dark:text-slate-300">
+            {language === "fa"
+              ? "برای ادامه، حذف از قفسه را تأیید کنید."
+              : "Confirm removal from this shelf."}
+          </p>
+          <div className="flex justify-end gap-2">
+            <Button variant="ghost" onClick={modal.close}>
+              {language === "fa" ? "انصراف" : "Cancel"}
+            </Button>
+            <Button
+              variant="danger"
+              loading={removeBook.isPending}
+              onClick={() => removeBook.mutate(book)}
+            >
+              <Trash2 size={16} aria-hidden="true" />
+              {copy.remove}
+            </Button>
+          </div>
+        </div>
+      ),
+    });
+  if (classes.isLoading)
+    return (
+      <LoadingState
+        label={language === "fa" ? "در حال آماده‌سازی کتابخانه…" : "Preparing the library…"}
+      />
+    );
+  if (classes.isError)
+    return (
+      <Card className="p-4 text-sm text-rose-700">
+        {language === "fa" ? "کلاس‌ها دریافت نشدند." : "Classes could not be loaded."}
+      </Card>
+    );
   return (
     <div className="grid gap-4">
       <ManagementPageHeader
@@ -250,42 +251,33 @@ export function BookShelfPage() {
         title={copy.title}
         description={copy.description}
         action={
-          canManageCatalog ? (
-            <Button disabled={!selectedClass} onClick={openCreateBook}>
-              <FilePlus2 size={16} aria-hidden="true" />
-              {language === "fa" ? "افزودن کتاب" : "Add textbook"}
+          selectedClass && canManageBooks ? (
+            <Button onClick={openAdd}>
+              <Plus size={16} aria-hidden="true" />
+              {copy.add}
             </Button>
           ) : undefined
         }
       />
-      <Card className="overflow-hidden border-amber-950/15 bg-[#f7f2e8] p-3 shadow-[0_14px_30px_-24px_rgba(69,38,19,.8)] dark:bg-slate-950">
+      <Card className="overflow-hidden border-amber-950/15 bg-[#f7f2e8] p-3 shadow-[0_16px_34px_-25px_rgba(69,38,19,.85)] dark:bg-slate-950">
         <div className="flex flex-wrap items-center gap-2">
-          {canReadClasses ? (
-            <select
-              className="h-10 min-w-52 rounded-lg border border-amber-950/15 bg-white px-3 text-sm dark:bg-slate-900"
-              value={selectedClassId}
-              onChange={(event) => {
-                setSelectedClassId(event.target.value);
-                setSelectedBook(null);
-                setTeacherId("");
-              }}
-              aria-label={language === "fa" ? "انتخاب قفسه کلاس" : "Choose a class shelf"}
-            >
-              <option value="">
-                {language === "fa"
-                  ? "۱. ابتدا قفسه کلاس را انتخاب کنید"
-                  : "1. Choose a class shelf first"}
-              </option>
-              {(classes.data ?? [])
-                .filter((item) => item.status === "ACTIVE")
-                .map((item) => (
-                  <option key={item.id} value={item.id}>
-                    {item.name} · {gradeLabel(item.gradeId, locale)}
-                  </option>
-                ))}
-            </select>
-          ) : null}
-          <label className="flex h-10 min-w-52 flex-1 items-center gap-2 rounded-lg border border-amber-950/15 bg-white/80 px-3 text-sm dark:bg-slate-900">
+          <select
+            className="h-11 min-w-56 rounded-lg border border-amber-950/15 bg-white px-3 text-sm font-bold text-amber-950 dark:bg-slate-900 dark:text-amber-100"
+            value={selectedClassId}
+            onChange={(event) => setSelectedClassId(event.target.value)}
+            aria-label={copy.choose}
+            disabled={!canReadClasses}
+          >
+            <option value="">{copy.choose}</option>
+            {(classes.data ?? [])
+              .filter((item) => item.status === "ACTIVE")
+              .map((item) => (
+                <option key={item.id} value={item.id}>
+                  {item.name} · {item.schoolYear}
+                </option>
+              ))}
+          </select>
+          <label className="flex h-11 min-w-48 flex-1 items-center gap-2 rounded-lg border border-amber-950/15 bg-white/80 px-3 text-sm dark:bg-slate-900">
             <Search size={16} aria-hidden="true" className="text-slate-500" />
             <input
               className="min-w-0 flex-1 bg-transparent outline-none"
@@ -293,154 +285,272 @@ export function BookShelfPage() {
               onChange={(event) => setQuery(event.target.value)}
               placeholder={copy.search}
               aria-label={copy.search}
+              disabled={!selectedClass}
             />
           </label>
-          <select
-            className="h-10 rounded-lg border border-amber-950/15 bg-white px-3 text-sm dark:bg-slate-900"
-            value={grade}
-            onChange={(event) =>
-              setGrade(event.target.value === "all" ? "all" : Number(event.target.value))
-            }
-          >
-            <option value="all">{copy.all}</option>
-            {Array.from({ length: 12 }, (_, index) => index + 1).map((value) => (
-              <option key={value} value={value}>
-                {gradeLabel(value, locale)}
-              </option>
-            ))}
-          </select>
         </div>
-        <p className="mt-3 text-xs text-amber-950/70 dark:text-slate-400">
-          {selectedClass
-            ? language === "fa"
-              ? `قفسه «${selectedClass.name}» را مدیریت می‌کنید.`
-              : `Managing ${selectedClass.name}'s shelf.`
-            : language === "fa"
-              ? "ابتدا قفسه کلاس را انتخاب کنید."
-              : "Choose a class shelf first."}
-        </p>
-        <div
-          className={`mt-5 grid gap-5 ${selectedClass ? "" : "pointer-events-none opacity-45"}`}
-          aria-disabled={!selectedClass}
-        >
-          {shelves.map(([shelfGrade, shelfBooks]) => (
-            <section key={shelfGrade} aria-label={gradeLabel(shelfGrade, locale)}>
-              <div className="mb-2 flex items-center gap-2 text-sm font-black text-amber-950 dark:text-amber-100">
-                <GraduationCap size={17} aria-hidden="true" /> {gradeLabel(shelfGrade, locale)}{" "}
-                <span className="text-xs font-medium opacity-60">
-                  {shelfBooks.length.toLocaleString(locale)}
-                </span>
-              </div>
-              <div className="relative rounded-lg bg-gradient-to-b from-amber-900/15 via-transparent to-transparent px-3 pt-3">
-                <div
-                  className="flex min-h-40 items-end gap-1 overflow-x-auto pb-5 pt-4"
-                  role="list"
-                >
-                  {shelfBooks.map((book) => {
-                    const selected = selectedBook?.id === book.id;
-                    return (
-                      <button
-                        key={book.id}
-                        type="button"
-                        role="listitem"
-                        onClick={() => setSelectedBook(book)}
-                        className={`group relative flex h-32 w-16 shrink-0 origin-bottom cursor-pointer flex-col justify-between overflow-hidden rounded-t-md border border-white/30 bg-gradient-to-br ${colorFor(book.id)} p-1.5 text-start text-white shadow-[5px_5px_0_rgba(68,40,20,.22)] transition motion-safe:hover:-translate-y-2 motion-safe:hover:rotate-[-1deg] focus-visible:-translate-y-2 focus-visible:outline focus-visible:outline-3 focus-visible:outline-brand ${selected ? "-translate-y-2 ring-3 ring-brand/60" : ""}`}
-                        aria-pressed={selected}
-                        title={book.titleFa}
-                      >
-                        <BookOpen size={14} aria-hidden="true" className="opacity-80" />
-                        <span className="[writing-mode:vertical-rl] text-[11px] font-black leading-tight">
-                          {language === "fa" ? book.titleFa : book.titleEn || book.titleFa}
-                        </span>
-                        <span className="text-[9px] opacity-70">{book.category}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-                <div
-                  className="absolute inset-x-0 bottom-0 h-5 rounded-b bg-gradient-to-b from-[#754522] to-[#3b2213] shadow-[0_-3px_0_rgba(255,255,255,.2)]"
-                  aria-hidden="true"
-                />
-              </div>
-            </section>
-          ))}
-          {!shelves.length ? <EmptyState title={copy.noBooks} /> : null}
-        </div>
-      </Card>
-      <Card className="p-4">
-        <div className="flex items-center gap-2">
-          <UserRoundCheck size={18} className="text-brand" aria-hidden="true" />
-          <h2 className="font-black text-ink">{copy.assignment}</h2>
-        </div>
-        {selectedBook ? (
-          <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">
-            <strong>{copy.selected}:</strong>{" "}
-            {language === "fa"
-              ? selectedBook.titleFa
-              : selectedBook.titleEn || selectedBook.titleFa}
-          </p>
+        {selectedClass ? (
+          <section className="mt-5" aria-label={selectedClass.name}>
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-2 text-sm font-black text-amber-950 dark:text-amber-100">
+              <span className="flex items-center gap-2">
+                <BookOpen size={18} aria-hidden="true" />
+                {selectedClass.name}
+              </span>
+              <span className="rounded-full bg-amber-950/10 px-2.5 py-1 text-xs">
+                {books.length.toLocaleString(profile.locale)} {language === "fa" ? "کتاب" : "books"}
+              </span>
+            </div>
+            {books.length ? (
+              <ClassLibraryScene
+                books={books}
+                language={language}
+                canManage={canManageBooks}
+                performance={performance}
+                onEdit={openEdit}
+                onRemove={openRemove}
+              />
+            ) : (
+              <EmptyState
+                title={
+                  query
+                    ? language === "fa"
+                      ? "کتابی با این جست‌وجو نیست."
+                      : "No books match this search."
+                    : copy.empty
+                }
+                description={
+                  canManageBooks
+                    ? language === "fa"
+                      ? "از «افزودن کتاب به این قفسه» شروع کنید."
+                      : "Start with Add a book to this shelf."
+                    : copy.access
+                }
+              />
+            )}
+          </section>
         ) : (
-          <p className="mt-2 text-sm text-slate-500">
-            {language === "fa" ? "یک کتاب را از قفسه انتخاب کنید." : "Choose a book from a shelf."}
-          </p>
+          <EmptyState title={copy.selectPrompt} />
         )}
-        {canReadClasses ? (
-          <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
-            <p className="text-xs text-slate-500">{copy.access}</p>
-            <Button disabled={!selectedBook} onClick={openAssignment}>
-              <Plus size={16} aria-hidden="true" />
-              {copy.openAssignment}
-            </Button>
-          </div>
-        ) : (
-          <p className="mt-3 text-sm text-slate-500">{copy.classUnavailable}</p>
-        )}
-        {selectedClass && selectedBook ? (
-          <p className="mt-3 text-xs text-slate-500">
-            {copy.existingAssignment}:{" "}
-            {selectedClass.books.find((book) => book.bookId === selectedBook.id)?.teacher.name ??
-              (language === "fa" ? "هنوز تعیین نشده" : "Not assigned yet")}
-          </p>
-        ) : null}
       </Card>
     </div>
   );
 }
 
-function BookCreationForm({
+function ClassLibraryScene({
+  books,
   language,
+  canManage,
+  performance,
+  onEdit,
+  onRemove,
+}: {
+  books: EducationClassBook[];
+  language: "fa" | "en";
+  canManage: boolean;
+  performance: "reduced" | "standard" | "enhanced";
+  onEdit: (book: EducationClassBook) => void;
+  onRemove: (book: EducationClassBook) => void;
+}) {
+  const rows = [0, 1, 2].map((row) => books.filter((_, index) => index % 3 === row));
+  return (
+    <div
+      className="relative isolate min-h-[31rem] overflow-x-auto rounded-xl border border-amber-950/25 bg-[#26140c] shadow-[inset_0_0_0_1px_rgba(255,207,127,.12),0_20px_35px_-28px_rgba(30,12,2,.95)] sm:min-h-[34rem]"
+      style={{
+        backgroundImage:
+          "linear-gradient(rgba(20,8,2,.08), rgba(20,8,2,.2)), url('/library/classic-library-shelf-wall.webp')",
+        backgroundPosition: "center",
+        backgroundSize: "cover",
+      }}
+    >
+      <div className="absolute inset-x-3 top-[15%] flex h-[14%] items-end gap-1 overflow-x-auto px-2 sm:inset-x-[11%]">
+        {rows[0].map((book) => (
+          <BookSpine
+            key={book.id}
+            book={book}
+            language={language}
+            canManage={canManage}
+            performance={performance}
+            onEdit={() => onEdit(book)}
+            onRemove={() => onRemove(book)}
+          />
+        ))}
+      </div>
+      <div className="absolute inset-x-3 top-[34%] flex h-[14%] items-end gap-1 overflow-x-auto px-2 sm:inset-x-[11%]">
+        {rows[1].map((book) => (
+          <BookSpine
+            key={book.id}
+            book={book}
+            language={language}
+            canManage={canManage}
+            performance={performance}
+            onEdit={() => onEdit(book)}
+            onRemove={() => onRemove(book)}
+          />
+        ))}
+      </div>
+      <div className="absolute inset-x-3 top-[53%] flex h-[14%] items-end gap-1 overflow-x-auto px-2 sm:inset-x-[11%]">
+        {rows[2].map((book) => (
+          <BookSpine
+            key={book.id}
+            book={book}
+            language={language}
+            canManage={canManage}
+            performance={performance}
+            onEdit={() => onEdit(book)}
+            onRemove={() => onRemove(book)}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function BookSpine({
+  book,
+  language,
+  canManage,
+  performance,
+  onEdit,
+  onRemove,
+}: {
+  book: EducationClassBook;
+  language: "fa" | "en";
+  canManage: boolean;
+  performance: "reduced" | "standard" | "enhanced";
+  onEdit: () => void;
+  onRemove: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <article
+      role="listitem"
+      className={`group relative flex h-28 w-[3.75rem] shrink-0 origin-bottom sm:h-36 sm:w-[4.5rem] ${performance === "reduced" ? "" : "motion-safe:transition-transform motion-safe:duration-200 motion-safe:hover:-translate-y-3 motion-safe:focus-within:-translate-y-3"}`}
+    >
+      <button
+        type="button"
+        className={`relative flex h-full w-full flex-col justify-between overflow-hidden rounded-t-md border border-white/35 bg-gradient-to-br ${colorFor(book.bookId)} p-2 text-start text-white shadow-[7px_6px_0_rgba(68,40,20,.22)] focus-visible:outline focus-visible:outline-3 focus-visible:outline-brand ${performance === "reduced" ? "" : "[transform-style:preserve-3d] motion-safe:transition-transform motion-safe:duration-300 motion-safe:group-hover:[transform:perspective(680px)_rotateY(-14deg)_rotateX(3deg)]"}`}
+        aria-expanded={open}
+        onClick={() => setOpen((value) => !value)}
+      >
+        {performance === "reduced" ? <BookMark /> : <BookArtwork view="spine" />}
+        <span className="[writing-mode:vertical-rl] text-[12px] font-black leading-tight">
+          {book.title}
+        </span>
+        <span className="text-[8px] font-bold opacity-80" dir="ltr">
+          {book.code}
+        </span>
+        {performance === "enhanced" ? <BookArtwork view="edge" decorative /> : null}
+      </button>
+      {open ? (
+        <div className="absolute inset-x-0 top-full z-10 mt-2 grid min-w-52 gap-2 rounded-xl border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card))] p-3 text-start shadow-xl">
+          {performance === "reduced" ? null : (
+            <div
+              className="grid grid-cols-2 gap-1"
+              aria-label={language === "fa" ? "نماهای کتاب" : "Book views"}
+            >
+              <div className="relative h-24 overflow-hidden rounded-lg bg-[#1b1717]">
+                <BookArtwork view="front" large />
+              </div>
+              <div className="relative h-24 overflow-hidden rounded-lg bg-[#1b1717]">
+                <BookArtwork view="angled" large />
+              </div>
+            </div>
+          )}
+          <strong className="text-sm text-ink">{book.title}</strong>
+          <span className="text-xs text-slate-500">
+            {language === "fa" ? "دبیر:" : "Teacher:"} {book.teacher.name}
+          </span>
+          <span className="text-xs text-slate-500" dir="ltr">
+            {language === "fa" ? "کد:" : "Code:"} {book.code}
+          </span>
+          {canManage ? (
+            <div className="flex gap-1">
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={onEdit}
+                aria-label={language === "fa" ? `ویرایش ${book.title}` : `Edit ${book.title}`}
+              >
+                <Pencil size={14} aria-hidden="true" />
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                className="text-rose-700"
+                onClick={onRemove}
+                aria-label={language === "fa" ? `حذف ${book.title}` : `Remove ${book.title}`}
+              >
+                <Trash2 size={14} aria-hidden="true" />
+              </Button>
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+    </article>
+  );
+}
+
+function BookArtwork({
+  view,
+  decorative = false,
+  large = false,
+}: {
+  view: "front" | "spine" | "edge" | "angled";
+  decorative?: boolean;
+  large?: boolean;
+}) {
+  const position = {
+    front: "0% 0%",
+    spine: "100% 0%",
+    edge: "0% 100%",
+    angled: "100% 100%",
+  }[view];
+  return (
+    <span
+      aria-hidden="true"
+      className={`${large ? "absolute inset-0" : decorative ? "absolute inset-x-0 bottom-0 h-7 opacity-80" : "absolute inset-x-1 top-1 h-9 opacity-90"} pointer-events-none bg-no-repeat`}
+      style={{
+        backgroundImage: "url('/library/classic-book-views.webp')",
+        backgroundPosition: position,
+        backgroundSize: "200% 200%",
+      }}
+    />
+  );
+}
+function BookMark() {
+  return (
+    <svg viewBox="0 0 32 32" className="h-5 w-5 opacity-90" aria-hidden="true">
+      <path
+        fill="currentColor"
+        d="M6 4h16a4 4 0 0 1 4 4v19H9a3 3 0 0 0-3 3V4Zm4 5v3h11V9H10Zm0 7v2h11v-2H10Z"
+      />
+      <path fill="currentColor" fillOpacity=".55" d="M6 30a3 3 0 0 1 3-3h17v2H9a1 1 0 0 0-1 1H6Z" />
+    </svg>
+  );
+}
+function BookEditor({
+  language,
+  schoolYear,
+  teachers = [],
+  initial,
   saving,
-  organizationId,
   onCancel,
   onSubmit,
 }: {
   language: "fa" | "en";
+  schoolYear: string;
+  teachers?: Array<{ id: string; name: string }>;
+  initial?: EducationClassBook;
   saving: boolean;
-  organizationId?: string;
   onCancel: () => void;
-  onSubmit: (draft: EducationBookInput) => void;
+  onSubmit: (draft: EducationBookInput & { teacherId: string }) => void;
 }) {
   const fa = language === "fa";
-  const [draft, setDraft] = useState<EducationBookInput>({
-    id: "",
-    titleFa: "",
-    titleEn: "",
-    schoolYear: fa ? "1405-1406" : "2026-2027",
-    grade: 1,
-    country: "IR",
-    level: "primary",
-    branch: fa ? "مشترک" : "Common",
-    track: fa ? "مشترک" : "Common",
-    category: fa ? "عمومی" : "General",
-    appliesTo: [],
-    notes: "",
-    organizationId,
-  });
+  const [title, setTitle] = useState(initial?.title ?? "");
+  const [code, setCode] = useState(initial?.code ?? "");
+  const [teacherId, setTeacherId] = useState(initial?.teacher.id ?? "");
   const [attempted, setAttempted] = useState(false);
-  const update = (changes: Partial<EducationBookInput>) =>
-    setDraft((current) => ({ ...current, ...changes }));
-  const valid = Boolean(draft.id.trim() && draft.titleFa.trim() && draft.schoolYear.trim());
-
+  const valid = Boolean(title.trim() && (initial || teacherId));
   return (
     <form
       className="grid gap-4"
@@ -448,221 +558,76 @@ function BookCreationForm({
       onSubmit={(event) => {
         event.preventDefault();
         setAttempted(true);
-        if (valid) onSubmit({ ...draft, id: draft.id.trim(), titleFa: draft.titleFa.trim() });
+        if (!valid) return;
+        onSubmit({
+          id: initial?.bookId ?? `class-book-${crypto.randomUUID()}`,
+          titleFa: title.trim(),
+          titleEn: "",
+          textbookCode: code.trim(),
+          schoolYear,
+          grade: 0,
+          country: "IR",
+          level: "class",
+          branch: fa ? "کلاس" : "Class",
+          track: fa ? "کلاس" : "Class",
+          category: "class",
+          appliesTo: [],
+          state: "PUBLISHED",
+          organizationId: undefined,
+          teacherId,
+        });
       }}
     >
-      <section className="grid gap-3 rounded-xl border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-muted))]/60 p-3">
-        <h3 className="text-sm font-black text-ink">{fa ? "۱. مشخصات اصلی" : "1. Core details"}</h3>
-        <div className="grid gap-3 sm:grid-cols-2">
-          <Field
-            label={fa ? "شناسه یکتای کتاب" : "Unique textbook ID"}
-            description={fa ? "پس از ذخیره قابل تغییر نیست." : "It cannot be changed after saving."}
+      <Field label={fa ? "نام کتاب" : "Book title"}>
+        <Input
+          autoFocus
+          value={title}
+          onChange={(event) => setTitle(event.target.value)}
+          aria-invalid={attempted && !title.trim()}
+        />
+      </Field>
+      <Field label={fa ? "کد کتاب" : "Book code"}>
+        <Input dir="ltr" value={code} onChange={(event) => setCode(event.target.value)} />
+      </Field>
+      {!initial ? (
+        <Field
+          label={fa ? "دبیر مسئول" : "Responsible teacher"}
+          description={
+            fa
+              ? "برای اتصال کتاب به کلاس لازم است."
+              : "Required to place the book on this class shelf."
+          }
+        >
+          <select
+            className="h-11 w-full rounded-lg border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card))] px-3 text-sm"
+            value={teacherId}
+            onChange={(event) => setTeacherId(event.target.value)}
+            aria-invalid={attempted && !teacherId}
           >
-            <Input
-              dir="ltr"
-              value={draft.id}
-              onChange={(event) => update({ id: event.target.value })}
-              placeholder="math-7-1405"
-              aria-invalid={attempted && !draft.id.trim()}
-            />
-          </Field>
-          <Field label={fa ? "سال تحصیلی" : "School year"}>
-            <Input
-              dir="ltr"
-              value={draft.schoolYear}
-              onChange={(event) => update({ schoolYear: event.target.value })}
-              aria-invalid={attempted && !draft.schoolYear.trim()}
-            />
-          </Field>
-        </div>
-        <Field label={fa ? "عنوان فارسی" : "Persian title"}>
-          <Input
-            value={draft.titleFa}
-            onChange={(event) => update({ titleFa: event.target.value })}
-            placeholder={fa ? "مثلاً ریاضی پایه هفتم" : "e.g. Mathematics, Grade 7"}
-            aria-invalid={attempted && !draft.titleFa.trim()}
-          />
+            <option value="">{fa ? "انتخاب دبیر" : "Choose a teacher"}</option>
+            {teachers.map((teacher) => (
+              <option key={teacher.id} value={teacher.id}>
+                {teacher.name}
+              </option>
+            ))}
+          </select>
         </Field>
-        {attempted && !valid ? (
-          <p role="alert" className="text-xs font-bold text-rose-600">
-            {fa
-              ? "شناسه، عنوان فارسی و سال تحصیلی را کامل کنید."
-              : "Complete the ID, Persian title, and school year."}
-          </p>
-        ) : null}
-        <Field label={fa ? "عنوان انگلیسی" : "English title"}>
-          <Input
-            dir="ltr"
-            value={draft.titleEn || ""}
-            onChange={(event) => update({ titleEn: event.target.value })}
-          />
-        </Field>
-      </section>
-      <section className="grid gap-3 rounded-xl border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-muted))]/60 p-3">
-        <h3 className="text-sm font-black text-ink">
-          {fa ? "۲. جایگاه آموزشی" : "2. Curriculum placement"}
-        </h3>
-        <div className="grid grid-cols-2 gap-3">
-          <Field label={fa ? "پایه" : "Grade"}>
-            <Input
-              type="number"
-              min={1}
-              max={12}
-              value={draft.grade}
-              onChange={(event) => update({ grade: Number(event.target.value) })}
-            />
-          </Field>
-          <Field label={fa ? "دسته" : "Category"}>
-            <Input
-              value={draft.category}
-              onChange={(event) => update({ category: event.target.value })}
-            />
-          </Field>
-        </div>
-        <div className="grid gap-3 sm:grid-cols-2">
-          <Field label={fa ? "شاخه" : "Branch"}>
-            <Input
-              value={draft.branch}
-              onChange={(event) => update({ branch: event.target.value })}
-            />
-          </Field>
-          <Field label={fa ? "رشته" : "Track"}>
-            <Input
-              value={draft.track}
-              onChange={(event) => update({ track: event.target.value })}
-            />
-          </Field>
-        </div>
-        <Field label={fa ? "کد کتاب (اختیاری)" : "Textbook code (optional)"}>
-          <Input
-            dir="ltr"
-            value={draft.textbookCode || ""}
-            onChange={(event) => update({ textbookCode: event.target.value })}
-          />
-        </Field>
-        <Field label={fa ? "یادداشت داخلی (اختیاری)" : "Internal notes (optional)"}>
-          <Textarea
-            className="min-h-20"
-            value={draft.notes || ""}
-            onChange={(event) => update({ notes: event.target.value })}
-          />
-        </Field>
-      </section>
-      <p className="rounded-lg border border-amber-400/30 bg-amber-50/70 p-3 text-xs leading-5 text-amber-950 dark:bg-amber-950/30 dark:text-amber-100">
-        {fa
-          ? "کتاب ابتدا پیش‌نویس است؛ انتشار آن از کاتالوگ آموزشی و با دسترسی انتشار انجام می‌شود."
-          : "The textbook starts as a draft; publish it from the education catalog with publish access."}
-      </p>
+      ) : null}
+      {attempted && !valid ? (
+        <p role="alert" className="text-xs font-bold text-rose-600">
+          {fa
+            ? "نام کتاب و دبیر مسئول را وارد کنید."
+            : "Enter a book title and responsible teacher."}
+        </p>
+      ) : null}
       <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
         <Button type="button" variant="ghost" onClick={onCancel}>
           {fa ? "انصراف" : "Cancel"}
         </Button>
         <Button type="submit" disabled={saving}>
-          {saving
-            ? fa
-              ? "در حال ذخیره…"
-              : "Saving…"
-            : fa
-              ? "ایجاد پیش‌نویس کتاب"
-              : "Create draft textbook"}
+          {saving ? (fa ? "در حال ذخیره…" : "Saving…") : fa ? "ذخیره روی قفسه" : "Save to shelf"}
         </Button>
       </div>
     </form>
-  );
-}
-
-function ClassBookAssignmentEditor({
-  copy,
-  language,
-  locale,
-  canReadClasses,
-  canManageClasses,
-  classes,
-  selectedBook,
-  selectedClassId,
-  onSelectClass,
-  classOptions,
-  classOptionsLoading,
-  teacherId,
-  onSelectTeacher,
-  bookFitsSelectedClass,
-  assigning,
-  onAssign,
-}: {
-  copy: Record<string, string>;
-  language: "fa" | "en";
-  locale: string;
-  canReadClasses: boolean;
-  canManageClasses: boolean;
-  classes: Awaited<ReturnType<typeof listClasses>>;
-  selectedBook: PublishedEducationBook | null;
-  selectedClassId: string;
-  onSelectClass: (id: string) => void;
-  classOptions: Awaited<ReturnType<typeof getClassOptions>> | undefined;
-  classOptionsLoading: boolean;
-  teacherId: string;
-  onSelectTeacher: (id: string) => void;
-  bookFitsSelectedClass: boolean;
-  assigning: boolean;
-  onAssign: () => void;
-}) {
-  if (!canReadClasses || !selectedBook)
-    return <p className="text-sm text-slate-500">{copy.classUnavailable}</p>;
-  return (
-    <div className="grid gap-4">
-      <p className="rounded-xl bg-brand/5 p-3 text-sm text-slate-700 dark:text-slate-200">
-        <strong>{copy.selected}:</strong>{" "}
-        {language === "fa" ? selectedBook.titleFa : selectedBook.titleEn || selectedBook.titleFa}
-      </p>
-      <label className="grid gap-1 text-xs font-bold text-slate-600 dark:text-slate-300">
-        <span>{copy.chooseClass}</span>
-        <select
-          className="h-11 rounded-lg border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card))] px-3 text-sm"
-          value={selectedClassId}
-          onChange={(event) => onSelectClass(event.target.value)}
-        >
-          <option value="">{language === "fa" ? "کلاس را انتخاب کنید" : "Select a class"}</option>
-          {classes
-            .filter((item) => item.status === "ACTIVE")
-            .map((item) => (
-              <option key={item.id} value={item.id}>
-                {item.name} · {gradeLabel(item.gradeId, locale)}
-              </option>
-            ))}
-        </select>
-      </label>
-      <label className="grid gap-1 text-xs font-bold text-slate-600 dark:text-slate-300">
-        <span>{copy.chooseTeacher}</span>
-        <select
-          className="h-11 rounded-lg border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card))] px-3 text-sm"
-          disabled={!selectedClassId || classOptionsLoading || !canManageClasses}
-          value={teacherId}
-          onChange={(event) => onSelectTeacher(event.target.value)}
-        >
-          <option value="">{copy.chooseTeacher}</option>
-          {(classOptions?.teachers ?? []).map((teacher) => (
-            <option key={teacher.id} value={teacher.id}>
-              {teacher.name}
-            </option>
-          ))}
-        </select>
-      </label>
-      {!bookFitsSelectedClass && selectedClassId ? (
-        <p role="alert" className="text-sm text-amber-700 dark:text-amber-300">
-          {language === "fa"
-            ? "این کتاب با پایه یا رشته این کلاس سازگار نیست."
-            : "This book does not fit the selected class profile."}
-        </p>
-      ) : null}
-      <Button
-        disabled={
-          !selectedClassId || !teacherId || !bookFitsSelectedClass || !canManageClasses || assigning
-        }
-        loading={assigning}
-        onClick={onAssign}
-      >
-        {copy.assign}
-      </Button>
-    </div>
   );
 }

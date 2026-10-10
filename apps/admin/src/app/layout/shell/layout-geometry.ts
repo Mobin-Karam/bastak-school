@@ -12,20 +12,20 @@ export function adminContentOffsetClass({
   const offsets =
     direction === "rtl"
       ? {
-          small: "lg:mr-[4.5rem]",
-          main: "lg:mr-64",
-          compact: "lg:mr-[8.5rem]",
-          expanded: "lg:mr-[8.5rem] xl:mr-[17.5rem]",
-          contextCompact: "lg:mr-80",
-          contextExpanded: "lg:mr-80 xl:mr-[29rem]",
+          small: "min-[1200px]:mr-[4.5rem]",
+          main: "min-[1200px]:mr-64",
+          compact: "min-[1200px]:mr-[8.5rem]",
+          expanded: "min-[1200px]:mr-[8.5rem] min-[1280px]:mr-[17.5rem]",
+          contextCompact: "min-[1200px]:mr-80",
+          contextExpanded: "min-[1200px]:mr-80 min-[1280px]:mr-[29rem]",
         }
       : {
-          small: "lg:ml-[4.5rem]",
-          main: "lg:ml-64",
-          compact: "lg:ml-[8.5rem]",
-          expanded: "lg:ml-[8.5rem] xl:ml-[17.5rem]",
-          contextCompact: "lg:ml-80",
-          contextExpanded: "lg:ml-80 xl:ml-[29rem]",
+          small: "min-[1200px]:ml-[4.5rem]",
+          main: "min-[1200px]:ml-64",
+          compact: "min-[1200px]:ml-[8.5rem]",
+          expanded: "min-[1200px]:ml-[8.5rem] min-[1280px]:ml-[17.5rem]",
+          contextCompact: "min-[1200px]:ml-80",
+          contextExpanded: "min-[1200px]:ml-80 min-[1280px]:ml-[29rem]",
         };
   if (!showContextRail) return mainCollapsed ? offsets.small : offsets.main;
 

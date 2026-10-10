@@ -57,6 +57,41 @@ const sharedActions: Record<string, RoleQuickAction> = {
     capability: "students.read",
     icon: Users,
   },
+  attendance: {
+    to: "/admin/attendance",
+    label: "حضور و غیاب",
+    description: "حضور کلاس، گروه و خوابگاه را برای امروز ثبت و بررسی کنید",
+    capability: "attendance.read",
+    icon: ClipboardCheck,
+  },
+  classes: {
+    to: "/admin/classes",
+    label: "کلاس‌ها",
+    description: "کلاس‌ها، دبیرها و فهرست دانش‌آموزان را مدیریت کنید",
+    capability: "classes.read",
+    icon: GraduationCap,
+  },
+  dormitory: {
+    to: "/admin/dormitory",
+    label: "خوابگاه",
+    description: "اتاق‌ها، تخصیص‌ها و وضعیت شبانه را بررسی کنید",
+    capability: "dormitory.read",
+    icon: Building2,
+  },
+  registration: {
+    to: "/admin/registration",
+    label: "ثبت‌نام و پرونده",
+    description: "پرونده‌ها و مراحل ثبت‌نام نیازمند رسیدگی را مرور کنید",
+    capability: "registration.read",
+    icon: UserPlus,
+  },
+  leaveRequests: {
+    to: "/admin/leave-requests",
+    label: "درخواست‌های مرخصی",
+    description: "درخواست‌های مرخصی دانش‌آموزان را بررسی و رسیدگی کنید",
+    capability: "leave.read",
+    icon: ClipboardCheck,
+  },
   planner: {
     to: "/admin/planner",
     label: "برنامه‌ها",
@@ -231,6 +266,26 @@ const englishActionCopy: Record<string, Pick<RoleQuickAction, "label" | "descrip
     description: "Manage classes, subjects, and learning content",
   },
   "/admin/students": { label: "Students", description: "Review students and their support status" },
+  "/admin/attendance": {
+    label: "Attendance",
+    description: "Record and review today's class, group, and dormitory attendance",
+  },
+  "/admin/classes": {
+    label: "Classes",
+    description: "Manage classes, teachers, and student rosters",
+  },
+  "/admin/dormitory": {
+    label: "Dormitory",
+    description: "Review rooms, assignments, and overnight status",
+  },
+  "/admin/registration": {
+    label: "Registration and records",
+    description: "Review student records and registration steps requiring attention",
+  },
+  "/admin/leave-requests": {
+    label: "Leave requests",
+    description: "Review and resolve student leave requests",
+  },
   "/admin/planner": { label: "Plans", description: "Manage study plans and daily follow-up" },
   "/admin/learning": {
     label: "Learning and review",
@@ -316,6 +371,44 @@ const englishActionCopy: Record<string, Pick<RoleQuickAction, "label" | "descrip
 };
 
 const roleActions: Partial<Record<RoleCode, RoleQuickAction[]>> = {
+  PRINCIPAL: [
+    sharedActions.attendance,
+    sharedActions.registration,
+    sharedActions.students,
+    sharedActions.classes,
+    sharedActions.schedule,
+    sharedActions.dormitory,
+    sharedActions.leaveRequests,
+    sharedActions.reports,
+  ],
+  SCHOOL_SUPERVISOR: [
+    sharedActions.attendance,
+    sharedActions.dormitory,
+    sharedActions.students,
+    sharedActions.classes,
+    sharedActions.schedule,
+    sharedActions.leaveRequests,
+  ],
+  DISCIPLINARIAN: [
+    sharedActions.attendance,
+    sharedActions.dormitory,
+    sharedActions.students,
+    sharedActions.leaveRequests,
+  ],
+  COUNSELOR: [sharedActions.students, sharedActions.schedule, sharedActions.attendance],
+  RELIGIOUS_EDUCATION_MANAGER: [
+    sharedActions.attendance,
+    sharedActions.classes,
+    sharedActions.schedule,
+    sharedActions.students,
+  ],
+  GOVERNMENT_EDUCATION_MANAGER: [
+    sharedActions.attendance,
+    sharedActions.classes,
+    sharedActions.schedule,
+    sharedActions.students,
+  ],
+  STUDENT_AFFAIRS_MENTOR: [sharedActions.students, sharedActions.attendance, sharedActions.schedule],
   STUDENT: [sharedActions.schedule, sharedActions.myAttendance, sharedActions.settings],
   GUARDIAN: [
     sharedActions.family,

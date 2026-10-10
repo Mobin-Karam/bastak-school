@@ -24,6 +24,7 @@ import { ensureOrganizationChat } from "../chat";
 import { normalizeIranianMobile } from "../../common/utils/phone-number";
 import {
   assertPlatformRolesAreUnscoped,
+  assertRoleCodesAssignableByActor,
   assertRoleCodesCompatibleWithOrganization,
 } from "../organizations/organization-role-policy";
 
@@ -55,6 +56,7 @@ export class UsersService {
         "ROLE_ESCALATION",
         "تخصیص این نقش مجاز نیست.",
       );
+    assertRoleCodesAssignableByActor(actor, roles);
     if (roles.includes("PLATFORM_ADMIN"))
       await this.requirePlatformOwner(actor);
   }

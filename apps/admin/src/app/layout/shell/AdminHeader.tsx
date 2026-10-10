@@ -45,11 +45,12 @@ export function AdminHeader({
             <div className="min-w-0 flex-1">
               <div className="flex flex-row gap-6">
                 <strong className="block truncate text-sm sm:text-base">{current.title}</strong>
-                <nav
-                  aria-label={copy.pageLocation}
-                  className="mb-0.5 hidden min-w-0 items-center gap-1 text-[10px] text-slate-400 md:flex"
-                >
-                  {breadcrumbs.map((item, index) => {
+                {breadcrumbs.length > 1 ? (
+                  <nav
+                    aria-label={copy.pageLocation}
+                    className="mb-0.5 hidden min-w-0 items-center gap-1 text-[10px] text-slate-400 md:flex"
+                  >
+                    {breadcrumbs.map((item, index) => {
                     const destination = resolveAdminNavigation(item.path);
                     return (
                       <span
@@ -78,8 +79,9 @@ export function AdminHeader({
                         )}
                       </span>
                     );
-                  })}
-                </nav>
+                    })}
+                  </nav>
+                ) : null}
               </div>
               <p className="hidden truncate text-[11px] text-slate-500 dark:text-slate-400 xl:block">
                 {current.description}

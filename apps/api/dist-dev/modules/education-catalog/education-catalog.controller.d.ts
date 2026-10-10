@@ -120,6 +120,19 @@ export declare class EducationCatalogController {
         ok: boolean;
         data: import("../../database/entities").EducationBook[];
     }>;
+    exportBooks(user: AuthenticatedUser): Promise<{
+        ok: boolean;
+        data: {
+            id: string;
+            schoolYear: string;
+            titleFa: string;
+            titleEn: string;
+            category: string;
+            textbookCode: string;
+            notes: string;
+            organizationId: string;
+        }[];
+    }>;
     impact(user: AuthenticatedUser, id: string): Promise<{
         ok: boolean;
         data: {

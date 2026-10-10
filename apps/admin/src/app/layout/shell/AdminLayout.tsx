@@ -1,35 +1,16 @@
-import { AlertTriangle } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Outlet, useLocation } from "react-router-dom";
-import { useAdminNotifications } from "../../../features/notifications";
+import { Outlet, useNavigate } from "react-router-dom";
 import { useAuth } from "../../../features/auth";
 import { AdminCommandPalette } from "../command-palette/AdminCommandPalette";
-import { AdminContextSidebar } from "../navigation/AdminContextSidebar";
-import { AdminHeader } from "./AdminHeader";
-import { AdminMainSidebar } from "../navigation/AdminMainSidebar";
-import { AdminMobileBottomNav } from "../navigation/AdminMobileNavigation";
-import {
-  localizedAdminBreadcrumbs,
-  localizedAdminCurrentNavigation,
-  localizedNavigationForCapabilities,
-  resolveAdminNavigation,
-} from "../navigation/admin-navigation";
-import { adminContentOffsetClass, shouldAutoCollapseMainRail } from "./layout-geometry";
-import { usePersistentCollapse } from "../layout-storage";
-import { roleLabel } from "../../../shared/lib/role-ui";
-import { useLocale } from "../../../shared/ui/locale";
-import { useDevicePerformance } from "./use-device-performance";
-
-function readSelectedStudentId(search: string) {
-  const urlValue = new URLSearchParams(search).get("studentId");
-  if (urlValue) return urlValue;
-  if (typeof window === "undefined") return "";
-  try {
-    return window.localStorage.getItem("admin-selected-student-id") || "";
-  } catch {
-    return "";
-  }
-}
+import { adminContentOffsetClass } from "./layout-geometry";
+import { api } from "../../../shared/api/api";
+import { useModal } from "../../../shared/ui/modal";
+import { Button } from "../../../shared/ui/ui";
+import { AdminShellChrome } from "./AdminShellChrome";
+import { SharedPageViewport } from "./SharedPageViewport";
+import { useAdminShellModel } from "./use-admin-shell-model";
+import { useViewportShell } from "./viewport-shell";
 
 function isEditableTarget(target: EventTarget | null) {
   if (!(target instanceof HTMLElement)) return false;
@@ -41,45 +22,20 @@ function isEditableTarget(target: EventTarget | null) {
 }
 
 export function AdminLayout() {
-  const auth = useAuth();
-  const { language, profile } = useLocale();
-  const notificationState = useAdminNotifications();
-  const location = useLocation();
-  const [mainCollapsed, setMainCollapsed] = usePersistentCollapse("admin-main-sidebar-collapsed");
-  const [contextCollapsed, setContextCollapsed] = usePersistentCollapse(
-    "admin-context-sidebar-collapsed",
-  );
+  const model = useAdminShellModel();
+  const shell = useViewportShell();
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
-  const wasContextRailVisible = useRef(false);
-  const performance = useDevicePerformance();
-
-  const sourceCurrent = resolveAdminNavigation(location.pathname, auth.activeRole);
-  const current = localizedAdminCurrentNavigation(location.pathname, language, auth.activeRole);
-  const breadcrumbs = localizedAdminBreadcrumbs(location.pathname, language, auth.activeRole);
-  const contextual =
-    localizedNavigationForCapabilities(auth.capabilities, auth.activeRole, language).find(
-      (group) => group.sectionKey === sourceCurrent.section,
-    )?.items || [];
-  const showContextRail = contextual.length > 1;
-  const selectedStudentId = readSelectedStudentId(location.search);
-
-  // Entering a multi-page section reveals the adjacent contextual rail. Collapse
-  // the primary (right) rail once to preserve workspace width; users may reopen it.
-  useEffect(() => {
-    if (shouldAutoCollapseMainRail(wasContextRailVisible.current, showContextRail))
-      setMainCollapsed(true);
-    wasContextRailVisible.current = showContextRail;
-  }, [showContextRail, setMainCollapsed]);
 
   const openCommandPalette = useCallback(() => setCommandPaletteOpen(true), []);
   const closeCommandPalette = useCallback(() => setCommandPaletteOpen(false), []);
 
   useEffect(() => {
-    document.documentElement.dataset.adminMotion = performance === "reduced" ? "reduce" : "full";
+    document.documentElement.dataset.adminMotion =
+      model.performance === "reduced" ? "reduce" : "full";
     return () => {
       delete document.documentElement.dataset.adminMotion;
     };
-  }, [performance]);
+  }, [model.performance]);
 
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
@@ -97,119 +53,125 @@ export function AdminLayout() {
   return (
     <div
       className="admin-role-shell h-dvh overflow-hidden bg-paper text-ink"
-      data-role={auth.activeRole ?? "DEFAULT"}
-      data-performance={performance}
-      dir={profile.direction}
+      data-role={model.auth.activeRole ?? "DEFAULT"}
+      data-performance={model.performance}
+      data-shell={shell}
+      dir={model.direction}
     >
-      <AdminMainSidebar
-        collapsed={mainCollapsed}
-        currentSection={current.section}
-        currentPath={current.path}
-        selectedStudentId={selectedStudentId}
-        onToggle={() => setMainCollapsed((value) => !value)}
-        onOpenSearch={openCommandPalette}
-        direction={profile.direction}
-      />
-
-      {showContextRail ? (
-        <AdminContextSidebar
-          collapsed={contextCollapsed}
-          mainCollapsed={mainCollapsed}
-          current={current}
-          sourceSection={sourceCurrent.section}
-          items={contextual}
-          unreadNotifications={notificationState.unread}
-          selectedStudentId={selectedStudentId}
-          onToggle={() => setContextCollapsed((value) => !value)}
-          direction={profile.direction}
-        />
-      ) : null}
-
-      <div
-        className={`${adminContentOffsetClass({
-          showContextRail,
-          mainCollapsed,
-          contextCollapsed,
-          direction: profile.direction,
-        })} flex h-dvh min-w-0 flex-col overflow-hidden transition-[margin] duration-200 motion-reduce:transition-none`}
+      <PrincipalLeaveRequestAlert />
+      <AdminShellChrome shell={shell} model={model} onOpenCommandPalette={openCommandPalette} />
+      <SharedPageViewport
+        contentOffsetClassName={
+          shell === "desktop"
+            ? adminContentOffsetClass({
+                showContextRail: model.showContextRail,
+                mainCollapsed: model.mainCollapsed,
+                contextCollapsed: model.contextCollapsed,
+                direction: model.direction,
+              })
+            : shell === "tablet"
+              ? model.mainCollapsed
+                ? "md:ms-[4.5rem]"
+                : "md:ms-64"
+              : undefined
+        }
       >
-        <div className="admin-mobile-masthead relative z-30 flex min-h-[calc(3.5rem+env(safe-area-inset-top))] shrink-0 items-end justify-center overflow-hidden bg-paper pb-2 pt-[env(safe-area-inset-top)] lg:hidden">
-          <img
-            src="/right-left-angel.png"
-            width={136}
-            height={46}
-            alt=""
-            aria-hidden="true"
-            decoding="async"
-            className="pointer-events-none absolute end-[calc(50%+3.5rem)] bottom-1 h-9 w-[8.5rem] max-w-[31vw] object-contain object-right"
-          />
-          <img
-            src="/logo-bastak.webp"
-            width={120}
-            height={40}
-            alt="زانین"
-            decoding="async"
-            className="relative z-10 h-10 w-auto max-w-[min(10rem,65vw)] object-contain"
-          />
-          <img
-            src="/right-left-angel.png"
-            width={136}
-            height={46}
-            alt=""
-            aria-hidden="true"
-            decoding="async"
-            className="pointer-events-none absolute start-[calc(50%+3.5rem)] bottom-1 h-9 w-[8.5rem] max-w-[31vw] scale-x-[-1] object-contain object-right"
-          />
-        </div>
-        {auth.activeRole === "PLATFORM_ADMIN" ? (
-          <section
-            className="mx-3 mt-2 flex shrink-0 items-start gap-2 rounded-lg border border-amber-300/80 bg-amber-50 px-3 py-2.5 text-xs leading-5 text-amber-950 dark:border-amber-700 dark:bg-amber-950/35 dark:text-amber-100 lg:hidden"
-            role="status"
-            aria-label="هشدار استفاده از مدیریت پلتفرم در موبایل"
-          >
-            <AlertTriangle className="mt-0.5 shrink-0" size={16} aria-hidden="true" />
-            <p>
-              مدیریت پلتفرم برای صفحه‌نمایش بزرگ طراحی شده است. می‌توانید ادامه دهید، اما جدول‌ها و
-              ابزارهای مدیریتی کامل‌تر در دسکتاپ در دسترس‌اند.
-            </p>
-          </section>
-        ) : null}
-        <div className="hidden shrink-0 lg:block">
-          <AdminHeader
-            current={current}
-            breadcrumbs={breadcrumbs}
-            selectedStudentId={selectedStudentId}
-            sticky={false}
-            role={roleLabel(auth.activeRole, language)}
-            organization={auth.context?.activeOrganization?.name}
-            multipleRoles={
-              (auth.context?.roles.filter((role) => role !== "STUDENT").length || 0) > 1
-            }
-            showStudent={sourceCurrent.section === "آموزش"}
-            performance={performance}
-          />
-        </div>
-
-        <div className="scroll-reveal min-h-0 flex-1 overflow-y-auto overscroll-contain">
-          <main className="w-full min-w-0 px-3 py-4 pb-[calc(5rem+env(safe-area-inset-bottom))] sm:px-5 sm:py-5 lg:px-6 lg:pb-6 xl:px-8">
-            <div className="admin-page-shell mx-auto w-full max-w-[1600px]">
-              <Outlet />
-            </div>
-          </main>
-        </div>
-      </div>
-
-      <AdminMobileBottomNav
-        current={current}
-        selectedStudentId={selectedStudentId}
-        performance={performance}
-      />
+        <Outlet />
+      </SharedPageViewport>
       <AdminCommandPalette
         open={commandPaletteOpen}
-        current={current}
-        selectedStudentId={selectedStudentId}
+        current={model.current}
+        selectedStudentId={model.selectedStudentId}
         onClose={closeCommandPalette}
       />
     </div>
   );
+}
+
+type PendingLeaveRequest = {
+  id: string;
+  studentName: string | null;
+  organizationName: string;
+  leaveType: string;
+  startDate: string;
+  endDate: string;
+  reason: string;
+  note: string;
+  status: "PENDING" | string;
+};
+
+function PrincipalLeaveRequestAlert() {
+  const auth = useAuth();
+  const modal = useModal();
+  const navigate = useNavigate();
+  const shown = useRef<string | null>(null);
+  const enabled = auth.activeRole === "PRINCIPAL" && auth.can("leave.read");
+  const requests = useQuery({
+    queryKey: ["leave-requests", "startup-alert", auth.context?.activeOrganization?.id ?? "all"],
+    queryFn: () => api.get<PendingLeaveRequest[]>("/leave-requests"),
+    enabled,
+    staleTime: 30_000,
+  });
+
+  useEffect(() => {
+    const latest = requests.data?.find((request) => request.status === "PENDING");
+    if (!latest || shown.current === latest.id) return;
+    shown.current = latest.id;
+    modal.open({
+      title: "درخواست مرخصی جدید",
+      description: "پیش از ورود به میز کار، آخرین درخواست در انتظار بررسی را ببینید.",
+      size: "full",
+      content: (
+        <section className="grid h-full content-center gap-6 p-6 text-center" dir="rtl">
+          <div className="mx-auto grid w-full max-w-2xl gap-4 rounded-2xl bg-[rgb(var(--surface-muted))] p-5 text-right">
+            <div>
+              <p className="text-xs font-bold text-brand">{latest.organizationName}</p>
+              <h2 className="mt-1 text-xl font-black text-ink">
+                {latest.studentName || "دانش‌آموز"}
+              </h2>
+            </div>
+            <dl className="grid gap-3 text-sm">
+              <div>
+                <dt className="text-slate-500">نوع درخواست</dt>
+                <dd className="mt-1 font-bold text-ink">
+                  {latest.leaveType === "SCHOOL_EXIT" ? "خروج از مدرسه" : "مرخصی"}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-slate-500">بازه زمانی</dt>
+                <dd className="mt-1 font-bold text-ink">
+                  {new Date(latest.startDate).toLocaleDateString("fa-IR")} تا{" "}
+                  {new Date(latest.endDate).toLocaleDateString("fa-IR")}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-slate-500">دلیل</dt>
+                <dd className="mt-1 leading-6 text-ink">{latest.reason}</dd>
+              </div>
+              {latest.note ? (
+                <div>
+                  <dt className="text-slate-500">یادداشت</dt>
+                  <dd className="mt-1 leading-6 text-ink">{latest.note}</dd>
+                </div>
+              ) : null}
+            </dl>
+          </div>
+          <div className="flex flex-col-reverse justify-center gap-2 sm:flex-row">
+            <Button variant="ghost" onClick={modal.close}>
+              بستن و ورود به برنامه
+            </Button>
+            <Button
+              onClick={() => {
+                modal.close();
+                navigate("/admin/leave-requests");
+              }}
+            >
+              مشاهده و مدیریت بیشتر
+            </Button>
+          </div>
+        </section>
+      ),
+    });
+  }, [modal, navigate, requests.data]);
+  return null;
 }

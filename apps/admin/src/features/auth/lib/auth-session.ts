@@ -24,16 +24,11 @@ export const ADMIN_PORTAL_ROLES = [
   "COUNSELOR",
 ] as const satisfies readonly RoleCode[];
 
-/** The school experiences released in the current Zanin Admin version. */
-export const SUPPORTED_ADMIN_PORTAL_ROLES = [
-  "PLATFORM_ADMIN",
-  "PRINCIPAL",
-  "SCHOOL_SUPERVISOR",
-  "TEACHER",
-  "STUDENT",
-  "GUARDIAN",
-  // "DISCIPLINARIAN"
-] as const satisfies readonly RoleCode[];
+/**
+ * Every role returned by AccountContext can enter the shared Admin shell.
+ * Capabilities and CapabilityRoute still decide which routes and actions are usable.
+ */
+export const SUPPORTED_ADMIN_PORTAL_ROLES = ADMIN_PORTAL_ROLES;
 
 export function isSupportedAdminPortalRole(role?: RoleCode | null) {
   return Boolean(

@@ -1,21 +1,24 @@
 import { cleanup, render, screen } from "@testing-library/react";
 import { act } from "react";
 import { afterEach, describe, expect, it } from "vitest";
-import { gooeyToast } from "goey-toast";
+import { toast } from "sonner";
+import { ThemeProvider } from "../theme/theme";
 import { LocaleProvider } from "./locale";
 import { AppToaster, notify, notifications } from "./notifications";
 
 function renderToaster() {
   return render(
-    <LocaleProvider>
-      <AppToaster />
-    </LocaleProvider>,
+    <ThemeProvider>
+      <LocaleProvider>
+        <AppToaster />
+      </LocaleProvider>
+    </ThemeProvider>,
   );
 }
 
-describe("Gooey notification adapter", () => {
+describe("Sonner notification adapter", () => {
   afterEach(() => {
-    gooeyToast.dismiss();
+    toast.dismiss();
     localStorage.removeItem("moshaver-admin-location");
     cleanup();
   });
@@ -26,7 +29,10 @@ describe("Gooey notification adapter", () => {
       notify("ذخیره شد", "success");
     });
     expect(await screen.findByText("ذخیره شد")).toBeInTheDocument();
-    expect(document.querySelector("[data-sonner-toaster]")).toHaveAttribute("dir", "rtl");
+    const toaster = document.querySelector("[data-sonner-toaster]");
+    expect(toaster).toHaveAttribute("dir", "rtl");
+    expect(toaster).toHaveAttribute("data-y-position", "bottom");
+    expect(toaster).toHaveAttribute("data-x-position", "left");
   });
 
   it("uses an LTR notification surface for the international workspace", async () => {

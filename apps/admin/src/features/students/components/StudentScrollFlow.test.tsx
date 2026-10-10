@@ -53,7 +53,7 @@ describe("student collection scroll flow", () => {
     expect(container.querySelector(".collection-toolbar")?.parentElement).toHaveClass("shrink-0");
     expect(
       screen.getByRole("region", { name: /فهرست دانش‌آموزان، جدول قابل پیمایش افقی/ }),
-    ).toHaveClass("xl:overflow-y-auto", "xl:overscroll-contain");
+    ).toHaveClass("min-[1200px]:overflow-y-auto", "min-[1200px]:overscroll-y-contain");
     expect(screen.getByText("تعداد در صفحه")).toBeInTheDocument();
     expect(screen.getByLabelText("فیلتر سریع دانش‌آموزان")).toHaveTextContent("فعال");
     expect(screen.queryByLabelText("انتخاب ردیف student-1")).not.toBeInTheDocument();
@@ -76,7 +76,10 @@ describe("student collection scroll flow", () => {
 
     const tabs = screen.getByRole("navigation", { name: "بخش‌های پرونده دانش‌آموز" });
     expect(tabs).toHaveClass("shrink-0");
-    expect(tabs.nextElementSibling).toHaveClass("xl:flex-1", "xl:overflow-y-auto");
+    expect(tabs.nextElementSibling).toHaveClass(
+      "min-[1200px]:flex-1",
+      "min-[1200px]:overflow-y-auto",
+    );
     expect(screen.getByText("محتوای بلند پرونده")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "دانش‌آموز جدید" })).toBeInTheDocument();
   });

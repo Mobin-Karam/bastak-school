@@ -188,8 +188,8 @@ export const locations: LocationProfile[] = [
     id: "international",
     label: "بین‌المللی",
     locale: "en-US",
-    calendar: "gregory",
-    timeZone: "UTC",
+    calendar: "persian",
+    timeZone: "Asia/Tehran",
     direction: "ltr",
   },
 ];

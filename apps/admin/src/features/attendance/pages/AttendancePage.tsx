@@ -4,21 +4,30 @@ import {
   BookOpenCheck,
   Building2,
   Check,
-  CheckCheck,
-  ChevronDown,
   Clock3,
   History,
   LoaderCircle,
   RotateCcw,
-  Search,
   ShieldAlert,
   UserRoundCheck,
-  UsersRound,
   X,
 } from "lucide-react";
 import { useSearchParams } from "react-router-dom";
 import { Card } from "../../../shared/ui/ui";
 import { api } from "../../../shared/api/api";
+import { notify } from "../../../shared/ui/notifications";
+import { DatePicker } from "../../../shared/ui/date-picker";
+import { useAuth } from "../../auth";
+import { AttendanceReviewQueue } from "../components/AttendanceReviewQueue";
+import { AttendanceRosterView } from "../views/AttendanceRosterView";
+import {
+  attendanceStatusMeta as statusMeta,
+  attendanceStatuses as statuses,
+  type AttendanceFilter,
+  type AttendanceParticipant,
+  type AttendanceStatus,
+  type MarkedAttendanceStatus,
+} from "../model/attendance-workflow";
 import {
   bulkMarkAttendance,
   contextLabelMap,
@@ -29,42 +38,17 @@ import {
   type AttendanceContextType,
 } from "../api/attendance.api";
 
-type MarkedStatus = "present" | "absent" | "late" | "excused";
-type AttendanceStatus = "unmarked" | MarkedStatus;
-type Participant = { id: string; name: string; studentNumber: string; status: AttendanceStatus };
-type Filter = "all" | AttendanceStatus;
+type MarkedStatus = MarkedAttendanceStatus;
+type Participant = AttendanceParticipant;
+type Filter = AttendanceFilter;
 type Notice = { kind: "success" | "warning" | "error" | "info"; text: string };
 
 const contextOrder: AttendanceContextType[] = ["class", "class_group", "dorm"];
 const contextIcon = { class: BookOpenCheck, class_group: UserRoundCheck, dorm: Building2 } as const;
-const statuses: MarkedStatus[] = ["present", "absent", "late", "excused"];
-const statusMeta: Record<MarkedStatus, { label: string; active: string; dot: string }> = {
-  present: {
-    label: "حاضر",
-    active:
-      "border-emerald-500 bg-emerald-50 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300",
-    dot: "bg-emerald-500",
-  },
-  absent: {
-    label: "غایب",
-    active: "border-rose-500 bg-rose-50 text-rose-800 dark:bg-rose-950/40 dark:text-rose-300",
-    dot: "bg-rose-500",
-  },
-  late: {
-    label: "تأخیر",
-    active: "border-amber-500 bg-amber-50 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300",
-    dot: "bg-amber-500",
-  },
-  excused: {
-    label: "موجه",
-    active: "border-sky-500 bg-sky-50 text-sky-800 dark:bg-sky-950/40 dark:text-sky-300",
-    dot: "bg-sky-500",
-  },
-};
 const shell = "border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card))]";
 const muted = "text-slate-500 dark:text-slate-400";
 const buttonBase =
-  "inline-flex min-h-11 items-center justify-center gap-2 rounded-xl px-4 text-sm font-bold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 disabled:cursor-not-allowed disabled:opacity-50";
+  "inline-flex min-h-12 items-center justify-center gap-2 rounded-xl px-4 text-sm font-bold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 disabled:cursor-not-allowed disabled:opacity-50";
 
 function contextTargetLabel(type: AttendanceContextType) {
   if (type === "dorm") return "اتاق خوابگاه";
@@ -87,6 +71,7 @@ function errorText(error: unknown, fallback: string) {
 }
 
 export function AttendancePage() {
+  const auth = useAuth();
   const [searchParams] = useSearchParams();
   const requestedId = searchParams.get("contextId");
   const requestedType = searchParams.get("contextType");
@@ -116,6 +101,17 @@ export function AttendancePage() {
     () => (chosenType ? contexts.filter((c) => c.contextType === chosenType) : []),
     [contexts, chosenType],
   );
+  const dormBuildings = useMemo(() => {
+    if (chosenType !== "dorm") return [] as Array<[string, AttendanceContextOption[]]>;
+    const grouped = visibleContexts.reduce<Record<string, AttendanceContextOption[]>>(
+      (all, room) => {
+        (all[room.building || "ساختمان اصلی"] ||= []).push(room);
+        return all;
+      },
+      {},
+    );
+    return Object.entries(grouped);
+  }, [chosenType, visibleContexts]);
   const dirty = participants.some((p) => p.status !== "unmarked");
   dirtyRef.current = dirty;
   savingRef.current = saving;
@@ -146,11 +142,13 @@ export function AttendancePage() {
         }
       })
       .catch((error) => {
-        if (active)
+        if (active) {
+          notify(errorText(error, "دریافت اطلاعات حضور و غیاب انجام نشد."), "error");
           setNotice({
             kind: "error",
             text: errorText(error, "دریافت اطلاعات حضور و غیاب انجام نشد."),
           });
+        }
       })
       .finally(() => {
         if (active) setLoadingContexts(false);
@@ -186,8 +184,10 @@ export function AttendancePage() {
         );
       })
       .catch((error) => {
-        if (requestId.current === currentRequest)
+        if (requestId.current === currentRequest) {
+          notify(errorText(error, "فهرست طلبه‌ها دریافت نشد."), "error");
           setNotice({ kind: "error", text: errorText(error, "فهرست طلبه‌ها دریافت نشد.") });
+        }
       })
       .finally(() => {
         if (requestId.current === currentRequest) setLoadingPeople(false);
@@ -336,8 +336,10 @@ export function AttendancePage() {
         kind: "success",
         text: `وضعیت ${entries.length} نفر با موفقیت ذخیره شد. برای ویرایش سوابق، امکان دریافت وضعیت ذخیره‌شده از API لازم است.`,
       });
+      notify(`حضور و غیاب ${entries.length.toLocaleString("fa-IR")} نفر ثبت شد.`, "success");
       void refreshHistory();
     } catch (error) {
+      notify(errorText(error, "ثبت حضور و غیاب انجام نشد. دوباره تلاش کنید."), "error");
       setNotice({
         kind: "error",
         text: errorText(error, "ثبت حضور و غیاب انجام نشد. دوباره تلاش کنید."),
@@ -352,6 +354,7 @@ export function AttendancePage() {
       dir="rtl"
       className="mx-auto w-full max-w-7xl space-y-4 pb-[calc(11.5rem+env(safe-area-inset-bottom))] lg:pb-8"
     >
+      {auth.can("attendance.review") ? <AttendanceReviewQueue /> : null}
       {notice && (
         <div
           role={notice.kind === "error" || notice.kind === "warning" ? "alert" : "status"}
@@ -418,38 +421,107 @@ export function AttendancePage() {
           </div>
         ) : (
           <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(160px,220px)]">
-            <label className="block min-w-0 text-sm font-semibold">
+            <div className="min-w-0 text-sm font-semibold">
               <span className="mb-1.5 block">
                 مرحله ۲: انتخاب {contextTargetLabel(contextType)}
               </span>
-              <span className="relative block">
-                <select
-                  className={`h-12 w-full appearance-none rounded-xl ${shell} px-3 pl-10 outline-none focus:ring-2 focus:ring-blue-500`}
-                  value={contextId}
-                  disabled={saving || loadingContexts || !visibleContexts.length}
-                  onChange={(e) => chooseContext(contextType, e.target.value)}
+              {contextType === "dorm" ? (
+                <div
+                  className="max-h-[20rem] space-y-2 overflow-y-auto rounded-2xl border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-muted))] p-2"
+                  aria-label="ساختمان‌ها، طبقات و اتاق‌ها"
                 >
-                  {!visibleContexts.length && <option value="">موردی یافت نشد</option>}
-                  {visibleContexts.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.label}
-                    </option>
+                  {dormBuildings.map(([building, rooms]) => (
+                    <section
+                      key={building}
+                      className="rounded-xl bg-card p-2 shadow-[inset_0_1px_0_rgba(255,255,255,.12),0_4px_14px_rgba(15,23,42,.08)] dark:shadow-[inset_0_1px_0_rgba(255,255,255,.05),0_4px_14px_rgba(0,0,0,.2)]"
+                    >
+                      <p className="px-1 text-xs font-black text-ink">{building}</p>
+                      {[...new Set(rooms.map((room) => room.floor ?? 1))]
+                        .sort((a, b) => a - b)
+                        .map((floor) => (
+                          <div key={floor} className="mt-2 flex items-center gap-2">
+                            <span className="w-12 shrink-0 text-[11px] text-slate-500">
+                              طبقه {floor}
+                            </span>
+                            <div className="grid flex-1 grid-cols-3 gap-1.5 sm:grid-cols-5">
+                              {rooms
+                                .filter((room) => (room.floor ?? 1) === floor)
+                                .map((room) => {
+                                  const active = room.id === contextId;
+                                  return (
+                                    <button
+                                      key={room.id}
+                                      type="button"
+                                      disabled={saving}
+                                      onClick={() => chooseContext("dorm", room.id)}
+                                      aria-pressed={active}
+                                      className={`min-h-14 rounded-lg border px-1.5 text-center text-[11px] font-black transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500 ${active ? "border-blue-500 bg-blue-600 text-white shadow-[0_5px_0_rgb(29,78,216)] translate-y-[-1px]" : "border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-muted))] text-ink shadow-[0_3px_0_rgba(15,23,42,.12)] hover:-translate-y-0.5"}`}
+                                    >
+                                      <span className="block truncate">{room.code}</span>
+                                      <span
+                                        className={`mt-0.5 block text-[10px] font-normal ${active ? "text-white/75" : muted}`}
+                                      >
+                                        {room.total.toLocaleString("fa-IR")} نفر
+                                      </span>
+                                    </button>
+                                  );
+                                })}
+                            </div>
+                          </div>
+                        ))}
+                    </section>
                   ))}
-                </select>
-                <ChevronDown size={17} className="pointer-events-none absolute left-3 top-4" />
-              </span>
-            </label>
-            <label className="block text-sm font-semibold">
+                  {!dormBuildings.length ? (
+                    <p className={`p-4 text-center text-xs ${muted}`}>
+                      اتاق فعالی برای حضور و غیاب ندارید.
+                    </p>
+                  ) : null}
+                </div>
+              ) : (
+                <div
+                  className="grid grid-cols-2 gap-2 sm:grid-cols-3"
+                  aria-label={`انتخاب ${contextTargetLabel(contextType)}`}
+                >
+                  {visibleContexts.map((item) => {
+                    const active = item.id === contextId;
+                    return (
+                      <button
+                        key={item.id}
+                        type="button"
+                        disabled={saving}
+                        onClick={() => chooseContext(contextType, item.id)}
+                        aria-pressed={active}
+                        className={`min-h-[4.5rem] rounded-xl border p-2 text-right transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500 ${active ? "border-blue-500 bg-blue-600 text-white shadow-[0_5px_0_rgb(29,78,216)] translate-y-[-1px]" : "border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-muted))] text-ink shadow-[0_3px_0_rgba(15,23,42,.10)] hover:-translate-y-0.5"}`}
+                      >
+                        <span className="block truncate text-xs font-black">{item.name}</span>
+                        <span
+                          className={`mt-1 block text-[10px] ${active ? "text-white/75" : muted}`}
+                        >
+                          {item.code} · {item.total.toLocaleString("fa-IR")} نفر
+                        </span>
+                      </button>
+                    );
+                  })}
+                  {!visibleContexts.length ? (
+                    <p
+                      className={`col-span-full rounded-xl bg-[rgb(var(--surface-muted))] p-4 text-center text-xs ${muted}`}
+                    >
+                      موردی یافت نشد.
+                    </p>
+                  ) : null}
+                </div>
+              )}
+            </div>
+            <div className="block text-sm font-semibold">
               <span className="mb-1.5 block">تاریخ جلسه</span>
-              <input
-                type="date"
+              <DatePicker
                 value={date}
                 max={localDate()}
                 disabled={saving}
-                onChange={(e) => chooseDate(e.target.value)}
-                className={`h-12 w-full rounded-xl ${shell} px-3 outline-none focus:ring-2 focus:ring-blue-500`}
+                onChange={chooseDate}
+                className="w-full"
               />
-            </label>
+            </div>
           </div>
         )}
         {loadingContexts ? (
@@ -512,133 +584,25 @@ export function AttendancePage() {
         ) : null}
       </Card>
 
-      <Card className="overflow-hidden p-0">
-        <div className="space-y-3 border-b border-[rgb(var(--border-subtle))] p-3 sm:p-5">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <div>
-              <h2 className="font-black">فهرست طلبه‌ها</h2>
-              <p className={`text-xs ${muted}`}>برای هر نفر یک وضعیت انتخاب کنید</p>
-            </div>
-            <button
-              type="button"
-              onClick={markAllPresent}
-              disabled={saving || conflict || loadingPeople || counts.unmarked === 0}
-              className={`${buttonBase} border border-emerald-300 text-emerald-700 hover:bg-emerald-50 dark:text-emerald-300`}
-            >
-              <CheckCheck size={17} /> ثبت‌نشده‌ها حاضر
-            </button>
-          </div>
-          <div className="flex flex-col gap-2 sm:flex-row">
-            <label className="relative flex-1">
-              <Search size={17} className={`absolute right-3 top-3.5 ${muted}`} />
-              <input
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="جستجوی نام یا شماره…"
-                aria-label="جستجوی طلبه"
-                className={`h-11 w-full rounded-xl ${shell} pr-10 pl-3 outline-none focus:ring-2 focus:ring-blue-500`}
-              />
-            </label>
-            <select
-              value={filter}
-              onChange={(e) => setFilter(e.target.value as Filter)}
-              aria-label="فیلتر وضعیت"
-              className={`h-11 rounded-xl ${shell} px-3 sm:w-40`}
-            >
-              <option value="all">همه وضعیت‌ها</option>
-              <option value="unmarked">نامشخص</option>
-              {statuses.map((s) => (
-                <option key={s} value={s}>
-                  {statusMeta[s].label}
-                </option>
-              ))}
-            </select>
-          </div>
-          {filter !== "all" && (
-            <button
-              type="button"
-              className="text-xs font-bold text-blue-600"
-              onClick={() => setFilter("all")}
-            >
-              نمایش همه
-            </button>
-          )}
-        </div>
-
-        {loadingPeople ? (
-          <div className={`flex items-center justify-center gap-2 p-12 text-sm ${muted}`}>
-            <LoaderCircle className="animate-spin" size={19} /> در حال دریافت فهرست…
-          </div>
-        ) : filtered.length === 0 ? (
-          <div className={`flex flex-col items-center gap-3 p-10 text-center text-sm ${muted}`}>
-            <UsersRound size={30} />
-            <p>
-              {participants.length
-                ? "نتیجه‌ای برای جستجو یا فیلتر پیدا نشد."
-                : selected
-                  ? "برای این گروه طلبه‌ای یافت نشد."
-                  : "ابتدا کلاس، گروه یا اتاق را انتخاب کنید."}
-            </p>
-            {participants.length > 0 && (
-              <button
-                className="font-bold text-blue-600"
-                type="button"
-                onClick={() => {
-                  setSearch("");
-                  setFilter("all");
-                }}
-              >
-                پاک‌کردن فیلترها
-              </button>
-            )}
-          </div>
-        ) : (
-          <div className="divide-y divide-[rgb(var(--border-subtle))]">
-            {filtered.map((student, index) => (
-              <div
-                key={student.id}
-                className="space-y-3 px-3 py-4 sm:flex sm:items-center sm:justify-between sm:gap-4 sm:space-y-0 sm:px-5"
-              >
-                <div className="flex min-w-0 items-center gap-3">
-                  <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-slate-100 text-sm font-black text-slate-600 dark:bg-slate-800 dark:text-slate-300">
-                    {student.name.trim().slice(0, 1) || index + 1}
-                  </span>
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-bold">{student.name}</p>
-                    <p className={`text-xs ${muted}`}>{student.studentNumber}</p>
-                  </div>
-                  {student.status !== "unmarked" && (
-                    <Check size={15} className="shrink-0 text-emerald-600" aria-label="تعیین شده" />
-                  )}
-                </div>
-                <div
-                  role="group"
-                  aria-label={`وضعیت ${student.name}`}
-                  className="grid grid-cols-4 gap-1.5 sm:w-[340px]"
-                >
-                  {statuses.map((status) => (
-                    <button
-                      key={status}
-                      type="button"
-                      aria-pressed={student.status === status}
-                      disabled={saving || conflict}
-                      onClick={() =>
-                        mark(student.id, student.status === status ? "unmarked" : status)
-                      }
-                      className={`min-h-11 rounded-xl border px-1 py-2 text-xs font-bold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500 ${student.status === status ? statusMeta[status].active : `border-[rgb(var(--border-subtle))] hover:bg-slate-50 dark:hover:bg-slate-800`}`}
-                    >
-                      <span
-                        className={`mx-auto mb-1 block size-1.5 rounded-full ${statusMeta[status].dot}`}
-                      />
-                      {statusMeta[status].label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </Card>
+      <AttendanceRosterView
+        participants={participants}
+        filtered={filtered}
+        selected={Boolean(selected)}
+        search={search}
+        filter={filter}
+        loading={loadingPeople}
+        saving={saving}
+        conflict={conflict}
+        unmarkedCount={counts.unmarked}
+        onSearchChange={setSearch}
+        onFilterChange={setFilter}
+        onMark={mark}
+        onMarkAllPresent={markAllPresent}
+        onClearFilters={() => {
+          setSearch("");
+          setFilter("all");
+        }}
+      />
 
       {conflict && (
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-400 bg-amber-50 p-4 text-sm text-amber-950 dark:bg-amber-950/30 dark:text-amber-100">

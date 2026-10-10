@@ -1,5 +1,6 @@
 import { Repository } from "typeorm";
 import { EducationClass } from "../../database/entities/education-class.entity";
+import { EducationClassBook } from "../../database/entities/education-class-book.entity";
 import { OrganizationMembership } from "../../database/entities/organization-membership.entity";
 import { Organization } from "../../database/entities/organization.entity";
 import { SchoolScheduleEntry } from "../../database/entities/school-schedule-entry.entity";
@@ -11,8 +12,9 @@ export declare class ScheduleService {
     private readonly organizations;
     private readonly memberships;
     private readonly classes;
+    private readonly classBooks;
     private readonly authorization;
-    constructor(entries: Repository<SchoolScheduleEntry>, organizations: Repository<Organization>, memberships: Repository<OrganizationMembership>, classes: Repository<EducationClass>, authorization: AuthorizationService);
+    constructor(entries: Repository<SchoolScheduleEntry>, organizations: Repository<Organization>, memberships: Repository<OrganizationMembership>, classes: Repository<EducationClass>, classBooks: Repository<EducationClassBook>, authorization: AuthorizationService);
     private context;
     private isOperator;
     list(user: AuthenticatedUser, organizationId?: string): Promise<SchoolScheduleEntry[]>;
@@ -41,4 +43,5 @@ export declare class ScheduleService {
     private importErrors;
     private classroomForOrganization;
     private teacherForOrganization;
+    private classBookForSession;
 }

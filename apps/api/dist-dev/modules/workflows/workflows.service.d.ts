@@ -66,7 +66,7 @@ export declare class WorkflowsService {
         code: string;
         name: string;
         capacity: number;
-        status: "ACTIVE" | "ARCHIVED";
+        status: "ARCHIVED" | "ACTIVE";
         studentCount: number;
     }[]>;
     createDormRoom(user: AuthenticatedUser, input: {
@@ -80,7 +80,7 @@ export declare class WorkflowsService {
         code: string;
         name: string;
         capacity: number;
-        status: "ACTIVE" | "ARCHIVED";
+        status: "ARCHIVED" | "ACTIVE";
         studentCount: number;
     }>;
     listDormAssignments(user: AuthenticatedUser, roomId: string): Promise<{
@@ -145,7 +145,7 @@ export declare class WorkflowsService {
         name: string;
         userId: string | null;
         nationalCode: string | null | undefined;
-        accountStatus: "active" | "inactive" | "archived";
+        accountStatus: "active" | "archived" | "inactive";
     }[]>;
     getStudentAttendanceSummary(user: AuthenticatedUser, studentId?: string): Promise<{
         studentId: string;

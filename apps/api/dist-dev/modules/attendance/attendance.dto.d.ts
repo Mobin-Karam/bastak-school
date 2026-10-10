@@ -18,3 +18,7 @@ export declare class BulkMarkAttendanceDto {
     sessionDate?: string;
     entries: AttendanceEntryDto[];
 }
+export declare class ReviewAttendanceAbsenceDto {
+    decision: "approved" | "rejected";
+    note?: string;
+}

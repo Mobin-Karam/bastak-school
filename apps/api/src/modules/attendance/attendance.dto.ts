@@ -23,3 +23,10 @@ export class BulkMarkAttendanceDto {
   @IsOptional() @IsDateString() sessionDate?: string;
   @IsArray() @ValidateNested({ each: true }) @Type(() => AttendanceEntryDto) entries!: AttendanceEntryDto[];
 }
+
+export class ReviewAttendanceAbsenceDto {
+  @IsIn(["approved", "rejected"])
+  decision!: "approved" | "rejected";
+
+  @IsOptional() @IsString() @MaxLength(500) note?: string;
+}

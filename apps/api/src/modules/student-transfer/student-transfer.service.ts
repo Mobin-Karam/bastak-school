@@ -39,11 +39,11 @@ export class StudentTransferService {
       const errors: string[] = [];
       const firstName = row.firstName.trim();
       const lastName = row.lastName.trim();
-      if (!firstName || !lastName)
-        errors.push("نام و نام خانوادگی الزامی است.");
+      if (!firstName) errors.push("ستون «نام» الزامی است.");
+      if (!lastName) errors.push("ستون «نام خانوادگی» الزامی است.");
       if (row.nationalCode) {
         if (seen.has(row.nationalCode))
-          errors.push("کد ملی در همین فایل تکراری است.");
+          errors.push("ستون «کد ملی» در همین فایل تکراری است.");
         if (existingCodes.has(row.nationalCode))
           errors.push("کد ملی قبلاً در سامانه ثبت شده است.");
         seen.add(row.nationalCode);

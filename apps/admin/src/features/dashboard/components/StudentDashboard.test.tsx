@@ -77,7 +77,7 @@ vi.mock("../api/dashboard.api", () => ({
 }));
 
 describe("StudentDashboard", () => {
-  it("keeps the student home limited to calendar, current class, prayer and attendance", async () => {
+  it("shows the student’s scoped class, prayer, class times, and attendance", async () => {
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     render(
       <MemoryRouter>
@@ -91,7 +91,8 @@ describe("StudentDashboard", () => {
 
     expect(await screen.findByRole("region", { name: "خانه دانش‌آموز" })).toBeVisible();
     expect(screen.getByRole("region", { name: "کلاس جاری" })).toHaveTextContent("فقه کاربردی");
-    expect(screen.getByRole("region", { name: "اوقات شرعی" }).querySelector("time")).toBeVisible();
+    expect(screen.getByRole("group", { name: /نماز/ }).querySelector("time")).toBeVisible();
+    expect(screen.getByRole("region", { name: "زمان کلاس‌های امروز" })).toHaveTextContent("۰۸:۰۰");
     expect(screen.getByRole("region", { name: "خلاصه حضور و غیاب" })).toHaveTextContent("حاضر");
     expect(screen.getByRole("link", { name: /برنامه کامل/ })).toHaveAttribute(
       "href",
