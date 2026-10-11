@@ -1,3 +1,5 @@
+import type { AttendanceSessionDetail } from "@moshaver/api-contract";
+import { getSavedAttendanceSession } from "../api/attendance-operations.api";
 import { DormDelegateEditor } from "../components/DormDelegateEditor";
 import {
   AttendanceStaffWorkspace,
@@ -84,7 +86,8 @@ function errorText(error: unknown, fallback: string) {
 export function AttendancePage() {
   const auth = useAuth();
   const { profile } = useLocale();
-  const canManage = auth.can("attendance.manage");
+  const [linkedSession, setLinkedSession] = useState<AttendanceSessionDetail | null>(null);
+  const canManage = auth.can("attendance.manage") && linkedSession?.status !== "cancelled";
   const sections: AttendanceSection[] = auth.can("attendance.review")
     ? [...contextOrder, "sessions", "pool"]
     : contextOrder;
@@ -98,6 +101,7 @@ export function AttendancePage() {
   const [searchParams] = useSearchParams();
   const requestedId = searchParams.get("contextId");
   const requestedType = searchParams.get("contextType");
+  const requestedSessionId = searchParams.get("sessionId");
   const [contexts, setContexts] = useState<AttendanceContextOption[]>([]);
   const [contextType, setContextType] = useState<AttendanceContextType>("class");
   const [chosenType, setChosenType] = useState<AttendanceSection>("class");
@@ -176,7 +180,33 @@ export function AttendancePage() {
     setReviewOpen(false);
     setProfileId(null);
     setLoadingContexts(true);
-    void listAttendanceContexts()
+    const linkedContexts = async () => {
+      const rows = await listAttendanceContexts();
+      if (requestedSessionId) {
+        const session = await getSavedAttendanceSession(requestedSessionId);
+        if (
+          session.contextType !== requestedType ||
+          session.contextId !== requestedId ||
+          session.organizationId !== auth.context?.activeOrganization?.id
+        )
+          throw new Error("جلسه و زمینه مدرسه مطابقت ندارند.");
+        if (
+          session.contextType === "class" &&
+          !rows.some((row) => row.id === session.contextId && row.contextType === "class")
+        )
+          rows.push({
+            id: session.contextId,
+            contextType: "class",
+            code: "",
+            name: session.title,
+            label: session.title,
+            total: session.roster.length,
+            activeOrganizationId: session.organizationId,
+          });
+      }
+      return rows;
+    };
+    void linkedContexts()
       .then((available) => {
         if (!active) return;
         setContexts(available);
@@ -220,7 +250,29 @@ export function AttendancePage() {
       return;
     }
     setLoadingPeople(true);
-    void getAttendanceParticipants(selected.contextType, selected.id)
+    setLinkedSession(null);
+    const sessionId =
+      selected.id === requestedId && selected.contextType === requestedType
+        ? requestedSessionId
+        : null;
+    const fetchRoster = sessionId
+      ? getSavedAttendanceSession(sessionId).then((session) => {
+          if (
+            session.contextId !== selected.id ||
+            session.contextType !== selected.contextType ||
+            session.organizationId !== selected.activeOrganizationId
+          )
+            throw new Error("جلسه متعلق به این کلاس و مدرسه نیست.");
+          if (requestId.current === currentRequest) setLinkedSession(session);
+          return session.roster.map((person) => ({
+            ...person,
+            status:
+              session.records.find((record) => record.studentId === person.id)?.legacyStatus ??
+              "unmarked",
+          }));
+        })
+      : getAttendanceParticipants(selected.contextType, selected.id);
+    void fetchRoster
       .then((rows) => {
         if (requestId.current !== currentRequest) return;
         setParticipants(
@@ -229,7 +281,7 @@ export function AttendancePage() {
             name: row.name,
             userId: row.userId,
             studentNumber: row.nationalCode || `#${index + 1}`,
-            status: "unmarked" as const,
+            status: "status" in row ? (row.status as AttendanceStatus) : ("unmarked" as const),
           })),
         );
       })
@@ -246,7 +298,7 @@ export function AttendancePage() {
     return () => {
       if (requestId.current === currentRequest) requestId.current += 1;
     };
-  }, [selected, rosterVersion]);
+  }, [selected, rosterVersion, requestedId, requestedType, requestedSessionId]);
 
   useEffect(() => {
     const handleBeforeUnload = (event: BeforeUnloadEvent) => {
@@ -347,6 +399,10 @@ export function AttendancePage() {
   }
   async function save() {
     if (!canManage || saving || loadingPeople || conflict) return;
+    if (requestedSessionId && selected?.id === requestedId && !linkedSession) {
+      setNotice({ kind: "error", text: "ابتدا جلسه درس را بارگذاری کنید." });
+      return;
+    }
     if (!selected?.activeOrganizationId) {
       setNotice({ kind: "error", text: "مدرسه این گروه مشخص نیست." });
       return;
@@ -369,12 +425,16 @@ export function AttendancePage() {
           organizationId: selected.activeOrganizationId,
           contextType: selected.contextType,
           contextId: selected.id,
+          sessionId: linkedSession?.id,
+          expectedRevision: linkedSession?.revision,
           entries,
         }),
         () => ({
           organizationId: selected.activeOrganizationId!,
           contextType: selected.contextType,
           contextId: selected.id,
+          sessionId: linkedSession?.id,
+          expectedRevision: linkedSession?.revision,
           sessionDate: new Date().toISOString(),
           entries,
         }),
@@ -383,6 +443,7 @@ export function AttendancePage() {
       await bulkMarkAttendance(write.body);
       if (scopeRef.current !== scopeKey) return;
       pendingWrite.current = null;
+      if (linkedSession) setRosterVersion((value) => value + 1);
       setReviewOpen(false);
       setParticipants((all) => all.map((p) => ({ ...p, status: "unmarked" })));
       setNotice({
@@ -634,7 +695,9 @@ export function AttendancePage() {
         <div dir={profile.direction} className="space-y-4">
           <div hidden={reviewOpen} className="space-y-4">
             <p className="rounded-xl bg-blue-50 px-4 py-3 text-xs text-blue-800 dark:bg-blue-950/30 dark:text-blue-200">
-              این جلسه با زمان فعلی ثبت می‌شود.
+              {linkedSession
+                ? `${linkedSession.title} · ${linkedSession.status === "cancelled" ? "لغو شده؛ فقط مشاهده تاریخچه" : "حضور همین وقوع درس ثبت می‌شود."}`
+                : "این جلسه با زمان فعلی ثبت می‌شود."}
             </p>
             {notice && !reviewOpen ? (
               <p role={notice.kind === "error" ? "alert" : "status"} className="text-sm">

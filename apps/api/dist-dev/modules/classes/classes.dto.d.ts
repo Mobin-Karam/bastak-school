@@ -34,3 +34,7 @@ export declare class ClassTransferDto {
     organizationId: string;
     rows: ClassTransferRowDto[];
 }
+export declare class AddClassBookDto {
+    bookId: string;
+    teacherId: string;
+}

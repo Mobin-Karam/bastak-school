@@ -63,14 +63,15 @@ let ScheduleService = class ScheduleService {
         if (context.roles.includes("PLATFORM_ADMIN"))
             return this.entries.find({
                 where: requestedOrganizationId
-                    ? { organization: { id: requestedOrganizationId } }
-                    : {},
+                    ? { organization: { id: requestedOrganizationId }, versionId: (0, typeorm_2.IsNull)() }
+                    : { versionId: (0, typeorm_2.IsNull)() },
                 relations: { organization: true, classroom: true, teacher: true, classBook: { book: true, teacher: true } },
                 order: { weekday: "ASC", startTime: "ASC" },
             });
         if (this.isOperator(context))
             return this.entries.find({
                 where: {
+                    versionId: (0, typeorm_2.IsNull)(),
                     organization: {
                         id: (0, typeorm_2.In)(requestedOrganizationId
                             ? [requestedOrganizationId]
@@ -83,6 +84,7 @@ let ScheduleService = class ScheduleService {
         if (context.roles.includes("TEACHER"))
             return this.entries.find({
                 where: {
+                    versionId: (0, typeorm_2.IsNull)(),
                     teacher: { id: user.id },
                     classBook: { teacher: { id: user.id } },
                     organization: {
@@ -100,6 +102,7 @@ let ScheduleService = class ScheduleService {
                 return [];
             return this.entries.find({
                 where: {
+                    versionId: (0, typeorm_2.IsNull)(),
                     classroom: { advisor: { id: user.id } },
                     organization: {
                         id: (0, typeorm_2.In)(requestedOrganizationId
@@ -133,6 +136,7 @@ let ScheduleService = class ScheduleService {
                 .leftJoin(education_class_enrollment_entity_1.EducationClassEnrollment, "enrollment", "enrollment.classroomId = entry.classroomId")
                 .leftJoin(user_relationship_entity_1.UserRelationship, "relationship", "relationship.toStudentId = enrollment.studentId AND relationship.fromUserId = :userId AND relationship.status = 'ACTIVE' AND relationship.type = 'GUARDIAN_OF'", { userId: user.id })
                 .where("entry.status = 'ACTIVE'")
+                .andWhere("entry.versionId IS NULL")
                 .andWhere("entry.organizationId IN (:...organizationIds)", {
                 organizationIds,
             })
@@ -157,6 +161,7 @@ let ScheduleService = class ScheduleService {
                 .leftJoinAndSelect("classBook.teacher", "classBookTeacher")
                 .leftJoin(education_class_enrollment_entity_1.EducationClassEnrollment, "enrollment", "enrollment.classroomId = entry.classroomId AND enrollment.studentId = (SELECT id FROM students WHERE userId = :userId LIMIT 1)", { userId: user.id })
                 .where("entry.status = 'ACTIVE'")
+                .andWhere("entry.versionId IS NULL")
                 .andWhere("entry.organizationId IN (:...organizationIds)", {
                 organizationIds,
             })
@@ -168,6 +173,7 @@ let ScheduleService = class ScheduleService {
         if (context.organizationIds.length) {
             return this.entries.find({
                 where: {
+                    versionId: (0, typeorm_2.IsNull)(),
                     organization: {
                         id: (0, typeorm_2.In)(requestedOrganizationId
                             ? [requestedOrganizationId]
@@ -230,6 +236,8 @@ let ScheduleService = class ScheduleService {
             (!context.roles.includes("PLATFORM_ADMIN") &&
                 !context.organizationIds.includes(item.organization.id)))
             throw new api_exception_1.ApiException(403, "FORBIDDEN", "دسترسی کافی ندارید.");
+        if (item.versionId)
+            throw new api_exception_1.ApiException(409, "TIMETABLE_IMMUTABLE", "این درس را از نسخه برنامه درسی مدیریت کنید.");
         if (dto.organizationId !== item.organization.id)
             throw new api_exception_1.ApiException(422, "SCHEDULE_ORGANIZATION_IMMUTABLE", "مدرسه برنامه قابل تغییر نیست.");
         if (dto.endTime <= dto.startTime)
@@ -262,6 +270,8 @@ let ScheduleService = class ScheduleService {
             (!context.roles.includes("PLATFORM_ADMIN") &&
                 !context.organizationIds.includes(item.organization.id)))
             throw new api_exception_1.ApiException(403, "FORBIDDEN", "دسترسی کافی ندارید.");
+        if (item.versionId)
+            throw new api_exception_1.ApiException(409, "TIMETABLE_IMMUTABLE", "این درس را از نسخه برنامه درسی مدیریت کنید.");
         item.status = dto.status;
         return this.entries.save(item);
     }
@@ -278,6 +288,8 @@ let ScheduleService = class ScheduleService {
             (!context.roles.includes("PLATFORM_ADMIN") &&
                 !context.organizationIds.includes(item.organization.id)))
             throw new api_exception_1.ApiException(403, "FORBIDDEN", "دسترسی کافی ندارید.");
+        if (item.versionId)
+            throw new api_exception_1.ApiException(409, "TIMETABLE_IMMUTABLE", "این درس را از نسخه برنامه درسی مدیریت کنید.");
         await this.entries.remove(item);
         return { deleted: true };
     }

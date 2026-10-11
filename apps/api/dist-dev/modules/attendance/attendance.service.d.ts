@@ -37,7 +37,7 @@ export declare class AttendanceService {
     contextDescriptor(type: string, id: string): Promise<{
         organizationId: string;
         title: string;
-        status: "ARCHIVED" | "ACTIVE";
+        status: "ACTIVE" | "ARCHIVED";
     }>;
     sessionDetail(user: AuthenticatedUser, id: string): Promise<AttendanceSessionDetail>;
     sessionHistory(user: AuthenticatedUser, id: string): Promise<AuditLog[]>;
@@ -88,6 +88,21 @@ export declare class AttendanceService {
         sessionDate: string;
         total: number;
     }[]>;
+    createTimetableSession(user: AuthenticatedUser, input: {
+        organizationId: string;
+        classroomId: string;
+        lessonId: string;
+        date: string;
+        title: string;
+        startsAt: string;
+        endsAt: string;
+        timeZone: string;
+        teacherId: string | null;
+    }): Promise<{
+        id: string;
+    }>;
+    reassignTimetableSession(sessionId: string, lessonId: string, teacherId: string): Promise<void>;
+    cancelTimetableSession(sessionId: string, lessonId: string): Promise<void>;
     createSession(user: AuthenticatedUser, dto: CreateAttendanceSessionDto): Promise<{
         id: string;
         organizationId: string;
@@ -176,7 +191,7 @@ export declare class AttendanceService {
         name: string;
         userId: string | null;
         nationalCode: string | null | undefined;
-        accountStatus: "active" | "archived" | "inactive";
+        accountStatus: "active" | "inactive" | "archived";
     }[]>;
     summary(user: AuthenticatedUser, studentId?: string): Promise<{
         recent: {

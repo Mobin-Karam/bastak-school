@@ -257,6 +257,23 @@ let ClassesService = class ClassesService {
         await this.classes.remove(classroom);
         return { deleted: true };
     }
+    async addBook(actor, id, dto) {
+        const classroom = await this.requireClass(actor, id, "education.catalog.manage", true);
+        if (actor.activeOrganizationId && actor.activeOrganizationId !== classroom.organization.id)
+            this.forbidden();
+        const eligible = await this.catalog.listBooks(this.hasCurriculumProfile(classroom) ? classroom.gradeId : undefined, this.hasCurriculumProfile(classroom) ? classroom.educationTypeId : undefined, this.hasCurriculumProfile(classroom) ? classroom.trackId : undefined, [classroom.organization.id]);
+        if (!eligible.some(book => book.id === dto.bookId))
+            throw new api_exception_1.ApiException(422, "CLASS_BOOK_PROFILE_MISMATCH", "کتاب با کلاس یا سازمان انتخاب‌شده سازگار نیست.");
+        const teacher = await this.resolveTeacher(classroom.organization.id, dto.teacherId);
+        const book = await this.books.findOneBy({ id: dto.bookId });
+        if (!book)
+            throw new api_exception_1.ApiException(404, "CLASS_BOOK_NOT_FOUND", "کتاب پیدا نشد.");
+        const existing = await this.classBooks.findOne({ where: { classroom: { id }, book: { id: dto.bookId } } });
+        if (existing)
+            throw new api_exception_1.ApiException(409, "CLASS_BOOK_EXISTS", "این کتاب قبلاً به کلاس متصل است؛ همان مورد را در نگاشت انتخاب کنید.");
+        await this.classBooks.save(this.classBooks.create({ classroom, book, teacher }));
+        return this.view(await this.load(id));
+    }
     async setBooks(actor, id, dto) {
         const classroom = await this.requireClass(actor, id, "education.catalog.manage", true);
         const requested = dto.books || [];

@@ -49,6 +49,9 @@ let ClassesController = class ClassesController {
     update(actor, id, dto) {
         return this.classes.update(actor, id, dto).then(envelope_1.ok);
     }
+    addBook(actor, id, dto) {
+        return this.classes.addBook(actor, id, dto).then(envelope_1.ok);
+    }
     books(actor, id, dto) {
         return this.classes.setBooks(actor, id, dto).then(envelope_1.ok);
     }
@@ -143,6 +146,17 @@ __decorate([
     __metadata("design:paramtypes", [Object, String, classes_dto_1.UpdateEducationClassDto]),
     __metadata("design:returntype", void 0)
 ], ClassesController.prototype, "update", null);
+__decorate([
+    (0, common_1.Post)("classes/:id/books"),
+    (0, capabilities_decorator_1.RequireCapabilities)("education.catalog.manage"),
+    openapi.ApiResponse({ status: 201 }),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __param(1, (0, common_1.Param)("id")),
+    __param(2, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String, classes_dto_1.AddClassBookDto]),
+    __metadata("design:returntype", void 0)
+], ClassesController.prototype, "addBook", null);
 __decorate([
     (0, common_1.Put)("classes/:id/books"),
     (0, capabilities_decorator_1.RequireCapabilities)("education.catalog.manage"),

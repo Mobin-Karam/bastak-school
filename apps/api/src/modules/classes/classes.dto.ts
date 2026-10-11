@@ -70,3 +70,8 @@ export class ClassTransferDto {
   @Type(() => ClassTransferRowDto)
   rows!: ClassTransferRowDto[];
 }
+
+export class AddClassBookDto {
+  @IsString() @MinLength(1) @MaxLength(120) bookId!: string;
+  @IsUUID() teacherId!: string;
+}

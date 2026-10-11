@@ -50,7 +50,7 @@ export declare class AttendanceController {
             name: string;
             userId: string | null;
             nationalCode: string | null | undefined;
-            accountStatus: "active" | "archived" | "inactive";
+            accountStatus: "active" | "inactive" | "archived";
         }[];
     }>;
     sessions(user: AuthenticatedUser, organizationId?: string): Promise<{

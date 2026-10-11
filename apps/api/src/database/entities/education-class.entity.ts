@@ -1,4 +1,5 @@
 import {
+  JoinColumn,
   Column,
   CreateDateColumn,
   Entity,
@@ -37,6 +38,8 @@ export class EducationClass {
     (enrollment) => enrollment.classroom,
   )
   enrollments!: EducationClassEnrollment[];
+  @Column({type: "varchar", length: 36, nullable: true}) timetableSectionId!: string | null;
+  @ManyToOne("TimetableSection", {nullable: true, onDelete: "RESTRICT"}) @JoinColumn({name: "timetableSectionId"}) timetableSection?: object;
   @CreateDateColumn() createdAt!: Date;
   @UpdateDateColumn() updatedAt!: Date;
 }

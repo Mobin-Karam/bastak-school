@@ -1,4 +1,4 @@
-import { Column, CreateDateColumn, Entity, Index, ManyToOne, PrimaryGeneratedColumn, UpdateDateColumn } from "typeorm";
+import { Column, CreateDateColumn, Entity, Index, ManyToOne, PrimaryGeneratedColumn, UpdateDateColumn, JoinColumn } from "typeorm";
 import { EducationClass } from "./education-class.entity";
 import { EducationClassBook } from "./education-class-book.entity";
 import { Organization } from "./organization.entity";
@@ -18,6 +18,17 @@ export class SchoolScheduleEntry {
   @Column({ length: 5 }) endTime!: string;
   @Column({ length: 120, default: "" }) room!: string;
   @Column({ length: 20, default: "ACTIVE" }) status!: "ACTIVE" | "ARCHIVED";
+  @Column({type: "varchar", length: 36, nullable: true}) versionId!: string | null;
+  @ManyToOne("TimetableVersion", {nullable: true, onDelete: "RESTRICT"}) @JoinColumn({name: "versionId"}) version?: object;
+  @Column({type: "varchar", length: 36, nullable: true}) periodId!: string | null;
+  @ManyToOne("TimetablePeriod", {nullable: true, onDelete: "RESTRICT"}) @JoinColumn({name: "periodId"}) period?: object;
+  @Column({type: "varchar", length: 36, nullable: true}) locationId!: string | null;
+  @ManyToOne("TimetableLocation", {nullable: true, onDelete: "RESTRICT"}) @JoinColumn({name: "locationId"}) location?: object;
+  @Column({type: "varchar", length: 10, nullable: true}) startsOn!: string | null;
+  @Column({type: "varchar", length: 10, nullable: true}) endsOn!: string | null;
+  @Column({type: "text", default: ""}) notes!: string;
+  @Column({length: 240, default: ""}) classroomNameSnapshot!: string;
+  @Column({length: 240, default: ""}) teacherNameSnapshot!: string;
   @CreateDateColumn() createdAt!: Date;
   @UpdateDateColumn() updatedAt!: Date;
 }
