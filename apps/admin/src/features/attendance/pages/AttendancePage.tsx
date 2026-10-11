@@ -1,24 +1,31 @@
+import { DormDelegateEditor } from "../components/DormDelegateEditor";
+import {
+  AttendanceStaffWorkspace,
+  AttendanceProfileDialog,
+} from "../components/AttendanceStaffWorkspace";
+import { AttendanceStatusTiles } from "../components/AttendanceStatusTiles";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   AlertCircle,
   BookOpenCheck,
   Building2,
   Check,
-  Clock3,
-  History,
   LoaderCircle,
   RotateCcw,
   ShieldAlert,
   UserRoundCheck,
   X,
+  CalendarCheck2,
+  Radio,
 } from "lucide-react";
 import { useSearchParams } from "react-router-dom";
+import { useLocale } from "../../../shared/ui/locale";
 import { Card } from "../../../shared/ui/ui";
 import { api } from "../../../shared/api/api";
 import { notify } from "../../../shared/ui/notifications";
-import { DatePicker } from "../../../shared/ui/date-picker";
+import { ResponsiveModal } from "../../../shared/ui/responsive-modal";
 import { useAuth } from "../../auth";
-import { AttendanceReviewQueue } from "../components/AttendanceReviewQueue";
+import { useAttendanceDiscard } from "../components/useAttendanceDiscard";
 import { AttendanceRosterView } from "../views/AttendanceRosterView";
 import {
   attendanceStatusMeta as statusMeta,
@@ -30,10 +37,8 @@ import {
 } from "../model/attendance-workflow";
 import {
   bulkMarkAttendance,
-  contextLabelMap,
   getAttendanceParticipants,
   listAttendanceContexts,
-  listAttendanceSessions,
   type AttendanceContextOption,
   type AttendanceContextType,
 } from "../api/attendance.api";
@@ -41,12 +46,28 @@ import {
 type MarkedStatus = MarkedAttendanceStatus;
 type Participant = AttendanceParticipant;
 type Filter = AttendanceFilter;
+import { prepareAttendanceWrite, type PendingAttendanceWrite } from "../model/attendance-write";
+
 type Notice = { kind: "success" | "warning" | "error" | "info"; text: string };
 
+type AttendanceSection = AttendanceContextType | "sessions" | "pool";
 const contextOrder: AttendanceContextType[] = ["class", "class_group", "dorm"];
-const contextIcon = { class: BookOpenCheck, class_group: UserRoundCheck, dorm: Building2 } as const;
+const sectionLabels = {
+  class: "کلاس",
+  class_group: "گروه کلاس",
+  dorm: "خوابگاه",
+  sessions: "جلسات",
+  pool: "پول",
+};
+const contextIcon = {
+  class: BookOpenCheck,
+  class_group: UserRoundCheck,
+  dorm: Building2,
+  sessions: CalendarCheck2,
+  pool: Radio,
+} as const;
 const shell = "border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card))]";
-const muted = "text-slate-500 dark:text-slate-400";
+const muted = "text-slate-600 dark:text-slate-300";
 const buttonBase =
   "inline-flex min-h-12 items-center justify-center gap-2 rounded-xl px-4 text-sm font-bold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 disabled:cursor-not-allowed disabled:opacity-50";
 
@@ -56,40 +77,47 @@ function contextTargetLabel(type: AttendanceContextType) {
   return "کلاس";
 }
 
-function localDate() {
-  const now = new Date();
-  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
-}
-function sessionTimestamp(date: string) {
-  const [year, month, day] = date.split("-").map(Number);
-  // Today uses current instant; previous dates use local noon to avoid UTC-day shifts.
-  if (date === localDate()) return new Date().toISOString();
-  return new Date(year, month - 1, day, 12).toISOString();
-}
 function errorText(error: unknown, fallback: string) {
   return error instanceof Error && error.message ? error.message : fallback;
 }
 
 export function AttendancePage() {
   const auth = useAuth();
+  const { profile } = useLocale();
+  const canManage = auth.can("attendance.manage");
+  const sections: AttendanceSection[] = auth.can("attendance.review")
+    ? [...contextOrder, "sessions", "pool"]
+    : contextOrder;
+  const scopeKey = JSON.stringify([
+    auth.user?.id,
+    auth.activeRole,
+    auth.context?.activeOrganization?.id,
+  ]);
+  const scopeRef = useRef(scopeKey);
+  scopeRef.current = scopeKey;
   const [searchParams] = useSearchParams();
   const requestedId = searchParams.get("contextId");
   const requestedType = searchParams.get("contextType");
   const [contexts, setContexts] = useState<AttendanceContextOption[]>([]);
   const [contextType, setContextType] = useState<AttendanceContextType>("class");
-  const [chosenType, setChosenType] = useState<AttendanceContextType | null>(null);
+  const [chosenType, setChosenType] = useState<AttendanceSection>("class");
   const [contextId, setContextId] = useState("");
+  const [groupClassId, setGroupClassId] = useState("");
   const [participants, setParticipants] = useState<Participant[]>([]);
-  const [sessions, setSessions] = useState<Awaited<ReturnType<typeof listAttendanceSessions>>>([]);
-  const [date, setDate] = useState(localDate);
-  const [search, setSearch] = useState("");
+  const [staffRefreshVersion, setStaffRefreshVersion] = useState(0);
+  const [profileId, setProfileId] = useState<string | null>(null);
   const [filter, setFilter] = useState<Filter>("all");
   const [loadingContexts, setLoadingContexts] = useState(true);
   const [loadingPeople, setLoadingPeople] = useState(false);
+  const [peopleError, setPeopleError] = useState(false);
+  const [rosterVersion, setRosterVersion] = useState(0);
   const [saving, setSaving] = useState(false);
+  const [reviewOpen, setReviewOpen] = useState(false);
   const [notice, setNotice] = useState<Notice | null>(null);
   const [conflict, setConflict] = useState(false);
   const [loadVersion, setLoadVersion] = useState(0);
+  const pendingWrite = useRef<PendingAttendanceWrite | null>(null);
+  const targetScrollRequested = useRef(false);
   const requestId = useRef(0);
   const dirtyRef = useRef(false);
   const savingRef = useRef(false);
@@ -98,8 +126,15 @@ export function AttendancePage() {
     [contexts, contextId, contextType],
   );
   const visibleContexts = useMemo(
-    () => (chosenType ? contexts.filter((c) => c.contextType === chosenType) : []),
-    [contexts, chosenType],
+    () =>
+      contexts.filter((c) =>
+        chosenType === "class_group"
+          ? groupClassId
+            ? c.contextType === "class_group" && c.classId === groupClassId
+            : c.contextType === "class"
+          : c.contextType === chosenType,
+      ),
+    [contexts, chosenType, groupClassId],
   );
   const dormBuildings = useMemo(() => {
     if (chosenType !== "dorm") return [] as Array<[string, AttendanceContextOption[]]>;
@@ -115,23 +150,36 @@ export function AttendancePage() {
   const dirty = participants.some((p) => p.status !== "unmarked");
   dirtyRef.current = dirty;
   savingRef.current = saving;
+  const discard = useAttendanceDiscard(dirty, saving, scopeKey);
 
-  const refreshHistory = useCallback(async () => {
-    try {
-      setSessions(await listAttendanceSessions());
-    } catch {
-      /* Non-critical history failure */
+  const refreshHistory = useCallback(() => {
+    if (scopeRef.current === scopeKey) setStaffRefreshVersion((v) => v + 1);
+  }, [scopeKey]);
+
+  useEffect(() => {
+    if (targetScrollRequested.current && chosenType !== "sessions" && chosenType !== "pool") {
+      document.getElementById("attendance-targets")?.scrollIntoView({ block: "start" });
+      targetScrollRequested.current = false;
     }
-  }, []);
+  }, [chosenType]);
 
   useEffect(() => {
     let active = true;
+    pendingWrite.current = null;
+    setContexts([]);
+    setContextId("");
+    setChosenType("class");
+    setGroupClassId("");
+    setParticipants([]);
+    setNotice(null);
+    setConflict(false);
+    setReviewOpen(false);
+    setProfileId(null);
     setLoadingContexts(true);
-    void Promise.all([listAttendanceContexts(), listAttendanceSessions()])
-      .then(([available, history]) => {
+    void listAttendanceContexts()
+      .then((available) => {
         if (!active) return;
         setContexts(available);
-        setSessions(history);
         const requested = available.find(
           (c) => c.id === requestedId && (!requestedType || c.contextType === requestedType),
         );
@@ -139,6 +187,7 @@ export function AttendancePage() {
           setContextType(requested.contextType);
           setChosenType(requested.contextType);
           setContextId(requested.id);
+          setGroupClassId(requested.classId || "");
         }
       })
       .catch((error) => {
@@ -158,13 +207,13 @@ export function AttendancePage() {
     };
     // URL params are initial selection only. Subsequent selection is controlled by the user.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [loadVersion]);
+  }, [loadVersion, scopeKey]);
 
   useEffect(() => {
     const currentRequest = ++requestId.current;
     setParticipants([]);
+    setPeopleError(false);
     setConflict(false);
-    setSearch("");
     setFilter("all");
     if (!selected) {
       setLoadingPeople(false);
@@ -178,6 +227,7 @@ export function AttendancePage() {
           rows.map((row, index) => ({
             id: row.id,
             name: row.name,
+            userId: row.userId,
             studentNumber: row.nationalCode || `#${index + 1}`,
             status: "unmarked" as const,
           })),
@@ -185,6 +235,7 @@ export function AttendancePage() {
       })
       .catch((error) => {
         if (requestId.current === currentRequest) {
+          setPeopleError(true);
           notify(errorText(error, "فهرست طلبه‌ها دریافت نشد."), "error");
           setNotice({ kind: "error", text: errorText(error, "فهرست طلبه‌ها دریافت نشد.") });
         }
@@ -195,7 +246,7 @@ export function AttendancePage() {
     return () => {
       if (requestId.current === currentRequest) requestId.current += 1;
     };
-  }, [selected]);
+  }, [selected, rosterVersion]);
 
   useEffect(() => {
     const handleBeforeUnload = (event: BeforeUnloadEvent) => {
@@ -245,50 +296,42 @@ export function AttendancePage() {
   const marked = participants.length - counts.unmarked;
   const progress = participants.length ? Math.round((marked / participants.length) * 100) : 0;
   const filtered = useMemo(
-    () =>
-      participants.filter((p) => {
-        const term = search.trim().toLocaleLowerCase("fa-IR");
-        return (
-          (filter === "all" || p.status === filter) &&
-          (!term || `${p.name} ${p.studentNumber}`.toLocaleLowerCase("fa-IR").includes(term))
-        );
-      }),
-    [participants, search, filter],
+    () => participants.filter((p) => filter === "all" || p.status === filter),
+    [participants, filter],
   );
 
-  function canDiscard() {
-    return !dirtyRef.current || window.confirm("وضعیت‌های ثبت‌نشده پاک شوند؟");
-  }
-  function chooseAttendanceType(type: AttendanceContextType) {
+  function chooseAttendanceType(type: AttendanceSection) {
     if (type === chosenType) return;
-    if (saving || !canDiscard()) return;
-    setChosenType(type);
-    setContextType(type);
-    setContextId("");
-    setNotice(null);
+    discard.request(() => {
+      setChosenType(type);
+      setGroupClassId("");
+      if (type !== "sessions" && type !== "pool") setContextType(type);
+      setContextId("");
+      setNotice(null);
+    });
   }
   function chooseContext(type: AttendanceContextType, id: string) {
-    const targetId = id;
-    if (type === contextType && targetId === contextId) return;
-    if (saving || !canDiscard()) return;
-    setContextType(type);
-    setContextId(targetId);
-    setNotice(null);
+    if (type === contextType && id === contextId) return;
+    discard.request(() => {
+      setContextType(type);
+      setContextId(id);
+      setNotice(null);
+    });
   }
-  function chooseDate(next: string) {
-    if (next === date || saving || !canDiscard()) return;
-    setDate(next);
-    setParticipants((all) => all.map((p) => ({ ...p, status: "unmarked" })));
-    setConflict(false);
-    setNotice(null);
+  function closeRoster() {
+    discard.request(() => {
+      setContextId("");
+      setReviewOpen(false);
+      setNotice(null);
+    });
   }
   function mark(id: string, status: AttendanceStatus) {
-    if (saving || conflict) return;
+    if (!canManage || saving || conflict) return;
     setParticipants((all) => all.map((p) => (p.id === id ? { ...p, status } : p)));
     setNotice(null);
   }
   function markAllPresent() {
-    if (saving || conflict) return;
+    if (!canManage || saving || conflict) return;
     // Only fills unmarked students so intentional absences/late arrivals remain intact.
     setParticipants((all) =>
       all.map((p) => (p.status === "unmarked" ? { ...p, status: "present" } : p)),
@@ -296,13 +339,14 @@ export function AttendancePage() {
     setNotice(null);
   }
   function resetDraft() {
-    if (saving || !canDiscard()) return;
-    setParticipants((all) => all.map((p) => ({ ...p, status: "unmarked" })));
-    setConflict(false);
-    setNotice(null);
+    discard.request(() => {
+      setParticipants((all) => all.map((p) => ({ ...p, status: "unmarked" })));
+      setConflict(false);
+      setNotice(null);
+    });
   }
   async function save() {
-    if (saving || loadingPeople || conflict) return;
+    if (!canManage || saving || loadingPeople || conflict) return;
     if (!selected?.activeOrganizationId) {
       setNotice({ kind: "error", text: "مدرسه این گروه مشخص نیست." });
       return;
@@ -314,31 +358,41 @@ export function AttendancePage() {
       setNotice({ kind: "warning", text: "ابتدا وضعیت حداقل یک طلبه را مشخص کنید." });
       return;
     }
-    if (
-      counts.unmarked > 0 &&
-      !window.confirm(
-        `وضعیت ${counts.unmarked} نفر هنوز مشخص نشده است. فقط ${entries.length} وضعیت ثبت شود؟`,
-      )
-    )
-      return;
     setSaving(true);
     setNotice(null);
     try {
-      await bulkMarkAttendance({
-        organizationId: selected.activeOrganizationId,
-        contextType: selected.contextType,
-        contextId: selected.id,
-        sessionDate: sessionTimestamp(date),
-        entries,
-      });
+      const write = prepareAttendanceWrite(
+        pendingWrite.current,
+        JSON.stringify({
+          user: auth.user?.id,
+          role: auth.activeRole,
+          organizationId: selected.activeOrganizationId,
+          contextType: selected.contextType,
+          contextId: selected.id,
+          entries,
+        }),
+        () => ({
+          organizationId: selected.activeOrganizationId!,
+          contextType: selected.contextType,
+          contextId: selected.id,
+          sessionDate: new Date().toISOString(),
+          entries,
+        }),
+      );
+      pendingWrite.current = write;
+      await bulkMarkAttendance(write.body);
+      if (scopeRef.current !== scopeKey) return;
+      pendingWrite.current = null;
+      setReviewOpen(false);
       setParticipants((all) => all.map((p) => ({ ...p, status: "unmarked" })));
       setNotice({
         kind: "success",
-        text: `وضعیت ${entries.length} نفر با موفقیت ذخیره شد. برای ویرایش سوابق، امکان دریافت وضعیت ذخیره‌شده از API لازم است.`,
+        text: `وضعیت ${entries.length} نفر با موفقیت ذخیره شد.`,
       });
       notify(`حضور و غیاب ${entries.length.toLocaleString("fa-IR")} نفر ثبت شد.`, "success");
       void refreshHistory();
     } catch (error) {
+      if (scopeRef.current !== scopeKey) return;
       notify(errorText(error, "ثبت حضور و غیاب انجام نشد. دوباره تلاش کنید."), "error");
       setNotice({
         kind: "error",
@@ -350,11 +404,7 @@ export function AttendancePage() {
   }
 
   return (
-    <section
-      dir="rtl"
-      className="mx-auto w-full max-w-7xl space-y-4 pb-[calc(11.5rem+env(safe-area-inset-bottom))] lg:pb-8"
-    >
-      {auth.can("attendance.review") ? <AttendanceReviewQueue /> : null}
+    <section dir={profile.direction} className="mx-auto w-full max-w-7xl space-y-4 pb-8">
       {notice && (
         <div
           role={notice.kind === "error" || notice.kind === "warning" ? "alert" : "status"}
@@ -374,12 +424,11 @@ export function AttendancePage() {
       )}
 
       <div className={`${shell} rounded-2xl p-1.5`} aria-label="مرحله اول: نوع حضور و غیاب">
-        <div className="mb-1.5 flex items-center justify-between px-2 pt-1 text-[11px] font-bold text-slate-500">
-          <span>مرحله ۱ از ۳</span>
-          <span>نوع حضور و غیاب</span>
-        </div>
-        <div className="grid grid-cols-3 gap-1.5">
-          {contextOrder.map((type) => {
+        <div
+          className="grid gap-1"
+          style={{ gridTemplateColumns: `repeat(${sections.length}, minmax(0, 1fr))` }}
+        >
+          {sections.map((type) => {
             const Icon = contextIcon[type];
             const active = chosenType === type;
             const total = contexts.filter((c) => c.contextType === type).length;
@@ -390,19 +439,23 @@ export function AttendancePage() {
                 aria-pressed={active}
                 disabled={saving || loadingContexts}
                 onClick={() => chooseAttendanceType(type)}
-                className={`flex min-h-[4.25rem] flex-col items-center justify-center gap-1 rounded-xl px-2 py-2 text-center transition-colors motion-reduce:transition-none sm:flex-row sm:justify-center ${active ? "bg-blue-600 text-white shadow-sm" : "text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"}`}
+                className={`flex min-h-[5rem] flex-col items-center justify-center gap-1 rounded-2xl text-center transition-colors motion-reduce:transition-none sm:flex-row sm:justify-center ${active ? "bg-gradient-to-br from-blue-500 to-blue-700 text-white shadow-sm" : "text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"}`}
               >
                 <span
-                  className={`flex size-8 shrink-0 items-center justify-center rounded-lg ${active ? "bg-white/15" : "bg-slate-100 dark:bg-slate-800"}`}
+                  className={`flex size-9 shrink-0 items-center justify-center rounded-lg ${active ? "bg-white/15" : "bg-slate-100 dark:bg-slate-800"}`}
                 >
                   <Icon size={17} />
                 </span>
                 <span className="min-w-0 text-[11px] font-bold leading-4 sm:text-sm">
-                  {contextLabelMap[type]}
+                  {sectionLabels[type]}
                   <span
-                    className={`block text-[10px] font-normal ${active ? "text-white/75" : muted}`}
+                    className={`block text-[10px] font-normal ${active ? "text-white/80" : muted}`}
                   >
-                    {total} مورد
+                    {type === "pool"
+                      ? "فراخوان زنده"
+                      : type === "sessions"
+                        ? "سوابق حضور"
+                        : `${total} مورد`}
                   </span>
                 </span>
               </button>
@@ -411,290 +464,382 @@ export function AttendancePage() {
         </div>
       </div>
 
-      <Card className="space-y-4 p-3 sm:p-5">
-        {!chosenType ? (
-          <div className="rounded-xl bg-[rgb(var(--surface-muted))] px-4 py-5 text-center">
-            <p className="font-bold">نوع حضور و غیاب را انتخاب کنید</p>
-            <p className={`mt-1 text-xs ${muted}`}>
-              در مرحله بعد، کلاس، گروه یا اتاق موردنظر را انتخاب می‌کنید.
-            </p>
-          </div>
-        ) : (
-          <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(160px,220px)]">
-            <div className="min-w-0 text-sm font-semibold">
-              <span className="mb-1.5 block">
-                مرحله ۲: انتخاب {contextTargetLabel(contextType)}
-              </span>
-              {contextType === "dorm" ? (
-                <div
-                  className="max-h-[20rem] space-y-2 overflow-y-auto rounded-2xl border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-muted))] p-2"
-                  aria-label="ساختمان‌ها، طبقات و اتاق‌ها"
-                >
-                  {dormBuildings.map(([building, rooms]) => (
-                    <section
-                      key={building}
-                      className="rounded-xl bg-card p-2 shadow-[inset_0_1px_0_rgba(255,255,255,.12),0_4px_14px_rgba(15,23,42,.08)] dark:shadow-[inset_0_1px_0_rgba(255,255,255,.05),0_4px_14px_rgba(0,0,0,.2)]"
-                    >
-                      <p className="px-1 text-xs font-black text-ink">{building}</p>
-                      {[...new Set(rooms.map((room) => room.floor ?? 1))]
-                        .sort((a, b) => a - b)
-                        .map((floor) => (
-                          <div key={floor} className="mt-2 flex items-center gap-2">
-                            <span className="w-12 shrink-0 text-[11px] text-slate-500">
-                              طبقه {floor}
-                            </span>
-                            <div className="grid flex-1 grid-cols-3 gap-1.5 sm:grid-cols-5">
-                              {rooms
-                                .filter((room) => (room.floor ?? 1) === floor)
-                                .map((room) => {
-                                  const active = room.id === contextId;
-                                  return (
-                                    <button
-                                      key={room.id}
-                                      type="button"
-                                      disabled={saving}
-                                      onClick={() => chooseContext("dorm", room.id)}
-                                      aria-pressed={active}
-                                      className={`min-h-14 rounded-lg border px-1.5 text-center text-[11px] font-black transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500 ${active ? "border-blue-500 bg-blue-600 text-white shadow-[0_5px_0_rgb(29,78,216)] translate-y-[-1px]" : "border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-muted))] text-ink shadow-[0_3px_0_rgba(15,23,42,.12)] hover:-translate-y-0.5"}`}
-                                    >
-                                      <span className="block truncate">{room.code}</span>
-                                      <span
-                                        className={`mt-0.5 block text-[10px] font-normal ${active ? "text-white/75" : muted}`}
-                                      >
-                                        {room.total.toLocaleString("fa-IR")} نفر
-                                      </span>
-                                    </button>
-                                  );
-                                })}
-                            </div>
-                          </div>
-                        ))}
-                    </section>
-                  ))}
-                  {!dormBuildings.length ? (
-                    <p className={`p-4 text-center text-xs ${muted}`}>
-                      اتاق فعالی برای حضور و غیاب ندارید.
-                    </p>
-                  ) : null}
-                </div>
-              ) : (
-                <div
-                  className="grid grid-cols-2 gap-2 sm:grid-cols-3"
-                  aria-label={`انتخاب ${contextTargetLabel(contextType)}`}
-                >
-                  {visibleContexts.map((item) => {
-                    const active = item.id === contextId;
-                    return (
-                      <button
-                        key={item.id}
-                        type="button"
-                        disabled={saving}
-                        onClick={() => chooseContext(contextType, item.id)}
-                        aria-pressed={active}
-                        className={`min-h-[4.5rem] rounded-xl border p-2 text-right transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500 ${active ? "border-blue-500 bg-blue-600 text-white shadow-[0_5px_0_rgb(29,78,216)] translate-y-[-1px]" : "border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-muted))] text-ink shadow-[0_3px_0_rgba(15,23,42,.10)] hover:-translate-y-0.5"}`}
-                      >
-                        <span className="block truncate text-xs font-black">{item.name}</span>
-                        <span
-                          className={`mt-1 block text-[10px] ${active ? "text-white/75" : muted}`}
-                        >
-                          {item.code} · {item.total.toLocaleString("fa-IR")} نفر
-                        </span>
-                      </button>
-                    );
-                  })}
-                  {!visibleContexts.length ? (
-                    <p
-                      className={`col-span-full rounded-xl bg-[rgb(var(--surface-muted))] p-4 text-center text-xs ${muted}`}
-                    >
-                      موردی یافت نشد.
-                    </p>
-                  ) : null}
-                </div>
-              )}
+      {chosenType !== "sessions" && chosenType !== "pool" ? (
+        <Card
+          id="attendance-targets"
+          className="space-y-6 rounded-3xl border border-sky-100 p-4 sm:p-6 dark:border-slate-700"
+        >
+          {!chosenType ? (
+            <div className="rounded-xl bg-[rgb(var(--surface-muted))] px-4 py-5 text-center">
+              <p className="font-bold">نوع حضور و غیاب را انتخاب کنید</p>
+              <p className={`mt-1 text-xs ${muted}`}>
+                در مرحله بعد، کلاس، گروه یا اتاق موردنظر را انتخاب می‌کنید.
+              </p>
             </div>
-            <div className="block text-sm font-semibold">
-              <span className="mb-1.5 block">تاریخ جلسه</span>
-              <DatePicker
-                value={date}
-                max={localDate()}
-                disabled={saving}
-                onChange={chooseDate}
-                className="w-full"
-              />
-            </div>
-          </div>
-        )}
-        {loadingContexts ? (
-          <p className={`text-sm ${muted}`}>در حال دریافت کلاس‌ها و گروه‌ها…</p>
-        ) : contexts.length === 0 ? (
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <p className={`text-sm ${muted}`}>
-              هنوز گروه یا کلاسی برای حضور و غیاب تعریف نشده است.
-            </p>
-            <button
-              type="button"
-              onClick={() => setLoadVersion((v) => v + 1)}
-              className={`${buttonBase} ${shell}`}
-            >
-              تلاش مجدد
-            </button>
-          </div>
-        ) : null}
-        {selected ? (
-          <>
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <div>
-                <p className="text-sm font-bold">پیشرفت ثبت حضور</p>
-                <p className={`text-xs ${muted}`}>
-                  {marked} از {participants.length} نفر تعیین وضعیت شده‌اند
+          ) : (
+            <div className="grid gap-6">
+              <div className="min-w-0 text-sm font-semibold">
+                <span className="mb-2 flex items-center gap-3 text-lg font-black">
+                  <span className="grid size-12 place-items-center rounded-full bg-blue-50 text-blue-600 dark:bg-blue-950/40">
+                    <BookOpenCheck size={23} aria-hidden="true" />
+                  </span>{" "}
+                  انتخاب{" "}
+                  {chosenType === "class_group" && !groupClassId
+                    ? "کلاس"
+                    : contextTargetLabel(contextType)}
+                </span>
+                <p className="mb-5 text-sm leading-6 text-slate-500">
+                  {chosenType === "class_group" && !groupClassId
+                    ? "ابتدا کلاس را انتخاب کنید، سپس گروه موردنظر را باز کنید."
+                    : "برای مشاهده اعضا و ثبت حضور اکنون، یک مورد را انتخاب کنید."}
                 </p>
+                {chosenType === "class_group" && groupClassId ? (
+                  <button
+                    type="button"
+                    className={`${buttonBase} ${shell} mb-3`}
+                    onClick={() => setGroupClassId("")}
+                  >
+                    بازگشت به کلاس‌ها
+                  </button>
+                ) : null}
+                {contextType === "dorm" && auth.can("attendance.delegate") ? (
+                  <DormDelegateEditor roomId="all" members={[]} scope={scopeKey} />
+                ) : null}
+                {contextType === "dorm" ? (
+                  <div
+                    className="max-h-[20rem] space-y-2 overflow-y-auto rounded-2xl border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-muted))] p-2"
+                    aria-label="ساختمان‌ها، طبقات و اتاق‌ها"
+                  >
+                    {dormBuildings.map(([building, rooms]) => (
+                      <section
+                        key={building}
+                        className="rounded-xl bg-card p-2 shadow-[inset_0_1px_0_rgba(255,255,255,.12),0_4px_14px_rgba(15,23,42,.08)] dark:shadow-[inset_0_1px_0_rgba(255,255,255,.05),0_4px_14px_rgba(0,0,0,.2)]"
+                      >
+                        <p className="px-1 text-xs font-black text-ink">{building}</p>
+                        {[...new Set(rooms.map((room) => room.floor ?? 1))]
+                          .sort((a, b) => a - b)
+                          .map((floor) => (
+                            <div key={floor} className="mt-2 flex items-center gap-2">
+                              <span className="w-12 shrink-0 text-[11px] text-slate-500">
+                                طبقه {floor}
+                              </span>
+                              <div className="grid flex-1 grid-cols-3 gap-1.5 sm:grid-cols-5">
+                                {rooms
+                                  .filter((room) => (room.floor ?? 1) === floor)
+                                  .map((room) => {
+                                    const active = room.id === contextId;
+                                    return (
+                                      <button
+                                        key={room.id}
+                                        type="button"
+                                        disabled={saving}
+                                        onClick={() => chooseContext("dorm", room.id)}
+                                        aria-pressed={active}
+                                        className={`min-h-14 rounded-lg border px-1.5 text-center text-[11px] font-black transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500 ${active ? "border-blue-500 bg-blue-50 text-blue-900 dark:bg-blue-950/40 dark:text-blue-100" : "border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-muted))] text-ink shadow-[0_3px_0_rgba(15,23,42,.12)] hover:-translate-y-0.5"}`}
+                                      >
+                                        <span className="block truncate">{room.code}</span>
+                                        <span
+                                          className={`mt-0.5 block text-[10px] font-normal ${active ? "text-blue-700 dark:text-blue-200" : muted}`}
+                                        >
+                                          {room.total.toLocaleString("fa-IR")} نفر
+                                        </span>
+                                      </button>
+                                    );
+                                  })}
+                              </div>
+                            </div>
+                          ))}
+                      </section>
+                    ))}
+                    {!dormBuildings.length ? (
+                      <p className={`p-4 text-center text-xs ${muted}`}>
+                        اتاق فعالی برای حضور و غیاب ندارید.
+                      </p>
+                    ) : null}
+                  </div>
+                ) : (
+                  <div
+                    className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3"
+                    aria-label={`انتخاب ${contextTargetLabel(contextType)}`}
+                  >
+                    {visibleContexts.map((item) => {
+                      const active = item.id === contextId;
+                      return (
+                        <button
+                          key={item.id}
+                          type="button"
+                          disabled={saving}
+                          onClick={() => {
+                            if (chosenType === "class_group" && !groupClassId)
+                              setGroupClassId(item.id);
+                            else chooseContext(contextType, item.id);
+                          }}
+                          aria-pressed={active}
+                          className={`min-h-32 rounded-2xl border p-5 text-start transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500 ${active ? "border-blue-500 bg-blue-50 text-blue-900 dark:bg-blue-950/40 dark:text-blue-100" : "border-sky-100 bg-[rgb(var(--surface-muted))] text-ink hover:border-blue-400 hover:bg-blue-50/40 dark:border-slate-700 dark:hover:bg-slate-800"}`}
+                        >
+                          <span
+                            aria-hidden="true"
+                            className="float-end grid size-12 place-items-center rounded-full bg-emerald-50 text-emerald-600 dark:bg-emerald-950/30"
+                          >
+                            <UserRoundCheck size={23} />
+                          </span>
+                          <span className="block truncate text-base font-black">{item.name}</span>
+                          <span
+                            className={`mt-2 block text-sm ${active ? "text-blue-700 dark:text-blue-200" : muted}`}
+                          >
+                            {item.code} · {item.total.toLocaleString("fa-IR")} نفر
+                          </span>
+                        </button>
+                      );
+                    })}
+                    {!visibleContexts.length ? (
+                      <p
+                        className={`col-span-full rounded-xl bg-[rgb(var(--surface-muted))] p-4 text-center text-xs ${muted}`}
+                      >
+                        موردی یافت نشد.
+                      </p>
+                    ) : null}
+                  </div>
+                )}
               </div>
-              <span className="text-xl font-black tabular-nums">{progress}٪</span>
             </div>
-            <div
-              role="progressbar"
-              aria-label="پیشرفت تعیین وضعیت"
-              aria-valuenow={progress}
-              aria-valuemin={0}
-              aria-valuemax={100}
-              className="h-2.5 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800"
-            >
-              <div
-                className="h-full rounded-full bg-blue-600 transition-all"
-                style={{ width: `${progress}%` }}
-              />
+          )}
+          {loadingContexts ? (
+            <p className={`text-sm ${muted}`}>در حال دریافت کلاس‌ها و گروه‌ها…</p>
+          ) : contexts.length === 0 ? (
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p className={`text-sm ${muted}`}>
+                هنوز گروه یا کلاسی برای حضور و غیاب تعریف نشده است.
+              </p>
+              <button
+                type="button"
+                onClick={() => setLoadVersion((v) => v + 1)}
+                className={`${buttonBase} ${shell}`}
+              >
+                تلاش مجدد
+              </button>
             </div>
-            <div className="grid grid-cols-3 gap-2 sm:grid-cols-5">
-              {(["unmarked", ...statuses] as AttendanceStatus[]).map((status) => (
+          ) : null}
+        </Card>
+      ) : null}
+
+      <ResponsiveModal
+        open={Boolean(selected)}
+        onOpenChange={(open) => {
+          if (!open) closeRoster();
+        }}
+        title={reviewOpen ? "مرحله ۳: بررسی و ثبت حضور" : selected?.name || "حضور و غیاب"}
+        description="وضعیت اعضا را انتخاب کنید، سپس حضور جلسه را بررسی و ثبت کنید."
+      >
+        <div dir={profile.direction} className="space-y-4">
+          <div hidden={reviewOpen} className="space-y-4">
+            <p className="rounded-xl bg-blue-50 px-4 py-3 text-xs text-blue-800 dark:bg-blue-950/30 dark:text-blue-200">
+              این جلسه با زمان فعلی ثبت می‌شود.
+            </p>
+            {notice && !reviewOpen ? (
+              <p role={notice.kind === "error" ? "alert" : "status"} className="text-sm">
+                {notice.text}
+              </p>
+            ) : null}
+            {peopleError ? (
+              <button
+                type="button"
+                className={`${buttonBase} ${shell}`}
+                onClick={() => setRosterVersion((v) => v + 1)}
+              >
+                تلاش مجدد
+              </button>
+            ) : null}
+            {selected ? (
+              <>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div>
+                    <p className="text-sm font-bold">پیشرفت ثبت حضور</p>
+                    <p className={`text-xs ${muted}`}>
+                      {marked} از {participants.length} نفر تعیین وضعیت شده‌اند
+                    </p>
+                  </div>
+                  <span className="text-xl font-black tabular-nums">{progress}٪</span>
+                </div>
+                <div
+                  role="progressbar"
+                  aria-label="پیشرفت تعیین وضعیت"
+                  aria-valuenow={progress}
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                  className="h-2.5 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800"
+                >
+                  <div
+                    className="h-full rounded-full bg-blue-600 transition-all"
+                    style={{ width: `${progress}%` }}
+                  />
+                </div>
+                <AttendanceStatusTiles counts={counts} filter={filter} onFilter={setFilter} />
+              </>
+            ) : null}
+            {selected?.contextType === "dorm" && auth.can("attendance.delegate") ? (
+              <DormDelegateEditor roomId={selected.id} members={participants} scope={scopeKey} />
+            ) : null}
+            <AttendanceRosterView
+              canManage={canManage}
+              participants={participants}
+              filtered={filtered}
+              selected={Boolean(selected)}
+              filter={filter}
+              loading={loadingPeople}
+              saving={saving}
+              conflict={conflict}
+              unmarkedCount={counts.unmarked}
+              onFilterChange={setFilter}
+              onViewProfile={auth.can("attendance.review") ? setProfileId : undefined}
+              onMark={mark}
+              onMarkAllPresent={markAllPresent}
+              onClearFilters={() => {
+                setFilter("all");
+              }}
+            />
+
+            {conflict && (
+              <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-400 bg-amber-50 p-4 text-sm text-amber-950 dark:bg-amber-950/30 dark:text-amber-100">
+                <span className="flex items-center gap-2">
+                  <ShieldAlert size={18} /> به‌روزرسانی هم‌زمان شناسایی شد. ذخیره تا بررسی مجدد
+                  متوقف است.
+                </span>
                 <button
                   type="button"
-                  key={status}
-                  onClick={() => setFilter((f) => (f === status ? "all" : status))}
-                  aria-pressed={filter === status}
-                  className={`rounded-xl border px-2 py-3 text-center transition-colors ${filter === status ? "border-blue-500 ring-1 ring-blue-500" : "border-[rgb(var(--border-subtle))]"}`}
+                  className={`${buttonBase} border border-amber-400`}
+                  onClick={() => {
+                    discard.request(() => {
+                      setParticipants((all) => all.map((p) => ({ ...p, status: "unmarked" })));
+                      setConflict(false);
+                      setNotice({
+                        kind: "info",
+                        text: "پیش‌نویس پاک شد. سوابق ثبت‌شده در تاریخچه حفظ می‌شوند.",
+                      });
+                    });
+                  }}
                 >
-                  <span className="block text-lg font-black tabular-nums">{counts[status]}</span>
-                  <span className={`text-[11px] ${muted}`}>
-                    {status === "unmarked" ? "نامشخص" : statusMeta[status].label}
-                  </span>
+                  پاک‌کردن پیش‌نویس
                 </button>
-              ))}
-            </div>
-          </>
-        ) : null}
-      </Card>
-
-      <AttendanceRosterView
-        participants={participants}
-        filtered={filtered}
-        selected={Boolean(selected)}
-        search={search}
-        filter={filter}
-        loading={loadingPeople}
-        saving={saving}
-        conflict={conflict}
-        unmarkedCount={counts.unmarked}
-        onSearchChange={setSearch}
-        onFilterChange={setFilter}
-        onMark={mark}
-        onMarkAllPresent={markAllPresent}
-        onClearFilters={() => {
-          setSearch("");
-          setFilter("all");
-        }}
-      />
-
-      {conflict && (
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-400 bg-amber-50 p-4 text-sm text-amber-950 dark:bg-amber-950/30 dark:text-amber-100">
-          <span className="flex items-center gap-2">
-            <ShieldAlert size={18} /> به‌روزرسانی هم‌زمان شناسایی شد. ذخیره تا بررسی مجدد متوقف است.
-          </span>
-          <button
-            type="button"
-            className={`${buttonBase} border border-amber-400`}
-            onClick={() => {
-              if (!canDiscard()) return;
-              setParticipants((all) => all.map((p) => ({ ...p, status: "unmarked" })));
-              setConflict(false);
-              setNotice({
-                kind: "info",
-                text: "پیش‌نویس پاک شد. برای مشاهده داده‌های ثبت‌شده نیاز به API خواندن حضور است.",
-              });
-            }}
-          >
-            پاک‌کردن پیش‌نویس
-          </button>
-        </div>
-      )}
-
-      <Card className="space-y-3 p-4 sm:p-5">
-        <div className="flex items-center justify-between">
-          <h2 className="flex items-center gap-2 font-black">
-            <History size={18} /> آخرین جلسات
-          </h2>
-          <button
-            type="button"
-            className="text-xs font-bold text-blue-600"
-            onClick={() => void refreshHistory()}
-          >
-            به‌روزرسانی
-          </button>
-        </div>
-        {sessions.length ? (
-          <div className="divide-y divide-[rgb(var(--border-subtle))]">
-            {sessions.slice(0, 6).map((session) => (
-              <div
-                key={session.id}
-                className="flex flex-wrap items-center justify-between gap-2 py-3 text-sm"
-              >
-                <span className="font-semibold">
-                  {contextLabelMap[session.contextType]} ·{" "}
-                  {session.contextLabel || session.contextId}
-                </span>
-                <span className={`flex items-center gap-1 text-xs ${muted}`}>
-                  <Clock3 size={14} />
-                  {new Date(session.sessionDate).toLocaleString("fa-IR")}
-                </span>
               </div>
-            ))}
-          </div>
-        ) : (
-          <p className={`text-sm ${muted}`}>هنوز جلسه‌ای در تاریخچه نمایش داده نشده است.</p>
-        )}
-      </Card>
+            )}
 
-      <div
-        className={`fixed inset-x-3 bottom-[calc(env(safe-area-inset-bottom)+5.5rem)] z-30 rounded-2xl border ${shell} p-3 shadow-[0_-8px_30px_rgba(0,0,0,0.06)] lg:sticky lg:inset-x-auto lg:bottom-4 lg:p-3`}
-      >
-        <div className="mx-auto flex max-w-7xl items-center gap-2">
-          <div className="hidden min-w-0 flex-1 sm:block">
-            <p className="text-sm font-bold">
-              {marked} از {participants.length} نفر
-            </p>
-            <p className={`text-xs ${muted}`}>
-              {dirty ? "پیش‌نویس ذخیره نشده" : "وضعیتی برای ثبت انتخاب نشده"}
-            </p>
+            {canManage ? (
+              <div className={`sticky bottom-0 z-10 rounded-2xl ${shell} p-3`}>
+                <div className="mx-auto flex max-w-7xl items-center gap-2">
+                  <div className="hidden min-w-0 flex-1 sm:block">
+                    <p className="text-sm font-bold">
+                      {marked} از {participants.length} نفر
+                    </p>
+                    <p className={`text-xs ${muted}`}>
+                      {dirty ? "پیش‌نویس ذخیره نشده" : "وضعیتی برای ثبت انتخاب نشده"}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={resetDraft}
+                    aria-label="پاک‌کردن"
+                    disabled={saving || !dirty}
+                    className={`${buttonBase} ${shell} px-3 sm:px-4`}
+                  >
+                    <RotateCcw size={17} />
+                    <span className="hidden sm:inline">پاک‌کردن</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setReviewOpen(true)}
+                    disabled={saving || loadingPeople || !selected || !dirty || conflict}
+                    className={`${buttonBase} flex-1 bg-blue-600 text-white hover:bg-blue-700 sm:flex-none sm:min-w-48`}
+                  >
+                    {saving ? (
+                      <LoaderCircle className="animate-spin" size={18} />
+                    ) : (
+                      <Check size={18} />
+                    )}
+                    {saving ? "در حال ثبت…" : `بررسی و ثبت حضور ${marked ? `(${marked})` : ""}`}
+                  </button>
+                </div>
+              </div>
+            ) : null}
           </div>
-          <button
-            type="button"
-            onClick={resetDraft}
-            disabled={saving || !dirty}
-            className={`${buttonBase} ${shell} px-3 sm:px-4`}
-          >
-            <RotateCcw size={17} />
-            <span className="hidden sm:inline">پاک‌کردن</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => void save()}
-            disabled={saving || loadingPeople || !selected || !dirty || conflict}
-            className={`${buttonBase} flex-1 bg-blue-600 text-white hover:bg-blue-700 sm:flex-none sm:min-w-48`}
-          >
-            {saving ? <LoaderCircle className="animate-spin" size={18} /> : <Check size={18} />}
-            {saving ? "در حال ثبت…" : `ثبت حضور ${marked ? `(${marked})` : ""}`}
-          </button>
+          {reviewOpen ? (
+            <div className="space-y-4">
+              <div className={`${shell} rounded-xl p-3`}>
+                <p className="font-bold">{selected?.name}</p>
+                <p className={`mt-1 text-sm ${muted}`}>
+                  زمان ثبت: اکنون · {marked} از {participants.length} نفر
+                </p>
+              </div>
+              <dl className="grid grid-cols-3 gap-2 text-center">
+                {statuses.map((status) => (
+                  <div key={status} className="rounded-xl bg-[rgb(var(--surface-muted))] p-3">
+                    <dt className={`text-xs ${muted}`}>{statusMeta[status].label}</dt>
+                    <dd className="mt-1 text-xl font-black">{counts[status]}</dd>
+                  </div>
+                ))}
+              </dl>
+              {counts.unmarked > 0 ? (
+                <p
+                  role="status"
+                  className="rounded-xl bg-amber-50 p-3 text-sm leading-6 text-amber-900 dark:bg-amber-950 dark:text-amber-100"
+                >
+                  وضعیت {counts.unmarked} نفر مشخص نشده است. فقط {marked} وضعیت انتخاب‌شده ثبت
+                  می‌شود؛ سایر افراد غایب محسوب نمی‌شوند.
+                </p>
+              ) : null}
+              {notice?.kind === "error" ? (
+                <p role="alert" className="text-sm text-rose-700 dark:text-rose-300">
+                  {notice.text}
+                </p>
+              ) : null}
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  disabled={saving}
+                  onClick={() => setReviewOpen(false)}
+                  className={`${buttonBase} ${shell} flex-1`}
+                >
+                  بازگشت به فهرست
+                </button>
+                <button
+                  type="button"
+                  disabled={saving || conflict || !marked}
+                  onClick={() => void save()}
+                  className={`${buttonBase} flex-1 bg-blue-600 text-white`}
+                >
+                  {saving ? "در حال ثبت…" : "تأیید و ثبت"}
+                </button>
+              </div>
+            </div>
+          ) : null}
         </div>
-      </div>
+      </ResponsiveModal>
+      {auth.can("attendance.review") && (chosenType === "sessions" || chosenType === "pool") ? (
+        <AttendanceStaffWorkspace
+          key={`${scopeKey}:${chosenType}`}
+          section={chosenType === "pool" ? "pool" : "sessions"}
+          contexts={contexts}
+          scope={scopeKey}
+          refreshVersion={staffRefreshVersion}
+          onNewSession={() =>
+            discard.request(() => {
+              targetScrollRequested.current = true;
+              setChosenType("class");
+              setContextType("class");
+              setContextId("");
+              setGroupClassId("");
+            })
+          }
+        />
+      ) : null}
+      {profileId && auth.can("attendance.review") ? (
+        <AttendanceProfileDialog
+          studentId={profileId}
+          scope={scopeKey}
+          onClose={() => setProfileId(null)}
+        />
+      ) : null}
+      {discard.confirmation}
     </section>
   );
 }

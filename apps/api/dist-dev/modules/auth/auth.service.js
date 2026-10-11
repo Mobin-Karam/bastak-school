@@ -60,6 +60,16 @@ let AuthService = class AuthService {
             refreshTokenTtlDays: this.config.get("refreshTokenTtlDays", 30),
         });
     }
+    async checkPhone(phoneNumber, ip = "unknown") {
+        const normalized = (0, phone_number_1.normalizeIranianMobile)(phoneNumber);
+        if (!(0, phone_number_1.isIranianMobile)(normalized))
+            throw new api_exception_1.ApiException(422, "INVALID_PHONE_NUMBER", "شماره همراه معتبر نیست.");
+        const lookupKey = `phone-lookup:${ip}`;
+        await this.throttle?.assertAllowed(lookupKey, lookupKey);
+        await this.throttle?.failure(lookupKey, lookupKey);
+        const exists = await this.users.existsBy({ phoneNumber: normalized });
+        return { exists };
+    }
     async login(phoneNumber, password, ip = "unknown") {
         const normalizedPhoneNumber = (0, phone_number_1.normalizeIranianMobile)(phoneNumber);
         if (!(0, phone_number_1.isIranianMobile)(normalizedPhoneNumber))

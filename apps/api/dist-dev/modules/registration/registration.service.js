@@ -23,8 +23,8 @@ const registration_requirement_entity_1 = require("../../database/entities/regis
 const student_contact_entity_1 = require("../../database/entities/student-contact.entity");
 const student_profile_entity_1 = require("../../database/entities/student-profile.entity");
 const student_entity_1 = require("../../database/entities/student.entity");
-const national_code_1 = require("../onboarding/national-code");
-const school_access_service_1 = require("../school-access/school-access.service");
+const onboarding_1 = require("../onboarding");
+const school_access_1 = require("../school-access");
 const DEFAULT_REQUIREMENTS = [
     { sectionCode: "BASIC_INFORMATION", enabled: true, required: true, sortOrder: 10 },
     { sectionCode: "IDENTITY_INFORMATION", enabled: false, required: false, sortOrder: 20 },
@@ -81,7 +81,7 @@ let RegistrationService = class RegistrationService {
     async updateProfile(user, dto) {
         const student = await this.selfStudent(user);
         if (dto.nationalCode) {
-            if (!(0, national_code_1.isValidIranianNationalCode)(dto.nationalCode))
+            if (!(0, onboarding_1.isValidIranianNationalCode)(dto.nationalCode))
                 throw new api_exception_1.ApiException(422, "INVALID_NATIONAL_CODE", "کد ملی معتبر نیست.");
             const existing = await this.studentsRepo.findOne({ where: { nationalCode: dto.nationalCode } });
             if (existing && existing.id !== student.id)
@@ -269,6 +269,6 @@ exports.RegistrationService = RegistrationService = __decorate([
         typeorm_2.Repository,
         typeorm_2.Repository,
         typeorm_2.Repository,
-        school_access_service_1.SchoolAccessService])
+        school_access_1.SchoolAccessService])
 ], RegistrationService);
 //# sourceMappingURL=registration.service.js.map

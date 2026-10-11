@@ -12,7 +12,6 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.AttendanceRecord = exports.AttendanceReviewStatus = exports.AttendanceStatus = void 0;
 const openapi = require("@nestjs/swagger");
 const typeorm_1 = require("typeorm");
-const attendance_session_entity_1 = require("./attendance-session.entity");
 const student_entity_1 = require("./student.entity");
 const user_entity_1 = require("./user.entity");
 var AttendanceStatus;
@@ -34,6 +33,10 @@ let AttendanceRecord = class AttendanceRecord {
     student;
     status;
     note;
+    physicalStatus;
+    revision;
+    minutesLate;
+    arrivalAt;
     reviewStatus;
     reviewNote;
     reviewedBy;
@@ -42,7 +45,7 @@ let AttendanceRecord = class AttendanceRecord {
     createdAt;
     updatedAt;
     static _OPENAPI_METADATA_FACTORY() {
-        return { id: { required: true, type: () => String }, session: { required: true, type: () => require("./attendance-session.entity").AttendanceSession }, student: { required: true, type: () => require("./student.entity").Student }, status: { required: true, enum: require("./attendance-record.entity").AttendanceStatus }, note: { required: true, type: () => String }, reviewStatus: { required: false, nullable: true, enum: require("./attendance-record.entity").AttendanceReviewStatus }, reviewNote: { required: true, type: () => String }, reviewedBy: { required: false, type: () => require("./user.entity").User, nullable: true }, reviewedAt: { required: false, type: () => Date, nullable: true }, recordedBy: { required: false, type: () => require("./user.entity").User, nullable: true }, createdAt: { required: true, type: () => Date }, updatedAt: { required: true, type: () => Date } };
+        return { id: { required: true, type: () => String }, session: { required: true, type: () => require("./attendance-session.entity").AttendanceSession }, student: { required: true, type: () => require("./student.entity").Student }, status: { required: true, enum: require("./attendance-record.entity").AttendanceStatus }, note: { required: true, type: () => String }, physicalStatus: { required: false, nullable: true, description: "Legacy projection `status` remains readable; this is the physical observation.", enum: ["present", "absent", "late", "legacy_unknown"] }, revision: { required: true, type: () => Number }, minutesLate: { required: false, type: () => Number, nullable: true }, arrivalAt: { required: false, type: () => Date, nullable: true }, reviewStatus: { required: false, nullable: true, enum: require("./attendance-record.entity").AttendanceReviewStatus }, reviewNote: { required: true, type: () => String }, reviewedBy: { required: false, type: () => require("./user.entity").User, nullable: true }, reviewedAt: { required: false, type: () => Date, nullable: true }, recordedBy: { required: false, type: () => require("./user.entity").User, nullable: true }, createdAt: { required: true, type: () => Date }, updatedAt: { required: true, type: () => Date } };
     }
 };
 exports.AttendanceRecord = AttendanceRecord;
@@ -51,8 +54,10 @@ __decorate([
     __metadata("design:type", String)
 ], AttendanceRecord.prototype, "id", void 0);
 __decorate([
-    (0, typeorm_1.ManyToOne)(() => attendance_session_entity_1.AttendanceSession, (session) => session.records, { onDelete: "CASCADE" }),
-    __metadata("design:type", attendance_session_entity_1.AttendanceSession)
+    (0, typeorm_1.ManyToOne)("AttendanceSession", (session) => session.records, {
+        onDelete: "CASCADE",
+    }),
+    __metadata("design:type", Function)
 ], AttendanceRecord.prototype, "session", void 0);
 __decorate([
     (0, typeorm_1.ManyToOne)(() => student_entity_1.Student, { onDelete: "CASCADE" }),
@@ -66,6 +71,22 @@ __decorate([
     (0, typeorm_1.Column)({ type: "text", default: "" }),
     __metadata("design:type", String)
 ], AttendanceRecord.prototype, "note", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: "varchar", length: 20, nullable: true }),
+    __metadata("design:type", Object)
+], AttendanceRecord.prototype, "physicalStatus", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: "integer", default: 0 }),
+    __metadata("design:type", Number)
+], AttendanceRecord.prototype, "revision", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: "integer", nullable: true }),
+    __metadata("design:type", Object)
+], AttendanceRecord.prototype, "minutesLate", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: "datetime", nullable: true }),
+    __metadata("design:type", Object)
+], AttendanceRecord.prototype, "arrivalAt", void 0);
 __decorate([
     (0, typeorm_1.Column)({ type: "varchar", length: 16, nullable: true }),
     __metadata("design:type", Object)

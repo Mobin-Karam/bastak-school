@@ -31,7 +31,6 @@ export function DashboardPlanHealth({
   value,
   href,
   title,
-  description,
 }: {
   value?: { plans?: number; tasks?: number; completed?: number };
   href?: string;

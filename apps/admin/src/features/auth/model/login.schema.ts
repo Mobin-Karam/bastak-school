@@ -5,7 +5,10 @@ export function createLoginSchema(messages: {
   passwordRequired: string;
 }) {
   return z.object({
-    phoneNumber: z.string().trim().regex(/^09\d{9}$/, messages.phoneNumberRequired),
+    phoneNumber: z
+      .string()
+      .trim()
+      .regex(/^09\d{9}$/, messages.phoneNumberRequired),
     password: z.string().min(1, messages.passwordRequired),
   });
 }

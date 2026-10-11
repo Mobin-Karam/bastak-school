@@ -35,14 +35,53 @@ describe("LoginPage", () => {
       </MemoryRouter>,
     );
 
-    await userEvent.click(await screen.findByRole("button", { name: "ورود" }));
+    await userEvent.click(await screen.findByRole("button", { name: "ادامه" }));
 
     expect(await screen.findByText("شماره همراه معتبر لازم است")).toBeInTheDocument();
 
-    expect(screen.getByText("رمز عبور لازم است")).toBeInTheDocument();
+    expect(screen.queryByLabelText("رمز عبور")).not.toBeInTheDocument();
   });
 
-  it("fills credentials for every Admin v2 demo role", async () => {
+  it.each([true, false])(
+    "checks the phone before revealing the password (exists=%s)",
+    async (exists) => {
+      globalThis.fetch = vi.fn(async (input) => {
+        if (String(input).includes("check-phone"))
+          return new Response(JSON.stringify({ ok: true, data: { exists } }));
+        return new Response(JSON.stringify({ ok: false, error: { message: "unauthorized" } }), {
+          status: 401,
+        });
+      }) as typeof fetch;
+      render(
+        <MemoryRouter>
+          <ThemeProvider>
+            <LocaleProvider>
+              <AuthProvider>
+                <LoginPage />
+              </AuthProvider>
+            </LocaleProvider>
+          </ThemeProvider>
+        </MemoryRouter>,
+      );
+      const phone = await screen.findByLabelText("شماره همراه");
+      expect(screen.queryByLabelText("رمز عبور")).not.toBeInTheDocument();
+      await userEvent.type(phone, "09123456789");
+      await userEvent.click(screen.getByRole("button", { name: "ادامه" }));
+      if (!exists) {
+        expect(await screen.findByText(/حسابی با این شماره یافت نشد/)).toBeInTheDocument();
+        expect(screen.queryByLabelText("رمز عبور")).not.toBeInTheDocument();
+        return;
+      }
+      expect(await screen.findByLabelText("رمز عبور")).toHaveFocus();
+      await userEvent.click(screen.getByRole("button", { name: "ورود" }));
+      expect(await screen.findByText("رمز عبور لازم است")).toBeInTheDocument();
+      await userEvent.click(screen.getByRole("button", { name: "تغییر شماره" }));
+      expect(screen.getByLabelText("شماره همراه")).toHaveValue("09123456789");
+      expect(screen.queryByLabelText("رمز عبور")).not.toBeInTheDocument();
+    },
+  );
+
+  it("starts with an empty phone field without demo credentials", async () => {
     globalThis.fetch = vi.fn(
       async () =>
         new Response(JSON.stringify({ ok: false, error: { message: "unauthorized" } }), {
@@ -60,15 +99,9 @@ describe("LoginPage", () => {
         </ThemeProvider>
       </MemoryRouter>,
     );
-    await userEvent.click(await screen.findByText("ورود سریع نقش‌های آزمایشی"));
-    await userEvent.click(screen.getAllByRole("button", { name: /مدیر سازمان/ })[0]);
-    expect(screen.getByLabelText("شماره همراه")).toHaveValue("09127873545");
-    expect(screen.getByLabelText("رمز عبور")).toHaveValue("Moshaver-demo-2026!");
-    expect(
-      screen.getAllByRole("button", {
-        name: /سرپرست|مشاور|دبیر|منتور|مدیر محتوا|مدیر سازمان|مدیر پلتفرم|چندنقشی/,
-      }),
-    ).toHaveLength(7);
+    expect(await screen.findByLabelText("شماره همراه")).toHaveValue("");
+    expect(screen.queryByText("ورود سریع نقش‌های آزمایشی")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("رمز عبور")).not.toBeInTheDocument();
   });
 
   it("keeps localization available while omitting the language-switch control", async () => {
@@ -88,7 +121,7 @@ describe("LoginPage", () => {
       </MemoryRouter>,
     );
 
-    expect(await screen.findByRole("heading", { name: "خوش آمدید" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "ورود به میز کار" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "English" })).not.toBeInTheDocument();
     expect(document.documentElement).toHaveAttribute("dir", "rtl");
     expect(document.documentElement).toHaveAttribute("lang", "fa-IR");

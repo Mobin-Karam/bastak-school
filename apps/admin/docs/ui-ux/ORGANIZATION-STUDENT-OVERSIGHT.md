@@ -20,15 +20,15 @@ triage view, not a staff-performance scorecard.
 
 ## Signals and meaning
 
-| Signal | Meaning | Follow-up |
-| --- | --- | --- |
-| No plan today | No published plan exists for today. | Open the student's Activity tab; then review planning ownership. |
-| No completed task | A published plan has tasks but none are complete. | Open Activity and check the task timeline. |
-| No daily report | No daily report exists for today. | Ask the student or advisor for context; it is not proof of inactivity. |
-| Failed sync | Presence reports a failed sync. | Open Activity and resolve device/network follow-up first. |
-| Open student issue | The student has an open task issue. | Open Activity or the operational queue. |
-| Pending recovery | A recovery request awaits a decision. | Open the operational queue. |
-| No active advisor | No active, organization-scoped advisor relationship exists. | Assign or restore the appropriate relationship in People and access. |
+| Signal             | Meaning                                                     | Follow-up                                                              |
+| ------------------ | ----------------------------------------------------------- | ---------------------------------------------------------------------- |
+| No plan today      | No published plan exists for today.                         | Open the student's Activity tab; then review planning ownership.       |
+| No completed task  | A published plan has tasks but none are complete.           | Open Activity and check the task timeline.                             |
+| No daily report    | No daily report exists for today.                           | Ask the student or advisor for context; it is not proof of inactivity. |
+| Failed sync        | Presence reports a failed sync.                             | Open Activity and resolve device/network follow-up first.              |
+| Open student issue | The student has an open task issue.                         | Open Activity or the operational queue.                                |
+| Pending recovery   | A recovery request awaits a decision.                       | Open the operational queue.                                            |
+| No active advisor  | No active, organization-scoped advisor relationship exists. | Assign or restore the appropriate relationship in People and access.   |
 
 The dashboard also includes a seven-day completion aggregate for published
 plans. It is a trend context for the organization, not an individual alert and

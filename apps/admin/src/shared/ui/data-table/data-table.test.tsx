@@ -283,7 +283,9 @@ describe("shared DataTable", () => {
     const csv = tableCsv([{ ...rows[0], title: '=HYPERLINK("bad")', teacher: "A, B\nC" }], columns);
     expect(csv).toContain('"\'=HYPERLINK(""bad"")"');
     expect(csv).toContain('"A, B\nC"');
-    expect(tableCsv([{ amount: -12 }], [{ id: "amount", label: "Amount", value: (row) => row.amount }])).toContain('"-12"');
+    expect(
+      tableCsv([{ amount: -12 }], [{ id: "amount", label: "Amount", value: (row) => row.amount }]),
+    ).toContain('"-12"');
   });
   it("exports every filtered row rather than only the current page", async () => {
     const download = vi.spyOn(tableExports, "exportTable").mockResolvedValue();

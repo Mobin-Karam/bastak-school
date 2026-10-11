@@ -1,63 +1,199 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Check, ClipboardCheck, LoaderCircle, X } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useAuth } from "../../auth";
 import { api } from "../../../shared/api/api";
-import { Button, Card, EmptyState } from "../../../shared/ui/ui";
+import { ResponsiveModal } from "../../../shared/ui/responsive-modal";
+import { Button, Card, EmptyState, LoadingState } from "../../../shared/ui/ui";
 import {
   listAttendanceAbsenceReviews,
-  listLiveAttendanceRecords,
   reviewAttendanceAbsence,
   type AttendanceAbsenceReview,
 } from "../api/attendance.api";
 
-/** Live, server-authorized absence-reason review for principals and supervisors. */
+/** Scoped principal/supervisor review: inspect, choose a decision, confirm. */
 export function AttendanceReviewQueue() {
   const client = useQueryClient();
+  const auth = useAuth();
+  const organizationId = auth.context?.activeOrganization?.id;
+  const scope = JSON.stringify([auth.user?.id, auth.activeRole, organizationId]);
+  const scopeRef = useRef(scope);
+  scopeRef.current = scope;
+  const [selected, setSelected] = useState<AttendanceAbsenceReview | null>(null);
+  const [decision, setDecision] = useState<"approved" | "rejected" | null>(null);
+  const [note, setNote] = useState("");
   const [notice, setNotice] = useState<string | null>(null);
   const reviews = useQuery({
-    queryKey: ["attendance", "absence-reviews"],
-    queryFn: () => listAttendanceAbsenceReviews(),
-  });
-  const liveRecords = useQuery({
-    queryKey: ["attendance", "live-records"],
-    queryFn: () => listLiveAttendanceRecords(),
+    queryKey: ["attendance", "absence-reviews", scope],
+    queryFn: () => listAttendanceAbsenceReviews(organizationId),
+    enabled: auth.can("attendance.review"),
   });
   useEffect(() => {
-    const stream = api.openEvents((type) => {
-      if (type === "attendance.updated" || type === "attendance.reviewed")
-        void client.invalidateQueries({ queryKey: ["attendance"] });
+    setSelected(null);
+    setDecision(null);
+    setNote("");
+    setNotice(null);
+  }, [scope]);
+  useEffect(() => {
+    const stream = api.openEvents((type, payload) => {
+      if (
+        (type === "attendance.updated" || type === "attendance.reviewed") &&
+        (!organizationId || payload.organizationId === organizationId)
+      )
+        void client.invalidateQueries({ queryKey: ["attendance", "absence-reviews", scope] });
     });
     return () => stream.close();
-  }, [client]);
+  }, [client, organizationId, scope]);
   const mutation = useMutation({
-    mutationFn: ({ record, decision }: { record: AttendanceAbsenceReview; decision: "approved" | "rejected" }) =>
-      reviewAttendanceAbsence(record.id, { decision }),
-    onSuccess: (_, { decision }) => {
-      setNotice(decision === "approved" ? "دلیل غیبت پذیرفته و وضعیت موجه شد." : "دلیل غیبت رد شد و استاد در جریان قرار گرفت.");
+    mutationFn: ({
+      record,
+      decision,
+      note,
+    }: {
+      record: AttendanceAbsenceReview;
+      decision: "approved" | "rejected";
+      note: string;
+      scope: string;
+    }) => reviewAttendanceAbsence(record.id, { decision, note: note.trim() || undefined }),
+    onSuccess: (_, variables) => {
+      if (variables.scope !== scopeRef.current) return;
+      setSelected(null);
+      setNotice(
+        variables.decision === "approved"
+          ? "دلیل غیبت پذیرفته شد؛ غیبت فیزیکی در سابقه حفظ می‌شود."
+          : "دلیل غیبت رد شد.",
+      );
       void client.invalidateQueries({ queryKey: ["attendance"] });
     },
   });
   const pending = (reviews.data ?? []).filter((review) => review.reviewStatus === "pending");
   return (
-    <Card className="border-amber-200 bg-amber-50/60 p-4 dark:border-amber-900/60 dark:bg-amber-950/15">
-      <header className="flex items-start justify-between gap-3">
-        <div className="flex min-w-0 items-center gap-2.5">
-          <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-amber-500/15 text-amber-700 dark:text-amber-300"><ClipboardCheck size={20} aria-hidden="true" /></span>
-          <div><h2 className="text-sm font-black text-ink">بررسی زنده غیبت‌ها</h2><p className="mt-0.5 text-xs text-slate-600 dark:text-slate-300">{pending.length ? `${pending.length.toLocaleString("fa-IR")} دلیل غیبت در انتظار تصمیم است` : "موردی برای بررسی ندارید"}</p></div>
-        </div>
-        {reviews.isFetching ? <LoaderCircle className="animate-spin text-amber-700" size={17} aria-label="به‌روزرسانی" /> : null}
+    <Card className="space-y-3 p-4">
+      <header>
+        <h2 className="font-black">دلیل‌های غیبت</h2>
+        <p className="mt-1 text-sm text-slate-500">
+          یک مورد را باز کنید، دلیل را بخوانید و سپس تصمیم خود را ثبت کنید.
+        </p>
       </header>
-      {notice ? <p role="status" className="mt-3 rounded-lg bg-card px-3 py-2 text-xs font-bold text-emerald-700 dark:text-emerald-300">{notice}</p> : null}
-      {reviews.isError ? <p role="alert" className="mt-3 text-sm text-rose-700 dark:text-rose-300">صف بررسی دریافت نشد؛ دوباره تلاش کنید.</p> : pending.length ? (
-        <ul className="mt-3 grid gap-2" aria-label="غیبت‌های منتظر بررسی">
-          {pending.map((review) => <li key={review.id} className="rounded-xl border border-amber-200 bg-card p-3 dark:border-amber-900/60">
-            <div className="flex flex-wrap items-start justify-between gap-2"><div><p className="text-sm font-black text-ink">{review.studentName}</p><p className="mt-0.5 text-[11px] text-slate-500">ثبت‌شده توسط {review.teacherName} · {new Date(review.sessionDate).toLocaleDateString("fa-IR")}</p></div><span className="rounded-full bg-amber-100 px-2 py-1 text-[11px] font-bold text-amber-800 dark:bg-amber-950/60 dark:text-amber-200">در انتظار</span></div>
-            <p className="mt-2 text-xs leading-5 text-slate-700 dark:text-slate-200"><span className="font-bold">دلیل استاد: </span>{review.reason || "دلیلی ثبت نشده است."}</p>
-            <div className="mt-3 grid grid-cols-2 gap-2"><Button size="sm" disabled={mutation.isPending} onClick={() => mutation.mutate({ record: review, decision: "approved" })}><Check size={15} aria-hidden="true" /> پذیرش و موجه‌کردن</Button><Button size="sm" variant="soft" disabled={mutation.isPending} onClick={() => mutation.mutate({ record: review, decision: "rejected" })}><X size={15} aria-hidden="true" /> رد دلیل</Button></div>
-          </li>)}
+      {notice ? (
+        <p
+          role="status"
+          className="rounded-xl bg-emerald-50 p-3 text-sm text-emerald-900 dark:bg-emerald-950 dark:text-emerald-100"
+        >
+          {notice}
+        </p>
+      ) : null}
+      {reviews.isLoading ? (
+        <LoadingState label="دریافت موارد منتظر بررسی…" />
+      ) : reviews.isError ? (
+        <div role="alert">
+          <p>دریافت موارد انجام نشد.</p>
+          <Button variant="soft" onClick={() => void reviews.refetch()}>
+            تلاش مجدد
+          </Button>
+        </div>
+      ) : pending.length ? (
+        <ul className="grid gap-2" aria-label="غیبت‌های منتظر بررسی">
+          {pending.map((review) => (
+            <li
+              key={review.id}
+              className="flex items-center justify-between gap-3 rounded-xl border border-[rgb(var(--border-subtle))] p-3"
+            >
+              <div className="min-w-0">
+                <p className="font-bold">{review.studentName}</p>
+                <p className="mt-1 text-xs text-slate-500">
+                  {review.teacherName} · {new Date(review.sessionDate).toLocaleDateString("fa-IR")}
+                </p>
+              </div>
+              <Button
+                variant="soft"
+                onClick={() => {
+                  mutation.reset();
+                  setSelected(review);
+                  setDecision(null);
+                  setNote("");
+                }}
+              >
+                بررسی
+              </Button>
+            </li>
+          ))}
         </ul>
-      ) : <div className="mt-3"><EmptyState title="همه دلیل‌های غیبت بررسی شده‌اند." /></div>}
-      {liveRecords.data?.length ? <div className="mt-4 border-t border-amber-200 pt-3 dark:border-amber-900/60"><p className="text-xs font-black text-ink">آخرین حضورهای ثبت‌شده</p><ul className="mt-2 grid gap-1 sm:grid-cols-2" aria-label="آخرین وضعیت حضور دانش‌آموزان">{liveRecords.data.slice(0, 12).map((record) => <li key={record.id} className="flex items-center justify-between gap-2 rounded-lg bg-card px-2.5 py-2 text-xs"><span className="truncate font-bold text-ink">{record.studentName}</span><span className={record.status === "present" ? "font-bold text-emerald-700 dark:text-emerald-300" : record.status === "absent" ? "font-bold text-rose-700 dark:text-rose-300" : "font-bold text-sky-700 dark:text-sky-300"}>{record.status === "present" ? "حاضر" : record.status === "absent" ? "غایب" : record.status === "late" ? "با تأخیر" : "موجه"}</span></li>)}</ul></div> : null}
+      ) : (
+        <EmptyState title="موردی در انتظار بررسی نیست." />
+      )}
+      <ResponsiveModal
+        open={Boolean(selected)}
+        onOpenChange={(open) => {
+          if (!open && !mutation.isPending) setSelected(null);
+        }}
+        title={decision ? "مرحله ۲: تأیید تصمیم" : "مرحله ۱: بررسی دلیل غیبت"}
+        description={selected?.studentName ?? "بررسی غیبت"}
+      >
+        <div className="space-y-4">
+          <div className="rounded-xl bg-[rgb(var(--surface-muted))] p-3">
+            <p className="text-sm font-bold">دلیل ثبت‌شده</p>
+            <p className="mt-2 whitespace-pre-wrap text-sm leading-6">
+              {selected?.reason || "دلیلی ثبت نشده است."}
+            </p>
+          </div>
+          {!decision ? (
+            <>
+              <label className="block text-sm font-bold">
+                یادداشت بررسی (اختیاری)
+                <textarea
+                  value={note}
+                  maxLength={500}
+                  onChange={(event) => setNote(event.target.value)}
+                  className="mt-2 min-h-24 w-full rounded-xl border border-[rgb(var(--border-subtle))] bg-card p-3 font-normal"
+                />
+              </label>
+              <div className="flex gap-2">
+                <Button className="flex-1" onClick={() => setDecision("approved")}>
+                  پذیرش دلیل
+                </Button>
+                <Button variant="soft" className="flex-1" onClick={() => setDecision("rejected")}>
+                  رد دلیل
+                </Button>
+              </div>
+            </>
+          ) : (
+            <>
+              <p className="text-sm leading-6">
+                {decision === "approved"
+                  ? "دلیل غیبت پذیرفته می‌شود. این تصمیم به معنی حضور دانش‌آموز نیست."
+                  : "دلیل غیبت رد می‌شود. سابقه غیبت حفظ می‌شود."}
+              </p>
+              {note ? <p className="text-sm">یادداشت: {note}</p> : null}
+              {mutation.isError ? (
+                <p role="alert" className="text-sm text-rose-700 dark:text-rose-300">
+                  {mutation.error instanceof Error
+                    ? mutation.error.message
+                    : "ثبت تصمیم انجام نشد؛ دوباره تلاش کنید."}
+                </p>
+              ) : null}
+              <div className="flex gap-2">
+                <Button
+                  variant="soft"
+                  disabled={mutation.isPending}
+                  onClick={() => setDecision(null)}
+                >
+                  بازگشت
+                </Button>
+                <Button
+                  loading={mutation.isPending}
+                  disabled={!auth.can("attendance.review")}
+                  onClick={() => {
+                    if (selected && decision)
+                      mutation.mutate({ record: selected, decision, note, scope });
+                  }}
+                >
+                  تأیید و ثبت تصمیم
+                </Button>
+              </div>
+            </>
+          )}
+        </div>
+      </ResponsiveModal>
     </Card>
   );
 }

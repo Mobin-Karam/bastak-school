@@ -81,6 +81,7 @@ let StudentAdministrationService = class StudentAdministrationService {
             [
                 "ORGANIZATION_ADMIN",
                 "PRINCIPAL",
+                "SCHOOL_SUPERVISOR",
                 "DISCIPLINARIAN",
                 "RELIGIOUS_EDUCATION_MANAGER",
                 "GOVERNMENT_EDUCATION_MANAGER",
@@ -93,9 +94,7 @@ let StudentAdministrationService = class StudentAdministrationService {
                 : organizationId
                     ? context.organizationIds.filter((id) => id === organizationId)
                     : context.organizationIds;
-            if (organizationId &&
-                allowedOrganizationIds &&
-                !allowedOrganizationIds.length)
+            if (allowedOrganizationIds && !allowedOrganizationIds.length)
                 return [];
             const rows = await this.students.find({
                 where: allowedOrganizationIds?.length

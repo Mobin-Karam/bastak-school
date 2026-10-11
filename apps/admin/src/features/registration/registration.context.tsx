@@ -16,25 +16,25 @@ const RegistrationContext = createContext<RegistrationContextType | undefined>(u
 
 export function RegistrationProvider({ children }: { children: React.ReactNode }) {
   const { data, isLoading, error, refetch } = useRegistrationSelf();
-  
-  const [contextData, setContextData] = useState<RegistrationContextType>({ 
+
+  const [contextData, setContextData] = useState<RegistrationContextType>({
     student: null,
     profile: null,
     documents: [],
-    status: '',
+    status: "",
     progress: 0,
     isLoading: true,
     error: null,
     refresh: () => refetch(),
   });
-  
+
   useEffect(() => {
     if (data) {
       setContextData({
         student: data.student,
         profile: data.profile,
         documents: data.documents || [],
-        status: data.status || '',
+        status: data.status || "",
         progress: data.progress || 0,
         isLoading,
         error,
@@ -42,18 +42,16 @@ export function RegistrationProvider({ children }: { children: React.ReactNode }
       });
     }
   }, [data, isLoading, error, refetch]);
-  
+
   return (
-    <RegistrationContext.Provider value={contextData}>
-      {children}
-    </RegistrationContext.Provider>
+    <RegistrationContext.Provider value={contextData}>{children}</RegistrationContext.Provider>
   );
 }
 
 export function useRegistration() {
   const context = useContext(RegistrationContext);
   if (!context) {
-    throw new Error('useRegistration must be used within a RegistrationProvider');
+    throw new Error("useRegistration must be used within a RegistrationProvider");
   }
   return context;
 }

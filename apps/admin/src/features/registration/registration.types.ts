@@ -156,7 +156,7 @@ export interface RegistrationSelfResponse {
     originalFileName: string;
     status: string;
     uploadedAt: string;
-  }>
+  }>;
   status: string;
   progress: number;
 }

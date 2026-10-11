@@ -83,10 +83,21 @@ function Location() {
   return <output data-testid="location">{useLocation().search}</output>;
 }
 function mount() {
-  const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
-  const tree = () => <QueryClientProvider client={client}>
-    <LocaleProvider><MemoryRouter initialEntries={["/?class=class-one"]}><ModalProvider><BookShelfPage /><Location /></ModalProvider></MemoryRouter></LocaleProvider>
-  </QueryClientProvider>;
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+  });
+  const tree = () => (
+    <QueryClientProvider client={client}>
+      <LocaleProvider>
+        <MemoryRouter initialEntries={["/?class=class-one"]}>
+          <ModalProvider>
+            <BookShelfPage />
+            <Location />
+          </ModalProvider>
+        </MemoryRouter>
+      </LocaleProvider>
+    </QueryClientProvider>
+  );
   const view = render(tree());
   return { ...view, rerenderWorkspace: () => view.rerender(tree()) };
 }
@@ -219,5 +230,4 @@ describe("books shared table workflow", () => {
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     expect(listClasses).toHaveBeenCalledWith("org-two");
   });
-
 });

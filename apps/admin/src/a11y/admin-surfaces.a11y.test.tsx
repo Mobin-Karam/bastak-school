@@ -47,7 +47,12 @@ vi.mock("../features/chat/components/conversation/CreateDirectButton", () => ({
 
 async function expectAccessible(container: HTMLElement) {
   const result = await axe.run(container, { rules: { "color-contrast": { enabled: false } } });
-  expect(result.violations.map((violation) => `${violation.id}: ${violation.help}`)).toEqual([]);
+  expect(
+    result.violations.map(
+      (violation) =>
+        `${violation.id}: ${violation.help} (${violation.nodes.map((node) => node.target.join(" ")).join("; ")})`,
+    ),
+  ).toEqual([]);
 }
 
 afterEach(cleanup);

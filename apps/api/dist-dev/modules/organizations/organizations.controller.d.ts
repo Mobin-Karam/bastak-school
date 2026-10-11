@@ -1,9 +1,18 @@
+import { UpdateOrganizationAuthProfileDto } from "./dto/organization-profile.dto";
 import { AuthenticatedUser } from "../auth";
 import { AddMemberDto, CreateOrganizationDto, SetOrganizationEnabledDto, SetOrganizationFeaturesDto, UpdateMemberDto, UpdateOrganizationDto } from "./dto/organization.dto";
 import { OrganizationsService } from "./organizations.service";
 export declare class OrganizationsController {
     private service;
     constructor(service: OrganizationsService);
+    publicProfiles(): Promise<{
+        ok: boolean;
+        data: import("@moshaver/api-contract").PublicOrganizationProfile[];
+    }>;
+    updateAuthProfile(user: AuthenticatedUser, id: string, dto: UpdateOrganizationAuthProfileDto): Promise<{
+        ok: boolean;
+        data: import("../../database/entities").Organization;
+    }>;
     list(user: AuthenticatedUser): Promise<{
         ok: boolean;
         data: import("../../database/entities").Organization[];

@@ -12,7 +12,7 @@ import { Task } from "../../database/entities/task.entity";
 import { MembershipStatus } from "../../database/entities/organization-membership.entity";
 import { AuthenticatedUser } from "../auth";
 import { AuthorizationService, UserContext } from "../authorization";
-import { RealtimeService } from "../realtime/realtime.service";
+import { RealtimeService } from "../realtime";
 import { SharePlanRangeDto } from "./education-sharing.dto";
 
 @Injectable()

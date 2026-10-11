@@ -1,4 +1,4 @@
-import { LogOut, ShieldCheck, UserRound } from "lucide-react";
+import { ChevronDown, LogOut, ShieldCheck, UserRound } from "lucide-react";
 import { useState } from "react";
 import { useAuth } from "../../../features/auth";
 import { ThemeSwitcher } from "../../../shared/theme/theme";
@@ -6,7 +6,7 @@ import { useModal } from "../../../shared/ui/modal";
 import { ViewportPopover } from "../../../shared/ui/popover";
 import { Button } from "../../../shared/ui/ui";
 import { DevBackendSwitcher } from "../../dev/DevBackendSwitcher";
-import { roleLabel, rolePortalTitle } from "../../../shared/lib/role-ui";
+import { roleLabel } from "../../../shared/lib/role-ui";
 import { useAdminShellCopy, useLocale } from "../../../shared/ui/locale";
 
 export function AdminAccountMenu() {
@@ -18,8 +18,10 @@ export function AdminAccountMenu() {
   const displayName =
     auth.user?.displayName ||
     auth.user?.display_name ||
+    [auth.user?.firstName, auth.user?.lastName].filter(Boolean).join(" ") ||
     auth.user?.username ||
     (language === "en" ? "Administrator" : "مدیر");
+  const username = auth.user?.username;
   const initial = displayName.trim()[0] || (language === "en" ? "A" : "م");
 
   async function logout() {
@@ -44,22 +46,34 @@ export function AdminAccountMenu() {
         <button
           {...props}
           type="button"
-          className="flex h-10 min-w-10 items-center gap-2 rounded-lg border border-slate-200 bg-white px-1.5 text-start outline-none transition hover:bg-slate-50 focus-visible:ring-2 focus-visible:ring-brand dark:border-slate-700 dark:bg-slate-900 dark:hover:bg-slate-800 sm:px-2"
+          className="flex min-h-11 min-w-11 items-center gap-2 rounded-xl border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card))] px-2 py-1.5 text-start outline-none transition hover:bg-[rgb(var(--surface-muted))] focus-visible:ring-2 focus-visible:ring-brand min-[1200px]:min-h-16 min-[1200px]:gap-3 min-[1200px]:px-3"
           aria-label={copy.accountMenu}
           title={displayName}
         >
           <span
-            className="grid size-7 shrink-0 place-items-center rounded-full bg-brand text-xs font-black text-white"
+            className="grid size-8 shrink-0 place-items-center rounded-full bg-brand text-sm font-black text-white min-[1200px]:size-11 min-[1200px]:text-lg"
             aria-hidden="true"
           >
             {initial}
           </span>
-          <span className="hidden max-w-28 min-w-0 2xl:block">
-            <strong className="block truncate text-xs">{displayName}</strong>
-            <small className="block truncate text-[9px] text-slate-400">
-              {rolePortalTitle(auth.activeRole, language)}
+          <span className="hidden min-w-0 min-[1200px]:block">
+            <span className="flex max-w-72 flex-wrap items-baseline gap-x-2 gap-y-0.5">
+              <strong className="max-w-40 truncate text-sm">{displayName}</strong>
+              {username && username !== displayName ? (
+                <span dir="ltr" className="text-xs tabular-nums text-slate-600 dark:text-slate-300">
+                  {username}
+                </span>
+              ) : null}
+            </span>
+            <small className="mt-0.5 block truncate text-xs text-slate-600 dark:text-slate-300">
+              {roleLabel(auth.activeRole, language)}
             </small>
           </span>
+          <ChevronDown
+            size={16}
+            aria-hidden="true"
+            className="hidden shrink-0 text-slate-500 min-[1200px]:block"
+          />
         </button>
       )}
     >
@@ -70,7 +84,15 @@ export function AdminAccountMenu() {
           </span>
           <div className="min-w-0 flex-1">
             <strong className="block truncate text-sm">{displayName}</strong>
-            <p className="flex items-center gap-1 text-[11px] text-slate-500">
+            {username && username !== displayName ? (
+              <p
+                dir="ltr"
+                className="mt-1 text-start text-sm tabular-nums text-slate-600 dark:text-slate-300"
+              >
+                {username}
+              </p>
+            ) : null}
+            <p className="mt-1 flex items-center gap-1 text-xs text-slate-500">
               <ShieldCheck size={13} /> {roleLabel(auth.activeRole, language)}
             </p>
           </div>

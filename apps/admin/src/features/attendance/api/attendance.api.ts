@@ -4,7 +4,7 @@ export type AttendanceContextType = "class" | "class_group" | "dorm";
 
 export type AttendanceSessionSummary = {
   id: string;
-  contextType: AttendanceContextType;
+  contextType: AttendanceContextType | "pool" | "night";
   contextId: string;
   contextLabel: string;
   sessionDate: string;
@@ -13,7 +13,7 @@ export type AttendanceSessionSummary = {
   absent: number;
   late: number;
   excused: number;
-  remaining: number;
+  remaining: number | null;
 };
 
 export type AttendanceContextOption = {
@@ -24,14 +24,17 @@ export type AttendanceContextOption = {
   label: string;
   total: number;
   activeOrganizationId?: string;
+  classId?: string;
   building?: string;
   floor?: number;
 };
 
-export const contextLabelMap: Record<AttendanceContextType, string> = {
+export const contextLabelMap: Record<AttendanceContextType | "pool" | "night", string> = {
   class: "کلاس",
   class_group: "گروه کلاس",
   dorm: "خوابگاه",
+  pool: "پول / فراخوان",
+  night: "حضور شب",
 };
 
 export const listAttendanceSessions = () =>
@@ -49,7 +52,8 @@ export const getAttendanceParticipants = (contextType: AttendanceContextType, co
     `/attendance/context/${encodeURIComponent(contextType)}/${encodeURIComponent(contextId)}/participants`,
   );
 
-export const bulkMarkAttendance = (body: {
+export type AttendanceBulkMarkRequest = {
+  requestId?: string;
   organizationId: string;
   sessionId?: string;
   contextType?: AttendanceContextType;
@@ -60,7 +64,10 @@ export const bulkMarkAttendance = (body: {
     status: "present" | "absent" | "late" | "excused";
     note?: string;
   }>;
-}) => api.post<{ sessionId: string; count: number }>("/attendance/bulk-mark", body);
+};
+
+export const bulkMarkAttendance = (body: AttendanceBulkMarkRequest) =>
+  api.post<{ sessionId: string; count: number }>("/attendance/bulk-mark", body);
 
 export type AttendanceAbsenceReview = {
   id: string;
@@ -92,7 +99,8 @@ export const listLiveAttendanceRecords = (organizationId?: string) =>
 export const reviewAttendanceAbsence = (
   id: string,
   body: { decision: "approved" | "rejected"; note?: string },
-) => api.patch<AttendanceAbsenceReview>(`/attendance/absence-reviews/${encodeURIComponent(id)}`, body);
+) =>
+  api.patch<AttendanceAbsenceReview>(`/attendance/absence-reviews/${encodeURIComponent(id)}`, body);
 
 export const listMyAttendanceAbsenceReviews = () =>
   api.get<AttendanceAbsenceReview[]>("/attendance/my-absence-reviews");

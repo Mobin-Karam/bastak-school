@@ -13,7 +13,6 @@ exports.StudyGroupMembership = void 0;
 const openapi = require("@nestjs/swagger");
 const typeorm_1 = require("typeorm");
 const student_entity_1 = require("./student.entity");
-const study_group_entity_1 = require("./study-group.entity");
 let StudyGroupMembership = class StudyGroupMembership {
     id;
     group;
@@ -29,10 +28,10 @@ __decorate([
     __metadata("design:type", String)
 ], StudyGroupMembership.prototype, "id", void 0);
 __decorate([
-    (0, typeorm_1.ManyToOne)(() => study_group_entity_1.StudyGroup, (group) => group.memberships, {
+    (0, typeorm_1.ManyToOne)("StudyGroup", (group) => group.memberships, {
         onDelete: "CASCADE",
     }),
-    __metadata("design:type", study_group_entity_1.StudyGroup)
+    __metadata("design:type", Function)
 ], StudyGroupMembership.prototype, "group", void 0);
 __decorate([
     (0, typeorm_1.ManyToOne)(() => student_entity_1.Student, { onDelete: "CASCADE" }),

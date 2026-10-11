@@ -1,6 +1,7 @@
 import type { AdminShellModel } from "./use-admin-shell-model";
 import { AdminContextSidebar } from "../navigation/AdminContextSidebar";
 import { AdminMainSidebar } from "../navigation/AdminMainSidebar";
+import { adminContentOffsetClass } from "./layout-geometry";
 import { AdminHeader } from "./AdminHeader";
 
 export function DesktopShell({
@@ -35,7 +36,9 @@ export function DesktopShell({
           direction={model.direction}
         />
       ) : null}
-      <div className="hidden shrink-0 min-[1200px]:block">
+      <div
+        className={`${adminContentOffsetClass({ showContextRail: model.showContextRail, mainCollapsed: model.mainCollapsed, contextCollapsed: model.contextCollapsed, direction: model.direction })} hidden shrink-0 min-[1200px]:block transition-[margin] duration-200 motion-reduce:transition-none`}
+      >
         <AdminHeader
           current={model.current}
           breadcrumbs={model.breadcrumbs}

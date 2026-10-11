@@ -5,7 +5,7 @@ import { ImportHistory } from "../../database/entities/import-history.entity";
 import { Student } from "../../database/entities/student.entity";
 import { User } from "../../database/entities/user.entity";
 import { AuthenticatedUser } from "../auth";
-import { SchoolAccessService } from "../school-access/school-access.service";
+import { SchoolAccessService } from "../school-access";
 import {
   PreviewStudentImportDto,
   StudentImportRowDto,

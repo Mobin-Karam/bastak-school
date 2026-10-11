@@ -21,6 +21,10 @@ type AuthCopy = {
   hidePassword: string;
   signIn: string;
   signingIn: string;
+  continueLogin: string;
+  checkingPhone: string;
+  changePhone: string;
+  phoneNotFound: string;
   restoringSession: string;
   loginFailed: string;
   phoneNumberRequired: string;
@@ -100,6 +104,10 @@ const copy: Record<AuthLanguage, AuthCopy> = {
     hidePassword: "پنهان کردن رمز عبور",
     signIn: "ورود",
     signingIn: "در حال ورود…",
+    continueLogin: "ادامه",
+    checkingPhone: "در حال بررسی…",
+    changePhone: "تغییر شماره",
+    phoneNotFound: "حسابی با این شماره یافت نشد. شماره را بررسی کنید یا ثبت‌نام کنید.",
     restoringSession: "در حال بازیابی نشست…",
     loginFailed: "ورود ناموفق بود",
     phoneNumberRequired: "شماره همراه معتبر لازم است",
@@ -181,6 +189,10 @@ const copy: Record<AuthLanguage, AuthCopy> = {
     hidePassword: "Hide password",
     signIn: "Sign in",
     signingIn: "Signing in…",
+    continueLogin: "Continue",
+    checkingPhone: "Checking…",
+    changePhone: "Change number",
+    phoneNotFound: "No account was found for this number. Check it or register.",
     restoringSession: "Restoring session…",
     loginFailed: "Unable to sign in",
     phoneNumberRequired: "A valid mobile number is required",

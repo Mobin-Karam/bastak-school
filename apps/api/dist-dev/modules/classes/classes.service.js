@@ -13,6 +13,8 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.ClassesService = void 0;
+const study_group_entity_1 = require("../../database/entities/study-group.entity");
+const study_group_membership_entity_1 = require("../../database/entities/study-group-membership.entity");
 const common_1 = require("@nestjs/common");
 const typeorm_1 = require("@nestjs/typeorm");
 const typeorm_2 = require("typeorm");
@@ -27,7 +29,7 @@ const student_entity_1 = require("../../database/entities/student.entity");
 const user_role_assignment_entity_1 = require("../../database/entities/user-role-assignment.entity");
 const user_entity_1 = require("../../database/entities/user.entity");
 const authorization_1 = require("../authorization");
-const education_catalog_service_1 = require("../education-catalog/education-catalog.service");
+const education_catalog_1 = require("../education-catalog");
 let ClassesService = class ClassesService {
     classes;
     classBooks;
@@ -295,9 +297,23 @@ let ClassesService = class ClassesService {
         if (students.length !== studentIds.length)
             throw new api_exception_1.ApiException(404, "CLASS_STUDENT_NOT_FOUND", "یک یا چند دانش‌آموز پیدا نشد.");
         await Promise.all(students.map((student) => this.assertEligibleStudent(classroom, student)));
-        await this.enrollments.delete({ classroom: { id: classroom.id } });
-        if (students.length)
-            await this.enrollments.save(students.map((student) => this.enrollments.create({ classroom, student })));
+        await this.enrollments.manager.transaction(async (manager) => {
+            const enrollments = manager.getRepository(education_class_enrollment_entity_1.EducationClassEnrollment);
+            await enrollments.delete({ classroom: { id: classroom.id } });
+            if (students.length)
+                await enrollments.save(students.map((student) => enrollments.create({ classroom, student })));
+            const groups = await manager.getRepository(study_group_entity_1.StudyGroup).find({
+                where: { classroom: { id: classroom.id } },
+                select: { id: true },
+            });
+            if (groups.length)
+                await manager.getRepository(study_group_membership_entity_1.StudyGroupMembership).delete({
+                    group: { id: (0, typeorm_2.In)(groups.map((group) => group.id)) },
+                    ...(studentIds.length
+                        ? { student: { id: (0, typeorm_2.Not)((0, typeorm_2.In)(studentIds)) } }
+                        : {}),
+                });
+        });
         return this.view(await this.load(id));
     }
     async requireClass(actor, id, capability, requireManage = false) {
@@ -584,6 +600,6 @@ exports.ClassesService = ClassesService = __decorate([
         typeorm_2.Repository,
         typeorm_2.Repository,
         authorization_1.AuthorizationService,
-        education_catalog_service_1.EducationCatalogService])
+        education_catalog_1.EducationCatalogService])
 ], ClassesService);
 //# sourceMappingURL=classes.service.js.map

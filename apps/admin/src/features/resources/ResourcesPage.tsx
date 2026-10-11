@@ -1,6 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  BookOpen,
   CheckSquare2,
   ExternalLink,
   FileVideo2,
@@ -13,9 +12,8 @@ import {
   Share2,
   Trash2,
   UsersRound,
-  X,
 } from "lucide-react";
-import { FormEvent, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useAuth } from "../auth";
 import { educationLabel } from "../../shared/lib/utils";
 import { notify } from "../../shared/ui/notifications";
@@ -160,30 +158,11 @@ export function ResourcesPage() {
       trackFilter,
     ],
   );
-  const startEdit = (item: LearningResource) => {
-    setSelectedId(item.id);
-    setEditing(item.id);
-    setForm({
-      title: item.title,
-      description: item.description,
-      type: item.type,
-      category: item.category || copy.general,
-      url: item.url,
-      status: item.status,
-      studentIds: item.assignments.map((assignment) => assignment.student.id),
-    });
-    setConfirmDelete(false);
-  };
+
   const editorPrerequisitesLoading = students.isLoading || classes.isLoading;
   const editorPrerequisitesError = students.isError || classes.isError;
   const retryEditorPrerequisites = () => void Promise.all([students.refetch(), classes.refetch()]);
-  const startNew = () => {
-    setSelectedId(null);
-    setEditing(null);
-    setForm(emptyResource(copy.general));
-    setStudentQuery("");
-    setConfirmDelete(false);
-  };
+
   const openEditor = (item?: LearningResource) => {
     const draft: ResourceInput = item
       ? {
@@ -221,10 +200,7 @@ export function ResourcesPage() {
         ? value.studentIds.filter((item) => item !== id)
         : [...value.studentIds, id],
     }));
-  const submit = (event: FormEvent) => {
-    event.preventDefault();
-    save.mutate({ id: editing, draft: form });
-  };
+
   const confirmResourceDelete = async (resource: LearningResource) => {
     const confirmed = await modal.confirm({
       title: copy.deleteTitle,
@@ -743,26 +719,6 @@ function ResourceEditorModal({
   onSave: (draft: ResourceInput) => void;
 }) {
   const [draft, setDraft] = useState(initialDraft);
-  const [search, setSearch] = useState("");
-  const [grade, setGrade] = useState("");
-  const [educationType, setEducationType] = useState("");
-  const [track, setTrack] = useState("");
-  const visible = students.filter(
-    (student) =>
-      (!grade || String(student.gradeId || student.grade || "") === grade) &&
-      (!educationType || student.educationTypeId === educationType) &&
-      (!track || student.trackId === track || student.major === track) &&
-      `${student.name} ${student.grade || ""} ${student.major || ""}`
-        .toLocaleLowerCase("fa")
-        .includes(search.trim().toLocaleLowerCase("fa")),
-  );
-  const toggle = (id: string) =>
-    setDraft((current) => ({
-      ...current,
-      studentIds: current.studentIds.includes(id)
-        ? current.studentIds.filter((item) => item !== id)
-        : [...current.studentIds, id],
-    }));
   return (
     <form
       className="grid gap-3"
@@ -833,104 +789,7 @@ function ResourceEditorModal({
           onChange={(event) => setDraft({ ...draft, description: event.target.value })}
         />
       </Field>
-      {false ? (
-        <section className="grid gap-2 border-t pt-3 dark:border-slate-800">
-          <div className="flex items-center justify-between gap-2">
-            <strong className="text-sm">دانش‌آموزان</strong>
-            <Input
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-              placeholder="جست‌وجوی نام، پایه یا رشته"
-            />
-          </div>
-          <div className="grid grid-cols-3 gap-2">
-            <select
-              className="h-9 rounded-lg border border-slate-200 bg-white px-2 text-xs dark:border-slate-700 dark:bg-slate-950"
-              aria-label="فیلتر پایه"
-              value={grade}
-              onChange={(event) => setGrade(event.target.value)}
-            >
-              <option value="">همه پایه‌ها</option>
-              {[
-                ...new Set(
-                  students
-                    .map((student) => String(student.gradeId || student.grade || ""))
-                    .filter(Boolean),
-                ),
-              ]
-                .sort((a, b) => a.localeCompare(b, "fa", { numeric: true }))
-                .map((value) => (
-                  <option key={value} value={value}>
-                    {gradeLabel(value)}
-                  </option>
-                ))}
-            </select>
-            <select
-              className="h-9 rounded-lg border border-slate-200 bg-white px-2 text-xs dark:border-slate-700 dark:bg-slate-950"
-              aria-label="فیلتر نوع آموزش"
-              value={educationType}
-              onChange={(event) => {
-                setEducationType(event.target.value);
-                setTrack("");
-              }}
-            >
-              <option value="">همه نوع‌ها</option>
-              {[...new Set(students.map((student) => student.educationTypeId).filter(Boolean))]
-                .sort()
-                .map((value) => (
-                  <option key={value} value={value}>
-                    {educationLabel(value!)}
-                  </option>
-                ))}
-            </select>
-            <select
-              className="h-9 rounded-lg border border-slate-200 bg-white px-2 text-xs dark:border-slate-700 dark:bg-slate-950"
-              aria-label="فیلتر رشته"
-              value={track}
-              onChange={(event) => setTrack(event.target.value)}
-            >
-              <option value="">همه رشته‌ها</option>
-              {[
-                ...new Set(
-                  students
-                    .filter(
-                      (student) => !educationType || student.educationTypeId === educationType,
-                    )
-                    .map((student) => student.trackId || student.major)
-                    .filter(Boolean),
-                ),
-              ]
-                .sort((a, b) => a!.localeCompare(b!, "fa"))
-                .map((value) => (
-                  <option key={value} value={value}>
-                    {educationLabel(value!)}
-                  </option>
-                ))}
-            </select>
-          </div>
-          <div className="grid max-h-64 gap-2 overflow-auto sm:grid-cols-2">
-            {visible.map((student) => (
-              <label
-                key={student.id}
-                className={`flex cursor-pointer items-center gap-2 rounded-xl border p-2.5 ${draft.studentIds.includes(student.id) ? "border-brand bg-brand/5" : "border-slate-200 dark:border-slate-800"}`}
-              >
-                <input
-                  type="checkbox"
-                  className="size-4 accent-brand"
-                  checked={draft.studentIds.includes(student.id)}
-                  onChange={() => toggle(student.id)}
-                />
-                <span className="min-w-0">
-                  <strong className="block truncate text-sm">{student.name}</strong>
-                  <small className="block truncate text-xs text-slate-500">
-                    {student.grade || "پایه نامشخص"} · {student.major || "رشته نامشخص"}
-                  </small>
-                </span>
-              </label>
-            ))}
-          </div>
-        </section>
-      ) : null}
+
       <StudentAllocationControl
         students={students}
         selectedIds={draft.studentIds}

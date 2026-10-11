@@ -6,7 +6,7 @@ import {
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from "typeorm";
-import { DormRoom } from "./dorm-room.entity";
+import type { DormRoom } from "./dorm-room.entity";
 import { Student } from "./student.entity";
 
 @Entity("dorm_room_assignments")
@@ -15,7 +15,7 @@ export class DormRoomAssignment {
   @PrimaryGeneratedColumn("uuid")
   id!: string;
 
-  @ManyToOne(() => DormRoom, (room) => room.assignments, {
+  @ManyToOne("DormRoom", (room: DormRoom) => room.assignments, {
     onDelete: "CASCADE",
   })
   room!: DormRoom;

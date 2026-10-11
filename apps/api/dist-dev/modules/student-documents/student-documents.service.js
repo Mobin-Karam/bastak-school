@@ -21,7 +21,7 @@ const document_type_entity_1 = require("../../database/entities/document-type.en
 const student_entity_1 = require("../../database/entities/student.entity");
 const user_entity_1 = require("../../database/entities/user.entity");
 const api_exception_1 = require("../../common/exceptions/api.exception");
-const school_access_service_1 = require("../school-access/school-access.service");
+const school_access_1 = require("../school-access");
 let StudentDocumentsService = class StudentDocumentsService {
     documents;
     documentTypes;
@@ -143,6 +143,6 @@ exports.StudentDocumentsService = StudentDocumentsService = __decorate([
         typeorm_2.Repository,
         typeorm_2.Repository,
         typeorm_2.Repository,
-        school_access_service_1.SchoolAccessService])
+        school_access_1.SchoolAccessService])
 ], StudentDocumentsService);
 //# sourceMappingURL=student-documents.service.js.map

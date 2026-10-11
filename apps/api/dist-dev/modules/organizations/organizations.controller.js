@@ -14,6 +14,7 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.OrganizationsController = void 0;
 const openapi = require("@nestjs/swagger");
+const organization_profile_dto_1 = require("./dto/organization-profile.dto");
 const common_1 = require("@nestjs/common");
 const current_user_decorator_1 = require("../../common/decorators/current-user.decorator");
 const capabilities_decorator_1 = require("../../common/decorators/capabilities.decorator");
@@ -25,19 +26,65 @@ let OrganizationsController = class OrganizationsController {
     constructor(service) {
         this.service = service;
     }
-    list(user) { return this.service.list(user).then(envelope_1.ok); }
-    get(user, id) { return this.service.get(user, id).then(envelope_1.ok); }
-    create(user, dto) { return this.service.create(user, dto).then(envelope_1.ok); }
-    update(user, id, dto) { return this.service.update(user, id, dto).then(envelope_1.ok); }
-    setEnabled(user, id, dto) { return this.service.setEnabled(user, id, dto.enabled).then(envelope_1.ok); }
-    setFeatures(user, id, dto) { return this.service.setFeatures(user, id, dto.enabledFeatures).then(envelope_1.ok); }
-    archive(user, id) { return this.service.archive(user, id).then(envelope_1.ok); }
-    members(user, id) { return this.service.listMembers(user, id).then(envelope_1.ok); }
-    add(user, id, dto) { return this.service.addMember(user, id, dto).then(envelope_1.ok); }
-    updateMember(user, id, userId, dto) { return this.service.updateMember(user, id, userId, dto).then(envelope_1.ok); }
-    remove(user, id, userId) { return this.service.removeMember(user, id, userId).then(envelope_1.ok); }
+    publicProfiles() {
+        return this.service.publicProfiles().then(envelope_1.ok);
+    }
+    updateAuthProfile(user, id, dto) {
+        return this.service.updateAuthProfile(user, id, dto).then(envelope_1.ok);
+    }
+    list(user) {
+        return this.service.list(user).then(envelope_1.ok);
+    }
+    get(user, id) {
+        return this.service.get(user, id).then(envelope_1.ok);
+    }
+    create(user, dto) {
+        return this.service.create(user, dto).then(envelope_1.ok);
+    }
+    update(user, id, dto) {
+        return this.service.update(user, id, dto).then(envelope_1.ok);
+    }
+    setEnabled(user, id, dto) {
+        return this.service.setEnabled(user, id, dto.enabled).then(envelope_1.ok);
+    }
+    setFeatures(user, id, dto) {
+        return this.service.setFeatures(user, id, dto.enabledFeatures).then(envelope_1.ok);
+    }
+    archive(user, id) {
+        return this.service.archive(user, id).then(envelope_1.ok);
+    }
+    members(user, id) {
+        return this.service.listMembers(user, id).then(envelope_1.ok);
+    }
+    add(user, id, dto) {
+        return this.service.addMember(user, id, dto).then(envelope_1.ok);
+    }
+    updateMember(user, id, userId, dto) {
+        return this.service.updateMember(user, id, userId, dto).then(envelope_1.ok);
+    }
+    remove(user, id, userId) {
+        return this.service.removeMember(user, id, userId).then(envelope_1.ok);
+    }
 };
 exports.OrganizationsController = OrganizationsController;
+__decorate([
+    (0, common_1.Get)("public-profiles"),
+    openapi.ApiResponse({ status: 200 }),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", void 0)
+], OrganizationsController.prototype, "publicProfiles", null);
+__decorate([
+    (0, common_1.Patch)(":id/auth-profile"),
+    (0, capabilities_decorator_1.RequireCapabilities)("organization.manage"),
+    openapi.ApiResponse({ status: 200 }),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __param(1, (0, common_1.Param)("id")),
+    __param(2, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String, organization_profile_dto_1.UpdateOrganizationAuthProfileDto]),
+    __metadata("design:returntype", void 0)
+], OrganizationsController.prototype, "updateAuthProfile", null);
 __decorate([
     (0, common_1.Get)(),
     (0, capabilities_decorator_1.RequireCapabilities)("organization.read"),

@@ -1,3 +1,8 @@
+import type {
+  OrganizationAuthProfile,
+  PublicOrganizationProfile,
+} from "@moshaver/api-contract";
+import { UpdateOrganizationAuthProfileDto } from "./dto/organization-profile.dto";
 import { Injectable } from "@nestjs/common";
 import { TenancyPolicy } from "@moshaver/cmb-tenancy";
 import { InjectRepository } from "@nestjs/typeorm";
@@ -56,6 +61,79 @@ export class OrganizationsService {
         "به این سازمان دسترسی ندارید.",
       );
   }
+  async publicProfiles(): Promise<PublicOrganizationProfile[]> {
+    const organizations = await this.orgs.find({
+      where: { status: OrganizationStatus.ACTIVE },
+      order: { name: "ASC" },
+    });
+    return organizations
+      .filter((org) => org.authProfile?.published)
+      .map((org) => ({
+        id: org.id,
+        name: org.name,
+        profile: this.publicProfile(org.authProfile!),
+      }));
+  }
+  private publicProfile(
+    profile: OrganizationAuthProfile,
+  ): OrganizationAuthProfile {
+    return {
+      published: Boolean(profile.published),
+      displayName: profile.displayName ?? "",
+      brandName: profile.brandName ?? "",
+      description: profile.description ?? "",
+      address: profile.address ?? "",
+      phone: profile.phone ?? "",
+      location: profile.location ?? "",
+      logoUrl: profile.logoUrl ?? "",
+      backgroundUrl: profile.backgroundUrl ?? "",
+      loginTitle: profile.loginTitle ?? "",
+      signupTitle: profile.signupTitle ?? "",
+      signupLabel: profile.signupLabel ?? "",
+      securityNotice: profile.securityNotice ?? "",
+    };
+  }
+  async updateAuthProfile(
+    user: AuthenticatedUser,
+    id: string,
+    dto: UpdateOrganizationAuthProfileDto,
+  ) {
+    this.assertScope(user, id);
+    if (!user.capabilities?.includes("organization.manage"))
+      throw new ApiException(
+        403,
+        "FORBIDDEN",
+        "اجازه ویرایش مشخصات سازمان را ندارید.",
+      );
+    const org = await this.get(user, id);
+    if (org.status !== OrganizationStatus.ACTIVE)
+      throw new ApiException(409, "ORGANIZATION_INACTIVE", "سازمان فعال نیست.");
+    const profile = this.publicProfile(
+      org.authProfile ?? ({} as OrganizationAuthProfile),
+    );
+    for (const key of Object.keys(
+      profile,
+    ) as (keyof OrganizationAuthProfile)[]) {
+      if (dto[key] !== undefined)
+        Object.assign(profile, {
+          [key]:
+            typeof dto[key] === "string"
+              ? (dto[key] as string).trim()
+              : dto[key],
+        });
+    }
+    if (dto.name !== undefined) {
+      if (dto.name.trim().length < 2)
+        throw new ApiException(
+          400,
+          "INVALID_ORGANIZATION_NAME",
+          "نام سازمان نامعتبر است.",
+        );
+      org.name = dto.name.trim();
+    }
+    org.authProfile = profile;
+    return this.orgs.save(org);
+  }
   async list(user: AuthenticatedUser) {
     return this.platform(user)
       ? this.orgs.find({ order: { name: "ASC" } })
@@ -105,6 +183,12 @@ export class OrganizationsService {
         "فقط مدیر پلتفرم می‌تواند وضعیت سازمان را تغییر دهد.",
       );
     const org = await this.get(user, id);
+    if (dto.type && dto.type !== org.type && !this.platform(user))
+      throw new ApiException(
+        403,
+        "FORBIDDEN",
+        "فقط مدیر پلتفرم می‌تواند نوع سازمان را تغییر دهد.",
+      );
     if (dto.type && dto.type !== org.type)
       await this.assertTypeChangeIsCompatible(id, dto.type);
     Object.assign(org, dto);

@@ -1,4 +1,12 @@
-import { Check, CheckCheck, LoaderCircle, Search, UsersRound } from "lucide-react";
+import {
+  Check,
+  CheckCheck,
+  LoaderCircle,
+  UsersRound,
+  Clock3,
+  Minus,
+  UserRound,
+} from "lucide-react";
 import { Card } from "../../../shared/ui/ui";
 import {
   attendanceStatusMeta,
@@ -19,102 +27,176 @@ const buttonBase =
  * remounting the attendance draft.
  */
 export function AttendanceRosterView({
+  canManage,
   participants,
   filtered,
   selected,
-  search,
   filter,
   loading,
   saving,
   conflict,
   unmarkedCount,
-  onSearchChange,
   onFilterChange,
   onMark,
   onMarkAllPresent,
   onClearFilters,
+  onViewProfile,
 }: {
+  canManage: boolean;
   participants: AttendanceParticipant[];
   filtered: AttendanceParticipant[];
   selected: boolean;
-  search: string;
   filter: AttendanceFilter;
   loading: boolean;
   saving: boolean;
   conflict: boolean;
   unmarkedCount: number;
-  onSearchChange: (value: string) => void;
   onFilterChange: (value: AttendanceFilter) => void;
   onMark: (id: string, status: AttendanceStatus) => void;
   onMarkAllPresent: () => void;
   onClearFilters: () => void;
+  onViewProfile?: (id: string) => void;
 }) {
   return (
-    <Card className="overflow-hidden p-0">
+    <Card className="overflow-hidden rounded-3xl border border-sky-100 p-0 dark:border-slate-700">
       <div className="space-y-3 border-b border-[rgb(var(--border-subtle))] p-3 sm:p-5">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div>
             <h2 className="font-black">فهرست طلبه‌ها</h2>
-            <p className={`text-xs ${muted}`}>برای هر نفر یک وضعیت انتخاب کنید</p>
+            <p className={`text-xs ${muted}`}>
+              {canManage
+                ? "برای هر نفر یک وضعیت انتخاب کنید"
+                : "فهرست اعضا؛ دسترسی شما فقط برای مشاهده است."}
+            </p>
           </div>
-          <button
-            type="button"
-            onClick={onMarkAllPresent}
-            disabled={saving || conflict || loading || unmarkedCount === 0}
-            className={`${buttonBase} border border-emerald-300 text-emerald-700 hover:bg-emerald-50 dark:text-emerald-300`}
-          >
-            <CheckCheck size={17} /> ثبت‌نشده‌ها حاضر
-          </button>
+          {canManage ? (
+            <button
+              type="button"
+              onClick={onMarkAllPresent}
+              disabled={saving || conflict || loading || unmarkedCount === 0}
+              className={`${buttonBase} border border-emerald-300 text-emerald-700 hover:bg-emerald-50 dark:text-emerald-300`}
+            >
+              <CheckCheck size={17} /> ثبت‌نشده‌ها حاضر
+            </button>
+          ) : null}
         </div>
         <div className="flex flex-col gap-2 sm:flex-row">
-          <label className="relative flex-1">
-            <Search size={17} className={`absolute right-3 top-3.5 ${muted}`} />
-            <input
-              value={search}
-              onChange={(event) => onSearchChange(event.target.value)}
-              placeholder="جستجوی نام یا شماره…"
-              aria-label="جستجوی طلبه"
-              className={`h-11 w-full rounded-xl ${shell} pr-10 pl-3 outline-none focus:ring-2 focus:ring-blue-500`}
-            />
-          </label>
           <select
             value={filter}
             onChange={(event) => onFilterChange(event.target.value as AttendanceFilter)}
             aria-label="فیلتر وضعیت"
-            className={`h-11 rounded-xl ${shell} px-3 sm:w-40`}
+            className={`min-h-12 w-full rounded-2xl ${shell} px-4 font-semibold`}
           >
             <option value="all">همه وضعیت‌ها</option>
             <option value="unmarked">نامشخص</option>
-            {attendanceStatuses.map((status) => <option key={status} value={status}>{attendanceStatusMeta[status].label}</option>)}
+            {attendanceStatuses.map((status) => (
+              <option key={status} value={status}>
+                {attendanceStatusMeta[status].label}
+              </option>
+            ))}
           </select>
         </div>
-        {filter !== "all" ? <button type="button" className="text-xs font-bold text-blue-600" onClick={() => onFilterChange("all")}>نمایش همه</button> : null}
+        {filter !== "all" ? (
+          <button
+            type="button"
+            className="text-xs font-bold text-blue-600"
+            onClick={() => onFilterChange("all")}
+          >
+            نمایش همه
+          </button>
+        ) : null}
       </div>
 
       {loading ? (
-        <div className={`flex items-center justify-center gap-2 p-12 text-sm ${muted}`}><LoaderCircle className="animate-spin" size={19} /> در حال دریافت فهرست…</div>
+        <div className={`flex items-center justify-center gap-2 p-12 text-sm ${muted}`}>
+          <LoaderCircle className="animate-spin" size={19} /> در حال دریافت فهرست…
+        </div>
       ) : filtered.length === 0 ? (
         <div className={`flex flex-col items-center gap-3 p-10 text-center text-sm ${muted}`}>
           <UsersRound size={30} />
-          <p>{participants.length ? "نتیجه‌ای برای جستجو یا فیلتر پیدا نشد." : selected ? "برای این گروه طلبه‌ای یافت نشد." : "ابتدا کلاس، گروه یا اتاق را انتخاب کنید."}</p>
-          {participants.length > 0 ? <button className="font-bold text-blue-600" type="button" onClick={onClearFilters}>پاک‌کردن فیلترها</button> : null}
+          <p>
+            {participants.length
+              ? "طلبه‌ای با این وضعیت پیدا نشد."
+              : selected
+                ? "برای این گروه طلبه‌ای یافت نشد."
+                : "ابتدا کلاس، گروه یا اتاق را انتخاب کنید."}
+          </p>
+          {participants.length > 0 ? (
+            <button className="font-bold text-blue-600" type="button" onClick={onClearFilters}>
+              پاک‌کردن فیلترها
+            </button>
+          ) : null}
         </div>
       ) : (
-        <div className="divide-y divide-[rgb(var(--border-subtle))]">
+        <div className="space-y-3 p-3 sm:p-4">
           {filtered.map((student, index) => (
-            <div key={student.id} className="space-y-3 px-3 py-4 sm:flex sm:items-center sm:justify-between sm:gap-4 sm:space-y-0 sm:px-5">
+            <div
+              key={student.id}
+              className="space-y-4 rounded-2xl border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card))] p-4"
+            >
               <div className="flex min-w-0 items-center gap-3">
-                <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-slate-100 text-sm font-black text-slate-600 dark:bg-slate-800 dark:text-slate-300">{student.name.trim().slice(0, 1) || index + 1}</span>
-                <div className="min-w-0"><p className="truncate text-sm font-bold">{student.name}</p><p className={`text-xs ${muted}`}>{student.studentNumber}</p></div>
-                {student.status !== "unmarked" ? <Check size={15} className="shrink-0 text-emerald-600" aria-label="تعیین شده" /> : null}
-              </div>
-              <div role="group" aria-label={`وضعیت ${student.name}`} className="grid grid-cols-4 gap-1.5 sm:w-[340px]">
-                {attendanceStatuses.map((status) => (
-                  <button key={status} type="button" aria-pressed={student.status === status} disabled={saving || conflict} onClick={() => onMark(student.id, student.status === status ? "unmarked" : status)} className={`mobile-attendance-status min-h-12 rounded-xl border px-1 py-2 text-xs font-bold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500 ${student.status === status ? attendanceStatusMeta[status].active : "border-[rgb(var(--border-subtle))] hover:bg-slate-50 dark:hover:bg-slate-800"}`}>
-                    <span className={`mx-auto mb-1 block size-1.5 rounded-full ${attendanceStatusMeta[status].dot}`} />{attendanceStatusMeta[status].label}
+                <span className="flex size-12 shrink-0 items-center justify-center rounded-full bg-blue-50 text-lg font-black text-blue-700 dark:bg-blue-950/40 dark:text-blue-200">
+                  {student.name.trim().slice(0, 1) || index + 1}
+                </span>
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-bold">{student.name}</p>
+                  <p className={`text-xs ${muted}`}>{student.studentNumber}</p>
+                </div>
+                {onViewProfile ? (
+                  <button
+                    type="button"
+                    className="ms-auto min-h-11 rounded-xl border border-[rgb(var(--border-subtle))] px-3 text-xs font-bold"
+                    aria-label={`پرونده حضور ${student.name}`}
+                    onClick={() => onViewProfile(student.id)}
+                  >
+                    پرونده حضور
                   </button>
-                ))}
+                ) : null}
+                {student.status !== "unmarked" ? (
+                  <Check size={15} className="shrink-0 text-emerald-600" aria-label="تعیین شده" />
+                ) : null}
               </div>
+              {canManage ? (
+                <div
+                  role="group"
+                  aria-label={`وضعیت ${student.name}`}
+                  className="grid grid-cols-3 gap-2"
+                >
+                  {attendanceStatuses.map((status) => (
+                    <button
+                      key={status}
+                      type="button"
+                      aria-pressed={student.status === status}
+                      disabled={saving || conflict}
+                      onClick={() =>
+                        onMark(student.id, student.status === status ? "unmarked" : status)
+                      }
+                      className={`mobile-attendance-status min-h-14 rounded-2xl border px-2 py-3 text-sm font-bold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500 ${student.status === status ? `${attendanceStatusMeta[status].active} ring-2 ring-current` : `${attendanceStatusMeta[status].active} opacity-75 hover:opacity-100`}`}
+                    >
+                      {status === "present" ? (
+                        <UserRound
+                          className="mx-auto mb-1 text-emerald-600"
+                          size={20}
+                          aria-hidden="true"
+                        />
+                      ) : status === "absent" ? (
+                        <Minus
+                          className="mx-auto mb-1 text-rose-600"
+                          size={20}
+                          aria-hidden="true"
+                        />
+                      ) : (
+                        <Clock3
+                          className="mx-auto mb-1 text-amber-600"
+                          size={20}
+                          aria-hidden="true"
+                        />
+                      )}
+                      {attendanceStatusMeta[status].label}
+                    </button>
+                  ))}
+                </div>
+              ) : null}
             </div>
           ))}
         </div>

@@ -3,12 +3,48 @@ import { useAuthLocale } from "../model/auth-locale";
 
 export const demoAccounts = [
   { role: "platformAdmin", phoneNumber: "09192668751", password: "anonymous" },
-  { role: "organizationAdmin", phoneNumber: "09127873545", password: "Moshaver-demo-2026!", organizationFa: "آکادمی راه روشن", organizationEn: "Roshan Path Academy" },
-  { role: "organizationAdmin", phoneNumber: "09127873546", password: "Moshaver-demo-2026!", organizationFa: "دبیرستان دانش فردا", organizationEn: "Tomorrow Knowledge School" },
-  { role: "organizationAdmin", phoneNumber: "09127873547", password: "Moshaver-demo-2026!", organizationFa: "مرکز مشاوره مسیر رشد", organizationEn: "Growth Path Counseling Center" },
-  { role: "advisor", phoneNumber: "09176988520", password: "Moshaver-demo-2026!", organizationFa: "آکادمی راه روشن", organizationEn: "Roshan Path Academy" },
-  { role: "advisor", phoneNumber: "09176988521", password: "Moshaver-demo-2026!", organizationFa: "دبیرستان دانش فردا", organizationEn: "Tomorrow Knowledge School" },
-  { role: "advisor", phoneNumber: "09176988522", password: "Moshaver-demo-2026!", organizationFa: "مرکز مشاوره مسیر رشد", organizationEn: "Growth Path Counseling Center" },
+  {
+    role: "organizationAdmin",
+    phoneNumber: "09127873545",
+    password: "Moshaver-demo-2026!",
+    organizationFa: "آکادمی راه روشن",
+    organizationEn: "Roshan Path Academy",
+  },
+  {
+    role: "organizationAdmin",
+    phoneNumber: "09127873546",
+    password: "Moshaver-demo-2026!",
+    organizationFa: "دبیرستان دانش فردا",
+    organizationEn: "Tomorrow Knowledge School",
+  },
+  {
+    role: "organizationAdmin",
+    phoneNumber: "09127873547",
+    password: "Moshaver-demo-2026!",
+    organizationFa: "مرکز مشاوره مسیر رشد",
+    organizationEn: "Growth Path Counseling Center",
+  },
+  {
+    role: "advisor",
+    phoneNumber: "09176988520",
+    password: "Moshaver-demo-2026!",
+    organizationFa: "آکادمی راه روشن",
+    organizationEn: "Roshan Path Academy",
+  },
+  {
+    role: "advisor",
+    phoneNumber: "09176988521",
+    password: "Moshaver-demo-2026!",
+    organizationFa: "دبیرستان دانش فردا",
+    organizationEn: "Tomorrow Knowledge School",
+  },
+  {
+    role: "advisor",
+    phoneNumber: "09176988522",
+    password: "Moshaver-demo-2026!",
+    organizationFa: "مرکز مشاوره مسیر رشد",
+    organizationEn: "Growth Path Counseling Center",
+  },
 ] as const;
 
 export function DemoAccountPicker({
@@ -29,7 +65,9 @@ export function DemoAccountPicker({
       <p className="mt-2 text-xs text-slate-500">
         {copy.demoInstruction} <code dir="ltr">npm run seed</code> {copy.demoInstructionSuffix}
       </p>
-      <p className="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-200">{copy.demoPasswordNotice}</p>
+      <p className="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-200">
+        {copy.demoPasswordNotice}
+      </p>
       <div className="mt-3 grid gap-2 sm:grid-cols-2">
         {demoAccounts.map((account) => {
           const role = copy.demoRoles[account.role];
@@ -42,11 +80,20 @@ export function DemoAccountPicker({
             >
               <strong className="block text-sm">{role.label}</strong>
               <span className="mt-0.5 block text-[11px] text-slate-500">{role.description}</span>
-              {"organizationFa" in account ? <span className="mt-1 block text-[11px] font-semibold text-slate-600 dark:text-slate-300">{language === "fa" ? account.organizationFa : account.organizationEn}</span> : null}
+              {"organizationFa" in account ? (
+                <span className="mt-1 block text-[11px] font-semibold text-slate-600 dark:text-slate-300">
+                  {language === "fa" ? account.organizationFa : account.organizationEn}
+                </span>
+              ) : null}
               <code dir="ltr" className="mt-1 block text-[10px] text-brand">
                 {account.phoneNumber}
               </code>
-              <code dir="ltr" className="mt-1 block select-all text-[10px] text-slate-600 dark:text-slate-300">{copy.password}: {account.password}</code>
+              <code
+                dir="ltr"
+                className="mt-1 block select-all text-[10px] text-slate-600 dark:text-slate-300"
+              >
+                {copy.password}: {account.password}
+              </code>
             </button>
           );
         })}

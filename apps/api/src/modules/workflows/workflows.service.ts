@@ -37,8 +37,8 @@ import { DormRoomAssignment } from "../../database/entities/dorm-room-assignment
 import { StudyGroup } from "../../database/entities/study-group.entity";
 import { StudyGroupMembership } from "../../database/entities/study-group-membership.entity";
 import { AuthenticatedUser } from "../auth";
-import { RealtimeService } from "../realtime/realtime.service";
-import { NotificationsService } from "../notifications/notifications.service";
+import { RealtimeService } from "../realtime";
+import { NotificationsService } from "../notifications";
 import {
   isIranianMobile,
   normalizeIranianMobile,

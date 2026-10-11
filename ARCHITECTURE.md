@@ -8,7 +8,7 @@ The current v2 applications are grouped under `apps/`:
 
 - `apps/api/` — NestJS/Fastify API and composition root.
 - `apps/admin/` — React/Vite admin application.
-- `apps/student/` — React/PWA/Tauri student application.
+- `apps/student/` — historical React/PWA/Tauri composition root, absent from this checkout. Current student accounts use the capability-aware `apps/admin` application.
 - `student-core/` — runtime-neutral student domain/provider contracts.
 - `packages/api-contract/` — shared API contracts.
 

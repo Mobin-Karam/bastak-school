@@ -4,7 +4,7 @@ import { DocumentType } from "../../database/entities/document-type.entity";
 import { Student } from "../../database/entities/student.entity";
 import { User } from "../../database/entities/user.entity";
 import { AuthenticatedUser } from "../auth";
-import { SchoolAccessService } from "../school-access/school-access.service";
+import { SchoolAccessService } from "../school-access";
 export declare class StudentDocumentsService {
     private readonly documents;
     private readonly documentTypes;

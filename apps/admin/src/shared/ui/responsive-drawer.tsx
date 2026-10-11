@@ -65,7 +65,7 @@ export function ResponsiveDrawer({
               </div>
               <DialogPrimitive.Close
                 type="button"
-                className="grid size-9 shrink-0 place-items-center rounded-xl text-slate-500 transition hover:bg-slate-100 hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand dark:hover:bg-white/10"
+                className="grid size-11 shrink-0 place-items-center rounded-xl text-slate-500 transition hover:bg-slate-100 hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand dark:hover:bg-white/10"
               >
                 <X size={19} aria-hidden="true" />
                 <span className="sr-only">{language === "fa" ? "بستن" : "Close"}</span>

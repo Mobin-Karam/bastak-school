@@ -1,6 +1,8 @@
+import { StudyGroup } from "../../database/entities/study-group.entity";
+import { StudyGroupMembership } from "../../database/entities/study-group-membership.entity";
 import { Injectable } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { In, Repository } from "typeorm";
+import { In, Not, Repository } from "typeorm";
 import { ApiException } from "../../common/exceptions/api.exception";
 import { EducationBook } from "../../database/entities/education-book.entity";
 import { EducationClassBook } from "../../database/entities/education-class-book.entity";
@@ -16,7 +18,7 @@ import { UserRoleAssignment } from "../../database/entities/user-role-assignment
 import { User } from "../../database/entities/user.entity";
 import { AuthenticatedUser } from "../auth";
 import { AuthorizationService, UserContext } from "../authorization";
-import { EducationCatalogService } from "../education-catalog/education-catalog.service";
+import { EducationCatalogService } from "../education-catalog";
 import {
   SaveEducationClassDto,
   ClassTransferDto,
@@ -401,13 +403,26 @@ export class ClassesService {
     await Promise.all(
       students.map((student) => this.assertEligibleStudent(classroom, student)),
     );
-    await this.enrollments.delete({ classroom: { id: classroom.id } });
-    if (students.length)
-      await this.enrollments.save(
-        students.map((student) =>
-          this.enrollments.create({ classroom, student }),
-        ),
-      );
+    await this.enrollments.manager.transaction(async (manager) => {
+      const enrollments = manager.getRepository(EducationClassEnrollment);
+      await enrollments.delete({ classroom: { id: classroom.id } });
+      if (students.length)
+        await enrollments.save(
+          students.map((student) => enrollments.create({ classroom, student })),
+        );
+      // Group membership cannot outlive enrollment in its parent class.
+      const groups = await manager.getRepository(StudyGroup).find({
+        where: { classroom: { id: classroom.id } },
+        select: { id: true },
+      });
+      if (groups.length)
+        await manager.getRepository(StudyGroupMembership).delete({
+          group: { id: In(groups.map((group) => group.id)) },
+          ...(studentIds.length
+            ? { student: { id: Not(In(studentIds)) } }
+            : {}),
+        });
+    });
     return this.view(await this.load(id));
   }
 

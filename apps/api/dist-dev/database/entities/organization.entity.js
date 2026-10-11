@@ -35,11 +35,12 @@ let Organization = class Organization {
     studentSignupEnabled;
     studentSignupLimit;
     studentSignupCount;
+    authProfile;
     createdAt;
     updatedAt;
     memberships;
     static _OPENAPI_METADATA_FACTORY() {
-        return { id: { required: true, type: () => String }, name: { required: true, type: () => String }, type: { required: true, enum: require("./organization.entity").OrganizationType }, status: { required: true, enum: require("./organization.entity").OrganizationStatus }, disabledFeatures: { required: true, type: () => [String] }, studentSignupManagedByOrganization: { required: true, type: () => Boolean, description: "Platform delegates the organization admin's ability to operate signup." }, studentSignupEnabled: { required: true, type: () => Boolean }, studentSignupLimit: { required: true, type: () => Number, description: "Total self-service accounts permitted for this organization; zero is closed." }, studentSignupCount: { required: true, type: () => Number, description: "Atomically reserved on successful self-service signup." }, createdAt: { required: true, type: () => Date }, updatedAt: { required: true, type: () => Date }, memberships: { required: true, type: () => [require("./organization-membership.entity").OrganizationMembership] } };
+        return { id: { required: true, type: () => String }, name: { required: true, type: () => String }, type: { required: true, enum: require("./organization.entity").OrganizationType }, status: { required: true, enum: require("./organization.entity").OrganizationStatus }, disabledFeatures: { required: true, type: () => [String] }, studentSignupManagedByOrganization: { required: true, type: () => Boolean, description: "Platform delegates the organization admin's ability to operate signup." }, studentSignupEnabled: { required: true, type: () => Boolean }, studentSignupLimit: { required: true, type: () => Number, description: "Total self-service accounts permitted for this organization; zero is closed." }, studentSignupCount: { required: true, type: () => Number, description: "Atomically reserved on successful self-service signup." }, authProfile: { required: true, type: () => Object, nullable: true }, createdAt: { required: true, type: () => Date }, updatedAt: { required: true, type: () => Date }, memberships: { required: true, type: () => [require("./organization-membership.entity").OrganizationMembership] } };
     }
 };
 exports.Organization = Organization;
@@ -80,6 +81,10 @@ __decorate([
     (0, typeorm_1.Column)({ type: "integer", default: 0 }),
     __metadata("design:type", Number)
 ], Organization.prototype, "studentSignupCount", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: "simple-json", nullable: true }),
+    __metadata("design:type", Object)
+], Organization.prototype, "authProfile", void 0);
 __decorate([
     (0, typeorm_1.CreateDateColumn)(),
     __metadata("design:type", Date)

@@ -38,8 +38,8 @@ export function MessageList({
   onJumpToMessage: (id: string) => void;
   act: MessageAction;
 }) {
-  const { language } = useLocale();
-  const copy = chatCopy[language];
+  useLocale();
+
   const byId = useMemo(() => new Map(items.map((item) => [item.id, item])), [items]);
   return items.map((message, index) => {
     const mine = message.senderUserId
@@ -127,6 +127,7 @@ export function MessageBubble({
 }) {
   const { language } = useLocale();
   const copy = chatCopy[language];
+
   if (message.type === "system")
     return (
       <div className="my-2 text-center">

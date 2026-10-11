@@ -1,4 +1,12 @@
-import { Body, Controller, Get, Param, Patch, Post, Query } from "@nestjs/common";
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  Patch,
+  Post,
+  Query,
+} from "@nestjs/common";
 import { RequireCapabilities } from "../../common/decorators/capabilities.decorator";
 import { CurrentUser } from "../../common/decorators/current-user.decorator";
 import { ok } from "../../common/utils/envelope";
@@ -13,6 +21,24 @@ import {
 @Controller()
 export class AttendanceController {
   constructor(private readonly attendance: AttendanceService) {}
+
+  @Get("attendance/sessions/:id")
+  @RequireCapabilities("attendance.read")
+  savedSession(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param("id") id: string,
+  ) {
+    return this.attendance.sessionDetail(user, id).then(ok);
+  }
+
+  @Get("attendance/sessions/:id/history")
+  @RequireCapabilities("attendance.read")
+  savedSessionHistory(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param("id") id: string,
+  ) {
+    return this.attendance.sessionHistory(user, id).then(ok);
+  }
 
   @Get("attendance/contexts")
   @RequireCapabilities("attendance.read")

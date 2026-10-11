@@ -12,7 +12,6 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.EducationClassEnrollment = void 0;
 const openapi = require("@nestjs/swagger");
 const typeorm_1 = require("typeorm");
-const education_class_entity_1 = require("./education-class.entity");
 const student_entity_1 = require("./student.entity");
 let EducationClassEnrollment = class EducationClassEnrollment {
     id;
@@ -29,10 +28,10 @@ __decorate([
     __metadata("design:type", String)
 ], EducationClassEnrollment.prototype, "id", void 0);
 __decorate([
-    (0, typeorm_1.ManyToOne)(() => education_class_entity_1.EducationClass, (classroom) => classroom.enrollments, {
+    (0, typeorm_1.ManyToOne)("EducationClass", (classroom) => classroom.enrollments, {
         onDelete: "CASCADE",
     }),
-    __metadata("design:type", education_class_entity_1.EducationClass)
+    __metadata("design:type", Function)
 ], EducationClassEnrollment.prototype, "classroom", void 0);
 __decorate([
     (0, typeorm_1.ManyToOne)(() => student_entity_1.Student, { onDelete: "CASCADE" }),

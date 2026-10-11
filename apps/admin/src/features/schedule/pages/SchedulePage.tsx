@@ -466,111 +466,116 @@ function ScheduleWorkspace({
           </div>
         </div>
 
-        {isMobileShell ? <div className="grid gap-2 p-3">
-          {activeEntries.map((entry) => (
-            <ScheduleEntryCard
-              key={entry.id}
-              entry={entry}
-              showOrganization={showOrganization}
-              compact={false}
-              canWrite={canWrite}
-              canDelete={canDelete}
-              onEdit={onEdit}
-              onArchive={onArchive}
-              onDelete={onDelete}
-              onOpenPlan={onOpenDetails}
-            />
-          ))}
-          {!activeEntries.length ? (
-            <EmptyState title={`برای ${weekdays[activeWeekday]} کلاسی ثبت نشده است.`} />
-          ) : null}
-        </div> : <div className="overflow-x-auto p-3">
-
-          {classLanes.length ? (
-            <table
-              className="w-full min-w-[72rem] table-fixed overflow-hidden rounded-xl border border-slate-300 bg-white text-right text-[11px] dark:border-white/15 dark:bg-slate-950"
-              aria-label="دفتر برنامه هفتگی کلاس‌ها"
-            >
-              <thead>
-                <tr className="bg-[#f2b600] text-slate-950 dark:bg-amber-500">
-                  <th
-                    scope="col"
-                    className="sticky right-0 z-20 w-36 border-s border-amber-700/35 bg-[#f2b600] px-3 py-2.5 text-center text-xs font-black dark:bg-amber-500"
-                  >
-                    کلاس / گروه
-                  </th>
-                  {displayWeekdays.map((weekday) => (
+        {isMobileShell ? (
+          <div className="grid gap-2 p-3">
+            {activeEntries.map((entry) => (
+              <ScheduleEntryCard
+                key={entry.id}
+                entry={entry}
+                showOrganization={showOrganization}
+                compact={false}
+                canWrite={canWrite}
+                canDelete={canDelete}
+                onEdit={onEdit}
+                onArchive={onArchive}
+                onDelete={onDelete}
+                onOpenPlan={onOpenDetails}
+              />
+            ))}
+            {!activeEntries.length ? (
+              <EmptyState title={`برای ${weekdays[activeWeekday]} کلاسی ثبت نشده است.`} />
+            ) : null}
+          </div>
+        ) : (
+          <div className="overflow-x-auto p-3">
+            {classLanes.length ? (
+              <table
+                className="w-full min-w-[72rem] table-fixed overflow-hidden rounded-xl border border-slate-300 bg-white text-right text-[11px] dark:border-white/15 dark:bg-slate-950"
+                aria-label="دفتر برنامه هفتگی کلاس‌ها"
+              >
+                <thead>
+                  <tr className="bg-[#f2b600] text-slate-950 dark:bg-amber-500">
                     <th
-                      key={weekday}
                       scope="col"
-                      className={`border-s border-amber-700/30 px-2 py-2 text-center ${weekday === today ? "bg-[#e3a900] dark:bg-amber-400" : ""}`}
+                      className="sticky right-0 z-20 w-36 border-s border-amber-700/35 bg-[#f2b600] px-3 py-2.5 text-center text-xs font-black dark:bg-amber-500"
                     >
-                      <button
-                        type="button"
-                        onClick={() => onWeekdayChange(weekday)}
-                        className="w-full rounded-md px-2 py-1 text-xs font-black transition hover:bg-white/25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900"
+                      کلاس / گروه
+                    </th>
+                    {displayWeekdays.map((weekday) => (
+                      <th
+                        key={weekday}
+                        scope="col"
+                        className={`border-s border-amber-700/30 px-2 py-2 text-center ${weekday === today ? "bg-[#e3a900] dark:bg-amber-400" : ""}`}
                       >
-                        {weekdays[weekday]}
-                        {weekday === today ? (
-                          <span className="mt-0.5 block text-[10px]">امروز</span>
-                        ) : null}
-                      </button>
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {classLanes.map((lane, rowIndex) => (
-                  <tr
-                    key={lane.label}
-                    className={rowIndex % 2 ? "bg-slate-50/70 dark:bg-white/[.025]" : ""}
-                  >
-                    <th
-                      scope="row"
-                      className="sticky right-0 z-10 border-s border-t border-slate-200 bg-inherit px-3 py-3 text-right text-xs font-black text-slate-700 dark:border-white/10 dark:text-slate-100"
-                    >
-                      <span className="block leading-5">{lane.label}</span>
-                      <span className="mt-1 block text-[10px] font-bold text-slate-400">
-                        {lane.entries.length.toLocaleString("fa-IR")} جلسه
-                      </span>
-                    </th>
-                    {displayWeekdays.map((weekday) => {
-                      const cellEntries = lane.entries.filter((entry) => entry.weekday === weekday);
-                      return (
-                        <td
-                          key={weekday}
-                          className={`align-top border-s border-t border-slate-200 p-1.5 dark:border-white/10 ${weekday === today ? "bg-brand/[.045]" : ""}`}
+                        <button
+                          type="button"
+                          onClick={() => onWeekdayChange(weekday)}
+                          className="w-full rounded-md px-2 py-1 text-xs font-black transition hover:bg-white/25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900"
                         >
-                          {cellEntries.length ? (
-                            <div className="grid min-h-14 gap-1">
-                              {cellEntries.map((entry) => (
-                                <ScheduleMatrixCell
-                                  key={entry.id}
-                                  entry={entry}
-                                  canWrite={canWrite}
-                                  canDelete={canDelete}
-                                  showOrganization={showOrganization}
-                                  onEdit={onEdit}
-                                  onArchive={onArchive}
-                                  onDelete={onDelete}
-                                  onOpenPlan={onOpenDetails}
-                                />
-                              ))}
-                            </div>
-                          ) : (
-                            <span className="block min-h-14" aria-label="کلاسی ثبت نشده است" />
-                          )}
-                        </td>
-                      );
-                    })}
+                          {weekdays[weekday]}
+                          {weekday === today ? (
+                            <span className="mt-0.5 block text-[10px]">امروز</span>
+                          ) : null}
+                        </button>
+                      </th>
+                    ))}
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          ) : (
-            <EmptyState title="برنامه فعالی برای نمایش ندارید." />
-          )}
-        </div>}
+                </thead>
+                <tbody>
+                  {classLanes.map((lane, rowIndex) => (
+                    <tr
+                      key={lane.label}
+                      className={rowIndex % 2 ? "bg-slate-50/70 dark:bg-white/[.025]" : ""}
+                    >
+                      <th
+                        scope="row"
+                        className="sticky right-0 z-10 border-s border-t border-slate-200 bg-inherit px-3 py-3 text-right text-xs font-black text-slate-700 dark:border-white/10 dark:text-slate-100"
+                      >
+                        <span className="block leading-5">{lane.label}</span>
+                        <span className="mt-1 block text-[10px] font-bold text-slate-400">
+                          {lane.entries.length.toLocaleString("fa-IR")} جلسه
+                        </span>
+                      </th>
+                      {displayWeekdays.map((weekday) => {
+                        const cellEntries = lane.entries.filter(
+                          (entry) => entry.weekday === weekday,
+                        );
+                        return (
+                          <td
+                            key={weekday}
+                            className={`align-top border-s border-t border-slate-200 p-1.5 dark:border-white/10 ${weekday === today ? "bg-brand/[.045]" : ""}`}
+                          >
+                            {cellEntries.length ? (
+                              <div className="grid min-h-14 gap-1">
+                                {cellEntries.map((entry) => (
+                                  <ScheduleMatrixCell
+                                    key={entry.id}
+                                    entry={entry}
+                                    canWrite={canWrite}
+                                    canDelete={canDelete}
+                                    showOrganization={showOrganization}
+                                    onEdit={onEdit}
+                                    onArchive={onArchive}
+                                    onDelete={onDelete}
+                                    onOpenPlan={onOpenDetails}
+                                  />
+                                ))}
+                              </div>
+                            ) : (
+                              <span className="block min-h-14" aria-label="کلاسی ثبت نشده است" />
+                            )}
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            ) : (
+              <EmptyState title="برنامه فعالی برای نمایش ندارید." />
+            )}
+          </div>
+        )}
       </Card>
 
       {canWrite && archivedEntries.length ? (
@@ -885,7 +890,12 @@ function ScheduleEditorForm({
 }: {
   initial: ScheduleDraft;
   organizations: Array<{ id: string; name: string }>;
-  classes: Array<{ id: string; name: string; organization: { id: string }; books: Array<{ id: string; title: string; teacher: { id: string; name: string } }> }>;
+  classes: Array<{
+    id: string;
+    name: string;
+    organization: { id: string };
+    books: Array<{ id: string; title: string; teacher: { id: string; name: string } }>;
+  }>;
   isSaving: boolean;
   onCancel: () => void;
   onSubmit: (draft: ScheduleDraft) => Promise<void>;
@@ -893,7 +903,12 @@ function ScheduleEditorForm({
   const [draft, setDraft] = useState(initial);
   const [attempted, setAttempted] = useState(false);
   const invalidTime = draft.startTime >= draft.endTime;
-  const canSubmit = Boolean(draft.organizationId && draft.title.trim() && !invalidTime && (!draft.classroomId || draft.classBookId));
+  const canSubmit = Boolean(
+    draft.organizationId &&
+    draft.title.trim() &&
+    !invalidTime &&
+    (!draft.classroomId || draft.classBookId),
+  );
   const selectedClass = classes.find((item) => item.id === draft.classroomId);
   const update = (changes: Partial<ScheduleDraft>) =>
     setDraft((current) => ({ ...current, ...changes }));
@@ -915,7 +930,12 @@ function ScheduleEditorForm({
           <select
             value={draft.organizationId}
             onChange={(event) =>
-              update({ organizationId: event.target.value, classroomId: undefined, classBookId: undefined, teacherId: undefined })
+              update({
+                organizationId: event.target.value,
+                classroomId: undefined,
+                classBookId: undefined,
+                teacherId: undefined,
+              })
             }
             className="h-11 rounded-xl border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card))] px-3 text-sm text-ink focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20"
           >
@@ -934,7 +954,13 @@ function ScheduleEditorForm({
           کلاس <span className="font-normal text-slate-500">(اختیاری)</span>
           <select
             value={draft.classroomId || ""}
-            onChange={(event) => update({ classroomId: event.target.value || undefined, classBookId: undefined, teacherId: undefined })}
+            onChange={(event) =>
+              update({
+                classroomId: event.target.value || undefined,
+                classBookId: undefined,
+                teacherId: undefined,
+              })
+            }
             className="h-11 rounded-xl border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card))] px-3 text-sm text-ink focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20"
           >
             <option value="">کلاس عمومی / بدون کلاس</option>
@@ -961,7 +987,11 @@ function ScheduleEditorForm({
               className="h-11 rounded-xl border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card))] px-3 text-sm text-ink focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20"
             >
               <option value="">کتاب و استاد را انتخاب کنید</option>
-              {selectedClass.books.map((book) => <option key={book.id} value={book.id}>{book.title} — {book.teacher.name}</option>)}
+              {selectedClass.books.map((book) => (
+                <option key={book.id} value={book.id}>
+                  {book.title} — {book.teacher.name}
+                </option>
+              ))}
             </select>
           </label>
         ) : null}
@@ -1118,35 +1148,39 @@ function StudentWeeklySchedule({ entries }: { entries: ScheduleEntry[] }) {
           </button>
         ))}
       </div>
-      {isMobileShell ? <div className="grid gap-2">
-        {activeEntries.map((entry) => (
-          <StudentScheduleCard key={entry.id} entry={entry} />
-        ))}
-        {!activeEntries.length ? (
-          <EmptyState title={`برای ${weekdays[activeWeekday]} کلاسی ثبت نشده است.`} />
-        ) : null}
-      </div> : <div className="grid grid-cols-2 gap-3 min-[1200px]:grid-cols-3">
-        {weekdays.map((day, weekday) => {
-          const dailyEntries = entries
-            .filter((entry) => entry.status === "ACTIVE" && entry.weekday === weekday)
-            .sort((a, b) => a.startTime.localeCompare(b.startTime));
-          return (
-            <Card key={day} className="min-w-0 p-3">
-              <h2 className="text-sm font-black text-ink">{day}</h2>
-              <div className="mt-3 grid gap-2">
-                {dailyEntries.map((entry) => (
-                  <StudentScheduleCard key={entry.id} entry={entry} />
-                ))}
-                {!dailyEntries.length ? (
-                  <p className="rounded-xl bg-[rgb(var(--surface-muted))] p-3 text-xs text-slate-500">
-                    کلاسی برای این روز ثبت نشده است.
-                  </p>
-                ) : null}
-              </div>
-            </Card>
-          );
-        })}
-      </div>}
+      {isMobileShell ? (
+        <div className="grid gap-2">
+          {activeEntries.map((entry) => (
+            <StudentScheduleCard key={entry.id} entry={entry} />
+          ))}
+          {!activeEntries.length ? (
+            <EmptyState title={`برای ${weekdays[activeWeekday]} کلاسی ثبت نشده است.`} />
+          ) : null}
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 gap-3 min-[1200px]:grid-cols-3">
+          {weekdays.map((day, weekday) => {
+            const dailyEntries = entries
+              .filter((entry) => entry.status === "ACTIVE" && entry.weekday === weekday)
+              .sort((a, b) => a.startTime.localeCompare(b.startTime));
+            return (
+              <Card key={day} className="min-w-0 p-3">
+                <h2 className="text-sm font-black text-ink">{day}</h2>
+                <div className="mt-3 grid gap-2">
+                  {dailyEntries.map((entry) => (
+                    <StudentScheduleCard key={entry.id} entry={entry} />
+                  ))}
+                  {!dailyEntries.length ? (
+                    <p className="rounded-xl bg-[rgb(var(--surface-muted))] p-3 text-xs text-slate-500">
+                      کلاسی برای این روز ثبت نشده است.
+                    </p>
+                  ) : null}
+                </div>
+              </Card>
+            );
+          })}
+        </div>
+      )}
     </section>
   );
 }

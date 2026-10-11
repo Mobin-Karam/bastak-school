@@ -83,8 +83,7 @@ describe("role dashboard workflows", () => {
     ).toEqual(["/admin/attendance", "/admin/registration", "/admin/students", "/admin/classes"]);
 
     expect(
-      quickActionsForRole("COUNSELOR", ["students.read", "schedule.read"])
-        .map((item) => item.to),
+      quickActionsForRole("COUNSELOR", ["students.read", "schedule.read"]).map((item) => item.to),
     ).toEqual(["/admin/students", "/admin/schedule"]);
   });
 

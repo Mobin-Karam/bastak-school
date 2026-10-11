@@ -1,6 +1,6 @@
 import { Transform, Type } from "class-transformer";
 import { IsArray, IsBoolean, IsDateString, IsIn, IsInt, IsOptional, IsString, IsUUID, Matches, Max, MaxLength, Min, ValidateNested } from "class-validator";
-import { normalizeNationalCode } from "../onboarding/national-code";
+import { normalizeNationalCode } from "../onboarding";
 
 export class UpdateRegistrationProfileDto {
   @IsOptional() @Transform(({ value }) => normalizeNationalCode(String(value ?? ""))) @Matches(/^\d{10}$/) nationalCode?: string;

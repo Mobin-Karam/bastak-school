@@ -1,0 +1,45 @@
+name: LAN Production Deployment
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: bastak-lan-production
+  cancel-in-progress: false
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.23.3
+      - run: npm run bootstrap
+      - run: npm run workspace:check
+      - run: npm run architecture:check
+      - run: npm run contracts:check
+      - run: npm run cmb:compatibility
+      - run: npm run verify
+      - run: ./scripts/deploy/verify-security.sh
+      - run: npm --prefix apps/admin run audit:parity
+      - run: npm --prefix apps/admin run test:coverage
+      - run: npm --prefix apps/admin audit --omit=dev --audit-level=high
+      - run: npm --prefix apps/api audit --omit=dev --audit-level=high
+  deploy:
+    needs: quality
+    if: github.ref == 'refs/heads/main'
+    runs-on: [self-hosted, linux, x64, bastak-lan]
+    environment: lan-production
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build and deploy verified release
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Runner maintains TLS and env outside disposable checkout; database is a named volume.
+          mkdir -p .run/production
+          test -d /home/bastak-server/.config/bastak-production/tls
+          if [[ ! -e .run/production/tls ]]; then ln -s /home/bastak-server/.config/bastak-production/tls .run/production/tls; fi
+          test "$(readlink .run/production/tls)" = /home/bastak-server/.config/bastak-production/tls
+          cp /home/bastak-server/.config/bastak-production/production.env .run/production/production.env
+          ./scripts/deploy/lan.sh

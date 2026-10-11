@@ -268,6 +268,18 @@ const studentNavigation: readonly NavigationGroup[] = [
       },
     ],
   },
+  {
+    section: "حضور من",
+    items: [
+      {
+        path: "my-attendance",
+        title: "حضور و مسئولیت خوابگاه",
+        description: "خلاصه حضور و ثبت حضور اتاق‌های واگذار شده",
+        icon: ClipboardCheck,
+        capability: "attendance.self.read",
+      },
+    ],
+  },
   ...registrationNavigation,
   {
     section: "پروفایل",

@@ -33,6 +33,7 @@ export function ConversationListItem({
 }) {
   const { language } = useLocale();
   const copy = chatCopy[language];
+
   const modal = useModal();
   const auth = useAuth();
   const navigate = useNavigate();
@@ -166,7 +167,7 @@ function StudentChatProfile({
   onNavigate: (to?: string) => void;
 }) {
   const { language } = useLocale();
-  const copy = chatCopy[language];
+
   const student = conversation.student!;
   return (
     <div className="grid gap-4 text-sm">

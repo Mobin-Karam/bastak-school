@@ -1,7 +1,7 @@
 import { DataSource, Repository } from "typeorm";
 import { Student } from "../../database/entities/student.entity";
 import { AuthenticatedUser } from "../auth";
-import { SchoolAccessService } from "../school-access/school-access.service";
+import { SchoolAccessService } from "../school-access";
 import { PreviewStudentImportDto } from "./student-transfer.dto";
 export declare class StudentTransferService {
     private readonly students;

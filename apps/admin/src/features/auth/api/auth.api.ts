@@ -51,3 +51,15 @@ export function checkBackendHealth() {
     unversioned: true,
   });
 }
+
+export function checkLoginPhone(phoneNumber: string) {
+  return request<{ exists: boolean }>(
+    "POST",
+    "/auth/check-phone",
+    { phoneNumber },
+    {
+      suppressAuthFailure: true,
+      timeoutMs: 7_000,
+    },
+  );
+}

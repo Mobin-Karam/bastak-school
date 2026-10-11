@@ -66,15 +66,15 @@ describe("localized calendar and loading controls", () => {
     expect(screen.getByRole("button", { name: "انتخاب تاریخ" })).toHaveTextContent("انتخاب تاریخ");
   });
 
-  it("uses English labels and Gregorian dates in the international workspace", async () => {
+  it("uses English labels and the configured Persian calendar in the international workspace", async () => {
     localStorage.setItem("moshaver-admin-location", "international");
     render(
       <LocaleProvider>
         <DatePicker value="2026-08-31" onChange={() => undefined} />
       </LocaleProvider>,
     );
-    const trigger = screen.getByRole("button", { name: /August/ });
-    expect(trigger).toHaveTextContent("2026");
+    const trigger = screen.getByRole("button", { name: /Shahrivar|شهریور|1405/ });
+    expect(trigger).toHaveTextContent("1405");
     await userEvent.click(trigger);
     expect(screen.getByRole("button", { name: "Previous month" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Today" })).toBeInTheDocument();

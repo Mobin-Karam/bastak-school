@@ -1,3 +1,4 @@
+import type { OrganizationAuthProfile } from "@moshaver/api-contract";
 import {
   Column,
   CreateDateColumn,
@@ -39,6 +40,8 @@ export class Organization {
   @Column({ type: "integer", default: 0 }) studentSignupLimit!: number;
   /** Atomically reserved on successful self-service signup. */
   @Column({ type: "integer", default: 0 }) studentSignupCount!: number;
+  @Column({ type: "simple-json", nullable: true })
+  authProfile!: OrganizationAuthProfile | null;
   @CreateDateColumn() createdAt!: Date;
   @UpdateDateColumn() updatedAt!: Date;
   @OneToMany(

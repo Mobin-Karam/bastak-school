@@ -44,9 +44,9 @@ export function QuestionsPage() {
   const search = params.get("search") || "";
   const [editingId, setEditingId] = useState("");
   const [selected, setSelected] = useState<string[]>([]);
-  const [submitted, setSubmitted] = useState(false);
+  const [, setSubmitted] = useState(false);
   const [bulkDeleting, setBulkDeleting] = useState(false);
-  const [form, setForm] = useState(emptyQuestion);
+  const [, setForm] = useState(emptyQuestion);
   const qc = useQueryClient();
   const modal = useModal();
   const canCreate = auth.can("questions.create");
@@ -109,7 +109,7 @@ export function QuestionsPage() {
     () => (questions.data ?? []).filter((item) => questionMatches(item, deferredSearch)),
     [questions.data, deferredSearch],
   );
-  const validationError = questionError(form);
+
   const selectedExam = exams.data?.find((exam) => exam.id === examId);
   useEffect(() => {
     if (!examId || !exams.isSuccess || selectedExam) return;
@@ -348,6 +348,7 @@ function QuestionEditorModal({
 }) {
   const [draft, setDraft] = useState(initial);
   const [submitted, setSubmitted] = useState(false);
+
   const validationError = questionError(draft);
   return (
     <QuestionEditor

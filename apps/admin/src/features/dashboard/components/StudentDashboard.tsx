@@ -2,16 +2,13 @@ import { useQuery } from "@tanstack/react-query";
 import { CalendarCheck2, CalendarClock, ChevronLeft, Clock3 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import {
-  getSelfAttendanceSummary,
-  listSelfAttendance,
-  type SelfAttendanceRecord,
-} from "../../attendance/api/attendance.api";
+import type { SelfAttendanceRecord } from "../../attendance/api/attendance.api";
+import { getAttendanceEncouragement } from "../../attendance/api/attendance-operations.api";
 import { listSchedule } from "../../schedule/api/schedule.api";
 import { useAuth } from "../../auth";
 import { fa, todayIso } from "../../../shared/lib/utils";
 import { useLocale } from "../../../shared/ui/locale";
-import { Badge, Card, EmptyState, LoadingState } from "../../../shared/ui/ui";
+import { Card, EmptyState, LoadingState } from "../../../shared/ui/ui";
 import { getAdminDashboard } from "../api/dashboard.api";
 import { DashboardCalendar } from "./DashboardCalendar";
 import { AnnouncementEnvelope } from "./AnnouncementEnvelope";
@@ -37,13 +34,15 @@ export function StudentDashboard() {
     queryFn: () => getAdminDashboard("STUDENT"),
   });
   const schedule = useQuery({ queryKey: ["schedule", "student"], queryFn: listSchedule });
-  const attendance = useQuery({
-    queryKey: ["attendance", "self"],
-    queryFn: listSelfAttendance,
-  });
   const attendanceSummary = useQuery({
-    queryKey: ["attendance", "self", "summary"],
-    queryFn: getSelfAttendanceSummary,
+    queryKey: [
+      "attendance-encouragement",
+      auth.user?.id,
+      auth.activeRole,
+      auth.context?.activeOrganization?.id,
+    ],
+    queryFn: getAttendanceEncouragement,
+    enabled: auth.can("attendance.self.read"),
   });
   const weekday = new Date(`${calendarDate}T12:00:00`).getDay();
   const selectedClasses = useMemo(
@@ -53,17 +52,12 @@ export function StudentDashboard() {
       ),
     [schedule.data, weekday],
   );
-  const attendanceCounts =
-    attendanceSummary.data ??
-    (attendance.data ?? []).reduce<Record<SelfAttendanceRecord["status"], number>>(
-      (total, record) => ({ ...total, [record.status]: total[record.status] + 1 }),
-      { present: 0, absent: 0, late: 0, excused: 0 },
-    );
+  const attendanceCounts = attendanceSummary.data ?? { present: 0, absent: 0, late: 0, excused: 0 };
   const prayer = home.data?.home?.prayer;
   const prayerTimes = prayer && "times" in prayer ? prayer.times : null;
   const currentClass = home.data?.home?.currentClass ?? selectedClasses[0] ?? null;
 
-  if (schedule.isLoading && attendance.isLoading) {
+  if (schedule.isLoading && attendanceSummary.isLoading) {
     return <LoadingState label="در حال آماده‌سازی خانه دانش‌آموز…" />;
   }
 
@@ -137,9 +131,16 @@ export function StudentDashboard() {
           {selectedClasses.length ? (
             <ul className="mt-3 grid gap-2">
               {selectedClasses.slice(0, 3).map((entry) => (
-                <li key={entry.id} className="flex items-center justify-between gap-2 rounded-xl bg-[rgb(var(--surface-muted))] px-3 py-2">
+                <li
+                  key={entry.id}
+                  className="flex items-center justify-between gap-2 rounded-xl bg-[rgb(var(--surface-muted))] px-3 py-2"
+                >
                   <span className="min-w-0 truncate text-xs font-bold text-ink">{entry.title}</span>
-                  <time dateTime={entry.startTime} dir="ltr" className="shrink-0 text-xs font-black text-brand">
+                  <time
+                    dateTime={entry.startTime}
+                    dir="ltr"
+                    className="shrink-0 text-xs font-black text-brand"
+                  >
                     {fa(entry.startTime)}
                   </time>
                 </li>
@@ -171,16 +172,11 @@ export function StudentDashboard() {
               </div>
             ))}
           </div>
-          {attendance.data?.slice(0, 1).map((record) => (
-            <div key={record.id} className="mt-2 flex items-center justify-between gap-2 text-xs">
-              <span className="text-slate-500">
-                {formatDate(record.sessionDate, { dateStyle: "medium" })}
-              </span>
-              <Badge tone={attendanceMeta[record.status].tone}>
-                {attendanceMeta[record.status].label}
-              </Badge>
-            </div>
-          ))}
+          {attendanceSummary.data?.message ? (
+            <p className="mt-3 text-xs leading-6 text-slate-500">
+              {attendanceSummary.data.message}
+            </p>
+          ) : null}
         </Card>
       </div>
     </section>

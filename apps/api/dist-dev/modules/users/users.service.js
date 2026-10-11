@@ -31,7 +31,7 @@ const user_role_assignment_entity_1 = require("../../database/entities/user-role
 const user_entity_1 = require("../../database/entities/user.entity");
 const chat_1 = require("../chat");
 const phone_number_1 = require("../../common/utils/phone-number");
-const organization_role_policy_1 = require("../organizations/organization-role-policy");
+const organizations_1 = require("../organizations");
 let UsersService = class UsersService {
     users;
     assignments;
@@ -54,7 +54,7 @@ let UsersService = class UsersService {
     async assertRoles(actor, roles) {
         if (!this.tenancy.canAssignRoles(actor, roles))
             throw new api_exception_1.ApiException(403, "ROLE_ESCALATION", "تخصیص این نقش مجاز نیست.");
-        (0, organization_role_policy_1.assertRoleCodesAssignableByActor)(actor, roles);
+        (0, organizations_1.assertRoleCodesAssignableByActor)(actor, roles);
         if (roles.includes("PLATFORM_ADMIN"))
             await this.requirePlatformOwner(actor);
     }
@@ -150,7 +150,7 @@ let UsersService = class UsersService {
     }
     async create(actor, dto) {
         await this.assertRoles(actor, dto.roleCodes);
-        (0, organization_role_policy_1.assertPlatformRolesAreUnscoped)(dto.roleCodes, dto.organizationId);
+        (0, organizations_1.assertPlatformRolesAreUnscoped)(dto.roleCodes, dto.organizationId);
         if (dto.organizationId)
             this.assertOrg(actor, dto.organizationId);
         if (!this.platform(actor) && !dto.organizationId)
@@ -176,7 +176,7 @@ let UsersService = class UsersService {
             if (dto.organizationId)
                 membership = await this.ensureActiveMembership(manager, user, dto.organizationId);
             if (membership)
-                (0, organization_role_policy_1.assertRoleCodesCompatibleWithOrganization)(membership.organization.type, dto.roleCodes);
+                (0, organizations_1.assertRoleCodesCompatibleWithOrganization)(membership.organization.type, dto.roleCodes);
             const roles = await manager.find(role_entity_1.Role, {
                 where: { code: (0, typeorm_2.In)((0, cmb_identity_1.uniqueValues)(dto.roleCodes)) },
             });
@@ -229,7 +229,7 @@ let UsersService = class UsersService {
     }
     async setRoles(actor, id, dto) {
         await this.assertRoles(actor, dto.roleCodes);
-        (0, organization_role_policy_1.assertPlatformRolesAreUnscoped)(dto.roleCodes, dto.organizationId);
+        (0, organizations_1.assertPlatformRolesAreUnscoped)(dto.roleCodes, dto.organizationId);
         if (dto.organizationId)
             this.assertOrg(actor, dto.organizationId);
         const target = await this.get(actor, id);
@@ -245,7 +245,7 @@ let UsersService = class UsersService {
             if (dto.organizationId)
                 membership = await this.ensureActiveMembership(manager, user, dto.organizationId);
             if (membership)
-                (0, organization_role_policy_1.assertRoleCodesCompatibleWithOrganization)(membership.organization.type, dto.roleCodes);
+                (0, organizations_1.assertRoleCodesCompatibleWithOrganization)(membership.organization.type, dto.roleCodes);
             if (roles.some((role) => role.organizationScoped) && !membership)
                 throw new api_exception_1.ApiException(400, "ORGANIZATION_REQUIRED", "نقش سازمانی به عضویت نیاز دارد.");
             if (dto.organizationId)

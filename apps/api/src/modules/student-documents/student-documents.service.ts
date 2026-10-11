@@ -7,7 +7,7 @@ import { Student } from "../../database/entities/student.entity";
 import { User } from "../../database/entities/user.entity";
 import { ApiException } from "../../common/exceptions/api.exception";
 import { AuthenticatedUser } from "../auth";
-import { SchoolAccessService } from "../school-access/school-access.service";
+import { SchoolAccessService } from "../school-access";
 import { Express } from "express";
 import { Multer } from "multer";
 

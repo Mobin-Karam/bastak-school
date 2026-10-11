@@ -1,3 +1,4 @@
+import type { OrganizationAuthProfile } from "@moshaver/api-contract";
 import { api } from "../../../shared/api/api";
 import type { RoleCode } from "../../../shared/types/domain";
 import type { AdminOrganizationType } from "../../../shared/lib/organization-role-policy";
@@ -18,6 +19,7 @@ export type PortalOrganization = {
   type: AdminOrganizationType;
   status: string;
   disabledFeatures?: string[];
+  authProfile?: OrganizationAuthProfile | null;
   studentSignupManagedByOrganization?: boolean;
   studentSignupEnabled?: boolean;
   studentSignupLimit?: number;
@@ -142,3 +144,8 @@ export const acceptRelationship = (id: string) =>
   api.post<UserRelationship>(`/relationships/${id}/accept`, {});
 export const rejectRelationship = (id: string) =>
   api.post<UserRelationship>(`/relationships/${id}/reject`, {});
+
+export const updateOrganizationAuthProfile = (
+  id: string,
+  body: Partial<OrganizationAuthProfile> & { name?: string },
+) => api.patch<PortalOrganization>(`/organizations/${id}/auth-profile`, body);

@@ -18,3 +18,9 @@ admin-app
 backend
 apps/student/src-tauri/target
 apps/student/src-tauri/gen
+.run
+.agent-state
+**/dist-dev
+**/*.key
+**/*.pem
+**/*.crt

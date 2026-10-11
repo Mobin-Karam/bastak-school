@@ -140,6 +140,7 @@ for (const project of projects) {
       scannedFiles.push(rel(file));
       const sourceProject = ownerFor(file);
       const sourceText = fs.readFileSync(file, 'utf8');
+      const runtimeSpecifiers = new Set(parseSpecifiers(sourceText.replace(/\b(?:import|export)\s+type\b[^;]*;/g, "")));
       for (const specifier of parseSpecifiers(sourceText)) {
         let targetFile = null;
         let targetProject = null;
@@ -185,7 +186,7 @@ for (const project of projects) {
         if (rel(file).startsWith('apps/api/src/') && specifier.startsWith('.') && targetFile) {
           const resolved = resolveRelative(file, specifier);
           if (fs.existsSync(resolved) && fs.statSync(resolved).isFile() && rel(resolved).startsWith('apps/api/src/')) {
-            addFileEdge(rel(file), rel(resolved));
+            if (runtimeSpecifiers.has(specifier)) addFileEdge(rel(file), rel(resolved));
             const fromModule = backendModule(file);
             const toModule = backendModule(resolved);
             if (fromModule && toModule && fromModule !== toModule) {

@@ -11,6 +11,12 @@ const accounts = [
   "e2e.multi",
 ] as const;
 
+function seedPhoneNumber(identity: string) {
+  let hash = 0;
+  for (const character of identity) hash = (hash * 31 + character.charCodeAt(0)) >>> 0;
+  return `091${String(hash % 100000000).padStart(8, "0")}`;
+}
+
 test.describe("Admin v2 role login smoke", () => {
   test.skip(
     !process.env.ADMIN_V2_E2E_BASE_URL,
@@ -20,7 +26,8 @@ test.describe("Admin v2 role login smoke", () => {
   for (const username of accounts) {
     test(`${username} reaches the protected shell`, async ({ page }) => {
       await page.goto("/login");
-      await page.getByLabel("نام کاربری").fill(username);
+      await page.getByLabel("شماره همراه").fill(seedPhoneNumber(username));
+      await page.getByRole("button", { name: "ادامه", exact: true }).click();
       await page.getByLabel("رمز عبور", { exact: true }).fill("Moshaver-e2e-2026!");
       await page.getByRole("button", { name: "ورود", exact: true }).click();
 
@@ -29,20 +36,22 @@ test.describe("Admin v2 role login smoke", () => {
     });
   }
 
-  test("Student-only account is rejected by the Admin shell", async ({ page }) => {
+  test("Student account reaches the shared school shell", async ({ page }) => {
     await page.goto("/login");
-    await page.getByLabel("نام کاربری").fill("e2e.student.a");
+    await page.getByLabel("شماره همراه").fill(seedPhoneNumber("e2e.student.a"));
+    await page.getByRole("button", { name: "ادامه", exact: true }).click();
     await page.getByLabel("رمز عبور", { exact: true }).fill("Moshaver-e2e-2026!");
     await page.getByRole("button", { name: "ورود", exact: true }).click();
 
-    await expect(page).toHaveURL(/\/login$/);
-    await expect(page.getByText("این حساب مدیر نیست.")).toBeVisible();
+    await expect(page).toHaveURL(/\/admin(?:\/|$)/);
+    await expect(page.locator("main")).toBeVisible();
   });
 
   test("platform owner confirms archive and restore for the seeded student", async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto("/login");
-    await page.getByLabel("نام کاربری").fill("e2e.platform");
+    await page.getByLabel("شماره همراه").fill(seedPhoneNumber("e2e.platform"));
+    await page.getByRole("button", { name: "ادامه", exact: true }).click();
     await page.getByLabel("رمز عبور", { exact: true }).fill("Moshaver-e2e-2026!");
     await page.getByRole("button", { name: "ورود", exact: true }).click();
     await expect(page).toHaveURL(/\/admin(?:\/|$)/);

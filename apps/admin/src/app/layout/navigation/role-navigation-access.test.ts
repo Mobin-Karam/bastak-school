@@ -2,7 +2,9 @@ import { describe, expect, it } from "vitest";
 import { navigationForCapabilities } from "./admin-navigation";
 
 const pathsFor = (capabilities: readonly string[], role: string) =>
-  navigationForCapabilities(capabilities, role).flatMap((group) => group.items.map((item) => item.path));
+  navigationForCapabilities(capabilities, role).flatMap((group) =>
+    group.items.map((item) => item.path),
+  );
 
 describe("role-aware navigation registry", () => {
   it("uses the same capability-filtered destinations for a principal across every shell", () => {

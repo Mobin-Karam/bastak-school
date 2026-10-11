@@ -76,6 +76,8 @@ const organizations = await request(platform, "/organizations", {
 const orgA = organizations.payload.data.find((item) => item.name.endsWith("A"));
 const orgB = organizations.payload.data.find((item) => item.name.endsWith("B"));
 
+const legacyEducationEnabled = process.env.E2E_LEGACY_EDUCATION === "true";
+if (legacyEducationEnabled) {
 const teacherA = await login("e2e.teacher.a");
 const scopedTeacherSubjects = await request(teacherA, "/subjects", {
   role: "TEACHER",
@@ -94,6 +96,13 @@ assert(
   "200/scoped",
   scopedTeacherSubjects.payload,
 );
+
+} else {
+  for (const route of ["/subjects", "/quizzes"]) {
+    const retired = await request(platform, route, { role: "PLATFORM_ADMIN" });
+    assert(retired.status === 404, `Retired route ${route} is not mounted`, retired.status, 404, retired.payload);
+  }
+}
 
 for (const [username, role] of [
   ["e2e.guardian.a", "GUARDIAN"],
@@ -140,6 +149,7 @@ for (const [username, role] of [
 }
 
 const content = await login("e2e.content.a");
+if (legacyEducationEnabled) {
 assert(
   (
     await request(content, "/subjects", {
@@ -151,6 +161,7 @@ assert(
   200,
   200,
 );
+}
 const contentPrivate = await request(content, `/students/${studentA.id}`, {
   role: "CONTENT_MANAGER",
   organizationId: orgA.id,
@@ -162,6 +173,7 @@ assert(
   403,
   contentPrivate.payload,
 );
+if (legacyEducationEnabled) {
 const ownQuiz = await request(content, "/quizzes", {
   method: "POST",
   role: "CONTENT_MANAGER",
@@ -230,6 +242,7 @@ assert(
   forgedQuiz.payload,
 );
 
+}
 const orgAdmin = await login("e2e.orgadmin.a");
 assert(
   (
@@ -336,13 +349,10 @@ assert(
 const studentMessages = await request(
   student,
   `/chat/conversations/${directConversation.payload.data.id}/messages`,
-  { role: "STUDENT" },
+  { role: "STUDENT", organizationId: orgA.id },
 );
 assert(
-  studentMessages.status === 200 &&
-    studentMessages.payload.data.some(
-      (item) => item.id === sentMessage.payload.data.id,
-    ),
+  studentMessages.status === 200 && studentMessages.payload.data.some(item => item.id === sentMessage.payload.data.id),
   "student receives only member conversation messages",
   studentMessages.status,
   200,
@@ -477,15 +487,56 @@ assert(
 const examBypass = await request(
   student,
   `/student/exams/${unassignedExam.payload.data.id}`,
-  { role: "STUDENT" },
+  { role: "STUDENT", organizationId: orgA.id },
 );
 assert(
-  examBypass.status === 404,
+  [403, 404].includes(examBypass.status),
   "student cannot bypass exam assignment",
   examBypass.status,
-  404,
+  "403/404",
   examBypass.payload,
 );
+
+// Exercise the mounted attendance API with separate schools and real student sessions.
+const principal = await login("e2e.principal.a");
+const principalScope = {role: "PRINCIPAL", organizationId: orgA.id};
+const studentScope = {role: "STUDENT", organizationId: orgA.id};
+const studentOther = await login("e2e.student.b");
+const otherScope = {role: "STUDENT", organizationId: orgB.id};
+const summaryWindow = await request(principal, "/attendance/overview", principalScope);
+assert(summaryWindow.status === 200, "principal reads current attendance night", summaryWindow.status, 200, summaryWindow.payload);
+const night = summaryWindow.payload.data.day;
+const residents = await request(principal, "/attendance/dorm-residents", principalScope);
+assert(residents.status === 200 && residents.payload.data.some(row => row.id === studentA.id) && !residents.payload.data.some(row => row.id === studentB.id), "dorm residents are school scoped", residents.status, 200);
+const wide = await request(principal, "/attendance/dorm/delegate-all", {...principalScope, method: "PUT", body: {studentId: studentA.id, startsOn: night, endsOn: night}});
+assert(wide.status === 200 && wide.payload.data.length === 2 && wide.payload.data.every(row => row.dormWide), "principal delegates all school rooms", wide.status, 200, wide.payload);
+const assignments = await request(student, "/student/attendance/dorm-assignments", studentScope);
+assert(assignments.status === 200 && assignments.payload.data.length === 2, "selected student receives all room assignments", assignments.status, 200, assignments.payload);
+const assigned = assignments.payload.data.find(row => row.roster.length === 1);
+const markBody = {requestId: crypto.randomUUID(), expectedRevision: assigned.revision, nightDate: assigned.nightDate, entries: [{studentId: studentA.id, status: "present"}]};
+const mark = await request(student, `/student/attendance/dorm-assignments/${assigned.id}/mark`, {...studentScope, method: "POST", body: markBody});
+assert(mark.status === 201, "delegate records own school room attendance", mark.status, 201, mark.payload);
+const foreignMark = await request(studentOther, `/student/attendance/dorm-assignments/${assigned.id}/mark`, {...otherScope, method: "POST", body: {...markBody, requestId: crypto.randomUUID()}});
+assert([403,404].includes(foreignMark.status), "other school student cannot use delegation", foreignMark.status, "403/404");
+const forgedGrant = await request(principal, "/attendance/dorm/delegate-all", {...principalScope, method: "PUT", body: {studentId: studentB.id, startsOn: night, endsOn: night}});
+assert([403,404,422].includes(forgedGrant.status), "foreign school student cannot receive dorm delegation", forgedGrant.status, "403/404/422");
+const pool = await request(principal, "/attendance/pools", {...principalScope, method: "POST", body: {requestId: crypto.randomUUID(), organizationId: orgA.id, title: "E2E gathering", place: "E2E room", contextType: "dorm", contextId: assigned.roomId, durationMinutes: 15}});
+assert(pool.status === 201, "principal creates school room pool", pool.status, 201, pool.payload);
+const poolId = pool.payload.data.id;
+const ownPools = await request(student, "/student/attendance/pools", studentScope);
+assert(ownPools.status === 200 && ownPools.payload.data.some(row => row.id === poolId), "room student receives pool prompt", ownPools.status, 200, ownPools.payload);
+const crossCheckIn = await request(studentOther, `/student/attendance/pools/${poolId}/check-in`, {...otherScope, method: "POST", body: {confirmation: "here"}});
+assert([403,404].includes(crossCheckIn.status), "foreign student cannot confirm pool presence", crossCheckIn.status, "403/404");
+const checkIn = await request(student, `/student/attendance/pools/${poolId}/check-in`, {...studentScope, method: "POST", body: {confirmation: "here"}});
+assert(checkIn.status === 201, "student confirms pool presence", checkIn.status, 201, checkIn.payload);
+for (const path of ["/attendance/staff-sessions", `/attendance/students/${studentA.id}/profile`]) {
+  const denied = await request(student, path, studentScope);
+  assert(denied.status === 403, "student cannot access staff attendance details", denied.status, 403);
+}
+const revoke = await request(principal, "/attendance/dorm/delegate-all", {...principalScope, method: "DELETE", body: {}});
+assert(revoke.status === 200, "principal revokes dorm wide delegation", revoke.status, 200, revoke.payload);
+const revokedMark = await request(student, `/student/attendance/dorm-assignments/${assigned.id}/mark`, {...studentScope, method: "POST", body: {...markBody, requestId: crypto.randomUUID()}});
+assert([403,404].includes(revokedMark.status), "revoked delegate cannot record attendance", revokedMark.status, "403/404");
 
 const relationships = await request(platform, "/relationships", {
   role: "PLATFORM_ADMIN",
@@ -576,7 +627,7 @@ const secondStudentSession = await login("e2e.student.a");
 const secondSessionList = await request(
   secondStudentSession,
   "/auth/sessions",
-  { role: "STUDENT" },
+  { role: "STUDENT", organizationId: orgA.id },
 );
 const secondSessionId = secondSessionList.payload.data.find(
   (item) => item.current,

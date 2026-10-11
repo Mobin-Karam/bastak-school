@@ -21,7 +21,7 @@ const learning_resource_entity_1 = require("../../database/entities/learning-res
 const learning_resource_assignment_entity_1 = require("../../database/entities/learning-resource-assignment.entity");
 const student_entity_1 = require("../../database/entities/student.entity");
 const authorization_1 = require("../authorization");
-const realtime_service_1 = require("../realtime/realtime.service");
+const realtime_1 = require("../realtime");
 let LearningResourcesService = class LearningResourcesService {
     resources;
     assignments;
@@ -206,6 +206,6 @@ exports.LearningResourcesService = LearningResourcesService = __decorate([
         typeorm_2.Repository,
         typeorm_2.Repository,
         authorization_1.AuthorizationService,
-        realtime_service_1.RealtimeService])
+        realtime_1.RealtimeService])
 ], LearningResourcesService);
 //# sourceMappingURL=learning-resources.service.js.map

@@ -13,8 +13,8 @@ exports.DashboardHomeService = void 0;
 const common_1 = require("@nestjs/common");
 const api_exception_1 = require("../../common/exceptions/api.exception");
 const dashboard_service_1 = require("./dashboard.service");
-const schedule_service_1 = require("../schedule/schedule.service");
-const school_home_service_1 = require("../school-home/school-home.service");
+const schedule_1 = require("../schedule");
+const school_home_1 = require("../school-home");
 let DashboardHomeService = class DashboardHomeService {
     legacy;
     schedule;
@@ -108,7 +108,7 @@ exports.DashboardHomeService = DashboardHomeService;
 exports.DashboardHomeService = DashboardHomeService = __decorate([
     (0, common_1.Injectable)(),
     __metadata("design:paramtypes", [dashboard_service_1.LegacyDashboardService,
-        schedule_service_1.ScheduleService,
-        school_home_service_1.SchoolHomeService])
+        schedule_1.ScheduleService,
+        school_home_1.SchoolHomeService])
 ], DashboardHomeService);
 //# sourceMappingURL=dashboard-home.service.js.map

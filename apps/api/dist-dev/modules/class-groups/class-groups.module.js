@@ -23,7 +23,13 @@ exports.ClassGroupsModule = ClassGroupsModule;
 exports.ClassGroupsModule = ClassGroupsModule = __decorate([
     (0, common_1.Module)({
         imports: [
-            typeorm_1.TypeOrmModule.forFeature([education_class_entity_1.EducationClass, education_class_enrollment_entity_1.EducationClassEnrollment, study_group_entity_1.StudyGroup, study_group_membership_entity_1.StudyGroupMembership, student_entity_1.Student]),
+            typeorm_1.TypeOrmModule.forFeature([
+                education_class_entity_1.EducationClass,
+                education_class_enrollment_entity_1.EducationClassEnrollment,
+                study_group_entity_1.StudyGroup,
+                study_group_membership_entity_1.StudyGroupMembership,
+                student_entity_1.Student,
+            ]),
             school_access_module_1.SchoolAccessModule,
         ],
         controllers: [class_groups_controller_1.ClassGroupsController],

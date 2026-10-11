@@ -15,23 +15,23 @@ This feature implements the complete student registration system for schools wit
 
 ## Sections
 
-| Section | Description | Required |
-|---------|-------------|----------|
-| Basic Information | National code, birth date, gender, education level | ✅ |
-| Identity Information | National ID, birth certificate, personal identification | ✅ |
-| Documents | Upload of required documents (ID, certificates, photos) | ✅ |
-| Contact Information | Phone numbers, email, address, postal code | ✅ |
-| Family Information | Parent/guardian details, family size, siblings | ✅ |
-| Educational Background | Previous school info, GPA, academic achievements | ✅ |
-| Health Information | Medical history, blood type, emergency contacts | ✅ |
-| Extracurricular Activities | Sports, arts, music, clubs, competitions | ❌ |
-| Academic Interests | Favorite subjects, learning style, career goals | ❌ |
-| Transportation | School bus, pickup/dropoff locations, driver info | ❌ |
-| Financial Information | Tuition payment, scholarships, financial aid | ❌ |
-| Consent Agreements | Privacy policy, terms of service, photo consent | ✅ |
-| Emergency Contacts | Primary, secondary, and tertiary emergency contacts | ✅ |
-| Academic History | Detailed academic history across multiple schools | ❌ |
-| Registration Completion | Final review and submission confirmation | ✅ |
+| Section                    | Description                                             | Required |
+| -------------------------- | ------------------------------------------------------- | -------- |
+| Basic Information          | National code, birth date, gender, education level      | ✅       |
+| Identity Information       | National ID, birth certificate, personal identification | ✅       |
+| Documents                  | Upload of required documents (ID, certificates, photos) | ✅       |
+| Contact Information        | Phone numbers, email, address, postal code              | ✅       |
+| Family Information         | Parent/guardian details, family size, siblings          | ✅       |
+| Educational Background     | Previous school info, GPA, academic achievements        | ✅       |
+| Health Information         | Medical history, blood type, emergency contacts         | ✅       |
+| Extracurricular Activities | Sports, arts, music, clubs, competitions                | ❌       |
+| Academic Interests         | Favorite subjects, learning style, career goals         | ❌       |
+| Transportation             | School bus, pickup/dropoff locations, driver info       | ❌       |
+| Financial Information      | Tuition payment, scholarships, financial aid            | ❌       |
+| Consent Agreements         | Privacy policy, terms of service, photo consent         | ✅       |
+| Emergency Contacts         | Primary, secondary, and tertiary emergency contacts     | ✅       |
+| Academic History           | Detailed academic history across multiple schools       | ❌       |
+| Registration Completion    | Final review and submission confirmation                | ✅       |
 
 ## API Integration
 
@@ -47,12 +47,10 @@ The registration feature integrates with the following API endpoints:
 To use the registration feature in your application:
 
 ```tsx
-import { RegistrationEntry } from './features/registration';
+import { RegistrationEntry } from "./features/registration";
 
 function App() {
-  return (
-    <RegistrationEntry />
-  );
+  return <RegistrationEntry />;
 }
 ```
 

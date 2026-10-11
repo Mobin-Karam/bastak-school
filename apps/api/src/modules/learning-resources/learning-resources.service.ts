@@ -8,7 +8,7 @@ import { Student } from "../../database/entities/student.entity";
 import { User } from "../../database/entities/user.entity";
 import { AuthenticatedUser } from "../auth";
 import { AuthorizationService } from "../authorization";
-import { RealtimeService } from "../realtime/realtime.service";
+import { RealtimeService } from "../realtime";
 import { SaveLearningResourceDto } from "./learning-resources.dto";
 
 @Injectable()

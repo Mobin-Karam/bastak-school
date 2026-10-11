@@ -6,7 +6,7 @@ import { DormRoomAssignment } from "../../database/entities/dorm-room-assignment
 import { DormRoom } from "../../database/entities/dorm-room.entity";
 import { Student } from "../../database/entities/student.entity";
 import { AuthenticatedUser } from "../auth";
-import { SchoolAccessService } from "../school-access/school-access.service";
+import { SchoolAccessService } from "../school-access";
 import { NotificationsService } from "../notifications";
 import { NotificationType } from "../../database/entities/notification.entity";
 import { CreateDormRoomDto, SendDormAnnouncementDto } from "./dormitory.dto";

@@ -4,7 +4,7 @@ import { LearningResourceAssignment } from "../../database/entities/learning-res
 import { Student } from "../../database/entities/student.entity";
 import { AuthenticatedUser } from "../auth";
 import { AuthorizationService } from "../authorization";
-import { RealtimeService } from "../realtime/realtime.service";
+import { RealtimeService } from "../realtime";
 import { SaveLearningResourceDto } from "./learning-resources.dto";
 export declare class LearningResourcesService {
     private resources;

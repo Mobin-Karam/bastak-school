@@ -21,6 +21,7 @@ const api_exception_1 = require("../../common/exceptions/api.exception");
 const envelope_1 = require("../../common/utils/envelope");
 const auth_service_1 = require("./auth.service");
 const change_password_dto_1 = require("./dto/change-password.dto");
+const check_phone_dto_1 = require("./dto/check-phone.dto");
 const login_dto_1 = require("./dto/login.dto");
 const phone_number_change_dto_1 = require("./dto/phone-number-change.dto");
 const capabilities_decorator_1 = require("../../common/decorators/capabilities.decorator");
@@ -30,6 +31,9 @@ let AuthController = class AuthController {
     constructor(auth, config) {
         this.auth = auth;
         this.config = config;
+    }
+    async checkPhone(dto, req) {
+        return (0, envelope_1.ok)(await this.auth.checkPhone(dto.phoneNumber, req.ip));
     }
     async login(dto, req, res) {
         const result = await this.auth.login(dto.phoneNumber, dto.password, req.ip);
@@ -126,6 +130,15 @@ let AuthController = class AuthController {
     }
 };
 exports.AuthController = AuthController;
+__decorate([
+    (0, common_1.Post)("check-phone"),
+    openapi.ApiResponse({ status: 201 }),
+    __param(0, (0, common_1.Body)()),
+    __param(1, (0, common_1.Req)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [check_phone_dto_1.CheckPhoneDto, Object]),
+    __metadata("design:returntype", Promise)
+], AuthController.prototype, "checkPhone", null);
 __decorate([
     (0, common_1.Post)("login"),
     openapi.ApiResponse({ status: 201 }),

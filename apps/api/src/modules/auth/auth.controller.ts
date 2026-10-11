@@ -15,6 +15,7 @@ import { ApiException } from "../../common/exceptions/api.exception";
 import { ok } from "../../common/utils/envelope";
 import { AuthenticatedUser, AuthService } from "./auth.service";
 import { ChangePasswordDto } from "./dto/change-password.dto";
+import { CheckPhoneDto } from "./dto/check-phone.dto";
 import { LoginDto } from "./dto/login.dto";
 import {
   CreatePhoneNumberChangeRequestDto,
@@ -29,6 +30,11 @@ export class AuthController {
     private readonly auth: AuthService,
     private readonly config: ConfigService,
   ) {}
+
+  @Post("check-phone")
+  async checkPhone(@Body() dto: CheckPhoneDto, @Req() req: FastifyRequest) {
+    return ok(await this.auth.checkPhone(dto.phoneNumber, req.ip));
+  }
 
   @Post("login")
   async login(

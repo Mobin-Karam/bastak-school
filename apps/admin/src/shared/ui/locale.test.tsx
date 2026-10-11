@@ -39,6 +39,13 @@ describe("LocaleProvider date formatting", () => {
       </LocaleProvider>,
     );
 
-    expect(screen.getByRole("status")).toHaveTextContent("26");
+    expect(screen.getByRole("status")).toHaveTextContent(
+      new Intl.DateTimeFormat("en-US-u-ca-persian", {
+        timeZone: "Asia/Tehran",
+        year: "2-digit",
+        month: "2-digit",
+        day: "2-digit",
+      }).format(new Date("2026-08-31")),
+    );
   });
 });

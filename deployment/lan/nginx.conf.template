@@ -1,0 +1,66 @@
+server {
+  listen 80;
+  listen 443 ssl;
+  listen [::]:443 ssl;
+  ssl_certificate /etc/nginx/tls/server.crt;
+  ssl_certificate_key /etc/nginx/tls/server.key;
+  ssl_protocols TLSv1.2 TLSv1.3;
+  if ($scheme = http) { return 308 https://$host$request_uri; }
+  server_name _;
+  root /usr/share/nginx/html;
+  index index.html;
+  client_max_body_size 64m;
+
+  add_header X-Content-Type-Options nosniff always;
+  add_header X-Frame-Options DENY always;
+  add_header Referrer-Policy no-referrer always;
+  add_header Permissions-Policy "camera=(), microphone=(), geolocation=()" always;
+
+  location ~ ^/api/v[12](?:/|$) {
+    proxy_pass ${API_PROXY_TARGET};
+    proxy_http_version 1.1;
+    proxy_set_header Host $proxy_host;
+    proxy_set_header X-Forwarded-Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_buffering off;
+    proxy_cache off;
+    proxy_read_timeout 3600s;
+  }
+
+  # Health endpoints are deliberately outside Nest's API prefix. Keep them
+  # same-origin so the login connection indicator works in production too.
+  location ~ ^/(health|ready)$ {
+    proxy_pass ${API_PROXY_TARGET};
+    proxy_http_version 1.1;
+    proxy_set_header Host $proxy_host;
+    proxy_set_header X-Forwarded-Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_cache off;
+  }
+
+  # These are installability-critical PWA resources. They must always be
+  # fetched from the current release and must never fall back to index.html,
+  # because a cached or HTML response makes Chromium reject installation.
+  location = /manifest.webmanifest {
+    add_header Cache-Control "no-cache, no-store, must-revalidate" always;
+    try_files $uri =404;
+  }
+
+  location = /sw.js {
+    add_header Cache-Control "no-cache, no-store, must-revalidate" always;
+    try_files $uri =404;
+  }
+
+  location = /bastak-school-ca.crt {
+    try_files $uri =404;
+    default_type application/x-x509-ca-cert;
+  }
+
+  location / {
+    try_files $uri $uri/ /index.html;
+  }
+}

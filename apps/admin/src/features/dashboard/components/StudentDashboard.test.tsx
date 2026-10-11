@@ -1,12 +1,15 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { LocaleProvider } from "../../../shared/ui/locale";
 import { StudentDashboard } from "./StudentDashboard";
 
 vi.mock("../../auth", () => ({
-  useAuth: () => ({ capabilities: ["schedule.read", "prayer_times.read", "attendance.self.read"] }),
+  useAuth: () => ({
+    can: () => true,
+    capabilities: ["schedule.read", "prayer_times.read", "attendance.self.read"],
+  }),
 }));
 vi.mock("../../schedule/api/schedule.api", () => ({
   listSchedule: async () => [
@@ -22,16 +25,16 @@ vi.mock("../../schedule/api/schedule.api", () => ({
     },
   ],
 }));
-vi.mock("../../attendance/api/attendance.api", () => ({
-  listSelfAttendance: async () => [],
-  getSelfAttendanceSummary: async () => ({
+vi.mock("../../attendance/api/attendance-operations.api", () => ({
+  getAttendanceEncouragement: async () => ({
     studentId: "student-1",
     totalSessions: 3,
     present: 2,
     absent: 1,
     late: 0,
     excused: 0,
-    recent: [],
+    attendanceRate: 67,
+    message: "برای حضور منظم‌تر برنامه‌ریزی کنید.",
   }),
 }));
 vi.mock("../api/dashboard.api", () => ({
@@ -76,6 +79,15 @@ vi.mock("../api/dashboard.api", () => ({
   }),
 }));
 
+beforeEach(() => {
+  vi.useFakeTimers({ toFake: ["Date"] });
+  vi.setSystemTime(new Date("2026-10-08T08:00:00Z"));
+});
+afterEach(() => {
+  cleanup();
+  vi.useRealTimers();
+});
+
 describe("StudentDashboard", () => {
   it("shows the student’s scoped class, prayer, class times, and attendance", async () => {
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -91,7 +103,7 @@ describe("StudentDashboard", () => {
 
     expect(await screen.findByRole("region", { name: "خانه دانش‌آموز" })).toBeVisible();
     expect(screen.getByRole("region", { name: "کلاس جاری" })).toHaveTextContent("فقه کاربردی");
-    expect(screen.getByRole("group", { name: /نماز/ }).querySelector("time")).toBeVisible();
+    expect(screen.getByRole("group", { name: "اوقات شرعی" }).querySelector("time")).toBeVisible();
     expect(screen.getByRole("region", { name: "زمان کلاس‌های امروز" })).toHaveTextContent("۰۸:۰۰");
     expect(screen.getByRole("region", { name: "خلاصه حضور و غیاب" })).toHaveTextContent("حاضر");
     expect(screen.getByRole("link", { name: /برنامه کامل/ })).toHaveAttribute(

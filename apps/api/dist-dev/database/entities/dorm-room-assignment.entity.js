@@ -12,7 +12,6 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.DormRoomAssignment = void 0;
 const openapi = require("@nestjs/swagger");
 const typeorm_1 = require("typeorm");
-const dorm_room_entity_1 = require("./dorm-room.entity");
 const student_entity_1 = require("./student.entity");
 let DormRoomAssignment = class DormRoomAssignment {
     id;
@@ -30,10 +29,10 @@ __decorate([
     __metadata("design:type", String)
 ], DormRoomAssignment.prototype, "id", void 0);
 __decorate([
-    (0, typeorm_1.ManyToOne)(() => dorm_room_entity_1.DormRoom, (room) => room.assignments, {
+    (0, typeorm_1.ManyToOne)("DormRoom", (room) => room.assignments, {
         onDelete: "CASCADE",
     }),
-    __metadata("design:type", dorm_room_entity_1.DormRoom)
+    __metadata("design:type", Function)
 ], DormRoomAssignment.prototype, "room", void 0);
 __decorate([
     (0, typeorm_1.ManyToOne)(() => student_entity_1.Student, { onDelete: "CASCADE" }),

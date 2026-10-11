@@ -1,18 +1,31 @@
-import { LoaderCircle, Undo2 } from "lucide-react";
-import type { ReactNode } from "react";
+import { CircleCheck, CircleX, Info, LoaderCircle, TriangleAlert, Undo2 } from "lucide-react";
+import type { CSSProperties, ReactNode } from "react";
 import { Toaster, toast, type ExternalToast } from "sonner";
 import { useTheme } from "../theme/theme";
 import { useLocale } from "./locale";
 
 export type NotificationTone = "success" | "error" | "warning" | "info" | "loading";
-type NotificationOptions = ExternalToast & { description?: ReactNode };
-type PromiseNotificationData<T> = {
+export type NotificationOptions = ExternalToast & { description?: ReactNode };
+type ExtendedNotificationResult = NotificationOptions & { message: ReactNode };
+export type PromiseNotificationData<T> = Omit<NotificationOptions, "description"> & {
   loading?: ReactNode;
-  success?: ReactNode | ((data: T) => ReactNode);
-  error?: ReactNode | ((error: unknown) => ReactNode);
+  success?:
+    | ReactNode
+    | ExtendedNotificationResult
+    | ((data: T) => ReactNode)
+    | ((data: T) => ExtendedNotificationResult);
+  error?:
+    | ReactNode
+    | ExtendedNotificationResult
+    | ((error: unknown) => ReactNode)
+    | ((error: unknown) => ExtendedNotificationResult);
   description?: ReactNode | ((data: T) => ReactNode);
 };
-const duration = 4500;
+const duration = 5000;
+const toneDuration = { success: duration, info: duration, warning: 6500, error: 8000 };
+const loadingIcon = (
+  <LoaderCircle size={18} className="motion-safe:animate-spin" aria-hidden="true" />
+);
 
 function notificationId(tone: Exclude<NotificationTone, "loading">, message: string) {
   return `admin:${tone}:${message}`;
@@ -25,23 +38,34 @@ export function AppToaster() {
     <Toaster
       theme={resolvedTheme}
       dir={profile.direction}
-      position="bottom-left"
+      position={profile.direction === "rtl" ? "bottom-left" : "bottom-right"}
       closeButton
-      richColors
-      expand
-      visibleToasts={5}
-      gap={12}
+      expand={false}
+      visibleToasts={3}
+      gap={10}
       offset={16}
+      mobileOffset={{ bottom: "calc(5.5rem + env(safe-area-inset-bottom))", left: 12, right: 12 }}
+      style={{ "--width": "min(26rem, calc(100vw - 1.5rem))" } as CSSProperties}
+      icons={{
+        success: <CircleCheck size={20} aria-hidden="true" />,
+        error: <CircleX size={20} aria-hidden="true" />,
+        warning: <TriangleAlert size={20} aria-hidden="true" />,
+        info: <Info size={20} aria-hidden="true" />,
+        loading: loadingIcon,
+      }}
       duration={duration}
       containerAriaLabel={language === "en" ? "Notifications" : "اعلان‌ها"}
       className="admin-sonner-toaster"
       toastOptions={{
+        closeButtonAriaLabel: language === "en" ? "Dismiss notification" : "بستن اعلان",
         classNames: {
           toast: "admin-sonner-toast",
           title: "admin-sonner-title",
           description: "admin-sonner-description",
           icon: "admin-sonner-icon",
           actionButton: "admin-sonner-action",
+          cancelButton: "admin-sonner-action",
+          closeButton: "admin-sonner-close",
         },
       }}
     />
@@ -51,17 +75,11 @@ export function AppToaster() {
 export function notify(
   message: string,
   tone: NotificationTone = "success",
-  displayDuration = tone === "loading" ? Infinity : duration,
+  displayDuration?: number,
 ) {
   if (tone === "loading")
-    return toast.loading(message, {
-      duration: displayDuration,
-      icon: <LoaderCircle size={18} className="animate-spin" aria-hidden="true" />,
-    });
-  return toast[tone](message, {
-    id: notificationId(tone, message),
-    duration: displayDuration,
-  });
+    return notifications.loading(message, { duration: displayDuration ?? Infinity });
+  return typedToast(tone, message, { duration: displayDuration ?? toneDuration[tone] });
 }
 
 function notificationLanguage() {
@@ -84,9 +102,9 @@ function typedToast(
   options?: NotificationOptions,
 ) {
   return toast[tone](message, {
-    id: options?.id ?? notificationId(tone, message),
-    duration: tone === "error" ? (options?.duration ?? 6000) : (options?.duration ?? duration),
     ...options,
+    id: options?.id ?? notificationId(tone, message),
+    duration: options?.duration ?? toneDuration[tone],
   });
 }
 
@@ -100,7 +118,7 @@ export const notifications = {
   loading(message: string, options?: NotificationOptions) {
     return toast.loading(message, {
       duration: Infinity,
-      icon: <LoaderCircle size={18} className="animate-spin" aria-hidden="true" />,
+      icon: loadingIcon,
       ...options,
     });
   },
@@ -121,7 +139,7 @@ export const notifications = {
     });
   },
   promise<T>(promise: Promise<T>, data: PromiseNotificationData<T>) {
-    return toast.promise(promise, data);
+    return toast.promise(promise, { duration, ...data });
   },
   undoCountdown(
     message: string,

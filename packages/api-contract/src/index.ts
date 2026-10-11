@@ -22,9 +22,58 @@ export const ROLE_CODES = [
 export type RoleCode = (typeof ROLE_CODES)[number];
 
 export const CAPABILITIES = [
+  "attendance.class.manage",
+  "attendance.class.read",
+  "attendance.dorm.manage",
+  "attendance.dorm.read",
+  "attendance.group.manage",
+  "attendance.group.read",
+  "attendance.linked.read",
+  "attendance.night.manage",
+  "attendance.reports.read",
+  "attendance.settings.manage",
+  "relationships.read",
+  "school.settings.manage",
+  "attendance.delegate",
+  "attendance.manage",
+  "attendance.read",
+  "attendance.review",
+  "attendance.self.read",
+  "classes.manage",
+  "classes.read",
+  "classes.roster.manage",
+  "documents.manage",
+  "documents.read",
+  "dormitory.manage",
+  "dormitory.read",
+  "exit.manage",
+  "exit.read",
+  "leave.manage",
+  "leave.read",
+  "letters.manage",
+  "letters.read",
+  "permission_requests.create",
+  "permission_requests.read",
+  "permission_requests.review",
+  "question_bank.manage",
+  "registration.manage",
+  "registration.read",
+  "registration.review",
+  "registration.self.read",
+  "registration.self.update",
+  "relationships.manage",
+  "school.occupancy.read",
+  "student.self.read",
+  "student.self.update",
+  "students.delete",
+  "students.export",
+  "students.import",
+  "system.reset",
   "organization.read",
   "organization.manage",
   "organization.members.manage",
+  "class_groups.read",
+  "class_groups.manage",
   "users.read",
   "users.manage",
   "students.read",
@@ -192,3 +241,36 @@ export type SyncPullContract = {
   learningItems: unknown[];
   reviews: unknown[];
 };
+
+export type {
+  AttendanceContext,
+  PhysicalAttendanceStatus,
+  AttendanceSessionStatus,
+  AttendanceRosterMember,
+  SavedAttendanceRecord,
+  AttendanceSessionDetail,
+  AttendanceSessionWrite,
+  AttendanceSessionWriteResult,
+  ResolveAttendanceSession,
+  AttendancePolicyContract,
+} from "./attendance";
+
+export type {
+  OrganizationAuthProfile,
+  PublicOrganizationProfile,
+} from "./organization-profile";
+
+export type {
+  ClassGroupSummary,
+  ClassGroupMember,
+  ClassGroupDraft,
+  ClassGroupUpdate,
+  ClassGroupClassOption,
+  ClassGroupStudentOption,
+} from "./class-groups";
+
+export type {
+  DormAttendanceDelegate, DormAttendanceAssignment, DormDelegateDraft, DormAttendanceWrite,
+  AttendancePoolDraft, AttendancePool, StudentAttendancePool, StaffAttendanceSession,
+  AttendanceDailyOverview, StaffAttendanceProfile, AttendanceEncouragement, AttendanceMissingMember,
+} from "./attendance-operations";

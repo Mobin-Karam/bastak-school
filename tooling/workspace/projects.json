@@ -177,7 +177,7 @@
       "packageName": "moshaver-backend-v2",
       "path": "apps/api",
       "kind": "application",
-      "dependsOn": ["cmb-health", "cmb-realtime", "cmb-identity", "cmb-infrastructure", "cmb-kernel", "cmb-persistence", "cmb-tenancy", "cmb-system", "cmb-auth", "cmb-authorization", "cmb-notifications", "cmb-activity", "cmb-data-transfer"],
+      "dependsOn": ["cmb-health", "cmb-realtime", "cmb-identity", "cmb-infrastructure", "cmb-kernel", "cmb-persistence", "cmb-tenancy", "cmb-system", "cmb-auth", "cmb-authorization", "cmb-notifications", "cmb-activity", "cmb-data-transfer", "api-contract"],
       "install": true,
       "bootstrapBuild": false,
       "verifyTasks": ["lint", "test", "build"]
@@ -201,16 +201,6 @@
       "install": true,
       "bootstrapBuild": true,
       "verifyTasks": ["build", "test"]
-    },
-    {
-      "id": "student-app-v2",
-      "packageName": "moshaver-student-app-v2",
-      "path": "apps/student",
-      "kind": "application",
-      "dependsOn": ["student-core"],
-      "install": true,
-      "bootstrapBuild": false,
-      "verifyTasks": ["typecheck", "test", "test:a11y", "build"]
     }
   ]
 }

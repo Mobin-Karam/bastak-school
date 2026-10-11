@@ -19,7 +19,7 @@ const typeorm_2 = require("typeorm");
 const import_history_entity_1 = require("../../database/entities/import-history.entity");
 const student_entity_1 = require("../../database/entities/student.entity");
 const user_entity_1 = require("../../database/entities/user.entity");
-const school_access_service_1 = require("../school-access/school-access.service");
+const school_access_1 = require("../school-access");
 let StudentTransferService = class StudentTransferService {
     students;
     dataSource;
@@ -154,6 +154,6 @@ exports.StudentTransferService = StudentTransferService = __decorate([
     __param(0, (0, typeorm_1.InjectRepository)(student_entity_1.Student)),
     __metadata("design:paramtypes", [typeorm_2.Repository,
         typeorm_2.DataSource,
-        school_access_service_1.SchoolAccessService])
+        school_access_1.SchoolAccessService])
 ], StudentTransferService);
 //# sourceMappingURL=student-transfer.service.js.map

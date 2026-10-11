@@ -1,6 +1,7 @@
-FROM node:22-slim AS deps
+FROM node:22.23.3-bookworm-slim AS deps
 WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends python3 make g++ && rm -rf /var/lib/apt/lists/*
+COPY packages/api-contract /app/packages/api-contract
 COPY packages/cmb ./packages/cmb
 COPY apps/api/package*.json ./apps/api/
 WORKDIR /app/apps/api
@@ -10,19 +11,21 @@ FROM deps AS prod-deps
 WORKDIR /app/apps/api
 RUN npm prune --omit=dev
 
-FROM node:22-slim AS build
+FROM node:22.23.3-bookworm-slim AS build
 WORKDIR /app/apps/api
 COPY --from=deps /app/apps/api/node_modules ./node_modules
+COPY packages/api-contract /app/packages/api-contract
 COPY packages/cmb /app/packages/cmb
 COPY apps/api .
 RUN npm run build
 
-FROM node:22-slim AS runtime
+FROM node:22.23.3-bookworm-slim AS runtime
 WORKDIR /app/apps/api
 ENV NODE_ENV=production
 ENV NODE_PATH=/app/apps/api/node_modules
 RUN mkdir -p /data && chown node:node /data
 COPY --from=prod-deps /app/apps/api/node_modules ./node_modules
+COPY packages/api-contract /app/packages/api-contract
 COPY packages/cmb /app/packages/cmb
 COPY apps/api/package*.json ./
 COPY --from=build /app/apps/api/dist ./dist

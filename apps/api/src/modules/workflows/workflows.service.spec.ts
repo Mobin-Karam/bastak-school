@@ -8,7 +8,7 @@ import {
 
 describe("WorkflowsService", () => {
   const makeRepo = () => ({
-    find: jest.fn(),
+    find: jest.fn().mockResolvedValue([]),
     findOne: jest.fn(),
     save: jest.fn(),
     create: jest.fn(),
@@ -63,6 +63,7 @@ describe("WorkflowsService", () => {
       memberships as any,
       users as any,
       realtime as any,
+      { createForUsers: jest.fn() } as any,
     );
 
     await expect(
@@ -145,6 +146,7 @@ describe("WorkflowsService", () => {
       memberships as any,
       users as any,
       realtime as any,
+      { createForUsers: jest.fn() } as any,
     );
 
     await expect(
@@ -233,6 +235,7 @@ describe("WorkflowsService", () => {
       memberships as any,
       users as any,
       realtime as any,
+      { createForUsers: jest.fn() } as any,
     );
 
     await service.createLeaveRequest(
@@ -313,6 +316,7 @@ describe("WorkflowsService", () => {
       memberships as any,
       users as any,
       realtime as any,
+      { createForUsers: jest.fn() } as any,
     );
 
     const returned = await service.requestExitReturn(
