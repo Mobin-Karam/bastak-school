@@ -81,6 +81,21 @@ The old Coolify workflow is manual-only and requires `PRODUCTION_DEPLOY_TARGET=c
 
 There is no automatic database restore or blind rollback: migration reversibility varies. The pre-deploy backup is the recovery boundary. A failed `up --wait` can leave some new containers running; inspect container logs, protect the backup, and assess migration state before changing versions. This is a single-server deployment with possible restart downtime, not a zero-downtime cluster.
 
+## Credential failures and safe retries
+
+If `sync-main` fails, inspect the first failed command. Authentication/HTTP 401 means replace the token value in the **lan-production environment**. A push rejected with HTTP 403 needs source-repository Contents **Read and write**; `createPullRequest` denied needs Pull requests **Read and write**. These are separate permission dropdowns. For dispatch, use a separate valid token restricted to the private deployment repository with Contents **Read and write**.
+
+Use the local CLI prompt to target the correct secret and environment:
+
+```bash
+gh secret set RELEASE_PR_TOKEN --repo Mobin-Karam/bastak-school --env lan-production
+gh secret set DEPLOY_DISPATCH_TOKEN --repo Mobin-Karam/bastak-school --env lan-production
+# After replacing credentials/permissions, rerun only the failed jobs:
+gh run rerun <run-id> --repo Mobin-Karam/bastak-school --failed
+```
+
+The sync job reuses a branch left by a successful push followed by a failed PR creation. It merges current develop without force-pushing and resumes auto-merge of an existing PR behind required checks. Docker preserves source permissions when copying a backup, so the deploy script explicitly sets the host SQLite backup to `0600` inside a `0700` directory. Successful production health and the release receipt must still be checked in the private server workflow.
+
 ## What to learn
 
 1. **Git branches and PRs:** commits, worktrees, merge conflicts, why features branch from develop, and why release PRs use merge commits.

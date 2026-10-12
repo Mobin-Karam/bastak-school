@@ -1,4 +1,7 @@
 import pathlib
+import os
+import subprocess
+import tempfile
 import unittest
 import yaml
 ROOT = pathlib.Path(__file__).resolve().parents[2]
@@ -69,5 +72,75 @@ class PipelineTests(unittest.TestCase):
         script = (ROOT / "scripts/deploy/lan.sh").read_text()
         self.assertIn("PRODUCTION_BACKUP_DIR", script)
         self.assertLess(script.index('.backup('), script.index('up -d --force-recreate'))
+    def test_sync_retry_recovers_a_pushed_branch_and_existing_pr(self):
+        script = self.workflow("continuous-integration.yml")["jobs"]["sync-main"]["steps"][1]["run"]
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            def run(*args, cwd=root, env=None):
+                return subprocess.run(args, cwd=cwd, env=env, text=True, capture_output=True, check=True).stdout.strip()
+            origin = root / "origin.git"
+            run("git", "init", "--bare", "--initial-branch=develop", str(origin))
+            seed = root / "seed"
+            run("git", "clone", str(origin), str(seed))
+            run("git", "config", "user.name", "Fixture", cwd=seed)
+            run("git", "config", "user.email", "fixture@example.invalid", cwd=seed)
+            (seed / "fixture").write_text("base")
+            run("git", "add", ".", cwd=seed)
+            run("git", "commit", "-m", "base", cwd=seed)
+            run("git", "checkout", "-b", "main", cwd=seed)
+            run("git", "commit", "--allow-empty", "-m", "release", cwd=seed)
+            sha = run("git", "rev-parse", "HEAD", cwd=seed)
+            run("git", "push", "origin", "main", "develop", cwd=seed)
+            fake = root / "bin"
+            fake.mkdir()
+            gh = fake / "gh"
+            gh.write_text("#!/bin/bash\nset -eu\ncase \"$2\" in\nlist) [[ ! -f \"$PR_MARKER\" ]] || echo 31 ;;\ncreate) [[ \"$FAIL_CREATE\" == 0 ]] || exit 1; touch \"$PR_MARKER\" ;;\nmerge) touch \"$MERGE_MARKER\" ;;\nesac\n")
+            gh.chmod(0o700)
+            env = dict(os.environ, PATH=str(fake)+os.pathsep+os.environ["PATH"], GH_TOKEN="fixture",
+                       GH_REPO="fixture/repo", RELEASE_SHA=sha, PR_MARKER=str(root / "pr"),
+                       MERGE_MARKER=str(root / "merge"), FAIL_CREATE="1")
+            branch = "chore/sync-main-" + sha
+            previous = None
+            for attempt in range(3):
+                checkout = root / str(attempt)
+                run("git", "clone", str(origin), str(checkout))
+                result = subprocess.run(["bash", "-c", script], cwd=checkout, env=env, capture_output=True, text=True)
+                if attempt == 0:
+                    self.assertNotEqual(result.returncode, 0)
+                    env["FAIL_CREATE"] = "0"
+                else:
+                    self.assertEqual(result.returncode, 0, result.stderr)
+                current = run("git", "rev-parse", "refs/heads/"+branch, cwd=origin)
+                if previous:
+                    self.assertEqual(current, previous)
+                previous = current
+            self.assertTrue((root / "merge").exists())
+
+    def test_backup_copy_cannot_preserve_world_readable_permissions(self):
+        script = (ROOT / "scripts/deploy/lan.sh").read_text().split('"${compose[@]}" up -d --force-recreate')[0]
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            deploy = root / "scripts/deploy"
+            deploy.mkdir(parents=True)
+            (deploy / "lan.sh").write_text(script)
+            tls = deploy / "create-lan-tls.sh"
+            tls.write_text("#!/bin/bash\nexit 0\n")
+            tls.chmod(0o700)
+            config = root / ".run/production"
+            config.mkdir(parents=True)
+            (config / "production.env").write_text("# fixture\n")
+            fake = root / "bin"
+            fake.mkdir()
+            docker = fake / "docker"
+            docker.write_text("#!/bin/bash\nset -eu\nfor arg in \"$@\"; do\nif [[ \"$arg\" == ps ]]; then echo backend-v2; exit 0; fi\nif [[ \"$arg\" == cp ]]; then target=\"${@: -1}\"; echo fixture > \"$target\"; chmod 644 \"$target\"; exit 0; fi\ndone\n")
+            docker.chmod(0o700)
+            env = dict(os.environ, PATH=str(fake)+os.pathsep+os.environ["PATH"],
+                       PRODUCTION_BACKUP_DIR=str(root / "backups"), PRODUCTION_LOCK_FILE=str(root / "lock"), RELEASE_SHA="a"*40)
+            subprocess.run(["bash", str(deploy / "lan.sh")], env=env, capture_output=True, text=True, check=True)
+            backups = list((root / "backups").glob("*.sqlite"))
+            self.assertEqual(len(backups), 1)
+            self.assertEqual(backups[0].stat().st_mode & 0o777, 0o600)
+            self.assertEqual((root / "backups").stat().st_mode & 0o777, 0o700)
+
 if __name__ == "__main__":
     unittest.main()
