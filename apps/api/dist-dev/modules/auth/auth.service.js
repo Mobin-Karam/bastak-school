@@ -84,13 +84,8 @@ let AuthService = class AuthService {
         }
         if (user.status && user.status !== user_entity_2.UserStatus.ACTIVE)
             throw new api_exception_1.ApiException(403, "ACCOUNT_INACTIVE", "حساب کاربری غیرفعال یا بایگانی شده است.");
-        if (user.role === "STUDENT") {
-            const student = await this.students.findOne({
-                where: { user: { id: user.id } },
-            });
-            if (!student || student.accountStatus !== "active")
-                throw new api_exception_1.ApiException(403, "ACCOUNT_INACTIVE", "حساب دانش‌آموز غیرفعال یا بایگانی شده است.");
-        }
+        if (!(await this.hasUsableWorkContext(user)))
+            throw new api_exception_1.ApiException(403, "ACCOUNT_INACTIVE", "هیچ زمینه کاری فعال و معتبر برای این حساب وجود ندارد.");
         const credentials = this.newCredentials();
         const session = await this.sessions.save(this.sessions.create({
             user,
@@ -126,7 +121,7 @@ let AuthService = class AuthService {
             await this.sessions.delete({ id: session.id });
             throw new api_exception_1.ApiException(403, "ACCOUNT_INACTIVE", "حساب کاربری غیرفعال یا بایگانی شده است.");
         }
-        if (!(await this.hasActiveStudentAccount(session.user))) {
+        if (!(await this.hasUsableWorkContext(session.user))) {
             await this.sessions.delete({ id: session.id });
             throw new api_exception_1.ApiException(403, "ACCOUNT_INACTIVE", "حساب دانش‌آموز غیرفعال یا بایگانی شده است.");
         }
@@ -150,7 +145,7 @@ let AuthService = class AuthService {
             return null;
         if (session.user.status && session.user.status !== user_entity_2.UserStatus.ACTIVE)
             return null;
-        if (!(await this.hasActiveStudentAccount(session.user))) {
+        if (!(await this.hasUsableWorkContext(session.user))) {
             await this.sessions.delete({ id: session.id });
             return null;
         }
@@ -197,9 +192,11 @@ let AuthService = class AuthService {
         };
     }
     async context(user, activeOrganizationId) {
-        const organizationIds = user.organizationIds ?? [];
-        const roles = user.roles ?? (user.role === "ADMIN" ? [] : [user.role]);
-        const isPlatformAdmin = roles.includes("PLATFORM_ADMIN");
+        const catalog = this.authorization
+            ? await this.authorization.enrich(user, undefined, activeOrganizationId)
+            : null;
+        const organizationIds = catalog?.organizationIds ?? user.organizationIds ?? [];
+        const isPlatformAdmin = (catalog?.roles ?? user.roles ?? []).includes("PLATFORM_ADMIN");
         if (activeOrganizationId &&
             !organizationIds.includes(activeOrganizationId) &&
             !isPlatformAdmin)
@@ -214,7 +211,7 @@ let AuthService = class AuthService {
                 organization: { status: organization_entity_1.OrganizationStatus.ACTIVE },
             },
             relations: { organization: true },
-            order: { joinedAt: "ASC" },
+            order: { joinedAt: "ASC", id: "ASC" },
         });
         const membershipsForContext = memberships.map((membership) => ({
             membershipId: membership.id,
@@ -238,7 +235,9 @@ let AuthService = class AuthService {
             !selectableOrganizations.some((item) => item.id === activeOrganizationId))
             throw new api_exception_1.ApiException(404, "ORGANIZATION_NOT_FOUND", "سازمان فعال پیدا نشد.");
         const effectiveOrganizationId = activeOrganizationId ??
-            (isPlatformAdmin ? undefined : selectableOrganizations[0]?.id);
+            (isPlatformAdmin
+                ? undefined
+                : (catalog?.activeOrganizationId ?? selectableOrganizations[0]?.id));
         const assignments = await this.authorization.enrich(user, undefined, effectiveOrganizationId);
         const workContexts = await Promise.all(assignments.roles.map(async (role) => {
             const scoped = await this.authorization.enrich(user, role, effectiveOrganizationId);
@@ -430,7 +429,16 @@ let AuthService = class AuthService {
     newCredentials() {
         return this.credentials.issue();
     }
-    async hasActiveStudentAccount(user) {
+    async hasUsableWorkContext(user) {
+        if (this.authorization) {
+            const context = await this.authorization.enrich({
+                id: user.id,
+                username: user.username,
+                role: user.role,
+                sessionId: "",
+            });
+            return context.roles.length > 0;
+        }
         if (user.role !== user_entity_1.UserRole.STUDENT)
             return true;
         const student = await this.students.findOne({

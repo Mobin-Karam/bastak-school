@@ -30,12 +30,13 @@ __decorate([
 ], DormRoomAssignment.prototype, "id", void 0);
 __decorate([
     (0, typeorm_1.ManyToOne)("DormRoom", (room) => room.assignments, {
+        nullable: false,
         onDelete: "CASCADE",
     }),
     __metadata("design:type", Function)
 ], DormRoomAssignment.prototype, "room", void 0);
 __decorate([
-    (0, typeorm_1.ManyToOne)(() => student_entity_1.Student, { onDelete: "CASCADE" }),
+    (0, typeorm_1.ManyToOne)(() => student_entity_1.Student, { nullable: false, onDelete: "CASCADE" }),
     __metadata("design:type", student_entity_1.Student)
 ], DormRoomAssignment.prototype, "student", void 0);
 __decorate([

@@ -16,6 +16,7 @@ export declare class UsersService {
     private assertRoles;
     private requirePlatformOwner;
     private assertProtectedAccount;
+    private assertAccountMutationScope;
     private ensureActiveMembership;
     list(actor: AuthenticatedUser, organizationId?: string, roleCode?: string, status?: UserStatus): Promise<{
         id: string;

@@ -31,11 +31,11 @@ __decorate([
     __metadata("design:type", String)
 ], UserRoleAssignment.prototype, "id", void 0);
 __decorate([
-    (0, typeorm_1.ManyToOne)(() => user_entity_1.User, { onDelete: "CASCADE" }),
+    (0, typeorm_1.ManyToOne)(() => user_entity_1.User, { nullable: false, onDelete: "CASCADE" }),
     __metadata("design:type", user_entity_1.User)
 ], UserRoleAssignment.prototype, "user", void 0);
 __decorate([
-    (0, typeorm_1.ManyToOne)(() => role_entity_1.Role, { onDelete: "RESTRICT" }),
+    (0, typeorm_1.ManyToOne)(() => role_entity_1.Role, { nullable: false, onDelete: "RESTRICT" }),
     __metadata("design:type", role_entity_1.Role)
 ], UserRoleAssignment.prototype, "role", void 0);
 __decorate([

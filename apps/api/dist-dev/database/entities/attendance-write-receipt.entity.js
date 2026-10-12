@@ -34,15 +34,15 @@ __decorate([
     __metadata("design:type", String)
 ], AttendanceWriteReceipt.prototype, "id", void 0);
 __decorate([
-    (0, typeorm_1.ManyToOne)(() => organization_entity_1.Organization, { onDelete: "CASCADE" }),
+    (0, typeorm_1.ManyToOne)(() => organization_entity_1.Organization, { nullable: false, onDelete: "CASCADE" }),
     __metadata("design:type", organization_entity_1.Organization)
 ], AttendanceWriteReceipt.prototype, "organization", void 0);
 __decorate([
-    (0, typeorm_1.ManyToOne)(() => user_entity_1.User, { onDelete: "CASCADE" }),
+    (0, typeorm_1.ManyToOne)(() => user_entity_1.User, { nullable: false, onDelete: "CASCADE" }),
     __metadata("design:type", user_entity_1.User)
 ], AttendanceWriteReceipt.prototype, "actor", void 0);
 __decorate([
-    (0, typeorm_1.ManyToOne)(() => attendance_session_entity_1.AttendanceSession, { onDelete: "CASCADE" }),
+    (0, typeorm_1.ManyToOne)(() => attendance_session_entity_1.AttendanceSession, { nullable: false, onDelete: "CASCADE" }),
     __metadata("design:type", attendance_session_entity_1.AttendanceSession)
 ], AttendanceWriteReceipt.prototype, "session", void 0);
 __decorate([

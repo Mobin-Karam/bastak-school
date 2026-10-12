@@ -54,12 +54,12 @@ __decorate([
 ], ExitPermission.prototype, "id", void 0);
 __decorate([
     (0, typeorm_1.Index)(),
-    (0, typeorm_1.ManyToOne)(() => organization_entity_1.Organization, { onDelete: "CASCADE" }),
+    (0, typeorm_1.ManyToOne)(() => organization_entity_1.Organization, { nullable: false, onDelete: "CASCADE" }),
     __metadata("design:type", organization_entity_1.Organization)
 ], ExitPermission.prototype, "organization", void 0);
 __decorate([
     (0, typeorm_1.Index)(),
-    (0, typeorm_1.ManyToOne)(() => student_entity_1.Student, { onDelete: "CASCADE" }),
+    (0, typeorm_1.ManyToOne)(() => student_entity_1.Student, { nullable: false, onDelete: "CASCADE" }),
     __metadata("design:type", student_entity_1.Student)
 ], ExitPermission.prototype, "student", void 0);
 __decorate([
@@ -107,7 +107,11 @@ __decorate([
     __metadata("design:type", String)
 ], ExitPermission.prototype, "note", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ type: "varchar", length: 16, default: ExitPermissionStatus.PENDING }),
+    (0, typeorm_1.Column)({
+        type: "varchar",
+        length: 16,
+        default: ExitPermissionStatus.PENDING,
+    }),
     __metadata("design:type", String)
 ], ExitPermission.prototype, "status", void 0);
 __decorate([
