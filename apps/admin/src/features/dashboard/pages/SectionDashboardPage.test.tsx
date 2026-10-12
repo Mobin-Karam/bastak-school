@@ -64,7 +64,7 @@ describe("SectionDashboardPage", () => {
     );
 
     expect(
-      screen.getByRole("heading", { name: "Communication and follow-up workspace" }),
+      screen.getByRole("region", { name: "Communication and follow-up workspace" }),
     ).toBeVisible();
     expect(screen.queryByRole("link", { name: /Conversations/i })).not.toBeInTheDocument();
     expect(screen.getAllByText("Conversation needing a response")).not.toHaveLength(0);

@@ -1271,3 +1271,190 @@ html.is-scrolling :is(body, .scroll-reveal)::-webkit-scrollbar-thumb,
     width: calc(100vw - 24px);
   }
 }
+
+/* Size desktop work from the space left by the global header and rails.
+   The outer scroller remains a fallback for short windows and long forms. */
+@media screen and (min-width: 1200px) {
+  .admin-role-shell[data-shell="desktop"] .admin-page-main {
+    height: 100%;
+    padding: 0.75rem 1rem;
+  }
+
+  .admin-role-shell[data-shell="desktop"] .admin-page-shell {
+    height: 100%;
+    min-height: 0;
+  }
+
+  .admin-page-shell > * {
+    min-width: 0;
+  }
+
+  /* Directories keep their controls above a bounded data panel. */
+  .admin-page-shell > :has(> .data-table-workspace),
+  .admin-page-shell > :has(> .management-master-detail) {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-height: 0;
+  }
+
+  .admin-page-shell > :has(> .data-table-workspace) > :not(.data-table-workspace),
+  .admin-page-shell > :has(> .management-master-detail) > :not(.management-master-detail) {
+    flex-shrink: 0;
+  }
+
+  .admin-page-shell > * > .data-table-workspace,
+  .admin-page-shell > * > .management-master-detail {
+    flex: 1 1 12rem;
+    min-height: 12rem;
+  }
+
+  .data-table-workspace {
+    display: flex;
+    min-height: 0;
+    flex-direction: column;
+  }
+
+  .data-table-workspace > * {
+    flex-shrink: 0;
+  }
+
+  .data-table-workspace > .data-table-workspace__rows {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: auto;
+    overscroll-behavior: contain;
+  }
+
+  .data-table-workspace__rows > [role="region"] {
+    height: 100%;
+    max-height: 100%;
+  }
+
+  .management-master-detail__layout {
+    height: 100%;
+    min-height: 0;
+    align-items: stretch;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+
+  .management-master-detail__directory,
+  .management-master-detail__detail {
+    min-height: 0;
+    max-height: 100%;
+    overflow: auto;
+    overscroll-behavior: contain;
+    position: static;
+  }
+
+  .classes-workspace {
+    height: 100%;
+    min-height: 0;
+    grid-template-columns: minmax(0, 1fr) minmax(16rem, 0.7fr);
+    align-items: stretch;
+  }
+
+  .classes-workspace > * {
+    min-width: 0;
+    min-height: 0;
+    overflow: auto;
+    overscroll-behavior: contain;
+  }
+}
+
+/* Container queries account for both expanded navigation rails. */
+@container (min-width: 52rem) {
+  .dashboard-workspace__panels {
+    grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+    align-items: start;
+  }
+}
+
+@media screen and (min-width: 1200px) {
+  @container (max-width: 52rem) {
+    .classes-workspace {
+      grid-template-columns: minmax(0, 1fr) minmax(14rem, 0.8fr);
+    }
+  }
+}
+
+@container (min-width: 64rem) {
+  .live-workspace__panels {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media screen and (min-width: 1200px) {
+  @container (max-width: 64rem) {
+    .live-workspace__panels {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+  }
+}
+
+@media screen and (min-width: 1200px) {
+  .dashboard-workspace {
+    display: flex;
+    height: 100%;
+    min-height: 0;
+    flex-direction: column;
+  }
+
+  .dashboard-workspace > * {
+    flex-shrink: 0;
+  }
+
+  .dashboard-workspace__panels {
+    grid-auto-rows: minmax(0, 1fr);
+    flex: 1 1 12rem;
+    min-height: 12rem;
+    align-items: stretch;
+  }
+
+  .dashboard-workspace__panels > * {
+    min-height: 0;
+    overflow: auto;
+    overscroll-behavior: contain;
+  }
+
+  .home-workspace {
+    height: 100%;
+    min-height: 0;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-auto-rows: minmax(0, 1fr);
+  }
+
+  .home-workspace:has(> .workspace-actions) {
+    grid-template-rows: auto;
+  }
+
+  .home-workspace > .workspace-actions {
+    grid-column: 1 / -1;
+  }
+
+  .home-workspace > :not(.workspace-actions) {
+    min-width: 0;
+    min-height: 0;
+    overflow: auto;
+    overscroll-behavior: contain;
+  }
+}
+
+@media screen and (min-width: 1200px) {
+  .planner-workspace {
+    display: flex;
+    height: 100%;
+    min-height: 0;
+    flex-direction: column;
+  }
+
+  .planner-workspace > :not(.planner-workspace__canvas) {
+    flex-shrink: 0;
+  }
+
+  .planner-workspace__canvas {
+    height: auto;
+    min-height: 12rem;
+    flex: 1 1 12rem;
+  }
+}

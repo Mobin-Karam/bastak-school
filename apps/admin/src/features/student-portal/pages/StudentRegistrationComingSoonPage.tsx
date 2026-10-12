@@ -18,9 +18,9 @@ export function StudentRegistrationComingSoonPage() {
         </span>
         <div>
           <p className="text-xs font-bold text-brand">به‌زودی</p>
-          <h1 id="student-registration-title" className="mt-1 text-xl font-black text-ink">
+          <h2 id="student-registration-title" className="sr-only">
             ثبت‌نام و پرونده دانش‌آموز
-          </h1>
+          </h2>
           <p className="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-300">
             تکمیل و پیگیری پرونده از همین صفحه در نسخه بعدی فعال می‌شود.
           </p>

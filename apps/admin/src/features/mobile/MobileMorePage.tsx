@@ -13,13 +13,13 @@ export function MobileMorePage() {
 
   return (
     <section className="mx-auto grid max-w-xl gap-5 pb-4 lg:hidden" dir={profile.direction}>
-      <header className="px-1 pt-1">
+      <section className="px-1 pt-1">
         <p className="text-xs font-bold text-brand">زانین</p>
-        <h1 className="mt-1 text-xl font-black text-ink">بیشتر</h1>
+        <h2 className="sr-only">بیشتر</h2>
         <p className="mt-1 text-xs leading-6 text-slate-500 dark:text-slate-400">
           ابزارها و بخش‌هایی که با نقش فعلی شما در دسترس هستند.
         </p>
-      </header>
+      </section>
 
       <div className="grid gap-4">
         {groups.map((group) => (

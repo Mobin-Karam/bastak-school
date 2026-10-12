@@ -40,7 +40,7 @@ export function LivePage() {
   const selected = students.find((student) => student.id === selectedId) || students[0];
 
   return (
-    <div className="flex h-[calc(100dvh-132px)] min-h-0 flex-col gap-3 overflow-hidden lg:h-[calc(100dvh-96px)]">
+    <div className="flex h-[calc(100dvh-132px)] min-h-0 flex-col gap-3 overflow-hidden lg:h-[calc(100dvh-96px)] min-[1200px]:h-full">
       <LiveHeader
         generatedAt={live.data?.generatedAt}
         fetching={live.isFetching}
@@ -81,7 +81,7 @@ export function LivePage() {
         onPanelChange={setPanel}
       />
 
-      <section className="grid min-h-0 flex-1 gap-3 lg:grid-cols-[minmax(360px,.9fr)_minmax(320px,.75fr)_minmax(300px,.65fr)]">
+      <section className="grid min-h-0 flex-1 gap-3 live-workspace__panels">
         <StudentQueue
           panel={panel}
           loading={live.isLoading}

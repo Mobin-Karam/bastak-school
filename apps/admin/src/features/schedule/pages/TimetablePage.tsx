@@ -322,7 +322,7 @@ export function TimetablePage() {
   if (!org)
     return (
       <Card className="p-4">
-        <h1 className="font-bold">برنامه درسی</h1>
+        <h2 className="sr-only">برنامه درسی</h2>
         <Field label="مدرسه">
           <select
             className={timetableSelectClass}
@@ -365,12 +365,12 @@ export function TimetablePage() {
     .sort((a, b) => a.startTime.localeCompare(b.startTime));
   return (
     <section className="timetable-page grid min-w-0 gap-4" dir="rtl">
-      <header className="timetable-controls flex flex-wrap items-center justify-between gap-3">
+      <section className="timetable-controls flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="flex items-center gap-2 text-xl font-bold text-ink">
+          <h2 className="sr-only">
             <CalendarDays size={22} />
             برنامه درسی
-          </h1>
+          </h2>
           <p className="mt-1 text-xs text-slate-500">
             {auth.context?.activeOrganization?.name} · {timeZone} ·{" "}
             {selectedVersion
@@ -408,7 +408,7 @@ export function TimetablePage() {
             </Button>
           ) : null}
         </div>
-      </header>
+      </section>
       {showSetup ? (
         <TimetableOnboarding
           workspace={data}

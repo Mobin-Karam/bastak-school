@@ -17,7 +17,7 @@ export function LiveHeader({
   const { language } = useLocale();
   const copy = liveCopy[language];
   return (
-    <header className="flex shrink-0 flex-wrap items-center gap-3 rounded-xl border border-slate-200 bg-white px-3 py-2">
+    <section className="flex shrink-0 flex-wrap items-center gap-3 rounded-xl border border-slate-200 bg-white px-3 py-2">
       <div className="flex items-center gap-2 text-xs font-bold text-brand">
         <span className="relative flex size-2">
           <span className="absolute inline-flex size-full animate-ping rounded-full bg-emerald-400 opacity-60" />
@@ -36,6 +36,6 @@ export function LiveHeader({
           {copy.refresh}
         </Button>
       </div>
-    </header>
+    </section>
   );
 }

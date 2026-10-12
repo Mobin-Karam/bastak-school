@@ -88,7 +88,7 @@ export function RegistrationPage() {
   return (
     <section className="space-y-4" dir="rtl">
       <div>
-        <h1 className="text-2xl font-black text-ink">ثبت‌نام و تکمیل پرونده</h1>
+        <h2 className="sr-only">ثبت‌نام و تکمیل پرونده</h2>
         <p className="mt-1 text-sm text-slate-500">
           مراحل فعال را مدیریت مدرسه تعیین می‌کند و طلبه فقط همان مراحل را تکمیل می‌کند.
         </p>

@@ -17,12 +17,9 @@ export function RegistrationComingSoonPage() {
         </span>
         <div>
           <p className="text-xs font-black tracking-wide text-brand">به‌زودی در زانین</p>
-          <h1
-            id="registration-coming-soon-title"
-            className="mt-1.5 text-2xl font-black tracking-tight text-ink"
-          >
+          <h2 id="registration-coming-soon-title" className="sr-only">
             ثبت‌نام و پرونده
-          </h1>
+          </h2>
           <p className="mx-auto mt-2 max-w-sm text-sm leading-7 text-slate-600 dark:text-slate-300">
             تکمیل، پیگیری و مدیریت پرونده‌های ثبت‌نام در نسخه بعدی فعال می‌شود. دسترسی نقش شما برای
             زمان انتشار، حفظ شده است.

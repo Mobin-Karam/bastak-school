@@ -835,16 +835,13 @@ function DashboardLiveOverview({
 }) {
   return (
     <section aria-label={title} className="grid min-w-0 gap-3">
-      <header className="flex flex-wrap items-end justify-between gap-3 rounded-lg border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-muted))]/55 px-4 py-3">
-        <div>
-          <h2 className="text-sm font-black text-ink">{title}</h2>
-          <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{description}</p>
-        </div>
+      <section className="flex min-w-0 flex-wrap justify-end gap-2">
+        <span className="sr-only">{description}</span>
         <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-700 dark:text-emerald-300">
           <span className="size-2 rounded-full bg-emerald-500" aria-hidden="true" />
           {status}
         </span>
-      </header>
+      </section>
       {metrics}
       {pulse ? <div className="min-w-0">{pulse}</div> : null}
       <div className="grid min-w-0 gap-3 min-[1200px]:grid-cols-12">

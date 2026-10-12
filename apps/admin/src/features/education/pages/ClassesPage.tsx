@@ -155,7 +155,7 @@ export function ClassesPage() {
     return <EmptyState title={copy.loadFailed} />;
   if (!auth.can("classes.read")) return <EmptyState title={copy.noAccess} />;
   return (
-    <section className="grid gap-3 min-[960px]:grid-cols-[minmax(0,1fr)_23rem] min-[960px]:items-start">
+    <section className="classes-workspace grid min-w-0 gap-3">
       <Card className="min-w-0 p-3">
         <div className="mb-3 flex items-center justify-between">
           <div>
@@ -305,7 +305,7 @@ function ClassDetail({
   const copy = useClassesCopy();
   if (!classroom)
     return (
-      <Card className="p-3 min-[960px]:sticky min-[960px]:top-16">
+      <Card className="p-3">
         <p className="text-sm text-slate-500">{copy.selectClass}</p>
       </Card>
     );
@@ -370,7 +370,7 @@ function ClassDetail({
   const hasTeacher = classroom.books.length > 0;
   const readyForAttendance = hasStudents && hasTeacher;
   return (
-    <Card className="grid gap-3 p-3 min-[960px]:sticky min-[960px]:top-16">
+    <Card className="grid gap-3 p-3">
       <div>
         <h2 className="text-sm font-bold">{classroom.name}</h2>
         <p className="mt-1 text-xs text-slate-500">
