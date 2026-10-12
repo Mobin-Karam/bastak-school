@@ -1,88 +1,43 @@
-# Release evidence checklist
+# Release evidence and sign-off
 
-Last reviewed: 2026-09-28
+Last reviewed: 2026-10-12. Evidence is layered: a passed source test, browser check, deployment smoke or production check proves only the behavior and environment it exercised. The [CI/CD pipeline](./ci-cd-pipeline.md) is the executable gate map; [GitHub operations](./github-cicd.md) covers promotion and recovery.
 
-Release evidence is layered. A passing source, API, or browser check must not be
-reported as proof of a different layer.
+| Layer | Automated evidence in required CI | Evidence still needed for a release decision |
+| --- | --- | --- |
+| Repository and API | Architecture/contracts, API tests, disposable security/student-exam/onboarding journeys, fresh migration run in the backend quality workflow | Target configuration, representative authorized and denied actions |
+| Admin and student-facing web | Unit, accessibility, coverage, build and desktop RTL/LTR layout checks | Seeded login, role/organization switch, critical mutations, mobile and target browsers |
+| Deployment topology | Disposable production container build, TLS/proxy/migration/secure-cookie/readiness smoke | Private server deployment result, production readiness and authenticated operation |
+| SQLite migration and recovery | Disposable migrations and pre-deploy backup mechanism | Upgrade rehearsal on a representative copy, verified restore and post-restore workflow |
+| Push or native delivery | Source or package checks where present | HTTPS provider delivery, device install, offline/restart behavior if these surfaces are supported for this release |
+| Performance | No required load-test or latency gate | Baseline workload, p95/error/resource evidence for changed hot paths |
 
-| Layer | Required evidence | Current local evidence | Still requires target environment |
-| --- | --- | --- | --- |
-| API authorization | Disposable database, authenticated role journeys and negative authorization cases | Security matrix, Student journey and onboarding journey E2E pass on disposable SQLite | Production configuration and monitoring |
-| Admin browser | Login and role/context transitions, representative create/update flows, destructive-action confirmation | Playwright: eight seeded Admin roles reach the protected shell, a Student-only account is rejected, and the platform owner confirms archive then restore for a seeded Student through a local Vite proxy and disposable API | Target-browser journeys including representative mutations |
-| Student browser | Login, Today, task/focus, exam, chat, offline state and RTL/mobile viewport | Authenticated Student login and app-shell render pass in Chromium at a 390px mobile viewport against disposable API | Today/task/focus, exam, chat, offline/reconnect and target-browser coverage |
-| Push | Browser subscription, provider delivery, click behavior and unsubscribe | Endpoint/source coverage only | HTTPS browser plus configured VAPID/provider delivery |
-| Native | Signed artifact install, login, storage, offline/restart, notification/device behavior | Web build only | Android/desktop target-device runs |
-| Restore and rollback | Disposable restore, integrity check, service restart, login and core workflow after restore; observed rollback | Local disposable backup, mutation, restore, integrity check and authenticated read pass | Disposable deployed restore, restart, core workflow and monitored rollback window |
+The account-based Playwright smoke and planner drag suites under [`apps/admin/e2e`](../../apps/admin/e2e) require a seeded browser/API fixture and are not part of the required CI gate. The current standalone Student application is absent; student accounts use Admin views. Do not reuse old Student-app screenshots or route lists as current release evidence.
 
-## Local authenticated API run
+## Local API evidence
 
-Use an explicitly disposable database and non-production settings. Do not point
-these commands at the normal local database or a deployment.
+Build the API first, then run the disposable suite harness from the repository root:
 
 ```bash
-cd apps/api
-DATABASE_PATH=/tmp/moshaver-release-evidence.sqlite NODE_ENV=test \
-  ALLOW_E2E_SEED=true COOKIE_SECURE=0 node dist/database/seeds/security-matrix.js
-DATABASE_PATH=/tmp/moshaver-release-evidence.sqlite NODE_ENV=test \
-  COOKIE_SECURE=0 PORT=4010 node dist/main.js
-E2E_API_URL=http://127.0.0.1:4010/api/v2 npm run test:e2e:security
-E2E_API_URL=http://127.0.0.1:4010/api/v2 npm run test:e2e:student
-E2E_API_URL=http://127.0.0.1:4010/api/v2 npm run test:e2e:onboarding
+npm --prefix apps/api run build
+./scripts/deploy/verify-security.sh
+# Or focus on one suite:
+./scripts/deploy/verify-security.sh onboarding-journey
 ```
 
-This validates API behavior, not browser rendering, provider delivery, device
-behavior, production cookies, deployment configuration, or rollback operations.
+The script creates a temporary SQLite database for each suite, starts a local API, and cleans up afterward. It proves API behavior under test configuration, not browser rendering, production cookies, provider delivery or deployed recovery.
 
-## Local Admin browser role run
+## Browser evidence
 
-Run this only after seeding an isolated database and serving the API on the
-Admin development proxy's local port. The seed must include a platform owner;
-the security-matrix fixture supplies one.
+The required CI browser stage tests shipped desktop layout at RTL and LTR widths. For account workflows, run Playwright only against an isolated seeded API and Admin instance, using `ADMIN_V2_E2E_BASE_URL` and the fixture described by the test. Record the browser version, viewport, branch/SHA, test command and result. Do not set fixture flags against production. A skipped test is not a pass for its workflow.
 
-```bash
-cd apps/api
-DATABASE_PATH=/tmp/moshaver-admin-browser-evidence.sqlite NODE_ENV=development \
-  ALLOW_E2E_SEED=true npm run seed:roles
-DATABASE_PATH=/tmp/moshaver-admin-browser-evidence.sqlite NODE_ENV=development \
-  PORT=4000 npm run start
+For a student-facing change, include a mobile-width login and the affected task, schedule, attendance or exam flow, plus a role/context switch where relevant. For an Admin change, include allowed and denied action paths. Browser evidence should use the current shared Admin shell.
 
-# Separate terminal
-cd apps/admin
-npm run dev
-ADMIN_V2_E2E_BASE_URL=http://127.0.0.1:8081 npm run test:e2e
-```
+## Migration, backup and rollback evidence
 
-On 2026-09-28 this ran locally with all ten assertions passing: eight
-authorized Admin-role logins reached the protected shell, the Student-only
-account remained at the login screen with the rejection message, and the
-platform owner archived then restored the seeded Student at a mobile viewport.
-This is browser evidence for the seeded local stack, not target deployment,
-Push, native-device, restore, or rollback evidence.
+Before a release with database changes, rehearse the migration chain against a disposable copy representative of existing data. Record the migration source SHA, preflight results, integrity and foreign-key checks, row invariants and application smoke after upgrade. Verify a restorable backup; a backup file alone does not prove recovery. Follow the [database integrity rollout](./database-multi-role-integrity-rollout.md) for the current migration's constraints.
 
-## Local disposable restore rehearsal
+The [production deploy script](../../scripts/deploy/lan.sh) builds before replacement and takes a restricted SQLite backup before recreating containers. It does not restore automatically. A failed replacement may leave mixed container state. A code revert does not reverse schema or data changes. Protect the backup, inspect migration state, and rehearse recovery on disposable data before any production restore.
 
-On 2026-09-28, an isolated SQLite stack was started with remote restore enabled
-only for the test process. An authenticated platform owner downloaded a backup,
-created an App-version mutation, restored the backup, then confirmed `PRAGMA
-quick_check` health through the authenticated database endpoint and confirmed
-the mutation was absent. The post-restore session was still able to make an
-authenticated read. The database file and backup were both under `/tmp`.
+## Production release record
 
-This proves local replacement and automatic in-process recovery. It does not
-prove a deployed supervisor restart, target storage behavior, the core user
-workflow after a deployment restore, or a monitored production rollback.
-
-## Target-environment release sign-off
-
-1. Use a disposable deployment and test accounts only.
-2. Run each Admin role through login, context switch, allowed action and denied
-   action; capture failures with role, organization and route.
-3. Run the Student journey at phone and desktop widths, including a refresh while
-   signed in and an offline/reconnect transition.
-4. Test one real HTTPS Push subscription, delivery, click destination and
-   unsubscribe operation.
-5. Restore a known disposable backup, verify integrity/restart/login/core flow,
-   then perform and observe a rollback. Never run restore tests against a live
-   production database without an approved maintenance procedure.
-6. Install the release candidate on each supported native target and record
-   device/OS, artifact version and outcome.
+A release can be called healthy only after the develop-to-main PR was reviewed and merged, main CI passed for the exact SHA, the source dispatch succeeded, the private deployment workflow authorized and deployed that SHA, HTTPS readiness passed, and an operator checked login, role/school switch and one real authorized operation. Record the SHA, run IDs, time, operator, smoke result, backup identifier and follow-up monitoring window without copying secrets or personal data into docs or issues. If any layer is missing, state it as unverified.
