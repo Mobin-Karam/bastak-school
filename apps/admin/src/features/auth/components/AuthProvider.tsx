@@ -288,15 +288,46 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         [],
       async setActiveRole(role) {
         if (!accountContext?.roles.includes(role) || adminPortalRole([role]) !== role) return;
-        setApiWorkContext(role, accountContext.activeOrganization?.id);
-        const refreshed = await getAccountContext();
-        setAccountContext(refreshed);
-        setActiveRoleState(role);
+        const current = ++operation.current;
+        setStatus("checking");
+        try {
+          const refreshed = await getAccountContext({
+            role,
+            organizationId: accountContext.activeOrganization?.id,
+          });
+          if (current !== operation.current) return;
+          if (!refreshed.roles.includes(role)) throw new Error(copy.accessVerificationFailed);
+          setAccountContext(refreshed);
+          setUser(normalizeUser({ ...refreshed.user, role }));
+          setActiveRoleState(role);
+          setApiWorkContext(role, refreshed.activeOrganization?.id);
+        } finally {
+          if (current === operation.current) setStatus("authenticated");
+        }
       },
       async setActiveOrganization(organization: OrganizationSummary | null) {
-        setApiWorkContext(activeRole ?? undefined, organization?.id);
-        const refreshed = await getAccountContext();
-        setAccountContext(refreshed);
+        const current = ++operation.current;
+        setStatus("checking");
+        try {
+          // The previous role may not exist in the new school. Read its complete
+          // eligible work-context catalog before choosing a role and committing.
+          const refreshed = await getAccountContext({
+            role: null,
+            organizationId: organization?.id,
+          });
+          if (current !== operation.current) return;
+          const role =
+            activeRole && refreshed.roles.includes(activeRole)
+              ? activeRole
+              : adminPortalRole(refreshed.roles);
+          if (!role) throw new Error(copy.accessVerificationFailed);
+          setAccountContext(refreshed);
+          setUser(normalizeUser({ ...refreshed.user, role }));
+          setActiveRoleState(role);
+          setApiWorkContext(role, refreshed.activeOrganization?.id);
+        } finally {
+          if (current === operation.current) setStatus("authenticated");
+        }
       },
     }),
     [copy, finishLocalLogout, message, restore, status, user, accountContext, activeRole],

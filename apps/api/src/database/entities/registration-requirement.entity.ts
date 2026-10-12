@@ -32,7 +32,8 @@ export type RegistrationSectionCode = (typeof REGISTRATION_SECTIONS)[number];
 @Index(["organization", "sectionCode"], { unique: true })
 export class RegistrationRequirement {
   @PrimaryGeneratedColumn("uuid") id!: string;
-  @ManyToOne(() => Organization, { onDelete: "CASCADE" }) organization!: Organization;
+  @ManyToOne(() => Organization, { nullable: false, onDelete: "CASCADE" })
+  organization!: Organization;
   @Column({ length: 48 }) sectionCode!: RegistrationSectionCode;
   @Column({ default: true }) enabled!: boolean;
   @Column({ default: false }) required!: boolean;

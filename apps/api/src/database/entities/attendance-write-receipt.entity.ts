@@ -32,10 +32,10 @@ export type AttendanceWriteResult = {
 )
 export class AttendanceWriteReceipt {
   @PrimaryGeneratedColumn("uuid") id!: string;
-  @ManyToOne(() => Organization, { onDelete: "CASCADE" })
+  @ManyToOne(() => Organization, { nullable: false, onDelete: "CASCADE" })
   organization!: Organization;
-  @ManyToOne(() => User, { onDelete: "CASCADE" }) actor!: User;
-  @ManyToOne(() => AttendanceSession, { onDelete: "CASCADE" })
+  @ManyToOne(() => User, { nullable: false, onDelete: "CASCADE" }) actor!: User;
+  @ManyToOne(() => AttendanceSession, { nullable: false, onDelete: "CASCADE" })
   session!: AttendanceSession;
   @Column({ length: 36 }) requestId!: string;
   @Column({ length: 64 }) fingerprint!: string;

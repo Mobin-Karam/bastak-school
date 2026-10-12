@@ -1,3 +1,4 @@
+import { TimetableDateInput } from "./TimetableDateInput";
 import { useMemo, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import type {
@@ -19,6 +20,7 @@ import {
   type WorkbookBlock,
 } from "../lib/timetable-workbook";
 import { commitTimetableImport, previewTimetableImport } from "../api/timetable.api";
+import { proposeTimetableMappings } from "../lib/timetable-import-mapping";
 import { TimetableImportCatalog } from "./TimetableImportCatalog";
 import { timetableSelectClass } from "./TimetableLessonEditor";
 export function TimetableImportWizard({
@@ -41,12 +43,15 @@ export function TimetableImportWizard({
   const [selectedBlocks, setSelectedBlocks] = useState<string[]>([]);
   const [mapping, setMapping] = useState<Record<string, string>>({});
   const [excluded, setExcluded] = useState<string[]>([]);
+  const [importedSources, setImportedSources] = useState<string[]>([]);
+  const [committedRevision, setCommittedRevision] = useState(0);
   const [step, setStep] = useState(0);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [preview, setPreview] = useState<TimetableImportPreview | null>(null);
   const sheet = sheets.find((x) => x.name === sheetName);
   const version = workspace.versions.find((x) => x.id === versionId)!;
+  const expectedRevision = Math.max(version.revision, committedRevision);
   const term = workspace.terms.find((x) => x.id === version.termId)!;
   const raw = useMemo(
     () =>
@@ -76,7 +81,7 @@ export function TimetableImportWizard({
   };
   const rows = (): TimetableImportRow[] =>
     raw
-      .filter((x) => !excluded.includes(x.source))
+      .filter((x) => !excluded.includes(x.source) && !importedSources.includes(x.source))
       .map((x) => {
         const key = `${x.blockId}|${x.periodLabel}|${x.timeLabel}`;
         const period = workspace.periods.find((p) => p.id === mapping[`period:${key}`]);
@@ -114,7 +119,7 @@ export function TimetableImportWizard({
       const normalized = rows();
       if (!normalized.length || normalized.length > 200)
         throw Error("در هر مرحله ۱ تا ۲۰۰ درس انتخاب کنید.");
-      return previewTimetableImport(versionId, version.revision, filename, sheetName, normalized);
+      return previewTimetableImport(versionId, expectedRevision, filename, sheetName, normalized);
     },
     onSuccess: (result) => {
       setPreview(result);
@@ -124,12 +129,25 @@ export function TimetableImportWizard({
     onError: (e) => setError(e instanceof Error ? e.message : "پیش‌نمایش انجام نشد."),
   });
   const commit = useMutation({
-    mutationFn: () =>
-      commitTimetableImport(versionId, version.revision, filename, sheetName, rows()),
+    mutationFn: async () => {
+      const submitted = rows();
+      const result = await commitTimetableImport(
+        versionId,
+        expectedRevision,
+        filename,
+        sheetName,
+        submitted,
+      );
+      return { ...result, sources: submitted.map((x) => x.source) };
+    },
     onSuccess: (result) => {
       notify(`${result.imported} درس به پیش‌نویس وارد شد؛ انتشار جداگانه لازم است.`, "success");
+      setImportedSources((old) => [...old, ...result.sources]);
+      setExcluded((old) => [...old, ...result.sources]);
+      setCommittedRevision(result.revision);
+      setPreview(null);
+      setStep(2);
       onSaved();
-      onClose();
     },
     onError: (e) => setError(e instanceof Error ? e.message : "ورود انجام نشد."),
   });
@@ -146,6 +164,7 @@ export function TimetableImportWizard({
       setSelectedBlocks([]);
       setMapping({});
       setExcluded([]);
+      setImportedSources([]);
       setStep(1);
     } catch (error) {
       setError(error instanceof Error ? error.message : "خواندن فایل انجام نشد.");
@@ -157,10 +176,13 @@ export function TimetableImportWizard({
     setBusy(true);
     setError("");
     try {
-      const response = await fetch(`${import.meta.env.BASE_URL}${encodeURIComponent("مبین.xlsx")}`);
-      if (!response.ok) throw Error("فایل مبین.xlsx در دسترس نیست؛ فایل را انتخاب کنید.");
+      const response = await fetch(
+        `${import.meta.env.BASE_URL}${encodeURIComponent("timetable-example.xlsx")}`,
+      );
+      if (!response.ok)
+        throw Error("فایل timetable-example.xlsx در دسترس نیست؛ فایل را انتخاب کنید.");
       const buffer = await response.arrayBuffer();
-      await loadWorkbook({ name: "مبین.xlsx", arrayBuffer: async () => buffer });
+      await loadWorkbook({ name: "timetable-example.xlsx", arrayBuffer: async () => buffer });
     } catch (error) {
       setError(error instanceof Error ? error.message : "خواندن فایل انجام نشد.");
     } finally {
@@ -174,6 +196,7 @@ export function TimetableImportWizard({
     setSelectedBlocks([]);
     setMapping({});
     setExcluded([]);
+    setImportedSources([]);
     setPreview(null);
     setStep(1);
   }
@@ -186,7 +209,11 @@ export function TimetableImportWizard({
       title="ورود برنامه از اکسل"
       description="انتخاب کاربرگ ← تأیید بلوک‌ها ← نگاشت ← بررسی تداخل ← ورود به پیش‌نویس. انتشار خودکار انجام نمی‌شود."
     >
-      <div className="grid gap-3">
+      <fieldset
+        className="grid min-w-0 gap-3"
+        disabled={busy || commit.isPending || previewMutation.isPending}
+      >
+        <legend className="sr-only">ورود برنامه درسی</legend>
         <ol className="flex flex-wrap gap-2 text-xs" aria-label="مراحل ورود">
           {["فایل", "ساختار", "نگاشت", "پیش‌نمایش"].map((x, i) => (
             <li key={x} className={i === step ? "font-bold text-brand" : "text-slate-500"}>
@@ -211,7 +238,7 @@ export function TimetableImportWizard({
           disabled={busy || commit.isPending}
           onClick={() => void loadProvidedWorkbook()}
         >
-          استفاده از فایل مبین.xlsx
+          استفاده از فایل نمونه (داده ساختگی)
         </Button>
         {busy ? <p role="status">در حال بررسی کاربرگ‌ها…</p> : null}
         {sheets.length ? (
@@ -288,7 +315,13 @@ export function TimetableImportWizard({
                 فایل مشخص کنید.
               </p>
             ) : null}
-            <Button disabled={!raw.length} onClick={() => setStep(2)}>
+            <Button
+              disabled={!raw.length}
+              onClick={() => {
+                setPreview(null);
+                setStep(2);
+              }}
+            >
               تأیید ساختار و نگاشت {raw.length} درس
             </Button>
           </>
@@ -297,21 +330,27 @@ export function TimetableImportWizard({
           <>
             <div className="grid grid-cols-2 gap-2">
               <Field label="از تاریخ اجرا">
-                <Input
-                  type="date"
+                <TimetableDateInput
+                  timeZone={workspace.years.find((year) => year.id === term.yearId)?.timeZone}
+                  data-field-control
+                  label="از تاریخ اجرا"
+
                   min={version.effectiveOn}
                   max={term.endsOn}
                   value={mapping.startsOn ?? version.effectiveOn}
-                  onChange={(event) => set("startsOn", event.target.value)}
+                  onChange={(iso) => set("startsOn", iso)}
                 />
               </Field>
               <Field label="تا تاریخ اجرا">
-                <Input
-                  type="date"
+                <TimetableDateInput
+                  timeZone={workspace.years.find((year) => year.id === term.yearId)?.timeZone}
+                  data-field-control
+                  label="تا تاریخ اجرا"
+
                   min={version.effectiveOn}
                   max={term.endsOn}
                   value={mapping.endsOn ?? term.endsOn}
-                  onChange={(event) => set("endsOn", event.target.value)}
+                  onChange={(iso) => set("endsOn", iso)}
                 />
               </Field>
             </div>
@@ -335,6 +374,19 @@ export function TimetableImportWizard({
                 </select>
               </Field>
             ) : null}
+            <Button
+              variant="soft"
+              onClick={() => {
+                setMapping((old) => ({ ...old, ...proposeTimetableMappings(raw, workspace, old) }));
+                setPreview(null);
+              }}
+            >
+              پیشنهاد اتصال بر اساس نام دقیق و یکتا
+            </Button>
+            <p className="text-xs text-slate-500">
+              پیشنهادها را بازبینی کنید. نام خانوادگی تنها، نام تکراری و زمان ناقص نگاشت خودکار
+              ندارند.
+            </p>
             <TimetableImportCatalog
               workspace={workspace}
               classLabels={classes}
@@ -447,13 +499,51 @@ export function TimetableImportWizard({
               <summary className="cursor-pointer font-bold">
                 ردیف‌های منبع و انتخاب درس‌ها ({raw.length})
               </summary>
+              <p className="my-2 text-xs">
+                {
+                  raw.filter(
+                    (x) => !excluded.includes(x.source) && !importedSources.includes(x.source),
+                  ).length
+                }{" "}
+                درس انتخاب‌شده · {importedSources.length} درس واردشده · حداکثر ۲۰۰ درس در هر مرحله.
+                نگاشت‌ها برای مرحله بعد حفظ می‌شوند.
+              </p>
+              <div className="mb-2 flex flex-wrap gap-2">
+                <Button
+                  variant="soft"
+                  onClick={() => {
+                    const next = new Set(
+                      raw
+                        .filter((x) => !importedSources.includes(x.source))
+                        .slice(0, 200)
+                        .map((x) => x.source),
+                    );
+                    setExcluded(raw.filter((x) => !next.has(x.source)).map((x) => x.source));
+                    setPreview(null);
+                  }}
+                >
+                  انتخاب ۲۰۰ درس بعدی
+                </Button>
+                <Button
+                  variant="soft"
+                  onClick={() => {
+                    setExcluded(raw.map((x) => x.source));
+                    setPreview(null);
+                  }}
+                >
+                  پاک‌کردن انتخاب ردیف‌ها
+                </Button>
+              </div>
               <div className="max-h-72 overflow-auto">
                 {raw.map((row) => (
                   <div key={row.source} className="my-2 grid gap-2 border-b pb-2 text-xs">
                     <label className="flex items-start gap-2">
                       <input
                         type="checkbox"
-                        checked={!excluded.includes(row.source)}
+                        disabled={importedSources.includes(row.source)}
+                        checked={
+                          !excluded.includes(row.source) && !importedSources.includes(row.source)
+                        }
                         onChange={(event) => {
                           setExcluded((old) =>
                             event.target.checked
@@ -548,7 +638,7 @@ export function TimetableImportWizard({
                 ))}
                 <Button
                   disabled={
-                    !preview.valid || commit.isPending || preview.revision !== version.revision
+                    !preview.valid || commit.isPending || preview.revision !== expectedRevision
                   }
                   onClick={() => commit.mutate()}
                 >
@@ -563,7 +653,7 @@ export function TimetableImportWizard({
             {error}
           </p>
         ) : null}
-      </div>
+      </fieldset>
     </ResponsiveModal>
   );
 }

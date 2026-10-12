@@ -10,7 +10,9 @@ import { User } from "./user.entity";
 @Entity("notification_preferences")
 export class NotificationPreference {
   @PrimaryGeneratedColumn("uuid") id!: string;
-  @OneToOne(() => User, { onDelete: "CASCADE" }) @JoinColumn() user!: User;
+  @OneToOne(() => User, { nullable: false, onDelete: "CASCADE" })
+  @JoinColumn()
+  user!: User;
   @Column({ type: "simple-json", default: "{}" }) categories!: Record<
     string,
     boolean

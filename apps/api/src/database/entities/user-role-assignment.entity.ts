@@ -13,8 +13,8 @@ import { User } from "./user.entity";
 @Index(["user", "role", "membership"], { unique: true })
 export class UserRoleAssignment {
   @PrimaryGeneratedColumn("uuid") id!: string;
-  @ManyToOne(() => User, { onDelete: "CASCADE" }) user!: User;
-  @ManyToOne(() => Role, { onDelete: "RESTRICT" }) role!: Role;
+  @ManyToOne(() => User, { nullable: false, onDelete: "CASCADE" }) user!: User;
+  @ManyToOne(() => Role, { nullable: false, onDelete: "RESTRICT" }) role!: Role;
   @ManyToOne(
     () => OrganizationMembership,
     (membership) => membership.roleAssignments,

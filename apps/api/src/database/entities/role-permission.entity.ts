@@ -6,6 +6,14 @@ import { Role } from "./role.entity";
 @Index(["role", "permission"], { unique: true })
 export class RolePermission {
   @PrimaryGeneratedColumn("uuid") id!: string;
-  @ManyToOne(() => Role, (role) => role.permissions, { onDelete: "CASCADE" }) role!: Role;
-  @ManyToOne(() => Permission, (permission) => permission.roles, { onDelete: "CASCADE" }) permission!: Permission;
+  @ManyToOne(() => Role, (role) => role.permissions, {
+    nullable: false,
+    onDelete: "CASCADE",
+  })
+  role!: Role;
+  @ManyToOne(() => Permission, (permission) => permission.roles, {
+    nullable: false,
+    onDelete: "CASCADE",
+  })
+  permission!: Permission;
 }

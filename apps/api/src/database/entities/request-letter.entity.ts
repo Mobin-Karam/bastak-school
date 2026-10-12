@@ -26,7 +26,7 @@ export class RequestLetter {
   id!: string;
 
   @Index()
-  @ManyToOne(() => Organization, { onDelete: "CASCADE" })
+  @ManyToOne(() => Organization, { nullable: false, onDelete: "CASCADE" })
   organization!: Organization;
 
   @ManyToOne(() => User, { nullable: true, onDelete: "SET NULL" })

@@ -59,6 +59,8 @@ export function TimetableImportCatalog({
       }
       if (classMapping[`class:${source.split("|")[0]}`] !== classId)
         throw Error("ابتدا کلاس این مورد منبع را در بخش نگاشت انتخاب کنید.");
+      if (!options.data || options.isFetching)
+        throw Error("ابتدا دریافت اطلاعات کلاس باید کامل شود.");
       if (!classroom || !teacherId) throw Error("کلاس مقصد و حساب استاد را انتخاب کنید.");
       let selectedBook = bookId || newBookId;
       if (!selectedBook) {
@@ -71,10 +73,10 @@ export function TimetableImportCatalog({
           titleEn: "",
           country: "IR",
           schoolYear: classroom.schoolYear,
-          grade: 0,
+          grade: options.data?.classroom.gradeId ?? 0,
           level: "universal",
-          branch: "universal",
-          track: "universal",
+          branch: "مشترک",
+          track: "مشترک",
           category: "school",
           appliesTo: [],
           state: "DRAFT",

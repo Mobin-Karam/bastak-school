@@ -17,7 +17,7 @@ export type SchoolAnnouncementAudience = "STAFF" | "STUDENTS" | "CLASS";
 @Index(["organization", "audience", "publishedAt"])
 export class SchoolAnnouncement {
   @PrimaryGeneratedColumn("uuid") id!: string;
-  @ManyToOne(() => Organization, { onDelete: "CASCADE" })
+  @ManyToOne(() => Organization, { nullable: false, onDelete: "CASCADE" })
   organization!: Organization;
   @Column({ length: 16 }) audience!: SchoolAnnouncementAudience;
   @ManyToOne(() => EducationClass, { nullable: true, onDelete: "CASCADE" })

@@ -15,7 +15,7 @@ import { User } from "./user.entity";
 @Index(["organization", "weekday", "status"])
 export class AttendanceSchedule {
   @PrimaryGeneratedColumn("uuid") id!: string;
-  @ManyToOne(() => Organization, { onDelete: "CASCADE" })
+  @ManyToOne(() => Organization, { nullable: false, onDelete: "CASCADE" })
   organization!: Organization;
   @Column({ length: 24 }) contextType!: "class_group" | "dorm";
   @Column({ length: 120 }) contextId!: string;

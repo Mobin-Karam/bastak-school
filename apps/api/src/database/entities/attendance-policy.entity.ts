@@ -11,7 +11,7 @@ import { Organization } from "./organization.entity";
 @Entity("attendance_policies")
 export class AttendancePolicy {
   @PrimaryGeneratedColumn("uuid") id!: string;
-  @OneToOne(() => Organization, { onDelete: "CASCADE" })
+  @OneToOne(() => Organization, { nullable: false, onDelete: "CASCADE" })
   @JoinColumn()
   organization!: Organization;
   @Column({ length: 64, default: "Asia/Tehran" }) timeZone!: string;

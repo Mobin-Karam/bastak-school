@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, it, expect, vi } from "vitest";
-import { cleanup, render, screen, waitFor, within } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MemoryRouter } from "react-router-dom";
@@ -7,6 +7,7 @@ import { ThemeProvider } from "../../../shared/theme/theme";
 import { LocaleProvider } from "../../../shared/ui/locale";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
+import { saveTimetableConfig } from "../api/timetable.api";
 import { TimetablePage } from "./TimetablePage";
 import { timetableToday, timetableWeekStart } from "../lib/timetable-time";
 afterEach(cleanup);
@@ -30,6 +31,26 @@ vi.mock("../../auth", () => ({
     canAny: (caps: string[]) => caps.some((x) => fixtures.capabilities.includes(x)),
     setActiveOrganization: vi.fn(),
   }),
+}));
+vi.mock("../components/TimetableDateInput", () => ({
+  TimetableDateInput: ({
+    label,
+    value,
+    onChange,
+    ...props
+  }: {
+    label: string;
+    value: string;
+    onChange: (value: string) => void;
+  }) => (
+    <input
+      {...props}
+      aria-label={label}
+      type="date"
+      value={value}
+      onChange={(event) => onChange(event.target.value)}
+    />
+  ),
 }));
 vi.mock("../api/timetable.api", () => ({
   getTimetable: fixtures.get,
@@ -197,6 +218,88 @@ describe("responsive timetable workflows", () => {
     expect(screen.queryByRole("button", { name: "افزودن درس" })).not.toBeInTheDocument();
     expect(screen.getAllByText("نحو").length).toBeGreaterThan(0);
   });
+  it("opens import setup when no draft exists instead of disabling the button", async () => {
+    fixtures.capabilities.push("schedule.import");
+    const empty = { ...data(), versions: [], lessons: [], occurrences: [], terms: [] };
+    fixtures.get.mockResolvedValue(empty);
+    mount();
+    await screen.findByRole("heading", { name: "برنامه درسی" });
+    const button = screen.getByRole("button", { name: "ورود اکسل" });
+    expect(button).toBeEnabled();
+    await userEvent.click(button);
+    const dialog = within(await screen.findByRole("dialog"));
+    expect(dialog.getByText(/هنوز پیش‌نویسی وجود ندارد/)).toBeVisible();
+    await userEvent.click(dialog.getByRole("button", { name: "تنظیم سال، نیم‌سال و زنگ‌ها" }));
+    expect(await screen.findByRole("heading", { name: "تنظیمات برنامه درسی" })).toBeVisible();
+  });
+  it("opens file selection after choosing an existing draft from import setup", async () => {
+    fixtures.capabilities.push("schedule.import");
+    const current = data();
+    current.versions.push({
+      ...current.versions[0],
+      id: "draft-import",
+      state: "DRAFT",
+      name: "پیش‌نویس ورود",
+    });
+    fixtures.get.mockResolvedValue(current);
+    mount();
+    await screen.findByRole("heading", { name: "برنامه درسی" });
+    await userEvent.click(screen.getByRole("button", { name: "ورود اکسل" }));
+    await userEvent.click(await screen.findByRole("button", { name: "ورود به پیش‌نویس ورود" }));
+    expect(await screen.findByLabelText("فایل اکسل")).toBeVisible();
+    expect(
+      screen.getByRole("button", { name: "استفاده از فایل نمونه (داده ساختگی)" }),
+    ).toBeEnabled();
+  });
+  it("guides an empty school directly to its first year form", async () => {
+    fixtures.get.mockResolvedValue({
+      ...data(),
+      years: [],
+      terms: [],
+      versions: [],
+      bells: [],
+      sessions: [],
+      periods: [],
+      lessons: [],
+      occurrences: [],
+    });
+    mount();
+    expect(
+      await screen.findByRole("heading", { name: "راه‌اندازی برنامه درسی، قدم‌به‌قدم" }),
+    ).toBeVisible();
+    expect(screen.getByRole("status")).toHaveTextContent("0 از 6 مرحله آماده است");
+    expect(screen.queryByRole("button", { name: "همه کلاس‌ها" })).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "شروع مرحله: سال تحصیلی" }));
+    const dialog = within(await screen.findByRole("dialog"));
+    expect(dialog.getByText(/مرحله راه‌اندازی: سال تحصیلی/)).toBeVisible();
+    expect(dialog.queryByLabelText("بخش تنظیمات")).not.toBeInTheDocument();
+    expect(dialog.getByLabelText("از تاریخ")).toBeVisible();
+  });
+  it("advances the setup after a year is saved and server data is refreshed", async () => {
+    const empty = {
+      ...data(),
+      years: [],
+      terms: [],
+      versions: [],
+      bells: [],
+      sessions: [],
+      periods: [],
+      lessons: [],
+      occurrences: [],
+    };
+    fixtures.get.mockResolvedValue(empty);
+    vi.mocked(saveTimetableConfig).mockResolvedValueOnce({});
+    mount();
+    await userEvent.click(await screen.findByRole("button", { name: "شروع مرحله: سال تحصیلی" }));
+    const dialog = within(await screen.findByRole("dialog"));
+    await userEvent.type(dialog.getByLabelText("نام"), "۱۴۰۵");
+    fireEvent.change(dialog.getByLabelText("از تاریخ"), { target: { value: "2026-01-01" } });
+    fireEvent.change(dialog.getByLabelText("تا تاریخ"), { target: { value: "2026-12-31" } });
+    fixtures.get.mockResolvedValue({ ...empty, years: data().years });
+    await userEvent.click(dialog.getByRole("button", { name: "ذخیره و ادامه" }));
+    expect(await screen.findByText(/مرحله راه‌اندازی: نیم‌سال/)).toBeVisible();
+    expect(within(screen.getByRole("dialog")).getByLabelText("سال تحصیلی")).toHaveValue("year");
+  });
   it("opens the responsive lesson form with the selected class and period context", async () => {
     fixtures.get.mockResolvedValue(data("DRAFT"));
     mount();
@@ -206,17 +309,20 @@ describe("responsive timetable workflows", () => {
     expect(within(screen.getByRole("dialog")).getByLabelText("کلاس")).toBeVisible();
     expect(within(screen.getByRole("dialog")).getByLabelText("زنگ / نوبت")).toBeVisible();
   });
-  it("loads the provided workbook and requires explicit block selection before mapping", async () => {
+  it("loads the synthetic sample workbook and requires explicit block selection before mapping", async () => {
     fixtures.capabilities.push("schedule.import");
     fixtures.get.mockResolvedValue(data("DRAFT"));
-    const buffer = readFileSync(resolve("public/مبین.xlsx"));
+    const buffer = readFileSync(resolve("public/timetable-example.xlsx"));
     const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(buffer));
     try {
       mount();
       await screen.findByRole("heading", { name: "برنامه درسی" });
       await userEvent.click(screen.getByRole("button", { name: "ورود اکسل" }));
-      await userEvent.click(screen.getByRole("button", { name: "استفاده از فایل مبین.xlsx" }));
-      const sheets = await screen.findByLabelText("کاربرگ");
+      await userEvent.click(
+        screen.getByRole("button", { name: "استفاده از فایل نمونه (داده ساختگی)" }),
+      );
+      const sheets = await screen.findByLabelText("کاربرگ", {}, { timeout: 15000 });
+      expect(fetchSpy).toHaveBeenCalledWith(expect.stringContaining("timetable-example.xlsx"));
       expect(within(sheets).getAllByRole("option")).toHaveLength(6);
       await userEvent.selectOptions(sheets, "اصلی ");
       const dialog = within(screen.getByRole("dialog"));
@@ -237,7 +343,7 @@ describe("responsive timetable workflows", () => {
     } finally {
       fetchSpy.mockRestore();
     }
-  });
+  }, 15000);
   it("gives students daily cards without draft controls or school-wide filters", async () => {
     fixtures.full = false;
     fixtures.capabilities = ["schedule.read"];

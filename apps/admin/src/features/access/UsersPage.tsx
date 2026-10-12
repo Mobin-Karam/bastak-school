@@ -46,7 +46,7 @@ export function UsersPage() {
   const copy = accessCopy[language];
   const [searchParams, setSearchParams] = useSearchParams();
   const canManage = auth.can("users.manage"),
-    isPlatform = auth.hasRole("PLATFORM_ADMIN"),
+    isPlatform = auth.activeRole === "PLATFORM_ADMIN",
     isPlatformOwner = auth.context?.user.isPlatformOwner === true,
     principalProvisioningOnly = auth.activeRole === "PRINCIPAL";
   const organizations = useQuery({
@@ -80,7 +80,7 @@ export function UsersPage() {
     phoneNumber: "",
     firstName: "",
     lastName: "",
-    role: "COUNSELOR" as RoleCode,
+    roles: ["COUNSELOR"] as RoleCode[],
     organizationId: "",
   });
   const refresh = () => qc.invalidateQueries({ queryKey: ["users"] });
@@ -143,19 +143,37 @@ export function UsersPage() {
   const save = useMutation({
     mutationFn: async () => {
       if (!editing) return;
-      await updateUser(editing.id, {
-        phoneNumber: editDraft.phoneNumber,
-        firstName: editDraft.firstName,
-        lastName: editDraft.lastName,
-      });
+      const profileChanged =
+        editDraft.phoneNumber !== (editing.phoneNumber ?? editing.username) ||
+        editDraft.firstName !== (editing.firstName ?? "") ||
+        editDraft.lastName !== (editing.lastName ?? "");
+      if (profileChanged)
+        await updateUser(editing.id, {
+          phoneNumber: editDraft.phoneNumber,
+          firstName: editDraft.firstName,
+          lastName: editDraft.lastName,
+        });
       if (
+        !sameRoles(
+          editDraft.roles,
+          editing.assignments
+            .filter((item) => item.organizationId === (editDraft.organizationId || null))
+            .map((item) => item.role),
+        ) &&
         !editing.isPlatformOwner &&
         editing.id !== auth.context?.user.id &&
-        (!principalProvisioningOnly || principalAssignableRoles.includes(editDraft.role))
+        (!principalProvisioningOnly ||
+          editDraft.roles.every(
+            (role) =>
+              principalAssignableRoles.includes(role) ||
+              editing.assignments.some(
+                (item) => item.role === role && item.organizationId === editDraft.organizationId,
+              ),
+          ))
       ) {
         await setUserRoles(editing.id, {
-          roleCodes: [editDraft.role],
-          ...(editDraft.role !== "PLATFORM_ADMIN"
+          roleCodes: editDraft.roles,
+          ...(!editDraft.roles.includes("PLATFORM_ADMIN")
             ? { organizationId: editDraft.organizationId || organizationId }
             : {}),
         });
@@ -212,7 +230,9 @@ export function UsersPage() {
       phoneNumber: user.phoneNumber ?? user.username,
       firstName: user.firstName ?? "",
       lastName: user.lastName ?? "",
-      role: assignment?.role ?? "COUNSELOR",
+      roles: user.assignments
+        .filter((item) => item.organizationId === (assignment?.organizationId ?? null))
+        .map((item) => item.role),
       organizationId: assignment?.organizationId ?? organizationId,
     });
   };
@@ -358,7 +378,7 @@ export function UsersPage() {
           organizations={organizations.data ?? []}
           defaultOrganizationId={organizationId || auth.context?.activeOrganization?.id || ""}
           isPlatform={isPlatform}
-          allowPlatform={isPlatformOwner}
+          allowPlatform={isPlatform && isPlatformOwner}
           allowedRoles={principalProvisioningOnly ? principalAssignableRoles : undefined}
           onSubmit={(body) => create.mutateAsync(body)}
         />
@@ -403,13 +423,16 @@ export function UsersPage() {
             </Field>
             {!isProtected(editing) ? (
               <RoleField
-                value={editDraft.role}
-                onChange={(role) => setEditDraft({ ...editDraft, role })}
-                allowPlatform={isPlatformOwner}
+                value={editDraft.roles}
+                onChange={(roles) => setEditDraft({ ...editDraft, roles })}
+                allowPlatform={isPlatform && isPlatformOwner && !editDraft.organizationId}
                 allowedRoles={principalProvisioningOnly ? principalAssignableRoles : undefined}
                 organizationType={
                   (organizations.data || []).find((item) => item.id === editDraft.organizationId)
-                    ?.type
+                    ?.type ??
+                  (editDraft.organizationId === auth.context?.activeOrganization?.id
+                    ? auth.context.activeOrganization.type
+                    : undefined)
                 }
               />
             ) : (
@@ -417,7 +440,7 @@ export function UsersPage() {
                 {copy.protectedAccountHint}
               </p>
             )}
-            {isPlatform && !isProtected(editing) && editDraft.role !== "PLATFORM_ADMIN" ? (
+            {isPlatform && !isProtected(editing) && !editDraft.roles.includes("PLATFORM_ADMIN") ? (
               <OrganizationField
                 organizations={organizations.data || []}
                 value={editDraft.organizationId}
@@ -428,15 +451,18 @@ export function UsersPage() {
                   setEditDraft({
                     ...editDraft,
                     organizationId: value,
-                    role: roles.includes(editDraft.role)
-                      ? editDraft.role
-                      : (roles[0] ?? "COUNSELOR"),
+                    roles: editDraft.roles.filter((role) => roles.includes(role)),
                   });
                 }}
               />
             ) : null}
             <div className="flex items-end gap-2">
-              <Button loading={save.isPending}>{copy.saveChanges}</Button>
+              <Button
+                loading={save.isPending}
+                disabled={!isProtected(editing) && !editDraft.roles.length}
+              >
+                {copy.saveChanges}
+              </Button>
               <Button
                 type="button"
                 variant="ghost"
@@ -705,11 +731,15 @@ function UserCreateForm({
     password: "",
     firstName: "",
     lastName: "",
-    role: (allowedRoles?.find((role) =>
-      rolesForOrganizationType(
-        organizations.find((org) => org.id === defaultOrganizationId)?.type,
-      ).includes(role),
-    ) ?? "COUNSELOR") as RoleCode,
+    roles: [
+      allowedRoles?.find((role) =>
+        rolesForOrganizationType(
+          organizations.find((org) => org.id === defaultOrganizationId)?.type,
+        ).includes(role),
+      ) ??
+        allowedRoles?.[0] ??
+        "COUNSELOR",
+    ] as RoleCode[],
     organizationId: defaultOrganizationId,
   });
   const [step, setStep] = useState(0);
@@ -719,7 +749,7 @@ function UserCreateForm({
   }, [step]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
-  const requiresOrganization = draft.role !== "PLATFORM_ADMIN";
+  const requiresOrganization = !draft.roles.includes("PLATFORM_ADMIN");
   const selectedOrganization = organizations.find((item) => item.id === draft.organizationId);
 
   return (
@@ -741,7 +771,7 @@ function UserCreateForm({
             password: draft.password,
             firstName: draft.firstName,
             lastName: draft.lastName,
-            roleCodes: [draft.role],
+            roleCodes: draft.roles,
             ...(requiresOrganization ? { organizationId: draft.organizationId } : {}),
           });
         } catch (submissionError) {
@@ -814,8 +844,8 @@ function UserCreateForm({
             </span>
           </p>
           <RoleField
-            value={draft.role}
-            onChange={(role) => setDraft({ ...draft, role })}
+            value={draft.roles}
+            onChange={(roles) => setDraft({ ...draft, roles })}
             allowPlatform={allowPlatform}
             organizationType={selectedOrganization?.type}
             allowedRoles={allowedRoles}
@@ -831,9 +861,7 @@ function UserCreateForm({
                 setDraft({
                   ...draft,
                   organizationId,
-                  role:
-                    allowedRoles?.find((role) => roles.includes(role)) ??
-                    (roles.includes(draft.role) ? draft.role : (roles[0] ?? "COUNSELOR")),
+                  roles: draft.roles.filter((role) => roles.includes(role)),
                 });
               }}
             />
@@ -853,13 +881,19 @@ function UserCreateForm({
         ) : null}
         <Button
           loading={isSubmitting}
-          disabled={step === 1 && requiresOrganization && !draft.organizationId}
+          disabled={
+            step === 1 && (!draft.roles.length || (requiresOrganization && !draft.organizationId))
+          }
         >
           {step === 0 ? (language === "fa" ? "ادامه" : "Continue") : copy.createAccount}
         </Button>
       </div>
     </form>
   );
+}
+
+function sameRoles(a: readonly RoleCode[], b: readonly RoleCode[]) {
+  return a.length === b.length && a.every((role) => b.includes(role));
 }
 
 function RoleField({
@@ -869,38 +903,60 @@ function RoleField({
   organizationType,
   allowedRoles,
 }: {
-  value: RoleCode;
-  onChange: (role: RoleCode) => void;
+  value: RoleCode[];
+  onChange: (roles: RoleCode[]) => void;
   allowPlatform: boolean;
   organizationType?: string | null;
   allowedRoles?: readonly RoleCode[];
 }) {
   const { language } = useLocale();
   const copy = accessCopy[language];
+  const available = (
+    organizationType ? rolesForOrganizationType(organizationType) : allRoles
+  ).filter(
+    (role) =>
+      (!allowedRoles || allowedRoles.includes(role)) &&
+      (allowPlatform || role !== "PLATFORM_ADMIN"),
+  );
+  const roles = [...new Set([...value, ...available])];
   return (
-    <Field label={copy.role}>
-      <Select value={value} onChange={(e) => onChange(e.target.value as RoleCode)}>
-        {(() => {
-          const roles = (organizationType ? rolesForOrganizationType(organizationType) : allRoles)
-            .filter((role) => !allowedRoles || allowedRoles.includes(role))
-            .filter((role) => allowPlatform || role !== "PLATFORM_ADMIN");
-          return (
-            <>
-              {!roles.includes(value) ? (
-                <option value={value} disabled>
-                  {roleLabel(value, language)}
-                </option>
-              ) : null}
-              {roles.map((role) => (
-                <option key={role} value={role}>
-                  {roleLabel(role, language)}
-                </option>
-              ))}
-            </>
-          );
-        })()}
-      </Select>
-    </Field>
+    <fieldset className="grid gap-2 sm:col-span-2" aria-label={copy.role}>
+      <legend className="text-sm font-medium">{copy.role}</legend>
+      <p className="text-xs text-slate-500">
+        {language === "fa"
+          ? "می‌توانید چند نقش انتخاب کنید. نقش‌ها فقط در سازمان انتخاب‌شده اعمال می‌شوند."
+          : "Select one or more roles. School roles apply to the selected organization."}
+      </p>
+      <div className="grid max-h-56 gap-2 overflow-y-auto rounded-xl border border-slate-200 p-3 sm:grid-cols-2 dark:border-slate-700">
+        {roles.map((role) => (
+          <label key={role} className="flex min-h-9 items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              className="size-4 accent-brand"
+              checked={value.includes(role)}
+              disabled={!available.includes(role)}
+              onChange={(event) =>
+                onChange(
+                  event.target.checked
+                    ? role === "PLATFORM_ADMIN"
+                      ? [role]
+                      : [...value.filter((item) => item !== "PLATFORM_ADMIN"), role]
+                    : value.filter((item) => item !== role),
+                )
+              }
+            />
+            {roleLabel(role, language)}
+          </label>
+        ))}
+      </div>
+      {allowPlatform ? (
+        <p className="text-xs text-slate-500">
+          {language === "fa"
+            ? "نقش مدیر پلتفرم در محدوده جداگانه تعیین می‌شود."
+            : "Platform administration uses a separate global scope."}
+        </p>
+      ) : null}
+    </fieldset>
   );
 }
 function OrganizationField({

@@ -1,3 +1,6 @@
+import { assertTimetableRange } from "../lib/timetable-input";
+import { TimetableTimeInput } from "../components/TimetableTimeInput";
+import { TimetableDateInput } from "../components/TimetableDateInput";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
@@ -36,6 +39,7 @@ import {
   openTimetableAttendance,
 } from "../api/timetable.api";
 import { TimetableLessonEditor, timetableSelectClass } from "../components/TimetableLessonEditor";
+import { timetableSetup, TimetableOnboarding } from "../components/TimetableOnboarding";
 import { TimetableSettings } from "../components/TimetableSettings";
 import { TimetableImportWizard } from "../components/TimetableImportWizard";
 import { TimetableGrid } from "../components/TimetableGrid";
@@ -78,7 +82,9 @@ export function TimetablePage() {
   const [sectionId, setSectionId] = useState("");
   const [session, setSession] = useState("");
   const [settings, setSettings] = useState(false);
+  const [setupStep, setSetupStep] = useState<{ kind: string; parentId?: string } | null>(null);
   const [importOpen, setImportOpen] = useState(false);
+  const [importAfterVersion, setImportAfterVersion] = useState(false);
   const [editor, setEditor] = useState<{
     lesson?: TimetableLesson;
     initial?: Partial<TimetableLessonDraft>;
@@ -125,6 +131,11 @@ export function TimetablePage() {
     setTeacherId("");
     setRoomId("");
     setYearId("");
+    setImportOpen(false);
+    setImportAfterVersion(false);
+    setSettings(false);
+    setSetupStep(null);
+    setNewVersion(false);
     setEditor(null);
     setDetail(null);
     setUndo(null);
@@ -293,13 +304,18 @@ export function TimetablePage() {
         { key: "periodName", header: "زنگ" },
         { key: "startTime", header: "شروع" },
         { key: "endTime", header: "پایان" },
-        { key: "startsOn", header: "از تاریخ" },
-        { key: "endsOn", header: "تا تاریخ" },
+        { key: "startsOn", header: "از تاریخ (شمسی)" },
+        { key: "endsOn", header: "تا تاریخ (شمسی)" },
       ],
     });
     void downloadSpreadsheet(
       definition,
-      filtered.map((x) => ({ ...x, day: persianWeekdays.find((d) => d.id === x.weekday)?.name })),
+      filtered.map((x) => ({
+        ...x,
+        startsOn: timetableDateLabel(x.startsOn),
+        endsOn: timetableDateLabel(x.endsOn),
+        day: persianWeekdays.find((d) => d.id === x.weekday)?.name,
+      })),
       "برنامه-درسی.xlsx",
     ).catch((e) => notify(e.message, "error"));
   };
@@ -340,6 +356,8 @@ export function TimetablePage() {
         <Button onClick={() => void workspace.refetch()}>تلاش دوباره</Button>
       </Card>
     );
+  const showSetup =
+    full && !data.versions.some((v) => v.state === "PUBLISHED") && !data.lessons.length;
   const periodIds = new Set(filtered.map((x) => x.periodId));
   const periods = [...data.periods]
     .filter((x) => !session || data.sessions.find((s) => s.id === x.sessionId)?.kind === session)
@@ -361,8 +379,19 @@ export function TimetablePage() {
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
+          {showSetup && auth.can("schedule.import") ? (
+            <Button variant="soft" onClick={() => setImportOpen(true)}>
+              ورود اکسل
+            </Button>
+          ) : null}
           {auth.can("schedule.update") ? (
-            <Button variant="soft" onClick={() => setSettings(true)}>
+            <Button
+              variant="soft"
+              onClick={() => {
+                setSetupStep(null);
+                setSettings(true);
+              }}
+            >
               <Settings2 size={16} />
               تنظیمات
             </Button>
@@ -380,378 +409,397 @@ export function TimetablePage() {
           ) : null}
         </div>
       </header>
-      <div className="timetable-controls flex flex-wrap items-center gap-2">
-        <label className="text-xs">
-          سال تحصیلی
-          <select
-            className={timetableSelectClass}
-            value={yearId}
-            onChange={(event) => {
-              setYearId(event.target.value);
-              setVersionId("");
-            }}
-          >
-            <option value="">همه سال‌ها</option>
-            {data.years.map((x) => (
-              <option key={x.id} value={x.id}>
-                {x.name}
-                {x.active ? " · فعال" : ""}
-              </option>
-            ))}
-          </select>
-        </label>
-        {full ? (
+      {showSetup ? (
+        <TimetableOnboarding
+          workspace={data}
+          canConfigure={auth.can("schedule.update")}
+          canCreate={auth.can("schedule.create")}
+          canImport={auth.can("schedule.import")}
+          onConfigure={(kind, parentId) => {
+            setSetupStep({ kind, parentId });
+            setSettings(true);
+          }}
+          onCreate={() => setNewVersion(true)}
+          onImport={(id) => {
+            setVersionId(id);
+            setImportOpen(true);
+          }}
+          onManual={(id) => {
+            setVersionId(id);
+            setEditor({});
+          }}
+        />
+      ) : null}
+      <div hidden={showSetup} className={showSetup ? "hidden" : "grid min-w-0 gap-4"}>
+        <div className="timetable-controls flex flex-wrap items-center gap-2">
           <label className="text-xs">
-            نسخه برنامه
+            سال تحصیلی
             <select
               className={timetableSelectClass}
-              value={versionId}
+              value={yearId}
               onChange={(event) => {
-                setVersionId(event.target.value);
-                setUndo(null);
+                setYearId(event.target.value);
+                setVersionId("");
               }}
             >
-              <option value="">نسخه فعال منتشرشده</option>
-              {data.versions
-                .filter(
-                  (v) => !yearId || data.terms.find((t) => t.id === v.termId)?.yearId === yearId,
-                )
-                .map((x) => (
-                  <option key={x.id} value={x.id}>
-                    {x.name} ·{" "}
-                    {x.state === "DRAFT"
-                      ? "پیش‌نویس"
-                      : x.state === "PUBLISHED"
-                        ? "منتشرشده"
-                        : "بایگانی"}
-                  </option>
-                ))}
+              <option value="">همه سال‌ها</option>
+              {data.years.map((x) => (
+                <option key={x.id} value={x.id}>
+                  {x.name}
+                  {x.active ? " · فعال" : ""}
+                </option>
+              ))}
             </select>
           </label>
-        ) : null}
-        <div className="flex items-center gap-2">
-          <Button
-            variant="soft"
-            aria-label="هفته قبل"
-            onClick={() => setWeek(timetableAddDays(week, -7))}
-          >
-            <ChevronRight size={16} />
-          </Button>
-          <span className="text-sm">{timetableDateLabel(week, timeZone)}</span>
-          <Button
-            variant="soft"
-            aria-label="هفته بعد"
-            onClick={() => setWeek(timetableAddDays(week, 7))}
-          >
-            <ChevronLeft size={16} />
-          </Button>
-          <Button
-            variant="soft"
-            onClick={() => {
-              setWeek(timetableWeekStart(today));
-              setSelectedDay(new Date(`${today}T12:00:00Z`).getUTCDay());
-            }}
-          >
-            امروز
-          </Button>
-        </div>
-      </div>
-      {full ? (
-        <>
-          <nav
-            className="timetable-controls flex gap-2 overflow-x-auto pb-1"
-            aria-label="نمای برنامه"
-          >
-            {views.map((x) => (
-              <button
-                key={x.id}
-                type="button"
-                onClick={() => setView(x.id)}
-                aria-pressed={view === x.id}
-                className={`shrink-0 rounded-lg px-3 py-2 text-sm focus-visible:ring-2 focus-visible:ring-brand ${view === x.id ? "bg-brand text-white" : "border text-ink"}`}
+          {full ? (
+            <label className="text-xs">
+              نسخه برنامه
+              <select
+                className={timetableSelectClass}
+                value={versionId}
+                onChange={(event) => {
+                  setVersionId(event.target.value);
+                  setUndo(null);
+                }}
               >
-                {x.name}
-                {x.id === "conflicts" ? ` (${data.conflicts.length})` : ""}
-              </button>
-            ))}
-          </nav>
-          <div className="timetable-controls grid gap-2 sm:grid-cols-3 lg:grid-cols-7">
-            {[
-              { label: "کلاس", value: classId, set: setClassId, options: data.classes },
-              {
-                label: "پایه",
-                value: grade,
-                set: setGrade,
-                options: [...new Set(data.classes.map((x) => String(x.gradeId)))].map((id) => ({
-                  id,
-                  name: id,
-                })),
-              },
-              { label: "استاد", value: teacherId, set: setTeacherId, options: data.teachers },
-              {
-                label: "کتاب",
-                value: subjectId,
-                set: setSubjectId,
-                options: data.classes.flatMap((x) => x.books),
-              },
-              { label: "اتاق", value: roomId, set: setRoomId, options: data.locations },
-              { label: "بخش", value: sectionId, set: setSectionId, options: data.sections },
-              {
-                label: "نوبت",
-                value: session,
-                set: setSession,
-                options: [
-                  { id: "MORNING", name: "صبح" },
-                  { id: "AFTERNOON", name: "عصر" },
-                  { id: "OTHER", name: "سایر" },
-                ],
-              },
-            ].map((filter) => (
-              <label key={filter.label} className="text-xs">
-                {filter.label}
-                <select
-                  className={timetableSelectClass}
-                  value={filter.value}
-                  onChange={(event) => filter.set(event.target.value)}
-                >
-                  <option value="">همه</option>
-                  {filter.options.map((x) => (
+                <option value="">نسخه فعال منتشرشده</option>
+                {data.versions
+                  .filter(
+                    (v) => !yearId || data.terms.find((t) => t.id === v.termId)?.yearId === yearId,
+                  )
+                  .map((x) => (
                     <option key={x.id} value={x.id}>
-                      {x.name}
+                      {x.name} ·{" "}
+                      {x.state === "DRAFT"
+                        ? "پیش‌نویس"
+                        : x.state === "PUBLISHED"
+                          ? "منتشرشده"
+                          : "بایگانی"}
                     </option>
                   ))}
-                </select>
-              </label>
-            ))}
+              </select>
+            </label>
+          ) : null}
+          <div className="flex items-center gap-2">
+            <Button
+              variant="soft"
+              aria-label="هفته قبل"
+              onClick={() => setWeek(timetableAddDays(week, -7))}
+            >
+              <ChevronRight size={16} />
+            </Button>
+            <span className="text-sm">{timetableDateLabel(week, timeZone)}</span>
+            <Button
+              variant="soft"
+              aria-label="هفته بعد"
+              onClick={() => setWeek(timetableAddDays(week, 7))}
+            >
+              <ChevronLeft size={16} />
+            </Button>
+            <Button
+              variant="soft"
+              onClick={() => {
+                setWeek(timetableWeekStart(today));
+                setSelectedDay(new Date(`${today}T12:00:00Z`).getUTCDay());
+              }}
+            >
+              امروز
+            </Button>
           </div>
-        </>
-      ) : null}
-      <div className="timetable-controls flex flex-wrap items-center gap-2">
-        {auth.can("schedule.export") ? (
-          <Button variant="soft" onClick={exportRows}>
-            <Download size={15} />
-            اکسل نمای فعلی
-          </Button>
-        ) : null}
-        <Button variant="soft" onClick={() => window.print()}>
-          <Printer size={15} />
-          چاپ / PDF
-        </Button>
-        {auth.can("schedule.import") ? (
-          <Button
-            variant="soft"
-            disabled={!editable}
-            title={
-              !editable ? "ابتدا سال، نیمسال و پیش‌نویس برنامه را ایجاد یا انتخاب کنید." : undefined
-            }
-            onClick={() => setImportOpen(true)}
-          >
-            <Upload size={15} />
-            ورود اکسل
-          </Button>
-        ) : null}
-        {editable && auth.can("schedule.publish") ? (
-          <Button
-            disabled={!!data.conflicts.length || !data.lessons.length}
-            onClick={() => {
-              setReason("");
-              setPublishOpen(true);
-            }}
-          >
-            انتشار برنامه
-          </Button>
-        ) : null}
-        {undo && editable ? (
-          <Button
-            variant="soft"
-            disabled={undoChange.isPending}
-            onClick={() => undoChange.mutate()}
-          >
-            <Undo2 size={15} />
-            بازگردانی آخرین تغییر
-          </Button>
-        ) : null}
-        {workspace.isFetching ? (
-          <span role="status" className="text-xs text-slate-500">
-            به‌روزرسانی…
-          </span>
-        ) : null}
-      </div>
-      {!full ? (
-        <div className="grid gap-2 sm:grid-cols-2">
-          <Card className="p-3">
-            <p className="text-xs text-slate-500">درس جاری</p>
-            {live ? (
-              <>
-                <strong className="block">{live.title}</strong>
-                <p className="mt-1 text-sm">
-                  {live.teacherName} · {live.locationName || live.classroomName}
-                </p>
-                <p className="mt-1 text-xs">
-                  {Math.max(0, Math.ceil((Date.parse(live.endsAt) - now) / 60000))} دقیقه باقی مانده
-                </p>
-              </>
-            ) : (
-              <p className="mt-1 text-sm">اکنون کلاس فعالی ندارید.</p>
-            )}
-          </Card>
-          <Card className="p-3">
-            <p className="text-xs text-slate-500">درس بعدی</p>
-            {next ? (
-              <>
-                <strong className="block">{next.title}</strong>
-                <p className="mt-1 text-sm">
-                  {next.teacherName} · {next.locationName || next.classroomName}
-                </p>
-                <p className="mt-1 text-xs">
-                  {timetableDateLabel(next.date, timeZone)} · {next.startTime}
-                </p>
-              </>
-            ) : (
-              <p className="mt-1 text-sm">در این هفته درس بعدی ثبت نشده است.</p>
-            )}
-          </Card>
         </div>
-      ) : null}
-      {view === "conflicts" ? (
-        <div className="grid gap-3">
-          {data.conflicts.length ? (
-            data.conflicts.map((x, i) => (
-              <Card key={i} className="p-3">
-                <strong className="text-sm">{x.message}</strong>
-                <p className="mt-1 text-xs">
-                  {x.date ? timetableDateLabel(x.date, timeZone) : ""} · {x.alternatives.join("؛ ")}
-                </p>
-                <div className="mt-2 flex gap-2">
-                  {x.lessonIds.map((id) => {
-                    const lesson = data.lessons.find((l) => l.id === id);
-                    return lesson ? (
-                      <Button
-                        key={id}
-                        variant="soft"
-                        onClick={() => (editable ? setEditor({ lesson }) : setDetail(lesson))}
-                      >
-                        بازبینی {lesson.title}
-                      </Button>
-                    ) : null;
-                  })}
-                </div>
-              </Card>
-            ))
-          ) : (
-            <EmptyState title="تداخلی پیدا نشد." />
-          )}
-        </div>
-      ) : view === "unassigned" ? (
-        <div className="grid gap-2">
-          {filtered
-            .filter((x) => !x.teacherId)
-            .map((x) => (
-              <LessonSummary key={x.id} lesson={x} onClick={() => setDetail(x)} />
-            ))}
-          {!filtered.some((x) => !x.teacherId) ? (
-            <EmptyState title="همه درس‌ها استاد دارند." />
+        {full ? (
+          <>
+            <nav
+              className="timetable-controls flex gap-2 overflow-x-auto pb-1"
+              aria-label="نمای برنامه"
+            >
+              {views.map((x) => (
+                <button
+                  key={x.id}
+                  type="button"
+                  onClick={() => setView(x.id)}
+                  aria-pressed={view === x.id}
+                  className={`shrink-0 rounded-lg px-3 py-2 text-sm focus-visible:ring-2 focus-visible:ring-brand ${view === x.id ? "bg-brand text-white" : "border text-ink"}`}
+                >
+                  {x.name}
+                  {x.id === "conflicts" ? ` (${data.conflicts.length})` : ""}
+                </button>
+              ))}
+            </nav>
+            <div className="timetable-controls grid gap-2 sm:grid-cols-3 lg:grid-cols-7">
+              {[
+                { label: "کلاس", value: classId, set: setClassId, options: data.classes },
+                {
+                  label: "پایه",
+                  value: grade,
+                  set: setGrade,
+                  options: [...new Set(data.classes.map((x) => String(x.gradeId)))].map((id) => ({
+                    id,
+                    name: id,
+                  })),
+                },
+                { label: "استاد", value: teacherId, set: setTeacherId, options: data.teachers },
+                {
+                  label: "کتاب",
+                  value: subjectId,
+                  set: setSubjectId,
+                  options: data.classes.flatMap((x) => x.books),
+                },
+                { label: "اتاق", value: roomId, set: setRoomId, options: data.locations },
+                { label: "بخش", value: sectionId, set: setSectionId, options: data.sections },
+                {
+                  label: "نوبت",
+                  value: session,
+                  set: setSession,
+                  options: [
+                    { id: "MORNING", name: "صبح" },
+                    { id: "AFTERNOON", name: "عصر" },
+                    { id: "OTHER", name: "سایر" },
+                  ],
+                },
+              ].map((filter) => (
+                <label key={filter.label} className="text-xs">
+                  {filter.label}
+                  <select
+                    className={timetableSelectClass}
+                    value={filter.value}
+                    onChange={(event) => filter.set(event.target.value)}
+                  >
+                    <option value="">همه</option>
+                    {filter.options.map((x) => (
+                      <option key={x.id} value={x.id}>
+                        {x.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              ))}
+            </div>
+          </>
+        ) : null}
+        <div className="timetable-controls flex flex-wrap items-center gap-2">
+          {auth.can("schedule.export") ? (
+            <Button variant="soft" onClick={exportRows}>
+              <Download size={15} />
+              اکسل نمای فعلی
+            </Button>
+          ) : null}
+          <Button variant="soft" onClick={() => window.print()}>
+            <Printer size={15} />
+            چاپ / PDF
+          </Button>
+          {auth.can("schedule.import") ? (
+            <Button variant="soft" onClick={() => setImportOpen(true)}>
+              <Upload size={15} />
+              ورود اکسل
+            </Button>
+          ) : null}
+          {editable && auth.can("schedule.publish") ? (
+            <Button
+              disabled={!!data.conflicts.length || !data.lessons.length}
+              onClick={() => {
+                setReason("");
+                setPublishOpen(true);
+              }}
+            >
+              انتشار برنامه
+            </Button>
+          ) : null}
+          {undo && editable ? (
+            <Button
+              variant="soft"
+              disabled={undoChange.isPending}
+              onClick={() => undoChange.mutate()}
+            >
+              <Undo2 size={15} />
+              بازگردانی آخرین تغییر
+            </Button>
+          ) : null}
+          {workspace.isFetching ? (
+            <span role="status" className="text-xs text-slate-500">
+              به‌روزرسانی…
+            </span>
           ) : null}
         </div>
-      ) : mobile || view === "daily" || !full ? (
-        <>
-          <nav className="timetable-controls flex gap-2 overflow-x-auto" aria-label="روزهای هفته">
-            {persianWeekdays.map((day) => (
-              <button
-                key={day.id}
-                type="button"
-                aria-pressed={selectedDay === day.id}
-                onClick={() => setSelectedDay(day.id)}
-                className={`min-h-11 shrink-0 rounded-lg px-3 text-sm ${selectedDay === day.id ? "bg-brand text-white" : "border"}`}
-              >
-                {day.name}
-              </button>
-            ))}
-          </nav>
-          <p className="text-sm font-medium">{timetableDateLabel(dayDate, timeZone)}</p>
+        {!full ? (
+          <div className="grid gap-2 sm:grid-cols-2">
+            <Card className="p-3">
+              <p className="text-xs text-slate-500">درس جاری</p>
+              {live ? (
+                <>
+                  <strong className="block">{live.title}</strong>
+                  <p className="mt-1 text-sm">
+                    {live.teacherName} · {live.locationName || live.classroomName}
+                  </p>
+                  <p className="mt-1 text-xs">
+                    {Math.max(0, Math.ceil((Date.parse(live.endsAt) - now) / 60000))} دقیقه باقی
+                    مانده
+                  </p>
+                </>
+              ) : (
+                <p className="mt-1 text-sm">اکنون کلاس فعالی ندارید.</p>
+              )}
+            </Card>
+            <Card className="p-3">
+              <p className="text-xs text-slate-500">درس بعدی</p>
+              {next ? (
+                <>
+                  <strong className="block">{next.title}</strong>
+                  <p className="mt-1 text-sm">
+                    {next.teacherName} · {next.locationName || next.classroomName}
+                  </p>
+                  <p className="mt-1 text-xs">
+                    {timetableDateLabel(next.date, timeZone)} · {next.startTime}
+                  </p>
+                </>
+              ) : (
+                <p className="mt-1 text-sm">در این هفته درس بعدی ثبت نشده است.</p>
+              )}
+            </Card>
+          </div>
+        ) : null}
+        {view === "conflicts" ? (
           <div className="grid gap-3">
-            {daily.map((x) => (
-              <OccurrenceCard
-                key={`${x.id}:${x.date}`}
-                occurrence={x}
-                now={now}
-                onClick={() => setDetail(x)}
-                canAttend={auth.can("attendance.class.manage")}
-                onAttend={() => attendance.mutate({ lesson: x, date: x.date })}
-                busy={attendance.isPending}
-              />
-            ))}
-            {!daily.length ? (
-              <EmptyState
-                title={
-                  data.holidays.some((x) => x.date === dayDate)
-                    ? `تعطیل: ${data.holidays.find((x) => x.date === dayDate)?.name}`
-                    : "برای این روز درسی ثبت نشده است."
-                }
-              />
+            {data.conflicts.length ? (
+              data.conflicts.map((x, i) => (
+                <Card key={i} className="p-3">
+                  <strong className="text-sm">{x.message}</strong>
+                  <p className="mt-1 text-xs">
+                    {x.date ? timetableDateLabel(x.date, timeZone) : ""} ·{" "}
+                    {x.alternatives.join("؛ ")}
+                  </p>
+                  <div className="mt-2 flex gap-2">
+                    {x.lessonIds.map((id) => {
+                      const lesson = data.lessons.find((l) => l.id === id);
+                      return lesson ? (
+                        <Button
+                          key={id}
+                          variant="soft"
+                          onClick={() => (editable ? setEditor({ lesson }) : setDetail(lesson))}
+                        >
+                          بازبینی {lesson.title}
+                        </Button>
+                      ) : null;
+                    })}
+                  </div>
+                </Card>
+              ))
+            ) : (
+              <EmptyState title="تداخلی پیدا نشد." />
+            )}
+          </div>
+        ) : view === "unassigned" ? (
+          <div className="grid gap-2">
+            {filtered
+              .filter((x) => !x.teacherId)
+              .map((x) => (
+                <LessonSummary key={x.id} lesson={x} onClick={() => setDetail(x)} />
+              ))}
+            {!filtered.some((x) => !x.teacherId) ? (
+              <EmptyState title="همه درس‌ها استاد دارند." />
             ) : null}
           </div>
-          {!full ? (
-            <p className="text-xs text-slate-500">
-              این هفته {occurrences.filter((x) => !x.cancelled).length} درس ·{" "}
-              {occurrences
-                .filter((x) => !x.cancelled)
-                .reduce(
-                  (n, x) => n + (Date.parse(x.endsAt) - Date.parse(x.startsAt)) / 60000,
-                  0,
-                )}{" "}
-              دقیقه ·{" "}
-              {
-                data.periods.filter((x) => !daily.some((l) => l.periodId === x.id && !l.cancelled))
-                  .length
-              }{" "}
-              زنگ آزاد در روز انتخاب‌شده
-            </p>
-          ) : null}
-        </>
-      ) : periods.length ? (
-        <TimetableGrid
-          lessons={filtered}
-          periods={periods}
-          editable={!!editable && !saveMove.isPending}
-          onEdit={(lesson) => setDetail(lesson)}
-          onAdd={(period, weekday) =>
-            setEditor({
-              initial: {
-                classroomId: classId || undefined,
-                periodId: period.id,
-                weekday,
-                startTime: period.startTime,
-                endTime: period.endTime,
-              },
-            })
-          }
-          onMove={(lesson, period, weekday) => saveMove.mutate({ lesson, period, weekday })}
-        />
-      ) : (
-        <EmptyState
-          title={
-            data.periods.length
-              ? "در این نما درسی نیست؛ فیلترها را بازبینی کنید."
-              : "ابتدا سال، نیم‌سال و زنگ‌های مدرسه را از تنظیمات بسازید."
-          }
-        />
-      )}
-      {full && data.changes.length ? (
-        <details className="timetable-controls rounded-lg border p-3">
-          <summary className="cursor-pointer text-sm font-bold">
-            تغییرهای اخیر و سابقه برنامه
-          </summary>
-          <div className="mt-3 grid gap-2">
-            {data.changes.slice(0, 20).map((x) => (
-              <p key={x.id} className="border-b pb-2 text-xs">
-                {x.actorName} · {new Date(x.createdAt).toLocaleString("fa-IR")} · {x.beforeText} ←{" "}
-                {x.afterText} · {x.reason}
+        ) : mobile || view === "daily" || !full ? (
+          <>
+            <nav className="timetable-controls flex gap-2 overflow-x-auto" aria-label="روزهای هفته">
+              {persianWeekdays.map((day) => (
+                <button
+                  key={day.id}
+                  type="button"
+                  aria-pressed={selectedDay === day.id}
+                  onClick={() => setSelectedDay(day.id)}
+                  className={`min-h-11 shrink-0 rounded-lg px-3 text-sm ${selectedDay === day.id ? "bg-brand text-white" : "border"}`}
+                >
+                  {day.name}
+                </button>
+              ))}
+            </nav>
+            <p className="text-sm font-medium">{timetableDateLabel(dayDate, timeZone)}</p>
+            <div className="grid gap-3">
+              {daily.map((x) => (
+                <OccurrenceCard
+                  key={`${x.id}:${x.date}`}
+                  occurrence={x}
+                  now={now}
+                  onClick={() => setDetail(x)}
+                  canAttend={auth.can("attendance.class.manage")}
+                  onAttend={() => attendance.mutate({ lesson: x, date: x.date })}
+                  busy={attendance.isPending}
+                />
+              ))}
+              {!daily.length ? (
+                <EmptyState
+                  title={
+                    data.holidays.some((x) => x.date === dayDate)
+                      ? `تعطیل: ${data.holidays.find((x) => x.date === dayDate)?.name}`
+                      : "برای این روز درسی ثبت نشده است."
+                  }
+                />
+              ) : null}
+            </div>
+            {!full ? (
+              <p className="text-xs text-slate-500">
+                این هفته {occurrences.filter((x) => !x.cancelled).length} درس ·{" "}
+                {occurrences
+                  .filter((x) => !x.cancelled)
+                  .reduce(
+                    (n, x) => n + (Date.parse(x.endsAt) - Date.parse(x.startsAt)) / 60000,
+                    0,
+                  )}{" "}
+                دقیقه ·{" "}
+                {
+                  data.periods.filter(
+                    (x) => !daily.some((l) => l.periodId === x.id && !l.cancelled),
+                  ).length
+                }{" "}
+                زنگ آزاد در روز انتخاب‌شده
               </p>
-            ))}
-          </div>
-        </details>
-      ) : null}
+            ) : null}
+          </>
+        ) : periods.length ? (
+          <TimetableGrid
+            lessons={filtered}
+            periods={periods}
+            editable={!!editable && !saveMove.isPending}
+            onEdit={(lesson) => setDetail(lesson)}
+            onAdd={(period, weekday) =>
+              setEditor({
+                initial: {
+                  classroomId: classId || undefined,
+                  periodId: period.id,
+                  weekday,
+                  startTime: period.startTime,
+                  endTime: period.endTime,
+                },
+              })
+            }
+            onMove={(lesson, period, weekday) => saveMove.mutate({ lesson, period, weekday })}
+          />
+        ) : (
+          <EmptyState
+            title={
+              data.periods.length
+                ? "در این نما درسی نیست؛ فیلترها را بازبینی کنید."
+                : "ابتدا سال، نیم‌سال و زنگ‌های مدرسه را از تنظیمات بسازید."
+            }
+          />
+        )}
+        {full && data.changes.length ? (
+          <details className="timetable-controls rounded-lg border p-3">
+            <summary className="cursor-pointer text-sm font-bold">
+              تغییرهای اخیر و سابقه برنامه
+            </summary>
+            <div className="mt-3 grid gap-2">
+              {data.changes.slice(0, 20).map((x) => (
+                <p key={x.id} className="border-b pb-2 text-xs">
+                  {x.actorName} · {new Date(x.createdAt).toLocaleString("fa-IR")} · {x.beforeText} ←{" "}
+                  {x.afterText} · {x.reason}
+                </p>
+              ))}
+            </div>
+          </details>
+        ) : null}
+      </div>
       {editor && selectedVersion ? (
         <TimetableLessonEditor
           key={editor.lesson?.id ?? `${editor.initial?.periodId}:${editor.initial?.weekday}`}
@@ -772,11 +820,32 @@ export function TimetablePage() {
           open
           workspace={data}
           versionId={currentVersionId}
-          onClose={() => setSettings(false)}
-          onSaved={() => void reload()}
+          key={setupStep?.kind ?? "advanced"}
+          initialKind={setupStep?.kind}
+          initialParentId={setupStep?.parentId}
+          guided={!!setupStep}
+          onClose={() => {
+            setSettings(false);
+            setSetupStep(null);
+          }}
+          onSaved={async () => {
+            await reload();
+            if (!setupStep) return;
+            const fresh = client.getQueryData<TimetableWorkspace>(queryKey);
+            if (!fresh) return;
+            const progress = timetableSetup(fresh);
+            const next = progress.steps[progress.next];
+            if (next && next.kind !== "draft") {
+              setSetupStep({ kind: next.kind, parentId: next.parentId });
+            } else {
+              setSettings(false);
+              setSetupStep(null);
+              if (next?.kind === "draft") setNewVersion(true);
+            }
+          }}
         />
       ) : null}
-      {importOpen && selectedVersion ? (
+      {importOpen && selectedVersion?.state === "DRAFT" ? (
         <TimetableImportWizard
           open
           workspace={data}
@@ -785,14 +854,62 @@ export function TimetablePage() {
           onSaved={() => void reload()}
         />
       ) : null}
+      {importOpen && selectedVersion?.state !== "DRAFT" ? (
+        <ResponsiveModal
+          open
+          onOpenChange={setImportOpen}
+          title="ورود برنامه از اکسل"
+          description="ابتدا پیش‌نویس مقصد را انتخاب کنید؛ سپس فایل و اتصال‌های آن را بررسی می‌کنیم."
+        >
+          <div className="grid gap-3">
+            {data.versions
+              .filter((v) => v.state === "DRAFT")
+              .map((v) => (
+                <Button key={v.id} variant="soft" onClick={() => setVersionId(v.id)}>
+                  ورود به {v.name}
+                </Button>
+              ))}
+            {!data.versions.some((v) => v.state === "DRAFT") ? (
+              <p>هنوز پیش‌نویسی وجود ندارد. سال و نیم‌سال را تنظیم کنید و پیش‌نویس بسازید.</p>
+            ) : null}
+            {auth.can("schedule.create") && data.terms.length > 0 ? (
+              <Button
+                onClick={() => {
+                  setImportOpen(false);
+                  setImportAfterVersion(true);
+                  setNewVersion(true);
+                }}
+              >
+                ساخت پیش‌نویس مقصد
+              </Button>
+            ) : null}
+            {auth.can("schedule.update") ? (
+              <Button
+                variant="soft"
+                onClick={() => {
+                  setImportOpen(false);
+                  setSettings(true);
+                }}
+              >
+                تنظیم سال، نیم‌سال و زنگ‌ها
+              </Button>
+            ) : null}
+          </div>
+        </ResponsiveModal>
+      ) : null}
       {newVersion ? (
         <NewVersionModal
           workspace={data}
           copyVersionId={currentVersionId}
-          onClose={() => setNewVersion(false)}
+          onClose={() => {
+            setNewVersion(false);
+            setImportAfterVersion(false);
+          }}
           onSaved={(id) => {
             setVersionId(id);
             setNewVersion(false);
+            if (importAfterVersion) setImportOpen(true);
+            setImportAfterVersion(false);
             void reload();
           }}
         />
@@ -919,11 +1036,14 @@ export function TimetablePage() {
           }}
         >
           <Field label="تاریخ اجرا">
-            <Input
-              type="date"
+            <TimetableDateInput
+              data-field-control
+              label="تاریخ اجرا"
+              timeZone={timeZone}
+
               required
               value={overrideDate}
-              onChange={(event) => setOverrideDate(event.target.value)}
+              onChange={(iso) => setOverrideDate(iso)}
             />
           </Field>
           <label className="flex items-center gap-2 text-sm">
@@ -966,15 +1086,15 @@ export function TimetablePage() {
               </Field>
               <div className="grid grid-cols-2 gap-2">
                 <Field label="شروع جایگزین">
-                  <Input
-                    type="time"
+                  <TimetableTimeInput
+                    data-field-control
                     value={subStart}
                     onChange={(event) => setSubStart(event.target.value)}
                   />
                 </Field>
                 <Field label="پایان جایگزین">
-                  <Input
-                    type="time"
+                  <TimetableTimeInput
+                    data-field-control
                     value={subEnd}
                     onChange={(event) => setSubEnd(event.target.value)}
                   />
@@ -1047,7 +1167,7 @@ function OccurrenceCard({
   const ref = useRef<HTMLDivElement>(null);
   const focused = useRef(false);
   useEffect(() => {
-    if (current && !focused.current) {
+    if (current && !focused.current && document.activeElement === document.body) {
       focused.current = true;
       ref.current?.focus({ preventScroll: true });
     }
@@ -1109,21 +1229,28 @@ function NewVersionModal({
   onClose: () => void;
   onSaved: (id: string) => void;
 }) {
-  const [termId, setTermId] = useState("");
+  const [termId, setTermId] = useState(workspace.terms.length === 1 ? workspace.terms[0].id : "");
   const [name, setName] = useState("");
-  const [effectiveOn, setEffectiveOn] = useState("");
+  const [effectiveOn, setEffectiveOn] = useState(
+    workspace.terms.length === 1 ? workspace.terms[0].startsOn : "",
+  );
   const [reason, setReason] = useState("");
   const [copy, setCopy] = useState(false);
   const [error, setError] = useState("");
   const save = useMutation({
-    mutationFn: () =>
-      createTimetableVersion(workspace.organizationId, {
+    mutationFn: () => {
+      assertTimetableRange(effectiveOn, effectiveOn, "date");
+      const term = workspace.terms.find((t) => t.id === termId);
+      if (!term || effectiveOn < term.startsOn || effectiveOn > term.endsOn)
+        throw Error("تاریخ شروع اجرا باید داخل نیم‌سال انتخاب‌شده باشد.");
+      return createTimetableVersion(workspace.organizationId, {
         termId,
         name,
         effectiveOn,
         reason,
         ...(copy && copyVersionId ? { copyVersionId } : {}),
-      }),
+      });
+    },
     onSuccess: (result) => onSaved(result.id),
     onError: (e) => setError(e.message),
   });
@@ -1172,11 +1299,18 @@ function NewVersionModal({
           />
         </Field>
         <Field label="تاریخ شروع اجرا">
-          <Input
-            type="date"
+          <TimetableDateInput
+            data-field-control
+            label="تاریخ شروع اجرا"
+            timeZone={
+              workspace.years.find(
+                (year) => year.id === workspace.terms.find((term) => term.id === termId)?.yearId,
+              )?.timeZone
+            }
+
             required
             value={effectiveOn}
-            onChange={(event) => setEffectiveOn(event.target.value)}
+            onChange={(iso) => setEffectiveOn(iso)}
           />
         </Field>
         <Field label="دلیل">

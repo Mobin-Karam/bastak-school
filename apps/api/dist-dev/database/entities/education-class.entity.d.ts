@@ -17,8 +17,6 @@ export declare class EducationClass {
     advisor?: User | null;
     books: EducationClassBook[];
     enrollments: EducationClassEnrollment[];
-    timetableSectionId: string | null;
-    timetableSection?: object;
     createdAt: Date;
     updatedAt: Date;
 }

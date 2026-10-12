@@ -28,21 +28,10 @@ let SchoolScheduleEntry = class SchoolScheduleEntry {
     endTime;
     room;
     status;
-    versionId;
-    version;
-    periodId;
-    period;
-    locationId;
-    location;
-    startsOn;
-    endsOn;
-    notes;
-    classroomNameSnapshot;
-    teacherNameSnapshot;
     createdAt;
     updatedAt;
     static _OPENAPI_METADATA_FACTORY() {
-        return { id: { required: true, type: () => String }, organization: { required: true, type: () => require("./organization.entity").Organization }, classroom: { required: false, type: () => require("./education-class.entity").EducationClass, nullable: true }, classBook: { required: false, type: () => require("./education-class-book.entity").EducationClassBook, nullable: true }, teacher: { required: false, type: () => require("./user.entity").User, nullable: true }, title: { required: true, type: () => String }, weekday: { required: true, type: () => Number }, startTime: { required: true, type: () => String }, endTime: { required: true, type: () => String }, room: { required: true, type: () => String }, status: { required: true, enum: ["ARCHIVED", "ACTIVE"] }, versionId: { required: true, type: () => String, nullable: true }, version: { required: false, type: () => Object }, periodId: { required: true, type: () => String, nullable: true }, period: { required: false, type: () => Object }, locationId: { required: true, type: () => String, nullable: true }, location: { required: false, type: () => Object }, startsOn: { required: true, type: () => String, nullable: true }, endsOn: { required: true, type: () => String, nullable: true }, notes: { required: true, type: () => String }, classroomNameSnapshot: { required: true, type: () => String }, teacherNameSnapshot: { required: true, type: () => String }, createdAt: { required: true, type: () => Date }, updatedAt: { required: true, type: () => Date } };
+        return { id: { required: true, type: () => String }, organization: { required: true, type: () => require("./organization.entity").Organization }, classroom: { required: false, type: () => require("./education-class.entity").EducationClass, nullable: true }, classBook: { required: false, type: () => require("./education-class-book.entity").EducationClassBook, nullable: true }, teacher: { required: false, type: () => require("./user.entity").User, nullable: true }, title: { required: true, type: () => String }, weekday: { required: true, type: () => Number }, startTime: { required: true, type: () => String }, endTime: { required: true, type: () => String }, room: { required: true, type: () => String }, status: { required: true, enum: ["ARCHIVED", "ACTIVE"] }, createdAt: { required: true, type: () => Date }, updatedAt: { required: true, type: () => Date } };
     }
 };
 exports.SchoolScheduleEntry = SchoolScheduleEntry;
@@ -90,53 +79,6 @@ __decorate([
     (0, typeorm_1.Column)({ length: 20, default: "ACTIVE" }),
     __metadata("design:type", String)
 ], SchoolScheduleEntry.prototype, "status", void 0);
-__decorate([
-    (0, typeorm_1.Column)({ type: "varchar", length: 36, nullable: true }),
-    __metadata("design:type", Object)
-], SchoolScheduleEntry.prototype, "versionId", void 0);
-__decorate([
-    (0, typeorm_1.ManyToOne)("TimetableVersion", { nullable: true, onDelete: "RESTRICT" }),
-    (0, typeorm_1.JoinColumn)({ name: "versionId" }),
-    __metadata("design:type", Object)
-], SchoolScheduleEntry.prototype, "version", void 0);
-__decorate([
-    (0, typeorm_1.Column)({ type: "varchar", length: 36, nullable: true }),
-    __metadata("design:type", Object)
-], SchoolScheduleEntry.prototype, "periodId", void 0);
-__decorate([
-    (0, typeorm_1.ManyToOne)("TimetablePeriod", { nullable: true, onDelete: "RESTRICT" }),
-    (0, typeorm_1.JoinColumn)({ name: "periodId" }),
-    __metadata("design:type", Object)
-], SchoolScheduleEntry.prototype, "period", void 0);
-__decorate([
-    (0, typeorm_1.Column)({ type: "varchar", length: 36, nullable: true }),
-    __metadata("design:type", Object)
-], SchoolScheduleEntry.prototype, "locationId", void 0);
-__decorate([
-    (0, typeorm_1.ManyToOne)("TimetableLocation", { nullable: true, onDelete: "RESTRICT" }),
-    (0, typeorm_1.JoinColumn)({ name: "locationId" }),
-    __metadata("design:type", Object)
-], SchoolScheduleEntry.prototype, "location", void 0);
-__decorate([
-    (0, typeorm_1.Column)({ type: "varchar", length: 10, nullable: true }),
-    __metadata("design:type", Object)
-], SchoolScheduleEntry.prototype, "startsOn", void 0);
-__decorate([
-    (0, typeorm_1.Column)({ type: "varchar", length: 10, nullable: true }),
-    __metadata("design:type", Object)
-], SchoolScheduleEntry.prototype, "endsOn", void 0);
-__decorate([
-    (0, typeorm_1.Column)({ type: "text", default: "" }),
-    __metadata("design:type", String)
-], SchoolScheduleEntry.prototype, "notes", void 0);
-__decorate([
-    (0, typeorm_1.Column)({ length: 240, default: "" }),
-    __metadata("design:type", String)
-], SchoolScheduleEntry.prototype, "classroomNameSnapshot", void 0);
-__decorate([
-    (0, typeorm_1.Column)({ length: 240, default: "" }),
-    __metadata("design:type", String)
-], SchoolScheduleEntry.prototype, "teacherNameSnapshot", void 0);
 __decorate([
     (0, typeorm_1.CreateDateColumn)(),
     __metadata("design:type", Date)

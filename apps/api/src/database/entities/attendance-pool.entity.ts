@@ -13,9 +13,9 @@ import { AttendanceSession } from "./attendance-session.entity";
 @Entity("attendance_pools")
 export class AttendancePool {
   @PrimaryGeneratedColumn("uuid") id!: string;
-  @ManyToOne(() => Organization, { onDelete: "CASCADE" })
+  @ManyToOne(() => Organization, { nullable: false, onDelete: "CASCADE" })
   organization!: Organization;
-  @OneToOne(() => AttendanceSession, { onDelete: "CASCADE" })
+  @OneToOne(() => AttendanceSession, { nullable: false, onDelete: "CASCADE" })
   @JoinColumn()
   session!: AttendanceSession;
   @Column({ length: 160 }) place!: string;

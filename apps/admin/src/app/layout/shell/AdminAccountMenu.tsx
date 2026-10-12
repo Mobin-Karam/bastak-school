@@ -5,6 +5,7 @@ import { ThemeSwitcher } from "../../../shared/theme/theme";
 import { useModal } from "../../../shared/ui/modal";
 import { ViewportPopover } from "../../../shared/ui/popover";
 import { Button } from "../../../shared/ui/ui";
+import { notify } from "../../../shared/ui/notifications";
 import { DevBackendSwitcher } from "../../dev/DevBackendSwitcher";
 import { roleLabel } from "../../../shared/lib/role-ui";
 import { useAdminShellCopy, useLocale } from "../../../shared/ui/locale";
@@ -107,16 +108,18 @@ export function AdminAccountMenu() {
               className="h-10 rounded-lg border border-slate-200 bg-white px-2 dark:border-slate-700 dark:bg-slate-900"
               value={auth.activeRole ?? ""}
               onChange={(event) =>
-                auth.setActiveRole(event.target.value as NonNullable<typeof auth.activeRole>)
+                void auth
+                  .setActiveRole(event.target.value as NonNullable<typeof auth.activeRole>)
+                  .catch((error) =>
+                    notify(error instanceof Error ? error.message : String(error), "error"),
+                  )
               }
             >
-              {auth.context?.roles
-                .filter((role) => role !== "STUDENT")
-                .map((role) => (
-                  <option key={role} value={role}>
-                    {roleLabel(role, language)}
-                  </option>
-                ))}
+              {auth.context?.roles.map((role) => (
+                <option key={role} value={role}>
+                  {roleLabel(role, language)}
+                </option>
+              ))}
             </select>
           </label>
         ) : null}
@@ -127,11 +130,15 @@ export function AdminAccountMenu() {
               className="h-10 rounded-lg border border-slate-200 bg-white px-2 dark:border-slate-700 dark:bg-slate-900"
               value={auth.context?.activeOrganization?.id ?? ""}
               onChange={(event) =>
-                auth.setActiveOrganization(
-                  auth.context?.availableOrganizations.find(
-                    (item) => item.id === event.target.value,
-                  ) ?? null,
-                )
+                void auth
+                  .setActiveOrganization(
+                    auth.context?.availableOrganizations.find(
+                      (item) => item.id === event.target.value,
+                    ) ?? null,
+                  )
+                  .catch((error) =>
+                    notify(error instanceof Error ? error.message : String(error), "error"),
+                  )
               }
             >
               <option value="">{copy.selectOrganization}</option>

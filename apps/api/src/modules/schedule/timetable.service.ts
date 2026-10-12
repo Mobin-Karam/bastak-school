@@ -1,5 +1,5 @@
-import { UserStatus } from "../../database/entities/user.entity";
-import { MembershipStatus } from "../../database/entities/organization-membership.entity";
+import { User, UserStatus } from "../../database/entities/user.entity";
+import { OrganizationMembership, MembershipStatus } from "../../database/entities/organization-membership.entity";
 import { Injectable } from "@nestjs/common";
 import { DataSource, EntityManager, In } from "typeorm";
 import { randomUUID } from "node:crypto";
@@ -11,13 +11,6 @@ import type {
 } from "@moshaver/api-contract";
 import { ApiException } from "../../common/exceptions/api.exception";
 import {
-  SchoolScheduleEntry,
-  EducationClass,
-  EducationClassBook,
-  EducationClassEnrollment,
-  User,
-  OrganizationMembership,
-  UserRoleAssignment,
   TimetableAcademicYear,
   TimetableTerm,
   TimetableSection,
@@ -33,7 +26,12 @@ import {
   TimetableOccurrence,
   TimetableChange,
   TimetableImport,
-} from "../../database/entities";
+} from "../../database/entities/timetable.entity";
+import { SchoolScheduleEntry } from "../../database/entities/school-schedule-entry.entity";
+import { EducationClass } from "../../database/entities/education-class.entity";
+import { EducationClassBook } from "../../database/entities/education-class-book.entity";
+import { EducationClassEnrollment } from "../../database/entities/education-class-enrollment.entity";
+import { UserRoleAssignment } from "../../database/entities/user-role-assignment.entity";
 import { AuthenticatedUser } from "../auth";
 import { SchoolAccessService } from "../school-access";
 import { AttendanceService, attendanceTransaction } from "../attendance";
@@ -555,9 +553,11 @@ export class TimetableService {
             where: { sessionId: In(sessions.map((x) => x.id)) },
           })
         : []);
-    let allowedClasses = new Set(classes.map((x) => x.id));
-    if (!full) {
-      const student = await manager.findOneBy(User, { id: user.id });
+    const effectiveRoles = user.roles?.length ? user.roles : [user.role];
+    const teaching = effectiveRoles.includes("TEACHER");
+    const studying = effectiveRoles.includes("STUDENT");
+    const studentClasses = new Set<string>();
+    if (!full && studying) {
       const enrollments = await manager.find(EducationClassEnrollment, {
         where: {
           student: { user: { id: user.id }, accountStatus: "active" },
@@ -565,30 +565,17 @@ export class TimetableService {
         },
         relations: { classroom: true },
       });
-      allowedClasses = new Set(enrollments.map((x) => x.classroom.id));
-      if (teacherRows.some((x) => x.user.id === student?.id))
-        allowedClasses = new Set(
-          data?.lessons
-            .filter(
-              (x) =>
-                x.teacherId === user.id ||
-                data?.overrides.some(
-                  (o) => o.lessonId === x.id && o.teacherId === user.id,
-                ),
-            )
-            .map((x) => x.classroomId) ?? [],
-        );
+      for (const enrollment of enrollments) studentClasses.add(enrollment.classroom.id);
     }
-    const lessons = (data?.lessons ?? []).filter(
-      (x) =>
-        full ||
-        (allowedClasses.has(x.classroomId) &&
-          (!teacherRows.some((t) => t.user.id === user.id) ||
-            x.teacherId === user.id ||
-            data?.overrides.some(
-              (o) => o.lessonId === x.id && o.teacherId === user.id,
-            ))),
+    const ownTeachingLesson = (lesson: TimetableLesson) => teaching && (
+      lesson.teacherId === user.id ||
+      data?.overrides.some((change) => change.lessonId === lesson.id && change.teacherId === user.id)
     );
+    const lessons = (data?.lessons ?? []).filter(
+      (lesson) => full || studentClasses.has(lesson.classroomId) || ownTeachingLesson(lesson),
+    );
+    const allowedClasses = new Set(lessons.map((lesson) => lesson.classroomId));
+    for (const id of studentClasses) allowedClasses.add(id);
     const overrides = (data?.overrides ?? []).filter((x) =>
       lessons.some((l) => l.id === x.lessonId),
     );
@@ -608,8 +595,11 @@ export class TimetableService {
             where: { lessonId: In(lessons.map((x) => x.id)) },
           })
         : [];
-      if (!full && teacherRows.some((x) => x.user.id === user.id))
-        occurrences = occurrences.filter((x) => x.teacherId === user.id);
+      if (!full)
+        occurrences = occurrences.filter(
+          (occurrence) => studentClasses.has(occurrence.classroomId) ||
+            (teaching && occurrence.teacherId === user.id),
+        );
       occurrences = occurrences.map((row) => ({
         ...row,
         attendanceSessionId:
@@ -1527,7 +1517,8 @@ export class TimetableService {
       }
       rows.push({ row: index + 1, source: item.source, errors });
     }
-    const conflicts = detectTimetableConflicts(data);
+    // Weekly completeness is checked when publishing, after all import batches.
+    const conflicts = detectTimetableConflicts(data).filter(x => x.code !== "INCOMPLETE_ALLOCATION");
     return {
       valid: rows.every((row) => !row.errors.length) && !conflicts.length,
       revision: version.revision,

@@ -9,15 +9,15 @@ import {
   normalizeTimetableText,
 } from "./timetable-workbook";
 import { timetableToday, timetableWeekStart } from "./timetable-time";
-describe("Bastak timetable workbook mapping", () => {
+describe("Timetable workbook mapping", () => {
   it("normalizes Persian letters without correcting ambiguous intervals", () => {
     expect(normalizeTimetableText("شنــــبه")).toBe("شنبه");
     expect(parseWorkbookInterval("7:30-8:20")).toEqual({ startTime: "07:30", endTime: "08:20" });
     expect(parseWorkbookInterval("10:20:11:00").issue).toBeTruthy();
     expect(parseWorkbookInterval("16:00-16-50").issue).toBeTruthy();
   });
-  it("inspects every actual sheet and preserves duplicated/special/historical blocks", async () => {
-    const buffer = readFileSync(resolve("public/مبین.xlsx"));
+  it("inspects every synthetic sample sheet and preserves duplicated/special/historical blocks", async () => {
+    const buffer = readFileSync(resolve("public/timetable-example.xlsx"));
     const sheets = await readSpreadsheetLayout({
       arrayBuffer: async () =>
         buffer.buffer.slice(
@@ -41,11 +41,57 @@ describe("Bastak timetable workbook mapping", () => {
     ).toBe(true);
     const special = sheets.find((x) => x.name === "ورقة1")!;
     expect(
+      extractWorkbookLessons(special, detectWorkbookBlocks(special)).some(
+        (x) => x.weekday === null,
+      ),
+    ).toBe(true);
+    expect(
       extractWorkbookLessons(special, detectWorkbookBlocks(special)).some((x) =>
         x.issues.some((issue) => issue.includes("زمان مبهم")),
       ),
     ).toBe(true);
   }, 15000);
+  it("does not read a later block when only the first repeated block is selected", () => {
+    const entries: Array<[number, number, string]> = [
+      [2, 2, "کلاس"],
+      [2, 3, "زنگ اول"],
+      [2, 4, "مدرس"],
+      [3, 2, "ساعت"],
+      [3, 3, "8:00-8:50"],
+      [4, 1, "یکشنبه"],
+      [4, 2, "اول"],
+      [4, 3, "نحو"],
+      [4, 4, "استاد"],
+      [6, 2, "کلاس"],
+      [6, 3, "زنگ اول"],
+      [6, 4, "مدرس"],
+      [7, 2, "ساعت"],
+      [7, 3, "8:00-8:50"],
+      [8, 1, "دوشنبه"],
+      [8, 2, "دوم"],
+      [8, 3, "فقه"],
+      [8, 4, "استاد"],
+    ];
+    const sheet = {
+      name: "تکراری",
+      rows: 8,
+      columns: 4,
+      cells: entries.map(([row, column, value]) => ({
+        row,
+        column,
+        value,
+        address: `${row}:${column}`,
+        master: `${row}:${column}`,
+        merged: false,
+      })),
+    };
+    const blocks = detectWorkbookBlocks(sheet);
+    expect(blocks).toHaveLength(2);
+    const lessons = extractWorkbookLessons(sheet, [blocks[0]]);
+    expect(lessons).toHaveLength(1);
+    expect(lessons[0].subjectLabel).toBe("نحو");
+    expect(lessons[0].weekday).toBe(0);
+  });
   it("uses the school timezone across a UTC date boundary", () => {
     expect(timetableToday("Asia/Tehran", new Date("2026-10-10T22:00:00Z"))).toBe("2026-10-11");
     expect(timetableWeekStart("2026-10-11")).toBe("2026-10-10");

@@ -31,12 +31,14 @@ export class AttendanceRecord {
   @PrimaryGeneratedColumn("uuid")
   id!: string;
 
-  @ManyToOne("AttendanceSession", (session: AttendanceSession) => session.records, {
-    onDelete: "CASCADE",
-  })
+  @ManyToOne(
+    "AttendanceSession",
+    (session: AttendanceSession) => session.records,
+    { nullable: false, onDelete: "CASCADE" },
+  )
   session!: AttendanceSession;
 
-  @ManyToOne(() => Student, { onDelete: "CASCADE" })
+  @ManyToOne(() => Student, { nullable: false, onDelete: "CASCADE" })
   student!: Student;
 
   @Column({ type: "varchar", length: 16, default: AttendanceStatus.PRESENT })

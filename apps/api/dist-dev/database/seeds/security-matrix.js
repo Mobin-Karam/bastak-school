@@ -16,8 +16,6 @@ const user_role_assignment_entity_1 = require("../entities/user-role-assignment.
 const user_entity_1 = require("../entities/user.entity");
 const subject_entity_1 = require("../entities/subject.entity");
 const teacher_subject_assignment_entity_1 = require("../entities/teacher-subject-assignment.entity");
-const dorm_room_entity_1 = require("../entities/dorm-room.entity");
-const dorm_room_assignment_entity_1 = require("../entities/dorm-room-assignment.entity");
 const seed_phone_1 = require("./seed-phone");
 const password = process.env.E2E_PASSWORD || "Moshaver-e2e-2026!";
 async function seedSecurityMatrix() {
@@ -33,10 +31,10 @@ async function seedSecurityMatrix() {
     const orgB = await ensureOrganization("E2E Organization B");
     const studentAUser = await ensureUser("e2e.student.a", user_entity_1.UserRole.STUDENT, hash);
     const studentBUser = await ensureUser("e2e.student.b", user_entity_1.UserRole.STUDENT, hash);
-    const studentA = await ensureStudent(studentAUser, "Student A", orgA);
-    const studentB = await ensureStudent(studentBUser, "Student B", orgB);
-    await ensureMembershipAndRole(studentAUser, orgA, "STUDENT", true);
-    await ensureMembershipAndRole(studentBUser, orgB, "STUDENT", true);
+    const studentA = await ensureStudent(studentAUser, "Student A");
+    const studentB = await ensureStudent(studentBUser, "Student B");
+    await ensureMembershipAndRole(studentAUser, orgA, "STUDENT", false);
+    await ensureMembershipAndRole(studentBUser, orgB, "STUDENT", false);
     const identities = [
         [
             "e2e.guardian.a",
@@ -141,21 +139,9 @@ async function seedSecurityMatrix() {
     await ensureMembershipAndRole(multi, orgA, "ADVISOR", true);
     await ensureMembershipAndRole(multi, orgA, "TEACHER", true);
     await ensureRelationship(multi, studentA, orgA, user_relationship_entity_1.RelationshipType.ADVISOR_OF);
-    const principal = await ensureUser("e2e.principal.a", user_entity_1.UserRole.ORGANIZATION_ADMIN, hash);
-    await ensureMembershipAndRole(principal, orgA, "PRINCIPAL", true);
-    for (const [code, organization, student] of [
-        ["E2E-A", orgA, studentA], ["E2E-A2", orgA, null], ["E2E-B", orgB, studentB],
-    ]) {
-        const rooms = manager.getRepository(dorm_room_entity_1.DormRoom);
-        const room = (await rooms.findOne({ where: { code, organization: { id: organization.id } } })) ?? await rooms.save(rooms.create({ code, name: code, organization, status: "ACTIVE", capacity: 2 }));
-        if (student) {
-            const assignments = manager.getRepository(dorm_room_assignment_entity_1.DormRoomAssignment);
-            if (!(await assignments.findOne({ where: { room: { id: room.id }, student: { id: student.id } } })))
-                await assignments.save(assignments.create({ room, student }));
-        }
-    }
     console.log(JSON.stringify({
         database: process.env.DATABASE_PATH,
+        password,
         users: [
             "e2e.student.a",
             "e2e.student.b",
@@ -193,25 +179,23 @@ async function seedSecurityMatrix() {
             lastName: "",
         }));
     }
-    async function ensureStudent(user, name, organization) {
+    async function ensureStudent(user, name) {
         const repo = manager.getRepository(student_entity_1.Student);
-        const existing = await repo.findOne({ where: { user: { id: user.id } } });
-        if (existing) {
-            existing.organization = organization;
-            return repo.save(existing);
-        }
-        return (repo.save(repo.create({
-            user,
-            name,
-            organization,
-            grade: "",
-            major: "",
-            targetUniversity: "",
-            targetField: "",
-            targetRank: "",
-            dailyCapacity: "",
-            accountStatus: "active",
-        })));
+        return ((await repo.findOne({
+            where: { user: { id: user.id } },
+            relations: { user: true },
+        })) ??
+            repo.save(repo.create({
+                user,
+                name,
+                grade: "",
+                major: "",
+                targetUniversity: "",
+                targetField: "",
+                targetRank: "",
+                dailyCapacity: "",
+                accountStatus: "active",
+            })));
     }
     async function ensureMembershipAndRole(user, organization, role, scoped) {
         const repo = manager.getRepository(organization_membership_entity_1.OrganizationMembership);

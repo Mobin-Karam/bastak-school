@@ -1,4 +1,13 @@
-import { Column, CreateDateColumn, Entity, Index, ManyToOne, OneToMany, PrimaryGeneratedColumn, UpdateDateColumn } from "typeorm";
+import {
+  Column,
+  CreateDateColumn,
+  Entity,
+  Index,
+  ManyToOne,
+  OneToMany,
+  PrimaryGeneratedColumn,
+  UpdateDateColumn,
+} from "typeorm";
 import { Student } from "./student.entity";
 import { LearningReview } from "./learning-review.entity";
 
@@ -12,7 +21,11 @@ export enum LearningStatus {
 @Index(["student", "dueDate"])
 export class LearningItem {
   @PrimaryGeneratedColumn("uuid") id!: string;
-  @ManyToOne(() => Student, (student) => student.learningItems, { onDelete: "CASCADE" }) student!: Student;
+  @ManyToOne(() => Student, (student) => student.learningItems, {
+    nullable: false,
+    onDelete: "CASCADE",
+  })
+  student!: Student;
   @Column({ default: "" }) subject!: string;
   @Column({ default: "" }) book!: string;
   @Column({ default: "" }) chapter!: string;
@@ -25,9 +38,11 @@ export class LearningItem {
   @Column({ default: 1 }) intervalDays!: number;
   @Column({ default: 0 }) reviewCount!: number;
   @Column({ type: "float", default: 0 }) mastery!: number;
-  @Column({ type: "varchar", length: 24, default: LearningStatus.PENDING }) status!: LearningStatus;
+  @Column({ type: "varchar", length: 24, default: LearningStatus.PENDING })
+  status!: LearningStatus;
   @Column({ type: "datetime", nullable: true }) completedAt!: Date | null;
   @CreateDateColumn() createdAt!: Date;
   @UpdateDateColumn() updatedAt!: Date;
-  @OneToMany(() => LearningReview, (review) => review.item) reviews!: LearningReview[];
+  @OneToMany(() => LearningReview, (review) => review.item)
+  reviews!: LearningReview[];
 }

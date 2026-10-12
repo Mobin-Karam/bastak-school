@@ -18,7 +18,7 @@ import { EducationClassEnrollment } from "./education-class-enrollment.entity";
 @Index(["organization", "code"], { unique: true })
 export class EducationClass {
   @PrimaryGeneratedColumn("uuid") id!: string;
-  @ManyToOne(() => Organization, { onDelete: "CASCADE" })
+  @ManyToOne(() => Organization, { nullable: false, onDelete: "CASCADE" })
   organization!: Organization;
   @Column({ length: 80 }) code!: string;
   @Column({ length: 160 }) name!: string;
@@ -38,8 +38,11 @@ export class EducationClass {
     (enrollment) => enrollment.classroom,
   )
   enrollments!: EducationClassEnrollment[];
-  @Column({type: "varchar", length: 36, nullable: true}) timetableSectionId!: string | null;
-  @ManyToOne("TimetableSection", {nullable: true, onDelete: "RESTRICT"}) @JoinColumn({name: "timetableSectionId"}) timetableSection?: object;
+  @Column({ type: "varchar", length: 36, nullable: true }) timetableSectionId!:
+    string | null;
+  @ManyToOne("TimetableSection", { nullable: true, onDelete: "RESTRICT" })
+  @JoinColumn({ name: "timetableSectionId" })
+  timetableSection?: object;
   @CreateDateColumn() createdAt!: Date;
   @UpdateDateColumn() updatedAt!: Date;
 }

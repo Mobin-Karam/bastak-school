@@ -1,4 +1,5 @@
 import "reflect-metadata";
+import {migratedDatabase} from "./helpers/migrated-database";
 import {ClassesService} from "../src/modules/classes/classes.service";
 import {EducationCatalogService} from "../src/modules/education-catalog";
 import {DataSource} from "typeorm";
@@ -14,14 +15,14 @@ import {NotificationsService} from "../src/modules/notifications";
 import type {AuthenticatedUser} from "../src/modules/auth";
 import type {TimetableLessonDto} from "../src/modules/schedule/timetable.dto";
 const {EducationClass,EducationBook,EducationClassBook,EducationClassEnrollment,UserRoleAssignment,OrganizationMembership,Role,Student,AttendanceSession,AttendanceRecord,StudyGroup,StudyGroupMembership,DormRoom,DormRoomAssignment,TimetableVersion,TimetableOccurrence,SchoolScheduleEntry}=entities;
-describe("versioned timetable integration (SQLite)",()=>{
+describe("versioned timetable integration (migration-built SQLite)",()=>{
  let db:DataSource,service:TimetableService,staff:AuthenticatedUser,studentActor:AuthenticatedUser,teacherActor:AuthenticatedUser,org:Organization,draftId:string,lesson:TimetableLessonDto,teacher:User;
  const notifications={createForUsers:jest.fn().mockResolvedValue([])};
  beforeEach(async()=>{
-  notifications.createForUsers.mockClear();db=await new DataSource({type:"better-sqlite3",database:":memory:",entities:Object.values(entities).filter(x=>typeof x==="function"),synchronize:true}).initialize();const m=db.manager;
+  notifications.createForUsers.mockClear();db=await migratedDatabase();const m=db.manager;
   org=await m.save(Organization,m.create(Organization,{name:"School",type:OrganizationType.SCHOOL}));
   const principal=await m.save(User,m.create(User,{username:"principal",passwordHash:"fixture",role:UserRole.ORGANIZATION_ADMIN}));teacher=await m.save(User,m.create(User,{username:"teacher",passwordHash:"fixture",role:UserRole.TEACHER}));const studentUser=await m.save(User,m.create(User,{username:"student",passwordHash:"fixture",role:UserRole.STUDENT}));
-  const role=await m.save(Role,m.create(Role,{code:"TEACHER",name:"استاد",organizationScoped:true}));for(const user of [principal,teacher,studentUser]){const membership=await m.save(OrganizationMembership,m.create(OrganizationMembership,{user,organization:org}));if(user.id===teacher.id)await m.save(UserRoleAssignment,m.create(UserRoleAssignment,{user,role,membership}));}
+  const role=await m.findOneByOrFail(Role,{code:"TEACHER"});for(const user of [principal,teacher,studentUser]){const membership=await m.save(OrganizationMembership,m.create(OrganizationMembership,{user,organization:org}));if(user.id===teacher.id)await m.save(UserRoleAssignment,m.create(UserRoleAssignment,{user,role,membership}));}
   const classroom=await m.save(EducationClass,m.create(EducationClass,{organization:org,code:"A",name:"اول",schoolYear:"1405",gradeId:1,educationTypeId:"school",trackId:"general"}));const student=await m.save(Student,m.create(Student,{user:studentUser,organization:org,name:"Student"}));await m.save(EducationClassEnrollment,m.create(EducationClassEnrollment,{classroom,student}));
   const book=await m.save(EducationBook,m.create(EducationBook,{id:"nahw",country:"IR",schoolYear:"1405",grade:1,level:"school",branch:"general",track:"general",category:"درس",titleFa:"نحو",titleEn:"Nahw",appliesTo:[]}));const classBook=await m.save(EducationClassBook,m.create(EducationClassBook,{classroom,book,teacher}));
   staff={id:principal.id,username:principal.username,role:"PRINCIPAL",roles:["PRINCIPAL"],capabilities:["schedule.read","schedule.read.all","schedule.create","schedule.update","schedule.delete","schedule.import","schedule.publish","attendance.class.manage","attendance.class.read","attendance.read","attendance.manage"],organizationIds:[org.id],activeOrganizationId:org.id,sessionId:"fixture"};studentActor={...staff,id:studentUser.id,username:"student",role:"STUDENT",roles:["STUDENT"],capabilities:["schedule.read"]};teacherActor={...studentActor,id:teacher.id,username:"teacher",role:"TEACHER",roles:["TEACHER"]};
@@ -32,8 +33,34 @@ describe("versioned timetable integration (SQLite)",()=>{
  afterEach(()=>db.destroy());
  it("rejects stale revisions and prevents overlapping lessons",async()=>{await service.writeLesson(staff,draftId,{expectedRevision:0,lesson});await expect(service.writeLesson(staff,draftId,{expectedRevision:0,lesson})).rejects.toMatchObject({response:{error:{code:"TIMETABLE_STALE"}}});await expect(service.writeLesson(staff,draftId,{expectedRevision:1,lesson:{...lesson,startTime:"08:30",endTime:"09:30"}})).rejects.toMatchObject({response:{error:{code:"TIMETABLE_CONFLICT"}}});});
  it("publishes immutable versions and scopes student/teacher feeds",async()=>{await service.writeLesson(staff,draftId,{expectedRevision:0,lesson});const published=await service.publish(staff,draftId,{expectedRevision:1,reason:"تأیید مدیر"});expect(published.state).toBe("PUBLISHED");expect(notifications.createForUsers).toHaveBeenCalled();const student=await service.workspace(studentActor,org.id,undefined,"2026-01-04");expect(student.lessons).toHaveLength(1);expect(student.teachers).toEqual([]);expect(student.changes).toEqual([]);expect((await service.workspace(teacherActor,org.id,undefined,"2026-01-04")).lessons).toHaveLength(1);await expect(service.writeLesson(staff,draftId,{expectedRevision:2,lesson})).rejects.toMatchObject({response:{error:{code:"TIMETABLE_IMMUTABLE"}}});});
+ it("uses effective work roles for a student who also has a teacher assignment",async()=>{
+   const membership=await db.manager.findOneOrFail(OrganizationMembership,{where:{user:{id:studentActor.id},organization:{id:org.id}}});
+   const role=await db.manager.findOneByOrFail(Role,{code:"TEACHER"});
+   await db.manager.save(UserRoleAssignment,db.manager.create(UserRoleAssignment,{user:{id:studentActor.id},membership,role}));
+   await service.writeLesson(staff,draftId,{expectedRevision:0,lesson});
+   await service.publish(staff,draftId,{expectedRevision:1,reason:"تأیید مدیر"});
+   expect((await service.workspace(studentActor,org.id,undefined,"2026-01-04")).lessons).toHaveLength(1);
+   const teaching={...studentActor,role:"TEACHER",roles:["TEACHER"]};
+   expect((await service.workspace(teaching,org.id,undefined,"2026-01-04")).lessons).toHaveLength(0);
+   const combined={...studentActor,roles:["STUDENT","TEACHER"]};
+   expect((await service.workspace(combined,org.id,undefined,"2026-01-04")).lessons).toHaveLength(1);
+ });
  it("hides drafts and enforces school/capability boundaries",async()=>{await service.writeLesson(staff,draftId,{expectedRevision:0,lesson});await expect(service.workspace(studentActor,org.id,draftId)).rejects.toMatchObject({response:{error:{code:"TIMETABLE_NOT_FOUND"}}});await expect(service.config(studentActor,org.id,{kind:"location",name:"Room"})).rejects.toMatchObject({response:{error:{code:"FORBIDDEN"}}});await expect(service.workspace({...staff,activeOrganizationId:"foreign"},org.id)).rejects.toMatchObject({response:{error:{code:"ORGANIZATION_FORBIDDEN"}}});});
  it("imports atomically and rejects conflicts before any row is persisted",async()=>{const body={expectedRevision:0,filename:"fixture.xlsx",sheetName:"اصلی",rows:[{source:"اصلی!C4",lesson},{source:"اصلی!E4",lesson}]};expect((await service.previewImport(staff,draftId,body)).valid).toBe(false);await expect(service.commitImport(staff,draftId,body)).rejects.toMatchObject({response:{error:{code:"TIMETABLE_IMPORT_INVALID"}}});expect(await db.manager.count(SchoolScheduleEntry)).toBe(0);body.rows.pop();expect((await service.commitImport(staff,draftId,body)).imported).toBe(1);});
+ it("allows multiple import batches while enforcing complete allocations at publication", async()=>{
+   await service.config(staff,org.id,{kind:"allocation",parentId:draftId,expectedRevision:0,classroomId:lesson.classroomId,classBookId:lesson.classBookId,number:2});
+   const first={expectedRevision:1,filename:"مبین.xlsx",sheetName:"اصلی",rows:[{source:"اصلی!C4",lesson}]};
+   expect((await service.previewImport(staff,draftId,first)).valid).toBe(true);
+   expect((await service.commitImport(staff,draftId,first)).revision).toBe(2);
+   await expect(service.publish(staff,draftId,{expectedRevision:2,reason:"تأیید مدیر"})).rejects.toMatchObject({response:{error:{code:"TIMETABLE_CONFLICT"}}});
+   const second={...first,expectedRevision:2,rows:[{source:"اصلی!C14",lesson:{...lesson,weekday:1}}]};
+   await service.commitImport(staff,draftId,second);
+   expect((await service.publish(staff,draftId,{expectedRevision:3,reason:"تأیید مدیر"})).state).toBe("PUBLISHED");
+   const imported=await db.manager.find(SchoolScheduleEntry,{where:{versionId:draftId},relations:{classroom:true,classBook:{book:true},teacher:true}});
+   expect(imported).toHaveLength(2);
+   expect(imported.every(row=>row.classroom!.id===lesson.classroomId && row.classBook!.id===lesson.classBookId && row.teacher!.id===teacher.id && row.classBook!.book.titleFa==="نحو")).toBe(true);
+   expect(await db.manager.count(entities.TimetableImport)).toBe(2);
+ });
  it("prepares class books without changing existing timetable references", async()=>{
    const actor={...staff, capabilities:[...staff.capabilities!,"education.catalog.manage"]};
    const catalog={listBooks:async()=>db.manager.find(EducationBook)} as unknown as EducationCatalogService;
@@ -44,6 +71,11 @@ describe("versioned timetable integration (SQLite)",()=>{
    const result=await classes.addBook(actor,lesson.classroomId,{bookId:"fiqh",teacherId:teacher.id});
    expect(result.books).toHaveLength(2);
    expect(result.books.some(x=>x.id===lesson.classBookId)).toBe(true);
+   const updated=await classes.setBooks(actor,lesson.classroomId,{books:result.books.map(row=>({bookId:row.bookId,teacherId:teacher.id}))});
+   expect(updated.books.map(row=>row.id).sort()).toEqual(result.books.map(row=>row.id).sort());
+   await expect(classes.setBooks(actor,lesson.classroomId,{books:[]})).rejects.toMatchObject({response:{error:{code:"CLASS_BOOK_TIMETABLE_REFERENCED"}}});
+   await expect(classes.remove(actor,lesson.classroomId)).rejects.toMatchObject({response:{error:{code:"CLASS_TIMETABLE_REFERENCED"}}});
+
    expect((await db.manager.findOneOrFail(SchoolScheduleEntry,{where:{versionId:draftId},relations:{classBook:true}})).classBook!.id).toBe(lesson.classBookId);
    await expect(classes.addBook(actor,lesson.classroomId,{bookId:"fiqh",teacherId:teacher.id})).rejects.toMatchObject({response:{error:{code:"CLASS_BOOK_EXISTS"}}});
    await expect(classes.addBook({...actor,activeOrganizationId:"foreign"},lesson.classroomId,{bookId:"fiqh",teacherId:teacher.id})).rejects.toMatchObject({response:{error:{code:"FORBIDDEN"}}});

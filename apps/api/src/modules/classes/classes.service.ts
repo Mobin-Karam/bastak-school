@@ -2,8 +2,10 @@ import { StudyGroup } from "../../database/entities/study-group.entity";
 import { StudyGroupMembership } from "../../database/entities/study-group-membership.entity";
 import { Injectable } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { In, Not, Repository } from "typeorm";
+import { In, Not, IsNull, Repository } from "typeorm";
 import { ApiException } from "../../common/exceptions/api.exception";
+import { SchoolScheduleEntry } from "../../database/entities/school-schedule-entry.entity";
+import { TimetableAllocation } from "../../database/entities/timetable.entity";
 import { EducationBook } from "../../database/entities/education-book.entity";
 import { EducationClassBook } from "../../database/entities/education-class-book.entity";
 import { EducationClassEnrollment } from "../../database/entities/education-class-enrollment.entity";
@@ -15,7 +17,7 @@ import {
 import { Organization } from "../../database/entities/organization.entity";
 import { Student } from "../../database/entities/student.entity";
 import { UserRoleAssignment } from "../../database/entities/user-role-assignment.entity";
-import { User } from "../../database/entities/user.entity";
+import { User, UserStatus } from "../../database/entities/user.entity";
 import { AuthenticatedUser } from "../auth";
 import { AuthorizationService, UserContext } from "../authorization";
 import { EducationCatalogService } from "../education-catalog";
@@ -315,6 +317,9 @@ export class ClassesService {
       "classes.manage",
       true,
     );
+    const referenced = await this.classes.manager.exists(SchoolScheduleEntry,{where:{classroom:{id},versionId:Not(IsNull())}})
+      || await this.classes.manager.exists(TimetableAllocation,{where:{classroomId:id}});
+    if (referenced) throw new ApiException(409,"CLASS_TIMETABLE_REFERENCED","این کلاس در سابقه برنامه درسی استفاده شده است؛ به‌جای حذف، کلاس را بایگانی کنید.");
     await this.classes.remove(classroom);
     return { deleted: true };
   }
@@ -333,6 +338,8 @@ export class ClassesService {
     if (!eligible.some(book => book.id === dto.bookId))
       throw new ApiException(422, "CLASS_BOOK_PROFILE_MISMATCH", "کتاب با کلاس یا سازمان انتخاب‌شده سازگار نیست.");
     const teacher = await this.resolveTeacher(classroom.organization.id, dto.teacherId);
+    if (teacher.status !== UserStatus.ACTIVE)
+      throw new ApiException(422, "CLASS_TEACHER_INVALID", "حساب استاد باید فعال باشد.");
     const book = await this.books.findOneBy({ id: dto.bookId });
     if (!book) throw new ApiException(404, "CLASS_BOOK_NOT_FOUND", "کتاب پیدا نشد.");
     const existing = await this.classBooks.findOne({ where: { classroom: { id }, book: { id: dto.bookId } } });
@@ -380,17 +387,21 @@ export class ClassesService {
         "CLASS_BOOK_NOT_FOUND",
         "یک یا چند کتاب پیدا نشد.",
       );
-    await this.classBooks.delete({ classroom: { id: classroom.id } });
-    if (requested.length)
-      await this.classBooks.save(
-        requested.map((item, index) =>
-          this.classBooks.create({
-            classroom,
-            book: books.find((book) => book.id === item.bookId)!,
-            teacher: teachers[index],
-          }),
-        ),
-      );
+    await this.classes.manager.transaction(async manager => {
+      const existing = await manager.find(EducationClassBook, {where:{classroom:{id}}, relations:{book:true}});
+      const removed = existing.filter(row => !requested.some(item => item.bookId === row.book.id));
+      if (removed.length) {
+        const ids = removed.map(row => row.id);
+        const referenced = await manager.exists(SchoolScheduleEntry,{where:{classBook:{id:In(ids)},versionId:Not(IsNull())}})
+          || await manager.exists(TimetableAllocation,{where:{classBookId:In(ids)}});
+        if (referenced) throw new ApiException(409,"CLASS_BOOK_TIMETABLE_REFERENCED","کتاب‌های استفاده‌شده در برنامه درسی قابل حذف نیستند؛ اتصال‌های موجود را حفظ کنید.");
+        await manager.delete(EducationClassBook, ids);
+      }
+      if (requested.length) await manager.save(EducationClassBook, requested.map((item,index)=>manager.create(EducationClassBook,{
+        id:existing.find(row=>row.book.id===item.bookId)?.id,
+        classroom, book:books.find(book=>book.id===item.bookId)!, teacher:teachers[index],
+      })));
+    });
     return this.view(await this.load(id));
   }
 

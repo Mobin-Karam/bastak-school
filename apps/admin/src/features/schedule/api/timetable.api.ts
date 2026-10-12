@@ -8,17 +8,16 @@ import type {
   TimetableConflict,
 } from "@moshaver/api-contract";
 import { api } from "../../../shared/api/api";
-const base = "/schedule/timetable";
 export const getTimetable = (
   organizationId: string,
   versionId: string | undefined,
   startsOn: string,
 ) =>
   api.get<TimetableWorkspace>(
-    `${base}/${encodeURIComponent(organizationId)}?startsOn=${startsOn}${versionId ? `&versionId=${encodeURIComponent(versionId)}` : ""}`,
+    `/schedule/timetable/${encodeURIComponent(organizationId)}?startsOn=${startsOn}${versionId ? `&versionId=${encodeURIComponent(versionId)}` : ""}`,
   );
 export const saveTimetableConfig = (organizationId: string, body: Record<string, unknown>) =>
-  api.post(`${base}/${organizationId}/config`, body);
+  api.post(`/schedule/timetable/${organizationId}/config`, body);
 export const createTimetableVersion = (
   organizationId: string,
   body: {
@@ -28,7 +27,7 @@ export const createTimetableVersion = (
     reason: string;
     copyVersionId?: string;
   },
-) => api.post<TimetableVersion>(`${base}/${organizationId}/versions`, body);
+) => api.post<TimetableVersion>(`/schedule/timetable/${organizationId}/versions`, body);
 export const writeTimetableLesson = (
   versionId: string,
   expectedRevision: number,
@@ -36,33 +35,44 @@ export const writeTimetableLesson = (
   id?: string,
 ) =>
   id
-    ? api.patch<{ id: string; revision: number }>(`${base}/versions/${versionId}/lessons/${id}`, {
-        expectedRevision,
-        lesson: timetableLessonDraft(lesson),
-      })
-    : api.post<{ id: string; revision: number }>(`${base}/versions/${versionId}/lessons`, {
-        expectedRevision,
-        lesson: timetableLessonDraft(lesson),
-      });
+    ? api.patch<{ id: string; revision: number }>(
+        `/schedule/timetable/versions/${versionId}/lessons/${id}`,
+        {
+          expectedRevision,
+          lesson: timetableLessonDraft(lesson),
+        },
+      )
+    : api.post<{ id: string; revision: number }>(
+        `/schedule/timetable/versions/${versionId}/lessons`,
+        {
+          expectedRevision,
+          lesson: timetableLessonDraft(lesson),
+        },
+      );
 export const previewTimetableLesson = (
   versionId: string,
   expectedRevision: number,
   lesson: TimetableLessonDraft,
   id?: string,
 ) =>
-  api.post<{ conflicts: TimetableConflict[] }>(
-    `${base}/versions/${versionId}/lessons${id ? `/${id}` : ""}/preview`,
-    { expectedRevision, lesson: timetableLessonDraft(lesson) },
-  );
+  id
+    ? api.post<{ conflicts: TimetableConflict[] }>(
+        `/schedule/timetable/versions/${versionId}/lessons/${id}/preview`,
+        { expectedRevision, lesson: timetableLessonDraft(lesson) },
+      )
+    : api.post<{ conflicts: TimetableConflict[] }>(
+        `/schedule/timetable/versions/${versionId}/lessons/preview`,
+        { expectedRevision, lesson: timetableLessonDraft(lesson) },
+      );
 export const removeTimetableLesson = (versionId: string, id: string, expectedRevision: number) =>
-  api.delete(`${base}/versions/${versionId}/lessons/${id}`, { expectedRevision });
+  api.delete(`/schedule/timetable/versions/${versionId}/lessons/${id}`, { expectedRevision });
 export const publishTimetable = (id: string, expectedRevision: number, reason: string) =>
-  api.post(`${base}/versions/${id}/publish`, { expectedRevision, reason });
+  api.post(`/schedule/timetable/versions/${id}/publish`, { expectedRevision, reason });
 export const overrideTimetable = (
   id: string,
   expectedRevision: number,
   change: TimetableOverrideDraft,
-) => api.post(`${base}/versions/${id}/overrides`, { ...change, expectedRevision });
+) => api.post(`/schedule/timetable/versions/${id}/overrides`, { ...change, expectedRevision });
 export const previewTimetableImport = (
   id: string,
   expectedRevision: number,
@@ -70,7 +80,7 @@ export const previewTimetableImport = (
   sheetName: string,
   rows: TimetableImportRow[],
 ) =>
-  api.post<TimetableImportPreview>(`${base}/versions/${id}/import/preview`, {
+  api.post<TimetableImportPreview>(`/schedule/timetable/versions/${id}/import/preview`, {
     expectedRevision,
     filename,
     sheetName,
@@ -83,14 +93,20 @@ export const commitTimetableImport = (
   sheetName: string,
   rows: TimetableImportRow[],
 ) =>
-  api.post<{ imported: number; revision: number }>(`${base}/versions/${id}/import/commit`, {
-    expectedRevision,
-    filename,
-    sheetName,
-    rows,
-  });
+  api.post<{ imported: number; revision: number }>(
+    `/schedule/timetable/versions/${id}/import/commit`,
+    {
+      expectedRevision,
+      filename,
+      sheetName,
+      rows,
+    },
+  );
 export const openTimetableAttendance = (id: string, date: string) =>
-  api.post<{ sessionId: string; cancelled: boolean }>(`${base}/lessons/${id}/attendance`, { date });
+  api.post<{ sessionId: string; cancelled: boolean }>(
+    `/schedule/timetable/lessons/${id}/attendance`,
+    { date },
+  );
 
 export function timetableLessonDraft(lesson: TimetableLessonDraft): TimetableLessonDraft {
   return {

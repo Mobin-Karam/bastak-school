@@ -172,13 +172,19 @@ export async function request<T>(
     suppressAuthFailure?: boolean;
     /** Use for public infrastructure routes such as `/health`, outside `/api/v2`. */
     unversioned?: boolean;
+    /** Read authority for a proposed work context without changing active requests. */
+    workContext?: { role?: string | null; organizationId?: string | null };
   } = {},
 ): Promise<T> {
   const controller = new AbortController();
   const timeout = window.setTimeout(() => controller.abort(), options.timeoutMs ?? 20_000);
   const headers = new Headers({ Accept: "application/json" });
-  if (activeWorkRole) headers.set("X-Work-Role", activeWorkRole);
-  if (activeOrganizationId) headers.set("X-Organization-Id", activeOrganizationId);
+  const workRole = options.workContext ? options.workContext.role : activeWorkRole;
+  const organizationId = options.workContext
+    ? options.workContext.organizationId
+    : activeOrganizationId;
+  if (workRole) headers.set("X-Work-Role", workRole);
+  if (organizationId) headers.set("X-Organization-Id", organizationId);
   if (body !== undefined) headers.set("Content-Type", "application/json");
   const token = csrf();
   if (isMutating(method) && token) headers.set("X-CSRF-Token", token);

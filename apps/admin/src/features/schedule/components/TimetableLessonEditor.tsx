@@ -1,4 +1,7 @@
-import { useEffect, useState } from "react";
+import { normalizeTimetableClock } from "../lib/timetable-input";
+import { TimetableTimeInput } from "./TimetableTimeInput";
+import { TimetableDateInput } from "./TimetableDateInput";
+import { useCallback, useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -23,8 +26,14 @@ const schema = z
     periodId: z.string().uuid("زنگ را انتخاب کنید"),
     locationId: z.string().optional(),
     weekday: z.coerce.number().min(0).max(6),
-    startTime: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "ساعت معتبر لازم است"),
-    endTime: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "ساعت معتبر لازم است"),
+    startTime: z.preprocess(
+      (value) => normalizeTimetableClock(String(value ?? "")),
+      z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "ساعت معتبر لازم است"),
+    ),
+    endTime: z.preprocess(
+      (value) => normalizeTimetableClock(String(value ?? "")),
+      z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "ساعت معتبر لازم است"),
+    ),
     startsOn: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
     endsOn: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
     notes: z.string().max(1000),
@@ -77,11 +86,17 @@ export function TimetableLessonEditor({
   const periodId = form.watch("periodId");
   const values = form.watch();
   const selectedClass = workspace.classes.find((x) => x.id === classroomId);
-  const dto = (): TimetableLessonDraft => ({
-    ...form.getValues(),
-    teacherId: form.getValues("teacherId") || null,
-    locationId: form.getValues("locationId") || null,
-  });
+  const [previewError, setPreviewError] = useState("");
+  const dto = useCallback(
+    (): TimetableLessonDraft => ({
+      ...form.getValues(),
+      startTime: normalizeTimetableClock(form.getValues("startTime")),
+      endTime: normalizeTimetableClock(form.getValues("endTime")),
+      teacherId: form.getValues("teacherId") || null,
+      locationId: form.getValues("locationId") || null,
+    }),
+    [form],
+  );
   useEffect(() => {
     let alive = true;
     const timeout = setTimeout(() => {
@@ -91,13 +106,26 @@ export function TimetableLessonEditor({
         !form.getValues("periodId")
       )
         return;
+      if (!schema.safeParse(form.getValues()).success) {
+        setConflicts([]);
+        setPreviewError("");
+        setChecking(false);
+        return;
+      }
+      setPreviewError("");
       setChecking(true);
       void previewTimetableLesson(versionId, version.revision, dto(), lesson?.id)
         .then((result) => {
-          if (alive) setConflicts(result.conflicts);
+          if (alive) {
+            setConflicts(result.conflicts);
+            setPreviewError("");
+          }
         })
-        .catch(() => {
-          if (alive) setConflicts([]);
+        .catch((error) => {
+          if (alive)
+            setPreviewError(
+              error instanceof Error ? error.message : "بررسی زمان و تداخل انجام نشد.",
+            );
         })
         .finally(() => {
           if (alive) setChecking(false);
@@ -108,6 +136,8 @@ export function TimetableLessonEditor({
       clearTimeout(timeout);
     };
   }, [
+    dto,
+    form,
     values.classroomId,
     values.classBookId,
     values.teacherId,
@@ -262,25 +292,35 @@ export function TimetableLessonEditor({
             </select>
           </Field>
           <Field label="شروع" error={form.formState.errors.startTime?.message}>
-            <Input type="time" dir="ltr" {...form.register("startTime")} />
+            <TimetableTimeInput data-field-control dir="ltr" {...form.register("startTime")} />
           </Field>
           <Field label="پایان" error={form.formState.errors.endTime?.message}>
-            <Input type="time" dir="ltr" {...form.register("endTime")} />
+            <TimetableTimeInput data-field-control dir="ltr" {...form.register("endTime")} />
           </Field>
           <Field label="از تاریخ" error={form.formState.errors.startsOn?.message}>
-            <Input
-              type="date"
+            <TimetableDateInput
+              timeZone={workspace.years.find((year) => year.id === term.yearId)?.timeZone}
+              data-field-control
+              label="از تاریخ"
               min={version.effectiveOn}
               max={term.endsOn}
-              {...form.register("startsOn")}
+              value={form.watch("startsOn")}
+              onChange={(iso) =>
+                form.setValue("startsOn", iso, { shouldValidate: true, shouldDirty: true })
+              }
             />
           </Field>
           <Field label="تا تاریخ" error={form.formState.errors.endsOn?.message}>
-            <Input
-              type="date"
+            <TimetableDateInput
+              timeZone={workspace.years.find((year) => year.id === term.yearId)?.timeZone}
+              data-field-control
+              label="تا تاریخ"
               min={version.effectiveOn}
               max={term.endsOn}
-              {...form.register("endsOn")}
+              value={form.watch("endsOn")}
+              onChange={(iso) =>
+                form.setValue("endsOn", iso, { shouldValidate: true, shouldDirty: true })
+              }
             />
           </Field>
         </div>
@@ -290,6 +330,11 @@ export function TimetableLessonEditor({
         <Field label="یادداشت">
           <Input {...form.register("notes")} />
         </Field>
+        {previewError ? (
+          <p role="alert" className="text-sm text-rose-700">
+            {previewError}
+          </p>
+        ) : null}
         <div aria-live="polite">
           {checking ? <p className="text-xs">بررسی تداخل…</p> : null}
           {conflicts.map((x, i) => (
@@ -302,7 +347,12 @@ export function TimetableLessonEditor({
           ))}
         </div>
         <Button
-          disabled={save.isPending || checking || conflicts.some((x) => x.code !== "UNASSIGNED")}
+          disabled={
+            save.isPending ||
+            checking ||
+            !!previewError ||
+            conflicts.some((x) => x.code !== "UNASSIGNED")
+          }
         >
           {save.isPending ? "ذخیره…" : "ذخیره درس"}
         </Button>

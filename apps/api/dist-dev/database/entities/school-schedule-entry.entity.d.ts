@@ -14,17 +14,6 @@ export declare class SchoolScheduleEntry {
     endTime: string;
     room: string;
     status: "ACTIVE" | "ARCHIVED";
-    versionId: string | null;
-    version?: object;
-    periodId: string | null;
-    period?: object;
-    locationId: string | null;
-    location?: object;
-    startsOn: string | null;
-    endsOn: string | null;
-    notes: string;
-    classroomNameSnapshot: string;
-    teacherNameSnapshot: string;
     createdAt: Date;
     updatedAt: Date;
 }

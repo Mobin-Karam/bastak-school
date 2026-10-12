@@ -1,3 +1,4 @@
+import type { TimetableOccurrence } from "@moshaver/api-contract";
 import { useEffect, useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Link, useNavigate } from "react-router-dom";
@@ -5,31 +6,38 @@ import { useAuth } from "../../auth";
 import { Card, Button } from "../../../shared/ui/ui";
 import { notify } from "../../../shared/ui/notifications";
 import { getTimetable, openTimetableAttendance } from "../api/timetable.api";
-import { timetableToday, timetableWeekStart } from "../lib/timetable-time";
+import { timetableDateLabel, timetableToday, timetableWeekStart } from "../lib/timetable-time";
 export function TimetableToday() {
   const auth = useAuth();
   const navigate = useNavigate();
   const org = auth.context?.activeOrganization?.id;
   const [now, setNow] = useState(Date.now());
+  const [zone, setZone] = useState("Asia/Tehran");
+  const today = timetableToday(zone, new Date(now));
   useEffect(() => {
     const timer = setInterval(() => setNow(Date.now()), 60000);
     return () => clearInterval(timer);
   }, []);
   const query = useQuery({
-    queryKey: ["timetable-today", org, auth.activeRole, timetableToday()],
-    queryFn: () => getTimetable(org!, undefined, timetableWeekStart(timetableToday())),
+    queryKey: ["timetable-today", org, auth.activeRole, today],
+    queryFn: () => getTimetable(org!, undefined, timetableWeekStart(today)),
     enabled: !!org && auth.can("schedule.read"),
   });
+  useEffect(() => {
+    const year = query.data?.years.find((year) => year.active);
+    if (year) setZone(year.timeZone);
+  }, [query.data?.years]);
   const rows = (query.data?.occurrences ?? []).filter((x) => !x.cancelled);
   const current = rows.find((x) => Date.parse(x.startsAt) <= now && Date.parse(x.endsAt) > now);
   const next = rows
     .filter((x) => Date.parse(x.startsAt) > now)
     .sort((a, b) => a.startsAt.localeCompare(b.startsAt))[0];
   const attendance = useMutation({
-    mutationFn: () => openTimetableAttendance(current!.id, current!.date),
-    onSuccess: (result) =>
+    mutationFn: (occurrence: TimetableOccurrence) =>
+      openTimetableAttendance(occurrence.id, occurrence.date),
+    onSuccess: (result, occurrence) =>
       navigate(
-        `/admin/attendance?contextType=class&contextId=${current!.classroomId}&sessionId=${result.sessionId}`,
+        `/admin/attendance?contextType=class&contextId=${occurrence.classroomId}&sessionId=${result.sessionId}`,
       ),
     onError: (e) => notify(e.message, "error"),
   });
@@ -37,7 +45,10 @@ export function TimetableToday() {
   return (
     <Card className="grid gap-2 p-3">
       <div className="flex items-center justify-between gap-2">
-        <h2 className="font-bold">برنامه امروز</h2>
+        <div>
+          <h2 className="font-bold">برنامه امروز</h2>
+          <p className="text-xs text-slate-500">{timetableDateLabel(today)}</p>
+        </div>
         <Link className="min-h-11 py-2 text-sm text-brand" to="/admin/schedule">
           برنامه کامل
         </Link>
@@ -65,7 +76,7 @@ export function TimetableToday() {
                   <Button
                     variant="soft"
                     disabled={attendance.isPending}
-                    onClick={() => attendance.mutate()}
+                    onClick={() => current && attendance.mutate(current)}
                   >
                     حضور همین درس
                   </Button>

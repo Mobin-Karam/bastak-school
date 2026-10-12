@@ -131,7 +131,9 @@ export function extractWorkbookLessons(
   for (const block of blocks) {
     const nextHeader =
       detectWorkbookBlocks(sheet)
-        .filter((x) => x.classColumn === block.classColumn && x.headerRow > block.headerRow)
+        .filter(
+          (x) => x.classColumn === Number(block.id.split(":")[1]) && x.headerRow > block.headerRow,
+        )
         .map((x) => x.headerRow)
         .sort((a, b) => a - b)[0] ?? sheet.rows + 1;
     let carriedDay = titleDay;

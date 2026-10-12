@@ -18,6 +18,7 @@ import {
   UserRole,
   UserStatus,
 } from "../../database/entities/user.entity";
+import { ensureStudentAccount } from "../students";
 import { AuthenticatedUser } from "../auth";
 import { CreateUserDto, SetRolesDto, UpdateUserDto } from "./dto/user.dto";
 import { ensureOrganizationChat } from "../chat";
@@ -100,6 +101,29 @@ export class UsersService {
       );
   }
 
+  private async assertAccountMutationScope(
+    actor: AuthenticatedUser,
+    id: string,
+  ) {
+    if (this.platform(actor)) return;
+    const rows = await this.assignments.find({
+      where: { user: { id } },
+      relations: { membership: { organization: true } },
+    });
+    if (
+      rows.some(
+        (row) =>
+          !row.membership ||
+          !actor.organizationIds?.includes(row.membership.organization.id),
+      )
+    )
+      throw new ApiException(
+        403,
+        "SHARED_ACCOUNT_MANAGEMENT_FORBIDDEN",
+        "تغییر اطلاعات یا وضعیت حساب مشترک باید توسط مدیر پلتفرم انجام شود.",
+      );
+  }
+
   /**
    * A role assignment is not a substitute for school membership.  Keep this
    * in one place because both account creation and a later role change can
@@ -151,6 +175,12 @@ export class UsersService {
     const scopedOrganizationId =
       organizationId ??
       (!this.platform(actor) ? actor.organizationIds?.[0] : undefined);
+    if (!this.platform(actor) && !scopedOrganizationId)
+      throw new ApiException(
+        403,
+        "ORGANIZATION_FORBIDDEN",
+        "محدوده سازمان معتبر الزامی است.",
+      );
     if (scopedOrganizationId) this.assertOrg(actor, scopedOrganizationId);
     const rows = await this.assignments.find({
       where: {
@@ -204,7 +234,16 @@ export class UsersService {
       )
     )
       throw new ApiException(404, "NOT_FOUND", "کاربر یافت نشد.");
-    return this.project(rows[0].user, rows);
+    const visibleRows = this.platform(actor)
+      ? rows
+      : rows.filter(
+          (row) =>
+            row.membership?.status === MembershipStatus.ACTIVE &&
+            actor.organizationIds?.includes(row.membership.organization.id),
+        );
+    if (!visibleRows.length)
+      throw new ApiException(404, "NOT_FOUND", "کاربر یافت نشد.");
+    return this.project(rows[0].user, visibleRows);
   }
   async create(actor: AuthenticatedUser, dto: CreateUserDto) {
     await this.assertRoles(actor, dto.roleCodes);
@@ -273,8 +312,11 @@ export class UsersService {
           }),
         );
       }
-      if (membership)
+      if (membership) {
+        if (dto.roleCodes.includes("STUDENT"))
+          await ensureStudentAccount(manager, user, membership.organization);
         await ensureOrganizationChat(manager, membership.organization, user);
+      }
       return {
         id: user.id,
         phoneNumber: user.phoneNumber,
@@ -284,6 +326,7 @@ export class UsersService {
   }
   async update(actor: AuthenticatedUser, id: string, dto: UpdateUserDto) {
     await this.get(actor, id);
+    await this.assertAccountMutationScope(actor, id);
     const patch = { ...dto };
     if (patch.phoneNumber) {
       patch.phoneNumber = normalizeIranianMobile(patch.phoneNumber);
@@ -303,6 +346,7 @@ export class UsersService {
   async setActive(actor: AuthenticatedUser, id: string, active: boolean) {
     const target = await this.get(actor, id);
     this.assertProtectedAccount(actor, target);
+    await this.assertAccountMutationScope(actor, id);
     await this.users.update(id, {
       status: active ? UserStatus.ACTIVE : UserStatus.DISABLED,
     });
@@ -313,11 +357,17 @@ export class UsersService {
     };
   }
   async setRoles(actor: AuthenticatedUser, id: string, dto: SetRolesDto) {
-    await this.assertRoles(actor, dto.roleCodes);
     assertPlatformRolesAreUnscoped(dto.roleCodes, dto.organizationId);
     if (dto.organizationId) this.assertOrg(actor, dto.organizationId);
     const target = await this.get(actor, id);
     this.assertProtectedAccount(actor, target);
+    const currentRoles = target.assignments
+      .filter((item) => item.organizationId === (dto.organizationId ?? null))
+      .map((item) => item.role);
+    await this.assertRoles(actor, [
+      ...dto.roleCodes.filter((role) => !currentRoles.includes(role)),
+      ...currentRoles.filter((role) => !dto.roleCodes.includes(role)),
+    ]);
     return this.dataSource.transaction(async (manager) => {
       const user = await manager.findOneByOrFail(User, { id });
       const roles = await manager.find(Role, {
@@ -362,8 +412,11 @@ export class UsersService {
             membership: role.organizationScoped ? membership : null,
           }),
         );
-      if (membership)
+      if (membership) {
+        if (dto.roleCodes.includes("STUDENT"))
+          await ensureStudentAccount(manager, user, membership.organization);
         await ensureOrganizationChat(manager, membership.organization, user);
+      }
       return {
         userId: id,
         roles: roles.map((role) => role.code),
@@ -380,6 +433,7 @@ export class UsersService {
       );
     const target = await this.get(actor, id);
     this.assertProtectedAccount(actor, target);
+    await this.assertAccountMutationScope(actor, id);
     await this.users.update(id, { status: UserStatus.ARCHIVED });
     await this.sessions.delete({ user: { id } });
     return { userId: id, status: UserStatus.ARCHIVED };

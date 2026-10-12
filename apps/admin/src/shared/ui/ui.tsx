@@ -647,6 +647,7 @@ text-rosewood
 
 function isFieldControl(element: ReactElement) {
   return (
+    (element.props as { "data-field-control"?: boolean })["data-field-control"] === true ||
     (typeof element.type === "string" && ["input", "textarea", "select"].includes(element.type)) ||
     element.type === Input ||
     element.type === PasswordInput ||

@@ -1,7 +1,8 @@
+import { useState } from "react";
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { api } from "../../shared/api/api";
+import { api, getApiWorkContextKey, setApiWorkContext } from "../../shared/api/api";
 import { AuthProvider, useAuth } from "./AuthProvider";
 
 const originalFetch = globalThis.fetch;
@@ -20,6 +21,7 @@ function Probe() {
 }
 
 beforeEach(() => {
+  setApiWorkContext();
   sessionStorage.clear();
   localStorage.clear();
 });
@@ -154,4 +156,118 @@ describe("AuthProvider", () => {
 
     expect(screen.getByText("نشست پایان یافته است")).toBeInTheDocument();
   });
+});
+
+function SwitchProbe() {
+  const auth = useAuth();
+  const [error, setError] = useState("");
+  return (
+    <div>
+      <span>{auth.status}</span>
+      <span>{auth.activeRole}</span>
+      <span>{auth.context?.activeOrganization?.id}</span>
+      <span>{error}</span>
+      <button
+        onClick={() =>
+          void auth
+            .setActiveOrganization({
+              id: "school-b",
+              name: "B",
+              type: "SCHOOL",
+              membershipId: "mb",
+            })
+            .catch((e) => setError(e.message))
+        }
+      >
+        switch school
+      </button>
+      <button
+        onClick={() =>
+          void auth.setActiveRole("SCHOOL_SUPERVISOR").catch((e) => setError(e.message))
+        }
+      >
+        switch role
+      </button>
+    </div>
+  );
+}
+
+const switchContext = (school: string, roles: string[]) => ({
+  user: { id: "multi", role: "ADMIN" },
+  roles,
+  capabilities: [],
+  workContexts: roles.map((role) => ({ role, capabilities: [] })),
+  memberships: [
+    { id: "school-a", name: "A", membershipId: "ma" },
+    { id: "school-b", name: "B", type: "SCHOOL", membershipId: "mb" },
+  ],
+  activeOrganization: { id: school, name: school, membershipId: school },
+  availableOrganizations: [
+    { id: "school-a", name: "A", membershipId: "ma" },
+    { id: "school-b", name: "B", type: "SCHOOL", membershipId: "mb" },
+  ],
+});
+it("refreshes a proposed school without the previous role and chooses a valid new role", async () => {
+  let resolveSwitch: (response: Response) => void = () => {};
+  let selectedHeaders: Headers | undefined;
+  globalThis.fetch = vi.fn(async (input, init) => {
+    if (String(input).endsWith("/auth/me"))
+      return new Response(JSON.stringify({ ok: true, data: { id: "multi", role: "ADMIN" } }));
+    const headers = new Headers(init?.headers);
+    if (headers.get("X-Organization-Id") === "school-b") {
+      selectedHeaders = headers;
+      return await new Promise<Response>((resolve) => {
+        resolveSwitch = resolve;
+      });
+    }
+    return new Response(
+      JSON.stringify({
+        ok: true,
+        data: switchContext("school-a", ["TEACHER", "SCHOOL_SUPERVISOR"]),
+      }),
+    );
+  }) as typeof fetch;
+  render(
+    <AuthProvider>
+      <SwitchProbe />
+    </AuthProvider>,
+  );
+  await screen.findByText("authenticated");
+  await userEvent.click(screen.getByRole("button", { name: "switch school" }));
+  await screen.findByText("checking");
+  expect(selectedHeaders?.has("X-Work-Role")).toBe(false);
+  expect(getApiWorkContextKey()).toBe("TEACHER:school-a");
+  resolveSwitch(
+    new Response(JSON.stringify({ ok: true, data: switchContext("school-b", ["PRINCIPAL"]) })),
+  );
+  await screen.findByText("PRINCIPAL");
+  expect(screen.getByText("school-b")).toBeInTheDocument();
+  expect(getApiWorkContextKey()).toBe("PRINCIPAL:school-b");
+});
+it("keeps the previous role and request headers after a failed role-context refresh", async () => {
+  globalThis.fetch = vi.fn(async (input, init) => {
+    if (String(input).endsWith("/auth/me"))
+      return new Response(JSON.stringify({ ok: true, data: { id: "multi", role: "ADMIN" } }));
+    if (new Headers(init?.headers).get("X-Work-Role") === "SCHOOL_SUPERVISOR")
+      return new Response(
+        JSON.stringify({ ok: false, error: { code: "WORK_CONTEXT_FORBIDDEN", message: "Denied" } }),
+        { status: 403 },
+      );
+    return new Response(
+      JSON.stringify({
+        ok: true,
+        data: switchContext("school-a", ["TEACHER", "SCHOOL_SUPERVISOR"]),
+      }),
+    );
+  }) as typeof fetch;
+  render(
+    <AuthProvider>
+      <SwitchProbe />
+    </AuthProvider>,
+  );
+  await screen.findByText("authenticated");
+  await userEvent.click(screen.getByRole("button", { name: "switch role" }));
+  await screen.findByText("Denied");
+  expect(screen.getByText("TEACHER")).toBeInTheDocument();
+  expect(getApiWorkContextKey()).toBe("TEACHER:school-a");
 });

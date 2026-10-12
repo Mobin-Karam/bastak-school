@@ -24,6 +24,9 @@ export const dataSourceOptions: DataSourceOptions = {
   migrations: [databaseMigrationGlob(__filename)],
   synchronize: false,
   migrationsRun: true,
+  // SQLite table rebuilds need a connection-level pragma outside a transaction.
+  // Each migration remains atomic; the integrity migration owns its transaction.
+  migrationsTransactionMode: "each",
   prepareDatabase: (db) => {
     db.pragma("foreign_keys = ON");
     db.pragma("journal_mode = WAL");
