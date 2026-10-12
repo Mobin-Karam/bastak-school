@@ -30,8 +30,11 @@ npm run test
 npm run typecheck
 npm run lint
 npm run verify
+npm run test:all
 npm run verify:affected -- --base=origin/develop --head=HEAD
 ```
+
+`test:all` runs the component checks, generator and package publishing tests, Admin coverage and browser layout checks, disposable API security/student/onboarding journeys, and CI pipeline tests. Install the Admin Playwright Chromium browser and Python PyYAML 6.0.2 before running it locally. The account based browser smoke and planner drag tests require a separate seeded browser/API fixture; Playwright skips them unless their fixture environment variables are set.
 
 Target one project plus its dependencies:
 

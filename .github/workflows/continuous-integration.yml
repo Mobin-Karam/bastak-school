@@ -37,10 +37,14 @@ jobs:
       - run: npm run contracts:check
       - run: npm run cmb:compatibility
       - run: npm run test:generators
+      - run: npm run test:cmb-publish
       - run: npm run verify
       - run: ./scripts/deploy/verify-security.sh
       - run: npm --prefix apps/admin run audit:parity
       - run: npm --prefix apps/admin run test:coverage
+      - run: npm --prefix apps/admin run test:e2e -- --list
+      - run: npm --prefix apps/admin exec -- playwright install --with-deps chromium
+      - run: npm --prefix apps/admin run test:e2e -- --grep 'desktop panels remain reachable'
       - run: npm --prefix apps/admin audit --omit=dev --audit-level=high
       - run: npm --prefix apps/api audit --omit=dev --audit-level=high
       - run: python3 -m pip install 'PyYAML==6.0.2'
