@@ -30,10 +30,11 @@ class PipelineTests(unittest.TestCase):
         self.assertFalse(checkout["persist-credentials"])
         self.assertIn('[[ "$current" == "$RELEASE_SHA" ]]', server["jobs"]["deploy"]["steps"][1]["run"])
     def test_release_creation_requires_develop_success(self):
-        ci = self.workflow("continuous-integration.yml")
+        ci = self.workflow("release-promotion.yml")
         release = ci["jobs"]["release-pr"]
-        self.assertEqual(release["needs"], "gate")
-        self.assertIn("refs/heads/develop", release["if"])
+        self.assertIn("conclusion == 'success'", release["if"])
+        self.assertIn("head_branch == 'develop'", release["if"])
+        self.assertEqual(release["environment"], "lan-production")
         self.assertIn("secrets.RELEASE_PR_TOKEN", release["steps"][0]["env"]["GH_TOKEN"])
     def test_only_one_automatic_production_path(self):
         coolify = self.workflow("coolify-deploy.yml")
@@ -54,7 +55,7 @@ class PipelineTests(unittest.TestCase):
         self.assertEqual(sync["needs"], "gate")
         self.assertIn("refs/heads/main", sync["if"])
         self.assertIn('--auto --merge', sync["steps"][1]["run"])
-        self.assertIn("No application changes to release", workflow["jobs"]["release-pr"]["steps"][0]["run"])
+        self.assertIn("No application changes to release", self.workflow("release-promotion.yml")["jobs"]["release-pr"]["steps"][0]["run"])
     def test_backup_survives_checkout_cleanup(self):
         workflow = yaml.safe_load((ROOT / ".github/deployment/server-deploy.yml").read_text())
         env = workflow["jobs"]["deploy"]["steps"][1]["env"]

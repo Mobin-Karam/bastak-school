@@ -22,7 +22,7 @@ The helper pushes your branch, creates a PR to `develop`, waits for CI, and merg
 
 `Continuous Integration` runs for every PR targeting `develop` or `main`, and every push to either branch. It bootstraps leaf lockfiles in workspace order, checks architecture and contracts, runs all project verification and HTTP security checks, and builds disposable production containers with TLS/proxy/migration smoke checks. `CI Gate` passes only if both quality and container jobs pass; there are no path filters that could leave this required check missing.
 
-After a successful **push** run on `develop`, CI creates or updates one release PR from `develop` to `main`. Inspect its changes and CI results, then merge using **Create a merge commit**. Keep the persistent develop branch; do not squash or delete it. The release PR is the production review boundary; it is not automatically merged. After main passes CI, automation also opens a `chore/sync-main-<sha>` PR back to develop and enables merge-commit auto-merge behind required CI. This preserves main ancestry for the next strict release PR. Empty application diffs do not open another release PR.
+After a successful **push** run on `develop`, the `Release promotion` workflow creates or updates one release PR from `develop` to `main`. Inspect its changes and CI results, then merge using **Create a merge commit**. Keep the persistent develop branch; do not squash or delete it. The release PR is the production review boundary; it is not automatically merged. After main passes CI, automation also opens a `chore/sync-main-<sha>` PR back to develop and enables merge-commit auto-merge behind required CI. This preserves main ancestry for the next strict release PR. Empty application diffs do not open another release PR.
 
 After a successful **push** run on `main`, `LAN Production Deployment` checks the tested SHA is still the current main head and sends a `verified-main` repository dispatch to the private deployment repository. Its `Server production deployment` workflow independently verifies the source CI run, repository, workflow path, event, conclusion, branch, and SHA before checking out that exact commit on the server runner, building images, creating a consistent SQLite backup, recreating containers, and checking readiness over HTTPS. Failed builds leave existing containers running. Backups, certificates, environment values, deployment lock, and successful-release receipt are stored outside runner checkout cleanup.
 
@@ -37,7 +37,7 @@ python3 scripts/cicd/configure-github.py
 python3 scripts/cicd/install-runner.py
 ```
 
-The configuration script requires PRs and the strict `CI Gate` status on `develop` and `main`, including administrators. Existing review requirements are preserved. New rules allow a solo maintainer to merge without another reviewer; increase approving-review count as the team grows. It sets `PRODUCTION_DEPLOY_TARGET=lan` and limits the `lan-production` environment to main.
+The configuration script requires PRs and the strict `CI Gate` status on `develop` and `main`, including administrators. Existing review requirements are preserved. New rules allow a solo maintainer to merge without another reviewer; increase approving-review count as the team grows. It enables auto-merge for checked synchronization PRs, sets `PRODUCTION_DEPLOY_TARGET=lan`, and limits the `lan-production` environment to main.
 
 The runner installer downloads the official Linux x64 runner, verifies its published SHA256, obtains a short-lived registration token through local authenticated CLI without printing it, registers the `bastak-lan` label, and starts a user systemd service. Docker must be usable by the runner account. This server also required ICU; its Debian `libicu76` package was downloaded through the signed APT package metadata and extracted under `~/.local/share/bastak-runner-libs` without changing system packages. The installer uses that local library path when present. On other hosts, install the official runner dependencies through the system package manager. Only trusted main deployment code uses this runner. The runner is registered only in the private deployment repository, so public source PR workflows cannot request jobs on it. Keep the deployment repository private and restrict who can edit its workflows or dispatch jobs. The public source repository requires approval for all outside-contributor workflows. Docker access grants broad host privileges; treat that account as privileged.
 
@@ -48,15 +48,17 @@ sudo loginctl enable-linger bastak-server
 systemctl --user status bastak-actions-runner.service
 ```
 
-Create a fine-grained GitHub token restricted to the source repository, with **Contents: write** and **Pull requests: write**, and save it as `RELEASE_PR_TOKEN` through GitHub Settings → Secrets and variables → Actions, or:
+Create a fine-grained GitHub token restricted to the source repository, with **Contents: write** and **Pull requests: write**, and save it as `RELEASE_PR_TOKEN` in the source repository’s **lan-production environment** through GitHub Settings → Environments → lan-production → Environment secrets, or:
 
 ```bash
-gh secret set RELEASE_PR_TOKEN --repo Mobin-Karam/bastak-school
+gh secret set RELEASE_PR_TOKEN --repo Mobin-Karam/bastak-school --env lan-production
 ```
 
 The CLI prompts for its value. Never paste credentials into chat, command arguments, tracked files, or docs. A GitHub App installation token with the equivalent permissions is the longer-term alternative. This dedicated token is necessary because PRs created with the default `GITHUB_TOKEN` do not reliably start the normal PR CI without additional approval. Do not fall back to untested merges when this secret is absent.
 
-Create a second token, restricted to **bastak-school-deploy**, with **Contents: write**, and save it as `DEPLOY_DISPATCH_TOKEN` in the source repository's **lan-production environment**. It sends repository-dispatch events; it is never provided to PR CI or the production runner. The source deployment workflow's success means dispatch was accepted; confirm the private repository's server workflow succeeded before calling a release healthy.
+Create a second token, restricted to **bastak-school-deploy**, with **Contents: write**, and save it as `DEPLOY_DISPATCH_TOKEN` in the source repository's **lan-production environment**. It sends repository-dispatch events; it is never provided to PR CI or the production runner. Release promotion runs from the default main branch after develop CI completes; synchronization runs only on main pushes. Both use the main-only protected environment, so neither PR CI nor develop code receives these credentials.
+
+The source deployment workflow's success means dispatch was accepted; confirm the private repository's server workflow succeeded before calling a release healthy.
 
 The private workflow is maintained in `.github/deployment/server-deploy.yml` in the source repository and copied to `.github/workflows/server-deploy.yml` in the deployment repository. Review and publish updates there after changing that source file; GitHub does not automatically synchronize cross-repository files. The private repo contains deployment orchestration only, and checks out application code from the source repo at the verified SHA.
 
@@ -71,7 +73,7 @@ The old Coolify workflow is manual-only and requires `PRODUCTION_DEPLOY_TARGET=c
 
 ## First rollout and recovery
 
-1. Merge the infrastructure PR into develop only after its PR checks pass. Develop CI then tests the merged commit and opens the release PR when the dedicated token is configured.
+1. Merge the infrastructure PR into develop only after its PR checks pass. Develop CI then tests the merged commit. On the first installation, create the develop-to-main PR with authenticated CLI after that CI succeeds (`gh pr create --base main --head develop --title "Release: develop to main" --body "Bootstrap the verified CI/CD pipeline."`). The workflow-run automations become available after the workflows reach the default main branch; subsequent release PRs are automatic.
 2. Finish runner registration, protection, environment, and secret setup before merging the release PR.
 3. Review **all** develop changes: main currently lags develop, so the first release contains existing application changes as well as this pipeline. Uncommitted local audit/schedule work is not part of that release.
 4. Merge the release PR with a merge commit, watch main CI, the source dispatch run, and the private server deployment run, then check login, role/school switches, and a real authorized operation in the deployed app.
