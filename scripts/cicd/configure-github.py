@@ -39,7 +39,7 @@ def main():
                 "required_pull_request_reviews": {"required_approving_review_count": 0,
                                                   "dismiss_stale_reviews": True},
                 "restrictions": None, "allow_force_pushes": False, "allow_deletions": False})
-    api(f"repos/{REPO}", "PATCH", {"allow_merge_commit": True, "allow_squash_merge": True})
+    api(f"repos/{REPO}", "PATCH", {"allow_merge_commit": True, "allow_squash_merge": True, "allow_auto_merge": True})
     subprocess.run(["gh", "variable", "set", "PRODUCTION_DEPLOY_TARGET", "--repo", REPO,
                     "--body", "lan"], check=True)
     api(f"repos/{REPO}/environments/lan-production", "PUT", {

@@ -20,5 +20,9 @@ done
 grep -qx 'CI Gate' <<< "$checks" || { echo 'CI Gate did not start. Check Actions permissions.' >&2; exit 1; }
 gh pr checks "$pr" --watch --fail-fast
 # GitHub enforces branch protection, reviews, and mergeability.
-gh pr merge "$pr" --squash --match-head-commit "$(git rev-parse HEAD)"
+if [[ "$branch" == chore/sync-main-* ]]; then
+  gh pr merge "$pr" --merge --match-head-commit "$(git rev-parse HEAD)"
+else
+  gh pr merge "$pr" --squash --match-head-commit "$(git rev-parse HEAD)"
+fi
 echo 'Merged to develop. Develop CI will create/update the release PR to main.'

@@ -22,7 +22,7 @@ The helper pushes your branch, creates a PR to `develop`, waits for CI, and merg
 
 `Continuous Integration` runs for every PR targeting `develop` or `main`, and every push to either branch. It bootstraps leaf lockfiles in workspace order, checks architecture and contracts, runs all project verification and HTTP security checks, and builds disposable production containers with TLS/proxy/migration smoke checks. `CI Gate` passes only if both quality and container jobs pass; there are no path filters that could leave this required check missing.
 
-After a successful **push** run on `develop`, CI creates or updates one release PR from `develop` to `main`. Inspect its changes and CI results, then merge using **Create a merge commit**. Keep the persistent develop branch; do not squash or delete it. The release PR is the production review boundary; it is not automatically merged.
+After a successful **push** run on `develop`, CI creates or updates one release PR from `develop` to `main`. Inspect its changes and CI results, then merge using **Create a merge commit**. Keep the persistent develop branch; do not squash or delete it. The release PR is the production review boundary; it is not automatically merged. After main passes CI, automation also opens a `chore/sync-main-<sha>` PR back to develop and enables merge-commit auto-merge behind required CI. This preserves main ancestry for the next strict release PR. Empty application diffs do not open another release PR.
 
 After a successful **push** run on `main`, `LAN Production Deployment` checks the tested SHA is still the current main head and sends a `verified-main` repository dispatch to the private deployment repository. Its `Server production deployment` workflow independently verifies the source CI run, repository, workflow path, event, conclusion, branch, and SHA before checking out that exact commit on the server runner, building images, creating a consistent SQLite backup, recreating containers, and checking readiness over HTTPS. Failed builds leave existing containers running. Backups, certificates, environment values, deployment lock, and successful-release receipt are stored outside runner checkout cleanup.
 
@@ -39,7 +39,7 @@ python3 scripts/cicd/install-runner.py
 
 The configuration script requires PRs and the strict `CI Gate` status on `develop` and `main`, including administrators. Existing review requirements are preserved. New rules allow a solo maintainer to merge without another reviewer; increase approving-review count as the team grows. It sets `PRODUCTION_DEPLOY_TARGET=lan` and limits the `lan-production` environment to main.
 
-The runner installer downloads the official Linux x64 runner, verifies its published SHA256, obtains a short-lived registration token through local authenticated CLI without printing it, registers the `bastak-lan` label, and starts a user systemd service. Docker must be usable by the runner account. Only trusted main deployment code uses this runner. The runner is registered only in the private deployment repository, so public source PR workflows cannot request jobs on it. Keep the deployment repository private and restrict who can edit its workflows or dispatch jobs. The public source repository requires approval for all outside-contributor workflows. Docker access grants broad host privileges; treat that account as privileged.
+The runner installer downloads the official Linux x64 runner, verifies its published SHA256, obtains a short-lived registration token through local authenticated CLI without printing it, registers the `bastak-lan` label, and starts a user systemd service. Docker must be usable by the runner account. This server also required ICU; its Debian `libicu76` package was downloaded through the signed APT package metadata and extracted under `~/.local/share/bastak-runner-libs` without changing system packages. The installer uses that local library path when present. On other hosts, install the official runner dependencies through the system package manager. Only trusted main deployment code uses this runner. The runner is registered only in the private deployment repository, so public source PR workflows cannot request jobs on it. Keep the deployment repository private and restrict who can edit its workflows or dispatch jobs. The public source repository requires approval for all outside-contributor workflows. Docker access grants broad host privileges; treat that account as privileged.
 
 For automatic service startup when no desktop session is open, enable lingering once:
 
@@ -48,7 +48,7 @@ sudo loginctl enable-linger bastak-server
 systemctl --user status bastak-actions-runner.service
 ```
 
-Create a fine-grained GitHub token restricted to the source repository, with **Contents: read** and **Pull requests: write**, and save it as `RELEASE_PR_TOKEN` through GitHub Settings → Secrets and variables → Actions, or:
+Create a fine-grained GitHub token restricted to the source repository, with **Contents: write** and **Pull requests: write**, and save it as `RELEASE_PR_TOKEN` through GitHub Settings → Secrets and variables → Actions, or:
 
 ```bash
 gh secret set RELEASE_PR_TOKEN --repo Mobin-Karam/bastak-school

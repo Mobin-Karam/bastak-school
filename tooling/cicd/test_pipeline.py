@@ -48,6 +48,13 @@ class PipelineTests(unittest.TestCase):
         for expected in ('r["event"]=="push"', 'r["head_branch"]=="main"', 'r["conclusion"]=="success"',
                          'r["path"]==".github/workflows/continuous-integration.yml"'):
             self.assertIn(expected, verify)
+    def test_release_history_is_synchronized_without_empty_releases(self):
+        workflow = self.workflow("continuous-integration.yml")
+        sync = workflow["jobs"]["sync-main"]
+        self.assertEqual(sync["needs"], "gate")
+        self.assertIn("refs/heads/main", sync["if"])
+        self.assertIn('--auto --merge', sync["steps"][1]["run"])
+        self.assertIn("No application changes to release", workflow["jobs"]["release-pr"]["steps"][0]["run"])
     def test_backup_survives_checkout_cleanup(self):
         workflow = yaml.safe_load((ROOT / ".github/deployment/server-deploy.yml").read_text())
         env = workflow["jobs"]["deploy"]["steps"][1]["env"]
