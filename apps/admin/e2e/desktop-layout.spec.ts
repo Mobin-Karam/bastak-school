@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { readFileSync, readdirSync } from "node:fs";
+import { adminContentOffsetClass } from "../src/app/layout/shell/layout-geometry";
 
 test.use({
   reducedMotion: "reduce",
@@ -30,7 +31,7 @@ for (const direction of ["rtl", "ltr"]) {
         "",
       );
       const viewport = viewportFixture(
-        "ms-[28rem]",
+        expandedRails(direction as "rtl" | "ltr"),
         `<div class="grid gap-4">
         <section class="workspace-actions"><button>Add book</button></section>
         <section class="p-4">Class selector</section>
@@ -49,6 +50,7 @@ for (const direction of ["rtl", "ltr"]) {
         width: element.clientWidth,
         scrollWidth: element.scrollWidth,
       }));
+      expect(metrics.width).toBeLessThanOrEqual(size.width - 29 * 16);
       expect(metrics.scrollHeight).toBeLessThanOrEqual(metrics.height + 1);
       expect(metrics.scrollWidth).toBeLessThanOrEqual(metrics.width + 1);
       const pagination = await page.locator("[data-pagination]").boundingBox();
@@ -66,7 +68,7 @@ test("class panels stack on mobile and fit beside expanded rails on desktop", as
   for (const width of [390, 1280]) {
     await page.setViewportSize({ width, height: 720 });
     const viewport = viewportFixture(
-      width >= 1200 ? "ms-[28rem]" : "",
+      width >= 1200 ? expandedRails("ltr") : "",
       `<section class="classes-workspace grid gap-3">
       <article class="p-3 border">Class directory</article>
       <article class="p-3 border">Class details</article>
@@ -121,7 +123,7 @@ for (const workspace of ["home", "planner"]) {
           </section>
         </div>`;
     await page.setContent(
-      `<style>${css}body{font-family:Arial,sans-serif}</style><div dir="rtl" data-shell="desktop" class="admin-role-shell flex h-dvh flex-col overflow-hidden"><header class="h-20 shrink-0">Global header</header>${viewportFixture("ms-[28rem]", content)}</div>`,
+      `<style>${css}body{font-family:Arial,sans-serif}</style><div dir="rtl" data-shell="desktop" class="admin-role-shell flex h-dvh flex-col overflow-hidden"><header class="h-20 shrink-0">Global header</header>${viewportFixture(expandedRails("rtl"), content)}</div>`,
     );
     const overflow = await page
       .locator(".admin-page-scroll")
@@ -138,5 +140,14 @@ for (const workspace of ["home", "planner"]) {
       expect(panel.bottom).toBeLessThanOrEqual(720);
       expect(panel.height).toBeGreaterThan(80);
     }
+  });
+}
+
+function expandedRails(direction: "rtl" | "ltr") {
+  return adminContentOffsetClass({
+    showContextRail: true,
+    mainCollapsed: false,
+    contextCollapsed: false,
+    direction,
   });
 }
