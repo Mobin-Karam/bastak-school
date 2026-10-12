@@ -107,7 +107,7 @@ export const getEducationBookImpact = (id: string) =>
 export const createEducationBook = (body: EducationBookInput) =>
   api.post<ManagedEducationBook>("/education-catalog/admin/books", body);
 export const updateEducationBook = (id: string, body: Partial<EducationBookInput>) =>
-  api.patch<ManagedEducationBook>(`/education-catalog/admin/books/${id}`, body);
+  api.patch<ManagedEducationBook>(`/education-catalog/admin/books/${encodeURIComponent(id)}`, body);
 export const publishEducationBook = (id: string) =>
   api.post<ManagedEducationBook>(`/education-catalog/admin/books/${id}/publish`, {});
 export type EducationImportPreview = {
@@ -136,3 +136,6 @@ export const exportEducationBooks = () =>
       >
     >
   >("/education-catalog/admin/books/export");
+
+/** Retire the catalog record and remove all unreferenced class assignments atomically. */
+export const deleteEducationBook = (id: string) => updateEducationBook(id, { state: "ARCHIVED" });

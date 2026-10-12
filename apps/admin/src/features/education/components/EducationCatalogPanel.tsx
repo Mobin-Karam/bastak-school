@@ -2,6 +2,7 @@ import { useMemo, useState, type ChangeEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Archive, CheckCircle2, Pencil, Search, Upload, Users } from "lucide-react";
 import { Button, Card, Field, Input, LoadingState, Textarea } from "../../../shared/ui/ui";
+import { useModal } from "../../../shared/ui/modal";
 import { notify } from "../../../shared/ui/notifications";
 import { useEducationCatalogCopy } from "../model/education-catalog-copy";
 import {
@@ -44,6 +45,7 @@ export function EducationCatalogPanel({
   canPublish: boolean;
 }) {
   const copy = useEducationCatalogCopy();
+  const modal = useModal();
   const client = useQueryClient();
   const books = useQuery({
     queryKey: ["education-catalog", "managed-books"],
@@ -55,7 +57,11 @@ export function EducationCatalogPanel({
   const [state, setState] = useState<"ALL" | ManagedEducationBook["state"]>("ALL");
   const [importText, setImportText] = useState("[]");
   const [importRows, setImportRows] = useState<EducationBookInput[] | null>(null);
-  const refresh = () => void client.invalidateQueries({ queryKey: ["education-catalog"] });
+  const refresh = () => {
+    void client.invalidateQueries({ queryKey: ["education-catalog"] });
+    void client.invalidateQueries({ queryKey: ["classes"] });
+    void client.invalidateQueries({ queryKey: ["class-options"] });
+  };
   const stateLabel = (value: ManagedEducationBook["state"]) =>
     value === "PUBLISHED" ? copy.published : value === "ARCHIVED" ? copy.archived : copy.draft;
   const save = useMutation({
@@ -85,7 +91,8 @@ export function EducationCatalogPanel({
       refresh();
       notify(copy.archivedSuccess, "success");
     },
-    onError: () => notify(copy.archiveFailed, "error"),
+    onError: (error) =>
+      notify(error instanceof Error ? error.message : copy.archiveFailed, "error"),
   });
   const impact = useMutation({
     mutationFn: getEducationBookImpact,
@@ -221,7 +228,24 @@ export function EducationCatalogPanel({
                     variant="ghost"
                     className="h-8 px-2 text-red-700"
                     disabled={archive.isPending}
-                    onClick={() => archive.mutate(book.id)}
+                    onClick={() =>
+                      modal.open({
+                        title: copy.locale === "fa-IR" ? "حذف کتاب" : "Delete book",
+                        description:
+                          copy.locale === "fa-IR"
+                            ? `«${book.titleFa}» از کاتالوگ فعال، صفحه کتاب‌ها و همه کلاس‌های متصل حذف می‌شود. کتاب‌های استفاده‌شده در برنامه درسی قابل حذف نیستند. ادامه می‌دهید؟`
+                            : `Delete “${book.titleEn || book.titleFa}” from the active catalog, Books page, and every linked class? Books used by timetables cannot be deleted.`,
+                        tone: "danger",
+                        showCancel: true,
+                        confirmLabel:
+                          copy.locale === "fa-IR"
+                            ? "حذف از کاتالوگ و کلاس‌ها"
+                            : "Delete from catalog and classes",
+                        onConfirm: async () => {
+                          await archive.mutateAsync(book.id);
+                        },
+                      })
+                    }
                   >
                     <Archive size={14} />
                     {copy.archive}

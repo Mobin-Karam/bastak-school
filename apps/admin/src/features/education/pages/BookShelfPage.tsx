@@ -18,6 +18,7 @@ import { BookEditor } from "../components/BookEditor";
 import { listClasses, setClassBooks, type EducationClassBook } from "../api/classes.api";
 import {
   createEducationBook,
+  deleteEducationBook,
   updateEducationBook,
   type EducationBookInput,
 } from "../api/education-catalog.api";
@@ -110,7 +111,44 @@ function BooksWorkspace({ scope }: { scope: string }) {
     },
     onError: () => notify(fa ? "حذف کتاب انجام نشد." : "Could not remove the books.", "error"),
   });
-  const busy = addBook.isPending || editBook.isPending || removeBooks.isPending;
+  const deleteBook = useMutation({
+    mutationFn: (id: string) => deleteEducationBook(id),
+    onSuccess: async () => {
+      await refresh();
+      notify(
+        fa
+          ? "کتاب از کاتالوگ و همه کلاس‌ها حذف شد."
+          : "Book deleted from the catalog and all classes.",
+        "success",
+      );
+    },
+    onError: (error) =>
+      notify(
+        error instanceof Error
+          ? error.message
+          : fa
+            ? "حذف کتاب انجام نشد."
+            : "Could not delete the book.",
+        "error",
+      ),
+  });
+  const confirmDelete = (book: EducationClassBook) => {
+    if (!canManageBooks) return;
+    modal.open({
+      title: fa ? "حذف کتاب" : "Delete book",
+      description: fa
+        ? `«${book.title}» از کاتالوگ و همه کلاس‌های متصل حذف می‌شود، از جمله بخش مدیریت کتاب‌های کلاس. این کار فقط برداشتن از کلاس فعلی نیست. کتاب‌های استفاده‌شده در برنامه درسی قابل حذف نیستند. ادامه می‌دهید؟`
+        : `Delete “${book.title}” from the catalog and every linked class, including class book management? This affects more than the current class. Books used by timetables cannot be deleted.`,
+      tone: "danger",
+      showCancel: true,
+      confirmLabel: fa ? "حذف از کاتالوگ و کلاس‌ها" : "Delete from catalog and classes",
+      onConfirm: async () => {
+        await deleteBook.mutateAsync(book.bookId);
+      },
+    });
+  };
+  const busy =
+    addBook.isPending || editBook.isPending || removeBooks.isPending || deleteBook.isPending;
   const openAdd = () => {
     if (!selectedClass || !canManageBooks) return;
     modal.open({
@@ -217,6 +255,13 @@ function BooksWorkspace({ scope }: { scope: string }) {
           label: fa ? "ویرایش" : "Edit",
           icon: <Pencil size={16} aria-hidden="true" />,
           onClick: openEdit,
+        },
+        {
+          id: "delete",
+          label: fa ? "حذف کتاب" : "Delete book",
+          icon: <Trash2 size={16} aria-hidden="true" />,
+          tone: "danger",
+          onClick: confirmDelete,
         },
         {
           id: "remove",
@@ -329,6 +374,9 @@ function BooksWorkspace({ scope }: { scope: string }) {
                 <div className="flex flex-wrap gap-2">
                   <Button variant="soft" disabled={busy} onClick={() => openEdit(book)}>
                     {fa ? "ویرایش" : "Edit"}
+                  </Button>
+                  <Button variant="danger" disabled={busy} onClick={() => confirmDelete(book)}>
+                    {fa ? "حذف کتاب" : "Delete book"}
                   </Button>
                   <Button variant="danger" disabled={busy} onClick={() => confirmRemove([book])}>
                     {fa ? "برداشتن از کلاس" : "Remove from class"}
