@@ -14,6 +14,7 @@ import {
 } from "../api/classes.api";
 import {
   createEducationBook,
+  deleteEducationBook,
   updateEducationBook,
   type ManagedEducationBook,
 } from "../api/education-catalog.api";
@@ -36,6 +37,7 @@ vi.mock("../api/classes.api", () => ({
 }));
 vi.mock("../api/education-catalog.api", () => ({
   createEducationBook: vi.fn(),
+  deleteEducationBook: vi.fn(),
   updateEducationBook: vi.fn(),
 }));
 vi.mock("../../../shared/ui/notifications", () => ({ notify: vi.fn() }));
@@ -219,6 +221,22 @@ describe("books shared table workflow", () => {
       { bookId: "book-three", teacherId: "teacher-one" },
     ]);
     expect(await screen.findByText("1 records")).toBeInTheDocument();
+  });
+  it("confirms catalog deletion and removes the book from the refreshed class list", async () => {
+    vi.mocked(deleteEducationBook).mockImplementation(async (id) => {
+      classroom = { ...classroom, books: classroom.books.filter((book) => book.bookId !== id) };
+      return { id, state: "ARCHIVED" } as ManagedEducationBook;
+    });
+    mount();
+    await openActions("book-one");
+    await userEvent.click(screen.getByRole("menuitem", { name: "Delete book" }));
+    const dialog = within(screen.getByRole("dialog"));
+    expect(dialog.getByText(/every linked class/)).toBeInTheDocument();
+    expect(deleteEducationBook).not.toHaveBeenCalled();
+    await userEvent.click(dialog.getByRole("button", { name: "Delete from catalog and classes" }));
+    expect(deleteEducationBook).toHaveBeenCalledWith("book-one");
+    expect(setClassBooks).not.toHaveBeenCalled();
+    expect(await screen.findByText("2 records")).toBeInTheDocument();
   });
   it("dismisses stale book dialogs when the active organization changes", async () => {
     const view = mount();
