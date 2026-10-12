@@ -16,7 +16,9 @@ if "${compose[@]}" ps --status running --services | grep -qx backend-v2; then
   mkdir -p "$backup_dir"
   chmod 700 "$backup_dir"
   "${compose[@]}" exec -T backend-v2 node -e 'const Database=require("better-sqlite3");new Database(process.env.DATABASE_PATH).backup("/data/pre-deploy.sqlite").then(()=>process.exit(0)).catch(()=>process.exit(1));'
-  "${compose[@]}" cp backend-v2:/data/pre-deploy.sqlite "$backup_dir/$(date -u +%Y%m%dT%H%M%SZ)-${RELEASE_SHA:-manual}.sqlite"
+  backup_file="$backup_dir/$(date -u +%Y%m%dT%H%M%SZ)-${RELEASE_SHA:-manual}.sqlite"
+  "${compose[@]}" cp backend-v2:/data/pre-deploy.sqlite "$backup_file"
+  chmod 600 "$backup_file"
 fi
 "${compose[@]}" up -d --force-recreate --wait --wait-timeout 180
 curl --fail --silent --show-error --cacert .run/production/tls/ca.crt https://localhost/ready
