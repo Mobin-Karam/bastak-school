@@ -102,7 +102,6 @@ The exact screens and actions available depend on the user's role, capabilities,
 | Project | Purpose | Main stack | Local port |
 | --- | --- | --- | ---: |
 | [`apps/admin/`](apps/admin/) | Role-aware education operations | React 18 + Vite | `8081` |
-| [`apps/student/`](apps/student/) | Student web/PWA/native experience | React 18 + Vite + Tauri | `8080` |
 | [`apps/api/`](apps/api/) | Versioned backend and composition root | NestJS 11 + Fastify + TypeORM | `4000` |
 | [`student-core/`](student-core/) | Runtime-neutral student domain/contracts | TypeScript | — |
 | [`packages/api-contract/`](packages/api-contract/) | Shared API contract boundary | TypeScript | — |

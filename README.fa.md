@@ -68,7 +68,6 @@
 | پروژه | مسئولیت | فناوری | پورت محلی |
 | --- | --- | --- | ---: |
 | [`apps/admin/`](apps/admin/) | عملیات آموزشی نقش‌محور | React 18 + Vite | `8081` |
-| [`apps/student/`](apps/student/) | تجربه وب/PWA/native دانش‌آموز | React 18 + Vite + Tauri | `8080` |
 | [`apps/api/`](apps/api/) | API نسخه‌دار و composition root | NestJS 11 + Fastify + TypeORM | `4000` |
 | [`student-core/`](student-core/) | دامنه و قرارداد مستقل از runtime | TypeScript | — |
 | [`packages/api-contract/`](packages/api-contract/) | قراردادهای اشتراکی API | TypeScript | — |

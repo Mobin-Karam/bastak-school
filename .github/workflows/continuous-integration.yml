@@ -27,6 +27,7 @@ jobs:
           HEAD_BRANCH: ${{ github.head_ref }}
           HEAD_REPOSITORY: ${{ github.event.pull_request.head.repo.full_name }}
         run: test "$HEAD_BRANCH" = develop && test "$HEAD_REPOSITORY" = "$GITHUB_REPOSITORY"
+      - run: npm run docs:check
       - run: npm run workspace:check
       - run: npm run workspace:list
       - run: npm run workspace:plan -- build
