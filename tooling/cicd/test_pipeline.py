@@ -24,10 +24,11 @@ class PipelineTests(unittest.TestCase):
         for expected in ("conclusion == 'success'", "event == 'push'", "head_branch == 'main'",
                          "head_repository.full_name == github.repository", "PRODUCTION_DEPLOY_TARGET == 'lan'"):
             self.assertIn(expected, authorize)
-        checkout = deploy["jobs"]["deploy"]["steps"][0]["with"]
-        self.assertEqual(checkout["ref"], "${{ github.event.workflow_run.head_sha }}")
+        server = yaml.safe_load((ROOT / ".github/deployment/server-deploy.yml").read_text())
+        checkout = server["jobs"]["deploy"]["steps"][0]["with"]
+        self.assertEqual(checkout["ref"], "${{ github.event.client_payload.sha }}")
         self.assertFalse(checkout["persist-credentials"])
-        self.assertIn('[[ "$current" == "$RELEASE_SHA" ]]', deploy["jobs"]["deploy"]["steps"][1]["run"])
+        self.assertIn('[[ "$current" == "$RELEASE_SHA" ]]', server["jobs"]["deploy"]["steps"][1]["run"])
     def test_release_creation_requires_develop_success(self):
         ci = self.workflow("continuous-integration.yml")
         release = ci["jobs"]["release-pr"]
@@ -38,8 +39,17 @@ class PipelineTests(unittest.TestCase):
         coolify = self.workflow("coolify-deploy.yml")
         self.assertNotIn("workflow_run", coolify.get("on", coolify.get(True)))
         self.assertIn("PRODUCTION_DEPLOY_TARGET == 'coolify'", coolify["jobs"]["deploy"]["if"])
-    def test_backup_survives_checkout_cleanup(self):
+    def test_public_workflows_cannot_request_production_runner(self):
         workflow = self.workflow("lan-production.yml")
+        self.assertEqual(workflow["jobs"]["dispatch"]["runs-on"], "ubuntu-latest")
+        self.assertEqual(workflow["jobs"]["dispatch"]["environment"], "lan-production")
+        server = yaml.safe_load((ROOT / ".github/deployment/server-deploy.yml").read_text())
+        verify = server["jobs"]["authorize"]["steps"][0]["run"]
+        for expected in ('r["event"]=="push"', 'r["head_branch"]=="main"', 'r["conclusion"]=="success"',
+                         'r["path"]==".github/workflows/continuous-integration.yml"'):
+            self.assertIn(expected, verify)
+    def test_backup_survives_checkout_cleanup(self):
+        workflow = yaml.safe_load((ROOT / ".github/deployment/server-deploy.yml").read_text())
         env = workflow["jobs"]["deploy"]["steps"][1]["env"]
         self.assertTrue(env["PRODUCTION_BACKUP_DIR"].startswith("/home/bastak-server/.config/"))
         script = (ROOT / "scripts/deploy/lan.sh").read_text()

@@ -30,37 +30,21 @@ jobs:
         run: |
           current=$(gh api "repos/$GH_REPO/git/ref/heads/main" --jq .object.sha)
           if [[ "$current" == "$RELEASE_SHA" ]]; then echo 'current=true' >> "$GITHUB_OUTPUT"; fi
-  deploy:
+  dispatch:
     needs: authorize
     if: needs.authorize.outputs.current == 'true'
-    runs-on: [self-hosted, linux, x64, bastak-lan]
+    runs-on: ubuntu-latest
     environment: lan-production
-    timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.workflow_run.head_sha }}
-          persist-credentials: false
-      - name: Deploy the tested commit
+      - name: Send verified release to private deployment repository
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ secrets.DEPLOY_DISPATCH_TOKEN }}
           RELEASE_SHA: ${{ github.event.workflow_run.head_sha }}
-          PRODUCTION_BACKUP_DIR: /home/bastak-server/.config/bastak-production/backups
-          PRODUCTION_LOCK_FILE: /home/bastak-server/.config/bastak-production/deploy.lock
-          PRODUCTION_RECEIPT: /home/bastak-server/.config/bastak-production/release.txt
+          RUN_ID: ${{ github.event.workflow_run.id }}
         shell: bash
         run: |
           set -euo pipefail
-          current=$(curl --fail --silent --show-error --header "Authorization: Bearer $GH_TOKEN" \
-            "https://api.github.com/repos/$GITHUB_REPOSITORY/git/ref/heads/main" | python3 -c 'import sys,json; print(json.load(sys.stdin)["object"]["sha"])')
-          [[ "$current" == "$RELEASE_SHA" ]] || { echo 'Skipping superseded release.'; exit 0; }
-          test "$(git rev-parse HEAD)" = "$RELEASE_SHA"
-          config=/home/bastak-server/.config/bastak-production
-          test -d "$config/tls"
-          test -f "$config/production.env"
-          mkdir -p .run/production
-          if [[ ! -e .run/production/tls ]]; then ln -s "$config/tls" .run/production/tls; fi
-          test "$(readlink .run/production/tls)" = "$config/tls"
-          install -m 600 "$config/production.env" .run/production/production.env
-          ./scripts/deploy/lan.sh
-          printf '%s\n' "$RELEASE_SHA" > "$PRODUCTION_RECEIPT"
+          [[ -n "$GH_TOKEN" ]] || { echo 'Configure DEPLOY_DISPATCH_TOKEN in lan-production.'; exit 1; }
+          payload=$(python3 -c 'import json,os; print(json.dumps({"event_type":"verified-main","client_payload":{"sha":os.environ["RELEASE_SHA"],"run_id":os.environ["RUN_ID"]}}))')
+          printf '%s' "$payload" | gh api repos/Mobin-Karam/bastak-school-deploy/dispatches --method POST --input -
+          echo 'Deployment queued. Verify Server production deployment in bastak-school-deploy; this dispatch is not proof of production health.'

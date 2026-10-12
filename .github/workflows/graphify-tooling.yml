@@ -25,11 +25,24 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+      - name: Detect optional committed graph
+        id: graph
+        shell: bash
+        run: |
+          if [[ -s graphify-out/graph.json && -s graphify-out/code-fingerprint.json ]]; then
+            echo 'available=true' >> "$GITHUB_OUTPUT"
+          elif [[ -e graphify-out/graph.json || -e graphify-out/code-fingerprint.json ]]; then
+            echo 'Graph artifacts are incomplete. Refresh Graphify before committing.' >&2
+            exit 1
+          else
+            echo 'No committed Graphify graph; use source discovery as documented in AGENTS.md.'
+          fi
       - name: Install pinned Graphify with MCP support
+        if: steps.graph.outputs.available == 'true'
         run: python -m pip install --disable-pip-version-check 'graphifyy[mcp]==0.9.58'
-      - name: Verify committed graph exists
-        run: test -s graphify-out/graph.json && test -s graphify-out/code-fingerprint.json
       - name: Reject stale graph
+        if: steps.graph.outputs.available == 'true'
         run: node tooling/graphify/fingerprint.mjs --check=graphify-out/code-fingerprint.json
       - name: Smoke-query committed graph
+        if: steps.graph.outputs.available == 'true'
         run: graphify query 'repository architecture' --budget 300 --graph graphify-out/graph.json >/dev/null

@@ -1,11 +1,17 @@
 #!/usr/bin/env python3
 """Register a repository-scoped production runner using local gh authentication."""
 import hashlib, json, os, pathlib, subprocess, tarfile, tempfile, urllib.request
-REPO = "Mobin-Karam/bastak-school"
+REPO = "Mobin-Karam/bastak-school-deploy"
 home = pathlib.Path.home()
 runner = home / ".local/share/bastak-actions-runner"
 if (runner / ".runner").exists():
     raise SystemExit("Runner already configured; inspect it before re-registering.")
+metadata = json.loads(subprocess.check_output(["gh", "api", f"repos/{REPO}"], text=True))
+if not metadata["private"]:
+    raise SystemExit("Production runners must remain in the private deployment repository.")
+runner_libs = home / ".local/share/bastak-runner-libs/usr/lib/x86_64-linux-gnu"
+if runner_libs.exists():
+    os.environ["LD_LIBRARY_PATH"] = str(runner_libs)
 subprocess.run(["docker", "info"], check=True, stdout=subprocess.DEVNULL)
 release = json.load(urllib.request.urlopen("https://api.github.com/repos/actions/runner/releases/latest"))
 asset = next(a for a in release["assets"] if a["name"].startswith("actions-runner-linux-x64-")
@@ -41,6 +47,7 @@ WorkingDirectory={runner}
 ExecStart={runner}/run.sh
 Restart=always
 RestartSec=10
+Environment=LD_LIBRARY_PATH={runner_libs}
 Environment=PATH={home}/.local/bin:/usr/local/bin:/usr/bin:/bin
 [Install]
 WantedBy=default.target
