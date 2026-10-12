@@ -2,7 +2,6 @@ import { useState, useId } from "react";
 import { Save } from "lucide-react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "../../../shared/ui/ui";
-import { useAuth } from "../../auth";
 import { useClassesCopy } from "../model/classes-copy";
 import { deleteEducationBook } from "../api/education-catalog.api";
 import type { EducationClass, getClassOptions } from "../api/classes.api";
@@ -13,15 +12,16 @@ export function ClassBooksModal({
   onSave,
   onClose,
   saving,
+  canDeleteBooks,
 }: {
   options: Awaited<ReturnType<typeof getClassOptions>>;
   classroom: EducationClass;
   onSave: (books: Array<{ bookId: string; teacherId: string }>) => void;
   onClose: () => void;
   saving: boolean;
+  canDeleteBooks: boolean;
 }) {
   const copy = useClassesCopy();
-  const auth = useAuth();
   const client = useQueryClient();
   const fa = copy.locale === "fa-IR";
   const confirmationId = useId();
@@ -116,7 +116,7 @@ export function ClassBooksModal({
                     </small>
                   </span>
                 </label>
-                {auth.can("education.catalog.manage") ? (
+                {canDeleteBooks ? (
                   <Button
                     variant="danger"
                     disabled={saving}
