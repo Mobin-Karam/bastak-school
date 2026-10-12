@@ -11,6 +11,7 @@ import { Student } from "./student.entity";
 
 @Entity("dorm_room_assignments")
 @Index(["room", "student"], { unique: true })
+@Index("UQ_dorm_assignment_student", ["student"], { unique: true })
 export class DormRoomAssignment {
   @PrimaryGeneratedColumn("uuid")
   id!: string;

@@ -1,4 +1,5 @@
 import { WorkflowsService } from "./workflows.service";
+import { SchoolAccessService } from "../school-access";
 import { AttendanceStatus } from "../../database/entities/attendance-record.entity";
 import {
   LeaveRequestReviewerRole,
@@ -64,6 +65,7 @@ describe("WorkflowsService", () => {
       users as any,
       realtime as any,
       { createForUsers: jest.fn() } as any,
+      new SchoolAccessService({} as never, memberships as never),
     );
 
     await expect(
@@ -147,6 +149,7 @@ describe("WorkflowsService", () => {
       users as any,
       realtime as any,
       { createForUsers: jest.fn() } as any,
+      new SchoolAccessService({} as never, memberships as never),
     );
 
     await expect(
@@ -236,6 +239,7 @@ describe("WorkflowsService", () => {
       users as any,
       realtime as any,
       { createForUsers: jest.fn() } as any,
+      new SchoolAccessService({} as never, memberships as never),
     );
 
     await service.createLeaveRequest(
@@ -317,6 +321,7 @@ describe("WorkflowsService", () => {
       users as any,
       realtime as any,
       { createForUsers: jest.fn() } as any,
+      new SchoolAccessService({} as never, memberships as never),
     );
 
     const returned = await service.requestExitReturn(

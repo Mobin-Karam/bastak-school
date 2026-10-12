@@ -25,6 +25,7 @@ export type AttendanceRosterSnapshot = {
 };
 
 @Entity("attendance_sessions")
+@Index("IDX_attendance_session_org_date_id", ["organization", "sessionDate", "id"])
 @Index("IDX_attendance_session_occurrence", ["organization", "occurrenceKey"], {
   unique: true,
 })

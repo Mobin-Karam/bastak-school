@@ -10,6 +10,7 @@ import { SchoolAccessService } from "../school-access";
 import { NotificationsService } from "../notifications";
 import { NotificationType } from "../../database/entities/notification.entity";
 import { CreateDormRoomDto, SendDormAnnouncementDto } from "./dormitory.dto";
+import { attendanceTransaction } from "../attendance";
 
 @Injectable()
 export class DormitoryService {
@@ -24,14 +25,20 @@ export class DormitoryService {
   async listRooms(user: AuthenticatedUser, organizationId?: string) {
     const ids = await this.access.scopedOrganizationIds(user, organizationId);
     if (!ids.length) return [];
-    const rows = await this.rooms.find({
-      where: { organization: { id: In(ids) } },
-      relations: { organization: true, assignments: { student: true } },
-      order: { name: "ASC" },
-    });
-    return rows.map((room) => ({
-      id: room.id, organizationId: room.organization.id, organizationName: room.organization.name, code: room.code, name: room.name, building: room.building, floor: room.floor, capacity: room.capacity, status: room.status, studentCount: room.assignments?.length ?? 0,
-    }));
+    const rows = await this.rooms.createQueryBuilder("room")
+      .innerJoin("room.organization", "organization")
+      .select("room.id", "id")
+      .addSelect("organization.id", "organizationId")
+      .addSelect("organization.name", "organizationName")
+      .addSelect("room.code", "code").addSelect("room.name", "name")
+      .addSelect("room.building", "building").addSelect("room.floor", "floor")
+      .addSelect("room.capacity", "capacity").addSelect("room.status", "status")
+      .addSelect((query) => query.select("COUNT(*)").from(DormRoomAssignment, "assignment")
+        .where("assignment.roomId = room.id"), "studentCount")
+      .where("room.organizationId IN (:...ids)", { ids })
+      .orderBy("room.name", "ASC").addOrderBy("room.id", "ASC")
+      .getRawMany<{ id: string; organizationId: string; organizationName: string; code: string; name: string; building: string; floor: number; capacity: number; status: string; studentCount: number | string }>();
+    return rows.map((room) => ({ ...room, studentCount: Number(room.studentCount) }));
   }
 
   async createRoom(user: AuthenticatedUser, dto: CreateDormRoomDto) {
@@ -56,21 +63,23 @@ export class DormitoryService {
   }
 
   async setAssignments(user: AuthenticatedUser, roomId: string, studentIds: string[]) {
-    const room = await this.requireRoom(user, roomId);
     const ids = [...new Set(studentIds || [])];
-    if (ids.length > room.capacity) throw new ApiException(422, "DORM_ROOM_CAPACITY", "تعداد طلبه‌ها بیشتر از ظرفیت اتاق است.");
-    const students = ids.length ? await this.students.find({ where: { id: In(ids), organization: { id: room.organization.id } }, relations: { organization: true } }) : [];
-    if (students.length !== ids.length) throw new ApiException(422, "DORM_STUDENT_ORGANIZATION_MISMATCH", "همه طلبه‌ها باید متعلق به همین مدرسه باشند.");
-
-    // Each student can belong to only one current room. Existing assignment in another room is moved.
-    if (ids.length) {
-      const previous = await this.assignments.find({ where: { student: { id: In(ids) } }, relations: { room: { organization: true }, student: true } });
-      const movable = previous.filter((item) => item.room.organization.id === room.organization.id && item.room.id !== room.id);
-      if (movable.length) await this.assignments.remove(movable);
-    }
-    await this.assignments.delete({ room: { id: room.id } });
-    if (students.length) await this.assignments.save(students.map((student) => this.assignments.create({ room, student })));
-    return { roomId: room.id, count: students.length };
+    return attendanceTransaction(this.assignments.manager, async (manager) => {
+      // Validate after admission, so concurrent moves cannot validate against a half-written placement.
+      const room = await this.requireRoom(user, roomId);
+      const assignments = manager.getRepository(DormRoomAssignment);
+      if (ids.length > room.capacity) throw new ApiException(422, "DORM_ROOM_CAPACITY", "تعداد طلبه‌ها بیشتر از ظرفیت اتاق است.");
+      const students = ids.length ? await manager.getRepository(Student).find({ where: { id: In(ids), organization: { id: room.organization.id } }, relations: { organization: true } }) : [];
+      if (students.length !== ids.length) throw new ApiException(422, "DORM_STUDENT_ORGANIZATION_MISMATCH", "همه طلبه‌ها باید متعلق به همین مدرسه باشند.");
+      // Moving and replacing commit together; unique studentId also protects alternate writers.
+      if (ids.length) await assignments.createQueryBuilder().delete()
+        .where("studentId IN (:...ids)", { ids })
+        .andWhere("roomId IN (SELECT id FROM dorm_rooms WHERE organizationId = :organizationId)", { organizationId: room.organization.id })
+        .execute();
+      await assignments.delete({ room: { id: room.id } });
+      if (students.length) await assignments.save(students.map((student) => assignments.create({ room, student })));
+      return { roomId: room.id, count: students.length };
+    });
   }
 
   async findStudents(user: AuthenticatedUser, organizationId: string, query: string) {

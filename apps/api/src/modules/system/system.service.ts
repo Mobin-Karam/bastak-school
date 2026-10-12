@@ -277,6 +277,11 @@ export class SystemService {
       const check = db.pragma("quick_check", { simple: true });
       if (check !== "ok")
         throw new ApiException(400, "SQLITE_INVALID", "فایل SQLite سالم نیست.");
+      // quick_check checks pages, not foreign-key integrity. Reject dangling
+      // references before the live connection is closed or any file replaced.
+      const foreignKeyViolations = db.pragma("foreign_key_check") as unknown[];
+      if (foreignKeyViolations.length)
+        throw new ApiException(400, "SQLITE_FOREIGN_KEY_INVALID", "روابط فایل پایگاه داده معتبر نیست.");
       const tables = (
         db
           .prepare(`SELECT name FROM sqlite_master WHERE type='table'`)

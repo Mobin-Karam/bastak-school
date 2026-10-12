@@ -644,6 +644,7 @@ export class AttendanceService {
         const sessions = manager.getRepository(AttendanceSession);
         const records = manager.getRepository(AttendanceRecord);
         const students = manager.getRepository(Student);
+        this.assertWorkOrganization(user, dto.organizationId);
         const organization = await this.access.organizationForUser(
           this.effectiveUser(user),
           dto.organizationId,
@@ -984,6 +985,7 @@ export class AttendanceService {
             "ATTENDANCE_RECORD_NOT_FOUND",
             "رکورد حضور پیدا نشد.",
           );
+        this.assertWorkOrganization(user, record.session.organization.id);
         await this.access.organizationForUser(
           this.effectiveUser(user),
           record.session.organization.id,
