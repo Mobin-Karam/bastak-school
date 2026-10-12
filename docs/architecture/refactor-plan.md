@@ -2,6 +2,8 @@
 
 Documentation-only audit of `5871ae5614c3534fb1dde9195f4e3e9eff067bd4`, dated 2026-10-12. No implementation is included. Findings and source evidence: [current-state.md](current-state.md). Proposed boundaries: [target-state.md](target-state.md).
 
+Subsequent database hardening and validation are tracked in [database-audit.md](database-audit.md); use its implemented/remaining distinction when scheduling the baseline tasks below.
+
 ## Priorities, effort and dependencies
 
 Effort is a planning estimate for implementation plus focused tests in engineering days; validate it when each task begins. Owners are proposed responsibilities, not assumptions about current staffing.
