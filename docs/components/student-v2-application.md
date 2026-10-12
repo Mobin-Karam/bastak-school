@@ -1,11 +1,8 @@
-# Moshaver Student v2 application
+# Historical Student v2 application reference
 
-Last reviewed: 2026-09-28
+Last reviewed: 2026-10-12
 
-`apps/student/` is the active React/Vite Student application. It runs on the
-web and is packaged by Tauri; runtime-neutral business rules remain in
-`student-core/`. This page is the current source-backed companion to the
-historical v1 parity material in `docs/migrations/`.
+The standalone `apps/student/` application described below is absent from the current checkout. Student accounts now use student-facing views in `apps/admin/`; `student-core/` remains runtime-neutral. The routes and feature lists below are historical design evidence and must not be used as current implementation or release instructions. For current ownership and validation, use the [system map](../architecture/system-map.md), [Admin application guide](./admin-v2-application.md) and [testing strategy](../engineering/testing-strategy.md).
 
 ## Confirmed routes and access gates
 
