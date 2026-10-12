@@ -56,6 +56,12 @@ class PipelineTests(unittest.TestCase):
         self.assertIn("refs/heads/main", sync["if"])
         self.assertIn('--auto --merge', sync["steps"][1]["run"])
         self.assertIn("No application changes to release", self.workflow("release-promotion.yml")["jobs"]["release-pr"]["steps"][0]["run"])
+    def test_student_checks_follow_the_current_workspace(self):
+        workflow = self.workflow("student-v2-quality.yml")
+        runs = "\n".join(s.get("run", "") for s in workflow["jobs"]["student-experience"]["steps"])
+        self.assertIn("verify --project=admin-v2", runs)
+        self.assertIn("verify --project=student-core", runs)
+        self.assertNotIn("apps/student", runs)
     def test_backup_survives_checkout_cleanup(self):
         workflow = yaml.safe_load((ROOT / ".github/deployment/server-deploy.yml").read_text())
         env = workflow["jobs"]["deploy"]["steps"][1]["env"]
