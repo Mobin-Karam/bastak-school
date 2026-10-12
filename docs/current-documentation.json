@@ -3,9 +3,59 @@
   "ownerPolicy": "Every current-status document inherits an accountable owner and review date from its canonical category. Historical, migration, release, and vendored third-party documents are deliberately excluded.",
   "categories": [
     {
+      "path": "docs/architecture/README.md",
+      "owner": "@Mobin-Karam",
+      "reviewed": "2026-10-12"
+    },
+    {
+      "path": "docs/architecture/system-map.md",
+      "owner": "@Mobin-Karam",
+      "reviewed": "2026-10-12"
+    },
+    {
+      "path": "docs/components/README.md",
+      "owner": "@Mobin-Karam",
+      "reviewed": "2026-10-12"
+    },
+    {
+      "path": "docs/components/student-v2-application.md",
+      "owner": "@Mobin-Karam",
+      "reviewed": "2026-10-12"
+    },
+    {
+      "path": "docs/operations/README.md",
+      "owner": "@Mobin-Karam",
+      "reviewed": "2026-10-12"
+    },
+    {
+      "path": "docs/operations/ci-cd-pipeline.md",
+      "owner": "@Mobin-Karam",
+      "reviewed": "2026-10-12"
+    },
+    {
+      "path": "docs/operations/release-evidence.md",
+      "owner": "@Mobin-Karam",
+      "reviewed": "2026-10-12"
+    },
+    {
+      "path": "docs/operations/repository-runbook.md",
+      "owner": "@Mobin-Karam",
+      "reviewed": "2026-10-12"
+    },
+    {
+      "path": "docs/product/README.md",
+      "owner": "@Mobin-Karam",
+      "reviewed": "2026-10-12"
+    },
+    {
       "path": "docs/architecture",
       "owner": "@Mobin-Karam",
       "reviewed": "2026-09-28"
+    },
+    {
+      "path": "docs/engineering",
+      "owner": "@Mobin-Karam",
+      "reviewed": "2026-10-12"
     },
     {
       "path": "docs/components",
@@ -30,7 +80,7 @@
     {
       "path": "docs/README.md",
       "owner": "@Mobin-Karam",
-      "reviewed": "2026-09-28"
+      "reviewed": "2026-10-12"
     },
     {
       "path": "docs/ADMIN_V2_CAPABILITY_MATRIX.md",
@@ -58,7 +108,12 @@
     }
   ],
   "allowedLegacyReferences": {
-    "docs/components/admin-v2-application.md": ["admin-app/"],
-    "docs/operations/documentation-maintenance.md": ["admin-app/", "student-app/"]
+    "docs/components/admin-v2-application.md": [
+      "admin-app/"
+    ],
+    "docs/operations/documentation-maintenance.md": [
+      "admin-app/",
+      "student-app/"
+    ]
   }
 }

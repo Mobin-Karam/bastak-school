@@ -1,5 +1,7 @@
 # GitHub CI/CD: feature → develop → main → server
 
+For the end-to-end job map, exact checks, trust boundaries and current limitations, start with the [CI/CD pipeline guide](./ci-cd-pipeline.md). This page owns configuration, credentials, daily commands and recovery.
+
 Source repository: `Mobin-Karam/bastak-school` (public). Deployment control repository: `Mobin-Karam/bastak-school-deploy` (private). Production currently uses the two-service LAN Docker Compose deployment on this server, with the Admin app also hosting student views. This pipeline changes deployment operations, not application screens.
 
 ## Daily work

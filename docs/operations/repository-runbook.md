@@ -1,75 +1,58 @@
 # Moshaver v2 repository runbook
 
-This runbook covers the active v2-only `main` and `develop` branches as inspected on 2026-09-08.
+This runbook describes the active checkout as verified on 2026-10-12. The runnable applications are `apps/api` and `apps/admin`; student accounts use the Admin application. `student-core` remains separately validated. The old standalone `apps/student` directory is absent. The root `docker-compose.yml` still refers to that missing directory, so it is not a reliable local-start command in this checkout. The release topology is described in the [CI/CD pipeline](./ci-cd-pipeline.md).
 
-## Run the stack
+## Start local development
 
-From the repository root:
-
-```bash
-COOKIE_SECURE=0 COOKIE_SAMESITE=lax docker compose up --build
-```
-
-The cookie override is only for the HTTP local development topology. Public PaaS deployments must use the [PaaS deployment runbook](./paas-deployment.md), HTTPS, and secure cookies.
-
-- Backend health: `http://localhost:4000/health`
-- Student v2: `http://localhost:8080`
-- Admin v2: `http://localhost:8081`
-
-Use `docker compose down` to stop containers. Do not add `--volumes` unless deleting local data is intentional.
-
-## Package development
+Use Node 22.23.3, install leaf dependencies, and give the API a disposable or explicitly chosen local SQLite path. Do not use the production database for development seeds.
 
 ```bash
-npm --prefix apps/api install
-npm --prefix apps/api run migration:run
-npm --prefix apps/api run seed
+npm --prefix apps/api ci
+npm --prefix apps/admin ci
 npm --prefix apps/api run dev
-
-npm --prefix apps/admin install
+# Separate terminal:
 npm --prefix apps/admin run dev
-
-npm --prefix apps/student install
-npm --prefix apps/student run dev
 ```
 
-Seed variants and their safeguards are documented in the [product demo seed guide](./backend-v2-product-demo-seed.md). Treat every printed credential as local development data.
+The API defaults to port 4000; Admin Vite uses port 8081 and proxies `/api/v2` to the configured local API. Check `http://localhost:4000/ready` for API readiness and `http://localhost:8081` for Admin, including student views. The [product demo seed guide](./backend-v2-product-demo-seed.md) explains seed variants and safeguards. Migrations run through the [API data source](../../apps/api/src/database/data-source.ts); `npm --prefix apps/api run migration:run` is available when an explicit migration run is needed.
 
-## Verification matrix
+## Repository-wide validation
+
+The root manifest orchestrates projects without an npm `workspaces` field or unified root lockfile. Run the workspace checks before full verification:
+
+```bash
+npm run workspace:check
+npm run workspace:list
+npm run workspace:plan -- build
+npm run bootstrap
+npm run verify
+```
+
+`npm run bootstrap` installs each project from its own lockfile in dependency order. For one project and local dependencies use `node tooling/workspace/run.mjs verify --project=admin-v2`. `npm run test:all` adds generator/publishing, coverage, disposable API journeys, Playwright layout and Python pipeline tests; see the [testing strategy](../engineering/testing-strategy.md) for prerequisites and limits.
+
+## Change verification matrix
 
 | Change | Minimum evidence |
 | --- | --- |
-| Backend v2 | `lint`, tests, build, and focused API check |
-| Admin v2 | tests, typecheck, lint, build, and browser verification for visible flows |
-| Student v2 web | student-core build/tests, app build, and browser/mobile viewport verification |
-| Tauri or Android | web checks plus the relevant native build and device/runtime check |
-| Documentation | internal-link check, source-path check, and `git diff --check` |
+| API | Typecheck/lint, unit/integration tests, build, relevant contract/security journey and migration rehearsal if schema changed |
+| Admin or student-facing Admin | Typecheck, format, lint, unit/accessibility tests, build, relevant browser check in RTL and narrow viewport |
+| `student-core` | Build and package tests, plus consumer validation when public behavior changes |
+| CI/CD or deployment | Pipeline tests, workflow review, disposable container smoke and recovery implications |
+| Documentation | `npm run docs:check`, source-path review and `git diff --check -- docs` |
 
-Native checks are separate:
-
-```bash
-npm --prefix apps/student run tauri:build
-npm --prefix apps/student run android:build
-```
+A successful repository CI gate is required for merging; local focused checks help shorten feedback. Browser, native, push, deployed and destructive-restore evidence are separate and must be reported honestly. The [release evidence guide](./release-evidence.md) lists target-environment checks.
 
 ## Access the v1.4 archive
 
-The full v1.4 tree is immutable history on `archive/v1.4`, pinned at `cf63c233bce116371519fef61c231143bbd902b1`. A separate worktree keeps it isolated from v2:
+The historical v1.4 tree is on `archive/v1.4`, pinned at `cf63c233bce116371519fef61c231143bbd902b1`. A separate worktree isolates it from v2:
 
 ```bash
 git fetch origin archive/v1.4
 git worktree add ../moshaver-v1.4 origin/archive/v1.4
 ```
 
-Run legacy instructions from that worktree. Never mix its `/api/v1` clients, SQLite data, or deployment files into the active v2 stack.
+Run legacy instructions in that worktree. Do not mix its API clients or SQLite data into the active v2 deployment.
 
 ## Data and deployment safety
 
-- Back up data before migrations and validate backups before relying on them.
-- Test destructive migrations, reset seeds, and restores only against disposable databases.
-- Configure exact browser origins, secure cookies, persistent storage, and real secrets for public deployment.
-- Never commit `.env` files, credentials, tokens, or database files.
-- Root `docker-compose.yml` is the canonical v2 topology; validate environment-specific deployment configuration before release.
-- Production startup runs migrations but never development/demo seeds.
-
-Use the [feature and bug playbook](./feature-and-bug-playbook.md) for implementation and the [maintenance guide](./maintenance-guide.md) for recurring and incident work.
+Back up and verify data before migrations, imports or restore operations. Test destructive changes against disposable databases. Use [GitHub CI/CD operations](./github-cicd.md) for release and recovery; production startup applies migrations but not demo seeds. Never commit `.env` files, credentials, tokens or database files. The [feature and bug playbook](./feature-and-bug-playbook.md) and [maintenance guide](./maintenance-guide.md) cover implementation and recurring work.
