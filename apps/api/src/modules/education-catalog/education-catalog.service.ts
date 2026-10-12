@@ -2,6 +2,9 @@ import { Injectable } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { EntityManager, Repository } from "typeorm";
 import { In } from "typeorm";
+import { EducationClassBook } from "../../database/entities/education-class-book.entity";
+import { SchoolScheduleEntry } from "../../database/entities/school-schedule-entry.entity";
+import { TimetableAllocation } from "../../database/entities/timetable.entity";
 import { ApiException } from "../../common/exceptions/api.exception";
 import { EducationBook } from "../../database/entities/education-book.entity";
 import { Student } from "../../database/entities/student.entity";
@@ -322,10 +325,14 @@ export class EducationCatalogService {
     const book = await this.books.findOneBy({ id });
     if (!book)
       throw new ApiException(404, "EDUCATION_BOOK_NOT_FOUND", "کتاب پیدا نشد.");
+    this.requireOrganizationScope(actor, book.organizationId);
     this.requireOrganizationScope(
       actor,
       input.organizationId ?? book.organizationId,
     );
+    if (input.state === "ARCHIVED" && (
+      book.state !== "ARCHIVED" || Object.entries(input).every(([key, value]) => key === "state" || value === undefined)
+    )) return this.archiveBook(actor, id, input);
     const state = input.state;
     Object.assign(
       book,
@@ -338,6 +345,42 @@ export class EducationCatalogService {
     const saved = await this.books.save(book);
     await this.record(actor, "education.catalog_book_updated", saved);
     return saved;
+  }
+
+  /** Catalog retirement and class removal are one atomic operation; history is protected. */
+  private async archiveBook(actor: AuthenticatedUser, id: string, input: UpdateEducationBookDto) {
+    if (!actor.capabilities?.includes("education.catalog.manage"))
+      throw new ApiException(403, "FORBIDDEN", "دسترسی حذف کتاب ندارید.");
+    return this.books.manager.transaction(async (manager) => {
+      const book = await manager.findOneBy(EducationBook, { id });
+      if (!book) throw new ApiException(404, "EDUCATION_BOOK_NOT_FOUND", "کتاب پیدا نشد.");
+      this.requireOrganizationScope(actor, book.organizationId);
+      if (!book.organizationId && !this.isPlatform(actor))
+        throw new ApiException(403, "EDUCATION_SHARED_BOOK_PROTECTED", "کتاب کاتالوگ مشترک فقط توسط مدیر پلتفرم قابل حذف است؛ می‌توانید آن را فقط از کلاس بردارید.");
+      if (input.organizationId !== undefined && input.organizationId !== book.organizationId)
+        throw new ApiException(422, "EDUCATION_BOOK_SCOPE_IMMUTABLE", "هنگام حذف، سازمان مالک کتاب قابل تغییر نیست.");
+      const links = await manager.find(EducationClassBook, {
+        where: { book: { id } }, relations: { classroom: { organization: true } },
+      });
+      if (!this.isPlatform(actor) && links.some((link) => link.classroom.organization.id !== book.organizationId))
+        throw new ApiException(409, "EDUCATION_BOOK_SCOPE_CONFLICT", "این کتاب به کلاس سازمان دیگری متصل است؛ حذف نیاز به بررسی مدیر پلتفرم دارد.");
+      const ids = links.map((link) => link.id);
+      if (ids.length && (
+        await manager.exists(SchoolScheduleEntry, { where: { classBook: { id: In(ids) } } }) ||
+        await manager.exists(TimetableAllocation, { where: { classBookId: In(ids) } })
+      )) throw new ApiException(409, "EDUCATION_BOOK_IN_USE", "این کتاب در برنامه درسی یا تخصیص هفتگی استفاده شده است و برای حفظ تاریخچه قابل حذف نیست. ابتدا وابستگی‌های پیش‌نویس را برطرف کنید؛ سابقه منتشرشده باید حفظ شود.");
+      if (ids.length) await manager.delete(EducationClassBook, ids);
+      Object.assign(book, this.cleanBook(input));
+      book.state = "ARCHIVED";
+      book.version++;
+      const saved = await manager.save(book);
+      await manager.save(AuditLog, manager.create(AuditLog, {
+        user: { id: actor.id }, action: "education.catalog_book_deleted", entity: "education_book",
+        organizationId: book.organizationId ?? null,
+        metadata: { id, version: book.version, state: book.state, removedClassAssignments: ids.length },
+      }));
+      return saved;
+    });
   }
 
   async publishBook(actor: AuthenticatedUser, id: string) {
