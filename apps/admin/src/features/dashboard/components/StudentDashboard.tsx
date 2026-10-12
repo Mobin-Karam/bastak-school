@@ -64,15 +64,15 @@ export function StudentDashboard() {
 
   return (
     <section
-      className="mx-auto grid w-full max-w-6xl gap-3 lg:content-start"
+      className="home-workspace mx-auto grid w-full max-w-6xl gap-3 lg:content-start"
       aria-label="خانه دانش‌آموز"
     >
-      <header className="flex items-baseline justify-between gap-3 px-1 pt-1">
-        <h1 className="text-base font-black tracking-tight text-ink sm:text-lg">امروز در مدرسه</h1>
+      <section className="workspace-actions flex items-baseline justify-between gap-3 px-1 pt-1">
+        <h2 className="sr-only">امروز در مدرسه</h2>
         <span className="text-xs text-slate-500">
           {formatDate(calendarDate, { dateStyle: "medium" })}
         </span>
-      </header>
+      </section>
       <TimetableToday />
 
       <DashboardCalendar

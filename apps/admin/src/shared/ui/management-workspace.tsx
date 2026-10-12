@@ -1,5 +1,5 @@
 import { Search } from "lucide-react";
-import { useId, type CSSProperties, type ReactNode } from "react";
+import { type CSSProperties, type ReactNode } from "react";
 import { cn } from "../lib/utils";
 import { useSharedUiCopy } from "./locale";
 import { Card, Input } from "./ui";
@@ -15,37 +15,18 @@ export function ManagementPageHeader({
   description: string;
   action?: ReactNode;
 }) {
-  const copy = useSharedUiCopy();
-  const titleId = useId();
-  const descriptionId = useId();
-  return (
-    <header
-      className="grid gap-4 border-b border-[rgb(var(--border-subtle))] pb-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end"
-      aria-labelledby={titleId}
-      aria-describedby={description ? descriptionId : undefined}
+  // The shell owns the page title. Keep feature actions in the content flow.
+  return action ? (
+    <section
+      className="workspace-actions flex min-w-0 flex-wrap justify-end gap-2"
+      aria-label={title}
     >
-      <div className="min-w-0">
-        <p className="text-xs font-bold text-brand">{eyebrow || copy.management}</p>
-        <h1
-          id={titleId}
-          className="mt-1 text-2xl font-bold tracking-tight text-ink sm:text-[1.65rem]"
-        >
-          {title}
-        </h1>
-        <p
-          id={descriptionId}
-          className="mt-1 max-w-2xl text-sm leading-6 text-slate-500 dark:text-slate-400"
-        >
-          {description}
-        </p>
-      </div>
-      {action ? (
-        <div className="flex w-full shrink-0 flex-wrap gap-2 [&>*]:w-full sm:w-auto sm:justify-end sm:[&>*]:w-auto">
-          {action}
-        </div>
-      ) : null}
-    </header>
-  );
+      <span className="sr-only">
+        {eyebrow} {description}
+      </span>
+      {action}
+    </section>
+  ) : null;
 }
 
 export function ManagementSummaryBar({
@@ -184,8 +165,8 @@ export function ManagementMasterDetail({
   detailScroll?: boolean;
 }) {
   const detailLayout = detailScroll
-    ? "management-master-detail__detail--scroll min-[1200px]:sticky min-[1200px]:top-20 min-[1200px]:max-h-[calc(100dvh-6rem)] min-[1200px]:overflow-y-auto min-[1200px]:overscroll-contain min-[1200px]:pe-1"
-    : "management-master-detail__detail--static min-[1200px]:sticky min-[1200px]:top-20 min-[1200px]:pe-1";
+    ? "management-master-detail__detail--scroll min-[1200px]:sticky min-[1200px]:top-0 min-[1200px]:max-h-[calc(100dvh-7rem)] min-[1200px]:overflow-y-auto min-[1200px]:overscroll-contain min-[1200px]:pe-1"
+    : "management-master-detail__detail--static min-[1200px]:sticky min-[1200px]:top-0 min-[1200px]:pe-1";
 
   return (
     <section

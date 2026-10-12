@@ -117,13 +117,7 @@ export function SchoolManagerDashboard() {
 
   if (schedule.isLoading) return <LoadingState label="در حال آماده‌سازی میز مدرسه…" />;
   return (
-    <section className="mx-auto grid w-full max-w-6xl gap-3" dir="rtl">
-      <header className="px-1">
-        <h1 className="text-lg font-black text-ink">میز مدیریت مدرسه</h1>
-        <p className="mt-1 text-xs text-slate-500">
-          تقویم، اوقات شرعی، اعلان‌ها و وضعیت حضور مدرسه
-        </p>
-      </header>
+    <section className="home-workspace mx-auto grid w-full max-w-6xl gap-3" dir="rtl">
       <DashboardCalendar
         value={date}
         onChange={setDate}

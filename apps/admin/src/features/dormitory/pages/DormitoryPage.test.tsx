@@ -94,7 +94,7 @@ describe("DormitoryPage", () => {
     renderPage();
 
     await waitFor(() => {
-      expect(screen.getByText("مدیریت اتاق‌های خوابگاه")).toBeInTheDocument();
+      expect(screen.getByText("هنوز اتاقی ثبت نشده است")).toBeInTheDocument();
     });
 
     expect(screen.getByText("هنوز اتاقی ثبت نشده است")).toBeInTheDocument();

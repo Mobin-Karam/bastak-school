@@ -44,7 +44,7 @@ export function AdminHeader({
           <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3">
             <div className="min-w-0 flex-1">
               <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
-                <strong className="block truncate text-sm sm:text-base">{current.title}</strong>
+                <h1 className="block truncate text-sm font-bold sm:text-base">{current.title}</h1>
                 {breadcrumbs.length > 1 ? (
                   <nav
                     aria-label={copy.pageLocation}

@@ -78,19 +78,12 @@ export function LeaveRequestsPage() {
   };
   return (
     <section className="grid gap-4" aria-busy={loading}>
-      <header className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <p className="text-sm font-bold text-brand">{copy.eyebrow}</p>
-          <h1 className="mt-1 text-2xl font-black">{copy.title}</h1>
-          <p className="mt-1 max-w-2xl text-sm text-slate-600 dark:text-slate-300">
-            {copy.description}
-          </p>
-        </div>
+      <section className="flex flex-wrap items-start justify-between gap-3">
         <Button variant="soft" loading={loading} onClick={() => void load()}>
           <RefreshCw size={16} />
           {copy.refresh}
         </Button>
-      </header>
+      </section>
       <Card className="grid gap-3 p-3 sm:grid-cols-[1fr_auto]">
         <Input
           value={query}

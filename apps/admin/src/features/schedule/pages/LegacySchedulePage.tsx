@@ -1,7 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Archive,
-  CalendarDays,
   CalendarClock,
   BookOpenCheck,
   Clock3,
@@ -388,26 +387,8 @@ function ScheduleWorkspace({
 
   return (
     <section className="grid gap-3" aria-label="برنامه هفتگی مدرسه">
-      <header className="relative overflow-hidden rounded-[1.4rem] border border-sky-100 bg-[linear-gradient(135deg,#f8fdff,#edf8ff_58%,#f5f4ff)] p-4 shadow-[0_14px_26px_-24px_rgba(21,90,150,.55),inset_0_1px_0_rgba(255,255,255,.98)] dark:border-sky-300/10 dark:bg-[linear-gradient(135deg,#123548,#102b3e_58%,#172646)] sm:p-5">
-        <span
-          className="pointer-events-none absolute -end-10 -top-12 size-36 rounded-full bg-sky-300/25 blur-3xl"
-          aria-hidden="true"
-        />
-        <div className="relative flex flex-wrap items-start justify-between gap-3">
-          <div className="flex min-w-0 items-center gap-3">
-            <span className="grid size-11 shrink-0 place-items-center rounded-2xl bg-[linear-gradient(145deg,#1687f5,#0768d8)] text-white shadow-[0_10px_18px_-12px_rgba(0,79,180,.9),inset_0_1px_0_rgba(255,255,255,.45)]">
-              <CalendarDays size={23} aria-hidden="true" />
-            </span>
-            <div>
-              <p className="text-xs font-bold text-brand">مدیریت آموزشی</p>
-              <h1 className="mt-0.5 text-xl font-black text-ink sm:text-2xl">برنامه هفتگی مدرسه</h1>
-              <p className="mt-1 text-xs text-slate-500 dark:text-slate-300">
-                کلاس‌ها، زمان‌ها و فضاهای آموزشی در یک نمای عملیاتی
-              </p>
-            </div>
-          </div>
-          {toolbar}
-        </div>
+      <section className="grid gap-3">
+        <div className="flex min-w-0 flex-wrap justify-end gap-2">{toolbar}</div>
         <div className="relative mt-4 grid grid-cols-3 gap-2 sm:max-w-lg">
           <ScheduleMetric label="جلسه فعال" value={activeScheduleEntries.length} tone="blue" />
           <ScheduleMetric
@@ -421,7 +402,7 @@ function ScheduleWorkspace({
             tone="violet"
           />
         </div>
-      </header>
+      </section>
 
       <Card className="overflow-hidden p-0 shadow-[0_16px_28px_-26px_rgba(18,52,86,.45)]">
         <div className="flex items-center justify-between gap-3 border-b border-[rgb(var(--border-subtle))] px-3 py-3 sm:px-4">
@@ -1118,20 +1099,6 @@ function StudentWeeklySchedule({ entries }: { entries: ScheduleEntry[] }) {
       dir="rtl"
       aria-label="برنامه هفتگی من"
     >
-      <header className="rounded-[1.35rem] border border-sky-100 bg-[linear-gradient(135deg,#fafdff,#edf8ff)] p-4 shadow-[0_14px_26px_-24px_rgba(21,90,150,.48)] dark:border-sky-300/10 dark:bg-sky-950/20">
-        <div className="flex items-center gap-3">
-          <span className="grid size-10 place-items-center rounded-2xl bg-brand text-white shadow-[0_10px_18px_-12px_rgba(13,118,111,.9)]">
-            <CalendarDays size={20} aria-hidden="true" />
-          </span>
-          <div>
-            <p className="text-xs font-bold text-brand">فضای آموزشی من</p>
-            <h1 className="mt-0.5 text-xl font-black text-ink">برنامه هفتگی کلاس‌ها</h1>
-            <p className="mt-1 text-xs leading-5 text-slate-500">
-              روز را انتخاب کنید تا فقط کلاس‌های همان روز نمایش داده شود.
-            </p>
-          </div>
-        </div>
-      </header>
       <div
         className="flex gap-1.5 overflow-x-auto px-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
         aria-label="انتخاب روز برنامه"

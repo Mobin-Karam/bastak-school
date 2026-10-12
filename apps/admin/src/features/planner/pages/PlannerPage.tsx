@@ -553,8 +553,8 @@ export function PlannerPage() {
     return () => window.removeEventListener("keydown", keydown);
   });
   return (
-    <div className="grid gap-3">
-      <header className="sticky top-0 z-20 rounded-lg border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card))]/95 p-2 shadow-[var(--shadow-surface)] backdrop-blur-sm">
+    <div className="planner-workspace grid min-w-0 gap-3">
+      <section className="rounded-lg border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card))]/95 p-2 shadow-[var(--shadow-surface)]">
         <div className="flex flex-wrap items-center gap-2">
           <div className="w-44 shrink-0">
             <StudentPicker
@@ -736,7 +736,7 @@ export function PlannerPage() {
             </button>
           </div>
         ) : null}
-      </header>
+      </section>
       <DateNavigator
         value={date}
         onChange={setDate}
@@ -796,7 +796,7 @@ export function PlannerPage() {
           </Button>
         </div>
       ) : null}
-      <Card className="h-[calc(100vh-235px)] min-h-[480px] overflow-hidden p-0">
+      <Card className="planner-workspace__canvas h-[calc(100vh-235px)] min-h-[480px] overflow-hidden p-0">
         {!students.studentId ? (
           <div className="grid h-full place-items-center p-6">
             <EmptyState

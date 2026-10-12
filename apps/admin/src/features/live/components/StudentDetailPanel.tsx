@@ -20,7 +20,7 @@ export function StudentDetailPanel({
   return (
     <Card
       className={[
-        panel === "details" ? "flex" : "hidden lg:flex",
+        panel === "details" ? "flex" : "hidden min-[1200px]:flex",
         "min-h-0 flex-col overflow-hidden p-0",
       ].join(" ")}
     >

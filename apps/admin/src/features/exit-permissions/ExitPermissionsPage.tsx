@@ -194,10 +194,10 @@ export function ExitPermissionsPage() {
       dir="rtl"
       className="mx-auto w-full max-w-6xl space-y-4 pb-[calc(6rem+env(safe-area-inset-bottom))] lg:pb-8"
     >
-      <header className="flex flex-wrap items-start justify-between gap-3">
+      <section className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <p className="text-sm font-bold text-brand">دروازه مدرسه</p>
-          <h1 className="mt-1 text-2xl font-black text-ink">خروج و بازگشت دانش‌آموزان</h1>
+          <h2 className="sr-only">خروج و بازگشت دانش‌آموزان</h2>
           <p className="mt-1 text-sm text-slate-500">
             تأیید مجوز با ثبت خروج فیزیکی تفاوت دارد؛ آمار فقط پس از ثبت حرکت تغییر می‌کند.
           </p>
@@ -205,7 +205,7 @@ export function ExitPermissionsPage() {
         <Button variant="soft" onClick={refresh} loading={exits.isFetching || occupancy.isFetching}>
           <RefreshCw size={16} /> به‌روزرسانی
         </Button>
-      </header>
+      </section>
 
       {auth.can("school.occupancy.read") ? (
         <div className="grid gap-3 sm:grid-cols-3">

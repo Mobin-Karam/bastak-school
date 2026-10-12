@@ -5,8 +5,8 @@ import { AdminMobileBottomNav } from "../navigation/AdminMobileNavigation";
 export function MobileShell({ model }: { model: AdminShellModel }) {
   return (
     <>
-      <header className="admin-mobile-masthead relative z-30 flex min-h-[calc(3.5rem+env(safe-area-inset-top))] shrink-0 items-end justify-center overflow-hidden bg-paper pb-2 pt-[env(safe-area-inset-top)] lg:hidden">
-        <div>
+      <header className="admin-mobile-masthead relative z-30 flex min-h-[calc(5rem+env(safe-area-inset-top))] shrink-0 flex-col items-center justify-center gap-1 overflow-hidden bg-paper pb-2 pt-[env(safe-area-inset-top)] lg:hidden">
+        <div className="relative flex h-10 w-full justify-center">
           <img
             src="/right-left-angel.png"
             width={136}
@@ -34,6 +34,9 @@ export function MobileShell({ model }: { model: AdminShellModel }) {
             className="pointer-events-none absolute start-[calc(50%+3.5rem)] bottom-1 h-9 w-[8.5rem] max-w-[31vw] scale-x-[-1] object-contain object-right"
           />
         </div>
+        <h1 className="max-w-full truncate px-3 text-sm font-bold text-ink">
+          {model.current.title}
+        </h1>
       </header>
       {model.auth.activeRole === "PLATFORM_ADMIN" ? (
         <section
