@@ -69,7 +69,7 @@ export function RegistrationDashboardPage() {
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold text-ink">پنل ثبت‌نام دانش‌آموزان</h1>
+        <h2 className="sr-only">پنل ثبت‌نام دانش‌آموزان</h2>
         <Badge variant="outline" className="bg-blue-50 text-blue-700">
           {data?.status === "COMPLETED" ? "تکمیل شده" : "در حال انجام"}
         </Badge>

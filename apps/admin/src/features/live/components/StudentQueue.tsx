@@ -27,7 +27,7 @@ export function StudentQueue({
   return (
     <Card
       className={[
-        panel === "students" ? "flex" : "hidden lg:flex",
+        panel === "students" ? "flex" : "hidden min-[1200px]:flex",
         "min-h-0 flex-col overflow-hidden p-0",
       ].join(" ")}
     >

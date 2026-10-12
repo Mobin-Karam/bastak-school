@@ -310,7 +310,7 @@ export function DataTable<TData>({
       aria-label={label}
       aria-busy={loading || refreshing || busy || exporting || undefined}
       dir={language === "fa" ? "rtl" : "ltr"}
-      className={`min-w-0 overflow-hidden rounded-xl border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card))] text-ink shadow-[var(--shadow-surface)] ${selectedRows.length ? "pb-28 md:pb-0" : ""}`}
+      className={`data-table-workspace min-w-0 overflow-hidden rounded-xl border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card))] text-ink shadow-[var(--shadow-surface)] ${selectedRows.length ? "pb-28 md:pb-0" : ""}`}
     >
       <DataTableToolbar
         table={table}
@@ -419,10 +419,10 @@ export function DataTable<TData>({
               <div
                 className={
                   preferences.mode === "cards"
-                    ? "hidden"
+                    ? "data-table-workspace__rows hidden"
                     : preferences.mode === "auto"
-                      ? "hidden md:block"
-                      : "block"
+                      ? "data-table-workspace__rows hidden md:block"
+                      : "data-table-workspace__rows block"
                 }
               >
                 <DataTableDesktop
@@ -436,10 +436,10 @@ export function DataTable<TData>({
               <div
                 className={
                   preferences.mode === "table"
-                    ? "hidden"
+                    ? "data-table-workspace__rows hidden"
                     : preferences.mode === "auto"
-                      ? "md:hidden"
-                      : "block"
+                      ? "data-table-workspace__rows md:hidden"
+                      : "data-table-workspace__rows block"
                 }
               >
                 <DataTableMobileCards

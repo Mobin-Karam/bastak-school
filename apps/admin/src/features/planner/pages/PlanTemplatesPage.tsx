@@ -36,11 +36,6 @@ export function PlanTemplatesPage() {
   return (
     <section className="space-y-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <p className="text-xs font-bold text-brand">{copy.organizationPlanning}</p>
-          <h1 className="text-xl font-black">{copy.templates}</h1>
-          <p className="mt-1 text-sm text-slate-500">{copy.templatesDescription}</p>
-        </div>
         <Link
           to="/admin/planner"
           className="inline-flex h-9 items-center gap-1 rounded-lg border border-slate-200 px-3 text-xs font-bold text-slate-700 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand/20 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"

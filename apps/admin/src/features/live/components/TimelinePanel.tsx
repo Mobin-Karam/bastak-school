@@ -22,7 +22,7 @@ export function TimelinePanel({
   return (
     <Card
       className={[
-        panel === "timeline" ? "flex" : "hidden lg:flex",
+        panel === "timeline" ? "flex" : "hidden min-[1200px]:flex",
         "min-h-0 flex-col overflow-hidden p-0",
       ].join(" ")}
     >

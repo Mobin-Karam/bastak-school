@@ -16,9 +16,9 @@ export function TeacherChatComingSoonPage() {
         </span>
         <div>
           <p className="text-xs font-bold text-brand">به‌زودی</p>
-          <h1 id="teacher-chat-title" className="mt-1 text-xl font-black text-ink">
+          <h2 id="teacher-chat-title" className="sr-only">
             گفت‌وگوی مدرسه
-          </h1>
+          </h2>
           <p className="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-300">
             پیام‌رسانی استاد، دانش‌آموز و مدرسه در نسخه بعدی از این صفحه فعال می‌شود.
           </p>

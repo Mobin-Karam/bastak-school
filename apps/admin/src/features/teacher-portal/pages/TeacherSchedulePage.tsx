@@ -22,17 +22,17 @@ export function TeacherSchedulePage({ entries: suppliedEntries }: { entries?: Sc
 
   return (
     <section className="mx-auto grid w-full max-w-6xl gap-4" dir="rtl">
-      <header className="flex items-start gap-3 px-1 pt-1">
+      <section className="flex items-start gap-3 px-1 pt-1">
         <span className="grid size-10 place-items-center rounded-2xl bg-brand/10 text-brand">
           <CalendarClock size={20} aria-hidden="true" />
         </span>
         <div>
-          <h1 className="text-lg font-black text-ink">برنامه هفتگی من</h1>
+          <h2 className="sr-only">برنامه هفتگی من</h2>
           <p className="mt-1 text-xs leading-5 text-slate-500">
             برای دیدن دانش‌آموزان و ثبت حضور، یک کلاس را انتخاب کنید.
           </p>
         </div>
-      </header>
+      </section>
       {suppliedEntries === undefined && schedule.isLoading ? (
         <LoadingState label="در حال دریافت برنامه هفتگی…" />
       ) : suppliedEntries === undefined && schedule.isError ? (

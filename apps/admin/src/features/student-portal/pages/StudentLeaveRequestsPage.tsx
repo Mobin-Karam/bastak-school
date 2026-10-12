@@ -142,13 +142,13 @@ export function StudentLeaveRequestsPage() {
 
   return (
     <main className="mx-auto w-full max-w-2xl pb-6" dir="rtl">
-      <header className="px-1 pt-1">
+      <section className="px-1 pt-1">
         <p className="text-xs font-bold text-brand">خدمات دانش‌آموزی</p>
-        <h1 className="mt-1 text-xl font-black tracking-tight text-ink">خروج و مرخصی</h1>
+        <h2 className="sr-only">خروج و مرخصی</h2>
         <p className="mt-1 text-sm leading-6 text-slate-600 dark:text-slate-300">
           نوع درخواست، تاریخ و دلیل را انتخاب کنید؛ نتیجه بررسی در همین صفحه ثبت می‌شود.
         </p>
-      </header>
+      </section>
 
       <section className="mt-4" aria-labelledby="request-kind-heading">
         <div className="mb-2 flex items-center gap-2 px-1">

@@ -39,7 +39,7 @@ describe("ManagementMasterDetail", () => {
       "management-master-detail__detail",
       "management-master-detail__detail--static",
       "min-[1200px]:sticky",
-      "min-[1200px]:top-20",
+      "min-[1200px]:top-0",
     );
     expect(detailPane).not.toHaveClass(
       "min-[1200px]:overflow-y-auto",
@@ -58,13 +58,13 @@ describe("ManagementMasterDetail", () => {
       </LocaleProvider>,
     );
 
-    expect(screen.getByText("Management")).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { level: 1 })).not.toBeInTheDocument();
     expect(screen.getByLabelText("Summary and filters")).toBeInTheDocument();
     expect(screen.getByText("1,234")).toBeInTheDocument();
     localStorage.removeItem("moshaver-admin-location");
   });
 
-  it("keeps page actions in the header action lane with an announced hierarchy", () => {
+  it("keeps actions in content without duplicating the global heading", () => {
     const { container, getByRole } = render(
       <ManagementPageHeader
         eyebrow="Operations"
@@ -74,14 +74,16 @@ describe("ManagementMasterDetail", () => {
       />,
     );
 
-    const heading = container.querySelector("h1");
-    if (!heading) throw new Error("Expected the page heading to render.");
-    expect(heading).toHaveTextContent("Students");
-    expect(heading.closest("header")).toHaveAttribute("aria-labelledby", heading.id);
-    expect(getByRole("button", { name: "Add student" }).parentElement).toHaveClass(
-      "w-full",
-      "sm:w-auto",
-      "[&>*]:w-full",
+    expect(container.querySelector("header, h1")).toBeNull();
+    expect(getByRole("region", { name: "Students" })).toContainElement(
+      getByRole("button", { name: "Add student" }),
     );
+  });
+
+  it("uses no content space when a page has no actions", () => {
+    const { container } = render(
+      <ManagementPageHeader title="Students" description="Review enrolled students." />,
+    );
+    expect(container).toBeEmptyDOMElement();
   });
 });

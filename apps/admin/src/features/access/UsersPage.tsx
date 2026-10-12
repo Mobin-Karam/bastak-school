@@ -320,9 +320,9 @@ export function UsersPage() {
   );
   return (
     <div className="grid gap-3">
-      <header className="flex flex-wrap items-center justify-between gap-2">
+      <section className="flex flex-wrap items-center justify-between gap-2">
         <div>
-          <h1 className="text-base font-bold">{copy.userList}</h1>
+          <h2 className="sr-only">{copy.userList}</h2>
           <p className="text-xs text-slate-500">
             {copy.userResults(users.data?.length ?? 0, users.data?.length ?? 0, profile.locale)} ·{" "}
             {copy.active}:{" "}
@@ -365,7 +365,7 @@ export function UsersPage() {
             </Button>
           ) : null}
         </div>
-      </header>
+      </section>
       <ResponsiveModal
         open={creating}
         onOpenChange={(open) => {

@@ -412,7 +412,7 @@ export function ChatPage() {
   }
 
   return (
-    <div className="grid h-[calc(100dvh-132px)] min-h-0 overflow-hidden lg:h-[calc(100dvh-96px)]">
+    <div className="grid h-[calc(100dvh-132px)] min-h-0 overflow-hidden lg:h-[calc(100dvh-96px)] min-[1200px]:h-full">
       <section className="grid min-h-0 gap-3 lg:grid-cols-[minmax(280px,340px)_minmax(0,1fr)]">
         <ConversationSidebar
           visible={!showMessages}

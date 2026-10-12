@@ -50,7 +50,7 @@ describe("RoleDashboard localization", () => {
       </MemoryRouter>,
     );
 
-    expect(screen.getAllByRole("heading", { name: "Advisor workspace" })[0]).toBeVisible();
+    expect(screen.getAllByRole("region", { name: "Advisor workspace" })[0]).toBeVisible();
     expect(screen.getAllByText("Assigned students")[0]).toBeVisible();
     expect(screen.queryByRole("link", { name: "Assessments" })).not.toBeInTheDocument();
     expect(document.documentElement).toHaveAttribute("dir", "ltr");
@@ -93,7 +93,7 @@ describe("RoleDashboard localization", () => {
       </MemoryRouter>,
     );
 
-    expect(screen.getAllByRole("heading", { name: "Advisor workspace" })[0]).toBeVisible();
+    expect(screen.getAllByRole("region", { name: "Advisor workspace" })[0]).toBeVisible();
   });
 
   it("keeps unrelated URL context while sharing only presentation choices", () => {

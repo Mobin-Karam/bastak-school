@@ -2,7 +2,6 @@ import { useState, useId } from "react";
 import { Save } from "lucide-react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "../../../shared/ui/ui";
-import { useAuth } from "../../auth";
 import { useClassesCopy } from "../model/classes-copy";
 import { deleteEducationBook } from "../api/education-catalog.api";
 import type { EducationClass, getClassOptions } from "../api/classes.api";
@@ -13,15 +12,16 @@ export function ClassBooksModal({
   onSave,
   onClose,
   saving,
+  canDeleteBooks,
 }: {
   options: Awaited<ReturnType<typeof getClassOptions>>;
   classroom: EducationClass;
   onSave: (books: Array<{ bookId: string; teacherId: string }>) => void;
   onClose: () => void;
   saving: boolean;
+  canDeleteBooks: boolean;
 }) {
   const copy = useClassesCopy();
-  const auth = useAuth();
   const client = useQueryClient();
   const fa = copy.locale === "fa-IR";
   const confirmationId = useId();
@@ -86,8 +86,8 @@ export function ClassBooksModal({
       </div>
     );
   return (
-    <div className="grid gap-3">
-      <div className="grid gap-2 sm:grid-cols-2">
+    <div className="grid min-w-0 gap-3">
+      <div className="grid max-h-[55dvh] min-w-0 gap-2 overflow-y-auto overscroll-contain p-1 sm:grid-cols-2">
         {[
           ...options.books,
           ...classroom.books
@@ -100,7 +100,7 @@ export function ClassBooksModal({
             return (
               <article
                 key={book.id}
-                className={`grid gap-2 rounded-xl border p-3 ${row ? "border-brand bg-brand/5" : "border-slate-200 dark:border-slate-800"}`}
+                className={`grid min-w-0 gap-2 rounded-xl border p-3 ${row ? "border-brand bg-brand/5" : "border-slate-200 dark:border-slate-800"}`}
               >
                 <label className="flex cursor-pointer items-start gap-2">
                   <input
@@ -116,7 +116,7 @@ export function ClassBooksModal({
                     </small>
                   </span>
                 </label>
-                {auth.can("education.catalog.manage") ? (
+                {canDeleteBooks ? (
                   <Button
                     variant="danger"
                     disabled={saving}
@@ -132,7 +132,7 @@ export function ClassBooksModal({
                   <label className="grid gap-1 text-xs font-bold text-slate-600 dark:text-slate-300">
                     <span>{copy.responsibleTeacher}</span>
                     <select
-                      className="h-9 rounded-lg border border-slate-200 bg-white px-2 text-xs dark:border-slate-700 dark:bg-slate-950"
+                      className="h-9 w-full min-w-0 rounded-lg border border-slate-200 bg-white px-2 text-xs dark:border-slate-700 dark:bg-slate-950"
                       value={row.teacherId}
                       onChange={(event) =>
                         setSelected((rows) =>
@@ -159,7 +159,7 @@ export function ClassBooksModal({
             );
           })}
       </div>
-      <div className="flex justify-end gap-2 border-t pt-3 dark:border-slate-800">
+      <div className="flex shrink-0 flex-wrap justify-end gap-2 border-t pt-3 dark:border-slate-800">
         <Button variant="ghost" onClick={onClose}>
           {copy.cancel}
         </Button>
