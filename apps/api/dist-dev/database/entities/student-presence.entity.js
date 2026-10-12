@@ -32,7 +32,7 @@ __decorate([
     __metadata("design:type", String)
 ], StudentPresence.prototype, "id", void 0);
 __decorate([
-    (0, typeorm_1.OneToOne)(() => student_entity_1.Student, { nullable: false, onDelete: "CASCADE" }),
+    (0, typeorm_1.OneToOne)(() => student_entity_1.Student, { onDelete: "CASCADE" }),
     (0, typeorm_1.JoinColumn)(),
     __metadata("design:type", student_entity_1.Student)
 ], StudentPresence.prototype, "student", void 0);

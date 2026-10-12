@@ -30,11 +30,11 @@ __decorate([
     __metadata("design:type", String)
 ], MessageReaction.prototype, "id", void 0);
 __decorate([
-    (0, typeorm_1.ManyToOne)(() => chat_message_entity_1.ChatMessage, { nullable: false, onDelete: "CASCADE" }),
+    (0, typeorm_1.ManyToOne)(() => chat_message_entity_1.ChatMessage, { onDelete: "CASCADE" }),
     __metadata("design:type", chat_message_entity_1.ChatMessage)
 ], MessageReaction.prototype, "message", void 0);
 __decorate([
-    (0, typeorm_1.ManyToOne)(() => user_entity_1.User, { nullable: false, onDelete: "CASCADE" }),
+    (0, typeorm_1.ManyToOne)(() => user_entity_1.User, { onDelete: "CASCADE" }),
     __metadata("design:type", user_entity_1.User)
 ], MessageReaction.prototype, "user", void 0);
 __decorate([

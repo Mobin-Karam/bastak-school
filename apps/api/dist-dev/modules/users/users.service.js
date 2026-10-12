@@ -29,7 +29,6 @@ const role_entity_1 = require("../../database/entities/role.entity");
 const session_entity_1 = require("../../database/entities/session.entity");
 const user_role_assignment_entity_1 = require("../../database/entities/user-role-assignment.entity");
 const user_entity_1 = require("../../database/entities/user.entity");
-const students_1 = require("../students");
 const chat_1 = require("../chat");
 const phone_number_1 = require("../../common/utils/phone-number");
 const organizations_1 = require("../organizations");
@@ -76,17 +75,6 @@ let UsersService = class UsersService {
         if (target.isPlatformOwner)
             throw new api_exception_1.ApiException(400, "PLATFORM_OWNER_PROTECTED", "ابتدا مالکیت پلتفرم را واگذار کنید؛ حساب مالک قابل غیرفعال‌سازی، بایگانی یا تغییر نقش نیست.");
     }
-    async assertAccountMutationScope(actor, id) {
-        if (this.platform(actor))
-            return;
-        const rows = await this.assignments.find({
-            where: { user: { id } },
-            relations: { membership: { organization: true } },
-        });
-        if (rows.some((row) => !row.membership ||
-            !actor.organizationIds?.includes(row.membership.organization.id)))
-            throw new api_exception_1.ApiException(403, "SHARED_ACCOUNT_MANAGEMENT_FORBIDDEN", "تغییر اطلاعات یا وضعیت حساب مشترک باید توسط مدیر پلتفرم انجام شود.");
-    }
     async ensureActiveMembership(manager, user, organizationId) {
         const organization = await manager.findOne(organization_entity_1.Organization, {
             where: { id: organizationId },
@@ -116,8 +104,6 @@ let UsersService = class UsersService {
     async list(actor, organizationId, roleCode, status) {
         const scopedOrganizationId = organizationId ??
             (!this.platform(actor) ? actor.organizationIds?.[0] : undefined);
-        if (!this.platform(actor) && !scopedOrganizationId)
-            throw new api_exception_1.ApiException(403, "ORGANIZATION_FORBIDDEN", "محدوده سازمان معتبر الزامی است.");
         if (scopedOrganizationId)
             this.assertOrg(actor, scopedOrganizationId);
         const rows = await this.assignments.find({
@@ -160,13 +146,7 @@ let UsersService = class UsersService {
             !rows.some((row) => row.membership &&
                 actor.organizationIds?.includes(row.membership.organization.id)))
             throw new api_exception_1.ApiException(404, "NOT_FOUND", "کاربر یافت نشد.");
-        const visibleRows = this.platform(actor)
-            ? rows
-            : rows.filter((row) => row.membership?.status === organization_membership_entity_1.MembershipStatus.ACTIVE &&
-                actor.organizationIds?.includes(row.membership.organization.id));
-        if (!visibleRows.length)
-            throw new api_exception_1.ApiException(404, "NOT_FOUND", "کاربر یافت نشد.");
-        return this.project(rows[0].user, visibleRows);
+        return this.project(rows[0].user, rows);
     }
     async create(actor, dto) {
         await this.assertRoles(actor, dto.roleCodes);
@@ -211,11 +191,8 @@ let UsersService = class UsersService {
                     membership: role.organizationScoped ? membership : null,
                 }));
             }
-            if (membership) {
-                if (dto.roleCodes.includes("STUDENT"))
-                    await (0, students_1.ensureStudentAccount)(manager, user, membership.organization);
+            if (membership)
                 await (0, chat_1.ensureOrganizationChat)(manager, membership.organization, user);
-            }
             return {
                 id: user.id,
                 phoneNumber: user.phoneNumber,
@@ -225,7 +202,6 @@ let UsersService = class UsersService {
     }
     async update(actor, id, dto) {
         await this.get(actor, id);
-        await this.assertAccountMutationScope(actor, id);
         const patch = { ...dto };
         if (patch.phoneNumber) {
             patch.phoneNumber = (0, phone_number_1.normalizeIranianMobile)(patch.phoneNumber);
@@ -241,7 +217,6 @@ let UsersService = class UsersService {
     async setActive(actor, id, active) {
         const target = await this.get(actor, id);
         this.assertProtectedAccount(actor, target);
-        await this.assertAccountMutationScope(actor, id);
         await this.users.update(id, {
             status: active ? user_entity_1.UserStatus.ACTIVE : user_entity_1.UserStatus.DISABLED,
         });
@@ -253,18 +228,12 @@ let UsersService = class UsersService {
         };
     }
     async setRoles(actor, id, dto) {
+        await this.assertRoles(actor, dto.roleCodes);
         (0, organizations_1.assertPlatformRolesAreUnscoped)(dto.roleCodes, dto.organizationId);
         if (dto.organizationId)
             this.assertOrg(actor, dto.organizationId);
         const target = await this.get(actor, id);
         this.assertProtectedAccount(actor, target);
-        const currentRoles = target.assignments
-            .filter((item) => item.organizationId === (dto.organizationId ?? null))
-            .map((item) => item.role);
-        await this.assertRoles(actor, [
-            ...dto.roleCodes.filter((role) => !currentRoles.includes(role)),
-            ...currentRoles.filter((role) => !dto.roleCodes.includes(role)),
-        ]);
         return this.dataSource.transaction(async (manager) => {
             const user = await manager.findOneByOrFail(user_entity_1.User, { id });
             const roles = await manager.find(role_entity_1.Role, {
@@ -295,11 +264,8 @@ let UsersService = class UsersService {
                     role,
                     membership: role.organizationScoped ? membership : null,
                 }));
-            if (membership) {
-                if (dto.roleCodes.includes("STUDENT"))
-                    await (0, students_1.ensureStudentAccount)(manager, user, membership.organization);
+            if (membership)
                 await (0, chat_1.ensureOrganizationChat)(manager, membership.organization, user);
-            }
             return {
                 userId: id,
                 roles: roles.map((role) => role.code),
@@ -312,7 +278,6 @@ let UsersService = class UsersService {
             throw new api_exception_1.ApiException(403, "FORBIDDEN", "فقط مدیر پلتفرم می‌تواند حساب را بایگانی کند.");
         const target = await this.get(actor, id);
         this.assertProtectedAccount(actor, target);
-        await this.assertAccountMutationScope(actor, id);
         await this.users.update(id, { status: user_entity_1.UserStatus.ARCHIVED });
         await this.sessions.delete({ user: { id } });
         return { userId: id, status: user_entity_1.UserStatus.ARCHIVED };

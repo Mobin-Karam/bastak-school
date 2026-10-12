@@ -31,12 +31,10 @@ let EducationClass = class EducationClass {
     advisor;
     books;
     enrollments;
-    timetableSectionId;
-    timetableSection;
     createdAt;
     updatedAt;
     static _OPENAPI_METADATA_FACTORY() {
-        return { id: { required: true, type: () => String }, organization: { required: true, type: () => require("./organization.entity").Organization }, code: { required: true, type: () => String }, name: { required: true, type: () => String }, schoolYear: { required: true, type: () => String }, gradeId: { required: true, type: () => Number }, educationTypeId: { required: true, type: () => String }, trackId: { required: true, type: () => String }, capacity: { required: true, type: () => Number }, status: { required: true, enum: ["ARCHIVED", "ACTIVE"] }, description: { required: true, type: () => String }, advisor: { required: false, type: () => require("./user.entity").User, nullable: true }, books: { required: true, type: () => [require("./education-class-book.entity").EducationClassBook] }, enrollments: { required: true, type: () => [require("./education-class-enrollment.entity").EducationClassEnrollment] }, timetableSectionId: { required: true, type: () => String, nullable: true }, timetableSection: { required: false, type: () => Object }, createdAt: { required: true, type: () => Date }, updatedAt: { required: true, type: () => Date } };
+        return { id: { required: true, type: () => String }, organization: { required: true, type: () => require("./organization.entity").Organization }, code: { required: true, type: () => String }, name: { required: true, type: () => String }, schoolYear: { required: true, type: () => String }, gradeId: { required: true, type: () => Number }, educationTypeId: { required: true, type: () => String }, trackId: { required: true, type: () => String }, capacity: { required: true, type: () => Number }, status: { required: true, enum: ["ARCHIVED", "ACTIVE"] }, description: { required: true, type: () => String }, advisor: { required: false, type: () => require("./user.entity").User, nullable: true }, books: { required: true, type: () => [require("./education-class-book.entity").EducationClassBook] }, enrollments: { required: true, type: () => [require("./education-class-enrollment.entity").EducationClassEnrollment] }, createdAt: { required: true, type: () => Date }, updatedAt: { required: true, type: () => Date } };
     }
 };
 exports.EducationClass = EducationClass;
@@ -45,7 +43,7 @@ __decorate([
     __metadata("design:type", String)
 ], EducationClass.prototype, "id", void 0);
 __decorate([
-    (0, typeorm_1.ManyToOne)(() => organization_entity_1.Organization, { nullable: false, onDelete: "CASCADE" }),
+    (0, typeorm_1.ManyToOne)(() => organization_entity_1.Organization, { onDelete: "CASCADE" }),
     __metadata("design:type", organization_entity_1.Organization)
 ], EducationClass.prototype, "organization", void 0);
 __decorate([
@@ -96,15 +94,6 @@ __decorate([
     (0, typeorm_1.OneToMany)(() => education_class_enrollment_entity_1.EducationClassEnrollment, (enrollment) => enrollment.classroom),
     __metadata("design:type", Array)
 ], EducationClass.prototype, "enrollments", void 0);
-__decorate([
-    (0, typeorm_1.Column)({ type: "varchar", length: 36, nullable: true }),
-    __metadata("design:type", Object)
-], EducationClass.prototype, "timetableSectionId", void 0);
-__decorate([
-    (0, typeorm_1.ManyToOne)("TimetableSection", { nullable: true, onDelete: "RESTRICT" }),
-    (0, typeorm_1.JoinColumn)({ name: "timetableSectionId" }),
-    __metadata("design:type", Object)
-], EducationClass.prototype, "timetableSection", void 0);
 __decorate([
     (0, typeorm_1.CreateDateColumn)(),
     __metadata("design:type", Date)

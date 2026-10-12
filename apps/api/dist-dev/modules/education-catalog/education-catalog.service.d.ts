@@ -82,7 +82,6 @@ export declare class EducationCatalogService {
         organizationId: string;
     }[]>;
     updateBook(actor: AuthenticatedUser, id: string, input: UpdateEducationBookDto): Promise<EducationBook>;
-    private archiveBook;
     publishBook(actor: AuthenticatedUser, id: string): Promise<EducationBook>;
     bookImpact(actor: AuthenticatedUser, id: string): Promise<{
         bookId: string;

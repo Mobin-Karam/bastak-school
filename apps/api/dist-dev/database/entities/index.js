@@ -1,18 +1,4 @@
 "use strict";
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
-    }
-    Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __exportStar = (this && this.__exportStar) || function(m, exports) {
-    for (var p in m) if (p !== "default" && !Object.prototype.hasOwnProperty.call(exports, p)) __createBinding(exports, m, p);
-};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.MessageReaction = exports.ConversationMember = exports.Conversation = exports.NotificationPreference = exports.PushSubscription = exports.QuizClassAssignment = exports.QuizAssignment = exports.QuizAttempt = exports.QuizQuestion = exports.Quiz = exports.ExamRetryRequest = exports.SyllabusProgress = exports.ExamSyllabus = exports.ExamClassAssignment = exports.ExamAssignment = exports.StudentSubject = exports.Subject = exports.SignupThrottle = exports.LoginThrottle = exports.UserRelationship = exports.OrganizationMembership = exports.Organization = exports.UserCapabilityGrant = exports.UserRoleAssignment = exports.RolePermission = exports.Permission = exports.Role = exports.User = exports.TopicMastery = exports.TaskIssue = exports.TaskComment = exports.Task = exports.SyncMutation = exports.Student = exports.StudySession = exports.Session = exports.RecoveryRequest = exports.QuestionBankItem = exports.Question = exports.PlanTemplate = exports.Plan = exports.Notification = exports.LearningReview = exports.LearningItem = exports.Mistake = exports.Exam = exports.ExamAttempt = exports.DailyReport = exports.ChatMessage = exports.AuditLog = void 0;
 exports.AttendancePool = exports.DormAttendanceDelegate = exports.AttendanceSchedule = exports.AttendancePolicy = exports.AttendanceWriteReceipt = exports.RegistrationProgress = exports.REGISTRATION_SECTIONS = exports.RegistrationRequirement = exports.StudentContact = exports.StudentProfile = exports.RequestLetterStatus = exports.RequestLetter = exports.ExitPermissionStatus = exports.ExitPermission = exports.LeaveRequestType = exports.LeaveRequestStatus = exports.LeaveRequestReviewerRole = exports.LeaveRequest = exports.AttendanceStatus = exports.AttendanceRecord = exports.AttendanceSession = exports.PermissionRequest = exports.DormRoomAssignment = exports.DormRoom = exports.StudyGroupMembership = exports.StudyGroup = exports.AccountChangeRequest = exports.SchoolAnnouncement = exports.SchoolPrayerTime = exports.SchoolScheduleEntry = exports.EducationClassEnrollment = exports.EducationClassBook = exports.EducationClass = exports.EducationBook = exports.StudentSyncHealth = exports.StudentDailyRelaxation = exports.RelaxationTrack = exports.LearningResourceAssignment = exports.LearningResource = exports.TeacherSubjectAssignment = exports.AppRelease = exports.AppVersion = exports.ImportHistory = exports.Recommendation = exports.ActivityEvent = exports.StudentPresence = exports.Encouragement = exports.ChatConfiguration = void 0;
@@ -205,5 +191,4 @@ var dorm_attendance_delegate_entity_1 = require("./dorm-attendance-delegate.enti
 Object.defineProperty(exports, "DormAttendanceDelegate", { enumerable: true, get: function () { return dorm_attendance_delegate_entity_1.DormAttendanceDelegate; } });
 var attendance_pool_entity_1 = require("./attendance-pool.entity");
 Object.defineProperty(exports, "AttendancePool", { enumerable: true, get: function () { return attendance_pool_entity_1.AttendancePool; } });
-__exportStar(require("./timetable.entity"), exports);
 //# sourceMappingURL=index.js.map

@@ -41,13 +41,12 @@ __decorate([
 ], OrganizationMembership.prototype, "id", void 0);
 __decorate([
     (0, typeorm_1.ManyToOne)(() => organization_entity_1.Organization, (organization) => organization.memberships, {
-        nullable: false,
         onDelete: "CASCADE",
     }),
     __metadata("design:type", organization_entity_1.Organization)
 ], OrganizationMembership.prototype, "organization", void 0);
 __decorate([
-    (0, typeorm_1.ManyToOne)(() => user_entity_1.User, { nullable: false, onDelete: "CASCADE" }),
+    (0, typeorm_1.ManyToOne)(() => user_entity_1.User, { onDelete: "CASCADE" }),
     __metadata("design:type", user_entity_1.User)
 ], OrganizationMembership.prototype, "user", void 0);
 __decorate([

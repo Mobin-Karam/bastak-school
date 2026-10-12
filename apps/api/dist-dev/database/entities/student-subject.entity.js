@@ -33,11 +33,11 @@ __decorate([
     __metadata("design:type", String)
 ], StudentSubject.prototype, "id", void 0);
 __decorate([
-    (0, typeorm_1.ManyToOne)(() => student_entity_1.Student, { nullable: false, onDelete: "CASCADE" }),
+    (0, typeorm_1.ManyToOne)(() => student_entity_1.Student, { onDelete: "CASCADE" }),
     __metadata("design:type", student_entity_1.Student)
 ], StudentSubject.prototype, "student", void 0);
 __decorate([
-    (0, typeorm_1.ManyToOne)(() => subject_entity_1.Subject, { nullable: false, onDelete: "RESTRICT" }),
+    (0, typeorm_1.ManyToOne)(() => subject_entity_1.Subject, { onDelete: "RESTRICT" }),
     __metadata("design:type", subject_entity_1.Subject)
 ], StudentSubject.prototype, "subject", void 0);
 __decorate([

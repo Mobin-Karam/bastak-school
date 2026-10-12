@@ -56,7 +56,6 @@ exports.dataSourceOptions = {
     migrations: [(0, migration_path_1.databaseMigrationGlob)(__filename)],
     synchronize: false,
     migrationsRun: true,
-    migrationsTransactionMode: "each",
     prepareDatabase: (db) => {
         db.pragma("foreign_keys = ON");
         db.pragma("journal_mode = WAL");

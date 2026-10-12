@@ -33,10 +33,7 @@ __decorate([
 ], QuizQuestion.prototype, "id", void 0);
 __decorate([
     (0, typeorm_1.Index)(),
-    (0, typeorm_1.ManyToOne)(() => quiz_entity_1.Quiz, (q) => q.questions, {
-        nullable: false,
-        onDelete: "CASCADE",
-    }),
+    (0, typeorm_1.ManyToOne)(() => quiz_entity_1.Quiz, q => q.questions, { onDelete: "CASCADE" }),
     __metadata("design:type", quiz_entity_1.Quiz)
 ], QuizQuestion.prototype, "quiz", void 0);
 __decorate([

@@ -19,8 +19,6 @@ const common_1 = require("@nestjs/common");
 const typeorm_1 = require("@nestjs/typeorm");
 const typeorm_2 = require("typeorm");
 const api_exception_1 = require("../../common/exceptions/api.exception");
-const school_schedule_entry_entity_1 = require("../../database/entities/school-schedule-entry.entity");
-const timetable_entity_1 = require("../../database/entities/timetable.entity");
 const education_book_entity_1 = require("../../database/entities/education-book.entity");
 const education_class_book_entity_1 = require("../../database/entities/education-class-book.entity");
 const education_class_enrollment_entity_1 = require("../../database/entities/education-class-enrollment.entity");
@@ -256,31 +254,8 @@ let ClassesService = class ClassesService {
     }
     async remove(actor, id) {
         const classroom = await this.requireClass(actor, id, "classes.manage", true);
-        const referenced = await this.classes.manager.exists(school_schedule_entry_entity_1.SchoolScheduleEntry, { where: { classroom: { id }, versionId: (0, typeorm_2.Not)((0, typeorm_2.IsNull)()) } })
-            || await this.classes.manager.exists(timetable_entity_1.TimetableAllocation, { where: { classroomId: id } });
-        if (referenced)
-            throw new api_exception_1.ApiException(409, "CLASS_TIMETABLE_REFERENCED", "این کلاس در سابقه برنامه درسی استفاده شده است؛ به‌جای حذف، کلاس را بایگانی کنید.");
         await this.classes.remove(classroom);
         return { deleted: true };
-    }
-    async addBook(actor, id, dto) {
-        const classroom = await this.requireClass(actor, id, "education.catalog.manage", true);
-        if (actor.activeOrganizationId && actor.activeOrganizationId !== classroom.organization.id)
-            this.forbidden();
-        const eligible = await this.catalog.listBooks(this.hasCurriculumProfile(classroom) ? classroom.gradeId : undefined, this.hasCurriculumProfile(classroom) ? classroom.educationTypeId : undefined, this.hasCurriculumProfile(classroom) ? classroom.trackId : undefined, [classroom.organization.id]);
-        if (!eligible.some(book => book.id === dto.bookId))
-            throw new api_exception_1.ApiException(422, "CLASS_BOOK_PROFILE_MISMATCH", "کتاب با کلاس یا سازمان انتخاب‌شده سازگار نیست.");
-        const teacher = await this.resolveTeacher(classroom.organization.id, dto.teacherId);
-        if (teacher.status !== user_entity_1.UserStatus.ACTIVE)
-            throw new api_exception_1.ApiException(422, "CLASS_TEACHER_INVALID", "حساب استاد باید فعال باشد.");
-        const book = await this.books.findOneBy({ id: dto.bookId });
-        if (!book)
-            throw new api_exception_1.ApiException(404, "CLASS_BOOK_NOT_FOUND", "کتاب پیدا نشد.");
-        const existing = await this.classBooks.findOne({ where: { classroom: { id }, book: { id: dto.bookId } } });
-        if (existing)
-            throw new api_exception_1.ApiException(409, "CLASS_BOOK_EXISTS", "این کتاب قبلاً به کلاس متصل است؛ همان مورد را در نگاشت انتخاب کنید.");
-        await this.classBooks.save(this.classBooks.create({ classroom, book, teacher }));
-        return this.view(await this.load(id));
     }
     async setBooks(actor, id, dto) {
         const classroom = await this.requireClass(actor, id, "education.catalog.manage", true);
@@ -299,23 +274,13 @@ let ClassesService = class ClassesService {
             : [];
         if (books.length !== requested.length)
             throw new api_exception_1.ApiException(404, "CLASS_BOOK_NOT_FOUND", "یک یا چند کتاب پیدا نشد.");
-        await this.classes.manager.transaction(async (manager) => {
-            const existing = await manager.find(education_class_book_entity_1.EducationClassBook, { where: { classroom: { id } }, relations: { book: true } });
-            const removed = existing.filter(row => !requested.some(item => item.bookId === row.book.id));
-            if (removed.length) {
-                const ids = removed.map(row => row.id);
-                const referenced = await manager.exists(school_schedule_entry_entity_1.SchoolScheduleEntry, { where: { classBook: { id: (0, typeorm_2.In)(ids) }, versionId: (0, typeorm_2.Not)((0, typeorm_2.IsNull)()) } })
-                    || await manager.exists(timetable_entity_1.TimetableAllocation, { where: { classBookId: (0, typeorm_2.In)(ids) } });
-                if (referenced)
-                    throw new api_exception_1.ApiException(409, "CLASS_BOOK_TIMETABLE_REFERENCED", "کتاب‌های استفاده‌شده در برنامه درسی قابل حذف نیستند؛ اتصال‌های موجود را حفظ کنید.");
-                await manager.delete(education_class_book_entity_1.EducationClassBook, ids);
-            }
-            if (requested.length)
-                await manager.save(education_class_book_entity_1.EducationClassBook, requested.map((item, index) => manager.create(education_class_book_entity_1.EducationClassBook, {
-                    id: existing.find(row => row.book.id === item.bookId)?.id,
-                    classroom, book: books.find(book => book.id === item.bookId), teacher: teachers[index],
-                })));
-        });
+        await this.classBooks.delete({ classroom: { id: classroom.id } });
+        if (requested.length)
+            await this.classBooks.save(requested.map((item, index) => this.classBooks.create({
+                classroom,
+                book: books.find((book) => book.id === item.bookId),
+                teacher: teachers[index],
+            })));
         return this.view(await this.load(id));
     }
     async setEnrollments(actor, id, dto) {

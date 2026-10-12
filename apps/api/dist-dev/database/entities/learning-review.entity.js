@@ -33,10 +33,7 @@ __decorate([
     __metadata("design:type", String)
 ], LearningReview.prototype, "id", void 0);
 __decorate([
-    (0, typeorm_1.ManyToOne)(() => learning_item_entity_1.LearningItem, (item) => item.reviews, {
-        nullable: false,
-        onDelete: "CASCADE",
-    }),
+    (0, typeorm_1.ManyToOne)(() => learning_item_entity_1.LearningItem, (item) => item.reviews, { onDelete: "CASCADE" }),
     __metadata("design:type", learning_item_entity_1.LearningItem)
 ], LearningReview.prototype, "item", void 0);
 __decorate([

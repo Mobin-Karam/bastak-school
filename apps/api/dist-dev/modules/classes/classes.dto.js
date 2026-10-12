@@ -9,7 +9,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.AddClassBookDto = exports.ClassTransferDto = exports.ClassTransferRowDto = exports.SetClassEnrollmentsDto = exports.SetClassBooksDto = exports.UpdateEducationClassDto = exports.SaveEducationClassDto = exports.SCHOOL_YEAR_PATTERN = void 0;
+exports.ClassTransferDto = exports.ClassTransferRowDto = exports.SetClassEnrollmentsDto = exports.SetClassBooksDto = exports.UpdateEducationClassDto = exports.SaveEducationClassDto = exports.SCHOOL_YEAR_PATTERN = void 0;
 const openapi = require("@nestjs/swagger");
 const class_validator_1 = require("class-validator");
 const class_transformer_1 = require("class-transformer");
@@ -189,22 +189,4 @@ __decorate([
     (0, class_transformer_1.Type)(() => ClassTransferRowDto),
     __metadata("design:type", Array)
 ], ClassTransferDto.prototype, "rows", void 0);
-class AddClassBookDto {
-    bookId;
-    teacherId;
-    static _OPENAPI_METADATA_FACTORY() {
-        return { bookId: { required: true, type: () => String, minLength: 1, maxLength: 120 }, teacherId: { required: true, type: () => String, format: "uuid" } };
-    }
-}
-exports.AddClassBookDto = AddClassBookDto;
-__decorate([
-    (0, class_validator_1.IsString)(),
-    (0, class_validator_1.MinLength)(1),
-    (0, class_validator_1.MaxLength)(120),
-    __metadata("design:type", String)
-], AddClassBookDto.prototype, "bookId", void 0);
-__decorate([
-    (0, class_validator_1.IsUUID)(),
-    __metadata("design:type", String)
-], AddClassBookDto.prototype, "teacherId", void 0);
 //# sourceMappingURL=classes.dto.js.map

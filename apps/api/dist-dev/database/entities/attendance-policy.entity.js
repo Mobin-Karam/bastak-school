@@ -31,7 +31,7 @@ __decorate([
     __metadata("design:type", String)
 ], AttendancePolicy.prototype, "id", void 0);
 __decorate([
-    (0, typeorm_1.OneToOne)(() => organization_entity_1.Organization, { nullable: false, onDelete: "CASCADE" }),
+    (0, typeorm_1.OneToOne)(() => organization_entity_1.Organization, { onDelete: "CASCADE" }),
     (0, typeorm_1.JoinColumn)(),
     __metadata("design:type", organization_entity_1.Organization)
 ], AttendancePolicy.prototype, "organization", void 0);

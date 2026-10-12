@@ -21,9 +21,6 @@ const common_1 = require("@nestjs/common");
 const typeorm_1 = require("@nestjs/typeorm");
 const typeorm_2 = require("typeorm");
 const typeorm_3 = require("typeorm");
-const education_class_book_entity_1 = require("../../database/entities/education-class-book.entity");
-const school_schedule_entry_entity_1 = require("../../database/entities/school-schedule-entry.entity");
-const timetable_entity_1 = require("../../database/entities/timetable.entity");
 const api_exception_1 = require("../../common/exceptions/api.exception");
 const education_book_entity_1 = require("../../database/entities/education-book.entity");
 const student_entity_1 = require("../../database/entities/student.entity");
@@ -258,10 +255,7 @@ let EducationCatalogService = class EducationCatalogService {
         const book = await this.books.findOneBy({ id });
         if (!book)
             throw new api_exception_1.ApiException(404, "EDUCATION_BOOK_NOT_FOUND", "کتاب پیدا نشد.");
-        this.requireOrganizationScope(actor, book.organizationId);
         this.requireOrganizationScope(actor, input.organizationId ?? book.organizationId);
-        if (input.state === "ARCHIVED" && (book.state !== "ARCHIVED" || Object.entries(input).every(([key, value]) => key === "state" || value === undefined)))
-            return this.archiveBook(actor, id, input);
         const state = input.state;
         Object.assign(book, this.cleanBook(input), state === "PUBLISHED" && book.state !== "PUBLISHED"
             ? { publishedAt: new Date() }
@@ -269,41 +263,6 @@ let EducationCatalogService = class EducationCatalogService {
         const saved = await this.books.save(book);
         await this.record(actor, "education.catalog_book_updated", saved);
         return saved;
-    }
-    async archiveBook(actor, id, input) {
-        if (!actor.capabilities?.includes("education.catalog.manage"))
-            throw new api_exception_1.ApiException(403, "FORBIDDEN", "دسترسی حذف کتاب ندارید.");
-        return this.books.manager.transaction(async (manager) => {
-            const book = await manager.findOneBy(education_book_entity_1.EducationBook, { id });
-            if (!book)
-                throw new api_exception_1.ApiException(404, "EDUCATION_BOOK_NOT_FOUND", "کتاب پیدا نشد.");
-            this.requireOrganizationScope(actor, book.organizationId);
-            if (!book.organizationId && !this.isPlatform(actor))
-                throw new api_exception_1.ApiException(403, "EDUCATION_SHARED_BOOK_PROTECTED", "کتاب کاتالوگ مشترک فقط توسط مدیر پلتفرم قابل حذف است؛ می‌توانید آن را فقط از کلاس بردارید.");
-            if (input.organizationId !== undefined && input.organizationId !== book.organizationId)
-                throw new api_exception_1.ApiException(422, "EDUCATION_BOOK_SCOPE_IMMUTABLE", "هنگام حذف، سازمان مالک کتاب قابل تغییر نیست.");
-            const links = await manager.find(education_class_book_entity_1.EducationClassBook, {
-                where: { book: { id } }, relations: { classroom: { organization: true } },
-            });
-            if (!this.isPlatform(actor) && links.some((link) => link.classroom.organization.id !== book.organizationId))
-                throw new api_exception_1.ApiException(409, "EDUCATION_BOOK_SCOPE_CONFLICT", "این کتاب به کلاس سازمان دیگری متصل است؛ حذف نیاز به بررسی مدیر پلتفرم دارد.");
-            const ids = links.map((link) => link.id);
-            if (ids.length && (await manager.exists(school_schedule_entry_entity_1.SchoolScheduleEntry, { where: { classBook: { id: (0, typeorm_3.In)(ids) } } }) ||
-                await manager.exists(timetable_entity_1.TimetableAllocation, { where: { classBookId: (0, typeorm_3.In)(ids) } })))
-                throw new api_exception_1.ApiException(409, "EDUCATION_BOOK_IN_USE", "این کتاب در برنامه درسی یا تخصیص هفتگی استفاده شده است و برای حفظ تاریخچه قابل حذف نیست. ابتدا وابستگی‌های پیش‌نویس را برطرف کنید؛ سابقه منتشرشده باید حفظ شود.");
-            if (ids.length)
-                await manager.delete(education_class_book_entity_1.EducationClassBook, ids);
-            Object.assign(book, this.cleanBook(input));
-            book.state = "ARCHIVED";
-            book.version++;
-            const saved = await manager.save(book);
-            await manager.save(audit_log_entity_1.AuditLog, manager.create(audit_log_entity_1.AuditLog, {
-                user: { id: actor.id }, action: "education.catalog_book_deleted", entity: "education_book",
-                organizationId: book.organizationId ?? null,
-                metadata: { id, version: book.version, state: book.state, removedClassAssignments: ids.length },
-            }));
-            return saved;
-        });
     }
     async publishBook(actor, id) {
         const book = await this.books.findOneBy({ id });

@@ -31,17 +31,16 @@ __decorate([
 ], EducationClassBook.prototype, "id", void 0);
 __decorate([
     (0, typeorm_1.ManyToOne)("EducationClass", (classroom) => classroom.books, {
-        nullable: false,
         onDelete: "CASCADE",
     }),
     __metadata("design:type", Function)
 ], EducationClassBook.prototype, "classroom", void 0);
 __decorate([
-    (0, typeorm_1.ManyToOne)(() => education_book_entity_1.EducationBook, { nullable: false, onDelete: "RESTRICT" }),
+    (0, typeorm_1.ManyToOne)(() => education_book_entity_1.EducationBook, { onDelete: "RESTRICT" }),
     __metadata("design:type", education_book_entity_1.EducationBook)
 ], EducationClassBook.prototype, "book", void 0);
 __decorate([
-    (0, typeorm_1.ManyToOne)(() => user_entity_1.User, { nullable: false, onDelete: "RESTRICT" }),
+    (0, typeorm_1.ManyToOne)(() => user_entity_1.User, { onDelete: "RESTRICT" }),
     __metadata("design:type", user_entity_1.User)
 ], EducationClassBook.prototype, "teacher", void 0);
 __decorate([

@@ -38,7 +38,7 @@ __decorate([
     __metadata("design:type", String)
 ], SchoolAnnouncement.prototype, "id", void 0);
 __decorate([
-    (0, typeorm_1.ManyToOne)(() => organization_entity_1.Organization, { nullable: false, onDelete: "CASCADE" }),
+    (0, typeorm_1.ManyToOne)(() => organization_entity_1.Organization, { onDelete: "CASCADE" }),
     __metadata("design:type", organization_entity_1.Organization)
 ], SchoolAnnouncement.prototype, "organization", void 0);
 __decorate([

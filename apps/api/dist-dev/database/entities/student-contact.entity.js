@@ -35,7 +35,7 @@ __decorate([
     __metadata("design:type", String)
 ], StudentContact.prototype, "id", void 0);
 __decorate([
-    (0, typeorm_1.ManyToOne)(() => student_entity_1.Student, { nullable: false, onDelete: "CASCADE" }),
+    (0, typeorm_1.ManyToOne)(() => student_entity_1.Student, { onDelete: "CASCADE" }),
     __metadata("design:type", student_entity_1.Student)
 ], StudentContact.prototype, "student", void 0);
 __decorate([

@@ -35,7 +35,7 @@ __decorate([
 ], PushSubscription.prototype, "id", void 0);
 __decorate([
     (0, typeorm_1.Index)(),
-    (0, typeorm_1.ManyToOne)(() => user_entity_1.User, { nullable: false, onDelete: "CASCADE" }),
+    (0, typeorm_1.ManyToOne)(() => user_entity_1.User, { onDelete: "CASCADE" }),
     __metadata("design:type", user_entity_1.User)
 ], PushSubscription.prototype, "user", void 0);
 __decorate([

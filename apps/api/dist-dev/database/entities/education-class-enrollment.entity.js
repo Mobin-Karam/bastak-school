@@ -28,11 +28,13 @@ __decorate([
     __metadata("design:type", String)
 ], EducationClassEnrollment.prototype, "id", void 0);
 __decorate([
-    (0, typeorm_1.ManyToOne)("EducationClass", (classroom) => classroom.enrollments, { nullable: false, onDelete: "CASCADE" }),
+    (0, typeorm_1.ManyToOne)("EducationClass", (classroom) => classroom.enrollments, {
+        onDelete: "CASCADE",
+    }),
     __metadata("design:type", Function)
 ], EducationClassEnrollment.prototype, "classroom", void 0);
 __decorate([
-    (0, typeorm_1.ManyToOne)(() => student_entity_1.Student, { nullable: false, onDelete: "CASCADE" }),
+    (0, typeorm_1.ManyToOne)(() => student_entity_1.Student, { onDelete: "CASCADE" }),
     __metadata("design:type", student_entity_1.Student)
 ], EducationClassEnrollment.prototype, "student", void 0);
 __decorate([

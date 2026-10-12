@@ -41,12 +41,12 @@ __decorate([
 ], SyllabusProgress.prototype, "id", void 0);
 __decorate([
     (0, typeorm_1.Index)(),
-    (0, typeorm_1.ManyToOne)(() => student_entity_1.Student, { nullable: false, onDelete: "CASCADE" }),
+    (0, typeorm_1.ManyToOne)(() => student_entity_1.Student, { onDelete: "CASCADE" }),
     __metadata("design:type", student_entity_1.Student)
 ], SyllabusProgress.prototype, "student", void 0);
 __decorate([
     (0, typeorm_1.Index)(),
-    (0, typeorm_1.ManyToOne)(() => exam_syllabus_entity_1.ExamSyllabus, { nullable: false, onDelete: "CASCADE" }),
+    (0, typeorm_1.ManyToOne)(() => exam_syllabus_entity_1.ExamSyllabus, { onDelete: "CASCADE" }),
     __metadata("design:type", exam_syllabus_entity_1.ExamSyllabus)
 ], SyllabusProgress.prototype, "syllabus", void 0);
 __decorate([

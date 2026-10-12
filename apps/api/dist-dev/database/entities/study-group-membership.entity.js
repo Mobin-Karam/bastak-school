@@ -29,13 +29,12 @@ __decorate([
 ], StudyGroupMembership.prototype, "id", void 0);
 __decorate([
     (0, typeorm_1.ManyToOne)("StudyGroup", (group) => group.memberships, {
-        nullable: false,
         onDelete: "CASCADE",
     }),
     __metadata("design:type", Function)
 ], StudyGroupMembership.prototype, "group", void 0);
 __decorate([
-    (0, typeorm_1.ManyToOne)(() => student_entity_1.Student, { nullable: false, onDelete: "CASCADE" }),
+    (0, typeorm_1.ManyToOne)(() => student_entity_1.Student, { onDelete: "CASCADE" }),
     __metadata("design:type", student_entity_1.Student)
 ], StudyGroupMembership.prototype, "student", void 0);
 __decorate([

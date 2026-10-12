@@ -33,7 +33,7 @@ __decorate([
     __metadata("design:type", String)
 ], ImportHistory.prototype, "id", void 0);
 __decorate([
-    (0, typeorm_1.ManyToOne)(() => user_entity_1.User, { nullable: false, onDelete: "RESTRICT" }),
+    (0, typeorm_1.ManyToOne)(() => user_entity_1.User, { onDelete: "RESTRICT" }),
     __metadata("design:type", user_entity_1.User)
 ], ImportHistory.prototype, "actor", void 0);
 __decorate([

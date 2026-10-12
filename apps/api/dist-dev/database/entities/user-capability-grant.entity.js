@@ -30,11 +30,11 @@ __decorate([
     __metadata("design:type", String)
 ], UserCapabilityGrant.prototype, "id", void 0);
 __decorate([
-    (0, typeorm_1.ManyToOne)(() => user_entity_1.User, { nullable: false, onDelete: "CASCADE" }),
+    (0, typeorm_1.ManyToOne)(() => user_entity_1.User, { onDelete: "CASCADE" }),
     __metadata("design:type", user_entity_1.User)
 ], UserCapabilityGrant.prototype, "user", void 0);
 __decorate([
-    (0, typeorm_1.ManyToOne)(() => organization_entity_1.Organization, { nullable: false, onDelete: "CASCADE" }),
+    (0, typeorm_1.ManyToOne)(() => organization_entity_1.Organization, { onDelete: "CASCADE" }),
     __metadata("design:type", organization_entity_1.Organization)
 ], UserCapabilityGrant.prototype, "organization", void 0);
 __decorate([

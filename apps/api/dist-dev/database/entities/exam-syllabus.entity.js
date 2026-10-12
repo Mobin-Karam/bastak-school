@@ -31,10 +31,7 @@ __decorate([
 ], ExamSyllabus.prototype, "id", void 0);
 __decorate([
     (0, typeorm_1.Index)(),
-    (0, typeorm_1.ManyToOne)(() => exam_entity_1.Exam, (exam) => exam.syllabus, {
-        nullable: false,
-        onDelete: "CASCADE",
-    }),
+    (0, typeorm_1.ManyToOne)(() => exam_entity_1.Exam, (exam) => exam.syllabus, { onDelete: "CASCADE" }),
     __metadata("design:type", exam_entity_1.Exam)
 ], ExamSyllabus.prototype, "exam", void 0);
 __decorate([

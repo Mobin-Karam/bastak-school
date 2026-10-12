@@ -32,18 +32,15 @@ __decorate([
     __metadata("design:type", String)
 ], ExamAssignment.prototype, "id", void 0);
 __decorate([
-    (0, typeorm_1.ManyToOne)(() => exam_entity_1.Exam, (exam) => exam.assignments, {
-        nullable: false,
-        onDelete: "CASCADE",
-    }),
+    (0, typeorm_1.ManyToOne)(() => exam_entity_1.Exam, exam => exam.assignments, { onDelete: "CASCADE" }),
     __metadata("design:type", exam_entity_1.Exam)
 ], ExamAssignment.prototype, "exam", void 0);
 __decorate([
-    (0, typeorm_1.ManyToOne)(() => student_entity_1.Student, { nullable: false, onDelete: "CASCADE" }),
+    (0, typeorm_1.ManyToOne)(() => student_entity_1.Student, { onDelete: "CASCADE" }),
     __metadata("design:type", student_entity_1.Student)
 ], ExamAssignment.prototype, "student", void 0);
 __decorate([
-    (0, typeorm_1.ManyToOne)(() => user_entity_1.User, { nullable: false, onDelete: "RESTRICT" }),
+    (0, typeorm_1.ManyToOne)(() => user_entity_1.User, { onDelete: "RESTRICT" }),
     __metadata("design:type", user_entity_1.User)
 ], ExamAssignment.prototype, "assignedBy", void 0);
 __decorate([

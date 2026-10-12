@@ -89,4 +89,3 @@ export { AttendancePolicy } from "./attendance-policy.entity";
 export { AttendanceSchedule } from "./attendance-schedule.entity";
 export { DormAttendanceDelegate } from "./dorm-attendance-delegate.entity";
 export { AttendancePool } from "./attendance-pool.entity";
-export * from "./timetable.entity";

@@ -26,7 +26,6 @@ const permission_entity_1 = require("../../database/entities/permission.entity")
 const user_capability_grant_entity_1 = require("../../database/entities/user-capability-grant.entity");
 const organization_entity_1 = require("../../database/entities/organization.entity");
 const organizations_1 = require("../organizations");
-const relationship_policy_1 = require("./relationship-policy");
 let AuthorizationService = class AuthorizationService {
     assignments;
     memberships;
@@ -58,46 +57,31 @@ let AuthorizationService = class AuthorizationService {
                     organization: { status: organization_entity_1.OrganizationStatus.ACTIVE },
                 },
                 relations: { organization: true },
-                order: { joinedAt: "ASC", id: "ASC" },
             }),
         ]);
         const activeMembershipIds = new Set(memberships.map((membership) => membership.id));
-        const student = assignments.some((item) => item.role.code === "STUDENT")
-            ? await this.students.findOne({
-                where: { user: { id: base.id } },
-                relations: { organization: true },
-            })
-            : null;
-        const activeAssignments = assignments
-            .filter((item) => item.role.code !== "STUDENT" ||
-            (student?.accountStatus === "active" &&
-                (!student.organization ||
-                    student.organization.id === item.membership?.organization.id)))
-            .filter((assignment) => !assignment.role.organizationScoped ||
+        const activeAssignments = assignments.filter((assignment) => !assignment.role.organizationScoped ||
             Boolean(assignment.membership?.id &&
                 activeMembershipIds.has(assignment.membership.id)));
+        const fallback = base.role === "ADMIN" ? null : base.role;
         const allRoles = [
-            ...new Set(activeAssignments.map((item) => item.role.code)),
+            ...new Set(activeAssignments
+                .map((item) => item.role.code)
+                .concat(activeAssignments.length || !fallback ? [] : [fallback])),
         ];
+        if (requestedRole && !allRoles.includes(requestedRole))
+            throw new api_exception_1.ApiException(403, "WORK_CONTEXT_FORBIDDEN", "زمینه کاری انتخاب‌شده در دسترس نیست.");
         if (requestedOrganizationId &&
             !memberships.some((item) => item.organization.id === requestedOrganizationId) &&
             !allRoles.includes("PLATFORM_ADMIN"))
             throw new api_exception_1.ApiException(403, "ORGANIZATION_FORBIDDEN", "به این سازمان دسترسی ندارید.");
-        requestedOrganizationId ??= allRoles.includes("PLATFORM_ADMIN")
-            ? undefined
-            : memberships.find((membership) => activeAssignments.some((item) => item.membership?.id === membership.id))?.organization.id;
-        const eligibleAssignments = activeAssignments.filter((item) => !item.role.organizationScoped ||
-            item.membership?.organization.id === requestedOrganizationId);
-        if (requestedRole &&
-            !eligibleAssignments.some((item) => item.role.code === requestedRole))
-            throw new api_exception_1.ApiException(403, "WORK_CONTEXT_FORBIDDEN", "زمینه کاری انتخاب‌شده در این سازمان در دسترس نیست.");
         const featureOrganization = memberships.find((membership) => membership.organization.id === requestedOrganizationId);
         const disabledFeatures = allRoles.includes("PLATFORM_ADMIN")
             ? []
             : featureOrganization
                 ? (featureOrganization.organization.disabledFeatures ?? [])
                 : memberships.flatMap((membership) => membership.organization.disabledFeatures ?? []);
-        const context = (0, cmb_authorization_1.buildAuthorizationContext)(base, eligibleAssignments.map((item) => ({
+        const context = (0, cmb_authorization_1.buildAuthorizationContext)(base, activeAssignments.map((item) => ({
             role: item.role.code,
             organizationScoped: item.role.organizationScoped,
             organizationId: item.membership?.organization?.id,
@@ -108,7 +92,7 @@ let AuthorizationService = class AuthorizationService {
             id: item.id,
             organizationId: item.organization.id,
         })), { requestedRole, requestedOrganizationId });
-        const unscopedCapabilities = eligibleAssignments
+        const unscopedCapabilities = activeAssignments
             .filter((item) => !item.role.organizationScoped &&
             (!requestedRole || item.role.code === requestedRole))
             .flatMap((item) => item.role.permissions.map((rp) => rp.permission.code))
@@ -186,7 +170,7 @@ let AuthorizationService = class AuthorizationService {
             if (student.organization?.id &&
                 context.organizationIds.includes(student.organization.id))
                 return true;
-            if (student.organization || !student.user?.id)
+            if (!student.user?.id)
                 return false;
             const sharedMembership = await this.memberships.findOne({
                 where: {
@@ -198,43 +182,14 @@ let AuthorizationService = class AuthorizationService {
             if (sharedMembership)
                 return true;
         }
-        const relationshipTypes = (0, relationship_policy_1.relationshipTypesForRoles)(context.roles);
-        if (!relationshipTypes.length)
-            return false;
-        if (student.organization &&
-            !context.organizationIds.includes(student.organization.id))
-            return false;
         const relation = await this.relationships.findOne({
             where: {
                 fromUser: { id: context.id },
                 toStudent: { id: studentId },
                 status: user_relationship_entity_1.RelationshipStatus.ACTIVE,
-                type: (0, typeorm_2.In)(relationshipTypes),
-                organization: student.organization
-                    ? { id: student.organization.id }
-                    : context.organizationIds.length
-                        ? { id: (0, typeorm_2.In)(context.organizationIds) }
-                        : (0, typeorm_2.IsNull)(),
             },
-            relations: { organization: true },
         });
-        if (!relation)
-            return false;
-        const organizationId = relation.organization?.id;
-        if (!organizationId)
-            return !student.organization && !context.activeOrganizationId;
-        if (!context.organizationIds.includes(organizationId))
-            return false;
-        if (student.organization?.id === organizationId)
-            return true;
-        return Boolean(student.user &&
-            (await this.memberships.findOne({
-                where: {
-                    user: { id: student.user.id },
-                    organization: { id: organizationId },
-                    status: organization_membership_entity_1.MembershipStatus.ACTIVE,
-                },
-            })));
+        return Boolean(relation);
     }
 };
 exports.AuthorizationService = AuthorizationService;

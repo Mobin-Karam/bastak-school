@@ -40,23 +40,16 @@ __decorate([
 ], ConversationMember.prototype, "id", void 0);
 __decorate([
     (0, typeorm_1.Index)(),
-    (0, typeorm_1.ManyToOne)(() => conversation_entity_1.Conversation, (c) => c.members, {
-        nullable: false,
-        onDelete: "CASCADE",
-    }),
+    (0, typeorm_1.ManyToOne)(() => conversation_entity_1.Conversation, c => c.members, { onDelete: "CASCADE" }),
     __metadata("design:type", conversation_entity_1.Conversation)
 ], ConversationMember.prototype, "conversation", void 0);
 __decorate([
     (0, typeorm_1.Index)(),
-    (0, typeorm_1.ManyToOne)(() => user_entity_1.User, { nullable: false, onDelete: "CASCADE" }),
+    (0, typeorm_1.ManyToOne)(() => user_entity_1.User, { onDelete: "CASCADE" }),
     __metadata("design:type", user_entity_1.User)
 ], ConversationMember.prototype, "user", void 0);
 __decorate([
-    (0, typeorm_1.Column)({
-        type: "varchar",
-        length: 16,
-        default: ConversationMemberRole.MEMBER,
-    }),
+    (0, typeorm_1.Column)({ type: "varchar", length: 16, default: ConversationMemberRole.MEMBER }),
     __metadata("design:type", String)
 ], ConversationMember.prototype, "role", void 0);
 __decorate([

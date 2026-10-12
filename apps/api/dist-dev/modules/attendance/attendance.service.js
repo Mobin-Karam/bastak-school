@@ -333,68 +333,6 @@ let AttendanceService = class AttendanceService {
             };
         });
     }
-    async createTimetableSession(user, input) {
-        await this.access.organizationForUser(this.effectiveUser(user), input.organizationId);
-        this.assertWorkOrganization(user, input.organizationId);
-        const descriptor = await this.contextDescriptor("class", input.classroomId);
-        if (descriptor.organizationId !== input.organizationId)
-            throw new api_exception_1.ApiException(403, "ATTENDANCE_CONTEXT_ORGANIZATION_MISMATCH", "کلاس متعلق به این مدرسه نیست.");
-        const assignedTeacher = input.teacherId === user.id &&
-            user.capabilities?.includes("attendance.class.manage");
-        if (!assignedTeacher)
-            await this.assertContextAccess(user, "class", input.classroomId, input.organizationId, true);
-        const enrollments = await this.enrollments.find({
-            where: {
-                classroom: { id: input.classroomId },
-                student: {
-                    organization: { id: input.organizationId },
-                    accountStatus: "active",
-                },
-            },
-            relations: { student: { user: true } },
-        });
-        const created = await this.sessions.save(this.sessions.create({
-            organization: { id: input.organizationId },
-            contextType: "class",
-            contextId: input.classroomId,
-            sessionDate: new Date(),
-            note: `${input.title} / ${input.date}`,
-            titleSnapshot: input.title,
-            rosterSnapshot: enrollments.map(({ student }) => ({
-                id: student.id,
-                name: student.name,
-                nationalCode: student.nationalCode ?? null,
-                userId: student.user?.id ?? null,
-            })),
-            rosterCapturedAt: new Date(),
-            createdBy: { id: user.id },
-        }));
-        await this.sessions.update({ id: created.id }, {
-            sourceKind: "class_schedule",
-            sourceScheduleId: input.lessonId,
-            titleSnapshot: input.title,
-            scheduledStartAt: new Date(input.startsAt),
-            scheduledEndAt: new Date(input.endsAt),
-            timeZone: input.timeZone,
-            operationalDate: input.date,
-            assignedStaff: input.teacherId ? { id: input.teacherId } : null,
-        });
-        return { id: created.id };
-    }
-    async reassignTimetableSession(sessionId, lessonId, teacherId) {
-        await this.sessions.update({
-            id: sessionId,
-            sourceKind: "class_schedule",
-            sourceScheduleId: lessonId,
-        }, { assignedStaff: { id: teacherId } });
-    }
-    async cancelTimetableSession(sessionId, lessonId) {
-        await this.sessions.update({
-            id: sessionId,
-            sourceKind: "class_schedule",
-            sourceScheduleId: lessonId,
-        }, { status: "cancelled" });
-    }
     async createSession(user, dto) {
         const organization = await this.access.organizationForUser(this.effectiveUser(user), dto.organizationId);
         await this.assertContextAccess(user, dto.contextType, dto.contextId, organization.id, true);
@@ -407,12 +345,7 @@ let AttendanceService = class AttendanceService {
             contextId: dto.contextId,
             sessionDate: date,
             titleSnapshot: descriptor.title,
-            rosterSnapshot: roster.map((member) => ({
-                id: member.id,
-                name: member.name,
-                nationalCode: member.nationalCode ?? null,
-                userId: member.userId,
-            })),
+            rosterSnapshot: roster.map(member => ({ id: member.id, name: member.name, nationalCode: member.nationalCode ?? null, userId: member.userId })),
             rosterCapturedAt: new Date(),
             note: dto.note?.trim() || "",
             createdBy: { id: user.id },
@@ -444,7 +377,6 @@ let AttendanceService = class AttendanceService {
             .update(JSON.stringify({
             organizationId: dto.organizationId,
             sessionId: dto.sessionId,
-            expectedRevision: dto.expectedRevision,
             contextType: dto.contextType,
             contextId: dto.contextId,
             sessionDate: dto.sessionDate,
@@ -483,15 +415,7 @@ let AttendanceService = class AttendanceService {
                     relations: { session: true },
                 });
                 if (receipt) {
-                    const receiptSession = await sessions.findOne({
-                        where: { id: receipt.session.id },
-                        relations: { assignedStaff: true },
-                    });
-                    const assigned = receiptSession?.sourceKind === "class_schedule" &&
-                        receiptSession.assignedStaff?.id === user.id &&
-                        user.capabilities?.includes("attendance.class.manage");
-                    if (!assigned)
-                        await this.assertContextAccess(user, receipt.session.contextType, receipt.session.contextId, organization.id, true);
+                    await this.assertContextAccess(user, receipt.session.contextType, receipt.session.contextId, organization.id, true);
                     if (receipt.fingerprint !== fingerprint)
                         throw new api_exception_1.ApiException(409, "ATTENDANCE_REQUEST_REUSED", "شناسه درخواست قبلاً برای اطلاعات دیگری استفاده شده است.");
                     return {
@@ -509,30 +433,21 @@ let AttendanceService = class AttendanceService {
                         id: dto.sessionId,
                         organization: { id: organization.id },
                     },
-                    relations: { organization: true, assignedStaff: true },
+                    relations: { organization: true },
                 })
                 : null;
-            if (dto.sessionId && !session)
+            if (dto.sessionId && !session) {
                 throw new api_exception_1.ApiException(404, "ATTENDANCE_SESSION_NOT_FOUND", "جلسه حضور و غیاب پیدا نشد.");
-            if (session?.sourceKind === "class_schedule" &&
-                session.revision !== dto.expectedRevision)
-                throw new api_exception_1.ApiException(409, "ATTENDANCE_SESSION_STALE", "نسخه جلسه تغییر کرده است؛ دوباره بارگذاری کنید.");
-            if (session?.status === "cancelled")
-                throw new api_exception_1.ApiException(409, "ATTENDANCE_SESSION_CANCELLED", "این درس لغو شده است؛ حضور تاریخی فقط قابل مشاهده است.");
+            }
             if (session?.occurrenceKey)
                 throw new api_exception_1.ApiException(409, "ATTENDANCE_SESSION_WORKFLOW_REQUIRED", "برای این جلسه از ثبت حضور جلسه با شماره نسخه استفاده کنید.");
             const contextType = session?.contextType ?? dto.contextType;
             const contextId = session?.contextId ?? dto.contextId;
-            if (!contextType || !contextId)
+            if (!contextType || !contextId) {
                 throw new api_exception_1.ApiException(422, "ATTENDANCE_CONTEXT_REQUIRED", "کلاس، گروه یا اتاق لازم است.");
-            const assignedTeacher = session?.sourceKind === "class_schedule" &&
-                session.assignedStaff?.id === user.id &&
-                user.capabilities?.includes("attendance.class.manage");
-            if (!assignedTeacher)
-                await this.assertContextAccess(user, contextType, contextId, organization.id, true);
-            const participantIds = assignedTeacher
-                ? new Set((session.rosterSnapshot ?? []).map((row) => row.id))
-                : await this.participantIds(user, contextType, contextId, organization.id);
+            }
+            await this.assertContextAccess(user, contextType, contextId, organization.id, true);
+            const participantIds = await this.participantIds(user, contextType, contextId, organization.id);
             if (entries.some((entry) => !participantIds.has(entry.studentId))) {
                 throw new api_exception_1.ApiException(422, "ATTENDANCE_STUDENT_NOT_IN_CONTEXT", "یک یا چند طلبه عضو این کلاس، گروه یا اتاق نیستند.");
             }
@@ -611,10 +526,6 @@ let AttendanceService = class AttendanceService {
                         reviewStatus: marked.reviewStatus,
                     },
                 });
-            }
-            if (session.sourceKind === "class_schedule") {
-                session.revision++;
-                await sessions.save(session);
             }
             await manager.getRepository(audit_log_entity_1.AuditLog).save({
                 user: { id: user.id },

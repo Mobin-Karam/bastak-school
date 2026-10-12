@@ -50,7 +50,7 @@ __decorate([
 ], RequestLetter.prototype, "id", void 0);
 __decorate([
     (0, typeorm_1.Index)(),
-    (0, typeorm_1.ManyToOne)(() => organization_entity_1.Organization, { nullable: false, onDelete: "CASCADE" }),
+    (0, typeorm_1.ManyToOne)(() => organization_entity_1.Organization, { onDelete: "CASCADE" }),
     __metadata("design:type", organization_entity_1.Organization)
 ], RequestLetter.prototype, "organization", void 0);
 __decorate([

@@ -135,6 +135,6 @@ export declare class AuthService {
     }>;
     verifyCsrf(sessionId: string, csrfToken: string): Promise<boolean>;
     private newCredentials;
-    private hasUsableWorkContext;
+    private hasActiveStudentAccount;
     private isStudentOrGuardian;
 }

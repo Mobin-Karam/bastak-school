@@ -32,11 +32,11 @@ __decorate([
     __metadata("design:type", String)
 ], AttendancePool.prototype, "id", void 0);
 __decorate([
-    (0, typeorm_1.ManyToOne)(() => organization_entity_1.Organization, { nullable: false, onDelete: "CASCADE" }),
+    (0, typeorm_1.ManyToOne)(() => organization_entity_1.Organization, { onDelete: "CASCADE" }),
     __metadata("design:type", organization_entity_1.Organization)
 ], AttendancePool.prototype, "organization", void 0);
 __decorate([
-    (0, typeorm_1.OneToOne)(() => attendance_session_entity_1.AttendanceSession, { nullable: false, onDelete: "CASCADE" }),
+    (0, typeorm_1.OneToOne)(() => attendance_session_entity_1.AttendanceSession, { onDelete: "CASCADE" }),
     (0, typeorm_1.JoinColumn)(),
     __metadata("design:type", attendance_session_entity_1.AttendanceSession)
 ], AttendancePool.prototype, "session", void 0);
