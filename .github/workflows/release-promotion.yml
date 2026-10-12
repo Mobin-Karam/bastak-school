@@ -1,0 +1,47 @@
+name: Release promotion
+on:
+  workflow_run:
+    workflows: [Continuous Integration]
+    types: [completed]
+    branches: [develop]
+permissions:
+  contents: read
+concurrency:
+  group: bastak-release-pr
+  cancel-in-progress: false
+jobs:
+  release-pr:
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'push' &&
+      github.event.workflow_run.head_branch == 'develop' &&
+      github.event.workflow_run.head_repository.full_name == github.repository
+    runs-on: ubuntu-latest
+    environment: lan-production
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - name: Create or update the develop release PR
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_PR_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          TESTED_SHA: ${{ github.event.workflow_run.head_sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -z "$GH_TOKEN" ]]; then
+            echo 'Configure RELEASE_PR_TOKEN (Contents read, Pull requests write) to trigger release PR checks.'
+            exit 1
+          fi
+          current=$(gh api "repos/$GH_REPO/git/ref/heads/develop" --jq .object.sha)
+          [[ "$current" == "$TESTED_SHA" ]] || { echo 'Newer develop commit will create the release PR.'; exit 0; }
+          changed=$(gh api "repos/$GH_REPO/compare/main...develop" --jq '.files | length')
+          [[ "$changed" != 0 ]] || { echo 'No application changes to release.'; exit 0; }
+          existing=$(gh pr list --repo "$GH_REPO" --base main --head develop --state open --json number --jq '.[0].number // empty')
+          body="Promote develop to production. Latest tested develop commit: $TESTED_SHA. Main PR checks must pass before merging. Merging triggers production deployment after main CI succeeds."
+          if [[ -n "$existing" ]]; then
+            gh pr edit "$existing" --repo "$GH_REPO" --title 'Release: develop to main' --body "$body"
+          else
+            gh pr create --repo "$GH_REPO" --base main --head develop --title 'Release: develop to main' --body "$body"
+          fi

@@ -1,36 +1,7 @@
 name: Deployment Readiness
 
 on:
-  pull_request:
-    paths:
-      - 'apps/api/**'
-      - 'apps/admin/**'
-      - 'apps/student/**'
-      - 'student-core/**'
-      - 'packages/**'
-      - 'tooling/generators/**'
-      - 'docker-compose.yml'
-      - 'docker-compose.production.yml'
-      - 'deployment/lan/**'
-      - 'scripts/deploy/**'
-      - 'docker-compose.coolify.yml'
-      - '.github/workflows/deployment-readiness.yml'
-  push:
-    branches: [develop, main]
-    paths:
-      - 'apps/api/**'
-      - 'apps/admin/**'
-      - 'apps/student/**'
-      - 'student-core/**'
-      - 'packages/**'
-      - 'tooling/generators/**'
-      - 'docker-compose.yml'
-      - 'docker-compose.production.yml'
-      - 'deployment/lan/**'
-      - 'scripts/deploy/**'
-      - 'docker-compose.coolify.yml'
-      - '.github/workflows/deployment-readiness.yml'
-  workflow_dispatch:
+  workflow_call:
 
 permissions:
   contents: read

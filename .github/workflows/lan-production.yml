@@ -1,45 +1,50 @@
 name: LAN Production Deployment
 on:
-  workflow_dispatch:
+  workflow_run:
+    workflows: [Continuous Integration]
+    types: [completed]
+    branches: [main]
 permissions:
   contents: read
 concurrency:
-  group: bastak-lan-production
+  group: bastak-production
   cancel-in-progress: false
 jobs:
-  quality:
+  authorize:
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'push' &&
+      github.event.workflow_run.head_branch == 'main' &&
+      github.event.workflow_run.head_repository.full_name == github.repository &&
+      vars.PRODUCTION_DEPLOY_TARGET == 'lan'
     runs-on: ubuntu-latest
+    outputs:
+      current: ${{ steps.head.outputs.current }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22.23.3
-      - run: npm run bootstrap
-      - run: npm run workspace:check
-      - run: npm run architecture:check
-      - run: npm run contracts:check
-      - run: npm run cmb:compatibility
-      - run: npm run verify
-      - run: ./scripts/deploy/verify-security.sh
-      - run: npm --prefix apps/admin run audit:parity
-      - run: npm --prefix apps/admin run test:coverage
-      - run: npm --prefix apps/admin audit --omit=dev --audit-level=high
-      - run: npm --prefix apps/api audit --omit=dev --audit-level=high
-  deploy:
-    needs: quality
-    if: github.ref == 'refs/heads/main'
-    runs-on: [self-hosted, linux, x64, bastak-lan]
+      - name: Skip superseded main releases
+        id: head
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          current=$(gh api "repos/$GH_REPO/git/ref/heads/main" --jq .object.sha)
+          if [[ "$current" == "$RELEASE_SHA" ]]; then echo 'current=true' >> "$GITHUB_OUTPUT"; fi
+  dispatch:
+    needs: authorize
+    if: needs.authorize.outputs.current == 'true'
+    runs-on: ubuntu-latest
     environment: lan-production
     steps:
-      - uses: actions/checkout@v4
-      - name: Build and deploy verified release
+      - name: Send verified release to private deployment repository
+        env:
+          GH_TOKEN: ${{ secrets.DEPLOY_DISPATCH_TOKEN }}
+          RELEASE_SHA: ${{ github.event.workflow_run.head_sha }}
+          RUN_ID: ${{ github.event.workflow_run.id }}
         shell: bash
         run: |
           set -euo pipefail
-          # Runner maintains TLS and env outside disposable checkout; database is a named volume.
-          mkdir -p .run/production
-          test -d /home/bastak-server/.config/bastak-production/tls
-          if [[ ! -e .run/production/tls ]]; then ln -s /home/bastak-server/.config/bastak-production/tls .run/production/tls; fi
-          test "$(readlink .run/production/tls)" = /home/bastak-server/.config/bastak-production/tls
-          cp /home/bastak-server/.config/bastak-production/production.env .run/production/production.env
-          ./scripts/deploy/lan.sh
+          [[ -n "$GH_TOKEN" ]] || { echo 'Configure DEPLOY_DISPATCH_TOKEN in lan-production.'; exit 1; }
+          payload=$(python3 -c 'import json,os; print(json.dumps({"event_type":"verified-main","client_payload":{"sha":os.environ["RELEASE_SHA"],"run_id":os.environ["RUN_ID"]}}))')
+          printf '%s' "$payload" | gh api repos/Mobin-Karam/bastak-school-deploy/dispatches --method POST --input -
+          echo 'Deployment queued. Verify Server production deployment in bastak-school-deploy; this dispatch is not proof of production health.'
