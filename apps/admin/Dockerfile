@@ -47,6 +47,9 @@ RUN npm run build
 # Stage 3: Production Nginx
 # ==========================================
 FROM nginx:1.30.5-alpine AS runtime
+ARG RELEASE_SHA=development
+LABEL org.opencontainers.image.revision=$RELEASE_SHA
+LABEL org.opencontainers.image.source=https://github.com/Mobin-Karam/bastak-school
 
 COPY apps/admin/nginx.conf.template /etc/nginx/templates/default.conf.template
 

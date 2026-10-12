@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 cd "$(dirname "$0")/../.."
-tls_dir=.run/production/tls
+tls_dir=${TLS_DIRECTORY:-.run/production/tls}
 mkdir -p "$tls_dir"
-chmod 700 .run/production "$tls_dir"
+chmod 700 "$tls_dir"
 if [[ -f "$tls_dir/server.crt" && -f "$tls_dir/server.key" && -f "$tls_dir/ca.crt" ]]; then
   openssl x509 -checkend 604800 -noout -in "$tls_dir/server.crt"
   exit 0

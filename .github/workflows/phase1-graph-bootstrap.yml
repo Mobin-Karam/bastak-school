@@ -5,10 +5,12 @@ on:
     branches: [develop]
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   bootstrap-graph:
+    permissions:
+      contents: write
     if: github.actor != 'github-actions[bot]' && github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'architecture/complete-phase-1-graph-validation'
     runs-on: ubuntu-latest
     steps:
@@ -95,6 +97,8 @@ jobs:
 
       - name: Commit generated evidence
         shell: bash
+        env:
+          HEAD_BRANCH: ${{ github.event.pull_request.head.ref }}
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
@@ -107,4 +111,4 @@ jobs:
             exit 0
           fi
           git commit -m 'chore: freeze Phase 1 architecture baseline'
-          git push origin HEAD:${{ github.event.pull_request.head.ref }}
+          git push origin "HEAD:$HEAD_BRANCH"

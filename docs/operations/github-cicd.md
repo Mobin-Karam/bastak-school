@@ -2,6 +2,8 @@
 
 For the end-to-end job map, exact checks, trust boundaries and current limitations, start with the [CI/CD pipeline guide](./ci-cd-pipeline.md). This page owns configuration, credentials, daily commands and recovery.
 
+The [deployment audit](./deployment-audit.md) and [immutable LAN runbook](./immutable-lan-runbook.md) document the staged image-promotion replacement. The installed private runner workflow remains the legacy build-on-server path until explicitly published and enabled; this page describes that existing path.
+
 Source repository: `Mobin-Karam/bastak-school` (public). Deployment control repository: `Mobin-Karam/bastak-school-deploy` (private). Production currently uses the two-service LAN Docker Compose deployment on this server, with the Admin app also hosting student views. This pipeline changes deployment operations, not application screens.
 
 ## Daily work
@@ -39,7 +41,7 @@ python3 scripts/cicd/configure-github.py
 python3 scripts/cicd/install-runner.py
 ```
 
-The configuration script requires PRs and the strict `CI Gate` status on `develop` and `main`, including administrators. Existing review requirements are preserved. New rules allow a solo maintainer to merge without another reviewer; increase approving-review count as the team grows. It enables auto-merge for checked synchronization PRs, sets `PRODUCTION_DEPLOY_TARGET=lan`, and limits the `lan-production` environment to main.
+The configuration script requires PRs and the strict `CI Gate` status on `develop` and `main`, including administrators. Existing review requirements are preserved. New rules allow a solo maintainer to merge without another reviewer; increase approving-review count as the team grows. It enables auto-merge for checked synchronization PRs, preserves existing environment protections and adds a main branch policy. It no longer activates a production target; deployment activation and private environment reviewers require the separate runbook review.
 
 The runner installer downloads the official Linux x64 runner, verifies its published SHA256, obtains a short-lived registration token through local authenticated CLI without printing it, registers the `bastak-lan` label, and starts a user systemd service. Docker must be usable by the runner account. This server also required ICU; its Debian `libicu76` package was downloaded through the signed APT package metadata and extracted under `~/.local/share/bastak-runner-libs` without changing system packages. The installer uses that local library path when present. On other hosts, install the official runner dependencies through the system package manager. Only trusted main deployment code uses this runner. The runner is registered only in the private deployment repository, so public source PR workflows cannot request jobs on it. Keep the deployment repository private and restrict who can edit its workflows or dispatch jobs. The public source repository requires approval for all outside-contributor workflows. Docker access grants broad host privileges; treat that account as privileged.
 

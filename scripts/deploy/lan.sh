@@ -3,7 +3,9 @@ set -euo pipefail
 umask 077
 cd "$(dirname "$0")/../.."
 mkdir -p .run
-exec 9>"${PRODUCTION_LOCK_FILE:-.run/production-deploy.lock}"
+lock_file=${PRODUCTION_LOCK_FILE:-${XDG_CONFIG_HOME:-$HOME/.config}/bastak-production/deploy.lock}
+[[ -d "$(dirname "$lock_file")" ]] || { echo 'Configure persistent production lock directory before deployment.' >&2; exit 1; }
+exec 9>"$lock_file"
 flock -n 9 || { echo 'Another deployment is running.' >&2; exit 1; }
 ./scripts/deploy/create-lan-tls.sh
 [[ -f .run/production/production.env ]] || { echo 'Create .run/production/production.env from deployment/lan/production.env.example.' >&2; exit 1; }
