@@ -12,7 +12,7 @@ if [[ -z "$pr" ]]; then
   pr=$(gh pr list --base develop --head "$branch" --state open --json number --jq '.[0].number')
 fi
 # Do not merge before the required check exists or before a new push is tested.
-for attempt in {1..60}; do
+for attempt in {1..600}; do
   checks=$(gh pr checks "$pr" --json name --jq '.[].name' || true)
   if grep -qx 'CI Gate' <<< "$checks"; then break; fi
   sleep 5

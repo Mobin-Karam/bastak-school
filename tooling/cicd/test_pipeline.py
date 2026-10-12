@@ -20,6 +20,7 @@ class PipelineTests(unittest.TestCase):
         self.assertIn("all) suites=(security-matrix student-journey onboarding-journey)", script)
         self.assertIn('DATABASE_PATH="$security_directory/$suite.sqlite"', script)
         self.assertIn('node "apps/api/scripts/$suite-e2e.mjs"', script)
+        self.assertIn("for attempt in {1..600}; do", (ROOT / "scripts/cicd/finish-work.sh").read_text())
     def test_required_gate_covers_every_change_and_failure(self):
         ci = self.workflow("continuous-integration.yml")
         events = ci.get("on", ci.get(True))
