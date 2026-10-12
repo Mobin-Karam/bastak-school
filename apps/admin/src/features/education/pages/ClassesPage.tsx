@@ -246,6 +246,7 @@ export function ClassesPage() {
         options={options.data}
         loading={options.isLoading}
         canManage={canManage}
+        canDeleteBooks={auth.can("education.catalog.manage")}
         canRoster={canRoster}
         canTakeAttendance={auth.can("attendance.manage")}
         onBooks={(rows) => saveBooks.mutate(rows)}
@@ -273,6 +274,7 @@ function ClassDetail({
   options,
   loading,
   canManage,
+  canDeleteBooks,
   canRoster,
   canTakeAttendance,
   onBooks,
@@ -289,6 +291,7 @@ function ClassDetail({
   options?: Awaited<ReturnType<typeof getClassOptions>>;
   loading: boolean;
   canManage: boolean;
+  canDeleteBooks: boolean;
   canRoster: boolean;
   canTakeAttendance: boolean;
   onBooks: (books: Array<{ bookId: string; teacherId: string }>) => void;
@@ -322,6 +325,7 @@ function ClassDetail({
           onSave={onBooks}
           onClose={modal.close}
           saving={savingBooks}
+          canDeleteBooks={canDeleteBooks}
         />
       ),
     });
