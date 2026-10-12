@@ -15,7 +15,7 @@ TypeORM runs committed migrations when the API starts. Before any release that c
 
 ## CI/CD
 
-The existing `Deployment Readiness` workflow builds the production topology and runs its API/proxy smoke checks for a relevant push to `main`. Only after that workflow succeeds does `Coolify production deployment` validate the Coolify Compose configuration and call Coolify. A manual deployment is restricted to `main`.
+The automatic production pipeline now uses the observed LAN Docker Compose server. See [GitHub CI/CD](github-cicd.md). This Coolify workflow is manual-only, restricted to `main`, and requires `PRODUCTION_DEPLOY_TARGET=coolify`. A Coolify switch needs its own tested deployment configuration; it is not triggered by the LAN pipeline.
 
 In Coolify, create a deploy-only API token and copy the application or tag **Deploy Webhook (auth required)**. Add both values as GitHub Actions secrets:
 
