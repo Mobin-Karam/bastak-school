@@ -1,0 +1,88 @@
+name: Continuous Integration
+on:
+  pull_request:
+    branches: [develop, main]
+  push:
+    branches: [develop, main]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.23.3
+      - name: Check promotion direction
+        if: github.event_name == 'pull_request' && github.base_ref == 'main'
+        env:
+          HEAD_BRANCH: ${{ github.head_ref }}
+          HEAD_REPOSITORY: ${{ github.event.pull_request.head.repo.full_name }}
+        run: test "$HEAD_BRANCH" = develop && test "$HEAD_REPOSITORY" = "$GITHUB_REPOSITORY"
+      - run: npm run workspace:check
+      - run: npm run workspace:list
+      - run: npm run workspace:plan -- build
+      - run: npm run bootstrap
+      - run: npm run architecture:check
+      - run: npm run architecture:self-test
+      - run: npm run contracts:check
+      - run: npm run cmb:compatibility
+      - run: npm run test:generators
+      - run: npm run verify
+      - run: ./scripts/deploy/verify-security.sh
+      - run: npm --prefix apps/admin run audit:parity
+      - run: npm --prefix apps/admin run test:coverage
+      - run: npm --prefix apps/admin audit --omit=dev --audit-level=high
+      - run: npm --prefix apps/api audit --omit=dev --audit-level=high
+      - run: python3 -m pip install 'PyYAML==6.0.2'
+      - run: python3 -m unittest discover -s tooling/cicd -p 'test_*.py'
+  containers:
+    uses: ./.github/workflows/deployment-readiness.yml
+  gate:
+    name: CI Gate
+    if: always()
+    needs: [quality, containers]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require every release check
+        env:
+          QUALITY: ${{ needs.quality.result }}
+          CONTAINERS: ${{ needs.containers.result }}
+        run: test "$QUALITY" = success && test "$CONTAINERS" = success
+  release-pr:
+    needs: gate
+    if: github.event_name == 'push' && github.ref == 'refs/heads/develop'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - name: Create or update the develop release PR
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_PR_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          TESTED_SHA: ${{ github.sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -z "$GH_TOKEN" ]]; then
+            echo 'Configure RELEASE_PR_TOKEN (Contents read, Pull requests write) to trigger release PR checks.'
+            exit 1
+          fi
+          current=$(gh api "repos/$GH_REPO/git/ref/heads/develop" --jq .object.sha)
+          [[ "$current" == "$TESTED_SHA" ]] || { echo 'Newer develop commit will create the release PR.'; exit 0; }
+          existing=$(gh pr list --repo "$GH_REPO" --base main --head develop --state open --json number --jq '.[0].number // empty')
+          body="Promote develop to production. Latest tested develop commit: $TESTED_SHA. Main PR checks must pass before merging. Merging triggers production deployment after main CI succeeds."
+          if [[ -n "$existing" ]]; then
+            gh pr edit "$existing" --repo "$GH_REPO" --title 'Release: develop to main' --body "$body"
+          else
+            gh pr create --repo "$GH_REPO" --base main --head develop --title 'Release: develop to main' --body "$body"
+          fi
