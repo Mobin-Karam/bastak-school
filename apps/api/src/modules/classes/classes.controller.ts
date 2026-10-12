@@ -14,6 +14,7 @@ import { RequireCapabilities } from "../../common/decorators/capabilities.decora
 import { ok } from "../../common/utils/envelope";
 import { AuthenticatedUser } from "../auth";
 import {
+  AddClassBookDto,
   SaveEducationClassDto,
   ClassTransferDto,
   SetClassBooksDto,
@@ -79,6 +80,15 @@ export class ClassesController {
     @Body() dto: UpdateEducationClassDto,
   ) {
     return this.classes.update(actor, id, dto).then(ok);
+  }
+  @Post("classes/:id/books")
+  @RequireCapabilities("education.catalog.manage")
+  addBook(
+    @CurrentUser() actor: AuthenticatedUser,
+    @Param("id") id: string,
+    @Body() dto: AddClassBookDto,
+  ) {
+    return this.classes.addBook(actor, id, dto).then(ok);
   }
   @Put("classes/:id/books")
   @RequireCapabilities("education.catalog.manage")

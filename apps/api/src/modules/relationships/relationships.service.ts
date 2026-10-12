@@ -1,8 +1,11 @@
 import { Injectable } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { In, Repository } from "typeorm";
+import { In, IsNull, Repository } from "typeorm";
 import { ApiException } from "../../common/exceptions/api.exception";
-import { Organization } from "../../database/entities/organization.entity";
+import {
+  Organization,
+  OrganizationStatus,
+} from "../../database/entities/organization.entity";
 import {
   MembershipStatus,
   OrganizationMembership,
@@ -14,8 +17,12 @@ import {
   UserRelationship,
 } from "../../database/entities/user-relationship.entity";
 import { UserRoleAssignment } from "../../database/entities/user-role-assignment.entity";
-import { User } from "../../database/entities/user.entity";
+import { User, UserStatus } from "../../database/entities/user.entity";
 import { AuthenticatedUser } from "../auth";
+import {
+  relationshipRoleCodes,
+  relationshipTypesForRoles,
+} from "../authorization";
 import { NotificationsService } from "../notifications";
 import {
   CreateRelationshipDto,
@@ -46,19 +53,26 @@ export class RelationshipsService {
       Boolean(
         organizationId &&
         user.organizationIds?.includes(organizationId) &&
-        (user.capabilities?.includes("organization.members.manage") || user.capabilities?.includes("relationships.manage")),
+        (user.capabilities?.includes("organization.members.manage") ||
+          user.capabilities?.includes("relationships.manage")),
       )
     );
   }
   async list(user: AuthenticatedUser) {
     const canManageOrganizations =
-      (user.capabilities?.includes("organization.members.manage") || user.capabilities?.includes("relationships.manage")) &&
+      (user.capabilities?.includes("organization.members.manage") ||
+        user.capabilities?.includes("relationships.manage")) &&
       user.organizationIds?.length;
     const where = this.platform(user)
       ? {}
       : canManageOrganizations
         ? { organization: { id: In(user.organizationIds!) } }
-        : { fromUser: { id: user.id } };
+        : {
+            fromUser: { id: user.id },
+            organization: user.organizationIds?.length
+              ? { id: In(user.organizationIds) }
+              : IsNull(),
+          };
     return this.relationships
       .find({
         where,
@@ -74,7 +88,8 @@ export class RelationshipsService {
     });
     if (!item) throw new ApiException(404, "NOT_FOUND", "رابطه یافت نشد.");
     if (
-      item.fromUser.id !== user.id &&
+      (item.fromUser.id !== user.id ||
+        !this.inWorkScope(user, item.organization?.id)) &&
       !this.canManage(user, item.organization?.id)
     )
       throw new ApiException(404, "NOT_FOUND", "رابطه یافت نشد.");
@@ -86,7 +101,10 @@ export class RelationshipsService {
     const [fromUser, student, organization, sourceMembership] =
       await Promise.all([
         this.users.findOne({ where: { id: dto.fromUserId } }),
-        this.students.findOne({ where: { id: dto.toStudentId } }),
+        this.students.findOne({
+          where: { id: dto.toStudentId },
+          relations: { organization: true, user: true },
+        }),
         dto.organizationId
           ? this.organizations.findOne({ where: { id: dto.organizationId } })
           : Promise.resolve(null),
@@ -112,13 +130,19 @@ export class RelationshipsService {
         "USER_NOT_IN_ORGANIZATION",
         "کاربر انتخاب‌شده عضو فعال این سازمان نیست.",
       );
+    await this.assertEligible({
+      fromUser,
+      toStudent: student,
+      organization,
+      type: dto.type,
+    });
     const existing = await this.relationships.findOne({
       where: {
         fromUser: { id: dto.fromUserId },
         toStudent: { id: dto.toStudentId },
         organization: dto.organizationId
           ? { id: dto.organizationId }
-          : undefined,
+          : IsNull(),
         type: dto.type,
       },
     });
@@ -155,18 +179,22 @@ export class RelationshipsService {
       where: { id },
       relations: {
         fromUser: true,
-        toStudent: { user: true },
+        toStudent: { user: true, organization: true },
         organization: true,
       },
     });
     if (!item) throw new ApiException(404, "NOT_FOUND", "رابطه یافت نشد.");
     const selfDecision =
       item.fromUser.id === user.id &&
+      this.inWorkScope(user, item.organization?.id) &&
+      item.status === RelationshipStatus.PENDING &&
       [RelationshipStatus.ACTIVE, RelationshipStatus.REJECTED].includes(
         dto.status,
       );
     if (!selfDecision && !this.canManage(user, item.organization?.id))
       throw new ApiException(403, "FORBIDDEN", "تغییر این رابطه مجاز نیست.");
+    if (dto.status === RelationshipStatus.ACTIVE)
+      await this.assertEligible(item);
     const previousStatus = item.status;
     item.status = dto.status;
     item.acceptedAt =
@@ -190,20 +218,40 @@ export class RelationshipsService {
     const self = await this.students.findOne({
       where: { id: studentId, user: { id: user.id } },
     });
-    const targetStudent = await this.students.findOne({ where: { id: studentId }, relations: { organization: true } });
+    const targetStudent = await this.students.findOne({
+      where: { id: studentId },
+      relations: { organization: true },
+    });
+    const links = await this.relationships.find({
+      where: {
+        fromUser: { id: user.id },
+        toStudent: { id: studentId },
+        status: RelationshipStatus.ACTIVE,
+      },
+      relations: {
+        fromUser: true,
+        toStudent: { user: true, organization: true },
+        organization: true,
+      },
+    });
+    let linked = false;
+    for (const link of links) {
+      if (
+        relationshipTypesForRoles(user.roles ?? []).includes(link.type) &&
+        (!link.organization ||
+          user.organizationIds?.includes(link.organization.id)) &&
+        (await this.isEligible(link))
+      )
+        linked = true;
+    }
     const allowed =
       Boolean(self) ||
       this.platform(user) ||
-      Boolean(targetStudent?.organization?.id && this.canManage(user, targetStudent.organization.id)) ||
       Boolean(
-        await this.relationships.findOne({
-          where: {
-            fromUser: { id: user.id },
-            toStudent: { id: studentId },
-            status: RelationshipStatus.ACTIVE,
-          },
-        }),
-      );
+        targetStudent?.organization?.id &&
+        this.canManage(user, targetStudent.organization.id),
+      ) ||
+      linked;
     if (!allowed)
       throw new ApiException(404, "NOT_FOUND", "دانش‌آموز یافت نشد.");
     return this.relationships
@@ -222,14 +270,27 @@ export class RelationshipsService {
       : [];
     const links = await this.relationships.find({
       where: { fromUser: { id: user.id }, status: RelationshipStatus.ACTIVE },
-      relations: { toStudent: true, organization: true },
+      relations: {
+        fromUser: true,
+        toStudent: { user: true, organization: true },
+        organization: true,
+      },
     });
+    const eligibleLinks = [];
+    for (const link of links)
+      if (
+        relationshipTypesForRoles(user.roles ?? []).includes(link.type) &&
+        (!link.organization ||
+          user.organizationIds?.includes(link.organization.id)) &&
+        (await this.isEligible(link))
+      )
+        eligibleLinks.push(link);
     return [
       ...own.map((student) => ({
         student: { id: student.id, name: student.name },
         relationship: { type: "SELF", status: "ACTIVE" },
       })),
-      ...links.map((link) => ({
+      ...eligibleLinks.map((link) => ({
         student: { id: link.toStudent.id, name: link.toStudent.name },
         relationship: {
           id: link.id,
@@ -426,6 +487,82 @@ export class RelationshipsService {
     await this.students.save(student);
     return { studentId, guardianChangeAllowed: true };
   }
+  private inWorkScope(user: AuthenticatedUser, organizationId?: string | null) {
+    return organizationId
+      ? Boolean(user.organizationIds?.includes(organizationId))
+      : !user.activeOrganizationId;
+  }
+
+  private async isEligible(
+    item: Pick<
+      UserRelationship,
+      "fromUser" | "toStudent" | "organization" | "type"
+    >,
+  ) {
+    if (item.fromUser.status !== UserStatus.ACTIVE) return false;
+    const organizationId = item.organization?.id;
+    if (!organizationId) {
+      if (item.toStudent.organization) return false;
+      return Boolean(
+        await this.assignments.findOne({
+          where: {
+            user: { id: item.fromUser.id },
+            role: {
+              code: In([...relationshipRoleCodes[item.type]]),
+              organizationScoped: false,
+            },
+            membership: IsNull(),
+          },
+        }),
+      );
+    }
+    if (item.organization?.status !== OrganizationStatus.ACTIVE) return false;
+    if (
+      item.toStudent.organization &&
+      item.toStudent.organization.id !== organizationId
+    )
+      return false;
+    if (
+      !item.toStudent.organization &&
+      (!item.toStudent.user ||
+        !(await this.memberships.findOne({
+          where: {
+            user: { id: item.toStudent.user.id },
+            organization: { id: organizationId },
+            status: MembershipStatus.ACTIVE,
+          },
+        })))
+    )
+      return false;
+    return Boolean(
+      await this.assignments.findOne({
+        where: {
+          user: { id: item.fromUser.id },
+          role: { code: In([...relationshipRoleCodes[item.type]]) },
+          membership: {
+            user: { id: item.fromUser.id },
+            organization: { id: organizationId },
+            status: MembershipStatus.ACTIVE,
+          },
+        },
+      }),
+    );
+  }
+
+  private async assertEligible(
+    item: Pick<
+      UserRelationship,
+      "fromUser" | "toStudent" | "organization" | "type"
+    >,
+  ) {
+    if (!(await this.isEligible(item)))
+      throw new ApiException(
+        403,
+        "RELATIONSHIP_SCOPE_FORBIDDEN",
+        "کاربر و دانش‌آموز باید در محدوده و نقش معتبر این رابطه باشند.",
+      );
+  }
+
   private async selfStudent(user: AuthenticatedUser) {
     if (!(user.roles || [user.role]).includes("STUDENT"))
       throw new ApiException(

@@ -23,10 +23,11 @@ export enum MembershipStatus {
 export class OrganizationMembership {
   @PrimaryGeneratedColumn("uuid") id!: string;
   @ManyToOne(() => Organization, (organization) => organization.memberships, {
+    nullable: false,
     onDelete: "CASCADE",
   })
   organization!: Organization;
-  @ManyToOne(() => User, { onDelete: "CASCADE" }) user!: User;
+  @ManyToOne(() => User, { nullable: false, onDelete: "CASCADE" }) user!: User;
   @Column({ type: "varchar", length: 20, default: MembershipStatus.ACTIVE })
   status!: MembershipStatus;
   @Column({ type: "datetime", default: () => "CURRENT_TIMESTAMP" })

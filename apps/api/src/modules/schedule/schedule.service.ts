@@ -1,6 +1,6 @@
 import { Injectable } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { In, Repository } from "typeorm";
+import { In, IsNull, Repository } from "typeorm";
 import { ApiException } from "../../common/exceptions/api.exception";
 import { EducationClass } from "../../database/entities/education-class.entity";
 import { EducationClassBook } from "../../database/entities/education-class-book.entity";
@@ -59,14 +59,15 @@ export class ScheduleService {
     if (context.roles.includes("PLATFORM_ADMIN"))
       return this.entries.find({
         where: requestedOrganizationId
-          ? { organization: { id: requestedOrganizationId } }
-          : {},
+          ? { organization: { id: requestedOrganizationId }, versionId: IsNull() }
+          : {versionId: IsNull()},
         relations: { organization: true, classroom: true, teacher: true, classBook: { book: true, teacher: true } },
         order: { weekday: "ASC", startTime: "ASC" },
       });
     if (this.isOperator(context))
       return this.entries.find({
         where: {
+          versionId: IsNull(),
           organization: {
             id: In(
               requestedOrganizationId
@@ -81,6 +82,7 @@ export class ScheduleService {
     if (context.roles.includes("TEACHER"))
       return this.entries.find({
         where: {
+          versionId: IsNull(),
           teacher: { id: user.id },
           classBook: { teacher: { id: user.id } },
           organization: {
@@ -105,6 +107,7 @@ export class ScheduleService {
       if (!context.organizationIds.length) return [];
       return this.entries.find({
         where: {
+          versionId: IsNull(),
           classroom: { advisor: { id: user.id } },
           organization: {
             id: In(
@@ -148,6 +151,7 @@ export class ScheduleService {
           { userId: user.id },
         )
         .where("entry.status = 'ACTIVE'")
+        .andWhere("entry.versionId IS NULL")
         .andWhere("entry.organizationId IN (:...organizationIds)", {
           organizationIds,
         })
@@ -176,6 +180,7 @@ export class ScheduleService {
           { userId: user.id },
         )
         .where("entry.status = 'ACTIVE'")
+        .andWhere("entry.versionId IS NULL")
         .andWhere("entry.organizationId IN (:...organizationIds)", {
           organizationIds,
         })
@@ -187,6 +192,7 @@ export class ScheduleService {
     if (context.organizationIds.length) {
       return this.entries.find({
         where: {
+          versionId: IsNull(),
           organization: {
             id: In(
               requestedOrganizationId
@@ -271,6 +277,7 @@ export class ScheduleService {
         !context.organizationIds.includes(item.organization.id))
     )
       throw new ApiException(403, "FORBIDDEN", "دسترسی کافی ندارید.");
+    if (item.versionId) throw new ApiException(409,"TIMETABLE_IMMUTABLE","این درس را از نسخه برنامه درسی مدیریت کنید.");
     if (dto.organizationId !== item.organization.id)
       throw new ApiException(
         422,
@@ -323,6 +330,7 @@ export class ScheduleService {
         !context.organizationIds.includes(item.organization.id))
     )
       throw new ApiException(403, "FORBIDDEN", "دسترسی کافی ندارید.");
+    if (item.versionId) throw new ApiException(409,"TIMETABLE_IMMUTABLE","این درس را از نسخه برنامه درسی مدیریت کنید.");
     item.status = dto.status;
     return this.entries.save(item);
   }
@@ -341,6 +349,7 @@ export class ScheduleService {
         !context.organizationIds.includes(item.organization.id))
     )
       throw new ApiException(403, "FORBIDDEN", "دسترسی کافی ندارید.");
+    if (item.versionId) throw new ApiException(409,"TIMETABLE_IMMUTABLE","این درس را از نسخه برنامه درسی مدیریت کنید.");
     await this.entries.remove(item);
     return { deleted: true };
   }

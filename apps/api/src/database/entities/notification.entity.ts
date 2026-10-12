@@ -1,4 +1,11 @@
-import { Column, CreateDateColumn, Entity, Index, ManyToOne, PrimaryGeneratedColumn } from "typeorm";
+import {
+  Column,
+  CreateDateColumn,
+  Entity,
+  Index,
+  ManyToOne,
+  PrimaryGeneratedColumn,
+} from "typeorm";
 import { User } from "./user.entity";
 import { Organization } from "./organization.entity";
 
@@ -16,7 +23,7 @@ export class Notification {
   id!: string;
 
   @Index()
-  @ManyToOne(() => User, { onDelete: "CASCADE" })
+  @ManyToOne(() => User, { nullable: false, onDelete: "CASCADE" })
   user!: User;
 
   @ManyToOne(() => Organization, { nullable: true, onDelete: "CASCADE" })
@@ -33,7 +40,10 @@ export class Notification {
 
   @Column({ default: "general" }) category!: string;
   @Column({ type: "varchar", nullable: true }) url?: string | null;
-  @Column({ type: "simple-json", nullable: true }) data?: Record<string, unknown> | null;
+  @Column({ type: "simple-json", nullable: true }) data?: Record<
+    string,
+    unknown
+  > | null;
   @Column({ default: "normal" }) priority!: string;
   @Column({ type: "datetime", nullable: true }) expiresAt?: Date | null;
   @Column({ type: "varchar", nullable: true }) dedupeKey?: string | null;

@@ -13,7 +13,7 @@ import { Organization } from "./organization.entity";
 @Index(["organization", "date"], { unique: true })
 export class SchoolPrayerTime {
   @PrimaryGeneratedColumn("uuid") id!: string;
-  @ManyToOne(() => Organization, { onDelete: "CASCADE" })
+  @ManyToOne(() => Organization, { nullable: false, onDelete: "CASCADE" })
   organization!: Organization;
   /** ISO day in the school's local calendar; blank means the organization default. */
   @Column({ length: 10, default: "" }) date!: string;

@@ -1,3 +1,8 @@
+import {SchoolAccessModule} from "../school-access";
+import {AttendanceModule} from "../attendance";
+import {NotificationsModule} from "../notifications";
+import {TimetableService} from "./timetable.service";
+import {TimetableController} from "./timetable.controller";
 import { Module } from "@nestjs/common";
 import { TypeOrmModule } from "@nestjs/typeorm";
 import { EducationClass } from "../../database/entities/education-class.entity";
@@ -10,7 +15,7 @@ import { UserRelationship } from "../../database/entities/user-relationship.enti
 import { ScheduleController } from "./schedule.controller";
 import { ScheduleService } from "./schedule.service";
 @Module({
-  imports: [
+  imports: [SchoolAccessModule, AttendanceModule, NotificationsModule,
     TypeOrmModule.forFeature([
       SchoolScheduleEntry,
       EducationClassBook,
@@ -21,8 +26,8 @@ import { ScheduleService } from "./schedule.service";
       UserRelationship,
     ]),
   ],
-  controllers: [ScheduleController],
-  providers: [ScheduleService],
+  controllers: [ScheduleController, TimetableController],
+  providers: [ScheduleService, TimetableService],
   exports: [ScheduleService],
 })
 export class ScheduleModule {}

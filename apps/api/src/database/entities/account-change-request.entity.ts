@@ -16,9 +16,9 @@ export type AccountChangeRequestStatus = "PENDING" | "APPROVED" | "REJECTED";
 @Index(["organization", "status"])
 export class AccountChangeRequest {
   @PrimaryGeneratedColumn("uuid") id!: string;
-  @ManyToOne(() => Organization, { onDelete: "CASCADE" })
+  @ManyToOne(() => Organization, { nullable: false, onDelete: "CASCADE" })
   organization!: Organization;
-  @ManyToOne(() => User, { onDelete: "CASCADE" }) user!: User;
+  @ManyToOne(() => User, { nullable: false, onDelete: "CASCADE" }) user!: User;
   @Column({ length: 32 }) kind!: "PHONE_NUMBER";
   @Column({ length: 32 }) requestedValue!: string;
   @Column({ type: "varchar", length: 16, default: "PENDING" })

@@ -36,6 +36,7 @@ export class AttendanceEntryDto {
 }
 
 export class BulkMarkAttendanceDto {
+  @IsOptional() @IsInt() @Min(0) expectedRevision?: number;
   @IsOptional() @IsUUID() requestId?: string;
   @IsUUID() organizationId!: string;
   @IsOptional() @IsUUID() sessionId?: string;

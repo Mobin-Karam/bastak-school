@@ -71,13 +71,20 @@ export function ViewportPopover({
     const margin = 8;
     const gap = 8;
 
-    const calculatedWidth = Math.min(width, window.innerWidth - margin * 2);
+    const containerRect = portalContainer?.getBoundingClientRect();
+    const containerBounds =
+      containerRect && containerRect.width && containerRect.height ? containerRect : undefined;
+    const boundsLeft = Math.max(0, containerBounds?.left ?? 0),
+      boundsRight = Math.min(window.innerWidth, containerBounds?.right ?? window.innerWidth);
+    const boundsTop = Math.max(0, containerBounds?.top ?? 0),
+      boundsBottom = Math.min(window.innerHeight, containerBounds?.bottom ?? window.innerHeight);
+    const calculatedWidth = Math.min(width, boundsRight - boundsLeft - margin * 2);
 
     const panelHeight = panel.current?.getBoundingClientRect().height ?? 320;
 
-    const belowSpace = window.innerHeight - rect.bottom - gap - margin;
+    const belowSpace = boundsBottom - rect.bottom - gap - margin;
 
-    const aboveSpace = rect.top - gap - margin;
+    const aboveSpace = rect.top - boundsTop - gap - margin;
 
     const openBelow = belowSpace >= 180 || belowSpace >= aboveSpace;
 
@@ -97,19 +104,19 @@ export function ViewportPopover({
       left = rect.right - calculatedWidth;
     }
 
-    left = Math.min(window.innerWidth - calculatedWidth - margin, Math.max(margin, left));
+    left = Math.min(boundsRight - calculatedWidth - margin, Math.max(boundsLeft + margin, left));
 
     const top = openBelow
       ? rect.bottom + gap
       : Math.max(margin, rect.top - Math.min(panelHeight, maxHeight) - gap);
 
     setPosition({
-      top,
-      left,
+      top: portalContainer ? top - (containerRect?.top ?? 0) + portalContainer.scrollTop : top,
+      left: portalContainer ? left - (containerRect?.left ?? 0) + portalContainer.scrollLeft : left,
       width: calculatedWidth,
       maxHeight,
     });
-  }, [align, width]);
+  }, [align, width, portalContainer]);
 
   useLayoutEffect(() => {
     if (!open) return;
@@ -134,6 +141,8 @@ export function ViewportPopover({
 
     const keyboard = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
+        event.preventDefault();
+        event.stopImmediatePropagation();
         change(false);
         anchor.current?.focus();
       }
@@ -149,7 +158,7 @@ export function ViewportPopover({
 
     document.addEventListener("pointerdown", outside);
 
-    document.addEventListener("keydown", keyboard);
+    document.addEventListener("keydown", keyboard, true);
 
     const observer = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(place);
 
@@ -164,7 +173,7 @@ export function ViewportPopover({
 
       document.removeEventListener("pointerdown", outside);
 
-      document.removeEventListener("keydown", keyboard);
+      document.removeEventListener("keydown", keyboard, true);
 
       observer?.disconnect();
     };
@@ -190,11 +199,12 @@ export function ViewportPopover({
         createPortal(
           <div
             ref={panel}
+            data-viewport-popover=""
             role="dialog"
             aria-label={label}
             aria-modal="false"
             style={{
-              position: "fixed",
+              position: portalContainer ? "absolute" : "fixed",
               top: position.top,
               left: position.left,
               width: position.width,
@@ -223,4 +233,14 @@ export function ViewportPopover({
         )}
     </>
   );
+}
+
+/** An open child popover consumes Escape before its enclosing modal. */
+export function preserveModalWhilePopoverOpen(event: KeyboardEvent) {
+  const target = event.target instanceof Element ? event.target : document.activeElement;
+  if (
+    target?.closest("[data-viewport-popover]") ||
+    target?.closest('[role="dialog"]')?.querySelector("[data-viewport-popover]")
+  )
+    event.preventDefault();
 }

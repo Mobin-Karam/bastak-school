@@ -37,11 +37,11 @@ export class LeaveRequest {
   id!: string;
 
   @Index()
-  @ManyToOne(() => Organization, { onDelete: "CASCADE" })
+  @ManyToOne(() => Organization, { nullable: false, onDelete: "CASCADE" })
   organization!: Organization;
 
   @Index()
-  @ManyToOne(() => Student, { onDelete: "CASCADE" })
+  @ManyToOne(() => Student, { nullable: false, onDelete: "CASCADE" })
   student!: Student;
 
   @Column({ length: 80, default: LeaveRequestType.LEAVE })

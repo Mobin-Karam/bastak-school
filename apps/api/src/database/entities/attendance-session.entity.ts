@@ -33,7 +33,7 @@ export class AttendanceSession {
   id!: string;
 
   @Index()
-  @ManyToOne(() => Organization, { onDelete: "CASCADE" })
+  @ManyToOne(() => Organization, { nullable: false, onDelete: "CASCADE" })
   organization!: Organization;
 
   @Column({ type: "varchar", length: 24 })

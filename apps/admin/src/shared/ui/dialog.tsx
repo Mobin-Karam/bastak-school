@@ -1,3 +1,4 @@
+import { preserveModalWhilePopoverOpen } from "./popover";
 import * as React from "react";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { X } from "lucide-react";
@@ -34,7 +35,7 @@ type DialogContentProps = React.ComponentPropsWithoutRef<typeof DialogPrimitive.
 const DialogContent = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Content>,
   DialogContentProps
->(({ className, children, showCloseButton = true, ...props }, ref) => (
+>(({ className, children, showCloseButton = true, onEscapeKeyDown, ...props }, ref) => (
   <DialogPortal>
     <DialogOverlay />
     <DialogPrimitive.Content
@@ -44,6 +45,10 @@ const DialogContent = React.forwardRef<
         className,
       )}
       {...props}
+      onEscapeKeyDown={(event) => {
+        onEscapeKeyDown?.(event);
+        preserveModalWhilePopoverOpen(event);
+      }}
     >
       {children}
       {showCloseButton ? (

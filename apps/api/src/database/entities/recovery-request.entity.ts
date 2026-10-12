@@ -1,4 +1,12 @@
-import { Column, CreateDateColumn, Entity, Index, ManyToOne, PrimaryGeneratedColumn, UpdateDateColumn } from "typeorm";
+import {
+  Column,
+  CreateDateColumn,
+  Entity,
+  Index,
+  ManyToOne,
+  PrimaryGeneratedColumn,
+  UpdateDateColumn,
+} from "typeorm";
 import { Student } from "./student.entity";
 
 export enum RecoveryRequestStatus {
@@ -13,7 +21,10 @@ export class RecoveryRequest {
   id!: string;
 
   @Index()
-  @ManyToOne(() => Student, (student) => student.recoveryRequests, { onDelete: "CASCADE" })
+  @ManyToOne(() => Student, (student) => student.recoveryRequests, {
+    nullable: false,
+    onDelete: "CASCADE",
+  })
   student!: Student;
 
   @Column({ type: "date" })
@@ -25,7 +36,11 @@ export class RecoveryRequest {
   @Column({ type: "varchar", length: 1500, default: "" })
   note!: string;
 
-  @Column({ type: "varchar", length: 24, default: RecoveryRequestStatus.PENDING })
+  @Column({
+    type: "varchar",
+    length: 24,
+    default: RecoveryRequestStatus.PENDING,
+  })
   status!: RecoveryRequestStatus;
 
   @CreateDateColumn()

@@ -15,11 +15,12 @@ export class StudyGroupMembership {
   id!: string;
 
   @ManyToOne("StudyGroup", (group: StudyGroup) => group.memberships, {
+    nullable: false,
     onDelete: "CASCADE",
   })
   group!: StudyGroup;
 
-  @ManyToOne(() => Student, { onDelete: "CASCADE" })
+  @ManyToOne(() => Student, { nullable: false, onDelete: "CASCADE" })
   student!: Student;
 
   @CreateDateColumn()

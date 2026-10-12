@@ -1,3 +1,4 @@
+import { preserveModalWhilePopoverOpen } from "./popover";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { X } from "lucide-react";
 import type { ReactNode } from "react";
@@ -43,6 +44,7 @@ export function ResponsiveDrawer({
       <DialogPrimitive.Portal>
         <DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-slate-950/45 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0" />
         <DialogPrimitive.Content
+          onEscapeKeyDown={preserveModalWhilePopoverOpen}
           dir={language === "fa" ? "rtl" : "ltr"}
           className={cn(
             "fixed inset-x-0 bottom-0 z-50 max-h-[min(88dvh,48rem)] overflow-y-auto rounded-t-[1.75rem] border border-b-0 border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card))] shadow-[0_-20px_55px_-28px_rgba(10,42,70,.65)] outline-none data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=open]:slide-in-from-bottom data-[state=closed]:slide-out-to-bottom data-[state=open]:duration-300 data-[state=closed]:duration-200 motion-reduce:animate-none md:inset-y-0 md:bottom-auto md:max-h-none md:w-[min(28rem,92vw)] md:border-b md:shadow-[18px_0_48px_-26px_rgba(10,42,70,.55)] md:data-[state=open]:duration-300 md:data-[state=closed]:duration-200",
