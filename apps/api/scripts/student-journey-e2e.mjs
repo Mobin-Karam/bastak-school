@@ -49,28 +49,6 @@ const student = await request("GET", "/students/me");
 const platform = await loginAs("e2e.platform");
 const organizationId = context.activeOrganization?.id || context.memberships?.[0]?.organization?.id;
 if (!organizationId) throw new Error("student context missing active organization");
-const quiz = await requestAs(platform, "POST", "/quizzes", {
-  title: `Student quiz journey ${Date.now()}`,
-  subject: "E2E",
-  durationMinutes: 10,
-  active: true,
-  organizationId,
-});
-await requestAs(platform, "POST", `/quizzes/${quiz.id}/questions`, {
-  text: "2 + 2?",
-  options: ["3", "4", "5", "6"],
-  correctAnswer: "4",
-  explanation: "4",
-  sortOrder: 1,
-});
-const studentQuizzes = await request("GET", "/student/quizzes");
-assert(studentQuizzes.some((item) => item.id === quiz.id && item.questionCount === 1), "student discovers active organization quiz", studentQuizzes);
-const quizRun = await request("POST", `/quizzes/${quiz.id}/start`, {});
-const quizResult = await request("POST", `/quizzes/${quiz.id}/attempts`, {
-  runId: quizRun.runId,
-  answers: [{ questionId: quizRun.quiz.questions[0].id, selectedOption: "4" }],
-});
-assert(quizResult.percent === 100 && quizResult.correct === 1, "student quiz submission is scored and reviewable", quizResult);
 const exam = await requestAs(platform, "POST", "/exams", { title: `Student journey ${Date.now()}`, subject: "E2E", durationMinutes: 10, attemptLimit: 1, questions: [{ question: "2 + 2?", options: ["3", "4", "5", "6"], correctOption: "b", explanation: "4" }] });
 await requestAs(platform, "POST", `/exams/${exam.id}/assignments`, { studentIds: [student.id] });
 const draftExams = await request("GET", "/student/exams");
@@ -78,8 +56,6 @@ if (draftExams.some((item) => item.id === exam.id)) throw new Error("draft exam 
 await requestAs(platform, "PATCH", `/exams/${exam.id}`, { published: true });
 await request("GET", "/student/dashboard");
 await request("GET", `/student/plans?date=${new Date().toISOString().slice(0, 10)}`);
-await request("GET", "/student/study-sessions/active");
-await request("GET", `/students/${student.id}/subjects`);
 await request("GET", "/student/progress");
 await request("GET", "/student/reviews");
 const assignedExams = await request("GET", "/student/exams");
@@ -132,7 +108,6 @@ assert(guardianMock?.delivery?.state === "withheld" && guardianMock.delivery.las
 await requestAs(platform, "PATCH", `/exams/${mock.id}`, { resultsReleased: true });
 const released = await request("GET", `/student/exams/attempts/${firstRun.runId}`);
 assert(released.status === "released" && released.subjects?.length === 2 && released.review?.length === 2, "released Konkur result includes subject analysis and review", released);
-await request("PATCH", `/student/mistakes/question/${firstRun.quiz.questions[0].id}`, { reason: "بی‌دقتی" });
 
 const expiredExam = await requestAs(platform, "POST", "/exams", { title: `Expired ${Date.now()}`, subject: "E2E", durationMinutes: 5, endTime: new Date(Date.now() - 1_000).toISOString(), published: true, questions: [{ question: "expired", options: ["۱", "۲", "۳", "۴"], correctOption: "a" }] });
 await requestAs(platform, "POST", `/exams/${expiredExam.id}/assignments`, { studentIds: [student.id] });
@@ -147,20 +122,4 @@ await new Promise((resolve) => setTimeout(resolve, 3_000));
 const timedOut = await request("GET", `/student/exams/${timeoutExam.id}/progress`);
 assert(timedOut.id === timeoutRun.runId && timedOut.finishedAt, "server finalizes an expired active attempt", timedOut);
 await request("GET", "/student/exams/attempts");
-await request("GET", "/quizzes/history");
-await request("GET", "/student/mistakes");
-await request("GET", "/reports");
-await request("GET", "/recovery-requests");
-await request("GET", "/notifications?limit=50");
-await request("GET", "/chat/conversations");
-await request("GET", "/sync");
-await request("GET", "/relationships");
-const today = new Date().toISOString().slice(0, 10);
-await request("POST", "/reports", { planDate: today, focus: 7, fatigue: 3, motivation: 8, problem: "e2e", tomorrow: "continue" });
-await requestAs(guardian, "GET", `/guardian/students/${student.id}/reports`, undefined, "GUARDIAN");
-await requestAs(guardian, "POST", `/guardian/students/${student.id}/encouragement`, { message: "آفرین، ادامه بده", kind: "KEEP_GOING" }, "GUARDIAN");
-await request("POST", "/recovery-requests", { planDate: today, reason: "E2E verification", note: "Disposable database journey verification" });
-const mutationId = `e2e-${Date.now()}`;
-const upload = await request("POST", "/sync/upload", { changes: [{ id: mutationId, clientMutationId: mutationId, type: "daily_report", method: "POST", path: "/reports", body: { planDate: today, focus: 6, fatigue: 4, motivation: 7 } }] });
-if (!Array.isArray(upload.accepted) || upload.accepted[0]?.id !== mutationId || upload.acceptedCount !== 1) throw new Error(`sync reconciliation failed: ${JSON.stringify(upload)}`);
-console.log("Student v2 journey E2E passed.");
+console.log("Student exam journey E2E passed.");

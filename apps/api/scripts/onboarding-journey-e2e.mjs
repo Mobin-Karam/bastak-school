@@ -1,7 +1,7 @@
 const base = (process.env.E2E_API_URL || "http://127.0.0.1:4000/api/v2").replace(/\/$/, "");
 const seedPassword = process.env.E2E_PASSWORD || "Moshaver-e2e-2026!";
 const signupPassword = "Student-signup-2026!";
-const signupUsername = "9000000106";
+const signupPhoneNumber = "09190000106";
 
 function assert(condition, name, evidence) {
   if (!condition) throw new Error(`${name}: ${JSON.stringify(evidence)}`);
@@ -41,13 +41,20 @@ assert(orgA, "self-signup organization is available", { organizations });
 await request("PATCH", "/onboarding/student-signup-policy", { session: platform, role: "PLATFORM_ADMIN", body: { enabled: true } });
 await request("PATCH", `/onboarding/organizations/${orgA.id}/student-signup-policy`, { session: platform, role: "PLATFORM_ADMIN", body: { managedByOrganization: true, enabled: true, limit: 10 } });
 
-const signupBody = { organizationId: orgA.id, nationalCode: signupUsername, password: signupPassword, name: "دانش‌آموز ثبت‌نامی", grade: 12, educationTypeId: "theoretical", trackId: "experimental_sciences" };
+const signupBody = { organizationId: orgA.id, phoneNumber: signupPhoneNumber, password: signupPassword, firstName: "دانش‌آموز", lastName: "ثبت‌نامی" };
 const signup = await raw("POST", "/onboarding/student-signup", { body: signupBody });
-assert(signup.status === 201 && signup.payload?.data?.onboardingStatus === "PENDING_ASSIGNMENT", "student self-signup enters pending assignment", signup);
+assert(signup.status === 201 && signup.payload?.data?.registrationStatus === "ACCOUNT_CREATED", "student self-signup creates an account", signup);
 const duplicate = await raw("POST", "/onboarding/student-signup", { body: signupBody });
-assert(duplicate.status === 409 && duplicate.payload?.error?.code === "NATIONAL_CODE_EXISTS", "duplicate national code signup is rejected", duplicate);
+assert(duplicate.status === 409 && duplicate.payload?.error?.code === "PHONE_NUMBER_EXISTS", "duplicate phone signup is rejected", duplicate);
 
-const studentSession = await login(signupUsername, signupPassword);
+const studentLogin = await raw("POST", "/auth/login", {
+  body: { phoneNumber: signupPhoneNumber, password: signupPassword },
+});
+assert(studentLogin.status === 201 && studentLogin.payload?.ok, "signed-up student can login", studentLogin);
+const studentSession = {
+  cookie: studentLogin.response.headers.getSetCookie()[0].split(";")[0],
+  csrf: studentLogin.payload.data.csrfToken,
+};
 const studentContext = await request("GET", "/me/context", { session: studentSession, role: "STUDENT" });
 assert(studentContext.roles.includes("STUDENT") && studentContext.availableOrganizations.some((item) => item.id === orgA.id), "self-signed student receives their selected organization access", studentContext);
 const student = await request("GET", "/students/me", { session: studentSession, role: "STUDENT" });

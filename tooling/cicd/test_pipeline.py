@@ -8,6 +8,19 @@ ROOT = pathlib.Path(__file__).resolve().parents[2]
 class PipelineTests(unittest.TestCase):
     def workflow(self, name):
         return yaml.safe_load((ROOT / ".github/workflows" / name).read_text())
+    def test_full_pipeline_executes_browser_and_disposable_api_journeys(self):
+        workflow = self.workflow("continuous-integration.yml")
+        runs = "\n".join(step.get("run", "") for step in workflow["jobs"]["quality"]["steps"])
+        self.assertIn("test:coverage", runs)
+        self.assertIn("test:cmb-publish", runs)
+        self.assertIn("playwright install --with-deps chromium", runs)
+        self.assertIn("test:e2e -- --grep 'desktop panels remain reachable'", runs)
+        self.assertIn("./scripts/deploy/verify-security.sh", runs)
+        script = (ROOT / "scripts/deploy/verify-security.sh").read_text()
+        self.assertIn("all) suites=(security-matrix student-journey onboarding-journey)", script)
+        self.assertIn('DATABASE_PATH="$security_directory/$suite.sqlite"', script)
+        self.assertIn('node "apps/api/scripts/$suite-e2e.mjs"', script)
+        self.assertIn("for attempt in {1..600}; do", (ROOT / "scripts/cicd/finish-work.sh").read_text())
     def test_required_gate_covers_every_change_and_failure(self):
         ci = self.workflow("continuous-integration.yml")
         events = ci.get("on", ci.get(True))
