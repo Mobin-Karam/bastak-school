@@ -23,6 +23,7 @@ data = urllib.request.urlopen(asset["browser_download_url"]).read()
 if hashlib.sha256(data).hexdigest() != digest.removeprefix("sha256:"):
     raise SystemExit("Runner checksum mismatch.")
 runner.mkdir(parents=True, exist_ok=True)
+runner.chmod(0o700)
 with tempfile.TemporaryDirectory(prefix="bastak-runner-") as directory:
     archive = pathlib.Path(directory) / "runner.tar.gz"
     archive.write_bytes(data)

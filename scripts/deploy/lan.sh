@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
+umask 077
 cd "$(dirname "$0")/../.."
 mkdir -p .run
 exec 9>"${PRODUCTION_LOCK_FILE:-.run/production-deploy.lock}"
@@ -13,6 +14,7 @@ compose=(docker compose --env-file .run/production/production.env -f docker-comp
 "${compose[@]}" build
 if "${compose[@]}" ps --status running --services | grep -qx backend-v2; then
   mkdir -p "$backup_dir"
+  chmod 700 "$backup_dir"
   "${compose[@]}" exec -T backend-v2 node -e 'const Database=require("better-sqlite3");new Database(process.env.DATABASE_PATH).backup("/data/pre-deploy.sqlite").then(()=>process.exit(0)).catch(()=>process.exit(1));'
   "${compose[@]}" cp backend-v2:/data/pre-deploy.sqlite "$backup_dir/$(date -u +%Y%m%dT%H%M%SZ)-${RELEASE_SHA:-manual}.sqlite"
 fi
@@ -21,6 +23,7 @@ curl --fail --silent --show-error --cacert .run/production/tls/ca.crt https://lo
 
 if [[ -w /var/www/bastak-admin ]]; then
   mkdir -p "$backup_dir"
+  chmod 700 "$backup_dir"
   if [[ ! -f "$backup_dir/http-index.html" && -f /var/www/bastak-admin/index.html ]]; then cp /var/www/bastak-admin/index.html "$backup_dir/http-index.html"; fi
   install -m 644 deployment/lan/http-redirect.html /var/www/bastak-admin/index.html
   install -m 644 .run/production/tls/ca.crt /var/www/bastak-admin/bastak-school-ca.crt
