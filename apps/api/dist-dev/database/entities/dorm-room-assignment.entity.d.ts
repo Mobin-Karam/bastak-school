@@ -1,4 +1,4 @@
-import { DormRoom } from "./dorm-room.entity";
+import type { DormRoom } from "./dorm-room.entity";
 import { Student } from "./student.entity";
 export declare class DormRoomAssignment {
     id: string;

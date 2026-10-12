@@ -25,7 +25,7 @@ const student_entity_1 = require("../../database/entities/student.entity");
 const permission_entity_1 = require("../../database/entities/permission.entity");
 const user_capability_grant_entity_1 = require("../../database/entities/user-capability-grant.entity");
 const organization_entity_1 = require("../../database/entities/organization.entity");
-const organization_features_1 = require("../organizations/organization-features");
+const organizations_1 = require("../organizations");
 let AuthorizationService = class AuthorizationService {
     assignments;
     memberships;
@@ -87,7 +87,7 @@ let AuthorizationService = class AuthorizationService {
             organizationId: item.membership?.organization?.id,
             capabilities: item.role.permissions
                 .map((rp) => rp.permission.code)
-                .filter((capability) => (0, organization_features_1.isCapabilityEnabledForOrganization)(capability, disabledFeatures)),
+                .filter((capability) => (0, organizations_1.isCapabilityEnabledForOrganization)(capability, disabledFeatures)),
         })), memberships.map((item) => ({
             id: item.id,
             organizationId: item.organization.id,
@@ -96,7 +96,7 @@ let AuthorizationService = class AuthorizationService {
             .filter((item) => !item.role.organizationScoped &&
             (!requestedRole || item.role.code === requestedRole))
             .flatMap((item) => item.role.permissions.map((rp) => rp.permission.code))
-            .filter((capability) => (0, organization_features_1.isCapabilityEnabledForOrganization)(capability, disabledFeatures));
+            .filter((capability) => (0, organizations_1.isCapabilityEnabledForOrganization)(capability, disabledFeatures));
         const effectiveCapabilities = [
             ...new Set([...context.capabilities, ...unscopedCapabilities]),
         ].sort();
@@ -112,7 +112,7 @@ let AuthorizationService = class AuthorizationService {
             }))
                 .filter((grant) => !requestedOrganizationId ||
                 grant.organization.id === requestedOrganizationId)
-                .filter((grant) => (0, organization_features_1.isCapabilityEnabledForOrganization)(grant.capability, disabledFeatures))
+                .filter((grant) => (0, organizations_1.isCapabilityEnabledForOrganization)(grant.capability, disabledFeatures))
                 .map((grant) => grant.capability)
             : [];
         if (!context.roles.includes("PLATFORM_ADMIN") || !this.permissions)
@@ -162,6 +162,7 @@ let AuthorizationService = class AuthorizationService {
         if ([
             "ORGANIZATION_ADMIN",
             "PRINCIPAL",
+            "SCHOOL_SUPERVISOR",
             "DISCIPLINARIAN",
             "RELIGIOUS_EDUCATION_MANAGER",
             "GOVERNMENT_EDUCATION_MANAGER",

@@ -51,7 +51,7 @@ jobs:
       - name: Detect accidentally tracked environment files
         shell: bash
         run: |
-          bad=$(git ls-files | grep -E '(^|/)\.env($|\.)' | grep -v -E '\.env\.example$' || true)
+          bad=$(git ls-files | grep -E '(^|/)\.env($|\.)' | grep -v -E '(^|/)\.env(\.[A-Za-z0-9_-]+)?\.example$' || true)
           if [ -n "$bad" ]; then
             echo 'Tracked environment files detected:'
             echo "$bad"

@@ -23,7 +23,7 @@
       "@/*": ["./src/*"]
     }
   },
-    
+
   "include": ["src"],
   "exclude": [
     "src/features/registration/pages/RegistrationDashboardPage.tsx",

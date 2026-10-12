@@ -21,6 +21,8 @@ import { UserRoleAssignment } from "../entities/user-role-assignment.entity";
 import { User, UserRole, UserStatus } from "../entities/user.entity";
 import { Subject } from "../entities/subject.entity";
 import { TeacherSubjectAssignment } from "../entities/teacher-subject-assignment.entity";
+import { DormRoom } from "../entities/dorm-room.entity";
+import { DormRoomAssignment } from "../entities/dorm-room-assignment.entity";
 import { seedPhoneNumber } from "./seed-phone";
 
 const password = process.env.E2E_PASSWORD || "Moshaver-e2e-2026!";
@@ -51,10 +53,10 @@ export async function seedSecurityMatrix() {
     UserRole.STUDENT,
     hash,
   );
-  const studentA = await ensureStudent(studentAUser, "Student A");
-  const studentB = await ensureStudent(studentBUser, "Student B");
-  await ensureMembershipAndRole(studentAUser, orgA, "STUDENT", false);
-  await ensureMembershipAndRole(studentBUser, orgB, "STUDENT", false);
+  const studentA = await ensureStudent(studentAUser, "Student A", orgA);
+  const studentB = await ensureStudent(studentBUser, "Student B", orgB);
+  await ensureMembershipAndRole(studentAUser, orgA, "STUDENT", true);
+  await ensureMembershipAndRole(studentBUser, orgB, "STUDENT", true);
 
   const identities: Array<
     [
@@ -189,11 +191,23 @@ export async function seedSecurityMatrix() {
   await ensureMembershipAndRole(multi, orgA, "TEACHER", true);
   await ensureRelationship(multi, studentA, orgA, RelationshipType.ADVISOR_OF);
 
+  const principal = await ensureUser("e2e.principal.a", UserRole.ORGANIZATION_ADMIN, hash);
+  await ensureMembershipAndRole(principal, orgA, "PRINCIPAL", true);
+  for (const [code, organization, student] of [
+    ["E2E-A", orgA, studentA], ["E2E-A2", orgA, null], ["E2E-B", orgB, studentB],
+  ] as const) {
+    const rooms = manager.getRepository(DormRoom);
+    const room = (await rooms.findOne({where: {code, organization: {id: organization.id}}})) ?? await rooms.save(rooms.create({code, name: code, organization, status: "ACTIVE", capacity: 2}));
+    if (student) {
+      const assignments = manager.getRepository(DormRoomAssignment);
+      if (!(await assignments.findOne({where: {room: {id: room.id}, student: {id: student.id}}}))) await assignments.save(assignments.create({room, student}));
+    }
+  }
+
   console.log(
     JSON.stringify(
       {
         database: process.env.DATABASE_PATH,
-        password,
         users: [
           "e2e.student.a",
           "e2e.student.b",
@@ -246,17 +260,16 @@ export async function seedSecurityMatrix() {
       }),
     );
   }
-  async function ensureStudent(user: User, name: string) {
+  async function ensureStudent(user: User, name: string, organization: Organization) {
     const repo = manager.getRepository(Student);
+    const existing = await repo.findOne({where: {user: {id: user.id}}});
+    if (existing) {existing.organization = organization; return repo.save(existing);}
     return (
-      (await repo.findOne({
-        where: { user: { id: user.id } },
-        relations: { user: true },
-      })) ??
       repo.save(
         repo.create({
           user,
           name,
+          organization,
           grade: "",
           major: "",
           targetUniversity: "",

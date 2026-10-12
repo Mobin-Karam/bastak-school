@@ -3,7 +3,7 @@ import { BellRing, UsersRound } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../../auth";
-import { listAttendanceSessions } from "../../attendance/api/attendance.api";
+import { getAttendanceOverview } from "../../attendance/api/attendance-operations.api";
 import { listSchedule } from "../../schedule/api/schedule.api";
 import { DashboardCalendar } from "../../dashboard/components/DashboardCalendar";
 import { todayIso } from "../../../shared/lib/utils";
@@ -42,9 +42,19 @@ export function SchoolManagerDashboard() {
     enabled: Boolean(organizationId),
   });
   const attendance = useQuery({
-    queryKey: ["attendance", "sessions", organizationId],
-    queryFn: listAttendanceSessions,
-    enabled: auth.can("attendance.read"),
+    queryKey: ["attendance-overview", auth.user?.id, auth.activeRole, organizationId],
+    queryFn: getAttendanceOverview,
+    enabled: auth.can("attendance.review"),
+    refetchInterval: (query) =>
+      Math.min(
+        60000,
+        Math.max(
+          100,
+          query.state.data
+            ? new Date(query.state.data.resetsAt).getTime() - Date.now() + 50
+            : 60000,
+        ),
+      ),
   });
   const [announcement, setAnnouncement] = useState<{
     title: string;
@@ -87,20 +97,12 @@ export function SchoolManagerDashboard() {
     onError: (error) =>
       notify(error instanceof Error ? error.message : "بایگانی اعلان انجام نشد.", "error"),
   });
-  const totals = (attendance.data ?? []).reduce(
-    (total, session) => ({
-      present: total.present + session.present,
-      absent: total.absent + session.absent,
-      late: total.late + session.late,
-      excused: total.excused + session.excused,
-    }),
-    { present: 0, absent: 0, late: 0, excused: 0 },
-  );
+  const totals = attendance.data ?? { present: 0, absent: 0, late: 0, excused: 0 };
 
   useEffect(() => {
     const events = api.openEvents((type, event) => {
       if (type !== "attendance.updated" || event.organizationId !== organizationId) return;
-      void client.invalidateQueries({ queryKey: ["attendance", "sessions", organizationId] });
+      void client.invalidateQueries({ queryKey: ["attendance-overview"] });
     });
     return () => events.close();
   }, [client, organizationId]);
@@ -141,6 +143,17 @@ export function SchoolManagerDashboard() {
               مدیریت حضور
             </Link>
           </div>
+          <p className="mt-2 text-xs leading-6 text-slate-500">
+            خلاصه روز جاری از ساعت ۱۶ به وقت تهران؛ سوابق حضور حفظ می‌شوند.
+          </p>
+          {attendance.isError ? (
+            <p role="alert" className="mt-2 text-sm text-rose-600">
+              خلاصه حضور دریافت نشد.{" "}
+              <button type="button" onClick={() => void attendance.refetch()}>
+                تلاش مجدد
+              </button>
+            </p>
+          ) : null}
           <div className="mt-4 grid grid-cols-4 gap-2 text-center text-xs">
             {[
               ["حاضر", totals.present, "bg-emerald-50 text-emerald-700"],

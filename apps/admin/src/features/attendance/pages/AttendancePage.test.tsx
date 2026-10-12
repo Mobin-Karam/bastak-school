@@ -1,8 +1,8 @@
 import type { PropsWithChildren } from "react";
-import { render, screen, waitFor } from "@testing-library/react";
+import { cleanup, render, screen, waitFor, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import userEvent from "@testing-library/user-event";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { LocaleProvider } from "../../../shared/ui/locale";
 import { AttendancePage } from "./AttendancePage";
 
@@ -11,11 +11,13 @@ const {
   listAttendanceContextsMock,
   getAttendanceParticipantsMock,
   bulkMarkAttendanceMock,
+  canMock,
 } = vi.hoisted(() => ({
   listAttendanceSessionsMock: vi.fn(),
   listAttendanceContextsMock: vi.fn(),
   getAttendanceParticipantsMock: vi.fn(),
   bulkMarkAttendanceMock: vi.fn(),
+  canMock: vi.fn(),
 }));
 
 vi.mock("../api/attendance.api", () => ({
@@ -27,7 +29,7 @@ vi.mock("../api/attendance.api", () => ({
 }));
 
 vi.mock("../../auth", () => ({
-  useAuth: () => ({ can: () => false }),
+  useAuth: () => ({ can: canMock }),
 }));
 
 function TestProviders({ children }: PropsWithChildren) {
@@ -38,29 +40,44 @@ function TestProviders({ children }: PropsWithChildren) {
   );
 }
 
+afterEach(cleanup);
+
 describe("AttendancePage", () => {
   beforeEach(() => {
+    vi.stubGlobal(
+      "matchMedia",
+      vi.fn(() => ({ matches: false, addEventListener: vi.fn(), removeEventListener: vi.fn() })),
+    );
+    vi.clearAllMocks();
+    canMock.mockImplementation((capability: string) => capability === "attendance.manage");
     listAttendanceSessionsMock.mockResolvedValue([]);
     listAttendanceContextsMock.mockResolvedValue([]);
     getAttendanceParticipantsMock.mockResolvedValue([]);
     bulkMarkAttendanceMock.mockResolvedValue({ sessionId: "mock-session", count: 0 });
   });
 
-  it("waits for an attendance type and target instead of auto-loading a roster", async () => {
+  it("starts on classes and waits for a target instead of auto-loading a roster", async () => {
     render(<AttendancePage />, { wrapper: TestProviders });
 
     await waitFor(() => {
       expect(listAttendanceContextsMock).toHaveBeenCalledOnce();
     });
 
-    expect(screen.getByText("نوع حضور و غیاب را انتخاب کنید")).toBeInTheDocument();
-    expect(screen.getByText("ابتدا کلاس، گروه یا اتاق را انتخاب کنید.")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "کلاس 0 مورد" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+
     expect(screen.queryByText("احمد محمدی")).not.toBeInTheDocument();
     expect(getAttendanceParticipantsMock).not.toHaveBeenCalled();
-    expect(screen.getByRole("button", { name: /ثبت حضور/ })).toBeDisabled();
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 
-  it("loads a roster only after selecting an attendance type and target", async () => {
+  it.each([false, true])("loads a roster in the responsive panel (mobile: %s)", async (mobile) => {
+    vi.stubGlobal(
+      "matchMedia",
+      vi.fn(() => ({ matches: mobile, addEventListener: vi.fn(), removeEventListener: vi.fn() })),
+    );
     listAttendanceContextsMock.mockResolvedValue([
       {
         id: "class-1",
@@ -78,11 +95,50 @@ describe("AttendancePage", () => {
     await waitFor(() => expect(screen.getByRole("button", { name: "کلاس 1 مورد" })).toBeEnabled());
     await user.click(screen.getByRole("button", { name: "کلاس 1 مورد" }));
     expect(getAttendanceParticipantsMock).not.toHaveBeenCalled();
+    expect(screen.queryByText("تاریخ جلسه")).not.toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "دهم الف 10-A · ۲ نفر" }));
     await waitFor(() => {
       expect(getAttendanceParticipantsMock).toHaveBeenCalledWith("class", "class-1");
     });
+  });
+
+  it("shows only groups belonging to the selected class before loading their roster", async () => {
+    listAttendanceContextsMock.mockResolvedValue([
+      { id: "class-1", contextType: "class", code: "A", name: "کلاس اول", total: 1 },
+      { id: "class-2", contextType: "class", code: "B", name: "کلاس دوم", total: 1 },
+      {
+        id: "group-1",
+        contextType: "class_group",
+        classId: "class-1",
+        code: "G1",
+        name: "گروه اول",
+        total: 1,
+      },
+      {
+        id: "group-2",
+        contextType: "class_group",
+        classId: "class-2",
+        code: "G2",
+        name: "گروه دوم",
+        total: 1,
+      },
+    ]);
+    getAttendanceParticipantsMock.mockResolvedValue([{ id: "student-1", name: "علی" }]);
+    const user = userEvent.setup();
+    render(<AttendancePage />, { wrapper: TestProviders });
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "گروه کلاس 2 مورد" })).toBeEnabled(),
+    );
+    await user.click(screen.getByRole("button", { name: "گروه کلاس 2 مورد" }));
+    expect(screen.queryByText("گروه اول")).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /کلاس اول A/ }));
+    expect(screen.queryByText("گروه دوم")).not.toBeInTheDocument();
+    expect(getAttendanceParticipantsMock).not.toHaveBeenCalled();
+    await user.click(screen.getByRole("button", { name: /گروه اول G1/ }));
+    await screen.findByRole("group", { name: "وضعیت علی" });
+    expect(getAttendanceParticipantsMock).toHaveBeenCalledWith("class_group", "group-1");
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
   });
 
   it("opens a class selected from the class workspace", async () => {
@@ -118,9 +174,113 @@ describe("AttendancePage", () => {
     await waitFor(() => {
       expect(getAttendanceParticipantsMock).toHaveBeenCalledWith("class", "class-2");
     });
-    expect(screen.getByRole("button", { name: "دهم ب 10-B · ۲ نفر" })).toHaveAttribute(
+    expect(
+      screen.getByRole("button", { name: "دهم ب 10-B · ۲ نفر", hidden: true }),
+    ).toHaveAttribute("aria-pressed", "true");
+  });
+  it("keeps a retry's original timestamp and request ID after a timeout", async () => {
+    listAttendanceContextsMock.mockResolvedValue([
+      {
+        id: "class-1",
+        contextType: "class",
+        code: "A",
+        name: "کلاس",
+        label: "کلاس",
+        total: 1,
+        activeOrganizationId: "org-1",
+      },
+    ]);
+    getAttendanceParticipantsMock.mockResolvedValue([{ id: "student-1", name: "علی" }]);
+    bulkMarkAttendanceMock.mockRejectedValueOnce(new Error("network timeout"));
+    const user = userEvent.setup();
+    render(
+      <MemoryRouter initialEntries={["/admin/attendance?contextId=class-1"]}>
+        <LocaleProvider>
+          <AttendancePage />
+        </LocaleProvider>
+      </MemoryRouter>,
+    );
+    const group = await screen.findByRole("group", { name: "وضعیت علی" });
+    expect(screen.queryByRole("textbox", { name: "جستجوی طلبه" })).not.toBeInTheDocument();
+    await user.click(within(group).getByRole("button", { name: "غایب" }));
+    await user.click(screen.getByRole("button", { name: /بررسی و ثبت حضور/ }));
+    expect(bulkMarkAttendanceMock).not.toHaveBeenCalled();
+    await user.click(screen.getByRole("button", { name: "تأیید و ثبت" }));
+    await within(screen.getByRole("dialog")).findByText("network timeout");
+    expect(within(group).getByRole("button", { name: "غایب", hidden: true })).toHaveAttribute(
       "aria-pressed",
       "true",
     );
+    await user.click(screen.getByRole("button", { name: "تأیید و ثبت" }));
+    await waitFor(() => expect(bulkMarkAttendanceMock).toHaveBeenCalledTimes(2));
+    expect(bulkMarkAttendanceMock.mock.calls[1][0]).toEqual(
+      bulkMarkAttendanceMock.mock.calls[0][0],
+    );
+    expect(bulkMarkAttendanceMock.mock.calls[0][0].requestId).toMatch(/^[0-9a-f-]{36}$/);
+  });
+
+  it("preserves a draft until discarding is explicitly confirmed in the responsive panel", async () => {
+    listAttendanceContextsMock.mockResolvedValue([
+      {
+        id: "class-1",
+        contextType: "class",
+        code: "A",
+        name: "کلاس",
+        total: 1,
+        activeOrganizationId: "org-1",
+      },
+    ]);
+    getAttendanceParticipantsMock.mockResolvedValue([{ id: "student-1", name: "علی" }]);
+    const user = userEvent.setup();
+    render(
+      <MemoryRouter initialEntries={["/admin/attendance?contextId=class-1"]}>
+        <LocaleProvider>
+          <AttendancePage />
+        </LocaleProvider>
+      </MemoryRouter>,
+    );
+    const group = await screen.findByRole("group", { name: "وضعیت علی" });
+    await user.click(within(group).getByRole("button", { name: "حاضر" }));
+    await user.click(screen.getByRole("button", { name: "پاک‌کردن" }));
+    await user.click(screen.getByRole("button", { name: "بازگشت و حفظ تغییرات" }));
+    expect(within(group).getByRole("button", { name: "حاضر" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    await user.click(screen.getByRole("button", { name: "پاک‌کردن" }));
+    await user.click(screen.getByRole("button", { name: "ادامه و پاک‌کردن" }));
+    expect(within(group).getByRole("button", { name: "حاضر" })).toHaveAttribute(
+      "aria-pressed",
+      "false",
+    );
+    expect(bulkMarkAttendanceMock).not.toHaveBeenCalled();
+  });
+
+  it("hides marking and save actions for read-only attendance access", async () => {
+    canMock.mockImplementation((capability: string) => capability === "attendance.read");
+    listAttendanceContextsMock.mockResolvedValue([
+      {
+        id: "class-1",
+        contextType: "class",
+        code: "A",
+        name: "کلاس",
+        label: "کلاس",
+        total: 1,
+        activeOrganizationId: "org-1",
+      },
+    ]);
+    getAttendanceParticipantsMock.mockResolvedValue([{ id: "student-1", name: "علی" }]);
+    render(
+      <MemoryRouter initialEntries={["/admin/attendance?contextId=class-1"]}>
+        <LocaleProvider>
+          <AttendancePage />
+        </LocaleProvider>
+      </MemoryRouter>,
+    );
+    await screen.findByText("علی");
+    expect(screen.queryByRole("group", { name: "وضعیت علی" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /بررسی و ثبت حضور/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "ثبت‌نشده‌ها حاضر" })).not.toBeInTheDocument();
+    expect(bulkMarkAttendanceMock).not.toHaveBeenCalled();
   });
 });

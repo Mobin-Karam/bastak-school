@@ -1,4 +1,4 @@
-import { AlertTriangle, Bell } from "lucide-react";
+import { AlertTriangle } from "lucide-react";
 import type { AdminShellModel } from "./use-admin-shell-model";
 import { AdminMobileBottomNav } from "../navigation/AdminMobileNavigation";
 

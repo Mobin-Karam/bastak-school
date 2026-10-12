@@ -20,7 +20,7 @@ const api_exception_1 = require("../../common/exceptions/api.exception");
 const dorm_room_assignment_entity_1 = require("../../database/entities/dorm-room-assignment.entity");
 const dorm_room_entity_1 = require("../../database/entities/dorm-room.entity");
 const student_entity_1 = require("../../database/entities/student.entity");
-const school_access_service_1 = require("../school-access/school-access.service");
+const school_access_1 = require("../school-access");
 const notifications_1 = require("../notifications");
 const notification_entity_1 = require("../../database/entities/notification.entity");
 let DormitoryService = class DormitoryService {
@@ -148,7 +148,7 @@ exports.DormitoryService = DormitoryService = __decorate([
     __metadata("design:paramtypes", [typeorm_2.Repository,
         typeorm_2.Repository,
         typeorm_2.Repository,
-        school_access_service_1.SchoolAccessService,
+        school_access_1.SchoolAccessService,
         notifications_1.NotificationsService])
 ], DormitoryService);
 //# sourceMappingURL=dormitory.service.js.map

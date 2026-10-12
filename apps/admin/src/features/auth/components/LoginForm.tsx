@@ -1,88 +1,147 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Eye, EyeOff } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { Button, Field, Input } from "../../../shared/ui/ui";
 import { useAuth } from "../hooks/useAuth";
 import { createLoginSchema, type LoginFormValues } from "../model/login.schema";
 import { useAuthLocale } from "../model/auth-locale";
-import { DemoAccountPicker } from "./DemoAccountPicker";
+import { checkLoginPhone } from "../api/auth.api";
 
 export function LoginForm() {
   const auth = useAuth();
+  const [step, setStep] = useState<"phone" | "password">("phone");
+  const [checkingPhone, setCheckingPhone] = useState(false);
   const [error, setError] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const { copy, direction } = useAuthLocale();
 
-  const { register, handleSubmit, formState, setValue } = useForm<LoginFormValues>({
-    resolver: zodResolver(createLoginSchema(copy)),
-    defaultValues: {
-      phoneNumber: "",
-      password: "",
-    },
-  });
+  const { register, handleSubmit, formState, setValue, trigger, getValues, setFocus } =
+    useForm<LoginFormValues>({
+      resolver: zodResolver(createLoginSchema(copy)),
+      defaultValues: {
+        phoneNumber: "",
+        password: "",
+      },
+    });
 
   const checking = auth.status === "checking" || auth.status === "logging-out";
 
+  useEffect(() => {
+    if (step === "password") setFocus("password");
+    else setFocus("phoneNumber");
+  }, [step, setFocus]);
+
+  const busy = checking || checkingPhone || formState.isSubmitting;
+
+  async function continueWithPhone() {
+    setError("");
+    if (!(await trigger("phoneNumber"))) return;
+    setCheckingPhone(true);
+    try {
+      const result = await checkLoginPhone(getValues("phoneNumber").trim());
+      if (result.exists) setStep("password");
+      else setError(copy.phoneNotFound);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : copy.loginFailed);
+    } finally {
+      setCheckingPhone(false);
+    }
+  }
+
   return (
     <form
-      className="grid gap-4 rounded-2xl border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card))] p-4 shadow-[0_12px_30px_rgb(0_64_72_/_8%)] sm:p-5"
-      onSubmit={handleSubmit(async (data) => {
-        setError("");
-
-        try {
-          await auth.login(data.phoneNumber, data.password);
-        } catch (e) {
-          setError(e instanceof Error ? e.message : copy.loginFailed);
+      className="grid gap-3"
+      onSubmit={(event) => {
+        if (busy) {
+          event.preventDefault();
+          return;
         }
-      })}
+        if (step === "phone") {
+          event.preventDefault();
+          void continueWithPhone();
+          return;
+        }
+        void handleSubmit(async (data) => {
+          setError("");
+
+          try {
+            await auth.login(data.phoneNumber, data.password);
+          } catch (e) {
+            setError(e instanceof Error ? e.message : copy.loginFailed);
+          }
+        })(event);
+      }}
     >
-      <Field label={copy.phoneNumber} error={formState.errors.phoneNumber?.message}>
-        <Input
-          className="h-12"
-          dir="ltr"
-          autoComplete="tel"
-          inputMode="tel"
-          placeholder="09123456789"
-          disabled={checking}
-          {...register("phoneNumber")}
-        />
-      </Field>
-
-      <Field label={copy.password} error={formState.errors.password?.message}>
-        <div className="relative">
+      {step === "phone" ? (
+        <Field label={copy.phoneNumber} error={formState.errors.phoneNumber?.message}>
           <Input
-            className={direction === "rtl" ? "h-12 pl-11" : "h-12 pr-11"}
+            className="h-12"
             dir="ltr"
-            type={showPassword ? "text" : "password"}
-            autoComplete="current-password"
-            disabled={checking}
-            {...register("password")}
+            autoComplete="tel"
+            inputMode="tel"
+            placeholder="09123456789"
+            disabled={busy}
+            {...register("phoneNumber")}
           />
-
+        </Field>
+      ) : (
+        <div className="flex items-center justify-between gap-3 text-sm">
+          <span dir="ltr">{getValues("phoneNumber")}</span>
           <button
             type="button"
-            className={[
-              "absolute inset-y-0 grid w-11 place-items-center text-slate-500",
-              direction === "rtl" ? "left-0" : "right-0",
-            ].join(" ")}
-            aria-label={showPassword ? copy.hidePassword : copy.showPassword}
-            onClick={() => setShowPassword((value) => !value)}
+            disabled={busy}
+            className="min-h-10 rounded-lg px-2 text-xs font-bold text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+            onClick={() => {
+              setStep("phone");
+              setValue("password", "");
+              setShowPassword(false);
+              setError("");
+            }}
           >
-            {showPassword ? <EyeOff size={17} /> : <Eye size={17} />}
+            {copy.changePhone}
           </button>
         </div>
-      </Field>
+      )}
 
-      {import.meta.env.DEV ? (
+      {step === "password" ? (
+        <Field label={copy.password} error={formState.errors.password?.message}>
+          <div className="relative">
+            <Input
+              className={direction === "rtl" ? "h-12 pl-11" : "h-12 pr-11"}
+              dir="ltr"
+              type={showPassword ? "text" : "password"}
+              autoComplete="current-password"
+              disabled={busy}
+              {...register("password")}
+            />
+
+            <button
+              type="button"
+              className={[
+                "absolute inset-y-0 grid w-11 place-items-center text-slate-500",
+                direction === "rtl" ? "left-0" : "right-0",
+              ].join(" ")}
+              disabled={busy}
+              aria-label={showPassword ? copy.hidePassword : copy.showPassword}
+              onClick={() => setShowPassword((value) => !value)}
+            >
+              {showPassword ? <EyeOff size={17} /> : <Eye size={17} />}
+            </button>
+          </div>
+        </Field>
+      ) : null}
+
+      {/* {import.meta.env.DEV ? (
         <DemoAccountPicker
           onSelect={(phoneNumber, password) => {
             setValue("phoneNumber", phoneNumber, { shouldValidate: true });
             setValue("password", password, { shouldValidate: true });
             setError("");
+            setStep("password");
           }}
         />
-      ) : null}
+      ) : null} */}
 
       {auth.message || error ? (
         <p
@@ -96,8 +155,16 @@ export function LoginForm() {
         </p>
       ) : null}
 
-      <Button className="h-12 w-full text-[15px]" disabled={checking || formState.isSubmitting}>
-        {checking ? copy.restoringSession : formState.isSubmitting ? copy.signingIn : copy.signIn}
+      <Button className="h-12 w-full text-[15px]" disabled={busy}>
+        {checking
+          ? copy.restoringSession
+          : checkingPhone
+            ? copy.checkingPhone
+            : formState.isSubmitting
+              ? copy.signingIn
+              : step === "phone"
+                ? copy.continueLogin
+                : copy.signIn}
       </Button>
     </form>
   );

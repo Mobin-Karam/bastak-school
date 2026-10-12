@@ -22,7 +22,7 @@ const plan_entity_1 = require("../../database/entities/plan.entity");
 const plan_template_entity_1 = require("../../database/entities/plan-template.entity");
 const student_entity_1 = require("../../database/entities/student.entity");
 const authorization_1 = require("../authorization");
-const plans_service_1 = require("../plans/plans.service");
+const plans_1 = require("../plans");
 let PlanTemplatesService = class PlanTemplatesService {
     templates;
     organizations;
@@ -203,7 +203,7 @@ exports.PlanTemplatesService = PlanTemplatesService = __decorate([
         typeorm_2.Repository,
         typeorm_2.Repository,
         authorization_1.AuthorizationService,
-        plans_service_1.PlansService])
+        plans_1.PlansService])
 ], PlanTemplatesService);
 function templateDays(template) {
     return (Array.isArray(template.days) ? template.days : [])

@@ -65,6 +65,19 @@ export class AuthService {
     });
   }
 
+  async checkPhone(phoneNumber: string, ip = "unknown") {
+    const normalized = normalizeIranianMobile(phoneNumber);
+    if (!isIranianMobile(normalized))
+      throw new ApiException(422, "INVALID_PHONE_NUMBER", "شماره همراه معتبر نیست.");
+    // Count every lookup, including matches, in a separate per-IP budget.
+    // Do not allow phone discovery to consume or reset password-attempt limits.
+    const lookupKey = `phone-lookup:${ip}`;
+    await this.throttle?.assertAllowed(lookupKey, lookupKey);
+    await this.throttle?.failure(lookupKey, lookupKey);
+    const exists = await this.users.existsBy({ phoneNumber: normalized });
+    return { exists };
+  }
+
   async login(phoneNumber: string, password: string, ip = "unknown") {
     const normalizedPhoneNumber = normalizeIranianMobile(phoneNumber);
     if (!isIranianMobile(normalizedPhoneNumber))

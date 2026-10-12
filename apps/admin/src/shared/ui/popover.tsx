@@ -20,6 +20,9 @@ type ViewportPopoverProps = {
   width?: number;
 
   align?: "start" | "center" | "end";
+  /** Keep portals inside modal drawers so their focus and pointer boundaries apply. */
+  portalContainer?: Element;
+  label?: string;
 };
 
 export function ViewportPopover({
@@ -30,6 +33,8 @@ export function ViewportPopover({
   className,
   width = 320,
   align = "start",
+  portalContainer,
+  label,
 }: ViewportPopoverProps) {
   const [internalOpen, setInternalOpen] = useState(false);
 
@@ -186,6 +191,7 @@ export function ViewportPopover({
           <div
             ref={panel}
             role="dialog"
+            aria-label={label}
             aria-modal="false"
             style={{
               position: "fixed",
@@ -213,7 +219,7 @@ export function ViewportPopover({
           >
             {children}
           </div>,
-          document.body,
+          portalContainer ?? document.body,
         )}
     </>
   );

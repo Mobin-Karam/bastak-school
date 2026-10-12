@@ -6,14 +6,14 @@ import {
   PrimaryGeneratedColumn,
 } from "typeorm";
 import { EducationBook } from "./education-book.entity";
-import { EducationClass } from "./education-class.entity";
+import type { EducationClass } from "./education-class.entity";
 import { User } from "./user.entity";
 
 @Entity("education_class_books")
 @Index(["classroom", "book"], { unique: true })
 export class EducationClassBook {
   @PrimaryGeneratedColumn("uuid") id!: string;
-  @ManyToOne(() => EducationClass, (classroom) => classroom.books, {
+  @ManyToOne("EducationClass", (classroom: EducationClass) => classroom.books, {
     onDelete: "CASCADE",
   })
   classroom!: EducationClass;

@@ -408,7 +408,11 @@ const roleActions: Partial<Record<RoleCode, RoleQuickAction[]>> = {
     sharedActions.schedule,
     sharedActions.students,
   ],
-  STUDENT_AFFAIRS_MENTOR: [sharedActions.students, sharedActions.attendance, sharedActions.schedule],
+  STUDENT_AFFAIRS_MENTOR: [
+    sharedActions.students,
+    sharedActions.attendance,
+    sharedActions.schedule,
+  ],
   STUDENT: [sharedActions.schedule, sharedActions.myAttendance, sharedActions.settings],
   GUARDIAN: [
     sharedActions.family,

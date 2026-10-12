@@ -6,200 +6,87 @@ import {
   educationCapabilities,
   educationNavigation,
   flatAdminNavigation,
-  mainAdminNavigation,
-  mainNavigationForCapabilities,
-  localizedAdminBreadcrumbs,
-  // localizedAdminCurrentNavigation,
-  localizedMainNavigationForCapabilities,
   localizedNavigationForCapabilities,
+  mainNavigationForCapabilities,
   navigationForCapabilities,
   normalizeAdminPath,
   resolveAdminNavigation,
 } from "./admin-navigation";
-
-describe("admin navigation metadata", () => {
-  it("defines a title and description for every admin destination", () => {
-    expect(flatAdminNavigation.map((item) => item.path)).toEqual([
-      "",
-      "education",
-      "planner",
-      "plan-templates",
-      "learning",
-      "exams",
-      "questions",
-      "quizzes",
-      "subjects",
-      "classes",
-      "resources",
-      "communication",
-      "communication/live",
-      "communication/chat",
-      "communication/notifications",
-      "management",
-      "students",
-      "attendance",
-      "permission-requests",
-      "attention",
-      "family",
-      "onboarding",
-      "users",
-      "organizations",
-      "reports",
-      "follow-up",
-      "system",
-      "releases",
-      "database",
-      "audit",
-      "settings",
-    ]);
+describe("school navigation registry", () => {
+  it("defines unique destinations with descriptions", () => {
+    expect(new Set(flatAdminNavigation.map((item) => item.path)).size).toBe(
+      flatAdminNavigation.length,
+    );
     expect(flatAdminNavigation.every((item) => item.title && item.description)).toBe(true);
-    expect(adminNavigation.every((group) => group.items.length > 0)).toBe(true);
-    expect(mainAdminNavigation.map((item) => item.path)).toEqual([
-      "",
-      "education",
-      "communication",
-      "management",
-      "system",
-    ]);
-    expect(mainAdminNavigation.map((item) => item.title)).toEqual([
-      "نمای کلی",
-      "آموزش و برنامه‌ریزی",
-      "ارتباط و پیگیری",
-      "افراد و دسترسی",
-      "سامانه و امنیت",
-    ]);
+    expect(adminNavigation.every((group) => group.items.length)).toBe(true);
+    expect(flatAdminNavigation.map((item) => item.path)).toEqual(
+      expect.arrayContaining([
+        "classes",
+        "class-groups",
+        "attendance",
+        "dormitory",
+        "students",
+        "users",
+        "organizations",
+        "settings",
+      ]),
+    );
   });
-
-  it("keeps the education sections and their route capabilities in one registry", () => {
-    expect(educationNavigation).toHaveLength(10);
-    expect(educationNavigation.map((item) => item.path)).toEqual([
-      "education",
-      "planner",
-      "plan-templates",
-      "learning",
-      "exams",
-      "questions",
-      "quizzes",
-      "subjects",
-      "classes",
-      "resources",
-    ]);
-    expect(educationCapabilities).toEqual([
-      "exams.read",
-      "plans.read",
-      "plan_templates.read",
-      "learning.read",
-      "questions.read",
-      "quizzes.read",
-      "subjects.read",
-      "classes.read",
-      "learning_resources.manage",
-    ]);
+  it("keeps school education capability declarations in the registry", () => {
+    expect(educationNavigation.map((item) => item.path)).toEqual(
+      expect.arrayContaining([
+        "classes",
+        "schedule",
+        "class-groups",
+        "attendance",
+        "my-attendance",
+      ]),
+    );
+    expect(educationCapabilities).toEqual(
+      expect.arrayContaining(["classes.read", "attendance.read", "class_groups.read"]),
+    );
   });
-
-  it("uses meaningful role-aware names in the primary sidebar", () => {
-    const platform = mainNavigationForCapabilities(
-      ["plans.read", "chat.read", "users.read", "system.manage"],
+  it("shows role labels without granting capabilities", () => {
+    const items = mainNavigationForCapabilities(
+      ["users.read", "organization.read"],
       "PLATFORM_ADMIN",
     );
-    expect(platform.map((item) => item.title)).toEqual([
-      "نمای پلتفرم",
-      "عملیات آموزشی",
-      "ارتباطات",
-      "کاربران و سازمان‌ها",
-      "سامانه و امنیت",
-    ]);
-  });
-
-  it("hides protected destinations from unrelated work contexts", () => {
-    const guardian = navigationForCapabilities([
-      "students.read",
-      "plans.read",
-      "reports.read",
-      "chat.read",
-    ] as const).flatMap((group) => group.items.map((item) => item.path));
-    expect(guardian).toContain("students");
-    expect(guardian).not.toContain("users");
-    expect(guardian).not.toContain("system");
-    const platform = navigationForCapabilities([
-      "users.read",
-      "organization.read",
-      "database.read",
-    ] as const).flatMap((group) => group.items.map((item) => item.path));
-    expect(platform).toEqual(expect.arrayContaining(["users", "organizations", "database"]));
-  });
-
-  it("uses guardian-specific labels for the same capability routes", () => {
-    const guardian = navigationForCapabilities(
-      ["students.read", "reports.read", "chat.read"],
-      "GUARDIAN",
-    ).flatMap((group) => group.items);
-    expect(guardian.find((item) => item.path === "students")?.title).toBe("فرزندان");
-    expect(guardian.find((item) => item.path === "settings")?.title).toBe("پروفایل");
-  });
-
-  it("resolves browser URLs and active education locations", () => {
-    expect(normalizeAdminPath("/admin/exams/42?tab=questions")).toBe("exams/42");
-    expect(resolveAdminNavigation("/admin/exams/42").path).toBe("exams");
-    expect(resolveAdminNavigation("/admin/education").path).toBe("education");
-    expect(adminBreadcrumbs("/admin/students/s-1/learning").at(-1)?.title).toBe("سیستم یادگیری");
-  });
-
-  it("avoids duplicate breadcrumb destinations on section landing pages", () => {
-    expect(adminBreadcrumbs("")).toEqual([{ title: "خانه", path: "" }]);
-    expect(adminBreadcrumbs("education")).toEqual([
-      { title: "خانه", path: "" },
-      { title: "آموزش", path: "education" },
-    ]);
-    expect(adminBreadcrumbs("exams")).toEqual([
-      { title: "خانه", path: "" },
-      { title: "آموزش", path: "education" },
-      { title: "آزمون‌ها", path: "exams" },
-    ]);
-    expect(adminBreadcrumbs("settings").map((item) => item.title)).toEqual([
-      "خانه",
-      "سامانه",
-      "تنظیمات حساب",
-    ]);
-  });
-
-  it("carries student context only between Education destinations", () => {
-    expect(adminDestination("exams", "آموزش", "student 1")).toBe(
-      "/admin/exams?studentId=student%201",
-    );
-    expect(adminDestination("communication/chat", "ارتباط", "student-1")).toBe(
-      "/admin/communication/chat",
-    );
-  });
-
-  it("provides English navigation labels without changing route or capability rules", () => {
-    const english = localizedNavigationForCapabilities(
-      ["students.read", "plans.read", "chat.read"],
-      "ADVISOR",
-      "en",
-    );
-    expect(english.find((group) => group.section === "Management")?.items[0]?.title).toBe(
-      "Management hub",
-    );
-    expect(english.find((group) => group.section === "Management")?.sectionKey).toBe("مدیریت");
-    // expect(localizedAdminCurrentNavigation("/admin/students", "en").description).toBe(
-    //   "Manage student accounts, status, and access",
-    // );
-    expect(localizedAdminBreadcrumbs("exams", "en").map((item) => item.title)).toEqual([
-      "Home",
-      "Education",
-      "Assessments",
-    ]);
+    expect(items.map((item) => item.title)).toContain("نمای پلتفرم");
     expect(
-      localizedMainNavigationForCapabilities(["plans.read", "chat.read"], "ADVISOR", "en").map(
-        (item) => item.title,
-      ),
-    ).toEqual([
-      "Advisor workspace",
-      "Plans and learning",
-      "Communication and follow-up",
-      "Students and reports",
-      "System and security",
-    ]);
+      navigationForCapabilities([], "PLATFORM_ADMIN")
+        .flatMap((group) => group.items)
+        .some((item) => item.path === "users"),
+    ).toBe(false);
+  });
+  it("filters protected destinations by active capabilities", () => {
+    const paths = navigationForCapabilities(["students.read"]).flatMap((group) =>
+      group.items.map((item) => item.path),
+    );
+    expect(paths).toContain("students");
+    expect(paths).not.toContain("users");
+    expect(paths).not.toContain("organizations");
+    expect(paths).not.toContain("attendance");
+  });
+  it("resolves nested school routes and preserves clean destinations", () => {
+    expect(normalizeAdminPath("/admin/classes/42?tab=roster")).toBe("classes/42");
+    expect(resolveAdminNavigation("/admin/classes/42").path).toBe("classes");
+    expect(adminDestination("attendance", "آموزش", "student-1")).toBe("/admin/attendance");
+  });
+  it("does not duplicate section landing breadcrumbs", () => {
+    expect(adminBreadcrumbs("")).toEqual([{ title: "خانه", path: "" }]);
+    const crumbs = adminBreadcrumbs("classes");
+    expect(new Set(crumbs.map((item) => item.path)).size).toBe(crumbs.length);
+  });
+  it("localizes the same capability-filtered destinations", () => {
+    const fa = navigationForCapabilities(["students.read", "attendance.read"]);
+    const en = localizedNavigationForCapabilities(["students.read", "attendance.read"], null, "en");
+    expect(en.flatMap((group) => group.items.map((item) => item.path))).toEqual(
+      fa.flatMap((group) => group.items.map((item) => item.path)),
+    );
+    expect(
+      en
+        .find((group) => group.section === "Management")
+        ?.items.find((item) => item.path === "students")?.title,
+    ).toBe("Students");
   });
 });

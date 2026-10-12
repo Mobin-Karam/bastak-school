@@ -15,7 +15,9 @@ const compositionByRole: Partial<Record<RoleCode, DashboardComposition>> = {
   DISCIPLINARIAN: "school",
 };
 
-export function dashboardCompositionForRole(role: RoleCode | null | undefined): DashboardComposition {
+export function dashboardCompositionForRole(
+  role: RoleCode | null | undefined,
+): DashboardComposition {
   return (role && compositionByRole[role]) || "operational";
 }
 

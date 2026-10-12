@@ -42,7 +42,9 @@ const node_fs_1 = __importDefault(require("node:fs"));
 const node_path_1 = __importDefault(require("node:path"));
 const typeorm_1 = require("typeorm");
 const entities = __importStar(require("./entities"));
-const databasePath = process.env.DATABASE_PATH || node_path_1.default.resolve(process.cwd(), "data", "moshaver-v2.sqlite");
+const migration_path_1 = require("./migration-path");
+const databasePath = process.env.DATABASE_PATH ||
+    node_path_1.default.resolve(process.cwd(), "data", "moshaver-v2.sqlite");
 const dir = node_path_1.default.dirname(databasePath);
 if (!node_fs_1.default.existsSync(dir))
     node_fs_1.default.mkdirSync(dir, { recursive: true });
@@ -51,7 +53,7 @@ exports.dataSourceOptions = {
     type: "better-sqlite3",
     database: databasePath,
     entities: entityClasses,
-    migrations: ["dist/database/migrations/*.js"],
+    migrations: [(0, migration_path_1.databaseMigrationGlob)(__filename)],
     synchronize: false,
     migrationsRun: true,
     prepareDatabase: (db) => {

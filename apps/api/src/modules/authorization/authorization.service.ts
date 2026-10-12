@@ -20,7 +20,7 @@ import { Student } from "../../database/entities/student.entity";
 import { Permission } from "../../database/entities/permission.entity";
 import { UserCapabilityGrant } from "../../database/entities/user-capability-grant.entity";
 import { OrganizationStatus } from "../../database/entities/organization.entity";
-import { isCapabilityEnabledForOrganization } from "../organizations/organization-features";
+import { isCapabilityEnabledForOrganization } from "../organizations";
 
 export type UserContext = {
   id: string;
@@ -245,6 +245,7 @@ export class AuthorizationService {
       [
         "ORGANIZATION_ADMIN",
         "PRINCIPAL",
+        "SCHOOL_SUPERVISOR",
         "DISCIPLINARIAN",
         "RELIGIOUS_EDUCATION_MANAGER",
         "GOVERNMENT_EDUCATION_MANAGER",

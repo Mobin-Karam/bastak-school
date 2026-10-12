@@ -210,3 +210,9 @@ Release-quality fallback:
 ```
 
 Never claim a validation command passed unless it actually ran successfully.
+
+## Branch and release lifecycle
+
+For features, bug fixes, and maintenance, create a new `feat/`, `fix/`, `chore/`, or `ci/` branch from current `origin/develop` before editing. Use `scripts/cicd/start-work.sh`; if the shared checkout is dirty, create a separate worktree and preserve existing edits. Commit only the task's changes. Use `scripts/cicd/finish-work.sh` to push, create the develop PR, wait for CI, and merge only when GitHub checks and configured reviews permit it. Do not bypass protection or force push.
+
+After develop passes CI, automation opens a develop-to-main release PR. Merge that PR with a merge commit after its required checks and release review. Main's successful push CI dispatches the exact tested commit to the private bastak-school-deploy repository, whose server workflow validates CI again before production deployment. Do not merge unrelated application work merely to activate infrastructure. See `docs/operations/github-cicd.md` for setup, recovery, and learning guidance.

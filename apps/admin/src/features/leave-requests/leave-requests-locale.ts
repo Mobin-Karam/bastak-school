@@ -2,12 +2,12 @@ import type { AdminLanguage } from "../../shared/ui/locale";
 
 const copy = {
   fa: {
-    status: { 
-      PENDING: "در انتظار بررسی", 
-      APPROVED: "تأیید شده", 
+    status: {
+      PENDING: "در انتظار بررسی",
+      APPROVED: "تأیید شده",
       REJECTED: "رد شده",
       CANCELLED: "لغو شده",
-      COMPLETED: "تکمیل شده"
+      COMPLETED: "تکمیل شده",
     },
     eyebrow: "مدیریت مدرسه",
     title: "درخواست‌های مرخصی",
@@ -64,7 +64,8 @@ const copy = {
       "ثبت تأیید، وضعیت درخواست را تغییر می‌دهد و تصمیم شما در فهرست قابل پیگیری می‌ماند.",
     rejectNotice: "ثبت رد، وضعیت درخواست را تغییر می‌دهد و پیام شما در فهرست قابل پیگیری می‌ماند.",
     cancelNotice: "ثبت لغو، وضعیت درخواست را تغییر می‌دهد و پیام شما در فهرست قابل پیگیری می‌ماند.",
-    completeNotice: "ثبت تکمیل، وضعیت درخواست را تغییر می‌دهد و پیام شما در فهرست قابل پیگیری می‌ماند.",
+    completeNotice:
+      "ثبت تکمیل، وضعیت درخواست را تغییر می‌دهد و پیام شما در فهرست قابل پیگیری می‌ماند.",
     dismiss: "انصراف",
     saving: "در حال ثبت…",
     submitApprove: "ثبت تأیید",
@@ -73,12 +74,12 @@ const copy = {
     submitComplete: "ثبت تکمیل",
   },
   en: {
-    status: { 
-      PENDING: "Pending review", 
-      APPROVED: "Approved", 
+    status: {
+      PENDING: "Pending review",
+      APPROVED: "Approved",
       REJECTED: "Rejected",
       CANCELLED: "Cancelled",
-      COMPLETED: "Completed"
+      COMPLETED: "Completed",
     },
     eyebrow: "School management",
     title: "Leave requests",

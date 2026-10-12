@@ -1,0 +1,16 @@
+services:
+  backend-v2:
+    ports:
+      - "127.0.0.1:4001:4000"
+    environment:
+      COOKIE_SECURE: "1"
+  admin-v2:
+    ports: !override
+      - "0.0.0.0:443:443"
+      - "127.0.0.1:8082:80"
+    healthcheck:
+      test: ["CMD-SHELL", "SSL_CERT_FILE=/etc/nginx/tls/ca.crt wget -q --spider https://localhost/"]
+    volumes:
+      - ./deployment/lan/nginx.conf.template:/etc/nginx/templates/default.conf.template:ro
+      - ./.run/production/tls:/etc/nginx/tls:ro
+      - ./.run/production/tls/ca.crt:/usr/share/nginx/html/bastak-school-ca.crt:ro

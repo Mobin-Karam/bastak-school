@@ -22,7 +22,7 @@ const organization_membership_entity_1 = require("../../database/entities/organi
 const permission_request_entity_1 = require("../../database/entities/permission-request.entity");
 const student_entity_1 = require("../../database/entities/student.entity");
 const user_role_assignment_entity_1 = require("../../database/entities/user-role-assignment.entity");
-const notifications_service_1 = require("../notifications/notifications.service");
+const notifications_1 = require("../notifications");
 let PermissionRequestsService = class PermissionRequestsService {
     rows;
     students;
@@ -81,6 +81,6 @@ exports.PermissionRequestsService = PermissionRequestsService = __decorate([
     __param(2, (0, typeorm_1.InjectRepository)(organization_membership_entity_1.OrganizationMembership)),
     __param(3, (0, typeorm_1.InjectRepository)(user_role_assignment_entity_1.UserRoleAssignment)),
     __param(4, (0, typeorm_1.InjectRepository)(audit_log_entity_1.AuditLog)),
-    __metadata("design:paramtypes", [typeorm_2.Repository, typeorm_2.Repository, typeorm_2.Repository, typeorm_2.Repository, typeorm_2.Repository, notifications_service_1.NotificationsService])
+    __metadata("design:paramtypes", [typeorm_2.Repository, typeorm_2.Repository, typeorm_2.Repository, typeorm_2.Repository, typeorm_2.Repository, notifications_1.NotificationsService])
 ], PermissionRequestsService);
 //# sourceMappingURL=permission-requests.service.js.map

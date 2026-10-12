@@ -8,7 +8,7 @@ import { PlanTemplate } from "../../database/entities/plan-template.entity";
 import { Student } from "../../database/entities/student.entity";
 import { User } from "../../database/entities/user.entity";
 import { AuthorizationService, UserContext } from "../authorization";
-import { PlansService } from "../plans/plans.service";
+import { PlansService } from "../plans";
 import {
   ApplyPlanTemplateDto,
   PreviewPlanTemplateApplyDto,

@@ -27,7 +27,7 @@ import type {
 const emptyManualChoice: ManualAssignmentChoice = { organizationId: "", advisorUserId: "" };
 
 export function OnboardingPage() {
-  const { language, profile } = useLocale();
+  const { language } = useLocale();
   const copy = onboardingCopy(language);
   const queryClient = useQueryClient();
   const students = useQuery({ queryKey: ["onboarding", "pending"], queryFn: listPendingStudents });

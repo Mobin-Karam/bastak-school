@@ -98,7 +98,7 @@ export function ExitPermissionsPage() {
             ? "بازگشت دانش‌آموز ثبت شد و آمار مدرسه به‌روز شد."
             : variables.action === "request-return"
               ? "درخواست بازگشت برای تأیید مسئول مدرسه ارسال شد."
-            : "تصمیم درخواست ثبت شد.",
+              : "تصمیم درخواست ثبت شد.",
         "success",
       );
     },
@@ -165,7 +165,10 @@ export function ExitPermissionsPage() {
       reject: ["رد مجوز خروج", "دانش‌آموز اجازه خروج نخواهد داشت."],
       departure: ["ثبت خروج فیزیکی", "این دانش‌آموز از آمار حاضرین مدرسه کم می‌شود."],
       return: ["ثبت بازگشت", "این دانش‌آموز دوباره در آمار حاضرین مدرسه حساب می‌شود."],
-      "request-return": ["درخواست بازگشت", "پس از تأیید مسئول مدرسه، حضور شما در مدرسه ثبت می‌شود."],
+      "request-return": [
+        "درخواست بازگشت",
+        "پس از تأیید مسئول مدرسه، حضور شما در مدرسه ثبت می‌شود.",
+      ],
     }[action];
     const approved = await modal.confirm({
       title: copy[0],
@@ -342,7 +345,11 @@ export function ExitPermissionsPage() {
                   </p>
                 ) : null}
               </div>
-              {auth.activeRole === "STUDENT" && row.status === "APPROVED" && row.actualDepartureAt && !row.actualReturnAt && !row.returnRequestedAt ? (
+              {auth.activeRole === "STUDENT" &&
+              row.status === "APPROVED" &&
+              row.actualDepartureAt &&
+              !row.actualReturnAt &&
+              !row.returnRequestedAt ? (
                 <Button
                   size="sm"
                   loading={mutation.isPending}
@@ -381,7 +388,10 @@ export function ExitPermissionsPage() {
                       <DoorOpen size={15} /> ثبت خروج
                     </Button>
                   ) : null}
-                  {row.status === "APPROVED" && row.actualDepartureAt && !row.actualReturnAt && row.returnRequestedAt ? (
+                  {row.status === "APPROVED" &&
+                  row.actualDepartureAt &&
+                  !row.actualReturnAt &&
+                  row.returnRequestedAt ? (
                     <Button
                       size="sm"
                       loading={mutation.isPending}

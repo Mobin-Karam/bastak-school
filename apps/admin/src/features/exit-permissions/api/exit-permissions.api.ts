@@ -51,10 +51,9 @@ export const recordReturn = (id: string) =>
   api.post<ExitPermission>(`/exit-permissions/${encodeURIComponent(id)}/return`, {});
 
 export const requestReturn = (id: string, note?: string) =>
-  api.post<ExitPermission>(
-    `/student/exit-permissions/${encodeURIComponent(id)}/return-request`,
-    { note },
-  );
+  api.post<ExitPermission>(`/student/exit-permissions/${encodeURIComponent(id)}/return-request`, {
+    note,
+  });
 
 export const recordGateDeparture = (input: {
   organizationId: string;

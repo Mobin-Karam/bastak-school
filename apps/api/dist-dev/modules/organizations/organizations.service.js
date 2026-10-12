@@ -49,6 +49,60 @@ let OrganizationsService = class OrganizationsService {
         if (!this.tenancy.canAccessOrganization(user, id))
             throw new api_exception_1.ApiException(403, "ORGANIZATION_FORBIDDEN", "به این سازمان دسترسی ندارید.");
     }
+    async publicProfiles() {
+        const organizations = await this.orgs.find({
+            where: { status: organization_entity_1.OrganizationStatus.ACTIVE },
+            order: { name: "ASC" },
+        });
+        return organizations
+            .filter((org) => org.authProfile?.published)
+            .map((org) => ({
+            id: org.id,
+            name: org.name,
+            profile: this.publicProfile(org.authProfile),
+        }));
+    }
+    publicProfile(profile) {
+        return {
+            published: Boolean(profile.published),
+            displayName: profile.displayName ?? "",
+            brandName: profile.brandName ?? "",
+            description: profile.description ?? "",
+            address: profile.address ?? "",
+            phone: profile.phone ?? "",
+            location: profile.location ?? "",
+            logoUrl: profile.logoUrl ?? "",
+            backgroundUrl: profile.backgroundUrl ?? "",
+            loginTitle: profile.loginTitle ?? "",
+            signupTitle: profile.signupTitle ?? "",
+            signupLabel: profile.signupLabel ?? "",
+            securityNotice: profile.securityNotice ?? "",
+        };
+    }
+    async updateAuthProfile(user, id, dto) {
+        this.assertScope(user, id);
+        if (!user.capabilities?.includes("organization.manage"))
+            throw new api_exception_1.ApiException(403, "FORBIDDEN", "اجازه ویرایش مشخصات سازمان را ندارید.");
+        const org = await this.get(user, id);
+        if (org.status !== organization_entity_1.OrganizationStatus.ACTIVE)
+            throw new api_exception_1.ApiException(409, "ORGANIZATION_INACTIVE", "سازمان فعال نیست.");
+        const profile = this.publicProfile(org.authProfile ?? {});
+        for (const key of Object.keys(profile)) {
+            if (dto[key] !== undefined)
+                Object.assign(profile, {
+                    [key]: typeof dto[key] === "string"
+                        ? dto[key].trim()
+                        : dto[key],
+                });
+        }
+        if (dto.name !== undefined) {
+            if (dto.name.trim().length < 2)
+                throw new api_exception_1.ApiException(400, "INVALID_ORGANIZATION_NAME", "نام سازمان نامعتبر است.");
+            org.name = dto.name.trim();
+        }
+        org.authProfile = profile;
+        return this.orgs.save(org);
+    }
     async list(user) {
         return this.platform(user)
             ? this.orgs.find({ order: { name: "ASC" } })
@@ -84,6 +138,8 @@ let OrganizationsService = class OrganizationsService {
         if (dto.status && !this.platform(user))
             throw new api_exception_1.ApiException(403, "FORBIDDEN", "فقط مدیر پلتفرم می‌تواند وضعیت سازمان را تغییر دهد.");
         const org = await this.get(user, id);
+        if (dto.type && dto.type !== org.type && !this.platform(user))
+            throw new api_exception_1.ApiException(403, "FORBIDDEN", "فقط مدیر پلتفرم می‌تواند نوع سازمان را تغییر دهد.");
         if (dto.type && dto.type !== org.type)
             await this.assertTypeChangeIsCompatible(id, dto.type);
         Object.assign(org, dto);

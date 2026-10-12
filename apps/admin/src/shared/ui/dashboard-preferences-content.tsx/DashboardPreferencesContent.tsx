@@ -1,8 +1,4 @@
-import {
-  ChevronDown,
-  RotateCcw,
-  SlidersHorizontal,
-} from "lucide-react";
+import { ChevronDown, RotateCcw, SlidersHorizontal } from "lucide-react";
 
 type DashboardPreferenceWidget = {
   id: string;
@@ -21,10 +17,7 @@ type DashboardPreferences = {
   hiddenLabel: string;
   resetLabel: string;
 
-  onVisibilityChange: (
-    id: string,
-    visible: boolean,
-  ) => void;
+  onVisibilityChange: (id: string, visible: boolean) => void;
 
   onReset: () => void;
 };
@@ -34,9 +27,7 @@ export function DashboardPreferencesContent({
 }: {
   preferences: DashboardPreferences;
 }) {
-  const visibleCount = preferences.widgets.filter(
-    (widget) => widget.visible,
-  ).length;
+  const visibleCount = preferences.widgets.filter((widget) => widget.visible).length;
 
   return (
     <div className="min-w-0">
@@ -70,20 +61,14 @@ export function DashboardPreferencesContent({
                 bg-brand/10 text-brand
               "
             >
-              <SlidersHorizontal
-                size={15}
-                aria-hidden="true"
-              />
+              <SlidersHorizontal size={15} aria-hidden="true" />
             </span>
 
             <div className="min-w-0">
-              <h2 className="truncate text-xs font-bold text-ink">
-                {preferences.label}
-              </h2>
+              <h2 className="truncate text-xs font-bold text-ink">{preferences.label}</h2>
 
               <p className="mt-0.5 text-[10px] text-slate-500 dark:text-slate-400">
-                {visibleCount.toLocaleString()} /{" "}
-                {preferences.widgets.length.toLocaleString()}{" "}
+                {visibleCount.toLocaleString()} / {preferences.widgets.length.toLocaleString()}{" "}
                 {preferences.visibleWidgetsLabel}
               </p>
             </div>
@@ -101,9 +86,7 @@ export function DashboardPreferencesContent({
         </summary>
 
         <div className="border-t border-[rgb(var(--border-subtle))]">
-          <PreferencesBody
-            preferences={preferences}
-          />
+          <PreferencesBody preferences={preferences} />
         </div>
       </details>
 
@@ -120,29 +103,21 @@ export function DashboardPreferencesContent({
                 bg-brand/10 text-brand
               "
             >
-              <SlidersHorizontal
-                size={15}
-                aria-hidden="true"
-              />
+              <SlidersHorizontal size={15} aria-hidden="true" />
             </span>
 
             <div className="min-w-0">
-              <h2 className="truncate text-sm font-bold text-ink">
-                {preferences.label}
-              </h2>
+              <h2 className="truncate text-sm font-bold text-ink">{preferences.label}</h2>
 
               <p className="mt-0.5 text-[11px] text-slate-500 dark:text-slate-400">
-                {visibleCount.toLocaleString()} /{" "}
-                {preferences.widgets.length.toLocaleString()}{" "}
+                {visibleCount.toLocaleString()} / {preferences.widgets.length.toLocaleString()}{" "}
                 {preferences.visibleWidgetsLabel}
               </p>
             </div>
           </div>
         </header>
 
-        <PreferencesBody
-          preferences={preferences}
-        />
+        <PreferencesBody preferences={preferences} />
       </div>
     </div>
   );
@@ -152,17 +127,11 @@ export function DashboardPreferencesContent({
    SHARED CONTENT
    ========================================================= */
 
-function PreferencesBody({
-  preferences,
-}: {
-  preferences: DashboardPreferences;
-}) {
+function PreferencesBody({ preferences }: { preferences: DashboardPreferences }) {
   return (
     <>
       <fieldset className="grid gap-1 p-2">
-        <legend className="sr-only">
-          {preferences.visibleWidgetsLabel}
-        </legend>
+        <legend className="sr-only">{preferences.visibleWidgetsLabel}</legend>
 
         {preferences.widgets.map((widget) => (
           <label
@@ -186,12 +155,7 @@ function PreferencesBody({
               type="checkbox"
               aria-label={widget.label}
               checked={widget.visible}
-              onChange={(event) =>
-                preferences.onVisibilityChange(
-                  widget.id,
-                  event.target.checked,
-                )
-              }
+              onChange={(event) => preferences.onVisibilityChange(widget.id, event.target.checked)}
               className="
                 size-4 shrink-0
                 rounded
@@ -203,9 +167,7 @@ function PreferencesBody({
 
             <span className="min-w-0 flex-1">
               <span className="flex items-center justify-between gap-3">
-                <span className="truncate text-xs font-bold text-ink">
-                  {widget.label}
-                </span>
+                <span className="truncate text-xs font-bold text-ink">{widget.label}</span>
 
                 <span
                   className={
@@ -224,9 +186,7 @@ function PreferencesBody({
                       `
                   }
                 >
-                  {widget.visible
-                    ? preferences.shownLabel
-                    : preferences.hiddenLabel}
+                  {widget.visible ? preferences.shownLabel : preferences.hiddenLabel}
                 </span>
               </span>
 
@@ -270,10 +230,7 @@ function PreferencesBody({
             dark:text-slate-400
           "
         >
-          <RotateCcw
-            size={13}
-            aria-hidden="true"
-          />
+          <RotateCcw size={13} aria-hidden="true" />
 
           {preferences.resetLabel}
         </button>

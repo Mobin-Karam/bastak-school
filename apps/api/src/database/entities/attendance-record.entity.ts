@@ -7,7 +7,7 @@ import {
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from "typeorm";
-import { AttendanceSession } from "./attendance-session.entity";
+import type { AttendanceSession } from "./attendance-session.entity";
 import { Student } from "./student.entity";
 import { User } from "./user.entity";
 
@@ -31,7 +31,9 @@ export class AttendanceRecord {
   @PrimaryGeneratedColumn("uuid")
   id!: string;
 
-  @ManyToOne(() => AttendanceSession, (session) => session.records, { onDelete: "CASCADE" })
+  @ManyToOne("AttendanceSession", (session: AttendanceSession) => session.records, {
+    onDelete: "CASCADE",
+  })
   session!: AttendanceSession;
 
   @ManyToOne(() => Student, { onDelete: "CASCADE" })
@@ -42,6 +44,13 @@ export class AttendanceRecord {
 
   @Column({ type: "text", default: "" })
   note!: string;
+
+  /** Legacy projection `status` remains readable; this is the physical observation. */
+  @Column({ type: "varchar", length: 20, nullable: true }) physicalStatus?:
+    "present" | "absent" | "late" | "legacy_unknown" | null;
+  @Column({ type: "integer", default: 0 }) revision!: number;
+  @Column({ type: "integer", nullable: true }) minutesLate?: number | null;
+  @Column({ type: "datetime", nullable: true }) arrivalAt?: Date | null;
 
   @Column({ type: "varchar", length: 16, nullable: true })
   reviewStatus?: AttendanceReviewStatus | null;

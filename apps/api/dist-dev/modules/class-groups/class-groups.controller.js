@@ -28,8 +28,17 @@ let ClassGroupsController = class ClassGroupsController {
     list(user, classId, organizationId) {
         return this.groups.list(user, classId, organizationId).then(envelope_1.ok);
     }
+    classOptions(user, organizationId) {
+        return this.groups.classOptions(user, organizationId).then(envelope_1.ok);
+    }
+    eligibleStudents(user, id) {
+        return this.groups.eligibleStudents(user, id).then(envelope_1.ok);
+    }
     create(user, dto) {
         return this.groups.create(user, dto).then(envelope_1.ok);
+    }
+    update(user, id, dto) {
+        return this.groups.update(user, id, dto).then(envelope_1.ok);
     }
     members(user, id) {
         return this.groups.members(user, id).then(envelope_1.ok);
@@ -56,6 +65,27 @@ __decorate([
     __metadata("design:returntype", void 0)
 ], ClassGroupsController.prototype, "list", null);
 __decorate([
+    openapi.ApiQuery({ name: "organizationId", required: false }),
+    (0, common_1.Get)("classes"),
+    (0, capabilities_decorator_1.RequireCapabilities)("class_groups.read"),
+    openapi.ApiResponse({ status: 200 }),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __param(1, (0, common_1.Query)("organizationId")),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String]),
+    __metadata("design:returntype", void 0)
+], ClassGroupsController.prototype, "classOptions", null);
+__decorate([
+    (0, common_1.Get)("classes/:id/students"),
+    (0, capabilities_decorator_1.RequireCapabilities)("class_groups.read"),
+    openapi.ApiResponse({ status: 200 }),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __param(1, (0, common_1.Param)("id")),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String]),
+    __metadata("design:returntype", void 0)
+], ClassGroupsController.prototype, "eligibleStudents", null);
+__decorate([
     (0, common_1.Post)(),
     (0, capabilities_decorator_1.RequireCapabilities)("class_groups.manage"),
     openapi.ApiResponse({ status: 201 }),
@@ -65,6 +95,17 @@ __decorate([
     __metadata("design:paramtypes", [Object, class_groups_dto_1.CreateClassGroupDto]),
     __metadata("design:returntype", void 0)
 ], ClassGroupsController.prototype, "create", null);
+__decorate([
+    (0, common_1.Patch)(":id"),
+    (0, capabilities_decorator_1.RequireCapabilities)("class_groups.manage"),
+    openapi.ApiResponse({ status: 200 }),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __param(1, (0, common_1.Param)("id")),
+    __param(2, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String, class_groups_dto_1.UpdateClassGroupDto]),
+    __metadata("design:returntype", void 0)
+], ClassGroupsController.prototype, "update", null);
 __decorate([
     (0, common_1.Get)(":id/members"),
     (0, capabilities_decorator_1.RequireCapabilities)("class_groups.read"),

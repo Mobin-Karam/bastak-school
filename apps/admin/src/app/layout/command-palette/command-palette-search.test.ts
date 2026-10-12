@@ -8,13 +8,15 @@ const mocks = vi.hoisted(() => ({
   get: vi.fn(),
 }));
 
-vi.mock("../../features/students/api/students.api", () => ({ listStudents: mocks.listStudents }));
-vi.mock("../../features/access/api/access.api", () => ({
+vi.mock("../../../features/students/api/students.api", () => ({
+  listStudents: mocks.listStudents,
+}));
+vi.mock("../../../features/access/api/access.api", () => ({
   listUsers: mocks.listUsers,
   listOrganizations: mocks.listOrganizations,
 }));
-vi.mock("../../features/exams/api/exams.api", () => ({ getExams: mocks.getExams }));
-vi.mock("../../shared/api/api", () => ({ api: { get: mocks.get } }));
+vi.mock("../../../features/exams/api/exams.api", () => ({ getExams: mocks.getExams }));
+vi.mock("../../../shared/api/api", () => ({ api: { get: mocks.get } }));
 
 import { matchesCommandPaletteQuery, searchCommandPaletteEntities } from "./command-palette-search";
 

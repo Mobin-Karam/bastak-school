@@ -1,4 +1,4 @@
-import { LoaderCircle } from "lucide-react";
+import { Eye, EyeOff, LoaderCircle } from "lucide-react";
 import {
   ComponentProps,
   Children,
@@ -8,10 +8,11 @@ import {
   forwardRef,
   isValidElement,
   useId,
+  useState,
   HTMLAttributes,
 } from "react";
 import { cn } from "../lib/utils";
-import { useSharedUiCopy } from "./locale";
+import { useOptionalAdminLanguage, useSharedUiCopy } from "./locale";
 
 type ButtonProps = ComponentProps<"button"> & {
   variant?: "primary" | "soft" | "danger" | "ghost";
@@ -73,7 +74,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
         variant === "primary" &&
           `
             bg-brand
-            text-white
+            text-[rgb(var(--primary-foreground))]
 
           shadow-none
 
@@ -99,7 +100,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
         variant === "danger" &&
           `
             bg-rosewood
-            text-white
+            text-[rgb(var(--destructive-foreground))]
 
             hover:brightness-95
             hover:shadow-md
@@ -648,6 +649,7 @@ function isFieldControl(element: ReactElement) {
   return (
     (typeof element.type === "string" && ["input", "textarea", "select"].includes(element.type)) ||
     element.type === Input ||
+    element.type === PasswordInput ||
     element.type === Textarea ||
     element.type === Select
   );
@@ -680,3 +682,44 @@ function enhanceFieldControl(
       : cloneElement(child, {}, enhanceFieldControl(nested, target, props));
   });
 }
+
+export const PasswordInput = forwardRef<HTMLInputElement, Omit<ComponentProps<"input">, "type">>(
+  function PasswordInput({ className, id, disabled, dir = "ltr", ...props }, ref) {
+    const generatedId = useId();
+    const inputId = id ?? generatedId;
+    const [visible, setVisible] = useState(false);
+    const language = useOptionalAdminLanguage();
+    const label =
+      language === "fa"
+        ? visible
+          ? "پنهان کردن رمز عبور"
+          : "نمایش رمز عبور"
+        : visible
+          ? "Hide password"
+          : "Show password";
+    return (
+      <div className="relative" dir={dir}>
+        <Input
+          {...props}
+          ref={ref}
+          id={inputId}
+          dir={dir}
+          disabled={disabled}
+          type={visible ? "text" : "password"}
+          className={cn("pe-12", className)}
+        />
+        <button
+          type="button"
+          disabled={disabled}
+          aria-label={label}
+          aria-controls={inputId}
+          aria-pressed={visible}
+          onClick={() => setVisible((value) => !value)}
+          className="absolute inset-y-0 end-0 grid min-h-10 w-11 place-items-center rounded-e-lg text-slate-500 hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand disabled:opacity-50"
+        >
+          {visible ? <EyeOff size={17} aria-hidden="true" /> : <Eye size={17} aria-hidden="true" />}
+        </button>
+      </div>
+    );
+  },
+);

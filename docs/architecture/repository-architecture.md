@@ -2,6 +2,8 @@
 
 Status: **accepted target architecture; current source layout remains valid during migration**.
 
+The historical `apps/student` directory is absent from the current checkout. Staff and student accounts now share `apps/admin`; `student-core` remains a separately validated runtime-neutral package. The workspace graph lists only existing projects.
+
 ## Why this architecture
 
 Moshaver is no longer a single application. It contains multiple independently runnable surfaces, shared contracts, a runtime-neutral student core, a reusable-backend initiative (CMB), deployment tooling, and AI/repository automation.

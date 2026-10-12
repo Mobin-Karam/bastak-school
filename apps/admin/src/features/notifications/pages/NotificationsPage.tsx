@@ -103,21 +103,23 @@ export function NotificationsPage() {
             : "grid min-h-0 flex-1"
         }
       >
-        {!isMobileShell || !access.advisorInbox || mobilePanel === "notifications" ? <NotificationCenterPanel
-          filter={filter}
-          setFilter={(next) =>
-            setNotificationView({ filter: typeof next === "function" ? next(filter) : next })
-          }
-          typeFilter={typeFilter}
-          setTypeFilter={(next) =>
-            setNotificationView({ type: typeof next === "function" ? next(typeFilter) : next })
-          }
-          search={search}
-          setSearch={(next) =>
-            setNotificationView({ q: typeof next === "function" ? next(search) : next })
-          }
-          items={items}
-        /> : null}
+        {!isMobileShell || !access.advisorInbox || mobilePanel === "notifications" ? (
+          <NotificationCenterPanel
+            filter={filter}
+            setFilter={(next) =>
+              setNotificationView({ filter: typeof next === "function" ? next(filter) : next })
+            }
+            typeFilter={typeFilter}
+            setTypeFilter={(next) =>
+              setNotificationView({ type: typeof next === "function" ? next(typeFilter) : next })
+            }
+            search={search}
+            setSearch={(next) =>
+              setNotificationView({ q: typeof next === "function" ? next(search) : next })
+            }
+            items={items}
+          />
+        ) : null}
 
         {access.advisorInbox && (!isMobileShell || mobilePanel === "inbox") ? (
           <AdvisorInboxPanel

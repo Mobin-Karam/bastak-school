@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { useLocale } from "./locale";
-import { Button, Card } from "./ui";
+import { Card } from "./ui";
 
 export function AssessmentWorkspaceIntro({
   icon,

@@ -26,7 +26,7 @@ import {
   assertPlatformRolesAreUnscoped,
   assertRoleCodesAssignableByActor,
   assertRoleCodesCompatibleWithOrganization,
-} from "../organizations/organization-role-policy";
+} from "../organizations";
 
 @Injectable()
 export class UsersService {

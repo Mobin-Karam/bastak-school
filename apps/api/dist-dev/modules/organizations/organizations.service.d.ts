@@ -1,3 +1,5 @@
+import type { PublicOrganizationProfile } from "@moshaver/api-contract";
+import { UpdateOrganizationAuthProfileDto } from "./dto/organization-profile.dto";
 import { DataSource, Repository } from "typeorm";
 import { MembershipStatus, OrganizationMembership } from "../../database/entities/organization-membership.entity";
 import { Organization, OrganizationStatus } from "../../database/entities/organization.entity";
@@ -17,6 +19,9 @@ export declare class OrganizationsService {
     constructor(orgs: Repository<Organization>, members: Repository<OrganizationMembership>, users: Repository<User>, roles: Repository<Role>, assignments: Repository<UserRoleAssignment>, dataSource: DataSource);
     private platform;
     private assertScope;
+    publicProfiles(): Promise<PublicOrganizationProfile[]>;
+    private publicProfile;
+    updateAuthProfile(user: AuthenticatedUser, id: string, dto: UpdateOrganizationAuthProfileDto): Promise<Organization>;
     list(user: AuthenticatedUser): Promise<Organization[]>;
     get(user: AuthenticatedUser, id: string): Promise<Organization>;
     create(user: AuthenticatedUser, dto: CreateOrganizationDto): Promise<Organization>;

@@ -6,7 +6,7 @@ import { StudentContact } from "../../database/entities/student-contact.entity";
 import { StudentProfile } from "../../database/entities/student-profile.entity";
 import { Student } from "../../database/entities/student.entity";
 import { AuthenticatedUser } from "../auth";
-import { SchoolAccessService } from "../school-access/school-access.service";
+import { SchoolAccessService } from "../school-access";
 import { RegistrationRequirementDto, ReviewRegistrationSectionDto, StudentContactDto, UpdateRegistrationProfileDto } from "./registration.dto";
 export declare class RegistrationService {
     private readonly studentsRepo;

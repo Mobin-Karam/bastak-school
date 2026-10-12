@@ -6,12 +6,12 @@ import { MemoryRouter } from "react-router-dom";
 const queryClient = new QueryClient();
 
 const meta = {
-  title: 'Features/Registration/Dashboard',
+  title: "Features/Registration/Dashboard",
   component: RegistrationDashboardPage,
   parameters: {
-    layout: 'centered',
+    layout: "centered",
   },
-  tags: ['autodocs'],
+  tags: ["autodocs"],
   decorators: [
     (Story) => (
       <QueryClientProvider client={queryClient}>

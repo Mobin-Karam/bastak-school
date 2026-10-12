@@ -3,6 +3,7 @@ import { X } from "lucide-react";
 import type { ReactNode } from "react";
 
 import { cn } from "../lib/utils";
+import { useOptionalAdminLanguage } from "./locale";
 
 type ResponsiveDrawerProps = {
   open: boolean;
@@ -31,6 +32,7 @@ export function ResponsiveDrawer({
   className,
   desktopSide = "left",
 }: ResponsiveDrawerProps) {
+  const language = useOptionalAdminLanguage();
   const desktopPosition =
     desktopSide === "left"
       ? "md:left-0 md:right-auto md:rounded-e-[1.75rem] md:rounded-s-none md:data-[state=open]:slide-in-from-left md:data-[state=closed]:slide-out-to-left"
@@ -41,7 +43,7 @@ export function ResponsiveDrawer({
       <DialogPrimitive.Portal>
         <DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-slate-950/45 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0" />
         <DialogPrimitive.Content
-          dir="rtl"
+          dir={language === "fa" ? "rtl" : "ltr"}
           className={cn(
             "fixed inset-x-0 bottom-0 z-50 max-h-[min(88dvh,48rem)] overflow-y-auto rounded-t-[1.75rem] border border-b-0 border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card))] shadow-[0_-20px_55px_-28px_rgba(10,42,70,.65)] outline-none data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=open]:slide-in-from-bottom data-[state=closed]:slide-out-to-bottom data-[state=open]:duration-300 data-[state=closed]:duration-200 motion-reduce:animate-none md:inset-y-0 md:bottom-auto md:max-h-none md:w-[min(28rem,92vw)] md:border-b md:shadow-[18px_0_48px_-26px_rgba(10,42,70,.55)] md:data-[state=open]:duration-300 md:data-[state=closed]:duration-200",
             desktopPosition,
@@ -63,10 +65,10 @@ export function ResponsiveDrawer({
               </div>
               <DialogPrimitive.Close
                 type="button"
-                className="grid size-9 shrink-0 place-items-center rounded-xl text-slate-500 transition hover:bg-slate-100 hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand dark:hover:bg-white/10"
+                className="grid size-11 shrink-0 place-items-center rounded-xl text-slate-500 transition hover:bg-slate-100 hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand dark:hover:bg-white/10"
               >
                 <X size={19} aria-hidden="true" />
-                <span className="sr-only">بستن</span>
+                <span className="sr-only">{language === "fa" ? "بستن" : "Close"}</span>
               </DialogPrimitive.Close>
             </div>
           </div>

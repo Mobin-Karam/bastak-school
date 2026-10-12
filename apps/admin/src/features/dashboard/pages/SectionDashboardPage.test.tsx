@@ -66,10 +66,7 @@ describe("SectionDashboardPage", () => {
     expect(
       screen.getByRole("heading", { name: "Communication and follow-up workspace" }),
     ).toBeVisible();
-    expect(screen.getByRole("link", { name: /Conversations/i })).toHaveAttribute(
-      "href",
-      "/admin/communication/chat",
-    );
+    expect(screen.queryByRole("link", { name: /Conversations/i })).not.toBeInTheDocument();
     expect(screen.getAllByText("Conversation needing a response")).not.toHaveLength(0);
     expect(screen.queryByText("Plan recovery request")).not.toBeInTheDocument();
     expect(document.documentElement).toHaveAttribute("dir", "ltr");

@@ -2,12 +2,19 @@ import { ConfigService } from "@nestjs/config";
 import { FastifyReply, FastifyRequest } from "fastify";
 import { AuthenticatedUser, AuthService } from "./auth.service";
 import { ChangePasswordDto } from "./dto/change-password.dto";
+import { CheckPhoneDto } from "./dto/check-phone.dto";
 import { LoginDto } from "./dto/login.dto";
 import { CreatePhoneNumberChangeRequestDto, ChangeOwnPhoneNumberDto, ReviewPhoneNumberChangeRequestDto } from "./dto/phone-number-change.dto";
 export declare class AuthController {
     private readonly auth;
     private readonly config;
     constructor(auth: AuthService, config: ConfigService);
+    checkPhone(dto: CheckPhoneDto, req: FastifyRequest): Promise<{
+        ok: boolean;
+        data: {
+            exists: boolean;
+        };
+    }>;
     login(dto: LoginDto, req: FastifyRequest, res: FastifyReply): Promise<{
         ok: boolean;
         data: {

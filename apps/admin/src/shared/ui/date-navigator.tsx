@@ -203,6 +203,7 @@ export function DateNavigator({
       <div
         ref={dayRail}
         role="listbox"
+        aria-label={label}
         tabIndex={0}
         onKeyDown={moveByKeyboard}
         onScroll={scheduleCenterCheck}
@@ -224,17 +225,25 @@ export function DateNavigator({
             label: formatDate(day.date, { weekday: "long", day: "numeric", month: "long" }),
           };
           return (
-            <button
-              type="button"
+            <div
               key={day.date}
               data-date-card
               data-date={day.date}
-              disabled={day.disabled}
+              aria-disabled={day.disabled}
               role="option"
+              tabIndex={selected ? 0 : -1}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" || event.key === " ") {
+                  event.preventDefault();
+                  if (!day.disabled) selectDate(day.date);
+                }
+              }}
               aria-selected={selected}
               aria-current={selected ? "date" : undefined}
               aria-label={context.label}
-              onClick={() => selectDate(day.date)}
+              onClick={() => {
+                if (!day.disabled) selectDate(day.date);
+              }}
               className={cn(
                 "group relative min-h-[6.5rem] shrink-0 snap-center snap-always overflow-hidden rounded-2xl border px-1.5 py-2 text-center outline-none transition-[transform,background-color,border-color,box-shadow,opacity] duration-200 ease-out focus-visible:ring-2 focus-visible:ring-brand motion-reduce:transition-none md:!min-h-32 md:!w-28 md:!min-w-28 md:!max-w-28 md:px-2",
                 selected
@@ -325,7 +334,7 @@ export function DateNavigator({
                   <CalendarDays size={12} aria-hidden="true" />
                 </span>
               ) : null}
-            </button>
+            </div>
           );
         })}
       </div>

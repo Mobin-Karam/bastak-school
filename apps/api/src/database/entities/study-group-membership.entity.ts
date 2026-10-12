@@ -6,7 +6,7 @@ import {
   PrimaryGeneratedColumn,
 } from "typeorm";
 import { Student } from "./student.entity";
-import { StudyGroup } from "./study-group.entity";
+import type { StudyGroup } from "./study-group.entity";
 
 @Entity("study_group_memberships")
 @Index(["group", "student"], { unique: true })
@@ -14,7 +14,7 @@ export class StudyGroupMembership {
   @PrimaryGeneratedColumn("uuid")
   id!: string;
 
-  @ManyToOne(() => StudyGroup, (group) => group.memberships, {
+  @ManyToOne("StudyGroup", (group: StudyGroup) => group.memberships, {
     onDelete: "CASCADE",
   })
   group!: StudyGroup;

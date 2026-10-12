@@ -1,3 +1,5 @@
+import type { AttendanceSessionDetail } from "@moshaver/api-contract";
+import { AuditLog } from "../../database/entities/audit-log.entity";
 import { Repository } from "typeorm";
 import { AttendanceRecord, AttendanceReviewStatus, AttendanceStatus } from "../../database/entities/attendance-record.entity";
 import { AttendanceContextType, AttendanceSession } from "../../database/entities/attendance-session.entity";
@@ -11,8 +13,8 @@ import { StudyGroup } from "../../database/entities/study-group.entity";
 import { OrganizationMembership } from "../../database/entities/organization-membership.entity";
 import { AuthenticatedUser } from "../auth";
 import { AuthorizationService } from "../authorization";
-import { SchoolAccessService } from "../school-access/school-access.service";
-import { RealtimeService } from "../realtime/realtime.service";
+import { SchoolAccessService } from "../school-access";
+import { RealtimeService } from "../realtime";
 import { BulkMarkAttendanceDto, CreateAttendanceSessionDto, ReviewAttendanceAbsenceDto } from "./attendance.dto";
 export declare class AttendanceService {
     private readonly sessions;
@@ -29,6 +31,17 @@ export declare class AttendanceService {
     private readonly authorization;
     private readonly realtime;
     constructor(sessions: Repository<AttendanceSession>, records: Repository<AttendanceRecord>, students: Repository<Student>, classes: Repository<EducationClass>, enrollments: Repository<EducationClassEnrollment>, groups: Repository<StudyGroup>, groupMemberships: Repository<StudyGroupMembership>, rooms: Repository<DormRoom>, roomAssignments: Repository<DormRoomAssignment>, memberships: Repository<OrganizationMembership>, access: SchoolAccessService, authorization: AuthorizationService, realtime: RealtimeService);
+    authorizeOrganization(user: AuthenticatedUser, organizationId: string): Promise<import("../../database/entities").Organization>;
+    authorizeContext(user: AuthenticatedUser, type: string, id: string, organizationId: string, manage: boolean): Promise<import("../../database/entities").Organization>;
+    hasSchoolWideScope(user: AuthenticatedUser): boolean;
+    contextDescriptor(type: string, id: string): Promise<{
+        organizationId: string;
+        title: string;
+        status: "ARCHIVED" | "ACTIVE";
+    }>;
+    sessionDetail(user: AuthenticatedUser, id: string): Promise<AttendanceSessionDetail>;
+    sessionHistory(user: AuthenticatedUser, id: string): Promise<AuditLog[]>;
+    private authorizedSavedSession;
     listContexts(user: AuthenticatedUser, organizationId?: string): Promise<({
         id: string;
         contextType: "class";
@@ -40,6 +53,7 @@ export declare class AttendanceService {
     } | {
         id: string;
         contextType: "class_group";
+        classId: string | undefined;
         code: string;
         name: string;
         label: string;
@@ -57,7 +71,7 @@ export declare class AttendanceService {
         floor: number;
     })[]>;
     listSessions(user: AuthenticatedUser, organizationId?: string): Promise<{
-        remaining: number;
+        remaining: number | null;
         note: string;
         createdById: string | null;
         createdAt: string;
@@ -68,7 +82,7 @@ export declare class AttendanceService {
         id: string;
         organizationId: string;
         organizationName: string;
-        contextType: "class" | "class_group" | "dorm" | "night";
+        contextType: "class" | "class_group" | "dorm" | "night" | "pool";
         contextId: string;
         contextLabel: string;
         sessionDate: string;
@@ -82,7 +96,7 @@ export declare class AttendanceService {
         sessionDate: string;
         note: string;
     }>;
-    bulkMark(user: AuthenticatedUser, dto: BulkMarkAttendanceDto): Promise<{
+    bulkMark(user: AuthenticatedUser, dto: BulkMarkAttendanceDto): Promise<import("../../database/entities/attendance-write-receipt.entity").AttendanceWriteResult | {
         sessionId: string;
         count: number;
         records: {
@@ -92,6 +106,7 @@ export declare class AttendanceService {
             note: string;
         }[];
     }>;
+    private attendanceTransaction;
     listAbsenceReviews(user: AuthenticatedUser, organizationId?: string): Promise<{
         id: string;
         studentId: string;
@@ -102,7 +117,7 @@ export declare class AttendanceService {
         reviewNote: string;
         reviewedAt: string | null;
         sessionDate: string;
-        contextType: "class" | "class_group" | "dorm" | "night";
+        contextType: "class" | "class_group" | "dorm" | "night" | "pool";
         contextId: string;
         organizationId: string;
         organizationName: string;
@@ -118,7 +133,7 @@ export declare class AttendanceService {
         reviewNote: string;
         reviewedAt: string | null;
         sessionDate: string;
-        contextType: "class" | "class_group" | "dorm" | "night";
+        contextType: "class" | "class_group" | "dorm" | "night" | "pool";
         contextId: string;
         organizationId: string;
         organizationName: string;
@@ -134,7 +149,7 @@ export declare class AttendanceService {
         reviewNote: string;
         reviewedAt: string | null;
         sessionDate: string;
-        contextType: "class" | "class_group" | "dorm" | "night";
+        contextType: "class" | "class_group" | "dorm" | "night" | "pool";
         contextId: string;
         organizationId: string;
         organizationName: string;
@@ -150,7 +165,7 @@ export declare class AttendanceService {
         reviewNote: string;
         reviewedAt: string | null;
         sessionDate: string;
-        contextType: "class" | "class_group" | "dorm" | "night";
+        contextType: "class" | "class_group" | "dorm" | "night" | "pool";
         contextId: string;
         organizationId: string;
         organizationName: string;
@@ -169,7 +184,7 @@ export declare class AttendanceService {
             sessionId: string;
             status: AttendanceStatus;
             sessionDate: string;
-            contextType: "class" | "class_group" | "dorm" | "night";
+            contextType: "class" | "class_group" | "dorm" | "night" | "pool";
             contextId: string;
             organizationId: string;
             recordedAt: string;
@@ -181,18 +196,11 @@ export declare class AttendanceService {
         studentId: string;
         totalSessions: number;
     }>;
-    listSelfRecords(user: AuthenticatedUser): Promise<{
-        id: string;
-        status: AttendanceStatus;
-        note: string;
-        sessionDate: string;
-        contextType: "class" | "class_group" | "dorm" | "night";
-        contextId: string;
-        organizationId: string;
-        recordedAt: string;
-    }[]>;
+    listSelfRecords(_user: AuthenticatedUser): Promise<never[]>;
     private participantIds;
     private assertContextAccess;
+    private effectiveUser;
+    private assertWorkOrganization;
     private schoolWide;
     private assertReviewAccess;
     private reviewView;

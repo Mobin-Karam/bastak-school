@@ -194,7 +194,11 @@ export function ManagementMasterDetail({
     >
       <div className="management-master-detail__layout grid items-start gap-4">
         <div
-          className={directoryVisible ? "management-master-detail__directory min-w-0" : "hidden min-w-0 min-[1200px]:block"}
+          className={
+            directoryVisible
+              ? "management-master-detail__directory min-w-0"
+              : "hidden min-w-0 min-[1200px]:block"
+          }
         >
           {directory}
         </div>

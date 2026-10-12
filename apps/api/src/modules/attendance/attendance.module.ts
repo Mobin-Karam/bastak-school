@@ -1,3 +1,9 @@
+import { AttendanceOperationsService } from "./attendance-operations.service";
+import { AttendanceOperationsController } from "./attendance-operations.controller";
+import { DormAttendanceDelegate } from "../../database/entities/dorm-attendance-delegate.entity";
+import { AttendancePool } from "../../database/entities/attendance-pool.entity";
+import { AttendanceWriteReceipt } from "../../database/entities/attendance-write-receipt.entity";
+import { AuditLog } from "../../database/entities/audit-log.entity";
 import { Module } from "@nestjs/common";
 import { TypeOrmModule } from "@nestjs/typeorm";
 import { AttendanceRecord } from "../../database/entities/attendance-record.entity";
@@ -11,16 +17,20 @@ import { OrganizationMembership } from "../../database/entities/organization-mem
 import { StudyGroupMembership } from "../../database/entities/study-group-membership.entity";
 import { StudyGroup } from "../../database/entities/study-group.entity";
 import { AuthorizationModule } from "../authorization/authorization.module";
-import { SchoolAccessModule } from "../school-access/school-access.module";
-import { RealtimeModule } from "../realtime/realtime.module";
+import { SchoolAccessModule } from "../school-access";
+import { RealtimeModule } from "../realtime";
 import { AttendanceController } from "./attendance.controller";
 import { AttendanceService } from "./attendance.service";
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([
+      DormAttendanceDelegate,
+      AttendancePool,
       AttendanceSession,
       AttendanceRecord,
+      AttendanceWriteReceipt,
+      AuditLog,
       Student,
       EducationClass,
       EducationClassEnrollment,
@@ -34,8 +44,8 @@ import { AttendanceService } from "./attendance.service";
     AuthorizationModule,
     RealtimeModule,
   ],
-  controllers: [AttendanceController],
-  providers: [AttendanceService],
+  controllers: [AttendanceController, AttendanceOperationsController],
+  providers: [AttendanceService, AttendanceOperationsService],
   exports: [AttendanceService],
 })
 export class AttendanceModule {}

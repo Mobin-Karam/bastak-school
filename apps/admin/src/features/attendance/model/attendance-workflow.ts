@@ -5,17 +5,13 @@ export type AttendanceParticipant = {
   id: string;
   name: string;
   studentNumber: string;
+  userId?: string | null;
   status: AttendanceStatus;
 };
 
 export type AttendanceFilter = "all" | AttendanceStatus;
 
-export const attendanceStatuses: MarkedAttendanceStatus[] = [
-  "present",
-  "absent",
-  "late",
-  "excused",
-];
+export const attendanceStatuses: MarkedAttendanceStatus[] = ["present", "absent", "late"];
 
 export const attendanceStatusMeta: Record<
   MarkedAttendanceStatus,

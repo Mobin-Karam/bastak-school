@@ -8,7 +8,7 @@ import { Student } from "../../database/entities/student.entity";
 import { Task } from "../../database/entities/task.entity";
 import { AuthenticatedUser } from "../auth";
 import { AuthorizationService } from "../authorization";
-import { RealtimeService } from "../realtime/realtime.service";
+import { RealtimeService } from "../realtime";
 import { SharePlanRangeDto } from "./education-sharing.dto";
 export declare class EducationSharingService {
     private readonly students;

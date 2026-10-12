@@ -1,3 +1,4 @@
+import type { OrganizationAuthProfile } from "@moshaver/api-contract";
 import { OrganizationMembership } from "./organization-membership.entity";
 export declare enum OrganizationType {
     SCHOOL = "SCHOOL",
@@ -19,6 +20,7 @@ export declare class Organization {
     studentSignupEnabled: boolean;
     studentSignupLimit: number;
     studentSignupCount: number;
+    authProfile: OrganizationAuthProfile | null;
     createdAt: Date;
     updatedAt: Date;
     memberships: OrganizationMembership[];

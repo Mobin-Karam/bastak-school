@@ -1,8 +1,20 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { toast } from "sonner";
+import { ThemeProvider } from "../../../shared/theme/theme";
+import { LocaleProvider } from "../../../shared/ui/locale";
+import { AppToaster } from "../../../shared/ui/notifications";
 import { DormitoryPage } from "./DormitoryPage";
 
-const { listDormRoomsMock, createDormRoomMock, listDormAssignmentsMock, setDormAssignmentsMock, findDormitoryStudentsMock, sendDormitoryAnnouncementMock, listRelationshipStudentsMock } = vi.hoisted(() => ({
+const {
+  listDormRoomsMock,
+  createDormRoomMock,
+  listDormAssignmentsMock,
+  setDormAssignmentsMock,
+  findDormitoryStudentsMock,
+  sendDormitoryAnnouncementMock,
+  listRelationshipStudentsMock,
+} = vi.hoisted(() => ({
   listDormRoomsMock: vi.fn(),
   createDormRoomMock: vi.fn(),
   listDormAssignmentsMock: vi.fn(),
@@ -27,12 +39,40 @@ vi.mock("../../access/api/access.api", () => ({
 
 vi.mock("../../auth", () => ({
   useAuth: () => ({
+    can: () => true,
     context: { activeOrganization: { id: "org-1", name: "S1" } },
   }),
 }));
 
+function renderPage() {
+  return render(
+    <ThemeProvider>
+      <LocaleProvider>
+        <DormitoryPage />
+        <AppToaster />
+      </LocaleProvider>
+    </ThemeProvider>,
+  );
+}
+const room = {
+  id: "room-1",
+  organizationId: "org-1",
+  code: "A1",
+  name: "اتاق A1",
+  building: "اصلی",
+  floor: 1,
+  capacity: 1,
+  status: "ACTIVE",
+  studentCount: 0,
+};
+
 describe("DormitoryPage", () => {
+  afterEach(() => {
+    toast.dismiss();
+    cleanup();
+  });
   beforeEach(() => {
+    vi.clearAllMocks();
     listDormRoomsMock.mockResolvedValue([]);
     listDormAssignmentsMock.mockResolvedValue([]);
     listRelationshipStudentsMock.mockResolvedValue([]);
@@ -51,7 +91,7 @@ describe("DormitoryPage", () => {
   });
 
   it("renders the dormitory management layout", async () => {
-    render(<DormitoryPage />);
+    renderPage();
 
     await waitFor(() => {
       expect(screen.getByText("مدیریت اتاق‌های خوابگاه")).toBeInTheDocument();
@@ -61,5 +101,83 @@ describe("DormitoryPage", () => {
     fireEvent.click(screen.getByRole("button", { name: /ایجاد اولین اتاق/i }));
     expect(screen.getByRole("dialog")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "ایجاد اتاق جدید" })).toBeInTheDocument();
+  });
+  it("warns when room details are incomplete without creating a room", async () => {
+    renderPage();
+    fireEvent.click(await screen.findByRole("button", { name: "ایجاد اولین اتاق" }));
+    fireEvent.click(screen.getByRole("button", { name: "ایجاد اتاق" }));
+    expect(await screen.findByText("اطلاعات اتاق را کامل کنید.")).toBeInTheDocument();
+    expect(createDormRoomMock).not.toHaveBeenCalled();
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+  });
+
+  it("preserves resident selections when saving fails", async () => {
+    listDormRoomsMock.mockResolvedValue([room]);
+    listRelationshipStudentsMock.mockResolvedValue([{ id: "student-1", name: "علی" }]);
+    setDormAssignmentsMock.mockRejectedValueOnce(new Error("Offline"));
+    renderPage();
+    const checkbox = await screen.findByRole("checkbox", { name: "تخصیص علی" });
+    fireEvent.click(checkbox);
+    fireEvent.click(screen.getByRole("button", { name: "ذخیره اعضای اتاق" }));
+    await screen.findByText("ذخیره اعضا انجام نشد.");
+    expect(checkbox).toBeChecked();
+    expect(setDormAssignmentsMock).toHaveBeenCalledWith("room-1", ["student-1"]);
+    expect(await screen.findByRole("button", { name: "ذخیره اعضای اتاق" })).toBeEnabled();
+  });
+
+  it("blocks saving incomplete resident data and allows retry", async () => {
+    listDormRoomsMock.mockResolvedValue([room]);
+    listDormAssignmentsMock.mockRejectedValueOnce(new Error("Offline"));
+    renderPage();
+    await screen.findAllByText("اطلاعات ساکنان دریافت نشد.");
+    expect(screen.getByRole("button", { name: "ذخیره اعضای اتاق" })).toBeDisabled();
+    expect(setDormAssignmentsMock).not.toHaveBeenCalled();
+    fireEvent.click(screen.getAllByRole("button", { name: "تلاش دوباره" })[0]);
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "ذخیره اعضای اتاق" })).toBeEnabled(),
+    );
+    expect(listDormAssignmentsMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("warns instead of overfilling the room", async () => {
+    listDormRoomsMock.mockResolvedValue([room]);
+    listRelationshipStudentsMock.mockResolvedValue([
+      { id: "s1", name: "علی" },
+      { id: "s2", name: "رضا" },
+    ]);
+    renderPage();
+    fireEvent.click(await screen.findByRole("checkbox", { name: "تخصیص علی" }));
+    fireEvent.click(screen.getByRole("checkbox", { name: "تخصیص رضا" }));
+    await screen.findByText("ظرفیت اتاق کامل است.");
+    expect(screen.getByRole("checkbox", { name: "تخصیص رضا" })).not.toBeChecked();
+  });
+  it("keeps room details available after a failed create", async () => {
+    createDormRoomMock.mockRejectedValueOnce(new Error("Duplicate code"));
+    renderPage();
+    fireEvent.click(await screen.findByRole("button", { name: "ایجاد اولین اتاق" }));
+    const dialog = within(screen.getByRole("dialog"));
+    fireEvent.change(dialog.getByLabelText(/کد اتاق/), { target: { value: "A1" } });
+    fireEvent.change(dialog.getByLabelText(/نام اتاق/), { target: { value: "اتاق تازه" } });
+    fireEvent.click(dialog.getByRole("button", { name: "ایجاد اتاق" }));
+    await screen.findByText("ایجاد اتاق انجام نشد.");
+    expect(dialog.getByLabelText(/کد اتاق/)).toHaveValue("A1");
+    expect(dialog.getByLabelText(/نام اتاق/)).toHaveValue("اتاق تازه");
+    expect(dialog.getByRole("button", { name: "ایجاد اتاق" })).toBeEnabled();
+  });
+
+  it("keeps an undelivered announcement and shows a warning", async () => {
+    listDormRoomsMock.mockResolvedValue([room]);
+    renderPage();
+    fireEvent.click(await screen.findByRole("button", { name: "ارسال اعلان" }));
+    const dialog = within(screen.getByRole("dialog"));
+    fireEvent.change(dialog.getByLabelText(/عنوان/), { target: { value: "یادآوری" } });
+    fireEvent.change(dialog.getByLabelText(/متن اعلان/), { target: { value: "پیام خوابگاه" } });
+    fireEvent.click(dialog.getByRole("button", { name: "ارسال اعلان" }));
+    await screen.findByText("گیرنده‌ای پیدا نشد.");
+    await waitFor(() =>
+      expect(document.querySelector("[data-sonner-toast]")).toHaveAttribute("data-type", "warning"),
+    );
+    expect(dialog.getByLabelText(/متن اعلان/)).toHaveValue("پیام خوابگاه");
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
   });
 });

@@ -42,7 +42,7 @@ export function LoginHero() {
       <div className="relative z-[1]">
         <LoginBrand variant="hero" brandName={copy.brandName} productName={copy.productName} />
 
-        <div className="mt-12 max-w-md">
+        {/* <div className="mt-12 max-w-md">
           <h2
             className="
               text-2xl font-black
@@ -56,7 +56,7 @@ export function LoginHero() {
           </h2>
 
           <p className="mt-3 text-sm leading-7 text-slate-300">{copy.heroDescription}</p>
-        </div>
+        </div> */}
       </div>
 
       <div className="relative z-[1] grid gap-5">

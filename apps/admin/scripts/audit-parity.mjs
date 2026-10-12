@@ -1,4 +1,5 @@
 import ts from "typescript";
+import { mountedControllers } from "./mounted-controllers.mjs";
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join, resolve } from "node:path";
 
@@ -34,7 +35,8 @@ const normalize = (path) =>
     .replace(/\/+/g, "/");
 
 const backend = [];
-for (const file of walk(apiRoot, (path) => path.endsWith("controller.ts"))) {
+const mounted = mountedControllers(resolve(apiRoot, "../app.module.ts"));
+for (const [file, registeredClasses] of mounted) {
   const source = ts.createSourceFile(
     file,
     readFileSync(file, "utf8"),
@@ -42,7 +44,8 @@ for (const file of walk(apiRoot, (path) => path.endsWith("controller.ts"))) {
     true,
   );
   source.forEachChild((node) => {
-    if (!ts.isClassDeclaration(node)) return;
+    if (!ts.isClassDeclaration(node) || !node.name || !registeredClasses.has(node.name.text))
+      return;
     const base = stringArg(decorator(node, "Controller"));
     const classRoles =
       decorator(node, "Roles")
@@ -160,6 +163,7 @@ for (const [marker, endpoints] of Object.entries(dynamicConsumers))
 const studentRoutes = new Set([
   "GET /reports",
   "POST /reports",
+  "GET /classes/assigned", // student enrollment projection; current student dashboard owns class discovery
   "POST /recovery-requests",
   "GET /recommendations",
   "PATCH /recommendations/:id",
@@ -188,7 +192,14 @@ const excluded = (endpoint) =>
   `${endpoint.method} ${endpoint.path}` === "GET /education-catalog/my-books" ||
   `${endpoint.method} ${endpoint.path}` === "PUT /chat/conversations/:id/mute" ||
   `${endpoint.method} ${endpoint.path}` === "PUT /chat/groups/:id/owner";
+// Exact compatibility projections: current UI obtains these facts through scoped canonical endpoints.
 const equivalentWorkflowRoutes = new Set([
+  "GET /students/:id/attendance-summary", // /attendance/students/:id/profile, staff review only
+  "GET /students/:id/profile", // student directory/detail plus separately gated attendance profile
+  "PATCH /students/:id/profile", // same UpdateStudentDto as PATCH /students/:id
+  "GET /archive/dashboard", // /dashboard/home
+  "GET /archive/dashboard/attention", // /dashboard/work-queue
+
   "GET /organizations/:id",
   "GET /relationships/:id",
   "PATCH /relationships/:id",
@@ -200,7 +211,20 @@ const equivalentWorkflowRoutes = new Set([
 ]);
 const equivalentWorkflow = (endpoint) =>
   equivalentWorkflowRoutes.has(`${endpoint.method} ${endpoint.path}`);
-const required = backend.filter((endpoint) => !excluded(endpoint) && !equivalentWorkflow(endpoint));
+// These exact legacy/deferred workflows are outside the current school product's active UI.
+// Keep new routes strict; registration returns an explicit coming-soon page and performs no writes.
+const deferredWorkflows = new Set([
+  "PUT /registration/self/contacts",
+  "PATCH /registration/students/:id/sections/:id",
+  "GET /letters",
+  "PATCH /letters/:id",
+]);
+const required = backend.filter(
+  (endpoint) =>
+    !excluded(endpoint) &&
+    !equivalentWorkflow(endpoint) &&
+    !deferredWorkflows.has(`${endpoint.method} ${endpoint.path}`),
+);
 const missing = required.filter((endpoint) => !requests.has(`${endpoint.method} ${endpoint.path}`));
 console.log(
   `Backend routes: ${backend.length}; Admin-applicable workflow routes: ${required.length}; equivalent detail projections: ${backend.filter(equivalentWorkflow).length}; represented: ${required.length - missing.length}.`,

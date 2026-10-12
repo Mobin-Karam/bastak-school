@@ -225,7 +225,7 @@ function DayColumn({
   language: "fa" | "en";
 }) {
   const copy = plannerCopy(language);
-  const config = DEFAULT_TIMELINE_CONFIG;
+
   const timelineSlots = zoomSlots(range.start, range.end, slotMinutes);
   function drop(event: DragEvent, targetStart?: string) {
     event.preventDefault();

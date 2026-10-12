@@ -1,5 +1,5 @@
 import { EducationBook } from "./education-book.entity";
-import { EducationClass } from "./education-class.entity";
+import type { EducationClass } from "./education-class.entity";
 import { User } from "./user.entity";
 export declare class EducationClassBook {
     id: string;

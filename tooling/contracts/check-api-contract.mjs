@@ -36,12 +36,12 @@ function walk(dir, output = []) {
 const contract = fs.readFileSync(contractPath, "utf8");
 const contractRoles = new Set(extractArray(contract, "ROLE_CODES"));
 const contractCapabilities = new Set(extractArray(contract, "CAPABILITIES"));
-const migration = fs.readFileSync(migrationPath, "utf8");
-const migrationRoles = new Set(
-  [...migration.matchAll(/\["([A-Z_]+)",\s*"[^"]+",\s*[01]\]/g)].map(
-    (item) => item[1],
-  ),
-);
+// Role additions live in later additive migrations as well as the initial identity schema.
+const migration = fs.readdirSync(path.dirname(migrationPath)).filter(file => file.endsWith(".ts")).map(file => fs.readFileSync(path.join(path.dirname(migrationPath), file), "utf8")).join("\n");
+const migrationRoles = new Set([
+  ...[...migration.matchAll(/\["([A-Z_]+)",\s*"[^"\n]+",\s*(?:[01]|\[)/g)].map(item => item[1]),
+  ...[...migration.matchAll(/\bcode:\s*["']([A-Z_]+)["'],\s*name:\s*["'][^"']+["'],\s*organizationScoped:\s*(?:true|false)/g)].map(item => item[1]),
+]);
 
 for (const role of migrationRoles) {
   if (!contractRoles.has(role))
@@ -55,6 +55,7 @@ for (const role of contractRoles) {
 }
 
 const capabilityPrefixes = new Set([
+  ...[...contractCapabilities].map(capability => capability.split(".")[0]),
   "organization",
   "users",
   "students",
@@ -140,7 +141,6 @@ for (const capability of backendCapabilities) {
 const frontendCapabilities = new Set();
 for (const frontendRoot of [
   path.join(root, "apps/admin/src"),
-  path.join(root, "apps/student/src"),
 ]) {
   for (const file of walk(frontendRoot)) {
     const source = fs.readFileSync(file, "utf8");

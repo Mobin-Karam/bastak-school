@@ -10,7 +10,7 @@ import { UserRoleAssignment } from "../../database/entities/user-role-assignment
 import { User } from "../../database/entities/user.entity";
 import { AuthenticatedUser } from "../auth";
 import { AuthorizationService } from "../authorization";
-import { EducationCatalogService } from "../education-catalog/education-catalog.service";
+import { EducationCatalogService } from "../education-catalog";
 import { SaveEducationClassDto, ClassTransferDto, SetClassBooksDto, SetClassEnrollmentsDto, UpdateEducationClassDto } from "./classes.dto";
 export declare class ClassesService {
     private readonly classes;

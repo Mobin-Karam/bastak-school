@@ -13,7 +13,7 @@ exports.ReviewRegistrationSectionDto = exports.SubmitRegistrationSectionDto = ex
 const openapi = require("@nestjs/swagger");
 const class_transformer_1 = require("class-transformer");
 const class_validator_1 = require("class-validator");
-const national_code_1 = require("../onboarding/national-code");
+const onboarding_1 = require("../onboarding");
 class UpdateRegistrationProfileDto {
     nationalCode;
     birthCertificateNumber;
@@ -40,7 +40,7 @@ class UpdateRegistrationProfileDto {
 exports.UpdateRegistrationProfileDto = UpdateRegistrationProfileDto;
 __decorate([
     (0, class_validator_1.IsOptional)(),
-    (0, class_transformer_1.Transform)(({ value }) => (0, national_code_1.normalizeNationalCode)(String(value ?? ""))),
+    (0, class_transformer_1.Transform)(({ value }) => (0, onboarding_1.normalizeNationalCode)(String(value ?? ""))),
     (0, class_validator_1.Matches)(/^\d{10}$/),
     __metadata("design:type", String)
 ], UpdateRegistrationProfileDto.prototype, "nationalCode", void 0);
@@ -166,7 +166,7 @@ __decorate([
 ], StudentContactDto.prototype, "fullName", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
-    (0, class_transformer_1.Transform)(({ value }) => (0, national_code_1.normalizeNationalCode)(String(value ?? ""))),
+    (0, class_transformer_1.Transform)(({ value }) => (0, onboarding_1.normalizeNationalCode)(String(value ?? ""))),
     (0, class_validator_1.Matches)(/^\d{10}$/),
     __metadata("design:type", String)
 ], StudentContactDto.prototype, "nationalCode", void 0);

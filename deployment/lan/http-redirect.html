@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>ورود به مدرسه</title>
+    <script>
+      const secureUrl = new URL(window.location.href);
+      secureUrl.protocol = "https:";
+      secureUrl.port = "";
+      window.location.replace(secureUrl.href);
+    </script>
+  </head>
+  <body>
+    <p>در حال باز کردن نسخه امن مدرسه…</p>
+    <noscript>
+      <p>یکی از نشانی‌های فعلی مدرسه را باز کنید:</p>
+      <p><a href="https://192.168.0.100">192.168.0.100</a></p>
+      <p><a href="https://192.168.0.107">192.168.0.107</a></p>
+    </noscript>
+  </body>
+</html>

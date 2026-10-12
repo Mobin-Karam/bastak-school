@@ -25,6 +25,12 @@ let AttendanceController = class AttendanceController {
     constructor(attendance) {
         this.attendance = attendance;
     }
+    savedSession(user, id) {
+        return this.attendance.sessionDetail(user, id).then(envelope_1.ok);
+    }
+    savedSessionHistory(user, id) {
+        return this.attendance.sessionHistory(user, id).then(envelope_1.ok);
+    }
     contexts(user, organizationId) {
         return this.attendance.listContexts(user, organizationId).then(envelope_1.ok);
     }
@@ -65,6 +71,26 @@ let AttendanceController = class AttendanceController {
     }
 };
 exports.AttendanceController = AttendanceController;
+__decorate([
+    (0, common_1.Get)("attendance/sessions/:id"),
+    (0, capabilities_decorator_1.RequireCapabilities)("attendance.read"),
+    openapi.ApiResponse({ status: 200 }),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __param(1, (0, common_1.Param)("id")),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String]),
+    __metadata("design:returntype", void 0)
+], AttendanceController.prototype, "savedSession", null);
+__decorate([
+    (0, common_1.Get)("attendance/sessions/:id/history"),
+    (0, capabilities_decorator_1.RequireCapabilities)("attendance.read"),
+    openapi.ApiResponse({ status: 200 }),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __param(1, (0, common_1.Param)("id")),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String]),
+    __metadata("design:returntype", void 0)
+], AttendanceController.prototype, "savedSessionHistory", null);
 __decorate([
     openapi.ApiQuery({ name: "organizationId", required: false }),
     (0, common_1.Get)("attendance/contexts"),

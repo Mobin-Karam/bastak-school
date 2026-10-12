@@ -50,6 +50,9 @@ describe("AdminMobileBottomNav", () => {
     );
 
     expect(screen.getAllByRole("link")).toHaveLength(5);
-    expect(screen.getByRole("link", { name: "همه مسیرهای مدیریت" })).toHaveAttribute("href", "/admin/more");
+    expect(screen.getByRole("link", { name: "همه مسیرهای مدیریت" })).toHaveAttribute(
+      "href",
+      "/admin/more",
+    );
   });
 });

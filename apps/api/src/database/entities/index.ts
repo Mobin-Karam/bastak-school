@@ -93,3 +93,10 @@ export {
   REGISTRATION_SECTIONS,
 } from "./registration-requirement.entity";
 export { RegistrationProgress } from "./registration-progress.entity";
+
+export { AttendanceWriteReceipt } from "./attendance-write-receipt.entity";
+
+export { AttendancePolicy } from "./attendance-policy.entity";
+export { AttendanceSchedule } from "./attendance-schedule.entity";
+export { DormAttendanceDelegate } from "./dorm-attendance-delegate.entity";
+export { AttendancePool } from "./attendance-pool.entity";

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Building2,
+  Pencil,
   Link2,
   UserPlus,
   Users,
@@ -10,13 +11,13 @@ import {
   Trash2,
   Check,
   X,
-  Search,
   UserRound,
   GraduationCap,
-  ChevronDown,
 } from "lucide-react";
 import type { RoleCode } from "../../shared/types/domain";
-import { Button, Card, EmptyState, Field, Select } from "../../shared/ui/ui";
+import { Button, Card, EmptyState, Field, Input, Select } from "../../shared/ui/ui";
+import { DataTable } from "../../shared/ui/data-table";
+import { ResponsiveModal } from "../../shared/ui/responsive-modal";
 import { useModal } from "../../shared/ui/modal";
 import { notify } from "../../shared/ui/notifications";
 import { roleLabel } from "../../shared/lib/role-ui";
@@ -129,8 +130,9 @@ export function OrganizationWorkspace({
   const [role, setRole] = useState<RoleCode>(
     assignableRoles.includes("COUNSELOR") ? "COUNSELOR" : assignableRoles[0],
   );
-  const [memberSearch, setMemberSearch] = useState("");
   const [showAddForm, setShowAddForm] = useState(false);
+  const [editingMember, setEditingMember] = useState<OrganizationMember | null>(null);
+  const [memberRole, setMemberRole] = useState<RoleCode>(role);
 
   const members = useQuery({
     queryKey: ["organization-members", organizationId],
@@ -139,13 +141,17 @@ export function OrganizationWorkspace({
   const users = useQuery({
     queryKey: ["users", "platform-membership-picker"],
     queryFn: () => listUsers(),
+    enabled: showAddForm && auth.can("organization.members.manage"),
   });
   const relationships = useQuery({ queryKey: ["relationships"], queryFn: listRelationships });
   const relationshipStudents = useQuery({
     queryKey: ["students", "relationship-picker"],
     queryFn: () => listRelationshipStudents(organizationId),
+    enabled: auth.can("relationships.manage"),
   });
 
+  const reportError = (error: unknown) =>
+    notify(error instanceof Error ? error.message : copy.relationshipsFailed, "error");
   const refresh = async () => {
     await Promise.all([
       qc.invalidateQueries({ queryKey: ["organization-members", organizationId] }),
@@ -172,6 +178,8 @@ export function OrganizationWorkspace({
       status?: "ACTIVE" | "INACTIVE";
       roleCodes?: RoleCode[];
     }) => updateOrganizationMember(organizationId, id, { status, roleCodes }),
+    onError: (error) =>
+      notify(error instanceof Error ? error.message : copy.membersFailed, "error"),
     onSuccess: async (_, variables) => {
       notify(
         variables.status
@@ -185,6 +193,8 @@ export function OrganizationWorkspace({
   });
   const remove = useMutation({
     mutationFn: (id: string) => removeOrganizationMember(organizationId, id),
+    onError: (error) =>
+      notify(error instanceof Error ? error.message : copy.membersFailed, "error"),
     onSuccess: async () => {
       notify(copy.memberRemoved);
       await refresh();
@@ -193,6 +203,7 @@ export function OrganizationWorkspace({
   const decide = useMutation({
     mutationFn: ({ id, action }: { id: string; action: "accept" | "reject" }) =>
       action === "accept" ? acceptRelationship(id) : rejectRelationship(id),
+    onError: reportError,
     onSuccess: async (_, variables) => {
       notify(variables.action === "accept" ? copy.relationshipAccepted : copy.relationshipRejected);
       await refresh();
@@ -208,6 +219,7 @@ export function OrganizationWorkspace({
   });
   const revokeLink = useMutation({
     mutationFn: removeRelationship,
+    onError: reportError,
     onSuccess: async () => {
       notify(copy.relationshipRemoved);
       await refresh();
@@ -215,13 +227,17 @@ export function OrganizationWorkspace({
   });
   const guardianOverride = useMutation({
     mutationFn: allowGuardianChange,
+    onError: reportError,
     onSuccess: () => notify(copy.guardianChangeAllowed),
   });
   const signupPolicy = useMutation({
     mutationFn: (body: { enabled: boolean; limit: number }) =>
       setOrganizationStudentSignupPolicy(organizationId, body),
-    onSuccess: () =>
-      notify(language === "fa" ? "تنظیمات ثبت‌نام ذخیره شد." : "Signup settings saved."),
+    onError: reportError,
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: ["organizations"] });
+      notify(language === "fa" ? "تنظیمات ثبت‌نام ذخیره شد." : "Signup settings saved.");
+    },
   });
 
   const available = (users.data || []).filter(
@@ -230,15 +246,6 @@ export function OrganizationWorkspace({
   const relevant = (relationships.data || []).filter(
     (item) => !item.organizationId || item.organizationId === organizationId,
   );
-
-  const filteredMembers = (members.data || []).filter((member) => {
-    if (!memberSearch.trim()) return true;
-    const q = memberSearch.trim().toLowerCase();
-    return (
-      displayName(member.user).toLowerCase().includes(q) ||
-      member.user.username?.toLowerCase().includes(q)
-    );
-  });
 
   const pendingCount = relevant.filter((item) => item.status === "PENDING").length;
   const activeMembers = (members.data || []).filter((m) => m.status === "ACTIVE").length;
@@ -250,15 +257,15 @@ export function OrganizationWorkspace({
         <div className="relative bg-gradient-to-b from-brand/10 via-brand/5 to-transparent p-5">
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div className="flex items-start gap-3">
-              <span className="grid size-12 place-items-center rounded-2xl bg-brand/15 text-brand shadow-sm">
+              <span className="grid size-12 shrink-0 place-items-center rounded-2xl bg-brand/15 text-brand shadow-sm">
                 <Building2 size={22} />
               </span>
               <div>
-                <h2 className="text-lg font-black leading-tight">{organizationName}</h2>
+                <h2 className="break-words text-lg font-black leading-tight">{organizationName}</h2>
                 <p className="mt-0.5 text-xs text-slate-500">{copy.organizationWorkspace}</p>
               </div>
             </div>
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid w-full grid-cols-3 gap-2 sm:w-auto">
               <StatPill label={copy.totalMembers} value={members.data?.length ?? "—"} />
               <StatPill label={copy.active} value={activeMembers} />
               <StatPill label={copy.pending} value={pendingCount} />
@@ -266,8 +273,9 @@ export function OrganizationWorkspace({
           </div>
         </div>
       </Card>
-      {!auth.hasRole("PLATFORM_ADMIN") && auth.can("organization.manage") ? (
+      {!auth.hasRole("PLATFORM_ADMIN") && auth.can("organization.members.manage") ? (
         <OrganizationSignupControl
+          key={`${organizationId}:${studentSignupEnabled}:${studentSignupLimit}`}
           delegated={studentSignupManagedByOrganization}
           enabled={studentSignupEnabled}
           limit={studentSignupLimit}
@@ -278,28 +286,17 @@ export function OrganizationWorkspace({
       ) : null}
 
       {/* ── Two-column main layout ─────────────────────────────────── */}
-      <div className="grid gap-4 xl:grid-cols-[1.6fr_1fr]">
+      <div className="grid min-w-0 gap-4 min-[1800px]:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
         {/* ── Members ─────────────────────────────────────────────── */}
-        <Card className="p-5">
+        <Card className="min-w-0 p-3 sm:p-5">
           <SectionHeader
             icon={<Users size={18} />}
             title={copy.members}
             description={copy.membersDescription}
             action={
               <div className="flex items-center gap-2">
-                <div className="relative hidden sm:block">
-                  <Search
-                    size={14}
-                    className="pointer-events-none absolute end-2.5 top-1/2 -translate-y-1/2 text-slate-400"
-                  />
-                  <input
-                    value={memberSearch}
-                    onChange={(e) => setMemberSearch(e.target.value)}
-                    placeholder={copy.searchMember}
-                    className="h-9 w-44 rounded-lg border border-slate-200 bg-white pe-8 ps-3 text-sm outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/20 dark:border-slate-700 dark:bg-slate-900"
-                  />
-                </div>
                 <Button
+                  disabled={!auth.can("organization.members.manage")}
                   variant={showAddForm ? "soft" : "primary"}
                   onClick={() => setShowAddForm((v) => !v)}
                 >
@@ -310,16 +307,40 @@ export function OrganizationWorkspace({
             }
           />
 
-          {showAddForm ? (
+          <ResponsiveModal
+            open={showAddForm}
+            onOpenChange={(open) => {
+              if (!add.isPending) setShowAddForm(open);
+            }}
+            title={copy.addMember}
+            description={copy.membersDescription}
+          >
             <form
-              className="mb-4 grid gap-3 rounded-xl border border-brand/20 bg-brand/5 p-3 md:grid-cols-[1fr_180px_auto]"
+              className="grid gap-3 sm:grid-cols-2"
               onSubmit={(e) => {
                 e.preventDefault();
-                add.mutate();
+                if (!add.isPending) add.mutate();
               }}
             >
+              {users.isLoading ? (
+                <p role="status">{copy.loading}</p>
+              ) : users.isError ? (
+                <div role="alert">
+                  <p>{copy.membersFailed}</p>
+                  <Button type="button" variant="soft" onClick={() => void users.refetch()}>
+                    {copy.retry}
+                  </Button>
+                </div>
+              ) : !available.length ? (
+                <p>{copy.noMembers}</p>
+              ) : null}
               <Field label={copy.user}>
-                <Select required value={userId} onChange={(e) => setUserId(e.target.value)}>
+                <Select
+                  required
+                  disabled={users.isLoading || users.isError || add.isPending}
+                  value={userId}
+                  onChange={(e) => setUserId(e.target.value)}
+                >
                   <option value="">{copy.selectUser}</option>
                   {available.map((user) => (
                     <option key={user.id} value={user.id}>
@@ -338,7 +359,11 @@ export function OrganizationWorkspace({
                 </Select>
               </Field>
               <div className="flex items-end gap-2">
-                <Button className="flex-1" loading={add.isPending} disabled={!userId}>
+                <Button
+                  className="flex-1"
+                  loading={add.isPending}
+                  disabled={!userId || users.isError || members.isError}
+                >
                   <UserPlus size={16} />
                   {copy.add}
                 </Button>
@@ -349,162 +374,184 @@ export function OrganizationWorkspace({
                 </p>
               ) : null}
             </form>
-          ) : null}
+          </ResponsiveModal>
 
-          {members.isLoading ? (
-            <div className="grid gap-2">
-              {[0, 1, 2].map((i) => (
-                <div
-                  key={i}
-                  className="h-16 animate-pulse rounded-xl bg-slate-100 dark:bg-slate-800"
-                />
-              ))}
-            </div>
-          ) : members.isError ? (
-            <div
-              role="alert"
-              className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-center dark:border-rose-900 dark:bg-rose-950/40"
+          <ResponsiveModal
+            open={Boolean(editingMember)}
+            onOpenChange={(open) => {
+              if (!open && !update.isPending) setEditingMember(null);
+            }}
+            title={
+              editingMember
+                ? copy.memberRoleFor(displayName(editingMember.user))
+                : copy.organizationRole
+            }
+            description={copy.membersDescription}
+          >
+            <form
+              className="grid gap-3"
+              onSubmit={(event) => {
+                event.preventDefault();
+                if (editingMember && !update.isPending)
+                  update.mutate(
+                    { id: editingMember.user.id, roleCodes: [memberRole] },
+                    { onSuccess: () => setEditingMember(null) },
+                  );
+              }}
             >
-              <p className="text-sm text-rose-700 dark:text-rose-300">{copy.membersFailed}</p>
-              <Button variant="soft" className="mt-2" onClick={() => members.refetch()}>
-                {copy.retry}
-              </Button>
-            </div>
-          ) : !filteredMembers.length ? (
-            <EmptyState
-              title={memberSearch ? copy.noMemberSearch : copy.noMembers}
-              description={!memberSearch ? copy.noMembersHint : undefined}
-            />
-          ) : (
-            <ul className="grid gap-2">
-              {filteredMembers.map((member) => {
-                const isActive = member.status === "ACTIVE";
-                return (
-                  <li
-                    key={member.id}
-                    className="group flex flex-wrap items-center gap-3 rounded-xl border border-slate-200 bg-white p-3 transition hover:border-slate-300 hover:shadow-sm dark:border-slate-800 dark:bg-slate-900/40 dark:hover:border-slate-700"
-                  >
-                    <span
-                      className={`grid size-9 shrink-0 place-items-center rounded-full text-xs font-bold ${
-                        isActive
-                          ? "bg-brand/10 text-brand"
-                          : "bg-slate-100 text-slate-400 dark:bg-slate-800"
-                      }`}
-                    >
-                      {displayName(member.user).slice(0, 1)}
-                    </span>
-
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2">
-                        <strong className="truncate text-sm">{displayName(member.user)}</strong>
-                        <span
-                          className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold ring-1 ${
-                            isActive
-                              ? "bg-emerald-50 text-emerald-700 ring-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:ring-emerald-900"
-                              : "bg-slate-100 text-slate-500 ring-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:ring-slate-700"
-                          }`}
-                        >
-                          {isActive ? copy.active : copy.inactive}
-                        </span>
-                      </div>
-                      <p className="mt-0.5 truncate text-xs text-slate-500">
-                        {member.roles
-                          .map((item) => roleLabel(item, language))
-                          .join(language === "en" ? ", " : "، ") || copy.noRole}
-                      </p>
-                    </div>
-
-                    <div className="flex items-center gap-1.5">
-                      <div className="relative">
-                        <select
-                          aria-label={copy.memberRoleFor(member.user.username)}
-                          value={member.roles[0] || "COUNSELOR"}
-                          disabled={update.isPending}
-                          onChange={(event) =>
-                            update.mutate({
-                              id: member.user.id,
-                              roleCodes: [event.target.value as RoleCode],
-                            })
-                          }
-                          className="h-9 appearance-none rounded-lg border border-slate-200 bg-white pe-7 ps-3 text-xs outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/20 disabled:opacity-50 dark:border-slate-700 dark:bg-slate-900"
-                        >
-                          {(assignableRoles.includes(member.roles[0] as RoleCode)
-                            ? assignableRoles
-                            : [member.roles[0] as RoleCode, ...assignableRoles]
-                          ).map((item) => (
-                            <option key={item} value={item}>
-                              {roleLabel(item, language)}
-                            </option>
-                          ))}
-                        </select>
-                        <ChevronDown
-                          size={12}
-                          className="pointer-events-none absolute end-2 top-1/2 -translate-y-1/2 text-slate-400"
-                        />
-                      </div>
-
-                      <button
-                        type="button"
-                        title={isActive ? copy.suspend : copy.activate}
-                        disabled={update.isPending}
-                        onClick={() =>
-                          isActive
-                            ? void modal
-                                .confirm({
-                                  title: copy.suspendMembershipTitle,
-                                  description: copy.suspendMembershipDescription(
-                                    displayName(member.user),
-                                  ),
-                                  tone: "danger",
-                                  confirmLabel: copy.disableAccounts,
-                                  showCancel: true,
-                                })
-                                .then(
-                                  (confirmed) =>
-                                    confirmed &&
-                                    update.mutate({ id: member.user.id, status: "INACTIVE" }),
-                                )
-                            : update.mutate({ id: member.user.id, status: "ACTIVE" })
-                        }
-                        className={`grid size-9 place-items-center rounded-lg border transition disabled:opacity-50 ${
-                          isActive
-                            ? "border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-300"
-                            : "border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-300"
-                        }`}
-                      >
-                        {isActive ? <ShieldOff size={14} /> : <ShieldCheck size={14} />}
-                      </button>
-
-                      <button
-                        type="button"
-                        title={copy.removeMember}
-                        disabled={remove.isPending}
-                        onClick={() =>
-                          void modal
-                            .confirm({
-                              title: copy.removeMembershipTitle,
-                              description: copy.removeMembershipDescription(
-                                displayName(member.user),
-                              ),
-                              tone: "danger",
-                              confirmLabel: copy.removeMembership,
-                            })
-                            .then((confirmed) => confirmed && remove.mutate(member.user.id))
-                        }
-                        className="grid size-9 place-items-center rounded-lg border border-rose-200 bg-rose-50 text-rose-600 transition hover:bg-rose-100 disabled:opacity-50 dark:border-rose-900 dark:bg-rose-950/40 dark:text-rose-300"
-                      >
-                        <Trash2 size={14} />
-                      </button>
-                    </div>
-                  </li>
-                );
-              })}
-            </ul>
-          )}
+              <Field label={copy.organizationRole}>
+                <Select
+                  value={memberRole}
+                  onChange={(event) => setMemberRole(event.target.value as RoleCode)}
+                >
+                  {!assignableRoles.includes(memberRole) ? (
+                    <option value={memberRole} disabled>
+                      {roleLabel(memberRole, language)}
+                    </option>
+                  ) : null}
+                  {assignableRoles.map((role) => (
+                    <option key={role} value={role}>
+                      {roleLabel(role, language)}
+                    </option>
+                  ))}
+                </Select>
+              </Field>
+              <div className="flex justify-end gap-2">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  disabled={update.isPending}
+                  onClick={() => setEditingMember(null)}
+                >
+                  {copy.cancel}
+                </Button>
+                <Button
+                  loading={update.isPending}
+                  disabled={
+                    !auth.can("organization.members.manage") ||
+                    !assignableRoles.includes(memberRole)
+                  }
+                >
+                  {copy.saveChanges}
+                </Button>
+              </div>
+            </form>
+          </ResponsiveModal>
+          <DataTable<OrganizationMember>
+            key={`${organizationId}:${auth.context?.user.id}:${auth.activeRole}`}
+            data={members.data ?? []}
+            getRowId={(member) => member.id}
+            label={copy.members}
+            language={language}
+            loading={members.isLoading}
+            error={members.isError}
+            errorMessage={copy.membersFailed}
+            onRefresh={() => void members.refetch()}
+            refreshing={members.isFetching && !members.isLoading}
+            busy={update.isPending || remove.isPending}
+            emptyTitle={copy.noMembers}
+            preferenceKey={`members:${auth.context?.user.id}:${organizationId}`}
+            columns={[
+              {
+                id: "name",
+                label: copy.user,
+                primary: true,
+                value: (member) => displayName(member.user),
+                cell: (member) => (
+                  <div>
+                    <strong>{displayName(member.user)}</strong>
+                    <p className="text-xs text-slate-500" dir="ltr">
+                      {member.user.username}
+                    </p>
+                  </div>
+                ),
+              },
+              {
+                id: "roles",
+                label: copy.organizationRole,
+                value: (member) => member.roles.map((role) => roleLabel(role, language)).join(", "),
+                filter: { type: "text" },
+              },
+              {
+                id: "status",
+                label: copy.accountStatus,
+                value: (member) => member.status,
+                cell: (member) => (member.status === "ACTIVE" ? copy.active : copy.inactive),
+                filter: {
+                  type: "select",
+                  options: [
+                    { value: "ACTIVE", label: copy.active },
+                    { value: "INACTIVE", label: copy.inactive },
+                  ],
+                },
+              },
+            ]}
+            actions={
+              auth.can("organization.members.manage")
+                ? [
+                    {
+                      id: "edit",
+                      label: copy.edit,
+                      icon: <Pencil size={16} />,
+                      onClick: (member) => {
+                        update.reset();
+                        setMemberRole(member.roles[0] ?? assignableRoles[0]);
+                        setEditingMember(member);
+                      },
+                    },
+                    {
+                      id: "activate",
+                      label: copy.activate,
+                      icon: <ShieldCheck size={16} />,
+                      visible: (member) => member.status !== "ACTIVE",
+                      onClick: (member) => update.mutate({ id: member.user.id, status: "ACTIVE" }),
+                    },
+                    {
+                      id: "suspend",
+                      label: copy.suspend,
+                      icon: <ShieldOff size={16} />,
+                      visible: (member) => member.status === "ACTIVE",
+                      onClick: (member) =>
+                        void modal
+                          .confirm({
+                            title: copy.suspendMembershipTitle,
+                            description: copy.suspendMembershipDescription(
+                              displayName(member.user),
+                            ),
+                            tone: "danger",
+                            confirmLabel: copy.disableAccounts,
+                            showCancel: true,
+                          })
+                          .then(
+                            (confirmed) =>
+                              confirmed &&
+                              update.mutate({ id: member.user.id, status: "INACTIVE" }),
+                          ),
+                    },
+                    {
+                      id: "remove",
+                      label: copy.removeMember,
+                      icon: <Trash2 size={16} />,
+                      tone: "danger",
+                      onClick: (member) =>
+                        void modal
+                          .confirm({
+                            title: copy.removeMembershipTitle,
+                            description: copy.removeMembershipDescription(displayName(member.user)),
+                            tone: "danger",
+                            confirmLabel: copy.removeMembership,
+                            showCancel: true,
+                          })
+                          .then((confirmed) => confirmed && remove.mutate(member.user.id)),
+                    },
+                  ]
+                : []
+            }
+          />
         </Card>
 
         {/* ── Relationships ───────────────────────────────────────── */}
-        <Card className="p-5">
+        <Card className="min-w-0 p-3 sm:p-5">
           <SectionHeader
             icon={<Link2 size={18} />}
             title={copy.relationships}
@@ -515,6 +562,13 @@ export function OrganizationWorkspace({
             }
             action={
               <Button
+                disabled={
+                  !auth.can("relationships.manage") ||
+                  members.isLoading ||
+                  members.isError ||
+                  relationshipStudents.isLoading ||
+                  relationshipStudents.isError
+                }
                 onClick={() =>
                   modal.open({
                     title: copy.newRelationship,
@@ -721,16 +775,16 @@ function OrganizationSignupControl({
           </label>
         </div>
         <Field label={fa ? "ظرفیت" : "Capacity"}>
-          <Select
-            value={String(limit)}
-            onChange={(event) => setLimit(Math.max(0, Number(event.target.value) || 0))}
-          >
-            {[0, 10, 25, 50, 100, 250, 500, 1000].map((value) => (
-              <option key={value} value={value}>
-                {value}
-              </option>
-            ))}
-          </Select>
+          <Input
+            type="number"
+            min={0}
+            max={100000}
+            step={1}
+            required
+            disabled={pending}
+            value={limit}
+            onChange={(event) => setLimit(Number(event.target.value))}
+          />
         </Field>
         <Button size="sm" loading={pending}>
           {fa ? "ذخیره" : "Save"}
@@ -778,6 +832,18 @@ function RelationshipCreateForm({
         }
       }}
     >
+      <p className="text-sm text-slate-500">
+        {language === "fa"
+          ? "۱. عضو سازمان را انتخاب کنید. ۲. دانش‌آموز و نوع ارتباط را مشخص کنید."
+          : "1. Choose an organization member. 2. Select the student and relationship type."}
+      </p>
+      {!eligibleMembers.length || !students.length ? (
+        <p role="status" className="text-sm text-amber-700 dark:text-amber-300">
+          {language === "fa"
+            ? "ابتدا یک عضو فعال و یک دانش‌آموز به سازمان اضافه کنید."
+            : "Add an active member and a student to this organization first."}
+        </p>
+      ) : null}
       <Field label={copy.relatedUser}>
         <Select required value={fromUserId} onChange={(event) => setFromUserId(event.target.value)}>
           <option value="">{copy.selectUser}</option>

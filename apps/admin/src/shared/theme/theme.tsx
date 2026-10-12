@@ -1,10 +1,20 @@
 import { Monitor, Moon, Sun } from "lucide-react";
-import { createContext, type ReactNode, useContext, useEffect, useState } from "react";
+import {
+  createContext,
+  type ReactNode,
+  useContext,
+  useEffect,
+  useLayoutEffect,
+  useState,
+} from "react";
 import { useOptionalAdminLanguage } from "../ui/locale";
 
 export type ThemePreference = "light" | "dark" | "system";
 
 const STORAGE_KEY = "admin-theme-preference";
+const AUTH_STORAGE_KEY = "auth-theme-preference";
+let authThemeOverride: ThemePreference | null = null;
+
 const SYSTEM_QUERY = "(prefers-color-scheme: dark)";
 
 const themeLabels = {
@@ -36,7 +46,7 @@ function resolveTheme(preference: ThemePreference) {
 }
 
 export function applyTheme(preference: ThemePreference) {
-  const resolved = resolveTheme(preference);
+  const resolved = resolveTheme(authThemeOverride ?? preference);
   document.documentElement.classList.toggle("dark", resolved === "dark");
   document.documentElement.dataset.theme = resolved;
   document.documentElement.style.colorScheme = resolved;
@@ -54,7 +64,10 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   );
 
   useEffect(() => {
-    const sync = () => setResolvedTheme(applyTheme(preference));
+    const sync = () => {
+      applyTheme(preference);
+      setResolvedTheme(resolveTheme(preference));
+    };
     sync();
     if (preference !== "system") return undefined;
 
@@ -71,6 +84,46 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
   return (
     <ThemeContext.Provider value={{ preference, resolvedTheme, setPreference }}>
+      {children}
+    </ThemeContext.Provider>
+  );
+}
+
+/** Auth pages have their own preference and restore the workspace theme on exit. */
+export function AuthThemeProvider({ children }: { children: ReactNode }) {
+  const workspaceTheme = useContext(ThemeContext);
+  const [preference, setPreferenceState] = useState<ThemePreference>(() => {
+    const saved = window.localStorage.getItem(AUTH_STORAGE_KEY);
+    return isThemePreference(saved) ? saved : "dark";
+  });
+  const [resolvedTheme, setResolvedTheme] = useState<"light" | "dark">(() =>
+    resolveTheme(preference),
+  );
+  useLayoutEffect(() => {
+    const sync = () => {
+      authThemeOverride = preference;
+      setResolvedTheme(applyTheme(preference));
+    };
+    sync();
+    const media = preference === "system" ? window.matchMedia?.(SYSTEM_QUERY) : undefined;
+    media?.addEventListener("change", sync);
+    return () => {
+      media?.removeEventListener("change", sync);
+      authThemeOverride = null;
+      applyTheme(workspaceTheme?.preference ?? storedPreference());
+    };
+  }, [preference, workspaceTheme?.preference]);
+  return (
+    <ThemeContext.Provider
+      value={{
+        preference,
+        resolvedTheme,
+        setPreference: (next) => {
+          window.localStorage.setItem(AUTH_STORAGE_KEY, next);
+          setPreferenceState(next);
+        },
+      }}
+    >
       {children}
     </ThemeContext.Provider>
   );

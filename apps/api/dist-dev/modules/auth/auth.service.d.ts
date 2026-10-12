@@ -32,6 +32,9 @@ export declare class AuthService {
     private readonly accountChangeRequests?;
     private readonly credentials;
     constructor(users: Repository<User>, sessions: Repository<Session>, students: Repository<Student>, config: ConfigService, memberships?: Repository<OrganizationMembership> | undefined, authorization?: AuthorizationService | undefined, throttle?: LoginThrottleService | undefined, organizations?: Repository<Organization> | undefined, accountChangeRequests?: Repository<AccountChangeRequest> | undefined);
+    checkPhone(phoneNumber: string, ip?: string): Promise<{
+        exists: boolean;
+    }>;
     login(phoneNumber: string, password: string, ip?: string): Promise<{
         session: Session;
         user: User;

@@ -2,6 +2,8 @@ import { Test } from "@nestjs/testing";
 import { getRepositoryToken } from "@nestjs/typeorm";
 import { ConfigService } from "@nestjs/config";
 import bcrypt from "bcryptjs";
+import { LoginThrottleService } from "../src/modules/auth/login-throttle.service";
+import { Repository } from "typeorm";
 import { AuthService } from "../src/modules/auth/auth.service";
 import { Session } from "../src/database/entities/session.entity";
 import { User, UserRole } from "../src/database/entities/user.entity";
@@ -29,6 +31,41 @@ function repo<T>(items: T[] = []) {
 }
 
 describe("AuthService", () => {
+  it.each([true, false])(
+    "returns only phone existence and meters every lookup (%s)",
+    async (exists) => {
+      const users = { existsBy: jest.fn(async () => exists) };
+      const throttle = { assertAllowed: jest.fn(), failure: jest.fn() };
+      const service = new AuthService(
+        users as unknown as Repository<User>,
+        repo() as unknown as Repository<Session>,
+        repo() as unknown as Repository<Student>,
+        { get: (_key: string, fallback: unknown) => fallback } as ConfigService,
+        undefined,
+        undefined,
+        throttle as unknown as LoginThrottleService,
+      );
+      expect(await service.checkPhone("09123456789", "test-ip")).toEqual({
+        exists,
+      });
+      expect(users.existsBy).toHaveBeenCalledWith({
+        phoneNumber: "09123456789",
+      });
+      expect(throttle.assertAllowed).toHaveBeenCalledWith(
+        "phone-lookup:test-ip",
+        "phone-lookup:test-ip",
+      );
+      expect(throttle.failure).toHaveBeenCalledTimes(1);
+      users.existsBy.mockClear();
+      throttle.assertAllowed.mockRejectedValueOnce(new Error("throttled"));
+      await expect(
+        service.checkPhone("09123456789", "test-ip"),
+      ).rejects.toThrow("throttled");
+      expect(users.existsBy).not.toHaveBeenCalled();
+      await expect(service.checkPhone("invalid", "test-ip")).rejects.toThrow();
+    },
+  );
+
   it("allows a platform administrator to select any active organization context", async () => {
     const user = {
       id: "platform-1",

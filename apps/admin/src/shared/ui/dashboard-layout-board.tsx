@@ -43,14 +43,48 @@ export function DashboardLayoutBoard({
   const sourceOrder = sourceIds.join("|");
   const publishedOrder = useRef(sourceOrder);
   const onReorderRef = useRef(onReorder);
-  const [parent, orderedIds] = useDragAndDrop<HTMLElement, string>(sourceIds, {
-    disabled: !editing,
-    dragHandle: ".dashboard-widget-drag-handle",
-    draggingClass: "opacity-50",
-    dropZoneClass: "ring-2 ring-brand/40",
-  });
+  const dragConfig = useMemo(
+    () => ({
+      disabled: !editing,
+      dragHandle: ".dashboard-widget-drag-handle",
+      draggingClass: "opacity-50",
+      dropZoneClass: "ring-2 ring-brand/40",
+      plugins: [
+        (element: HTMLElement) => ({
+          remapFinished: () => {
+            if (editing) return;
+            element.setAttribute("role", "group");
+            for (const name of [
+              "aria-multiselectable",
+              "aria-activedescendant",
+              "aria-describedby",
+              "tabindex",
+            ])
+              element.removeAttribute(name);
+            for (const child of element.querySelectorAll(':scope > [role="option"]')) {
+              child.setAttribute("role", "article");
+              child.removeAttribute("aria-selected");
+            }
+          },
+        }),
+      ],
+    }),
+    [editing],
+  );
+  const [parent, orderedIds, , updateConfig] = useDragAndDrop<HTMLDivElement, string>(
+    sourceIds,
+    dragConfig,
+  );
+  const updateConfigRef = useRef(updateConfig);
+  updateConfigRef.current = updateConfig;
+  useEffect(() => {
+    updateConfigRef.current(dragConfig);
+  }, [dragConfig]);
   const orderedItems = useMemo(
-    () => orderedIds.map((id) => items.find((item) => item.id === id)).filter(Boolean) as DashboardBoardItem[],
+    () =>
+      orderedIds
+        .map((id) => items.find((item) => item.id === id))
+        .filter(Boolean) as DashboardBoardItem[],
     [items, orderedIds],
   );
   const orderedItemIds = orderedItems.map((item) => item.id).join("|");
@@ -77,13 +111,14 @@ export function DashboardLayoutBoard({
   };
 
   return (
-    <section
+    <div
       ref={parent}
       aria-label={labels.boardLabel}
       className="grid min-w-0 grid-cols-1 gap-3 md:auto-rows-[minmax(5rem,auto)] md:grid-cols-12"
     >
       {orderedItems.map((item, index) => (
-        <article
+        <div
+          role={editing ? "option" : "article"}
           key={item.id}
           className={`group relative min-w-0 ${editing ? "rounded-xl outline outline-1 outline-dashed outline-brand/40" : ""}`}
           style={{
@@ -151,9 +186,9 @@ export function DashboardLayoutBoard({
               {labels.dragHint}: {item.title}
             </span>
           ) : null}
-        </article>
+        </div>
       ))}
-    </section>
+    </div>
   );
 }
 

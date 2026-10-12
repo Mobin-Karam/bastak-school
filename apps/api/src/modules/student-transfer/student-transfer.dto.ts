@@ -12,7 +12,7 @@ import {
   Min,
   ValidateNested,
 } from "class-validator";
-import { normalizeNationalCode } from "../onboarding/national-code";
+import { normalizeNationalCode } from "../onboarding";
 
 export class StudentImportRowDto {
   @IsString() @MaxLength(100) firstName!: string;

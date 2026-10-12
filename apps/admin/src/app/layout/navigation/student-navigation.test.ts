@@ -8,7 +8,15 @@ describe("student navigation", () => {
       "STUDENT",
     ).flatMap((group) => group.items.map((item) => item.path));
 
-    expect(paths).toEqual(["", "schedule", "registration", "profile", "settings"]);
+    expect(paths).toEqual([
+      "",
+      "schedule",
+      "books",
+      "my-attendance",
+      "registration",
+      "profile",
+      "settings",
+    ]);
   });
 
   it("resolves personal routes so the mobile dock retains the active destination", () => {

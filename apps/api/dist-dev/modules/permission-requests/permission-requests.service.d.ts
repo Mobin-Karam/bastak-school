@@ -5,7 +5,7 @@ import { PermissionRequest, PermissionRequestStatus } from "../../database/entit
 import { Student } from "../../database/entities/student.entity";
 import { UserRoleAssignment } from "../../database/entities/user-role-assignment.entity";
 import { AuthenticatedUser } from "../auth";
-import { NotificationsService } from "../notifications/notifications.service";
+import { NotificationsService } from "../notifications";
 type CreateInput = {
     organizationId?: string;
     kind?: string;

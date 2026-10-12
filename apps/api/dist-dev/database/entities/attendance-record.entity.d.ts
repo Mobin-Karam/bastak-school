@@ -1,4 +1,4 @@
-import { AttendanceSession } from "./attendance-session.entity";
+import type { AttendanceSession } from "./attendance-session.entity";
 import { Student } from "./student.entity";
 import { User } from "./user.entity";
 export declare enum AttendanceStatus {
@@ -18,6 +18,10 @@ export declare class AttendanceRecord {
     student: Student;
     status: AttendanceStatus;
     note: string;
+    physicalStatus?: "present" | "absent" | "late" | "legacy_unknown" | null;
+    revision: number;
+    minutesLate?: number | null;
+    arrivalAt?: Date | null;
     reviewStatus?: AttendanceReviewStatus | null;
     reviewNote: string;
     reviewedBy?: User | null;

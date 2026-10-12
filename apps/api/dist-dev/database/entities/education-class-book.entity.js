@@ -13,7 +13,6 @@ exports.EducationClassBook = void 0;
 const openapi = require("@nestjs/swagger");
 const typeorm_1 = require("typeorm");
 const education_book_entity_1 = require("./education-book.entity");
-const education_class_entity_1 = require("./education-class.entity");
 const user_entity_1 = require("./user.entity");
 let EducationClassBook = class EducationClassBook {
     id;
@@ -31,10 +30,10 @@ __decorate([
     __metadata("design:type", String)
 ], EducationClassBook.prototype, "id", void 0);
 __decorate([
-    (0, typeorm_1.ManyToOne)(() => education_class_entity_1.EducationClass, (classroom) => classroom.books, {
+    (0, typeorm_1.ManyToOne)("EducationClass", (classroom) => classroom.books, {
         onDelete: "CASCADE",
     }),
-    __metadata("design:type", education_class_entity_1.EducationClass)
+    __metadata("design:type", Function)
 ], EducationClassBook.prototype, "classroom", void 0);
 __decorate([
     (0, typeorm_1.ManyToOne)(() => education_book_entity_1.EducationBook, { onDelete: "RESTRICT" }),

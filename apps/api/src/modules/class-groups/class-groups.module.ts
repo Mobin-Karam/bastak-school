@@ -11,7 +11,13 @@ import { ClassGroupsService } from "./class-groups.service";
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([EducationClass, EducationClassEnrollment, StudyGroup, StudyGroupMembership, Student]),
+    TypeOrmModule.forFeature([
+      EducationClass,
+      EducationClassEnrollment,
+      StudyGroup,
+      StudyGroupMembership,
+      Student,
+    ]),
     SchoolAccessModule,
   ],
   controllers: [ClassGroupsController],

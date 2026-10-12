@@ -31,8 +31,8 @@ const dorm_room_entity_1 = require("../../database/entities/dorm-room.entity");
 const dorm_room_assignment_entity_1 = require("../../database/entities/dorm-room-assignment.entity");
 const study_group_entity_1 = require("../../database/entities/study-group.entity");
 const study_group_membership_entity_1 = require("../../database/entities/study-group-membership.entity");
-const realtime_service_1 = require("../realtime/realtime.service");
-const notifications_service_1 = require("../notifications/notifications.service");
+const realtime_1 = require("../realtime");
+const notifications_1 = require("../notifications");
 const phone_number_1 = require("../../common/utils/phone-number");
 let WorkflowsService = class WorkflowsService {
     sessions;
@@ -1235,7 +1235,7 @@ exports.WorkflowsService = WorkflowsService = __decorate([
         typeorm_2.Repository,
         typeorm_2.Repository,
         typeorm_2.Repository,
-        realtime_service_1.RealtimeService,
-        notifications_service_1.NotificationsService])
+        realtime_1.RealtimeService,
+        notifications_1.NotificationsService])
 ], WorkflowsService);
 //# sourceMappingURL=workflows.service.js.map

@@ -2,8 +2,8 @@ import { Injectable } from "@nestjs/common";
 import { ApiException } from "../../common/exceptions/api.exception";
 import { AuthenticatedUser } from "../auth";
 import { LegacyDashboardService } from "./dashboard.service";
-import { ScheduleService } from "../schedule/schedule.service";
-import { SchoolHomeService } from "../school-home/school-home.service";
+import { ScheduleService } from "../schedule";
+import { SchoolHomeService } from "../school-home";
 
 type DashboardContext =
   | "STUDENT"

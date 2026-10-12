@@ -43,42 +43,46 @@ export function AdminHeader({
         <div className="flex min-w-0 flex-1 items-center gap-2">
           <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3">
             <div className="min-w-0 flex-1">
-              <div className="flex flex-row gap-6">
+              <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
                 <strong className="block truncate text-sm sm:text-base">{current.title}</strong>
                 {breadcrumbs.length > 1 ? (
                   <nav
                     aria-label={copy.pageLocation}
-                    className="mb-0.5 hidden min-w-0 items-center gap-1 text-[10px] text-slate-400 md:flex"
+                    className="mb-0.5 hidden min-w-0 items-center gap-1 text-xs text-slate-600 dark:text-slate-400 md:flex"
                   >
                     {breadcrumbs.map((item, index) => {
-                    const destination = resolveAdminNavigation(item.path);
-                    return (
-                      <span
-                        key={`${item.path}-${index}`}
-                        className="flex min-w-0 items-center gap-1"
-                      >
-                        {index ? (
-                          <BreadcrumbChevron className="shrink-0" size={11} />
-                        ) : (
-                          <Home className="shrink-0" size={11} />
-                        )}
-                        {index === breadcrumbs.length - 1 ? (
-                          <span
-                            className="truncate font-semibold text-slate-600 dark:text-slate-300"
-                            aria-current="page"
-                          >
-                            {item.title}
-                          </span>
-                        ) : (
-                          <NavLink
-                            className="truncate rounded-sm outline-none transition hover:text-brand focus-visible:ring-2 focus-visible:ring-brand"
-                            to={adminDestination(item.path, destination.section, selectedStudentId)}
-                          >
-                            {item.title}
-                          </NavLink>
-                        )}
-                      </span>
-                    );
+                      const destination = resolveAdminNavigation(item.path);
+                      return (
+                        <span
+                          key={`${item.path}-${index}`}
+                          className="flex min-w-0 items-center gap-1"
+                        >
+                          {index ? (
+                            <BreadcrumbChevron className="shrink-0" size={11} />
+                          ) : (
+                            <Home className="shrink-0" size={11} />
+                          )}
+                          {index === breadcrumbs.length - 1 ? (
+                            <span
+                              className="truncate font-semibold text-slate-600 dark:text-slate-300"
+                              aria-current="page"
+                            >
+                              {item.title}
+                            </span>
+                          ) : (
+                            <NavLink
+                              className="truncate rounded-sm outline-none transition hover:text-brand focus-visible:ring-2 focus-visible:ring-brand"
+                              to={adminDestination(
+                                item.path,
+                                destination.section,
+                                selectedStudentId,
+                              )}
+                            >
+                              {item.title}
+                            </NavLink>
+                          )}
+                        </span>
+                      );
                     })}
                   </nav>
                 ) : null}
@@ -99,7 +103,7 @@ export function AdminHeader({
         </div>
 
         <div className="flex min-w-0 shrink-0 items-center gap-1.5 sm:gap-2">
-          <HeaderClock classNameClockMain="lg:block hidden " />
+          <HeaderClock classNameClockMain="hidden min-[1536px]:block" />
           <div className="hidden xl:block">
             <ThemeSwitcher />
           </div>

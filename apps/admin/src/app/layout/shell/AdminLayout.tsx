@@ -1,3 +1,4 @@
+import { StudentAttendancePoolPrompt } from "../../../features/attendance/components/StudentAttendanceWorkspace";
 import { useQuery } from "@tanstack/react-query";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Outlet, useNavigate } from "react-router-dom";
@@ -52,13 +53,14 @@ export function AdminLayout() {
 
   return (
     <div
-      className="admin-role-shell h-dvh overflow-hidden bg-paper text-ink"
+      className="admin-role-shell flex h-dvh flex-col overflow-hidden bg-paper text-ink"
       data-role={model.auth.activeRole ?? "DEFAULT"}
       data-performance={model.performance}
       data-shell={shell}
       dir={model.direction}
     >
       <PrincipalLeaveRequestAlert />
+      {model.auth.can("attendance.self.read") ? <StudentAttendancePoolPrompt /> : null}
       <AdminShellChrome shell={shell} model={model} onOpenCommandPalette={openCommandPalette} />
       <SharedPageViewport
         contentOffsetClassName={

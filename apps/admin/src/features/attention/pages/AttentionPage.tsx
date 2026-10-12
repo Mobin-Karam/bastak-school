@@ -22,7 +22,6 @@ import {
   attentionTypeLabel,
 } from "../attention-locale";
 
-const priorityLabels = { urgent: "فوری", high: "بالا", normal: "عادی" } as const;
 const priorityTones = { urgent: "red", high: "amber", normal: "blue" } as const;
 export const attentionStatusLabels = { open: "باز" } as const;
 
@@ -36,15 +35,6 @@ export function formatAttentionDueDate(value: string, locale = "fa-IR") {
     ...(value.length > 10 ? { hour: "2-digit", minute: "2-digit" } : {}),
   }).format(date);
 }
-
-const typeLabels: Record<AttentionItem["type"], string> = {
-  recovery: "بازیابی",
-  task_issue: "مسئله فعالیت",
-  retry_request: "تلاش مجدد",
-  unread_chat: "گفت‌وگو",
-  sync_failure: "همگام‌سازی",
-  inactive_user: "حساب",
-};
 
 export function AttentionPage() {
   const { language, profile } = useLocale();

@@ -26,7 +26,7 @@ const student_entity_1 = require("../../database/entities/student.entity");
 const task_entity_1 = require("../../database/entities/task.entity");
 const organization_membership_entity_2 = require("../../database/entities/organization-membership.entity");
 const authorization_1 = require("../authorization");
-const realtime_service_1 = require("../realtime/realtime.service");
+const realtime_1 = require("../realtime");
 let EducationSharingService = class EducationSharingService {
     students;
     memberships;
@@ -482,7 +482,7 @@ exports.EducationSharingService = EducationSharingService = __decorate([
         typeorm_2.Repository,
         typeorm_2.Repository,
         authorization_1.AuthorizationService,
-        realtime_service_1.RealtimeService])
+        realtime_1.RealtimeService])
 ], EducationSharingService);
 function planCopyValues(source) {
     return {
