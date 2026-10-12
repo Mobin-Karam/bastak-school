@@ -12,10 +12,13 @@ import { Student } from "./student.entity";
 @Index(["classroom", "student"], { unique: true })
 export class EducationClassEnrollment {
   @PrimaryGeneratedColumn("uuid") id!: string;
-  @ManyToOne("EducationClass", (classroom: EducationClass) => classroom.enrollments, {
-    onDelete: "CASCADE",
-  })
+  @ManyToOne(
+    "EducationClass",
+    (classroom: EducationClass) => classroom.enrollments,
+    { nullable: false, onDelete: "CASCADE" },
+  )
   classroom!: EducationClass;
-  @ManyToOne(() => Student, { onDelete: "CASCADE" }) student!: Student;
+  @ManyToOne(() => Student, { nullable: false, onDelete: "CASCADE" })
+  student!: Student;
   @CreateDateColumn() createdAt!: Date;
 }

@@ -25,11 +25,11 @@ export class ExitPermission {
   id!: string;
 
   @Index()
-  @ManyToOne(() => Organization, { onDelete: "CASCADE" })
+  @ManyToOne(() => Organization, { nullable: false, onDelete: "CASCADE" })
   organization!: Organization;
 
   @Index()
-  @ManyToOne(() => Student, { onDelete: "CASCADE" })
+  @ManyToOne(() => Student, { nullable: false, onDelete: "CASCADE" })
   student!: Student;
 
   @Column({ type: "datetime" })
@@ -66,7 +66,11 @@ export class ExitPermission {
   @Column({ type: "text", default: "" })
   note!: string;
 
-  @Column({ type: "varchar", length: 16, default: ExitPermissionStatus.PENDING })
+  @Column({
+    type: "varchar",
+    length: 16,
+    default: ExitPermissionStatus.PENDING,
+  })
   status!: ExitPermissionStatus;
 
   @ManyToOne(() => User, { nullable: true, onDelete: "SET NULL" })

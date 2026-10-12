@@ -9,8 +9,14 @@ export function getCurrentUser() {
   });
 }
 
-export function getAccountContext() {
-  return request<AccountContext>("GET", "/me/context", undefined, { suppressAuthFailure: true });
+export function getAccountContext(workContext?: {
+  role?: string | null;
+  organizationId?: string | null;
+}) {
+  return request<AccountContext>("GET", "/me/context", undefined, {
+    suppressAuthFailure: true,
+    workContext,
+  });
 }
 
 export function loginRequest(phoneNumber: string, password: string) {

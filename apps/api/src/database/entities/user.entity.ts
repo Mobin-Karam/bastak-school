@@ -54,7 +54,7 @@ export class User {
   passwordHash!: string;
 
   /** @deprecated Read only as a bridge for pre-RBAC databases. */
-  @Column({ type: "varchar", length: 24, nullable: true })
+  @Column({ type: "varchar", length: 24, nullable: false })
   role!: UserRole;
 
   @Column({ length: 100, default: "" }) firstName!: string;

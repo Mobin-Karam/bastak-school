@@ -81,6 +81,40 @@ describe("LoginPage", () => {
     },
   );
 
+  it("submits the checked phone and password together", async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, _init?: RequestInit) => {
+      if (String(input).includes("check-phone"))
+        return new Response(JSON.stringify({ ok: true, data: { exists: true } }));
+      return new Response(
+        JSON.stringify({ ok: false, error: { message: "Invalid credentials" } }),
+        { status: 401 },
+      );
+    });
+    globalThis.fetch = fetchMock as typeof fetch;
+    render(
+      <MemoryRouter>
+        <ThemeProvider>
+          <LocaleProvider>
+            <AuthProvider>
+              <LoginPage />
+            </AuthProvider>
+          </LocaleProvider>
+        </ThemeProvider>
+      </MemoryRouter>,
+    );
+    await userEvent.type(await screen.findByLabelText("شماره همراه"), "09123456789");
+    await userEvent.click(screen.getByRole("button", { name: "ادامه" }));
+    await userEvent.type(await screen.findByLabelText("رمز عبور"), "fixture-password");
+    await userEvent.click(screen.getByRole("button", { name: "ورود" }));
+    expect(await screen.findByText("Invalid credentials")).toBeInTheDocument();
+    const loginCall = fetchMock.mock.calls.find(([input]) => String(input).endsWith("/auth/login"));
+    expect(loginCall).toBeDefined();
+    expect(JSON.parse(loginCall![1]!.body as string)).toEqual({
+      phoneNumber: "09123456789",
+      password: "fixture-password",
+    });
+  });
+
   it("starts with an empty phone field without demo credentials", async () => {
     globalThis.fetch = vi.fn(
       async () =>

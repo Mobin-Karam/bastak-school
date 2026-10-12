@@ -5,7 +5,7 @@ import {
   hasCapability,
 } from "@moshaver/cmb-authorization";
 import { InjectRepository } from "@nestjs/typeorm";
-import { In, Repository } from "typeorm";
+import { In, IsNull, Repository } from "typeorm";
 import { ApiException } from "../../common/exceptions/api.exception";
 import {
   OrganizationMembership,
@@ -21,6 +21,8 @@ import { Permission } from "../../database/entities/permission.entity";
 import { UserCapabilityGrant } from "../../database/entities/user-capability-grant.entity";
 import { OrganizationStatus } from "../../database/entities/organization.entity";
 import { isCapabilityEnabledForOrganization } from "../organizations";
+
+import { relationshipTypesForRoles } from "./relationship-policy";
 
 export type UserContext = {
   id: string;
@@ -76,35 +78,37 @@ export class AuthorizationService {
           organization: { status: OrganizationStatus.ACTIVE },
         },
         relations: { organization: true },
+        order: { joinedAt: "ASC", id: "ASC" },
       }),
     ]);
     const activeMembershipIds = new Set(
       memberships.map((membership) => membership.id),
     );
-    const activeAssignments = assignments.filter(
-      (assignment) =>
-        !assignment.role.organizationScoped ||
-        Boolean(
-          assignment.membership?.id &&
-          activeMembershipIds.has(assignment.membership.id),
-        ),
-    );
-    // A legacy discriminator is never authority. Accounts without an explicit
-    // role assignment keep no effective role/capability until provisioned.
-    const fallback = base.role === "ADMIN" ? null : base.role;
-    const allRoles = [
-      ...new Set(
-        activeAssignments
-          .map((item) => item.role.code)
-          .concat(activeAssignments.length || !fallback ? [] : [fallback]),
-      ),
-    ];
-    if (requestedRole && !allRoles.includes(requestedRole))
-      throw new ApiException(
-        403,
-        "WORK_CONTEXT_FORBIDDEN",
-        "زمینه کاری انتخاب‌شده در دسترس نیست.",
+    const student = assignments.some((item) => item.role.code === "STUDENT")
+      ? await this.students.findOne({
+          where: { user: { id: base.id } },
+          relations: { organization: true },
+        })
+      : null;
+    const activeAssignments = assignments
+      .filter(
+        (item) =>
+          item.role.code !== "STUDENT" ||
+          (student?.accountStatus === "active" &&
+            (!student.organization ||
+              student.organization.id === item.membership?.organization.id)),
+      )
+      .filter(
+        (assignment) =>
+          !assignment.role.organizationScoped ||
+          Boolean(
+            assignment.membership?.id &&
+            activeMembershipIds.has(assignment.membership.id),
+          ),
       );
+    const allRoles = [
+      ...new Set(activeAssignments.map((item) => item.role.code)),
+    ];
     if (
       requestedOrganizationId &&
       !memberships.some(
@@ -116,6 +120,29 @@ export class AuthorizationService {
         403,
         "ORGANIZATION_FORBIDDEN",
         "به این سازمان دسترسی ندارید.",
+      );
+    // Missing headers must never combine tenant authority. Use the same first
+    // membership fallback as /me/context; platform assignments remain global.
+    requestedOrganizationId ??= allRoles.includes("PLATFORM_ADMIN")
+      ? undefined
+      : memberships.find((membership) =>
+          activeAssignments.some(
+            (item) => item.membership?.id === membership.id,
+          ),
+        )?.organization.id;
+    const eligibleAssignments = activeAssignments.filter(
+      (item) =>
+        !item.role.organizationScoped ||
+        item.membership?.organization.id === requestedOrganizationId,
+    );
+    if (
+      requestedRole &&
+      !eligibleAssignments.some((item) => item.role.code === requestedRole)
+    )
+      throw new ApiException(
+        403,
+        "WORK_CONTEXT_FORBIDDEN",
+        "زمینه کاری انتخاب‌شده در این سازمان در دسترس نیست.",
       );
     const featureOrganization = memberships.find(
       (membership) => membership.organization.id === requestedOrganizationId,
@@ -132,7 +159,7 @@ export class AuthorizationService {
           );
     const context = buildAuthorizationContext(
       base,
-      activeAssignments.map((item) => ({
+      eligibleAssignments.map((item) => ({
         role: item.role.code,
         organizationScoped: item.role.organizationScoped,
         organizationId: item.membership?.organization?.id,
@@ -148,12 +175,12 @@ export class AuthorizationService {
       })),
       { requestedRole, requestedOrganizationId },
     );
-    // Global roles (for example STUDENT and GUARDIAN) are not tenant roles,
+    // Unscoped platform roles remain valid while a school is selected.
     // but their permissions remain valid while a school is selected. Keep the
     // host adapter compatible with an already-installed 0.1.x authorization
     // package that filtered those roles too aggressively; the set merge is a
     // no-op with the corrected package implementation.
-    const unscopedCapabilities = activeAssignments
+    const unscopedCapabilities = eligibleAssignments
       .filter(
         (item) =>
           !item.role.organizationScoped &&
@@ -256,7 +283,7 @@ export class AuthorizationService {
         context.organizationIds.includes(student.organization.id)
       )
         return true;
-      if (!student.user?.id) return false;
+      if (student.organization || !student.user?.id) return false;
       const sharedMembership = await this.memberships.findOne({
         where: {
           user: { id: student.user.id },
@@ -266,13 +293,42 @@ export class AuthorizationService {
       });
       if (sharedMembership) return true;
     }
+    const relationshipTypes = relationshipTypesForRoles(context.roles);
+    if (!relationshipTypes.length) return false;
+    if (
+      student.organization &&
+      !context.organizationIds.includes(student.organization.id)
+    )
+      return false;
     const relation = await this.relationships.findOne({
       where: {
         fromUser: { id: context.id },
         toStudent: { id: studentId },
         status: RelationshipStatus.ACTIVE,
+        type: In(relationshipTypes),
+        organization: student.organization
+          ? { id: student.organization.id }
+          : context.organizationIds.length
+            ? { id: In(context.organizationIds) }
+            : IsNull(),
       },
+      relations: { organization: true },
     });
-    return Boolean(relation);
+    if (!relation) return false;
+    const organizationId = relation.organization?.id;
+    if (!organizationId)
+      return !student.organization && !context.activeOrganizationId;
+    if (!context.organizationIds.includes(organizationId)) return false;
+    if (student.organization?.id === organizationId) return true;
+    return Boolean(
+      student.user &&
+      (await this.memberships.findOne({
+        where: {
+          user: { id: student.user.id },
+          organization: { id: organizationId },
+          status: MembershipStatus.ACTIVE,
+        },
+      })),
+    );
   }
 }

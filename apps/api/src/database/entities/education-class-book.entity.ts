@@ -14,11 +14,13 @@ import { User } from "./user.entity";
 export class EducationClassBook {
   @PrimaryGeneratedColumn("uuid") id!: string;
   @ManyToOne("EducationClass", (classroom: EducationClass) => classroom.books, {
+    nullable: false,
     onDelete: "CASCADE",
   })
   classroom!: EducationClass;
-  @ManyToOne(() => EducationBook, { onDelete: "RESTRICT" })
+  @ManyToOne(() => EducationBook, { nullable: false, onDelete: "RESTRICT" })
   book!: EducationBook;
-  @ManyToOne(() => User, { onDelete: "RESTRICT" }) teacher!: User;
+  @ManyToOne(() => User, { nullable: false, onDelete: "RESTRICT" })
+  teacher!: User;
   @CreateDateColumn() createdAt!: Date;
 }

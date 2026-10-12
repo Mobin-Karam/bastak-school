@@ -1,4 +1,12 @@
-import { Column, CreateDateColumn, Entity, Index, ManyToOne, PrimaryGeneratedColumn, UpdateDateColumn } from "typeorm";
+import {
+  Column,
+  CreateDateColumn,
+  Entity,
+  Index,
+  ManyToOne,
+  PrimaryGeneratedColumn,
+  UpdateDateColumn,
+} from "typeorm";
 import { Student } from "./student.entity";
 
 @Entity("daily_reports")
@@ -7,7 +15,10 @@ export class DailyReport {
   @PrimaryGeneratedColumn("uuid")
   id!: string;
 
-  @ManyToOne(() => Student, (student) => student.dailyReports, { onDelete: "CASCADE" })
+  @ManyToOne(() => Student, (student) => student.dailyReports, {
+    nullable: false,
+    onDelete: "CASCADE",
+  })
   student!: Student;
 
   @Column({ type: "date" })

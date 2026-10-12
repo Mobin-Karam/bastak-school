@@ -167,6 +167,8 @@ export const CAPABILITIES = [
   "database.restore",
   "principal.permissions.manage",
   "schedule.read",
+  "schedule.read.all",
+  "schedule.publish",
   "schedule.create",
   "schedule.update",
   "schedule.delete",
@@ -274,3 +276,5 @@ export type {
   AttendancePoolDraft, AttendancePool, StudentAttendancePool, StaffAttendanceSession,
   AttendanceDailyOverview, StaffAttendanceProfile, AttendanceEncouragement, AttendanceMissingMember,
 } from "./attendance-operations";
+
+export type * from "./timetable";

@@ -1,3 +1,4 @@
+import axe from "axe-core";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { cleanup, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -8,7 +9,14 @@ import { ModalProvider } from "../../shared/ui/modal";
 import { UsersPage } from "./UsersPage";
 import { accessCopy } from "./model/access-copy";
 
-const state = vi.hoisted(() => ({ manage: true, listUsers: vi.fn(), setUserActive: vi.fn() }));
+const state = vi.hoisted(() => ({
+  manage: true,
+  listUsers: vi.fn(),
+  setUserActive: vi.fn(),
+  updateUser: vi.fn(),
+  setUserRoles: vi.fn(),
+  createUser: vi.fn(),
+}));
 vi.mock("../auth", () => ({
   useAuth: () => ({
     can: () => state.manage,
@@ -21,11 +29,11 @@ vi.mock("./api/access.api", () => ({
   listUsers: state.listUsers,
   listOrganizations: vi.fn(),
   setUserActive: state.setUserActive,
-  createUser: vi.fn(),
+  createUser: state.createUser,
   archiveUser: vi.fn(),
   transferPlatformOwnership: vi.fn(),
-  updateUser: vi.fn(),
-  setUserRoles: vi.fn(),
+  updateUser: state.updateUser,
+  setUserRoles: state.setUserRoles,
 }));
 const copy = accessCopy.en;
 function mount() {
@@ -141,3 +149,110 @@ it("validates account details before the access step and retains them when going
   expect(dialog.getByLabelText(copy.phoneNumber)).toHaveValue("09333333333");
   expect(dialog.getByLabelText(copy.password)).toHaveValue("ValidPassword123");
 });
+
+it("preserves all roles when saving only profile details", async () => {
+  state.listUsers.mockResolvedValue([
+    {
+      id: "staff",
+      firstName: "Employee",
+      username: "09222222222",
+      status: "ACTIVE",
+      assignments: [
+        { role: "TEACHER", organizationId: "school" },
+        { role: "SCHOOL_SUPERVISOR", organizationId: "school" },
+        { role: "COUNSELOR", organizationId: "school" },
+      ],
+    },
+  ]);
+  mount();
+  const row = within(await screen.findByRole("table"))
+    .getByText("Employee")
+    .closest("tr")!;
+  await userEvent.click(within(row).getByRole("button", { name: /actions/i }));
+  await userEvent.click(screen.getByRole("menuitem", { name: copy.edit }));
+  const dialog = within(screen.getByRole("dialog"));
+  expect(dialog.getByRole("checkbox", { name: "Teacher" })).toBeChecked();
+  expect(dialog.getByRole("checkbox", { name: "School supervisor" })).toBeChecked();
+  await userEvent.clear(dialog.getByLabelText(copy.firstName));
+  await userEvent.type(dialog.getByLabelText(copy.firstName), "Updated");
+  await userEvent.click(dialog.getByRole("button", { name: copy.saveChanges }));
+  expect(state.updateUser).toHaveBeenCalledWith(
+    "staff",
+    expect.objectContaining({ firstName: "Updated" }),
+  );
+  expect(state.setUserRoles).not.toHaveBeenCalled();
+});
+it("removes only the unchecked role and retains roles the principal cannot edit", async () => {
+  state.listUsers.mockResolvedValue([
+    {
+      id: "staff",
+      firstName: "Employee",
+      username: "09222222222",
+      status: "ACTIVE",
+      assignments: [
+        { role: "TEACHER", organizationId: "school" },
+        { role: "SCHOOL_SUPERVISOR", organizationId: "school" },
+        { role: "COUNSELOR", organizationId: "school" },
+      ],
+    },
+  ]);
+  mount();
+  const row = within(await screen.findByRole("table"))
+    .getByText("Employee")
+    .closest("tr")!;
+  await userEvent.click(within(row).getByRole("button", { name: /actions/i }));
+  await userEvent.click(screen.getByRole("menuitem", { name: copy.edit }));
+  const dialog = within(screen.getByRole("dialog"));
+  expect(dialog.getByRole("checkbox", { name: "Counselor" })).toBeDisabled();
+  await userEvent.click(dialog.getByRole("checkbox", { name: "Teacher" }));
+  await userEvent.click(dialog.getByRole("button", { name: copy.saveChanges }));
+  expect(state.updateUser).not.toHaveBeenCalled();
+  expect(state.setUserRoles).toHaveBeenCalledWith("staff", {
+    roleCodes: ["SCHOOL_SUPERVISOR", "COUNSELOR"],
+    organizationId: "school",
+  });
+});
+it("creates one account with supervisor and teacher roles", async () => {
+  mount();
+  await screen.findByRole("table");
+  await userEvent.click(screen.getByRole("button", { name: copy.newUser }));
+  const dialog = within(screen.getByRole("dialog"));
+  await userEvent.type(dialog.getByLabelText(copy.phoneNumber), "09333333333");
+  await userEvent.type(dialog.getByLabelText(copy.password), "ValidPassword123");
+  await userEvent.click(dialog.getByRole("button", { name: "Continue" }));
+  await userEvent.click(dialog.getByRole("checkbox", { name: "Student" }));
+  await userEvent.click(dialog.getByRole("checkbox", { name: "Teacher" }));
+  await userEvent.click(dialog.getByRole("checkbox", { name: "School supervisor" }));
+  await userEvent.click(dialog.getByRole("button", { name: copy.createAccount }));
+  expect(state.createUser).toHaveBeenCalledWith(
+    expect.objectContaining({
+      roleCodes: ["TEACHER", "SCHOOL_SUPERVISOR"],
+      organizationId: "school",
+    }),
+  );
+});
+
+it.each([false, true])(
+  "keeps multi-role selection keyboard accessible (mobile=%s)",
+  async (mobile) => {
+    vi.stubGlobal(
+      "matchMedia",
+      vi.fn(() => ({ matches: mobile, addEventListener: vi.fn(), removeEventListener: vi.fn() })),
+    );
+    mount();
+    await screen.findByRole("table");
+    await userEvent.click(screen.getByRole("button", { name: copy.newUser }));
+    const element = screen.getByRole("dialog");
+    const dialog = within(element);
+    await userEvent.type(dialog.getByLabelText(copy.phoneNumber), "09333333333");
+    await userEvent.type(dialog.getByLabelText(copy.password), "ValidPassword123");
+    await userEvent.click(dialog.getByRole("button", { name: "Continue" }));
+    const teacher = dialog.getByRole("checkbox", { name: "Teacher" });
+    teacher.focus();
+    await userEvent.keyboard("[Space]");
+    expect(teacher).toBeChecked();
+    expect(
+      (await axe.run(element, { rules: { "color-contrast": { enabled: false } } })).violations,
+    ).toEqual([]);
+  },
+);

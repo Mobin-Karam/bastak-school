@@ -16,11 +16,12 @@ export class DormRoomAssignment {
   id!: string;
 
   @ManyToOne("DormRoom", (room: DormRoom) => room.assignments, {
+    nullable: false,
     onDelete: "CASCADE",
   })
   room!: DormRoom;
 
-  @ManyToOne(() => Student, { onDelete: "CASCADE" })
+  @ManyToOne(() => Student, { nullable: false, onDelete: "CASCADE" })
   student!: Student;
 
   @CreateDateColumn()

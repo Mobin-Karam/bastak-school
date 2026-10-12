@@ -17,10 +17,12 @@ import { User } from "./user.entity";
 @Index(["room"], { unique: true })
 export class DormAttendanceDelegate {
   @PrimaryGeneratedColumn("uuid") id!: string;
-  @ManyToOne(() => Organization, { onDelete: "CASCADE" })
+  @ManyToOne(() => Organization, { nullable: false, onDelete: "CASCADE" })
   organization!: Organization;
-  @ManyToOne(() => DormRoom, { onDelete: "CASCADE" }) room!: DormRoom;
-  @ManyToOne(() => Student, { onDelete: "CASCADE" }) student!: Student;
+  @ManyToOne(() => DormRoom, { nullable: false, onDelete: "CASCADE" })
+  room!: DormRoom;
+  @ManyToOne(() => Student, { nullable: false, onDelete: "CASCADE" })
+  student!: Student;
   @ManyToOne(() => User, { nullable: true, onDelete: "SET NULL" })
   grantedBy?: User | null;
   @Column({ length: 10 }) startsOn!: string;

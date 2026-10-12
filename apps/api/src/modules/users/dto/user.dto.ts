@@ -1,5 +1,6 @@
 import {
   ArrayUnique,
+  ArrayNotEmpty,
   IsArray,
   IsIn,
   IsOptional,
@@ -15,7 +16,11 @@ export class CreateUserDto {
   @IsOptional() @IsString() @Length(0, 100) firstName?: string;
   @IsOptional() @IsString() @Length(0, 100) lastName?: string;
   @IsOptional() @IsUUID() organizationId?: string;
-  @IsArray() @ArrayUnique() @IsString({ each: true }) roleCodes!: string[];
+  @IsArray()
+  @ArrayNotEmpty()
+  @ArrayUnique()
+  @IsString({ each: true })
+  roleCodes!: string[];
 }
 export class UpdateUserDto {
   @IsOptional() @IsString() @Matches(/^09\d{9}$/) phoneNumber?: string;
@@ -25,7 +30,11 @@ export class UpdateUserDto {
   @IsOptional() @IsString() @Length(2, 64) timezone?: string;
 }
 export class SetRolesDto {
-  @IsArray() @ArrayUnique() @IsString({ each: true }) roleCodes!: string[];
+  @IsArray()
+  @ArrayNotEmpty()
+  @ArrayUnique()
+  @IsString({ each: true })
+  roleCodes!: string[];
   @IsOptional() @IsUUID() organizationId?: string;
 }
 

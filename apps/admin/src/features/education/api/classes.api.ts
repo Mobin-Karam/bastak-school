@@ -78,3 +78,6 @@ export const exportClassTransfer = (organizationId: string) =>
   api.get<ClassTransferRow[]>(
     `/classes/transfer/export?organizationId=${encodeURIComponent(organizationId)}`,
   );
+
+export const addClassBook = (id: string, bookId: string, teacherId: string) =>
+  api.post<EducationClass>(`/classes/${encodeURIComponent(id)}/books`, { bookId, teacherId });

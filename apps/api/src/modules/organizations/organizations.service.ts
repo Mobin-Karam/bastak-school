@@ -20,6 +20,7 @@ import {
 import { Role } from "../../database/entities/role.entity";
 import { UserRoleAssignment } from "../../database/entities/user-role-assignment.entity";
 import { User } from "../../database/entities/user.entity";
+import { ensureStudentAccount } from "../students";
 import { AuthenticatedUser } from "../auth";
 import {
   AddMemberDto,
@@ -299,11 +300,24 @@ export class OrganizationsService {
       });
       if (roles.length !== new Set(dto.roleCodes).size)
         throw new ApiException(400, "INVALID_ROLE", "نقش سازمانی نامعتبر است.");
-      for (const role of roles)
+      for (const role of roles) {
+        if (
+          await manager.findOne(UserRoleAssignment, {
+            where: {
+              user: { id: user.id },
+              role: { id: role.id },
+              membership: { id: membership.id },
+            },
+          })
+        )
+          continue;
         await manager.save(
           UserRoleAssignment,
           manager.create(UserRoleAssignment, { user, role, membership }),
         );
+      }
+      if (dto.roleCodes.includes("STUDENT"))
+        await ensureStudentAccount(manager, user, org);
       await ensureOrganizationChat(manager, org, user);
       return {
         membershipId: membership.id,
@@ -363,6 +377,8 @@ export class OrganizationsService {
         const organization = await manager.findOneByOrFail(Organization, {
           id: organizationId,
         });
+        if (dto.roleCodes?.includes("STUDENT"))
+          await ensureStudentAccount(manager, membership.user, organization);
         await ensureOrganizationChat(manager, organization, membership.user);
       } else await leaveOrganizationChat(manager, organizationId, userId);
       return { userId, status: membership.status, roles: dto.roleCodes };

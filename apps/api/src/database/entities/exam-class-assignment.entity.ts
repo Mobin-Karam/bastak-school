@@ -12,8 +12,8 @@ import { Exam } from "./exam.entity";
 @Index(["exam", "classroom"], { unique: true })
 export class ExamClassAssignment {
   @PrimaryGeneratedColumn("uuid") id!: string;
-  @ManyToOne(() => Exam, { onDelete: "CASCADE" }) exam!: Exam;
-  @ManyToOne(() => EducationClass, { onDelete: "CASCADE" })
+  @ManyToOne(() => Exam, { nullable: false, onDelete: "CASCADE" }) exam!: Exam;
+  @ManyToOne(() => EducationClass, { nullable: false, onDelete: "CASCADE" })
   classroom!: EducationClass;
   @CreateDateColumn() createdAt!: Date;
 }

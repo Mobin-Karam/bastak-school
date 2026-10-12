@@ -13,13 +13,19 @@
 // - keeps existing DatePicker and DateTimePicker API
 
 import { CalendarDays, ChevronLeft, ChevronRight, X } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { addDays, cn, todayIso } from "../lib/utils";
 import { useLocale } from "./locale";
 import { ViewportPopover } from "./popover";
 import { Input } from "./ui";
 
 type DatePickerProps = {
+  calendar?: "persian" | "gregory";
+  today?: string;
+  ariaLabel?: string;
+  id?: string;
+  "aria-describedby"?: string;
+  "aria-invalid"?: boolean;
   value: string;
   onChange: (iso: string) => void;
   disabled?: boolean;
@@ -34,6 +40,12 @@ type DatePickerProps = {
 export function DatePicker({
   value,
   onChange,
+  calendar,
+  today = todayIso(),
+  ariaLabel,
+  id,
+  "aria-describedby": describedBy,
+  "aria-invalid": invalid,
   disabled,
   required,
   className,
@@ -42,17 +54,38 @@ export function DatePicker({
   clearable = true,
   showToday = true,
 }: DatePickerProps) {
-  const { language, profile, formatDate } = useLocale();
-  const copy = datePickerCopy[language];
+  const { language, profile: configuredProfile, formatDate: localeFormatDate } = useLocale();
+  const profile = calendar
+    ? {
+        ...configuredProfile,
+        calendar,
+        locale: calendar === "persian" ? "fa-IR" : configuredProfile.locale,
+      }
+    : configuredProfile;
+  const formatDate = (iso: string, options: Intl.DateTimeFormatOptions = {}) =>
+    calendar
+      ? new Intl.DateTimeFormat(`${profile.locale}-u-ca-${calendar}`, {
+          ...(Object.keys(options).length
+            ? options
+            : { year: "numeric", month: "long", day: "numeric" }),
+          timeZone: "UTC",
+        }).format(new Date(`${iso}T12:00:00Z`))
+      : localeFormatDate(iso, options);
+  const copy = datePickerCopy[calendar === "persian" ? "fa" : language];
 
   const [open, setOpen] = useState(false);
+  const triggerRef = useRef<HTMLButtonElement | null>(null);
+  const [portalContainer, setPortalContainer] = useState<Element | undefined>();
   const [mode, setMode] = useState<"calendar" | "month" | "year">("calendar");
-  const [cursor, setCursor] = useState(isValidIso(value) ? value : todayIso());
+  const boundedToday = max && today > max ? max : min && today < min ? min : today;
+  const [cursor, setCursor] = useState(isValidIso(value) ? value : boundedToday);
   const hasValue = isValidIso(value);
+  const valueDescriptionId = useId();
 
   useEffect(() => {
     if (isValidIso(value)) setCursor(value);
-  }, [value]);
+    else if (isValidIso(boundedToday)) setCursor(boundedToday);
+  }, [value, boundedToday]);
 
   const parts = calendarParts(cursor, profile.locale, profile.calendar);
 
@@ -67,29 +100,50 @@ export function DatePicker({
     onChange(date);
     setCursor(date);
     setOpen(false);
+    triggerRef.current?.focus();
   }
 
   return (
     <div className={cn("relative", className)}>
+      {hasValue ? (
+        <span className="sr-only" id={valueDescriptionId}>
+          {formatDate(value)}
+        </span>
+      ) : null}
       <ViewportPopover
         open={open}
+        portalContainer={portalContainer}
         onOpenChange={(state) => {
+          if (state)
+            setPortalContainer(triggerRef.current?.closest('[role="dialog"]') ?? undefined);
           setOpen(state);
           if (state) setMode("calendar");
         }}
         width={350}
+        label={calendar === "persian" ? "تقویم شمسی" : copy.selectDate}
         className="p-3"
         trigger={(props) => (
           <button
             {...props}
+            ref={(node) => {
+              props.ref(node);
+              triggerRef.current = node;
+            }}
             type="button"
             disabled={disabled}
+            id={id}
+            aria-describedby={
+              [describedBy, hasValue ? valueDescriptionId : undefined].filter(Boolean).join(" ") ||
+              undefined
+            }
+            aria-invalid={invalid}
             aria-label={
-              hasValue && clearable && !required
+              ariaLabel ??
+              (hasValue && clearable && !required
                 ? copy.clearHint(formatDate(value))
                 : hasValue
                   ? formatDate(value)
-                  : copy.selectDate
+                  : copy.selectDate)
             }
             onKeyDown={(event) => {
               if (
@@ -124,6 +178,7 @@ export function DatePicker({
       >
         {mode === "month" && (
           <MonthPicker
+            cursor={cursor}
             locale={profile.locale}
             calendar={profile.calendar}
             selected={parts.month}
@@ -145,7 +200,16 @@ export function DatePicker({
                   year === parts.year && "bg-brand text-white",
                 )}
                 onClick={() => {
-                  setCursor(addDays(cursor, (year - parts.year) * 365));
+                  setCursor(
+                    findCalendarDate(
+                      cursor,
+                      year,
+                      parts.month,
+                      parts.day,
+                      profile.locale,
+                      profile.calendar,
+                    ),
+                  );
                   setMode("calendar");
                 }}
               >
@@ -200,7 +264,7 @@ export function DatePicker({
                     className={cn(
                       "aspect-square rounded-xl text-sm hover:bg-brand/10",
                       day.iso === value && "bg-brand text-white",
-                      day.iso === todayIso() && day.iso !== value && "ring-1 ring-brand",
+                      day.iso === today && day.iso !== value && "ring-1 ring-brand",
                     )}
                   >
                     {localNumber(day.day, profile.locale)}
@@ -215,8 +279,8 @@ export function DatePicker({
               <button
                 type="button"
                 className="mt-3 w-full rounded-xl py-2 text-brand hover:bg-brand/10"
-                onClick={() => selectDate(todayIso())}
-                disabled={(!!min && todayIso() < min) || (!!max && todayIso() > max)}
+                onClick={() => selectDate(today)}
+                disabled={(!!min && today < min) || (!!max && today > max)}
               >
                 {copy.today}
               </button>
@@ -225,7 +289,16 @@ export function DatePicker({
         )}
       </ViewportPopover>
 
-      {required && <input className="sr-only" required value={value} readOnly />}
+      {required && (
+        <input
+          className="sr-only"
+          tabIndex={-1}
+          aria-hidden="true"
+          required
+          value={value}
+          readOnly
+        />
+      )}
     </div>
   );
 }
@@ -247,11 +320,12 @@ const datePickerCopy = {
   },
 } as const;
 
-function MonthPicker({ onSelect, selected, locale, calendar }: any) {
+function MonthPicker({ onSelect, selected, locale, calendar, cursor }: any) {
   const names = Array.from({ length: 12 }, (_, i) =>
     new Intl.DateTimeFormat(`${locale}-u-ca-${calendar}`, {
       month: "long",
-    }).format(new Date(2025, i, 1)),
+      timeZone: "UTC",
+    }).format(new Date(`${findMonth(cursor, i + 1, locale, calendar)}T12:00:00Z`)),
   );
   return (
     <div className="grid grid-cols-3 gap-2">
@@ -311,7 +385,8 @@ function calendarParts(iso: string, locale: string, calendar: string) {
     year: "numeric",
     month: "numeric",
     day: "numeric",
-  }).formatToParts(new Date(`${iso}T12:00:00`));
+    timeZone: "UTC",
+  }).formatToParts(new Date(`${iso}T12:00:00Z`));
   const get = (t: string) => Number(parts.find((p) => p.type === t)?.value);
   return { year: get("year"), month: get("month"), day: get("day") };
 }
@@ -331,13 +406,33 @@ function calendarGrid(cursor: string, locale: string, calendar: string) {
   return rows;
 }
 
-function findMonth(cursor: string, month: number, locale: string, calendar: string) {
-  let p = cursor;
-  for (let i = 0; i < 370; i++) {
-    if (calendarParts(p, locale, calendar).month === month) return p;
-    p = addDays(p, 1);
+function findCalendarDate(
+  cursor: string,
+  year: number,
+  month: number,
+  day: number,
+  locale: string,
+  calendar: string,
+) {
+  const current = calendarParts(cursor, locale, calendar);
+  const estimate = addDays(
+    cursor,
+    Math.round((year - current.year) * 365.2425) + (month - current.month) * 30,
+  );
+  let last = cursor;
+  for (let offset = -40; offset <= 40; offset++) {
+    const candidate = addDays(estimate, offset),
+      parts = calendarParts(candidate, locale, calendar);
+    if (parts.year === year && parts.month === month) {
+      last = candidate;
+      if (parts.day === day) return candidate;
+    }
   }
-  return cursor;
+  return last;
+}
+function findMonth(cursor: string, month: number, locale: string, calendar: string) {
+  const parts = calendarParts(cursor, locale, calendar);
+  return findCalendarDate(cursor, parts.year, month, 1, locale, calendar);
 }
 
 function shiftCalendarMonth(cursor: string, delta: number, locale: string, calendar: string) {

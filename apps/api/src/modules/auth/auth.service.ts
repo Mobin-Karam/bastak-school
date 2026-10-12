@@ -68,7 +68,11 @@ export class AuthService {
   async checkPhone(phoneNumber: string, ip = "unknown") {
     const normalized = normalizeIranianMobile(phoneNumber);
     if (!isIranianMobile(normalized))
-      throw new ApiException(422, "INVALID_PHONE_NUMBER", "شماره همراه معتبر نیست.");
+      throw new ApiException(
+        422,
+        "INVALID_PHONE_NUMBER",
+        "شماره همراه معتبر نیست.",
+      );
     // Count every lookup, including matches, in a separate per-IP budget.
     // Do not allow phone discovery to consume or reset password-attempt limits.
     const lookupKey = `phone-lookup:${ip}`;
@@ -104,17 +108,12 @@ export class AuthService {
         "ACCOUNT_INACTIVE",
         "حساب کاربری غیرفعال یا بایگانی شده است.",
       );
-    if (user.role === "STUDENT") {
-      const student = await this.students.findOne({
-        where: { user: { id: user.id } },
-      });
-      if (!student || student.accountStatus !== "active")
-        throw new ApiException(
-          403,
-          "ACCOUNT_INACTIVE",
-          "حساب دانش‌آموز غیرفعال یا بایگانی شده است.",
-        );
-    }
+    if (!(await this.hasUsableWorkContext(user)))
+      throw new ApiException(
+        403,
+        "ACCOUNT_INACTIVE",
+        "هیچ زمینه کاری فعال و معتبر برای این حساب وجود ندارد.",
+      );
 
     const credentials = this.newCredentials();
     const session = await this.sessions.save(
@@ -168,7 +167,7 @@ export class AuthService {
         "حساب کاربری غیرفعال یا بایگانی شده است.",
       );
     }
-    if (!(await this.hasActiveStudentAccount(session.user))) {
+    if (!(await this.hasUsableWorkContext(session.user))) {
       await this.sessions.delete({ id: session.id });
       throw new ApiException(
         403,
@@ -199,7 +198,7 @@ export class AuthService {
     if (!session || session.expiresAt.getTime() <= Date.now()) return null;
     if (session.user.status && session.user.status !== UserStatus.ACTIVE)
       return null;
-    if (!(await this.hasActiveStudentAccount(session.user))) {
+    if (!(await this.hasUsableWorkContext(session.user))) {
       await this.sessions.delete({ id: session.id });
       return null;
     }
@@ -248,9 +247,18 @@ export class AuthService {
   }
 
   async context(user: AuthenticatedUser, activeOrganizationId?: string) {
-    const organizationIds = user.organizationIds ?? [];
-    const roles = user.roles ?? (user.role === "ADMIN" ? [] : [user.role]);
-    const isPlatformAdmin = roles.includes("PLATFORM_ADMIN");
+    const catalog = this.authorization
+      ? await this.authorization.enrich(
+          user as Required<AuthenticatedUser>,
+          undefined,
+          activeOrganizationId,
+        )
+      : null;
+    const organizationIds =
+      catalog?.organizationIds ?? user.organizationIds ?? [];
+    const isPlatformAdmin = (catalog?.roles ?? user.roles ?? []).includes(
+      "PLATFORM_ADMIN",
+    );
     if (
       activeOrganizationId &&
       !organizationIds.includes(activeOrganizationId) &&
@@ -275,7 +283,7 @@ export class AuthService {
         organization: { status: OrganizationStatus.ACTIVE },
       },
       relations: { organization: true },
-      order: { joinedAt: "ASC" },
+      order: { joinedAt: "ASC", id: "ASC" },
     });
     const membershipsForContext = memberships.map((membership) => ({
       membershipId: membership.id,
@@ -315,7 +323,9 @@ export class AuthService {
     // successfully but make every scoped request without X-Organization-Id.
     const effectiveOrganizationId =
       activeOrganizationId ??
-      (isPlatformAdmin ? undefined : selectableOrganizations[0]?.id);
+      (isPlatformAdmin
+        ? undefined
+        : (catalog?.activeOrganizationId ?? selectableOrganizations[0]?.id));
     const assignments = await this.authorization.enrich(
       user as Required<AuthenticatedUser>,
       undefined,
@@ -633,7 +643,16 @@ export class AuthService {
     return this.credentials.issue();
   }
 
-  private async hasActiveStudentAccount(user: User) {
+  private async hasUsableWorkContext(user: User) {
+    if (this.authorization) {
+      const context = await this.authorization.enrich({
+        id: user.id,
+        username: user.username,
+        role: user.role,
+        sessionId: "",
+      });
+      return context.roles.length > 0;
+    }
     if (user.role !== UserRole.STUDENT) return true;
     const student = await this.students.findOne({
       where: { user: { id: user.id } },

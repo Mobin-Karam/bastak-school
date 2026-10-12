@@ -150,3 +150,57 @@ function text(value: CellValue | undefined) {
 function isBlank(value: unknown) {
   return value === "" || value === null || value === undefined;
 }
+
+/** Raw workbook layout for feature-owned mapping flows; merges retain their provenance. */
+export type SpreadsheetLayoutCell = {
+  address: string;
+  row: number;
+  column: number;
+  value: string;
+  master: string;
+  merged: boolean;
+};
+export type SpreadsheetLayoutSheet = {
+  name: string;
+  rows: number;
+  columns: number;
+  cells: SpreadsheetLayoutCell[];
+};
+export async function readSpreadsheetLayout(
+  file: Pick<File, "arrayBuffer">,
+): Promise<SpreadsheetLayoutSheet[]> {
+  const bytes = await file.arrayBuffer();
+  if (bytes.byteLength > 10 * 1024 * 1024)
+    throw new SpreadsheetValidationError("فایل باید کمتر از ۱۰ مگابایت باشد.", []);
+  const { Workbook } = await import("exceljs");
+  const workbook = new Workbook();
+  await workbook.xlsx.load(bytes);
+  if (workbook.worksheets.length > 30)
+    throw new SpreadsheetValidationError("حداکثر ۳۰ کاربرگ مجاز است.", []);
+  return workbook.worksheets.map((sheet) => {
+    if (sheet.rowCount > 1000 || sheet.columnCount > 80)
+      throw new SpreadsheetValidationError("کاربرگ باید کمتر از ۱۰۰۰ ردیف و ۸۰ ستون باشد.", [
+        { sheet: sheet.name },
+      ]);
+    const cells: SpreadsheetLayoutCell[] = [];
+    for (let row = 1; row <= sheet.rowCount; row++)
+      for (let column = 1; column <= sheet.columnCount; column++) {
+        const cell = sheet.getCell(row, column);
+        let value = cell.value;
+        if (value && typeof value === "object" && "richText" in value)
+          value = value.richText.map((item) => item.text).join("");
+        if (value && typeof value === "object" && "formula" in value) value = value.result ?? "";
+        if (value && typeof value === "object" && "sharedFormula" in value)
+          value = value.result ?? "";
+        cells.push({
+          address: cell.address,
+          row,
+          column,
+          value: text(value),
+          master: cell.master.address,
+          merged: cell.isMerged,
+        });
+      }
+    return { name: sheet.name, rows: sheet.rowCount, columns: sheet.columnCount, cells };
+  });
+}

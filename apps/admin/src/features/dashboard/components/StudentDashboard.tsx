@@ -1,3 +1,4 @@
+import { TimetableToday } from "../../schedule";
 import { useQuery } from "@tanstack/react-query";
 import { CalendarCheck2, CalendarClock, ChevronLeft, Clock3 } from "lucide-react";
 import { useMemo, useState } from "react";
@@ -72,6 +73,7 @@ export function StudentDashboard() {
           {formatDate(calendarDate, { dateStyle: "medium" })}
         </span>
       </header>
+      <TimetableToday />
 
       <DashboardCalendar
         value={calendarDate}
