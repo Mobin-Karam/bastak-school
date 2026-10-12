@@ -7,7 +7,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: coolify-production
+  group: bastak-production
   cancel-in-progress: false
 
 jobs:
@@ -17,7 +17,7 @@ jobs:
     env:
       CORS_ORIGINS: https://student.example.test,https://admin.example.test
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Validate Coolify Compose topology
         run: docker compose -f docker-compose.coolify.yml config --quiet
 
@@ -27,6 +27,7 @@ jobs:
       github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' &&
       vars.PRODUCTION_DEPLOY_TARGET == 'coolify'
     runs-on: ubuntu-latest
+    environment: lan-production
     timeout-minutes: 5
     env:
       COOLIFY_DEPLOY_WEBHOOK: ${{ secrets.COOLIFY_DEPLOY_WEBHOOK }}

@@ -41,11 +41,11 @@ Use [`start-work.sh`](../../scripts/cicd/start-work.sh) to fetch `origin/develop
 | API journey | Security matrix, student exam and onboarding journeys, each with disposable SQLite | Auth, scope and selected workflows |
 | Admin quality | Parity audit, Vitest coverage, Playwright discovery and desktop layout Chromium run | UI behavior and layout |
 | Supply chain and pipeline | Production-dependency audit for Admin and API; Python pipeline tests | Dependencies and workflow invariants |
-| Containers | Build production topology, start disposable HTTPS stack, verify proxy, API, migrations, secure cookies and readiness | Deployment shape |
+| Containers | Build commit-tagged topology, authenticate critical workflows on disposable HTTPS, verify proxy/cookies/restore/migrations and retain image manifest/archive | Deployment shape |
 
 `npm run verify` delegates to [`tooling/workspace/projects.json`](../../tooling/workspace/projects.json); project scripts remain authoritative. The API unit/integration tests and Admin unit/accessibility/build checks run there. The standalone [backend quality](../../.github/workflows/backend-v2-quality.yml) workflow also applies every migration to a fresh database. Path-filtered component workflows provide extra feedback; they do not replace the unfiltered `CI Gate`.
 
-The CI browser run exercises shipped desktop layout in RTL and LTR. Account-based login smoke and planner drag require a separately seeded browser/API fixture; they are not part of the required gate. A browser layout pass is not proof of all roles or mobile flows. The [testing strategy](../engineering/testing-strategy.md) records priority gaps.
+The CI browser run exercises shipped desktop layout in RTL and LTR. Authenticated school workflows now run through the actual HTTPS container stack; account-based browser login and planner drag still need a separate seeded browser fixture and are not part of the required gate. A browser layout pass is not proof of all roles or mobile flows. The [testing strategy](../engineering/testing-strategy.md) records priority gaps.
 
 ## Local reproduction
 
@@ -71,7 +71,7 @@ On a successful main **push** CI run, [LAN Production Deployment](../../.github/
 
 The runner's [`lan.sh`](../../scripts/deploy/lan.sh) obtains a deployment lock, builds the images, backs up the running SQLite database with restricted permissions, replaces containers and checks `/ready` over HTTPS. Production startup applies migrations; seeds are not part of deployment. The receipt is written only after the script returns successfully. The backup, TLS files, environment and receipt live outside checkout cleanup. There is one API replica with SQLite; deployment can involve restart downtime.
 
-The current pipeline checks out a tested **source commit** and builds images on the deployment runner. It does **not** promote an immutable image built once in CI, despite that being a desirable future improvement in the supplied planning note. Digest-pinned artifact promotion would need a separate design, registry, provenance and rollback procedure. Similarly, a required staging environment and load-test gate are proposals, not current stages.
+The installed private pipeline still builds images on the deployment runner. The staged replacement builds and smoke-tests commit-tagged images in CI, retains checksummed image archives, and promotes their content image IDs through a protected private environment. It is disabled until the template is explicitly published, credentials/protections are configured and rehearsal passes. See the [deployment audit](./deployment-audit.md) and [immutable LAN runbook](./immutable-lan-runbook.md). A registry is not required for this artifact transport. Similarly, a required staging environment and load-test gate are proposals, not current stages.
 
 ## Failure and recovery
 

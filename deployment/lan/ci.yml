@@ -1,0 +1,11 @@
+# Disposable validation only. No production ports, config paths or data volumes.
+services:
+  backend-v2:
+    ports: !override []
+  admin-v2:
+    ports: !override
+      - "127.0.0.1:${CI_HTTPS_PORT:-9443}:443"
+      - "127.0.0.1:${CI_HTTP_PORT:-9082}:80"
+    volumes:
+      - ${CI_TLS_DIR:?Disposable TLS directory required}:/etc/nginx/tls:ro
+      - ${CI_TLS_DIR}/ca.crt:/usr/share/nginx/html/bastak-school-ca.crt:ro

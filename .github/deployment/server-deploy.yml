@@ -31,35 +31,46 @@ jobs:
           if [[ "$current" == "$RELEASE_SHA" ]]; then echo 'current=true' >> "$GITHUB_OUTPUT"; fi
   deploy:
     needs: authorize
-    if: needs.authorize.outputs.current == 'true'
+    if: needs.authorize.outputs.current == 'true' && vars.IMMUTABLE_DEPLOY_ENABLED == 'true'
     runs-on: [self-hosted, linux, x64, bastak-lan]
+    environment: production
+    permissions:
+      contents: read
+      actions: read
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           repository: Mobin-Karam/bastak-school
           ref: ${{ github.event.client_payload.sha }}
           persist-credentials: false
       - name: Deploy the tested commit
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ secrets.SOURCE_ARTIFACT_READ_TOKEN }}
           RELEASE_SHA: ${{ github.event.client_payload.sha }}
+          RUN_ID: ${{ github.event.client_payload.run_id }}
+          IMMUTABLE_DEPLOY_ENABLED: ${{ vars.IMMUTABLE_DEPLOY_ENABLED }}
+          PRODUCTION_CONFIG_DIR: /home/bastak-server/.config/bastak-production
+          PRODUCTION_DATA_VOLUME: bastak-school_moshaver_v2_sqlite
           PRODUCTION_BACKUP_DIR: /home/bastak-server/.config/bastak-production/backups
           PRODUCTION_LOCK_FILE: /home/bastak-server/.config/bastak-production/deploy.lock
-          PRODUCTION_RECEIPT: /home/bastak-server/.config/bastak-production/release.txt
+          PRODUCTION_RECEIPT: /home/bastak-server/.config/bastak-production/release.json
         shell: bash
         run: |
           set -euo pipefail
-          current=$(curl --fail --silent --show-error --header "Authorization: Bearer $GH_TOKEN" \
-            "https://api.github.com/repos/Mobin-Karam/bastak-school/git/ref/heads/main" | python3 -c 'import sys,json; print(json.load(sys.stdin)["object"]["sha"])')
+          [[ -n "$GH_TOKEN" ]] || { echo 'Configure read-only SOURCE_ARTIFACT_READ_TOKEN in the private production environment.'; exit 1; }
+          current=$(gh api repos/Mobin-Karam/bastak-school/git/ref/heads/main --jq .object.sha)
           [[ "$current" == "$RELEASE_SHA" ]] || { echo 'Skipping superseded release.'; exit 0; }
           test "$(git rev-parse HEAD)" = "$RELEASE_SHA"
           config=/home/bastak-server/.config/bastak-production
           test -d "$config/tls"
           test -f "$config/production.env"
-          mkdir -p .run/production
-          if [[ ! -e .run/production/tls ]]; then ln -s "$config/tls" .run/production/tls; fi
-          test "$(readlink .run/production/tls)" = "$config/tls"
-          install -m 600 "$config/production.env" .run/production/production.env
-          ./scripts/deploy/lan.sh
-          printf '%s\n' "$RELEASE_SHA" > "$PRODUCTION_RECEIPT"
+          umask 077
+          test -f "$config/nginx.conf.template"
+          mkdir -p "$config/releases"
+          export RELEASE_BUNDLE
+          RELEASE_BUNDLE="$config/releases/$RELEASE_SHA-$RUN_ID-$GITHUB_RUN_ATTEMPT"
+          python3 tooling/cicd/release_bundle.py download "$RELEASE_BUNDLE" "$RELEASE_SHA" --run-id "$RUN_ID"
+          current=$(gh api repos/Mobin-Karam/bastak-school/git/ref/heads/main --jq .object.sha)
+          [[ "$current" == "$RELEASE_SHA" ]] || { echo 'Skipping superseded release after download.'; exit 0; }
+          ./scripts/deploy/lan-immutable.sh

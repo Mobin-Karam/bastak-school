@@ -85,6 +85,28 @@ class PipelineTests(unittest.TestCase):
         script = (ROOT / "scripts/deploy/lan.sh").read_text()
         self.assertIn("PRODUCTION_BACKUP_DIR", script)
         self.assertLess(script.index('.backup('), script.index('up -d --force-recreate'))
+    def test_immutable_promotion_is_staged_and_protected(self):
+        readiness=self.workflow('deployment-readiness.yml')
+        steps=readiness['jobs']['containers']['steps']
+        self.assertIn('./scripts/deploy/verify-release.sh',steps[2]['run'])
+        self.assertIn('github.sha',steps[3]['with']['name'])
+        self.assertEqual(steps[3]['with']['if-no-files-found'],'error')
+        server=yaml.safe_load((ROOT/'.github/deployment/server-deploy.yml').read_text())
+        deploy=server['jobs']['deploy']
+        self.assertIn("IMMUTABLE_DEPLOY_ENABLED == 'true'",deploy['if'])
+        self.assertEqual(deploy['environment'],'production')
+        self.assertEqual(deploy['permissions'],{'contents':'read','actions':'read'})
+        self.assertIn('SOURCE_ARTIFACT_READ_TOKEN',deploy['steps'][1]['env']['GH_TOKEN'])
+        run=deploy['steps'][1]['run']
+        self.assertIn('release_bundle.py download',run)
+        self.assertIn('lan-immutable.sh',run)
+        self.assertNotIn('install -m 600',run)
+        immutable=(ROOT/'scripts/deploy/lan-immutable.sh').read_text()
+        self.assertIn('--no-build --pull never',immutable)
+        self.assertNotIn(' down ',immutable)
+        self.assertLess(immutable.index(' node - rehearse'),immutable.index('up -d --no-build'))
+        configure=(ROOT/'scripts/cicd/configure-github.py').read_text()
+        self.assertNotIn('"variable", "set", "PRODUCTION_DEPLOY_TARGET"',configure)
     def test_sync_retry_recovers_a_pushed_branch_and_existing_pr(self):
         script = self.workflow("continuous-integration.yml")["jobs"]["sync-main"]["steps"][1]["run"]
         with tempfile.TemporaryDirectory() as directory:

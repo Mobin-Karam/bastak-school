@@ -40,14 +40,19 @@ def main():
                                                   "dismiss_stale_reviews": True},
                 "restrictions": None, "allow_force_pushes": False, "allow_deletions": False})
     api(f"repos/{REPO}", "PATCH", {"allow_merge_commit": True, "allow_squash_merge": True, "allow_auto_merge": True})
-    subprocess.run(["gh", "variable", "set", "PRODUCTION_DEPLOY_TARGET", "--repo", REPO,
-                    "--body", "lan"], check=True)
-    api(f"repos/{REPO}/environments/lan-production", "PUT", {
-        "deployment_branch_policy": {"protected_branches": False, "custom_branch_policies": True}})
+    # Deployment activation and private production reviewers are separate operator
+    # decisions. Do not set a deploy target or overwrite existing environment rules.
+    try:
+        api(f"repos/{REPO}/environments/lan-production")
+    except RuntimeError as error:
+        if "HTTP 404" not in str(error):
+            raise
+        api(f"repos/{REPO}/environments/lan-production", "PUT", {
+            "deployment_branch_policy": {"protected_branches": False, "custom_branch_policies": True}})
     policies = api(f"repos/{REPO}/environments/lan-production/deployment-branch-policies")
     if not any(x["name"] == "main" for x in policies["branch_policies"]):
         api(f"repos/{REPO}/environments/lan-production/deployment-branch-policies", "POST",
             {"name": "main", "type": "branch"})
-    print("Branch protection, main-only production environment, and LAN target configured.")
+    print("CI protection configured; existing environment rules preserved. Production activation/reviewers require separate review.")
 if __name__ == "__main__":
     main()
