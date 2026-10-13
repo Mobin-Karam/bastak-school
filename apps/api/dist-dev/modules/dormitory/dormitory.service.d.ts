@@ -14,6 +14,7 @@ export declare class DormitoryService {
     private readonly notifications;
     constructor(rooms: Repository<DormRoom>, assignments: Repository<DormRoomAssignment>, students: Repository<Student>, access: SchoolAccessService, notifications: NotificationsService);
     listRooms(user: AuthenticatedUser, organizationId?: string): Promise<{
+        studentCount: number;
         id: string;
         organizationId: string;
         organizationName: string;
@@ -22,8 +23,7 @@ export declare class DormitoryService {
         building: string;
         floor: number;
         capacity: number;
-        status: "ARCHIVED" | "ACTIVE";
-        studentCount: number;
+        status: string;
     }[]>;
     createRoom(user: AuthenticatedUser, dto: CreateDormRoomDto): Promise<{
         id: string;

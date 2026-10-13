@@ -23,6 +23,7 @@ const organization_entity_1 = require("../../database/entities/organization.enti
 const role_entity_1 = require("../../database/entities/role.entity");
 const user_role_assignment_entity_1 = require("../../database/entities/user-role-assignment.entity");
 const user_entity_1 = require("../../database/entities/user.entity");
+const students_1 = require("../students");
 const chat_1 = require("../chat");
 const organization_features_1 = require("./organization-features");
 const organization_role_policy_1 = require("./organization-role-policy");
@@ -215,8 +216,19 @@ let OrganizationsService = class OrganizationsService {
             });
             if (roles.length !== new Set(dto.roleCodes).size)
                 throw new api_exception_1.ApiException(400, "INVALID_ROLE", "نقش سازمانی نامعتبر است.");
-            for (const role of roles)
+            for (const role of roles) {
+                if (await manager.findOne(user_role_assignment_entity_1.UserRoleAssignment, {
+                    where: {
+                        user: { id: user.id },
+                        role: { id: role.id },
+                        membership: { id: membership.id },
+                    },
+                }))
+                    continue;
                 await manager.save(user_role_assignment_entity_1.UserRoleAssignment, manager.create(user_role_assignment_entity_1.UserRoleAssignment, { user, role, membership }));
+            }
+            if (dto.roleCodes.includes("STUDENT"))
+                await (0, students_1.ensureStudentAccount)(manager, user, org);
             await (0, chat_1.ensureOrganizationChat)(manager, org, user);
             return {
                 membershipId: membership.id,
@@ -263,6 +275,8 @@ let OrganizationsService = class OrganizationsService {
                 const organization = await manager.findOneByOrFail(organization_entity_1.Organization, {
                     id: organizationId,
                 });
+                if (dto.roleCodes?.includes("STUDENT"))
+                    await (0, students_1.ensureStudentAccount)(manager, membership.user, organization);
                 await (0, chat_1.ensureOrganizationChat)(manager, organization, membership.user);
             }
             else

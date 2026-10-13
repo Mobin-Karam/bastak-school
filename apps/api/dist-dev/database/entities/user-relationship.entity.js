@@ -50,11 +50,11 @@ __decorate([
     __metadata("design:type", String)
 ], UserRelationship.prototype, "id", void 0);
 __decorate([
-    (0, typeorm_1.ManyToOne)(() => user_entity_1.User, { onDelete: "CASCADE" }),
+    (0, typeorm_1.ManyToOne)(() => user_entity_1.User, { nullable: false, onDelete: "CASCADE" }),
     __metadata("design:type", user_entity_1.User)
 ], UserRelationship.prototype, "fromUser", void 0);
 __decorate([
-    (0, typeorm_1.ManyToOne)(() => student_entity_1.Student, { onDelete: "CASCADE" }),
+    (0, typeorm_1.ManyToOne)(() => student_entity_1.Student, { nullable: false, onDelete: "CASCADE" }),
     __metadata("design:type", student_entity_1.Student)
 ], UserRelationship.prototype, "toStudent", void 0);
 __decorate([

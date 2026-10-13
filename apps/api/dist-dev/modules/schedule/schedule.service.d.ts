@@ -17,11 +17,217 @@ export declare class ScheduleService {
     constructor(entries: Repository<SchoolScheduleEntry>, organizations: Repository<Organization>, memberships: Repository<OrganizationMembership>, classes: Repository<EducationClass>, classBooks: Repository<EducationClassBook>, authorization: AuthorizationService);
     private context;
     private isOperator;
-    list(user: AuthenticatedUser, organizationId?: string): Promise<SchoolScheduleEntry[]>;
-    export(user: AuthenticatedUser, organizationId?: string): Promise<SchoolScheduleEntry[]>;
-    create(user: AuthenticatedUser, dto: SaveScheduleEntryDto): Promise<SchoolScheduleEntry>;
-    update(user: AuthenticatedUser, id: string, dto: SaveScheduleEntryDto): Promise<SchoolScheduleEntry>;
-    archive(user: AuthenticatedUser, id: string, dto: ArchiveScheduleEntryDto): Promise<SchoolScheduleEntry>;
+    list(user: AuthenticatedUser, organizationId?: string): Promise<{
+        teacher: {
+            id: string;
+            username: string;
+            firstName: string;
+            lastName: string;
+        } | null;
+        classBook: {
+            teacher: {
+                id: string;
+                username: string;
+                firstName: string;
+                lastName: string;
+            } | null;
+            id: string;
+            classroom: EducationClass;
+            book: import("../../database/entities").EducationBook;
+            createdAt: Date;
+        } | null;
+        id: string;
+        organization: Organization;
+        classroom?: EducationClass | null;
+        title: string;
+        weekday: number;
+        startTime: string;
+        endTime: string;
+        room: string;
+        status: "ACTIVE" | "ARCHIVED";
+        versionId: string | null;
+        version?: object;
+        periodId: string | null;
+        period?: object;
+        locationId: string | null;
+        location?: object;
+        startsOn: string | null;
+        endsOn: string | null;
+        notes: string;
+        classroomNameSnapshot: string;
+        teacherNameSnapshot: string;
+        createdAt: Date;
+        updatedAt: Date;
+    }[]>;
+    private listEntities;
+    export(user: AuthenticatedUser, organizationId?: string): Promise<{
+        teacher: {
+            id: string;
+            username: string;
+            firstName: string;
+            lastName: string;
+        } | null;
+        classBook: {
+            teacher: {
+                id: string;
+                username: string;
+                firstName: string;
+                lastName: string;
+            } | null;
+            id: string;
+            classroom: EducationClass;
+            book: import("../../database/entities").EducationBook;
+            createdAt: Date;
+        } | null;
+        id: string;
+        organization: Organization;
+        classroom?: EducationClass | null;
+        title: string;
+        weekday: number;
+        startTime: string;
+        endTime: string;
+        room: string;
+        status: "ACTIVE" | "ARCHIVED";
+        versionId: string | null;
+        version?: object;
+        periodId: string | null;
+        period?: object;
+        locationId: string | null;
+        location?: object;
+        startsOn: string | null;
+        endsOn: string | null;
+        notes: string;
+        classroomNameSnapshot: string;
+        teacherNameSnapshot: string;
+        createdAt: Date;
+        updatedAt: Date;
+    }[]>;
+    create(user: AuthenticatedUser, dto: SaveScheduleEntryDto): Promise<{
+        teacher: {
+            id: string;
+            username: string;
+            firstName: string;
+            lastName: string;
+        } | null;
+        classBook: {
+            teacher: {
+                id: string;
+                username: string;
+                firstName: string;
+                lastName: string;
+            } | null;
+            id: string;
+            classroom: EducationClass;
+            book: import("../../database/entities").EducationBook;
+            createdAt: Date;
+        } | null;
+        id: string;
+        organization: Organization;
+        classroom?: EducationClass | null;
+        title: string;
+        weekday: number;
+        startTime: string;
+        endTime: string;
+        room: string;
+        status: "ACTIVE" | "ARCHIVED";
+        versionId: string | null;
+        version?: object;
+        periodId: string | null;
+        period?: object;
+        locationId: string | null;
+        location?: object;
+        startsOn: string | null;
+        endsOn: string | null;
+        notes: string;
+        classroomNameSnapshot: string;
+        teacherNameSnapshot: string;
+        createdAt: Date;
+        updatedAt: Date;
+    }>;
+    update(user: AuthenticatedUser, id: string, dto: SaveScheduleEntryDto): Promise<{
+        teacher: {
+            id: string;
+            username: string;
+            firstName: string;
+            lastName: string;
+        } | null;
+        classBook: {
+            teacher: {
+                id: string;
+                username: string;
+                firstName: string;
+                lastName: string;
+            } | null;
+            id: string;
+            classroom: EducationClass;
+            book: import("../../database/entities").EducationBook;
+            createdAt: Date;
+        } | null;
+        id: string;
+        organization: Organization;
+        classroom?: EducationClass | null;
+        title: string;
+        weekday: number;
+        startTime: string;
+        endTime: string;
+        room: string;
+        status: "ACTIVE" | "ARCHIVED";
+        versionId: string | null;
+        version?: object;
+        periodId: string | null;
+        period?: object;
+        locationId: string | null;
+        location?: object;
+        startsOn: string | null;
+        endsOn: string | null;
+        notes: string;
+        classroomNameSnapshot: string;
+        teacherNameSnapshot: string;
+        createdAt: Date;
+        updatedAt: Date;
+    }>;
+    archive(user: AuthenticatedUser, id: string, dto: ArchiveScheduleEntryDto): Promise<{
+        teacher: {
+            id: string;
+            username: string;
+            firstName: string;
+            lastName: string;
+        } | null;
+        classBook: {
+            teacher: {
+                id: string;
+                username: string;
+                firstName: string;
+                lastName: string;
+            } | null;
+            id: string;
+            classroom: EducationClass;
+            book: import("../../database/entities").EducationBook;
+            createdAt: Date;
+        } | null;
+        id: string;
+        organization: Organization;
+        classroom?: EducationClass | null;
+        title: string;
+        weekday: number;
+        startTime: string;
+        endTime: string;
+        room: string;
+        status: "ACTIVE" | "ARCHIVED";
+        versionId: string | null;
+        version?: object;
+        periodId: string | null;
+        period?: object;
+        locationId: string | null;
+        location?: object;
+        startsOn: string | null;
+        endsOn: string | null;
+        notes: string;
+        classroomNameSnapshot: string;
+        teacherNameSnapshot: string;
+        createdAt: Date;
+        updatedAt: Date;
+    }>;
     remove(user: AuthenticatedUser, id: string): Promise<{
         deleted: boolean;
     }>;
@@ -38,10 +244,52 @@ export declare class ScheduleService {
     }>;
     commitImport(user: AuthenticatedUser, entries: SaveScheduleEntryDto[]): Promise<{
         imported: number;
-        entries: SchoolScheduleEntry[];
+        entries: {
+            teacher: {
+                id: string;
+                username: string;
+                firstName: string;
+                lastName: string;
+            } | null;
+            classBook: {
+                teacher: {
+                    id: string;
+                    username: string;
+                    firstName: string;
+                    lastName: string;
+                } | null;
+                id: string;
+                classroom: EducationClass;
+                book: import("../../database/entities").EducationBook;
+                createdAt: Date;
+            } | null;
+            id: string;
+            organization: Organization;
+            classroom?: EducationClass | null;
+            title: string;
+            weekday: number;
+            startTime: string;
+            endTime: string;
+            room: string;
+            status: "ACTIVE" | "ARCHIVED";
+            versionId: string | null;
+            version?: object;
+            periodId: string | null;
+            period?: object;
+            locationId: string | null;
+            location?: object;
+            startsOn: string | null;
+            endsOn: string | null;
+            notes: string;
+            classroomNameSnapshot: string;
+            teacherNameSnapshot: string;
+            createdAt: Date;
+            updatedAt: Date;
+        }[];
     }>;
     private importErrors;
     private classroomForOrganization;
+    private publicEntry;
     private teacherForOrganization;
     private classBookForSession;
 }

@@ -39,7 +39,10 @@ __decorate([
     __metadata("design:type", String)
 ], DailyReport.prototype, "id", void 0);
 __decorate([
-    (0, typeorm_1.ManyToOne)(() => student_entity_1.Student, (student) => student.dailyReports, { onDelete: "CASCADE" }),
+    (0, typeorm_1.ManyToOne)(() => student_entity_1.Student, (student) => student.dailyReports, {
+        nullable: false,
+        onDelete: "CASCADE",
+    }),
     __metadata("design:type", student_entity_1.Student)
 ], DailyReport.prototype, "student", void 0);
 __decorate([

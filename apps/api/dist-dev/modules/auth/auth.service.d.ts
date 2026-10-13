@@ -54,7 +54,7 @@ export declare class AuthService {
         refreshExpiresAt: Date;
     }>;
     userFromToken(token?: string, requestedRole?: string, requestedOrganizationId?: string): Promise<AuthenticatedUser | null>;
-    logout(token?: string, refreshToken?: string): Promise<void>;
+    logout(token?: string, refreshToken?: string, csrfToken?: string): Promise<void>;
     me(user: AuthenticatedUser): Promise<{
         id: string;
         username: string;
@@ -117,7 +117,27 @@ export declare class AuthService {
         requestedValue: string;
         createdAt: Date;
     }>;
-    listPhoneNumberChangeRequests(user: AuthenticatedUser, organizationId?: string): Promise<AccountChangeRequest[]>;
+    listPhoneNumberChangeRequests(user: AuthenticatedUser, organizationId?: string): Promise<{
+        id: string;
+        kind: "PHONE_NUMBER";
+        status: import("../../database/entities/account-change-request.entity").AccountChangeRequestStatus;
+        requestedValue: string;
+        reason: string;
+        reviewNote: string;
+        createdAt: Date;
+        updatedAt: Date;
+        reviewedAt: Date | null | undefined;
+        organization: {
+            id: string;
+            name: string;
+        };
+        user: {
+            id: string;
+            username: string;
+            firstName: string;
+            lastName: string;
+        };
+    }[]>;
     reviewPhoneNumberChangeRequest(user: AuthenticatedUser, id: string, approved: boolean, reviewNote?: string): Promise<{
         id: string;
         status: "APPROVED" | "REJECTED";
@@ -135,6 +155,6 @@ export declare class AuthService {
     }>;
     verifyCsrf(sessionId: string, csrfToken: string): Promise<boolean>;
     private newCredentials;
-    private hasActiveStudentAccount;
+    private hasUsableWorkContext;
     private isStudentOrGuardian;
 }

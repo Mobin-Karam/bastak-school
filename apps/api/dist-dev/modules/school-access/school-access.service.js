@@ -31,16 +31,21 @@ let SchoolAccessService = class SchoolAccessService {
     }
     async organizationIds(user) {
         if (this.isPlatform(user)) {
+            if (user.activeOrganizationId) {
+                await this.organizationForUser(user, user.activeOrganizationId);
+                return [user.activeOrganizationId];
+            }
             const rows = await this.organizations.find({ where: { status: organization_entity_1.OrganizationStatus.ACTIVE }, select: { id: true } });
             return rows.map((row) => row.id);
         }
-        if (user.organizationIds?.length)
+        if (user.organizationIds !== undefined)
             return [...new Set(user.organizationIds)];
         const rows = await this.memberships.find({
-            where: { user: { id: user.id }, status: organization_membership_entity_1.MembershipStatus.ACTIVE },
+            where: { user: { id: user.id }, status: organization_membership_entity_1.MembershipStatus.ACTIVE, organization: { status: organization_entity_1.OrganizationStatus.ACTIVE } },
             relations: { organization: true },
         });
-        return rows.map((row) => row.organization.id);
+        return rows.filter((row) => !user.activeOrganizationId || row.organization.id === user.activeOrganizationId)
+            .map((row) => row.organization.id);
     }
     async organizationForUser(user, organizationId) {
         if (this.isPlatform(user)) {
@@ -49,8 +54,11 @@ let SchoolAccessService = class SchoolAccessService {
                 throw new api_exception_1.ApiException(404, "ORGANIZATION_NOT_FOUND", "سازمان پیدا نشد.");
             return organization;
         }
+        if ((user.activeOrganizationId && user.activeOrganizationId !== organizationId) ||
+            (user.organizationIds !== undefined && !user.organizationIds.includes(organizationId)))
+            throw new api_exception_1.ApiException(403, "ORGANIZATION_FORBIDDEN", "به این سازمان دسترسی ندارید.");
         const membership = await this.memberships.findOne({
-            where: { user: { id: user.id }, organization: { id: organizationId }, status: organization_membership_entity_1.MembershipStatus.ACTIVE },
+            where: { user: { id: user.id }, organization: { id: organizationId, status: organization_entity_1.OrganizationStatus.ACTIVE }, status: organization_membership_entity_1.MembershipStatus.ACTIVE },
             relations: { organization: true },
         });
         if (!membership?.organization)

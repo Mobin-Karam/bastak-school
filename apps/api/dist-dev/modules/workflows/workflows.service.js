@@ -13,6 +13,7 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.WorkflowsService = void 0;
+const school_access_1 = require("../school-access");
 const common_1 = require("@nestjs/common");
 const typeorm_1 = require("@nestjs/typeorm");
 const typeorm_2 = require("typeorm");
@@ -51,7 +52,8 @@ let WorkflowsService = class WorkflowsService {
     users;
     realtime;
     notifications;
-    constructor(sessions, attendanceRecords, leaveRequests, exitPermissions, letters, students, classes, classEnrollments, studyGroups, studyGroupMemberships, dormRooms, dormAssignments, memberships, users, realtime, notifications) {
+    access;
+    constructor(sessions, attendanceRecords, leaveRequests, exitPermissions, letters, students, classes, classEnrollments, studyGroups, studyGroupMemberships, dormRooms, dormAssignments, memberships, users, realtime, notifications, access) {
         this.sessions = sessions;
         this.attendanceRecords = attendanceRecords;
         this.leaveRequests = leaveRequests;
@@ -68,9 +70,10 @@ let WorkflowsService = class WorkflowsService {
         this.users = users;
         this.realtime = realtime;
         this.notifications = notifications;
+        this.access = access;
     }
     async listAttendanceContexts(user, organizationId) {
-        const memberships = await this.activeMemberships(user.id);
+        const memberships = await this.activeMemberships(user, organizationId);
         const organizationIds = memberships.map((membership) => membership.organization.id);
         if (!organizationIds.length) {
             return [];
@@ -126,7 +129,7 @@ let WorkflowsService = class WorkflowsService {
         ];
     }
     async listDormRooms(user, organizationId) {
-        const memberships = await this.activeMemberships(user.id);
+        const memberships = await this.activeMemberships(user, organizationId);
         const organizationIds = memberships.map((membership) => membership.organization.id);
         if (!organizationIds.length) {
             return [];
@@ -153,7 +156,7 @@ let WorkflowsService = class WorkflowsService {
         }));
     }
     async createDormRoom(user, input) {
-        const organization = await this.organizationForUser(user.id, input.organizationId);
+        const organization = await this.organizationForUser(user, input.organizationId);
         const code = (input.code || "").trim();
         const name = (input.name || "").trim();
         if (!code || !name) {
@@ -240,7 +243,7 @@ let WorkflowsService = class WorkflowsService {
         return { roomId: room.id, count: saved.length };
     }
     async listAttendanceSessions(user, organizationId) {
-        const memberships = await this.activeMemberships(user.id);
+        const memberships = await this.activeMemberships(user, organizationId);
         const organizationIds = memberships.map((membership) => membership.organization.id);
         if (!organizationIds.length) {
             return [];
@@ -268,7 +271,7 @@ let WorkflowsService = class WorkflowsService {
         }));
     }
     async createAttendanceSession(user, input) {
-        const organization = await this.organizationForUser(user.id, input.organizationId);
+        const organization = await this.organizationForUser(user, input.organizationId);
         const contextType = this.parseContextType(input.contextType);
         const date = new Date(input.sessionDate);
         if (Number.isNaN(date.getTime())) {
@@ -292,7 +295,7 @@ let WorkflowsService = class WorkflowsService {
         };
     }
     async bulkMarkAttendance(user, input) {
-        const organization = await this.organizationForUser(user.id, input.organizationId);
+        const organization = await this.organizationForUser(user, input.organizationId);
         if (!input.entries?.length) {
             throw new api_exception_1.ApiException(400, "ATTENDANCE_EMPTY", "هیچ ورودی حضوری ارسال نشده است.");
         }
@@ -359,7 +362,7 @@ let WorkflowsService = class WorkflowsService {
     async listContextParticipants(user, contextType, contextId) {
         const context = this.parseContextType(contextType);
         const organizationId = await this.resolveOrganizationIdForContext(user, context, contextId);
-        const organization = await this.organizationForUser(user.id, organizationId);
+        const organization = await this.organizationForUser(user, organizationId);
         if (context === "class") {
             const classroom = await this.classes.findOne({
                 where: { id: contextId, organization: { id: organization.id } },
@@ -469,7 +472,7 @@ let WorkflowsService = class WorkflowsService {
         };
     }
     async listLeaveRequests(user, organizationId) {
-        const memberships = await this.activeMemberships(user.id);
+        const memberships = await this.activeMemberships(user, organizationId);
         const organizationIds = memberships.map((membership) => membership.organization.id);
         const requestedOrgId = organizationId && organizationIds.includes(organizationId)
             ? organizationId
@@ -502,7 +505,7 @@ let WorkflowsService = class WorkflowsService {
     }
     async createLeaveRequest(user, input) {
         const student = await this.studentForUser(user.id);
-        const organization = await this.organizationForUser(user.id, input.organizationId);
+        const organization = await this.organizationForUser(user, input.organizationId);
         const startDate = new Date(input.startDate);
         const endDate = new Date(input.endDate);
         if (Number.isNaN(startDate.getTime()) || Number.isNaN(endDate.getTime())) {
@@ -547,7 +550,7 @@ let WorkflowsService = class WorkflowsService {
         if (!row) {
             throw new api_exception_1.ApiException(404, "LEAVE_REQUEST_NOT_FOUND", "درخواست مرخصی پیدا نشد.");
         }
-        await this.organizationForUser(user.id, row.organization.id);
+        await this.organizationForUser(user, row.organization.id);
         this.assertLeaveRequestReviewer(user, row);
         const status = this.parseLeaveStatus(input.status);
         row.status = status;
@@ -558,7 +561,7 @@ let WorkflowsService = class WorkflowsService {
         return this.serializeLeaveRequest(saved);
     }
     async listExitPermissions(user, organizationId) {
-        const memberships = await this.activeMemberships(user.id);
+        const memberships = await this.activeMemberships(user, organizationId);
         const organizationIds = memberships.map((membership) => membership.organization.id);
         const requestedOrgId = organizationId && organizationIds.includes(organizationId)
             ? organizationId
@@ -581,7 +584,7 @@ let WorkflowsService = class WorkflowsService {
     }
     async createExitPermission(user, input) {
         const student = await this.studentForUser(user.id);
-        const organization = await this.organizationForUser(user.id, input.organizationId);
+        const organization = await this.organizationForUser(user, input.organizationId);
         const departure = new Date(input.requestedDepartureAt);
         if (Number.isNaN(departure.getTime())) {
             throw new api_exception_1.ApiException(400, "EXIT_DEPARTURE_INVALID", "زمان خروج معتبر نیست.");
@@ -618,7 +621,7 @@ let WorkflowsService = class WorkflowsService {
         if (!row) {
             throw new api_exception_1.ApiException(404, "EXIT_PERMISSION_NOT_FOUND", "درخواست مجوز خروج پیدا نشد.");
         }
-        await this.organizationForUser(user.id, row.organization.id);
+        await this.organizationForUser(user, row.organization.id);
         this.assertWorkflowReviewer(user);
         const status = this.parseExitStatus(input.status);
         row.status = status;
@@ -644,7 +647,7 @@ let WorkflowsService = class WorkflowsService {
         if (row.student.user?.id !== user.id) {
             throw new api_exception_1.ApiException(403, "EXIT_RETURN_REQUEST_FORBIDDEN", "فقط خود دانش‌آموز می‌تواند بازگشت را درخواست کند.");
         }
-        await this.organizationForUser(user.id, row.organization.id);
+        await this.organizationForUser(user, row.organization.id);
         if (row.status !== exit_permission_entity_1.ExitPermissionStatus.APPROVED ||
             !row.actualDepartureAt) {
             throw new api_exception_1.ApiException(409, "EXIT_NOT_DEPARTED", "بازگشت فقط پس از ثبت خروج امکان‌پذیر است.");
@@ -663,7 +666,7 @@ let WorkflowsService = class WorkflowsService {
     }
     async recordGateDeparture(user, input) {
         this.assertWorkflowReviewer(user);
-        const organization = await this.organizationForUser(user.id, input.organizationId);
+        const organization = await this.organizationForUser(user, input.organizationId);
         const student = await this.studentForPhoneInOrganization(input.phoneNumber, organization.id);
         const existing = await this.exitPermissions
             .createQueryBuilder("exit")
@@ -705,7 +708,7 @@ let WorkflowsService = class WorkflowsService {
     }
     async recordGateReturn(user, input) {
         this.assertWorkflowReviewer(user);
-        const organization = await this.organizationForUser(user.id, input.organizationId);
+        const organization = await this.organizationForUser(user, input.organizationId);
         const student = await this.studentForPhoneInOrganization(input.phoneNumber, organization.id);
         const row = await this.exitPermissions
             .createQueryBuilder("exit")
@@ -751,7 +754,7 @@ let WorkflowsService = class WorkflowsService {
         });
         if (!row)
             throw new api_exception_1.ApiException(404, "EXIT_PERMISSION_NOT_FOUND", "مجوز خروج پیدا نشد.");
-        await this.organizationForUser(user.id, row.organization.id);
+        await this.organizationForUser(user, row.organization.id);
         this.assertWorkflowReviewer(user);
         if (movement === "departure") {
             if (row.status !== exit_permission_entity_1.ExitPermissionStatus.APPROVED)
@@ -775,7 +778,7 @@ let WorkflowsService = class WorkflowsService {
         return this.serializeExitPermission(saved);
     }
     async occupancy(user, organizationId) {
-        const memberships = await this.activeMemberships(user.id);
+        const memberships = await this.activeMemberships(user, organizationId);
         const ids = memberships.map((membership) => membership.organization.id);
         if (!ids.length)
             return [];
@@ -849,7 +852,7 @@ let WorkflowsService = class WorkflowsService {
             throw new api_exception_1.ApiException(403, "WORKFLOW_REVIEW_FORBIDDEN", "فقط مدیریت یا ناظم مدرسه می‌تواند این عملیات را انجام دهد.");
     }
     async listLetters(user, organizationId) {
-        const memberships = await this.activeMemberships(user.id);
+        const memberships = await this.activeMemberships(user, organizationId);
         const organizationIds = memberships.map((membership) => membership.organization.id);
         const requestedOrgId = organizationId && organizationIds.includes(organizationId)
             ? organizationId
@@ -887,7 +890,7 @@ let WorkflowsService = class WorkflowsService {
         }));
     }
     async createLetter(user, input) {
-        const organization = await this.organizationForUser(user.id, input.organizationId);
+        const organization = await this.organizationForUser(user, input.organizationId);
         if (!input.subject?.trim() || !input.body?.trim()) {
             throw new api_exception_1.ApiException(400, "LETTER_REQUIRED_FIELDS", "موضوع و متن نامه الزامی است.");
         }
@@ -923,7 +926,7 @@ let WorkflowsService = class WorkflowsService {
         if (!row) {
             throw new api_exception_1.ApiException(404, "LETTER_NOT_FOUND", "نامه پیدا نشد.");
         }
-        await this.organizationForUser(user.id, row.organization.id);
+        await this.organizationForUser(user, row.organization.id);
         if (input.read) {
             row.readAt = new Date();
         }
@@ -936,9 +939,12 @@ let WorkflowsService = class WorkflowsService {
         const saved = await this.letters.save(row);
         return this.serializeLetter(saved);
     }
-    async activeMemberships(userId) {
+    async activeMemberships(user, organizationId) {
+        const ids = await this.access.scopedOrganizationIds(user, organizationId);
+        if (!ids.length)
+            return [];
         return this.memberships.find({
-            where: { user: { id: userId }, status: organization_membership_entity_1.MembershipStatus.ACTIVE },
+            where: { user: { id: user.id }, organization: { id: (0, typeorm_2.In)(ids) }, status: organization_membership_entity_1.MembershipStatus.ACTIVE },
             relations: { organization: true },
         });
     }
@@ -976,19 +982,8 @@ let WorkflowsService = class WorkflowsService {
         });
         this.realtime.emitToUsers(memberships.map((membership) => membership.user.id), "school.occupancy.updated", { organizationId, exitPermissionId, action });
     }
-    async organizationForUser(userId, organizationId) {
-        const membership = await this.memberships.findOne({
-            where: {
-                user: { id: userId },
-                organization: { id: organizationId },
-                status: organization_membership_entity_1.MembershipStatus.ACTIVE,
-            },
-            relations: { organization: true },
-        });
-        if (!membership?.organization) {
-            throw new api_exception_1.ApiException(403, "ORGANIZATION_FORBIDDEN", "به این سازمان دسترسی ندارید.");
-        }
-        return membership.organization;
+    async organizationForUser(user, organizationId) {
+        return this.access.organizationForUser(user, organizationId);
     }
     async studentForPhoneInOrganization(phoneNumber, organizationId) {
         const phone = (0, phone_number_1.normalizeIranianMobile)(phoneNumber);
@@ -1025,7 +1020,7 @@ let WorkflowsService = class WorkflowsService {
         if (!room) {
             throw new api_exception_1.ApiException(404, "DORM_ROOM_NOT_FOUND", "اتاق خوابگاه پیدا نشد.");
         }
-        await this.organizationForUser(user.id, room.organization.id);
+        await this.organizationForUser(user, room.organization.id);
         return room;
     }
     async resolveOrganizationIdForContext(user, contextType, contextId) {
@@ -1037,7 +1032,7 @@ let WorkflowsService = class WorkflowsService {
             if (!classroom) {
                 throw new api_exception_1.ApiException(404, "CLASS_NOT_FOUND", "کلاس پیدا نشد.");
             }
-            await this.organizationForUser(user.id, classroom.organization.id);
+            await this.organizationForUser(user, classroom.organization.id);
             return classroom.organization.id;
         }
         if (contextType === "study_group") {
@@ -1048,7 +1043,7 @@ let WorkflowsService = class WorkflowsService {
             if (!group) {
                 throw new api_exception_1.ApiException(404, "STUDY_GROUP_NOT_FOUND", "گروه درسی پیدا نشد.");
             }
-            await this.organizationForUser(user.id, group.organization.id);
+            await this.organizationForUser(user, group.organization.id);
             return group.organization.id;
         }
         if (contextType === "dorm") {
@@ -1059,10 +1054,10 @@ let WorkflowsService = class WorkflowsService {
             if (!room) {
                 throw new api_exception_1.ApiException(404, "DORM_ROOM_NOT_FOUND", "اتاق خوابگاه پیدا نشد.");
             }
-            await this.organizationForUser(user.id, room.organization.id);
+            await this.organizationForUser(user, room.organization.id);
             return room.organization.id;
         }
-        const memberships = await this.activeMemberships(user.id);
+        const memberships = await this.activeMemberships(user);
         if (!memberships.length) {
             throw new api_exception_1.ApiException(403, "ORGANIZATION_FORBIDDEN", "به این سازمان دسترسی ندارید.");
         }
@@ -1236,6 +1231,7 @@ exports.WorkflowsService = WorkflowsService = __decorate([
         typeorm_2.Repository,
         typeorm_2.Repository,
         realtime_1.RealtimeService,
-        notifications_1.NotificationsService])
+        notifications_1.NotificationsService,
+        school_access_1.SchoolAccessService])
 ], WorkflowsService);
 //# sourceMappingURL=workflows.service.js.map

@@ -13,6 +13,7 @@ const cors_1 = __importDefault(require("@fastify/cors"));
 const helmet_1 = __importDefault(require("@fastify/helmet"));
 const app_module_1 = require("./app.module");
 const swagger_1 = require("@nestjs/swagger");
+const http_telemetry_1 = require("./common/observability/http-telemetry");
 async function bootstrap() {
     const app = await core_1.NestFactory.create(app_module_1.AppModule, new platform_fastify_1.FastifyAdapter({
         logger: false,
@@ -20,6 +21,7 @@ async function bootstrap() {
         trustProxy: process.env.TRUST_PROXY === "1",
     }));
     const config = app.get(config_1.ConfigService);
+    (0, http_telemetry_1.registerHttpTelemetry)(app.getHttpAdapter().getInstance(), (entry) => console.log(JSON.stringify(entry)));
     const corsOrigins = config.get("corsOrigins") || [];
     await app.register(helmet_1.default);
     await app.register(cookie_1.default);

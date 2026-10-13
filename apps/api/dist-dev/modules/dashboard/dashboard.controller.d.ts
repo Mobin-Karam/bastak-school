@@ -15,7 +15,7 @@ export declare class LegacyDashboardController {
             context: string;
             activeRole: string;
             generatedAt: string;
-            assignedStudents: any;
+            assignedStudents: number;
             unreadConversations: any;
         } | {
             subjects: any;
@@ -29,7 +29,7 @@ export declare class LegacyDashboardController {
             context: string;
             activeRole: string;
             generatedAt: string;
-            assignedStudents: any;
+            assignedStudents: number;
             unreadConversations: any;
         } | {
             recentProgress: any;
@@ -38,7 +38,7 @@ export declare class LegacyDashboardController {
             context: string;
             activeRole: string;
             generatedAt: string;
-            assignedStudents: any;
+            assignedStudents: number;
             unreadConversations: any;
         } | {
             subjects: any;
@@ -51,7 +51,7 @@ export declare class LegacyDashboardController {
             context: string;
             activeRole: string;
             generatedAt: string;
-            assignedStudents: any;
+            assignedStudents: number;
             unreadConversations: any;
         } | {
             organizations: string[];
@@ -86,7 +86,7 @@ export declare class LegacyDashboardController {
             context: string;
             activeRole: string;
             generatedAt: string;
-            assignedStudents: any;
+            assignedStudents: number;
             unreadConversations: any;
         } | {
             organizations: any;
@@ -112,20 +112,20 @@ export declare class LegacyDashboardController {
             context: string;
             activeRole: string;
             generatedAt: string;
-            assignedStudents: any;
+            assignedStudents: number;
             unreadConversations: any;
         } | {
             context: string;
             activeRole: string;
             generatedAt: string;
-            assignedStudents: any;
+            assignedStudents: number;
             unreadConversations: any;
         } | {
-            children: any;
+            children: number;
             context: string;
             activeRole: string;
             generatedAt: string;
-            assignedStudents: any;
+            assignedStudents: number;
             unreadConversations: any;
         };
     }>;

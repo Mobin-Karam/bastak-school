@@ -88,6 +88,21 @@ export declare class AttendanceService {
         sessionDate: string;
         total: number;
     }[]>;
+    createTimetableSession(user: AuthenticatedUser, input: {
+        organizationId: string;
+        classroomId: string;
+        lessonId: string;
+        date: string;
+        title: string;
+        startsAt: string;
+        endsAt: string;
+        timeZone: string;
+        teacherId: string | null;
+    }): Promise<{
+        id: string;
+    }>;
+    reassignTimetableSession(sessionId: string, lessonId: string, teacherId: string): Promise<void>;
+    cancelTimetableSession(sessionId: string, lessonId: string): Promise<void>;
     createSession(user: AuthenticatedUser, dto: CreateAttendanceSessionDto): Promise<{
         id: string;
         organizationId: string;

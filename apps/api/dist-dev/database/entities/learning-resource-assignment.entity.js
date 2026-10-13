@@ -30,12 +30,15 @@ __decorate([
 ], LearningResourceAssignment.prototype, "id", void 0);
 __decorate([
     (0, typeorm_1.Index)(),
-    (0, typeorm_1.ManyToOne)(() => learning_resource_entity_1.LearningResource, (resource) => resource.assignments, { onDelete: "CASCADE" }),
+    (0, typeorm_1.ManyToOne)(() => learning_resource_entity_1.LearningResource, (resource) => resource.assignments, {
+        nullable: false,
+        onDelete: "CASCADE",
+    }),
     __metadata("design:type", learning_resource_entity_1.LearningResource)
 ], LearningResourceAssignment.prototype, "resource", void 0);
 __decorate([
     (0, typeorm_1.Index)(),
-    (0, typeorm_1.ManyToOne)(() => student_entity_1.Student, { onDelete: "CASCADE" }),
+    (0, typeorm_1.ManyToOne)(() => student_entity_1.Student, { nullable: false, onDelete: "CASCADE" }),
     __metadata("design:type", student_entity_1.Student)
 ], LearningResourceAssignment.prototype, "student", void 0);
 __decorate([

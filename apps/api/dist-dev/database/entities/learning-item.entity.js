@@ -50,7 +50,10 @@ __decorate([
     __metadata("design:type", String)
 ], LearningItem.prototype, "id", void 0);
 __decorate([
-    (0, typeorm_1.ManyToOne)(() => student_entity_1.Student, (student) => student.learningItems, { onDelete: "CASCADE" }),
+    (0, typeorm_1.ManyToOne)(() => student_entity_1.Student, (student) => student.learningItems, {
+        nullable: false,
+        onDelete: "CASCADE",
+    }),
     __metadata("design:type", student_entity_1.Student)
 ], LearningItem.prototype, "student", void 0);
 __decorate([

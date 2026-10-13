@@ -11,6 +11,7 @@ export declare class AttendanceEntryDto {
     note?: string;
 }
 export declare class BulkMarkAttendanceDto {
+    expectedRevision?: number;
     requestId?: string;
     organizationId: string;
     sessionId?: string;

@@ -12,14 +12,16 @@ let HttpExceptionFilter = class HttpExceptionFilter {
     catch(exception, host) {
         const ctx = host.switchToHttp();
         const response = ctx.getResponse();
+        const requestId = ctx.getRequest().id;
         const status = exception instanceof common_1.HttpException ? exception.getStatus() : common_1.HttpStatus.INTERNAL_SERVER_ERROR;
         const payload = exception instanceof common_1.HttpException ? exception.getResponse() : null;
         if (typeof payload === "object" && payload && "ok" in payload) {
-            response.status(status).send(payload);
+            response.status(status).send({ ...payload, requestId });
             return;
         }
         response.status(status).send({
             ok: false,
+            requestId,
             error: {
                 code: status === 500 ? "INTERNAL_ERROR" : "HTTP_ERROR",
                 message: status === 500 ? "خطای سرور" : "درخواست نامعتبر است.",

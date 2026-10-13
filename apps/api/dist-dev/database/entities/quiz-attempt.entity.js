@@ -36,12 +36,12 @@ __decorate([
 ], QuizAttempt.prototype, "id", void 0);
 __decorate([
     (0, typeorm_1.Index)(),
-    (0, typeorm_1.ManyToOne)(() => quiz_entity_1.Quiz, { onDelete: "CASCADE" }),
+    (0, typeorm_1.ManyToOne)(() => quiz_entity_1.Quiz, { nullable: false, onDelete: "CASCADE" }),
     __metadata("design:type", quiz_entity_1.Quiz)
 ], QuizAttempt.prototype, "quiz", void 0);
 __decorate([
     (0, typeorm_1.Index)(),
-    (0, typeorm_1.ManyToOne)(() => student_entity_1.Student, { onDelete: "CASCADE" }),
+    (0, typeorm_1.ManyToOne)(() => student_entity_1.Student, { nullable: false, onDelete: "CASCADE" }),
     __metadata("design:type", student_entity_1.Student)
 ], QuizAttempt.prototype, "student", void 0);
 __decorate([

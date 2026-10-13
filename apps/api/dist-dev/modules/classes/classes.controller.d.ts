@@ -1,5 +1,5 @@
 import { AuthenticatedUser } from "../auth";
-import { SaveEducationClassDto, ClassTransferDto, SetClassBooksDto, SetClassEnrollmentsDto, UpdateEducationClassDto } from "./classes.dto";
+import { AddClassBookDto, SaveEducationClassDto, ClassTransferDto, SetClassBooksDto, SetClassEnrollmentsDto, UpdateEducationClassDto } from "./classes.dto";
 import { ClassesService } from "./classes.service";
 export declare class ClassesController {
     private readonly classes;
@@ -238,6 +238,48 @@ export declare class ClassesController {
         };
     }>;
     update(actor: AuthenticatedUser, id: string, dto: UpdateEducationClassDto): Promise<{
+        ok: boolean;
+        data: {
+            id: string;
+            organization: {
+                id: string;
+                name: string;
+                type: import("../../database/entities/organization.entity").OrganizationType;
+                status: import("../../database/entities/organization.entity").OrganizationStatus;
+            };
+            code: string;
+            name: string;
+            schoolYear: string;
+            gradeId: number | null;
+            educationTypeId: string | null;
+            trackId: string | null;
+            capacity: number;
+            status: "ARCHIVED" | "ACTIVE";
+            description: string;
+            advisor: {
+                id: string;
+                name: string;
+            } | null;
+            books: {
+                id: string;
+                bookId: string;
+                title: string;
+                code: string;
+                teacher: {
+                    id: string;
+                    name: string;
+                };
+            }[];
+            enrollmentCount: number;
+            students: {
+                id: string;
+                name: string;
+                grade: string;
+                major: string;
+            }[];
+        };
+    }>;
+    addBook(actor: AuthenticatedUser, id: string, dto: AddClassBookDto): Promise<{
         ok: boolean;
         data: {
             id: string;

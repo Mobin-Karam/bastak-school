@@ -69,7 +69,7 @@ export declare class DashboardHomeController {
             context: string;
             activeRole: string;
             generatedAt: string;
-            assignedStudents: any;
+            assignedStudents: number;
             unreadConversations: any;
         } | {
             home: {
@@ -137,7 +137,7 @@ export declare class DashboardHomeController {
             context: string;
             activeRole: string;
             generatedAt: string;
-            assignedStudents: any;
+            assignedStudents: number;
             unreadConversations: any;
         } | {
             home: {
@@ -200,7 +200,7 @@ export declare class DashboardHomeController {
             context: string;
             activeRole: string;
             generatedAt: string;
-            assignedStudents: any;
+            assignedStudents: number;
             unreadConversations: any;
         } | {
             home: {
@@ -267,7 +267,7 @@ export declare class DashboardHomeController {
             context: string;
             activeRole: string;
             generatedAt: string;
-            assignedStudents: any;
+            assignedStudents: number;
             unreadConversations: any;
         } | {
             home: {
@@ -356,7 +356,7 @@ export declare class DashboardHomeController {
             context: string;
             activeRole: string;
             generatedAt: string;
-            assignedStudents: any;
+            assignedStudents: number;
             unreadConversations: any;
         } | {
             home: {
@@ -436,7 +436,7 @@ export declare class DashboardHomeController {
             context: string;
             activeRole: string;
             generatedAt: string;
-            assignedStudents: any;
+            assignedStudents: number;
             unreadConversations: any;
         } | {
             home: {
@@ -496,7 +496,7 @@ export declare class DashboardHomeController {
             context: string;
             activeRole: string;
             generatedAt: string;
-            assignedStudents: any;
+            assignedStudents: number;
             unreadConversations: any;
         } | {
             home: {
@@ -553,11 +553,11 @@ export declare class DashboardHomeController {
                     classId: string | null;
                 } | null;
             };
-            children: any;
+            children: number;
             context: string;
             activeRole: string;
             generatedAt: string;
-            assignedStudents: any;
+            assignedStudents: number;
             unreadConversations: any;
         };
     }>;

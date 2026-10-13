@@ -7,6 +7,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.WorkflowsModule = void 0;
+const school_access_1 = require("../school-access");
 const common_1 = require("@nestjs/common");
 const typeorm_1 = require("@nestjs/typeorm");
 const attendance_record_entity_1 = require("../../database/entities/attendance-record.entity");
@@ -33,6 +34,7 @@ exports.WorkflowsModule = WorkflowsModule;
 exports.WorkflowsModule = WorkflowsModule = __decorate([
     (0, common_1.Module)({
         imports: [
+            school_access_1.SchoolAccessModule,
             realtime_module_1.RealtimeModule,
             notifications_module_1.NotificationsModule,
             typeorm_1.TypeOrmModule.forFeature([

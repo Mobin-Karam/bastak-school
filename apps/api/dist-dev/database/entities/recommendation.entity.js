@@ -44,7 +44,7 @@ __decorate([
 ], Recommendation.prototype, "id", void 0);
 __decorate([
     (0, typeorm_1.Index)(),
-    (0, typeorm_1.ManyToOne)(() => student_entity_1.Student, { onDelete: "CASCADE" }),
+    (0, typeorm_1.ManyToOne)(() => student_entity_1.Student, { nullable: false, onDelete: "CASCADE" }),
     __metadata("design:type", student_entity_1.Student)
 ], Recommendation.prototype, "student", void 0);
 __decorate([
@@ -72,7 +72,11 @@ __decorate([
     __metadata("design:type", Object)
 ], Recommendation.prototype, "evidence", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ type: "varchar", length: 16, default: RecommendationStatus.PROPOSED }),
+    (0, typeorm_1.Column)({
+        type: "varchar",
+        length: 16,
+        default: RecommendationStatus.PROPOSED,
+    }),
     __metadata("design:type", String)
 ], Recommendation.prototype, "status", void 0);
 __decorate([

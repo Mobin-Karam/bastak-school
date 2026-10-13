@@ -1,6 +1,6 @@
 import { MigrationInterface, QueryRunner } from "typeorm";
 export declare class NightAttendance1728234800000 implements MigrationInterface {
     name: string;
-    up(queryRunner: QueryRunner): Promise<void>;
-    down(queryRunner: QueryRunner): Promise<void>;
+    up(_queryRunner: QueryRunner): Promise<void>;
+    down(_queryRunner: QueryRunner): Promise<void>;
 }
