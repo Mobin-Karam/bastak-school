@@ -71,7 +71,6 @@ export function CurrentPrayerCard({ times, className = "" }: CurrentPrayerCardPr
           className,
         ].join(" ")}
       >
-        
         <div
           aria-hidden="true"
           className={[

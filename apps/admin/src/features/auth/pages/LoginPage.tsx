@@ -1,7 +1,6 @@
 import {
   PublicSchoolProfileProvider,
   usePublicSchoolProfile,
-  SchoolContactDetails,
 } from "../components/PublicSchoolProfile";
 import { Link, Navigate } from "react-router-dom";
 

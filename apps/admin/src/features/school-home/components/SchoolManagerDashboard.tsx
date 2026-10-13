@@ -278,11 +278,6 @@ export function SchoolManagerDashboard() {
   );
 }
 
-
-
-
-
-
 function remainingAnnouncementTime(expiresAt: string, now: number) {
   const remaining = Math.max(0, new Date(expiresAt).getTime() - now);
   const hours = Math.floor(remaining / 3_600_000);
