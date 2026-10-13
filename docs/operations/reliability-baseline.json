@@ -1,0 +1,82 @@
+{
+  "fixture": {
+    "students": 1000,
+    "enrolled": 30,
+    "schools": 1
+  },
+  "concurrency": 4,
+  "transport": "Fastify injection; no network/TLS",
+  "observations": "synthetic fixture, not a production capacity claim",
+  "studentListings": {
+    "latency": {
+      "samples": 40,
+      "p50Ms": 427.4,
+      "p95Ms": 526.84,
+      "p99Ms": 526.85,
+      "maxMs": 526.88
+    },
+    "queries": {
+      "samples": 360,
+      "p50Ms": 2,
+      "p95Ms": 24,
+      "p99Ms": 38,
+      "maxMs": 40
+    },
+    "queriesPerRequest": 9,
+    "serverErrorRate": 0,
+    "statuses": {
+      "200": 40
+    },
+    "elapsedMs": 4379,
+    "cpuMs": 4984.518,
+    "rssBytes": 969269248
+  },
+  "dashboard": {
+    "latency": {
+      "samples": 40,
+      "p50Ms": 55.94,
+      "p95Ms": 70.93,
+      "p99Ms": 70.93,
+      "maxMs": 70.93
+    },
+    "queries": {
+      "samples": 1200,
+      "p50Ms": 1,
+      "p95Ms": 3,
+      "p99Ms": 5,
+      "maxMs": 6
+    },
+    "queriesPerRequest": 30,
+    "serverErrorRate": 0,
+    "statuses": {
+      "200": 40
+    },
+    "elapsedMs": 580,
+    "cpuMs": 723.523,
+    "rssBytes": 967036928
+  },
+  "attendance": {
+    "latency": {
+      "samples": 40,
+      "p50Ms": 313.61,
+      "p95Ms": 362.67,
+      "p99Ms": 375.73,
+      "maxMs": 390.28
+    },
+    "queries": {
+      "samples": 6960,
+      "p50Ms": 0,
+      "p95Ms": 1,
+      "p99Ms": 1,
+      "maxMs": 3
+    },
+    "queriesPerRequest": 174,
+    "serverErrorRate": 0,
+    "statuses": {
+      "201": 40
+    },
+    "elapsedMs": 3255,
+    "cpuMs": 4304.085,
+    "rssBytes": 974139392
+  }
+}

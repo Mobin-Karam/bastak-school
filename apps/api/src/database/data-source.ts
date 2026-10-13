@@ -4,6 +4,7 @@ import path from "node:path";
 import { DataSource, DataSourceOptions } from "typeorm";
 import * as entities from "./entities";
 import { databaseMigrationGlob } from "./migration-path";
+import { SafeDatabaseLogger } from "./safe-database-logger";
 
 const databasePath =
   process.env.DATABASE_PATH ||
@@ -23,6 +24,8 @@ export const dataSourceOptions: DataSourceOptions = {
   // Resolve beside the running source/build: dev uses dist-dev, production uses dist.
   migrations: [databaseMigrationGlob(__filename)],
   synchronize: false,
+  logger: new SafeDatabaseLogger(),
+  maxQueryExecutionTime: 100,
   migrationsRun: true,
   // SQLite table rebuilds need a connection-level pragma outside a transaction.
   // Each migration remains atomic; the integrity migration owns its transaction.

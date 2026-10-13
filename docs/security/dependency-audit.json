@@ -1,0 +1,530 @@
+{
+  "date": "2026-10-13",
+  "projects": [
+    {
+      "project": "api-contract",
+      "status": "no leaf lockfile"
+    },
+    {
+      "project": "admin-workspace-ui",
+      "all": {
+        "counts": {
+          "info": 0,
+          "low": 0,
+          "moderate": 0,
+          "high": 0,
+          "critical": 0,
+          "total": 0
+        },
+        "advisories": []
+      },
+      "production": {
+        "counts": {
+          "info": 0,
+          "low": 0,
+          "moderate": 0,
+          "high": 0,
+          "critical": 0,
+          "total": 0
+        },
+        "advisories": []
+      }
+    },
+    {
+      "project": "cmb-kernel",
+      "all": {
+        "counts": {
+          "info": 0,
+          "low": 0,
+          "moderate": 0,
+          "high": 0,
+          "critical": 0,
+          "total": 0
+        },
+        "advisories": []
+      },
+      "production": {
+        "counts": {
+          "info": 0,
+          "low": 0,
+          "moderate": 0,
+          "high": 0,
+          "critical": 0,
+          "total": 0
+        },
+        "advisories": []
+      }
+    },
+    {
+      "project": "cmb-health",
+      "all": {
+        "counts": {
+          "info": 0,
+          "low": 0,
+          "moderate": 0,
+          "high": 0,
+          "critical": 0,
+          "total": 0
+        },
+        "advisories": []
+      },
+      "production": {
+        "counts": {
+          "info": 0,
+          "low": 0,
+          "moderate": 0,
+          "high": 0,
+          "critical": 0,
+          "total": 0
+        },
+        "advisories": []
+      }
+    },
+    {
+      "project": "cmb-persistence",
+      "all": {
+        "counts": {
+          "info": 0,
+          "low": 0,
+          "moderate": 0,
+          "high": 0,
+          "critical": 0,
+          "total": 0
+        },
+        "advisories": []
+      },
+      "production": {
+        "counts": {
+          "info": 0,
+          "low": 0,
+          "moderate": 0,
+          "high": 0,
+          "critical": 0,
+          "total": 0
+        },
+        "advisories": []
+      }
+    },
+    {
+      "project": "cmb-infrastructure",
+      "all": {
+        "counts": {
+          "info": 0,
+          "low": 0,
+          "moderate": 0,
+          "high": 0,
+          "critical": 0,
+          "total": 0
+        },
+        "advisories": []
+      },
+      "production": {
+        "counts": {
+          "info": 0,
+          "low": 0,
+          "moderate": 0,
+          "high": 0,
+          "critical": 0,
+          "total": 0
+        },
+        "advisories": []
+      }
+    },
+    {
+      "project": "cmb-realtime",
+      "all": {
+        "counts": {
+          "info": 0,
+          "low": 0,
+          "moderate": 0,
+          "high": 0,
+          "critical": 0,
+          "total": 0
+        },
+        "advisories": []
+      },
+      "production": {
+        "counts": {
+          "info": 0,
+          "low": 0,
+          "moderate": 0,
+          "high": 0,
+          "critical": 0,
+          "total": 0
+        },
+        "advisories": []
+      }
+    },
+    {
+      "project": "cmb-identity",
+      "all": {
+        "counts": {
+          "info": 0,
+          "low": 0,
+          "moderate": 0,
+          "high": 0,
+          "critical": 0,
+          "total": 0
+        },
+        "advisories": []
+      },
+      "production": {
+        "counts": {
+          "info": 0,
+          "low": 0,
+          "moderate": 0,
+          "high": 0,
+          "critical": 0,
+          "total": 0
+        },
+        "advisories": []
+      }
+    },
+    {
+      "project": "cmb-tenancy",
+      "all": {
+        "counts": {
+          "info": 0,
+          "low": 0,
+          "moderate": 0,
+          "high": 0,
+          "critical": 0,
+          "total": 0
+        },
+        "advisories": []
+      },
+      "production": {
+        "counts": {
+          "info": 0,
+          "low": 0,
+          "moderate": 0,
+          "high": 0,
+          "critical": 0,
+          "total": 0
+        },
+        "advisories": []
+      }
+    },
+    {
+      "project": "cmb-system",
+      "all": {
+        "counts": {
+          "info": 0,
+          "low": 0,
+          "moderate": 0,
+          "high": 0,
+          "critical": 0,
+          "total": 0
+        },
+        "advisories": []
+      },
+      "production": {
+        "counts": {
+          "info": 0,
+          "low": 0,
+          "moderate": 0,
+          "high": 0,
+          "critical": 0,
+          "total": 0
+        },
+        "advisories": []
+      }
+    },
+    {
+      "project": "cmb-auth",
+      "all": {
+        "counts": {
+          "info": 0,
+          "low": 0,
+          "moderate": 0,
+          "high": 0,
+          "critical": 0,
+          "total": 0
+        },
+        "advisories": []
+      },
+      "production": {
+        "counts": {
+          "info": 0,
+          "low": 0,
+          "moderate": 0,
+          "high": 0,
+          "critical": 0,
+          "total": 0
+        },
+        "advisories": []
+      }
+    },
+    {
+      "project": "cmb-authorization",
+      "all": {
+        "counts": {
+          "info": 0,
+          "low": 0,
+          "moderate": 0,
+          "high": 0,
+          "critical": 0,
+          "total": 0
+        },
+        "advisories": []
+      },
+      "production": {
+        "counts": {
+          "info": 0,
+          "low": 0,
+          "moderate": 0,
+          "high": 0,
+          "critical": 0,
+          "total": 0
+        },
+        "advisories": []
+      }
+    },
+    {
+      "project": "cmb-notifications",
+      "all": {
+        "counts": {
+          "info": 0,
+          "low": 0,
+          "moderate": 0,
+          "high": 0,
+          "critical": 0,
+          "total": 0
+        },
+        "advisories": []
+      },
+      "production": {
+        "counts": {
+          "info": 0,
+          "low": 0,
+          "moderate": 0,
+          "high": 0,
+          "critical": 0,
+          "total": 0
+        },
+        "advisories": []
+      }
+    },
+    {
+      "project": "cmb-activity",
+      "all": {
+        "counts": {
+          "info": 0,
+          "low": 0,
+          "moderate": 0,
+          "high": 0,
+          "critical": 0,
+          "total": 0
+        },
+        "advisories": []
+      },
+      "production": {
+        "counts": {
+          "info": 0,
+          "low": 0,
+          "moderate": 0,
+          "high": 0,
+          "critical": 0,
+          "total": 0
+        },
+        "advisories": []
+      }
+    },
+    {
+      "project": "cmb-data-transfer",
+      "all": {
+        "counts": {
+          "info": 0,
+          "low": 0,
+          "moderate": 0,
+          "high": 0,
+          "critical": 0,
+          "total": 0
+        },
+        "advisories": []
+      },
+      "production": {
+        "counts": {
+          "info": 0,
+          "low": 0,
+          "moderate": 0,
+          "high": 0,
+          "critical": 0,
+          "total": 0
+        },
+        "advisories": []
+      }
+    },
+    {
+      "project": "cmb-starter",
+      "all": {
+        "counts": {
+          "info": 0,
+          "low": 0,
+          "moderate": 0,
+          "high": 0,
+          "critical": 0,
+          "total": 0
+        },
+        "advisories": []
+      },
+      "production": {
+        "counts": {
+          "info": 0,
+          "low": 0,
+          "moderate": 0,
+          "high": 0,
+          "critical": 0,
+          "total": 0
+        },
+        "advisories": []
+      }
+    },
+    {
+      "project": "cmb-reference",
+      "all": {
+        "counts": {
+          "info": 0,
+          "low": 0,
+          "moderate": 0,
+          "high": 0,
+          "critical": 0,
+          "total": 0
+        },
+        "advisories": []
+      },
+      "production": {
+        "counts": {
+          "info": 0,
+          "low": 0,
+          "moderate": 0,
+          "high": 0,
+          "critical": 0,
+          "total": 0
+        },
+        "advisories": []
+      }
+    },
+    {
+      "project": "backend-v2",
+      "all": {
+        "counts": {
+          "info": 0,
+          "low": 0,
+          "moderate": 5,
+          "high": 29,
+          "critical": 0,
+          "total": 34
+        },
+        "advisories": [
+          {
+            "name": "braces",
+            "severity": "high",
+            "sources": [
+              {
+                "url": "https://github.com/advisories/GHSA-vfj7-8cjw-p6xm",
+                "title": "braces vulnerable to stack-exhaustion denial of service through deeply nested patterns",
+                "range": "<=3.0.3"
+              }
+            ]
+          },
+          {
+            "name": "sprintf-js",
+            "severity": "moderate",
+            "sources": [
+              {
+                "url": "https://github.com/advisories/GHSA-hp3w-g68c-fv3c",
+                "title": "sprintf-js vulnerable to denial of service through unbounded precision specifiers",
+                "range": "<=1.1.3"
+              }
+            ]
+          }
+        ]
+      },
+      "production": {
+        "counts": {
+          "info": 0,
+          "low": 0,
+          "moderate": 0,
+          "high": 0,
+          "critical": 0,
+          "total": 0
+        },
+        "advisories": []
+      }
+    },
+    {
+      "project": "admin-v2",
+      "all": {
+        "counts": {
+          "info": 0,
+          "low": 0,
+          "moderate": 2,
+          "high": 9,
+          "critical": 0,
+          "total": 11
+        },
+        "advisories": [
+          {
+            "name": "braces",
+            "severity": "high",
+            "sources": [
+              {
+                "url": "https://github.com/advisories/GHSA-vfj7-8cjw-p6xm",
+                "title": "braces vulnerable to stack-exhaustion denial of service through deeply nested patterns",
+                "range": "<=3.0.3"
+              }
+            ]
+          },
+          {
+            "name": "postcss-selector-parser",
+            "severity": "moderate",
+            "sources": [
+              {
+                "url": "https://github.com/advisories/GHSA-rj75-hqrm-r3gf",
+                "title": "PostCSS: Quadratic complexity in flat selector parsing allows CPU exhaustion",
+                "range": "<7.1.6"
+              }
+            ]
+          }
+        ]
+      },
+      "production": {
+        "counts": {
+          "info": 0,
+          "low": 0,
+          "moderate": 0,
+          "high": 0,
+          "critical": 0,
+          "total": 0
+        },
+        "advisories": []
+      }
+    },
+    {
+      "project": "student-core",
+      "all": {
+        "counts": {
+          "info": 0,
+          "low": 0,
+          "moderate": 0,
+          "high": 0,
+          "critical": 0,
+          "total": 0
+        },
+        "advisories": []
+      },
+      "production": {
+        "counts": {
+          "info": 0,
+          "low": 0,
+          "moderate": 0,
+          "high": 0,
+          "critical": 0,
+          "total": 0
+        },
+        "advisories": []
+      }
+    }
+  ]
+}

@@ -1,13 +1,12 @@
 import { Module } from "@nestjs/common";
 import { ConfigModule } from "@nestjs/config";
-import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR } from "@nestjs/core";
+import { APP_FILTER, APP_GUARD } from "@nestjs/core";
 import { TypeOrmModule } from "@nestjs/typeorm";
 import appConfig from "./config/app.config";
 import authConfig from "./config/auth.config";
 import databaseConfig from "./config/database.config";
 import { dataSourceOptions } from "./database/data-source";
 import { HttpExceptionFilter } from "./common/filters/http-exception.filter";
-import { LoggingInterceptor } from "./common/interceptors/logging.interceptor";
 import { RolesGuard } from "./common/guards/roles.guard";
 import { CsrfGuard } from "./common/guards/csrf.guard";
 import { AuthSessionGuard } from "./common/guards/auth-session.guard";
@@ -76,7 +75,6 @@ import { ChatModule } from "./modules/chat/chat.module";
   ],
   providers: [
     { provide: APP_FILTER, useClass: HttpExceptionFilter },
-    { provide: APP_INTERCEPTOR, useClass: LoggingInterceptor },
     { provide: APP_GUARD, useClass: AuthSessionGuard },
     { provide: APP_GUARD, useClass: RolesGuard },
     { provide: APP_GUARD, useClass: CapabilitiesGuard },

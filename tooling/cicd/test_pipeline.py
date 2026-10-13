@@ -158,6 +158,10 @@ class PipelineTests(unittest.TestCase):
             deploy = root / "scripts/deploy"
             deploy.mkdir(parents=True)
             (deploy / "lan.sh").write_text(script)
+            # This fixture targets file permissions; image identity/retention is
+            # covered independently by test_retention.py.
+            (deploy / "retain-current-images.py").write_text("# fixture: no container changes\n")
+            (deploy / "database-recovery.cjs").write_text("// fixture mounted into mocked Docker\n")
             tls = deploy / "create-lan-tls.sh"
             tls.write_text("#!/bin/bash\nexit 0\n")
             tls.chmod(0o700)
@@ -167,7 +171,7 @@ class PipelineTests(unittest.TestCase):
             fake = root / "bin"
             fake.mkdir()
             docker = fake / "docker"
-            docker.write_text("#!/bin/bash\nset -eu\nfor arg in \"$@\"; do\nif [[ \"$arg\" == ps ]]; then echo backend-v2; exit 0; fi\nif [[ \"$arg\" == cp ]]; then target=\"${@: -1}\"; echo fixture > \"$target\"; chmod 644 \"$target\"; exit 0; fi\ndone\n")
+            docker.write_text("#!/bin/bash\nset -eu\nif [[ \"$1\" == inspect ]]; then echo sha256:fixture; exit 0; fi\nfor arg in \"$@\"; do\nif [[ \"$arg\" == --images ]]; then echo bastak-school/backend-v2:fixture; exit 0; fi\nif [[ \"$arg\" == ps ]]; then echo backend-v2; exit 0; fi\nif [[ \"$arg\" == cp ]]; then target=\"${@: -1}\"; echo fixture > \"$target\"; chmod 644 \"$target\"; exit 0; fi\ndone\n")
             docker.chmod(0o700)
             env = dict(os.environ, PATH=str(fake)+os.pathsep+os.environ["PATH"],
                        PRODUCTION_BACKUP_DIR=str(root / "backups"), PRODUCTION_LOCK_FILE=str(root / "lock"), RELEASE_SHA="a"*40)

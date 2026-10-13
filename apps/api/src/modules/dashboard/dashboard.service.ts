@@ -27,7 +27,7 @@ export class LegacyDashboardService {
     // Related school roles use the same server-authorized operational surface
     // while retaining their actual active role in the response contract.
     const context = this.dashboardContext(activeRole);
-    const ids = await this.studentIds(user.id, context);
+    const ids = await this.studentIds(user, context);
     const values = ids.length ? ids : ["__none__"];
     const marks = values.map(() => "?").join(",");
     const scalar = async (sql: string, args: unknown[] = []) =>
@@ -189,16 +189,21 @@ export class LegacyDashboardService {
       "داشبورد این نقش هنوز تعریف نشده است.",
     );
   }
-  private async studentIds(userId: string, context: string) {
+  private async studentIds(user: AuthenticatedUser, context: string) {
     if (
       context === "GUARDIAN" ||
       ["ADVISOR", "TEACHER", "MENTOR"].includes(context)
     ) {
       const rows = await this.db.query(
         `SELECT DISTINCT toStudentId id FROM user_relationships WHERE fromUserId=? AND status='ACTIVE' AND type=?`,
-        [userId, context === "GUARDIAN" ? "GUARDIAN_OF" : `${context}_OF`],
+        [user.id, context === "GUARDIAN" ? "GUARDIAN_OF" : `${context}_OF`],
       );
-      return rows.map((r: { id: string }) => r.id);
+      const allowed: string[] = [];
+      const authority = { ...user, roles: user.roles ?? [], capabilities: user.capabilities ?? [],
+        membershipIds: user.membershipIds ?? [], organizationIds: user.organizationIds ?? [] };
+      for (const row of rows)
+        if (await this.authorization.canAccessStudent(authority, row.id, "students.read")) allowed.push(row.id);
+      return allowed;
     }
     return [];
   }

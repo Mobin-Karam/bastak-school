@@ -1,0 +1,43 @@
+{
+  "timestamp": "2026-10-13T02:31:32.469003+00:00",
+  "host": {
+    "cpuLoad1m": 0.181640625,
+    "cpuCount": 4,
+    "memoryTotalBytes": 10315776000,
+    "memoryAvailableBytes": 6383751168,
+    "diskFreeBytes": 207961755648,
+    "diskUsedPercent": 8.04
+  },
+  "containers": [
+    {
+      "name": "bastak-school-admin-v2-1",
+      "imageId": "sha256:1d81de8c9e70a0685c0b5c07ed0b68f5727fed8da99cbc145561a78da2f7c091",
+      "restartCount": 0,
+      "health": "healthy",
+      "cpuPercent": "0.00%",
+      "memoryUsage": "14.43MiB / 9.607GiB"
+    },
+    {
+      "name": "bastak-school-backend-v2-1",
+      "imageId": "sha256:8532212b4b2100c356d54a8d530ddf81edc5285331972bc82c0032f488a19095",
+      "restartCount": 0,
+      "health": "healthy",
+      "cpuPercent": "0.01%",
+      "memoryUsage": "159.7MiB / 9.607GiB",
+      "http5m": {
+        "sampleCount": 0,
+        "p50Ms": null,
+        "p95Ms": null,
+        "p99Ms": null,
+        "serverErrorRate": null,
+        "clientErrorCount": 0
+      },
+      "database5m": {
+        "slowQueryCount": 0,
+        "maxSlowQueryMs": null,
+        "thresholdMs": 100
+      },
+      "logSampleLimit": 5000
+    }
+  ]
+}
