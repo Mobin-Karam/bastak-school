@@ -179,6 +179,7 @@ export class AuthController {
     await this.auth.logout(
       req.cookies?.[cookieName],
       req.cookies?.[refreshCookieName],
+      typeof req.headers["x-csrf-token"] === "string" ? req.headers["x-csrf-token"] : undefined,
     );
     res.clearCookie(cookieName, { path: "/" });
     res.clearCookie(refreshCookieName, { path: "/" });

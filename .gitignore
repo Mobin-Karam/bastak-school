@@ -9,6 +9,7 @@ apps/admin/test-results/
 build/
 target/
 *.tsbuildinfo
+__pycache__/
 apps/admin/tailwind.config.js
 apps/admin/tailwind.config.d.ts
 apps/admin/vite.config.js

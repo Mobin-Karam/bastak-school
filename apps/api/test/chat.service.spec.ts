@@ -41,6 +41,7 @@ function service(
     repo(),
     options.roleAssignments || repo(),
     { transaction: jest.fn() } as any,
+    { canAccessStudent: jest.fn(async () => true) } as any,
   );
 }
 
@@ -85,16 +86,16 @@ describe("ChatService user profiles", () => {
 });
 
 describe("ChatService membership isolation", () => {
-  it("allows a guardian to start a direct conversation with another student without granting observation access", async () => {
+  it("rejects role-only guardian discovery without an authorized student relationship", async () => {
     const users = repo({
       findOne: jest.fn(async ({ where }: any) => where.id === "student-user" ? { id: "student-user", student: { id: "student-2" } } : { id: "guardian", student: null }),
       findOneByOrFail: jest.fn(async ({ id }: any) => ({ id })),
     });
     const relationships = repo();
     const roleAssignments = repo({ exist: jest.fn(async () => true) });
-    await expect(service(undefined, undefined, { users, relationships, roleAssignments }).createDirect({ id: "guardian" } as any, "student-user")).resolves.toBeUndefined();
-    expect(roleAssignments.exist).toHaveBeenCalledWith(expect.objectContaining({ where: { user: { id: "guardian" }, role: { code: "GUARDIAN" } } }));
-    expect(relationships.exist).not.toHaveBeenCalled();
+    await expect(service(undefined, undefined, { users, relationships, roleAssignments }).createDirect({ id: "guardian" } as any, "student-user")).rejects.toMatchObject({ response: { error: expect.objectContaining({ code: "CHAT_POLICY_DENIED" }) } });
+    expect(roleAssignments.exist).not.toHaveBeenCalled();
+    expect(relationships.exist).toHaveBeenCalled();
   });
 
   it("lists only conversations where the current user is an active member", async () => {

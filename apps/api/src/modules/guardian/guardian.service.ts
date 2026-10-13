@@ -17,6 +17,8 @@ import {
   RelationshipStatus,
   RelationshipType,
 } from "../../database/entities/user-relationship.entity";
+import { AuthenticatedUser } from "../auth";
+import { AuthorizationService, UserContext } from "../authorization";
 import { ExamsService } from "../exams";
 import { NotificationsService } from "../notifications";
 @Injectable()
@@ -38,24 +40,29 @@ export class GuardianService {
     private attendanceRecords: Repository<AttendanceRecord>,
     private notifications: NotificationsService,
     private examsService: ExamsService,
+    private authorization: AuthorizationService,
   ) {}
-  async students(userId: string) {
+  async students(user: AuthenticatedUser) {
     const rows = await this.relationships.find({
       where: {
-        fromUser: { id: userId },
+        fromUser: { id: user.id },
         type: RelationshipType.GUARDIAN_OF,
         status: RelationshipStatus.ACTIVE,
       },
       relations: { toStudent: true },
     });
-    return rows.map((r) => this.studentProjection(r.toStudent));
+    const allowed: ReturnType<GuardianService["studentProjection"]>[] = [];
+    for (const row of rows)
+      if (await this.authorization.canAccessStudent(this.context(user), row.toStudent.id, "guardian.students.read"))
+        allowed.push(this.studentProjection(row.toStudent));
+    return allowed;
   }
-  async dashboard(userId: string, studentId: string) {
-    const student = await this.requireChild(userId, studentId);
+  async dashboard(user: AuthenticatedUser, studentId: string) {
+    const student = await this.requireChild(user, studentId);
     const [progress, schedule, exams] = await Promise.all([
-      this.progress(userId, studentId),
-      this.schedule(userId, studentId),
-      this.exams(userId, studentId),
+      this.progress(user, studentId),
+      this.schedule(user, studentId),
+      this.exams(user, studentId),
     ]);
     return {
       student: this.studentProjection(student),
@@ -74,8 +81,8 @@ export class GuardianService {
           : [],
     };
   }
-  async progress(userId: string, studentId: string) {
-    await this.requireChild(userId, studentId);
+  async progress(user: AuthenticatedUser, studentId: string) {
+    await this.requireChild(user, studentId);
     const now = new Date(),
       today = now.toISOString().slice(0, 10),
       start = new Date(now);
@@ -124,8 +131,8 @@ export class GuardianService {
       },
     };
   }
-  async schedule(userId: string, studentId: string) {
-    await this.requireChild(userId, studentId);
+  async schedule(user: AuthenticatedUser, studentId: string) {
+    await this.requireChild(user, studentId);
     const today = new Date().toISOString().slice(0, 10);
     const rows = await this.plans.find({
       where: { student: { id: studentId }, status: PlanStatus.PUBLISHED },
@@ -150,8 +157,8 @@ export class GuardianService {
         })),
       }));
   }
-  async attendance(userId: string, studentId: string) {
-    await this.requireChild(userId, studentId);
+  async attendance(user: AuthenticatedUser, studentId: string) {
+    await this.requireChild(user, studentId);
     const rows = await this.attendanceRecords.find({
       where: { student: { id: studentId } },
       relations: { session: { organization: true } },
@@ -167,12 +174,12 @@ export class GuardianService {
       recordedAt: row.createdAt.toISOString(),
     }));
   }
-  async exams(userId: string, studentId: string) {
-    await this.requireChild(userId, studentId);
+  async exams(user: AuthenticatedUser, studentId: string) {
+    await this.requireChild(user, studentId);
     return this.examsService.listForGuardianStudent(studentId);
   }
-  async reports(userId: string, studentId: string) {
-    await this.requireChild(userId, studentId);
+  async reports(user: AuthenticatedUser, studentId: string) {
+    await this.requireChild(user, studentId);
     const rows = await this.reportsRepo.find({
       where: { student: { id: studentId } },
       order: { planDate: "DESC" },
@@ -192,18 +199,18 @@ export class GuardianService {
     }));
   }
   async encourage(
-    userId: string,
+    user: AuthenticatedUser,
     studentId: string,
     input: { message: string; kind?: string },
   ) {
-    const student = await this.requireChild(userId, studentId);
+    const student = await this.requireChild(user, studentId);
     const message = String(input.message || "")
       .replace(/<[^>]*>/g, "")
       .trim()
       .slice(0, 500);
     if (!message)
       throw new ApiException(400, "MESSAGE_REQUIRED", "متن تشویق الزامی است.");
-    const guardian = await this.users.findOneByOrFail({ id: userId });
+    const guardian = await this.users.findOneByOrFail({ id: user.id });
     const row = await this.encouragements.save(
       this.encouragements.create({
         student,
@@ -230,17 +237,17 @@ export class GuardianService {
     );
     return { id: row.id, createdAt: row.createdAt };
   }
-  private async requireChild(userId: string, studentId: string) {
+  private async requireChild(user: AuthenticatedUser, studentId: string) {
     const relation = await this.relationships.findOne({
       where: {
-        fromUser: { id: userId },
+        fromUser: { id: user.id },
         toStudent: { id: studentId },
         type: RelationshipType.GUARDIAN_OF,
         status: RelationshipStatus.ACTIVE,
       },
       relations: { toStudent: { user: true } },
     });
-    if (!relation)
+    if (!relation || !(await this.authorization.canAccessStudent(this.context(user), studentId, "guardian.students.read")))
       throw new ApiException(
         404,
         "CHILD_NOT_FOUND",
@@ -257,5 +264,9 @@ export class GuardianService {
       targetUniversity: s.targetUniversity,
       targetField: s.targetField,
     };
+  }
+  private context(user: AuthenticatedUser): UserContext {
+    return { ...user, roles: user.roles ?? [], capabilities: user.capabilities ?? [],
+      membershipIds: user.membershipIds ?? [], organizationIds: user.organizationIds ?? [] };
   }
 }
