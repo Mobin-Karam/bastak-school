@@ -50,7 +50,8 @@ export class User {
   @Column({ type: "varchar", length: 254, nullable: true })
   email?: string | null;
 
-  @Column()
+  // Credentials are opt-in for authentication, never implicit in relation reads.
+  @Column({ select: false })
   passwordHash!: string;
 
   /** @deprecated Read only as a bridge for pre-RBAC databases. */

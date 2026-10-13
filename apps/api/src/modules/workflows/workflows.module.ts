@@ -1,3 +1,4 @@
+import { SchoolAccessModule } from "../school-access";
 import { Module } from "@nestjs/common";
 import { TypeOrmModule } from "@nestjs/typeorm";
 import { AttendanceRecord } from "../../database/entities/attendance-record.entity";
@@ -21,6 +22,7 @@ import { NotificationsModule } from "../notifications/notifications.module";
 
 @Module({
   imports: [
+    SchoolAccessModule,
     RealtimeModule,
     NotificationsModule,
     TypeOrmModule.forFeature([

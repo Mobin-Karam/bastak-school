@@ -19,7 +19,7 @@ This is the starting point for humans extending or maintaining Moshaver. It appl
 
 | Target | Frontend | Backend | API |
 | --- | --- | --- | --- |
-| Current v2 development | `apps/admin`, `apps/student` | `apps/api` | `/api/v2` |
+| Current v2 development | `apps/admin` (including student-facing views) | `apps/api` | `/api/v2` |
 
 The v1.4 line is archived on `archive/v1.4` and is not maintained in `main` or `develop`. Do not copy its routes, schemas, or runtime assumptions into v2 without an explicit compatibility change. Direct source and tests are authoritative; migration audits describe gaps at the time they were written.
 
@@ -88,11 +88,11 @@ rg --files apps/admin/src apps/api/src | rg 'test|spec|migration'
 - Use TypeORM migrations for durable schema changes; do not rely on schema synchronization.
 - Preserve the success envelope, structured errors, session authentication, and CSRF protection.
 
-### Student v2
+### Student-facing behavior
 
-- Keep reusable domain logic and providers in `student-core`.
-- Keep browser, PWA, Tauri, SQLite, notification, and device behavior in `apps/student` adapters.
-- Validate web and native runtimes separately.
+- Keep runtime-neutral student domain logic and providers in `student-core`.
+- Implement current browser views in `apps/admin`; verify capability, scope, mobile and RTL behavior.
+- Historical native/PWA guidance applies only if a supported runtime is reintroduced.
 
 ## Complete a change
 

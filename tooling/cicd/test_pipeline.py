@@ -8,6 +8,19 @@ ROOT = pathlib.Path(__file__).resolve().parents[2]
 class PipelineTests(unittest.TestCase):
     def workflow(self, name):
         return yaml.safe_load((ROOT / ".github/workflows" / name).read_text())
+    def test_full_pipeline_executes_browser_and_disposable_api_journeys(self):
+        workflow = self.workflow("continuous-integration.yml")
+        runs = "\n".join(step.get("run", "") for step in workflow["jobs"]["quality"]["steps"])
+        self.assertIn("test:coverage", runs)
+        self.assertIn("test:cmb-publish", runs)
+        self.assertIn("playwright install --with-deps chromium", runs)
+        self.assertIn("test:e2e -- --grep 'desktop panels remain reachable'", runs)
+        self.assertIn("./scripts/deploy/verify-security.sh", runs)
+        script = (ROOT / "scripts/deploy/verify-security.sh").read_text()
+        self.assertIn("all) suites=(security-matrix student-journey onboarding-journey)", script)
+        self.assertIn('DATABASE_PATH="$security_directory/$suite.sqlite"', script)
+        self.assertIn('node "apps/api/scripts/$suite-e2e.mjs"', script)
+        self.assertIn("for attempt in {1..600}; do", (ROOT / "scripts/cicd/finish-work.sh").read_text())
     def test_required_gate_covers_every_change_and_failure(self):
         ci = self.workflow("continuous-integration.yml")
         events = ci.get("on", ci.get(True))
@@ -71,7 +84,29 @@ class PipelineTests(unittest.TestCase):
         self.assertTrue(env["PRODUCTION_BACKUP_DIR"].startswith("/home/bastak-server/.config/"))
         script = (ROOT / "scripts/deploy/lan.sh").read_text()
         self.assertIn("PRODUCTION_BACKUP_DIR", script)
-        self.assertLess(script.index('.backup('), script.index('up -d --force-recreate'))
+        self.assertLess(script.index('database-recovery.cjs backup'), script.index('up -d --force-recreate'))
+    def test_immutable_promotion_is_staged_and_protected(self):
+        readiness=self.workflow('deployment-readiness.yml')
+        steps=readiness['jobs']['containers']['steps']
+        self.assertIn('./scripts/deploy/verify-release.sh',steps[2]['run'])
+        self.assertIn('github.sha',steps[3]['with']['name'])
+        self.assertEqual(steps[3]['with']['if-no-files-found'],'error')
+        server=yaml.safe_load((ROOT/'.github/deployment/server-deploy.yml').read_text())
+        deploy=server['jobs']['deploy']
+        self.assertIn("IMMUTABLE_DEPLOY_ENABLED == 'true'",deploy['if'])
+        self.assertEqual(deploy['environment'],'production')
+        self.assertEqual(deploy['permissions'],{'contents':'read','actions':'read'})
+        self.assertIn('SOURCE_ARTIFACT_READ_TOKEN',deploy['steps'][1]['env']['GH_TOKEN'])
+        run=deploy['steps'][1]['run']
+        self.assertIn('release_bundle.py download',run)
+        self.assertIn('lan-immutable.sh',run)
+        self.assertNotIn('install -m 600',run)
+        immutable=(ROOT/'scripts/deploy/lan-immutable.sh').read_text()
+        self.assertIn('--no-build --pull never',immutable)
+        self.assertNotIn(' down ',immutable)
+        self.assertLess(immutable.index(' node - rehearse'),immutable.index('up -d --no-build'))
+        configure=(ROOT/'scripts/cicd/configure-github.py').read_text()
+        self.assertNotIn('"variable", "set", "PRODUCTION_DEPLOY_TARGET"',configure)
     def test_sync_retry_recovers_a_pushed_branch_and_existing_pr(self):
         script = self.workflow("continuous-integration.yml")["jobs"]["sync-main"]["steps"][1]["run"]
         with tempfile.TemporaryDirectory() as directory:
@@ -123,6 +158,10 @@ class PipelineTests(unittest.TestCase):
             deploy = root / "scripts/deploy"
             deploy.mkdir(parents=True)
             (deploy / "lan.sh").write_text(script)
+            # This fixture targets file permissions; image identity/retention is
+            # covered independently by test_retention.py.
+            (deploy / "retain-current-images.py").write_text("# fixture: no container changes\n")
+            (deploy / "database-recovery.cjs").write_text("// fixture mounted into mocked Docker\n")
             tls = deploy / "create-lan-tls.sh"
             tls.write_text("#!/bin/bash\nexit 0\n")
             tls.chmod(0o700)
@@ -132,15 +171,38 @@ class PipelineTests(unittest.TestCase):
             fake = root / "bin"
             fake.mkdir()
             docker = fake / "docker"
-            docker.write_text("#!/bin/bash\nset -eu\nfor arg in \"$@\"; do\nif [[ \"$arg\" == ps ]]; then echo backend-v2; exit 0; fi\nif [[ \"$arg\" == cp ]]; then target=\"${@: -1}\"; echo fixture > \"$target\"; chmod 644 \"$target\"; exit 0; fi\ndone\n")
+            docker.write_text('''#!/bin/bash
+set -eu
+printf '%s\n' "$*" >> "$CALL_LOG"
+if [[ "$1" == inspect ]]; then
+  if [[ "$*" == *Mounts* ]]; then echo bastak-school_moshaver_v2_sqlite; else echo sha256:fixture; fi
+  exit 0
+fi
+if [[ "$1" == run && "$*" == *".cjs backup"* ]]; then
+  [[ "${RECOVERY_FAILURE:-0}" == 0 ]] || exit 7
+  target="$PRODUCTION_BACKUP_DIR/$(basename "${@: -1}")"
+  echo fixture > "$target"; chmod 644 "$target"; exit 0
+fi
+for arg in "$@"; do
+  if [[ "$arg" == ps ]]; then echo backend-v2; exit 0; fi
+done
+''')
             docker.chmod(0o700)
             env = dict(os.environ, PATH=str(fake)+os.pathsep+os.environ["PATH"],
-                       PRODUCTION_BACKUP_DIR=str(root / "backups"), PRODUCTION_LOCK_FILE=str(root / "lock"), RELEASE_SHA="a"*40)
+                       PRODUCTION_BACKUP_DIR=str(root / "backups"), PRODUCTION_LOCK_FILE=str(root / "lock"), RELEASE_SHA="a"*40,
+                       CALL_LOG=str(root / "calls"))
             subprocess.run(["bash", str(deploy / "lan.sh")], env=env, capture_output=True, text=True, check=True)
             backups = list((root / "backups").glob("*.sqlite"))
             self.assertEqual(len(backups), 1)
             self.assertEqual(backups[0].stat().st_mode & 0o777, 0o600)
             self.assertEqual((root / "backups").stat().st_mode & 0o777, 0o700)
+            (root / "calls").write_text("")
+            failed = subprocess.run(["bash", str(deploy / "lan.sh")], env=dict(env, RECOVERY_FAILURE="1"), capture_output=True, text=True)
+            self.assertEqual(failed.returncode, 7)
+            calls = (root / "calls").read_text()
+            self.assertIn("stop admin-v2 backend-v2", calls)
+            self.assertIn("start backend-v2 backend-v2", calls)
+            self.assertNotIn("up -d", calls)
 
 if __name__ == "__main__":
     unittest.main()

@@ -5,12 +5,14 @@ Documentation is part of the product contract and changes with behavior.
 | Content | Directory |
 | --- | --- |
 | Current topology and boundaries | `docs/architecture/` |
+| Cross-cutting engineering guidance | `docs/engineering/` |
 | Current application or API | `docs/components/` |
 | Commands, recovery, security, deployment | `docs/operations/` |
+| Feature delivery notes | `docs/features/`, `docs/implementation/` |
 | Planned compatibility work and gaps | `docs/migrations/` |
 | Product direction and design | `docs/product/` |
 | Releases and user-visible changes | `docs/releases/` |
-| Dated audits, fixes, snapshots | `docs/history/` |
+| Dated audits, fixes, snapshots | `docs/audits/`, `docs/history/` |
 
 Historical documents are evidence. Do not rewrite an old audit to look current; add a dated follow-up or update a current canonical document.
 

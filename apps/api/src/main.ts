@@ -11,6 +11,7 @@ import cors from "@fastify/cors";
 import helmet from "@fastify/helmet";
 import { AppModule } from "./app.module";
 import { DocumentBuilder, SwaggerModule } from "@nestjs/swagger";
+import { registerHttpTelemetry } from "./common/observability/http-telemetry";
 
 async function bootstrap() {
   const app = await NestFactory.create<NestFastifyApplication>(
@@ -23,6 +24,7 @@ async function bootstrap() {
     }),
   );
   const config = app.get(ConfigService);
+  registerHttpTelemetry(app.getHttpAdapter().getInstance(), (entry) => console.log(JSON.stringify(entry)));
   const corsOrigins = config.get<string[]>("corsOrigins") || [];
 
   await app.register(helmet);

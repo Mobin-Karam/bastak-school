@@ -281,8 +281,8 @@ export class ClassGroupsService {
         "CLASS_GROUP_NOT_FOUND",
         "گروه کلاس پیدا نشد.",
       );
-    await this.access.organizationForUser(user, group.organization.id);
     this.assertWorkOrganization(user, group.organization.id);
+    await this.access.organizationForUser(user, group.organization.id);
     if (!this.canReadGroup(user, group))
       throw new ApiException(
         403,

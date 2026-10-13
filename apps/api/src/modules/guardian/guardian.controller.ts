@@ -17,38 +17,38 @@ export class GuardianController {
   @Get("students") @RequireCapabilities("guardian.students.read") students(
     @CurrentUser() u: AuthenticatedUser,
   ) {
-    return this.guardian.students(u.id).then(ok);
+    return this.guardian.students(u).then(ok);
   }
   @Get("students/:id/dashboard")
   @RequireCapabilities("guardian.dashboard.read")
   dashboard(@CurrentUser() u: AuthenticatedUser, @Param("id") id: string) {
-    return this.guardian.dashboard(u.id, id).then(ok);
+    return this.guardian.dashboard(u, id).then(ok);
   }
   @Get("students/:id/progress")
   @RequireCapabilities("guardian.progress.read")
   progress(@CurrentUser() u: AuthenticatedUser, @Param("id") id: string) {
-    return this.guardian.progress(u.id, id).then(ok);
+    return this.guardian.progress(u, id).then(ok);
   }
   @Get("students/:id/schedule")
   @RequireCapabilities("guardian.schedule.read")
   schedule(@CurrentUser() u: AuthenticatedUser, @Param("id") id: string) {
-    return this.guardian.schedule(u.id, id).then(ok);
+    return this.guardian.schedule(u, id).then(ok);
   }
   @Get("students/:id/attendance")
   @RequireCapabilities("guardian.dashboard.read")
   attendance(@CurrentUser() u: AuthenticatedUser, @Param("id") id: string) {
-    return this.guardian.attendance(u.id, id).then(ok);
+    return this.guardian.attendance(u, id).then(ok);
   }
   @Get("students/:id/exams") @RequireCapabilities("guardian.exams.read") exams(
     @CurrentUser() u: AuthenticatedUser,
     @Param("id") id: string,
   ) {
-    return this.guardian.exams(u.id, id).then(ok);
+    return this.guardian.exams(u, id).then(ok);
   }
   @Get("students/:id/reports")
   @RequireCapabilities("guardian.reports.read")
   reports(@CurrentUser() u: AuthenticatedUser, @Param("id") id: string) {
-    return this.guardian.reports(u.id, id).then(ok);
+    return this.guardian.reports(u, id).then(ok);
   }
   @Post("students/:id/encouragement")
   @RequireCapabilities("guardian.encouragement.create")
@@ -57,6 +57,6 @@ export class GuardianController {
     @Param("id") id: string,
     @Body() body: EncouragementDto,
   ) {
-    return this.guardian.encourage(u.id, id, body).then(ok);
+    return this.guardian.encourage(u, id, body).then(ok);
   }
 }

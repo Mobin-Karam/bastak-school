@@ -47,6 +47,9 @@ export class ScheduleService {
     );
   }
   async list(user: AuthenticatedUser, organizationId?: string) {
+    return (await this.listEntities(user, organizationId)).map((entry) => this.publicEntry(entry));
+  }
+  private async listEntities(user: AuthenticatedUser, organizationId?: string) {
     const requestedOrganizationId = organizationId ?? user.activeOrganizationId;
     const context = this.context(user);
     this.authorization.requireCapability(context, "schedule.read");
@@ -260,7 +263,7 @@ export class ScheduleService {
         classBook,
         teacher,
       }),
-    );
+    ).then((entry) => this.publicEntry(entry));
   }
   async update(user: AuthenticatedUser, id: string, dto: SaveScheduleEntryDto) {
     const context = this.context(user);
@@ -309,7 +312,7 @@ export class ScheduleService {
       classBook,
       teacher,
     });
-    return this.entries.save(item);
+    return this.entries.save(item).then((entry) => this.publicEntry(entry));
   }
   async archive(
     user: AuthenticatedUser,
@@ -332,7 +335,7 @@ export class ScheduleService {
       throw new ApiException(403, "FORBIDDEN", "دسترسی کافی ندارید.");
     if (item.versionId) throw new ApiException(409,"TIMETABLE_IMMUTABLE","این درس را از نسخه برنامه درسی مدیریت کنید.");
     item.status = dto.status;
-    return this.entries.save(item);
+    return this.entries.save(item).then((entry) => this.publicEntry(entry));
   }
   async remove(user: AuthenticatedUser, id: string) {
     const context = this.context(user);
@@ -425,6 +428,18 @@ export class ScheduleService {
         "کلاس انتخاب‌شده متعلق به این مدرسه نیست.",
       );
     return classroom;
+  }
+
+  private publicEntry(entry: SchoolScheduleEntry) {
+    // Identity entities are persistence objects, never public account DTOs.
+    const teacher = (user?: User | null) => user ? {
+      id: user.id, username: user.username, firstName: user.firstName, lastName: user.lastName,
+    } : null;
+    return {
+      ...entry,
+      teacher: teacher(entry.teacher),
+      classBook: entry.classBook ? { ...entry.classBook, teacher: teacher(entry.classBook.teacher) } : null,
+    };
   }
 
   private async teacherForOrganization(

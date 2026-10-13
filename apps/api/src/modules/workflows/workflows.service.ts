@@ -1,3 +1,4 @@
+import { SchoolAccessService } from "../school-access";
 import { Injectable } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { In, Repository } from "typeorm";
@@ -75,13 +76,14 @@ export class WorkflowsService {
     @InjectRepository(User) private readonly users: Repository<User>,
     private readonly realtime: RealtimeService,
     private readonly notifications: NotificationsService,
+    private readonly access: SchoolAccessService,
   ) {}
 
   async listAttendanceContexts(
     user: AuthenticatedUser,
     organizationId?: string,
   ) {
-    const memberships = await this.activeMemberships(user.id);
+    const memberships = await this.activeMemberships(user, organizationId);
     const organizationIds = memberships.map(
       (membership) => membership.organization.id,
     );
@@ -143,7 +145,7 @@ export class WorkflowsService {
   }
 
   async listDormRooms(user: AuthenticatedUser, organizationId?: string) {
-    const memberships = await this.activeMemberships(user.id);
+    const memberships = await this.activeMemberships(user, organizationId);
     const organizationIds = memberships.map(
       (membership) => membership.organization.id,
     );
@@ -184,7 +186,7 @@ export class WorkflowsService {
     },
   ) {
     const organization = await this.organizationForUser(
-      user.id,
+      user,
       input.organizationId,
     );
     const code = (input.code || "").trim();
@@ -310,7 +312,7 @@ export class WorkflowsService {
     user: AuthenticatedUser,
     organizationId?: string,
   ) {
-    const memberships = await this.activeMemberships(user.id);
+    const memberships = await this.activeMemberships(user, organizationId);
     const organizationIds = memberships.map(
       (membership) => membership.organization.id,
     );
@@ -352,7 +354,7 @@ export class WorkflowsService {
     },
   ) {
     const organization = await this.organizationForUser(
-      user.id,
+      user,
       input.organizationId,
     );
     const contextType = this.parseContextType(input.contextType);
@@ -396,7 +398,7 @@ export class WorkflowsService {
     },
   ) {
     const organization = await this.organizationForUser(
-      user.id,
+      user,
       input.organizationId,
     );
     if (!input.entries?.length) {
@@ -495,7 +497,7 @@ export class WorkflowsService {
       contextId,
     );
     const organization = await this.organizationForUser(
-      user.id,
+      user,
       organizationId,
     );
 
@@ -621,7 +623,7 @@ export class WorkflowsService {
   }
 
   async listLeaveRequests(user: AuthenticatedUser, organizationId?: string) {
-    const memberships = await this.activeMemberships(user.id);
+    const memberships = await this.activeMemberships(user, organizationId);
     const organizationIds = memberships.map(
       (membership) => membership.organization.id,
     );
@@ -671,7 +673,7 @@ export class WorkflowsService {
   ) {
     const student = await this.studentForUser(user.id);
     const organization = await this.organizationForUser(
-      user.id,
+      user,
       input.organizationId,
     );
     const startDate = new Date(input.startDate);
@@ -748,7 +750,7 @@ export class WorkflowsService {
         "درخواست مرخصی پیدا نشد.",
       );
     }
-    await this.organizationForUser(user.id, row.organization.id);
+    await this.organizationForUser(user, row.organization.id);
     this.assertLeaveRequestReviewer(user, row);
     const status = this.parseLeaveStatus(input.status);
     row.status = status;
@@ -760,7 +762,7 @@ export class WorkflowsService {
   }
 
   async listExitPermissions(user: AuthenticatedUser, organizationId?: string) {
-    const memberships = await this.activeMemberships(user.id);
+    const memberships = await this.activeMemberships(user, organizationId);
     const organizationIds = memberships.map(
       (membership) => membership.organization.id,
     );
@@ -798,7 +800,7 @@ export class WorkflowsService {
   ) {
     const student = await this.studentForUser(user.id);
     const organization = await this.organizationForUser(
-      user.id,
+      user,
       input.organizationId,
     );
     const departure = new Date(input.requestedDepartureAt);
@@ -862,7 +864,7 @@ export class WorkflowsService {
         "درخواست مجوز خروج پیدا نشد.",
       );
     }
-    await this.organizationForUser(user.id, row.organization.id);
+    await this.organizationForUser(user, row.organization.id);
     this.assertWorkflowReviewer(user);
     const status = this.parseExitStatus(input.status);
     row.status = status;
@@ -902,7 +904,7 @@ export class WorkflowsService {
         "فقط خود دانش‌آموز می‌تواند بازگشت را درخواست کند.",
       );
     }
-    await this.organizationForUser(user.id, row.organization.id);
+    await this.organizationForUser(user, row.organization.id);
     if (
       row.status !== ExitPermissionStatus.APPROVED ||
       !row.actualDepartureAt
@@ -955,7 +957,7 @@ export class WorkflowsService {
   ) {
     this.assertWorkflowReviewer(user);
     const organization = await this.organizationForUser(
-      user.id,
+      user,
       input.organizationId,
     );
     const student = await this.studentForPhoneInOrganization(
@@ -1022,7 +1024,7 @@ export class WorkflowsService {
   ) {
     this.assertWorkflowReviewer(user);
     const organization = await this.organizationForUser(
-      user.id,
+      user,
       input.organizationId,
     );
     const student = await this.studentForPhoneInOrganization(
@@ -1091,7 +1093,7 @@ export class WorkflowsService {
         "EXIT_PERMISSION_NOT_FOUND",
         "مجوز خروج پیدا نشد.",
       );
-    await this.organizationForUser(user.id, row.organization.id);
+    await this.organizationForUser(user, row.organization.id);
     this.assertWorkflowReviewer(user);
     if (movement === "departure") {
       if (row.status !== ExitPermissionStatus.APPROVED)
@@ -1135,7 +1137,7 @@ export class WorkflowsService {
   }
 
   async occupancy(user: AuthenticatedUser, organizationId?: string) {
-    const memberships = await this.activeMemberships(user.id);
+    const memberships = await this.activeMemberships(user, organizationId);
     const ids = memberships.map((membership) => membership.organization.id);
     if (!ids.length) return [];
     const scoped = organizationId
@@ -1235,7 +1237,7 @@ export class WorkflowsService {
   }
 
   async listLetters(user: AuthenticatedUser, organizationId?: string) {
-    const memberships = await this.activeMemberships(user.id);
+    const memberships = await this.activeMemberships(user, organizationId);
     const organizationIds = memberships.map(
       (membership) => membership.organization.id,
     );
@@ -1289,7 +1291,7 @@ export class WorkflowsService {
     },
   ) {
     const organization = await this.organizationForUser(
-      user.id,
+      user,
       input.organizationId,
     );
     if (!input.subject?.trim() || !input.body?.trim()) {
@@ -1342,7 +1344,7 @@ export class WorkflowsService {
     if (!row) {
       throw new ApiException(404, "LETTER_NOT_FOUND", "نامه پیدا نشد.");
     }
-    await this.organizationForUser(user.id, row.organization.id);
+    await this.organizationForUser(user, row.organization.id);
     if (input.read) {
       row.readAt = new Date();
     }
@@ -1356,9 +1358,11 @@ export class WorkflowsService {
     return this.serializeLetter(saved);
   }
 
-  private async activeMemberships(userId: string) {
+  private async activeMemberships(user: AuthenticatedUser, organizationId?: string) {
+    const ids = await this.access.scopedOrganizationIds(user, organizationId);
+    if (!ids.length) return [];
     return this.memberships.find({
-      where: { user: { id: userId }, status: MembershipStatus.ACTIVE },
+      where: { user: { id: user.id }, organization: { id: In(ids) }, status: MembershipStatus.ACTIVE },
       relations: { organization: true },
     });
   }
@@ -1418,23 +1422,8 @@ export class WorkflowsService {
     );
   }
 
-  private async organizationForUser(userId: string, organizationId: string) {
-    const membership = await this.memberships.findOne({
-      where: {
-        user: { id: userId },
-        organization: { id: organizationId },
-        status: MembershipStatus.ACTIVE,
-      },
-      relations: { organization: true },
-    });
-    if (!membership?.organization) {
-      throw new ApiException(
-        403,
-        "ORGANIZATION_FORBIDDEN",
-        "به این سازمان دسترسی ندارید.",
-      );
-    }
-    return membership.organization;
+  private async organizationForUser(user: AuthenticatedUser, organizationId: string) {
+    return this.access.organizationForUser(user, organizationId);
   }
 
   private async studentForPhoneInOrganization(
@@ -1493,7 +1482,7 @@ export class WorkflowsService {
         "اتاق خوابگاه پیدا نشد.",
       );
     }
-    await this.organizationForUser(user.id, room.organization.id);
+    await this.organizationForUser(user, room.organization.id);
     return room;
   }
 
@@ -1510,7 +1499,7 @@ export class WorkflowsService {
       if (!classroom) {
         throw new ApiException(404, "CLASS_NOT_FOUND", "کلاس پیدا نشد.");
       }
-      await this.organizationForUser(user.id, classroom.organization.id);
+      await this.organizationForUser(user, classroom.organization.id);
       return classroom.organization.id;
     }
 
@@ -1526,7 +1515,7 @@ export class WorkflowsService {
           "گروه درسی پیدا نشد.",
         );
       }
-      await this.organizationForUser(user.id, group.organization.id);
+      await this.organizationForUser(user, group.organization.id);
       return group.organization.id;
     }
 
@@ -1542,11 +1531,11 @@ export class WorkflowsService {
           "اتاق خوابگاه پیدا نشد.",
         );
       }
-      await this.organizationForUser(user.id, room.organization.id);
+      await this.organizationForUser(user, room.organization.id);
       return room.organization.id;
     }
 
-    const memberships = await this.activeMemberships(user.id);
+    const memberships = await this.activeMemberships(user);
     if (!memberships.length) {
       throw new ApiException(
         403,

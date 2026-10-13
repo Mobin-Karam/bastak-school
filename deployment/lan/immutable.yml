@@ -1,0 +1,14 @@
+# Applied only by the explicitly enabled immutable deployment script.
+services:
+  backend-v2:
+    image: ${BACKEND_IMAGE:?Verified backend image required}
+  admin-v2:
+    image: ${ADMIN_IMAGE:?Verified admin image required}
+    volumes:
+      - ${PRODUCTION_CONFIG_DIR:?Approved config directory required}/nginx.conf.template:/etc/nginx/templates/default.conf.template:ro
+      - ${PRODUCTION_CONFIG_DIR}/tls:/etc/nginx/tls:ro
+      - ${PRODUCTION_CONFIG_DIR}/tls/ca.crt:/usr/share/nginx/html/bastak-school-ca.crt:ro
+volumes:
+  moshaver_v2_sqlite:
+    external: true
+    name: ${PRODUCTION_DATA_VOLUME:?Existing data volume required}

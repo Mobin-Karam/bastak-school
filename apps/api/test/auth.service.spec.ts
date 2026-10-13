@@ -27,6 +27,7 @@ function repo<T>(items: T[] = []) {
     save: jest.fn(async (item: T) => ({ id: "session-1", ...item })),
     create: jest.fn((item: T) => item),
     delete: jest.fn(async () => ({ affected: 1 })),
+    update: jest.fn(async () => ({ affected: 1 })),
   };
 }
 
@@ -255,7 +256,8 @@ describe("AuthService", () => {
     expect(rotated.accessToken).not.toBe(original.accessToken);
     expect(rotated.refreshToken).not.toBe(original.refreshToken);
     expect(rotated.csrfToken).not.toBe(original.csrfToken);
-    expect(sessions.save).toHaveBeenLastCalledWith(
+    expect(sessions.update).toHaveBeenLastCalledWith(
+      { id: original.session.id, refreshTokenHash: original.session.refreshTokenHash },
       expect.objectContaining({
         tokenHash: expect.any(String),
         refreshTokenHash: expect.any(String),

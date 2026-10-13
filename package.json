@@ -27,6 +27,7 @@
     "bootstrap": "node tooling/workspace/run.mjs bootstrap",
     "build": "node tooling/workspace/run.mjs run build",
     "test": "node tooling/workspace/run.mjs run test",
+    "test:all": "npm run verify && npm run test:generators && npm run test:cmb-publish && npm --prefix apps/admin run test:coverage && ./scripts/deploy/verify-security.sh && npm --prefix apps/admin run test:e2e -- --grep 'desktop panels remain reachable' && python3 -m unittest discover -s tooling/cicd -p 'test_*.py'",
     "typecheck": "node tooling/workspace/run.mjs run typecheck",
     "lint": "node tooling/workspace/run.mjs run lint",
     "verify": "node tooling/workspace/run.mjs verify"

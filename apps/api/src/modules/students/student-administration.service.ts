@@ -122,7 +122,12 @@ export class StudentAdministrationService {
     const unique = new Map(
       [...own, ...linked].map((student) => [student.id, student]),
     );
-    return [...unique.values()].map((student) => this.project(student));
+    const allowed = [];
+    for (const student of unique.values())
+      if ((!organizationId || student.organization?.id === organizationId) &&
+          await this.authorization.canAccessStudent(context, student.id, "students.read"))
+        allowed.push(this.project(student));
+    return allowed;
   }
 
   async get(user: AuthenticatedUser, id: string, capability = "students.read") {

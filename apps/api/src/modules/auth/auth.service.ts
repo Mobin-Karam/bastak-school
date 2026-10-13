@@ -93,6 +93,7 @@ export class AuthService {
     await this.throttle?.assertAllowed(ip, normalizedPhoneNumber);
     const user = await this.users.findOne({
       where: { phoneNumber: normalizedPhoneNumber },
+      select: { id: true, username: true, phoneNumber: true, role: true, status: true, passwordHash: true },
     });
     if (!user || !(await bcrypt.compare(password, user.passwordHash))) {
       await this.throttle?.failure(ip, normalizedPhoneNumber);
@@ -176,12 +177,21 @@ export class AuthService {
       );
     }
     const credentials = this.newCredentials();
+    const oldRefreshTokenHash = session.refreshTokenHash;
     session.tokenHash = this.credentials.hash(credentials.accessToken);
     session.refreshTokenHash = this.credentials.hash(credentials.refreshToken);
     session.csrfToken = credentials.csrfToken;
     session.expiresAt = credentials.expiresAt;
     session.refreshExpiresAt = credentials.refreshExpiresAt;
-    await this.sessions.save(session);
+    // Compare-and-swap consumes the old credential exactly once, including
+    // concurrent callers that loaded it before the first rotation completed.
+    const rotation = await this.sessions.update(
+      { id: session.id, refreshTokenHash: oldRefreshTokenHash! },
+      { tokenHash: session.tokenHash, refreshTokenHash: session.refreshTokenHash,
+        csrfToken: session.csrfToken, expiresAt: session.expiresAt, refreshExpiresAt: session.refreshExpiresAt },
+    );
+    if (rotation.affected !== 1)
+      throw new ApiException(401, "REFRESH_EXPIRED", "نشست شما منقضی شده است. دوباره وارد شوید.");
     return { ...credentials, session, user: session.user };
   }
 
@@ -219,14 +229,21 @@ export class AuthService {
         };
   }
 
-  async logout(token?: string, refreshToken?: string) {
+  async logout(token?: string, refreshToken?: string, csrfToken?: string) {
     const where = [
       ...(token ? [{ tokenHash: this.credentials.hash(token) }] : []),
       ...(refreshToken
         ? [{ refreshTokenHash: this.credentials.hash(refreshToken) }]
         : []),
     ];
-    if (where.length) await this.sessions.delete(where);
+    if (!where.length) return;
+    const sessions = await this.sessions.find({ where });
+    if (sessions.some((session) => !csrfToken || !this.credentials.safeEqual(session.csrfToken, csrfToken)))
+      throw new ApiException(403, "CSRF", "نشست امنیتی نامعتبر است.");
+    // Delete the verified rows only; a concurrent refresh must not make a new
+    // credential eligible for deletion without its corresponding CSRF token.
+    for (const session of sessions)
+      await this.sessions.delete({ id: session.id, tokenHash: session.tokenHash });
   }
 
   async me(user: AuthenticatedUser) {
@@ -369,7 +386,7 @@ export class AuthService {
     currentPassword: string,
     newPassword: string,
   ) {
-    const account = await this.users.findOne({ where: { id: user.id } });
+    const account = await this.users.findOne({ where: { id: user.id }, select: { id: true, passwordHash: true } });
     if (
       !account ||
       !(await bcrypt.compare(currentPassword, account.passwordHash))
@@ -536,11 +553,18 @@ export class AuthService {
         "ORGANIZATION_REQUIRED",
         "مدرسه فعال را انتخاب کنید.",
       );
-    return this.accountChangeRequests.find({
+    const requests = await this.accountChangeRequests.find({
       where: { organization: { id: scope }, kind: "PHONE_NUMBER" },
       relations: { user: true, organization: true },
       order: { createdAt: "DESC" },
     });
+    return requests.map((request) => ({
+      id: request.id, kind: request.kind, status: request.status,
+      requestedValue: request.requestedValue, reason: request.reason, reviewNote: request.reviewNote,
+      createdAt: request.createdAt, updatedAt: request.updatedAt, reviewedAt: request.reviewedAt,
+      organization: { id: request.organization.id, name: request.organization.name },
+      user: { id: request.user.id, username: request.user.username, firstName: request.user.firstName, lastName: request.user.lastName },
+    }));
   }
 
   async reviewPhoneNumberChangeRequest(

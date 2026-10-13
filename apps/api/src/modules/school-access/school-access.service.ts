@@ -19,15 +19,20 @@ export class SchoolAccessService {
 
   async organizationIds(user: AuthenticatedUser) {
     if (this.isPlatform(user)) {
+      if (user.activeOrganizationId) {
+        await this.organizationForUser(user, user.activeOrganizationId);
+        return [user.activeOrganizationId];
+      }
       const rows = await this.organizations.find({ where: { status: OrganizationStatus.ACTIVE }, select: { id: true } });
       return rows.map((row) => row.id);
     }
-    if (user.organizationIds?.length) return [...new Set(user.organizationIds)];
+    if (user.organizationIds !== undefined) return [...new Set(user.organizationIds)];
     const rows = await this.memberships.find({
-      where: { user: { id: user.id }, status: MembershipStatus.ACTIVE },
+      where: { user: { id: user.id }, status: MembershipStatus.ACTIVE, organization: { status: OrganizationStatus.ACTIVE } },
       relations: { organization: true },
     });
-    return rows.map((row) => row.organization.id);
+    return rows.filter((row) => !user.activeOrganizationId || row.organization.id === user.activeOrganizationId)
+      .map((row) => row.organization.id);
   }
 
   async organizationForUser(user: AuthenticatedUser, organizationId: string) {
@@ -36,8 +41,13 @@ export class SchoolAccessService {
       if (!organization) throw new ApiException(404, "ORGANIZATION_NOT_FOUND", "سازمان پیدا نشد.");
       return organization;
     }
+    // Membership in B cannot reuse role/capability authority resolved for A.
+    // Production AuthService supplies organizationIds even when it is empty.
+    if ((user.activeOrganizationId && user.activeOrganizationId !== organizationId) ||
+        (user.organizationIds !== undefined && !user.organizationIds.includes(organizationId)))
+      throw new ApiException(403, "ORGANIZATION_FORBIDDEN", "به این سازمان دسترسی ندارید.");
     const membership = await this.memberships.findOne({
-      where: { user: { id: user.id }, organization: { id: organizationId }, status: MembershipStatus.ACTIVE },
+      where: { user: { id: user.id }, organization: { id: organizationId, status: OrganizationStatus.ACTIVE }, status: MembershipStatus.ACTIVE },
       relations: { organization: true },
     });
     if (!membership?.organization) throw new ApiException(403, "ORGANIZATION_FORBIDDEN", "به این سازمان دسترسی ندارید.");

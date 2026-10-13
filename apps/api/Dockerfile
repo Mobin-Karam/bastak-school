@@ -20,6 +20,9 @@ COPY apps/api .
 RUN npm run build
 
 FROM node:22.23.3-bookworm-slim AS runtime
+ARG RELEASE_SHA=development
+LABEL org.opencontainers.image.revision=$RELEASE_SHA
+LABEL org.opencontainers.image.source=https://github.com/Mobin-Karam/bastak-school
 WORKDIR /app/apps/api
 ENV NODE_ENV=production
 ENV NODE_PATH=/app/apps/api/node_modules

@@ -1,125 +1,46 @@
-# Moshaver Open Platform documentation
+# Moshaver documentation
 
-This directory is the navigation hub for the active Moshaver v2 monorepo. Documentation is grouped by intent so contributors can distinguish current architecture, product behavior, operations, migration plans, and historical evidence.
+This is the navigation hub for the active repository as reviewed on **2026-10-12**. Start with [repository architecture](./architecture/repository-architecture.md) for the codebase, [engineering](./engineering/README.md) for implementation decisions, or [operations](./operations/README.md) for commands and release work. The historical v1.4 source is preserved on `archive/v1.4`.
 
-Last repository documentation refresh: **2026-10-02**.
+## Find the right document
 
-## Start here
+| If you need to… | Start here | Status |
+| --- | --- | --- |
+| Understand module and project ownership | [Architecture](./architecture/repository-architecture.md), [system map](./architecture/system-map.md), [dependency boundaries](./architecture/dependency-boundaries.md) | Current policy; verify paths in source |
+| Build a feature safely | [Engineering guide](./engineering/README.md), [developer handbook](./operations/developer-handbook.md) | Current guidance |
+| Understand tests and release gates | [Testing strategy](./engineering/testing-strategy.md), [CI/CD pipeline](./operations/ci-cd-pipeline.md) | Current source-backed pipeline |
+| Run, deploy or recover | [Operations index](./operations/README.md), [GitHub CI/CD operations](./operations/github-cicd.md) | Current runbooks |
+| Find an application or API contract | [Components index](./components/README.md), [Admin capability matrix](./ADMIN_V2_CAPABILITY_MATRIX.md) | Current only after source verification |
+| Explore product direction | [Product index](./product/README.md), [Open Platform](./platform/README.md) | Mix of current and proposed work |
+| Inspect a delivered feature | [Feature guides](./features/README.md), [implementation notes](./implementation/README.md) | Check implementation date |
+| Review gaps or a planned transition | [Migration index](./migrations/README.md) | Plans and compatibility evidence |
+| Investigate a prior observation | [Dated audits](./audits/README.md), [historical records](./history/README.md) | Snapshot evidence |
+| Prepare user-visible release notes | [Releases](./releases/README.md) | Release history |
 
-- **New to the product?** Read the [Product Showcase](../SHOWCASE.md).
-- **Building another operations product?** Start with the [Open Platform guide](./platform/README.md).
-- **New to the repository?** Read [Repository architecture](./architecture/repository-architecture.md).
-- **Running it locally?** Use the [Repository runbook](./operations/repository-runbook.md).
-- **Changing code?** Use the [Developer handbook](./operations/developer-handbook.md).
-- **Looking for API behavior?** Read [Backend v2 HTTP API](./components/backend-v2-http-api.md).
-- **Reviewing Admin coverage?** Use the [Admin v2 capability matrix](./ADMIN_V2_CAPABILITY_MATRIX.md).
+## Engineering priorities
 
-The complete historical v1.4 tree is preserved on `archive/v1.4`.
+The [architecture and data guide](./engineering/architecture-and-data.md) covers modular ownership, API contracts, SQLite migrations, concurrency, security and frontend review. The [testing guide](./engineering/testing-strategy.md) maps unit, integration, journey, accessibility, browser and deployment checks. [Performance and observability](./engineering/performance-and-observability.md) defines how to establish baselines before tuning. The [roadmap](./engineering/roadmap.md) distinguishes mechanisms already in source from proposed work. Together these pages adapt the supplied platform planning note to this repository without treating suggested targets as measured results.
 
-## Documentation map
+## Documentation structure
 
 ```text
 docs/
-├── architecture/  Current system shape, boundaries, inventories and ADRs
-├── components/    Runnable apps and public API documentation
-├── operations/    Run, validate, secure, recover and deploy the system
-├── migrations/    Compatibility gaps and staged v1-to-v2 work
-├── product/       Product direction, UX principles and shared assets
-├── platform/      Public platform adoption guide and capability roadmap
-├── releases/      Changelog, release notes and evidence
-└── history/       Dated audits, fixes and evidence snapshots
+├── architecture/     System model, boundaries, inventories and ADRs
+├── engineering/      Cross-cutting design, testing, performance and roadmap
+├── components/       Application and HTTP API reference
+├── features/         Feature-owned guides
+├── implementation/   Notes for delivered changes
+├── operations/       Local runbooks, CI/CD, deployment and recovery
+├── product/          UX direction and product plans
+├── platform/         Reusable CMB platform guide
+├── migrations/       Compatibility work and staged plans
+├── audits/           Dated recent evidence
+├── history/          Older snapshots, fixes and v1 records
+└── releases/         Changelog and release assets
 ```
 
-Current behavior belongs in `architecture/`, `components/`, or `operations/`. Unfinished migration work belongs in `migrations/`. Time-bound evidence belongs in `history/` and should not be treated as current behavior without checking source and tests.
+A few established documents remain at the root to preserve inbound links: [Admin capability matrix](./ADMIN_V2_CAPABILITY_MATRIX.md), [Admin readiness](./ADMIN_V2_PRODUCT_READINESS.md), [school architecture plan](./SCHOOL_PLATFORM_ARCHITECTURE_PLAN.md), [system feature audit](./SYSTEM_FEATURE_AUDIT.md), [API comparison](./API_V1_V2_AUDIT.md), [v1-to-v2 checklist](./V1_TO_V2_MIGRATION_CHECKLIST.md), [student audio/chat audit](./STUDENT_V2_AUDIO_CHAT_AUDIT.md) and [student exam audit](./STUDENT_V2_KONKUR_EXAMS_AUDIT.md). Their titles describe plans or snapshots; confirm their date and current source before using them as instructions. The [API migration manifest](./api-migration-manifest.json) is machine-readable evidence. The [CMB documentation site](./cmb-site/index.html) is a separate presentation surface, not the canonical operations runbook.
 
-## Architecture
+## Maintenance contract
 
-- [Repository architecture](./architecture/repository-architecture.md)
-- [Workspace foundation](./architecture/workspace-foundation.md)
-- [Phase-1 architecture inventory](./architecture/inventory/README.md)
-- [Backend v2 module inventory](./architecture/inventory/backend-v2-module-inventory.md)
-- [Backend v2 dependency map](./architecture/inventory/backend-v2-dependency-map.md)
-- [Current project/package consumers](./architecture/inventory/project-consumers.md)
-- [Target monorepo layout](./architecture/target-monorepo-layout.md)
-- [Dependency boundaries](./architecture/dependency-boundaries.md)
-- [CMB reference and release policy](./architecture/cmb-reference-and-release.md)
-- [Repository architecture migration](./architecture/repository-architecture-migration.md)
-- [ADR 0001 — grouped product monorepo](./architecture/adr/0001-grouped-product-monorepo.md)
-- [ADR 0002 — modular monolith with CMB](./architecture/adr/0002-modular-monolith-cmb.md)
-- [System map](./architecture/system-map.md)
-- [Backend v2 design](./architecture/backend-v2-design.md)
-- [Student core boundary](./architecture/student-core-boundary.md)
-- [Student v2 and Tauri runtime](./architecture/student-v2-tauri-runtime.md)
-- [AI repository operating system](./architecture/ai-repository-operating-system.md)
-- [Graphify](./architecture/graphify.md)
-
-## Open Platform
-
-- [Moshaver Open Platform](./platform/README.md)
-- [Platform roadmap](./platform/ROADMAP.md)
-
-## Components and APIs
-
-- [Backend v2 service](./components/backend-v2-service.md)
-- [Backend v2 HTTP API](./components/backend-v2-http-api.md)
-- [Admin v2 application](./components/admin-v2-application.md)
-- [Student v2 application](./components/student-v2-application.md)
-- [Admin v2 Communication workspace](./components/admin-v2-communication-workspace.md)
-- [Admin v2 capability matrix](./ADMIN_V2_CAPABILITY_MATRIX.md)
-- [Student and Family exam experience audit](./migrations/STUDENT_FAMILY_EXAM_AUDIT.md)
-
-## Operations
-
-- [Repository runbook](./operations/repository-runbook.md)
-- [Release evidence checklist](./operations/release-evidence.md)
-- [Developer handbook](./operations/developer-handbook.md)
-- [Feature and bug playbook](./operations/feature-and-bug-playbook.md)
-- [Maintenance guide](./operations/maintenance-guide.md)
-- [Documentation maintenance](./operations/documentation-maintenance.md)
-- [Plan import schema version 2](./operations/plan-import-schema-v2.md)
-- [Admin v2 Web Push verification](./operations/admin-v2-web-push-verification.md)
-- [Backend v2 product demo seed](./operations/backend-v2-product-demo-seed.md)
-- [Moshaver v2 PaaS deployment](./operations/paas-deployment.md)
-
-## Migration work
-
-- [Backend v1-to-v2 strategy](./migrations/backend-v1-to-v2-strategy.md)
-- [Backend v2 discovery](./migrations/backend-v2-discovery.md)
-- [Admin v2 API gap plan](./migrations/admin-v2-api-gap-plan.md)
-- [Admin v2 API compatibility](./migrations/admin-v2-api-compatibility.md)
-- [Admin v2 migration guide](./migrations/admin-v2-migration-guide.md)
-- [Historical API v1/v2 comparison](./API_V1_V2_AUDIT.md)
-- [Student v1 feature inventory](./migrations/student-v1-feature-inventory.md)
-- [Student v1-to-v2 audit](./migrations/student-v1-to-v2-audit.md)
-- [Student v2 parity gaps](./migrations/student-v2-parity-gaps.md)
-- [Student v2 delivery plan](./migrations/student-v2-delivery-plan.md)
-
-## Product and releases
-
-- [Product showcase](../SHOWCASE.md)
-- [Interface design principles](./product/interface-design-principles.md)
-- [Education planning improvement](./product/education-planning-improvement.md)
-- [Education Platform control-surface audit](./product/education-platform-control-audit.md)
-- [Education workspace audit](./product/education-workspace-audit.md)
-- [Version roadmap](./product/version-roadmap.md)
-- [Application icon catalog](./product/application-icon-catalog.md)
-- [Product changelog](./releases/product-changelog.md)
-
-## Historical evidence
-
-- [v1.4 architecture audit — 2026-08-24](./history/audits/v1-4-architecture-audit-2026-08-24.md)
-- [Repository inventory — 2026-08-24](./history/audits/repository-inventory-2026-08-24.md)
-- [Initial v2 analysis](./history/audits/v2-initial-analysis.md)
-- [Backend v2 test snapshot](./history/audits/backend-v2-test-report.md)
-- [Admin v2 test snapshot](./history/audits/admin-v2-test-report.md)
-- [Auth/sync fix v1.3.3](./history/fixes/auth-sync-v1-3-3.md)
-- [Backend v1 changelog](./history/backend-v1-changelog.md)
-- [Platform audit — 2026-09-28](./history/audits/platform-audit-2026-09-28.md)
-
-## Maintenance rules
-
-- Use descriptive kebab-case filenames that include the component/version when version-specific.
-- Put verification dates inside snapshot documents and move stale snapshots to `history/`.
-- Update this index and inbound links when moving a document.
-- Keep one canonical operations guide and link to it rather than duplicating instructions.
-- Never place credentials, tokens, production database contents, or private `.env` values in documentation.
+Current behavior belongs in architecture, engineering, components or operations. Migration work and product proposals must say what is planned. Audits and history retain the evidence of their date. Update an owning document and its inbound index when behavior changes; do not copy the same runbook into several locations. Use the [documentation maintenance guide](./operations/documentation-maintenance.md) and run `npm run docs:check` plus `git diff --check -- docs` before review. Never include credentials, production data or private environment values.

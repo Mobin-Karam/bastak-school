@@ -1,39 +1,31 @@
 name: Deployment Readiness
-
 on:
   workflow_call:
-
 permissions:
   contents: read
-
 jobs:
   containers:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v4
-      - name: Prepare disposable production configuration
-        run: |
-          ./scripts/deploy/create-lan-tls.sh
-          cp deployment/lan/production.env.example .run/production/production.env
-      - name: Build production topology
-        run: docker compose --env-file .run/production/production.env -f docker-compose.production.yml -f deployment/lan/compose.yml -p bastak-ci build
-      - name: Smoke HTTPS, API proxies, database migrations and secure cookies
-        shell: bash
-        run: |
-          set -euo pipefail
-          compose=(docker compose --env-file .run/production/production.env -f docker-compose.production.yml -f deployment/lan/compose.yml -p bastak-ci)
-          cleanup() {
-            status=$?
-            if (( status != 0 )); then "${compose[@]}" ps; "${compose[@]}" logs --no-color; fi
-            "${compose[@]}" down --volumes --remove-orphans
-            exit "$status"
-          }
-          trap cleanup EXIT
-          "${compose[@]}" config --quiet
-          "${compose[@]}" up -d --wait --wait-timeout 180
-          curl --fail --silent --cacert .run/production/tls/ca.crt https://localhost/ready >/dev/null
-          curl --fail --silent --cacert .run/production/tls/ca.crt https://localhost/ >/dev/null
-          curl --fail --silent --cacert .run/production/tls/ca.crt https://localhost/api/v2/openapi.json >/dev/null
-          test "$(curl --silent -o /dev/null -w '%{http_code}' http://localhost:8082/)" = 308
-          "${compose[@]}" exec -T backend-v2 node -e 'if(process.env.COOKIE_SECURE!=="1"||process.env.NODE_ENV!=="production")process.exit(1)'
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22.23.3
+      - name: Test exact release images on a disposable HTTPS stack
+        env:
+          RELEASE_SHA: ${{ github.sha }}
+          CI_RELEASE_BUNDLE: ${{ runner.temp }}/production-images
+        run: ./scripts/deploy/verify-release.sh
+      - name: Retain tested image archive and identity manifest
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: production-images-${{ github.sha }}
+          path: |
+            ${{ runner.temp }}/production-images/manifest.json
+            ${{ runner.temp }}/production-images/images.tar
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 30

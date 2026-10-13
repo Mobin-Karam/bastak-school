@@ -26,7 +26,8 @@ export enum AttendanceReviewStatus {
 }
 
 @Entity("attendance_records")
-@Index(["session", "student"], { unique: true })
+@Index("UQ_attendance_record_session_student", ["session", "student"], { unique: true })
+@Index("IDX_attendance_record_student_created", ["student", "createdAt", "id"])
 export class AttendanceRecord {
   @PrimaryGeneratedColumn("uuid")
   id!: string;
