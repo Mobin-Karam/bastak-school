@@ -124,7 +124,7 @@ describe("api client", () => {
     setApiWorkContext("PLATFORM_ADMIN", "org-1");
     globalThis.fetch = vi
       .fn()
-      .mockResolvedValueOnce(new Response(new Blob(["backup"]), { status: 200 }))
+      .mockResolvedValueOnce(new Response("backup", { status: 200 }))
       .mockResolvedValueOnce(
         new Response(JSON.stringify({ ok: true, data: { restored: true } }), { status: 200 }),
       ) as typeof fetch;
@@ -156,7 +156,7 @@ describe("api client", () => {
           status: 200,
         }),
       )
-      .mockResolvedValueOnce(new Response(new Blob(["backup"]), { status: 200 })) as typeof fetch;
+      .mockResolvedValueOnce(new Response("backup", { status: 200 })) as typeof fetch;
 
     await api.download("/system/database-backup");
 

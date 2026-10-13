@@ -1,4 +1,8 @@
 import "@testing-library/jest-dom/vitest";
+import { configure } from "@testing-library/react";
+
+// Keep async DOM assertions reliable while jsdom resolves larger dialog trees.
+configure({ asyncUtilTimeout: 3_000 });
 
 class TestResizeObserver {
   observe() {}

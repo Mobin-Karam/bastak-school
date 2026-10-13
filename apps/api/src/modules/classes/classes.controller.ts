@@ -14,6 +14,7 @@ import { RequireCapabilities } from "../../common/decorators/capabilities.decora
 import { ok } from "../../common/utils/envelope";
 import { AuthenticatedUser } from "../auth";
 import {
+  ClassHistoryQueryDto,
   AddClassBookDto,
   SaveEducationClassDto,
   ClassTransferDto,
@@ -98,6 +99,17 @@ export class ClassesController {
     @Body() dto: SetClassBooksDto,
   ) {
     return this.classes.setBooks(actor, id, dto).then(ok);
+  }
+  @Get("classes/:id/enrollments/history")
+  @RequireCapabilities("classes.roster.manage")
+  history(
+    @CurrentUser() actor: AuthenticatedUser,
+    @Param("id") id: string,
+    @Query() page: ClassHistoryQueryDto,
+  ) {
+    return this.classes
+      .enrollmentHistory(actor, id, page.offset, page.limit)
+      .then(ok);
   }
   @Put("classes/:id/enrollments")
   @RequireCapabilities("classes.roster.manage")

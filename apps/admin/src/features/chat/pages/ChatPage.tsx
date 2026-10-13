@@ -62,7 +62,7 @@ export function ChatPage() {
   const shouldStickRef = useRef(true);
   const historyHeightRef = useRef<number | null>(null);
   const restoredConversationRef = useRef("");
-  const highlightTimerRef = useRef<number | undefined>();
+  const highlightTimerRef = useRef<number | undefined>(undefined);
   const { favorites, toggleFavorite } = useConversationFavorites();
 
   const conversations = useConversations(deferredSearch);

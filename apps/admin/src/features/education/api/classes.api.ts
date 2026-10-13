@@ -1,3 +1,4 @@
+import type { AcademicPage, AcademicEnrollmentHistory } from "@moshaver/api-contract";
 import { api } from "../../../shared/api/api";
 
 export type EducationClassBook = {
@@ -14,6 +15,7 @@ export type EducationClass = {
   code: string;
   name: string;
   schoolYear: string;
+  academicYearId?: string | null;
   gradeId: number | null;
   educationTypeId: string | null;
   trackId: string | null;
@@ -33,6 +35,7 @@ export type ClassOptions = {
   eligibleStudents: EducationClassStudent[];
 };
 export type ClassDraft = {
+  academicYearId?: string;
   organizationId: string;
   code: string;
   name: string;
@@ -81,3 +84,8 @@ export const exportClassTransfer = (organizationId: string) =>
 
 export const addClassBook = (id: string, bookId: string, teacherId: string) =>
   api.post<EducationClass>(`/classes/${encodeURIComponent(id)}/books`, { bookId, teacherId });
+
+export const getClassEnrollmentHistory = (id: string, offset = 0, limit = 50) =>
+  api.get<AcademicPage<AcademicEnrollmentHistory>>(
+    `/classes/${encodeURIComponent(id)}/enrollments/history?offset=${offset}&limit=${limit}`,
+  );
