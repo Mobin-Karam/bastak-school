@@ -707,7 +707,9 @@ export class AttendanceService {
             "جلسه حضور و غیاب پیدا نشد.",
           );
         if (
-          session?.sourceKind === "class_schedule" &&
+          session &&
+          (session.sourceKind === "class_schedule" ||
+            dto.expectedRevision !== undefined) &&
           session.revision !== dto.expectedRevision
         )
           throw new ApiException(
@@ -844,10 +846,8 @@ export class AttendanceService {
             },
           });
         }
-        if (session.sourceKind === "class_schedule") {
-          session.revision++;
-          await sessions.save(session);
-        }
+        session.revision++;
+        await sessions.save(session);
         await manager.getRepository(AuditLog).save({
           user: { id: user.id },
           action: "attendance.records.marked",

@@ -206,12 +206,10 @@ describe("AttendanceService organization boundaries (real SQLite)", () => {
       entries: [{ studentId: studentA.id, status: "absent", note: "Illness" }],
     });
     // Model a pre-snapshot session; new manual sessions now capture their full roster.
-    await db
-      .getRepository(AttendanceSession)
-      .update(marked.sessionId, {
-        rosterSnapshot: null,
-        rosterCapturedAt: null,
-      });
+    await db.getRepository(AttendanceSession).update(marked.sessionId, {
+      rosterSnapshot: null,
+      rosterCapturedAt: null,
+    });
     await db
       .getRepository(EducationClassEnrollment)
       .delete({ classroom: { id: assignedClass.id } });
@@ -598,6 +596,41 @@ describe("AttendanceService organization boundaries (real SQLite)", () => {
     expect(record.note).toBe("");
     expect(await db.getRepository(AttendanceRecord).count()).toBe(1);
     expect(emit).not.toHaveBeenCalled();
+  });
+
+  it("rejects a stale correction of a manually created session", async () => {
+    const first = await service.bulkMark(actor, {
+      organizationId: orgA.id,
+      contextType: "class",
+      contextId: assignedClass.id,
+      entries: [{ studentId: studentA.id, status: "present" }],
+    });
+    const session = await db
+      .getRepository(AttendanceSession)
+      .findOneByOrFail({ id: first.sessionId });
+    await service.bulkMark(actor, {
+      organizationId: orgA.id,
+      sessionId: session.id,
+      expectedRevision: session.revision,
+      entries: [{ studentId: studentA.id, status: "late" }],
+    });
+    await expect(
+      service.bulkMark(actor, {
+        organizationId: orgA.id,
+        sessionId: session.id,
+        expectedRevision: session.revision,
+        entries: [{ studentId: studentA.id, status: "absent" }],
+      }),
+    ).rejects.toMatchObject({
+      response: { error: { code: "ATTENDANCE_SESSION_STALE" } },
+    });
+    expect(
+      (
+        await db
+          .getRepository(AttendanceRecord)
+          .findOneByOrFail({ student: { id: studentA.id } })
+      ).status,
+    ).toBe("late");
   });
 
   it("serializes simultaneous attendance writes without nested SQLite transactions", async () => {

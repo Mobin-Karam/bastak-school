@@ -23,7 +23,7 @@ import {
 import { useSearchParams } from "react-router-dom";
 import { useLocale } from "../../../shared/ui/locale";
 import { Card } from "../../../shared/ui/ui";
-import { api } from "../../../shared/api/api";
+import { api, ApiError } from "../../../shared/api/api";
 import { notify } from "../../../shared/ui/notifications";
 import { ResponsiveModal } from "../../../shared/ui/responsive-modal";
 import { useAuth } from "../../auth";
@@ -120,6 +120,7 @@ export function AttendancePage() {
   const [notice, setNotice] = useState<Notice | null>(null);
   const [conflict, setConflict] = useState(false);
   const [loadVersion, setLoadVersion] = useState(0);
+  const baseline = useRef(new Map<string, AttendanceStatus>());
   const pendingWrite = useRef<PendingAttendanceWrite | null>(null);
   const targetScrollRequested = useRef(false);
   const requestId = useRef(0);
@@ -151,7 +152,7 @@ export function AttendancePage() {
     );
     return Object.entries(grouped);
   }, [chosenType, visibleContexts]);
-  const dirty = participants.some((p) => p.status !== "unmarked");
+  const dirty = participants.some((p) => p.status !== (baseline.current.get(p.id) ?? "unmarked"));
   dirtyRef.current = dirty;
   savingRef.current = saving;
   const discard = useAttendanceDiscard(dirty, saving, scopeKey);
@@ -242,6 +243,9 @@ export function AttendancePage() {
   useEffect(() => {
     const currentRequest = ++requestId.current;
     setParticipants([]);
+    baseline.current.clear();
+    setLinkedSession(null);
+    pendingWrite.current = null;
     setPeopleError(false);
     setConflict(false);
     setFilter("all");
@@ -275,6 +279,12 @@ export function AttendancePage() {
     void fetchRoster
       .then((rows) => {
         if (requestId.current !== currentRequest) return;
+        baseline.current = new Map(
+          rows.map((row) => [
+            row.id,
+            "status" in row ? (row.status as AttendanceStatus) : "unmarked",
+          ]),
+        );
         setParticipants(
           rows.map((row, index) => ({
             id: row.id,
@@ -313,7 +323,15 @@ export function AttendancePage() {
   useEffect(() => {
     if (!selected) return;
     const stream = api.openEvents((eventType, payload) => {
-      if (eventType !== "attendance.updated" || payload.contextId !== selected.id) return;
+      if (
+        eventType !== "attendance.updated" ||
+        payload.contextId !== selected.id ||
+        (linkedSession && payload.sessionId && payload.sessionId !== linkedSession.id) ||
+        (payload.contextType && payload.contextType !== selected.contextType) ||
+        (payload.organizationId && payload.organizationId !== selected.activeOrganizationId) ||
+        (payload.updatedBy === auth.user?.id && savingRef.current)
+      )
+        return;
       void refreshHistory();
       if (dirtyRef.current || savingRef.current) {
         setConflict(true);
@@ -322,6 +340,7 @@ export function AttendancePage() {
           text: "اطلاعات این گروه در جای دیگری تغییر کرده است. پیش از ثبت، تغییرات را بررسی کنید.",
         });
       } else {
+        if (linkedSession) setRosterVersion((value) => value + 1);
         setNotice({
           kind: "info",
           text: "حضور و غیاب این گروه در جای دیگری تغییر کرده است. برای مشاهده وضعیت ذخیره‌شده به تاریخچه مراجعه کنید.",
@@ -329,7 +348,7 @@ export function AttendancePage() {
       }
     });
     return () => stream.close();
-  }, [selected, refreshHistory]);
+  }, [selected, refreshHistory, linkedSession, auth.user?.id]);
 
   const counts = useMemo(
     () =>
@@ -379,7 +398,16 @@ export function AttendancePage() {
   }
   function mark(id: string, status: AttendanceStatus) {
     if (!canManage || saving || conflict) return;
-    setParticipants((all) => all.map((p) => (p.id === id ? { ...p, status } : p)));
+    setParticipants((all) =>
+      all.map((p) =>
+        p.id === id
+          ? {
+              ...p,
+              status: status === "unmarked" ? (baseline.current.get(id) ?? "unmarked") : status,
+            }
+          : p,
+      ),
+    );
     setNotice(null);
   }
   function markAllPresent() {
@@ -392,8 +420,9 @@ export function AttendancePage() {
   }
   function resetDraft() {
     discard.request(() => {
-      setParticipants((all) => all.map((p) => ({ ...p, status: "unmarked" })));
-      setConflict(false);
+      setParticipants((all) =>
+        all.map((p) => ({ ...p, status: baseline.current.get(p.id) ?? "unmarked" })),
+      );
       setNotice(null);
     });
   }
@@ -408,7 +437,10 @@ export function AttendancePage() {
       return;
     }
     const entries = participants
-      .filter((p): p is Participant & { status: MarkedStatus } => p.status !== "unmarked")
+      .filter(
+        (p): p is Participant & { status: MarkedStatus } =>
+          p.status !== "unmarked" && p.status !== baseline.current.get(p.id),
+      )
       .map((p) => ({ studentId: p.id, status: p.status }));
     if (!entries.length) {
       setNotice({ kind: "warning", text: "ابتدا وضعیت حداقل یک طلبه را مشخص کنید." });
@@ -454,6 +486,10 @@ export function AttendancePage() {
       void refreshHistory();
     } catch (error) {
       if (scopeRef.current !== scopeKey) return;
+      if (error instanceof ApiError && error.code === "ATTENDANCE_SESSION_STALE") {
+        setConflict(true);
+        setReviewOpen(false);
+      }
       notify(errorText(error, "ثبت حضور و غیاب انجام نشد. دوباره تلاش کنید."), "error");
       setNotice({
         kind: "error",
@@ -484,9 +520,12 @@ export function AttendancePage() {
         </div>
       )}
 
-      <div className={`${shell} rounded-2xl p-1.5`} aria-label="مرحله اول: نوع حضور و غیاب">
+      <div
+        className={`${shell} overflow-x-auto rounded-2xl p-1.5`}
+        aria-label="مرحله اول: نوع حضور و غیاب"
+      >
         <div
-          className="grid gap-1"
+          className="grid min-w-[360px] gap-1"
           style={{ gridTemplateColumns: `repeat(${sections.length}, minmax(0, 1fr))` }}
         >
           {sections.map((type) => {
@@ -690,6 +729,7 @@ export function AttendancePage() {
           if (!open) closeRoster();
         }}
         title={reviewOpen ? "مرحله ۳: بررسی و ثبت حضور" : selected?.name || "حضور و غیاب"}
+        size="wide"
         description="وضعیت اعضا را انتخاب کنید، سپس حضور جلسه را بررسی و ثبت کنید."
       >
         <div dir={profile.direction} className="space-y-4">
@@ -773,16 +813,16 @@ export function AttendancePage() {
                   className={`${buttonBase} border border-amber-400`}
                   onClick={() => {
                     discard.request(() => {
-                      setParticipants((all) => all.map((p) => ({ ...p, status: "unmarked" })));
-                      setConflict(false);
+                      setRosterVersion((value) => value + 1);
+                      setReviewOpen(false);
                       setNotice({
                         kind: "info",
-                        text: "پیش‌نویس پاک شد. سوابق ثبت‌شده در تاریخچه حفظ می‌شوند.",
+                        text: "در حال دریافت آخرین وضعیت ذخیره‌شده…",
                       });
                     });
                   }}
                 >
-                  پاک‌کردن پیش‌نویس
+                  دریافت آخرین وضعیت
                 </button>
               </div>
             )}

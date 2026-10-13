@@ -83,7 +83,7 @@ function LoginPageContent() {
                 </select>
               </label>
             ) : null}
-            {school ? (
+            {/* {school ? (
               <p className="mb-2 break-words text-center font-black">
                 {school.profile.displayName || school.name}
               </p>
@@ -95,7 +95,7 @@ function LoginPageContent() {
             ) : null}
             <h1 className="mb-4 text-center text-lg font-bold">
               {school?.profile.loginTitle || copy.workspaceLogin}
-            </h1>
+            </h1> */}
             {/* ---------------------------------------------
                 PAGE HEADING
                 --------------------------------------------- */}
@@ -170,7 +170,7 @@ function LoginPageContent() {
             FOOTER
             ================================================= */}
 
-        <footer
+        {/* <footer
           className="
             mx-auto
             max-w-md
@@ -185,7 +185,7 @@ function LoginPageContent() {
         >
           {school?.profile.securityNotice || copy.securityNotice}
           <SchoolContactDetails />
-        </footer>
+        </footer> */}
       </section>
     </LoginShell>
   );
