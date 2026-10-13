@@ -85,6 +85,7 @@ afterEach(() => {
   localStorage.clear();
   vi.clearAllMocks();
 });
+// Multi-step dialogs perform real pointer/CSS checks in jsdom 30.
 it("discards unsaved signup changes and uses the next organization's capacity", async () => {
   mount();
   await userEvent.click(await openDirectory());
@@ -103,7 +104,7 @@ it("discards unsaved signup changes and uses the next organization's capacity", 
   await userEvent.click(screen.getByRole("button", { name: "Actions for Second school" }));
   await userEvent.click(screen.getByRole("button", { name: "Signup settings" }));
   expect(screen.getByRole("spinbutton")).toHaveValue(75);
-});
+}, 15_000);
 it("stages feature changes until saved", async () => {
   mount();
   await userEvent.click(await openDirectory());
@@ -118,7 +119,7 @@ it("stages feature changes until saved", async () => {
       expect.arrayContaining(["PLANNER", "IMPORT_EXPORT"]),
     ),
   );
-});
+}, 15_000);
 it("combines directory filters with search", async () => {
   mount();
   await openDirectory();

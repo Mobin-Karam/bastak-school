@@ -2,36 +2,45 @@ version: 2
 updates:
   - package-ecosystem: github-actions
     directory: /
+    target-branch: develop
     schedule:
       interval: weekly
     labels: [dependencies, github-actions]
+    groups:
+      github-actions:
+        patterns: ["*"]
 
   - package-ecosystem: npm
     directory: /apps/api
+    target-branch: develop
     schedule:
       interval: weekly
     labels: [dependencies, backend]
+    groups:
+      nestjs:
+        patterns: ["@nestjs/*"]
+      jest:
+        patterns: ["jest", "@types/jest", "ts-jest"]
+    ignore:
+      # ts-jest and Nest's compiler API currently require TypeScript <7.
+      - dependency-name: typescript
+        versions: [">=7"]
 
   - package-ecosystem: npm
     directory: /apps/admin
+    target-branch: develop
     schedule:
       interval: weekly
     labels: [dependencies, admin]
+    groups:
+      react:
+        patterns: ["react", "react-dom", "@types/react", "@types/react-dom"]
+      vite:
+        patterns: ["vite", "@vitejs/plugin-react", "vitest", "@vitest/*"]
 
   - package-ecosystem: npm
     directory: /student-core
+    target-branch: develop
     schedule:
       interval: weekly
     labels: [dependencies, student]
-
-  - package-ecosystem: npm
-    directory: /apps/student
-    schedule:
-      interval: weekly
-    labels: [dependencies, student]
-
-  - package-ecosystem: cargo
-    directory: /apps/student/src-tauri
-    schedule:
-      interval: weekly
-    labels: [dependencies, student, tauri]
