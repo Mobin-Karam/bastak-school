@@ -1,7 +1,20 @@
+import {
+  TeachingAssignment,
+  SubjectBookReference,
+} from "../../database/entities/academic-structure.entity";
+import { Student } from "../../database/entities/student.entity";
+import {
+  UserRelationship,
+  RelationshipType,
+  RelationshipStatus,
+} from "../../database/entities/user-relationship.entity";
 import { User, UserStatus } from "../../database/entities/user.entity";
-import { OrganizationMembership, MembershipStatus } from "../../database/entities/organization-membership.entity";
+import {
+  OrganizationMembership,
+  MembershipStatus,
+} from "../../database/entities/organization-membership.entity";
 import { Injectable } from "@nestjs/common";
-import { DataSource, EntityManager, In } from "typeorm";
+import { DataSource, EntityManager, In, Not, IsNull } from "typeorm";
 import { randomUUID } from "node:crypto";
 import type {
   TimetableLesson,
@@ -37,6 +50,9 @@ import { SchoolAccessService } from "../school-access";
 import { AttendanceService, attendanceTransaction } from "../attendance";
 import { NotificationsService } from "../notifications";
 import {
+  TimetableQueryDto,
+  TimetablePageDto,
+  TimetableBulkDto,
   TimetableConfigDto,
   TimetableLessonDto,
   TimetableLessonWriteDto,
@@ -53,6 +69,19 @@ import {
   occurrencesForRange,
   detectTimetableConflicts,
 } from "./timetable-domain";
+
+type LessonBatch = {
+  classes: Map<string, EducationClass>;
+  books: Map<string, EducationClassBook>;
+  periods: Map<string, TimetablePeriod>;
+  sessions: Map<string, TimetableDailySession>;
+  bells: Map<string, TimetableBellSchedule>;
+  teachers: Map<string, User>;
+  locations: Map<string, TimetableLocation>;
+  existing: Map<string, SchoolScheduleEntry>;
+  references: SubjectBookReference[];
+  assignments: TeachingAssignment[];
+};
 
 @Injectable()
 export class TimetableService {
@@ -216,12 +245,100 @@ export class TimetableService {
       );
     return membership.user;
   }
+  private async lessonBatch(
+    manager: EntityManager,
+    items: Array<{ id?: string; lesson: TimetableLessonDto }>,
+    year: TimetableAcademicYear,
+    version: TimetableVersion,
+  ): Promise<LessonBatch> {
+    const ids = (
+      key:
+        "classroomId" | "classBookId" | "periodId" | "teacherId" | "locationId",
+    ) => [
+      ...new Set(
+        items.map((i) => i.lesson[key]).filter((id): id is string => !!id),
+      ),
+    ];
+    const map = <T extends { id: string }>(rows: T[]) =>
+      new Map(rows.map((r) => [r.id, r]));
+    const classes = await manager.find(EducationClass, {
+      where: {
+        id: In(ids("classroomId")),
+        organization: { id: year.organizationId },
+        status: "ACTIVE",
+      },
+      relations: { organization: true },
+    });
+    const books = await manager.find(EducationClassBook, {
+      where: { id: In(ids("classBookId")) },
+      relations: { book: true, teacher: true, classroom: true },
+    });
+    const periods = await manager.findBy(TimetablePeriod, {
+      id: In(ids("periodId")),
+    });
+    const sessions = periods.length
+      ? await manager.findBy(TimetableDailySession, {
+          id: In([...new Set(periods.map((p) => p.sessionId))]),
+        })
+      : [];
+    const bells = sessions.length
+      ? await manager.findBy(TimetableBellSchedule, {
+          id: In([...new Set(sessions.map((p) => p.bellId))]),
+        })
+      : [];
+    const roles = ids("teacherId").length
+      ? await manager.find(UserRoleAssignment, {
+          where: {
+            user: { id: In(ids("teacherId")), status: UserStatus.ACTIVE },
+            role: { code: "TEACHER" },
+            membership: {
+              organization: { id: year.organizationId },
+              status: MembershipStatus.ACTIVE,
+            },
+          },
+          relations: { user: true },
+        })
+      : [];
+    const locations = ids("locationId").length
+      ? await manager.findBy(TimetableLocation, {
+          id: In(ids("locationId")),
+          organizationId: year.organizationId,
+        })
+      : [];
+    const existingIds = items.flatMap((i) => (i.id ? [i.id] : []));
+    const existing = existingIds.length
+      ? await manager.findBy(SchoolScheduleEntry, {
+          id: In(existingIds),
+          versionId: version.id,
+        })
+      : [];
+    const references = await manager.findBy(SubjectBookReference, {
+      organizationId: year.organizationId,
+    });
+    const assignments = await manager.findBy(TeachingAssignment, {
+      organizationId: year.organizationId,
+      classroomId: In(ids("classroomId")),
+    });
+    return {
+      classes: map(classes),
+      books: map(books),
+      periods: map(periods),
+      sessions: map(sessions),
+      bells: map(bells),
+      teachers: map(roles.map((r) => r.user)),
+      locations: map(locations),
+      existing: map(existing),
+      references,
+      assignments,
+    };
+  }
   private async validateLesson(
     manager: EntityManager,
     dto: TimetableLessonDto,
     version: TimetableVersion,
     term: TimetableTerm,
     year: TimetableAcademicYear,
+    batch?: LessonBatch,
   ) {
     this.dates(dto.startsOn, dto.endsOn);
     this.times(dto.startTime, dto.endTime);
@@ -234,32 +351,45 @@ export class TimetableService {
         "TIMETABLE_LESSON_DATES",
         "تاریخ درس باید در بازه نیم‌سال و نسخه باشد.",
       );
-    const classroom = await manager.findOne(EducationClass, {
-      where: {
-        id: dto.classroomId,
-        organization: { id: year.organizationId },
-        status: "ACTIVE",
-      },
-      relations: { organization: true },
-    });
-    const book = await manager.findOne(EducationClassBook, {
-      where: { id: dto.classBookId, classroom: { id: dto.classroomId } },
-      relations: { book: true, teacher: true },
-    });
-    const period = await manager.findOneBy(TimetablePeriod, {
-      id: dto.periodId,
-    });
+    const classroom = batch
+      ? (batch.classes.get(dto.classroomId) ?? null)
+      : await manager.findOne(EducationClass, {
+          where: {
+            id: dto.classroomId,
+            organization: { id: year.organizationId },
+            status: "ACTIVE",
+          },
+          relations: { organization: true },
+        });
+    const book = batch
+      ? (batch.books.get(dto.classBookId) ?? null)
+      : await manager.findOne(EducationClassBook, {
+          where: { id: dto.classBookId, classroom: { id: dto.classroomId } },
+          relations: { book: true, teacher: true },
+        });
+    const period = batch
+      ? (batch.periods.get(dto.periodId) ?? null)
+      : await manager.findOneBy(TimetablePeriod, {
+          id: dto.periodId,
+        });
     const session =
       period &&
-      (await manager.findOneBy(TimetableDailySession, {
-        id: period.sessionId,
-      }));
+      (batch
+        ? batch.sessions.get(period.sessionId)
+        : await manager.findOneBy(TimetableDailySession, {
+            id: period.sessionId,
+          }));
     const bell =
       session &&
-      (await manager.findOneBy(TimetableBellSchedule, { id: session.bellId }));
+      (batch
+        ? batch.bells.get(session.bellId)
+        : await manager.findOneBy(TimetableBellSchedule, {
+            id: session.bellId,
+          }));
     if (
       !classroom ||
       !book ||
+      (batch && book.classroom.id !== dto.classroomId) ||
       !bell ||
       bell.organizationId !== year.organizationId
     )
@@ -273,33 +403,99 @@ export class TimetableService {
         "زنگ انتخاب‌شده متعلق به بخش کلاس نیست.",
       );
     const teacher = dto.teacherId
-      ? await this.teacher(manager, dto.teacherId, year.organizationId)
+      ? batch
+        ? (batch.teachers.get(dto.teacherId) ?? null)
+        : await this.teacher(manager, dto.teacherId, year.organizationId)
       : null;
+    if (dto.teacherId && !teacher)
+      this.fail(
+        "TIMETABLE_TEACHER_SCOPE",
+        "استاد باید حساب فعال تدریس در مدرسه داشته باشد.",
+      );
+    if (teacher && book.teacher.id !== teacher.id) {
+      const refs = batch
+        ? batch.references.filter((r) => r.bookId === book.book.id)
+        : await manager.findBy(SubjectBookReference, {
+            organizationId: year.organizationId,
+            bookId: book.book.id,
+          });
+      const assigned = batch
+        ? batch.assignments.some(
+            (a) =>
+              a.classroomId === classroom.id &&
+              a.teacherId === teacher.id &&
+              refs.some((r) => r.subjectId === a.subjectId) &&
+              a.startsOn <= dto.startsOn &&
+              a.endsOn >= dto.endsOn,
+          )
+        : refs.length
+          ? await manager
+              .getRepository(TeachingAssignment)
+              .createQueryBuilder("a")
+              .where(
+                "a.organizationId = :org AND a.classroomId = :classroom AND a.teacherId = :teacher AND a.subjectId IN (:...subjects)",
+                {
+                  org: year.organizationId,
+                  classroom: classroom.id,
+                  teacher: teacher.id,
+                  subjects: refs.map((r) => r.subjectId),
+                },
+              )
+              .andWhere("a.startsOn <= :start AND a.endsOn >= :end", {
+                start: dto.startsOn,
+                end: dto.endsOn,
+              })
+              .getExists()
+          : false;
+      if (!assigned)
+        this.fail(
+          "TIMETABLE_TEACHING_ASSIGNMENT",
+          "استاد به این کلاس و درس واگذار نشده است.",
+        );
+    }
     const location = dto.locationId
-      ? await manager.findOneBy(TimetableLocation, {
-          id: dto.locationId,
-          organizationId: year.organizationId,
-        })
+      ? batch
+        ? (batch.locations.get(dto.locationId) ?? null)
+        : await manager.findOneBy(TimetableLocation, {
+            id: dto.locationId,
+            organizationId: year.organizationId,
+          })
       : null;
     if (dto.locationId && !location)
       this.fail("TIMETABLE_LOCATION_SCOPE", "اتاق در این مدرسه پیدا نشد.");
+    if (classroom.academicYearId && classroom.academicYearId !== year.id)
+      this.fail("TIMETABLE_CLASS_YEAR", "کلاس متعلق به سال تحصیلی نسخه نیست.");
     return { classroom, book, teacher, location };
   }
   private async lessonViews(
     manager: EntityManager,
-    versionId: string,
+    versionId: string | string[],
   ): Promise<TimetableLesson[]> {
     const rows = await manager.find(SchoolScheduleEntry, {
-      where: { versionId, status: "ACTIVE" },
+      where: {
+        versionId: Array.isArray(versionId) ? In(versionId) : versionId,
+        status: "ACTIVE",
+      },
       relations: { classroom: true, classBook: { book: true }, teacher: true },
       order: { weekday: "ASC", startTime: "ASC" },
     });
-    const periods = await manager.find(TimetablePeriod);
-    const sessions = await manager.find(TimetableDailySession);
-    const locations = await manager.find(TimetableLocation);
+    const periodIds = [
+      ...new Set(
+        rows.map((row) => row.periodId).filter((id): id is string => !!id),
+      ),
+    ];
+    const periods = periodIds.length
+      ? await manager.findBy(TimetablePeriod, { id: In(periodIds) })
+      : [];
+    const sessionIds = [...new Set(periods.map((p) => p.sessionId))];
+    const sessions = sessionIds.length
+      ? await manager.findBy(TimetableDailySession, { id: In(sessionIds) })
+      : [];
+    const periodBy = new Map(periods.map((p) => [p.id, p]));
+    const sessionBy = new Map(sessions.map((p) => [p.id, p]));
     return rows.map((row) => ({
       id: row.id,
-      versionId,
+      versionId: row.versionId!,
       classroomId: row.classroom!.id,
       classBookId: row.classBook!.id,
       teacherId: row.teacher?.id ?? null,
@@ -319,11 +515,10 @@ export class TimetableService {
       locationName: row.room,
       sectionId: row.classroom!.timetableSectionId,
       gradeId: row.classroom!.gradeId,
-      periodName: periods.find((x) => x.id === row.periodId)?.name ?? "",
+      periodName: periodBy.get(row.periodId!)?.name ?? "",
       sessionKind:
-        sessions.find(
-          (x) => x.id === periods.find((p) => p.id === row.periodId)?.sessionId,
-        )?.kind ?? "OTHER",
+        sessionBy.get(periodBy.get(row.periodId!)?.sessionId ?? "")?.kind ??
+        "OTHER",
     }));
   }
   private async versionData(
@@ -363,7 +558,27 @@ export class TimetableService {
           where: { sessionId: In(sessions.map((x) => x.id)) },
         })
       : [];
+    const locations = await manager.findBy(TimetableLocation, {
+      organizationId: year.organizationId,
+    });
+    const counts = await manager
+      .getRepository(EducationClassEnrollment)
+      .createQueryBuilder("e")
+      .innerJoin("e.student", "student")
+      .innerJoin("e.classroom", "classroom")
+      .select("e.classroomId", "id")
+      .addSelect("COUNT(*)", "count")
+      .where(
+        "classroom.organizationId = :org AND student.accountStatus = :active",
+        { org: year.organizationId, active: "active" },
+      )
+      .groupBy("e.classroomId")
+      .getRawMany<{ id: string; count: number }>();
     return {
+      locations,
+      classSizes: Object.fromEntries(
+        counts.map((r) => [r.id, Number(r.count)]),
+      ),
       lessons,
       overrides,
       holidays,
@@ -380,11 +595,166 @@ export class TimetableService {
       timeZone: year.timeZone,
     };
   }
+  private async checkConflicts(
+    manager: EntityManager,
+    version: TimetableVersion,
+    term: TimetableTerm,
+    year: TimetableAcademicYear,
+    data: Awaited<ReturnType<TimetableService["versionData"]>>,
+  ) {
+    const conflicts = detectTimetableConflicts(data);
+    const years = await manager.findBy(TimetableAcademicYear, {
+      organizationId: year.organizationId,
+    });
+    const terms = await manager.findBy(TimetableTerm, {
+      yearId: In(years.map((y) => y.id)),
+    });
+    const relevant = terms.filter(
+      (t) =>
+        t.id !== term.id &&
+        t.startsOn <= data.endsOn &&
+        t.endsOn >= data.startsOn,
+    );
+    if (!relevant.length) return conflicts;
+    const peers = (
+      await manager.find(TimetableVersion, {
+        where: {
+          termId: In(relevant.map((t) => t.id)),
+          state: In(["PUBLISHED", "ARCHIVED"] as const),
+        },
+      })
+    ).filter((v) => !!v.publishedAt);
+    const current = occurrencesForRange(
+      data.lessons,
+      data.overrides,
+      data.holidays,
+      data.startsOn,
+      data.endsOn,
+      year.timeZone,
+    ).filter((o) => !o.cancelled);
+    const seen = new Set<string>();
+    if (!peers.length) return conflicts;
+    const peerIds = peers.map((p) => p.id);
+    const allLessons = await this.lessonViews(manager, peerIds);
+    const allOverrides = await manager.findBy(TimetableOverride, {
+      versionId: In(peerIds),
+    });
+    const allHolidays = await manager.findBy(TimetableHoliday, {
+      termId: In(relevant.map((t) => t.id)),
+    });
+    current.sort((a, b) => a.startsAt.localeCompare(b.startsAt));
+    for (const peer of peers) {
+      const peerTerm = relevant.find((t) => t.id === peer.termId)!;
+      const peerYear = years.find((y) => y.id === peerTerm.yearId)!;
+      const successor = peers
+        .filter(
+          (v) =>
+            v.termId === peer.termId &&
+            (v.effectiveOn > peer.effectiveOn ||
+              (v.effectiveOn === peer.effectiveOn &&
+                v.publishedAt!.getTime() > peer.publishedAt!.getTime())),
+        )
+        .sort((a, b) => a.effectiveOn.localeCompare(b.effectiveOn))[0];
+      const from = [data.startsOn, peer.effectiveOn, peerTerm.startsOn]
+        .sort()
+        .at(-1)!;
+      const to = [
+        data.endsOn,
+        peerTerm.endsOn,
+        ...(successor ? [addDays(successor.effectiveOn, -1)] : []),
+      ].sort()[0];
+      if (to < from) continue;
+      const occurrences = occurrencesForRange(
+        allLessons.filter((l) => l.versionId === peer.id),
+        allOverrides
+          .filter((o) => o.versionId === peer.id)
+          .map((o) => ({ ...o, createdAt: o.createdAt.toISOString() })),
+        allHolidays.filter((h) => h.termId === peerTerm.id),
+        from,
+        to,
+        peerYear.timeZone,
+      )
+        .filter((o) => !o.cancelled)
+        .sort((a, b) => a.startsAt.localeCompare(b.startsAt));
+      let first = 0;
+      for (const a of current) {
+        while (
+          first < occurrences.length &&
+          occurrences[first].endsAt <= a.startsAt
+        )
+          first++;
+        for (
+          let index = first;
+          index < occurrences.length && occurrences[index].startsAt < a.endsAt;
+          index++
+        ) {
+          const b = occurrences[index];
+          if (a.startsAt >= b.endsAt || b.startsAt >= a.endsAt) continue;
+          const codes: Array<
+            "CLASS_OVERLAP" | "TEACHER_OVERLAP" | "ROOM_OVERLAP"
+          > = [];
+          if (a.classroomId === b.classroomId) codes.push("CLASS_OVERLAP");
+          if (a.teacherId && a.teacherId === b.teacherId)
+            codes.push("TEACHER_OVERLAP");
+          if (a.locationId && a.locationId === b.locationId)
+            codes.push("ROOM_OVERLAP");
+          for (const code of codes) {
+            const key = `${code}:${a.id}:${b.id}:${a.date}`;
+            if (seen.has(key)) continue;
+            seen.add(key);
+            conflicts.push({
+              code,
+              lessonIds: [a.id, b.id],
+              date: a.date,
+              message: "تداخل با برنامه مؤثر نیم‌سال دیگر مدرسه.",
+              alternatives: ["انتخاب منبع آزاد یا اصلاح بازه"],
+            });
+          }
+        }
+      }
+    }
+    return conflicts;
+  }
+  private async workspaceConflicts(
+    manager: EntityManager,
+    version: TimetableVersion,
+    data: Awaited<ReturnType<TimetableService["versionData"]>>,
+  ) {
+    const { term, year } = await this.term(manager, version.termId);
+    if (data.lessons.some((l) => l.versionId !== version.id))
+      return detectTimetableConflicts(data);
+    return this.checkConflicts(manager, version, term, year, data);
+  }
+  async conflicts(user: AuthenticatedUser, id: string) {
+    const { version, term, year } = await this.version(
+      user,
+      id,
+      "schedule.read.all",
+    );
+    const data = await this.versionData(
+      this.database.manager,
+      version,
+      term,
+      year,
+    );
+    return {
+      revision: version.revision,
+      conflicts: await this.checkConflicts(
+        this.database.manager,
+        version,
+        term,
+        year,
+        data,
+      ),
+    };
+  }
   async workspace(
     user: AuthenticatedUser,
     organizationId: string,
     versionId?: string,
     startsOn?: string,
+    rangeEndsOn?: string,
+    academicYearId?: string,
   ): Promise<TimetableWorkspace> {
     await this.school(user, organizationId);
     const manager = this.database.manager;
@@ -392,6 +762,8 @@ export class TimetableService {
       where: { organizationId },
       order: { startsOn: "DESC" },
     });
+    if (academicYearId && !years.some((y) => y.id === academicYearId))
+      this.fail("TIMETABLE_NOT_FOUND", "سال تحصیلی در مدرسه پیدا نشد.", 404);
     const terms = years.length
       ? await manager.find(TimetableTerm, {
           where: { yearId: In(years.map((x) => x.id)) },
@@ -422,16 +794,21 @@ export class TimetableService {
         month: "2-digit",
         day: "2-digit",
       }).format(new Date());
+    const rangeEnd = rangeEndsOn ?? addDays(feedDate, 6);
+    this.dates(feedDate, rangeEnd);
     const selected = versionId
       ? versions.find((x) => x.id === versionId)
       : [...versions]
           .filter(
             (x) =>
               x.state !== "DRAFT" &&
-              years.find(
-                (y) => y.id === terms.find((t) => t.id === x.termId)?.yearId,
-              )?.active &&
-              x.effectiveOn <= addDays(feedDate, 6) &&
+              !!x.publishedAt &&
+              years.some(
+                (y) =>
+                  y.id === terms.find((t) => t.id === x.termId)?.yearId &&
+                  (academicYearId ? y.id === academicYearId : y.active),
+              ) &&
+              x.effectiveOn <= rangeEnd &&
               terms.find((t) => t.id === x.termId)!.endsOn >= feedDate,
           )
           .sort(
@@ -439,6 +816,8 @@ export class TimetableService {
               b.effectiveOn.localeCompare(a.effectiveOn) ||
               b.publishedAt!.getTime() - a.publishedAt!.getTime(),
           )[0];
+    if (!full && selected && !selected.publishedAt)
+      this.fail("TIMETABLE_NOT_FOUND", "این نسخه در دسترس نیست.", 404);
     if (versionId && !selected)
       this.fail("TIMETABLE_NOT_FOUND", "این نسخه در دسترس نیست.", 404);
     const classroomRows = await manager.find(EducationClass, {
@@ -486,15 +865,18 @@ export class TimetableService {
       const feedVersions = versions.filter(
         (v) =>
           v.state !== "DRAFT" &&
-          years.find(
-            (y) => y.id === terms.find((t) => t.id === v.termId)?.yearId,
-          )?.active &&
-          v.effectiveOn <= addDays(startsOn, 6) &&
+          !!v.publishedAt &&
+          years.some(
+            (y) =>
+              y.id === terms.find((t) => t.id === v.termId)?.yearId &&
+              (academicYearId ? y.id === academicYearId : y.active),
+          ) &&
+          v.effectiveOn <= rangeEnd &&
           terms.find((t) => t.id === v.termId)!.endsOn >= startsOn,
       );
       const feedLessons: TimetableLesson[] = [];
       const feedOverrides: OverrideContract[] = [];
-      const feedHolidays: typeof data.holidays = [];
+      const feedHolidays: Array<TimetableHoliday & { versionId: string }> = [];
       for (const version of feedVersions) {
         const scope = await this.term(manager, version.termId);
         const snapshot = await this.versionData(
@@ -508,6 +890,7 @@ export class TimetableService {
             (v) =>
               v.termId === version.termId &&
               v.state !== "DRAFT" &&
+              !!v.publishedAt &&
               (v.effectiveOn > version.effectiveOn ||
                 (v.effectiveOn === version.effectiveOn &&
                   v.publishedAt!.getTime() > version.publishedAt!.getTime())),
@@ -525,13 +908,19 @@ export class TimetableService {
             })),
         );
         feedOverrides.push(...snapshot.overrides);
-        feedHolidays.push(...snapshot.holidays);
+        feedHolidays.push(
+          ...snapshot.holidays.map((h) => ({ ...h, versionId: version.id })),
+        );
       }
       data = {
         ...data,
         lessons: feedLessons,
         overrides: feedOverrides,
-        holidays: [...new Map(feedHolidays.map((x) => [x.id, x])).values()],
+        holidays: [
+          ...new Map(
+            feedHolidays.map((x) => [`${x.id}:${x.versionId}`, x]),
+          ).values(),
+        ],
       };
     }
     const bells =
@@ -565,14 +954,42 @@ export class TimetableService {
         },
         relations: { classroom: true },
       });
-      for (const enrollment of enrollments) studentClasses.add(enrollment.classroom.id);
+      for (const enrollment of enrollments)
+        studentClasses.add(enrollment.classroom.id);
     }
-    const ownTeachingLesson = (lesson: TimetableLesson) => teaching && (
-      lesson.teacherId === user.id ||
-      data?.overrides.some((change) => change.lessonId === lesson.id && change.teacherId === user.id)
-    );
+    if (!full && effectiveRoles.includes("GUARDIAN")) {
+      const relationships = await manager.find(UserRelationship, {
+        where: {
+          fromUser: { id: user.id },
+          type: RelationshipType.GUARDIAN_OF,
+          status: RelationshipStatus.ACTIVE,
+        },
+        relations: { toStudent: true },
+      });
+      const childIds = relationships.map((r) => r.toStudent.id);
+      const enrollments = childIds.length
+        ? await manager.find(EducationClassEnrollment, {
+            where: {
+              student: { id: In(childIds), accountStatus: "active" },
+              classroom: { organization: { id: organizationId } },
+            },
+            relations: { classroom: true },
+          })
+        : [];
+      for (const row of enrollments) studentClasses.add(row.classroom.id);
+    }
+    const ownTeachingLesson = (lesson: TimetableLesson) =>
+      teaching &&
+      (lesson.teacherId === user.id ||
+        data?.overrides.some(
+          (change) =>
+            change.lessonId === lesson.id && change.teacherId === user.id,
+        ));
     const lessons = (data?.lessons ?? []).filter(
-      (lesson) => full || studentClasses.has(lesson.classroomId) || ownTeachingLesson(lesson),
+      (lesson) =>
+        full ||
+        studentClasses.has(lesson.classroomId) ||
+        ownTeachingLesson(lesson),
     );
     const allowedClasses = new Set(lessons.map((lesson) => lesson.classroomId));
     for (const id of studentClasses) allowedClasses.add(id);
@@ -581,13 +998,13 @@ export class TimetableService {
     );
     let occurrences: TimetableWorkspace["occurrences"] = [];
     if (data && startsOn) {
-      this.dates(startsOn, addDays(startsOn, 6));
+      this.dates(startsOn, rangeEnd);
       occurrences = occurrencesForRange(
         lessons,
         overrides,
         data.holidays,
         startsOn,
-        addDays(startsOn, 6),
+        rangeEnd,
         data.timeZone,
       );
       const linked = lessons.length
@@ -597,7 +1014,8 @@ export class TimetableService {
         : [];
       if (!full)
         occurrences = occurrences.filter(
-          (occurrence) => studentClasses.has(occurrence.classroomId) ||
+          (occurrence) =>
+            studentClasses.has(occurrence.classroomId) ||
             (teaching && occurrence.teacherId === user.id),
         );
       occurrences = occurrences.map((row) => ({
@@ -627,7 +1045,9 @@ export class TimetableService {
       bells,
       sessions,
       periods,
-      versions: versions.map((x) => this.versionView(x)),
+      versions: versions
+        .filter((v) => full || !!v.publishedAt)
+        .map((x) => this.versionView(x)),
       lessons,
       overrides,
       holidays: data?.holidays ?? [],
@@ -654,9 +1074,265 @@ export class TimetableService {
             ).values(),
           ]
         : [],
-      conflicts: full && data ? detectTimetableConflicts(data) : [],
+      conflicts:
+        full && data && selected
+          ? await this.workspaceConflicts(manager, selected, data)
+          : [],
       occurrences,
     };
+  }
+  async occurrences(
+    user: AuthenticatedUser,
+    organizationId: string,
+    query: TimetableQueryDto,
+  ) {
+    await this.school(user, organizationId);
+    const activeYear = await this.database.manager.findOneBy(
+      TimetableAcademicYear,
+      { organizationId, active: true },
+    );
+    const today = new Intl.DateTimeFormat("en-CA", {
+      timeZone: activeYear?.timeZone ?? "Asia/Tehran",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).format(new Date());
+    const from = query.startsOn ?? today,
+      to = query.endsOn ?? addDays(from, query.view === "DAILY" ? 0 : 6);
+    this.dates(from, to);
+    if (Date.parse(to) - Date.parse(from) > 30 * 86400000)
+      this.fail("TIMETABLE_QUERY_LIMIT", "حداکثر ۳۱ روز را انتخاب کنید.");
+    const workspace = await this.workspace(
+      user,
+      organizationId,
+      query.versionId,
+      from,
+      to,
+      query.academicYearId,
+    );
+    let studentClasses: Set<string> | null = null;
+    if (query.studentId) {
+      const student = await this.database.manager.findOne(Student, {
+        where: { id: query.studentId, organization: { id: organizationId } },
+        relations: { user: true },
+      });
+      if (!student)
+        this.fail("STUDENT_NOT_FOUND", "دانش‌آموز در این مدرسه پیدا نشد.", 404);
+      const full = user.capabilities?.includes("schedule.read.all");
+      const guardian = await this.database.manager.exists(UserRelationship, {
+        where: {
+          fromUser: { id: user.id },
+          toStudent: { id: student.id },
+          type: RelationshipType.GUARDIAN_OF,
+          status: RelationshipStatus.ACTIVE,
+        },
+      });
+      if (!full && student.user?.id !== user.id && !guardian)
+        this.fail("FORBIDDEN", "دانش‌آموز خارج از دامنه دسترسی است.", 403);
+      const enrollments = await this.database.manager.find(
+        EducationClassEnrollment,
+        {
+          where: { student: { id: student.id } },
+          relations: { classroom: true },
+        },
+      );
+      studentClasses = new Set(enrollments.map((r) => r.classroom.id));
+    }
+    const allowedVersions = query.academicYearId
+      ? new Set(
+          workspace.versions
+            .filter((v) =>
+              workspace.terms.some(
+                (t) => t.id === v.termId && t.yearId === query.academicYearId,
+              ),
+            )
+            .map((v) => v.id),
+        )
+      : null;
+    const rows = workspace.occurrences
+      .filter(
+        (o) =>
+          (!query.classroomId || o.classroomId === query.classroomId) &&
+          (!query.teacherId || o.teacherId === query.teacherId) &&
+          (!query.locationId || o.locationId === query.locationId) &&
+          (!studentClasses || studentClasses.has(o.classroomId)) &&
+          (!allowedVersions || allowedVersions.has(o.versionId)),
+      )
+      .sort(
+        (a, b) =>
+          a.startsAt.localeCompare(b.startsAt) || a.id.localeCompare(b.id),
+      );
+    return {
+      items: rows.slice(query.offset, query.offset + query.limit),
+      total: rows.length,
+      offset: query.offset,
+      limit: query.limit,
+    };
+  }
+  async versions(
+    user: AuthenticatedUser,
+    organizationId: string,
+    query: TimetableQueryDto,
+  ) {
+    await this.school(user, organizationId);
+    const builder = this.database.manager
+      .getRepository(TimetableVersion)
+      .createQueryBuilder("v")
+      .innerJoin("v.term", "term")
+      .innerJoin("term.year", "year")
+      .where("year.organizationId = :org", { org: organizationId });
+    if (!user.capabilities?.includes("schedule.read.all"))
+      builder.andWhere("v.publishedAt IS NOT NULL");
+    if (query.academicYearId)
+      builder.andWhere("year.id = :year", { year: query.academicYearId });
+    if (query.startsOn)
+      builder.andWhere("term.endsOn >= :start", { start: query.startsOn });
+    if (query.endsOn)
+      builder.andWhere("v.effectiveOn <= :end", { end: query.endsOn });
+    const [items, total] = await builder
+      .orderBy("v.createdAt", "DESC")
+      .addOrderBy("v.id", "DESC")
+      .skip(query.offset)
+      .take(query.limit)
+      .getManyAndCount();
+    return {
+      items: items.map((v) => this.versionView(v)),
+      total,
+      offset: query.offset,
+      limit: query.limit,
+    };
+  }
+  async history(user: AuthenticatedUser, id: string, page: TimetablePageDto) {
+    await this.version(user, id, "schedule.read.all");
+    const [items, total] = await this.database.manager.findAndCount(
+      TimetableChange,
+      {
+        where: { versionId: id },
+        order: { createdAt: "DESC", id: "DESC" },
+        skip: page.offset,
+        take: page.limit,
+      },
+    );
+    return {
+      items: items.map((r) => ({ ...r, createdAt: r.createdAt.toISOString() })),
+      total,
+      offset: page.offset,
+      limit: page.limit,
+    };
+  }
+  async archive(user: AuthenticatedUser, id: string, dto: TimetablePublishDto) {
+    return attendanceTransaction(this.database.manager, async (manager) => {
+      const { version } = await this.version(
+        user,
+        id,
+        "schedule.archive",
+        manager,
+      );
+      this.revision(version, dto.expectedRevision);
+      version.state = "ARCHIVED";
+      version.revision++;
+      version.reason = dto.reason;
+      await manager.save(version);
+      await this.audit(
+        manager,
+        user,
+        version,
+        "draft.archived",
+        "DRAFT",
+        "ARCHIVED",
+        dto.reason,
+      );
+      return this.versionView(version);
+    });
+  }
+  async bulk(
+    user: AuthenticatedUser,
+    id: string,
+    dto: TimetableBulkDto,
+    preview = false,
+  ) {
+    return attendanceTransaction(this.database.manager, async (manager) => {
+      const { version, term, year } = await this.version(
+        user,
+        id,
+        "schedule.update",
+        manager,
+      );
+      this.revision(version, dto.expectedRevision);
+      const ids = dto.items.flatMap((i) => (i.id ? [i.id] : []));
+      if (new Set(ids).size !== ids.length)
+        this.fail(
+          "TIMETABLE_BULK_DUPLICATE",
+          "شناسه درس در درخواست تکراری است.",
+        );
+      const data = await this.versionData(manager, version, term, year);
+      const batch = await this.lessonBatch(manager, dto.items, year, version);
+      for (let index = 0; index < dto.items.length; index++) {
+        const item = dto.items[index];
+        this.capability(user, item.id ? "schedule.update" : "schedule.create");
+        if (item.id && !data.lessons.some((l) => l.id === item.id))
+          this.fail("TIMETABLE_NOT_FOUND", "درس متعلق به نسخه نیست.", 404);
+        const ctx = await this.validateLesson(
+          manager,
+          item.lesson,
+          version,
+          term,
+          year,
+          batch,
+        );
+        data.lessons = data.lessons.filter((l) => l.id !== item.id);
+        data.lessons.push({
+          ...item.lesson,
+          id: item.id ?? `bulk:${index}`,
+          versionId: id,
+          title: ctx.book.book.titleFa,
+          classroomName: ctx.classroom.name,
+          teacherName: ctx.teacher ? this.person(ctx.teacher) : "",
+          locationName: ctx.location?.name ?? "",
+          sectionId: ctx.classroom.timetableSectionId,
+          gradeId: ctx.classroom.gradeId,
+          periodName: "",
+          sessionKind: "OTHER",
+        });
+      }
+      if (data.lessons.length > 500)
+        this.fail("TIMETABLE_LIMIT", "حداکثر ۵۰۰ درس در هر نسخه مجاز است.");
+      const conflicts = (
+        await this.checkConflicts(manager, version, term, year, data)
+      ).filter(
+        (c) => c.code !== "INCOMPLETE_ALLOCATION" && c.code !== "UNASSIGNED",
+      );
+      if (preview)
+        return {
+          valid: !conflicts.length,
+          conflicts,
+          revision: version.revision,
+        };
+      if (conflicts.length)
+        this.fail(
+          "TIMETABLE_CONFLICT",
+          "عملیات گروهی تداخل دارد.",
+          409,
+          conflicts,
+        );
+      const rows = [];
+      for (const item of dto.items)
+        rows.push(
+          await this.saveLesson(
+            manager,
+            user,
+            version,
+            term,
+            year,
+            item.lesson,
+            item.id,
+            batch,
+          ),
+        );
+      version.revision++;
+      await manager.save(version);
+      return { ids: rows.map((r) => r.id), revision: version.revision };
+    });
   }
   async createVersion(
     user: AuthenticatedUser,
@@ -668,7 +1344,7 @@ export class TimetableService {
       const { term, year } = await this.term(manager, dto.termId);
       if (year.organizationId !== organizationId)
         this.fail("TIMETABLE_SCOPE", "نیم‌سال متعلق به این مدرسه نیست.");
-      canonicalDate(dto.effectiveOn);
+      this.dates(dto.effectiveOn, dto.effectiveOn);
       if (dto.effectiveOn < term.startsOn || dto.effectiveOn > term.endsOn)
         this.fail("TIMETABLE_DATE_RANGE", "تاریخ اجرا خارج از نیم‌سال است.");
       const version = await manager.save(
@@ -757,6 +1433,7 @@ export class TimetableService {
     year: TimetableAcademicYear,
     dto: TimetableLessonDto,
     id?: string,
+    batch?: LessonBatch,
   ) {
     const context = await this.validateLesson(
       manager,
@@ -764,15 +1441,19 @@ export class TimetableService {
       version,
       term,
       year,
+      batch,
     );
     const existing = id
-      ? await manager.findOneBy(SchoolScheduleEntry, {
-          id,
-          versionId: version.id,
-        })
+      ? batch
+        ? (batch.existing.get(id) ?? null)
+        : await manager.findOneBy(SchoolScheduleEntry, {
+            id,
+            versionId: version.id,
+          })
       : null;
     if (id && !existing) this.fail("TIMETABLE_NOT_FOUND", "درس پیدا نشد.", 404);
     if (
+      !batch &&
       !existing &&
       (await manager.countBy(SchoolScheduleEntry, {
         versionId: version.id,
@@ -858,7 +1539,9 @@ export class TimetableService {
         sessionKind: "OTHER",
       };
       data.lessons = [...data.lessons.filter((x) => x.id !== id), candidate];
-      const conflicts = detectTimetableConflicts(data).filter(
+      const conflicts = (
+        await this.checkConflicts(manager, version, term, year, data)
+      ).filter(
         (x) =>
           x.lessonIds.includes(candidate.id) &&
           x.code !== "INCOMPLETE_ALLOCATION",
@@ -932,10 +1615,30 @@ export class TimetableService {
           manager,
         );
         this.revision(version, dto.expectedRevision);
+        const approved = (
+          await manager.find(TimetableVersion, {
+            where: {
+              termId: term.id,
+              state: In(["PUBLISHED", "ARCHIVED"] as const),
+            },
+          })
+        ).filter((v) => !!v.publishedAt);
+        if (approved.some((v) => v.effectiveOn >= version.effectiveOn))
+          this.fail(
+            "TIMETABLE_BACKDATED_PUBLICATION",
+            "نسخه جدید باید بعد از نسخه‌های تأییدشده اجرا شود؛ از استثنای تاریخ‌دار استفاده کنید.",
+            409,
+          );
         const data = await this.versionData(manager, version, term, year);
         if (!data.lessons.length)
           this.fail("TIMETABLE_EMPTY", "برنامه خالی قابل انتشار نیست.");
-        const conflicts = detectTimetableConflicts(data);
+        const conflicts = await this.checkConflicts(
+          manager,
+          version,
+          term,
+          year,
+          data,
+        );
         if (conflicts.length)
           this.fail(
             "TIMETABLE_CONFLICT",
@@ -1037,10 +1740,29 @@ export class TimetableService {
           manager,
         );
         this.revision(version, dto.expectedRevision, false);
-        if (version.state !== "PUBLISHED")
+        if (version.state === "DRAFT")
           this.fail(
             "TIMETABLE_STATE",
             "استثنا فقط برای نسخه فعال مجاز است.",
+            409,
+          );
+        const peers = await manager.find(TimetableVersion, {
+          where: {
+            termId: term.id,
+            state: In(["PUBLISHED", "ARCHIVED"] as const),
+          },
+        });
+        const effective = peers
+          .filter((v) => !!v.publishedAt && v.effectiveOn <= dto.date)
+          .sort(
+            (a, b) =>
+              b.effectiveOn.localeCompare(a.effectiveOn) ||
+              (b.publishedAt?.getTime() ?? 0) - (a.publishedAt?.getTime() ?? 0),
+          )[0];
+        if (effective?.id !== version.id)
+          this.fail(
+            "TIMETABLE_SUPERSEDED",
+            "نسخه دیگری در این تاریخ اجرا می‌شود.",
             409,
           );
         const data = await this.versionData(manager, version, term, year);
@@ -1094,9 +1816,9 @@ export class TimetableService {
             createdAt: new Date().toISOString(),
           },
         ];
-        const conflicts = detectTimetableConflicts(data).filter(
-          (x) => x.lessonIds.includes(lesson.id) && x.date === dto.date,
-        );
+        const conflicts = (
+          await this.checkConflicts(manager, version, term, year, data)
+        ).filter((x) => x.lessonIds.includes(lesson.id) && x.date === dto.date);
         if (conflicts.length)
           this.fail(
             "TIMETABLE_CONFLICT",
@@ -1105,28 +1827,32 @@ export class TimetableService {
             conflicts,
           );
         const row = await manager.save(change);
-        if (dto.teacherId && !dto.cancelled) {
-          const linked = await manager.findOneBy(TimetableOccurrence, {
-            lessonId: lesson.id,
-            date: dto.date,
-          });
-          if (linked?.attendanceSessionId)
-            await this.attendance.reassignTimetableSession(
-              linked.attendanceSessionId,
-              lesson.id,
-              dto.teacherId,
-            );
-        }
-        if (dto.cancelled) {
-          const linked = await manager.findOneBy(TimetableOccurrence, {
-            lessonId: lesson.id,
-            date: dto.date,
-          });
-          if (linked?.attendanceSessionId)
-            await this.attendance.cancelTimetableSession(
-              linked.attendanceSessionId,
-              lesson.id,
-            );
+        const linked = await manager.findOneBy(TimetableOccurrence, {
+          lessonId: lesson.id,
+          date: dto.date,
+        });
+        if (linked?.attendanceSessionId) {
+          const effectiveOccurrence = occurrencesForRange(
+            [lesson],
+            data.overrides,
+            data.holidays,
+            dto.date,
+            dto.date,
+            year.timeZone,
+          )[0];
+          await this.attendance.applyTimetableChange(
+            manager,
+            linked.attendanceSessionId,
+            lesson.id,
+            {
+              cancelled: effectiveOccurrence.cancelled,
+              teacherId: effectiveOccurrence.teacherId ?? null,
+              startsAt: effectiveOccurrence.startsAt,
+              endsAt: effectiveOccurrence.endsAt,
+              reason: dto.reason,
+            },
+            user,
+          );
         }
         version.revision++;
         await manager.save(version);
@@ -1152,7 +1878,12 @@ export class TimetableService {
     );
     await this.notifyChange(
       result.organizationId,
-      [result.lesson],
+      [
+        result.lesson,
+        ...(dto.teacherId
+          ? [{ ...result.lesson, teacherId: dto.teacherId }]
+          : []),
+      ],
       "تغییر برنامه درسی",
       `${dto.date}: ${result.lesson.title}؛ ${dto.cancelled ? "لغو درس" : `${dto.startTime ?? result.lesson.startTime} تا ${dto.endTime ?? result.lesson.endTime}`}؛ ${dto.reason}؛ ${this.name(user)}`,
       `timetable-override:${result.change.id}:${result.revision}`,
@@ -1264,6 +1995,23 @@ export class TimetableService {
           }));
         if (!classroom || !section)
           this.fail("TIMETABLE_SCOPE", "کلاس و بخش معتبر لازم است.");
+        if (
+          classroom.timetableSectionId !== section.id &&
+          (await manager
+            .getRepository(SchoolScheduleEntry)
+            .createQueryBuilder("lesson")
+            .innerJoin("lesson.version", "version")
+            .where(
+              "lesson.classroomId = :id AND version.publishedAt IS NOT NULL",
+              { id: classroom.id },
+            )
+            .getExists())
+        )
+          this.fail(
+            "TIMETABLE_SECTION_IMMUTABLE",
+            "بخش کلاس دارای برنامه تأییدشده قابل بازنویسی نیست.",
+            409,
+          );
         classroom.timetableSectionId = section.id;
         return manager.save(classroom);
       }
@@ -1350,6 +2098,7 @@ export class TimetableService {
           manager.create(TimetablePeriod, {
             sessionId: session.id,
             name: name(),
+            weekdays: dto.weekdays ?? [],
             ordinal: dto.number ?? 1,
             ...clock,
           }),
@@ -1365,6 +2114,16 @@ export class TimetableService {
           dto.date > term.endsOn
         )
           this.fail("TIMETABLE_SCOPE", "تعطیلی خارج از نیم‌سال است.");
+        if (
+          await manager.exists(TimetableVersion, {
+            where: { termId: term.id, publishedAt: Not(IsNull()) },
+          })
+        )
+          this.fail(
+            "TIMETABLE_CALENDAR_FROZEN",
+            "برای نسخه تأییدشده از لغو تاریخ‌دار درس استفاده کنید؛ تقویم تاریخی تغییر نمی‌کند.",
+            409,
+          );
         return manager.save(
           TimetableHoliday,
           manager.create(TimetableHoliday, {
@@ -1396,14 +2155,43 @@ export class TimetableService {
           : [];
         const published = terms.length
           ? await manager.find(TimetableVersion, {
-              where: { termId: In(terms.map((x) => x.id)), state: "PUBLISHED" },
+              where: {
+                termId: In(terms.map((x) => x.id)),
+                state: In(["PUBLISHED", "ARCHIVED"] as const),
+                publishedAt: Not(IsNull()),
+              },
             })
           : [];
         for (const version of published) {
           const { term, year } = await this.term(manager, version.termId);
           const data = await this.versionData(manager, version, term, year);
+          const successor = published
+            .filter(
+              (v) =>
+                v.termId === version.termId &&
+                (v.effectiveOn > version.effectiveOn ||
+                  (v.effectiveOn === version.effectiveOn &&
+                    v.publishedAt!.getTime() > version.publishedAt!.getTime())),
+            )
+            .sort((a, b) => a.effectiveOn.localeCompare(b.effectiveOn))[0];
+          if (successor) {
+            data.endsOn = addDays(successor.effectiveOn, -1);
+            data.lessons = data.lessons
+              .filter((l) => l.startsOn <= data.endsOn)
+              .map((l) => ({
+                ...l,
+                endsOn: l.endsOn > data.endsOn ? data.endsOn : l.endsOn,
+              }));
+          }
+          if (data.endsOn < data.startsOn) continue;
           data.availability.push(row);
-          const conflicts = detectTimetableConflicts(data);
+          const conflicts = await this.checkConflicts(
+            manager,
+            version,
+            term,
+            year,
+            data,
+          );
           if (conflicts.some((x) => x.code === "TEACHER_UNAVAILABLE"))
             this.fail(
               "TIMETABLE_CONFLICT",
@@ -1512,13 +2300,18 @@ export class TimetableService {
         });
       } catch (error) {
         errors.push(
-          error instanceof ApiException ? (error.getResponse() as {error: {message: string}}).error.message : "ردیف نامعتبر است.",
+          error instanceof ApiException
+            ? (error.getResponse() as { error: { message: string } }).error
+                .message
+            : "ردیف نامعتبر است.",
         );
       }
       rows.push({ row: index + 1, source: item.source, errors });
     }
     // Weekly completeness is checked when publishing, after all import batches.
-    const conflicts = detectTimetableConflicts(data).filter(x => x.code !== "INCOMPLETE_ALLOCATION");
+    const conflicts = (
+      await this.checkConflicts(manager, version, term, year, data)
+    ).filter((x) => x.code !== "INCOMPLETE_ALLOCATION");
     return {
       valid: rows.every((row) => !row.errors.length) && !conflicts.length,
       revision: version.revision,
@@ -1595,7 +2388,7 @@ export class TimetableService {
         "schedule.read",
         manager,
       );
-      if (version.state === "DRAFT")
+      if (!version.publishedAt)
         this.fail("TIMETABLE_STATE", "حضور برای پیش‌نویس مجاز نیست.");
       const data = await this.versionData(manager, version, term, year);
       const occurrence = occurrencesForRange(
@@ -1637,6 +2430,7 @@ export class TimetableService {
         successors.some(
           (v) =>
             v.id !== version.id &&
+            !!v.publishedAt &&
             v.effectiveOn <= date &&
             (v.effectiveOn > version.effectiveOn ||
               (v.effectiveOn === version.effectiveOn &&

@@ -15,6 +15,9 @@ import { ok } from "../../common/utils/envelope";
 import { AuthenticatedUser } from "../auth";
 import { TimetableService } from "./timetable.service";
 import {
+  TimetableQueryDto,
+  TimetablePageDto,
+  TimetableBulkDto,
   TimetableAttendanceDto,
   TimetableConfigDto,
   TimetableImportDto,
@@ -34,6 +37,66 @@ export class TimetableController {
     @Query("startsOn") startsOn?: string,
   ) {
     return this.timetable.workspace(user, org, versionId, startsOn).then(ok);
+  }
+  @Get(":organizationId/versions")
+  @RequireCapabilities("schedule.read")
+  versions(
+    @CurrentUser() u: AuthenticatedUser,
+    @Param("organizationId", ParseUUIDPipe) org: string,
+    @Query() query: TimetableQueryDto,
+  ) {
+    return this.timetable.versions(u, org, query).then(ok);
+  }
+  @Get(":organizationId/occurrences")
+  @RequireCapabilities("schedule.read")
+  occurrences(
+    @CurrentUser() u: AuthenticatedUser,
+    @Param("organizationId", ParseUUIDPipe) org: string,
+    @Query() query: TimetableQueryDto,
+  ) {
+    return this.timetable.occurrences(u, org, query).then(ok);
+  }
+  @Get("versions/:id/conflicts")
+  @RequireCapabilities("schedule.read.all")
+  conflicts(
+    @CurrentUser() u: AuthenticatedUser,
+    @Param("id", ParseUUIDPipe) id: string,
+  ) {
+    return this.timetable.conflicts(u, id).then(ok);
+  }
+  @Get("versions/:id/history")
+  @RequireCapabilities("schedule.read.all")
+  history(
+    @CurrentUser() u: AuthenticatedUser,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Query() page: TimetablePageDto,
+  ) {
+    return this.timetable.history(u, id, page).then(ok);
+  }
+  @Post("versions/:id/archive")
+  @RequireCapabilities("schedule.archive")
+  archive(
+    @CurrentUser() u: AuthenticatedUser,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Body() dto: TimetablePublishDto,
+  ) {
+    return this.timetable.archive(u, id, dto).then(ok);
+  }
+  @Post("versions/:id/bulk/preview")
+  @RequireCapabilities("schedule.update")
+  bulkPreview(
+    @CurrentUser() u: AuthenticatedUser,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Body() dto: TimetableBulkDto,
+  ) {
+    return this.timetable.bulk(u, id, dto, true).then(ok);
+  }
+  @Post("versions/:id/bulk") @RequireCapabilities("schedule.update") bulk(
+    @CurrentUser() u: AuthenticatedUser,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Body() dto: TimetableBulkDto,
+  ) {
+    return this.timetable.bulk(u, id, dto).then(ok);
   }
   @Post(":organizationId/config")
   @RequireCapabilities("schedule.update")
