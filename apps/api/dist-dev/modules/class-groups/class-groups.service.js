@@ -237,8 +237,8 @@ let ClassGroupsService = class ClassGroupsService {
         });
         if (!group)
             throw new api_exception_1.ApiException(404, "CLASS_GROUP_NOT_FOUND", "گروه کلاس پیدا نشد.");
-        await this.access.organizationForUser(user, group.organization.id);
         this.assertWorkOrganization(user, group.organization.id);
+        await this.access.organizationForUser(user, group.organization.id);
         if (!this.canReadGroup(user, group))
             throw new api_exception_1.ApiException(403, "CLASS_GROUP_FORBIDDEN", "این کلاس به شما واگذار نشده است.");
         return group;

@@ -103,7 +103,7 @@ let AuthController = class AuthController {
     async logout(req, res) {
         const cookieName = this.config.get("cookieName", "moshaver_v2_session");
         const refreshCookieName = this.config.get("refreshCookieName", "moshaver_v2_refresh");
-        await this.auth.logout(req.cookies?.[cookieName], req.cookies?.[refreshCookieName]);
+        await this.auth.logout(req.cookies?.[cookieName], req.cookies?.[refreshCookieName], typeof req.headers["x-csrf-token"] === "string" ? req.headers["x-csrf-token"] : undefined);
         res.clearCookie(cookieName, { path: "/" });
         res.clearCookie(refreshCookieName, { path: "/" });
         return (0, envelope_1.ok)({ loggedOut: true });

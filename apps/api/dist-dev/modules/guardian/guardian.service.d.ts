@@ -9,6 +9,8 @@ import { Student } from "../../database/entities/student.entity";
 import { StudySession } from "../../database/entities/study-session.entity";
 import { User } from "../../database/entities/user.entity";
 import { UserRelationship } from "../../database/entities/user-relationship.entity";
+import { AuthenticatedUser } from "../auth";
+import { AuthorizationService } from "../authorization";
 import { ExamsService } from "../exams";
 import { NotificationsService } from "../notifications";
 export declare class GuardianService {
@@ -24,8 +26,9 @@ export declare class GuardianService {
     private attendanceRecords;
     private notifications;
     private examsService;
-    constructor(relationships: Repository<UserRelationship>, studentsRepo: Repository<Student>, plans: Repository<Plan>, sessions: Repository<StudySession>, assignments: Repository<ExamAssignment>, reportsRepo: Repository<DailyReport>, encouragements: Repository<Encouragement>, users: Repository<User>, audit: Repository<AuditLog>, attendanceRecords: Repository<AttendanceRecord>, notifications: NotificationsService, examsService: ExamsService);
-    students(userId: string): Promise<{
+    private authorization;
+    constructor(relationships: Repository<UserRelationship>, studentsRepo: Repository<Student>, plans: Repository<Plan>, sessions: Repository<StudySession>, assignments: Repository<ExamAssignment>, reportsRepo: Repository<DailyReport>, encouragements: Repository<Encouragement>, users: Repository<User>, audit: Repository<AuditLog>, attendanceRecords: Repository<AttendanceRecord>, notifications: NotificationsService, examsService: ExamsService, authorization: AuthorizationService);
+    students(user: AuthenticatedUser): Promise<{
         id: string;
         name: string;
         grade: string;
@@ -33,7 +36,7 @@ export declare class GuardianService {
         targetUniversity: string;
         targetField: string;
     }[]>;
-    dashboard(userId: string, studentId: string): Promise<{
+    dashboard(user: AuthenticatedUser, studentId: string): Promise<{
         student: {
             id: string;
             name: string;
@@ -195,7 +198,7 @@ export declare class GuardianService {
             message: string;
         }[];
     }>;
-    progress(userId: string, studentId: string): Promise<{
+    progress(user: AuthenticatedUser, studentId: string): Promise<{
         studentId: string;
         today: {
             date: string;
@@ -211,7 +214,7 @@ export declare class GuardianService {
             studyMinutes: number;
         };
     }>;
-    schedule(userId: string, studentId: string): Promise<{
+    schedule(user: AuthenticatedUser, studentId: string): Promise<{
         id: string;
         date: string;
         tasks: {
@@ -225,7 +228,7 @@ export declare class GuardianService {
             completed: boolean;
         }[];
     }[]>;
-    attendance(userId: string, studentId: string): Promise<{
+    attendance(user: AuthenticatedUser, studentId: string): Promise<{
         id: string;
         status: import("../../database/entities/attendance-record.entity").AttendanceStatus;
         note: string;
@@ -233,7 +236,7 @@ export declare class GuardianService {
         organizationId: string;
         recordedAt: string;
     }[]>;
-    exams(userId: string, studentId: string): Promise<{
+    exams(user: AuthenticatedUser, studentId: string): Promise<{
         serverTime: string;
         id: string;
         title: string;
@@ -354,7 +357,7 @@ export declare class GuardianService {
             } | null;
         };
     }[]>;
-    reports(userId: string, studentId: string): Promise<{
+    reports(user: AuthenticatedUser, studentId: string): Promise<{
         id: string;
         planDate: string;
         studyHours: number;
@@ -366,7 +369,7 @@ export declare class GuardianService {
         fatigue: number;
         motivation: number;
     }[]>;
-    encourage(userId: string, studentId: string, input: {
+    encourage(user: AuthenticatedUser, studentId: string, input: {
         message: string;
         kind?: string;
     }): Promise<{
@@ -375,4 +378,5 @@ export declare class GuardianService {
     }>;
     private requireChild;
     private studentProjection;
+    private context;
 }

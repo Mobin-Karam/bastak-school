@@ -27,7 +27,7 @@ let LegacyDashboardService = class LegacyDashboardService {
         if (!activeRole || !roles.includes(activeRole))
             throw new api_exception_1.ApiException(403, "CONTEXT_FORBIDDEN", "این زمینه برای حساب شما فعال نیست.");
         const context = this.dashboardContext(activeRole);
-        const ids = await this.studentIds(user.id, context);
+        const ids = await this.studentIds(user, context);
         const values = ids.length ? ids : ["__none__"];
         const marks = values.map(() => "?").join(",");
         const scalar = async (sql, args = []) => (await this.db.query(sql, args))[0]?.n || 0;
@@ -127,11 +127,17 @@ let LegacyDashboardService = class LegacyDashboardService {
             return { ...common, children: ids.length };
         throw new api_exception_1.ApiException(400, "UNSUPPORTED_CONTEXT", "داشبورد این نقش هنوز تعریف نشده است.");
     }
-    async studentIds(userId, context) {
+    async studentIds(user, context) {
         if (context === "GUARDIAN" ||
             ["ADVISOR", "TEACHER", "MENTOR"].includes(context)) {
-            const rows = await this.db.query(`SELECT DISTINCT toStudentId id FROM user_relationships WHERE fromUserId=? AND status='ACTIVE' AND type=?`, [userId, context === "GUARDIAN" ? "GUARDIAN_OF" : `${context}_OF`]);
-            return rows.map((r) => r.id);
+            const rows = await this.db.query(`SELECT DISTINCT toStudentId id FROM user_relationships WHERE fromUserId=? AND status='ACTIVE' AND type=?`, [user.id, context === "GUARDIAN" ? "GUARDIAN_OF" : `${context}_OF`]);
+            const allowed = [];
+            const authority = { ...user, roles: user.roles ?? [], capabilities: user.capabilities ?? [],
+                membershipIds: user.membershipIds ?? [], organizationIds: user.organizationIds ?? [] };
+            for (const row of rows)
+                if (await this.authorization.canAccessStudent(authority, row.id, "students.read"))
+                    allowed.push(row.id);
+            return allowed;
         }
         return [];
     }

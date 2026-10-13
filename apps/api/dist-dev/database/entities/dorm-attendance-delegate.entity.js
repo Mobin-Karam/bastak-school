@@ -38,15 +38,15 @@ __decorate([
     __metadata("design:type", String)
 ], DormAttendanceDelegate.prototype, "id", void 0);
 __decorate([
-    (0, typeorm_1.ManyToOne)(() => organization_entity_1.Organization, { onDelete: "CASCADE" }),
+    (0, typeorm_1.ManyToOne)(() => organization_entity_1.Organization, { nullable: false, onDelete: "CASCADE" }),
     __metadata("design:type", organization_entity_1.Organization)
 ], DormAttendanceDelegate.prototype, "organization", void 0);
 __decorate([
-    (0, typeorm_1.ManyToOne)(() => dorm_room_entity_1.DormRoom, { onDelete: "CASCADE" }),
+    (0, typeorm_1.ManyToOne)(() => dorm_room_entity_1.DormRoom, { nullable: false, onDelete: "CASCADE" }),
     __metadata("design:type", dorm_room_entity_1.DormRoom)
 ], DormAttendanceDelegate.prototype, "room", void 0);
 __decorate([
-    (0, typeorm_1.ManyToOne)(() => student_entity_1.Student, { onDelete: "CASCADE" }),
+    (0, typeorm_1.ManyToOne)(() => student_entity_1.Student, { nullable: false, onDelete: "CASCADE" }),
     __metadata("design:type", student_entity_1.Student)
 ], DormAttendanceDelegate.prototype, "student", void 0);
 __decorate([

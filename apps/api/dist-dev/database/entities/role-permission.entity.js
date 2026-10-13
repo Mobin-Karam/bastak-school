@@ -28,11 +28,17 @@ __decorate([
     __metadata("design:type", String)
 ], RolePermission.prototype, "id", void 0);
 __decorate([
-    (0, typeorm_1.ManyToOne)(() => role_entity_1.Role, (role) => role.permissions, { onDelete: "CASCADE" }),
+    (0, typeorm_1.ManyToOne)(() => role_entity_1.Role, (role) => role.permissions, {
+        nullable: false,
+        onDelete: "CASCADE",
+    }),
     __metadata("design:type", role_entity_1.Role)
 ], RolePermission.prototype, "role", void 0);
 __decorate([
-    (0, typeorm_1.ManyToOne)(() => permission_entity_1.Permission, (permission) => permission.roles, { onDelete: "CASCADE" }),
+    (0, typeorm_1.ManyToOne)(() => permission_entity_1.Permission, (permission) => permission.roles, {
+        nullable: false,
+        onDelete: "CASCADE",
+    }),
     __metadata("design:type", permission_entity_1.Permission)
 ], RolePermission.prototype, "permission", void 0);
 exports.RolePermission = RolePermission = __decorate([

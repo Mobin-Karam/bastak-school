@@ -29,11 +29,11 @@ __decorate([
     __metadata("design:type", String)
 ], QuizClassAssignment.prototype, "id", void 0);
 __decorate([
-    (0, typeorm_1.ManyToOne)(() => quiz_entity_1.Quiz, { onDelete: "CASCADE" }),
+    (0, typeorm_1.ManyToOne)(() => quiz_entity_1.Quiz, { nullable: false, onDelete: "CASCADE" }),
     __metadata("design:type", quiz_entity_1.Quiz)
 ], QuizClassAssignment.prototype, "quiz", void 0);
 __decorate([
-    (0, typeorm_1.ManyToOne)(() => education_class_entity_1.EducationClass, { onDelete: "CASCADE" }),
+    (0, typeorm_1.ManyToOne)(() => education_class_entity_1.EducationClass, { nullable: false, onDelete: "CASCADE" }),
     __metadata("design:type", education_class_entity_1.EducationClass)
 ], QuizClassAssignment.prototype, "classroom", void 0);
 __decorate([

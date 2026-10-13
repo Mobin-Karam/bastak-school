@@ -75,7 +75,7 @@ export function DashboardCalendar({
     <div className="grid gap-1.5">
       {/* The shell owns the mobile mark. On wider dashboard layouts this small
           brand mark anchors the calendar without consuming workspace height. */}
-      <div className="hidden justify-center md:flex" aria-hidden="true">
+      {/* <div className="hidden justify-center md:flex" aria-hidden="true">
         <img
           src="/logo-bastak.webp"
           width={240}
@@ -84,7 +84,7 @@ export function DashboardCalendar({
           decoding="async"
           className="h-16 w-auto object-contain lg:h-20"
         />
-      </div>
+      </div> */}
       <DateNavigator
         value={value}
         onChange={onChange}

@@ -52,7 +52,7 @@ export function AttendanceStatusTiles({
           type="button"
           aria-pressed={filter === status}
           onClick={() => onFilter(filter === status ? "all" : status)}
-          className={`flex min-h-28 flex-col items-center justify-center gap-1.5 rounded-2xl border p-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500 sm:min-h-32 ${color} ${filter === status ? "ring-2 ring-current" : ""}`}
+          className={`flex min-h-20 flex-col items-center justify-center gap-1.5 rounded-2xl border p-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500 sm:min-h-24 ${color} ${filter === status ? "ring-2 ring-current" : ""}`}
         >
           <span className="grid size-9 place-items-center rounded-full bg-current/10">
             <Icon size={21} aria-hidden="true" />

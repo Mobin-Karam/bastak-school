@@ -29,12 +29,14 @@ export function ResponsiveModal({
   title,
   description,
   children,
+  size = "default",
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   title: ReactNode;
   description: ReactNode;
   children: ReactNode;
+  size?: "default" | "wide";
 }) {
   const mobile = useMobileDialog();
   const language = useOptionalAdminLanguage();
@@ -54,7 +56,7 @@ export function ResponsiveModal({
       <DialogContent
         showCloseButton={false}
         dir={language === "fa" ? "rtl" : "ltr"}
-        className="max-h-[85dvh] w-[calc(100%_-_2rem)] max-w-xl overflow-y-auto rounded-xl bg-[rgb(var(--surface-card))] p-5 text-start"
+        className={`max-h-[85dvh] w-[calc(100%_-_2rem)] ${size === "wide" ? "max-w-4xl" : "max-w-xl"} overflow-y-auto rounded-xl bg-[rgb(var(--surface-card))] p-5 text-start`}
       >
         <DialogHeader className="text-start sm:text-start">
           <DialogTitle>{title}</DialogTitle>

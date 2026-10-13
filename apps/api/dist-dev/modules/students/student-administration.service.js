@@ -117,7 +117,12 @@ let StudentAdministrationService = class StudentAdministrationService {
             : [];
         const linked = links.map((link) => link.toStudent);
         const unique = new Map([...own, ...linked].map((student) => [student.id, student]));
-        return [...unique.values()].map((student) => this.project(student));
+        const allowed = [];
+        for (const student of unique.values())
+            if ((!organizationId || student.organization?.id === organizationId) &&
+                await this.authorization.canAccessStudent(context, student.id, "students.read"))
+                allowed.push(this.project(student));
+        return allowed;
     }
     async get(user, id, capability = "students.read") {
         if (!(await this.authorization.canAccessStudent(this.context(user), id, capability)))

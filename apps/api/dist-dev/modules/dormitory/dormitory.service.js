@@ -23,6 +23,7 @@ const student_entity_1 = require("../../database/entities/student.entity");
 const school_access_1 = require("../school-access");
 const notifications_1 = require("../notifications");
 const notification_entity_1 = require("../../database/entities/notification.entity");
+const attendance_1 = require("../attendance");
 let DormitoryService = class DormitoryService {
     rooms;
     assignments;
@@ -40,14 +41,20 @@ let DormitoryService = class DormitoryService {
         const ids = await this.access.scopedOrganizationIds(user, organizationId);
         if (!ids.length)
             return [];
-        const rows = await this.rooms.find({
-            where: { organization: { id: (0, typeorm_2.In)(ids) } },
-            relations: { organization: true, assignments: { student: true } },
-            order: { name: "ASC" },
-        });
-        return rows.map((room) => ({
-            id: room.id, organizationId: room.organization.id, organizationName: room.organization.name, code: room.code, name: room.name, building: room.building, floor: room.floor, capacity: room.capacity, status: room.status, studentCount: room.assignments?.length ?? 0,
-        }));
+        const rows = await this.rooms.createQueryBuilder("room")
+            .innerJoin("room.organization", "organization")
+            .select("room.id", "id")
+            .addSelect("organization.id", "organizationId")
+            .addSelect("organization.name", "organizationName")
+            .addSelect("room.code", "code").addSelect("room.name", "name")
+            .addSelect("room.building", "building").addSelect("room.floor", "floor")
+            .addSelect("room.capacity", "capacity").addSelect("room.status", "status")
+            .addSelect((query) => query.select("COUNT(*)").from(dorm_room_assignment_entity_1.DormRoomAssignment, "assignment")
+            .where("assignment.roomId = room.id"), "studentCount")
+            .where("room.organizationId IN (:...ids)", { ids })
+            .orderBy("room.name", "ASC").addOrderBy("room.id", "ASC")
+            .getRawMany();
+        return rows.map((room) => ({ ...room, studentCount: Number(room.studentCount) }));
     }
     async createRoom(user, dto) {
         const organization = await this.access.organizationForUser(user, dto.organizationId);
@@ -69,23 +76,25 @@ let DormitoryService = class DormitoryService {
         return rows.map((row) => ({ id: row.id, studentId: row.student.id, name: row.student.name, nationalCode: row.student.nationalCode, userId: row.student.user?.id ?? null }));
     }
     async setAssignments(user, roomId, studentIds) {
-        const room = await this.requireRoom(user, roomId);
         const ids = [...new Set(studentIds || [])];
-        if (ids.length > room.capacity)
-            throw new api_exception_1.ApiException(422, "DORM_ROOM_CAPACITY", "تعداد طلبه‌ها بیشتر از ظرفیت اتاق است.");
-        const students = ids.length ? await this.students.find({ where: { id: (0, typeorm_2.In)(ids), organization: { id: room.organization.id } }, relations: { organization: true } }) : [];
-        if (students.length !== ids.length)
-            throw new api_exception_1.ApiException(422, "DORM_STUDENT_ORGANIZATION_MISMATCH", "همه طلبه‌ها باید متعلق به همین مدرسه باشند.");
-        if (ids.length) {
-            const previous = await this.assignments.find({ where: { student: { id: (0, typeorm_2.In)(ids) } }, relations: { room: { organization: true }, student: true } });
-            const movable = previous.filter((item) => item.room.organization.id === room.organization.id && item.room.id !== room.id);
-            if (movable.length)
-                await this.assignments.remove(movable);
-        }
-        await this.assignments.delete({ room: { id: room.id } });
-        if (students.length)
-            await this.assignments.save(students.map((student) => this.assignments.create({ room, student })));
-        return { roomId: room.id, count: students.length };
+        return (0, attendance_1.attendanceTransaction)(this.assignments.manager, async (manager) => {
+            const room = await this.requireRoom(user, roomId);
+            const assignments = manager.getRepository(dorm_room_assignment_entity_1.DormRoomAssignment);
+            if (ids.length > room.capacity)
+                throw new api_exception_1.ApiException(422, "DORM_ROOM_CAPACITY", "تعداد طلبه‌ها بیشتر از ظرفیت اتاق است.");
+            const students = ids.length ? await manager.getRepository(student_entity_1.Student).find({ where: { id: (0, typeorm_2.In)(ids), organization: { id: room.organization.id } }, relations: { organization: true } }) : [];
+            if (students.length !== ids.length)
+                throw new api_exception_1.ApiException(422, "DORM_STUDENT_ORGANIZATION_MISMATCH", "همه طلبه‌ها باید متعلق به همین مدرسه باشند.");
+            if (ids.length)
+                await assignments.createQueryBuilder().delete()
+                    .where("studentId IN (:...ids)", { ids })
+                    .andWhere("roomId IN (SELECT id FROM dorm_rooms WHERE organizationId = :organizationId)", { organizationId: room.organization.id })
+                    .execute();
+            await assignments.delete({ room: { id: room.id } });
+            if (students.length)
+                await assignments.save(students.map((student) => assignments.create({ room, student })));
+            return { roomId: room.id, count: students.length };
+        });
     }
     async findStudents(user, organizationId, query) {
         const organization = await this.access.organizationForUser(user, organizationId);

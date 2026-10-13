@@ -11,6 +11,7 @@ import { UserRelationship } from "../../database/entities/user-relationship.enti
 import { UserRoleAssignment } from "../../database/entities/user-role-assignment.entity";
 import { ConversationMemberRole } from "../../database/entities/conversation-member.entity";
 import { AuthenticatedUser } from "../auth";
+import { AuthorizationService } from "../authorization";
 import { RealtimeService } from "../realtime";
 import { NotificationsService } from "../notifications";
 export declare class ChatService {
@@ -26,8 +27,9 @@ export declare class ChatService {
     private orgMembers;
     private roleAssignments;
     private db;
+    private authorization;
     private notifications?;
-    constructor(messages: Repository<ChatMessage>, students: Repository<Student>, users: Repository<User>, realtime: RealtimeService, conversationsRepo: Repository<Conversation>, members: Repository<ConversationMember>, reactions: Repository<MessageReaction>, configurationRepo: Repository<ChatConfiguration>, relationships: Repository<UserRelationship>, orgMembers: Repository<OrganizationMembership>, roleAssignments: Repository<UserRoleAssignment>, db: DataSource, notifications?: NotificationsService | undefined);
+    constructor(messages: Repository<ChatMessage>, students: Repository<Student>, users: Repository<User>, realtime: RealtimeService, conversationsRepo: Repository<Conversation>, members: Repository<ConversationMember>, reactions: Repository<MessageReaction>, configurationRepo: Repository<ChatConfiguration>, relationships: Repository<UserRelationship>, orgMembers: Repository<OrganizationMembership>, roleAssignments: Repository<UserRoleAssignment>, db: DataSource, authorization: AuthorizationService, notifications?: NotificationsService | undefined);
     private readonly defaultEmojis;
     configuration(): Promise<{
         allowedEmojis: string[];
@@ -768,6 +770,7 @@ export declare class ChatService {
     private requireManager;
     private ensureAccessibleStudentConversations;
     private directAllowed;
+    private context;
     private shareConversation;
     private publicConversation;
     private publicMessage;

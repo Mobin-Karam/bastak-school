@@ -71,7 +71,7 @@ export declare class DashboardHomeService {
         context: string;
         activeRole: string;
         generatedAt: string;
-        assignedStudents: any;
+        assignedStudents: number;
         unreadConversations: any;
     } | {
         home: {
@@ -139,7 +139,7 @@ export declare class DashboardHomeService {
         context: string;
         activeRole: string;
         generatedAt: string;
-        assignedStudents: any;
+        assignedStudents: number;
         unreadConversations: any;
     } | {
         home: {
@@ -202,7 +202,7 @@ export declare class DashboardHomeService {
         context: string;
         activeRole: string;
         generatedAt: string;
-        assignedStudents: any;
+        assignedStudents: number;
         unreadConversations: any;
     } | {
         home: {
@@ -269,7 +269,7 @@ export declare class DashboardHomeService {
         context: string;
         activeRole: string;
         generatedAt: string;
-        assignedStudents: any;
+        assignedStudents: number;
         unreadConversations: any;
     } | {
         home: {
@@ -358,7 +358,7 @@ export declare class DashboardHomeService {
         context: string;
         activeRole: string;
         generatedAt: string;
-        assignedStudents: any;
+        assignedStudents: number;
         unreadConversations: any;
     } | {
         home: {
@@ -438,7 +438,7 @@ export declare class DashboardHomeService {
         context: string;
         activeRole: string;
         generatedAt: string;
-        assignedStudents: any;
+        assignedStudents: number;
         unreadConversations: any;
     } | {
         home: {
@@ -498,7 +498,7 @@ export declare class DashboardHomeService {
         context: string;
         activeRole: string;
         generatedAt: string;
-        assignedStudents: any;
+        assignedStudents: number;
         unreadConversations: any;
     } | {
         home: {
@@ -555,11 +555,11 @@ export declare class DashboardHomeService {
                 classId: string | null;
             } | null;
         };
-        children: any;
+        children: number;
         context: string;
         activeRole: string;
         generatedAt: string;
-        assignedStudents: any;
+        assignedStudents: number;
         unreadConversations: any;
     }>;
     attention(user: AuthenticatedUser, limit?: number): Promise<{

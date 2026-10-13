@@ -11,7 +11,7 @@ import { User } from "../../database/entities/user.entity";
 import { AuthenticatedUser } from "../auth";
 import { AuthorizationService } from "../authorization";
 import { EducationCatalogService } from "../education-catalog";
-import { SaveEducationClassDto, ClassTransferDto, SetClassBooksDto, SetClassEnrollmentsDto, UpdateEducationClassDto } from "./classes.dto";
+import { AddClassBookDto, SaveEducationClassDto, ClassTransferDto, SetClassBooksDto, SetClassEnrollmentsDto, UpdateEducationClassDto } from "./classes.dto";
 export declare class ClassesService {
     private readonly classes;
     private readonly classBooks;
@@ -278,6 +278,45 @@ export declare class ClassesService {
     }[]>;
     remove(actor: AuthenticatedUser, id: string): Promise<{
         deleted: boolean;
+    }>;
+    addBook(actor: AuthenticatedUser, id: string, dto: AddClassBookDto): Promise<{
+        id: string;
+        organization: {
+            id: string;
+            name: string;
+            type: import("../../database/entities/organization.entity").OrganizationType;
+            status: import("../../database/entities/organization.entity").OrganizationStatus;
+        };
+        code: string;
+        name: string;
+        schoolYear: string;
+        gradeId: number | null;
+        educationTypeId: string | null;
+        trackId: string | null;
+        capacity: number;
+        status: "ARCHIVED" | "ACTIVE";
+        description: string;
+        advisor: {
+            id: string;
+            name: string;
+        } | null;
+        books: {
+            id: string;
+            bookId: string;
+            title: string;
+            code: string;
+            teacher: {
+                id: string;
+                name: string;
+            };
+        }[];
+        enrollmentCount: number;
+        students: {
+            id: string;
+            name: string;
+            grade: string;
+            major: string;
+        }[];
     }>;
     setBooks(actor: AuthenticatedUser, id: string, dto: SetClassBooksDto): Promise<{
         id: string;

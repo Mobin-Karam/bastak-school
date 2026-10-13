@@ -7,6 +7,7 @@ export declare class DormitoryController {
     rooms(user: AuthenticatedUser, organizationId?: string): Promise<{
         ok: boolean;
         data: {
+            studentCount: number;
             id: string;
             organizationId: string;
             organizationName: string;
@@ -15,8 +16,7 @@ export declare class DormitoryController {
             building: string;
             floor: number;
             capacity: number;
-            status: "ARCHIVED" | "ACTIVE";
-            studentCount: number;
+            status: string;
         }[];
     }>;
     create(user: AuthenticatedUser, dto: CreateDormRoomDto): Promise<{
