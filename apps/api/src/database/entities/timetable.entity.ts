@@ -99,6 +99,7 @@ export class TimetablePeriod {
   @JoinColumn({ name: "sessionId" })
   session?: object;
   @Column({ type: "varchar", length: 240 }) name!: string;
+  @Column({ type: "simple-json", default: "[]" }) weekdays!: number[];
   @Column({ type: "integer", default: 0 }) ordinal!: number;
   @Column({ type: "varchar", length: 5 }) startTime!: string;
   @Column({ type: "varchar", length: 5 }) endTime!: string;

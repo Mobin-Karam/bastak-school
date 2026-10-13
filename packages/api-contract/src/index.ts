@@ -272,9 +272,20 @@ export type {
 } from "./class-groups";
 
 export type {
-  DormAttendanceDelegate, DormAttendanceAssignment, DormDelegateDraft, DormAttendanceWrite,
-  AttendancePoolDraft, AttendancePool, StudentAttendancePool, StaffAttendanceSession,
-  AttendanceDailyOverview, StaffAttendanceProfile, AttendanceEncouragement, AttendanceMissingMember,
+  DormAttendanceDelegate,
+  DormAttendanceAssignment,
+  DormDelegateDraft,
+  DormAttendanceWrite,
+  AttendancePoolDraft,
+  AttendancePool,
+  StudentAttendancePool,
+  StaffAttendanceSession,
+  AttendanceDailyOverview,
+  StaffAttendanceProfile,
+  AttendanceEncouragement,
+  AttendanceMissingMember,
 } from "./attendance-operations";
 
 export type * from "./timetable";
+
+export * from "./academic-structure";

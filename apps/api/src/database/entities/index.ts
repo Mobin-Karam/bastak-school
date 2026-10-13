@@ -102,3 +102,5 @@ export { DormAttendanceDelegate } from "./dorm-attendance-delegate.entity";
 export { AttendancePool } from "./attendance-pool.entity";
 
 export * from "./timetable.entity";
+
+export * from "./academic-structure.entity";
