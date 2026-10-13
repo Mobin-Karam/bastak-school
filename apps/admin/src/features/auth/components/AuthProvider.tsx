@@ -28,7 +28,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [status, setStatus] = useState<AuthStatus>("checking");
   const [message, setMessage] = useState(copy.sessionChecking);
   const operation = useRef(0);
-  const retryTimer = useRef<number>();
+  const retryTimer = useRef<number | undefined>(undefined);
   const restoreAttempts = useRef(0);
   const lastCheck = useRef(0);
 

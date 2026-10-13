@@ -6,6 +6,8 @@ export default defineConfig({
   test: {
     environment: "jsdom",
     maxWorkers: 2,
+    // jsdom 30 performs CSS/pointer checks during multi-step user-event flows.
+    testTimeout: 15_000,
     setupFiles: "./src/test/setup.ts",
     exclude: ["e2e/**", "node_modules/**", "dist/**"],
     coverage: {

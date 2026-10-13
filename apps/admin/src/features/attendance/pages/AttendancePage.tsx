@@ -498,6 +498,7 @@ export function AttendancePage() {
                 type="button"
                 key={type}
                 aria-pressed={active}
+                aria-label={`${sectionLabels[type]} ${type === "pool" ? "فراخوان زنده" : type === "sessions" ? "سوابق حضور" : `${total} مورد`}`}
                 disabled={saving || loadingContexts}
                 onClick={() => chooseAttendanceType(type)}
                 className={`flex min-h-[5rem] flex-col items-center justify-center gap-1 rounded-2xl text-center transition-colors motion-reduce:transition-none sm:flex-row sm:justify-center ${active ? "bg-gradient-to-br from-blue-500 to-blue-700 text-white shadow-sm" : "text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"}`}
@@ -629,6 +630,7 @@ export function AttendancePage() {
                         <button
                           key={item.id}
                           type="button"
+                          aria-label={`${item.name} ${item.code} · ${item.total.toLocaleString("fa-IR")} نفر`}
                           disabled={saving}
                           onClick={() => {
                             if (chosenType === "class_group" && !groupClassId)
