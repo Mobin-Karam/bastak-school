@@ -95,6 +95,9 @@ function LoginPageContent() {
             <h1 className="mb-4 text-center text-lg font-bold">
               {school?.profile.loginTitle || copy.workspaceLogin}
             </h1> */}
+            <h1 className="sr-only">
+              {school?.profile.loginTitle || copy.workspaceLogin}
+            </h1>
             {/* ---------------------------------------------
                 PAGE HEADING
                 --------------------------------------------- */}
