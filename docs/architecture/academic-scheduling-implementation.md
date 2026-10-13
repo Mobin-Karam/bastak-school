@@ -9,7 +9,7 @@ This change extends the existing modular monolith and `/api/v2` contracts. It do
 | `apps/api/src/modules/school-education/academic.{controller,dto,service}.ts` | Scoped paginated teacher directory, dated class/subject teaching assignments, explicit ending with a reason, subject/textbook references, transactional audit. |
 | `apps/api/src/database/entities/academic-structure.entity.ts` | `TeachingAssignment`, `SubjectBookReference`, append-only `ClassEnrollmentHistory`. |
 | `apps/api/src/modules/classes/classes.{controller,dto,service}.ts` | Nullable academic-year relationship, year scope validation, protection against remapping a referenced class, enrollment history alongside the existing current roster projection. History requires roster management capability. |
-| `apps/api/src/modules/subjects/index.ts`, `school-education.module.ts` | Reuses and mounts existing SubjectsModule through its public entrypoint. Subjects retain separate identities from books. |
+| `school-education.module.ts` | Reuses the existing Subject entity in school-scoped academic APIs. Retired `/subjects` routes remain unmounted. Subjects retain separate identities from books. |
 | `apps/api/src/modules/schedule/timetable.{controller,dto,service}.ts` | Paginated version/history/occurrence queries, class/teacher/student/room/year filters, daily/weekly/date-range feeds, draft archiving, bounded transactional bulk preview/commit, cached bulk reference loading. |
 | `apps/api/src/modules/schedule/timetable-domain.ts` | Period and weekday bounds, positive room capacity, actual occurrence existence, per-date conflict identity, allocation coverage over complete instructional weeks. |
 | `apps/api/src/modules/schedule/schedule.service.ts` | Existing legacy schedule import commits atomically with scoped import history. |
@@ -26,6 +26,8 @@ All paths below are prefixed by `/api/v2`. Existing endpoints are retained; resp
 
 | Method / path | Capability and behavior |
 | --- | --- |
+| `GET /school-education/:organizationId/subjects` | `education.catalog.read`; active scoped subjects, paginated. |
+| `POST /school-education/:organizationId/subjects` | `education.catalog.manage`; scoped unique normalized code, explicit Persian label. |
 | `GET /school-education/:organizationId/teachers` | `classes.read` plus full schedule read or class management; sanitized active teacher identities. |
 | `GET /school-education/:organizationId/teaching-assignments` | `classes.read`; limited readers see their own assignments. |
 | `POST /school-education/:organizationId/teaching-assignments` | `classes.manage`; requires explicitly scoped class/year/term/subject/teacher and date bounds. |

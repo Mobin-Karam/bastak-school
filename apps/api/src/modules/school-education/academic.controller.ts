@@ -15,6 +15,7 @@ import { AuthenticatedUser } from "../auth";
 import { AcademicService } from "./academic.service";
 import {
   AcademicPageDto,
+  AcademicSubjectDto,
   TeachingAssignmentDto,
   SubjectBookReferenceDto,
   EndTeachingAssignmentDto,
@@ -22,6 +23,23 @@ import {
 @Controller("school-education/:organizationId")
 export class AcademicController {
   constructor(private readonly academic: AcademicService) {}
+
+  @Get("subjects") @RequireCapabilities("education.catalog.read") subjects(
+    @CurrentUser() u: AuthenticatedUser,
+    @Param("organizationId", ParseUUIDPipe) org: string,
+    @Query() page: AcademicPageDto,
+  ) {
+    return this.academic.subjects(u, org, page).then(ok);
+  }
+  @Post("subjects")
+  @RequireCapabilities("education.catalog.manage")
+  createSubject(
+    @CurrentUser() u: AuthenticatedUser,
+    @Param("organizationId", ParseUUIDPipe) org: string,
+    @Body() dto: AcademicSubjectDto,
+  ) {
+    return this.academic.createSubject(u, org, dto).then(ok);
+  }
   @Get("teachers") @RequireCapabilities("classes.read") teachers(
     @CurrentUser() u: AuthenticatedUser,
     @Param("organizationId", ParseUUIDPipe) org: string,

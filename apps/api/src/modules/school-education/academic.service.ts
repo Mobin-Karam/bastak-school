@@ -25,6 +25,7 @@ import { SchoolAccessService } from "../school-access";
 import { attendanceTransaction } from "../attendance";
 import {
   AcademicPageDto,
+  AcademicSubjectDto,
   TeachingAssignmentDto,
   SubjectBookReferenceDto,
   EndTeachingAssignmentDto,
@@ -56,6 +57,48 @@ export class AcademicService {
     if (!subject || (subject.organization && subject.organization.id !== org))
       this.fail("ACADEMIC_SUBJECT_SCOPE", "درس خارج از مدرسه است.");
     return subject;
+  }
+
+  async subjects(user: AuthenticatedUser, org: string, page: AcademicPageDto) {
+    await this.school(user, org, "education.catalog.read");
+    const [items, total] = await this.db.manager.findAndCount(Subject, {
+      where: { organization: { id: org }, active: true },
+      order: { name: "ASC", id: "ASC" },
+      skip: page.offset,
+      take: page.limit,
+    });
+    return { items, total, offset: page.offset, limit: page.limit };
+  }
+  async createSubject(
+    user: AuthenticatedUser,
+    org: string,
+    dto: AcademicSubjectDto,
+  ) {
+    await this.school(user, org, "education.catalog.manage");
+    return attendanceTransaction(this.db.manager, async (m) => {
+      const code = dto.code.trim().toLowerCase(),
+        name = dto.name.trim(),
+        category = dto.category?.trim() || "عمومی";
+      if (!name) this.fail("ACADEMIC_SUBJECT_NAME", "نام درس لازم است.");
+      if (
+        await m.exists(Subject, { where: { organization: { id: org }, code } })
+      )
+        this.fail("SUBJECT_CODE_EXISTS", "کلید درس تکراری است.", 409);
+      const row = await m.save(
+        Subject,
+        m.create(Subject, {
+          organization: { id: org },
+          code,
+          name,
+          category,
+          active: true,
+        }),
+      );
+      await this.audit(m, user, org, "academic.subject.created", {
+        subjectId: row.id,
+      });
+      return row;
+    });
   }
   async teachers(user: AuthenticatedUser, org: string, page: AcademicPageDto) {
     await this.school(user, org, "classes.read");

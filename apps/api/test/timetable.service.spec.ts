@@ -550,14 +550,20 @@ describe("versioned timetable integration (migration-built SQLite)", () => {
       { id: lesson.classroomId },
       { academicYearId: term.yearId },
     );
-    const subject = await db.manager.save(
-      entities.Subject,
-      db.manager.create(entities.Subject, {
-        organization: org,
-        code: "nahw",
-        name: "نحو",
-      }),
-    );
+    const subject = await academic.createSubject(actor, org.id, {
+      code: "nahw",
+      name: "نحو",
+    });
+    await expect(
+      academic.createSubject(actor, org.id, { code: "NAHW", name: "نحو" }),
+    ).rejects.toMatchObject({
+      response: { error: { code: "SUBJECT_CODE_EXISTS" } },
+    });
+    expect(
+      (
+        await academic.subjects(actor, org.id, { offset: 0, limit: 50 })
+      ).items.map((s) => s.id),
+    ).toEqual([subject.id]);
     const dto = {
       academicYearId: term.yearId,
       termId: term.id,

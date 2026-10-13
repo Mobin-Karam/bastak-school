@@ -42,3 +42,13 @@ export class EndTeachingAssignmentDto {
   endsOn!: string;
   @IsString() @MinLength(2) @MaxLength(1000) reason!: string;
 }
+
+export class AcademicSubjectDto {
+  @IsString()
+  @MinLength(1)
+  @MaxLength(80)
+  @Matches(/^[A-Za-z0-9_-]+$/)
+  code!: string;
+  @IsString() @MinLength(1) @MaxLength(160) name!: string;
+  @IsOptional() @IsString() @MinLength(1) @MaxLength(80) category?: string;
+}

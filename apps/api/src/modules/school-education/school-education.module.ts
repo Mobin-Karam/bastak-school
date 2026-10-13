@@ -1,5 +1,4 @@
 import { SchoolAccessModule } from "../school-access";
-import { SubjectsModule } from "../subjects";
 import { AcademicService } from "./academic.service";
 import { AcademicController } from "./academic.controller";
 import { Module } from "@nestjs/common";
@@ -13,7 +12,6 @@ import { EducationCatalogModule } from "../education-catalog/education-catalog.m
     ClassesModule,
     ClassGroupsModule,
     SchoolAccessModule,
-    SubjectsModule,
   ],
   providers: [AcademicService],
   controllers: [AcademicController],
