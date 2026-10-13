@@ -1,5 +1,10 @@
 import type {
   TimetableWorkspace,
+  TimetablePage,
+  TimetableOccurrence,
+  TimetableOccurrenceQuery,
+  TimetableBulkWrite,
+  TimetableChange,
   TimetableVersion,
   TimetableLessonDraft,
   TimetableImportRow,
@@ -123,3 +128,47 @@ export function timetableLessonDraft(lesson: TimetableLessonDraft): TimetableLes
     notes: lesson.notes ?? "",
   };
 }
+
+const timetableQuery = (query: TimetableOccurrenceQuery) =>
+  new URLSearchParams(
+    Object.entries(query)
+      .filter(([, value]) => value !== undefined)
+      .map(([key, value]) => [key, String(value)]),
+  ).toString();
+export const listTimetableVersions = (org: string, query: TimetableOccurrenceQuery = {}) =>
+  api.get<TimetablePage<TimetableVersion>>(
+    `/schedule/timetable/${encodeURIComponent(org)}/versions?${timetableQuery(query)}`,
+  );
+export const listTimetableOccurrences = (org: string, query: TimetableOccurrenceQuery = {}) =>
+  api.get<TimetablePage<TimetableOccurrence>>(
+    `/schedule/timetable/${encodeURIComponent(org)}/occurrences?${timetableQuery(query)}`,
+  );
+export const getTimetableConflicts = (id: string) =>
+  api.get<{ revision: number; conflicts: TimetableConflict[] }>(
+    `/schedule/timetable/versions/${encodeURIComponent(id)}/conflicts`,
+  );
+export const listTimetableHistory = (id: string, page: { offset?: number; limit?: number } = {}) =>
+  api.get<TimetablePage<TimetableChange>>(
+    `/schedule/timetable/versions/${encodeURIComponent(id)}/history?${timetableQuery(page)}`,
+  );
+export const archiveTimetableDraft = (id: string, expectedRevision: number, reason: string) =>
+  api.post<TimetableVersion>(`/schedule/timetable/versions/${encodeURIComponent(id)}/archive`, {
+    expectedRevision,
+    reason,
+  });
+function timetableBulkDraft(body: TimetableBulkWrite): TimetableBulkWrite {
+  return {
+    expectedRevision: body.expectedRevision,
+    items: body.items.map((item) => ({ id: item.id, lesson: timetableLessonDraft(item.lesson) })),
+  };
+}
+export const previewTimetableBulk = (id: string, body: TimetableBulkWrite) =>
+  api.post<{ valid: boolean; revision: number; conflicts: TimetableConflict[] }>(
+    `/schedule/timetable/versions/${encodeURIComponent(id)}/bulk/preview`,
+    timetableBulkDraft(body),
+  );
+export const commitTimetableBulk = (id: string, body: TimetableBulkWrite) =>
+  api.post<{ ids: string[]; revision: number }>(
+    `/schedule/timetable/versions/${encodeURIComponent(id)}/bulk`,
+    timetableBulkDraft(body),
+  );
