@@ -175,6 +175,7 @@ export function DataTableToolbar<TData>({
           {search ? (
             <Button
               variant="soft"
+              aria-label={`${search} ${copy.removeFilter}`}
               onClick={() => {
                 setDraft("");
                 table.setGlobalFilter("");
@@ -195,6 +196,7 @@ export function DataTableToolbar<TData>({
               <Button
                 key={filter.id}
                 variant="soft"
+                aria-label={`${column?.label}: ${value} ${copy.removeFilter}`}
                 onClick={() => table.getColumn(filter.id)?.setFilterValue(undefined)}
               >
                 {column?.label}: {value}

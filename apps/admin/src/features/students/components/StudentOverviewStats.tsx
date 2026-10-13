@@ -92,6 +92,7 @@ export function StudentOverviewStats({
               key={key}
               type="button"
               aria-pressed={active}
+              aria-label={`${label} ${counts[key].toLocaleString(locale)}`}
               onClick={() => onStatusChange(key)}
               className={`
                   group

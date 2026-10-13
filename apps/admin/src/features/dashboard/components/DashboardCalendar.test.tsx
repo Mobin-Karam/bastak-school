@@ -25,9 +25,10 @@ describe("DashboardCalendar", () => {
     );
 
     expect(screen.getAllByRole("option")).toHaveLength(3);
-    expect(screen.getAllByRole("option")[0]).toHaveStyle({
-      width: "calc((100vw - 3rem) / 3)",
-    });
+    // CSSOM may normalize calc() or resolve it to pixels; check the responsive declaration.
+    const expectedStyle = document.createElement("div").style;
+    expectedStyle.width = "calc((100vw - 3rem) / 3)";
+    expect(screen.getAllByRole("option")[0].style.width).toBe(expectedStyle.width);
     act(() => idle?.());
     expect(screen.getAllByRole("option")).toHaveLength(61);
   });
