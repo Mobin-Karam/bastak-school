@@ -22,25 +22,49 @@ if "${compose[@]}" ps --status running --services | grep -qx backend-v2; then
   python3 scripts/deploy/retain-current-images.py
 fi
 "${compose[@]}" build
+stopped=false
+replacement_started=false
+previous_backend=''
+previous_admin=''
+cleanup() {
+  status=$?
+  trap - EXIT
+  if (( status != 0 )) && [[ "$stopped" == true ]]; then
+    if [[ "$replacement_started" == false ]]; then
+      docker start "$previous_backend" "$previous_admin" >/dev/null || true
+      echo 'Preflight failed; previous containers restarted. Verify readiness.' >&2
+    else
+      "${compose[@]}" stop admin-v2 >/dev/null 2>&1 || true
+      echo 'Candidate failed after replacement; ingress stopped. Assess migration/backup compatibility before rollback.' >&2
+    fi
+  fi
+  exit "$status"
+}
+trap cleanup EXIT
 if "${compose[@]}" ps --status running --services | grep -qx backend-v2; then
   mkdir -p "$backup_dir"
   chmod 700 "$backup_dir"
-  "${compose[@]}" exec -T backend-v2 node -e 'const Database=require("better-sqlite3");new Database(process.env.DATABASE_PATH).backup("/data/pre-deploy.sqlite").then(()=>process.exit(0)).catch(()=>process.exit(1));'
+  previous_backend=$("${compose[@]}" ps -q backend-v2)
+  previous_admin=$("${compose[@]}" ps -q admin-v2)
+  [[ -n "$previous_backend" && -n "$previous_admin" ]] || { echo 'Expected an existing production stack.' >&2; exit 1; }
+  previous_image=$(docker inspect "$previous_backend" --format '{{.Image}}')
+  volume=$(docker inspect "$previous_backend" --format '{{range .Mounts}}{{if eq .Destination "/data"}}{{.Name}}{{end}}{{end}}')
+  [[ "$volume" == "${PRODUCTION_DATA_VOLUME:-bastak-school_moshaver_v2_sqlite}" ]] || { echo 'Production database volume mismatch.' >&2; exit 1; }
   backup_file="$backup_dir/$(date -u +%Y%m%dT%H%M%SZ)-${RELEASE_SHA:-manual}.sqlite"
-  "${compose[@]}" cp backend-v2:/data/pre-deploy.sqlite "$backup_file"
-  chmod 600 "$backup_file"
   # Verify an actual restoration and rehearse the candidate migration chain on
-  # that isolated copy before any candidate can touch the persistent volume.
-  previous_image=$(docker inspect "$("${compose[@]}" ps -q backend-v2)" --format '{{.Image}}')
+  # the final stopped writer's copy before touching the persistent database.
   backup_path=$(realpath "$backup_dir")
   backup_name=$(basename "$backup_file")
   recovery_script=$(realpath scripts/deploy/database-recovery.cjs)
+  stopped=true
+  "${compose[@]}" stop admin-v2 backend-v2
   docker run --rm --network none \
+    --mount "type=volume,src=$volume,dst=/data,readonly" \
     --mount "type=bind,src=$backup_path,dst=/backup" \
     --mount "type=bind,src=$recovery_script,dst=/tmp/database-recovery.cjs,readonly" \
-    --entrypoint node "$previous_image" -e \
-    'const D=require("better-sqlite3"),fs=require("node:fs");const src=process.argv[1],dst=src+".restored";if(fs.existsSync(dst))process.exit(1);const db=new D(src,{readonly:true,fileMustExist:true});db.backup(dst).then(()=>{db.close();fs.chmodSync(dst,0o600);process.argv=["node","/tmp/database-recovery.cjs","verify",src,dst];require("/tmp/database-recovery.cjs");}).catch(()=>process.exit(1));' \
+    --entrypoint node "$previous_image" /tmp/database-recovery.cjs backup /data/moshaver-v2.sqlite \
     "/backup/$backup_name"
+  chmod 600 "$backup_file"
   candidate_image=$BACKEND_IMAGE
   docker run --rm --network none \
     --mount "type=bind,src=$backup_path,dst=/backup" \
@@ -49,6 +73,7 @@ if "${compose[@]}" ps --status running --services | grep -qx backend-v2; then
     --entrypoint node "$candidate_image" /tmp/database-recovery.cjs rehearse \
     "/backup/$backup_name" "/backup/$backup_name.restored"
 fi
+replacement_started=true
 "${compose[@]}" up -d --force-recreate --wait --wait-timeout 180
 for service in backend-v2 admin-v2; do
   if [[ "$service" == backend-v2 ]]; then expected_tag=$BACKEND_IMAGE; else expected_tag=$ADMIN_IMAGE; fi

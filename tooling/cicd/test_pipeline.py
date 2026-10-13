@@ -84,7 +84,7 @@ class PipelineTests(unittest.TestCase):
         self.assertTrue(env["PRODUCTION_BACKUP_DIR"].startswith("/home/bastak-server/.config/"))
         script = (ROOT / "scripts/deploy/lan.sh").read_text()
         self.assertIn("PRODUCTION_BACKUP_DIR", script)
-        self.assertLess(script.index('.backup('), script.index('up -d --force-recreate'))
+        self.assertLess(script.index('database-recovery.cjs backup'), script.index('up -d --force-recreate'))
     def test_immutable_promotion_is_staged_and_protected(self):
         readiness=self.workflow('deployment-readiness.yml')
         steps=readiness['jobs']['containers']['steps']
@@ -171,15 +171,38 @@ class PipelineTests(unittest.TestCase):
             fake = root / "bin"
             fake.mkdir()
             docker = fake / "docker"
-            docker.write_text("#!/bin/bash\nset -eu\nif [[ \"$1\" == inspect ]]; then echo sha256:fixture; exit 0; fi\nfor arg in \"$@\"; do\nif [[ \"$arg\" == --images ]]; then echo bastak-school/backend-v2:fixture; exit 0; fi\nif [[ \"$arg\" == ps ]]; then echo backend-v2; exit 0; fi\nif [[ \"$arg\" == cp ]]; then target=\"${@: -1}\"; echo fixture > \"$target\"; chmod 644 \"$target\"; exit 0; fi\ndone\n")
+            docker.write_text('''#!/bin/bash
+set -eu
+printf '%s\n' "$*" >> "$CALL_LOG"
+if [[ "$1" == inspect ]]; then
+  if [[ "$*" == *Mounts* ]]; then echo bastak-school_moshaver_v2_sqlite; else echo sha256:fixture; fi
+  exit 0
+fi
+if [[ "$1" == run && "$*" == *".cjs backup"* ]]; then
+  [[ "${RECOVERY_FAILURE:-0}" == 0 ]] || exit 7
+  target="$PRODUCTION_BACKUP_DIR/$(basename "${@: -1}")"
+  echo fixture > "$target"; chmod 644 "$target"; exit 0
+fi
+for arg in "$@"; do
+  if [[ "$arg" == ps ]]; then echo backend-v2; exit 0; fi
+done
+''')
             docker.chmod(0o700)
             env = dict(os.environ, PATH=str(fake)+os.pathsep+os.environ["PATH"],
-                       PRODUCTION_BACKUP_DIR=str(root / "backups"), PRODUCTION_LOCK_FILE=str(root / "lock"), RELEASE_SHA="a"*40)
+                       PRODUCTION_BACKUP_DIR=str(root / "backups"), PRODUCTION_LOCK_FILE=str(root / "lock"), RELEASE_SHA="a"*40,
+                       CALL_LOG=str(root / "calls"))
             subprocess.run(["bash", str(deploy / "lan.sh")], env=env, capture_output=True, text=True, check=True)
             backups = list((root / "backups").glob("*.sqlite"))
             self.assertEqual(len(backups), 1)
             self.assertEqual(backups[0].stat().st_mode & 0o777, 0o600)
             self.assertEqual((root / "backups").stat().st_mode & 0o777, 0o700)
+            (root / "calls").write_text("")
+            failed = subprocess.run(["bash", str(deploy / "lan.sh")], env=dict(env, RECOVERY_FAILURE="1"), capture_output=True, text=True)
+            self.assertEqual(failed.returncode, 7)
+            calls = (root / "calls").read_text()
+            self.assertIn("stop admin-v2 backend-v2", calls)
+            self.assertIn("start backend-v2 backend-v2", calls)
+            self.assertNotIn("up -d", calls)
 
 if __name__ == "__main__":
     unittest.main()

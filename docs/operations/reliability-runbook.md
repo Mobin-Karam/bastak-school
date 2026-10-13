@@ -85,6 +85,8 @@ Start with private-server polling and existing operator alert channels. Run the 
 4. For a compatible code regression, use the retained **exact image IDs/tags** and existing production storage. For a schema/data incident, assess compatibility on a restored copy before reverting code. Never blindly migration:revert or restore an older snapshot over newer records. Obtain a reconciliation plan for writes since the backup.
 5. Verify running image identities, persistent volume, Nginx syntax, HTTPS readiness and a read-only authenticated workflow check with an authorized operator. Record resolution and a new regression; resume deploys only after a clean gate.
 
+The legacy deploy builds before downtime, then stops ingress and the sole SQLite writer, verifies the final stopped snapshot/restoration and rehearses migrations. Preflight failure restarts the unchanged containers; failure after replacement stops ingress for compatibility assessment. No database is restored automatically.
+
 `scripts/deploy/retain-current-images.py` tags existing API and Admin images **before a legacy build/recreation** and writes a restricted `images.json` plus `compose.rollback.yml` in `~/.config/bastak-production/releases/rollback-<UTC>`. It never deletes images. The initial retained release for this work is `rollback-20261013T023132Z`. Both image identities and backup are operator-private; tagged images remain locally available. No image/system prune is part of the deployment.
 
 After migration compatibility review, an operator can recreate with the old images using the production Compose files and that final override:
