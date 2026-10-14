@@ -22,6 +22,9 @@ Reproducible read-only outputs are in `docs/reference/timetable-staging/`:
 `import-ambiguities.json`, `relationship-reports.json`, and
 `import-validation-report.md`. Regenerate them with
 `node tooling/scheduling/extract-reference-workbook.cjs <workbook.xlsx> <output-dir>`.
+Each source row also carries a context classification. Historical rows are
+always `needs_review`, including structurally parseable cells, until an operator
+selects a separate destination version.
 
 ## Sheet catalogue and classification
 

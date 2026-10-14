@@ -115,9 +115,37 @@ function extract(sheet) {
   }));
   return { blocks: found, lessons };
 }
+function classify(sheet) {
+  if (!sheet.rowCount || !sheet.columnCount) return "empty";
+  const title = [...Array(sheet.columnCount)]
+    .map((_, index) => cellText(sheet.getCell(1, index + 1).value))
+    .join(" ");
+  if (/سال\s*تحصیلی\s*1400\s*[-–]\s*1399/.test(digits(title))) return "historical";
+  if (sheet.name.trim() === "اصلی") return "unresolved-current-context";
+  return "special-or-unresolved";
+}
 async function main() {
   const workbook = new ExcelJS.Workbook(); await workbook.xlsx.load(fs.readFileSync(input));
-  const sheets = workbook.worksheets.map((sheet) => ({ sheet, ...extract(sheet) }));
+  const sheets = workbook.worksheets.map((sheet) => {
+    const context = classify(sheet);
+    const extracted = extract(sheet);
+    return {
+      sheet,
+      context,
+      blocks: extracted.blocks,
+      lessons: extracted.lessons.map((row) =>
+        context === "historical"
+          ? {
+              ...row,
+              context,
+              reviewStatus: "needs_review",
+              confidence: "low",
+              issues: [...row.issues, "کاربرگ تاریخی است؛ نگاشت و نسخه مقصد را صریح انتخاب کنید."],
+            }
+          : { ...row, context },
+      ),
+    };
+  });
   const lessons = sheets.flatMap((item) => item.lessons);
   const labels = (field) => unique(lessons.map((item) => item[field]));
   const schoolLabels = unique(workbook.worksheets.flatMap((sheet) =>
@@ -131,7 +159,7 @@ async function main() {
     write(file, { ...metadata, items: labels(field).map((label) => ({ stagingId: id(prefix, label), label, reviewStatus: "unmapped", confidence: "medium" })) });
   write("books.json", { ...metadata, items: [], note: "No explicit textbook labels were identified; subject-to-book mappings require operator review." });
   write("bell-schedules.json", { ...metadata, items: unique(lessons.map((x) => `${x.periodLabel}|${x.rawTimeLabel}`)).map((key) => { const [periodLabel, rawTimeLabel] = key.split("|"); const parsed = interval(rawTimeLabel); return { stagingId: id("period", key), periodLabel, rawTimeLabel, ...parsed, reviewStatus: parsed.issue ? "needs_review" : "unmapped" }; }) });
-  write("timetable-versions.json", { ...metadata, items: sheets.map(({ sheet, blocks: detected }) => ({ stagingId: id("sheet", sheet.name), sheetName: sheet.name, rows: sheet.rowCount, columns: sheet.columnCount, blocks: detected.length, reviewStatus: sheet.rowCount ? "needs_review" : "empty" })) });
+  write("timetable-versions.json", { ...metadata, items: sheets.map(({ sheet, context, blocks: detected }) => ({ stagingId: id("sheet", sheet.name), sheetName: sheet.name, context, rows: sheet.rowCount, columns: sheet.columnCount, blocks: detected.length, reviewStatus: sheet.rowCount ? "needs_review" : "empty" })) });
   write("scheduled-lessons.json", { ...metadata, items: lessons });
   const ambiguities = lessons.filter((x) => x.issues.length || !x.teacherLabel || x.weekday === null);
   write("import-ambiguities.json", { ...metadata, items: ambiguities });

@@ -6,6 +6,7 @@
     {
       "stagingId": "sheet_ce0fcd13b7ecffbc",
       "sheetName": "اصلی ",
+      "context": "unresolved-current-context",
       "rows": 69,
       "columns": 23,
       "blocks": 11,
@@ -14,6 +15,7 @@
     {
       "stagingId": "sheet_2ab988f884256e23",
       "sheetName": "ورقة1",
+      "context": "special-or-unresolved",
       "rows": 10,
       "columns": 13,
       "blocks": 1,
@@ -22,6 +24,7 @@
     {
       "stagingId": "sheet_50b1399377f73b04",
       "sheetName": "ورقه1",
+      "context": "special-or-unresolved",
       "rows": 15,
       "columns": 10,
       "blocks": 4,
@@ -30,6 +33,7 @@
     {
       "stagingId": "sheet_aeffc4d9f0198b0c",
       "sheetName": "بدون خواهران ",
+      "context": "historical",
       "rows": 36,
       "columns": 19,
       "blocks": 7,
@@ -38,6 +42,7 @@
     {
       "stagingId": "sheet_823d2650ff6715f9",
       "sheetName": "برنامه هفتگی تفکیکی عرضی  (2)",
+      "context": "empty",
       "rows": 0,
       "columns": 0,
       "blocks": 0,
