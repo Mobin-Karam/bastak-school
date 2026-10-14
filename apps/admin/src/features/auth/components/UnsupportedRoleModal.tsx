@@ -1,4 +1,5 @@
 import { Clock3, LogOut, Sparkles } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 import { roleLabel } from "../../../shared/lib/role-ui";
 import { Button } from "../../../shared/ui/ui";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "../../../shared/ui/dialog";
@@ -11,6 +12,28 @@ export function UnsupportedRoleModal() {
   const language = useOptionalAdminLanguage();
   const isEnglish = language === "en";
   const role = roleLabel(auth.activeRole, language);
+  const key = `bastak-school:coming-soon:${auth.context?.user.id ?? auth.user?.id ?? "account"}:${auth.activeRole ?? "role"}`;
+  const target = useMemo(() => {
+    const stored = Number(localStorage.getItem(key));
+    if (Number.isFinite(stored) && stored > Date.now()) return stored;
+    const next = Date.now() + 10 * 24 * 60 * 60 * 1000;
+    localStorage.setItem(key, String(next));
+    return next;
+  }, [key]);
+  const [remaining, setRemaining] = useState(() => Math.max(0, target - Date.now()));
+
+  useEffect(() => {
+    const update = () => setRemaining(Math.max(0, target - Date.now()));
+    update();
+    const timer = window.setInterval(update, 1_000);
+    return () => window.clearInterval(timer);
+  }, [target]);
+  const time = {
+    days: Math.floor(remaining / 86_400_000),
+    hours: Math.floor((remaining % 86_400_000) / 3_600_000),
+    minutes: Math.floor((remaining % 3_600_000) / 60_000),
+    seconds: Math.floor((remaining % 60_000) / 1_000),
+  };
 
   return (
     <div className="grid min-h-dvh place-items-center bg-paper p-4" dir={isEnglish ? "ltr" : "rtl"}>
@@ -30,7 +53,7 @@ export function UnsupportedRoleModal() {
               {isEnglish ? "Your account is being prepared" : "حساب شما به‌زودی آماده می‌شود"}
             </p>
             <DialogTitle className="mt-1 text-xl font-black text-ink">
-              {isEnglish ? "This role is not available yet" : "این نقش هنوز در دسترس نیست"}
+              {isEnglish ? "This workspace is coming soon" : "حساب کاربری شما به‌زودی فعال می‌شود"}
             </DialogTitle>
             <DialogDescription
               id="unsupported-role-description"
@@ -38,19 +61,31 @@ export function UnsupportedRoleModal() {
             >
               {isEnglish ? (
                 <>
-                  At this stage, access is available only to the Principal, School Supervisor, and
-                  Student roles. Your <strong className="font-black text-ink">{role}</strong>{" "}
-                  account remains secure and will be usable here when its workspace is ready.
+                  This workspace is still being prepared for your role. Your{" "}
+                  <strong className="font-black text-ink">{role}</strong> account remains secure.
                 </>
               ) : (
                 <>
-                  در این مرحله، دسترسی فقط برای مدیر، ناظم و دانش‌آموز فعال است. حساب
-                  <strong className="font-black text-ink"> {role}</strong> شما محفوظ می‌ماند و پس از
-                  آماده شدن نسخه مربوط، از همین‌جا قابل استفاده خواهد بود.
+                  حساب <strong className="font-black text-ink">{role}</strong> شما ثبت و محفوظ است.
+                  برای تکمیل فضای کاری این نقش کمی زمان لازم داریم؛ بابت تأخیر پوزش می‌خواهیم.
                 </>
               )}
             </DialogDescription>
           </div>
+
+          <section className="mt-5 grid grid-cols-4 gap-2" aria-label={isEnglish ? "Time remaining" : "زمان باقی‌مانده"} role="status">
+            {([
+              ["days", isEnglish ? "Days" : "روز"],
+              ["hours", isEnglish ? "Hours" : "ساعت"],
+              ["minutes", isEnglish ? "Minutes" : "دقیقه"],
+              ["seconds", isEnglish ? "Seconds" : "ثانیه"],
+            ] as const).map(([unit, label]) => (
+              <div key={unit} className="rounded-2xl border border-brand/15 bg-brand/5 px-1 py-3 text-center">
+                <strong className="block text-xl font-black tabular-nums text-ink" dir="ltr">{String(time[unit]).padStart(2, "0")}</strong>
+                <span className="mt-1 block text-[11px] font-bold text-slate-500">{label}</span>
+              </div>
+            ))}
+          </section>
 
           <div className="mt-5 rounded-2xl bg-[rgb(var(--surface-muted))] p-3 text-xs leading-6 text-slate-600 dark:text-slate-300">
             <span className="flex items-center gap-2 font-bold text-ink">
@@ -59,8 +94,8 @@ export function UnsupportedRoleModal() {
             </span>
             <p className="mt-1">
               {isEnglish
-                ? "Use this same mobile number when your role is ready."
-                : "پس از آماده شدن نقش شما، با همین شماره همراه وارد شوید."}
+                ? "Please sign in again with this same mobile number when the countdown ends."
+                : "پس از پایان شمارش، با همین شماره همراه دوباره وارد شوید."}
             </p>
           </div>
 
