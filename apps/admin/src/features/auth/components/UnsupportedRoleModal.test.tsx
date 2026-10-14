@@ -19,9 +19,11 @@ describe("UnsupportedRoleModal", () => {
   it("explains the delayed workspace and only offers logout", async () => {
     render(<UnsupportedRoleModal />);
 
-    expect(screen.getByRole("dialog")).toHaveTextContent("این نقش هنوز در دسترس نیست");
+    expect(screen.getByRole("dialog")).toHaveTextContent("حساب کاربری شما به‌زودی فعال می‌شود");
     expect(screen.getByRole("dialog")).toHaveTextContent("حساب شما به‌زودی آماده می‌شود");
     expect(screen.getByRole("dialog")).toHaveTextContent("مشاور");
+    expect(screen.getByRole("status", { name: "زمان باقی‌مانده" })).toHaveTextContent("روز");
+    expect(screen.getByRole("status", { name: "زمان باقی‌مانده" })).toHaveTextContent("ثانیه");
     expect(screen.queryByRole("button", { name: /بستن/ })).not.toBeInTheDocument();
 
     await userEvent.click(screen.getByRole("button", { name: "خروج از حساب" }));
