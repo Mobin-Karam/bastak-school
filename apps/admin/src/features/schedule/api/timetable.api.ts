@@ -12,6 +12,7 @@ import type {
   TimetableImportCommit,
   TimetableOverrideDraft,
   TimetableConflict,
+  TimetableAttendanceReport,
 } from "@moshaver/api-contract";
 import { api } from "../../../shared/api/api";
 export const getTimetable = (
@@ -112,6 +113,14 @@ export const openTimetableAttendance = (id: string, date: string) =>
   api.post<{ sessionId: string; cancelled: boolean }>(
     `/schedule/timetable/lessons/${id}/attendance`,
     { date },
+  );
+export const getTimetableAttendanceReport = (
+  organizationId: string,
+  startsOn: string,
+  endsOn: string,
+) =>
+  api.get<TimetableAttendanceReport>(
+    `/schedule/timetable/${encodeURIComponent(organizationId)}/attendance-report?${new URLSearchParams({ startsOn, endsOn })}`,
   );
 
 export function timetableLessonDraft(lesson: TimetableLessonDraft): TimetableLessonDraft {

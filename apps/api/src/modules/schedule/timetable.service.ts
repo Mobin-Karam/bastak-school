@@ -19,6 +19,7 @@ import { createHash, randomUUID } from "node:crypto";
 import type {
   TimetableLesson,
   TimetableWorkspace,
+  TimetableAttendanceReport,
   TimetableVersion as VersionContract,
   TimetableOverride as OverrideContract,
 } from "@moshaver/api-contract";
@@ -41,6 +42,7 @@ import {
   TimetableImport,
 } from "../../database/entities/timetable.entity";
 import { SchoolScheduleEntry } from "../../database/entities/school-schedule-entry.entity";
+import { AttendanceRecord } from "../../database/entities/attendance-record.entity";
 import { EducationClass } from "../../database/entities/education-class.entity";
 import { EducationClassBook } from "../../database/entities/education-class-book.entity";
 import { EducationClassEnrollment } from "../../database/entities/education-class-enrollment.entity";
@@ -1168,6 +1170,75 @@ export class TimetableService {
       offset: query.offset,
       limit: query.limit,
     };
+  }
+  /** Read-only operations view of scheduled occurrences and attendance evidence. */
+  async attendanceReport(
+    user: AuthenticatedUser,
+    organizationId: string,
+    query: TimetableQueryDto,
+  ): Promise<TimetableAttendanceReport> {
+    await this.school(user, organizationId, "schedule.read.all");
+    const activeYear = await this.database.manager.findOneBy(
+      TimetableAcademicYear,
+      { organizationId, active: true },
+    );
+    const today = new Intl.DateTimeFormat("en-CA", {
+      timeZone: activeYear?.timeZone ?? "Asia/Tehran",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).format(new Date());
+    const startsOn = query.startsOn ?? today;
+    const endsOn = query.endsOn ?? addDays(startsOn, 6);
+    this.dates(startsOn, endsOn);
+    if (Date.parse(endsOn) - Date.parse(startsOn) > 31 * 86400000)
+      this.fail("TIMETABLE_QUERY_LIMIT", "حداکثر ۳۲ روز را انتخاب کنید.");
+    const workspace = await this.workspace(
+      user,
+      organizationId,
+      query.versionId,
+      startsOn,
+      endsOn,
+      query.academicYearId,
+    );
+    const occurrences = workspace.occurrences.filter(
+      (row) =>
+        (!query.classroomId || row.classroomId === query.classroomId) &&
+        (!query.teacherId || row.teacherId === query.teacherId) &&
+        (!query.locationId || row.locationId === query.locationId),
+    );
+    const sessionIds = occurrences
+      .map((row) => row.attendanceSessionId)
+      .filter((id): id is string => !!id);
+    const records = sessionIds.length
+      ? await this.database.manager.find(AttendanceRecord, {
+          where: { session: { id: In(sessionIds) } },
+          relations: { session: true },
+        })
+      : [];
+    const recordedSessions = new Set(records.map((row) => row.session.id));
+    const summary = (rows: typeof occurrences) => {
+      const planned = rows.filter((row) => !row.cancelled);
+      const attendanceOpened = planned.filter((row) => !!row.attendanceSessionId);
+      const attendanceRecorded = attendanceOpened.filter((row) =>
+        recordedSessions.has(row.attendanceSessionId!),
+      );
+      return {
+        planned: planned.length,
+        cancelled: rows.length - planned.length,
+        attendanceOpened: attendanceOpened.length,
+        attendanceRecorded: attendanceRecorded.length,
+        awaitingAttendance: planned.length - attendanceOpened.length,
+      };
+    };
+    const classes = [...new Map(occurrences.map((row) => [row.classroomId, row])).values()]
+      .map((sample) => ({
+        classroomId: sample.classroomId,
+        classroomName: sample.classroomName,
+        ...summary(occurrences.filter((row) => row.classroomId === sample.classroomId)),
+      }))
+      .sort((a, b) => a.classroomName.localeCompare(b.classroomName, "fa"));
+    return { startsOn, endsOn, ...summary(occurrences), classes };
   }
   async versions(
     user: AuthenticatedUser,

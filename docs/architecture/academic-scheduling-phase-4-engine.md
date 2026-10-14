@@ -43,6 +43,13 @@ When a dated change occurs after attendance was opened, the attendance service
 is asked to preserve the historical session and require correction when
 recorded observations make a reschedule unsafe.
 
+Management users with `schedule.read.all` also receive a read-only
+planned-versus-attendance report for a bounded date range. It counts scheduled
+and cancelled occurrences, sessions opened from those occurrences, and
+occurrences with at least one saved attendance record, with the same figures
+grouped by class. The report derives from immutable occurrence and attendance
+history; it never infers that a lesson was held or modifies either record.
+
 ## Regression evidence
 
 `apps/api/test/timetable.service.spec.ts` now covers:
@@ -52,6 +59,8 @@ recorded observations make a reschedule unsafe.
   substitution;
 - attendance session reuse, cancellation preservation, and rescheduling
   safeguards;
+- planned, cancelled, attendance-opened, and attendance-recorded aggregates,
+  including the management-only capability boundary;
 - concurrent-term collision detection, stale revisions, immutable publishing,
   and scoped drafts.
 

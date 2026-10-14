@@ -38,6 +38,15 @@ export class TimetableController {
   ) {
     return this.timetable.workspace(user, org, versionId, startsOn).then(ok);
   }
+  @Get(":organizationId/attendance-report")
+  @RequireCapabilities("schedule.read.all")
+  attendanceReport(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param("organizationId", ParseUUIDPipe) org: string,
+    @Query() query: TimetableQueryDto,
+  ) {
+    return this.timetable.attendanceReport(user, org, query).then(ok);
+  }
   @Get(":organizationId/versions")
   @RequireCapabilities("schedule.read")
   versions(

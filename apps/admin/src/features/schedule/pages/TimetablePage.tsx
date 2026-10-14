@@ -37,6 +37,7 @@ import {
   publishTimetable,
   overrideTimetable,
   openTimetableAttendance,
+  getTimetableAttendanceReport,
 } from "../api/timetable.api";
 import { TimetableLessonEditor, timetableSelectClass } from "../components/TimetableLessonEditor";
 import { timetableSetup, TimetableOnboarding } from "../components/TimetableOnboarding";
@@ -108,6 +109,11 @@ export function TimetablePage() {
     queryKey,
     queryFn: () => getTimetable(org!, versionId || undefined, week),
     enabled: !!org,
+  });
+  const attendanceReport = useQuery({
+    queryKey: ["timetable-attendance-report", org, week, auth.activeRole],
+    queryFn: () => getTimetableAttendanceReport(org!, week, timetableAddDays(week, 6)),
+    enabled: !!org && full,
   });
   const data = workspace.data;
   const selectedVersion =
@@ -621,6 +627,46 @@ export function TimetablePage() {
             </span>
           ) : null}
         </div>
+        {full ? (
+          <Card className="grid gap-2 p-3" aria-label="پایش اجرای برنامه و حضور">
+            <div className="flex flex-wrap items-baseline justify-between gap-2">
+              <div>
+                <h3 className="text-sm font-bold">پایش اجرای برنامه و حضور</h3>
+                <p className="text-xs text-slate-500">
+                  {timetableDateLabel(week, timeZone)} تا {timetableDateLabel(timetableAddDays(week, 6), timeZone)}
+                </p>
+              </div>
+              {attendanceReport.isFetching ? <span role="status" className="text-xs text-slate-500">به‌روزرسانی…</span> : null}
+            </div>
+            {attendanceReport.isError ? (
+              <p role="alert" className="text-sm text-red-600">گزارش حضور این بازه دریافت نشد.</p>
+            ) : attendanceReport.data ? (
+              <>
+                <div className="grid grid-cols-2 gap-2 text-center sm:grid-cols-5">
+                  {[
+                    ["برنامه‌ریزی‌شده", attendanceReport.data.planned],
+                    ["لغوشده", attendanceReport.data.cancelled],
+                    ["جلسه حضور باز", attendanceReport.data.attendanceOpened],
+                    ["دارای ثبت حضور", attendanceReport.data.attendanceRecorded],
+                    ["در انتظار حضور", attendanceReport.data.awaitingAttendance],
+                  ].map(([label, count]) => (
+                    <div key={String(label)} className="rounded-lg bg-[rgb(var(--surface-muted))] p-2">
+                      <strong className="block text-lg">{count}</strong>
+                      <span className="text-xs text-slate-500">{label}</span>
+                    </div>
+                  ))}
+                </div>
+                {attendanceReport.data.classes.length ? (
+                  <p className="text-xs text-slate-500">
+                    {attendanceReport.data.classes
+                      .map((row) => `${row.classroomName}: ${row.attendanceRecorded}/${row.planned}`)
+                      .join(" · ")}
+                  </p>
+                ) : null}
+              </>
+            ) : null}
+          </Card>
+        ) : null}
         {!full ? (
           <div className="grid gap-2 sm:grid-cols-2">
             <Card className="p-3">

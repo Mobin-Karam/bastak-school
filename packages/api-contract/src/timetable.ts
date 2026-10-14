@@ -226,6 +226,25 @@ export type TimetableOccurrenceQuery = {
   offset?: number;
   limit?: number;
 };
+/** Management-only aggregate; it never changes attendance or timetable history. */
+export type TimetableAttendanceReport = {
+  startsOn: string;
+  endsOn: string;
+  planned: number;
+  cancelled: number;
+  attendanceOpened: number;
+  attendanceRecorded: number;
+  awaitingAttendance: number;
+  classes: Array<{
+    classroomId: string;
+    classroomName: string;
+    planned: number;
+    cancelled: number;
+    attendanceOpened: number;
+    attendanceRecorded: number;
+    awaitingAttendance: number;
+  }>;
+};
 export type TimetableBulkWrite = {
   expectedRevision: number;
   items: Array<{ id?: string; lesson: TimetableLessonDraft }>;

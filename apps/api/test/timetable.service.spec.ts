@@ -753,6 +753,9 @@ describe("versioned timetable integration (migration-built SQLite)", () => {
       service.config(studentActor, org.id, { kind: "location", name: "Room" }),
     ).rejects.toMatchObject({ response: { error: { code: "FORBIDDEN" } } });
     await expect(
+      service.attendanceReport(studentActor, org.id, { offset: 0, limit: 50 }),
+    ).rejects.toMatchObject({ response: { error: { code: "FORBIDDEN" } } });
+    await expect(
       service.workspace({ ...staff, activeOrganizationId: "foreign" }, org.id),
     ).rejects.toMatchObject({
       response: { error: { code: "ORGANIZATION_FORBIDDEN" } },
@@ -1144,6 +1147,80 @@ describe("versioned timetable integration (migration-built SQLite)", () => {
           })
         ).status,
       ).toBe("cancelled");
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+  it("reports planned, cancelled, opened, and recorded timetable attendance without changing history", async () => {
+    jest.useFakeTimers({ doNotFake: ["nextTick", "setImmediate"] });
+    jest.setSystemTime(new Date("2026-10-11T05:00:00Z"));
+    try {
+      const written = (await service.writeLesson(staff, draftId, {
+        expectedRevision: 0,
+        lesson,
+      })) as { id: string };
+      await service.publish(staff, draftId, {
+        expectedRevision: 1,
+        reason: "تأیید مدیر",
+      });
+      expect(
+        await service.attendanceReport(staff, org.id, {
+          startsOn: "2026-10-11",
+          endsOn: "2026-10-11",
+          offset: 0,
+          limit: 50,
+        }),
+      ).toMatchObject({
+        planned: 1,
+        cancelled: 0,
+        attendanceOpened: 0,
+        attendanceRecorded: 0,
+        awaitingAttendance: 1,
+      });
+      const opened = await service.openAttendance(staff, written.id, "2026-10-11");
+      const session = await db.manager.findOneByOrFail(AttendanceSession, {
+        id: opened.sessionId,
+      });
+      const enrollment = await db.manager.findOneOrFail(EducationClassEnrollment, {
+        where: { classroom: { id: lesson.classroomId } },
+        relations: { student: true },
+      });
+      await db.manager.save(
+        AttendanceRecord,
+        db.manager.create(AttendanceRecord, {
+          session,
+          student: enrollment.student,
+          status: entities.AttendanceStatus.PRESENT,
+        }),
+      );
+      const report = await service.attendanceReport(staff, org.id, {
+        startsOn: "2026-10-11",
+        endsOn: "2026-10-11",
+        offset: 0,
+        limit: 50,
+      });
+      expect(report).toMatchObject({
+        planned: 1,
+        attendanceOpened: 1,
+        attendanceRecorded: 1,
+        awaitingAttendance: 0,
+      });
+      expect(report.classes).toHaveLength(1);
+      await service.override(staff, draftId, {
+        expectedRevision: 2,
+        lessonId: written.id,
+        date: "2026-10-11",
+        cancelled: true,
+        reason: "تعطیلی اضطراری",
+      });
+      expect(
+        await service.attendanceReport(staff, org.id, {
+          startsOn: "2026-10-11",
+          endsOn: "2026-10-11",
+          offset: 0,
+          limit: 50,
+        }),
+      ).toMatchObject({ planned: 0, cancelled: 1, attendanceOpened: 0, attendanceRecorded: 0 });
     } finally {
       jest.useRealTimers();
     }
