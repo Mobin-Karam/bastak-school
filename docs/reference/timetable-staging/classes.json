@@ -1,0 +1,97 @@
+{
+  "sourceFile": "مبین.xlsx",
+  "sha256": "696637cd570cefdb06a351249890c210b53a7573fd924c1ed1a0aea2fabc5bfa",
+  "mode": "read-only-staging",
+  "items": [
+    {
+      "stagingId": "class_4509c6d24efb7622",
+      "label": "اول",
+      "reviewStatus": "unmapped",
+      "confidence": "medium"
+    },
+    {
+      "stagingId": "class_07751642e71bcd57",
+      "label": "اول الف",
+      "reviewStatus": "unmapped",
+      "confidence": "medium"
+    },
+    {
+      "stagingId": "class_244f0352f40fc5ea",
+      "label": "اول ب",
+      "reviewStatus": "unmapped",
+      "confidence": "medium"
+    },
+    {
+      "stagingId": "class_5a52066ccb22fdf5",
+      "label": "اول ج",
+      "reviewStatus": "unmapped",
+      "confidence": "medium"
+    },
+    {
+      "stagingId": "class_703bfb0991c86ef1",
+      "label": "اول خ",
+      "reviewStatus": "unmapped",
+      "confidence": "medium"
+    },
+    {
+      "stagingId": "class_9a87ee377f28fadd",
+      "label": "اول د",
+      "reviewStatus": "unmapped",
+      "confidence": "medium"
+    },
+    {
+      "stagingId": "class_b6879b8351231234",
+      "label": "چهارم",
+      "reviewStatus": "unmapped",
+      "confidence": "medium"
+    },
+    {
+      "stagingId": "class_eaafd5e7f4969f54",
+      "label": "چهارم خ",
+      "reviewStatus": "unmapped",
+      "confidence": "medium"
+    },
+    {
+      "stagingId": "class_08676b6cb13967b1",
+      "label": "دوم",
+      "reviewStatus": "unmapped",
+      "confidence": "medium"
+    },
+    {
+      "stagingId": "class_e5a4e6bfb83368c2",
+      "label": "دوم الف",
+      "reviewStatus": "unmapped",
+      "confidence": "medium"
+    },
+    {
+      "stagingId": "class_13fee70f2f47b847",
+      "label": "دوم ب",
+      "reviewStatus": "unmapped",
+      "confidence": "medium"
+    },
+    {
+      "stagingId": "class_579c6f09987a9217",
+      "label": "دوم خ",
+      "reviewStatus": "unmapped",
+      "confidence": "medium"
+    },
+    {
+      "stagingId": "class_ce95af5ffd12e143",
+      "label": "دوم دیپلمه خ",
+      "reviewStatus": "unmapped",
+      "confidence": "medium"
+    },
+    {
+      "stagingId": "class_c6d493e8538e14d0",
+      "label": "سوم",
+      "reviewStatus": "unmapped",
+      "confidence": "medium"
+    },
+    {
+      "stagingId": "class_babeaf6173819730",
+      "label": "سوم خ",
+      "reviewStatus": "unmapped",
+      "confidence": "medium"
+    }
+  ]
+}

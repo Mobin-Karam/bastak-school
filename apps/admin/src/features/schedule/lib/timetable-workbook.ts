@@ -27,6 +27,18 @@ export type WorkbookBlock = {
 };
 export type WorkbookLesson = {
   source: string;
+  provenance: {
+    sheetName: string;
+    cellAddress: string;
+    masterCell: string;
+    blockId: string;
+    rawClassLabel: string;
+    rawSubjectLabel: string;
+    rawTeacherLabel: string;
+    rawPeriodLabel: string;
+    rawTimeLabel: string;
+    merged: boolean;
+  };
   blockId: string;
   classLabel: string;
   subjectLabel: string;
@@ -91,12 +103,17 @@ export function detectWorkbookBlocks(sheet: SpreadsheetLayoutSheet): WorkbookBlo
         ).includes("مدرس"),
     );
     let group: number[] = [];
+    let previousGroupEnd = 0;
     const flush = () => {
       if (!group.length) return;
       const first = group[0];
       const explicit = sheet.cells
         .filter(
-          (x) => x.row === row && x.column < first && normalizeTimetableText(x.value) === "کلاس",
+          (x) =>
+            x.row === row &&
+            x.column < first &&
+            x.column > previousGroupEnd &&
+            normalizeTimetableText(x.value) === "کلاس",
         )
         .at(-1);
       const classColumn = explicit?.column ?? first - 1;
@@ -108,6 +125,7 @@ export function detectWorkbookBlocks(sheet: SpreadsheetLayoutSheet): WorkbookBlo
         label: `ردیف ${row} · ستون کلاس ${classColumn} · ${group.length} زنگ`,
         requiresClassColumnConfirmation: !explicit,
       });
+      previousGroupEnd = group.at(-1)!;
       group = [];
     };
     for (const heading of headings) {
@@ -142,13 +160,15 @@ export function extractWorkbookLessons(
       const explicitDay = day(textAt(row, 1));
       if (explicitDay !== null) carriedDay = explicitDay;
       const classCell = cells.get(`${row}:${block.classColumn}`);
-      const classText = normalizeTimetableText(classCell?.value ?? "");
+      const rawClassLabel = classCell?.value ?? "";
+      const classText = normalizeTimetableText(rawClassLabel);
       if (classText === "ساعت" || classText === "کلاس") continue;
       carriedClass = classText;
       if (!carriedClass) continue;
       for (const column of block.subjectColumns) {
         const cell = cells.get(`${row}:${column}`);
-        const subjectLabel = normalizeTimetableText(cell?.value ?? "");
+        const rawSubjectLabel = cell?.value ?? "";
+        const subjectLabel = normalizeTimetableText(rawSubjectLabel);
         if (!subjectLabel || subjectLabel.startsWith("زنگ") || subjectLabel === "مدرس") continue;
         // A merge across distinct lesson columns is ambiguous, not repeated assignments.
         if (
@@ -158,8 +178,11 @@ export function extractWorkbookLessons(
         )
           continue;
         const teacherCell = cells.get(`${row}:${column + 1}`);
-        const teacherLabel = normalizeTimetableText(teacherCell?.value ?? "");
-        const timeLabel = textAt(block.headerRow + 1, column);
+        const rawTeacherLabel = teacherCell?.value ?? "";
+        const teacherLabel = normalizeTimetableText(rawTeacherLabel);
+        const rawTimeLabel = textAt(block.headerRow + 1, column);
+        const rawPeriodLabel = textAt(block.headerRow, column);
+        const timeLabel = rawTimeLabel;
         const interval = parseWorkbookInterval(timeLabel);
         const issues: string[] = [];
         if (carriedDay === null) issues.push("روز هفته را صریح انتخاب کنید.");
@@ -169,11 +192,23 @@ export function extractWorkbookLessons(
           issues.push("ادغام سلول درس و استاد؛ مقدار را بازبینی کنید.");
         lessons.push({
           source: `${sheet.name}!${cell?.address ?? `${row}:${column}`}`,
+          provenance: {
+            sheetName: sheet.name,
+            cellAddress: cell?.address ?? `${row}:${column}`,
+            masterCell: cell?.master ?? cell?.address ?? `${row}:${column}`,
+            blockId: block.id,
+            rawClassLabel,
+            rawSubjectLabel,
+            rawTeacherLabel,
+            rawPeriodLabel,
+            rawTimeLabel,
+            merged: cell?.merged ?? false,
+          },
           blockId: block.id,
           classLabel: carriedClass,
           subjectLabel,
           teacherLabel,
-          periodLabel: normalizeTimetableText(textAt(block.headerRow, column)),
+          periodLabel: normalizeTimetableText(rawPeriodLabel),
           timeLabel,
           ...interval,
           weekday: carriedDay,

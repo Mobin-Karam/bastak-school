@@ -10,6 +10,11 @@ import {
   OrganizationType,
 } from "../src/database/entities/organization.entity";
 import { User, UserRole } from "../src/database/entities/user.entity";
+import {
+  RelationshipStatus,
+  RelationshipType,
+  UserRelationship,
+} from "../src/database/entities/user-relationship.entity";
 import { SchoolAccessService } from "../src/modules/school-access";
 import { TimetableService } from "../src/modules/schedule/timetable.service";
 import { AttendanceService } from "../src/modules/attendance";
@@ -636,7 +641,7 @@ describe("versioned timetable integration (migration-built SQLite)", () => {
       response: { error: { code: "TIMETABLE_CONFLICT" } },
     });
   });
-  it("publishes immutable versions and scopes student/teacher feeds", async () => {
+  it("publishes immutable versions and scopes student, guardian, and teacher feeds", async () => {
     await service.writeLesson(staff, draftId, { expectedRevision: 0, lesson });
     const published = await service.publish(staff, draftId, {
       expectedRevision: 1,
@@ -656,6 +661,52 @@ describe("versioned timetable integration (migration-built SQLite)", () => {
     expect(
       (await service.workspace(teacherActor, org.id, undefined, "2026-01-04"))
         .lessons,
+    ).toHaveLength(1);
+    const studentRecord = await db.manager.findOneByOrFail(Student, {
+      user: { id: studentActor.id },
+    });
+    const guardian = await db.manager.save(
+      User,
+      db.manager.create(User, {
+        username: "guardian",
+        passwordHash: "fixture",
+        role: UserRole.GUARDIAN,
+      }),
+    );
+    await db.manager.save(
+      OrganizationMembership,
+      db.manager.create(OrganizationMembership, { user: guardian, organization: org }),
+    );
+    await db.manager.save(
+      UserRelationship,
+      db.manager.create(UserRelationship, {
+        fromUser: guardian,
+        toStudent: studentRecord,
+        organization: org,
+        type: RelationshipType.GUARDIAN_OF,
+        status: RelationshipStatus.ACTIVE,
+      }),
+    );
+    const guardianActor = {
+      ...studentActor,
+      id: guardian.id,
+      username: guardian.username,
+      role: "GUARDIAN",
+      roles: ["GUARDIAN"],
+    };
+    expect(
+      (await service.workspace(guardianActor, org.id, undefined, "2026-01-04")).lessons,
+    ).toHaveLength(1);
+    expect(
+      (
+        await service.occurrences(guardianActor, org.id, {
+          studentId: studentRecord.id,
+          startsOn: "2026-01-04",
+          endsOn: "2026-01-04",
+          offset: 0,
+          limit: 50,
+        })
+      ).items,
     ).toHaveLength(1);
     await expect(
       service.writeLesson(staff, draftId, { expectedRevision: 2, lesson }),
@@ -707,6 +758,9 @@ describe("versioned timetable integration (migration-built SQLite)", () => {
       service.config(studentActor, org.id, { kind: "location", name: "Room" }),
     ).rejects.toMatchObject({ response: { error: { code: "FORBIDDEN" } } });
     await expect(
+      service.attendanceReport(studentActor, org.id, { offset: 0, limit: 50 }),
+    ).rejects.toMatchObject({ response: { error: { code: "FORBIDDEN" } } });
+    await expect(
       service.workspace({ ...staff, activeOrganizationId: "foreign" }, org.id),
     ).rejects.toMatchObject({
       response: { error: { code: "ORGANIZATION_FORBIDDEN" } },
@@ -733,6 +787,53 @@ describe("versioned timetable integration (migration-built SQLite)", () => {
     expect(await db.manager.count(SchoolScheduleEntry)).toBe(0);
     body.rows.pop();
     expect((await service.commitImport(staff, draftId, body)).imported).toBe(1);
+  });
+  it("treats a confirmed import replay as idempotent even when its original revision is stale", async () => {
+    const body = {
+      expectedRevision: 0,
+      filename: "مبین.xlsx",
+      sheetName: "اصلی",
+      rows: [
+        {
+          source: "اصلی!C4",
+          provenance: {
+            sheetName: "اصلی",
+            cellAddress: "C4",
+            masterCell: "C4",
+            blockId: "2:2",
+            rawClassLabel: "اول",
+            rawSubjectLabel: "نحو",
+            rawTeacherLabel: "استاد",
+            rawPeriodLabel: "زنگ اول",
+            rawTimeLabel: "08:00-09:00",
+            merged: false,
+          },
+          lesson,
+        },
+      ],
+    };
+    expect(await service.commitImport(staff, draftId, body)).toMatchObject({
+      imported: 1,
+      revision: 1,
+      duplicate: false,
+    });
+    expect(await service.commitImport(staff, draftId, body)).toMatchObject({
+      imported: 0,
+      revision: 1,
+      duplicate: true,
+    });
+    expect(await db.manager.count(SchoolScheduleEntry)).toBe(1);
+    expect(await db.manager.count(entities.TimetableImport)).toBe(1);
+    expect(
+      await db.manager.findOneByOrFail(entities.TimetableImport, { versionId: draftId }),
+    ).toMatchObject({
+      sourceRows: [
+        {
+          source: "اصلی!C4",
+          provenance: expect.objectContaining({ rawSubjectLabel: "نحو" }),
+        },
+      ],
+    });
   });
   it("allows multiple import batches while enforcing complete allocations at publication", async () => {
     await service.config(staff, org.id, {
@@ -1051,6 +1152,143 @@ describe("versioned timetable integration (migration-built SQLite)", () => {
           })
         ).status,
       ).toBe("cancelled");
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+  it("reports planned, cancelled, opened, and recorded timetable attendance without changing history", async () => {
+    jest.useFakeTimers({ doNotFake: ["nextTick", "setImmediate"] });
+    jest.setSystemTime(new Date("2026-10-11T05:00:00Z"));
+    try {
+      const written = (await service.writeLesson(staff, draftId, {
+        expectedRevision: 0,
+        lesson,
+      })) as { id: string };
+      await service.publish(staff, draftId, {
+        expectedRevision: 1,
+        reason: "تأیید مدیر",
+      });
+      expect(
+        await service.attendanceReport(staff, org.id, {
+          startsOn: "2026-10-11",
+          endsOn: "2026-10-11",
+          offset: 0,
+          limit: 50,
+        }),
+      ).toMatchObject({
+        planned: 1,
+        cancelled: 0,
+        attendanceOpened: 0,
+        attendanceRecorded: 0,
+        awaitingAttendance: 1,
+      });
+      const opened = await service.openAttendance(staff, written.id, "2026-10-11");
+      const session = await db.manager.findOneByOrFail(AttendanceSession, {
+        id: opened.sessionId,
+      });
+      const enrollment = await db.manager.findOneOrFail(EducationClassEnrollment, {
+        where: { classroom: { id: lesson.classroomId } },
+        relations: { student: true },
+      });
+      await db.manager.save(
+        AttendanceRecord,
+        db.manager.create(AttendanceRecord, {
+          session,
+          student: enrollment.student,
+          status: entities.AttendanceStatus.PRESENT,
+        }),
+      );
+      const report = await service.attendanceReport(staff, org.id, {
+        startsOn: "2026-10-11",
+        endsOn: "2026-10-11",
+        offset: 0,
+        limit: 50,
+      });
+      expect(report).toMatchObject({
+        planned: 1,
+        attendanceOpened: 1,
+        attendanceRecorded: 1,
+        awaitingAttendance: 0,
+      });
+      expect(report.classes).toHaveLength(1);
+      await service.override(staff, draftId, {
+        expectedRevision: 2,
+        lessonId: written.id,
+        date: "2026-10-11",
+        cancelled: true,
+        reason: "تعطیلی اضطراری",
+      });
+      expect(
+        await service.attendanceReport(staff, org.id, {
+          startsOn: "2026-10-11",
+          endsOn: "2026-10-11",
+          offset: 0,
+          limit: 50,
+        }),
+      ).toMatchObject({ planned: 0, cancelled: 1, attendanceOpened: 0, attendanceRecorded: 0 });
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+  it("allows the effective substitute teacher, but not the original teacher, to open attendance", async () => {
+    jest.useFakeTimers({ doNotFake: ["nextTick", "setImmediate"] });
+    jest.setSystemTime(new Date("2026-10-11T05:00:00Z"));
+    try {
+      const substitute = await db.manager.save(
+        User,
+        db.manager.create(User, {
+          username: "substitute",
+          passwordHash: "fixture",
+          role: UserRole.TEACHER,
+        }),
+      );
+      const membership = await db.manager.save(
+        OrganizationMembership,
+        db.manager.create(OrganizationMembership, { user: substitute, organization: org }),
+      );
+      const role = await db.manager.findOneByOrFail(Role, { code: "TEACHER" });
+      await db.manager.save(
+        UserRoleAssignment,
+        db.manager.create(UserRoleAssignment, { user: substitute, membership, role }),
+      );
+      const written = (await service.writeLesson(staff, draftId, {
+        expectedRevision: 0,
+        lesson,
+      })) as { id: string };
+      await service.publish(staff, draftId, {
+        expectedRevision: 1,
+        reason: "تأیید مدیر",
+      });
+      await service.override(staff, draftId, {
+        expectedRevision: 2,
+        lessonId: written.id,
+        date: "2026-10-11",
+        cancelled: false,
+        teacherId: substitute.id,
+        reason: "جانشین",
+      });
+      await expect(
+        service.openAttendance(
+          {
+            ...teacherActor,
+            capabilities: ["schedule.read", "attendance.class.manage"],
+          },
+          written.id,
+          "2026-10-11",
+        ),
+      ).rejects.toMatchObject({ response: { error: { code: "FORBIDDEN" } } });
+      const opened = await service.openAttendance(
+        {
+          ...teacherActor,
+          id: substitute.id,
+          username: substitute.username,
+          capabilities: ["schedule.read", "attendance.class.manage"],
+        },
+        written.id,
+        "2026-10-11",
+      );
+      expect(opened.cancelled).toBe(false);
+      expect(opened.sessionId).toEqual(expect.any(String));
     } finally {
       jest.useRealTimers();
     }

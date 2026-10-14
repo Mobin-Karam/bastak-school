@@ -21,6 +21,7 @@ const fixtures = vi.hoisted(() => ({
     "schedule.delete",
   ],
   get: vi.fn(),
+  report: vi.fn(),
   write: vi.fn(),
 }));
 vi.mock("../../auth", () => ({
@@ -54,6 +55,7 @@ vi.mock("../components/TimetableDateInput", () => ({
 }));
 vi.mock("../api/timetable.api", () => ({
   getTimetable: fixtures.get,
+  getTimetableAttendanceReport: fixtures.report,
   writeTimetableLesson: fixtures.write,
   previewTimetableLesson: async () => ({ conflicts: [] }),
   createTimetableVersion: vi.fn(),
@@ -209,8 +211,34 @@ beforeEach(() => {
     "schedule.delete",
   ];
   fixtures.get.mockReset().mockResolvedValue(data());
+  fixtures.report.mockReset().mockResolvedValue({
+    startsOn: week,
+    endsOn: week,
+    planned: 1,
+    cancelled: 0,
+    attendanceOpened: 1,
+    attendanceRecorded: 1,
+    awaitingAttendance: 0,
+    classes: [
+      {
+        classroomId: "class",
+        classroomName: "اول",
+        planned: 1,
+        cancelled: 0,
+        attendanceOpened: 1,
+        attendanceRecorded: 1,
+        awaitingAttendance: 0,
+      },
+    ],
+  });
 });
 describe("responsive timetable workflows", () => {
+  it("shows the management-only planned versus attendance report", async () => {
+    mount();
+    expect(await screen.findByText("پایش اجرای برنامه و حضور")).toBeVisible();
+    expect(await screen.findByText("دارای ثبت حضور")).toBeVisible();
+    expect(fixtures.report).toHaveBeenCalledWith("org", week, expect.any(String));
+  });
   it("shows read-only published lessons and staff view filters", async () => {
     mount();
     expect(await screen.findByRole("heading", { name: "برنامه درسی" })).toBeVisible();
