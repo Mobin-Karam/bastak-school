@@ -1,0 +1,181 @@
+{
+  "sourceFile": "مبین.xlsx",
+  "sha256": "696637cd570cefdb06a351249890c210b53a7573fd924c1ed1a0aea2fabc5bfa",
+  "mode": "read-only-staging",
+  "items": [
+    {
+      "stagingId": "subject_69412543199c5e9a",
+      "label": "اصول",
+      "reviewStatus": "unmapped",
+      "confidence": "medium"
+    },
+    {
+      "stagingId": "subject_5735d97632cc7b25",
+      "label": "اصول الدعوه",
+      "reviewStatus": "unmapped",
+      "confidence": "medium"
+    },
+    {
+      "stagingId": "subject_ef122761973436db",
+      "label": "اصول دعوت",
+      "reviewStatus": "unmapped",
+      "confidence": "medium"
+    },
+    {
+      "stagingId": "subject_cdd9eba8d00b901f",
+      "label": "املاء وانشاء",
+      "reviewStatus": "unmapped",
+      "confidence": "medium"
+    },
+    {
+      "stagingId": "subject_cd9417dd689c9f01",
+      "label": "بلاغه",
+      "reviewStatus": "unmapped",
+      "confidence": "medium"
+    },
+    {
+      "stagingId": "subject_3269d1b677473c94",
+      "label": "تاریخ",
+      "reviewStatus": "unmapped",
+      "confidence": "medium"
+    },
+    {
+      "stagingId": "subject_0eba0b71ebecefd9",
+      "label": "تاریخ خلفا",
+      "reviewStatus": "unmapped",
+      "confidence": "medium"
+    },
+    {
+      "stagingId": "subject_ac1eb279e0ad5238",
+      "label": "تجوید",
+      "reviewStatus": "unmapped",
+      "confidence": "medium"
+    },
+    {
+      "stagingId": "subject_37e2fdb79cd5da2f",
+      "label": "ترجمه",
+      "reviewStatus": "unmapped",
+      "confidence": "medium"
+    },
+    {
+      "stagingId": "subject_999a9e6cc0c92310",
+      "label": "تفسیر",
+      "reviewStatus": "unmapped",
+      "confidence": "medium"
+    },
+    {
+      "stagingId": "subject_d240a30adf3b5ad8",
+      "label": "حدیث",
+      "reviewStatus": "unmapped",
+      "confidence": "medium"
+    },
+    {
+      "stagingId": "subject_ddfcaf9d0144513e",
+      "label": "حفظ",
+      "reviewStatus": "unmapped",
+      "confidence": "medium"
+    },
+    {
+      "stagingId": "subject_cc82c7fbe1d16a50",
+      "label": "سیرت",
+      "reviewStatus": "unmapped",
+      "confidence": "medium"
+    },
+    {
+      "stagingId": "subject_d9388205a0bba6f1",
+      "label": "صرف",
+      "reviewStatus": "unmapped",
+      "confidence": "medium"
+    },
+    {
+      "stagingId": "subject_6533e7d4cc46f266",
+      "label": "عقیده",
+      "reviewStatus": "unmapped",
+      "confidence": "medium"
+    },
+    {
+      "stagingId": "subject_7cfa6bf9b209b250",
+      "label": "علوم قرآن",
+      "reviewStatus": "unmapped",
+      "confidence": "medium"
+    },
+    {
+      "stagingId": "subject_5f259451268f364f",
+      "label": "فقه",
+      "reviewStatus": "unmapped",
+      "confidence": "medium"
+    },
+    {
+      "stagingId": "subject_c87571cb76025ce8",
+      "label": "قرآن",
+      "reviewStatus": "unmapped",
+      "confidence": "medium"
+    },
+    {
+      "stagingId": "subject_f5f208243558e03f",
+      "label": "قرائت",
+      "reviewStatus": "unmapped",
+      "confidence": "medium"
+    },
+    {
+      "stagingId": "subject_8d36a869f363b397",
+      "label": "قصص",
+      "reviewStatus": "unmapped",
+      "confidence": "medium"
+    },
+    {
+      "stagingId": "subject_c65feb029de1456a",
+      "label": "لغت",
+      "reviewStatus": "unmapped",
+      "confidence": "medium"
+    },
+    {
+      "stagingId": "subject_7cfb9a1c260699e2",
+      "label": "مبانی",
+      "reviewStatus": "unmapped",
+      "confidence": "medium"
+    },
+    {
+      "stagingId": "subject_889c28ccecf8f12b",
+      "label": "مصطلح",
+      "reviewStatus": "unmapped",
+      "confidence": "medium"
+    },
+    {
+      "stagingId": "subject_ddffbedb6742bfe2",
+      "label": "مفردات",
+      "reviewStatus": "unmapped",
+      "confidence": "medium"
+    },
+    {
+      "stagingId": "subject_fde0fadd10a9171f",
+      "label": "منطق",
+      "reviewStatus": "unmapped",
+      "confidence": "medium"
+    },
+    {
+      "stagingId": "subject_07a3d6db1446a2f2",
+      "label": "مهارت",
+      "reviewStatus": "unmapped",
+      "confidence": "medium"
+    },
+    {
+      "stagingId": "subject_fa2597cb38a55d2e",
+      "label": "میراث",
+      "reviewStatus": "unmapped",
+      "confidence": "medium"
+    },
+    {
+      "stagingId": "subject_eaa2395ae70cb2b0",
+      "label": "نحو",
+      "reviewStatus": "unmapped",
+      "confidence": "medium"
+    },
+    {
+      "stagingId": "subject_4eea97cfde0de035",
+      "label": "نصوص",
+      "reviewStatus": "unmapped",
+      "confidence": "medium"
+    }
+  ]
+}

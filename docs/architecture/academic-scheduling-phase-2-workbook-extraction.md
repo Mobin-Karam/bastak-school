@@ -23,7 +23,7 @@ teacher, class, subject, school, or book label is a production identity.
 | `اصلی ` | 69 x 23 / 62 | 178 | Weekly schedule, school and sisters' school named together | Needs context separation and afternoon-header repair |
 | `ورقة1` | 10 x 13 / 8 | 42 | Special or unresolved timetable context | No explicit weekday; one malformed time label |
 | `ورقه1` | 15 x 10 / 12 | 32 | Separate weekly/special context | Structurally parseable; context/year is unresolved |
-| `بدون خواهران ` | 36 x 19 / 18 | 12 from current parser | Historical context; title contains `سال تحصیلی 1400-1399` | Current block detector is not safe for this layout |
+| `بدون خواهران ` | 36 x 19 / 18 | 107 raw candidates | Historical context; title contains `سال تحصیلی 1400-1399` | All candidates remain review-only; do not import this layout automatically |
 | `برنامه هفتگی تفکیکی عرضی  (2)` | empty | 0 | Empty | Ignore with an auditable empty-sheet result |
 
 The raw source title of the main sheet names both `مدرسه سلطان العلماء` and
@@ -33,8 +33,8 @@ no Gregorian date range or active year is inferred.
 
 ## Read-only relationship inventory
 
-The current parser produced 264 candidate lesson cells before staff mapping.
-Only 76 have no structural issue. The remaining 188 must remain in staging.
+The current parser produced 359 candidate lesson cells before staff mapping.
+Only 76 have no structural issue. The remaining 283 must remain in staging.
 
 ### Source labels
 

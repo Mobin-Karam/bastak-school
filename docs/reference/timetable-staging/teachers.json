@@ -1,0 +1,229 @@
+{
+  "sourceFile": "مبین.xlsx",
+  "sha256": "696637cd570cefdb06a351249890c210b53a7573fd924c1ed1a0aea2fabc5bfa",
+  "mode": "read-only-staging",
+  "items": [
+    {
+      "stagingId": "teacher_c774c80d5acc653b",
+      "label": "ارندید",
+      "reviewStatus": "unmapped",
+      "confidence": "medium"
+    },
+    {
+      "stagingId": "teacher_d350bf9bae276dbb",
+      "label": "ایوب",
+      "reviewStatus": "unmapped",
+      "confidence": "medium"
+    },
+    {
+      "stagingId": "teacher_8047c2039b677c26",
+      "label": "برهان",
+      "reviewStatus": "unmapped",
+      "confidence": "medium"
+    },
+    {
+      "stagingId": "teacher_4a04be989409df66",
+      "label": "بهزاد",
+      "reviewStatus": "unmapped",
+      "confidence": "medium"
+    },
+    {
+      "stagingId": "teacher_e7ec29e8d2992aad",
+      "label": "پاسلاری",
+      "reviewStatus": "unmapped",
+      "confidence": "medium"
+    },
+    {
+      "stagingId": "teacher_07f2c58d288a03a4",
+      "label": "پاسلاری ف",
+      "reviewStatus": "unmapped",
+      "confidence": "medium"
+    },
+    {
+      "stagingId": "teacher_002d5d25c061d0af",
+      "label": "جداوی",
+      "reviewStatus": "unmapped",
+      "confidence": "medium"
+    },
+    {
+      "stagingId": "teacher_528480179466e5f1",
+      "label": "جعفرنژاد",
+      "reviewStatus": "unmapped",
+      "confidence": "medium"
+    },
+    {
+      "stagingId": "teacher_5c9d6cbbb137e828",
+      "label": "حاجی قاسمی",
+      "reviewStatus": "unmapped",
+      "confidence": "medium"
+    },
+    {
+      "stagingId": "teacher_bba22b001421e3bd",
+      "label": "دالان",
+      "reviewStatus": "unmapped",
+      "confidence": "medium"
+    },
+    {
+      "stagingId": "teacher_0072621b8c6d0167",
+      "label": "دست برسر",
+      "reviewStatus": "unmapped",
+      "confidence": "medium"
+    },
+    {
+      "stagingId": "teacher_edeb1849dc94ec14",
+      "label": "دست برسر ح",
+      "reviewStatus": "unmapped",
+      "confidence": "medium"
+    },
+    {
+      "stagingId": "teacher_50bb395ec83f234c",
+      "label": "دستر برسر ح",
+      "reviewStatus": "unmapped",
+      "confidence": "medium"
+    },
+    {
+      "stagingId": "teacher_085b23b3a2b46e1a",
+      "label": "رئیسی",
+      "reviewStatus": "unmapped",
+      "confidence": "medium"
+    },
+    {
+      "stagingId": "teacher_fe45d1ac51dcc12e",
+      "label": "رسوار",
+      "reviewStatus": "unmapped",
+      "confidence": "medium"
+    },
+    {
+      "stagingId": "teacher_4cdd0e2f975fd40e",
+      "label": "رمضان",
+      "reviewStatus": "unmapped",
+      "confidence": "medium"
+    },
+    {
+      "stagingId": "teacher_9bbf5c30a2669041",
+      "label": "زین پور",
+      "reviewStatus": "unmapped",
+      "confidence": "medium"
+    },
+    {
+      "stagingId": "teacher_69d8a4f6d9b2477b",
+      "label": "سعد",
+      "reviewStatus": "unmapped",
+      "confidence": "medium"
+    },
+    {
+      "stagingId": "teacher_6fd20868f4b57bbf",
+      "label": "سلطان",
+      "reviewStatus": "unmapped",
+      "confidence": "medium"
+    },
+    {
+      "stagingId": "teacher_32e9b7157f68b8cf",
+      "label": "شریفی",
+      "reviewStatus": "unmapped",
+      "confidence": "medium"
+    },
+    {
+      "stagingId": "teacher_bacec2e254e7dbb8",
+      "label": "شهاب",
+      "reviewStatus": "unmapped",
+      "confidence": "medium"
+    },
+    {
+      "stagingId": "teacher_e68152027b790c3d",
+      "label": "طالبی",
+      "reviewStatus": "unmapped",
+      "confidence": "medium"
+    },
+    {
+      "stagingId": "teacher_2e0078706579e914",
+      "label": "علی نوری",
+      "reviewStatus": "unmapped",
+      "confidence": "medium"
+    },
+    {
+      "stagingId": "teacher_15b884515e67ef42",
+      "label": "قادری",
+      "reviewStatus": "unmapped",
+      "confidence": "medium"
+    },
+    {
+      "stagingId": "teacher_d24ee24e779d8c39",
+      "label": "قاسمی",
+      "reviewStatus": "unmapped",
+      "confidence": "medium"
+    },
+    {
+      "stagingId": "teacher_4acf00579cd4282d",
+      "label": "قیطولی",
+      "reviewStatus": "unmapped",
+      "confidence": "medium"
+    },
+    {
+      "stagingId": "teacher_408d455d7fb02e59",
+      "label": "محممودی کو",
+      "reviewStatus": "unmapped",
+      "confidence": "medium"
+    },
+    {
+      "stagingId": "teacher_f6e4e12f77efda4d",
+      "label": "محمودی",
+      "reviewStatus": "unmapped",
+      "confidence": "medium"
+    },
+    {
+      "stagingId": "teacher_926130cf1cfe728b",
+      "label": "محمودی کو",
+      "reviewStatus": "unmapped",
+      "confidence": "medium"
+    },
+    {
+      "stagingId": "teacher_c4b88f8a200c3fc5",
+      "label": "محمودی که",
+      "reviewStatus": "unmapped",
+      "confidence": "medium"
+    },
+    {
+      "stagingId": "teacher_ae4e8ef9b70045e7",
+      "label": "محودی کو",
+      "reviewStatus": "unmapped",
+      "confidence": "medium"
+    },
+    {
+      "stagingId": "teacher_279eec93d1f8e58e",
+      "label": "مسعود",
+      "reviewStatus": "unmapped",
+      "confidence": "medium"
+    },
+    {
+      "stagingId": "teacher_dd6c61130b28b197",
+      "label": "نصیری",
+      "reviewStatus": "unmapped",
+      "confidence": "medium"
+    },
+    {
+      "stagingId": "teacher_1edda8eff72ca781",
+      "label": "نظرپور",
+      "reviewStatus": "unmapped",
+      "confidence": "medium"
+    },
+    {
+      "stagingId": "teacher_54343dab9543de6a",
+      "label": "نعیمی",
+      "reviewStatus": "unmapped",
+      "confidence": "medium"
+    },
+    {
+      "stagingId": "teacher_b03ea29f1ff61deb",
+      "label": "نوح",
+      "reviewStatus": "unmapped",
+      "confidence": "medium"
+    },
+    {
+      "stagingId": "teacher_f8084b50ec5d5b8d",
+      "label": "هدایتی",
+      "reviewStatus": "unmapped",
+      "confidence": "medium"
+    }
+  ]
+}
