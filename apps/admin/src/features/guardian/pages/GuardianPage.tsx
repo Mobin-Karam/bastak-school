@@ -76,7 +76,13 @@ export function GuardianPage() {
     queryFn: listSchedule,
   });
   const timetable = useQuery({
-    queryKey: ["guardian", studentId, "timetable", calendarDate, auth.context?.activeOrganization?.id],
+    queryKey: [
+      "guardian",
+      studentId,
+      "timetable",
+      calendarDate,
+      auth.context?.activeOrganization?.id,
+    ],
     queryFn: () =>
       listTimetableOccurrences(auth.context!.activeOrganization!.id, {
         studentId,
@@ -165,14 +171,20 @@ export function GuardianPage() {
                   </p>
                   {entry.cancelled ? <p className="mt-1 text-xs">لغو شده</p> : null}
                   {entry.changeReason ? (
-                    <p className="mt-1 text-xs text-amber-700 dark:text-amber-300">{entry.changeReason}</p>
+                    <p className="mt-1 text-xs text-amber-700 dark:text-amber-300">
+                      {entry.changeReason}
+                    </p>
                   ) : null}
                 </div>
               </div>
             ))}
             {!selectedTimetableLessons.length ? (
               <EmptyState
-                title={timetable.isLoading ? "دریافت برنامه کلاس‌ها…" : "برنامه‌ای برای این روز ثبت نشده است."}
+                title={
+                  timetable.isLoading
+                    ? "دریافت برنامه کلاس‌ها…"
+                    : "برنامه‌ای برای این روز ثبت نشده است."
+                }
               />
             ) : null}
           </div>

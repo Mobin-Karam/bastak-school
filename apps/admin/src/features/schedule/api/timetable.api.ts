@@ -100,15 +100,12 @@ export const commitTimetableImport = (
   sheetName: string,
   rows: TimetableImportRow[],
 ) =>
-  api.post<TimetableImportCommit>(
-    `/schedule/timetable/versions/${id}/import/commit`,
-    {
-      expectedRevision,
-      filename,
-      sheetName,
-      rows,
-    },
-  );
+  api.post<TimetableImportCommit>(`/schedule/timetable/versions/${id}/import/commit`, {
+    expectedRevision,
+    filename,
+    sheetName,
+    rows,
+  });
 export const openTimetableAttendance = (id: string, date: string) =>
   api.post<{ sessionId: string; cancelled: boolean }>(
     `/schedule/timetable/lessons/${id}/attendance`,

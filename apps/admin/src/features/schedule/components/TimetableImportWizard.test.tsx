@@ -107,7 +107,9 @@ beforeEach(() => {
 describe("timetable import confirmation", () => {
   it("rejects non-xlsx uploads before parsing workbook content", async () => {
     render(
-      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+      <QueryClientProvider
+        client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
+      >
         <LocaleProvider>
           <TimetableImportWizard
             workspace={workspace}
@@ -122,7 +124,9 @@ describe("timetable import confirmation", () => {
     fireEvent.change(screen.getByLabelText("فایل اکسل"), {
       target: { files: [new File(["not a workbook"], "legacy.xls")] },
     });
-    expect(await screen.findByRole("alert")).toHaveTextContent("فقط فایل Excel با پسوند .xlsx قابل ورود است.");
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "فقط فایل Excel با پسوند .xlsx قابل ورود است.",
+    );
     expect(mocks.preview).not.toHaveBeenCalled();
   });
   it("previews real relationship IDs before committing and retains mapping for another batch", async () => {

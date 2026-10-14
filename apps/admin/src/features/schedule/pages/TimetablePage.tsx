@@ -633,13 +633,20 @@ export function TimetablePage() {
               <div>
                 <h3 className="text-sm font-bold">پایش اجرای برنامه و حضور</h3>
                 <p className="text-xs text-slate-500">
-                  {timetableDateLabel(week, timeZone)} تا {timetableDateLabel(timetableAddDays(week, 6), timeZone)}
+                  {timetableDateLabel(week, timeZone)} تا{" "}
+                  {timetableDateLabel(timetableAddDays(week, 6), timeZone)}
                 </p>
               </div>
-              {attendanceReport.isFetching ? <span role="status" className="text-xs text-slate-500">به‌روزرسانی…</span> : null}
+              {attendanceReport.isFetching ? (
+                <span role="status" className="text-xs text-slate-500">
+                  به‌روزرسانی…
+                </span>
+              ) : null}
             </div>
             {attendanceReport.isError ? (
-              <p role="alert" className="text-sm text-red-600">گزارش حضور این بازه دریافت نشد.</p>
+              <p role="alert" className="text-sm text-red-600">
+                گزارش حضور این بازه دریافت نشد.
+              </p>
             ) : attendanceReport.data ? (
               <>
                 <div className="grid grid-cols-2 gap-2 text-center sm:grid-cols-5">
@@ -650,7 +657,10 @@ export function TimetablePage() {
                     ["دارای ثبت حضور", attendanceReport.data.attendanceRecorded],
                     ["در انتظار حضور", attendanceReport.data.awaitingAttendance],
                   ].map(([label, count]) => (
-                    <div key={String(label)} className="rounded-lg bg-[rgb(var(--surface-muted))] p-2">
+                    <div
+                      key={String(label)}
+                      className="rounded-lg bg-[rgb(var(--surface-muted))] p-2"
+                    >
                       <strong className="block text-lg">{count}</strong>
                       <span className="text-xs text-slate-500">{label}</span>
                     </div>
@@ -659,7 +669,9 @@ export function TimetablePage() {
                 {attendanceReport.data.classes.length ? (
                   <p className="text-xs text-slate-500">
                     {attendanceReport.data.classes
-                      .map((row) => `${row.classroomName}: ${row.attendanceRecorded}/${row.planned}`)
+                      .map(
+                        (row) => `${row.classroomName}: ${row.attendanceRecorded}/${row.planned}`,
+                      )
                       .join(" · ")}
                   </p>
                 ) : null}
