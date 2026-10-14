@@ -1,7 +1,7 @@
 "use strict";
 
 const APP_NAME = "zanin";
-const CACHE_VERSION = "3.1.2";
+const CACHE_VERSION = "0.1.2";
 const CACHE_PREFIX = `${APP_NAME}-pwa`;
 const SHELL_CACHE = `${CACHE_PREFIX}-shell-${CACHE_VERSION}`;
 const RUNTIME_CACHE = `${CACHE_PREFIX}-runtime-${CACHE_VERSION}`;
