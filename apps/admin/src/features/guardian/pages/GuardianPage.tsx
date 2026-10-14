@@ -97,10 +97,6 @@ export function GuardianPage() {
   const loading = children.isLoading || (enabled && detailQueries.some((query) => query.isLoading));
   const failed = children.isError || detailQueries.some((query) => query.isError);
   const weekly = progress.data?.weekly ?? dashboard.data?.weekly;
-  const selectedWeekday = new Date(`${calendarDate}T12:00:00`).getDay();
-  const selectedSchoolClasses = (schoolSchedule.data ?? []).filter(
-    (entry) => entry.status === "ACTIVE" && entry.weekday === selectedWeekday,
-  );
   const selectedTimetableLessons = timetable.data?.items ?? [];
   const prayer = schoolHome.data?.home?.prayer;
   const prayerTimes = prayer && "times" in prayer ? prayer.times : null;
