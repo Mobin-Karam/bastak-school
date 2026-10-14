@@ -1,0 +1,19 @@
+{
+  "sourceFile": "مبین.xlsx",
+  "sha256": "696637cd570cefdb06a351249890c210b53a7573fd924c1ed1a0aea2fabc5bfa",
+  "mode": "read-only-staging",
+  "items": [
+    {
+      "stagingId": "school_78330e103afa250c",
+      "label": "مدرسه سلطان العلماء و مدرسه فکری خواهران بستک",
+      "reviewStatus": "needs_review",
+      "confidence": "low"
+    },
+    {
+      "stagingId": "school_7f21eaa5f43766d8",
+      "label": "مدرسه علوم دینی سلطان العلماء بستک سال تحصیلی 1400-1399",
+      "reviewStatus": "needs_review",
+      "confidence": "low"
+    }
+  ]
+}

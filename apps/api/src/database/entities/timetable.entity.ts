@@ -251,6 +251,7 @@ export class TimetableChange {
   @CreateDateColumn() createdAt!: Date;
 }
 @Entity("timetable_imports")
+@Index(["versionId", "fingerprint"], { unique: true })
 export class TimetableImport {
   @PrimaryGeneratedColumn("uuid") id!: string;
   @Column({ type: "varchar", length: 36 }) versionId!: string;
@@ -263,6 +264,24 @@ export class TimetableImport {
   actor?: object;
   @Column({ type: "varchar", length: 240 }) filename!: string;
   @Column({ type: "varchar", length: 240 }) sheetName!: string;
+  /** Stable server-derived identity of the approved source-to-lesson mapping. */
+  @Column({ type: "varchar", length: 64 }) fingerprint!: string;
+  /** Raw source labels retained for audit; resolved IDs remain on the lesson rows. */
+  @Column({ type: "simple-json", default: "[]" }) sourceRows!: Array<{
+    source: string;
+    provenance?: {
+      sheetName: string;
+      cellAddress: string;
+      masterCell: string;
+      blockId: string;
+      rawClassLabel: string;
+      rawSubjectLabel: string;
+      rawTeacherLabel: string;
+      rawPeriodLabel: string;
+      rawTimeLabel: string;
+      merged: boolean;
+    };
+  }>;
   @Column({ type: "integer", default: 0 }) rowCount!: number;
   @Column({ type: "integer", default: 0 }) revision!: number;
   @CreateDateColumn() createdAt!: Date;

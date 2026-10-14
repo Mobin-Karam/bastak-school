@@ -10,6 +10,8 @@ import { ResponsiveModal } from "../../../shared/ui/responsive-modal";
 import { Button, Field, Input } from "../../../shared/ui/ui";
 import {
   readSpreadsheetLayout,
+  defineSpreadsheet,
+  downloadSpreadsheet,
   type SpreadsheetLayoutSheet,
 } from "../../../shared/lib/spreadsheet-transfer";
 import { notify } from "../../../shared/ui/notifications";
@@ -100,6 +102,7 @@ export function TimetableImportWizard({
           throw Error(`نگاشت ناقص: ${x.source}`);
         return {
           source: x.source,
+          provenance: x.provenance,
           lesson: {
             classroomId: mapping[`class:${x.classLabel}`],
             classBookId: mapping[`book:${x.classLabel}|${x.subjectLabel}`],
@@ -141,7 +144,12 @@ export function TimetableImportWizard({
       return { ...result, sources: submitted.map((x) => x.source) };
     },
     onSuccess: (result) => {
-      notify(`${result.imported} درس به پیش‌نویس وارد شد؛ انتشار جداگانه لازم است.`, "success");
+      notify(
+        result.duplicate
+          ? "این نگاشت قبلاً وارد شده است؛ تغییری در پیش‌نویس ایجاد نشد."
+          : `${result.imported} درس به پیش‌نویس وارد شد؛ انتشار جداگانه لازم است.`,
+        "success",
+      );
       setImportedSources((old) => [...old, ...result.sources]);
       setExcluded((old) => [...old, ...result.sources]);
       setCommittedRevision(result.revision);
@@ -151,7 +159,19 @@ export function TimetableImportWizard({
     },
     onError: (e) => setError(e instanceof Error ? e.message : "ورود انجام نشد."),
   });
-  async function loadWorkbook(file: Pick<File, "name" | "arrayBuffer">) {
+  async function loadWorkbook(
+    file: Pick<File, "name" | "arrayBuffer"> & { size?: number; type?: string },
+  ) {
+    const lowerName = file.name.toLocaleLowerCase();
+    const xlsxType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+    if (!lowerName.endsWith(".xlsx") || (file.type && file.type !== xlsxType)) {
+      setError("فقط فایل Excel با پسوند .xlsx قابل ورود است.");
+      return;
+    }
+    if ((file.size ?? 0) > 10 * 1024 * 1024) {
+      setError("حجم فایل اکسل باید حداکثر ۱۰ مگابایت باشد.");
+      return;
+    }
     setBusy(true);
     setError("");
     setPreview(null);
@@ -171,6 +191,30 @@ export function TimetableImportWizard({
     } finally {
       setBusy(false);
     }
+  }
+  function downloadErrorReport() {
+    if (!preview || preview.valid) return;
+    const definition = defineSpreadsheet<Record<string, string>>({
+      sheetName: "خطاهای ورود برنامه",
+      columns: [
+        { key: "kind", header: "نوع" },
+        { key: "source", header: "منبع" },
+        { key: "message", header: "پیام" },
+      ],
+    });
+    const rows = [
+      ...preview.rows.flatMap((row) =>
+        row.errors.map((message) => ({ kind: "ردیف", source: row.source, message })),
+      ),
+      ...preview.conflicts.map((conflict) => ({
+        kind: "تداخل",
+        source: conflict.date ?? "",
+        message: conflict.message,
+      })),
+    ];
+    void downloadSpreadsheet(definition, rows, "گزارش-خطاهای-ورود-برنامه.xlsx").catch((error) =>
+      setError(error instanceof Error ? error.message : "دانلود گزارش خطا انجام نشد."),
+    );
   }
   async function loadProvidedWorkbook() {
     setBusy(true);
@@ -224,7 +268,7 @@ export function TimetableImportWizard({
         <Field label="فایل اکسل">
           <Input
             type="file"
-            accept=".xlsx"
+            accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
             disabled={busy || commit.isPending}
             onChange={(event) => {
               const file = event.target.files?.[0];
@@ -636,6 +680,11 @@ export function TimetableImportWizard({
                     {x.message} {x.date}
                   </p>
                 ))}
+                {!preview.valid ? (
+                  <Button variant="soft" onClick={downloadErrorReport}>
+                    دانلود گزارش خطا
+                  </Button>
+                ) : null}
                 <Button
                   disabled={
                     !preview.valid || commit.isPending || preview.revision !== expectedRevision

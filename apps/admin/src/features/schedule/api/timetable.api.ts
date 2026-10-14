@@ -9,8 +9,10 @@ import type {
   TimetableLessonDraft,
   TimetableImportRow,
   TimetableImportPreview,
+  TimetableImportCommit,
   TimetableOverrideDraft,
   TimetableConflict,
+  TimetableAttendanceReport,
 } from "@moshaver/api-contract";
 import { api } from "../../../shared/api/api";
 export const getTimetable = (
@@ -98,19 +100,24 @@ export const commitTimetableImport = (
   sheetName: string,
   rows: TimetableImportRow[],
 ) =>
-  api.post<{ imported: number; revision: number }>(
-    `/schedule/timetable/versions/${id}/import/commit`,
-    {
-      expectedRevision,
-      filename,
-      sheetName,
-      rows,
-    },
-  );
+  api.post<TimetableImportCommit>(`/schedule/timetable/versions/${id}/import/commit`, {
+    expectedRevision,
+    filename,
+    sheetName,
+    rows,
+  });
 export const openTimetableAttendance = (id: string, date: string) =>
   api.post<{ sessionId: string; cancelled: boolean }>(
     `/schedule/timetable/lessons/${id}/attendance`,
     { date },
+  );
+export const getTimetableAttendanceReport = (
+  organizationId: string,
+  startsOn: string,
+  endsOn: string,
+) =>
+  api.get<TimetableAttendanceReport>(
+    `/schedule/timetable/${encodeURIComponent(organizationId)}/attendance-report?${new URLSearchParams({ startsOn, endsOn })}`,
   );
 
 export function timetableLessonDraft(lesson: TimetableLessonDraft): TimetableLessonDraft {

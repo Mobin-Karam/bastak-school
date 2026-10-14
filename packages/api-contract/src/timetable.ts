@@ -147,8 +147,21 @@ export type TimetableChange = {
   beforeText: string;
   afterText: string;
 };
+export type TimetableImportProvenance = {
+  sheetName: string;
+  cellAddress: string;
+  masterCell: string;
+  blockId: string;
+  rawClassLabel: string;
+  rawSubjectLabel: string;
+  rawTeacherLabel: string;
+  rawPeriodLabel: string;
+  rawTimeLabel: string;
+  merged: boolean;
+};
 export type TimetableImportRow = {
   source: string;
+  provenance?: TimetableImportProvenance;
   lesson: TimetableLessonDraft;
 };
 export type TimetableImportPreview = {
@@ -156,6 +169,12 @@ export type TimetableImportPreview = {
   revision: number;
   rows: Array<{ row: number; source: string; errors: string[] }>;
   conflicts: TimetableConflict[];
+};
+export type TimetableImportCommit = {
+  imported: number;
+  revision: number;
+  /** A retry with the same approved source mapping made no additional writes. */
+  duplicate: boolean;
 };
 export type TimetableWorkspace = {
   organizationId: string;
@@ -206,6 +225,25 @@ export type TimetableOccurrenceQuery = {
   endsOn?: string;
   offset?: number;
   limit?: number;
+};
+/** Management-only aggregate; it never changes attendance or timetable history. */
+export type TimetableAttendanceReport = {
+  startsOn: string;
+  endsOn: string;
+  planned: number;
+  cancelled: number;
+  attendanceOpened: number;
+  attendanceRecorded: number;
+  awaitingAttendance: number;
+  classes: Array<{
+    classroomId: string;
+    classroomName: string;
+    planned: number;
+    cancelled: number;
+    attendanceOpened: number;
+    attendanceRecorded: number;
+    awaitingAttendance: number;
+  }>;
 };
 export type TimetableBulkWrite = {
   expectedRevision: number;

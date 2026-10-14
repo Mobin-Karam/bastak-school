@@ -92,6 +92,55 @@ describe("Timetable workbook mapping", () => {
     expect(lessons[0].subjectLabel).toBe("نحو");
     expect(lessons[0].weekday).toBe(0);
   });
+  it("keeps side-by-side blocks separate when only the first block names its class column", () => {
+    const entries: Array<[number, number, string]> = [
+      [2, 2, "کلاس"],
+      [2, 3, "زنگ اول"],
+      [2, 4, "مدرس"],
+      [2, 5, "زنگ دوم"],
+      [2, 6, "مدرس"],
+      [2, 12, "زنگ اول"],
+      [2, 13, "مدرس"],
+      [2, 14, "زنگ دوم"],
+      [2, 15, "مدرس"],
+      [3, 3, "08:00-08:50"],
+      [3, 5, "09:00-09:50"],
+      [3, 12, "16:00-16:50"],
+      [3, 14, "17:00-17:50"],
+      [4, 1, "شنبه"],
+      [4, 2, "اول"],
+      [4, 3, "نحو"],
+      [4, 4, "استاد اول"],
+      [4, 5, "فقه"],
+      [4, 6, "استاد دوم"],
+      [4, 11, "دوم"],
+      [4, 12, "صرف"],
+      [4, 13, "استاد سوم"],
+      [4, 14, "حدیث"],
+      [4, 15, "استاد چهارم"],
+    ];
+    const sheet = {
+      name: "دو بخش",
+      rows: 4,
+      columns: 15,
+      cells: entries.map(([row, column, value]) => ({
+        row,
+        column,
+        value,
+        address: `${row}:${column}`,
+        master: `${row}:${column}`,
+        merged: false,
+      })),
+    };
+    const blocks = detectWorkbookBlocks(sheet);
+    expect(blocks.map((block) => block.id)).toEqual(["2:2", "2:11"]);
+    expect(extractWorkbookLessons(sheet, blocks).map((lesson) => lesson.classLabel)).toEqual([
+      "اول",
+      "اول",
+      "دوم",
+      "دوم",
+    ]);
+  });
   it("uses the school timezone across a UTC date boundary", () => {
     expect(timetableToday("Asia/Tehran", new Date("2026-10-10T22:00:00Z"))).toBe("2026-10-11");
     expect(timetableWeekStart("2026-10-11")).toBe("2026-10-10");
