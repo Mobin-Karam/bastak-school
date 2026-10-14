@@ -33,7 +33,7 @@ export declare class DormitoryService {
         building: string;
         floor: number;
         capacity: number;
-        status: "ARCHIVED" | "ACTIVE";
+        status: "ACTIVE" | "ARCHIVED";
         studentCount: number;
     }>;
     listAssignments(user: AuthenticatedUser, roomId: string): Promise<{

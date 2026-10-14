@@ -59,8 +59,8 @@ export declare class SyncService {
         }[];
         examAttempts: ExamAttempt[];
         notifications: Notification[];
-        learningItems: LearningItem[] | never[];
-        reviews: LearningReview[] | never[];
+        learningItems: never[] | LearningItem[];
+        reviews: never[] | LearningReview[];
     }>;
     upload(user: AuthenticatedUser, changes: SyncChangeDto[]): Promise<{
         accepted: {

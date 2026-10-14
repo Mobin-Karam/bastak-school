@@ -53,6 +53,7 @@ export declare class TimetableConfigDto {
     startTime?: string;
     endTime?: string;
     number?: number;
+    weekdays?: number[];
     weekday?: number;
     teacherId?: string;
     classroomId?: string;
@@ -60,8 +61,21 @@ export declare class TimetableConfigDto {
     reason?: string;
     expectedRevision?: number;
 }
+export declare class TimetableImportProvenanceDto {
+    sheetName: string;
+    cellAddress: string;
+    masterCell: string;
+    blockId: string;
+    rawClassLabel: string;
+    rawSubjectLabel: string;
+    rawTeacherLabel: string;
+    rawPeriodLabel: string;
+    rawTimeLabel: string;
+    merged: boolean;
+}
 export declare class TimetableImportRowDto {
     source: string;
+    provenance?: TimetableImportProvenanceDto;
     lesson: TimetableLessonDto;
 }
 export declare class TimetableImportDto extends TimetableRevisionDto {
@@ -71,5 +85,27 @@ export declare class TimetableImportDto extends TimetableRevisionDto {
 }
 export declare class TimetableAttendanceDto {
     date: string;
+}
+export declare class TimetablePageDto {
+    offset: number;
+    limit: number;
+}
+export declare class TimetableQueryDto extends TimetablePageDto {
+    versionId?: string;
+    classroomId?: string;
+    teacherId?: string;
+    studentId?: string;
+    academicYearId?: string;
+    locationId?: string;
+    view?: "DAILY" | "WEEKLY";
+    startsOn?: string;
+    endsOn?: string;
+}
+export declare class TimetableBulkItemDto {
+    id?: string;
+    lesson: TimetableLessonDto;
+}
+export declare class TimetableBulkDto extends TimetableRevisionDto {
+    items: TimetableBulkItemDto[];
 }
 export {};

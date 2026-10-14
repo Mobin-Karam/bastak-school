@@ -20,7 +20,7 @@ export declare class ClassGroupsService {
         id: string;
         code: string;
         name: string;
-        status: "ARCHIVED" | "ACTIVE";
+        status: "ACTIVE" | "ARCHIVED";
         organizationId: string;
         organizationName: string;
         enrollmentCount: number;

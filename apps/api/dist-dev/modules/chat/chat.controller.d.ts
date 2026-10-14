@@ -35,7 +35,7 @@ export declare class ChatController {
             studentName: string | undefined;
             studentGrade: string | undefined;
             studentMajor: string | undefined;
-            studentAccountStatus: "active" | "archived" | "inactive" | undefined;
+            studentAccountStatus: "active" | "inactive" | "archived" | undefined;
         };
     }>;
     updateProfile(u: AuthenticatedUser, body: {
@@ -62,7 +62,7 @@ export declare class ChatController {
             studentName: string | undefined;
             studentGrade: string | undefined;
             studentMajor: string | undefined;
-            studentAccountStatus: "active" | "archived" | "inactive" | undefined;
+            studentAccountStatus: "active" | "inactive" | "archived" | undefined;
         };
     }>;
     profile(u: AuthenticatedUser, id: string): Promise<{
@@ -84,7 +84,7 @@ export declare class ChatController {
             studentName: string | undefined;
             studentGrade: string | undefined;
             studentMajor: string | undefined;
-            studentAccountStatus: "active" | "archived" | "inactive" | undefined;
+            studentAccountStatus: "active" | "inactive" | "archived" | undefined;
         };
     }>;
     allowUsernameChange(u: AuthenticatedUser, id: string): Promise<{
@@ -146,7 +146,7 @@ export declare class ChatController {
                 studentName: string | undefined;
                 studentGrade: string | undefined;
                 studentMajor: string | undefined;
-                studentAccountStatus: "active" | "archived" | "inactive" | undefined;
+                studentAccountStatus: "active" | "inactive" | "archived" | undefined;
                 displayName: string | undefined;
                 bio: string | undefined;
                 avatarUrl: string | undefined;
@@ -162,7 +162,7 @@ export declare class ChatController {
                 studentName: string | undefined;
                 studentGrade: string | undefined;
                 studentMajor: string | undefined;
-                studentAccountStatus: "active" | "archived" | "inactive" | undefined;
+                studentAccountStatus: "active" | "inactive" | "archived" | undefined;
                 displayName: string | undefined;
                 bio: string | undefined;
                 avatarUrl: string | undefined;
@@ -173,7 +173,7 @@ export declare class ChatController {
                 username: string;
                 grade: string | undefined;
                 major: string | undefined;
-                accountStatus: "active" | "archived" | "inactive" | undefined;
+                accountStatus: "active" | "inactive" | "archived" | undefined;
                 organizations: {
                     id: string;
                     name: string;
@@ -220,7 +220,7 @@ export declare class ChatController {
                 studentName: string | undefined;
                 studentGrade: string | undefined;
                 studentMajor: string | undefined;
-                studentAccountStatus: "active" | "archived" | "inactive" | undefined;
+                studentAccountStatus: "active" | "inactive" | "archived" | undefined;
                 displayName: string | undefined;
                 bio: string | undefined;
                 avatarUrl: string | undefined;
@@ -236,7 +236,7 @@ export declare class ChatController {
                 studentName: string | undefined;
                 studentGrade: string | undefined;
                 studentMajor: string | undefined;
-                studentAccountStatus: "active" | "archived" | "inactive" | undefined;
+                studentAccountStatus: "active" | "inactive" | "archived" | undefined;
                 displayName: string | undefined;
                 bio: string | undefined;
                 avatarUrl: string | undefined;
@@ -247,7 +247,7 @@ export declare class ChatController {
                 username: string;
                 grade: string | undefined;
                 major: string | undefined;
-                accountStatus: "active" | "archived" | "inactive" | undefined;
+                accountStatus: "active" | "inactive" | "archived" | undefined;
                 organizations: {
                     id: string;
                     name: string;
@@ -299,7 +299,7 @@ export declare class ChatController {
             studentName: string | undefined;
             studentGrade: string | undefined;
             studentMajor: string | undefined;
-            studentAccountStatus: "active" | "archived" | "inactive" | undefined;
+            studentAccountStatus: "active" | "inactive" | "archived" | undefined;
             displayName: string | undefined;
             bio: string | undefined;
             avatarUrl: string | undefined;
@@ -339,7 +339,7 @@ export declare class ChatController {
                 studentName: string | undefined;
                 studentGrade: string | undefined;
                 studentMajor: string | undefined;
-                studentAccountStatus: "active" | "archived" | "inactive" | undefined;
+                studentAccountStatus: "active" | "inactive" | "archived" | undefined;
                 displayName: string | undefined;
                 bio: string | undefined;
                 avatarUrl: string | undefined;
@@ -358,7 +358,7 @@ export declare class ChatController {
                 studentName: string | undefined;
                 studentGrade: string | undefined;
                 studentMajor: string | undefined;
-                studentAccountStatus: "active" | "archived" | "inactive" | undefined;
+                studentAccountStatus: "active" | "inactive" | "archived" | undefined;
                 displayName: string | undefined;
                 bio: string | undefined;
                 avatarUrl: string | undefined;
@@ -374,7 +374,7 @@ export declare class ChatController {
                 studentName: string | undefined;
                 studentGrade: string | undefined;
                 studentMajor: string | undefined;
-                studentAccountStatus: "active" | "archived" | "inactive" | undefined;
+                studentAccountStatus: "active" | "inactive" | "archived" | undefined;
                 displayName: string | undefined;
                 bio: string | undefined;
                 avatarUrl: string | undefined;
@@ -385,7 +385,7 @@ export declare class ChatController {
                 username: string;
                 grade: string | undefined;
                 major: string | undefined;
-                accountStatus: "active" | "archived" | "inactive" | undefined;
+                accountStatus: "active" | "inactive" | "archived" | undefined;
                 organizations: {
                     id: string;
                     name: string;
@@ -557,7 +557,7 @@ export declare class ChatController {
             studentName: string | undefined;
             studentGrade: string | undefined;
             studentMajor: string | undefined;
-            studentAccountStatus: "active" | "archived" | "inactive" | undefined;
+            studentAccountStatus: "active" | "inactive" | "archived" | undefined;
             displayName: string | undefined;
             bio: string | undefined;
             avatarUrl: string | undefined;
@@ -574,7 +574,7 @@ export declare class ChatController {
             studentName: string | undefined;
             studentGrade: string | undefined;
             studentMajor: string | undefined;
-            studentAccountStatus: "active" | "archived" | "inactive" | undefined;
+            studentAccountStatus: "active" | "inactive" | "archived" | undefined;
             displayName: string | undefined;
             bio: string | undefined;
             avatarUrl: string | undefined;
@@ -591,7 +591,7 @@ export declare class ChatController {
             studentName: string | undefined;
             studentGrade: string | undefined;
             studentMajor: string | undefined;
-            studentAccountStatus: "active" | "archived" | "inactive" | undefined;
+            studentAccountStatus: "active" | "inactive" | "archived" | undefined;
             displayName: string | undefined;
             bio: string | undefined;
             avatarUrl: string | undefined;
@@ -644,7 +644,7 @@ export declare class ChatController {
                 studentName: string | undefined;
                 studentGrade: string | undefined;
                 studentMajor: string | undefined;
-                studentAccountStatus: "active" | "archived" | "inactive" | undefined;
+                studentAccountStatus: "active" | "inactive" | "archived" | undefined;
                 displayName: string | undefined;
                 bio: string | undefined;
                 avatarUrl: string | undefined;
@@ -663,7 +663,7 @@ export declare class ChatController {
                 studentName: string | undefined;
                 studentGrade: string | undefined;
                 studentMajor: string | undefined;
-                studentAccountStatus: "active" | "archived" | "inactive" | undefined;
+                studentAccountStatus: "active" | "inactive" | "archived" | undefined;
                 displayName: string | undefined;
                 bio: string | undefined;
                 avatarUrl: string | undefined;
@@ -679,7 +679,7 @@ export declare class ChatController {
                 studentName: string | undefined;
                 studentGrade: string | undefined;
                 studentMajor: string | undefined;
-                studentAccountStatus: "active" | "archived" | "inactive" | undefined;
+                studentAccountStatus: "active" | "inactive" | "archived" | undefined;
                 displayName: string | undefined;
                 bio: string | undefined;
                 avatarUrl: string | undefined;
@@ -690,7 +690,7 @@ export declare class ChatController {
                 username: string;
                 grade: string | undefined;
                 major: string | undefined;
-                accountStatus: "active" | "archived" | "inactive" | undefined;
+                accountStatus: "active" | "inactive" | "archived" | undefined;
                 organizations: {
                     id: string;
                     name: string;

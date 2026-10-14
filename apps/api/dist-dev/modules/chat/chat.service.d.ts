@@ -54,7 +54,7 @@ export declare class ChatService {
         studentName: string | undefined;
         studentGrade: string | undefined;
         studentMajor: string | undefined;
-        studentAccountStatus: "active" | "archived" | "inactive" | undefined;
+        studentAccountStatus: "active" | "inactive" | "archived" | undefined;
     }>;
     updateProfile(actor: AuthenticatedUser, input: {
         displayName?: unknown;
@@ -78,7 +78,7 @@ export declare class ChatService {
         studentName: string | undefined;
         studentGrade: string | undefined;
         studentMajor: string | undefined;
-        studentAccountStatus: "active" | "archived" | "inactive" | undefined;
+        studentAccountStatus: "active" | "inactive" | "archived" | undefined;
     }>;
     allowUsernameChange(actor: AuthenticatedUser, userId: string): Promise<{
         userId: string;
@@ -134,7 +134,7 @@ export declare class ChatService {
             studentName: string | undefined;
             studentGrade: string | undefined;
             studentMajor: string | undefined;
-            studentAccountStatus: "active" | "archived" | "inactive" | undefined;
+            studentAccountStatus: "active" | "inactive" | "archived" | undefined;
             displayName: string | undefined;
             bio: string | undefined;
             avatarUrl: string | undefined;
@@ -150,7 +150,7 @@ export declare class ChatService {
             studentName: string | undefined;
             studentGrade: string | undefined;
             studentMajor: string | undefined;
-            studentAccountStatus: "active" | "archived" | "inactive" | undefined;
+            studentAccountStatus: "active" | "inactive" | "archived" | undefined;
             displayName: string | undefined;
             bio: string | undefined;
             avatarUrl: string | undefined;
@@ -161,7 +161,7 @@ export declare class ChatService {
             username: string;
             grade: string | undefined;
             major: string | undefined;
-            accountStatus: "active" | "archived" | "inactive" | undefined;
+            accountStatus: "active" | "inactive" | "archived" | undefined;
             organizations: {
                 id: string;
                 name: string;
@@ -238,7 +238,7 @@ export declare class ChatService {
             studentName: string | undefined;
             studentGrade: string | undefined;
             studentMajor: string | undefined;
-            studentAccountStatus: "active" | "archived" | "inactive" | undefined;
+            studentAccountStatus: "active" | "inactive" | "archived" | undefined;
             displayName: string | undefined;
             bio: string | undefined;
             avatarUrl: string | undefined;
@@ -254,7 +254,7 @@ export declare class ChatService {
             studentName: string | undefined;
             studentGrade: string | undefined;
             studentMajor: string | undefined;
-            studentAccountStatus: "active" | "archived" | "inactive" | undefined;
+            studentAccountStatus: "active" | "inactive" | "archived" | undefined;
             displayName: string | undefined;
             bio: string | undefined;
             avatarUrl: string | undefined;
@@ -265,7 +265,7 @@ export declare class ChatService {
             username: string;
             grade: string | undefined;
             major: string | undefined;
-            accountStatus: "active" | "archived" | "inactive" | undefined;
+            accountStatus: "active" | "inactive" | "archived" | undefined;
             organizations: {
                 id: string;
                 name: string;
@@ -309,7 +309,7 @@ export declare class ChatService {
             studentName: string | undefined;
             studentGrade: string | undefined;
             studentMajor: string | undefined;
-            studentAccountStatus: "active" | "archived" | "inactive" | undefined;
+            studentAccountStatus: "active" | "inactive" | "archived" | undefined;
             displayName: string | undefined;
             bio: string | undefined;
             avatarUrl: string | undefined;
@@ -325,7 +325,7 @@ export declare class ChatService {
             studentName: string | undefined;
             studentGrade: string | undefined;
             studentMajor: string | undefined;
-            studentAccountStatus: "active" | "archived" | "inactive" | undefined;
+            studentAccountStatus: "active" | "inactive" | "archived" | undefined;
             displayName: string | undefined;
             bio: string | undefined;
             avatarUrl: string | undefined;
@@ -336,7 +336,7 @@ export declare class ChatService {
             username: string;
             grade: string | undefined;
             major: string | undefined;
-            accountStatus: "active" | "archived" | "inactive" | undefined;
+            accountStatus: "active" | "inactive" | "archived" | undefined;
             organizations: {
                 id: string;
                 name: string;
@@ -428,7 +428,7 @@ export declare class ChatService {
             studentName: string | undefined;
             studentGrade: string | undefined;
             studentMajor: string | undefined;
-            studentAccountStatus: "active" | "archived" | "inactive" | undefined;
+            studentAccountStatus: "active" | "inactive" | "archived" | undefined;
             displayName: string | undefined;
             bio: string | undefined;
             avatarUrl: string | undefined;
@@ -447,7 +447,7 @@ export declare class ChatService {
             studentName: string | undefined;
             studentGrade: string | undefined;
             studentMajor: string | undefined;
-            studentAccountStatus: "active" | "archived" | "inactive" | undefined;
+            studentAccountStatus: "active" | "inactive" | "archived" | undefined;
             displayName: string | undefined;
             bio: string | undefined;
             avatarUrl: string | undefined;
@@ -463,7 +463,7 @@ export declare class ChatService {
             studentName: string | undefined;
             studentGrade: string | undefined;
             studentMajor: string | undefined;
-            studentAccountStatus: "active" | "archived" | "inactive" | undefined;
+            studentAccountStatus: "active" | "inactive" | "archived" | undefined;
             displayName: string | undefined;
             bio: string | undefined;
             avatarUrl: string | undefined;
@@ -474,7 +474,7 @@ export declare class ChatService {
             username: string;
             grade: string | undefined;
             major: string | undefined;
-            accountStatus: "active" | "archived" | "inactive" | undefined;
+            accountStatus: "active" | "inactive" | "archived" | undefined;
             organizations: {
                 id: string;
                 name: string;
@@ -513,7 +513,7 @@ export declare class ChatService {
         studentName: string | undefined;
         studentGrade: string | undefined;
         studentMajor: string | undefined;
-        studentAccountStatus: "active" | "archived" | "inactive" | undefined;
+        studentAccountStatus: "active" | "inactive" | "archived" | undefined;
         displayName: string | undefined;
         bio: string | undefined;
         avatarUrl: string | undefined;
@@ -527,7 +527,7 @@ export declare class ChatService {
         studentName: string | undefined;
         studentGrade: string | undefined;
         studentMajor: string | undefined;
-        studentAccountStatus: "active" | "archived" | "inactive" | undefined;
+        studentAccountStatus: "active" | "inactive" | "archived" | undefined;
         displayName: string | undefined;
         bio: string | undefined;
         avatarUrl: string | undefined;
@@ -541,7 +541,7 @@ export declare class ChatService {
         studentName: string | undefined;
         studentGrade: string | undefined;
         studentMajor: string | undefined;
-        studentAccountStatus: "active" | "archived" | "inactive" | undefined;
+        studentAccountStatus: "active" | "inactive" | "archived" | undefined;
         displayName: string | undefined;
         bio: string | undefined;
         avatarUrl: string | undefined;
@@ -555,7 +555,7 @@ export declare class ChatService {
         studentName: string | undefined;
         studentGrade: string | undefined;
         studentMajor: string | undefined;
-        studentAccountStatus: "active" | "archived" | "inactive" | undefined;
+        studentAccountStatus: "active" | "inactive" | "archived" | undefined;
         displayName: string | undefined;
         bio: string | undefined;
         avatarUrl: string | undefined;
@@ -596,7 +596,7 @@ export declare class ChatService {
             studentName: string | undefined;
             studentGrade: string | undefined;
             studentMajor: string | undefined;
-            studentAccountStatus: "active" | "archived" | "inactive" | undefined;
+            studentAccountStatus: "active" | "inactive" | "archived" | undefined;
             displayName: string | undefined;
             bio: string | undefined;
             avatarUrl: string | undefined;
@@ -615,7 +615,7 @@ export declare class ChatService {
             studentName: string | undefined;
             studentGrade: string | undefined;
             studentMajor: string | undefined;
-            studentAccountStatus: "active" | "archived" | "inactive" | undefined;
+            studentAccountStatus: "active" | "inactive" | "archived" | undefined;
             displayName: string | undefined;
             bio: string | undefined;
             avatarUrl: string | undefined;
@@ -631,7 +631,7 @@ export declare class ChatService {
             studentName: string | undefined;
             studentGrade: string | undefined;
             studentMajor: string | undefined;
-            studentAccountStatus: "active" | "archived" | "inactive" | undefined;
+            studentAccountStatus: "active" | "inactive" | "archived" | undefined;
             displayName: string | undefined;
             bio: string | undefined;
             avatarUrl: string | undefined;
@@ -642,7 +642,7 @@ export declare class ChatService {
             username: string;
             grade: string | undefined;
             major: string | undefined;
-            accountStatus: "active" | "archived" | "inactive" | undefined;
+            accountStatus: "active" | "inactive" | "archived" | undefined;
             organizations: {
                 id: string;
                 name: string;

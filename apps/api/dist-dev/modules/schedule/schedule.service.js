@@ -13,6 +13,8 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.ScheduleService = void 0;
+const attendance_1 = require("../attendance");
+const import_history_entity_1 = require("../../database/entities/import-history.entity");
 const common_1 = require("@nestjs/common");
 const typeorm_1 = require("@nestjs/typeorm");
 const typeorm_2 = require("typeorm");
@@ -66,9 +68,17 @@ let ScheduleService = class ScheduleService {
         if (context.roles.includes("PLATFORM_ADMIN"))
             return this.entries.find({
                 where: requestedOrganizationId
-                    ? { organization: { id: requestedOrganizationId }, versionId: (0, typeorm_2.IsNull)() }
+                    ? {
+                        organization: { id: requestedOrganizationId },
+                        versionId: (0, typeorm_2.IsNull)(),
+                    }
                     : { versionId: (0, typeorm_2.IsNull)() },
-                relations: { organization: true, classroom: true, teacher: true, classBook: { book: true, teacher: true } },
+                relations: {
+                    organization: true,
+                    classroom: true,
+                    teacher: true,
+                    classBook: { book: true, teacher: true },
+                },
                 order: { weekday: "ASC", startTime: "ASC" },
             });
         if (this.isOperator(context))
@@ -81,7 +91,12 @@ let ScheduleService = class ScheduleService {
                             : context.organizationIds),
                     },
                 },
-                relations: { organization: true, classroom: true, teacher: true, classBook: { book: true, teacher: true } },
+                relations: {
+                    organization: true,
+                    classroom: true,
+                    teacher: true,
+                    classBook: { book: true, teacher: true },
+                },
                 order: { weekday: "ASC", startTime: "ASC" },
             });
         if (context.roles.includes("TEACHER"))
@@ -97,7 +112,12 @@ let ScheduleService = class ScheduleService {
                     },
                     status: "ACTIVE",
                 },
-                relations: { organization: true, classroom: true, teacher: true, classBook: { book: true, teacher: true } },
+                relations: {
+                    organization: true,
+                    classroom: true,
+                    teacher: true,
+                    classBook: { book: true, teacher: true },
+                },
                 order: { weekday: "ASC", startTime: "ASC" },
             });
         if (context.roles.some((role) => ["ADVISOR", "MENTOR", "COUNSELOR", "STUDENT_AFFAIRS_MENTOR"].includes(role))) {
@@ -200,7 +220,7 @@ let ScheduleService = class ScheduleService {
             ],
         }, organizationId);
     }
-    async create(user, dto) {
+    async create(user, dto, manager) {
         const context = this.context(user);
         this.authorization.requireCapability(context, "schedule.create");
         if (!this.isOperator(context) ||
@@ -217,14 +237,17 @@ let ScheduleService = class ScheduleService {
         const classBook = await this.classBookForSession(classroom, teacher, dto.classBookId);
         if (dto.endTime <= dto.startTime)
             throw new api_exception_1.ApiException(422, "INVALID_TIME_RANGE", "زمان پایان باید بعد از شروع باشد.");
-        return this.entries.save(this.entries.create({
+        const entries = manager?.getRepository(school_schedule_entry_entity_1.SchoolScheduleEntry) ?? this.entries;
+        return entries
+            .save(entries.create({
             ...dto,
             room: dto.room?.trim() || "",
             organization,
             classroom,
             classBook,
             teacher,
-        })).then((entry) => this.publicEntry(entry));
+        }))
+            .then((entry) => this.publicEntry(entry));
     }
     async update(user, id, dto) {
         const context = this.context(user);
@@ -315,10 +338,24 @@ let ScheduleService = class ScheduleService {
         const preview = await this.previewImport(user, entries);
         if (!preview.valid)
             throw new api_exception_1.ApiException(422, "SCHEDULE_IMPORT_INVALID", "فایل برنامه معتبر نیست.", preview.errors);
-        const saved = [];
-        for (const entry of entries)
-            saved.push(await this.create(user, entry));
-        return { imported: saved.length, entries: saved };
+        return (0, attendance_1.attendanceTransaction)(this.entries.manager, async (manager) => {
+            const saved = [];
+            for (const entry of entries)
+                saved.push(await this.create(user, entry, manager));
+            const organizations = [...new Set(entries.map((e) => e.organizationId))];
+            for (const organizationId of organizations)
+                await manager.save(import_history_entity_1.ImportHistory, manager.create(import_history_entity_1.ImportHistory, {
+                    actor: { id: user.id },
+                    organization: { id: organizationId },
+                    schemaVersion: "school-schedule/1.0",
+                    counts: {
+                        lessons: entries.filter((e) => e.organizationId === organizationId).length,
+                    },
+                    result: "SUCCESS",
+                    errors: null,
+                }));
+            return { imported: saved.length, entries: saved };
+        });
     }
     importErrors(context, item) {
         const errors = [];
@@ -347,13 +384,20 @@ let ScheduleService = class ScheduleService {
         return classroom;
     }
     publicEntry(entry) {
-        const teacher = (user) => user ? {
-            id: user.id, username: user.username, firstName: user.firstName, lastName: user.lastName,
-        } : null;
+        const teacher = (user) => user
+            ? {
+                id: user.id,
+                username: user.username,
+                firstName: user.firstName,
+                lastName: user.lastName,
+            }
+            : null;
         return {
             ...entry,
             teacher: teacher(entry.teacher),
-            classBook: entry.classBook ? { ...entry.classBook, teacher: teacher(entry.classBook.teacher) } : null,
+            classBook: entry.classBook
+                ? { ...entry.classBook, teacher: teacher(entry.classBook.teacher) }
+                : null,
         };
     }
     async teacherForOrganization(teacherId, organizationId) {
@@ -380,7 +424,11 @@ let ScheduleService = class ScheduleService {
         if (!classBookId || !teacher)
             throw new api_exception_1.ApiException(422, "SCHEDULE_CLASS_BOOK_REQUIRED", "برای جلسهٔ کلاسی، کتاب و استاد مسئول را انتخاب کنید.");
         const classBook = await this.classBooks.findOne({
-            where: { id: classBookId, classroom: { id: classroom.id }, teacher: { id: teacher.id } },
+            where: {
+                id: classBookId,
+                classroom: { id: classroom.id },
+                teacher: { id: teacher.id },
+            },
             relations: { book: true, teacher: true },
         });
         if (!classBook)

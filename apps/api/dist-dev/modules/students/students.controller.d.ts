@@ -18,7 +18,7 @@ export declare class StudentController {
                 dailyCapacity: string;
             } | null;
             plan: import("../../database/entities").Plan | null;
-            tasks: import("../../database/entities").Task[] | never[];
+            tasks: never[] | import("../../database/entities").Task[];
             metrics: {
                 completed: number;
                 total: number;
@@ -305,9 +305,9 @@ export declare class StudentsController {
             targetField?: string | undefined;
             targetRank?: string | undefined;
             dailyCapacity?: string | undefined;
-            accountStatus?: "active" | "archived" | "inactive" | undefined;
-            onboardingStatus?: "ASSIGNED" | "PENDING_ASSIGNMENT" | undefined;
-            registrationStatus?: "ACTIVE" | "ACCOUNT_CREATED" | "IN_PROGRESS" | "WAITING_REVIEW" | "NEEDS_CORRECTION" | "APPROVED" | "REJECTED" | undefined;
+            accountStatus?: "active" | "inactive" | "archived" | undefined;
+            onboardingStatus?: "PENDING_ASSIGNMENT" | "ASSIGNED" | undefined;
+            registrationStatus?: "APPROVED" | "REJECTED" | "ACCOUNT_CREATED" | "IN_PROGRESS" | "WAITING_REVIEW" | "NEEDS_CORRECTION" | "ACTIVE" | undefined;
             guardianChatReadOnly?: boolean | undefined;
             guardianChangedAt?: Date | null;
             createdAt?: Date | undefined;
@@ -317,6 +317,8 @@ export declare class StudentsController {
             dailyReports?: import("../../database/entities").DailyReport[] | undefined;
             recoveryRequests?: import("../../database/entities").RecoveryRequest[] | undefined;
             learningItems?: import("../../database/entities").LearningItem[] | undefined;
+            profile?: import("../../database/entities").StudentProfile | null;
+            enrollments?: import("../../database/entities").EducationClassEnrollment[];
         };
     }>;
 }

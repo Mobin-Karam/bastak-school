@@ -63,7 +63,12 @@ function occurrencesForRange(lessons, overrides, holidays, startsOn, endsOn, tim
     if (endsOn < startsOn ||
         Date.parse(endsOn) - Date.parse(startsOn) > 730 * 86400000)
         throw new Error("DATE_RANGE_LIMIT");
-    const closed = new Set(holidays.map((x) => x.date));
+    const holidaysByDate = new Map();
+    for (const holiday of holidays) {
+        const rows = holidaysByDate.get(holiday.date) ?? [];
+        rows.push(holiday);
+        holidaysByDate.set(holiday.date, rows);
+    }
     const exceptions = new Map(overrides.map((x) => [`${x.lessonId}:${x.date}`, x]));
     const result = [];
     for (let date = startsOn; date <= endsOn; date = addDays(date, 1))
@@ -73,7 +78,10 @@ function occurrencesForRange(lessons, overrides, holidays, startsOn, endsOn, tim
                 weekdayOf(date) !== lesson.weekday)
                 continue;
             const change = exceptions.get(`${lesson.id}:${date}`);
-            const cancelled = closed.has(date) || change?.cancelled === true;
+            const holiday = holidaysByDate
+                .get(date)
+                ?.find((h) => !h.versionId || h.versionId === lesson.versionId);
+            const cancelled = !!holiday || change?.cancelled === true;
             const current = {
                 ...lesson,
                 teacherId: change?.teacherId ?? lesson.teacherId,
@@ -85,8 +93,7 @@ function occurrencesForRange(lessons, overrides, holidays, startsOn, endsOn, tim
                 ...current,
                 date,
                 cancelled,
-                changeReason: change?.reason ??
-                    (closed.has(date) ? holidays.find((x) => x.date === date).name : ""),
+                changeReason: change?.reason ?? holiday?.name ?? "",
                 attendanceSessionId: null,
                 startsAt: zonedInstant(date, current.startTime, timeZone),
                 endsAt: zonedInstant(date, current.endTime, timeZone),
@@ -98,13 +105,21 @@ function detectTimetableConflicts(input) {
     const conflicts = [];
     const seen = new Set();
     const push = (conflict) => {
-        const key = `${conflict.code}:${[...conflict.lessonIds].sort().join(":")}`;
+        const key = `${conflict.code}:${conflict.date ?? ""}:${[...conflict.lessonIds].sort().join(":")}`;
         if (!seen.has(key)) {
             seen.add(key);
             conflicts.push(conflict);
         }
     };
-    for (const lesson of input.lessons)
+    for (const lesson of input.lessons) {
+        const first = addDays(lesson.startsOn, (lesson.weekday - weekdayOf(lesson.startsOn) + 7) % 7);
+        if (first > lesson.endsOn)
+            push({
+                code: "NO_OCCURRENCE",
+                lessonIds: [lesson.id],
+                message: "بازه درس شامل روز انتخاب‌شده نیست.",
+                alternatives: ["اصلاح روز یا تاریخ درس"],
+            });
         if (!lesson.teacherId || !lesson.classBookId || !lesson.classroomId)
             push({
                 code: "UNASSIGNED",
@@ -112,6 +127,7 @@ function detectTimetableConflicts(input) {
                 message: `درس ${lesson.title} استاد یا کلاس کامل ندارد.`,
                 alternatives: ["تکمیل تخصیص استاد و کتاب کلاس"],
             });
+    }
     const days = new Map();
     for (const occurrence of occurrencesForRange(input.lessons, input.overrides, input.holidays, input.startsOn, input.endsOn, input.timeZone)) {
         if (occurrence.cancelled)
@@ -119,6 +135,11 @@ function detectTimetableConflicts(input) {
         const period = input.periods.find((x) => x.id === occurrence.periodId);
         const session = input.sessions.find((x) => x.id === period?.sessionId);
         if (!session ||
+            !period ||
+            (period.weekdays?.length &&
+                !period.weekdays.includes(occurrence.weekday)) ||
+            minuteOf(occurrence.startTime) < minuteOf(period.startTime) ||
+            minuteOf(occurrence.endTime) > minuteOf(period.endTime) ||
             minuteOf(occurrence.startTime) < minuteOf(session.startTime) ||
             minuteOf(occurrence.endTime) > minuteOf(session.endTime) ||
             minuteOf(occurrence.endTime) <= minuteOf(occurrence.startTime))
@@ -140,6 +161,16 @@ function detectTimetableConflicts(input) {
                 date: occurrence.date,
                 message: `استاد ${occurrence.teacherName} در این زمان در دسترس نیست.`,
                 alternatives: ["انتخاب استاد آزاد", "تغییر ساعت درس"],
+            });
+        const capacity = input.locations?.find((r) => r.id === occurrence.locationId)?.capacity;
+        if (capacity &&
+            (input.classSizes?.[occurrence.classroomId] ?? 0) > capacity)
+            push({
+                code: "ROOM_CAPACITY",
+                lessonIds: [occurrence.id],
+                date: occurrence.date,
+                message: "ظرفیت اتاق کمتر از تعداد دانش‌آموزان است.",
+                alternatives: ["انتخاب اتاق با ظرفیت کافی"],
             });
         const group = days.get(occurrence.date) ?? [];
         group.push(occurrence);
@@ -191,6 +222,24 @@ function detectTimetableConflicts(input) {
                 message: `تخصیص هفتگی: ${count} درس از ${target.lessonsPerWeek} درس مورد نیاز.`,
                 alternatives: ["تکمیل درس‌های هفتگی", "بازبینی سهم هفتگی کتاب"],
             });
+    }
+    for (const target of input.allocations) {
+        const template = input.lessons.filter((l) => l.classroomId === target.classroomId &&
+            l.classBookId === target.classBookId);
+        let week = addDays(input.startsOn, (6 - weekdayOf(input.startsOn) + 7) % 7);
+        for (; addDays(week, 6) <= input.endsOn; week = addDays(week, 7)) {
+            const occurrences = occurrencesForRange(template, input.overrides, input.holidays, week, addDays(week, 6), input.timeZone);
+            const scheduled = occurrences.filter((o) => !o.cancelled).length;
+            const waived = occurrences.filter((o) => o.cancelled).length;
+            if (scheduled + waived !== target.lessonsPerWeek)
+                push({
+                    code: "INCOMPLETE_ALLOCATION",
+                    lessonIds: template.map((l) => l.id),
+                    date: week,
+                    message: `تخصیص هفته ${week}: ${scheduled} درس و ${waived} تعطیلی از ${target.lessonsPerWeek}.`,
+                    alternatives: ["تکمیل پوشش هفتگی در بازه مؤثر"],
+                });
+        }
     }
     return conflicts;
 }

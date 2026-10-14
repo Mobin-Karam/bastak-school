@@ -20,7 +20,7 @@ export declare class LearningResourcesController {
             trackId: string;
             learnerProfile: "school" | "independent";
             independentType: "adult" | "gap_year" | "homeschool" | "other" | null | undefined;
-            accountStatus: "active" | "archived" | "inactive";
+            accountStatus: "active" | "inactive" | "archived";
         }[];
     }>;
     list(user: AuthenticatedUser): Promise<{

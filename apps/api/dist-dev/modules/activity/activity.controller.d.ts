@@ -11,7 +11,7 @@ export declare class ActivityController {
     }): Promise<{
         ok: boolean;
         data: {
-            syncStatus: "online" | "syncing" | "failed" | "offline";
+            syncStatus: "offline" | "online" | "syncing" | "failed";
             online: boolean;
             state: string;
             lastSeenAt: Date;
@@ -41,7 +41,7 @@ export declare class ActivityController {
         data: {
             deviceId: string;
             correlationId: string | null;
-            status: "online" | "syncing" | "failed" | "offline";
+            status: "offline" | "online" | "syncing" | "failed";
             pendingCount: number;
             failureCode: string | null;
             lastSuccessfulAt: string | null;
@@ -53,7 +53,7 @@ export declare class ActivityController {
         data: {
             deviceId: string;
             correlationId: string | null;
-            status: "online" | "syncing" | "failed" | "offline";
+            status: "offline" | "online" | "syncing" | "failed";
             pendingCount: number;
             failureCode: string | null;
             lastSuccessfulAt: string | null;
@@ -79,7 +79,7 @@ export declare class ActivityController {
             grade: string;
             major: string;
             presence: {
-                syncStatus: "online" | "syncing" | "failed" | "offline";
+                syncStatus: "offline" | "online" | "syncing" | "failed";
                 online: boolean;
                 state: string;
                 lastSeenAt: Date;
@@ -111,7 +111,7 @@ export declare class ActivityController {
             grade: string;
             major: string;
             presence: {
-                syncStatus: "online" | "syncing" | "failed" | "offline";
+                syncStatus: "offline" | "online" | "syncing" | "failed";
                 online: boolean;
                 state: string;
                 lastSeenAt: Date;

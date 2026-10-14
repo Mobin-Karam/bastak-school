@@ -11,7 +11,7 @@ export declare class RegistrationController {
                 id: string;
                 name: string;
                 nationalCode: string | null | undefined;
-                registrationStatus: "ACTIVE" | "ACCOUNT_CREATED" | "IN_PROGRESS" | "WAITING_REVIEW" | "NEEDS_CORRECTION" | "APPROVED" | "REJECTED";
+                registrationStatus: "APPROVED" | "REJECTED" | "ACCOUNT_CREATED" | "IN_PROGRESS" | "WAITING_REVIEW" | "NEEDS_CORRECTION" | "ACTIVE";
                 organization: {
                     id: string;
                     name: string;
@@ -20,7 +20,7 @@ export declare class RegistrationController {
             profile: import("../../database/entities").StudentProfile | null;
             contacts: import("../../database/entities").StudentContact[];
             sections: {
-                sectionCode: "LEGAL_GUARDIAN" | "BASIC_INFORMATION" | "IDENTITY_INFORMATION" | "ADDRESS_CONTACT" | "PARENTS" | "PREVIOUS_EDUCATION" | "DOCUMENTS" | "HEALTH" | "VACCINATION" | "INSURANCE" | "CONSENTS" | "TRANSPORT" | "TUITION" | "EMERGENCY_CONTACT" | "PHOTOGRAPHS";
+                sectionCode: "BASIC_INFORMATION" | "IDENTITY_INFORMATION" | "ADDRESS_CONTACT" | "PARENTS" | "PREVIOUS_EDUCATION" | "DOCUMENTS" | "HEALTH" | "VACCINATION" | "INSURANCE" | "CONSENTS" | "TRANSPORT" | "TUITION" | "LEGAL_GUARDIAN" | "EMERGENCY_CONTACT" | "PHOTOGRAPHS";
                 required: boolean;
                 sortOrder: number;
                 announcement: string;
@@ -38,7 +38,7 @@ export declare class RegistrationController {
                 id: string;
                 name: string;
                 nationalCode: string | null | undefined;
-                registrationStatus: "ACTIVE" | "ACCOUNT_CREATED" | "IN_PROGRESS" | "WAITING_REVIEW" | "NEEDS_CORRECTION" | "APPROVED" | "REJECTED";
+                registrationStatus: "APPROVED" | "REJECTED" | "ACCOUNT_CREATED" | "IN_PROGRESS" | "WAITING_REVIEW" | "NEEDS_CORRECTION" | "ACTIVE";
                 organization: {
                     id: string;
                     name: string;
@@ -47,7 +47,7 @@ export declare class RegistrationController {
             profile: import("../../database/entities").StudentProfile | null;
             contacts: import("../../database/entities").StudentContact[];
             sections: {
-                sectionCode: "LEGAL_GUARDIAN" | "BASIC_INFORMATION" | "IDENTITY_INFORMATION" | "ADDRESS_CONTACT" | "PARENTS" | "PREVIOUS_EDUCATION" | "DOCUMENTS" | "HEALTH" | "VACCINATION" | "INSURANCE" | "CONSENTS" | "TRANSPORT" | "TUITION" | "EMERGENCY_CONTACT" | "PHOTOGRAPHS";
+                sectionCode: "BASIC_INFORMATION" | "IDENTITY_INFORMATION" | "ADDRESS_CONTACT" | "PARENTS" | "PREVIOUS_EDUCATION" | "DOCUMENTS" | "HEALTH" | "VACCINATION" | "INSURANCE" | "CONSENTS" | "TRANSPORT" | "TUITION" | "LEGAL_GUARDIAN" | "EMERGENCY_CONTACT" | "PHOTOGRAPHS";
                 required: boolean;
                 sortOrder: number;
                 announcement: string;
@@ -65,7 +65,7 @@ export declare class RegistrationController {
                 id: string;
                 name: string;
                 nationalCode: string | null | undefined;
-                registrationStatus: "ACTIVE" | "ACCOUNT_CREATED" | "IN_PROGRESS" | "WAITING_REVIEW" | "NEEDS_CORRECTION" | "APPROVED" | "REJECTED";
+                registrationStatus: "APPROVED" | "REJECTED" | "ACCOUNT_CREATED" | "IN_PROGRESS" | "WAITING_REVIEW" | "NEEDS_CORRECTION" | "ACTIVE";
                 organization: {
                     id: string;
                     name: string;
@@ -74,7 +74,7 @@ export declare class RegistrationController {
             profile: import("../../database/entities").StudentProfile | null;
             contacts: import("../../database/entities").StudentContact[];
             sections: {
-                sectionCode: "LEGAL_GUARDIAN" | "BASIC_INFORMATION" | "IDENTITY_INFORMATION" | "ADDRESS_CONTACT" | "PARENTS" | "PREVIOUS_EDUCATION" | "DOCUMENTS" | "HEALTH" | "VACCINATION" | "INSURANCE" | "CONSENTS" | "TRANSPORT" | "TUITION" | "EMERGENCY_CONTACT" | "PHOTOGRAPHS";
+                sectionCode: "BASIC_INFORMATION" | "IDENTITY_INFORMATION" | "ADDRESS_CONTACT" | "PARENTS" | "PREVIOUS_EDUCATION" | "DOCUMENTS" | "HEALTH" | "VACCINATION" | "INSURANCE" | "CONSENTS" | "TRANSPORT" | "TUITION" | "LEGAL_GUARDIAN" | "EMERGENCY_CONTACT" | "PHOTOGRAPHS";
                 required: boolean;
                 sortOrder: number;
                 announcement: string;
@@ -92,7 +92,7 @@ export declare class RegistrationController {
                 id: string;
                 name: string;
                 nationalCode: string | null | undefined;
-                registrationStatus: "ACTIVE" | "ACCOUNT_CREATED" | "IN_PROGRESS" | "WAITING_REVIEW" | "NEEDS_CORRECTION" | "APPROVED" | "REJECTED";
+                registrationStatus: "APPROVED" | "REJECTED" | "ACCOUNT_CREATED" | "IN_PROGRESS" | "WAITING_REVIEW" | "NEEDS_CORRECTION" | "ACTIVE";
                 organization: {
                     id: string;
                     name: string;
@@ -101,7 +101,7 @@ export declare class RegistrationController {
             profile: import("../../database/entities").StudentProfile | null;
             contacts: import("../../database/entities").StudentContact[];
             sections: {
-                sectionCode: "LEGAL_GUARDIAN" | "BASIC_INFORMATION" | "IDENTITY_INFORMATION" | "ADDRESS_CONTACT" | "PARENTS" | "PREVIOUS_EDUCATION" | "DOCUMENTS" | "HEALTH" | "VACCINATION" | "INSURANCE" | "CONSENTS" | "TRANSPORT" | "TUITION" | "EMERGENCY_CONTACT" | "PHOTOGRAPHS";
+                sectionCode: "BASIC_INFORMATION" | "IDENTITY_INFORMATION" | "ADDRESS_CONTACT" | "PARENTS" | "PREVIOUS_EDUCATION" | "DOCUMENTS" | "HEALTH" | "VACCINATION" | "INSURANCE" | "CONSENTS" | "TRANSPORT" | "TUITION" | "LEGAL_GUARDIAN" | "EMERGENCY_CONTACT" | "PHOTOGRAPHS";
                 required: boolean;
                 sortOrder: number;
                 announcement: string;
@@ -128,7 +128,7 @@ export declare class RegistrationController {
             nationalCode: string | null | undefined;
             phoneNumber: string | null;
             organizationId: string | null;
-            registrationStatus: "ACTIVE" | "ACCOUNT_CREATED" | "IN_PROGRESS" | "WAITING_REVIEW" | "NEEDS_CORRECTION" | "APPROVED" | "REJECTED";
+            registrationStatus: "APPROVED" | "REJECTED" | "ACCOUNT_CREATED" | "IN_PROGRESS" | "WAITING_REVIEW" | "NEEDS_CORRECTION" | "ACTIVE";
             createdAt: Date;
         }[];
     }>;
@@ -136,10 +136,10 @@ export declare class RegistrationController {
         ok: boolean;
         data: {
             studentId: string;
-            sectionCode: "LEGAL_GUARDIAN" | "BASIC_INFORMATION" | "IDENTITY_INFORMATION" | "ADDRESS_CONTACT" | "PARENTS" | "PREVIOUS_EDUCATION" | "DOCUMENTS" | "HEALTH" | "VACCINATION" | "INSURANCE" | "CONSENTS" | "TRANSPORT" | "TUITION" | "EMERGENCY_CONTACT" | "PHOTOGRAPHS";
+            sectionCode: "BASIC_INFORMATION" | "IDENTITY_INFORMATION" | "ADDRESS_CONTACT" | "PARENTS" | "PREVIOUS_EDUCATION" | "DOCUMENTS" | "HEALTH" | "VACCINATION" | "INSURANCE" | "CONSENTS" | "TRANSPORT" | "TUITION" | "LEGAL_GUARDIAN" | "EMERGENCY_CONTACT" | "PHOTOGRAPHS";
             status: import("../../database/entities/registration-progress.entity").RegistrationSectionStatus;
             reviewNote: string;
-            registrationStatus: "ACTIVE" | "ACCOUNT_CREATED" | "IN_PROGRESS" | "WAITING_REVIEW" | "NEEDS_CORRECTION" | "APPROVED" | "REJECTED";
+            registrationStatus: "APPROVED" | "REJECTED" | "ACCOUNT_CREATED" | "IN_PROGRESS" | "WAITING_REVIEW" | "NEEDS_CORRECTION" | "ACTIVE";
         };
     }>;
 }

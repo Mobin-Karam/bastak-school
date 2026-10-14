@@ -55,7 +55,7 @@ export declare class SchoolHomeService {
         classroomId: string | null;
         title: string;
         body: string;
-        status: "DRAFT" | "ARCHIVED" | "ACTIVE";
+        status: "ACTIVE" | "ARCHIVED" | "DRAFT";
         publishedAt: Date | null | undefined;
         expiresAt: Date | null | undefined;
         createdAt: Date;
@@ -67,7 +67,7 @@ export declare class SchoolHomeService {
         classroomId: string | null;
         title: string;
         body: string;
-        status: "DRAFT" | "ARCHIVED" | "ACTIVE";
+        status: "ACTIVE" | "ARCHIVED" | "DRAFT";
         publishedAt: Date | null | undefined;
         expiresAt: Date | null | undefined;
         createdAt: Date;
@@ -79,7 +79,7 @@ export declare class SchoolHomeService {
         classroomId: string | null;
         title: string;
         body: string;
-        status: "DRAFT" | "ARCHIVED" | "ACTIVE";
+        status: "ACTIVE" | "ARCHIVED" | "DRAFT";
         publishedAt: Date | null | undefined;
         expiresAt: Date | null | undefined;
         createdAt: Date;

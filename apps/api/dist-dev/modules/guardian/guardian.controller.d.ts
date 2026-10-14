@@ -65,7 +65,7 @@ export declare class GuardianController {
                 allowLateStart: boolean;
                 allowPracticeAfterDeadline: boolean;
                 autoSubmitOnTimeout: boolean;
-                sessionPolicy: "allow_resume" | "single_session";
+                sessionPolicy: "single_session" | "allow_resume";
                 integrityMonitoring: boolean;
                 scoring: {
                     correct: number;
@@ -255,7 +255,7 @@ export declare class GuardianController {
             allowLateStart: boolean;
             allowPracticeAfterDeadline: boolean;
             autoSubmitOnTimeout: boolean;
-            sessionPolicy: "allow_resume" | "single_session";
+            sessionPolicy: "single_session" | "allow_resume";
             integrityMonitoring: boolean;
             scoring: {
                 correct: number;

@@ -25,7 +25,7 @@ export declare class ActivityService implements OnModuleInit {
         currentTaskId?: string | null;
         syncStatus?: string;
     }): Promise<{
-        syncStatus: "online" | "syncing" | "failed" | "offline";
+        syncStatus: "offline" | "online" | "syncing" | "failed";
         online: boolean;
         state: string;
         lastSeenAt: Date;
@@ -49,7 +49,7 @@ export declare class ActivityService implements OnModuleInit {
     }): Promise<{
         deviceId: string;
         correlationId: string | null;
-        status: "online" | "syncing" | "failed" | "offline";
+        status: "offline" | "online" | "syncing" | "failed";
         pendingCount: number;
         failureCode: string | null;
         lastSuccessfulAt: string | null;
@@ -58,7 +58,7 @@ export declare class ActivityService implements OnModuleInit {
     syncHealth(context: UserContext, studentId: string): Promise<{
         deviceId: string;
         correlationId: string | null;
-        status: "online" | "syncing" | "failed" | "offline";
+        status: "offline" | "online" | "syncing" | "failed";
         pendingCount: number;
         failureCode: string | null;
         lastSuccessfulAt: string | null;
@@ -75,7 +75,7 @@ export declare class ActivityService implements OnModuleInit {
         grade: string;
         major: string;
         presence: {
-            syncStatus: "online" | "syncing" | "failed" | "offline";
+            syncStatus: "offline" | "online" | "syncing" | "failed";
             online: boolean;
             state: string;
             lastSeenAt: Date;
@@ -104,7 +104,7 @@ export declare class ActivityService implements OnModuleInit {
         grade: string;
         major: string;
         presence: {
-            syncStatus: "online" | "syncing" | "failed" | "offline";
+            syncStatus: "offline" | "online" | "syncing" | "failed";
             online: boolean;
             state: string;
             lastSeenAt: Date;

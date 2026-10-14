@@ -1,5 +1,6 @@
 export declare const SCHOOL_YEAR_PATTERN: RegExp;
 export declare class SaveEducationClassDto {
+    academicYearId?: string;
     organizationId: string;
     code: string;
     name: string;
@@ -7,6 +8,7 @@ export declare class SaveEducationClassDto {
     capacity?: number;
 }
 export declare class UpdateEducationClassDto {
+    academicYearId?: string;
     code?: string;
     name?: string;
     schoolYear?: string;
@@ -37,4 +39,8 @@ export declare class ClassTransferDto {
 export declare class AddClassBookDto {
     bookId: string;
     teacherId: string;
+}
+export declare class ClassHistoryQueryDto {
+    offset: number;
+    limit: number;
 }

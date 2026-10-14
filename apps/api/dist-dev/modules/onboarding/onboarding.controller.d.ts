@@ -13,7 +13,7 @@ export declare class OnboardingController {
             id: string;
             phoneNumber: string;
             name: string;
-            registrationStatus: "ACTIVE" | "ACCOUNT_CREATED" | "IN_PROGRESS" | "WAITING_REVIEW" | "NEEDS_CORRECTION" | "APPROVED" | "REJECTED";
+            registrationStatus: "APPROVED" | "REJECTED" | "ACCOUNT_CREATED" | "IN_PROGRESS" | "WAITING_REVIEW" | "NEEDS_CORRECTION" | "ACTIVE";
             organization: {
                 id: string;
                 name: string;

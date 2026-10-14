@@ -23,8 +23,14 @@ export declare class StudentAdministrationController {
             targetField: string;
             targetRank: string;
             dailyCapacity: string;
-            accountStatus: "active" | "archived" | "inactive";
-            registrationStatus: "ACTIVE" | "ACCOUNT_CREATED" | "IN_PROGRESS" | "WAITING_REVIEW" | "NEEDS_CORRECTION" | "APPROVED" | "REJECTED";
+            nationalCode: string | null;
+            birthDate: string | null;
+            governmentSchool: string | null;
+            classId: string | null;
+            className: string | null;
+            accountStatus: "active" | "inactive" | "archived";
+            registrationStatus: "APPROVED" | "REJECTED" | "ACCOUNT_CREATED" | "IN_PROGRESS" | "WAITING_REVIEW" | "NEEDS_CORRECTION" | "ACTIVE";
+            profileComplete: boolean;
             organization: {
                 id: string;
                 name: string;
@@ -57,8 +63,14 @@ export declare class StudentAdministrationController {
             targetField: string;
             targetRank: string;
             dailyCapacity: string;
-            accountStatus: "active" | "archived" | "inactive";
-            registrationStatus: "ACTIVE" | "ACCOUNT_CREATED" | "IN_PROGRESS" | "WAITING_REVIEW" | "NEEDS_CORRECTION" | "APPROVED" | "REJECTED";
+            nationalCode: string | null;
+            birthDate: string | null;
+            governmentSchool: string | null;
+            classId: string | null;
+            className: string | null;
+            accountStatus: "active" | "inactive" | "archived";
+            registrationStatus: "APPROVED" | "REJECTED" | "ACCOUNT_CREATED" | "IN_PROGRESS" | "WAITING_REVIEW" | "NEEDS_CORRECTION" | "ACTIVE";
+            profileComplete: boolean;
             organization: {
                 id: string;
                 name: string;
@@ -91,8 +103,14 @@ export declare class StudentAdministrationController {
             targetField: string;
             targetRank: string;
             dailyCapacity: string;
-            accountStatus: "active" | "archived" | "inactive";
-            registrationStatus: "ACTIVE" | "ACCOUNT_CREATED" | "IN_PROGRESS" | "WAITING_REVIEW" | "NEEDS_CORRECTION" | "APPROVED" | "REJECTED";
+            nationalCode: string | null;
+            birthDate: string | null;
+            governmentSchool: string | null;
+            classId: string | null;
+            className: string | null;
+            accountStatus: "active" | "inactive" | "archived";
+            registrationStatus: "APPROVED" | "REJECTED" | "ACCOUNT_CREATED" | "IN_PROGRESS" | "WAITING_REVIEW" | "NEEDS_CORRECTION" | "ACTIVE";
+            profileComplete: boolean;
             organization: {
                 id: string;
                 name: string;
@@ -125,8 +143,14 @@ export declare class StudentAdministrationController {
             targetField: string;
             targetRank: string;
             dailyCapacity: string;
-            accountStatus: "active" | "archived" | "inactive";
-            registrationStatus: "ACTIVE" | "ACCOUNT_CREATED" | "IN_PROGRESS" | "WAITING_REVIEW" | "NEEDS_CORRECTION" | "APPROVED" | "REJECTED";
+            nationalCode: string | null;
+            birthDate: string | null;
+            governmentSchool: string | null;
+            classId: string | null;
+            className: string | null;
+            accountStatus: "active" | "inactive" | "archived";
+            registrationStatus: "APPROVED" | "REJECTED" | "ACCOUNT_CREATED" | "IN_PROGRESS" | "WAITING_REVIEW" | "NEEDS_CORRECTION" | "ACTIVE";
+            profileComplete: boolean;
             organization: {
                 id: string;
                 name: string;
@@ -203,8 +227,14 @@ export declare class StudentAdministrationController {
             targetField: string;
             targetRank: string;
             dailyCapacity: string;
-            accountStatus: "active" | "archived" | "inactive";
-            registrationStatus: "ACTIVE" | "ACCOUNT_CREATED" | "IN_PROGRESS" | "WAITING_REVIEW" | "NEEDS_CORRECTION" | "APPROVED" | "REJECTED";
+            nationalCode: string | null;
+            birthDate: string | null;
+            governmentSchool: string | null;
+            classId: string | null;
+            className: string | null;
+            accountStatus: "active" | "inactive" | "archived";
+            registrationStatus: "APPROVED" | "REJECTED" | "ACCOUNT_CREATED" | "IN_PROGRESS" | "WAITING_REVIEW" | "NEEDS_CORRECTION" | "ACTIVE";
+            profileComplete: boolean;
             organization: {
                 id: string;
                 name: string;
@@ -281,8 +311,14 @@ export declare class StudentAdministrationController {
             targetField: string;
             targetRank: string;
             dailyCapacity: string;
-            accountStatus: "active" | "archived" | "inactive";
-            registrationStatus: "ACTIVE" | "ACCOUNT_CREATED" | "IN_PROGRESS" | "WAITING_REVIEW" | "NEEDS_CORRECTION" | "APPROVED" | "REJECTED";
+            nationalCode: string | null;
+            birthDate: string | null;
+            governmentSchool: string | null;
+            classId: string | null;
+            className: string | null;
+            accountStatus: "active" | "inactive" | "archived";
+            registrationStatus: "APPROVED" | "REJECTED" | "ACCOUNT_CREATED" | "IN_PROGRESS" | "WAITING_REVIEW" | "NEEDS_CORRECTION" | "ACTIVE";
+            profileComplete: boolean;
             organization: {
                 id: string;
                 name: string;
@@ -315,8 +351,14 @@ export declare class StudentAdministrationController {
             targetField: string;
             targetRank: string;
             dailyCapacity: string;
-            accountStatus: "active" | "archived" | "inactive";
-            registrationStatus: "ACTIVE" | "ACCOUNT_CREATED" | "IN_PROGRESS" | "WAITING_REVIEW" | "NEEDS_CORRECTION" | "APPROVED" | "REJECTED";
+            nationalCode: string | null;
+            birthDate: string | null;
+            governmentSchool: string | null;
+            classId: string | null;
+            className: string | null;
+            accountStatus: "active" | "inactive" | "archived";
+            registrationStatus: "APPROVED" | "REJECTED" | "ACCOUNT_CREATED" | "IN_PROGRESS" | "WAITING_REVIEW" | "NEEDS_CORRECTION" | "ACTIVE";
+            profileComplete: boolean;
             organization: {
                 id: string;
                 name: string;

@@ -100,7 +100,7 @@ export class AuthService {
       throw new ApiException(
         401,
         "UNAUTHORIZED",
-        "نام کاربری یا رمز عبور نادرست است.",
+        "رمز عبور نادرست است.",
       );
     }
     if (user.status && user.status !== UserStatus.ACTIVE)

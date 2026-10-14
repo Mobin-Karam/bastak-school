@@ -7,6 +7,9 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.SchoolEducationModule = void 0;
+const school_access_1 = require("../school-access");
+const academic_service_1 = require("./academic.service");
+const academic_controller_1 = require("./academic.controller");
 const common_1 = require("@nestjs/common");
 const classes_module_1 = require("../classes/classes.module");
 const class_groups_module_1 = require("../class-groups/class-groups.module");
@@ -16,7 +19,14 @@ let SchoolEducationModule = class SchoolEducationModule {
 exports.SchoolEducationModule = SchoolEducationModule;
 exports.SchoolEducationModule = SchoolEducationModule = __decorate([
     (0, common_1.Module)({
-        imports: [education_catalog_module_1.EducationCatalogModule, classes_module_1.ClassesModule, class_groups_module_1.ClassGroupsModule],
+        imports: [
+            education_catalog_module_1.EducationCatalogModule,
+            classes_module_1.ClassesModule,
+            class_groups_module_1.ClassGroupsModule,
+            school_access_1.SchoolAccessModule,
+        ],
+        providers: [academic_service_1.AcademicService],
+        controllers: [academic_controller_1.AcademicController],
         exports: [education_catalog_module_1.EducationCatalogModule, classes_module_1.ClassesModule, class_groups_module_1.ClassGroupsModule],
     })
 ], SchoolEducationModule);

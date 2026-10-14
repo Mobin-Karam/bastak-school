@@ -1,6 +1,6 @@
 import type { AttendanceSessionDetail } from "@moshaver/api-contract";
 import { AuditLog } from "../../database/entities/audit-log.entity";
-import { Repository } from "typeorm";
+import { EntityManager, Repository } from "typeorm";
 import { AttendanceRecord, AttendanceReviewStatus, AttendanceStatus } from "../../database/entities/attendance-record.entity";
 import { AttendanceContextType, AttendanceSession } from "../../database/entities/attendance-session.entity";
 import { DormRoomAssignment } from "../../database/entities/dorm-room-assignment.entity";
@@ -37,7 +37,7 @@ export declare class AttendanceService {
     contextDescriptor(type: string, id: string): Promise<{
         organizationId: string;
         title: string;
-        status: "ARCHIVED" | "ACTIVE";
+        status: "ACTIVE" | "ARCHIVED";
     }>;
     sessionDetail(user: AuthenticatedUser, id: string): Promise<AttendanceSessionDetail>;
     sessionHistory(user: AuthenticatedUser, id: string): Promise<AuditLog[]>;
@@ -82,7 +82,7 @@ export declare class AttendanceService {
         id: string;
         organizationId: string;
         organizationName: string;
-        contextType: "class" | "class_group" | "dorm" | "night" | "pool";
+        contextType: "pool" | "class" | "class_group" | "dorm" | "night";
         contextId: string;
         contextLabel: string;
         sessionDate: string;
@@ -101,6 +101,13 @@ export declare class AttendanceService {
     }): Promise<{
         id: string;
     }>;
+    applyTimetableChange(manager: EntityManager, sessionId: string, lessonId: string, input: {
+        cancelled: boolean;
+        teacherId: string | null;
+        startsAt: string;
+        endsAt: string;
+        reason: string;
+    }, actor: AuthenticatedUser): Promise<void>;
     reassignTimetableSession(sessionId: string, lessonId: string, teacherId: string): Promise<void>;
     cancelTimetableSession(sessionId: string, lessonId: string): Promise<void>;
     createSession(user: AuthenticatedUser, dto: CreateAttendanceSessionDto): Promise<{
@@ -132,7 +139,7 @@ export declare class AttendanceService {
         reviewNote: string;
         reviewedAt: string | null;
         sessionDate: string;
-        contextType: "class" | "class_group" | "dorm" | "night" | "pool";
+        contextType: "pool" | "class" | "class_group" | "dorm" | "night";
         contextId: string;
         organizationId: string;
         organizationName: string;
@@ -148,7 +155,7 @@ export declare class AttendanceService {
         reviewNote: string;
         reviewedAt: string | null;
         sessionDate: string;
-        contextType: "class" | "class_group" | "dorm" | "night" | "pool";
+        contextType: "pool" | "class" | "class_group" | "dorm" | "night";
         contextId: string;
         organizationId: string;
         organizationName: string;
@@ -164,7 +171,7 @@ export declare class AttendanceService {
         reviewNote: string;
         reviewedAt: string | null;
         sessionDate: string;
-        contextType: "class" | "class_group" | "dorm" | "night" | "pool";
+        contextType: "pool" | "class" | "class_group" | "dorm" | "night";
         contextId: string;
         organizationId: string;
         organizationName: string;
@@ -180,7 +187,7 @@ export declare class AttendanceService {
         reviewNote: string;
         reviewedAt: string | null;
         sessionDate: string;
-        contextType: "class" | "class_group" | "dorm" | "night" | "pool";
+        contextType: "pool" | "class" | "class_group" | "dorm" | "night";
         contextId: string;
         organizationId: string;
         organizationName: string;
@@ -191,7 +198,7 @@ export declare class AttendanceService {
         name: string;
         userId: string | null;
         nationalCode: string | null | undefined;
-        accountStatus: "active" | "archived" | "inactive";
+        accountStatus: "active" | "inactive" | "archived";
     }[]>;
     summary(user: AuthenticatedUser, studentId?: string): Promise<{
         recent: {
@@ -199,7 +206,7 @@ export declare class AttendanceService {
             sessionId: string;
             status: AttendanceStatus;
             sessionDate: string;
-            contextType: "class" | "class_group" | "dorm" | "night" | "pool";
+            contextType: "pool" | "class" | "class_group" | "dorm" | "night";
             contextId: string;
             organizationId: string;
             recordedAt: string;

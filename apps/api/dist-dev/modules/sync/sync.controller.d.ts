@@ -30,8 +30,8 @@ export declare class SyncController {
             }[];
             examAttempts: import("../../database/entities").ExamAttempt[];
             notifications: import("../../database/entities").Notification[];
-            learningItems: import("../../database/entities").LearningItem[] | never[];
-            reviews: import("../../database/entities").LearningReview[] | never[];
+            learningItems: never[] | import("../../database/entities").LearningItem[];
+            reviews: never[] | import("../../database/entities").LearningReview[];
         };
     }>;
     upload(user: AuthenticatedUser, dto: UploadSyncDto): Promise<{

@@ -57,6 +57,7 @@ export declare class TimetablePeriod {
     sessionId: string;
     session?: object;
     name: string;
+    weekdays: number[];
     ordinal: number;
     startTime: string;
     endTime: string;
@@ -161,6 +162,22 @@ export declare class TimetableImport {
     actor?: object;
     filename: string;
     sheetName: string;
+    fingerprint: string;
+    sourceRows: Array<{
+        source: string;
+        provenance?: {
+            sheetName: string;
+            cellAddress: string;
+            masterCell: string;
+            blockId: string;
+            rawClassLabel: string;
+            rawSubjectLabel: string;
+            rawTeacherLabel: string;
+            rawPeriodLabel: string;
+            rawTimeLabel: string;
+            merged: boolean;
+        };
+    }>;
     rowCount: number;
     revision: number;
     createdAt: Date;

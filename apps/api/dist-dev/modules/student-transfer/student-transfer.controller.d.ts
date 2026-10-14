@@ -73,8 +73,8 @@ export declare class StudentTransferController {
             gradeId: string | number;
             educationTypeId: string;
             trackId: string;
-            registrationStatus: "ACTIVE" | "ACCOUNT_CREATED" | "IN_PROGRESS" | "WAITING_REVIEW" | "NEEDS_CORRECTION" | "APPROVED" | "REJECTED";
-            accountStatus: "active" | "archived" | "inactive";
+            registrationStatus: "APPROVED" | "REJECTED" | "ACCOUNT_CREATED" | "IN_PROGRESS" | "WAITING_REVIEW" | "NEEDS_CORRECTION" | "ACTIVE";
+            accountStatus: "active" | "inactive" | "archived";
         }[];
     }>;
 }

@@ -29,7 +29,7 @@ export declare class DormitoryController {
             building: string;
             floor: number;
             capacity: number;
-            status: "ARCHIVED" | "ACTIVE";
+            status: "ACTIVE" | "ARCHIVED";
             studentCount: number;
         };
     }>;

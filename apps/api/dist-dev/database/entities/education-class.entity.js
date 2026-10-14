@@ -15,12 +15,13 @@ const typeorm_1 = require("typeorm");
 const organization_entity_1 = require("./organization.entity");
 const user_entity_1 = require("./user.entity");
 const education_class_book_entity_1 = require("./education-class-book.entity");
-const education_class_enrollment_entity_1 = require("./education-class-enrollment.entity");
 let EducationClass = class EducationClass {
     id;
     organization;
     code;
     name;
+    academicYearId;
+    academicYear;
     schoolYear;
     gradeId;
     educationTypeId;
@@ -36,7 +37,7 @@ let EducationClass = class EducationClass {
     createdAt;
     updatedAt;
     static _OPENAPI_METADATA_FACTORY() {
-        return { id: { required: true, type: () => String }, organization: { required: true, type: () => require("./organization.entity").Organization }, code: { required: true, type: () => String }, name: { required: true, type: () => String }, schoolYear: { required: true, type: () => String }, gradeId: { required: true, type: () => Number }, educationTypeId: { required: true, type: () => String }, trackId: { required: true, type: () => String }, capacity: { required: true, type: () => Number }, status: { required: true, enum: ["ARCHIVED", "ACTIVE"] }, description: { required: true, type: () => String }, advisor: { required: false, type: () => require("./user.entity").User, nullable: true }, books: { required: true, type: () => [require("./education-class-book.entity").EducationClassBook] }, enrollments: { required: true, type: () => [require("./education-class-enrollment.entity").EducationClassEnrollment] }, timetableSectionId: { required: true, type: () => String, nullable: true }, timetableSection: { required: false, type: () => Object }, createdAt: { required: true, type: () => Date }, updatedAt: { required: true, type: () => Date } };
+        return { id: { required: true, type: () => String }, organization: { required: true, type: () => require("./organization.entity").Organization }, code: { required: true, type: () => String }, name: { required: true, type: () => String }, academicYearId: { required: true, type: () => String, nullable: true }, academicYear: { required: false, type: () => Object }, schoolYear: { required: true, type: () => String }, gradeId: { required: true, type: () => Number }, educationTypeId: { required: true, type: () => String }, trackId: { required: true, type: () => String }, capacity: { required: true, type: () => Number }, status: { required: true, enum: ["ARCHIVED", "ACTIVE"] }, description: { required: true, type: () => String }, advisor: { required: false, type: () => require("./user.entity").User, nullable: true }, books: { required: true, type: () => [require("./education-class-book.entity").EducationClassBook] }, enrollments: { required: true, type: () => [require("./education-class-enrollment.entity").EducationClassEnrollment] }, timetableSectionId: { required: true, type: () => String, nullable: true }, timetableSection: { required: false, type: () => Object }, createdAt: { required: true, type: () => Date }, updatedAt: { required: true, type: () => Date } };
     }
 };
 exports.EducationClass = EducationClass;
@@ -56,6 +57,15 @@ __decorate([
     (0, typeorm_1.Column)({ length: 160 }),
     __metadata("design:type", String)
 ], EducationClass.prototype, "name", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: "varchar", length: 36, nullable: true }),
+    __metadata("design:type", Object)
+], EducationClass.prototype, "academicYearId", void 0);
+__decorate([
+    (0, typeorm_1.ManyToOne)("TimetableAcademicYear", { nullable: true, onDelete: "RESTRICT" }),
+    (0, typeorm_1.JoinColumn)({ name: "academicYearId" }),
+    __metadata("design:type", Object)
+], EducationClass.prototype, "academicYear", void 0);
 __decorate([
     (0, typeorm_1.Column)({ length: 16 }),
     __metadata("design:type", String)
@@ -93,7 +103,7 @@ __decorate([
     __metadata("design:type", Array)
 ], EducationClass.prototype, "books", void 0);
 __decorate([
-    (0, typeorm_1.OneToMany)(() => education_class_enrollment_entity_1.EducationClassEnrollment, (enrollment) => enrollment.classroom),
+    (0, typeorm_1.OneToMany)("EducationClassEnrollment", (enrollment) => enrollment.classroom),
     __metadata("design:type", Array)
 ], EducationClass.prototype, "enrollments", void 0);
 __decorate([

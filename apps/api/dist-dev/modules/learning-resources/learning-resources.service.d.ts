@@ -24,7 +24,7 @@ export declare class LearningResourcesService {
         trackId: string;
         learnerProfile: "school" | "independent";
         independentType: "adult" | "gap_year" | "homeschool" | "other" | null | undefined;
-        accountStatus: "active" | "archived" | "inactive";
+        accountStatus: "active" | "inactive" | "archived";
     }[]>;
     listForStudent(actor: AuthenticatedUser, studentId?: string): Promise<LearningResource[]>;
     create(actor: AuthenticatedUser, dto: SaveLearningResourceDto): Promise<LearningResource>;

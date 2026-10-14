@@ -28,6 +28,30 @@ let TimetableController = class TimetableController {
     workspace(user, org, versionId, startsOn) {
         return this.timetable.workspace(user, org, versionId, startsOn).then(envelope_1.ok);
     }
+    attendanceReport(user, org, query) {
+        return this.timetable.attendanceReport(user, org, query).then(envelope_1.ok);
+    }
+    versions(u, org, query) {
+        return this.timetable.versions(u, org, query).then(envelope_1.ok);
+    }
+    occurrences(u, org, query) {
+        return this.timetable.occurrences(u, org, query).then(envelope_1.ok);
+    }
+    conflicts(u, id) {
+        return this.timetable.conflicts(u, id).then(envelope_1.ok);
+    }
+    history(u, id, page) {
+        return this.timetable.history(u, id, page).then(envelope_1.ok);
+    }
+    archive(u, id, dto) {
+        return this.timetable.archive(u, id, dto).then(envelope_1.ok);
+    }
+    bulkPreview(u, id, dto) {
+        return this.timetable.bulk(u, id, dto, true).then(envelope_1.ok);
+    }
+    bulk(u, id, dto) {
+        return this.timetable.bulk(u, id, dto).then(envelope_1.ok);
+    }
     config(user, org, dto) {
         return this.timetable.config(user, org, dto).then(envelope_1.ok);
     }
@@ -82,6 +106,93 @@ __decorate([
     __metadata("design:paramtypes", [Object, String, String, String]),
     __metadata("design:returntype", void 0)
 ], TimetableController.prototype, "workspace", null);
+__decorate([
+    (0, common_1.Get)(":organizationId/attendance-report"),
+    (0, capabilities_decorator_1.RequireCapabilities)("schedule.read.all"),
+    openapi.ApiResponse({ status: 200 }),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __param(1, (0, common_1.Param)("organizationId", common_1.ParseUUIDPipe)),
+    __param(2, (0, common_1.Query)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String, timetable_dto_1.TimetableQueryDto]),
+    __metadata("design:returntype", void 0)
+], TimetableController.prototype, "attendanceReport", null);
+__decorate([
+    (0, common_1.Get)(":organizationId/versions"),
+    (0, capabilities_decorator_1.RequireCapabilities)("schedule.read"),
+    openapi.ApiResponse({ status: 200 }),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __param(1, (0, common_1.Param)("organizationId", common_1.ParseUUIDPipe)),
+    __param(2, (0, common_1.Query)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String, timetable_dto_1.TimetableQueryDto]),
+    __metadata("design:returntype", void 0)
+], TimetableController.prototype, "versions", null);
+__decorate([
+    (0, common_1.Get)(":organizationId/occurrences"),
+    (0, capabilities_decorator_1.RequireCapabilities)("schedule.read"),
+    openapi.ApiResponse({ status: 200 }),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __param(1, (0, common_1.Param)("organizationId", common_1.ParseUUIDPipe)),
+    __param(2, (0, common_1.Query)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String, timetable_dto_1.TimetableQueryDto]),
+    __metadata("design:returntype", void 0)
+], TimetableController.prototype, "occurrences", null);
+__decorate([
+    (0, common_1.Get)("versions/:id/conflicts"),
+    (0, capabilities_decorator_1.RequireCapabilities)("schedule.read.all"),
+    openapi.ApiResponse({ status: 200 }),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __param(1, (0, common_1.Param)("id", common_1.ParseUUIDPipe)),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String]),
+    __metadata("design:returntype", void 0)
+], TimetableController.prototype, "conflicts", null);
+__decorate([
+    (0, common_1.Get)("versions/:id/history"),
+    (0, capabilities_decorator_1.RequireCapabilities)("schedule.read.all"),
+    openapi.ApiResponse({ status: 200 }),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __param(1, (0, common_1.Param)("id", common_1.ParseUUIDPipe)),
+    __param(2, (0, common_1.Query)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String, timetable_dto_1.TimetablePageDto]),
+    __metadata("design:returntype", void 0)
+], TimetableController.prototype, "history", null);
+__decorate([
+    (0, common_1.Post)("versions/:id/archive"),
+    (0, capabilities_decorator_1.RequireCapabilities)("schedule.archive"),
+    openapi.ApiResponse({ status: 201 }),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __param(1, (0, common_1.Param)("id", common_1.ParseUUIDPipe)),
+    __param(2, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String, timetable_dto_1.TimetablePublishDto]),
+    __metadata("design:returntype", void 0)
+], TimetableController.prototype, "archive", null);
+__decorate([
+    (0, common_1.Post)("versions/:id/bulk/preview"),
+    (0, capabilities_decorator_1.RequireCapabilities)("schedule.update"),
+    openapi.ApiResponse({ status: 201 }),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __param(1, (0, common_1.Param)("id", common_1.ParseUUIDPipe)),
+    __param(2, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String, timetable_dto_1.TimetableBulkDto]),
+    __metadata("design:returntype", void 0)
+], TimetableController.prototype, "bulkPreview", null);
+__decorate([
+    (0, common_1.Post)("versions/:id/bulk"),
+    (0, capabilities_decorator_1.RequireCapabilities)("schedule.update"),
+    openapi.ApiResponse({ status: 201 }),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __param(1, (0, common_1.Param)("id", common_1.ParseUUIDPipe)),
+    __param(2, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String, timetable_dto_1.TimetableBulkDto]),
+    __metadata("design:returntype", void 0)
+], TimetableController.prototype, "bulk", null);
 __decorate([
     (0, common_1.Post)(":organizationId/config"),
     (0, capabilities_decorator_1.RequireCapabilities)("schedule.update"),

@@ -81,7 +81,7 @@ let AuthService = class AuthService {
         });
         if (!user || !(await bcryptjs_1.default.compare(password, user.passwordHash))) {
             await this.throttle?.failure(ip, normalizedPhoneNumber);
-            throw new api_exception_1.ApiException(401, "UNAUTHORIZED", "نام کاربری یا رمز عبور نادرست است.");
+            throw new api_exception_1.ApiException(401, "UNAUTHORIZED", "رمز عبور نادرست است.");
         }
         if (user.status && user.status !== user_entity_2.UserStatus.ACTIVE)
             throw new api_exception_1.ApiException(403, "ACCOUNT_INACTIVE", "حساب کاربری غیرفعال یا بایگانی شده است.");
