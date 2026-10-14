@@ -7,6 +7,7 @@ Date: 2026-10-14
 | Area | Evidence | Result |
 | --- | --- | --- |
 | Versioned schedule and attendance integrity | `apps/api/test/timetable.service.spec.ts` | 21 passing integration tests |
+| Disposable SQLite migration and recovery rehearsal | academic foundation, import idempotency, and persistence migration suites | 21 passing tests |
 | Import parsing, mapping, confirmation, and client validation | timetable workbook/mapping/wizard tests | 10 passing focused Admin tests |
 | Responsive principal/student timetable workflows | `TimetablePage.test.tsx` | 10 passing tests |
 | API types and capability declarations | `npm run contracts:check` | passed |
@@ -37,7 +38,8 @@ receive a capability that would bypass those checks.
 The following are intentionally not claimed as complete from this checkout:
 
 - a real browser session at mobile/tablet/desktop breakpoints;
-- a deployed API/database migration rehearsal with a production backup;
+- a deployed API/database migration rehearsal with a production backup (the
+  disposable SQLite migration/recovery rehearsal is verified above);
 - importing the supplied ambiguous workbook into a real school draft after
   staff have mapped identities and repaired its malformed time labels;
 - a live notification-provider delivery check;
