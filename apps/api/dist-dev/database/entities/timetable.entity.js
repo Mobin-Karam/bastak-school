@@ -294,12 +294,13 @@ let TimetablePeriod = class TimetablePeriod {
     sessionId;
     session;
     name;
+    weekdays;
     ordinal;
     startTime;
     endTime;
     createdAt;
     static _OPENAPI_METADATA_FACTORY() {
-        return { id: { required: true, type: () => String }, sessionId: { required: true, type: () => String }, session: { required: false, type: () => Object }, name: { required: true, type: () => String }, ordinal: { required: true, type: () => Number }, startTime: { required: true, type: () => String }, endTime: { required: true, type: () => String }, createdAt: { required: true, type: () => Date } };
+        return { id: { required: true, type: () => String }, sessionId: { required: true, type: () => String }, session: { required: false, type: () => Object }, name: { required: true, type: () => String }, weekdays: { required: true, type: () => [Number] }, ordinal: { required: true, type: () => Number }, startTime: { required: true, type: () => String }, endTime: { required: true, type: () => String }, createdAt: { required: true, type: () => Date } };
     }
 };
 exports.TimetablePeriod = TimetablePeriod;
@@ -320,6 +321,10 @@ __decorate([
     (0, typeorm_1.Column)({ type: "varchar", length: 240 }),
     __metadata("design:type", String)
 ], TimetablePeriod.prototype, "name", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: "simple-json", default: "[]" }),
+    __metadata("design:type", Array)
+], TimetablePeriod.prototype, "weekdays", void 0);
 __decorate([
     (0, typeorm_1.Column)({ type: "integer", default: 0 }),
     __metadata("design:type", Number)

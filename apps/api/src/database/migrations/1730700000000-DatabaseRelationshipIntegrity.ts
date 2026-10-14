@@ -38,6 +38,12 @@ export class DatabaseRelationshipIntegrity1730700000000 implements MigrationInte
     await q.query("PRAGMA legacy_alter_table = ON");
     try {
       await q.startTransaction();
+      // A scoped role without a membership grants no valid authority. It cannot
+      // be assigned to a school safely, so discard the orphaned legacy grant
+      // before enforcing the membership/role invariant.
+      await q.query(`DELETE FROM user_role_assignments
+        WHERE membershipId IS NULL
+          AND roleId IN (SELECT id FROM roles WHERE organizationScoped=1)`);
       await this.preflight(q);
       // Repair historical generic STUDENT accounts only when their ownership is
       // unambiguous. Existing student records and their status are never replaced.

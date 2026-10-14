@@ -6,7 +6,7 @@ export declare class AttendanceController {
     constructor(attendance: AttendanceService);
     savedSession(user: AuthenticatedUser, id: string): Promise<{
         ok: boolean;
-        data: import("@moshaver/api-contract").AttendanceSessionDetail;
+        data: AttendanceSessionDetail;
     }>;
     savedSessionHistory(user: AuthenticatedUser, id: string): Promise<{
         ok: boolean;

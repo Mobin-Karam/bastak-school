@@ -277,6 +277,18 @@ describe("relationship integrity upgrade preserves populated SQLite", () => {
       ),
     ).rejects.toThrow();
   });
+  it("removes orphaned organization-scoped assignments instead of guessing a school", async () => {
+    await db.query(
+      "INSERT INTO user_role_assignments(id,userId,roleId) SELECT 'orphaned-student-role',?,id FROM roles WHERE code='STUDENT'",
+      [user.id],
+    );
+    await upgrade();
+    expect(
+      await db.query(
+        "SELECT * FROM user_role_assignments WHERE id='orphaned-student-role'",
+      ),
+    ).toEqual([]);
+  });
   it("repairs an existing student-role account without a profile in its assigned school", async () => {
     await db.query(
       "INSERT INTO organization_memberships(id,userId,organizationId) VALUES('student-member',?,?)",

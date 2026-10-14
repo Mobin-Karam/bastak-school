@@ -55,6 +55,11 @@ let ClassesController = class ClassesController {
     books(actor, id, dto) {
         return this.classes.setBooks(actor, id, dto).then(envelope_1.ok);
     }
+    history(actor, id, page) {
+        return this.classes
+            .enrollmentHistory(actor, id, page.offset, page.limit)
+            .then(envelope_1.ok);
+    }
     enrollments(actor, id, dto) {
         return this.classes.setEnrollments(actor, id, dto).then(envelope_1.ok);
     }
@@ -168,6 +173,17 @@ __decorate([
     __metadata("design:paramtypes", [Object, String, classes_dto_1.SetClassBooksDto]),
     __metadata("design:returntype", void 0)
 ], ClassesController.prototype, "books", null);
+__decorate([
+    (0, common_1.Get)("classes/:id/enrollments/history"),
+    (0, capabilities_decorator_1.RequireCapabilities)("classes.roster.manage"),
+    openapi.ApiResponse({ status: 200 }),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __param(1, (0, common_1.Param)("id")),
+    __param(2, (0, common_1.Query)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String, classes_dto_1.ClassHistoryQueryDto]),
+    __metadata("design:returntype", void 0)
+], ClassesController.prototype, "history", null);
 __decorate([
     (0, common_1.Put)("classes/:id/enrollments"),
     (0, capabilities_decorator_1.RequireCapabilities)("classes.roster.manage"),

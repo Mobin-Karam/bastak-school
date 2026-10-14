@@ -1,12 +1,92 @@
 import { AuthenticatedUser } from "../auth";
 import { TimetableService } from "./timetable.service";
-import { TimetableAttendanceDto, TimetableConfigDto, TimetableImportDto, TimetableLessonWriteDto, TimetableOverrideDto, TimetablePublishDto, TimetableRevisionDto, TimetableVersionDto } from "./timetable.dto";
+import { TimetableQueryDto, TimetablePageDto, TimetableBulkDto, TimetableAttendanceDto, TimetableConfigDto, TimetableImportDto, TimetableLessonWriteDto, TimetableOverrideDto, TimetablePublishDto, TimetableRevisionDto, TimetableVersionDto } from "./timetable.dto";
 export declare class TimetableController {
     private readonly timetable;
     constructor(timetable: TimetableService);
     workspace(user: AuthenticatedUser, org: string, versionId?: string, startsOn?: string): Promise<{
         ok: boolean;
-        data: import("@moshaver/api-contract").TimetableWorkspace;
+        data: TimetableWorkspace;
+    }>;
+    versions(u: AuthenticatedUser, org: string, query: TimetableQueryDto): Promise<{
+        ok: boolean;
+        data: {
+            items: VersionContract[];
+            total: number;
+            offset: number;
+            limit: number;
+        };
+    }>;
+    occurrences(u: AuthenticatedUser, org: string, query: TimetableQueryDto): Promise<{
+        ok: boolean;
+        data: {
+            items: any;
+            total: any;
+            offset: number;
+            limit: number;
+        };
+    }>;
+    conflicts(u: AuthenticatedUser, id: string): Promise<{
+        ok: boolean;
+        data: {
+            revision: number;
+            conflicts: TimetableConflict[];
+        };
+    }>;
+    history(u: AuthenticatedUser, id: string, page: TimetablePageDto): Promise<{
+        ok: boolean;
+        data: {
+            items: {
+                createdAt: string;
+                id: string;
+                versionId: string;
+                version?: object;
+                lessonId: string | null;
+                lesson?: object;
+                action: string;
+                reason: string;
+                actorId: string;
+                actor?: object;
+                actorName: string;
+                beforeText: string;
+                afterText: string;
+            }[];
+            total: number;
+            offset: number;
+            limit: number;
+        };
+    }>;
+    archive(u: AuthenticatedUser, id: string, dto: TimetablePublishDto): Promise<{
+        ok: boolean;
+        data: VersionContract;
+    }>;
+    bulkPreview(u: AuthenticatedUser, id: string, dto: TimetableBulkDto): Promise<{
+        ok: boolean;
+        data: {
+            valid: boolean;
+            conflicts: TimetableConflict[];
+            revision: number;
+            ids?: undefined;
+        } | {
+            ids: string[];
+            revision: number;
+            valid?: undefined;
+            conflicts?: undefined;
+        };
+    }>;
+    bulk(u: AuthenticatedUser, id: string, dto: TimetableBulkDto): Promise<{
+        ok: boolean;
+        data: {
+            valid: boolean;
+            conflicts: TimetableConflict[];
+            revision: number;
+            ids?: undefined;
+        } | {
+            ids: string[];
+            revision: number;
+            valid?: undefined;
+            conflicts?: undefined;
+        };
     }>;
     config(user: AuthenticatedUser, org: string, dto: TimetableConfigDto): Promise<{
         ok: boolean;
@@ -14,12 +94,12 @@ export declare class TimetableController {
     }>;
     create(user: AuthenticatedUser, org: string, dto: TimetableVersionDto): Promise<{
         ok: boolean;
-        data: import("@moshaver/api-contract").TimetableVersion;
+        data: VersionContract;
     }>;
     lesson(user: AuthenticatedUser, id: string, dto: TimetableLessonWriteDto): Promise<{
         ok: boolean;
         data: {
-            conflicts: import("@moshaver/api-contract").TimetableConflict[];
+            conflicts: TimetableConflict[];
             id?: undefined;
             revision?: undefined;
         } | {
@@ -31,7 +111,7 @@ export declare class TimetableController {
     preview(user: AuthenticatedUser, id: string, dto: TimetableLessonWriteDto): Promise<{
         ok: boolean;
         data: {
-            conflicts: import("@moshaver/api-contract").TimetableConflict[];
+            conflicts: TimetableConflict[];
             id?: undefined;
             revision?: undefined;
         } | {
@@ -43,7 +123,7 @@ export declare class TimetableController {
     update(user: AuthenticatedUser, id: string, lessonId: string, dto: TimetableLessonWriteDto): Promise<{
         ok: boolean;
         data: {
-            conflicts: import("@moshaver/api-contract").TimetableConflict[];
+            conflicts: TimetableConflict[];
             id?: undefined;
             revision?: undefined;
         } | {
@@ -55,7 +135,7 @@ export declare class TimetableController {
     previewUpdate(user: AuthenticatedUser, id: string, lessonId: string, dto: TimetableLessonWriteDto): Promise<{
         ok: boolean;
         data: {
-            conflicts: import("@moshaver/api-contract").TimetableConflict[];
+            conflicts: TimetableConflict[];
             id?: undefined;
             revision?: undefined;
         } | {
@@ -72,7 +152,7 @@ export declare class TimetableController {
     }>;
     publish(user: AuthenticatedUser, id: string, dto: TimetablePublishDto): Promise<{
         ok: boolean;
-        data: import("@moshaver/api-contract").TimetableVersion;
+        data: VersionContract;
     }>;
     override(user: AuthenticatedUser, id: string, dto: TimetableOverrideDto): Promise<{
         ok: boolean;
@@ -107,7 +187,7 @@ export declare class TimetableController {
                 source: string;
                 errors: string[];
             }[];
-            conflicts: import("@moshaver/api-contract").TimetableConflict[];
+            conflicts: TimetableConflict[];
         };
     }>;
     import(user: AuthenticatedUser, id: string, dto: TimetableImportDto): Promise<{
@@ -121,7 +201,7 @@ export declare class TimetableController {
         ok: boolean;
         data: {
             sessionId: string;
-            cancelled: boolean;
+            cancelled: any;
         };
     }>;
 }

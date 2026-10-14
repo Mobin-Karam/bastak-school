@@ -57,6 +57,7 @@ export declare class TimetablePeriod {
     sessionId: string;
     session?: object;
     name: string;
+    weekdays: number[];
     ordinal: number;
     startTime: string;
     endTime: string;
