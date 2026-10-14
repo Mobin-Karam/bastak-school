@@ -2393,6 +2393,7 @@ export class TimetableService {
           filename: dto.filename,
           sheetName: dto.sheetName,
           fingerprint,
+          sourceRows: dto.rows.map(({ source, provenance }) => ({ source, provenance })),
           rowCount: dto.rows.length,
           revision: version.revision,
         }),

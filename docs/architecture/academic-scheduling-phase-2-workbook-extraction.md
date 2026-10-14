@@ -108,3 +108,11 @@ allowlisted lesson mapping and source coordinates; it does not trust a
 client-provided entity/table selector. A stale network retry of the same mapping
 is replay-safe after server authorization, while a changed mapping remains
 subject to the normal draft revision, preview, conflict, and transaction checks.
+
+Phase 3 provenance update: `1731100000000-TimetableImportSourceRows` retains a
+bounded snapshot for every submitted row: source sheet/cell, merged-cell master,
+detected block, and the workbook labels for class, subject, teacher, period, and
+time. These labels are evidence for review and recovery, not database authority.
+The service persists them only alongside a successfully server-validated import;
+the organization-scoped class/book/teacher/period IDs remain the only values used
+to create timetable lessons.

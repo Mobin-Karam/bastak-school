@@ -140,6 +140,18 @@ describe("timetable import confirmation", () => {
     await screen.findByText("نگاشت معتبر؛ آماده ورود به پیش‌نویس");
     const expected = {
       source: "اصلی!4:3",
+      provenance: {
+        sheetName: "اصلی",
+        cellAddress: "4:3",
+        masterCell: "4:3",
+        blockId: "2:2",
+        rawClassLabel: "اول",
+        rawSubjectLabel: "نحو",
+        rawTeacherLabel: "احمد کریمی",
+        rawPeriodLabel: "زنگ اول",
+        rawTimeLabel: "8:00-8:50",
+        merged: false,
+      },
       lesson: {
         classroomId: "class",
         classBookId: "course",

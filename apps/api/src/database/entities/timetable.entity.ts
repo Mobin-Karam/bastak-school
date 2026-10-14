@@ -266,6 +266,22 @@ export class TimetableImport {
   @Column({ type: "varchar", length: 240 }) sheetName!: string;
   /** Stable server-derived identity of the approved source-to-lesson mapping. */
   @Column({ type: "varchar", length: 64 }) fingerprint!: string;
+  /** Raw source labels retained for audit; resolved IDs remain on the lesson rows. */
+  @Column({ type: "simple-json", default: "[]" }) sourceRows!: Array<{
+    source: string;
+    provenance?: {
+      sheetName: string;
+      cellAddress: string;
+      masterCell: string;
+      blockId: string;
+      rawClassLabel: string;
+      rawSubjectLabel: string;
+      rawTeacherLabel: string;
+      rawPeriodLabel: string;
+      rawTimeLabel: string;
+      merged: boolean;
+    };
+  }>;
   @Column({ type: "integer", default: 0 }) rowCount!: number;
   @Column({ type: "integer", default: 0 }) revision!: number;
   @CreateDateColumn() createdAt!: Date;

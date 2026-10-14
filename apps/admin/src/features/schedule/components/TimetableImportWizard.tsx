@@ -100,6 +100,7 @@ export function TimetableImportWizard({
           throw Error(`نگاشت ناقص: ${x.source}`);
         return {
           source: x.source,
+          provenance: x.provenance,
           lesson: {
             classroomId: mapping[`class:${x.classLabel}`],
             classBookId: mapping[`book:${x.classLabel}|${x.subjectLabel}`],

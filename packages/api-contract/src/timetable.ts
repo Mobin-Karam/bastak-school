@@ -147,8 +147,21 @@ export type TimetableChange = {
   beforeText: string;
   afterText: string;
 };
+export type TimetableImportProvenance = {
+  sheetName: string;
+  cellAddress: string;
+  masterCell: string;
+  blockId: string;
+  rawClassLabel: string;
+  rawSubjectLabel: string;
+  rawTeacherLabel: string;
+  rawPeriodLabel: string;
+  rawTimeLabel: string;
+  merged: boolean;
+};
 export type TimetableImportRow = {
   source: string;
+  provenance?: TimetableImportProvenance;
   lesson: TimetableLessonDraft;
 };
 export type TimetableImportPreview = {

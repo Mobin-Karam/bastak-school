@@ -2,6 +2,7 @@ import "reflect-metadata";
 import { DataSource } from "typeorm";
 import { migratedDatabase } from "./helpers/migrated-database";
 import { TimetableImportIdempotency1731000000000 } from "../src/database/migrations/1731000000000-TimetableImportIdempotency";
+import { TimetableImportSourceRows1731100000000 } from "../src/database/migrations/1731100000000-TimetableImportSourceRows";
 import {
   Organization,
   OrganizationType,
@@ -17,7 +18,7 @@ describe("timetable import idempotency migration", () => {
   let db: DataSource;
 
   beforeEach(async () => {
-    db = await migratedDatabase(true, ["1731000000000"]);
+    db = await migratedDatabase(true, ["1731000000000", "1731100000000"]);
   });
   afterEach(async () => {
     await db.destroy();
@@ -28,6 +29,7 @@ describe("timetable import idempotency migration", () => {
     await q.startTransaction();
     try {
       await new TimetableImportIdempotency1731000000000().up(q);
+      await new TimetableImportSourceRows1731100000000().up(q);
       await q.commitTransaction();
     } catch (error) {
       await q.rollbackTransaction();
@@ -77,9 +79,9 @@ describe("timetable import idempotency migration", () => {
 
     expect(
       await db.query(
-        `SELECT fingerprint FROM timetable_imports WHERE id = 'legacy-import'`,
+        `SELECT fingerprint, sourceRows FROM timetable_imports WHERE id = 'legacy-import'`,
       ),
-    ).toEqual([{ fingerprint: "legacy-legacy-import" }]);
+    ).toEqual([{ fingerprint: "legacy-legacy-import", sourceRows: "[]" }]);
     await expect(
       db.query(
         `INSERT INTO timetable_imports(id,versionId,actorId,filename,sheetName,fingerprint,rowCount,revision) VALUES('second',?,?, 'retry.xlsx','اصلی','legacy-legacy-import',1,1)`,

@@ -739,7 +739,24 @@ describe("versioned timetable integration (migration-built SQLite)", () => {
       expectedRevision: 0,
       filename: "مبین.xlsx",
       sheetName: "اصلی",
-      rows: [{ source: "اصلی!C4", lesson }],
+      rows: [
+        {
+          source: "اصلی!C4",
+          provenance: {
+            sheetName: "اصلی",
+            cellAddress: "C4",
+            masterCell: "C4",
+            blockId: "2:2",
+            rawClassLabel: "اول",
+            rawSubjectLabel: "نحو",
+            rawTeacherLabel: "استاد",
+            rawPeriodLabel: "زنگ اول",
+            rawTimeLabel: "08:00-09:00",
+            merged: false,
+          },
+          lesson,
+        },
+      ],
     };
     expect(await service.commitImport(staff, draftId, body)).toMatchObject({
       imported: 1,
@@ -753,6 +770,16 @@ describe("versioned timetable integration (migration-built SQLite)", () => {
     });
     expect(await db.manager.count(SchoolScheduleEntry)).toBe(1);
     expect(await db.manager.count(entities.TimetableImport)).toBe(1);
+    expect(
+      await db.manager.findOneByOrFail(entities.TimetableImport, { versionId: draftId }),
+    ).toMatchObject({
+      sourceRows: [
+        {
+          source: "اصلی!C4",
+          provenance: expect.objectContaining({ rawSubjectLabel: "نحو" }),
+        },
+      ],
+    });
   });
   it("allows multiple import batches while enforcing complete allocations at publication", async () => {
     await service.config(staff, org.id, {
