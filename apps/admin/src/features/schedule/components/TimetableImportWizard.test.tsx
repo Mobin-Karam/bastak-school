@@ -1,6 +1,6 @@
 import { LocaleProvider } from "../../../shared/ui/locale";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { TimetableWorkspace } from "@moshaver/api-contract";
@@ -105,6 +105,26 @@ beforeEach(() => {
   mocks.commit.mockReset().mockResolvedValue({ imported: 1, revision: 1 });
 });
 describe("timetable import confirmation", () => {
+  it("rejects non-xlsx uploads before parsing workbook content", async () => {
+    render(
+      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+        <LocaleProvider>
+          <TimetableImportWizard
+            workspace={workspace}
+            versionId="version"
+            open
+            onClose={vi.fn()}
+            onSaved={vi.fn()}
+          />
+        </LocaleProvider>
+      </QueryClientProvider>,
+    );
+    fireEvent.change(screen.getByLabelText("فایل اکسل"), {
+      target: { files: [new File(["not a workbook"], "legacy.xls")] },
+    });
+    expect(await screen.findByRole("alert")).toHaveTextContent("فقط فایل Excel با پسوند .xlsx قابل ورود است.");
+    expect(mocks.preview).not.toHaveBeenCalled();
+  });
   it("previews real relationship IDs before committing and retains mapping for another batch", async () => {
     const saved = vi.fn(),
       closed = vi.fn();

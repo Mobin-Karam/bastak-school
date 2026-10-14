@@ -72,6 +72,10 @@ The current parser reports 47 rows for `17:00-17-50`, 21 rows for
 weekday, and 7 rows with `10:20:11:00`. These are staging errors, not data to
 coerce or publish.
 
+The import wizard accepts only `.xlsx` files up to 10 MiB before parsing.
+Server preview errors and conflicts can be downloaded as a Persian Excel report
+for operator remediation; a report download does not change the draft.
+
 ## Contract comparison
 
 `TimetableImportRow` currently requires a resolved `classroomId`, `classBookId`,
