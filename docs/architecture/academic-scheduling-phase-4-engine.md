@@ -36,6 +36,10 @@ occurrences:
 - teachers receive their assigned lessons and dated substitute assignments;
 - only `schedule.read.all` receives the school-wide management workspace.
 
+The Guardian page uses the child-scoped occurrence feed for its daily school
+schedule card, so dated cancellations and substitutions are displayed instead
+of being masked by the legacy recurring-schedule projection.
+
 Attendance is linked by `(lessonId, date)` to a schedule occurrence. Opening a
 session is idempotent, rejects a cancelled, superseded, unpublished, or
 non-current-day occurrence, and permits the effective teacher for that date.

@@ -687,21 +687,26 @@ describe("versioned timetable integration (migration-built SQLite)", () => {
         status: RelationshipStatus.ACTIVE,
       }),
     );
+    const guardianActor = {
+      ...studentActor,
+      id: guardian.id,
+      username: guardian.username,
+      role: "GUARDIAN",
+      roles: ["GUARDIAN"],
+    };
+    expect(
+      (await service.workspace(guardianActor, org.id, undefined, "2026-01-04")).lessons,
+    ).toHaveLength(1);
     expect(
       (
-        await service.workspace(
-          {
-            ...studentActor,
-            id: guardian.id,
-            username: guardian.username,
-            role: "GUARDIAN",
-            roles: ["GUARDIAN"],
-          },
-          org.id,
-          undefined,
-          "2026-01-04",
-        )
-      ).lessons,
+        await service.occurrences(guardianActor, org.id, {
+          studentId: studentRecord.id,
+          startsOn: "2026-01-04",
+          endsOn: "2026-01-04",
+          offset: 0,
+          limit: 50,
+        })
+      ).items,
     ).toHaveLength(1);
     await expect(
       service.writeLesson(staff, draftId, { expectedRevision: 2, lesson }),

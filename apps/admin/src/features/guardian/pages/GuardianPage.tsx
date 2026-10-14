@@ -5,6 +5,7 @@ import { useAuth } from "../../auth";
 import { getAdminDashboard } from "../../dashboard/api/dashboard.api";
 import { DashboardCalendar } from "../../dashboard/components/DashboardCalendar";
 import { listSchedule } from "../../schedule/api/schedule.api";
+import { listTimetableOccurrences } from "../../schedule/api/timetable.api";
 import { todayIso } from "../../../shared/lib/utils";
 import { useLocale } from "../../../shared/ui/locale";
 import { Badge, Button, Card, EmptyState, ErrorState, Field, Select } from "../../../shared/ui/ui";
@@ -74,6 +75,18 @@ export function GuardianPage() {
     queryKey: ["schedule", "guardian"],
     queryFn: listSchedule,
   });
+  const timetable = useQuery({
+    queryKey: ["guardian", studentId, "timetable", calendarDate, auth.context?.activeOrganization?.id],
+    queryFn: () =>
+      listTimetableOccurrences(auth.context!.activeOrganization!.id, {
+        studentId,
+        startsOn: calendarDate,
+        endsOn: calendarDate,
+        view: "DAILY",
+        limit: 200,
+      }),
+    enabled: enabled && !!auth.context?.activeOrganization?.id && auth.can("schedule.read"),
+  });
   const detailQueries = [dashboard, progress, schedule, exams, reports, attendance];
   const loading = children.isLoading || (enabled && detailQueries.some((query) => query.isLoading));
   const failed = children.isError || detailQueries.some((query) => query.isError);
@@ -82,6 +95,7 @@ export function GuardianPage() {
   const selectedSchoolClasses = (schoolSchedule.data ?? []).filter(
     (entry) => entry.status === "ACTIVE" && entry.weekday === selectedWeekday,
   );
+  const selectedTimetableLessons = timetable.data?.items ?? [];
   const prayer = schoolHome.data?.home?.prayer;
   const prayerTimes = prayer && "times" in prayer ? prayer.times : null;
 
@@ -137,23 +151,29 @@ export function GuardianPage() {
             <CalendarDays size={18} className="text-brand" /> برنامه مدرسه
           </h2>
           <div className="mt-3 grid gap-2">
-            {selectedSchoolClasses.slice(0, 3).map((entry) => (
+            {selectedTimetableLessons.slice(0, 6).map((entry) => (
               <div
-                key={entry.id}
-                className="flex items-center gap-3 rounded-lg border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-muted))] p-3 text-sm"
+                key={`${entry.id}:${entry.date}`}
+                className={`flex items-center gap-3 rounded-lg border border-[rgb(var(--border-subtle))] p-3 text-sm ${entry.cancelled ? "bg-rose-50 text-rose-800 dark:bg-rose-950/30 dark:text-rose-100" : "bg-[rgb(var(--surface-muted))]"}`}
               >
                 <Clock3 size={16} className="shrink-0 text-brand" />
                 <div className="min-w-0 flex-1">
                   <p className="truncate font-bold text-ink">{entry.title}</p>
                   <p className="mt-1 text-xs text-slate-500">
-                    {entry.startTime} تا {entry.endTime}
-                    {entry.room ? ` · ${entry.room}` : ""}
+                    {entry.startTime} تا {entry.endTime} · {entry.teacherName}
+                    {entry.locationName ? ` · ${entry.locationName}` : ""}
                   </p>
+                  {entry.cancelled ? <p className="mt-1 text-xs">لغو شده</p> : null}
+                  {entry.changeReason ? (
+                    <p className="mt-1 text-xs text-amber-700 dark:text-amber-300">{entry.changeReason}</p>
+                  ) : null}
                 </div>
               </div>
             ))}
-            {!selectedSchoolClasses.length ? (
-              <EmptyState title="برنامه‌ای برای این روز ثبت نشده است." />
+            {!selectedTimetableLessons.length ? (
+              <EmptyState
+                title={timetable.isLoading ? "دریافت برنامه کلاس‌ها…" : "برنامه‌ای برای این روز ثبت نشده است."}
+              />
             ) : null}
           </div>
         </Card>
