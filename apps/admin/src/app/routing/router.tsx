@@ -5,6 +5,7 @@ import { Button } from "../../shared/ui/ui";
 import { useAdminShellCopy } from "../../shared/ui/locale";
 import {
   isSupportedAdminPortalRole,
+  isReleasedSchoolPortalRole,
   LoginPage,
   LoginSuccessSplash,
   UnsupportedRoleModal,
@@ -149,6 +150,7 @@ function ProtectedRoute() {
   }
   if (auth.status !== "authenticated") return <Navigate to="/login" replace />;
   if (!isSupportedAdminPortalRole(auth.activeRole)) return <UnsupportedRoleModal />;
+  if (!isReleasedSchoolPortalRole(auth.activeRole)) return <UnsupportedRoleModal />;
   if (showLoginSplash) return <LoginSuccessSplash />;
   return <Outlet />;
 }

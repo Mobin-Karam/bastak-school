@@ -32,6 +32,7 @@ const conversation_member_entity_2 = require("../../database/entities/conversati
 const conversation_entity_2 = require("../../database/entities/conversation.entity");
 const organization_membership_entity_2 = require("../../database/entities/organization-membership.entity");
 const user_relationship_entity_2 = require("../../database/entities/user-relationship.entity");
+const authorization_1 = require("../authorization");
 const realtime_1 = require("../realtime");
 const notifications_1 = require("../notifications");
 let ChatService = class ChatService {
@@ -47,8 +48,9 @@ let ChatService = class ChatService {
     orgMembers;
     roleAssignments;
     db;
+    authorization;
     notifications;
-    constructor(messages, students, users, realtime, conversationsRepo, members, reactions, configurationRepo, relationships, orgMembers, roleAssignments, db, notifications) {
+    constructor(messages, students, users, realtime, conversationsRepo, members, reactions, configurationRepo, relationships, orgMembers, roleAssignments, db, authorization, notifications) {
         this.messages = messages;
         this.students = students;
         this.users = users;
@@ -61,6 +63,7 @@ let ChatService = class ChatService {
         this.orgMembers = orgMembers;
         this.roleAssignments = roleAssignments;
         this.db = db;
+        this.authorization = authorization;
         this.notifications = notifications;
     }
     defaultEmojis = ["❤️", "👍", "😂", "👏", "😮", "😢", "🔥", "🎉", "🙏", "✅"];
@@ -78,7 +81,7 @@ let ChatService = class ChatService {
         return { allowedEmojis };
     }
     async profile(actor, userId) {
-        if (actor.id !== userId && !(await this.directAllowed(actor.id, userId)) && !(await this.shareConversation(actor.id, userId)))
+        if (actor.id !== userId && !(await this.directAllowed(actor, userId)) && !(await this.shareConversation(actor.id, userId)))
             throw new api_exception_1.ApiException(404, "PROFILE_NOT_FOUND", "پروفایل گفتگو پیدا نشد.");
         const user = await this.users.findOne({ where: { id: userId }, relations: { student: true } });
         if (!user)
@@ -215,7 +218,7 @@ let ChatService = class ChatService {
         if (peerUserId === user.id)
             throw new api_exception_1.ApiException(400, "INVALID_PEER", "گفتگو با خودتان ممکن نیست.");
         const peer = await this.users.findOneByOrFail({ id: peerUserId });
-        if (!scopeVerified && !(await this.directAllowed(user.id, peerUserId)))
+        if (!scopeVerified && !(await this.directAllowed(user, peerUserId)))
             throw new api_exception_1.ApiException(403, "CHAT_POLICY_DENIED", "این ارتباط برای گفتگوی مستقیم مجاز نیست.");
         const mine = await this.members.find({
             where: { user: { id: user.id }, leftAt: (0, typeorm_2.IsNull)() },
@@ -252,7 +255,7 @@ let ChatService = class ChatService {
         if (!title.trim() || ids.length < 2)
             throw new api_exception_1.ApiException(400, "INVALID_GROUP", "عنوان و حداقل دو عضو لازم است.");
         for (const id of ids)
-            if (id !== user.id && !(await this.directAllowed(user.id, id)))
+            if (id !== user.id && !(await this.directAllowed(user, id)))
                 throw new api_exception_1.ApiException(403, "CHAT_POLICY_DENIED", "یکی از اعضا برای گفتگو مجاز نیست.");
         return this.db.transaction(async (manager) => {
             const owner = await manager.findOneByOrFail(user_entity_1.User, { id: user.id });
@@ -355,7 +358,7 @@ let ChatService = class ChatService {
             if (existing.has(candidate.id) ||
                 !this.userSearch(candidate).includes(query))
                 continue;
-            if (await this.directAllowed(user.id, candidate.id))
+            if (await this.directAllowed(user, candidate.id))
                 out.push(this.publicUser(candidate));
             if (out.length >= 15)
                 break;
@@ -372,7 +375,7 @@ let ChatService = class ChatService {
             if (candidate.id === user.id ||
                 !this.userSearch(candidate).includes(query))
                 continue;
-            if (await this.directAllowed(user.id, candidate.id))
+            if (await this.directAllowed(user, candidate.id))
                 out.push(this.publicUser(candidate));
             if (out.length >= 15)
                 break;
@@ -381,7 +384,7 @@ let ChatService = class ChatService {
     }
     async addMember(user, id, targetUserId) {
         await this.requireManager(user.id, id);
-        if (!(await this.directAllowed(user.id, targetUserId)))
+        if (!(await this.directAllowed(user, targetUserId)))
             throw new api_exception_1.ApiException(403, "CHAT_POLICY_DENIED", "این کاربر قابل افزودن نیست.");
         const conversation = await this.conversationsRepo.findOneByOrFail({ id });
         const account = await this.users.findOneByOrFail({ id: targetUserId });
@@ -642,7 +645,7 @@ let ChatService = class ChatService {
             if (!student?.guardianChatReadOnly)
                 continue;
             const allowed = await this.relationships.exist({ where: { fromUser: { id: user.id }, toStudent: { id: student.id }, type: user_relationship_entity_2.RelationshipType.GUARDIAN_OF, status: user_relationship_entity_2.RelationshipStatus.ACTIVE } });
-            if (allowed)
+            if (allowed && await this.authorization.canAccessStudent(this.context(user), student.id, "chat.read"))
                 return { member: participant, readOnly: true, observedStudent: { id: student.id, name: student.name } };
         }
         throw new api_exception_1.ApiException(404, "CONVERSATION_NOT_FOUND", "گفتگو پیدا نشد.");
@@ -654,7 +657,10 @@ let ChatService = class ChatService {
             where: { fromUser: { id: user.id }, type: user_relationship_entity_2.RelationshipType.GUARDIAN_OF, status: user_relationship_entity_2.RelationshipStatus.ACTIVE },
             relations: { toStudent: { user: true } },
         });
-        const visible = relations.map((item) => item.toStudent).filter((student) => student.guardianChatReadOnly && student.user);
+        const visible = [];
+        for (const { toStudent: student } of relations)
+            if (student.guardianChatReadOnly && student.user && await this.authorization.canAccessStudent(this.context(user), student.id, "chat.read"))
+                visible.push(student);
         if (!visible.length)
             return [];
         const rows = await this.members.find({
@@ -719,20 +725,23 @@ let ChatService = class ChatService {
                 .map((student) => [student.id, student])).values(),
         ];
         for (const student of unique)
-            await this.createDirect(user, student.user.id, true);
+            if (await this.authorization.canAccessStudent(this.context(user), student.id, "chat.read"))
+                await this.createDirect(user, student.user.id, true);
     }
-    async directAllowed(a, b) {
+    async directAllowed(actor, b) {
         const [ua, ub] = await Promise.all([
-            this.users.findOne({ where: { id: a }, relations: { student: true } }),
-            this.users.findOne({ where: { id: b }, relations: { student: true } }),
+            this.users.findOne({ where: { id: actor.id }, relations: { student: { organization: true } } }),
+            this.users.findOne({ where: { id: b }, relations: { student: { organization: true } } }),
         ]);
         if (!ua || !ub)
             return false;
         if (ua.student || ub.student) {
             const student = ua.student || ub.student;
-            const staffId = ua.student ? b : a;
-            if (await this.roleAssignments.exist({ where: { user: { id: staffId }, role: { code: "GUARDIAN" } } }))
-                return true;
+            const staffId = ua.student ? b : actor.id;
+            if (!ua.student && !(await this.authorization.canAccessStudent(this.context(actor), student.id, "chat.read")))
+                return false;
+            if (ua.student && student.organization && !actor.organizationIds?.includes(student.organization.id))
+                return false;
             return this.relationships.exist({
                 where: {
                     fromUser: { id: staffId },
@@ -742,10 +751,10 @@ let ChatService = class ChatService {
             });
         }
         const ma = await this.orgMembers.find({
-            where: { user: { id: a }, status: organization_membership_entity_2.MembershipStatus.ACTIVE },
+            where: { user: { id: actor.id }, status: organization_membership_entity_2.MembershipStatus.ACTIVE },
             relations: { organization: true },
         });
-        const ids = ma.map((x) => x.organization.id);
+        const ids = ma.map((x) => x.organization.id).filter((id) => actor.organizationIds?.includes(id));
         return ids.length
             ? this.orgMembers.exist({
                 where: {
@@ -755,6 +764,10 @@ let ChatService = class ChatService {
                 },
             })
             : false;
+    }
+    context(user) {
+        return { ...user, roles: user.roles ?? [], capabilities: user.capabilities ?? [],
+            membershipIds: user.membershipIds ?? [], organizationIds: user.organizationIds ?? [] };
     }
     async shareConversation(a, b) {
         const mine = await this.members.find({
@@ -950,7 +963,7 @@ exports.ChatService = ChatService = __decorate([
     __param(8, (0, typeorm_1.InjectRepository)(user_relationship_entity_1.UserRelationship)),
     __param(9, (0, typeorm_1.InjectRepository)(organization_membership_entity_1.OrganizationMembership)),
     __param(10, (0, typeorm_1.InjectRepository)(user_role_assignment_entity_1.UserRoleAssignment)),
-    __param(12, (0, common_1.Optional)()),
+    __param(13, (0, common_1.Optional)()),
     __metadata("design:paramtypes", [typeorm_2.Repository,
         typeorm_2.Repository,
         typeorm_2.Repository,
@@ -963,6 +976,7 @@ exports.ChatService = ChatService = __decorate([
         typeorm_2.Repository,
         typeorm_2.Repository,
         typeorm_2.DataSource,
+        authorization_1.AuthorizationService,
         notifications_1.NotificationsService])
 ], ChatService);
 function emptyStudentProfile() {

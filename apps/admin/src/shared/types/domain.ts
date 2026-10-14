@@ -82,6 +82,12 @@ export interface Student {
     | "APPROVED"
     | "REJECTED"
     | "ACTIVE";
+  profileComplete?: boolean;
+  nationalCode?: string | null;
+  birthDate?: string | null;
+  governmentSchool?: string | null;
+  classId?: string | null;
+  className?: string | null;
   account_active?: number | boolean;
   last_seen_at?: string;
   attempt_count?: number;

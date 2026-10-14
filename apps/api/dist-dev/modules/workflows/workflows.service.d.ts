@@ -1,3 +1,4 @@
+import { SchoolAccessService } from "../school-access";
 import { Repository } from "typeorm";
 import { AttendanceRecord, AttendanceStatus } from "../../database/entities/attendance-record.entity";
 import { AttendanceSession, AttendanceContextType } from "../../database/entities/attendance-session.entity";
@@ -33,7 +34,8 @@ export declare class WorkflowsService {
     private readonly users;
     private readonly realtime;
     private readonly notifications;
-    constructor(sessions: Repository<AttendanceSession>, attendanceRecords: Repository<AttendanceRecord>, leaveRequests: Repository<LeaveRequest>, exitPermissions: Repository<ExitPermission>, letters: Repository<RequestLetter>, students: Repository<Student>, classes: Repository<EducationClass>, classEnrollments: Repository<EducationClassEnrollment>, studyGroups: Repository<StudyGroup>, studyGroupMemberships: Repository<StudyGroupMembership>, dormRooms: Repository<DormRoom>, dormAssignments: Repository<DormRoomAssignment>, memberships: Repository<OrganizationMembership>, users: Repository<User>, realtime: RealtimeService, notifications: NotificationsService);
+    private readonly access;
+    constructor(sessions: Repository<AttendanceSession>, attendanceRecords: Repository<AttendanceRecord>, leaveRequests: Repository<LeaveRequest>, exitPermissions: Repository<ExitPermission>, letters: Repository<RequestLetter>, students: Repository<Student>, classes: Repository<EducationClass>, classEnrollments: Repository<EducationClassEnrollment>, studyGroups: Repository<StudyGroup>, studyGroupMemberships: Repository<StudyGroupMembership>, dormRooms: Repository<DormRoom>, dormAssignments: Repository<DormRoomAssignment>, memberships: Repository<OrganizationMembership>, users: Repository<User>, realtime: RealtimeService, notifications: NotificationsService, access: SchoolAccessService);
     listAttendanceContexts(user: AuthenticatedUser, organizationId?: string): Promise<({
         id: string;
         contextType: "class";

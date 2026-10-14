@@ -493,6 +493,89 @@ export class AttendanceService {
     );
     return { id: created.id };
   }
+  /** Caller transaction owns atomicity; submitted observations require explicit correction. */
+  async applyTimetableChange(
+    manager: EntityManager,
+    sessionId: string,
+    lessonId: string,
+    input: {
+      cancelled: boolean;
+      teacherId: string | null;
+      startsAt: string;
+      endsAt: string;
+      reason: string;
+    },
+    actor: AuthenticatedUser,
+  ) {
+    const session = await manager.findOne(AttendanceSession, {
+      where: {
+        id: sessionId,
+        sourceKind: "class_schedule",
+        sourceScheduleId: lessonId,
+      },
+      relations: { assignedStaff: true, organization: true },
+    });
+    if (!session)
+      throw new ApiException(
+        409,
+        "ATTENDANCE_SOURCE_MISMATCH",
+        "جلسه با وقوع درس یکسان نیست.",
+      );
+    const changed =
+      session.assignedStaff?.id !== input.teacherId ||
+      session.scheduledStartAt?.toISOString() !== input.startsAt ||
+      session.scheduledEndAt?.toISOString() !== input.endsAt;
+    const observed = await manager.exists(AttendanceRecord, {
+      where: { session: { id: sessionId } },
+    });
+    if (changed && observed)
+      throw new ApiException(
+        409,
+        "ATTENDANCE_CORRECTION_REQUIRED",
+        "سوابق ثبت‌شده به اصلاح صریح حضور نیاز دارند.",
+      );
+    const before = {
+      status: session.status,
+      teacherId: session.assignedStaff?.id ?? null,
+      startsAt: session.scheduledStartAt?.toISOString(),
+      endsAt: session.scheduledEndAt?.toISOString(),
+    };
+    session.assignedStaff = input.teacherId
+      ? ({ id: input.teacherId } as User)
+      : null;
+    session.scheduledStartAt = new Date(input.startsAt);
+    session.scheduledEndAt = new Date(input.endsAt);
+    session.status = input.cancelled
+      ? "cancelled"
+      : session.status === "cancelled"
+        ? observed
+          ? "submitted"
+          : "open"
+        : session.status;
+    session.revision++;
+    await manager.save(session);
+    await manager.save(
+      AuditLog,
+      manager.create(AuditLog, {
+        user: { id: actor.id },
+        organizationId: session.organization.id,
+        action: "attendance.timetable.changed",
+        entity: "attendance",
+        metadata: {
+          sessionId,
+          lessonId,
+          before,
+          after: {
+            status: session.status,
+            teacherId: input.teacherId,
+            startsAt: input.startsAt,
+            endsAt: input.endsAt,
+          },
+          reason: input.reason,
+        },
+      }),
+    );
+  }
   async reassignTimetableSession(
     sessionId: string,
     lessonId: string,
@@ -707,7 +790,9 @@ export class AttendanceService {
             "جلسه حضور و غیاب پیدا نشد.",
           );
         if (
-          session?.sourceKind === "class_schedule" &&
+          session &&
+          (session.sourceKind === "class_schedule" ||
+            dto.expectedRevision !== undefined) &&
           session.revision !== dto.expectedRevision
         )
           throw new ApiException(
@@ -844,10 +929,8 @@ export class AttendanceService {
             },
           });
         }
-        if (session.sourceKind === "class_schedule") {
-          session.revision++;
-          await sessions.save(session);
-        }
+        session.revision++;
+        await sessions.save(session);
         await manager.getRepository(AuditLog).save({
           user: { id: user.id },
           action: "attendance.records.marked",

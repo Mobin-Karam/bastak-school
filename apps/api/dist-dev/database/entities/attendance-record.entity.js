@@ -54,13 +54,11 @@ __decorate([
     __metadata("design:type", String)
 ], AttendanceRecord.prototype, "id", void 0);
 __decorate([
-    (0, typeorm_1.ManyToOne)("AttendanceSession", (session) => session.records, {
-        onDelete: "CASCADE",
-    }),
+    (0, typeorm_1.ManyToOne)("AttendanceSession", (session) => session.records, { nullable: false, onDelete: "CASCADE" }),
     __metadata("design:type", Function)
 ], AttendanceRecord.prototype, "session", void 0);
 __decorate([
-    (0, typeorm_1.ManyToOne)(() => student_entity_1.Student, { onDelete: "CASCADE" }),
+    (0, typeorm_1.ManyToOne)(() => student_entity_1.Student, { nullable: false, onDelete: "CASCADE" }),
     __metadata("design:type", student_entity_1.Student)
 ], AttendanceRecord.prototype, "student", void 0);
 __decorate([
@@ -117,6 +115,7 @@ __decorate([
 ], AttendanceRecord.prototype, "updatedAt", void 0);
 exports.AttendanceRecord = AttendanceRecord = __decorate([
     (0, typeorm_1.Entity)("attendance_records"),
-    (0, typeorm_1.Index)(["session", "student"], { unique: true })
+    (0, typeorm_1.Index)("UQ_attendance_record_session_student", ["session", "student"], { unique: true }),
+    (0, typeorm_1.Index)("IDX_attendance_record_student_created", ["student", "createdAt", "id"])
 ], AttendanceRecord);
 //# sourceMappingURL=attendance-record.entity.js.map

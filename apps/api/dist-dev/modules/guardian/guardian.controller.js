@@ -40,28 +40,28 @@ let GuardianController = class GuardianController {
         this.guardian = guardian;
     }
     students(u) {
-        return this.guardian.students(u.id).then(envelope_1.ok);
+        return this.guardian.students(u).then(envelope_1.ok);
     }
     dashboard(u, id) {
-        return this.guardian.dashboard(u.id, id).then(envelope_1.ok);
+        return this.guardian.dashboard(u, id).then(envelope_1.ok);
     }
     progress(u, id) {
-        return this.guardian.progress(u.id, id).then(envelope_1.ok);
+        return this.guardian.progress(u, id).then(envelope_1.ok);
     }
     schedule(u, id) {
-        return this.guardian.schedule(u.id, id).then(envelope_1.ok);
+        return this.guardian.schedule(u, id).then(envelope_1.ok);
     }
     attendance(u, id) {
-        return this.guardian.attendance(u.id, id).then(envelope_1.ok);
+        return this.guardian.attendance(u, id).then(envelope_1.ok);
     }
     exams(u, id) {
-        return this.guardian.exams(u.id, id).then(envelope_1.ok);
+        return this.guardian.exams(u, id).then(envelope_1.ok);
     }
     reports(u, id) {
-        return this.guardian.reports(u.id, id).then(envelope_1.ok);
+        return this.guardian.reports(u, id).then(envelope_1.ok);
     }
     encourage(u, id, body) {
-        return this.guardian.encourage(u.id, id, body).then(envelope_1.ok);
+        return this.guardian.encourage(u, id, body).then(envelope_1.ok);
     }
 };
 exports.GuardianController = GuardianController;

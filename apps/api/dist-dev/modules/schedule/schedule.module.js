@@ -7,6 +7,11 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.ScheduleModule = void 0;
+const school_access_1 = require("../school-access");
+const attendance_1 = require("../attendance");
+const notifications_1 = require("../notifications");
+const timetable_service_1 = require("./timetable.service");
+const timetable_controller_1 = require("./timetable.controller");
 const common_1 = require("@nestjs/common");
 const typeorm_1 = require("@nestjs/typeorm");
 const education_class_entity_1 = require("../../database/entities/education-class.entity");
@@ -23,7 +28,7 @@ let ScheduleModule = class ScheduleModule {
 exports.ScheduleModule = ScheduleModule;
 exports.ScheduleModule = ScheduleModule = __decorate([
     (0, common_1.Module)({
-        imports: [
+        imports: [school_access_1.SchoolAccessModule, attendance_1.AttendanceModule, notifications_1.NotificationsModule,
             typeorm_1.TypeOrmModule.forFeature([
                 school_schedule_entry_entity_1.SchoolScheduleEntry,
                 education_class_book_entity_1.EducationClassBook,
@@ -34,8 +39,8 @@ exports.ScheduleModule = ScheduleModule = __decorate([
                 user_relationship_entity_1.UserRelationship,
             ]),
         ],
-        controllers: [schedule_controller_1.ScheduleController],
-        providers: [schedule_service_1.ScheduleService],
+        controllers: [schedule_controller_1.ScheduleController, timetable_controller_1.TimetableController],
+        providers: [schedule_service_1.ScheduleService, timetable_service_1.TimetableService],
         exports: [schedule_service_1.ScheduleService],
     })
 ], ScheduleModule);

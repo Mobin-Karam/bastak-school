@@ -30,10 +30,28 @@ export const ADMIN_PORTAL_ROLES = [
  */
 export const SUPPORTED_ADMIN_PORTAL_ROLES = ADMIN_PORTAL_ROLES;
 
+/** Workspaces currently released to the school. Other valid roles see the timed Persian notice. */
+export const RELEASED_SCHOOL_PORTAL_ROLES = [
+  "PLATFORM_ADMIN",
+  "PRINCIPAL",
+  "SCHOOL_SUPERVISOR",
+  "DISCIPLINARIAN",
+  "STUDENT",
+  "TEACHER",
+  "GUARDIAN",
+] as const satisfies readonly RoleCode[];
+
 export function isSupportedAdminPortalRole(role?: RoleCode | null) {
   return Boolean(
     role &&
     SUPPORTED_ADMIN_PORTAL_ROLES.includes(role as (typeof SUPPORTED_ADMIN_PORTAL_ROLES)[number]),
+  );
+}
+
+export function isReleasedSchoolPortalRole(role?: RoleCode | null) {
+  return Boolean(
+    role &&
+    RELEASED_SCHOOL_PORTAL_ROLES.includes(role as (typeof RELEASED_SCHOOL_PORTAL_ROLES)[number]),
   );
 }
 

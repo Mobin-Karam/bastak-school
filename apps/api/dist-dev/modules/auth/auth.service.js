@@ -77,6 +77,7 @@ let AuthService = class AuthService {
         await this.throttle?.assertAllowed(ip, normalizedPhoneNumber);
         const user = await this.users.findOne({
             where: { phoneNumber: normalizedPhoneNumber },
+            select: { id: true, username: true, phoneNumber: true, role: true, status: true, passwordHash: true },
         });
         if (!user || !(await bcryptjs_1.default.compare(password, user.passwordHash))) {
             await this.throttle?.failure(ip, normalizedPhoneNumber);
@@ -84,13 +85,8 @@ let AuthService = class AuthService {
         }
         if (user.status && user.status !== user_entity_2.UserStatus.ACTIVE)
             throw new api_exception_1.ApiException(403, "ACCOUNT_INACTIVE", "حساب کاربری غیرفعال یا بایگانی شده است.");
-        if (user.role === "STUDENT") {
-            const student = await this.students.findOne({
-                where: { user: { id: user.id } },
-            });
-            if (!student || student.accountStatus !== "active")
-                throw new api_exception_1.ApiException(403, "ACCOUNT_INACTIVE", "حساب دانش‌آموز غیرفعال یا بایگانی شده است.");
-        }
+        if (!(await this.hasUsableWorkContext(user)))
+            throw new api_exception_1.ApiException(403, "ACCOUNT_INACTIVE", "هیچ زمینه کاری فعال و معتبر برای این حساب وجود ندارد.");
         const credentials = this.newCredentials();
         const session = await this.sessions.save(this.sessions.create({
             user,
@@ -126,17 +122,21 @@ let AuthService = class AuthService {
             await this.sessions.delete({ id: session.id });
             throw new api_exception_1.ApiException(403, "ACCOUNT_INACTIVE", "حساب کاربری غیرفعال یا بایگانی شده است.");
         }
-        if (!(await this.hasActiveStudentAccount(session.user))) {
+        if (!(await this.hasUsableWorkContext(session.user))) {
             await this.sessions.delete({ id: session.id });
             throw new api_exception_1.ApiException(403, "ACCOUNT_INACTIVE", "حساب دانش‌آموز غیرفعال یا بایگانی شده است.");
         }
         const credentials = this.newCredentials();
+        const oldRefreshTokenHash = session.refreshTokenHash;
         session.tokenHash = this.credentials.hash(credentials.accessToken);
         session.refreshTokenHash = this.credentials.hash(credentials.refreshToken);
         session.csrfToken = credentials.csrfToken;
         session.expiresAt = credentials.expiresAt;
         session.refreshExpiresAt = credentials.refreshExpiresAt;
-        await this.sessions.save(session);
+        const rotation = await this.sessions.update({ id: session.id, refreshTokenHash: oldRefreshTokenHash }, { tokenHash: session.tokenHash, refreshTokenHash: session.refreshTokenHash,
+            csrfToken: session.csrfToken, expiresAt: session.expiresAt, refreshExpiresAt: session.refreshExpiresAt });
+        if (rotation.affected !== 1)
+            throw new api_exception_1.ApiException(401, "REFRESH_EXPIRED", "نشست شما منقضی شده است. دوباره وارد شوید.");
         return { ...credentials, session, user: session.user };
     }
     async userFromToken(token, requestedRole, requestedOrganizationId) {
@@ -150,7 +150,7 @@ let AuthService = class AuthService {
             return null;
         if (session.user.status && session.user.status !== user_entity_2.UserStatus.ACTIVE)
             return null;
-        if (!(await this.hasActiveStudentAccount(session.user))) {
+        if (!(await this.hasUsableWorkContext(session.user))) {
             await this.sessions.delete({ id: session.id });
             return null;
         }
@@ -170,15 +170,20 @@ let AuthService = class AuthService {
                 organizationIds: [],
             };
     }
-    async logout(token, refreshToken) {
+    async logout(token, refreshToken, csrfToken) {
         const where = [
             ...(token ? [{ tokenHash: this.credentials.hash(token) }] : []),
             ...(refreshToken
                 ? [{ refreshTokenHash: this.credentials.hash(refreshToken) }]
                 : []),
         ];
-        if (where.length)
-            await this.sessions.delete(where);
+        if (!where.length)
+            return;
+        const sessions = await this.sessions.find({ where });
+        if (sessions.some((session) => !csrfToken || !this.credentials.safeEqual(session.csrfToken, csrfToken)))
+            throw new api_exception_1.ApiException(403, "CSRF", "نشست امنیتی نامعتبر است.");
+        for (const session of sessions)
+            await this.sessions.delete({ id: session.id, tokenHash: session.tokenHash });
     }
     async me(user) {
         const [session, account] = await Promise.all([
@@ -197,9 +202,11 @@ let AuthService = class AuthService {
         };
     }
     async context(user, activeOrganizationId) {
-        const organizationIds = user.organizationIds ?? [];
-        const roles = user.roles ?? (user.role === "ADMIN" ? [] : [user.role]);
-        const isPlatformAdmin = roles.includes("PLATFORM_ADMIN");
+        const catalog = this.authorization
+            ? await this.authorization.enrich(user, undefined, activeOrganizationId)
+            : null;
+        const organizationIds = catalog?.organizationIds ?? user.organizationIds ?? [];
+        const isPlatformAdmin = (catalog?.roles ?? user.roles ?? []).includes("PLATFORM_ADMIN");
         if (activeOrganizationId &&
             !organizationIds.includes(activeOrganizationId) &&
             !isPlatformAdmin)
@@ -214,7 +221,7 @@ let AuthService = class AuthService {
                 organization: { status: organization_entity_1.OrganizationStatus.ACTIVE },
             },
             relations: { organization: true },
-            order: { joinedAt: "ASC" },
+            order: { joinedAt: "ASC", id: "ASC" },
         });
         const membershipsForContext = memberships.map((membership) => ({
             membershipId: membership.id,
@@ -238,7 +245,9 @@ let AuthService = class AuthService {
             !selectableOrganizations.some((item) => item.id === activeOrganizationId))
             throw new api_exception_1.ApiException(404, "ORGANIZATION_NOT_FOUND", "سازمان فعال پیدا نشد.");
         const effectiveOrganizationId = activeOrganizationId ??
-            (isPlatformAdmin ? undefined : selectableOrganizations[0]?.id);
+            (isPlatformAdmin
+                ? undefined
+                : (catalog?.activeOrganizationId ?? selectableOrganizations[0]?.id));
         const assignments = await this.authorization.enrich(user, undefined, effectiveOrganizationId);
         const workContexts = await Promise.all(assignments.roles.map(async (role) => {
             const scoped = await this.authorization.enrich(user, role, effectiveOrganizationId);
@@ -264,7 +273,7 @@ let AuthService = class AuthService {
         };
     }
     async changePassword(user, currentPassword, newPassword) {
-        const account = await this.users.findOne({ where: { id: user.id } });
+        const account = await this.users.findOne({ where: { id: user.id }, select: { id: true, passwordHash: true } });
         if (!account ||
             !(await bcryptjs_1.default.compare(currentPassword, account.passwordHash))) {
             throw new api_exception_1.ApiException(401, "INVALID_CREDENTIALS", "رمز فعلی درست نیست.");
@@ -360,11 +369,18 @@ let AuthService = class AuthService {
         const scope = organizationId ?? context.organizationIds[0];
         if (!scope)
             throw new api_exception_1.ApiException(422, "ORGANIZATION_REQUIRED", "مدرسه فعال را انتخاب کنید.");
-        return this.accountChangeRequests.find({
+        const requests = await this.accountChangeRequests.find({
             where: { organization: { id: scope }, kind: "PHONE_NUMBER" },
             relations: { user: true, organization: true },
             order: { createdAt: "DESC" },
         });
+        return requests.map((request) => ({
+            id: request.id, kind: request.kind, status: request.status,
+            requestedValue: request.requestedValue, reason: request.reason, reviewNote: request.reviewNote,
+            createdAt: request.createdAt, updatedAt: request.updatedAt, reviewedAt: request.reviewedAt,
+            organization: { id: request.organization.id, name: request.organization.name },
+            user: { id: request.user.id, username: request.user.username, firstName: request.user.firstName, lastName: request.user.lastName },
+        }));
     }
     async reviewPhoneNumberChangeRequest(user, id, approved, reviewNote) {
         if (!this.accountChangeRequests || !this.authorization)
@@ -430,7 +446,16 @@ let AuthService = class AuthService {
     newCredentials() {
         return this.credentials.issue();
     }
-    async hasActiveStudentAccount(user) {
+    async hasUsableWorkContext(user) {
+        if (this.authorization) {
+            const context = await this.authorization.enrich({
+                id: user.id,
+                username: user.username,
+                role: user.role,
+                sessionId: "",
+            });
+            return context.roles.length > 0;
+        }
         if (user.role !== user_entity_1.UserRole.STUDENT)
             return true;
         const student = await this.students.findOne({

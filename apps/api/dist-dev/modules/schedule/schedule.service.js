@@ -53,6 +53,9 @@ let ScheduleService = class ScheduleService {
         return context.roles.some((role) => ["PLATFORM_ADMIN", "ORGANIZATION_ADMIN", "PRINCIPAL"].includes(role));
     }
     async list(user, organizationId) {
+        return (await this.listEntities(user, organizationId)).map((entry) => this.publicEntry(entry));
+    }
+    async listEntities(user, organizationId) {
         const requestedOrganizationId = organizationId ?? user.activeOrganizationId;
         const context = this.context(user);
         this.authorization.requireCapability(context, "schedule.read");
@@ -63,14 +66,15 @@ let ScheduleService = class ScheduleService {
         if (context.roles.includes("PLATFORM_ADMIN"))
             return this.entries.find({
                 where: requestedOrganizationId
-                    ? { organization: { id: requestedOrganizationId } }
-                    : {},
+                    ? { organization: { id: requestedOrganizationId }, versionId: (0, typeorm_2.IsNull)() }
+                    : { versionId: (0, typeorm_2.IsNull)() },
                 relations: { organization: true, classroom: true, teacher: true, classBook: { book: true, teacher: true } },
                 order: { weekday: "ASC", startTime: "ASC" },
             });
         if (this.isOperator(context))
             return this.entries.find({
                 where: {
+                    versionId: (0, typeorm_2.IsNull)(),
                     organization: {
                         id: (0, typeorm_2.In)(requestedOrganizationId
                             ? [requestedOrganizationId]
@@ -83,6 +87,7 @@ let ScheduleService = class ScheduleService {
         if (context.roles.includes("TEACHER"))
             return this.entries.find({
                 where: {
+                    versionId: (0, typeorm_2.IsNull)(),
                     teacher: { id: user.id },
                     classBook: { teacher: { id: user.id } },
                     organization: {
@@ -100,6 +105,7 @@ let ScheduleService = class ScheduleService {
                 return [];
             return this.entries.find({
                 where: {
+                    versionId: (0, typeorm_2.IsNull)(),
                     classroom: { advisor: { id: user.id } },
                     organization: {
                         id: (0, typeorm_2.In)(requestedOrganizationId
@@ -133,6 +139,7 @@ let ScheduleService = class ScheduleService {
                 .leftJoin(education_class_enrollment_entity_1.EducationClassEnrollment, "enrollment", "enrollment.classroomId = entry.classroomId")
                 .leftJoin(user_relationship_entity_1.UserRelationship, "relationship", "relationship.toStudentId = enrollment.studentId AND relationship.fromUserId = :userId AND relationship.status = 'ACTIVE' AND relationship.type = 'GUARDIAN_OF'", { userId: user.id })
                 .where("entry.status = 'ACTIVE'")
+                .andWhere("entry.versionId IS NULL")
                 .andWhere("entry.organizationId IN (:...organizationIds)", {
                 organizationIds,
             })
@@ -157,6 +164,7 @@ let ScheduleService = class ScheduleService {
                 .leftJoinAndSelect("classBook.teacher", "classBookTeacher")
                 .leftJoin(education_class_enrollment_entity_1.EducationClassEnrollment, "enrollment", "enrollment.classroomId = entry.classroomId AND enrollment.studentId = (SELECT id FROM students WHERE userId = :userId LIMIT 1)", { userId: user.id })
                 .where("entry.status = 'ACTIVE'")
+                .andWhere("entry.versionId IS NULL")
                 .andWhere("entry.organizationId IN (:...organizationIds)", {
                 organizationIds,
             })
@@ -168,6 +176,7 @@ let ScheduleService = class ScheduleService {
         if (context.organizationIds.length) {
             return this.entries.find({
                 where: {
+                    versionId: (0, typeorm_2.IsNull)(),
                     organization: {
                         id: (0, typeorm_2.In)(requestedOrganizationId
                             ? [requestedOrganizationId]
@@ -215,7 +224,7 @@ let ScheduleService = class ScheduleService {
             classroom,
             classBook,
             teacher,
-        }));
+        })).then((entry) => this.publicEntry(entry));
     }
     async update(user, id, dto) {
         const context = this.context(user);
@@ -230,6 +239,8 @@ let ScheduleService = class ScheduleService {
             (!context.roles.includes("PLATFORM_ADMIN") &&
                 !context.organizationIds.includes(item.organization.id)))
             throw new api_exception_1.ApiException(403, "FORBIDDEN", "دسترسی کافی ندارید.");
+        if (item.versionId)
+            throw new api_exception_1.ApiException(409, "TIMETABLE_IMMUTABLE", "این درس را از نسخه برنامه درسی مدیریت کنید.");
         if (dto.organizationId !== item.organization.id)
             throw new api_exception_1.ApiException(422, "SCHEDULE_ORGANIZATION_IMMUTABLE", "مدرسه برنامه قابل تغییر نیست.");
         if (dto.endTime <= dto.startTime)
@@ -247,7 +258,7 @@ let ScheduleService = class ScheduleService {
             classBook,
             teacher,
         });
-        return this.entries.save(item);
+        return this.entries.save(item).then((entry) => this.publicEntry(entry));
     }
     async archive(user, id, dto) {
         const context = this.context(user);
@@ -262,8 +273,10 @@ let ScheduleService = class ScheduleService {
             (!context.roles.includes("PLATFORM_ADMIN") &&
                 !context.organizationIds.includes(item.organization.id)))
             throw new api_exception_1.ApiException(403, "FORBIDDEN", "دسترسی کافی ندارید.");
+        if (item.versionId)
+            throw new api_exception_1.ApiException(409, "TIMETABLE_IMMUTABLE", "این درس را از نسخه برنامه درسی مدیریت کنید.");
         item.status = dto.status;
-        return this.entries.save(item);
+        return this.entries.save(item).then((entry) => this.publicEntry(entry));
     }
     async remove(user, id) {
         const context = this.context(user);
@@ -278,6 +291,8 @@ let ScheduleService = class ScheduleService {
             (!context.roles.includes("PLATFORM_ADMIN") &&
                 !context.organizationIds.includes(item.organization.id)))
             throw new api_exception_1.ApiException(403, "FORBIDDEN", "دسترسی کافی ندارید.");
+        if (item.versionId)
+            throw new api_exception_1.ApiException(409, "TIMETABLE_IMMUTABLE", "این درس را از نسخه برنامه درسی مدیریت کنید.");
         await this.entries.remove(item);
         return { deleted: true };
     }
@@ -330,6 +345,16 @@ let ScheduleService = class ScheduleService {
         if (!classroom)
             throw new api_exception_1.ApiException(422, "SCHEDULE_CLASS_OUTSIDE_ORGANIZATION", "کلاس انتخاب‌شده متعلق به این مدرسه نیست.");
         return classroom;
+    }
+    publicEntry(entry) {
+        const teacher = (user) => user ? {
+            id: user.id, username: user.username, firstName: user.firstName, lastName: user.lastName,
+        } : null;
+        return {
+            ...entry,
+            teacher: teacher(entry.teacher),
+            classBook: entry.classBook ? { ...entry.classBook, teacher: teacher(entry.classBook.teacher) } : null,
+        };
     }
     async teacherForOrganization(teacherId, organizationId) {
         if (!teacherId)

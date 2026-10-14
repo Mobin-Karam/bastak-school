@@ -252,6 +252,9 @@ let SystemService = class SystemService {
             const check = db.pragma("quick_check", { simple: true });
             if (check !== "ok")
                 throw new api_exception_1.ApiException(400, "SQLITE_INVALID", "فایل SQLite سالم نیست.");
+            const foreignKeyViolations = db.pragma("foreign_key_check");
+            if (foreignKeyViolations.length)
+                throw new api_exception_1.ApiException(400, "SQLITE_FOREIGN_KEY_INVALID", "روابط فایل پایگاه داده معتبر نیست.");
             const tables = db
                 .prepare(`SELECT name FROM sqlite_master WHERE type='table'`)
                 .all().map((item) => item.name);

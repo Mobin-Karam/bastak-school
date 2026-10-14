@@ -1,3 +1,6 @@
+import { attendanceTransaction } from "../attendance";
+import { ImportHistory } from "../../database/entities/import-history.entity";
+import { EntityManager } from "typeorm";
 import { Injectable } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { In, IsNull, Repository } from "typeorm";
@@ -47,7 +50,9 @@ export class ScheduleService {
     );
   }
   async list(user: AuthenticatedUser, organizationId?: string) {
-    return (await this.listEntities(user, organizationId)).map((entry) => this.publicEntry(entry));
+    return (await this.listEntities(user, organizationId)).map((entry) =>
+      this.publicEntry(entry),
+    );
   }
   private async listEntities(user: AuthenticatedUser, organizationId?: string) {
     const requestedOrganizationId = organizationId ?? user.activeOrganizationId;
@@ -62,9 +67,17 @@ export class ScheduleService {
     if (context.roles.includes("PLATFORM_ADMIN"))
       return this.entries.find({
         where: requestedOrganizationId
-          ? { organization: { id: requestedOrganizationId }, versionId: IsNull() }
-          : {versionId: IsNull()},
-        relations: { organization: true, classroom: true, teacher: true, classBook: { book: true, teacher: true } },
+          ? {
+              organization: { id: requestedOrganizationId },
+              versionId: IsNull(),
+            }
+          : { versionId: IsNull() },
+        relations: {
+          organization: true,
+          classroom: true,
+          teacher: true,
+          classBook: { book: true, teacher: true },
+        },
         order: { weekday: "ASC", startTime: "ASC" },
       });
     if (this.isOperator(context))
@@ -79,7 +92,12 @@ export class ScheduleService {
             ),
           },
         },
-        relations: { organization: true, classroom: true, teacher: true, classBook: { book: true, teacher: true } },
+        relations: {
+          organization: true,
+          classroom: true,
+          teacher: true,
+          classBook: { book: true, teacher: true },
+        },
         order: { weekday: "ASC", startTime: "ASC" },
       });
     if (context.roles.includes("TEACHER"))
@@ -97,7 +115,12 @@ export class ScheduleService {
           },
           status: "ACTIVE",
         },
-        relations: { organization: true, classroom: true, teacher: true, classBook: { book: true, teacher: true } },
+        relations: {
+          organization: true,
+          classroom: true,
+          teacher: true,
+          classBook: { book: true, teacher: true },
+        },
         order: { weekday: "ASC", startTime: "ASC" },
       });
     if (
@@ -225,7 +248,11 @@ export class ScheduleService {
       organizationId,
     );
   }
-  async create(user: AuthenticatedUser, dto: SaveScheduleEntryDto) {
+  async create(
+    user: AuthenticatedUser,
+    dto: SaveScheduleEntryDto,
+    manager?: EntityManager,
+  ) {
     const context = this.context(user);
     this.authorization.requireCapability(context, "schedule.create");
     if (
@@ -247,23 +274,30 @@ export class ScheduleService {
       dto.teacherId,
       organization.id,
     );
-    const classBook = await this.classBookForSession(classroom, teacher, dto.classBookId);
+    const classBook = await this.classBookForSession(
+      classroom,
+      teacher,
+      dto.classBookId,
+    );
     if (dto.endTime <= dto.startTime)
       throw new ApiException(
         422,
         "INVALID_TIME_RANGE",
         "زمان پایان باید بعد از شروع باشد.",
       );
-    return this.entries.save(
-      this.entries.create({
-        ...dto,
-        room: dto.room?.trim() || "",
-        organization,
-        classroom,
-        classBook,
-        teacher,
-      }),
-    ).then((entry) => this.publicEntry(entry));
+    const entries = manager?.getRepository(SchoolScheduleEntry) ?? this.entries;
+    return entries
+      .save(
+        entries.create({
+          ...dto,
+          room: dto.room?.trim() || "",
+          organization,
+          classroom,
+          classBook,
+          teacher,
+        }),
+      )
+      .then((entry) => this.publicEntry(entry));
   }
   async update(user: AuthenticatedUser, id: string, dto: SaveScheduleEntryDto) {
     const context = this.context(user);
@@ -280,7 +314,12 @@ export class ScheduleService {
         !context.organizationIds.includes(item.organization.id))
     )
       throw new ApiException(403, "FORBIDDEN", "دسترسی کافی ندارید.");
-    if (item.versionId) throw new ApiException(409,"TIMETABLE_IMMUTABLE","این درس را از نسخه برنامه درسی مدیریت کنید.");
+    if (item.versionId)
+      throw new ApiException(
+        409,
+        "TIMETABLE_IMMUTABLE",
+        "این درس را از نسخه برنامه درسی مدیریت کنید.",
+      );
     if (dto.organizationId !== item.organization.id)
       throw new ApiException(
         422,
@@ -301,7 +340,11 @@ export class ScheduleService {
       dto.teacherId,
       item.organization.id,
     );
-    const classBook = await this.classBookForSession(classroom, teacher, dto.classBookId);
+    const classBook = await this.classBookForSession(
+      classroom,
+      teacher,
+      dto.classBookId,
+    );
     Object.assign(item, {
       title: dto.title.trim(),
       weekday: dto.weekday,
@@ -333,7 +376,12 @@ export class ScheduleService {
         !context.organizationIds.includes(item.organization.id))
     )
       throw new ApiException(403, "FORBIDDEN", "دسترسی کافی ندارید.");
-    if (item.versionId) throw new ApiException(409,"TIMETABLE_IMMUTABLE","این درس را از نسخه برنامه درسی مدیریت کنید.");
+    if (item.versionId)
+      throw new ApiException(
+        409,
+        "TIMETABLE_IMMUTABLE",
+        "این درس را از نسخه برنامه درسی مدیریت کنید.",
+      );
     item.status = dto.status;
     return this.entries.save(item).then((entry) => this.publicEntry(entry));
   }
@@ -352,7 +400,12 @@ export class ScheduleService {
         !context.organizationIds.includes(item.organization.id))
     )
       throw new ApiException(403, "FORBIDDEN", "دسترسی کافی ندارید.");
-    if (item.versionId) throw new ApiException(409,"TIMETABLE_IMMUTABLE","این درس را از نسخه برنامه درسی مدیریت کنید.");
+    if (item.versionId)
+      throw new ApiException(
+        409,
+        "TIMETABLE_IMMUTABLE",
+        "این درس را از نسخه برنامه درسی مدیریت کنید.",
+      );
     await this.entries.remove(item);
     return { deleted: true };
   }
@@ -389,9 +442,29 @@ export class ScheduleService {
         "فایل برنامه معتبر نیست.",
         preview.errors,
       );
-    const saved = [];
-    for (const entry of entries) saved.push(await this.create(user, entry));
-    return { imported: saved.length, entries: saved };
+    return attendanceTransaction(this.entries.manager, async (manager) => {
+      const saved = [];
+      for (const entry of entries)
+        saved.push(await this.create(user, entry, manager));
+      const organizations = [...new Set(entries.map((e) => e.organizationId))];
+      for (const organizationId of organizations)
+        await manager.save(
+          ImportHistory,
+          manager.create(ImportHistory, {
+            actor: { id: user.id },
+            organization: { id: organizationId },
+            schemaVersion: "school-schedule/1.0",
+            counts: {
+              lessons: entries.filter(
+                (e) => e.organizationId === organizationId,
+              ).length,
+            },
+            result: "SUCCESS",
+            errors: null,
+          }),
+        );
+      return { imported: saved.length, entries: saved };
+    });
   }
   private importErrors(context: UserContext, item: SaveScheduleEntryDto) {
     const errors: string[] = [];
@@ -432,13 +505,21 @@ export class ScheduleService {
 
   private publicEntry(entry: SchoolScheduleEntry) {
     // Identity entities are persistence objects, never public account DTOs.
-    const teacher = (user?: User | null) => user ? {
-      id: user.id, username: user.username, firstName: user.firstName, lastName: user.lastName,
-    } : null;
+    const teacher = (user?: User | null) =>
+      user
+        ? {
+            id: user.id,
+            username: user.username,
+            firstName: user.firstName,
+            lastName: user.lastName,
+          }
+        : null;
     return {
       ...entry,
       teacher: teacher(entry.teacher),
-      classBook: entry.classBook ? { ...entry.classBook, teacher: teacher(entry.classBook.teacher) } : null,
+      classBook: entry.classBook
+        ? { ...entry.classBook, teacher: teacher(entry.classBook.teacher) }
+        : null,
     };
   }
 
@@ -470,17 +551,34 @@ export class ScheduleService {
     classBookId: string | undefined,
   ) {
     if (!classroom) {
-      if (classBookId) throw new ApiException(422, "SCHEDULE_BOOK_REQUIRES_CLASS", "کتاب جلسه باید به یک کلاس متصل باشد.");
+      if (classBookId)
+        throw new ApiException(
+          422,
+          "SCHEDULE_BOOK_REQUIRES_CLASS",
+          "کتاب جلسه باید به یک کلاس متصل باشد.",
+        );
       return null;
     }
     if (!classBookId || !teacher)
-      throw new ApiException(422, "SCHEDULE_CLASS_BOOK_REQUIRED", "برای جلسهٔ کلاسی، کتاب و استاد مسئول را انتخاب کنید.");
+      throw new ApiException(
+        422,
+        "SCHEDULE_CLASS_BOOK_REQUIRED",
+        "برای جلسهٔ کلاسی، کتاب و استاد مسئول را انتخاب کنید.",
+      );
     const classBook = await this.classBooks.findOne({
-      where: { id: classBookId, classroom: { id: classroom.id }, teacher: { id: teacher.id } },
+      where: {
+        id: classBookId,
+        classroom: { id: classroom.id },
+        teacher: { id: teacher.id },
+      },
       relations: { book: true, teacher: true },
     });
     if (!classBook)
-      throw new ApiException(422, "SCHEDULE_BOOK_TEACHER_MISMATCH", "کتاب انتخاب‌شده به این کلاس و استاد واگذار نشده است.");
+      throw new ApiException(
+        422,
+        "SCHEDULE_BOOK_TEACHER_MISMATCH",
+        "کتاب انتخاب‌شده به این کلاس و استاد واگذار نشده است.",
+      );
     return classBook;
   }
 }

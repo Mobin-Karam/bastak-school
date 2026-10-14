@@ -31,15 +31,15 @@ __decorate([
     __metadata("design:type", String)
 ], TeacherSubjectAssignment.prototype, "id", void 0);
 __decorate([
-    (0, typeorm_1.ManyToOne)(() => user_entity_1.User, { onDelete: "CASCADE" }),
+    (0, typeorm_1.ManyToOne)(() => user_entity_1.User, { nullable: false, onDelete: "CASCADE" }),
     __metadata("design:type", user_entity_1.User)
 ], TeacherSubjectAssignment.prototype, "teacher", void 0);
 __decorate([
-    (0, typeorm_1.ManyToOne)(() => subject_entity_1.Subject, { onDelete: "CASCADE" }),
+    (0, typeorm_1.ManyToOne)(() => subject_entity_1.Subject, { nullable: false, onDelete: "CASCADE" }),
     __metadata("design:type", subject_entity_1.Subject)
 ], TeacherSubjectAssignment.prototype, "subject", void 0);
 __decorate([
-    (0, typeorm_1.ManyToOne)(() => organization_entity_1.Organization, { onDelete: "CASCADE" }),
+    (0, typeorm_1.ManyToOne)(() => organization_entity_1.Organization, { nullable: false, onDelete: "CASCADE" }),
     __metadata("design:type", organization_entity_1.Organization)
 ], TeacherSubjectAssignment.prototype, "organization", void 0);
 __decorate([

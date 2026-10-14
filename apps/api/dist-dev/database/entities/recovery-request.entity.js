@@ -39,7 +39,10 @@ __decorate([
 ], RecoveryRequest.prototype, "id", void 0);
 __decorate([
     (0, typeorm_1.Index)(),
-    (0, typeorm_1.ManyToOne)(() => student_entity_1.Student, (student) => student.recoveryRequests, { onDelete: "CASCADE" }),
+    (0, typeorm_1.ManyToOne)(() => student_entity_1.Student, (student) => student.recoveryRequests, {
+        nullable: false,
+        onDelete: "CASCADE",
+    }),
     __metadata("design:type", student_entity_1.Student)
 ], RecoveryRequest.prototype, "student", void 0);
 __decorate([
@@ -55,7 +58,11 @@ __decorate([
     __metadata("design:type", String)
 ], RecoveryRequest.prototype, "note", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ type: "varchar", length: 24, default: RecoveryRequestStatus.PENDING }),
+    (0, typeorm_1.Column)({
+        type: "varchar",
+        length: 24,
+        default: RecoveryRequestStatus.PENDING,
+    }),
     __metadata("design:type", String)
 ], RecoveryRequest.prototype, "status", void 0);
 __decorate([

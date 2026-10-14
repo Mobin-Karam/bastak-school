@@ -89,6 +89,9 @@ export function AttendanceRosterView({
           >
             <option value="all">همه وضعیت‌ها</option>
             <option value="unmarked">نامشخص</option>
+            {participants.some((person) => person.status === "excused") ? (
+              <option value="excused">موجه</option>
+            ) : null}
             {attendanceStatuses.map((status) => (
               <option key={status} value={status}>
                 {attendanceStatusMeta[status].label}
@@ -132,9 +135,9 @@ export function AttendanceRosterView({
           {filtered.map((student, index) => (
             <div
               key={student.id}
-              className="space-y-4 rounded-2xl border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card))] p-4"
+              className="space-y-3 md:flex md:items-center md:gap-4 md:space-y-0 rounded-2xl border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card))] p-4"
             >
-              <div className="flex min-w-0 items-center gap-3">
+              <div className="flex min-w-0 flex-1 items-center gap-3">
                 <span className="flex size-12 shrink-0 items-center justify-center rounded-full bg-blue-50 text-lg font-black text-blue-700 dark:bg-blue-950/40 dark:text-blue-200">
                   {student.name.trim().slice(0, 1) || index + 1}
                 </span>
@@ -156,11 +159,20 @@ export function AttendanceRosterView({
                   <Check size={15} className="shrink-0 text-emerald-600" aria-label="تعیین شده" />
                 ) : null}
               </div>
+              {!canManage || student.status === "excused" ? (
+                <span
+                  className={`text-sm font-bold ${student.status === "unmarked" ? muted : attendanceStatusMeta[student.status].active} rounded-lg px-3 py-2`}
+                >
+                  {student.status === "unmarked"
+                    ? "نامشخص"
+                    : attendanceStatusMeta[student.status].label}
+                </span>
+              ) : null}
               {canManage ? (
                 <div
                   role="group"
                   aria-label={`وضعیت ${student.name}`}
-                  className="grid grid-cols-3 gap-2"
+                  className="grid grid-cols-3 gap-2 md:w-80 md:shrink-0"
                 >
                   {attendanceStatuses.map((status) => (
                     <button
@@ -171,7 +183,7 @@ export function AttendanceRosterView({
                       onClick={() =>
                         onMark(student.id, student.status === status ? "unmarked" : status)
                       }
-                      className={`mobile-attendance-status min-h-14 rounded-2xl border px-2 py-3 text-sm font-bold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500 ${student.status === status ? `${attendanceStatusMeta[status].active} ring-2 ring-current` : `${attendanceStatusMeta[status].active} opacity-75 hover:opacity-100`}`}
+                      className={`mobile-attendance-status min-h-14 md:min-h-11 rounded-xl border px-2 py-2 text-sm font-bold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500 ${student.status === status ? `${attendanceStatusMeta[status].active} ring-2 ring-current` : `${attendanceStatusMeta[status].active} opacity-75 hover:opacity-100`}`}
                     >
                       {status === "present" ? (
                         <UserRound

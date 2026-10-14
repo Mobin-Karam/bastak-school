@@ -19,7 +19,6 @@ const auth_config_1 = __importDefault(require("./config/auth.config"));
 const database_config_1 = __importDefault(require("./config/database.config"));
 const data_source_1 = require("./database/data-source");
 const http_exception_filter_1 = require("./common/filters/http-exception.filter");
-const logging_interceptor_1 = require("./common/interceptors/logging.interceptor");
 const roles_guard_1 = require("./common/guards/roles.guard");
 const csrf_guard_1 = require("./common/guards/csrf.guard");
 const auth_session_guard_1 = require("./common/guards/auth-session.guard");
@@ -70,7 +69,6 @@ exports.AppModule = AppModule = __decorate([
         ],
         providers: [
             { provide: core_1.APP_FILTER, useClass: http_exception_filter_1.HttpExceptionFilter },
-            { provide: core_1.APP_INTERCEPTOR, useClass: logging_interceptor_1.LoggingInterceptor },
             { provide: core_1.APP_GUARD, useClass: auth_session_guard_1.AuthSessionGuard },
             { provide: core_1.APP_GUARD, useClass: roles_guard_1.RolesGuard },
             { provide: core_1.APP_GUARD, useClass: capabilities_guard_1.CapabilitiesGuard },

@@ -17,6 +17,8 @@ import { DailyReport } from "./daily-report.entity";
 import { RecoveryRequest } from "./recovery-request.entity";
 import { LearningItem } from "./learning-item.entity";
 import { Organization } from "./organization.entity";
+import type { StudentProfile } from "./student-profile.entity";
+import type { EducationClassEnrollment } from "./education-class-enrollment.entity";
 
 @Entity("students")
 export class Student {
@@ -212,4 +214,13 @@ export class Student {
 
   @OneToMany(() => LearningItem, (item) => item.student)
   learningItems!: LearningItem[];
+
+  @OneToOne("StudentProfile", (profile: StudentProfile) => profile.student)
+  profile?: StudentProfile | null;
+
+  @OneToMany(
+    "EducationClassEnrollment",
+    (enrollment: EducationClassEnrollment) => enrollment.student,
+  )
+  enrollments?: EducationClassEnrollment[];
 }

@@ -20,7 +20,7 @@ class CreateUserDto {
     organizationId;
     roleCodes;
     static _OPENAPI_METADATA_FACTORY() {
-        return { phoneNumber: { required: true, type: () => String, pattern: "^09\\d{9}$" }, password: { required: true, type: () => String, minLength: 12 }, firstName: { required: false, type: () => String, minLength: 0, maxLength: 100 }, lastName: { required: false, type: () => String, minLength: 0, maxLength: 100 }, organizationId: { required: false, type: () => String, format: "uuid" }, roleCodes: { required: true, type: () => [String], uniqueItems: true } };
+        return { phoneNumber: { required: true, type: () => String, pattern: "^09\\d{9}$" }, password: { required: true, type: () => String, minLength: 12 }, firstName: { required: false, type: () => String, minLength: 0, maxLength: 100 }, lastName: { required: false, type: () => String, minLength: 0, maxLength: 100 }, organizationId: { required: false, type: () => String, format: "uuid" }, roleCodes: { required: true, type: () => [String], minItems: 1, uniqueItems: true } };
     }
 }
 exports.CreateUserDto = CreateUserDto;
@@ -53,6 +53,7 @@ __decorate([
 ], CreateUserDto.prototype, "organizationId", void 0);
 __decorate([
     (0, class_validator_1.IsArray)(),
+    (0, class_validator_1.ArrayNotEmpty)(),
     (0, class_validator_1.ArrayUnique)(),
     (0, class_validator_1.IsString)({ each: true }),
     __metadata("design:type", Array)
@@ -102,12 +103,13 @@ class SetRolesDto {
     roleCodes;
     organizationId;
     static _OPENAPI_METADATA_FACTORY() {
-        return { roleCodes: { required: true, type: () => [String], uniqueItems: true }, organizationId: { required: false, type: () => String, format: "uuid" } };
+        return { roleCodes: { required: true, type: () => [String], minItems: 1, uniqueItems: true }, organizationId: { required: false, type: () => String, format: "uuid" } };
     }
 }
 exports.SetRolesDto = SetRolesDto;
 __decorate([
     (0, class_validator_1.IsArray)(),
+    (0, class_validator_1.ArrayNotEmpty)(),
     (0, class_validator_1.ArrayUnique)(),
     (0, class_validator_1.IsString)({ each: true }),
     __metadata("design:type", Array)

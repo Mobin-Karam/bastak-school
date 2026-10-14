@@ -54,7 +54,7 @@ __decorate([
 ], AttendanceSession.prototype, "id", void 0);
 __decorate([
     (0, typeorm_1.Index)(),
-    (0, typeorm_1.ManyToOne)(() => organization_entity_1.Organization, { onDelete: "CASCADE" }),
+    (0, typeorm_1.ManyToOne)(() => organization_entity_1.Organization, { nullable: false, onDelete: "CASCADE" }),
     __metadata("design:type", organization_entity_1.Organization)
 ], AttendanceSession.prototype, "organization", void 0);
 __decorate([
@@ -159,6 +159,7 @@ __decorate([
 ], AttendanceSession.prototype, "records", void 0);
 exports.AttendanceSession = AttendanceSession = __decorate([
     (0, typeorm_1.Entity)("attendance_sessions"),
+    (0, typeorm_1.Index)("IDX_attendance_session_org_date_id", ["organization", "sessionDate", "id"]),
     (0, typeorm_1.Index)("IDX_attendance_session_occurrence", ["organization", "occurrenceKey"], {
         unique: true,
     })

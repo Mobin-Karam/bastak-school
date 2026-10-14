@@ -204,6 +204,9 @@ export declare class RelationshipsService {
         studentId: string;
         guardianChangeAllowed: boolean;
     }>;
+    private inWorkScope;
+    private isEligible;
+    private assertEligible;
     private selfStudent;
     private project;
 }

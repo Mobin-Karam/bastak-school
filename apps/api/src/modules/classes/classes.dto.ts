@@ -20,6 +20,7 @@ export const SCHOOL_YEAR_PATTERN =
   /^(140[5-9]|14[1-2][0-9]|1430)-(140[6-9]|14[1-3][0-9]|1431)$/;
 
 export class SaveEducationClassDto {
+  @IsOptional() @IsUUID() academicYearId?: string;
   @IsUUID() organizationId!: string;
   @IsString() @MinLength(2) @MaxLength(80) code!: string;
   @IsString() @MinLength(2) @MaxLength(160) name!: string;
@@ -28,6 +29,7 @@ export class SaveEducationClassDto {
 }
 
 export class UpdateEducationClassDto {
+  @IsOptional() @IsUUID() academicYearId?: string;
   @IsOptional() @IsString() @MinLength(2) @MaxLength(80) code?: string;
   @IsOptional() @IsString() @MinLength(2) @MaxLength(160) name?: string;
   @IsOptional()
@@ -74,4 +76,9 @@ export class ClassTransferDto {
 export class AddClassBookDto {
   @IsString() @MinLength(1) @MaxLength(120) bookId!: string;
   @IsUUID() teacherId!: string;
+}
+
+export class ClassHistoryQueryDto {
+  @IsOptional() @Type(() => Number) @IsInt() @Min(0) offset = 0;
+  @IsOptional() @Type(() => Number) @IsInt() @Min(1) @Max(100) limit = 50;
 }

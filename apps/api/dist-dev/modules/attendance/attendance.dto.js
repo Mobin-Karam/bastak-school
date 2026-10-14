@@ -70,6 +70,7 @@ __decorate([
     __metadata("design:type", String)
 ], AttendanceEntryDto.prototype, "note", void 0);
 class BulkMarkAttendanceDto {
+    expectedRevision;
     requestId;
     organizationId;
     sessionId;
@@ -78,10 +79,16 @@ class BulkMarkAttendanceDto {
     sessionDate;
     entries;
     static _OPENAPI_METADATA_FACTORY() {
-        return { requestId: { required: false, type: () => String, format: "uuid" }, organizationId: { required: true, type: () => String, format: "uuid" }, sessionId: { required: false, type: () => String, format: "uuid" }, contextType: { required: false, enum: ["class", "class_group", "dorm"], enum: ["class", "class_group", "dorm"] }, contextId: { required: false, type: () => String, format: "uuid" }, sessionDate: { required: false, type: () => String }, entries: { required: true, type: () => [require("./attendance.dto").AttendanceEntryDto], uniqueItems: true, minItems: 1, maxItems: 500 } };
+        return { expectedRevision: { required: false, type: () => Number, minimum: 0 }, requestId: { required: false, type: () => String, format: "uuid" }, organizationId: { required: true, type: () => String, format: "uuid" }, sessionId: { required: false, type: () => String, format: "uuid" }, contextType: { required: false, enum: ["class", "class_group", "dorm"], enum: ["class", "class_group", "dorm"] }, contextId: { required: false, type: () => String, format: "uuid" }, sessionDate: { required: false, type: () => String }, entries: { required: true, type: () => [require("./attendance.dto").AttendanceEntryDto], uniqueItems: true, minItems: 1, maxItems: 500 } };
     }
 }
 exports.BulkMarkAttendanceDto = BulkMarkAttendanceDto;
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsInt)(),
+    (0, class_validator_1.Min)(0),
+    __metadata("design:type", Number)
+], BulkMarkAttendanceDto.prototype, "expectedRevision", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsUUID)(),

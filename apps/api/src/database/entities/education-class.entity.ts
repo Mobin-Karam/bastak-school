@@ -12,7 +12,7 @@ import {
 import { Organization } from "./organization.entity";
 import { User } from "./user.entity";
 import { EducationClassBook } from "./education-class-book.entity";
-import { EducationClassEnrollment } from "./education-class-enrollment.entity";
+import type { EducationClassEnrollment } from "./education-class-enrollment.entity";
 
 @Entity("education_classes")
 @Index(["organization", "code"], { unique: true })
@@ -22,6 +22,11 @@ export class EducationClass {
   organization!: Organization;
   @Column({ length: 80 }) code!: string;
   @Column({ length: 160 }) name!: string;
+  @Column({ type: "varchar", length: 36, nullable: true }) academicYearId!:
+    string | null;
+  @ManyToOne("TimetableAcademicYear", { nullable: true, onDelete: "RESTRICT" })
+  @JoinColumn({ name: "academicYearId" })
+  academicYear?: object;
   @Column({ length: 16 }) schoolYear!: string;
   @Column({ type: "integer" }) gradeId!: number;
   @Column({ length: 40 }) educationTypeId!: string;
@@ -34,8 +39,8 @@ export class EducationClass {
   @OneToMany(() => EducationClassBook, (book) => book.classroom)
   books!: EducationClassBook[];
   @OneToMany(
-    () => EducationClassEnrollment,
-    (enrollment) => enrollment.classroom,
+    "EducationClassEnrollment",
+    (enrollment: EducationClassEnrollment) => enrollment.classroom,
   )
   enrollments!: EducationClassEnrollment[];
   @Column({ type: "varchar", length: 36, nullable: true }) timetableSectionId!:

@@ -43,6 +43,7 @@ const node_path_1 = __importDefault(require("node:path"));
 const typeorm_1 = require("typeorm");
 const entities = __importStar(require("./entities"));
 const migration_path_1 = require("./migration-path");
+const safe_database_logger_1 = require("./safe-database-logger");
 const databasePath = process.env.DATABASE_PATH ||
     node_path_1.default.resolve(process.cwd(), "data", "moshaver-v2.sqlite");
 const dir = node_path_1.default.dirname(databasePath);
@@ -55,7 +56,10 @@ exports.dataSourceOptions = {
     entities: entityClasses,
     migrations: [(0, migration_path_1.databaseMigrationGlob)(__filename)],
     synchronize: false,
+    logger: new safe_database_logger_1.SafeDatabaseLogger(),
+    maxQueryExecutionTime: 100,
     migrationsRun: true,
+    migrationsTransactionMode: "each",
     prepareDatabase: (db) => {
         db.pragma("foreign_keys = ON");
         db.pragma("journal_mode = WAL");

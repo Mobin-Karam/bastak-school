@@ -76,7 +76,27 @@ export declare class AuthController {
     }>;
     phoneChangeRequests(user: AuthenticatedUser, req: FastifyRequest): Promise<{
         ok: boolean;
-        data: import("../../database/entities").AccountChangeRequest[];
+        data: {
+            id: string;
+            kind: "PHONE_NUMBER";
+            status: import("../../database/entities/account-change-request.entity").AccountChangeRequestStatus;
+            requestedValue: string;
+            reason: string;
+            reviewNote: string;
+            createdAt: Date;
+            updatedAt: Date;
+            reviewedAt: Date | null | undefined;
+            organization: {
+                id: string;
+                name: string;
+            };
+            user: {
+                id: string;
+                username: string;
+                firstName: string;
+                lastName: string;
+            };
+        }[];
     }>;
     approvePhoneChange(user: AuthenticatedUser, id: string, dto: ReviewPhoneNumberChangeRequestDto): Promise<{
         ok: boolean;

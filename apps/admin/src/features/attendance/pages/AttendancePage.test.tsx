@@ -12,12 +12,14 @@ const {
   getAttendanceParticipantsMock,
   bulkMarkAttendanceMock,
   canMock,
+  getSavedAttendanceSessionMock,
 } = vi.hoisted(() => ({
   listAttendanceSessionsMock: vi.fn(),
   listAttendanceContextsMock: vi.fn(),
   getAttendanceParticipantsMock: vi.fn(),
   bulkMarkAttendanceMock: vi.fn(),
   canMock: vi.fn(),
+  getSavedAttendanceSessionMock: vi.fn(),
 }));
 
 vi.mock("../api/attendance.api", () => ({
@@ -28,8 +30,12 @@ vi.mock("../api/attendance.api", () => ({
   bulkMarkAttendance: bulkMarkAttendanceMock,
 }));
 
+vi.mock("../api/attendance-operations.api", () => ({
+  getSavedAttendanceSession: getSavedAttendanceSessionMock,
+}));
+
 vi.mock("../../auth", () => ({
-  useAuth: () => ({ can: canMock }),
+  useAuth: () => ({ can: canMock, context: { activeOrganization: { id: "org-1" } } }),
 }));
 
 function TestProviders({ children }: PropsWithChildren) {
@@ -254,6 +260,58 @@ describe("AttendancePage", () => {
       "false",
     );
     expect(bulkMarkAttendanceMock).not.toHaveBeenCalled();
+  });
+
+  it("submits only changed marks and preserves saved excused absences", async () => {
+    listAttendanceContextsMock.mockResolvedValue([
+      {
+        id: "class-1",
+        contextType: "class",
+        name: "کلاس",
+        total: 2,
+        activeOrganizationId: "org-1",
+      },
+    ]);
+    getSavedAttendanceSessionMock.mockResolvedValue({
+      id: "session-1",
+      contextType: "class",
+      contextId: "class-1",
+      title: "کلاس",
+      revision: 2,
+      status: "submitted",
+      organizationId: "org-1",
+      roster: [
+        { id: "student-1", name: "علی" },
+        { id: "student-2", name: "رضا" },
+      ],
+      records: [
+        { studentId: "student-1", legacyStatus: "present" },
+        { studentId: "student-2", legacyStatus: "excused" },
+      ],
+    });
+    const user = userEvent.setup();
+    render(
+      <MemoryRouter
+        initialEntries={[
+          "/admin/attendance?contextType=class&contextId=class-1&sessionId=session-1",
+        ]}
+      >
+        <LocaleProvider>
+          <AttendancePage />
+        </LocaleProvider>
+      </MemoryRouter>,
+    );
+    const group = await screen.findByRole("group", { name: "وضعیت علی" });
+    expect(screen.getByRole("button", { name: /بررسی و ثبت حضور/ })).toBeDisabled();
+    await user.click(within(group).getByRole("button", { name: "تأخیر" }));
+    await user.click(screen.getByRole("button", { name: /بررسی و ثبت حضور/ }));
+    await user.click(screen.getByRole("button", { name: "تأیید و ثبت" }));
+    await waitFor(() => expect(bulkMarkAttendanceMock).toHaveBeenCalledOnce());
+    expect(bulkMarkAttendanceMock.mock.calls[0][0]).toMatchObject({
+      sessionId: "session-1",
+      expectedRevision: 2,
+      entries: [{ studentId: "student-1", status: "late" }],
+    });
   });
 
   it("hides marking and save actions for read-only attendance access", async () => {
