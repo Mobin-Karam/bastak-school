@@ -35,6 +35,9 @@ describe("student UI helpers", () => {
     expect(
       getStudentProfileCompleteness({ ...completeStudent, major: "", targetUniversity: "" }),
     ).toBe(75);
+    expect(
+      getStudentProfileCompleteness({ ...completeStudent, registrationStatus: "ACCOUNT_CREATED" }),
+    ).toBe(0);
   });
 
   it("reports missing profile fields for actionable overview UI", () => {
@@ -42,6 +45,9 @@ describe("student UI helpers", () => {
     expect(
       getMissingStudentProfileFields({ ...completeStudent, targetRank: "", dailyCapacity: "" }),
     ).toEqual(["رتبه هدف", "ظرفیت روزانه"]);
+    expect(
+      getMissingStudentProfileFields({ ...completeStudent, profileComplete: false }),
+    ).toEqual(["مشخصات ثبت‌نام"]);
   });
 
   it("handles missing and invalid last-seen values without throwing", () => {

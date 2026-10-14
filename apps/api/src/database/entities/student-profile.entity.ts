@@ -13,7 +13,7 @@ import { Student } from "./student.entity";
 export class StudentProfile {
   @PrimaryGeneratedColumn("uuid") id!: string;
 
-  @OneToOne(() => Student, { nullable: false, onDelete: "CASCADE" })
+  @OneToOne(() => Student, (student) => student.profile, { nullable: false, onDelete: "CASCADE" })
   @JoinColumn()
   student!: Student;
 

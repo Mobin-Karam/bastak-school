@@ -18,7 +18,7 @@ export class EducationClassEnrollment {
     { nullable: false, onDelete: "CASCADE" },
   )
   classroom!: EducationClass;
-  @ManyToOne(() => Student, { nullable: false, onDelete: "CASCADE" })
+  @ManyToOne(() => Student, (student) => student.enrollments, { nullable: false, onDelete: "CASCADE" })
   student!: Student;
   @CreateDateColumn() createdAt!: Date;
 }
