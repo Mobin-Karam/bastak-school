@@ -33,7 +33,8 @@ export function getStudentUsername(student: Student) {
 }
 
 export function getStudentProfileCompleteness(student: Student) {
-  if (student.profileComplete === false || student.registrationStatus === "ACCOUNT_CREATED") return 0;
+  if (student.profileComplete === false || student.registrationStatus === "ACCOUNT_CREATED")
+    return 0;
   const values = [
     student.name,
     getStudentUsername(student),

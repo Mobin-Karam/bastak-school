@@ -45,7 +45,7 @@ import { normalizeIranianMobile } from "../../common/utils/phone-number";
 import { StudentProfile } from "../../database/entities/student-profile.entity";
 import { EducationClass } from "../../database/entities/education-class.entity";
 import { EducationClassEnrollment } from "../../database/entities/education-class-enrollment.entity";
-import { normalizeNationalCode, isValidIranianNationalCode } from "../onboarding/national-code";
+import { normalizeNationalCode, isValidIranianNationalCode } from "../onboarding";
 
 @Injectable()
 export class StudentAdministrationService {

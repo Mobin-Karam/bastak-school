@@ -55,8 +55,11 @@ function isoToJalaliInput(value?: string | null) {
     day: "2-digit",
     timeZone: "UTC",
   }).formatToParts(date);
-  const part = (type: Intl.DateTimeFormatPartTypes) => parts.find((item) => item.type === type)?.value;
-  const year = part("year"), month = part("month"), day = part("day");
+  const part = (type: Intl.DateTimeFormatPartTypes) =>
+    parts.find((item) => item.type === type)?.value;
+  const year = part("year"),
+    month = part("month"),
+    day = part("day");
   return year && month && day ? `${year}/${month}/${day}` : "";
 }
 
@@ -133,12 +136,20 @@ export function studentPayload(form: StudentForm, includePassword: boolean) {
     birthDateJalali: form.birthDateJalali.trim() || undefined,
     governmentSchool: form.governmentSchool.trim() || undefined,
     classId: form.classId || undefined,
-    mother: form.motherPhoneNumber.trim() && form.motherPassword
-      ? { phoneNumber: normalizeIranianPhoneNumber(form.motherPhoneNumber), password: form.motherPassword }
-      : undefined,
-    father: form.fatherPhoneNumber.trim() && form.fatherPassword
-      ? { phoneNumber: normalizeIranianPhoneNumber(form.fatherPhoneNumber), password: form.fatherPassword }
-      : undefined,
+    mother:
+      form.motherPhoneNumber.trim() && form.motherPassword
+        ? {
+            phoneNumber: normalizeIranianPhoneNumber(form.motherPhoneNumber),
+            password: form.motherPassword,
+          }
+        : undefined,
+    father:
+      form.fatherPhoneNumber.trim() && form.fatherPassword
+        ? {
+            phoneNumber: normalizeIranianPhoneNumber(form.fatherPhoneNumber),
+            password: form.fatherPassword,
+          }
+        : undefined,
     learnerProfile: form.learnerProfile,
     independentType: isIndependent ? form.independentType || undefined : undefined,
     learningLevel: isIndependent ? form.learningLevel.trim() : undefined,

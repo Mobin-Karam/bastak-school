@@ -129,7 +129,8 @@ export function StudentEditor({
     form.learnerProfile === "independent"
       ? !!form.independentType
       : !!form.gradeId && !!form.educationTypeId && (!structure?.track_required || !!form.trackId);
-  const baseValid = !!form.firstName.trim() && !!form.lastName.trim() && !!form.username.trim() && educationValid;
+  const baseValid =
+    !!form.firstName.trim() && !!form.lastName.trim() && !!form.username.trim() && educationValid;
   const saveDisabled = !baseValid || busy || !saveDirty || !passwordValid || !!usernameError;
   const completion = useMemo(() => formCompleteness(form, mode === "create"), [form, mode]);
 
@@ -183,7 +184,11 @@ export function StudentEditor({
             />
           </Field>
           <Field label={language === "fa" ? "نام خانوادگی" : "Last name"}>
-            <Input value={form.lastName} onChange={(event) => setField("lastName", event.target.value)} placeholder={language === "fa" ? "نام خانوادگی دانش‌آموز" : "Last name"} />
+            <Input
+              value={form.lastName}
+              onChange={(event) => setField("lastName", event.target.value)}
+              placeholder={language === "fa" ? "نام خانوادگی دانش‌آموز" : "Last name"}
+            />
           </Field>
           <Field label={copy.username} error={usernameError}>
             <Input
@@ -217,29 +222,104 @@ export function StudentEditor({
 
       <section className="grid gap-3 rounded-xl border border-slate-200 p-3 dark:border-slate-800">
         <div>
-          <h4 className="text-sm font-bold text-slate-800 dark:text-slate-100">{language === "fa" ? "مشخصات ثبت‌نام" : "Enrollment details"}</h4>
-          <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{language === "fa" ? "کد ملی، تاریخ تولد شمسی و مدرسه دولتی در پرونده دانش‌آموز نگهداری می‌شود." : "National ID, Jalali birth date, and government school are stored on the student profile."}</p>
+          <h4 className="text-sm font-bold text-slate-800 dark:text-slate-100">
+            {language === "fa" ? "مشخصات ثبت‌نام" : "Enrollment details"}
+          </h4>
+          <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+            {language === "fa"
+              ? "کد ملی، تاریخ تولد شمسی و مدرسه دولتی در پرونده دانش‌آموز نگهداری می‌شود."
+              : "National ID, Jalali birth date, and government school are stored on the student profile."}
+          </p>
         </div>
         <div className="grid gap-3 sm:grid-cols-2">
-          <Field label={language === "fa" ? "کد ملی" : "National ID"}><Input dir="ltr" value={form.nationalCode} onChange={(event) => setField("nationalCode", event.target.value)} placeholder="۰۰۰۰۰۰۰۰۰۰" /></Field>
-          <Field label={language === "fa" ? "تاریخ تولد (شمسی)" : "Birth date (Jalali)"}><Input dir="ltr" value={form.birthDateJalali} onChange={(event) => setField("birthDateJalali", event.target.value)} placeholder="۱۴۰۰/۰۱/۰۱" /></Field>
-          <Field label={language === "fa" ? "مدرسه دولتی" : "Government school"}><Input value={form.governmentSchool} onChange={(event) => setField("governmentSchool", event.target.value)} /></Field>
+          <Field label={language === "fa" ? "کد ملی" : "National ID"}>
+            <Input
+              dir="ltr"
+              value={form.nationalCode}
+              onChange={(event) => setField("nationalCode", event.target.value)}
+              placeholder="۰۰۰۰۰۰۰۰۰۰"
+            />
+          </Field>
+          <Field label={language === "fa" ? "تاریخ تولد (شمسی)" : "Birth date (Jalali)"}>
+            <Input
+              dir="ltr"
+              value={form.birthDateJalali}
+              onChange={(event) => setField("birthDateJalali", event.target.value)}
+              placeholder="۱۴۰۰/۰۱/۰۱"
+            />
+          </Field>
+          <Field label={language === "fa" ? "مدرسه دولتی" : "Government school"}>
+            <Input
+              value={form.governmentSchool}
+              onChange={(event) => setField("governmentSchool", event.target.value)}
+            />
+          </Field>
           <Field label={language === "fa" ? "کلاس این مدرسه" : "School class"}>
-            <select className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm dark:border-slate-700 dark:bg-slate-900" value={form.classId} onChange={(event) => setField("classId", event.target.value)} disabled={classes.isLoading}>
-              <option value="">{language === "fa" ? "هنوز کلاس تعیین نشده" : "No class assigned yet"}</option>
-              {classes.data?.filter((item) => item.status === "ACTIVE").map((item) => <option key={item.id} value={item.id}>{item.name} ({item.code})</option>)}
+            <select
+              className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm dark:border-slate-700 dark:bg-slate-900"
+              value={form.classId}
+              onChange={(event) => setField("classId", event.target.value)}
+              disabled={classes.isLoading}
+            >
+              <option value="">
+                {language === "fa" ? "هنوز کلاس تعیین نشده" : "No class assigned yet"}
+              </option>
+              {classes.data
+                ?.filter((item) => item.status === "ACTIVE")
+                .map((item) => (
+                  <option key={item.id} value={item.id}>
+                    {item.name} ({item.code})
+                  </option>
+                ))}
             </select>
           </Field>
         </div>
       </section>
 
       <section className="grid gap-3 rounded-xl border border-slate-200 p-3 dark:border-slate-800">
-        <div><h4 className="text-sm font-bold text-slate-800 dark:text-slate-100">{language === "fa" ? "حساب سرپرست‌ها" : "Guardian accounts"}</h4><p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{language === "fa" ? "حداقل یکی از مادر یا پدر اختیاری است. هر حساب فقط به دانش‌آموزان پیوندخورده دسترسی دارد." : "Mother and father are optional. Each account can access only linked students."}</p></div>
+        <div>
+          <h4 className="text-sm font-bold text-slate-800 dark:text-slate-100">
+            {language === "fa" ? "حساب سرپرست‌ها" : "Guardian accounts"}
+          </h4>
+          <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+            {language === "fa"
+              ? "حداقل یکی از مادر یا پدر اختیاری است. هر حساب فقط به دانش‌آموزان پیوندخورده دسترسی دارد."
+              : "Mother and father are optional. Each account can access only linked students."}
+          </p>
+        </div>
         <div className="grid gap-3 sm:grid-cols-2">
-          <Field label={language === "fa" ? "شماره مادر" : "Mother phone"}><Input dir="ltr" value={form.motherPhoneNumber} onChange={(event) => setField("motherPhoneNumber", event.target.value)} /></Field>
-          <Field label={language === "fa" ? "گذرواژه مادر" : "Mother password"}><Input dir="ltr" type="password" autoComplete="new-password" value={form.motherPassword} onChange={(event) => setField("motherPassword", event.target.value)} /></Field>
-          <Field label={language === "fa" ? "شماره پدر" : "Father phone"}><Input dir="ltr" value={form.fatherPhoneNumber} onChange={(event) => setField("fatherPhoneNumber", event.target.value)} /></Field>
-          <Field label={language === "fa" ? "گذرواژه پدر" : "Father password"}><Input dir="ltr" type="password" autoComplete="new-password" value={form.fatherPassword} onChange={(event) => setField("fatherPassword", event.target.value)} /></Field>
+          <Field label={language === "fa" ? "شماره مادر" : "Mother phone"}>
+            <Input
+              dir="ltr"
+              value={form.motherPhoneNumber}
+              onChange={(event) => setField("motherPhoneNumber", event.target.value)}
+            />
+          </Field>
+          <Field label={language === "fa" ? "گذرواژه مادر" : "Mother password"}>
+            <Input
+              dir="ltr"
+              type="password"
+              autoComplete="new-password"
+              value={form.motherPassword}
+              onChange={(event) => setField("motherPassword", event.target.value)}
+            />
+          </Field>
+          <Field label={language === "fa" ? "شماره پدر" : "Father phone"}>
+            <Input
+              dir="ltr"
+              value={form.fatherPhoneNumber}
+              onChange={(event) => setField("fatherPhoneNumber", event.target.value)}
+            />
+          </Field>
+          <Field label={language === "fa" ? "گذرواژه پدر" : "Father password"}>
+            <Input
+              dir="ltr"
+              type="password"
+              autoComplete="new-password"
+              value={form.fatherPassword}
+              onChange={(event) => setField("fatherPassword", event.target.value)}
+            />
+          </Field>
         </div>
       </section>
 

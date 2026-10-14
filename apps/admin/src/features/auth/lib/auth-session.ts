@@ -51,9 +51,7 @@ export function isSupportedAdminPortalRole(role?: RoleCode | null) {
 export function isReleasedSchoolPortalRole(role?: RoleCode | null) {
   return Boolean(
     role &&
-      RELEASED_SCHOOL_PORTAL_ROLES.includes(
-        role as (typeof RELEASED_SCHOOL_PORTAL_ROLES)[number],
-      ),
+    RELEASED_SCHOOL_PORTAL_ROLES.includes(role as (typeof RELEASED_SCHOOL_PORTAL_ROLES)[number]),
   );
 }
 

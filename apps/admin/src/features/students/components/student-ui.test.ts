@@ -45,9 +45,9 @@ describe("student UI helpers", () => {
     expect(
       getMissingStudentProfileFields({ ...completeStudent, targetRank: "", dailyCapacity: "" }),
     ).toEqual(["رتبه هدف", "ظرفیت روزانه"]);
-    expect(
-      getMissingStudentProfileFields({ ...completeStudent, profileComplete: false }),
-    ).toEqual(["مشخصات ثبت‌نام"]);
+    expect(getMissingStudentProfileFields({ ...completeStudent, profileComplete: false })).toEqual([
+      "مشخصات ثبت‌نام",
+    ]);
   });
 
   it("handles missing and invalid last-seen values without throwing", () => {

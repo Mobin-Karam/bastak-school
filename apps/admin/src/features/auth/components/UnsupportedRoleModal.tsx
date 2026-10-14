@@ -73,15 +73,26 @@ export function UnsupportedRoleModal() {
             </DialogDescription>
           </div>
 
-          <section className="mt-5 grid grid-cols-4 gap-2" aria-label={isEnglish ? "Time remaining" : "زمان باقی‌مانده"} role="status">
-            {([
-              ["days", isEnglish ? "Days" : "روز"],
-              ["hours", isEnglish ? "Hours" : "ساعت"],
-              ["minutes", isEnglish ? "Minutes" : "دقیقه"],
-              ["seconds", isEnglish ? "Seconds" : "ثانیه"],
-            ] as const).map(([unit, label]) => (
-              <div key={unit} className="rounded-2xl border border-brand/15 bg-brand/5 px-1 py-3 text-center">
-                <strong className="block text-xl font-black tabular-nums text-ink" dir="ltr">{String(time[unit]).padStart(2, "0")}</strong>
+          <section
+            className="mt-5 grid grid-cols-4 gap-2"
+            aria-label={isEnglish ? "Time remaining" : "زمان باقی‌مانده"}
+            role="status"
+          >
+            {(
+              [
+                ["days", isEnglish ? "Days" : "روز"],
+                ["hours", isEnglish ? "Hours" : "ساعت"],
+                ["minutes", isEnglish ? "Minutes" : "دقیقه"],
+                ["seconds", isEnglish ? "Seconds" : "ثانیه"],
+              ] as const
+            ).map(([unit, label]) => (
+              <div
+                key={unit}
+                className="rounded-2xl border border-brand/15 bg-brand/5 px-1 py-3 text-center"
+              >
+                <strong className="block text-xl font-black tabular-nums text-ink" dir="ltr">
+                  {String(time[unit]).padStart(2, "0")}
+                </strong>
                 <span className="mt-1 block text-[11px] font-bold text-slate-500">{label}</span>
               </div>
             ))}

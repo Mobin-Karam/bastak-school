@@ -6,7 +6,7 @@ import {
   PrimaryGeneratedColumn,
 } from "typeorm";
 import type { EducationClass } from "./education-class.entity";
-import { Student } from "./student.entity";
+import type { Student } from "./student.entity";
 
 @Entity("education_class_enrollments")
 @Index(["classroom", "student"], { unique: true })
@@ -18,7 +18,7 @@ export class EducationClassEnrollment {
     { nullable: false, onDelete: "CASCADE" },
   )
   classroom!: EducationClass;
-  @ManyToOne(() => Student, (student) => student.enrollments, { nullable: false, onDelete: "CASCADE" })
+  @ManyToOne("Student", (student: Student) => student.enrollments, { nullable: false, onDelete: "CASCADE" })
   student!: Student;
   @CreateDateColumn() createdAt!: Date;
 }

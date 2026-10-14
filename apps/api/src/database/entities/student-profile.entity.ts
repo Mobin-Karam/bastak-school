@@ -7,13 +7,13 @@ import {
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from "typeorm";
-import { Student } from "./student.entity";
+import type { Student } from "./student.entity";
 
 @Entity("student_profiles")
 export class StudentProfile {
   @PrimaryGeneratedColumn("uuid") id!: string;
 
-  @OneToOne(() => Student, (student) => student.profile, { nullable: false, onDelete: "CASCADE" })
+  @OneToOne("Student", (student: Student) => student.profile, { nullable: false, onDelete: "CASCADE" })
   @JoinColumn()
   student!: Student;
 
