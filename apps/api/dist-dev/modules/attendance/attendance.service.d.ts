@@ -1,6 +1,6 @@
 import type { AttendanceSessionDetail } from "@moshaver/api-contract";
 import { AuditLog } from "../../database/entities/audit-log.entity";
-import { Repository } from "typeorm";
+import { EntityManager, Repository } from "typeorm";
 import { AttendanceRecord, AttendanceReviewStatus, AttendanceStatus } from "../../database/entities/attendance-record.entity";
 import { AttendanceContextType, AttendanceSession } from "../../database/entities/attendance-session.entity";
 import { DormRoomAssignment } from "../../database/entities/dorm-room-assignment.entity";
@@ -101,6 +101,13 @@ export declare class AttendanceService {
     }): Promise<{
         id: string;
     }>;
+    applyTimetableChange(manager: EntityManager, sessionId: string, lessonId: string, input: {
+        cancelled: boolean;
+        teacherId: string | null;
+        startsAt: string;
+        endsAt: string;
+        reason: string;
+    }, actor: AuthenticatedUser): Promise<void>;
     reassignTimetableSession(sessionId: string, lessonId: string, teacherId: string): Promise<void>;
     cancelTimetableSession(sessionId: string, lessonId: string): Promise<void>;
     createSession(user: AuthenticatedUser, dto: CreateAttendanceSessionDto): Promise<{

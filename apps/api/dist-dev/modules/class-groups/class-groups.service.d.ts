@@ -1,4 +1,3 @@
-import type { ClassGroupSummary } from "@moshaver/api-contract";
 import { Repository } from "typeorm";
 import { EducationClassEnrollment } from "../../database/entities/education-class-enrollment.entity";
 import { EducationClass } from "../../database/entities/education-class.entity";

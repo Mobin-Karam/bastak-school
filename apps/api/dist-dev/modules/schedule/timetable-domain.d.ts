@@ -23,4 +23,9 @@ export declare function detectTimetableConflicts(input: {
     startsOn: string;
     endsOn: string;
     timeZone: string;
+    locations?: Array<{
+        id: string;
+        capacity: number;
+    }>;
+    classSizes?: Record<string, number>;
 }): TimetableConflict[];

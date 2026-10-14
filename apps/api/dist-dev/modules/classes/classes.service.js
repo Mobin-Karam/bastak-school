@@ -13,6 +13,9 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.ClassesService = void 0;
+const timetable_entity_1 = require("../../database/entities/timetable.entity");
+const academic_structure_entity_1 = require("../../database/entities/academic-structure.entity");
+const attendance_1 = require("../attendance");
 const study_group_entity_1 = require("../../database/entities/study-group.entity");
 const study_group_membership_entity_1 = require("../../database/entities/study-group-membership.entity");
 const common_1 = require("@nestjs/common");
@@ -20,7 +23,7 @@ const typeorm_1 = require("@nestjs/typeorm");
 const typeorm_2 = require("typeorm");
 const api_exception_1 = require("../../common/exceptions/api.exception");
 const school_schedule_entry_entity_1 = require("../../database/entities/school-schedule-entry.entity");
-const timetable_entity_1 = require("../../database/entities/timetable.entity");
+const timetable_entity_2 = require("../../database/entities/timetable.entity");
 const education_book_entity_1 = require("../../database/entities/education-book.entity");
 const education_class_book_entity_1 = require("../../database/entities/education-class-book.entity");
 const education_class_enrollment_entity_1 = require("../../database/entities/education-class-enrollment.entity");
@@ -157,6 +160,8 @@ let ClassesService = class ClassesService {
         if (!organization)
             throw new api_exception_1.ApiException(404, "ORGANIZATION_NOT_FOUND", "سازمان پیدا نشد.");
         this.assertSchoolYear(dto.schoolYear);
+        if (dto.academicYearId)
+            await this.requireAcademicYear(dto.academicYearId, organization.id);
         const code = dto.code.trim().toLowerCase();
         const existing = await this.classes.findOne({
             where: { organization: { id: organization.id }, code },
@@ -167,6 +172,7 @@ let ClassesService = class ClassesService {
             organization,
             code,
             name: dto.name.trim(),
+            academicYearId: dto.academicYearId ?? null,
             schoolYear: dto.schoolYear.trim(),
             gradeId: 0,
             educationTypeId: "universal",
@@ -180,12 +186,24 @@ let ClassesService = class ClassesService {
     }
     async update(actor, id, dto) {
         const classroom = await this.requireClass(actor, id, "classes.manage", true);
+        if (dto.academicYearId && dto.academicYearId !== classroom.academicYearId) {
+            await this.requireAcademicYear(dto.academicYearId, classroom.organization.id);
+            const referenced = (await this.classes.manager.exists(school_schedule_entry_entity_1.SchoolScheduleEntry, {
+                where: { classroom: { id }, versionId: (0, typeorm_2.Not)((0, typeorm_2.IsNull)()) },
+            })) ||
+                (await this.classes.manager.exists(academic_structure_entity_1.TeachingAssignment, {
+                    where: { classroomId: id },
+                }));
+            if (referenced)
+                throw new api_exception_1.ApiException(409, "CLASS_YEAR_IMMUTABLE", "برای حفظ تاریخچه کلاس جدید بسازید.");
+        }
         const advisor = dto.advisorId === undefined
             ? classroom.advisor
             : await this.resolveAdvisor(classroom.organization.id, dto.advisorId);
         if (dto.schoolYear !== undefined)
             this.assertSchoolYear(dto.schoolYear);
         Object.assign(classroom, {
+            ...(dto.academicYearId ? { academicYearId: dto.academicYearId } : {}),
             ...(dto.code !== undefined
                 ? { code: dto.code.trim().toLowerCase() }
                 : {}),
@@ -256,19 +274,32 @@ let ClassesService = class ClassesService {
     }
     async remove(actor, id) {
         const classroom = await this.requireClass(actor, id, "classes.manage", true);
-        const referenced = await this.classes.manager.exists(school_schedule_entry_entity_1.SchoolScheduleEntry, { where: { classroom: { id }, versionId: (0, typeorm_2.Not)((0, typeorm_2.IsNull)()) } })
-            || await this.classes.manager.exists(timetable_entity_1.TimetableAllocation, { where: { classroomId: id } });
-        if (referenced)
+        const referenced = (await this.classes.manager.exists(school_schedule_entry_entity_1.SchoolScheduleEntry, {
+            where: { classroom: { id }, versionId: (0, typeorm_2.Not)((0, typeorm_2.IsNull)()) },
+        })) ||
+            (await this.classes.manager.exists(timetable_entity_2.TimetableAllocation, {
+                where: { classroomId: id },
+            }));
+        if (referenced ||
+            (await this.classes.manager.exists(academic_structure_entity_1.ClassEnrollmentHistory, {
+                where: { classroomId: id },
+            })) ||
+            (await this.classes.manager.exists(academic_structure_entity_1.TeachingAssignment, {
+                where: { classroomId: id },
+            })))
             throw new api_exception_1.ApiException(409, "CLASS_TIMETABLE_REFERENCED", "این کلاس در سابقه برنامه درسی استفاده شده است؛ به‌جای حذف، کلاس را بایگانی کنید.");
         await this.classes.remove(classroom);
         return { deleted: true };
     }
     async addBook(actor, id, dto) {
         const classroom = await this.requireClass(actor, id, "education.catalog.manage", true);
-        if (actor.activeOrganizationId && actor.activeOrganizationId !== classroom.organization.id)
+        if (actor.activeOrganizationId &&
+            actor.activeOrganizationId !== classroom.organization.id)
             this.forbidden();
-        const eligible = await this.catalog.listBooks(this.hasCurriculumProfile(classroom) ? classroom.gradeId : undefined, this.hasCurriculumProfile(classroom) ? classroom.educationTypeId : undefined, this.hasCurriculumProfile(classroom) ? classroom.trackId : undefined, [classroom.organization.id]);
-        if (!eligible.some(book => book.id === dto.bookId))
+        const eligible = await this.catalog.listBooks(this.hasCurriculumProfile(classroom) ? classroom.gradeId : undefined, this.hasCurriculumProfile(classroom)
+            ? classroom.educationTypeId
+            : undefined, this.hasCurriculumProfile(classroom) ? classroom.trackId : undefined, [classroom.organization.id]);
+        if (!eligible.some((book) => book.id === dto.bookId))
             throw new api_exception_1.ApiException(422, "CLASS_BOOK_PROFILE_MISMATCH", "کتاب با کلاس یا سازمان انتخاب‌شده سازگار نیست.");
         const teacher = await this.resolveTeacher(classroom.organization.id, dto.teacherId);
         if (teacher.status !== user_entity_1.UserStatus.ACTIVE)
@@ -276,7 +307,9 @@ let ClassesService = class ClassesService {
         const book = await this.books.findOneBy({ id: dto.bookId });
         if (!book)
             throw new api_exception_1.ApiException(404, "CLASS_BOOK_NOT_FOUND", "کتاب پیدا نشد.");
-        const existing = await this.classBooks.findOne({ where: { classroom: { id }, book: { id: dto.bookId } } });
+        const existing = await this.classBooks.findOne({
+            where: { classroom: { id }, book: { id: dto.bookId } },
+        });
         if (existing)
             throw new api_exception_1.ApiException(409, "CLASS_BOOK_EXISTS", "این کتاب قبلاً به کلاس متصل است؛ همان مورد را در نگاشت انتخاب کنید.");
         await this.classBooks.save(this.classBooks.create({ classroom, book, teacher }));
@@ -300,20 +333,29 @@ let ClassesService = class ClassesService {
         if (books.length !== requested.length)
             throw new api_exception_1.ApiException(404, "CLASS_BOOK_NOT_FOUND", "یک یا چند کتاب پیدا نشد.");
         await this.classes.manager.transaction(async (manager) => {
-            const existing = await manager.find(education_class_book_entity_1.EducationClassBook, { where: { classroom: { id } }, relations: { book: true } });
-            const removed = existing.filter(row => !requested.some(item => item.bookId === row.book.id));
+            const existing = await manager.find(education_class_book_entity_1.EducationClassBook, {
+                where: { classroom: { id } },
+                relations: { book: true },
+            });
+            const removed = existing.filter((row) => !requested.some((item) => item.bookId === row.book.id));
             if (removed.length) {
-                const ids = removed.map(row => row.id);
-                const referenced = await manager.exists(school_schedule_entry_entity_1.SchoolScheduleEntry, { where: { classBook: { id: (0, typeorm_2.In)(ids) }, versionId: (0, typeorm_2.Not)((0, typeorm_2.IsNull)()) } })
-                    || await manager.exists(timetable_entity_1.TimetableAllocation, { where: { classBookId: (0, typeorm_2.In)(ids) } });
+                const ids = removed.map((row) => row.id);
+                const referenced = (await manager.exists(school_schedule_entry_entity_1.SchoolScheduleEntry, {
+                    where: { classBook: { id: (0, typeorm_2.In)(ids) }, versionId: (0, typeorm_2.Not)((0, typeorm_2.IsNull)()) },
+                })) ||
+                    (await manager.exists(timetable_entity_2.TimetableAllocation, {
+                        where: { classBookId: (0, typeorm_2.In)(ids) },
+                    }));
                 if (referenced)
                     throw new api_exception_1.ApiException(409, "CLASS_BOOK_TIMETABLE_REFERENCED", "کتاب‌های استفاده‌شده در برنامه درسی قابل حذف نیستند؛ اتصال‌های موجود را حفظ کنید.");
                 await manager.delete(education_class_book_entity_1.EducationClassBook, ids);
             }
             if (requested.length)
                 await manager.save(education_class_book_entity_1.EducationClassBook, requested.map((item, index) => manager.create(education_class_book_entity_1.EducationClassBook, {
-                    id: existing.find(row => row.book.id === item.bookId)?.id,
-                    classroom, book: books.find(book => book.id === item.bookId), teacher: teachers[index],
+                    id: existing.find((row) => row.book.id === item.bookId)?.id,
+                    classroom,
+                    book: books.find((book) => book.id === item.bookId),
+                    teacher: teachers[index],
                 })));
         });
         return this.view(await this.load(id));
@@ -332,7 +374,21 @@ let ClassesService = class ClassesService {
         if (students.length !== studentIds.length)
             throw new api_exception_1.ApiException(404, "CLASS_STUDENT_NOT_FOUND", "یک یا چند دانش‌آموز پیدا نشد.");
         await Promise.all(students.map((student) => this.assertEligibleStudent(classroom, student)));
-        await this.enrollments.manager.transaction(async (manager) => {
+        await (0, attendance_1.attendanceTransaction)(this.enrollments.manager, async (manager) => {
+            const before = await manager.find(education_class_enrollment_entity_1.EducationClassEnrollment, {
+                where: { classroom: { id } },
+                relations: { student: true },
+            });
+            const beforeStudentIds = before.map((row) => row.student.id).sort();
+            const afterStudentIds = [...studentIds].sort();
+            if (JSON.stringify(beforeStudentIds) !== JSON.stringify(afterStudentIds))
+                await manager.save(academic_structure_entity_1.ClassEnrollmentHistory, manager.create(academic_structure_entity_1.ClassEnrollmentHistory, {
+                    organizationId: classroom.organization.id,
+                    classroomId: id,
+                    actorId: actor.id,
+                    beforeStudentIds,
+                    afterStudentIds,
+                }));
             const enrollments = manager.getRepository(education_class_enrollment_entity_1.EducationClassEnrollment);
             await enrollments.delete({ classroom: { id: classroom.id } });
             if (students.length)
@@ -350,6 +406,25 @@ let ClassesService = class ClassesService {
                 });
         });
         return this.view(await this.load(id));
+    }
+    async enrollmentHistory(actor, id, offset = 0, limit = 50) {
+        await this.requireClass(actor, id, "classes.roster.manage");
+        const [items, total] = await this.classes.manager.findAndCount(academic_structure_entity_1.ClassEnrollmentHistory, {
+            where: { classroomId: id },
+            order: { createdAt: "DESC", id: "DESC" },
+            skip: offset,
+            take: limit,
+        });
+        return { items, total, offset, limit };
+    }
+    async requireAcademicYear(id, organizationId) {
+        const year = await this.classes.manager.findOneBy(timetable_entity_1.TimetableAcademicYear, {
+            id,
+            organizationId,
+        });
+        if (!year)
+            throw new api_exception_1.ApiException(422, "CLASS_YEAR_SCOPE", "سال تحصیلی متعلق به همین مدرسه نیست.");
+        return year;
     }
     async requireClass(actor, id, capability, requireManage = false) {
         const context = this.context(actor);
@@ -567,6 +642,7 @@ let ClassesService = class ClassesService {
             },
             code: classroom.code,
             name: classroom.name,
+            academicYearId: classroom.academicYearId ?? null,
             schoolYear: this.normalizedAcademicYear(classroom.schoolYear),
             gradeId: hasCurriculumProfile ? classroom.gradeId : null,
             educationTypeId: hasCurriculumProfile ? classroom.educationTypeId : null,

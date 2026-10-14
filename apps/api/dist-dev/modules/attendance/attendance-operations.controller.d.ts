@@ -69,11 +69,11 @@ export declare class AttendanceOperationsController {
     }>;
     pools(user: AuthenticatedUser): Promise<{
         ok: boolean;
-        data: import("@moshaver/api-contract").AttendancePool[];
+        data: PoolView[];
     }>;
     createPool(user: AuthenticatedUser, dto: CreateAttendancePoolDto): Promise<{
         ok: boolean;
-        data: import("@moshaver/api-contract").AttendancePool;
+        data: PoolView;
     }>;
     closePool(user: AuthenticatedUser, id: string): Promise<{
         ok: boolean;
@@ -83,23 +83,23 @@ export declare class AttendanceOperationsController {
     }>;
     overview(user: AuthenticatedUser): Promise<{
         ok: boolean;
-        data: import("@moshaver/api-contract").AttendanceDailyOverview;
+        data: AttendanceDailyOverview;
     }>;
     sessions(user: AuthenticatedUser): Promise<{
         ok: boolean;
-        data: import("@moshaver/api-contract").StaffAttendanceSession[];
+        data: StaffAttendanceSession[];
     }>;
     profile(user: AuthenticatedUser, id: string): Promise<{
         ok: boolean;
-        data: import("@moshaver/api-contract").StaffAttendanceProfile;
+        data: StaffAttendanceProfile;
     }>;
     encouragement(user: AuthenticatedUser): Promise<{
         ok: boolean;
-        data: import("@moshaver/api-contract").AttendanceEncouragement;
+        data: AttendanceEncouragement;
     }>;
     assignments(user: AuthenticatedUser): Promise<{
         ok: boolean;
-        data: import("@moshaver/api-contract").DormAttendanceAssignment[];
+        data: DormAttendanceAssignment[];
     }>;
     markDorm(user: AuthenticatedUser, id: string, dto: DelegatedDormAttendanceDto): Promise<{
         ok: boolean;
