@@ -206,4 +206,5 @@ Object.defineProperty(exports, "DormAttendanceDelegate", { enumerable: true, get
 var attendance_pool_entity_1 = require("./attendance-pool.entity");
 Object.defineProperty(exports, "AttendancePool", { enumerable: true, get: function () { return attendance_pool_entity_1.AttendancePool; } });
 __exportStar(require("./timetable.entity"), exports);
+__exportStar(require("./academic-structure.entity"), exports);
 //# sourceMappingURL=index.js.map

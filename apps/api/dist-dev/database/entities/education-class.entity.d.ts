@@ -7,6 +7,8 @@ export declare class EducationClass {
     organization: Organization;
     code: string;
     name: string;
+    academicYearId: string | null;
+    academicYear?: object;
     schoolYear: string;
     gradeId: number;
     educationTypeId: string;

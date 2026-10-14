@@ -1,3 +1,4 @@
+import { EntityManager } from "typeorm";
 import { Repository } from "typeorm";
 import { EducationClass } from "../../database/entities/education-class.entity";
 import { EducationClassBook } from "../../database/entities/education-class-book.entity";
@@ -102,7 +103,7 @@ export declare class ScheduleService {
         createdAt: Date;
         updatedAt: Date;
     }[]>;
-    create(user: AuthenticatedUser, dto: SaveScheduleEntryDto): Promise<{
+    create(user: AuthenticatedUser, dto: SaveScheduleEntryDto, manager?: EntityManager): Promise<{
         teacher: {
             id: string;
             username: string;

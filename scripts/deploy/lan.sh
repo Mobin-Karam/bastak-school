@@ -70,6 +70,7 @@ if "${compose[@]}" ps --status running --services | grep -qx backend-v2; then
     --mount "type=bind,src=$backup_path,dst=/backup" \
     --mount "type=bind,src=$recovery_script,dst=/tmp/database-recovery.cjs,readonly" \
     --env "DATABASE_PATH=/backup/$backup_name.restored" \
+    --env "NODE_ENV=test" \
     --entrypoint node "$candidate_image" /tmp/database-recovery.cjs rehearse \
     "/backup/$backup_name" "/backup/$backup_name.restored"
 fi

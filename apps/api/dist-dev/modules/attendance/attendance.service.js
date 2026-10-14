@@ -381,6 +381,64 @@ let AttendanceService = class AttendanceService {
         });
         return { id: created.id };
     }
+    async applyTimetableChange(manager, sessionId, lessonId, input, actor) {
+        const session = await manager.findOne(attendance_session_entity_1.AttendanceSession, {
+            where: {
+                id: sessionId,
+                sourceKind: "class_schedule",
+                sourceScheduleId: lessonId,
+            },
+            relations: { assignedStaff: true, organization: true },
+        });
+        if (!session)
+            throw new api_exception_1.ApiException(409, "ATTENDANCE_SOURCE_MISMATCH", "جلسه با وقوع درس یکسان نیست.");
+        const changed = session.assignedStaff?.id !== input.teacherId ||
+            session.scheduledStartAt?.toISOString() !== input.startsAt ||
+            session.scheduledEndAt?.toISOString() !== input.endsAt;
+        const observed = await manager.exists(attendance_record_entity_1.AttendanceRecord, {
+            where: { session: { id: sessionId } },
+        });
+        if (changed && observed)
+            throw new api_exception_1.ApiException(409, "ATTENDANCE_CORRECTION_REQUIRED", "سوابق ثبت‌شده به اصلاح صریح حضور نیاز دارند.");
+        const before = {
+            status: session.status,
+            teacherId: session.assignedStaff?.id ?? null,
+            startsAt: session.scheduledStartAt?.toISOString(),
+            endsAt: session.scheduledEndAt?.toISOString(),
+        };
+        session.assignedStaff = input.teacherId
+            ? { id: input.teacherId }
+            : null;
+        session.scheduledStartAt = new Date(input.startsAt);
+        session.scheduledEndAt = new Date(input.endsAt);
+        session.status = input.cancelled
+            ? "cancelled"
+            : session.status === "cancelled"
+                ? observed
+                    ? "submitted"
+                    : "open"
+                : session.status;
+        session.revision++;
+        await manager.save(session);
+        await manager.save(audit_log_entity_1.AuditLog, manager.create(audit_log_entity_1.AuditLog, {
+            user: { id: actor.id },
+            organizationId: session.organization.id,
+            action: "attendance.timetable.changed",
+            entity: "attendance",
+            metadata: {
+                sessionId,
+                lessonId,
+                before,
+                after: {
+                    status: session.status,
+                    teacherId: input.teacherId,
+                    startsAt: input.startsAt,
+                    endsAt: input.endsAt,
+                },
+                reason: input.reason,
+            },
+        }));
+    }
     async reassignTimetableSession(sessionId, lessonId, teacherId) {
         await this.sessions.update({
             id: sessionId,
@@ -515,7 +573,9 @@ let AttendanceService = class AttendanceService {
                 : null;
             if (dto.sessionId && !session)
                 throw new api_exception_1.ApiException(404, "ATTENDANCE_SESSION_NOT_FOUND", "جلسه حضور و غیاب پیدا نشد.");
-            if (session?.sourceKind === "class_schedule" &&
+            if (session &&
+                (session.sourceKind === "class_schedule" ||
+                    dto.expectedRevision !== undefined) &&
                 session.revision !== dto.expectedRevision)
                 throw new api_exception_1.ApiException(409, "ATTENDANCE_SESSION_STALE", "نسخه جلسه تغییر کرده است؛ دوباره بارگذاری کنید.");
             if (session?.status === "cancelled")
@@ -613,10 +673,8 @@ let AttendanceService = class AttendanceService {
                     },
                 });
             }
-            if (session.sourceKind === "class_schedule") {
-                session.revision++;
-                await sessions.save(session);
-            }
+            session.revision++;
+            await sessions.save(session);
             await manager.getRepository(audit_log_entity_1.AuditLog).save({
                 user: { id: user.id },
                 action: "attendance.records.marked",

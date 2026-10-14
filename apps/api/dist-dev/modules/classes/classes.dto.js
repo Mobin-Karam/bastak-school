@@ -9,22 +9,28 @@ var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.AddClassBookDto = exports.ClassTransferDto = exports.ClassTransferRowDto = exports.SetClassEnrollmentsDto = exports.SetClassBooksDto = exports.UpdateEducationClassDto = exports.SaveEducationClassDto = exports.SCHOOL_YEAR_PATTERN = void 0;
+exports.ClassHistoryQueryDto = exports.AddClassBookDto = exports.ClassTransferDto = exports.ClassTransferRowDto = exports.SetClassEnrollmentsDto = exports.SetClassBooksDto = exports.UpdateEducationClassDto = exports.SaveEducationClassDto = exports.SCHOOL_YEAR_PATTERN = void 0;
 const openapi = require("@nestjs/swagger");
 const class_validator_1 = require("class-validator");
 const class_transformer_1 = require("class-transformer");
 exports.SCHOOL_YEAR_PATTERN = /^(140[5-9]|14[1-2][0-9]|1430)-(140[6-9]|14[1-3][0-9]|1431)$/;
 class SaveEducationClassDto {
+    academicYearId;
     organizationId;
     code;
     name;
     schoolYear;
     capacity;
     static _OPENAPI_METADATA_FACTORY() {
-        return { organizationId: { required: true, type: () => String, format: "uuid" }, code: { required: true, type: () => String, minLength: 2, maxLength: 80 }, name: { required: true, type: () => String, minLength: 2, maxLength: 160 }, schoolYear: { required: true, type: () => String }, capacity: { required: false, type: () => Number, minimum: 1, maximum: 200 } };
+        return { academicYearId: { required: false, type: () => String, format: "uuid" }, organizationId: { required: true, type: () => String, format: "uuid" }, code: { required: true, type: () => String, minLength: 2, maxLength: 80 }, name: { required: true, type: () => String, minLength: 2, maxLength: 160 }, schoolYear: { required: true, type: () => String }, capacity: { required: false, type: () => Number, minimum: 1, maximum: 200 } };
     }
 }
 exports.SaveEducationClassDto = SaveEducationClassDto;
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsUUID)(),
+    __metadata("design:type", String)
+], SaveEducationClassDto.prototype, "academicYearId", void 0);
 __decorate([
     (0, class_validator_1.IsUUID)(),
     __metadata("design:type", String)
@@ -54,6 +60,7 @@ __decorate([
     __metadata("design:type", Number)
 ], SaveEducationClassDto.prototype, "capacity", void 0);
 class UpdateEducationClassDto {
+    academicYearId;
     code;
     name;
     schoolYear;
@@ -62,10 +69,15 @@ class UpdateEducationClassDto {
     advisorId;
     status;
     static _OPENAPI_METADATA_FACTORY() {
-        return { code: { required: false, type: () => String, minLength: 2, maxLength: 80 }, name: { required: false, type: () => String, minLength: 2, maxLength: 160 }, schoolYear: { required: false, type: () => String }, capacity: { required: false, type: () => Number, minimum: 1, maximum: 200 }, description: { required: false, type: () => String, maxLength: 4000 }, advisorId: { required: false, type: () => String, nullable: true, format: "uuid" }, status: { required: false, enum: ["ARCHIVED", "ACTIVE"], enum: ["ACTIVE", "ARCHIVED"] } };
+        return { academicYearId: { required: false, type: () => String, format: "uuid" }, code: { required: false, type: () => String, minLength: 2, maxLength: 80 }, name: { required: false, type: () => String, minLength: 2, maxLength: 160 }, schoolYear: { required: false, type: () => String }, capacity: { required: false, type: () => Number, minimum: 1, maximum: 200 }, description: { required: false, type: () => String, maxLength: 4000 }, advisorId: { required: false, type: () => String, nullable: true, format: "uuid" }, status: { required: false, enum: ["ARCHIVED", "ACTIVE"], enum: ["ACTIVE", "ARCHIVED"] } };
     }
 }
 exports.UpdateEducationClassDto = UpdateEducationClassDto;
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsUUID)(),
+    __metadata("design:type", String)
+], UpdateEducationClassDto.prototype, "academicYearId", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsString)(),
@@ -207,4 +219,27 @@ __decorate([
     (0, class_validator_1.IsUUID)(),
     __metadata("design:type", String)
 ], AddClassBookDto.prototype, "teacherId", void 0);
+class ClassHistoryQueryDto {
+    offset = 0;
+    limit = 50;
+    static _OPENAPI_METADATA_FACTORY() {
+        return { offset: { required: true, type: () => Object, default: 0, minimum: 0 }, limit: { required: true, type: () => Object, default: 50, minimum: 1, maximum: 100 } };
+    }
+}
+exports.ClassHistoryQueryDto = ClassHistoryQueryDto;
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_transformer_1.Type)(() => Number),
+    (0, class_validator_1.IsInt)(),
+    (0, class_validator_1.Min)(0),
+    __metadata("design:type", Object)
+], ClassHistoryQueryDto.prototype, "offset", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_transformer_1.Type)(() => Number),
+    (0, class_validator_1.IsInt)(),
+    (0, class_validator_1.Min)(1),
+    (0, class_validator_1.Max)(100),
+    __metadata("design:type", Object)
+], ClassHistoryQueryDto.prototype, "limit", void 0);
 //# sourceMappingURL=classes.dto.js.map

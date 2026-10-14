@@ -1,3 +1,4 @@
+import { ClassEnrollmentHistory } from "../../database/entities/academic-structure.entity";
 import { Repository } from "typeorm";
 import { EducationBook } from "../../database/entities/education-book.entity";
 import { EducationClassBook } from "../../database/entities/education-class-book.entity";
@@ -35,6 +36,7 @@ export declare class ClassesService {
         };
         code: string;
         name: string;
+        academicYearId: string | null;
         schoolYear: string;
         gradeId: number | null;
         educationTypeId: string | null;
@@ -75,6 +77,7 @@ export declare class ClassesService {
         };
         code: string;
         name: string;
+        academicYearId: string | null;
         schoolYear: string;
         gradeId: number | null;
         educationTypeId: string | null;
@@ -109,6 +112,7 @@ export declare class ClassesService {
             };
             code: string;
             name: string;
+            academicYearId: string | null;
             schoolYear: string;
             gradeId: number | null;
             educationTypeId: string | null;
@@ -171,6 +175,7 @@ export declare class ClassesService {
         };
         code: string;
         name: string;
+        academicYearId: string | null;
         schoolYear: string;
         gradeId: number | null;
         educationTypeId: string | null;
@@ -210,6 +215,7 @@ export declare class ClassesService {
         };
         code: string;
         name: string;
+        academicYearId: string | null;
         schoolYear: string;
         gradeId: number | null;
         educationTypeId: string | null;
@@ -289,6 +295,7 @@ export declare class ClassesService {
         };
         code: string;
         name: string;
+        academicYearId: string | null;
         schoolYear: string;
         gradeId: number | null;
         educationTypeId: string | null;
@@ -328,6 +335,7 @@ export declare class ClassesService {
         };
         code: string;
         name: string;
+        academicYearId: string | null;
         schoolYear: string;
         gradeId: number | null;
         educationTypeId: string | null;
@@ -367,6 +375,7 @@ export declare class ClassesService {
         };
         code: string;
         name: string;
+        academicYearId: string | null;
         schoolYear: string;
         gradeId: number | null;
         educationTypeId: string | null;
@@ -396,6 +405,13 @@ export declare class ClassesService {
             major: string;
         }[];
     }>;
+    enrollmentHistory(actor: AuthenticatedUser, id: string, offset?: number, limit?: number): Promise<{
+        items: ClassEnrollmentHistory[];
+        total: number;
+        offset: number;
+        limit: number;
+    }>;
+    private requireAcademicYear;
     private requireClass;
     private load;
     private context;

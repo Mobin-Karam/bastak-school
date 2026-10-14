@@ -1,5 +1,5 @@
 import { AuthenticatedUser } from "../auth";
-import { AddClassBookDto, SaveEducationClassDto, ClassTransferDto, SetClassBooksDto, SetClassEnrollmentsDto, UpdateEducationClassDto } from "./classes.dto";
+import { ClassHistoryQueryDto, AddClassBookDto, SaveEducationClassDto, ClassTransferDto, SetClassBooksDto, SetClassEnrollmentsDto, UpdateEducationClassDto } from "./classes.dto";
 import { ClassesService } from "./classes.service";
 export declare class ClassesController {
     private readonly classes;
@@ -16,6 +16,7 @@ export declare class ClassesController {
             };
             code: string;
             name: string;
+            academicYearId: string | null;
             schoolYear: string;
             gradeId: number | null;
             educationTypeId: string | null;
@@ -59,6 +60,7 @@ export declare class ClassesController {
             };
             code: string;
             name: string;
+            academicYearId: string | null;
             schoolYear: string;
             gradeId: number | null;
             educationTypeId: string | null;
@@ -95,6 +97,7 @@ export declare class ClassesController {
             };
             code: string;
             name: string;
+            academicYearId: string | null;
             schoolYear: string;
             gradeId: number | null;
             educationTypeId: string | null;
@@ -184,6 +187,7 @@ export declare class ClassesController {
                 };
                 code: string;
                 name: string;
+                academicYearId: string | null;
                 schoolYear: string;
                 gradeId: number | null;
                 educationTypeId: string | null;
@@ -249,6 +253,7 @@ export declare class ClassesController {
             };
             code: string;
             name: string;
+            academicYearId: string | null;
             schoolYear: string;
             gradeId: number | null;
             educationTypeId: string | null;
@@ -291,6 +296,7 @@ export declare class ClassesController {
             };
             code: string;
             name: string;
+            academicYearId: string | null;
             schoolYear: string;
             gradeId: number | null;
             educationTypeId: string | null;
@@ -333,6 +339,7 @@ export declare class ClassesController {
             };
             code: string;
             name: string;
+            academicYearId: string | null;
             schoolYear: string;
             gradeId: number | null;
             educationTypeId: string | null;
@@ -363,6 +370,15 @@ export declare class ClassesController {
             }[];
         };
     }>;
+    history(actor: AuthenticatedUser, id: string, page: ClassHistoryQueryDto): Promise<{
+        ok: boolean;
+        data: {
+            items: import("../../database/entities").ClassEnrollmentHistory[];
+            total: number;
+            offset: number;
+            limit: number;
+        };
+    }>;
     enrollments(actor: AuthenticatedUser, id: string, dto: SetClassEnrollmentsDto): Promise<{
         ok: boolean;
         data: {
@@ -375,6 +391,7 @@ export declare class ClassesController {
             };
             code: string;
             name: string;
+            academicYearId: string | null;
             schoolYear: string;
             gradeId: number | null;
             educationTypeId: string | null;
