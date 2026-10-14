@@ -16,6 +16,13 @@ attendance, academic, or identity record was written.
 This document reports source labels exactly as read. It does not claim that any
 teacher, class, subject, school, or book label is a production identity.
 
+Reproducible read-only outputs are in `docs/reference/timetable-staging/`:
+`schools.json`, `classes.json`, `teachers.json`, `subjects.json`, `books.json`,
+`bell-schedules.json`, `timetable-versions.json`, `scheduled-lessons.json`,
+`import-ambiguities.json`, `relationship-reports.json`, and
+`import-validation-report.md`. Regenerate them with
+`node tooling/scheduling/extract-reference-workbook.cjs <workbook.xlsx> <output-dir>`.
+
 ## Sheet catalogue and classification
 
 | Sheet | Shape / merged ranges | Candidate lessons | Classification | Review result |
