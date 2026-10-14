@@ -135,6 +135,20 @@ async function main() {
   write("scheduled-lessons.json", { ...metadata, items: lessons });
   const ambiguities = lessons.filter((x) => x.issues.length || !x.teacherLabel || x.weekday === null);
   write("import-ambiguities.json", { ...metadata, items: ambiguities });
+  const relation = (left, right) => unique(lessons.filter((row) => row[left] && row[right]).map((row) => `${row[left]}\u0000${row[right]}`))
+    .map((value) => { const [from, to] = value.split("\u0000"); return { from, to }; });
+  const classes = labels("classLabel");
+  write("relationship-reports.json", {
+    ...metadata,
+    teacherToClasses: relation("teacherLabel", "classLabel"),
+    teacherToSubjects: relation("teacherLabel", "subjectLabel"),
+    classToSubjects: relation("classLabel", "subjectLabel"),
+    classToTeachers: relation("classLabel", "teacherLabel"),
+    subjectToTeachers: relation("subjectLabel", "teacherLabel"),
+    dayToClassesToPeriods: lessons.map((row) => ({ weekday: row.weekday, classLabel: row.classLabel, periodLabel: row.periodLabel, source: row.source })),
+    teacherToDayToPeriods: lessons.map((row) => ({ teacherLabel: row.teacherLabel, weekday: row.weekday, periodLabel: row.periodLabel, source: row.source })),
+    classWeeklyLessonCount: classes.map((classLabel) => ({ classLabel, candidateLessons: lessons.filter((row) => row.classLabel === classLabel).length })),
+  });
   const valid = lessons.length - ambiguities.length;
   fs.writeFileSync(path.join(output, "import-validation-report.md"), `# Read-only timetable staging validation\n\n- Source: \`${path.basename(input)}\`\n- SHA-256: \`${metadata.sha256}\`\n- Candidate lessons: ${lessons.length}\n- Ready for explicit entity mapping: ${valid}\n- Needs review: ${ambiguities.length}\n\nNo record in this directory is a production identity or a command to import.\n`);
 }
