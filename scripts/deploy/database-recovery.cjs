@@ -22,11 +22,13 @@ function inventory(db) {
     )
     .all();
   const rows = {};
+  const tableNames = new Set();
   for (const { name } of db
     .prepare(
       "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name",
     )
     .all()) {
+    tableNames.add(name);
     const encoded = db
       .prepare(`SELECT * FROM "${name.replaceAll('"', '""')}"`)
       .all()
@@ -38,13 +40,57 @@ function inventory(db) {
         .createHash("sha256")
         .update(JSON.stringify(encoded))
         .digest("hex"),
+      ...(name === "user_role_assignments" ? { records: encoded } : {}),
     };
   }
-  return { schema, rows };
+  const orphanedScopedRoleAssignmentIds =
+    tableNames.has("user_role_assignments") && tableNames.has("roles")
+      ? db
+          .prepare(
+            `SELECT a.id FROM user_role_assignments a
+             JOIN roles r ON r.id=a.roleId
+             WHERE r.organizationScoped=1 AND a.membershipId IS NULL
+             ORDER BY a.id`,
+          )
+          .all()
+          .map(({ id }) => id)
+      : [];
+  return { schema, rows, orphanedScopedRoleAssignmentIds };
+}
+function preservedRoleAssignments(before, after) {
+  const original = new Map(
+    (before.rows.user_role_assignments?.records || []).map((record) => [
+      JSON.parse(record).id,
+      record,
+    ]),
+  );
+  const upgraded = new Map(
+    (after.rows.user_role_assignments?.records || []).map((record) => [
+      JSON.parse(record).id,
+      record,
+    ]),
+  );
+  const approvedRemovals = new Set(before.orphanedScopedRoleAssignmentIds);
+  for (const [id, record] of upgraded) {
+    if (original.get(id) !== record)
+      throw new Error("Migration changed an existing role assignment");
+  }
+  for (const id of original.keys()) {
+    if (!upgraded.has(id) && !approvedRemovals.has(id))
+      throw new Error("Migration removed a role assignment outside the approved orphan repair");
+  }
+  for (const id of approvedRemovals) {
+    if (upgraded.has(id))
+      throw new Error("Migration did not remove an orphaned scoped role assignment");
+  }
 }
 function preserved(before, after) {
   for (const [table, value] of Object.entries(before.rows)) {
     if (table === "migrations") continue;
+    if (table === "user_role_assignments") {
+      preservedRoleAssignments(before, after);
+      continue;
+    }
     if (JSON.stringify(value) !== JSON.stringify(after.rows[table]))
       throw new Error("Migration changed existing logical records");
   }
@@ -135,10 +181,14 @@ async function main() {
   source.close();
   console.log("Snapshot restoration verified");
 }
-main().catch((error) => {
-  console.error(
-    `Database recovery verification failed (${error.code || error.name}); live replacement is not authorized`,
-  );
-  console.error(error.stack || error.message || String(error));
-  process.exitCode = 1;
-});
+if (require.main === module) {
+  main().catch((error) => {
+    console.error(
+      `Database recovery verification failed (${error.code || error.name}); live replacement is not authorized`,
+    );
+    console.error(error.stack || error.message || String(error));
+    process.exitCode = 1;
+  });
+}
+
+module.exports = { inventory, preserved };
