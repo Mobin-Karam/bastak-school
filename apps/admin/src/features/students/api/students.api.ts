@@ -21,6 +21,12 @@ export const createStudent = (body: StudentForm, organizationId?: string) => {
     targetField: payload.targetField,
     targetRank: payload.targetRank,
     dailyCapacity: payload.dailyCapacity,
+    nationalCode: payload.nationalCode,
+    birthDateJalali: payload.birthDateJalali,
+    governmentSchool: payload.governmentSchool,
+    classId: payload.classId,
+    mother: payload.mother,
+    father: payload.father,
     ...(organizationId ? { organizationId } : {}),
   });
 };

@@ -8,7 +8,15 @@ import {
   Min,
   MinLength,
   IsIn,
+  IsBoolean,
 } from "class-validator";
+import { Type } from "class-transformer";
+import { ValidateNested } from "class-validator";
+
+export class GuardianAccountDto {
+  @IsString() @Length(11, 11) phoneNumber!: string;
+  @IsString() @MinLength(12) password!: string;
+}
 export class CreateStudentDto {
   @IsString() @Length(2, 160) name!: string;
   @IsString() @Length(11, 11) phoneNumber!: string;
@@ -29,6 +37,13 @@ export class CreateStudentDto {
   @IsOptional() @IsString() @Length(0, 160) targetField?: string;
   @IsOptional() @IsString() @Length(0, 40) targetRank?: string;
   @IsOptional() @IsString() @Length(0, 40) dailyCapacity?: string;
+  @IsOptional() @IsString() @Length(10, 10) nationalCode?: string;
+  /** Jalali date in 1405/07/13 or 1405-07-13 form. */
+  @IsOptional() @IsString() @Length(10, 10) birthDateJalali?: string;
+  @IsOptional() @IsString() @Length(0, 240) governmentSchool?: string;
+  @IsOptional() @IsUUID() classId?: string;
+  @IsOptional() @ValidateNested() @Type(() => GuardianAccountDto) mother?: GuardianAccountDto;
+  @IsOptional() @ValidateNested() @Type(() => GuardianAccountDto) father?: GuardianAccountDto;
 }
 export class UpdateStudentDto {
   @IsOptional() @IsIn(["school", "independent"]) learnerProfile?:
@@ -48,6 +63,14 @@ export class UpdateStudentDto {
   @IsOptional() @IsString() @Length(0, 160) targetField?: string;
   @IsOptional() @IsString() @Length(0, 40) targetRank?: string;
   @IsOptional() @IsString() @Length(0, 40) dailyCapacity?: string;
+  @IsOptional() @IsString() @Length(10, 10) nationalCode?: string;
+  /** Jalali date in 1405/07/13 or 1405-07-13 form. */
+  @IsOptional() @IsString() @Length(10, 10) birthDateJalali?: string;
+  @IsOptional() @IsString() @Length(0, 240) governmentSchool?: string;
+  @IsOptional() @IsUUID() classId?: string;
+  @IsOptional() @IsBoolean() clearClass?: boolean;
+  @IsOptional() @ValidateNested() @Type(() => GuardianAccountDto) mother?: GuardianAccountDto;
+  @IsOptional() @ValidateNested() @Type(() => GuardianAccountDto) father?: GuardianAccountDto;
 }
 export class ResetStudentPasswordDto {
   @IsString() @MinLength(12) password!: string;

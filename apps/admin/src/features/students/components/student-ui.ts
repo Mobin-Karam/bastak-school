@@ -33,6 +33,8 @@ export function getStudentUsername(student: Student) {
 }
 
 export function getStudentProfileCompleteness(student: Student) {
+  if (student.profileComplete === false || student.registrationStatus === "ACCOUNT_CREATED")
+    return 0;
   const values = [
     student.name,
     getStudentUsername(student),
@@ -49,6 +51,8 @@ export function getStudentProfileCompleteness(student: Student) {
 
 export function getMissingStudentProfileFields(student: Student, language: AdminLanguage = "fa") {
   const copy = studentCopy[language];
+  if (student.profileComplete === false || student.registrationStatus === "ACCOUNT_CREATED")
+    return [language === "fa" ? "مشخصات ثبت‌نام" : "Enrollment details"];
   const fields = [
     [copy.name, student.name],
     [copy.username, getStudentUsername(student)],

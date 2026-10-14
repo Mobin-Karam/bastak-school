@@ -22,6 +22,11 @@ import { TaskIssue } from "../../database/entities/task-issue.entity";
 import { RecoveryRequest } from "../../database/entities/recovery-request.entity";
 import { ExamRetryRequest } from "../../database/entities/exam-retry-request.entity";
 import { EducationCatalogModule } from "../education-catalog";
+import { StudentProfile } from "../../database/entities/student-profile.entity";
+import { EducationClass } from "../../database/entities/education-class.entity";
+import { EducationClassEnrollment } from "../../database/entities/education-class-enrollment.entity";
+import { Role } from "../../database/entities/role.entity";
+import { UserRoleAssignment } from "../../database/entities/user-role-assignment.entity";
 
 @Module({
   imports: [
@@ -40,6 +45,11 @@ import { EducationCatalogModule } from "../education-catalog";
       TaskIssue,
       RecoveryRequest,
       ExamRetryRequest,
+      StudentProfile,
+      EducationClass,
+      EducationClassEnrollment,
+      Role,
+      UserRoleAssignment,
     ]),
   ],
   controllers: [
