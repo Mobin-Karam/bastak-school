@@ -734,6 +734,26 @@ describe("versioned timetable integration (migration-built SQLite)", () => {
     body.rows.pop();
     expect((await service.commitImport(staff, draftId, body)).imported).toBe(1);
   });
+  it("treats a confirmed import replay as idempotent even when its original revision is stale", async () => {
+    const body = {
+      expectedRevision: 0,
+      filename: "مبین.xlsx",
+      sheetName: "اصلی",
+      rows: [{ source: "اصلی!C4", lesson }],
+    };
+    expect(await service.commitImport(staff, draftId, body)).toMatchObject({
+      imported: 1,
+      revision: 1,
+      duplicate: false,
+    });
+    expect(await service.commitImport(staff, draftId, body)).toMatchObject({
+      imported: 0,
+      revision: 1,
+      duplicate: true,
+    });
+    expect(await db.manager.count(SchoolScheduleEntry)).toBe(1);
+    expect(await db.manager.count(entities.TimetableImport)).toBe(1);
+  });
   it("allows multiple import batches while enforcing complete allocations at publication", async () => {
     await service.config(staff, org.id, {
       kind: "allocation",

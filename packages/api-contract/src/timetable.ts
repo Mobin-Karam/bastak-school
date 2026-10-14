@@ -157,6 +157,12 @@ export type TimetableImportPreview = {
   rows: Array<{ row: number; source: string; errors: string[] }>;
   conflicts: TimetableConflict[];
 };
+export type TimetableImportCommit = {
+  imported: number;
+  revision: number;
+  /** A retry with the same approved source mapping made no additional writes. */
+  duplicate: boolean;
+};
 export type TimetableWorkspace = {
   organizationId: string;
   years: TimetableYear[];

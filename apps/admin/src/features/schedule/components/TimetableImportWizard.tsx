@@ -141,7 +141,12 @@ export function TimetableImportWizard({
       return { ...result, sources: submitted.map((x) => x.source) };
     },
     onSuccess: (result) => {
-      notify(`${result.imported} درس به پیش‌نویس وارد شد؛ انتشار جداگانه لازم است.`, "success");
+      notify(
+        result.duplicate
+          ? "این نگاشت قبلاً وارد شده است؛ تغییری در پیش‌نویس ایجاد نشد."
+          : `${result.imported} درس به پیش‌نویس وارد شد؛ انتشار جداگانه لازم است.`,
+        "success",
+      );
       setImportedSources((old) => [...old, ...result.sources]);
       setExcluded((old) => [...old, ...result.sources]);
       setCommittedRevision(result.revision);

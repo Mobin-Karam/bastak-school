@@ -15,7 +15,7 @@ import {
 } from "../../database/entities/organization-membership.entity";
 import { Injectable } from "@nestjs/common";
 import { DataSource, EntityManager, In, Not, IsNull } from "typeorm";
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import type {
   TimetableLesson,
   TimetableWorkspace,
@@ -2326,12 +2326,47 @@ export class TimetableService {
   ) {
     return this.previewRows(this.database.manager, user, id, dto);
   }
+  private importFingerprint(dto: TimetableImportDto) {
+    const rows = dto.rows
+      .map(({ source, lesson }) => ({
+        source,
+        classroomId: lesson.classroomId,
+        classBookId: lesson.classBookId,
+        teacherId: lesson.teacherId ?? null,
+        periodId: lesson.periodId,
+        locationId: lesson.locationId ?? null,
+        weekday: lesson.weekday,
+        startTime: lesson.startTime,
+        endTime: lesson.endTime,
+        startsOn: lesson.startsOn,
+        endsOn: lesson.endsOn,
+        notes: lesson.notes ?? "",
+      }))
+      .sort((left, right) => JSON.stringify(left).localeCompare(JSON.stringify(right)));
+    return createHash("sha256")
+      .update(JSON.stringify({ sheetName: dto.sheetName, rows }))
+      .digest("hex");
+  }
   async commitImport(
     user: AuthenticatedUser,
     id: string,
     dto: TimetableImportDto,
   ) {
     return attendanceTransaction(this.database.manager, async (manager) => {
+      const fingerprint = this.importFingerprint(dto);
+      const existing = await manager.findOneBy(TimetableImport, {
+        versionId: id,
+        fingerprint,
+      });
+      if (existing) {
+        const { version } = await this.version(
+          user,
+          id,
+          "schedule.import",
+          manager,
+        );
+        return { imported: 0, revision: version.revision, duplicate: true };
+      }
       const preview = await this.previewRows(manager, user, id, dto);
       if (!preview.valid)
         this.fail(
@@ -2357,6 +2392,7 @@ export class TimetableService {
           actorId: user.id,
           filename: dto.filename,
           sheetName: dto.sheetName,
+          fingerprint,
           rowCount: dto.rows.length,
           revision: version.revision,
         }),
@@ -2370,7 +2406,7 @@ export class TimetableService {
         `${dto.rows.length} ردیف`,
         `${dto.filename} / ${dto.sheetName}`,
       );
-      return { imported: dto.rows.length, revision: version.revision };
+      return { imported: dto.rows.length, revision: version.revision, duplicate: false };
     });
   }
   async openAttendance(user: AuthenticatedUser, id: string, date: string) {

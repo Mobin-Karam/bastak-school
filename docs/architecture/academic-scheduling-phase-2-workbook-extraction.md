@@ -89,7 +89,7 @@ not yet fully represented by the parser.
 | Missing/malformed time | Safe rejection | Keep rejection; add a reviewable source-time correction that is not an automatic inference. |
 | Teacher/class/book matching | Safe exact-match suggestion | Retain exact unique matching only; no fuzzy merge. |
 | Historical preservation | Partial | Persist source context and year label in import provenance before any commit. |
-| Idempotent reimport | Unverified for source workbook | Define an approved mapping fingerprint and test duplicate commits. |
+| Idempotent reimport | Implemented in Phase 3 | A server-derived SHA-256 fingerprint is unique per timetable version; a replay returns a duplicate result without new lesson or audit writes. |
 
 ## Phase 3 implementation boundary
 
@@ -99,3 +99,12 @@ for this workbook's cases: merged afternoon headers, repeated header blocks,
 missing weekday, malformed times, historical title, and similar-looking teacher
 labels. It must still block unresolved rows at preview/commit and leave
 publication as a separate explicit operation.
+
+Phase 3 update: `1731000000000-TimetableImportIdempotency` adds the additive
+fingerprint column and a version/fingerprint uniqueness constraint. Existing
+import audit rows receive distinct `legacy-<id>` fingerprints because their
+source rows were never stored. The importer hashes only the approved,
+allowlisted lesson mapping and source coordinates; it does not trust a
+client-provided entity/table selector. A stale network retry of the same mapping
+is replay-safe after server authorization, while a changed mapping remains
+subject to the normal draft revision, preview, conflict, and transaction checks.

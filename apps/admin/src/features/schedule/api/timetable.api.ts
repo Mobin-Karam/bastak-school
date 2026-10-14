@@ -9,6 +9,7 @@ import type {
   TimetableLessonDraft,
   TimetableImportRow,
   TimetableImportPreview,
+  TimetableImportCommit,
   TimetableOverrideDraft,
   TimetableConflict,
 } from "@moshaver/api-contract";
@@ -98,7 +99,7 @@ export const commitTimetableImport = (
   sheetName: string,
   rows: TimetableImportRow[],
 ) =>
-  api.post<{ imported: number; revision: number }>(
+  api.post<TimetableImportCommit>(
     `/schedule/timetable/versions/${id}/import/commit`,
     {
       expectedRevision,
