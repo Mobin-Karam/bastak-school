@@ -121,8 +121,24 @@ export class TimetableConfigDto {
   @IsOptional() @IsString() @MaxLength(1000) reason?: string;
   @IsOptional() @IsInt() @Min(0) expectedRevision?: number;
 }
+export class TimetableImportProvenanceDto {
+  @IsString() @MaxLength(160) sheetName!: string;
+  @IsString() @MaxLength(32) cellAddress!: string;
+  @IsString() @MaxLength(32) masterCell!: string;
+  @IsString() @MaxLength(32) blockId!: string;
+  @IsString() @MaxLength(240) rawClassLabel!: string;
+  @IsString() @MaxLength(240) rawSubjectLabel!: string;
+  @IsString() @MaxLength(240) rawTeacherLabel!: string;
+  @IsString() @MaxLength(240) rawPeriodLabel!: string;
+  @IsString() @MaxLength(240) rawTimeLabel!: string;
+  @IsBoolean() merged!: boolean;
+}
 export class TimetableImportRowDto {
   @IsString() @MaxLength(160) source!: string;
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => TimetableImportProvenanceDto)
+  provenance?: TimetableImportProvenanceDto;
   @IsDefined()
   @ValidateNested()
   @Type(() => TimetableLessonDto)

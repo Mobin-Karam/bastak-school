@@ -1,0 +1,272 @@
+{
+  "sourceFile": "مبین.xlsx",
+  "sha256": "696637cd570cefdb06a351249890c210b53a7573fd924c1ed1a0aea2fabc5bfa",
+  "mode": "read-only-staging",
+  "items": [
+    {
+      "stagingId": "period_8c8aaa6f39c03455",
+      "periodLabel": "زنگ اول",
+      "rawTimeLabel": "16:00-16-50",
+      "startTime": "",
+      "endTime": "",
+      "issue": "زمان مبهم: 16:00-16-50",
+      "reviewStatus": "needs_review"
+    },
+    {
+      "stagingId": "period_ae86224ad16879b0",
+      "periodLabel": "زنگ اول",
+      "rawTimeLabel": "16:00-16:45",
+      "startTime": "16:00",
+      "endTime": "16:45",
+      "reviewStatus": "unmapped"
+    },
+    {
+      "stagingId": "period_df5933bb850ef0d4",
+      "periodLabel": "زنگ اول",
+      "rawTimeLabel": "17:00-17-50",
+      "startTime": "",
+      "endTime": "",
+      "issue": "زمان مبهم: 17:00-17-50",
+      "reviewStatus": "needs_review"
+    },
+    {
+      "stagingId": "period_bd246b48985eb117",
+      "periodLabel": "زنگ اول",
+      "rawTimeLabel": "17:00-17:50",
+      "startTime": "17:00",
+      "endTime": "17:50",
+      "reviewStatus": "unmapped"
+    },
+    {
+      "stagingId": "period_6507151f07373223",
+      "periodLabel": "زنگ اول",
+      "rawTimeLabel": "7:00-7:40",
+      "startTime": "07:00",
+      "endTime": "07:40",
+      "reviewStatus": "unmapped"
+    },
+    {
+      "stagingId": "period_ecb513b0e8a80ab6",
+      "periodLabel": "زنگ اول",
+      "rawTimeLabel": "7:30-8:20",
+      "startTime": "07:30",
+      "endTime": "08:20",
+      "reviewStatus": "unmapped"
+    },
+    {
+      "stagingId": "period_8f63ddfbd643241c",
+      "periodLabel": "زنگ اول",
+      "rawTimeLabel": "تاریخ خلفا",
+      "startTime": "",
+      "endTime": "",
+      "issue": "زمان مبهم: تاریخ خلفا",
+      "reviewStatus": "needs_review"
+    },
+    {
+      "stagingId": "period_e3df44f490de7912",
+      "periodLabel": "زنگ اول",
+      "rawTimeLabel": "میراث",
+      "startTime": "",
+      "endTime": "",
+      "issue": "زمان مبهم: میراث",
+      "reviewStatus": "needs_review"
+    },
+    {
+      "stagingId": "period_b65ef318a340a7e1",
+      "periodLabel": "زنگ اول",
+      "rawTimeLabel": "نحو",
+      "startTime": "",
+      "endTime": "",
+      "issue": "زمان مبهم: نحو",
+      "reviewStatus": "needs_review"
+    },
+    {
+      "stagingId": "period_a592e1de493f27ff",
+      "periodLabel": "زنگ پنجم",
+      "rawTimeLabel": "10:20:11:00",
+      "startTime": "",
+      "endTime": "",
+      "issue": "زمان مبهم: 10:20:11:00",
+      "reviewStatus": "needs_review"
+    },
+    {
+      "stagingId": "period_4775b6a2785647ce",
+      "periodLabel": "زنگ پنجم",
+      "rawTimeLabel": "11:40-12:30",
+      "startTime": "11:40",
+      "endTime": "12:30",
+      "reviewStatus": "unmapped"
+    },
+    {
+      "stagingId": "period_6a4a4d4e9f30d379",
+      "periodLabel": "زنگ چهارم",
+      "rawTimeLabel": "",
+      "startTime": "",
+      "endTime": "",
+      "issue": "ساعت زنگ ثبت نشده است.",
+      "reviewStatus": "needs_review"
+    },
+    {
+      "stagingId": "period_501b6448d90dde54",
+      "periodLabel": "زنگ چهارم",
+      "rawTimeLabel": "10:40-11:30",
+      "startTime": "10:40",
+      "endTime": "11:30",
+      "reviewStatus": "unmapped"
+    },
+    {
+      "stagingId": "period_8ab7ac15de12aedf",
+      "periodLabel": "زنگ چهارم",
+      "rawTimeLabel": "9:30-10:10",
+      "startTime": "09:30",
+      "endTime": "10:10",
+      "reviewStatus": "unmapped"
+    },
+    {
+      "stagingId": "period_7eb3689bdbe022da",
+      "periodLabel": "زنگ چهارم",
+      "rawTimeLabel": "سیرت",
+      "startTime": "",
+      "endTime": "",
+      "issue": "زمان مبهم: سیرت",
+      "reviewStatus": "needs_review"
+    },
+    {
+      "stagingId": "period_0598c3245fedac22",
+      "periodLabel": "زنگ چهارم",
+      "rawTimeLabel": "قرآن",
+      "startTime": "",
+      "endTime": "",
+      "issue": "زمان مبهم: قرآن",
+      "reviewStatus": "needs_review"
+    },
+    {
+      "stagingId": "period_5a354aa5d999074c",
+      "periodLabel": "زنگ چهارم",
+      "rawTimeLabel": "میراث",
+      "startTime": "",
+      "endTime": "",
+      "issue": "زمان مبهم: میراث",
+      "reviewStatus": "needs_review"
+    },
+    {
+      "stagingId": "period_a7bb5dca31486b5e",
+      "periodLabel": "زنگ دوم",
+      "rawTimeLabel": "",
+      "startTime": "",
+      "endTime": "",
+      "issue": "ساعت زنگ ثبت نشده است.",
+      "reviewStatus": "needs_review"
+    },
+    {
+      "stagingId": "period_72d9b51c1e3e0cc3",
+      "periodLabel": "زنگ دوم",
+      "rawTimeLabel": "16:20-19:10",
+      "startTime": "16:20",
+      "endTime": "19:10",
+      "reviewStatus": "unmapped"
+    },
+    {
+      "stagingId": "period_3d3f9310c7b700e0",
+      "periodLabel": "زنگ دوم",
+      "rawTimeLabel": "16:55-17:40",
+      "startTime": "16:55",
+      "endTime": "17:40",
+      "reviewStatus": "unmapped"
+    },
+    {
+      "stagingId": "period_dc81ba8fd491f9b7",
+      "periodLabel": "زنگ دوم",
+      "rawTimeLabel": "7:50-8:30",
+      "startTime": "07:50",
+      "endTime": "08:30",
+      "reviewStatus": "unmapped"
+    },
+    {
+      "stagingId": "period_ad24f173e1b6d085",
+      "periodLabel": "زنگ دوم",
+      "rawTimeLabel": "8:30-9:20",
+      "startTime": "08:30",
+      "endTime": "09:20",
+      "reviewStatus": "unmapped"
+    },
+    {
+      "stagingId": "period_a2179609f9622919",
+      "periodLabel": "زنگ دوم",
+      "rawTimeLabel": "صرف",
+      "startTime": "",
+      "endTime": "",
+      "issue": "زمان مبهم: صرف",
+      "reviewStatus": "needs_review"
+    },
+    {
+      "stagingId": "period_ab9c18c49be4165d",
+      "periodLabel": "زنگ دوم",
+      "rawTimeLabel": "نحو",
+      "startTime": "",
+      "endTime": "",
+      "issue": "زمان مبهم: نحو",
+      "reviewStatus": "needs_review"
+    },
+    {
+      "stagingId": "period_1c4cc47b1b68e7b3",
+      "periodLabel": "زنگ سوم",
+      "rawTimeLabel": "",
+      "startTime": "",
+      "endTime": "",
+      "issue": "ساعت زنگ ثبت نشده است.",
+      "reviewStatus": "needs_review"
+    },
+    {
+      "stagingId": "period_f0858128bf0ab671",
+      "periodLabel": "زنگ سوم",
+      "rawTimeLabel": "8:40-9:20",
+      "startTime": "08:40",
+      "endTime": "09:20",
+      "reviewStatus": "unmapped"
+    },
+    {
+      "stagingId": "period_a1879076d9525688",
+      "periodLabel": "زنگ سوم",
+      "rawTimeLabel": "9:30-10:20",
+      "startTime": "09:30",
+      "endTime": "10:20",
+      "reviewStatus": "unmapped"
+    },
+    {
+      "stagingId": "period_18e1a176d335d7d0",
+      "periodLabel": "زنگ سوم",
+      "rawTimeLabel": "حدیث",
+      "startTime": "",
+      "endTime": "",
+      "issue": "زمان مبهم: حدیث",
+      "reviewStatus": "needs_review"
+    },
+    {
+      "stagingId": "period_f7aabf3ab860af06",
+      "periodLabel": "زنگ سوم",
+      "rawTimeLabel": "صرف",
+      "startTime": "",
+      "endTime": "",
+      "issue": "زمان مبهم: صرف",
+      "reviewStatus": "needs_review"
+    },
+    {
+      "stagingId": "period_190996defb5bcb01",
+      "periodLabel": "زنگ سوم",
+      "rawTimeLabel": "منطق",
+      "startTime": "",
+      "endTime": "",
+      "issue": "زمان مبهم: منطق",
+      "reviewStatus": "needs_review"
+    },
+    {
+      "stagingId": "period_45af06ccb7abab60",
+      "periodLabel": "زنگ ششم",
+      "rawTimeLabel": "11:10-11:50",
+      "startTime": "11:10",
+      "endTime": "11:50",
+      "reviewStatus": "unmapped"
+    }
+  ]
+}
