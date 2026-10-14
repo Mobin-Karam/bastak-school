@@ -91,12 +91,17 @@ export function detectWorkbookBlocks(sheet: SpreadsheetLayoutSheet): WorkbookBlo
         ).includes("مدرس"),
     );
     let group: number[] = [];
+    let previousGroupEnd = 0;
     const flush = () => {
       if (!group.length) return;
       const first = group[0];
       const explicit = sheet.cells
         .filter(
-          (x) => x.row === row && x.column < first && normalizeTimetableText(x.value) === "کلاس",
+          (x) =>
+            x.row === row &&
+            x.column < first &&
+            x.column > previousGroupEnd &&
+            normalizeTimetableText(x.value) === "کلاس",
         )
         .at(-1);
       const classColumn = explicit?.column ?? first - 1;
@@ -108,6 +113,7 @@ export function detectWorkbookBlocks(sheet: SpreadsheetLayoutSheet): WorkbookBlo
         label: `ردیف ${row} · ستون کلاس ${classColumn} · ${group.length} زنگ`,
         requiresClassColumnConfirmation: !explicit,
       });
+      previousGroupEnd = group.at(-1)!;
       group = [];
     };
     for (const heading of headings) {
