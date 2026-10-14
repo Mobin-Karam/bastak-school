@@ -22,11 +22,13 @@ function inventory(db) {
     )
     .all();
   const rows = {};
+  const tableNames = new Set();
   for (const { name } of db
     .prepare(
       "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name",
     )
     .all()) {
+    tableNames.add(name);
     const encoded = db
       .prepare(`SELECT * FROM "${name.replaceAll('"', '""')}"`)
       .all()
@@ -41,15 +43,18 @@ function inventory(db) {
       ...(name === "user_role_assignments" ? { records: encoded } : {}),
     };
   }
-  const orphanedScopedRoleAssignmentIds = db
-    .prepare(
-      `SELECT a.id FROM user_role_assignments a
-       JOIN roles r ON r.id=a.roleId
-       WHERE r.organizationScoped=1 AND a.membershipId IS NULL
-       ORDER BY a.id`,
-    )
-    .all()
-    .map(({ id }) => id);
+  const orphanedScopedRoleAssignmentIds =
+    tableNames.has("user_role_assignments") && tableNames.has("roles")
+      ? db
+          .prepare(
+            `SELECT a.id FROM user_role_assignments a
+             JOIN roles r ON r.id=a.roleId
+             WHERE r.organizationScoped=1 AND a.membershipId IS NULL
+             ORDER BY a.id`,
+          )
+          .all()
+          .map(({ id }) => id)
+      : [];
   return { schema, rows, orphanedScopedRoleAssignmentIds };
 }
 function preservedRoleAssignments(before, after) {

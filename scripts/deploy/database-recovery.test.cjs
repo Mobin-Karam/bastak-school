@@ -31,3 +31,14 @@ test("rejects an unrelated role-assignment removal or change", () => {
   assert.throws(() => preserved(before, inventory(db)), /outside the approved orphan repair/);
   db.close();
 });
+
+test("supports generic SQLite snapshots without application tables", () => {
+  const db = new Database(":memory:");
+  db.exec("CREATE TABLE records (id TEXT PRIMARY KEY, value TEXT NOT NULL)");
+  db.prepare("INSERT INTO records VALUES (?, ?)").run("record-1", "preserved");
+
+  const before = inventory(db);
+  assert.deepEqual(before.orphanedScopedRoleAssignmentIds, []);
+  assert.doesNotThrow(() => preserved(before, inventory(db)));
+  db.close();
+});
