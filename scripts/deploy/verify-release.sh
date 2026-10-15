@@ -17,6 +17,7 @@ cleanup() {
   trap - EXIT
   if (( status != 0 )); then "${compose[@]}" ps; "${compose[@]}" logs --no-color --tail 80; fi
   "${compose[@]}" down --volumes --remove-orphans
+  if [[ -n "${upgrade_volume:-}" ]]; then docker volume rm -f "$upgrade_volume" >/dev/null 2>&1 || true; fi
   rm -rf "$test_directory"
   exit "$status"
 }
@@ -27,6 +28,22 @@ TLS_DIRECTORY="$CI_TLS_DIR" ./scripts/deploy/create-lan-tls.sh
 # Exercise the same content-ID selection used by production, not tag lookup alone.
 BACKEND_IMAGE=$(docker image inspect --format '{{.Id}}' "$BACKEND_IMAGE")
 ADMIN_IMAGE=$(docker image inspect --format '{{.Id}}' "$ADMIN_IMAGE")
+# Do this before candidate startup: starting the candidate on the disposable
+# compose volume would apply every migration and hide old-to-new failures.
+upgrade_volume=$(docker volume create "bastak-ci-upgrade-$$")
+docker run --rm -i --network none --read-only --cap-drop ALL --security-opt no-new-privileges \
+  --user "$(id -u):$(id -g)" --mount "type=volume,src=$upgrade_volume,dst=/data" \
+  -e DATABASE_PATH=/data/moshaver-v2.sqlite -e NODE_ENV=test \
+  "$BACKEND_IMAGE" node - < scripts/deploy/prepare-upgrade-rehearsal.cjs
+mkdir "$test_directory/upgrade-backup"
+docker run --rm -i --network none --read-only --cap-drop ALL --security-opt no-new-privileges \
+  --user "$(id -u):$(id -g)" --mount "type=volume,src=$upgrade_volume,dst=/data,readonly" \
+  --mount "type=bind,src=$test_directory/upgrade-backup,dst=/backup" \
+  "$BACKEND_IMAGE" node - backup /data/moshaver-v2.sqlite /backup/snapshot.sqlite < scripts/deploy/database-recovery.cjs
+docker run --rm -i --network none --read-only --cap-drop ALL --security-opt no-new-privileges \
+  --user "$(id -u):$(id -g)" --mount "type=bind,src=$test_directory/upgrade-backup,dst=/backup" \
+  -e DATABASE_PATH=/backup/snapshot.sqlite.restored -e NODE_ENV=test \
+  "$BACKEND_IMAGE" node - rehearse /backup/snapshot.sqlite /backup/snapshot.sqlite.restored < scripts/deploy/database-recovery.cjs
 "${compose[@]}" up -d --no-build --pull never --wait --wait-timeout 180
 ./scripts/deploy/probe-release.sh "$CI_TLS_DIR/ca.crt" "$CI_HTTPS_PORT" "$CI_HTTP_PORT"
 "${compose[@]}" exec -T admin-v2 nginx -t
