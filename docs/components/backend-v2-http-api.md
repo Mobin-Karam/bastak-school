@@ -41,7 +41,7 @@ curl -fsS http://localhost:4000/api/v2/openapi.json > /tmp/moshaver-v2-openapi.j
 | System | `/app-versions`, `/app-releases`, `/audit`, `/system/database*` |
 | Sync | `/sync`, `/sync/upload` |
 
-The [Admin capability matrix](../ADMIN_V2_CAPABILITY_MATRIX.md) maps product workflows to endpoints and permissions. The [historical v1/v2 audit](../API_V1_V2_AUDIT.md) is migration evidence, not the live route catalog.
+The [Admin capability matrix](../reference/admin-capability-matrix.md) maps product workflows to endpoints and permissions. The [historical v1/v2 audit](../reference/api-v1-v2-audit.md) is migration evidence, not the live route catalog.
 
 ## Authentication example
 

@@ -174,7 +174,7 @@ npm run docs:check
 | همه مستندات | [docs/README.md](docs/README.md) |
 | اجرا و validation | [Repository runbook](docs/operations/repository-runbook.md) |
 | توسعه امن | [Developer handbook](docs/operations/developer-handbook.md) |
-| پوشش Admin | [Admin capability matrix](docs/ADMIN_V2_CAPABILITY_MATRIX.md) |
+| پوشش Admin | [Admin capability matrix](docs/reference/admin-capability-matrix.md) |
 | مسیر محصول | [Version roadmap](docs/product/version-roadmap.md) |
 
 ## مشارکت

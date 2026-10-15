@@ -1,6 +1,6 @@
 # Moshaver Docs Viewer
 
-Browse the repository’s `docs/` Markdown with full-text search, tags, themes, recent documents and reading shortcuts. Local documentation assets and the CMB HTML site are served under `/docs/`. Source-code links open in VS Code.
+Browse the repository’s `docs/` Markdown as a focused library. The viewer provides full-text search across titles, paths and body text, a category-led library, page outline, recent documents, adjacent-page navigation, deep links and light/dark reading themes. Local documentation assets and the CMB HTML site are served under `/docs/`.
 
 ```bash
 cd docs-viewer
@@ -23,8 +23,4 @@ Optional environment variables:
 - `DOCS_VIEWER_PORT`: port (default `4310`).
 - `DOCS_VIEWER_HOST`: bind address (default `127.0.0.1`).
 - `DOCS_ROOT`: absolute repository root containing `docs/` when running elsewhere.
-- `DOCS_FEEDBACK_URL`: issue creation URL.
-- `BACKEND_HEALTH_URL`: optional backend health URL (default `http://127.0.0.1:4000/health`). Backend availability does not affect browsing docs.
-- `DOCS_REVIEW_STALE_DAYS`: review freshness threshold (default `45`).
-
-An optional `agents/` directory is supported but is not required. The copied metadata validation and version bump scripts are standalone utilities; they are not part of viewer verification and do not run automatically.
+The viewer intentionally does not include project-health status, task planning, plugin controls, feedback workflows, or an `agents/` browser. Those concerns distracted from reading and made the navigation harder to scan. The metadata validation and version bump scripts remain standalone utilities; they are not part of viewer verification and do not run automatically.

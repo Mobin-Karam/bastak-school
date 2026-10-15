@@ -11,6 +11,6 @@ Start with the [repository runbook](./repository-runbook.md) for local commands.
 | Alternative hosting | [PaaS](./paas-deployment.md) and [Coolify](./coolify-deployment.md); automatic production target is LAN |
 | Verify Web Push | [Admin Web Push verification](./admin-v2-web-push-verification.md) |
 
-The [engineering guide](../engineering/README.md) covers architecture, testing, performance and proposed work. Dated audits belong in [audit evidence](../audits/README.md), not in this current runbook category.
+The [engineering guide](../engineering/README.md) covers architecture, testing, performance and proposed work. Dated audits belong in [audit evidence](../evidence/README.md), not in this current runbook category.
 
 The [13 October 2026 conversation handover](./conversation-handover-2026-10-13.md) records the architecture/security/reliability work, historical production release evidence, Deployline hostname controls, local DNS/TLS setup and outstanding DHCP requirements. It is dated evidence, not a live configuration source.

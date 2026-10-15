@@ -1317,7 +1317,7 @@ Update the current capability matrix based on SOURCE + verified behavior.
 
 Add a second product-focused document:
 
-`docs/ADMIN_V2_PRODUCT_READINESS.md`
+`docs/reference/admin-product-readiness.md`
 
 Unlike endpoint parity, evaluate:
 
