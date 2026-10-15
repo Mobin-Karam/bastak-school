@@ -78,6 +78,10 @@ class PipelineTests(unittest.TestCase):
         self.assertIn("verify --project=admin-v2", runs)
         self.assertIn("verify --project=student-core", runs)
         self.assertNotIn("apps/student", runs)
+    def test_development_compose_uses_only_current_composition_roots(self):
+        compose=(ROOT / "docker-compose.yml").read_text()
+        self.assertNotIn("apps/student/Dockerfile", compose)
+        self.assertNotIn("student-v2:", compose)
     def test_backup_survives_checkout_cleanup(self):
         workflow = yaml.safe_load((ROOT / ".github/deployment/server-deploy.yml").read_text())
         env = workflow["jobs"]["deploy"]["steps"][1]["env"]
@@ -89,6 +93,11 @@ class PipelineTests(unittest.TestCase):
         readiness=self.workflow('deployment-readiness.yml')
         steps=readiness['jobs']['containers']['steps']
         self.assertIn('./scripts/deploy/verify-release.sh',steps[2]['run'])
+        release_check=(ROOT/'scripts/deploy/verify-release.sh').read_text()
+        self.assertIn('prepare-upgrade-rehearsal.cjs',release_check)
+        self.assertLess(release_check.index('prepare-upgrade-rehearsal.cjs'),release_check.index('up -d --no-build'))
+        self.assertIn('mkdir "$test_directory/upgrade-data"',release_check)
+        self.assertIn('type=bind,src=$test_directory/upgrade-data,dst=/data',release_check)
         self.assertIn('github.sha',steps[3]['with']['name'])
         self.assertEqual(steps[3]['with']['if-no-files-found'],'error')
         server=yaml.safe_load((ROOT/'.github/deployment/server-deploy.yml').read_text())

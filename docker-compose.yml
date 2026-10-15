@@ -27,27 +27,6 @@ services:
       retries: 6
       start_period: 20s
 
-  student-v2:
-    build:
-      context: .
-      dockerfile: apps/student/Dockerfile
-      args:
-        VITE_API_URL: /api/v2
-    container_name: moshaver-student-v2
-    restart: unless-stopped
-    environment:
-      API_PROXY_TARGET: http://backend-v2:4000
-    ports:
-      - "8080:80"
-    depends_on:
-      backend-v2:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1/"]
-      interval: 10s
-      timeout: 5s
-      retries: 3
-
   admin-v2:
     build:
       context: .
