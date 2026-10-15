@@ -2,6 +2,22 @@
 const fs = require("node:fs");
 const crypto = require("node:crypto");
 const Database = require("better-sqlite3");
+// Migration-specific allowances for values written into columns that did not
+// exist in the source snapshot. Keep this list narrow: an unlisted column is a
+// failed rehearsal, not an implicit permission to transform live data. This is
+// intentionally self-contained because production streams this helper to Node.
+const expectations = {
+  AcademicSchedulingFoundation1730900000000: {
+    "education_classes.academicYearId": { nullable: true, value: "null" },
+    "timetable_periods.weekdays": { default: "[]", value: "default" },
+  },
+  TimetableImportIdempotency1731000000000: {
+    "timetable_imports.fingerprint": { default: "", value: "legacy-id" },
+  },
+  TimetableImportSourceRows1731100000000: {
+    "timetable_imports.sourceRows": { default: "[]", value: "default" },
+  },
+};
 const [command, original, destination] = process.argv.slice(2);
 function open(file) {
   const db = new Database(file, { readonly: true, fileMustExist: true });
@@ -15,6 +31,32 @@ function open(file) {
   }
   return db;
 }
+function quote(identifier) {
+  return `"${identifier.replaceAll('"', '""')}"`;
+}
+function stable(value) {
+  return JSON.stringify(value);
+}
+function tableRows(db, name, columns) {
+  return db
+    .prepare(`SELECT ${columns.map(quote).join(",")} FROM ${quote(name)}`)
+    .all();
+}
+function tableInventory(db, name) {
+  const columns = db
+    .prepare(`PRAGMA table_info(${quote(name)})`)
+    .all()
+    .map(({ name, notnull, dflt_value }) => ({ name, notnull: Boolean(notnull), default: dflt_value }));
+  const records = tableRows(db, name, columns.map(({ name: column }) => column));
+  const encoded = records.map(stable).sort();
+  return {
+    columns,
+    records,
+    encoded,
+    count: encoded.length,
+    digest: crypto.createHash("sha256").update(stable(encoded)).digest("hex"),
+  };
+}
 function inventory(db) {
   const schema = db
     .prepare(
@@ -22,31 +64,156 @@ function inventory(db) {
     )
     .all();
   const rows = {};
+  const tableNames = new Set();
   for (const { name } of db
     .prepare(
       "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name",
     )
     .all()) {
-    const encoded = db
-      .prepare(`SELECT * FROM "${name.replaceAll('"', '""')}"`)
-      .all()
-      .map((row) => JSON.stringify(row))
-      .sort();
-    rows[name] = {
-      count: encoded.length,
-      digest: crypto
-        .createHash("sha256")
-        .update(JSON.stringify(encoded))
-        .digest("hex"),
-    };
+    tableNames.add(name);
+    rows[name] = tableInventory(db, name);
   }
-  return { schema, rows };
+  const orphanedScopedRoleAssignmentIds =
+    tableNames.has("user_role_assignments") && tableNames.has("roles")
+      ? db
+          .prepare(
+            `SELECT a.id FROM user_role_assignments a
+             JOIN roles r ON r.id=a.roleId
+             WHERE r.organizationScoped=1 AND a.membershipId IS NULL
+             ORDER BY a.id`,
+          )
+          .all()
+          .map(({ id }) => id)
+      : [];
+  return { schema, rows, orphanedScopedRoleAssignmentIds };
 }
-function preserved(before, after) {
+function preservedRoleAssignments(before, after) {
+  const original = new Map(
+    (before.rows.user_role_assignments?.encoded || []).map((record) => [
+      JSON.parse(record).id,
+      record,
+    ]),
+  );
+  const upgraded = new Map(
+    (after.rows.user_role_assignments?.encoded || []).map((record) => [
+      JSON.parse(record).id,
+      record,
+    ]),
+  );
+  const approvedRemovals = new Set(before.orphanedScopedRoleAssignmentIds);
+  for (const [id, record] of upgraded) {
+    if (original.get(id) !== record)
+      throw new Error("Migration changed an existing role assignment");
+  }
+  for (const id of original.keys()) {
+    if (!upgraded.has(id) && !approvedRemovals.has(id))
+      throw new Error("Migration removed a role assignment outside the approved orphan repair");
+  }
+  for (const id of approvedRemovals) {
+    if (upgraded.has(id))
+      throw new Error("Migration did not remove an orphaned scoped role assignment");
+  }
+}
+function fail(table, reason, beforeValue, afterValue) {
+  const details = [
+    `table=${table}`,
+    `reason=${reason}`,
+    beforeValue && `beforeRows=${beforeValue.count}`,
+    afterValue && `afterRows=${afterValue.count}`,
+  ]
+    .filter(Boolean)
+    .join("; ");
+  throw new Error(`Migration preservation failed (${details})`);
+}
+function appliedMigrationNames(before, after) {
+  const oldNames = new Set((before.rows.migrations?.records || []).map(({ name }) => name));
+  return new Set(
+    (after.rows.migrations?.records || [])
+      .map(({ name }) => name)
+      .filter((name) => !oldNames.has(name)),
+  );
+}
+function expectationFor(applied, table, column) {
+  const key = `${table}.${column}`;
+  for (const migration of applied) {
+    if (expectations[migration]?.[key]) return expectations[migration][key];
+  }
+  return null;
+}
+function defaultValue(db, definition) {
+  if (definition.default === null) return null;
+  return db.prepare(`SELECT (${definition.default}) AS value`).get().value;
+}
+function same(left, right) {
+  return stable(left) === stable(right);
+}
+function validateAddedColumns(beforeTable, afterTable, table, applied, db) {
+  const beforeColumns = new Set(beforeTable.columns.map(({ name }) => name));
+  const additions = afterTable.columns.filter(({ name }) => !beforeColumns.has(name));
+  if (!additions.length) return;
+  // Check schema even when the original table is empty.
+  for (const column of additions) {
+    const expectation = expectationFor(applied, table, column.name);
+    if (!expectation) fail(table, `unexpected added column ${column.name}`, beforeTable, afterTable);
+    if (expectation.nullable !== undefined && expectation.nullable !== !column.notnull)
+      fail(table, `unexpected nullability for ${column.name}`, beforeTable, afterTable);
+    if (expectation.default !== undefined && !same(defaultValue(db, column), expectation.default))
+      fail(table, `unexpected default for ${column.name}`, beforeTable, afterTable);
+  }
+  const originalColumns = beforeTable.columns.map(({ name }) => name);
+  const unmatched = new Map();
+  for (const encoded of beforeTable.encoded)
+    unmatched.set(encoded, (unmatched.get(encoded) || 0) + 1);
+  for (const row of afterTable.records) {
+    const projected = Object.fromEntries(originalColumns.map((name) => [name, row[name]]));
+    const encoded = stable(projected);
+    if (!unmatched.get(encoded)) continue;
+    unmatched.set(encoded, unmatched.get(encoded) - 1);
+    for (const column of additions) {
+      const expectation = expectationFor(applied, table, column.name);
+      if (!expectation) fail(table, `unexpected added column ${column.name}`, beforeTable, afterTable);
+      if (expectation.nullable !== undefined && expectation.nullable !== !column.notnull)
+        fail(table, `unexpected nullability for ${column.name}`, beforeTable, afterTable);
+      const actualDefault = defaultValue(db, column);
+      if (expectation.default !== undefined && !same(actualDefault, expectation.default))
+        fail(table, `unexpected default for ${column.name}`, beforeTable, afterTable);
+      const value = row[column.name];
+      if (expectation.value === "null" && value !== null)
+        fail(table, `non-null value in ${column.name}`, beforeTable, afterTable);
+      if (expectation.value === "default" && !same(value, actualDefault))
+        fail(table, `non-default value in ${column.name}`, beforeTable, afterTable);
+      if (expectation.value === "legacy-id" && value !== `legacy-${row.id}`)
+        fail(table, `unexpected legacy value in ${column.name}`, beforeTable, afterTable);
+    }
+  }
+}
+function preserved(before, after, db) {
+  const applied = appliedMigrationNames(before, after);
   for (const [table, value] of Object.entries(before.rows)) {
     if (table === "migrations") continue;
-    if (JSON.stringify(value) !== JSON.stringify(after.rows[table]))
-      throw new Error("Migration changed existing logical records");
+    const upgraded = after.rows[table];
+    if (!upgraded) fail(table, "table missing after migration", value, null);
+    const upgradedColumns = new Set(upgraded.columns.map(({ name }) => name));
+    if (value.columns.some(({ name }) => !upgradedColumns.has(name)))
+      fail(table, "original column missing after migration", value, upgraded);
+    if (table === "user_role_assignments") {
+      preservedRoleAssignments(before, after);
+      continue;
+    }
+    const projected = upgraded.records
+      .map((row) => Object.fromEntries(value.columns.map(({ name }) => [name, row[name]])))
+      .map(stable)
+      .sort();
+    const available = new Map();
+    for (const encoded of projected)
+      available.set(encoded, (available.get(encoded) || 0) + 1);
+    if (value.encoded.some((encoded) => {
+      const count = available.get(encoded) || 0;
+      available.set(encoded, count - 1);
+      return count === 0;
+    }))
+      fail(table, "existing logical records changed", value, upgraded);
+    validateAddedColumns(value, upgraded, table, applied, db);
   }
 }
 async function main() {
@@ -125,7 +292,7 @@ async function main() {
     await dataSource.initialize(); // synchronize:false; same migration chain as production startup
     await dataSource.destroy();
     const upgraded = open(destination);
-    preserved(before, inventory(upgraded));
+    preserved(before, inventory(upgraded), upgraded);
     upgraded.close();
     console.log(
       "Isolated migration compatibility and existing-record preservation verified",
@@ -135,10 +302,15 @@ async function main() {
   source.close();
   console.log("Snapshot restoration verified");
 }
-main().catch((error) => {
-  console.error(
-    `Database recovery verification failed (${error.code || error.name}); live replacement is not authorized`,
-  );
-  console.error(error.stack || error.message || String(error));
-  process.exitCode = 1;
-});
+// CI and immutable deployment stream this self-contained helper through stdin.
+if (require.main === module || (process.argv[1] === "-" && module.id === "[stdin]")) {
+  main().catch((error) => {
+    console.error(
+      `Database recovery verification failed (${error.code || error.name}); live replacement is not authorized`,
+    );
+    console.error(error.stack || error.message || String(error));
+    process.exitCode = 1;
+  });
+}
+
+module.exports = { inventory, preserved };

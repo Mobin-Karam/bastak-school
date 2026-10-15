@@ -27,6 +27,24 @@ TLS_DIRECTORY="$CI_TLS_DIR" ./scripts/deploy/create-lan-tls.sh
 # Exercise the same content-ID selection used by production, not tag lookup alone.
 BACKEND_IMAGE=$(docker image inspect --format '{{.Id}}' "$BACKEND_IMAGE")
 ADMIN_IMAGE=$(docker image inspect --format '{{.Id}}' "$ADMIN_IMAGE")
+# Do this before candidate startup: starting the candidate on the disposable
+# compose volume would apply every migration and hide old-to-new failures.
+# A named volume inherits /data ownership (image UID 1000), which differs
+# from hosted runner UIDs. A private bind directory belongs to the invoking UID.
+mkdir "$test_directory/upgrade-data"
+docker run --rm -i --network none --read-only --cap-drop ALL --security-opt no-new-privileges \
+  --user "$(id -u):$(id -g)" --mount "type=bind,src=$test_directory/upgrade-data,dst=/data" \
+  -e DATABASE_PATH=/data/moshaver-v2.sqlite -e NODE_ENV=test \
+  "$BACKEND_IMAGE" node - < scripts/deploy/prepare-upgrade-rehearsal.cjs
+mkdir "$test_directory/upgrade-backup"
+docker run --rm -i --network none --read-only --cap-drop ALL --security-opt no-new-privileges \
+  --user "$(id -u):$(id -g)" --mount "type=bind,src=$test_directory/upgrade-data,dst=/data,readonly" \
+  --mount "type=bind,src=$test_directory/upgrade-backup,dst=/backup" \
+  "$BACKEND_IMAGE" node - backup /data/moshaver-v2.sqlite /backup/snapshot.sqlite < scripts/deploy/database-recovery.cjs
+docker run --rm -i --network none --read-only --cap-drop ALL --security-opt no-new-privileges \
+  --user "$(id -u):$(id -g)" --mount "type=bind,src=$test_directory/upgrade-backup,dst=/backup" \
+  -e DATABASE_PATH=/backup/snapshot.sqlite.restored -e NODE_ENV=test \
+  "$BACKEND_IMAGE" node - rehearse /backup/snapshot.sqlite /backup/snapshot.sqlite.restored < scripts/deploy/database-recovery.cjs
 "${compose[@]}" up -d --no-build --pull never --wait --wait-timeout 180
 ./scripts/deploy/probe-release.sh "$CI_TLS_DIR/ca.crt" "$CI_HTTPS_PORT" "$CI_HTTP_PORT"
 "${compose[@]}" exec -T admin-v2 nginx -t
