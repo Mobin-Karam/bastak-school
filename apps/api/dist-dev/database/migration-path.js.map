@@ -1,1 +1,0 @@
-{"version":3,"file":"migration-path.js","sourceRoot":"","sources":["../../src/database/migration-path.ts"],"names":[],"mappings":";;;;;AAGA,sDAMC;AATD,0DAA6B;AAG7B,SAAgB,qBAAqB,CAAC,WAAmB;IACvD,OAAO,mBAAI,CAAC,IAAI,CACd,mBAAI,CAAC,OAAO,CAAC,WAAW,CAAC,EACzB,YAAY,EACZ,WAAW,CAAC,QAAQ,CAAC,KAAK,CAAC,CAAC,CAAC,CAAC,MAAM,CAAC,CAAC,CAAC,MAAM,CAC9C,CAAC;AACJ,CAAC"}

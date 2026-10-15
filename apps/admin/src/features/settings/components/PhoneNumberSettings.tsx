@@ -16,7 +16,11 @@ export function PhoneNumberSettings() {
   const profile = useQuery({ queryKey: ["account", "profile"], queryFn: getAccountProfile });
   const [phoneNumber, setPhoneNumber] = useState("");
   const [reason, setReason] = useState("");
-  const canSelfManage = auth.canAny(["attendance.self.read", "guardian.students.read"]);
+  const canSelfManage = auth.canAny([
+    "attendance.self.read",
+    "guardian.students.read",
+    "platform.phone.self.manage",
+  ]);
   const submit = useMutation<unknown, Error, void>({
     mutationFn: () => {
       if (profile.data?.phoneNumberChangeAvailable) return changeOwnPhoneNumber(phoneNumber);
@@ -39,6 +43,7 @@ export function PhoneNumberSettings() {
       notify(error instanceof Error ? error.message : "تغییر شماره انجام نشد.", "error"),
   });
   if (!canSelfManage) return null;
+  const unlimited = profile.data?.phoneNumberChangeUnlimited === true;
   const firstChange = profile.data?.phoneNumberChangeAvailable !== false;
   return (
     <Card className="p-4">
@@ -49,7 +54,9 @@ export function PhoneNumberSettings() {
         <div>
           <h2 className="font-black">شماره همراه</h2>
           <p className="mt-1 text-xs leading-5 text-slate-500">
-            {firstChange
+            {unlimited
+              ? "مدیر پلتفرم می‌تواند شماره ورود خود را هر زمان تغییر دهد. نشست‌های دیگر پس از تغییر بسته می‌شوند."
+              : firstChange
               ? "یک‌بار می‌توانید شماره ورود خود را بدون بررسی تغییر دهید."
               : "تغییر بعدی پس از بررسی مدیر مدرسه اعمال می‌شود."}
           </p>
@@ -68,7 +75,7 @@ export function PhoneNumberSettings() {
             onChange={(event) => setPhoneNumber(event.target.value)}
           />
         </Field>
-        {!firstChange ? (
+        {!firstChange && !unlimited ? (
           <Field label="دلیل درخواست">
             <Textarea
               maxLength={500}
@@ -82,7 +89,7 @@ export function PhoneNumberSettings() {
           disabled={!/^09\d{9}$/.test(phoneNumber)}
           onClick={() => submit.mutate()}
         >
-          <ShieldCheck size={16} /> {firstChange ? "تغییر شماره" : "ثبت درخواست بررسی"}
+          <ShieldCheck size={16} /> {unlimited || firstChange ? "تغییر شماره" : "ثبت درخواست بررسی"}
         </Button>
       </div>
     </Card>

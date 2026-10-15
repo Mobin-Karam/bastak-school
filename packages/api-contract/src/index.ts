@@ -184,8 +184,24 @@ export const CAPABILITIES = [
   "student.absence.create",
   "student.absence.read",
   "student.absence.manage",
+  "platform.phone.self.manage",
+  "sms.read",
+  "sms.send",
+  "sms.manage",
 ] as const;
 export type Capability = (typeof CAPABILITIES)[number];
+
+export type SmsAudienceCriteria = {
+  organizationId?: string;
+  roleCodes?: string[];
+  userIds?: string[];
+  includeAll?: boolean;
+};
+export type SmsAudiencePreview = {
+  total: number;
+  roles: Array<{ role: string; count: number }>;
+  users: Array<{ userId: string; displayName: string; maskedPhoneNumber: string; roles: string[]; organization: string | null }>;
+};
 
 export type ApiErrorContract = {
   ok: false;

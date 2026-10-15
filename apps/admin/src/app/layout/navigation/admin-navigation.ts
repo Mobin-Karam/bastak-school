@@ -7,6 +7,7 @@ import {
   DoorOpen,
   LayoutDashboard,
   MessageCircle,
+  MessageSquareText,
   School,
   Settings,
   UserRound,
@@ -152,6 +153,18 @@ export const adminNavigation = [
         description: "مدیریت مدارس و سازمان‌های پلتفرم",
         icon: Building2,
         capability: "organization.read",
+      },
+    ],
+  },
+  {
+    section: "ارتباطات",
+    items: [
+      {
+        path: "sms",
+        title: "پیامک",
+        description: "ارسال پیامک گروهی به کاربران و اعضای مدرسه",
+        icon: MessageSquareText,
+        capability: "sms.read",
       },
     ],
   },

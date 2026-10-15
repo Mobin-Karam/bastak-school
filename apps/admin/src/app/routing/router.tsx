@@ -14,6 +14,8 @@ import {
 import { AUTH_SUCCESS_SPLASH_KEY } from "../../features/auth/lib/auth-session";
 import { AdminLayout } from "../layout/shell/AdminLayout";
 import { RouteErrorBoundary } from "../../shared/errors";
+import { underBuilding, underBuildingEndsAt } from "../config/under-building";
+import UnderConstruction from "../../features/students/components/UnderConstruction";
 
 const StudentSignupPage = lazy(() =>
   import("../../features/auth/pages/StudentSignupPage").then((m) => ({
@@ -87,6 +89,9 @@ const TeacherChatComingSoonPage = lazy(() =>
 const SystemPage = lazy(() =>
   import("../../features/system").then((m) => ({ default: m.SystemPage })),
 );
+const SmsPage = lazy(() =>
+  import("../../features/sms").then((m) => ({ default: m.SmsPage })),
+);
 const MobileMorePage = lazy(() =>
   import("../../features/mobile/MobileMorePage").then((m) => ({ default: m.MobileMorePage })),
 );
@@ -152,6 +157,7 @@ function ProtectedRoute() {
   if (!isSupportedAdminPortalRole(auth.activeRole)) return <UnsupportedRoleModal />;
   if (!isReleasedSchoolPortalRole(auth.activeRole)) return <UnsupportedRoleModal />;
   if (showLoginSplash) return <LoginSuccessSplash />;
+  if (underBuilding) return <UnderConstruction endTime={underBuildingEndsAt} />;
   return <Outlet />;
 }
 
@@ -365,6 +371,14 @@ export const router = createBrowserRouter([
                 <RouteScreen>
                   <OrganizationsPage />
                 </RouteScreen>
+              </CapabilityRoute>
+            ),
+          },
+          {
+            path: "sms",
+            element: (
+              <CapabilityRoute capability="sms.read">
+                <RouteScreen><SmsPage /></RouteScreen>
               </CapabilityRoute>
             ),
           },

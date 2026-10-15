@@ -95,6 +95,15 @@ export {
 export { RegistrationProgress } from "./registration-progress.entity";
 
 export { AttendanceWriteReceipt } from "./attendance-write-receipt.entity";
+export {
+  SmsCampaign,
+  SmsCampaignStatus,
+  SmsCampaignRecipient,
+  SmsRecipientStatus,
+  SmsCampaignBatch,
+  SmsBatchStatus,
+} from "./sms-campaign.entity";
+export { SmsProviderConfiguration } from "./sms-provider-configuration.entity";
 
 export { AttendancePolicy } from "./attendance-policy.entity";
 export { AttendanceSchedule } from "./attendance-schedule.entity";

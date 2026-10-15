@@ -56,6 +56,7 @@ import {
   type StudentForm,
 } from "../model/student-form";
 import { studentCopy } from "../model/student-locale";
+import UnderConstruction from "../components/UnderConstruction";
 
 const detailTabs: StudentDetailTab[] = ["overview", "activity", "profile", "access", "security"];
 const sortValues: StudentSort[] = ["name", "username", "grade", "lastSeen", "completeness"];

@@ -12,11 +12,12 @@ export function UnsupportedRoleModal() {
   const language = useOptionalAdminLanguage();
   const isEnglish = language === "en";
   const role = roleLabel(auth.activeRole, language);
-  const key = `bastak-school:coming-soon:${auth.context?.user.id ?? auth.user?.id ?? "account"}:${auth.activeRole ?? "role"}`;
+  // Versioning resets earlier ten-day local deadlines to the current forty-day rollout window.
+  const key = `bastak-school:coming-soon:v2:${auth.context?.user.id ?? auth.user?.id ?? "account"}:${auth.activeRole ?? "role"}`;
   const target = useMemo(() => {
     const stored = Number(localStorage.getItem(key));
     if (Number.isFinite(stored) && stored > Date.now()) return stored;
-    const next = Date.now() + 10 * 24 * 60 * 60 * 1000;
+    const next = Date.now() + 40 * 24 * 60 * 60 * 1000;
     localStorage.setItem(key, String(next));
     return next;
   }, [key]);
