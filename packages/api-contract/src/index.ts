@@ -184,8 +184,14 @@ export const CAPABILITIES = [
   "student.absence.create",
   "student.absence.read",
   "student.absence.manage",
+  "platform.phone.self.manage",
+  "sms.read",
+  "sms.send",
+  "sms.manage",
 ] as const;
 export type Capability = (typeof CAPABILITIES)[number];
+
+export * from "./sms";
 
 export type ApiErrorContract = {
   ok: false;

@@ -41,6 +41,7 @@ export const organizationFeatures = [
   ["ONBOARDING", "ورود دانش‌آموزان"],
   ["ANALYTICS", "تحلیل و پیشنهادها"],
   ["IMPORT_EXPORT", "ورود و خروج داده"],
+  ["SMS", "پیامک"],
 ] as const;
 export type OrganizationFeatureCode = (typeof organizationFeatures)[number][0];
 export type OrganizationMember = {

@@ -9,7 +9,7 @@ const principal = {
 };
 
 describe("Principal account provisioning policy", () => {
-  it.each(["STUDENT", "SCHOOL_SUPERVISOR", "TEACHER"])(
+  it.each(["STUDENT", "SCHOOL_SUPERVISOR", "TEACHER", "GUARDIAN", "COUNSELOR", "DISCIPLINARIAN"])(
     "allows a Principal to assign %s",
     (role) => {
       expect(() =>
@@ -20,8 +20,8 @@ describe("Principal account provisioning policy", () => {
 
   it("rejects a role outside the Principal provisioning list", () => {
     try {
-      assertRoleCodesAssignableByActor(principal, ["GUARDIAN"]);
-      fail("Expected the Principal assignment policy to reject GUARDIAN.");
+      assertRoleCodesAssignableByActor(principal, ["ORGANIZATION_ADMIN"]);
+      fail("Expected the Principal assignment policy to reject ORGANIZATION_ADMIN.");
     } catch (error) {
       expect(error).toMatchObject({
         response: { error: { code: "PRINCIPAL_ROLE_ASSIGNMENT_RESTRICTED" } },
@@ -33,7 +33,7 @@ describe("Principal account provisioning policy", () => {
     expect(() =>
       assertRoleCodesAssignableByActor(
         { ...principal, roles: ["PRINCIPAL", "PLATFORM_ADMIN"] },
-        ["GUARDIAN"],
+        ["ORGANIZATION_ADMIN"],
       ),
     ).not.toThrow();
   });

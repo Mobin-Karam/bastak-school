@@ -5,8 +5,17 @@ import type { AuthenticatedUser } from "../auth";
 export const PLATFORM_ROLE_CODES = ["PLATFORM_ADMIN"] as const;
 export const PRINCIPAL_ASSIGNABLE_ROLE_CODES = [
   "STUDENT",
+  "GUARDIAN",
   "SCHOOL_SUPERVISOR",
   "TEACHER",
+  "DISCIPLINARIAN",
+  "RELIGIOUS_EDUCATION_MANAGER",
+  "GOVERNMENT_EDUCATION_MANAGER",
+  "STUDENT_AFFAIRS_MENTOR",
+  "COUNSELOR",
+  "ADVISOR",
+  "MENTOR",
+  "CONTENT_MANAGER",
 ] as const;
 
 const sharedOrganizationRoles = [
@@ -78,8 +87,9 @@ export function assertPlatformRolesAreUnscoped(
 
 /**
  * The current school rollout lets a Principal provision only the three
- * operational account types they supervise. Platform administrators retain
- * their broader tenant-administration authority.
+ * school account types they supervise. They still cannot create peer owners,
+ * principals, school administrators, organization administrators or platform
+ * administrators. Platform administrators retain broader authority.
  */
 export function assertRoleCodesAssignableByActor(
   actor: Pick<AuthenticatedUser, "role" | "roles">,
@@ -98,7 +108,7 @@ export function assertRoleCodesAssignableByActor(
     throw new ApiException(
       403,
       "PRINCIPAL_ROLE_ASSIGNMENT_RESTRICTED",
-      "مدیر فقط می‌تواند حساب دانش‌آموز، ناظم یا دبیر ایجاد و به‌روزرسانی کند.",
+      "مدیر فقط می‌تواند نقش‌های عملیاتی همان مدرسه را ایجاد و به‌روزرسانی کند.",
     );
   }
 }

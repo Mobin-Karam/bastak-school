@@ -4,6 +4,8 @@ import { cn } from "../lib/utils";
 export type SegmentedControlOption<T extends string> = {
   value: T;
   label: ReactNode;
+  /** Use sparingly for prominent page-level segmented navigation. */
+  className?: string;
   ariaLabel?: string;
   title?: string;
   disabled?: boolean;
@@ -48,6 +50,7 @@ export function SegmentedControl<T extends string>({
               active
                 ? "bg-[rgb(var(--surface-card))] text-[rgb(var(--color-ink))] shadow-sm"
                 : "text-slate-500 hover:text-[rgb(var(--color-ink))] dark:text-slate-400",
+              option.className,
             )}
           >
             {option.label}

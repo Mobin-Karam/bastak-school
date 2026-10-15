@@ -1,4 +1,4 @@
-import { Eye, EyeOff, LoaderCircle } from "lucide-react";
+import { Eye, EyeOff, LoaderCircle, Minus } from "lucide-react";
 import {
   ComponentProps,
   Children,
@@ -306,6 +306,176 @@ dark:placeholder:text-slate-500
     );
   },
 );
+
+type CheckboxProps = Omit<ComponentProps<"input">, "type"> & {
+  /** A concise controlled-state callback for form code that does not need the DOM event. */
+  onCheckedChange?: (checked: boolean) => void;
+};
+
+/**
+ * A native checkbox with the Admin focus, colour and disabled-state treatment.
+ * Prefer CheckboxGroup when several independent choices answer one question.
+ */
+export const Checkbox = forwardRef<HTMLInputElement, CheckboxProps>(function Checkbox(
+  { className, onChange, onCheckedChange, ...props },
+  ref,
+) {
+  return (
+    <input
+      {...props}
+      ref={ref}
+      type="checkbox"
+      onChange={(event) => {
+        onChange?.(event);
+        onCheckedChange?.(event.currentTarget.checked);
+      }}
+      className={cn(
+        "size-5 shrink-0 cursor-pointer rounded border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card))] text-brand accent-brand transition-colors focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand/20 disabled:cursor-not-allowed disabled:opacity-55",
+        className,
+      )}
+    />
+  );
+});
+
+Checkbox.displayName = "Checkbox";
+
+export type CheckboxGroupOption<T extends string> = {
+  value: T;
+  label: ReactNode;
+  description?: ReactNode;
+  disabled?: boolean;
+};
+
+/**
+ * A labelled list of independent, multi-select choices.
+ * Native checkboxes keep Tab, Space and assistive-technology behaviour predictable.
+ */
+export function CheckboxGroup<T extends string>({
+  legend,
+  description,
+  options,
+  value,
+  onValueChange,
+  selectAllLabel,
+  selectAllDescription,
+  disabled = false,
+  className,
+  listClassName,
+}: {
+  legend: ReactNode;
+  description?: ReactNode;
+  options: readonly CheckboxGroupOption<T>[];
+  value: readonly T[];
+  onValueChange: (value: T[]) => void;
+  selectAllLabel?: ReactNode;
+  selectAllDescription?: ReactNode;
+  disabled?: boolean;
+  className?: string;
+  listClassName?: string;
+}) {
+  const groupId = useId();
+  const descriptionId = `${groupId}-description`;
+  const selectableOptions = options.filter((option) => !option.disabled);
+  const selectedValues = new Set(value);
+  const selectedCount = options.filter((option) => selectedValues.has(option.value)).length;
+  const allSelected =
+    selectableOptions.length > 0 &&
+    selectableOptions.every((option) => selectedValues.has(option.value));
+  const partiallySelected =
+    !allSelected && selectableOptions.some((option) => selectedValues.has(option.value));
+
+  const toggleOption = (option: CheckboxGroupOption<T>, checked: boolean) => {
+    onValueChange(
+      checked
+        ? Array.from(new Set([...value, option.value]))
+        : value.filter((selectedValue) => selectedValue !== option.value),
+    );
+  };
+
+  const toggleAll = (checked: boolean) => {
+    if (checked) {
+      onValueChange(
+        Array.from(new Set([...value, ...selectableOptions.map((option) => option.value)])),
+      );
+      return;
+    }
+    const selectableValues = new Set(selectableOptions.map((option) => option.value));
+    onValueChange(value.filter((selectedValue) => !selectableValues.has(selectedValue)));
+  };
+
+  return (
+    <fieldset
+      disabled={disabled}
+      aria-describedby={description ? descriptionId : undefined}
+      className={cn("min-w-0 space-y-3", className)}
+    >
+      <legend className="text-sm font-bold text-[rgb(var(--color-ink))]">{legend}</legend>
+      {description ? (
+        <p id={descriptionId} className="text-xs leading-5 text-slate-600 dark:text-slate-400">
+          {description}
+        </p>
+      ) : null}
+
+      {selectAllLabel ? (
+        <label className="flex min-h-11 cursor-pointer items-start gap-3 rounded-lg border border-dashed border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-muted))] px-3 py-2.5 transition-colors hover:border-brand/45 disabled:cursor-not-allowed">
+          <Checkbox
+            checked={allSelected}
+            aria-label={typeof selectAllLabel === "string" ? selectAllLabel : undefined}
+            onChange={(event) => toggleAll(event.currentTarget.checked)}
+            ref={(element) => {
+              if (element) element.indeterminate = partiallySelected;
+            }}
+          />
+          <span className="grid gap-0.5 text-sm text-[rgb(var(--color-ink))]">
+            <span className="flex items-center gap-1.5 font-semibold">
+              {partiallySelected ? <Minus size={14} aria-hidden="true" /> : null}
+              {selectAllLabel}
+            </span>
+            {selectAllDescription ? (
+              <span className="text-xs font-normal leading-5 text-slate-600 dark:text-slate-400">
+                {selectAllDescription}
+              </span>
+            ) : null}
+          </span>
+        </label>
+      ) : null}
+
+      <div className={cn("grid gap-2", listClassName)}>
+        {options.map((option) => {
+          const checked = selectedValues.has(option.value);
+          return (
+            <label
+              key={option.value}
+              className={cn(
+                "flex min-h-12 cursor-pointer items-start gap-3 rounded-lg border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card))] px-3 py-3 transition-colors hover:border-brand/45 has-[:focus-visible]:ring-4 has-[:focus-visible]:ring-brand/20",
+                checked && "border-brand/60 bg-brand/5",
+                (disabled || option.disabled) && "cursor-not-allowed opacity-60",
+              )}
+            >
+              <Checkbox
+                checked={checked}
+                disabled={option.disabled}
+                onCheckedChange={(nextChecked) => toggleOption(option, nextChecked)}
+              />
+              <span className="grid gap-0.5 text-sm text-[rgb(var(--color-ink))]">
+                <span className="font-semibold">{option.label}</span>
+                {option.description ? (
+                  <span className="text-xs font-normal leading-5 text-slate-600 dark:text-slate-400">
+                    {option.description}
+                  </span>
+                ) : null}
+              </span>
+            </label>
+          );
+        })}
+      </div>
+
+      <p className="text-xs text-slate-500 dark:text-slate-400" aria-live="polite">
+        {selectedCount} / {options.length}
+      </p>
+    </fieldset>
+  );
+}
 
 export const Select = forwardRef<HTMLSelectElement, ComponentProps<"select">>(
   function Select(props, ref) {

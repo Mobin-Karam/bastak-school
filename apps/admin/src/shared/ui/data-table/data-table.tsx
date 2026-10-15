@@ -310,7 +310,9 @@ export function DataTable<TData>({
       aria-label={label}
       aria-busy={loading || refreshing || busy || exporting || undefined}
       dir={language === "fa" ? "rtl" : "ltr"}
-      className={`data-table-workspace min-w-0 overflow-hidden rounded-xl border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card))] text-ink shadow-[var(--shadow-surface)] ${selectedRows.length ? "pb-28 md:pb-0" : ""}`}
+      className={`data-table-workspace w-full max-w-full max-h-[100dvh] min-w-0 overflow-auto rounded-xl border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card))] text-ink shadow-[var(--shadow-surface)] ${
+        selectedRows.length ? "pb-28 md:pb-0" : ""
+      }`}
     >
       <DataTableToolbar
         table={table}

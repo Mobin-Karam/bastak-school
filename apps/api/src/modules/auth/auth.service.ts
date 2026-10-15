@@ -259,7 +259,12 @@ export class AuthService {
       capabilities: user.capabilities,
       csrfToken: session?.csrfToken,
       phoneNumber: account?.phoneNumber ?? null,
-      phoneNumberChangeAvailable: (account?.phoneNumberChangeCount ?? 0) === 0,
+      phoneNumberChangeAvailable:
+        user.capabilities?.includes("platform.phone.self.manage") ||
+        (account?.phoneNumberChangeCount ?? 0) === 0,
+      phoneNumberChangeUnlimited: Boolean(
+        user.capabilities?.includes("platform.phone.self.manage"),
+      ),
     };
   }
 
@@ -407,13 +412,16 @@ export class AuthService {
     const account = await this.users.findOneBy({ id: user.id });
     if (!account)
       throw new ApiException(404, "USER_NOT_FOUND", "حساب کاربری پیدا نشد.");
-    if (!this.isStudentOrGuardian(user))
+    const canChangeAnyTime = user.capabilities?.includes(
+      "platform.phone.self.manage",
+    );
+    if (!canChangeAnyTime && !this.isStudentOrGuardian(user))
       throw new ApiException(
         403,
         "PHONE_CHANGE_REVIEW_REQUIRED",
         "تغییر شماره این حساب باید توسط مدرسه بررسی شود.",
       );
-    if (account.phoneNumberChangeCount > 0)
+    if (!canChangeAnyTime && account.phoneNumberChangeCount > 0)
       throw new ApiException(
         409,
         "PHONE_CHANGE_REQUEST_REQUIRED",
@@ -437,7 +445,7 @@ export class AuthService {
       );
     account.phoneNumber = normalized;
     account.username = normalized;
-    account.phoneNumberChangeCount += 1;
+    if (!canChangeAnyTime) account.phoneNumberChangeCount += 1;
     await this.users.save(account);
     await this.sessions.delete({
       user: { id: user.id },
@@ -447,7 +455,7 @@ export class AuthService {
       phoneNumber: account.phoneNumber,
       changed: true,
       otherSessionsRevoked: true,
-      requiresReviewForNextChange: true,
+      requiresReviewForNextChange: !canChangeAnyTime,
     };
   }
 
