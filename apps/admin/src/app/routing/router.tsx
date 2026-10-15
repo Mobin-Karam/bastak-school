@@ -441,5 +441,12 @@ export const router = createBrowserRouter([
       },
     ],
   },
-  { path: "*", element: <Navigate to="/admin" replace /> },
+  {
+    path: "*",
+    element: underBuilding ? (
+      <UnderConstruction endTime={underBuildingEndsAt} />
+    ) : (
+      <Navigate to="/admin" replace />
+    ),
+  },
 ]);
