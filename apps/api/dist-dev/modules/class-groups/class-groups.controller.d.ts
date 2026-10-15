@@ -6,7 +6,7 @@ export declare class ClassGroupsController {
     constructor(groups: ClassGroupsService);
     list(user: AuthenticatedUser, classId?: string, organizationId?: string): Promise<{
         ok: boolean;
-        data: ClassGroupSummary[];
+        data: import("@moshaver/api-contract").ClassGroupSummary[];
     }>;
     classOptions(user: AuthenticatedUser, organizationId?: string): Promise<{
         ok: boolean;
@@ -31,11 +31,11 @@ export declare class ClassGroupsController {
     }>;
     create(user: AuthenticatedUser, dto: CreateClassGroupDto): Promise<{
         ok: boolean;
-        data: ClassGroupSummary;
+        data: import("@moshaver/api-contract").ClassGroupSummary;
     }>;
     update(user: AuthenticatedUser, id: string, dto: UpdateClassGroupDto): Promise<{
         ok: boolean;
-        data: ClassGroupSummary;
+        data: import("@moshaver/api-contract").ClassGroupSummary;
     }>;
     members(user: AuthenticatedUser, id: string): Promise<{
         ok: boolean;

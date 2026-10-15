@@ -37,8 +37,15 @@ const learning_item_entity_1 = require("../../database/entities/learning-item.en
 const exam_retry_request_entity_1 = require("../../database/entities/exam-retry-request.entity");
 const education_catalog_1 = require("../education-catalog");
 const phone_number_1 = require("../../common/utils/phone-number");
+const student_profile_entity_1 = require("../../database/entities/student-profile.entity");
+const education_class_entity_1 = require("../../database/entities/education-class.entity");
+const education_class_enrollment_entity_1 = require("../../database/entities/education-class-enrollment.entity");
+const onboarding_1 = require("../onboarding");
 let StudentAdministrationService = class StudentAdministrationService {
     students;
+    profiles;
+    classes;
+    enrollments;
     users;
     attendanceRecords;
     memberships;
@@ -51,8 +58,11 @@ let StudentAdministrationService = class StudentAdministrationService {
     legacy;
     dataSource;
     catalog;
-    constructor(students, users, attendanceRecords, memberships, relationships, issues, recoveries, learningItems, retryRequests, authorization, legacy, dataSource, catalog) {
+    constructor(students, profiles, classes, enrollments, users, attendanceRecords, memberships, relationships, issues, recoveries, learningItems, retryRequests, authorization, legacy, dataSource, catalog) {
         this.students = students;
+        this.profiles = profiles;
+        this.classes = classes;
+        this.enrollments = enrollments;
         this.users = users;
         this.attendanceRecords = attendanceRecords;
         this.memberships = memberships;
@@ -100,7 +110,7 @@ let StudentAdministrationService = class StudentAdministrationService {
                 where: allowedOrganizationIds?.length
                     ? { organization: { id: (0, typeorm_2.In)(allowedOrganizationIds) } }
                     : undefined,
-                relations: { user: true, organization: true },
+                relations: { user: true, organization: true, profile: true, enrollments: { classroom: true } },
                 order: { createdAt: "DESC" },
             });
             return rows.map((student) => this.project(student));
@@ -112,7 +122,7 @@ let StudentAdministrationService = class StudentAdministrationService {
         const own = context.roles.includes("STUDENT")
             ? await this.students.find({
                 where: { user: { id: user.id } },
-                relations: { user: true, organization: true },
+                relations: { user: true, organization: true, profile: true, enrollments: { classroom: true } },
             })
             : [];
         const linked = links.map((link) => link.toStudent);
@@ -129,7 +139,7 @@ let StudentAdministrationService = class StudentAdministrationService {
             throw new api_exception_1.ApiException(404, "NOT_FOUND", "دانش‌آموز یافت نشد.");
         const student = await this.students.findOne({
             where: { id },
-            relations: { user: true, organization: true },
+            relations: { user: true, organization: true, profile: true, enrollments: { classroom: true } },
         });
         if (!student)
             throw new api_exception_1.ApiException(404, "NOT_FOUND", "دانش‌آموز یافت نشد.");
@@ -329,6 +339,8 @@ let StudentAdministrationService = class StudentAdministrationService {
                 role,
                 membership: role.organizationScoped ? membership : null,
             }));
+            await this.syncSchoolProfile(manager, student, organization, dto);
+            await this.syncGuardians(manager, student, organization, dto);
             return this.project(student);
         });
     }
@@ -353,7 +365,7 @@ let StudentAdministrationService = class StudentAdministrationService {
         const updated = await this.dataSource.transaction(async (manager) => {
             const student = await manager.findOneOrFail(student_entity_1.Student, {
                 where: { id },
-                relations: { user: true },
+                relations: { user: true, organization: true },
             });
             const { phoneNumber: requestedPhoneNumber, ...studentFields } = dto;
             const requestedStudentName = dto.name?.trim();
@@ -410,7 +422,10 @@ let StudentAdministrationService = class StudentAdministrationService {
                 });
                 await manager.save(user_entity_1.User, student.user);
             }
-            return manager.save(student_entity_1.Student, student);
+            const saved = await manager.save(student_entity_1.Student, student);
+            await this.syncSchoolProfile(manager, saved, student.organization ?? null, dto);
+            await this.syncGuardians(manager, saved, student.organization ?? null, dto);
+            return saved;
         });
         return this.project({ ...updated, user: updated.user ?? undefined });
     }
@@ -516,6 +531,121 @@ let StudentAdministrationService = class StudentAdministrationService {
             issue.advisorNote = dto.advisorNote.trim();
         return this.issues.save(issue);
     }
+    jalaliToDate(value) {
+        const match = value.trim().match(/^(1[34]\d\d)[/-](\d{1,2})[/-](\d{1,2})$/);
+        if (!match)
+            throw new api_exception_1.ApiException(422, "INVALID_BIRTH_DATE", "تاریخ تولد شمسی نامعتبر است.");
+        const jy = Number(match[1]), jm = Number(match[2]), jd = Number(match[3]);
+        if (jm < 1 || jm > 12 || jd < 1 || jd > 31)
+            throw new api_exception_1.ApiException(422, "INVALID_BIRTH_DATE", "تاریخ تولد شمسی نامعتبر است.");
+        const jDayNo = 365 * (jy - 979) + Math.floor((jy - 979) / 33) * 8 + Math.floor(((jy - 979) % 33 + 3) / 4) + (jm < 7 ? (jm - 1) * 31 : (jm - 7) * 30 + 186) + jd - 1;
+        let gDayNo = jDayNo + 79;
+        let gy = 1600 + 400 * Math.floor(gDayNo / 146097);
+        gDayNo %= 146097;
+        let leap = true;
+        if (gDayNo >= 36525) {
+            gDayNo--;
+            gy += 100 * Math.floor(gDayNo / 36524);
+            gDayNo %= 36524;
+            if (gDayNo >= 365)
+                gDayNo++;
+            else
+                leap = false;
+        }
+        gy += 4 * Math.floor(gDayNo / 1461);
+        gDayNo %= 1461;
+        if (gDayNo >= 366) {
+            leap = false;
+            gDayNo--;
+            gy += Math.floor(gDayNo / 365);
+            gDayNo %= 365;
+        }
+        const days = [31, leap ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+        let gm = 0;
+        while (gDayNo >= days[gm])
+            gDayNo -= days[gm++];
+        return new Date(Date.UTC(gy, gm, gDayNo + 1));
+    }
+    async syncSchoolProfile(manager, student, organization, dto) {
+        if (dto.nationalCode !== undefined) {
+            const nationalCode = (0, onboarding_1.normalizeNationalCode)(dto.nationalCode);
+            if (!(0, onboarding_1.isValidIranianNationalCode)(nationalCode))
+                throw new api_exception_1.ApiException(422, "INVALID_NATIONAL_CODE", "کد ملی معتبر نیست.");
+            const duplicate = await manager.findOne(student_entity_1.Student, { where: { nationalCode } });
+            if (duplicate && duplicate.id !== student.id)
+                throw new api_exception_1.ApiException(409, "NATIONAL_CODE_EXISTS", "برای این کد ملی پرونده دانش‌آموزی وجود دارد.");
+            student.nationalCode = nationalCode;
+            await manager.save(student_entity_1.Student, student);
+        }
+        if (dto.birthDateJalali !== undefined || dto.governmentSchool !== undefined) {
+            let profile = await manager.findOne(student_profile_entity_1.StudentProfile, { where: { student: { id: student.id } } });
+            profile ??= manager.create(student_profile_entity_1.StudentProfile, { student });
+            if (dto.birthDateJalali !== undefined)
+                profile.birthDate = this.jalaliToDate(dto.birthDateJalali);
+            if (dto.governmentSchool !== undefined)
+                profile.previousSchool = dto.governmentSchool.trim() || null;
+            await manager.save(student_profile_entity_1.StudentProfile, profile);
+        }
+        if (dto.classId !== undefined || ("clearClass" in dto && dto.clearClass)) {
+            if (!organization)
+                throw new api_exception_1.ApiException(422, "ORGANIZATION_REQUIRED", "برای ثبت کلاس، سازمان دانش‌آموز الزامی است.");
+            if ("clearClass" in dto && dto.clearClass)
+                await manager.delete(education_class_enrollment_entity_1.EducationClassEnrollment, { student: { id: student.id } });
+            if (dto.classId) {
+                const classroom = await manager.findOne(education_class_entity_1.EducationClass, { where: { id: dto.classId }, relations: { organization: true, enrollments: true } });
+                if (!classroom || classroom.organization.id !== organization.id)
+                    throw new api_exception_1.ApiException(404, "CLASS_NOT_FOUND", "کلاس در سازمان دانش‌آموز یافت نشد.");
+                if (classroom.status !== "ACTIVE")
+                    throw new api_exception_1.ApiException(422, "CLASS_INACTIVE", "کلاس انتخاب‌شده فعال نیست.");
+                const existing = await manager.findOne(education_class_enrollment_entity_1.EducationClassEnrollment, { where: { classroom: { id: classroom.id }, student: { id: student.id } } });
+                if (!existing) {
+                    if (classroom.enrollments.length >= classroom.capacity)
+                        throw new api_exception_1.ApiException(422, "CLASS_CAPACITY_EXCEEDED", "ظرفیت کلاس تکمیل است.");
+                    await manager.delete(education_class_enrollment_entity_1.EducationClassEnrollment, { student: { id: student.id } });
+                    await manager.save(education_class_enrollment_entity_1.EducationClassEnrollment, manager.create(education_class_enrollment_entity_1.EducationClassEnrollment, { classroom, student }));
+                }
+            }
+        }
+        const [profile, enrollment] = await Promise.all([
+            manager.findOne(student_profile_entity_1.StudentProfile, { where: { student: { id: student.id } } }),
+            manager.findOne(education_class_enrollment_entity_1.EducationClassEnrollment, { where: { student: { id: student.id } } }),
+        ]);
+        const complete = Boolean(student.nationalCode &&
+            profile?.birthDate &&
+            profile.previousSchool?.trim() &&
+            enrollment);
+        student.registrationStatus = complete ? "ACTIVE" : "ACCOUNT_CREATED";
+        await manager.save(student_entity_1.Student, student);
+    }
+    async syncGuardians(manager, student, organization, dto) {
+        const requested = [dto.mother, dto.father].filter(Boolean);
+        if (!requested.length)
+            return;
+        if (!organization)
+            throw new api_exception_1.ApiException(422, "ORGANIZATION_REQUIRED", "برای ثبت سرپرست، سازمان دانش‌آموز الزامی است.");
+        const guardianRole = await manager.findOneByOrFail(role_entity_1.Role, { code: "GUARDIAN" });
+        for (const input of requested) {
+            const phoneNumber = (0, phone_number_1.normalizeIranianMobile)(input.phoneNumber);
+            let guardian = await manager.findOne(user_entity_1.User, { where: { phoneNumber } });
+            if (!guardian)
+                guardian = await manager.save(user_entity_1.User, manager.create(user_entity_1.User, { username: phoneNumber, phoneNumber, passwordHash: await bcryptjs_1.default.hash(input.password, 12), firstName: "", lastName: "", role: user_entity_1.UserRole.GUARDIAN, status: user_entity_1.UserStatus.ACTIVE }));
+            let membership = await manager.findOne(organization_membership_entity_1.OrganizationMembership, { where: { user: { id: guardian.id }, organization: { id: organization.id } } });
+            if (!membership)
+                membership = await manager.save(organization_membership_entity_1.OrganizationMembership, manager.create(organization_membership_entity_1.OrganizationMembership, { user: guardian, organization, status: organization_membership_entity_1.MembershipStatus.ACTIVE }));
+            else if (membership.status !== organization_membership_entity_1.MembershipStatus.ACTIVE) {
+                membership.status = organization_membership_entity_1.MembershipStatus.ACTIVE;
+                membership = await manager.save(organization_membership_entity_1.OrganizationMembership, membership);
+            }
+            const assignment = await manager.findOne(user_role_assignment_entity_1.UserRoleAssignment, { where: { user: { id: guardian.id }, role: { id: guardianRole.id }, ...(guardianRole.organizationScoped ? { membership: { id: membership.id } } : {}) } });
+            if (!assignment)
+                await manager.save(user_role_assignment_entity_1.UserRoleAssignment, manager.create(user_role_assignment_entity_1.UserRoleAssignment, { user: guardian, role: guardianRole, membership: guardianRole.organizationScoped ? membership : null }));
+            let relationship = await manager.findOne(user_relationship_entity_1.UserRelationship, { where: { fromUser: { id: guardian.id }, toStudent: { id: student.id }, organization: { id: organization.id }, type: "GUARDIAN_OF" } });
+            relationship ??= manager.create(user_relationship_entity_1.UserRelationship, { fromUser: guardian, toStudent: student, organization, type: "GUARDIAN_OF" });
+            relationship.status = user_relationship_entity_1.RelationshipStatus.ACTIVE;
+            relationship.acceptedAt = new Date();
+            await manager.save(user_relationship_entity_1.UserRelationship, relationship);
+        }
+    }
     project(student) {
         return {
             id: student.id,
@@ -532,8 +662,14 @@ let StudentAdministrationService = class StudentAdministrationService {
             targetField: student.targetField,
             targetRank: student.targetRank,
             dailyCapacity: student.dailyCapacity,
+            nationalCode: student.nationalCode ?? null,
+            birthDate: student.profile?.birthDate?.toISOString() ?? null,
+            governmentSchool: student.profile?.previousSchool ?? null,
+            classId: student.enrollments?.[0]?.classroom.id ?? null,
+            className: student.enrollments?.[0]?.classroom.name ?? null,
             accountStatus: student.accountStatus,
             registrationStatus: student.registrationStatus,
+            profileComplete: student.registrationStatus === "ACTIVE",
             organization: student.organization
                 ? { id: student.organization.id, name: student.organization.name }
                 : null,
@@ -555,15 +691,21 @@ exports.StudentAdministrationService = StudentAdministrationService;
 exports.StudentAdministrationService = StudentAdministrationService = __decorate([
     (0, common_1.Injectable)(),
     __param(0, (0, typeorm_1.InjectRepository)(student_entity_1.Student)),
-    __param(1, (0, typeorm_1.InjectRepository)(user_entity_1.User)),
-    __param(2, (0, typeorm_1.InjectRepository)(attendance_record_entity_1.AttendanceRecord)),
-    __param(3, (0, typeorm_1.InjectRepository)(organization_membership_entity_1.OrganizationMembership)),
-    __param(4, (0, typeorm_1.InjectRepository)(user_relationship_entity_1.UserRelationship)),
-    __param(5, (0, typeorm_1.InjectRepository)(task_issue_entity_1.TaskIssue)),
-    __param(6, (0, typeorm_1.InjectRepository)(recovery_request_entity_1.RecoveryRequest)),
-    __param(7, (0, typeorm_1.InjectRepository)(learning_item_entity_1.LearningItem)),
-    __param(8, (0, typeorm_1.InjectRepository)(exam_retry_request_entity_1.ExamRetryRequest)),
+    __param(1, (0, typeorm_1.InjectRepository)(student_profile_entity_1.StudentProfile)),
+    __param(2, (0, typeorm_1.InjectRepository)(education_class_entity_1.EducationClass)),
+    __param(3, (0, typeorm_1.InjectRepository)(education_class_enrollment_entity_1.EducationClassEnrollment)),
+    __param(4, (0, typeorm_1.InjectRepository)(user_entity_1.User)),
+    __param(5, (0, typeorm_1.InjectRepository)(attendance_record_entity_1.AttendanceRecord)),
+    __param(6, (0, typeorm_1.InjectRepository)(organization_membership_entity_1.OrganizationMembership)),
+    __param(7, (0, typeorm_1.InjectRepository)(user_relationship_entity_1.UserRelationship)),
+    __param(8, (0, typeorm_1.InjectRepository)(task_issue_entity_1.TaskIssue)),
+    __param(9, (0, typeorm_1.InjectRepository)(recovery_request_entity_1.RecoveryRequest)),
+    __param(10, (0, typeorm_1.InjectRepository)(learning_item_entity_1.LearningItem)),
+    __param(11, (0, typeorm_1.InjectRepository)(exam_retry_request_entity_1.ExamRetryRequest)),
     __metadata("design:paramtypes", [typeorm_2.Repository,
+        typeorm_2.Repository,
+        typeorm_2.Repository,
+        typeorm_2.Repository,
         typeorm_2.Repository,
         typeorm_2.Repository,
         typeorm_2.Repository,

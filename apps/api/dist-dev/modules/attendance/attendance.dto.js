@@ -403,7 +403,7 @@ __decorate([
 class AttendancePoolCheckInDto {
     confirmation;
     static _OPENAPI_METADATA_FACTORY() {
-        return { confirmation: { required: true, type: () => String, enum: ["here"] } };
+        return { confirmation: { required: true, enum: ["here"], enum: ["here"] } };
     }
 }
 exports.AttendancePoolCheckInDto = AttendancePoolCheckInDto;

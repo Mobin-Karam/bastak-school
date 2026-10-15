@@ -3,6 +3,9 @@ node_modules/
 
 # Build output
 dist/
+# Local TypeScript watch output for the API. This directory was historically
+# committed, so it must also be removed from the Git index once.
+apps/api/dist-dev/
 coverage/
 apps/admin/playwright-report/
 apps/admin/test-results/
