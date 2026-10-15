@@ -1,14 +1,62 @@
 import { api } from "../../../shared/api/api";
-export type Criteria = { organizationId?: string; roleCodes?: string[]; userIds?: string[]; includeAll?: boolean };
-export type Preview = { total: number; roles: Array<{ role: string; count: number }>; users: Array<{ userId: string; displayName: string; maskedPhoneNumber: string; roles: string[]; organization: string | null }> };
-export type Campaign = { id: string; title: string; messageText: string; status: string; scheduledAt?: string | null; totalRecipients: number; submittedRecipients: number; failedRecipients: number; createdAt: string };
-export const previewAudience = (criteria: Criteria) => api.post<Preview>("/sms/audience/preview", criteria);
+export type Criteria = {
+  organizationId?: string;
+  roleCodes?: string[];
+  userIds?: string[];
+  includeAll?: boolean;
+};
+export type Preview = {
+  total: number;
+  roles: Array<{ role: string; count: number }>;
+  users: Array<{
+    userId: string;
+    displayName: string;
+    maskedPhoneNumber: string;
+    roles: string[];
+    organization: string | null;
+  }>;
+};
+export type Campaign = {
+  id: string;
+  title: string;
+  messageText: string;
+  status: string;
+  scheduledAt?: string | null;
+  totalRecipients: number;
+  submittedRecipients: number;
+  failedRecipients: number;
+  createdAt: string;
+};
+export const previewAudience = (criteria: Criteria) =>
+  api.post<Preview>("/sms/audience/preview", criteria);
 export const listCampaigns = () => api.get<Campaign[]>("/sms/campaigns");
-export const createCampaign = (body: { title: string; messageText: string; scheduledAt?: string; criteria: Criteria }) => api.post<Campaign>("/sms/campaigns", body);
-export const sendCampaign = (id: string) => api.post<Campaign>(`/sms/campaigns/${encodeURIComponent(id)}/send`);
-export const retryCampaign = (id: string) => api.post<Campaign>(`/sms/campaigns/${encodeURIComponent(id)}/retry-failed`);
-export const cancelCampaign = (id: string) => api.post<Campaign>(`/sms/campaigns/${encodeURIComponent(id)}/cancel`);
-export const refreshCampaignStatus = (id: string) => api.post<Campaign>(`/sms/campaigns/${encodeURIComponent(id)}/refresh-status`);
-export type ProviderStatus = { enabled: boolean; dryRun: boolean; configured: boolean; lineNumber: string | null; credit: number | null; keyLastFour: string | null; updatedAt: string | null };
+export const createCampaign = (body: {
+  title: string;
+  messageText: string;
+  scheduledAt?: string;
+  criteria: Criteria;
+}) => api.post<Campaign>("/sms/campaigns", body);
+export const sendCampaign = (id: string) =>
+  api.post<Campaign>(`/sms/campaigns/${encodeURIComponent(id)}/send`);
+export const retryCampaign = (id: string) =>
+  api.post<Campaign>(`/sms/campaigns/${encodeURIComponent(id)}/retry-failed`);
+export const cancelCampaign = (id: string) =>
+  api.post<Campaign>(`/sms/campaigns/${encodeURIComponent(id)}/cancel`);
+export const refreshCampaignStatus = (id: string) =>
+  api.post<Campaign>(`/sms/campaigns/${encodeURIComponent(id)}/refresh-status`);
+export type ProviderStatus = {
+  enabled: boolean;
+  dryRun: boolean;
+  configured: boolean;
+  lineNumber: string | null;
+  credit: number | null;
+  keyLastFour: string | null;
+  updatedAt: string | null;
+};
 export const smsStatus = () => api.get<ProviderStatus>("/sms/provider/status");
-export const configureSmsProvider = (body: { apiKey?: string; lineNumber: string; enabled: boolean; dryRun: boolean }) => api.post<ProviderStatus>("/sms/provider/configuration", body);
+export const configureSmsProvider = (body: {
+  apiKey?: string;
+  lineNumber: string;
+  enabled: boolean;
+  dryRun: boolean;
+}) => api.post<ProviderStatus>("/sms/provider/configuration", body);

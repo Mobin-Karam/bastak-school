@@ -89,9 +89,7 @@ const TeacherChatComingSoonPage = lazy(() =>
 const SystemPage = lazy(() =>
   import("../../features/system").then((m) => ({ default: m.SystemPage })),
 );
-const SmsPage = lazy(() =>
-  import("../../features/sms").then((m) => ({ default: m.SmsPage })),
-);
+const SmsPage = lazy(() => import("../../features/sms").then((m) => ({ default: m.SmsPage })));
 const MobileMorePage = lazy(() =>
   import("../../features/mobile/MobileMorePage").then((m) => ({ default: m.MobileMorePage })),
 );
@@ -378,7 +376,9 @@ export const router = createBrowserRouter([
             path: "sms",
             element: (
               <CapabilityRoute capability="sms.read">
-                <RouteScreen><SmsPage /></RouteScreen>
+                <RouteScreen>
+                  <SmsPage />
+                </RouteScreen>
               </CapabilityRoute>
             ),
           },
