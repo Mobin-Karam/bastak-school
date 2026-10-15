@@ -41,3 +41,17 @@ graphify-out/
 .DS_Store
 .idea/
 .vscode/
+
+
+# Codex secrets and local configuration
+.codex/auth.json
+.codex/.env
+.codex/.env.*
+.codex/secrets/
+.codex/tokens/
+.codex/config.toml
+
+# General secrets
+.env
+.env.*
+!.env.example

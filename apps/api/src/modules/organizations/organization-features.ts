@@ -14,6 +14,7 @@ export const ORGANIZATION_FEATURES = [
   { code: "ONBOARDING", label: "ورود دانش‌آموزان", capabilities: ["student_onboarding."] },
   { code: "ANALYTICS", label: "تحلیل و پیشنهادها", capabilities: ["analytics.", "recommendations."] },
   { code: "IMPORT_EXPORT", label: "ورود و خروج داده", capabilities: ["import.", "export."] },
+  { code: "SMS", label: "پیامک", capabilities: ["sms."] },
 ] as const;
 
 export type OrganizationFeatureCode = (typeof ORGANIZATION_FEATURES)[number]["code"];

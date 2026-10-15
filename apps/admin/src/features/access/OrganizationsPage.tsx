@@ -1330,4 +1330,5 @@ const featureLabels: Record<(typeof organizationFeatures)[number][0], string> = 
   ONBOARDING: "Student onboarding",
   ANALYTICS: "Analytics",
   IMPORT_EXPORT: "Import and export",
+  SMS: "SMS",
 };

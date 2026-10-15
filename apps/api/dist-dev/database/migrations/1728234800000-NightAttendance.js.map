@@ -1,1 +1,0 @@
-{"version":3,"file":"1728234800000-NightAttendance.js","sourceRoot":"","sources":["../../../src/database/migrations/1728234800000-NightAttendance.ts"],"names":[],"mappings":";;;AAEA,MAAa,4BAA4B;IACvC,IAAI,GAAG,8BAA8B,CAAC;IAEtC,KAAK,CAAC,EAAE,CAAC,YAAyB;IAOlC,CAAC;IAED,KAAK,CAAC,IAAI,CAAC,YAAyB;QAClC,MAAM,IAAI,KAAK,CACb,2HAA2H,CAC5H,CAAC;IACJ,CAAC;CACF;AAjBD,oEAiBC"}
