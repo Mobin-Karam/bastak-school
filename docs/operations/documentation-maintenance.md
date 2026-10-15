@@ -8,11 +8,11 @@ Documentation is part of the product contract and changes with behavior.
 | Cross-cutting engineering guidance | `docs/engineering/` |
 | Current application or API | `docs/components/` |
 | Commands, recovery, security, deployment | `docs/operations/` |
-| Feature delivery notes | `docs/features/`, `docs/implementation/` |
-| Planned compatibility work and gaps | `docs/migrations/` |
+| Feature delivery notes | `docs/features/`, `docs/change-notes/` |
+| Planned compatibility work and gaps | `docs/transitions/` |
 | Product direction and design | `docs/product/` |
 | Releases and user-visible changes | `docs/releases/` |
-| Dated audits, fixes, snapshots | `docs/audits/`, `docs/history/` |
+| Dated audits, fixes, snapshots | `docs/evidence/`, `docs/archive/` |
 
 Historical documents are evidence. Do not rewrite an old audit to look current; add a dated follow-up or update a current canonical document.
 

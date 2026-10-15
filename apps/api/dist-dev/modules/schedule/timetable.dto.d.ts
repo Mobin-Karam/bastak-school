@@ -61,8 +61,21 @@ export declare class TimetableConfigDto {
     reason?: string;
     expectedRevision?: number;
 }
+export declare class TimetableImportProvenanceDto {
+    sheetName: string;
+    cellAddress: string;
+    masterCell: string;
+    blockId: string;
+    rawClassLabel: string;
+    rawSubjectLabel: string;
+    rawTeacherLabel: string;
+    rawPeriodLabel: string;
+    rawTimeLabel: string;
+    merged: boolean;
+}
 export declare class TimetableImportRowDto {
     source: string;
+    provenance?: TimetableImportProvenanceDto;
     lesson: TimetableLessonDto;
 }
 export declare class TimetableImportDto extends TimetableRevisionDto {

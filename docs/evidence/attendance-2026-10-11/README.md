@@ -1,6 +1,6 @@
 # Attendance audit — 11 October 2026
 
-Implementation has since started; see the [implementation ledger](../../implementation/attendance-modernization.md) for fixes and current limitations. The findings below describe the original audit baseline.
+Implementation has since started; see the [implementation ledger](../../change-notes/attendance-modernization.md) for fixes and current limitations. The findings below describe the original audit baseline.
 
 This audit covers the principal and school supervisor workspaces, teacher schedule/attendance drawer, student self-attendance page in Admin, and their API implementation. It also documents the desktop header/profile fixes made with this review.
 

@@ -3,244 +3,29 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Browse and search Moshaver repository documentation." />
     <title>Moshaver Documentation</title>
     <link rel="stylesheet" href="./styles.css" />
   </head>
   <body>
+    <a class="skip-link" href="#document">Skip to document</a>
+    <div class="reading-progress" id="readingProgress" aria-hidden="true"></div>
     <div class="app-shell">
-      <aside class="sidebar" id="sidebar">
-        <div class="sidebar-header">
-          <h1>Moshaver Docs Viewer</h1>
-          <p class="sidebar-subtitle">Repository documentation in <code>docs/</code></p>
-        </div>
-
-        <div class="sidebar-controls">
-          <div class="control-row">
-            <input id="filterInput" type="search" placeholder="Search files, titles, content..." />
-            <button id="clearFilterBtn" class="btn btn-subtle" type="button">Clear</button>
-          </div>
-          <div class="control-row">
-            <input id="tagFilterInput" type="search" placeholder="Search tags (#health, auth, deploy)..." />
-            <button id="clearTagFilterBtn" class="btn btn-subtle" type="button">Clear tags</button>
-          </div>
-          <div class="control-row">
-            <label class="select-wrap" for="scopeSelect">
-              <span>Scope</span>
-              <select id="scopeSelect">
-                <option value="all">All</option>
-                <option value="docs">Docs only</option>
-                <option value="agents" hidden>Agents only</option>
-              </select>
-            </label>
-            <label class="select-wrap" for="sortSelect">
-              <span>Sort</span>
-              <select id="sortSelect">
-                <option value="date-desc">Newest</option>
-                <option value="date-asc">Oldest</option>
-                <option value="name-asc">A-Z</option>
-                <option value="name-desc">Z-A</option>
-              </select>
-            </label>
-          </div>
-          <div class="control-row">
-            <button id="expandGroupsBtn" class="btn btn-subtle" type="button">Expand all</button>
-            <button id="collapseGroupsBtn" class="btn btn-subtle" type="button">Collapse all</button>
-          </div>
-        </div>
-
-        <section id="recentSection" class="sidebar-section hidden">
-          <div class="section-title-row">
-            <h3>Recent</h3>
-            <button id="clearRecentBtn" class="btn btn-link" type="button">Clear</button>
-          </div>
-          <div id="recentList" class="chip-list"></div>
-        </section>
-
-        <section class="sidebar-section">
-          <div class="section-title-row">
-            <h3>Insights</h3>
-          </div>
-          <div class="insight-block">
-            <p class="insight-title">Recently updated</p>
-            <div id="recentlyUpdatedList" class="chip-list"></div>
-          </div>
-          <div class="insight-block">
-            <p class="insight-title">Needs review</p>
-            <div id="needsReviewList" class="chip-list"></div>
-          </div>
-        </section>
-
-        <section class="sidebar-section">
-          <div class="section-title-row">
-            <h3>Tags</h3>
-            <span id="tagCountLabel">0 tags</span>
-          </div>
-          <div id="tagList" class="chip-list"></div>
-        </section>
-
-        <section class="sidebar-section">
-          <div class="section-title-row">
-            <h3>Files</h3>
-            <span id="fileCountLabel">0 files</span>
-          </div>
-          <nav id="fileTree" class="file-tree"></nav>
-        </section>
+      <aside class="library" id="library" aria-label="Documentation library">
+        <a class="brand" href="#docs/README.md"><span class="brand-mark" aria-hidden="true">M</span><span><strong>Moshaver</strong><small>Documentation</small></span></a>
+        <label class="search-field" for="globalSearch"><span class="sr-only">Search documentation</span><input id="globalSearch" type="search" placeholder="Search documentation…" autocomplete="off" /><kbd>/</kbd></label>
+        <p id="searchSummary" class="search-summary">Browse by subject</p>
+        <nav id="libraryNav" class="library-nav" aria-label="Documentation sections"></nav>
+        <section id="recentSection" class="recent-section hidden" aria-labelledby="recentHeading"><div class="section-heading"><h2 id="recentHeading">Recently read</h2><button id="clearRecent" type="button">Clear</button></div><div id="recentList" class="recent-list"></div></section>
+        <footer class="library-footer"><span id="docCount">Loading library…</span><button id="themeToggle" type="button">Dark theme</button></footer>
       </aside>
-
-      <main class="content">
-        <header class="content-header">
-          <div class="header-left">
-            <button id="sidebarToggleBtn" class="icon-btn" type="button" aria-label="Toggle sidebar">
-              Menu
-            </button>
-            <button
-              id="desktopSidebarToggleBtn"
-              class="btn btn-subtle desktop-sidebar-toggle"
-              type="button"
-              aria-expanded="true"
-              aria-controls="sidebar"
-            >
-              Hide sidebar
-            </button>
-            <div>
-              <h2 id="docTitle">Select a markdown file</h2>
-              <p id="docSubtitle">Use the sidebar to browse markdown files</p>
-              <p id="docMeta">No document loaded</p>
-              <div id="docMetaCards" class="meta-cards"></div>
-            </div>
-          </div>
-          <div class="header-actions">
-            <label class="select-wrap compact" for="themeSelect">
-              <span>Theme</span>
-              <select id="themeSelect">
-                <option value="system">System</option>
-                <option value="light">Light</option>
-                <option value="dark">Dark</option>
-              </select>
-            </label>
-            <span id="viewerStatusBadge" class="status-badge status-checking" role="status" aria-live="polite">
-              <span class="status-dot" aria-hidden="true"></span>
-              <span class="status-label">Docs: checking</span>
-            </span>
-            <span id="backendStatusBadge" class="status-badge status-checking" role="status" aria-live="polite">
-              <span class="status-dot" aria-hidden="true"></span>
-              <span class="status-label">Backend: checking</span>
-            </span>
-            <button id="copyPathBtn" class="btn btn-subtle" type="button">Copy path</button>
-            <button id="copyLinkBtn" class="btn btn-subtle" type="button">Copy link</button>
-            <a id="feedbackLink" class="btn btn-subtle" href="#" target="_blank" rel="noreferrer noopener">
-              Report issue
-            </a>
-            <a id="rawLink" class="btn btn-primary" href="#" target="_blank" rel="noreferrer noopener">
-              Open raw
-            </a>
-          </div>
-        </header>
-        <section id="docSearchSection" class="doc-search hidden" aria-label="Search in current document">
-          <label for="docSearchInput" class="doc-search-label">Search this document</label>
-          <div class="doc-search-row">
-            <input id="docSearchInput" type="search" placeholder="Find text in the current document..." />
-            <span id="docSearchCount" class="doc-search-count" aria-live="polite">Type to search in this document</span>
-            <div class="doc-search-actions">
-              <button id="docSearchPrevBtn" class="btn btn-subtle" type="button">Prev</button>
-              <button id="docSearchNextBtn" class="btn btn-subtle" type="button">Next</button>
-              <button id="docSearchClearBtn" class="btn btn-subtle" type="button">Clear</button>
-            </div>
-          </div>
-        </section>
-        <section id="homeDashboard" class="home-dashboard hidden" aria-label="Daily planning dashboard">
-          <div class="dashboard-header">
-            <div>
-              <h3>Docs Launchpad</h3>
-              <p id="dashboardFocusSummary" class="dashboard-focus-summary">Start here and follow the next best path</p>
-            </div>
-            <p id="dashboardDateLabel">Today</p>
-          </div>
-          <section id="journeyBoard" class="journey-board" aria-label="Start here document flow"></section>
-          <div class="kanban-board">
-            <article class="kanban-column">
-              <h4>Yesterday</h4>
-              <p>What you finished and touched recently.</p>
-              <textarea id="yesterdayNotesInput" class="dashboard-notes" placeholder="Write what you completed yesterday..."></textarea>
-              <div class="task-entry">
-                <input
-                  id="yesterdayTaskInput"
-                  class="task-input"
-                  type="text"
-                  maxlength="160"
-                  placeholder="Add completed task..."
-                />
-                <button id="yesterdayTaskAddBtn" class="btn btn-subtle task-add-btn" type="button">Add</button>
-              </div>
-              <div id="yesterdayTaskList" class="task-list" aria-label="Yesterday tasks"></div>
-              <div id="pastDocsList" class="kanban-list"></div>
-            </article>
-            <article class="kanban-column">
-              <h4>Tomorrow</h4>
-              <p>Short actionable plan for next day.</p>
-              <textarea id="tomorrowNotesInput" class="dashboard-notes" placeholder="Plan top priorities for tomorrow..."></textarea>
-              <div class="task-entry">
-                <input
-                  id="tomorrowTaskInput"
-                  class="task-input"
-                  type="text"
-                  maxlength="160"
-                  placeholder="Add next priority..."
-                />
-                <button id="tomorrowTaskAddBtn" class="btn btn-subtle task-add-btn" type="button">Add</button>
-              </div>
-              <div id="tomorrowTaskList" class="task-list" aria-label="Tomorrow tasks"></div>
-              <div id="tomorrowDocsList" class="kanban-list"></div>
-            </article>
-            <article class="kanban-column">
-              <h4>Future</h4>
-              <p>Longer horizon docs, backlog, and exploratory tracks.</p>
-              <textarea id="futureNotesInput" class="dashboard-notes" placeholder="Future ideas, roadmap, and follow-ups..."></textarea>
-              <div class="task-entry">
-                <input
-                  id="futureTaskInput"
-                  class="task-input"
-                  type="text"
-                  maxlength="160"
-                  placeholder="Add future item..."
-                />
-                <button id="futureTaskAddBtn" class="btn btn-subtle task-add-btn" type="button">Add</button>
-              </div>
-              <div id="futureTaskList" class="task-list" aria-label="Future tasks"></div>
-              <div id="futureDocsList" class="kanban-list"></div>
-            </article>
-            <article class="kanban-column workflow-column">
-              <h4>Personality Workflow</h4>
-              <p>Suggested reading for repository contributors.</p>
-              <div id="personalityWorkflowList" class="kanban-list workflow-list"></div>
-              <div class="workflow-tools">
-                <div class="section-title-row">
-                  <h5>Daily Standards</h5>
-                  <button id="seedTomorrowFromChecklistBtn" class="btn btn-link" type="button">
-                    Add to Tomorrow
-                  </button>
-                </div>
-                <p id="personalityChecklistProgress" class="workflow-summary">0 of 0 done</p>
-                <div id="personalityChecklist" class="personality-checklist"></div>
-              </div>
-            </article>
-          </div>
-        </section>
-        <article id="docContent"></article>
+      <div id="backdrop" class="backdrop" hidden></div>
+      <main id="document" class="reader" tabindex="-1">
+        <header class="reader-header"><button id="menuButton" class="menu-button" type="button" aria-controls="library" aria-expanded="false">Browse</button><div id="breadcrumbs" class="breadcrumbs" aria-label="Document location"></div><div class="reader-actions"><button id="copyLink" type="button" disabled>Copy link</button><a id="rawDocument" href="#" target="_blank" rel="noreferrer" aria-disabled="true">Raw</a></div></header>
+        <div class="reader-layout"><article id="docContent" class="document-content" aria-live="polite"><div class="empty-state"><p class="eyebrow">Documentation library</p><h1>Choose a document</h1><p>Search for a topic or browse a section from the library.</p></div></article><aside id="outline" class="outline hidden" aria-label="On this page"><p>On this page</p><nav id="outlineNav"></nav></aside></div>
+        <nav id="pager" class="pager hidden" aria-label="Adjacent documents"></nav>
       </main>
     </div>
-    <div id="mobileBackdrop" class="mobile-backdrop"></div>
-    <section id="toastContainer" class="toast-container" aria-live="polite" aria-atomic="false"></section>
-    <button id="desktopTopBtn" class="desktop-top-btn" type="button" aria-label="Go to top">
-      Top
-    </button>
-    <nav id="mobileTabbar" class="mobile-tabbar" aria-label="Mobile docs navigation">
-      <button id="tabMenuBtn" class="tab-btn" type="button">Menu</button>
-      <button id="tabDocsBtn" class="tab-btn" type="button">Docs</button>
-      <button id="tabAgentsBtn" class="tab-btn hidden" type="button">Agents</button>
-      <button id="tabTopBtn" class="tab-btn" type="button">Top</button>
-    </nav>
-
     <script src="./vendor/marked.js"></script>
     <script type="module" src="./app/main.js"></script>
   </body>

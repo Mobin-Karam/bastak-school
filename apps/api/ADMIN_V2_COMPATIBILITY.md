@@ -5,7 +5,7 @@ Last source audit: 2026-09-08
 Scope: the current `apps/admin` client and the canonical `apps/api`
 `/api/v2` contract. This document describes implemented source behavior, not
 deployment or branch state. The detailed feature-by-feature status is maintained
-in [`docs/ADMIN_V2_CAPABILITY_MATRIX.md`](../../docs/ADMIN_V2_CAPABILITY_MATRIX.md).
+in [`docs/reference/admin-capability-matrix.md`](../../docs/reference/admin-capability-matrix.md).
 
 ## Contract
 

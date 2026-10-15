@@ -9,7 +9,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.TimetableBulkDto = exports.TimetableBulkItemDto = exports.TimetableQueryDto = exports.TimetablePageDto = exports.TimetableAttendanceDto = exports.TimetableImportDto = exports.TimetableImportRowDto = exports.TimetableConfigDto = exports.TimetableOverrideDto = exports.TimetablePublishDto = exports.TimetableVersionDto = exports.TimetableLessonWriteDto = exports.TimetableLessonDto = exports.TimetableRevisionDto = void 0;
+exports.TimetableBulkDto = exports.TimetableBulkItemDto = exports.TimetableQueryDto = exports.TimetablePageDto = exports.TimetableAttendanceDto = exports.TimetableImportDto = exports.TimetableImportRowDto = exports.TimetableImportProvenanceDto = exports.TimetableConfigDto = exports.TimetableOverrideDto = exports.TimetablePublishDto = exports.TimetableVersionDto = exports.TimetableLessonWriteDto = exports.TimetableLessonDto = exports.TimetableRevisionDto = void 0;
 const openapi = require("@nestjs/swagger");
 const class_transformer_1 = require("class-transformer");
 const class_validator_1 = require("class-validator");
@@ -379,11 +379,77 @@ __decorate([
     (0, class_validator_1.Min)(0),
     __metadata("design:type", Number)
 ], TimetableConfigDto.prototype, "expectedRevision", void 0);
+class TimetableImportProvenanceDto {
+    sheetName;
+    cellAddress;
+    masterCell;
+    blockId;
+    rawClassLabel;
+    rawSubjectLabel;
+    rawTeacherLabel;
+    rawPeriodLabel;
+    rawTimeLabel;
+    merged;
+    static _OPENAPI_METADATA_FACTORY() {
+        return { sheetName: { required: true, type: () => String, maxLength: 160 }, cellAddress: { required: true, type: () => String, maxLength: 32 }, masterCell: { required: true, type: () => String, maxLength: 32 }, blockId: { required: true, type: () => String, maxLength: 32 }, rawClassLabel: { required: true, type: () => String, maxLength: 240 }, rawSubjectLabel: { required: true, type: () => String, maxLength: 240 }, rawTeacherLabel: { required: true, type: () => String, maxLength: 240 }, rawPeriodLabel: { required: true, type: () => String, maxLength: 240 }, rawTimeLabel: { required: true, type: () => String, maxLength: 240 }, merged: { required: true, type: () => Boolean } };
+    }
+}
+exports.TimetableImportProvenanceDto = TimetableImportProvenanceDto;
+__decorate([
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.MaxLength)(160),
+    __metadata("design:type", String)
+], TimetableImportProvenanceDto.prototype, "sheetName", void 0);
+__decorate([
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.MaxLength)(32),
+    __metadata("design:type", String)
+], TimetableImportProvenanceDto.prototype, "cellAddress", void 0);
+__decorate([
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.MaxLength)(32),
+    __metadata("design:type", String)
+], TimetableImportProvenanceDto.prototype, "masterCell", void 0);
+__decorate([
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.MaxLength)(32),
+    __metadata("design:type", String)
+], TimetableImportProvenanceDto.prototype, "blockId", void 0);
+__decorate([
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.MaxLength)(240),
+    __metadata("design:type", String)
+], TimetableImportProvenanceDto.prototype, "rawClassLabel", void 0);
+__decorate([
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.MaxLength)(240),
+    __metadata("design:type", String)
+], TimetableImportProvenanceDto.prototype, "rawSubjectLabel", void 0);
+__decorate([
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.MaxLength)(240),
+    __metadata("design:type", String)
+], TimetableImportProvenanceDto.prototype, "rawTeacherLabel", void 0);
+__decorate([
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.MaxLength)(240),
+    __metadata("design:type", String)
+], TimetableImportProvenanceDto.prototype, "rawPeriodLabel", void 0);
+__decorate([
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.MaxLength)(240),
+    __metadata("design:type", String)
+], TimetableImportProvenanceDto.prototype, "rawTimeLabel", void 0);
+__decorate([
+    (0, class_validator_1.IsBoolean)(),
+    __metadata("design:type", Boolean)
+], TimetableImportProvenanceDto.prototype, "merged", void 0);
 class TimetableImportRowDto {
     source;
+    provenance;
     lesson;
     static _OPENAPI_METADATA_FACTORY() {
-        return { source: { required: true, type: () => String, maxLength: 160 }, lesson: { required: true, type: () => require("./timetable.dto").TimetableLessonDto } };
+        return { source: { required: true, type: () => String, maxLength: 160 }, provenance: { required: false, type: () => require("./timetable.dto").TimetableImportProvenanceDto }, lesson: { required: true, type: () => require("./timetable.dto").TimetableLessonDto } };
     }
 }
 exports.TimetableImportRowDto = TimetableImportRowDto;
@@ -392,6 +458,12 @@ __decorate([
     (0, class_validator_1.MaxLength)(160),
     __metadata("design:type", String)
 ], TimetableImportRowDto.prototype, "source", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.ValidateNested)(),
+    (0, class_transformer_1.Type)(() => TimetableImportProvenanceDto),
+    __metadata("design:type", TimetableImportProvenanceDto)
+], TimetableImportRowDto.prototype, "provenance", void 0);
 __decorate([
     (0, class_validator_1.IsDefined)(),
     (0, class_validator_1.ValidateNested)(),

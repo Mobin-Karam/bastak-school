@@ -1,6 +1,6 @@
 # Guided attendance flows — 11 October 2026
 
-These ten screenshots show the current components with clearly labeled synthetic preview data. They do not contain production student records. The larger attendance modernization plan remains tracked in [the implementation ledger](../../implementation/attendance-modernization.md).
+These ten screenshots show the current components with clearly labeled synthetic preview data. They do not contain production student records. The larger attendance modernization plan remains tracked in [the implementation ledger](../../change-notes/attendance-modernization.md).
 
 | Flow                                                                                                              | Desktop                                                       | Mobile                                                       |
 | ----------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------- | ------------------------------------------------------------ |

@@ -15,7 +15,6 @@ const typeorm_1 = require("typeorm");
 const organization_entity_1 = require("./organization.entity");
 const user_entity_1 = require("./user.entity");
 const education_class_book_entity_1 = require("./education-class-book.entity");
-const education_class_enrollment_entity_1 = require("./education-class-enrollment.entity");
 let EducationClass = class EducationClass {
     id;
     organization;
@@ -104,7 +103,7 @@ __decorate([
     __metadata("design:type", Array)
 ], EducationClass.prototype, "books", void 0);
 __decorate([
-    (0, typeorm_1.OneToMany)(() => education_class_enrollment_entity_1.EducationClassEnrollment, (enrollment) => enrollment.classroom),
+    (0, typeorm_1.OneToMany)("EducationClassEnrollment", (enrollment) => enrollment.classroom),
     __metadata("design:type", Array)
 ], EducationClass.prototype, "enrollments", void 0);
 __decorate([

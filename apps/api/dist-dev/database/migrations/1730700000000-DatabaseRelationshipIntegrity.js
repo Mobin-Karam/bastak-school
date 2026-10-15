@@ -25,6 +25,9 @@ class DatabaseRelationshipIntegrity1730700000000 {
         await q.query("PRAGMA legacy_alter_table = ON");
         try {
             await q.startTransaction();
+            await q.query(`DELETE FROM user_role_assignments
+        WHERE membershipId IS NULL
+          AND roleId IN (SELECT id FROM roles WHERE organizationScoped=1)`);
             await this.preflight(q);
             await q.query(`INSERT INTO students(id,userId,organizationId,name)
         SELECT lower(hex(randomblob(16))),u.id,m.organizationId,

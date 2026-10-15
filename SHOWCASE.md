@@ -189,7 +189,7 @@ For a product-oriented first look:
 - [Persian README](README.fa.md)
 - [Architecture](ARCHITECTURE.md)
 - [Documentation hub](docs/README.md)
-- [Admin capability matrix](docs/ADMIN_V2_CAPABILITY_MATRIX.md)
+- [Admin capability matrix](docs/reference/admin-capability-matrix.md)
 - [Product roadmap](docs/product/version-roadmap.md)
 - [Product changelog](docs/releases/product-changelog.md)
 

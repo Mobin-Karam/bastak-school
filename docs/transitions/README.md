@@ -1,4 +1,4 @@
-# Migration and compatibility work
+# Transition and compatibility work
 
 These documents track transitions, gaps and delivery plans. Their status may change after a release; verify the current implementation and contract before using them as a runbook.
 

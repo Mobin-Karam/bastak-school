@@ -5,6 +5,8 @@ import { DailyReport } from "./daily-report.entity";
 import { RecoveryRequest } from "./recovery-request.entity";
 import { LearningItem } from "./learning-item.entity";
 import { Organization } from "./organization.entity";
+import type { StudentProfile } from "./student-profile.entity";
+import type { EducationClassEnrollment } from "./education-class-enrollment.entity";
 export declare class Student {
     id: string;
     user?: User | null;
@@ -35,4 +37,6 @@ export declare class Student {
     dailyReports: DailyReport[];
     recoveryRequests: RecoveryRequest[];
     learningItems: LearningItem[];
+    profile?: StudentProfile | null;
+    enrollments?: EducationClassEnrollment[];
 }

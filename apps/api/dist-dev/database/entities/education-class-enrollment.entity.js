@@ -12,7 +12,6 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.EducationClassEnrollment = void 0;
 const openapi = require("@nestjs/swagger");
 const typeorm_1 = require("typeorm");
-const student_entity_1 = require("./student.entity");
 let EducationClassEnrollment = class EducationClassEnrollment {
     id;
     classroom;
@@ -32,8 +31,8 @@ __decorate([
     __metadata("design:type", Function)
 ], EducationClassEnrollment.prototype, "classroom", void 0);
 __decorate([
-    (0, typeorm_1.ManyToOne)(() => student_entity_1.Student, { nullable: false, onDelete: "CASCADE" }),
-    __metadata("design:type", student_entity_1.Student)
+    (0, typeorm_1.ManyToOne)("Student", (student) => student.enrollments, { nullable: false, onDelete: "CASCADE" }),
+    __metadata("design:type", Function)
 ], EducationClassEnrollment.prototype, "student", void 0);
 __decorate([
     (0, typeorm_1.CreateDateColumn)(),

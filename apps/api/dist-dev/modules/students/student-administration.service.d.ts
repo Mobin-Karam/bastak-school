@@ -15,8 +15,14 @@ import { LearningItem, LearningStatus } from "../../database/entities/learning-i
 import { ExamRetryRequest, RetryRequestStatus } from "../../database/entities/exam-retry-request.entity";
 import { UpdateTaskIssueDto } from "./dto/task-issue.dto";
 import { EducationCatalogService } from "../education-catalog";
+import { StudentProfile } from "../../database/entities/student-profile.entity";
+import { EducationClass } from "../../database/entities/education-class.entity";
+import { EducationClassEnrollment } from "../../database/entities/education-class-enrollment.entity";
 export declare class StudentAdministrationService {
     private students;
+    private profiles;
+    private classes;
+    private enrollments;
     private users;
     private attendanceRecords;
     private memberships;
@@ -29,7 +35,7 @@ export declare class StudentAdministrationService {
     private legacy;
     private dataSource;
     private catalog;
-    constructor(students: Repository<Student>, users: Repository<User>, attendanceRecords: Repository<AttendanceRecord>, memberships: Repository<OrganizationMembership>, relationships: Repository<UserRelationship>, issues: Repository<TaskIssue>, recoveries: Repository<RecoveryRequest>, learningItems: Repository<LearningItem>, retryRequests: Repository<ExamRetryRequest>, authorization: AuthorizationService, legacy: StudentsService, dataSource: DataSource, catalog: EducationCatalogService);
+    constructor(students: Repository<Student>, profiles: Repository<StudentProfile>, classes: Repository<EducationClass>, enrollments: Repository<EducationClassEnrollment>, users: Repository<User>, attendanceRecords: Repository<AttendanceRecord>, memberships: Repository<OrganizationMembership>, relationships: Repository<UserRelationship>, issues: Repository<TaskIssue>, recoveries: Repository<RecoveryRequest>, learningItems: Repository<LearningItem>, retryRequests: Repository<ExamRetryRequest>, authorization: AuthorizationService, legacy: StudentsService, dataSource: DataSource, catalog: EducationCatalogService);
     private context;
     list(user: AuthenticatedUser, organizationId?: string): Promise<{
         id: string;
@@ -46,8 +52,14 @@ export declare class StudentAdministrationService {
         targetField: string;
         targetRank: string;
         dailyCapacity: string;
+        nationalCode: string | null;
+        birthDate: string | null;
+        governmentSchool: string | null;
+        classId: string | null;
+        className: string | null;
         accountStatus: "active" | "archived" | "inactive";
         registrationStatus: "ACTIVE" | "ACCOUNT_CREATED" | "IN_PROGRESS" | "WAITING_REVIEW" | "NEEDS_CORRECTION" | "APPROVED" | "REJECTED";
+        profileComplete: boolean;
         organization: {
             id: string;
             name: string;
@@ -77,8 +89,14 @@ export declare class StudentAdministrationService {
         targetField: string;
         targetRank: string;
         dailyCapacity: string;
+        nationalCode: string | null;
+        birthDate: string | null;
+        governmentSchool: string | null;
+        classId: string | null;
+        className: string | null;
         accountStatus: "active" | "archived" | "inactive";
         registrationStatus: "ACTIVE" | "ACCOUNT_CREATED" | "IN_PROGRESS" | "WAITING_REVIEW" | "NEEDS_CORRECTION" | "APPROVED" | "REJECTED";
+        profileComplete: boolean;
         organization: {
             id: string;
             name: string;
@@ -152,8 +170,14 @@ export declare class StudentAdministrationService {
         targetField: string;
         targetRank: string;
         dailyCapacity: string;
+        nationalCode: string | null;
+        birthDate: string | null;
+        governmentSchool: string | null;
+        classId: string | null;
+        className: string | null;
         accountStatus: "active" | "archived" | "inactive";
         registrationStatus: "ACTIVE" | "ACCOUNT_CREATED" | "IN_PROGRESS" | "WAITING_REVIEW" | "NEEDS_CORRECTION" | "APPROVED" | "REJECTED";
+        profileComplete: boolean;
         organization: {
             id: string;
             name: string;
@@ -227,8 +251,14 @@ export declare class StudentAdministrationService {
         targetField: string;
         targetRank: string;
         dailyCapacity: string;
+        nationalCode: string | null;
+        birthDate: string | null;
+        governmentSchool: string | null;
+        classId: string | null;
+        className: string | null;
         accountStatus: "active" | "archived" | "inactive";
         registrationStatus: "ACTIVE" | "ACCOUNT_CREATED" | "IN_PROGRESS" | "WAITING_REVIEW" | "NEEDS_CORRECTION" | "APPROVED" | "REJECTED";
+        profileComplete: boolean;
         organization: {
             id: string;
             name: string;
@@ -258,8 +288,14 @@ export declare class StudentAdministrationService {
         targetField: string;
         targetRank: string;
         dailyCapacity: string;
+        nationalCode: string | null;
+        birthDate: string | null;
+        governmentSchool: string | null;
+        classId: string | null;
+        className: string | null;
         accountStatus: "active" | "archived" | "inactive";
         registrationStatus: "ACTIVE" | "ACCOUNT_CREATED" | "IN_PROGRESS" | "WAITING_REVIEW" | "NEEDS_CORRECTION" | "APPROVED" | "REJECTED";
+        profileComplete: boolean;
         organization: {
             id: string;
             name: string;
@@ -289,8 +325,14 @@ export declare class StudentAdministrationService {
         targetField: string;
         targetRank: string;
         dailyCapacity: string;
+        nationalCode: string | null;
+        birthDate: string | null;
+        governmentSchool: string | null;
+        classId: string | null;
+        className: string | null;
         accountStatus: "active" | "archived" | "inactive";
         registrationStatus: "ACTIVE" | "ACCOUNT_CREATED" | "IN_PROGRESS" | "WAITING_REVIEW" | "NEEDS_CORRECTION" | "APPROVED" | "REJECTED";
+        profileComplete: boolean;
         organization: {
             id: string;
             name: string;
@@ -480,5 +522,8 @@ export declare class StudentAdministrationService {
         }[];
     }>;
     updateTaskIssue(actor: AuthenticatedUser, id: string, dto: UpdateTaskIssueDto): Promise<TaskIssue>;
+    private jalaliToDate;
+    private syncSchoolProfile;
+    private syncGuardians;
     private project;
 }

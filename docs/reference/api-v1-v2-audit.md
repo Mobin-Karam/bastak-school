@@ -1,6 +1,6 @@
 # API v1 vs API v2 audit
 
-> **Historical migration comparison.** This file records the 2026-09-05 baseline and is not current release status. Capabilities listed as missing here may have been implemented later. Use [Admin v2 capability matrix](./ADMIN_V2_CAPABILITY_MATRIX.md) and [Security v2 release audit](../SECURITY_V2_RELEASE_AUDIT.md) for current evidence.
+> **Historical migration comparison.** This file records the 2026-09-05 baseline and is not current release status. Capabilities listed as missing here may have been implemented later. Use [Admin v2 capability matrix](./admin-capability-matrix.md) and [Security v2 release audit](../../SECURITY_V2_RELEASE_AUDIT.md) for current evidence.
 
 Audit date: 2026-09-05
 

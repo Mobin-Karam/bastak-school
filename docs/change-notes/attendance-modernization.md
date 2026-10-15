@@ -29,7 +29,7 @@ Preserve `/api/v2` callers; add session-based contracts alongside legacy endpoin
 
 ## Current evidence
 
-The initial audit is [attendance-2026-10-11](../audits/attendance-2026-10-11/README.md). Revalidate findings against source as each phase begins. Earlier header/Sonner changes and unrelated user Docker changes already exist in the worktree and must be preserved.
+The initial audit is [attendance-2026-10-11](../evidence/attendance-2026-10-11/README.md). Revalidate findings against source as each phase begins. Earlier header/Sonner changes and unrelated user Docker changes already exist in the worktree and must be preserved.
 
 Graphify graph/executable are unavailable. Discovery uses focused source reads. The additive receipt migration has been verified on isolated in-memory SQLite databases. No manual live migration command was run. The user has a running API watch process which regenerates tracked `dist-dev` outputs as source changes; do not stop it or overwrite unrelated work.
 
@@ -106,6 +106,6 @@ Following the user's additional request for simpler steps, mobile drawers and de
 - Attendance entry now reviews totals and partial marking in a responsive confirmation panel. Teacher attendance has mark/review/confirm steps in a mobile drawer and desktop modal. Principal/supervisor absence review uses inspect/decision/confirm with an optional note and a retryable inline error. Review queries are keyed by active user/role/organization and late mutation success cannot close another scope's panel.
 - Marking controls offer three physical states; the API rejects a direct new excused mark before any write. Existing history and legacy response projection remain readable. This semantic change requires coordinated updates for older independently deployed clients.
 - Student history gains filtering and read-only record details in the same responsive panel pattern, with authority-scoped query keys. Student requests/corrections remain pending.
-- Added ten current component screenshots and a concise role-flow explanation in [guided flows](../audits/attendance-2026-10-11/guided-flows.md). Preview data is synthetic and temporary preview source files are removed after capture.
+- Added ten current component screenshots and a concise role-flow explanation in [guided flows](../evidence/attendance-2026-10-11/guided-flows.md). Preview data is synthetic and temporary preview source files are removed after capture.
 
 Guided-flow checks: 48 backend tests across four suites passed; 11 Admin flow tests across four files passed. API build and scoped Admin lint passed. Ten desktop/mobile panels were captured with zero axe violations and no browser runtime errors. Admin production build (including TypeScript check) passed. Browser confirmation prompts for discarding attendance are replaced by explicit responsive keep/discard panels.
