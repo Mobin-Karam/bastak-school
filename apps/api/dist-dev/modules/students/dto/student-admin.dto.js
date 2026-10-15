@@ -9,9 +9,29 @@ var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.ResetStudentPasswordDto = exports.UpdateStudentDto = exports.CreateStudentDto = void 0;
+exports.ResetStudentPasswordDto = exports.UpdateStudentDto = exports.CreateStudentDto = exports.GuardianAccountDto = void 0;
 const openapi = require("@nestjs/swagger");
 const class_validator_1 = require("class-validator");
+const class_transformer_1 = require("class-transformer");
+const class_validator_2 = require("class-validator");
+class GuardianAccountDto {
+    phoneNumber;
+    password;
+    static _OPENAPI_METADATA_FACTORY() {
+        return { phoneNumber: { required: true, type: () => String, minLength: 11, maxLength: 11 }, password: { required: true, type: () => String, minLength: 12 } };
+    }
+}
+exports.GuardianAccountDto = GuardianAccountDto;
+__decorate([
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.Length)(11, 11),
+    __metadata("design:type", String)
+], GuardianAccountDto.prototype, "phoneNumber", void 0);
+__decorate([
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.MinLength)(12),
+    __metadata("design:type", String)
+], GuardianAccountDto.prototype, "password", void 0);
 class CreateStudentDto {
     name;
     phoneNumber;
@@ -29,8 +49,14 @@ class CreateStudentDto {
     targetField;
     targetRank;
     dailyCapacity;
+    nationalCode;
+    birthDateJalali;
+    governmentSchool;
+    classId;
+    mother;
+    father;
     static _OPENAPI_METADATA_FACTORY() {
-        return { name: { required: true, type: () => String, minLength: 2, maxLength: 160 }, phoneNumber: { required: true, type: () => String, minLength: 11, maxLength: 11 }, password: { required: true, type: () => String, minLength: 12 }, organizationId: { required: false, type: () => String, format: "uuid" }, learnerProfile: { required: false, enum: ["school", "independent"], enum: ["school", "independent"] }, independentType: { required: false, enum: ["adult", "gap_year", "homeschool", "other"], enum: ["adult", "gap_year", "homeschool", "other"] }, learningLevel: { required: false, type: () => String, minLength: 0, maxLength: 120 }, gradeId: { required: false, type: () => Number, minimum: 1, maximum: 12 }, educationTypeId: { required: false, type: () => String, minLength: 1, maxLength: 40 }, trackId: { required: false, type: () => String, minLength: 1, maxLength: 80 }, grade: { required: false, type: () => String, minLength: 0, maxLength: 80 }, major: { required: false, type: () => String, minLength: 0, maxLength: 80 }, targetUniversity: { required: false, type: () => String, minLength: 0, maxLength: 160 }, targetField: { required: false, type: () => String, minLength: 0, maxLength: 160 }, targetRank: { required: false, type: () => String, minLength: 0, maxLength: 40 }, dailyCapacity: { required: false, type: () => String, minLength: 0, maxLength: 40 } };
+        return { name: { required: true, type: () => String, minLength: 2, maxLength: 160 }, phoneNumber: { required: true, type: () => String, minLength: 11, maxLength: 11 }, password: { required: true, type: () => String, minLength: 12 }, organizationId: { required: false, type: () => String, format: "uuid" }, learnerProfile: { required: false, enum: ["school", "independent"], enum: ["school", "independent"] }, independentType: { required: false, enum: ["adult", "gap_year", "homeschool", "other"], enum: ["adult", "gap_year", "homeschool", "other"] }, learningLevel: { required: false, type: () => String, minLength: 0, maxLength: 120 }, gradeId: { required: false, type: () => Number, minimum: 1, maximum: 12 }, educationTypeId: { required: false, type: () => String, minLength: 1, maxLength: 40 }, trackId: { required: false, type: () => String, minLength: 1, maxLength: 80 }, grade: { required: false, type: () => String, minLength: 0, maxLength: 80 }, major: { required: false, type: () => String, minLength: 0, maxLength: 80 }, targetUniversity: { required: false, type: () => String, minLength: 0, maxLength: 160 }, targetField: { required: false, type: () => String, minLength: 0, maxLength: 160 }, targetRank: { required: false, type: () => String, minLength: 0, maxLength: 40 }, dailyCapacity: { required: false, type: () => String, minLength: 0, maxLength: 40 }, nationalCode: { required: false, type: () => String, minLength: 10, maxLength: 10 }, birthDateJalali: { required: false, type: () => String, description: "Jalali date in 1405/07/13 or 1405-07-13 form.", minLength: 10, maxLength: 10 }, governmentSchool: { required: false, type: () => String, minLength: 0, maxLength: 240 }, classId: { required: false, type: () => String, format: "uuid" }, mother: { required: false, type: () => require("./student-admin.dto").GuardianAccountDto }, father: { required: false, type: () => require("./student-admin.dto").GuardianAccountDto } };
     }
 }
 exports.CreateStudentDto = CreateStudentDto;
@@ -125,6 +151,41 @@ __decorate([
     (0, class_validator_1.Length)(0, 40),
     __metadata("design:type", String)
 ], CreateStudentDto.prototype, "dailyCapacity", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.Length)(10, 10),
+    __metadata("design:type", String)
+], CreateStudentDto.prototype, "nationalCode", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.Length)(10, 10),
+    __metadata("design:type", String)
+], CreateStudentDto.prototype, "birthDateJalali", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.Length)(0, 240),
+    __metadata("design:type", String)
+], CreateStudentDto.prototype, "governmentSchool", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsUUID)(),
+    __metadata("design:type", String)
+], CreateStudentDto.prototype, "classId", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_2.ValidateNested)(),
+    (0, class_transformer_1.Type)(() => GuardianAccountDto),
+    __metadata("design:type", GuardianAccountDto)
+], CreateStudentDto.prototype, "mother", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_2.ValidateNested)(),
+    (0, class_transformer_1.Type)(() => GuardianAccountDto),
+    __metadata("design:type", GuardianAccountDto)
+], CreateStudentDto.prototype, "father", void 0);
 class UpdateStudentDto {
     learnerProfile;
     independentType;
@@ -140,8 +201,15 @@ class UpdateStudentDto {
     targetField;
     targetRank;
     dailyCapacity;
+    nationalCode;
+    birthDateJalali;
+    governmentSchool;
+    classId;
+    clearClass;
+    mother;
+    father;
     static _OPENAPI_METADATA_FACTORY() {
-        return { learnerProfile: { required: false, enum: ["school", "independent"], enum: ["school", "independent"] }, independentType: { required: false, enum: ["adult", "gap_year", "homeschool", "other"], enum: ["adult", "gap_year", "homeschool", "other"] }, learningLevel: { required: false, type: () => String, minLength: 0, maxLength: 120 }, name: { required: false, type: () => String, minLength: 2, maxLength: 160 }, phoneNumber: { required: false, type: () => String, minLength: 11, maxLength: 11 }, gradeId: { required: false, type: () => Number, minimum: 1, maximum: 12 }, educationTypeId: { required: false, type: () => String, minLength: 1, maxLength: 40 }, trackId: { required: false, type: () => String, minLength: 1, maxLength: 80 }, grade: { required: false, type: () => String, minLength: 0, maxLength: 80 }, major: { required: false, type: () => String, minLength: 0, maxLength: 80 }, targetUniversity: { required: false, type: () => String, minLength: 0, maxLength: 160 }, targetField: { required: false, type: () => String, minLength: 0, maxLength: 160 }, targetRank: { required: false, type: () => String, minLength: 0, maxLength: 40 }, dailyCapacity: { required: false, type: () => String, minLength: 0, maxLength: 40 } };
+        return { learnerProfile: { required: false, enum: ["school", "independent"], enum: ["school", "independent"] }, independentType: { required: false, enum: ["adult", "gap_year", "homeschool", "other"], enum: ["adult", "gap_year", "homeschool", "other"] }, learningLevel: { required: false, type: () => String, minLength: 0, maxLength: 120 }, name: { required: false, type: () => String, minLength: 2, maxLength: 160 }, phoneNumber: { required: false, type: () => String, minLength: 11, maxLength: 11 }, gradeId: { required: false, type: () => Number, minimum: 1, maximum: 12 }, educationTypeId: { required: false, type: () => String, minLength: 1, maxLength: 40 }, trackId: { required: false, type: () => String, minLength: 1, maxLength: 80 }, grade: { required: false, type: () => String, minLength: 0, maxLength: 80 }, major: { required: false, type: () => String, minLength: 0, maxLength: 80 }, targetUniversity: { required: false, type: () => String, minLength: 0, maxLength: 160 }, targetField: { required: false, type: () => String, minLength: 0, maxLength: 160 }, targetRank: { required: false, type: () => String, minLength: 0, maxLength: 40 }, dailyCapacity: { required: false, type: () => String, minLength: 0, maxLength: 40 }, nationalCode: { required: false, type: () => String, minLength: 10, maxLength: 10 }, birthDateJalali: { required: false, type: () => String, description: "Jalali date in 1405/07/13 or 1405-07-13 form.", minLength: 10, maxLength: 10 }, governmentSchool: { required: false, type: () => String, minLength: 0, maxLength: 240 }, classId: { required: false, type: () => String, format: "uuid" }, clearClass: { required: false, type: () => Boolean }, mother: { required: false, type: () => require("./student-admin.dto").GuardianAccountDto }, father: { required: false, type: () => require("./student-admin.dto").GuardianAccountDto } };
     }
 }
 exports.UpdateStudentDto = UpdateStudentDto;
@@ -228,6 +296,46 @@ __decorate([
     (0, class_validator_1.Length)(0, 40),
     __metadata("design:type", String)
 ], UpdateStudentDto.prototype, "dailyCapacity", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.Length)(10, 10),
+    __metadata("design:type", String)
+], UpdateStudentDto.prototype, "nationalCode", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.Length)(10, 10),
+    __metadata("design:type", String)
+], UpdateStudentDto.prototype, "birthDateJalali", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.Length)(0, 240),
+    __metadata("design:type", String)
+], UpdateStudentDto.prototype, "governmentSchool", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsUUID)(),
+    __metadata("design:type", String)
+], UpdateStudentDto.prototype, "classId", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsBoolean)(),
+    __metadata("design:type", Boolean)
+], UpdateStudentDto.prototype, "clearClass", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_2.ValidateNested)(),
+    (0, class_transformer_1.Type)(() => GuardianAccountDto),
+    __metadata("design:type", GuardianAccountDto)
+], UpdateStudentDto.prototype, "mother", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_2.ValidateNested)(),
+    (0, class_transformer_1.Type)(() => GuardianAccountDto),
+    __metadata("design:type", GuardianAccountDto)
+], UpdateStudentDto.prototype, "father", void 0);
 class ResetStudentPasswordDto {
     password;
     static _OPENAPI_METADATA_FACTORY() {

@@ -2,57 +2,6 @@
 
 Moshaver is a multi-application monorepo. Treat this file as the primary repository-wide operating contract for AI coding agents.
 
-## Codex Workspace and Git Rules
-
-### Workspace
-
-- Always work inside the currently opened project directory.
-- Never create Git worktrees.
-- Never clone, duplicate, or copy the repository.
-- Never create additional project directories.
-- Never move project files outside the current repository.
-- Use the existing repository as the only working directory.
-
-### Git Branch Strategy
-
-- Use normal Git branches within the existing repository.
-- Before making changes, check the current Git branch and status.
-- For new features, create a new branch from the appropriate base branch.
-- Use git switch -c feature/<feature-name>.
-- For bug fixes, use fix/<issue-name>.
-- For refactoring, use refactor/<description>.
-- Never create a worktree to switch branches.
-- Never modify the main branch directly.
-- Preserve existing uncommitted changes.
-- Do not switch branches if doing so would overwrite existing work.
-- Never force-push or reset commits without explicit permission.
-
-### Execution
-
-- Execute all commands in the original project folder.
-- Use the existing project dependencies and environment.
-- Do not start another project instance unless explicitly requested.
-- Make changes directly to files in the current working directory.
-- Run relevant tests before reporting completion.
-
-### Forbidden Commands
-
-- git worktree add
-- git clone
-- git reset --hard
-- git clean -fd
-- Copying the entire repository into another directory
-
-### Required Workflow
-
-1. Check pwd.
-2. Check git status.
-3. Check git branch --show-current.
-4. Create or switch to the appropriate local branch.
-5. Implement changes in the current repository.
-6. Test changes.
-7. Report modified files and current branch.
-
 ## Graphify-first discovery
 
 Before broad grep/search or reading many source files, use the repository knowledge graph when `graphify-out/graph.json` is available.

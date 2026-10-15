@@ -1,3 +1,7 @@
+export declare class GuardianAccountDto {
+    phoneNumber: string;
+    password: string;
+}
 export declare class CreateStudentDto {
     name: string;
     phoneNumber: string;
@@ -15,6 +19,12 @@ export declare class CreateStudentDto {
     targetField?: string;
     targetRank?: string;
     dailyCapacity?: string;
+    nationalCode?: string;
+    birthDateJalali?: string;
+    governmentSchool?: string;
+    classId?: string;
+    mother?: GuardianAccountDto;
+    father?: GuardianAccountDto;
 }
 export declare class UpdateStudentDto {
     learnerProfile?: "school" | "independent";
@@ -31,6 +41,13 @@ export declare class UpdateStudentDto {
     targetField?: string;
     targetRank?: string;
     dailyCapacity?: string;
+    nationalCode?: string;
+    birthDateJalali?: string;
+    governmentSchool?: string;
+    classId?: string;
+    clearClass?: boolean;
+    mother?: GuardianAccountDto;
+    father?: GuardianAccountDto;
 }
 export declare class ResetStudentPasswordDto {
     password: string;

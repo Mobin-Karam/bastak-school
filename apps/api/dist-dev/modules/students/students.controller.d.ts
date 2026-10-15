@@ -317,6 +317,8 @@ export declare class StudentsController {
             dailyReports?: import("../../database/entities").DailyReport[] | undefined;
             recoveryRequests?: import("../../database/entities").RecoveryRequest[] | undefined;
             learningItems?: import("../../database/entities").LearningItem[] | undefined;
+            profile?: import("../../database/entities").StudentProfile | null;
+            enrollments?: import("../../database/entities").EducationClassEnrollment[];
         };
     }>;
 }

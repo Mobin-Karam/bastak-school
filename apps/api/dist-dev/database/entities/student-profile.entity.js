@@ -12,7 +12,6 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.StudentProfile = void 0;
 const openapi = require("@nestjs/swagger");
 const typeorm_1 = require("typeorm");
-const student_entity_1 = require("./student.entity");
 let StudentProfile = class StudentProfile {
     id;
     student;
@@ -42,9 +41,9 @@ __decorate([
     __metadata("design:type", String)
 ], StudentProfile.prototype, "id", void 0);
 __decorate([
-    (0, typeorm_1.OneToOne)(() => student_entity_1.Student, { nullable: false, onDelete: "CASCADE" }),
+    (0, typeorm_1.OneToOne)("Student", (student) => student.profile, { nullable: false, onDelete: "CASCADE" }),
     (0, typeorm_1.JoinColumn)(),
-    __metadata("design:type", student_entity_1.Student)
+    __metadata("design:type", Function)
 ], StudentProfile.prototype, "student", void 0);
 __decorate([
     (0, typeorm_1.Column)({ type: "varchar", length: 50, nullable: true }),

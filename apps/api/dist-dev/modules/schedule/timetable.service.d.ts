@@ -1,5 +1,5 @@
 import { DataSource } from "typeorm";
-import type { TimetableWorkspace } from "@moshaver/api-contract";
+import type { TimetableWorkspace, TimetableAttendanceReport, TimetableVersion as VersionContract } from "@moshaver/api-contract";
 import { TimetableAcademicYear, TimetableTerm, TimetableSection, TimetableLocation, TimetableBellSchedule, TimetableDailySession, TimetablePeriod, TimetableHoliday, TimetableTeacherAvailability, TimetableAllocation } from "../../database/entities/timetable.entity";
 import { EducationClass } from "../../database/entities/education-class.entity";
 import { AuthenticatedUser } from "../auth";
@@ -34,15 +34,16 @@ export declare class TimetableService {
     private workspaceConflicts;
     conflicts(user: AuthenticatedUser, id: string): Promise<{
         revision: number;
-        conflicts: TimetableConflict[];
+        conflicts: import("@moshaver/api-contract").TimetableConflict[];
     }>;
     workspace(user: AuthenticatedUser, organizationId: string, versionId?: string, startsOn?: string, rangeEndsOn?: string, academicYearId?: string): Promise<TimetableWorkspace>;
     occurrences(user: AuthenticatedUser, organizationId: string, query: TimetableQueryDto): Promise<{
-        items: any;
-        total: any;
+        items: import("@moshaver/api-contract").TimetableOccurrence[];
+        total: number;
         offset: number;
         limit: number;
     }>;
+    attendanceReport(user: AuthenticatedUser, organizationId: string, query: TimetableQueryDto): Promise<TimetableAttendanceReport>;
     versions(user: AuthenticatedUser, organizationId: string, query: TimetableQueryDto): Promise<{
         items: VersionContract[];
         total: number;
@@ -72,7 +73,7 @@ export declare class TimetableService {
     archive(user: AuthenticatedUser, id: string, dto: TimetablePublishDto): Promise<VersionContract>;
     bulk(user: AuthenticatedUser, id: string, dto: TimetableBulkDto, preview?: boolean): Promise<{
         valid: boolean;
-        conflicts: TimetableConflict[];
+        conflicts: import("@moshaver/api-contract").TimetableConflict[];
         revision: number;
         ids?: undefined;
     } | {
@@ -84,7 +85,7 @@ export declare class TimetableService {
     createVersion(user: AuthenticatedUser, organizationId: string, dto: TimetableVersionDto): Promise<VersionContract>;
     private saveLesson;
     writeLesson(user: AuthenticatedUser, versionId: string, dto: TimetableLessonWriteDto, id?: string, preview?: boolean): Promise<{
-        conflicts: TimetableConflict[];
+        conflicts: import("@moshaver/api-contract").TimetableConflict[];
         id?: undefined;
         revision?: undefined;
     } | {
@@ -127,14 +128,16 @@ export declare class TimetableService {
             source: string;
             errors: string[];
         }[];
-        conflicts: TimetableConflict[];
+        conflicts: import("@moshaver/api-contract").TimetableConflict[];
     }>;
+    private importFingerprint;
     commitImport(user: AuthenticatedUser, id: string, dto: TimetableImportDto): Promise<{
         imported: number;
         revision: number;
+        duplicate: boolean;
     }>;
     openAttendance(user: AuthenticatedUser, id: string, date: string): Promise<{
         sessionId: string;
-        cancelled: any;
+        cancelled: boolean;
     }>;
 }

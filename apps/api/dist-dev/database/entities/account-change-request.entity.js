@@ -28,7 +28,7 @@ let AccountChangeRequest = class AccountChangeRequest {
     createdAt;
     updatedAt;
     static _OPENAPI_METADATA_FACTORY() {
-        return { id: { required: true, type: () => String }, organization: { required: true, type: () => require("./organization.entity").Organization }, user: { required: true, type: () => require("./user.entity").User }, kind: { required: true, type: () => String }, requestedValue: { required: true, type: () => String }, status: { required: true, enum: ["APPROVED", "REJECTED", "PENDING"] }, reason: { required: true, type: () => String }, reviewNote: { required: true, type: () => String }, reviewedBy: { required: false, type: () => require("./user.entity").User, nullable: true }, reviewedAt: { required: false, type: () => Date, nullable: true }, createdAt: { required: true, type: () => Date }, updatedAt: { required: true, type: () => Date } };
+        return { id: { required: true, type: () => String }, organization: { required: true, type: () => require("./organization.entity").Organization }, user: { required: true, type: () => require("./user.entity").User }, kind: { required: true, enum: ["PHONE_NUMBER"] }, requestedValue: { required: true, type: () => String }, status: { required: true, enum: ["APPROVED", "REJECTED", "PENDING"] }, reason: { required: true, type: () => String }, reviewNote: { required: true, type: () => String }, reviewedBy: { required: false, type: () => require("./user.entity").User, nullable: true }, reviewedAt: { required: false, type: () => Date, nullable: true }, createdAt: { required: true, type: () => Date }, updatedAt: { required: true, type: () => Date } };
     }
 };
 exports.AccountChangeRequest = AccountChangeRequest;

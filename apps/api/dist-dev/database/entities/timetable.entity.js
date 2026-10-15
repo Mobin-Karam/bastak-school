@@ -823,11 +823,13 @@ let TimetableImport = class TimetableImport {
     actor;
     filename;
     sheetName;
+    fingerprint;
+    sourceRows;
     rowCount;
     revision;
     createdAt;
     static _OPENAPI_METADATA_FACTORY() {
-        return { id: { required: true, type: () => String }, versionId: { required: true, type: () => String }, version: { required: false, type: () => Object }, actorId: { required: true, type: () => String }, actor: { required: false, type: () => Object }, filename: { required: true, type: () => String }, sheetName: { required: true, type: () => String }, rowCount: { required: true, type: () => Number }, revision: { required: true, type: () => Number }, createdAt: { required: true, type: () => Date } };
+        return { id: { required: true, type: () => String }, versionId: { required: true, type: () => String }, version: { required: false, type: () => Object }, actorId: { required: true, type: () => String }, actor: { required: false, type: () => Object }, filename: { required: true, type: () => String }, sheetName: { required: true, type: () => String }, fingerprint: { required: true, type: () => String, description: "Stable server-derived identity of the approved source-to-lesson mapping." }, sourceRows: { required: true, description: "Raw source labels retained for audit; resolved IDs remain on the lesson rows." }, rowCount: { required: true, type: () => Number }, revision: { required: true, type: () => Number }, createdAt: { required: true, type: () => Date } };
     }
 };
 exports.TimetableImport = TimetableImport;
@@ -862,6 +864,14 @@ __decorate([
     __metadata("design:type", String)
 ], TimetableImport.prototype, "sheetName", void 0);
 __decorate([
+    (0, typeorm_1.Column)({ type: "varchar", length: 64 }),
+    __metadata("design:type", String)
+], TimetableImport.prototype, "fingerprint", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: "simple-json", default: "[]" }),
+    __metadata("design:type", Array)
+], TimetableImport.prototype, "sourceRows", void 0);
+__decorate([
     (0, typeorm_1.Column)({ type: "integer", default: 0 }),
     __metadata("design:type", Number)
 ], TimetableImport.prototype, "rowCount", void 0);
@@ -874,6 +884,7 @@ __decorate([
     __metadata("design:type", Date)
 ], TimetableImport.prototype, "createdAt", void 0);
 exports.TimetableImport = TimetableImport = __decorate([
-    (0, typeorm_1.Entity)("timetable_imports")
+    (0, typeorm_1.Entity)("timetable_imports"),
+    (0, typeorm_1.Index)(["versionId", "fingerprint"], { unique: true })
 ], TimetableImport);
 //# sourceMappingURL=timetable.entity.js.map

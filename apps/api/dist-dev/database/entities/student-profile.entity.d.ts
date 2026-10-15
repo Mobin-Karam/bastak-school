@@ -1,4 +1,4 @@
-import { Student } from "./student.entity";
+import type { Student } from "./student.entity";
 export declare class StudentProfile {
     id: string;
     student: Student;

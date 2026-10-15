@@ -1,5 +1,5 @@
 import { Repository } from "typeorm";
-import type { AttendanceDailyOverview, AttendanceEncouragement, DormAttendanceAssignment, StaffAttendanceProfile, StaffAttendanceSession } from "@moshaver/api-contract";
+import type { AttendanceDailyOverview, AttendancePool as PoolView, AttendanceEncouragement, DormAttendanceAssignment, StaffAttendanceProfile, StaffAttendanceSession } from "@moshaver/api-contract";
 import { AttendanceSession } from "../../database/entities/attendance-session.entity";
 import { AuthenticatedUser } from "../auth";
 import { SchoolAccessService } from "../school-access";

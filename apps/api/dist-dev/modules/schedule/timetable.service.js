@@ -21,6 +21,7 @@ const node_crypto_1 = require("node:crypto");
 const api_exception_1 = require("../../common/exceptions/api.exception");
 const timetable_entity_1 = require("../../database/entities/timetable.entity");
 const school_schedule_entry_entity_1 = require("../../database/entities/school-schedule-entry.entity");
+const attendance_record_entity_1 = require("../../database/entities/attendance-record.entity");
 const education_class_entity_1 = require("../../database/entities/education-class.entity");
 const education_class_book_entity_1 = require("../../database/entities/education-class-book.entity");
 const education_class_enrollment_entity_1 = require("../../database/entities/education-class-enrollment.entity");
@@ -856,6 +857,55 @@ let TimetableService = class TimetableService {
             limit: query.limit,
         };
     }
+    async attendanceReport(user, organizationId, query) {
+        await this.school(user, organizationId, "schedule.read.all");
+        const activeYear = await this.database.manager.findOneBy(timetable_entity_1.TimetableAcademicYear, { organizationId, active: true });
+        const today = new Intl.DateTimeFormat("en-CA", {
+            timeZone: activeYear?.timeZone ?? "Asia/Tehran",
+            year: "numeric",
+            month: "2-digit",
+            day: "2-digit",
+        }).format(new Date());
+        const startsOn = query.startsOn ?? today;
+        const endsOn = query.endsOn ?? (0, timetable_domain_1.addDays)(startsOn, 6);
+        this.dates(startsOn, endsOn);
+        if (Date.parse(endsOn) - Date.parse(startsOn) > 31 * 86400000)
+            this.fail("TIMETABLE_QUERY_LIMIT", "حداکثر ۳۲ روز را انتخاب کنید.");
+        const workspace = await this.workspace(user, organizationId, query.versionId, startsOn, endsOn, query.academicYearId);
+        const occurrences = workspace.occurrences.filter((row) => (!query.classroomId || row.classroomId === query.classroomId) &&
+            (!query.teacherId || row.teacherId === query.teacherId) &&
+            (!query.locationId || row.locationId === query.locationId));
+        const sessionIds = occurrences
+            .map((row) => row.attendanceSessionId)
+            .filter((id) => !!id);
+        const records = sessionIds.length
+            ? await this.database.manager.find(attendance_record_entity_1.AttendanceRecord, {
+                where: { session: { id: (0, typeorm_1.In)(sessionIds) } },
+                relations: { session: true },
+            })
+            : [];
+        const recordedSessions = new Set(records.map((row) => row.session.id));
+        const summary = (rows) => {
+            const planned = rows.filter((row) => !row.cancelled);
+            const attendanceOpened = planned.filter((row) => !!row.attendanceSessionId);
+            const attendanceRecorded = attendanceOpened.filter((row) => recordedSessions.has(row.attendanceSessionId));
+            return {
+                planned: planned.length,
+                cancelled: rows.length - planned.length,
+                attendanceOpened: attendanceOpened.length,
+                attendanceRecorded: attendanceRecorded.length,
+                awaitingAttendance: planned.length - attendanceOpened.length,
+            };
+        };
+        const classes = [...new Map(occurrences.map((row) => [row.classroomId, row])).values()]
+            .map((sample) => ({
+            classroomId: sample.classroomId,
+            classroomName: sample.classroomName,
+            ...summary(occurrences.filter((row) => row.classroomId === sample.classroomId)),
+        }))
+            .sort((a, b) => a.classroomName.localeCompare(b.classroomName, "fa"));
+        return { startsOn, endsOn, ...summary(occurrences), classes };
+    }
     async versions(user, organizationId, query) {
         await this.school(user, organizationId);
         const builder = this.database.manager
@@ -1604,8 +1654,38 @@ let TimetableService = class TimetableService {
     async previewImport(user, id, dto) {
         return this.previewRows(this.database.manager, user, id, dto);
     }
+    importFingerprint(dto) {
+        const rows = dto.rows
+            .map(({ source, lesson }) => ({
+            source,
+            classroomId: lesson.classroomId,
+            classBookId: lesson.classBookId,
+            teacherId: lesson.teacherId ?? null,
+            periodId: lesson.periodId,
+            locationId: lesson.locationId ?? null,
+            weekday: lesson.weekday,
+            startTime: lesson.startTime,
+            endTime: lesson.endTime,
+            startsOn: lesson.startsOn,
+            endsOn: lesson.endsOn,
+            notes: lesson.notes ?? "",
+        }))
+            .sort((left, right) => JSON.stringify(left).localeCompare(JSON.stringify(right)));
+        return (0, node_crypto_1.createHash)("sha256")
+            .update(JSON.stringify({ sheetName: dto.sheetName, rows }))
+            .digest("hex");
+    }
     async commitImport(user, id, dto) {
         return (0, attendance_1.attendanceTransaction)(this.database.manager, async (manager) => {
+            const fingerprint = this.importFingerprint(dto);
+            const existing = await manager.findOneBy(timetable_entity_1.TimetableImport, {
+                versionId: id,
+                fingerprint,
+            });
+            if (existing) {
+                const { version } = await this.version(user, id, "schedule.import", manager);
+                return { imported: 0, revision: version.revision, duplicate: true };
+            }
             const preview = await this.previewRows(manager, user, id, dto);
             if (!preview.valid)
                 this.fail("TIMETABLE_IMPORT_INVALID", "خطاهای نگاشت و تداخل را برطرف کنید.", 422, preview);
@@ -1619,11 +1699,13 @@ let TimetableService = class TimetableService {
                 actorId: user.id,
                 filename: dto.filename,
                 sheetName: dto.sheetName,
+                fingerprint,
+                sourceRows: dto.rows.map(({ source, provenance }) => ({ source, provenance })),
                 rowCount: dto.rows.length,
                 revision: version.revision,
             }));
             await this.audit(manager, user, version, "import.committed", "", `${dto.rows.length} ردیف`, `${dto.filename} / ${dto.sheetName}`);
-            return { imported: dto.rows.length, revision: version.revision };
+            return { imported: dto.rows.length, revision: version.revision, duplicate: false };
         });
     }
     async openAttendance(user, id, date) {

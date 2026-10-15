@@ -27,6 +27,11 @@ const task_issue_entity_1 = require("../../database/entities/task-issue.entity")
 const recovery_request_entity_1 = require("../../database/entities/recovery-request.entity");
 const exam_retry_request_entity_1 = require("../../database/entities/exam-retry-request.entity");
 const education_catalog_1 = require("../education-catalog");
+const student_profile_entity_1 = require("../../database/entities/student-profile.entity");
+const education_class_entity_1 = require("../../database/entities/education-class.entity");
+const education_class_enrollment_entity_1 = require("../../database/entities/education-class-enrollment.entity");
+const role_entity_1 = require("../../database/entities/role.entity");
+const user_role_assignment_entity_1 = require("../../database/entities/user-role-assignment.entity");
 let StudentsModule = class StudentsModule {
 };
 exports.StudentsModule = StudentsModule;
@@ -48,6 +53,11 @@ exports.StudentsModule = StudentsModule = __decorate([
                 task_issue_entity_1.TaskIssue,
                 recovery_request_entity_1.RecoveryRequest,
                 exam_retry_request_entity_1.ExamRetryRequest,
+                student_profile_entity_1.StudentProfile,
+                education_class_entity_1.EducationClass,
+                education_class_enrollment_entity_1.EducationClassEnrollment,
+                role_entity_1.Role,
+                user_role_assignment_entity_1.UserRoleAssignment,
             ]),
         ],
         controllers: [

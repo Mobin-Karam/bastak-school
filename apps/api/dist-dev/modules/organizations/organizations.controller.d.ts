@@ -7,7 +7,7 @@ export declare class OrganizationsController {
     constructor(service: OrganizationsService);
     publicProfiles(): Promise<{
         ok: boolean;
-        data: PublicOrganizationProfile[];
+        data: import("@moshaver/api-contract").PublicOrganizationProfile[];
     }>;
     updateAuthProfile(user: AuthenticatedUser, id: string, dto: UpdateOrganizationAuthProfileDto): Promise<{
         ok: boolean;

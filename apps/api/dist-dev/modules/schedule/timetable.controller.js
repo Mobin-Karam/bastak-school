@@ -28,6 +28,9 @@ let TimetableController = class TimetableController {
     workspace(user, org, versionId, startsOn) {
         return this.timetable.workspace(user, org, versionId, startsOn).then(envelope_1.ok);
     }
+    attendanceReport(user, org, query) {
+        return this.timetable.attendanceReport(user, org, query).then(envelope_1.ok);
+    }
     versions(u, org, query) {
         return this.timetable.versions(u, org, query).then(envelope_1.ok);
     }
@@ -103,6 +106,17 @@ __decorate([
     __metadata("design:paramtypes", [Object, String, String, String]),
     __metadata("design:returntype", void 0)
 ], TimetableController.prototype, "workspace", null);
+__decorate([
+    (0, common_1.Get)(":organizationId/attendance-report"),
+    (0, capabilities_decorator_1.RequireCapabilities)("schedule.read.all"),
+    openapi.ApiResponse({ status: 200 }),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __param(1, (0, common_1.Param)("organizationId", common_1.ParseUUIDPipe)),
+    __param(2, (0, common_1.Query)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String, timetable_dto_1.TimetableQueryDto]),
+    __metadata("design:returntype", void 0)
+], TimetableController.prototype, "attendanceReport", null);
 __decorate([
     (0, common_1.Get)(":organizationId/versions"),
     (0, capabilities_decorator_1.RequireCapabilities)("schedule.read"),
