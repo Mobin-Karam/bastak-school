@@ -303,7 +303,7 @@ async function main() {
   console.log("Snapshot restoration verified");
 }
 // CI and immutable deployment stream this self-contained helper through stdin.
-if (require.main === module || process.argv[1] === "-") {
+if (require.main === module || (process.argv[1] === "-" && module.id === "[stdin]")) {
   main().catch((error) => {
     console.error(
       `Database recovery verification failed (${error.code || error.name}); live replacement is not authorized`,

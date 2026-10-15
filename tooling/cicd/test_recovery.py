@@ -21,6 +21,13 @@ class RecoveryTests(unittest.TestCase):
         env=dict(os.environ, NODE_PATH=str(ROOT/'apps/api/node_modules'),DATABASE_PATH=str(restored),NODE_ENV='test')
         return subprocess.run(['node',str(ROOT/'scripts/deploy/database-recovery.cjs'),command,str(source),str(restored)],cwd=cwd or ROOT/'apps/api',env=env,capture_output=True,text=True)
 
+    def test_stdin_import_does_not_execute_the_recovery_cli(self):
+        result=subprocess.run(['node','-'],cwd=ROOT,
+            input="require('./scripts/deploy/database-recovery.cjs'); console.log('imported');",
+            env=dict(os.environ,NODE_PATH=str(ROOT/'apps/api/node_modules')),capture_output=True,text=True)
+        self.assertEqual(result.returncode,0,result.stderr)
+        self.assertEqual(result.stdout.strip(),'imported')
+
     def test_stdin_invocation_executes_recovery_instead_of_silently_skipping(self):
         with tempfile.TemporaryDirectory() as d:
             source=pathlib.Path(d)/'source.sqlite';backup=pathlib.Path(d)/'backup.sqlite'
