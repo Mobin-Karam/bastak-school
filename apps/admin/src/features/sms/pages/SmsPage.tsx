@@ -27,6 +27,7 @@ import {
   cancelCampaign,
   configureSmsProvider,
   createCampaign,
+  getCampaign,
   listCampaigns,
   previewAudience,
   refreshCampaignStatus,
@@ -38,6 +39,7 @@ import {
   type ProviderStatus,
   type Preview,
 } from "../api/sms.api";
+import type { SmsCampaignDetail } from "@moshaver/api-contract";
 
 const audienceRoles = [
   "STUDENT",
@@ -948,8 +950,78 @@ function CampaignList({
       busy={retryPending || cancelPending || refreshPending}
       emptyTitle="هنوز کمپینی ثبت نشده است"
       actions={actions}
+      renderDetail={(campaign) => <CampaignDetail campaignId={campaign.id} />}
       preferenceKey="sms-campaigns"
     />
+  );
+}
+function CampaignDetail({ campaignId }: { campaignId: string }) {
+  const campaign = useQuery({
+    queryKey: ["sms", "campaign", campaignId],
+    queryFn: () => getCampaign(campaignId),
+  });
+  if (campaign.isLoading) return <LoadingState label="در حال دریافت جزئیات کمپین…" />;
+  if (campaign.isError || !campaign.data)
+    return (
+      <p role="alert" className="text-sm text-rosewood">
+        جزئیات کمپین دریافت نشد.
+      </p>
+    );
+  return <CampaignDetailContent campaign={campaign.data} />;
+}
+function CampaignDetailContent({ campaign }: { campaign: SmsCampaignDetail }) {
+  const failedRecipients = campaign.recipients.filter((recipient) => recipient.status === "FAILED");
+  return (
+    <section className="grid gap-4" aria-labelledby={`sms-campaign-${campaign.id}`}>
+      <header>
+        <h2 id={`sms-campaign-${campaign.id}`} className="font-black text-[rgb(var(--color-ink))]">
+          {campaign.title}
+        </h2>
+        <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
+          {statusLabel[campaign.status] || campaign.status} ·{" "}
+          {campaign.totalRecipients.toLocaleString("fa-IR")} گیرنده
+        </p>
+      </header>
+      <Card className="p-3 text-sm leading-7 whitespace-pre-wrap">{campaign.messageText}</Card>
+      <dl className="grid grid-cols-3 gap-2 text-center text-sm">
+        {[
+          ["ثبت‌شده", campaign.submittedRecipients],
+          ["ناموفق", campaign.failedRecipients],
+          [
+            "باقی‌مانده",
+            Math.max(
+              0,
+              campaign.totalRecipients - campaign.submittedRecipients - campaign.failedRecipients,
+            ),
+          ],
+        ].map(([label, count]) => (
+          <div key={String(label)} className="rounded-lg bg-[rgb(var(--surface-muted))] p-2">
+            <dt className="text-xs text-slate-500">{label}</dt>
+            <dd className="mt-1 font-black">{Number(count).toLocaleString("fa-IR")}</dd>
+          </div>
+        ))}
+      </dl>
+      <div className="grid gap-2 text-sm">
+        <p>ایجاد: {formatDateTime(campaign.createdAt)}</p>
+        {campaign.scheduledAt ? <p>زمان‌بندی: {formatDateTime(campaign.scheduledAt)}</p> : null}
+        {campaign.completedAt ? <p>پایان: {formatDateTime(campaign.completedAt)}</p> : null}
+        <p>بسته‌های ارسال: {campaign.batches.length.toLocaleString("fa-IR")}</p>
+      </div>
+      {failedRecipients.length ? (
+        <section
+          aria-label="خطاهای ارسال"
+          className="grid gap-2 border-t border-[rgb(var(--border-subtle))] pt-3"
+        >
+          <h3 className="font-bold text-rosewood">ارسال‌های ناموفق</h3>
+          {failedRecipients.map((recipient) => (
+            <p key={recipient.id} className="text-sm leading-6 text-slate-600 dark:text-slate-400">
+              {recipient.displayNameSnapshot}:{" "}
+              {recipient.failureMessage || recipient.failureCode || "خطای نامشخص"}
+            </p>
+          ))}
+        </section>
+      ) : null}
+    </section>
   );
 }
 function ProviderSettings({

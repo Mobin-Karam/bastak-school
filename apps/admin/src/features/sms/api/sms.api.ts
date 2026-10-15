@@ -1,35 +1,19 @@
 import { api } from "../../../shared/api/api";
-export type Criteria = {
-  organizationId?: string;
-  roleCodes?: string[];
-  userIds?: string[];
-  includeAll?: boolean;
-};
-export type Preview = {
-  total: number;
-  roles: Array<{ role: string; count: number }>;
-  users: Array<{
-    userId: string;
-    displayName: string;
-    maskedPhoneNumber: string;
-    roles: string[];
-    organization: string | null;
-  }>;
-};
-export type Campaign = {
-  id: string;
-  title: string;
-  messageText: string;
-  status: string;
-  scheduledAt?: string | null;
-  totalRecipients: number;
-  submittedRecipients: number;
-  failedRecipients: number;
-  createdAt: string;
-};
+import type {
+  SmsAudienceCriteria,
+  SmsAudiencePreview,
+  SmsCampaignDetail,
+  SmsCampaignSummary,
+} from "@moshaver/api-contract";
+
+export type Criteria = SmsAudienceCriteria;
+export type Preview = SmsAudiencePreview;
+export type Campaign = SmsCampaignSummary;
 export const previewAudience = (criteria: Criteria) =>
   api.post<Preview>("/sms/audience/preview", criteria);
 export const listCampaigns = () => api.get<Campaign[]>("/sms/campaigns");
+export const getCampaign = (id: string) =>
+  api.get<SmsCampaignDetail>(`/sms/campaigns/${encodeURIComponent(id)}`);
 export const createCampaign = (body: {
   title: string;
   messageText: string;

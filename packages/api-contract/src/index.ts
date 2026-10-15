@@ -191,17 +191,7 @@ export const CAPABILITIES = [
 ] as const;
 export type Capability = (typeof CAPABILITIES)[number];
 
-export type SmsAudienceCriteria = {
-  organizationId?: string;
-  roleCodes?: string[];
-  userIds?: string[];
-  includeAll?: boolean;
-};
-export type SmsAudiencePreview = {
-  total: number;
-  roles: Array<{ role: string; count: number }>;
-  users: Array<{ userId: string; displayName: string; maskedPhoneNumber: string; roles: string[]; organization: string | null }>;
-};
+export * from "./sms";
 
 export type ApiErrorContract = {
   ok: false;
