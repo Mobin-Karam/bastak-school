@@ -1,4 +1,4 @@
-# Implementation notes
+# Change notes
 
 These notes explain specific deliveries and decisions. Check the owning source and migrations before treating a note as the current contract.
 

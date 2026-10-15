@@ -3,7 +3,7 @@
 Date: 2026-09-06
 Branch: `feat/v2-parity-completion`
 
-Snapshot notice: this document records the 2026-09-06 audit. For current behavior use the [capability matrix](../ADMIN_V2_CAPABILITY_MATRIX.md), [Admin v2 component guide](../components/admin-v2-application.md), and current source.
+Snapshot notice: this document records the 2026-09-06 audit. For current behavior use the [capability matrix](../reference/admin-capability-matrix.md), [Admin v2 component guide](../components/admin-v2-application.md), and current source.
 
 ## Role coverage
 

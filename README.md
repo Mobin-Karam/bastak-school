@@ -276,7 +276,7 @@ Please do **not** disclose suspected vulnerabilities in public issues. Follow [S
 | Build another product on CMB | [Moshaver Open Platform](docs/platform/README.md) |
 | Platform direction | [Platform roadmap](docs/platform/ROADMAP.md) |
 | Get help | [Support](SUPPORT.md) |
-| Understand Admin coverage | [Admin capability matrix](docs/ADMIN_V2_CAPABILITY_MATRIX.md) |
+| Understand Admin coverage | [Admin capability matrix](docs/reference/admin-capability-matrix.md) |
 | Review product direction | [Version roadmap](docs/product/version-roadmap.md) |
 | Review changes | [Product changelog](docs/releases/product-changelog.md) |
 

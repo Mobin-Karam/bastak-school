@@ -70,8 +70,8 @@ Deliver in this order, only after the P0 release evidence above:
 | --- | --- | --- |
 | Current architecture and operations | `docs/architecture/`, `docs/components/`, `docs/operations/` | Retain; update when source contracts change. |
 | Product direction and UX | `docs/product/` | Retain; use this audit as the prioritized current planning companion. |
-| Migration plans and parity snapshots | `docs/migrations/` | Retain, label dated snapshots as historical, and do not use them as current status. |
-| Dated audits and fixes | `docs/history/` | Retain as evidence; never rewrite history to claim current behavior. |
+| Migration plans and parity snapshots | `docs/transitions/` | Retain, label dated snapshots as historical, and do not use them as current status. |
+| Dated audits and fixes | `docs/archive/` | Retain as evidence; never rewrite history to claim current behavior. |
 | App-local implementation notes | `apps/*/docs/` and feature-local Markdown | Retain only when they link to a canonical current document; consolidate when edited next. |
 
 No documentation file was removed: the audit found historical evidence and current navigation value, not a safely deletable repository-owned document. Future removal requires checking inbound links, Git history value, and a replacement canonical page.

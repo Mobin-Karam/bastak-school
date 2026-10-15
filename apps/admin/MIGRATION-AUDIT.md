@@ -1,6 +1,6 @@
 # Admin v1.6 to v2 migration audit
 
-> This is the historical retirement contract. Current implementation status is maintained in [`docs/ADMIN_V2_CAPABILITY_MATRIX.md`](../../docs/ADMIN_V2_CAPABILITY_MATRIX.md). The matrix supersedes older gap labels below.
+> This is the historical retirement contract. Current implementation status is maintained in [`docs/reference/admin-capability-matrix.md`](../../docs/reference/admin-capability-matrix.md). The matrix supersedes older gap labels below.
 
 This document is the parity contract for retiring `v1.4/admin-app`. A row is complete only when the React screen exposes the same user outcome and calls the same protected backend operation; visual similarity alone is not parity.
 
