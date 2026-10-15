@@ -64,14 +64,55 @@ function inventory(db) {
     )
     .all();
   const rows = {};
+  const tableNames = new Set();
   for (const { name } of db
     .prepare(
       "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name",
     )
     .all()) {
+    tableNames.add(name);
     rows[name] = tableInventory(db, name);
   }
-  return { schema, rows };
+  const orphanedScopedRoleAssignmentIds =
+    tableNames.has("user_role_assignments") && tableNames.has("roles")
+      ? db
+          .prepare(
+            `SELECT a.id FROM user_role_assignments a
+             JOIN roles r ON r.id=a.roleId
+             WHERE r.organizationScoped=1 AND a.membershipId IS NULL
+             ORDER BY a.id`,
+          )
+          .all()
+          .map(({ id }) => id)
+      : [];
+  return { schema, rows, orphanedScopedRoleAssignmentIds };
+}
+function preservedRoleAssignments(before, after) {
+  const original = new Map(
+    (before.rows.user_role_assignments?.encoded || []).map((record) => [
+      JSON.parse(record).id,
+      record,
+    ]),
+  );
+  const upgraded = new Map(
+    (after.rows.user_role_assignments?.encoded || []).map((record) => [
+      JSON.parse(record).id,
+      record,
+    ]),
+  );
+  const approvedRemovals = new Set(before.orphanedScopedRoleAssignmentIds);
+  for (const [id, record] of upgraded) {
+    if (original.get(id) !== record)
+      throw new Error("Migration changed an existing role assignment");
+  }
+  for (const id of original.keys()) {
+    if (!upgraded.has(id) && !approvedRemovals.has(id))
+      throw new Error("Migration removed a role assignment outside the approved orphan repair");
+  }
+  for (const id of approvedRemovals) {
+    if (upgraded.has(id))
+      throw new Error("Migration did not remove an orphaned scoped role assignment");
+  }
 }
 function fail(table, reason, beforeValue, afterValue) {
   const details = [
@@ -146,6 +187,10 @@ function preserved(before, after, db) {
     const upgradedColumns = new Set(upgraded.columns.map(({ name }) => name));
     if (value.columns.some(({ name }) => !upgradedColumns.has(name)))
       fail(table, "original column missing after migration", value, upgraded);
+    if (table === "user_role_assignments") {
+      preservedRoleAssignments(before, after);
+      continue;
+    }
     const projected = upgraded.records
       .map((row) => Object.fromEntries(value.columns.map(({ name }) => [name, row[name]])))
       .map(stable)
@@ -248,10 +293,14 @@ async function main() {
   source.close();
   console.log("Snapshot restoration verified");
 }
-main().catch((error) => {
-  console.error(
-    `Database recovery verification failed (${error.code || error.name}); live replacement is not authorized`,
-  );
-  console.error(error.stack || error.message || String(error));
-  process.exitCode = 1;
-});
+if (require.main === module) {
+  main().catch((error) => {
+    console.error(
+      `Database recovery verification failed (${error.code || error.name}); live replacement is not authorized`,
+    );
+    console.error(error.stack || error.message || String(error));
+    process.exitCode = 1;
+  });
+}
+
+module.exports = { inventory, preserved };
