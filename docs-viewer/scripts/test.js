@@ -9,12 +9,6 @@ async function run() {
   if (!files.length) {
     throw new Error("Expected markdown files from /api/tree");
   }
-  if (typeof treeResponse.body.config?.feedbackUrl !== "string") {
-    throw new Error("Expected docs viewer config.feedbackUrl");
-  }
-  if (typeof treeResponse.body.config?.reviewStaleDays !== "number") {
-    throw new Error("Expected docs viewer config.reviewStaleDays");
-  }
 
   const docsIndex = files.find((file) => file.path === "docs/README.md") ?? files[0];
   if (!docsIndex || !Array.isArray(docsIndex.tags)) {
@@ -42,11 +36,6 @@ async function run() {
   }
   if (typeof docResponse.body.excerpt !== "string") {
     throw new Error("Expected excerpt on /api/doc responses");
-  }
-
-  const statusResponse = await request(app).get("/api/status").expect(200);
-  if (!statusResponse.body.metrics || typeof statusResponse.body.metrics.total !== "number") {
-    throw new Error("Expected status metrics payload");
   }
 
   const editorFromPath =
@@ -82,14 +71,11 @@ async function run() {
   if (!html.includes('type="module" src="./app/main.js"')) {
     throw new Error("Expected module entry script in docs viewer home page");
   }
-  if (!html.includes("id=\"toastContainer\"")) {
-    throw new Error("Expected toast container in docs viewer home page");
+  if (!html.includes("id=\"globalSearch\"")) {
+    throw new Error("Expected global documentation search in docs viewer home page");
   }
 
   await request(app).get("/app/main.js").expect(200);
-  await request(app).get("/app/components/toast.js").expect(200);
-  await request(app).get("/app/components/plugins.js").expect(200);
-  await request(app).get("/app/utils/format.js").expect(200);
 }
 
 run()

@@ -8,10 +8,7 @@ const rootDir = process.env.DOCS_ROOT
   : path.resolve(__dirname, path.basename(__dirname) === "dist" ? "../.." : "..");
 const staticDir = path.join(__dirname, "public");
 const markedUmdPath = path.join(path.dirname(require.resolve("marked")), "marked.umd.js");
-const backendHealthUrl = process.env.BACKEND_HEALTH_URL || "http://127.0.0.1:4000/health";
-const docsFeedbackUrl =
-  process.env.DOCS_FEEDBACK_URL || "https://github.com/Mobin-Karam/bastak-school/issues/new";
-const docsReviewStaleDays = Number(process.env.DOCS_REVIEW_STALE_DAYS ?? 45);
+const docsReviewStaleDays = 45;
 const allowedRoots = ["docs", "agents"].map((segment) => path.join(rootDir, segment));
 const workspaceDir = rootDir;
 
@@ -446,111 +443,8 @@ async function collectMarkdownFiles(rootSegment) {
   return found;
 }
 
-function createApiMetrics() {
-  return {
-    total: 0,
-    failed: 0,
-    routes: new Map()
-  };
-}
-
-function observeApiCall(metrics, details) {
-  metrics.total += 1;
-  if (details.status >= 400) {
-    metrics.failed += 1;
-  }
-
-  const routeKey = `${details.method} ${details.path}`;
-  const current =
-    metrics.routes.get(routeKey) ?? { count: 0, failed: 0, totalLatencyMs: 0, maxLatencyMs: 0 };
-  current.count += 1;
-  if (details.status >= 400) {
-    current.failed += 1;
-  }
-  current.totalLatencyMs += details.latencyMs;
-  current.maxLatencyMs = Math.max(current.maxLatencyMs, details.latencyMs);
-  metrics.routes.set(routeKey, current);
-}
-
-function getMetricsSnapshot(metrics) {
-  const routes = Array.from(metrics.routes.entries())
-    .map(([route, value]) => ({
-      route,
-      count: value.count,
-      failed: value.failed,
-      avgLatencyMs: value.count ? Math.round(value.totalLatencyMs / value.count) : 0,
-      maxLatencyMs: value.maxLatencyMs
-    }))
-    .sort((left, right) => right.count - left.count)
-    .slice(0, 12);
-
-  return {
-    total: metrics.total,
-    failed: metrics.failed,
-    routes
-  };
-}
-
-async function checkBackendStatus() {
-  const startedAt = Date.now();
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 2500);
-
-  try {
-    const response = await fetch(backendHealthUrl, {
-      method: "GET",
-      signal: controller.signal
-    });
-    clearTimeout(timeout);
-
-    return {
-      ok: response.ok,
-      status: response.status,
-      latencyMs: Date.now() - startedAt,
-      url: backendHealthUrl
-    };
-  } catch (error) {
-    clearTimeout(timeout);
-    return {
-      ok: false,
-      status: 0,
-      latencyMs: Date.now() - startedAt,
-      url: backendHealthUrl,
-      error: String(error instanceof Error ? error.message : error)
-    };
-  }
-}
-
 function createApp() {
   const app = express();
-  const metrics = createApiMetrics();
-
-  app.use("/api", (req, res, next) => {
-    const startedAt = Date.now();
-    res.on("finish", () => {
-      const latencyMs = Date.now() - startedAt;
-      const details = {
-        method: req.method,
-        path: req.path,
-        status: res.statusCode,
-        latencyMs
-      };
-      observeApiCall(metrics, details);
-      // eslint-disable-next-line no-console
-      console.log(
-        JSON.stringify({
-          service: "docs-viewer",
-          type: "api_request",
-          method: details.method,
-          path: details.path,
-          status: details.status,
-          latencyMs: details.latencyMs,
-          timestamp: new Date().toISOString()
-        })
-      );
-    });
-    next();
-  });
 
   app.get("/api/tree", async (_req, res) => {
     try {
@@ -563,10 +457,7 @@ function createApp() {
       res.json({
         files,
         generatedAt: new Date().toISOString(),
-        config: {
-          feedbackUrl: docsFeedbackUrl,
-          reviewStaleDays: docsReviewStaleDays
-        }
+        config: {}
       });
     } catch (error) {
       res.status(500).json({ message: "Failed to list markdown files", error: String(error) });
@@ -600,23 +491,6 @@ function createApp() {
     } catch (error) {
       res.status(400).send(String(error instanceof Error ? error.message : error));
     }
-  });
-
-  app.get("/api/status", async (_req, res) => {
-    const backend = await checkBackendStatus();
-    res.json({
-      ok: true,
-      service: "docs-viewer",
-      now: new Date().toISOString(),
-      uptimeSeconds: Math.floor(process.uptime()),
-      pid: process.pid,
-      backend,
-      config: {
-        feedbackUrl: docsFeedbackUrl,
-        reviewStaleDays: docsReviewStaleDays
-      },
-      metrics: getMetricsSnapshot(metrics)
-    });
   });
 
   app.get("/api/editor/link", async (req, res) => {

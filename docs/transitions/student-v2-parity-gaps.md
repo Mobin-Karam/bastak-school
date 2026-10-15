@@ -1,6 +1,6 @@
 # Student App v2 Gap Analysis Against Legacy
 
-> Historical migration snapshot (2026-08-20). It describes the early v2 scaffold and must not be used as current feature status. The current source-backed Student surface is documented in [`docs/components/student-v2-application.md`](../components/student-v2-application.md); current priorities and documentation disposition are in [`docs/history/audits/platform-audit-2026-09-28.md`](../history/audits/platform-audit-2026-09-28.md). Retain this file as v1.4 parity evidence.
+> Historical migration snapshot (2026-08-20). It describes the early v2 scaffold and must not be used as current feature status. The current source-backed Student surface is documented in [`docs/components/student-v2-application.md`](../components/student-v2-application.md); current priorities and documentation disposition are in [`docs/archive/audits/platform-audit-2026-09-28.md`](../archive/audits/platform-audit-2026-09-28.md). Retain this file as v1.4 parity evidence.
 
 Date: 2026-08-20
 

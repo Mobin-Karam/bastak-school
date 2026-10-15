@@ -1,6 +1,6 @@
 # Moshaver documentation
 
-This is the navigation hub for the active repository as reviewed on **2026-10-12**. Start with [repository architecture](./architecture/repository-architecture.md) for the codebase, [engineering](./engineering/README.md) for implementation decisions, or [operations](./operations/README.md) for commands and release work. The historical v1.4 source is preserved on `archive/v1.4`.
+This is the navigation hub for the active repository. Choose a goal below rather than browsing by filename. Current guidance lives in architecture, engineering, components and operations; time-bound reports live in evidence, transitions or archive.
 
 ## Find the right document
 
@@ -10,11 +10,11 @@ This is the navigation hub for the active repository as reviewed on **2026-10-12
 | Build a feature safely | [Engineering guide](./engineering/README.md), [developer handbook](./operations/developer-handbook.md) | Current guidance |
 | Understand tests and release gates | [Testing strategy](./engineering/testing-strategy.md), [CI/CD pipeline](./operations/ci-cd-pipeline.md) | Current source-backed pipeline |
 | Run, deploy or recover | [Operations index](./operations/README.md), [GitHub CI/CD operations](./operations/github-cicd.md) | Current runbooks |
-| Find an application or API contract | [Components index](./components/README.md), [Admin capability matrix](./ADMIN_V2_CAPABILITY_MATRIX.md) | Current only after source verification |
+| Find an application or API contract | [Components index](./components/README.md), [Admin capability matrix](./reference/admin-capability-matrix.md) | Current only after source verification |
 | Explore product direction | [Product index](./product/README.md), [Open Platform](./platform/README.md) | Mix of current and proposed work |
-| Inspect a delivered feature | [Feature guides](./features/README.md), [implementation notes](./implementation/README.md) | Check implementation date |
-| Review gaps or a planned transition | [Migration index](./migrations/README.md) | Plans and compatibility evidence |
-| Investigate a prior observation | [Dated audits](./audits/README.md), [historical records](./history/README.md) | Snapshot evidence |
+| Inspect a delivered feature | [Feature guides](./features/README.md), [change notes](./change-notes/README.md) | Check implementation date |
+| Review gaps or a planned transition | [Transition index](./transitions/README.md) | Plans and compatibility evidence |
+| Investigate a prior observation | [Evidence](./evidence/README.md), [archive](./archive/README.md) | Snapshot evidence |
 | Prepare user-visible release notes | [Releases](./releases/README.md) | Release history |
 
 ## Engineering priorities
@@ -29,18 +29,19 @@ docs/
 ├── engineering/      Cross-cutting design, testing, performance and roadmap
 ├── components/       Application and HTTP API reference
 ├── features/         Feature-owned guides
-├── implementation/   Notes for delivered changes
+├── change-notes/     Notes for delivered changes
 ├── operations/       Local runbooks, CI/CD, deployment and recovery
 ├── product/          UX direction and product plans
 ├── platform/         Reusable CMB platform guide
-├── migrations/       Compatibility work and staged plans
-├── audits/           Dated recent evidence
-├── history/          Older snapshots, fixes and v1 records
+├── transitions/      Compatibility work and staged plans
+├── evidence/         Dated audit evidence
+├── reference/        Read-only matrices, plans and data fixtures
+├── archive/          Older snapshots, fixes and v1 records
 └── releases/         Changelog and release assets
 ```
 
-A few established documents remain at the root to preserve inbound links: [Admin capability matrix](./ADMIN_V2_CAPABILITY_MATRIX.md), [Admin readiness](./ADMIN_V2_PRODUCT_READINESS.md), [school architecture plan](./SCHOOL_PLATFORM_ARCHITECTURE_PLAN.md), [system feature audit](./SYSTEM_FEATURE_AUDIT.md), [API comparison](./API_V1_V2_AUDIT.md), [v1-to-v2 checklist](./V1_TO_V2_MIGRATION_CHECKLIST.md), [student audio/chat audit](./STUDENT_V2_AUDIO_CHAT_AUDIT.md) and [student exam audit](./STUDENT_V2_KONKUR_EXAMS_AUDIT.md). Their titles describe plans or snapshots; confirm their date and current source before using them as instructions. The [API migration manifest](./api-migration-manifest.json) is machine-readable evidence. The [CMB documentation site](./cmb-site/index.html) is a separate presentation surface, not the canonical operations runbook.
+The [reference index](./reference/README.md) holds capability matrices, migration comparisons, planning documents and fixtures that are useful but are not the primary operating documentation. Confirm their date and current source before using them as instructions. The [API migration manifest](./api-migration-manifest.json) is machine-readable evidence. The [CMB documentation site](./cmb-site/index.html) is a separate presentation surface, not the canonical operations runbook.
 
 ## Maintenance contract
 
-Current behavior belongs in architecture, engineering, components or operations. Migration work and product proposals must say what is planned. Audits and history retain the evidence of their date. Update an owning document and its inbound index when behavior changes; do not copy the same runbook into several locations. Use the [documentation maintenance guide](./operations/documentation-maintenance.md) and run `npm run docs:check` plus `git diff --check -- docs` before review. Never include credentials, production data or private environment values.
+Current behavior belongs in architecture, engineering, components or operations. Transition work and product proposals must say what is planned. Evidence and archive retain the record of their date. Update an owning document and its inbound index when behavior changes; do not copy the same runbook into several locations. Use the [documentation maintenance guide](./operations/documentation-maintenance.md) and run `npm run docs:check` plus `git diff --check -- docs` before review. Never include credentials, production data or private environment values.

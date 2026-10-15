@@ -1,4 +1,4 @@
-# Dated audit evidence
+# Evidence and audits
 
 Audits record the system and checks at the date in each document. They are useful leads, not proof of current behavior. Verify claims in current source, migrations and tests before changing code.
 
@@ -6,4 +6,4 @@ Audits record the system and checks at the date in each document. They are usefu
 - [Attendance system audit, 2026-10-15](./attendance-system-audit-2026-10-15.md), covering authorization, flows, risks, and delivery priorities.
 - [Database and multi-role audit, 2026-10-12](./database-and-multi-role-audit-2026-10-12.md).
 
-Older snapshots are indexed in [history](../history/README.md). Current guidance lives in [engineering](../engineering/README.md) and [operations](../operations/README.md).
+Older snapshots are indexed in [history](../archive/README.md). Current guidance lives in [engineering](../engineering/README.md) and [operations](../operations/README.md).
