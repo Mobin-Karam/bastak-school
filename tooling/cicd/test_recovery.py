@@ -12,9 +12,27 @@ ROOT = pathlib.Path(__file__).resolve().parents[2]
 
 
 class RecoveryTests(unittest.TestCase):
+    def test_recovery_preservation_regressions(self):
+        result=subprocess.run(['node','--test',str(ROOT/'scripts/deploy/database-recovery.test.cjs')],
+            env=dict(os.environ,NODE_PATH=str(ROOT/'apps/api/node_modules')),capture_output=True,text=True)
+        self.assertEqual(result.returncode,0,result.stdout+result.stderr)
+
     def run_helper(self, command, source, restored, cwd=None):
         env=dict(os.environ, NODE_PATH=str(ROOT/'apps/api/node_modules'),DATABASE_PATH=str(restored),NODE_ENV='test')
         return subprocess.run(['node',str(ROOT/'scripts/deploy/database-recovery.cjs'),command,str(source),str(restored)],cwd=cwd or ROOT/'apps/api',env=env,capture_output=True,text=True)
+
+    def test_stdin_invocation_executes_recovery_instead_of_silently_skipping(self):
+        with tempfile.TemporaryDirectory() as d:
+            source=pathlib.Path(d)/'source.sqlite';backup=pathlib.Path(d)/'backup.sqlite'
+            with contextlib.closing(sqlite3.connect(source)) as db, db:
+                db.executescript("CREATE TABLE records(value TEXT);INSERT INTO records VALUES('retained');")
+            env=dict(os.environ, NODE_PATH=str(ROOT/'apps/api/node_modules'))
+            result=subprocess.run(['node','-','backup',str(source),str(backup)],
+                input=(ROOT/'scripts/deploy/database-recovery.cjs').read_text(),env=env,capture_output=True,text=True)
+            self.assertEqual(result.returncode,0,result.stderr)
+            self.assertIn('Snapshot restoration verified',result.stdout)
+            self.assertTrue(backup.exists())
+            self.assertTrue(pathlib.Path(str(backup)+'.restored').exists())
 
     def test_restore_preserves_rows_custom_schema_and_refuses_corruption(self):
         with tempfile.TemporaryDirectory() as d:

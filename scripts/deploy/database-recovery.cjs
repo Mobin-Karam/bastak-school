@@ -151,6 +151,15 @@ function validateAddedColumns(beforeTable, afterTable, table, applied, db) {
   const beforeColumns = new Set(beforeTable.columns.map(({ name }) => name));
   const additions = afterTable.columns.filter(({ name }) => !beforeColumns.has(name));
   if (!additions.length) return;
+  // Check schema even when the original table is empty.
+  for (const column of additions) {
+    const expectation = expectationFor(applied, table, column.name);
+    if (!expectation) fail(table, `unexpected added column ${column.name}`, beforeTable, afterTable);
+    if (expectation.nullable !== undefined && expectation.nullable !== !column.notnull)
+      fail(table, `unexpected nullability for ${column.name}`, beforeTable, afterTable);
+    if (expectation.default !== undefined && !same(defaultValue(db, column), expectation.default))
+      fail(table, `unexpected default for ${column.name}`, beforeTable, afterTable);
+  }
   const originalColumns = beforeTable.columns.map(({ name }) => name);
   const unmatched = new Map();
   for (const encoded of beforeTable.encoded)
@@ -293,7 +302,8 @@ async function main() {
   source.close();
   console.log("Snapshot restoration verified");
 }
-if (require.main === module) {
+// CI and immutable deployment stream this self-contained helper through stdin.
+if (require.main === module || process.argv[1] === "-") {
   main().catch((error) => {
     console.error(
       `Database recovery verification failed (${error.code || error.name}); live replacement is not authorized`,
