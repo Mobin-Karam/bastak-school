@@ -3,6 +3,7 @@ import { LogOut } from "lucide-react";
 import { useAuth } from "../../auth";
 import { Button } from "../../../shared/ui/ui";
 import ConstructionScene from "./ConstructionScene";
+import RollingNumber from "./RollingNumber";
 
 type Countdown = {
   days: number;
@@ -13,146 +14,164 @@ type Countdown = {
 
 function getCountdown(endTime: number): Countdown {
   const remaining = Math.max(0, endTime - Date.now());
-
   return {
-    days: Math.floor(remaining / 86400000),
-    hours: Math.floor((remaining / 3600000) % 24),
-    minutes: Math.floor((remaining / 60000) % 60),
-    seconds: Math.floor((remaining / 1000) % 60),
+    days: Math.floor(remaining / 86_400_000),
+    hours: Math.floor((remaining / 3_600_000) % 24),
+    minutes: Math.floor((remaining / 60_000) % 60),
+    seconds: Math.floor((remaining / 1_000) % 60),
   };
 }
 
 export default function UnderConstruction({ endTime }: { endTime: number }) {
   const auth = useAuth();
-  // The deadline is supplied by the app-level maintenance configuration, so every
-  // signed-in user sees the same countdown instead of a browser-local timer.
-  const deadline = endTime;
-
-  const [time, setTime] = useState(() => getCountdown(deadline));
+  const [time, setTime] = useState<Countdown>(() => getCountdown(endTime));
 
   useEffect(() => {
-    const timer = window.setInterval(() => {
-      setTime(getCountdown(deadline));
-    }, 1000);
-
+    setTime(getCountdown(endTime));
+    const timer = window.setInterval(() => setTime(getCountdown(endTime)), 1000);
     return () => window.clearInterval(timer);
-  }, [deadline]);
+  }, [endTime]);
 
+  const finished = Object.values(time).every((value) => value === 0);
   const units = [
-    { label: "ثانیه", value: time.seconds },
-    { label: "دقیقه", value: time.minutes },
-    { label: "ساعت", value: time.hours },
-    { label: "روز", value: time.days },
+    { key: "seconds", label: "ثانیه", value: time.seconds },
+    { key: "minutes", label: "دقیقه", value: time.minutes },
+    { key: "hours", label: "ساعت", value: time.hours },
+    { key: "days", label: "روز", value: time.days },
   ];
-
-  const finished = Object.values(time).every((v) => v === 0);
 
   return (
     <main
       dir="rtl"
-      className="relative flex h-[100svh] h-[100dvh] w-full items-center justify-center overflow-hidden bg-slate-50 px-4 py-4 text-slate-900 dark:bg-slate-950 dark:text-white sm:py-6"
+      className="relative isolate min-h-[100svh] min-h-[100dvh] w-full overflow-x-hidden bg-[#f6f8fc] text-slate-900 dark:bg-[#080f1f] dark:text-slate-50"
     >
-      {/* Ambient gradients */}
-      <div className="pointer-events-none absolute -top-32 right-0 h-80 w-80 rounded-full bg-blue-500/10 blur-3xl" />
-      <div className="pointer-events-none absolute -bottom-32 left-0 h-80 w-80 rounded-full bg-emerald-500/10 blur-3xl" />
+      {/* Low-cost ambient background; never blocks controls */}
+      <div aria-hidden="true" className="pointer-events-none absolute inset-0 overflow-hidden">
+        <div className="absolute -right-28 -top-24 size-72 rounded-full bg-blue-400/15 blur-3xl dark:bg-blue-600/10" />
+        <div className="absolute -bottom-32 -left-24 size-80 rounded-full bg-emerald-400/10 blur-3xl dark:bg-teal-500/10" />
+        <div className="absolute inset-0 opacity-[0.025] [background-image:radial-gradient(#1e40af_1px,transparent_1px)] [background-size:24px_24px] dark:opacity-[0.07]" />
+      </div>
 
-      <div className="relative z-10 mx-auto flex w-full max-w-xl flex-col items-center text-center [@media(max-height:700px)]:scale-90 [@media(max-height:560px)]:scale-75">
-        {/* Status */}
-        <span className="mb-5 inline-flex items-center gap-2 rounded-full border border-amber-500/20 bg-amber-500/10 px-4 py-2 text-xs font-medium text-amber-600 dark:text-amber-400">
-          <span className="h-2 w-2 animate-pulse rounded-full bg-amber-500" />
-          در حال ساخت و توسعه
-        </span>
-
-        {/* Animated illustration */}
-        <ConstructionScene />
-
-        {/* Persian content */}
-        <h1 className="mt-2 text-xl font-bold leading-9 tracking-tight sm:text-3xl sm:leading-[1.7]">
-          در حال ساخت و ساز، فعلاً نمی‌توانید وارد شوید.
-        </h1>
-
-        <p className="mt-4 max-w-md text-sm leading-8 text-slate-500 dark:text-slate-400 sm:text-base">
-          ما در حال آماده‌سازی امکانات جدید برای شما هستیم.
-          <br />
-          لطفاً صبور باشید، به‌زودی با تجربه‌ای بهتر برمی‌گردیم.
-        </p>
-
-        {/* Countdown */}
-
-        <div className="mt-6 w-full max-w-sm sm:mt-8" aria-live="polite">
-          <p className="mb-4 text-center text-xs font-medium text-slate-500 dark:text-slate-400">
-            {finished ? "زمان پیش‌بینی‌شده به پایان رسید" : "زمان باقی‌مانده تا رونمایی"}
-          </p>
-
-          <div className="grid grid-cols-4 gap-1.5 sm:gap-3" dir="rtl">
-            {units.map((unit) => (
-              <div
-                key={unit.label}
-                className="group relative flex min-w-0 flex-col items-center gap-2 overflow-hidden rounded-xl border border-blue-500/20 bg-slate-950 px-1 py-3 shadow-[0_4px_20px_rgba(37,99,235,0.10)] transition-all duration-300 hover:border-blue-400/50 hover:shadow-[0_0_25px_rgba(37,99,235,0.20)] sm:gap-3 sm:py-4"
-              >
-                {/* Top glowing line */}
-                <div className="absolute inset-x-3 top-0 h-px bg-gradient-to-r from-transparent via-blue-400/70 to-transparent" />
-
-                {/* Robotic English numbers */}
-                <span
-                  dir="ltr"
-                  className="font-[Vazirmatn] text-xl font-extrabold tabular-nums tracking-normal text-cyan-300 drop-shadow-[0_0_8px_rgba(34,211,238,0.35)] sm:text-3xl"
-                >
-                  {String(unit.value).padStart(2, "0")}
-                </span>
-
-                {/* Persian label */}
-                <span className="text-[10px] font-medium text-slate-400 sm:text-[11px]">
-                  {unit.label}
-                </span>
-
-                {/* Bottom indicator */}
-                <div className="absolute bottom-0 h-[2px] w-8 rounded-full bg-cyan-500/40 transition-all group-hover:w-12 group-hover:bg-cyan-400" />
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <Button
-          variant="soft"
-          className="mt-6 w-full max-w-sm dark:border-slate-700 dark:bg-slate-900"
-          loading={auth.status === "logging-out"}
-          onClick={() => void auth.logout()}
+      {/* Use scrolling, not scale(), so small phones and landscape don't clip the button. */}
+      <div className="relative z-10 flex min-h-[100svh] min-h-[100dvh] items-center justify-center px-3 py-6 sm:px-6 sm:py-10">
+        <section
+          aria-labelledby="construction-title"
+          className="relative w-full max-w-[780px] rounded-[28px] bg-white/80 shadow-[0_16px_65px_-28px_rgba(15,23,42,0.28)] ring-1 ring-slate-200/70 backdrop-blur-xl dark:bg-slate-900/75 dark:ring-slate-700/70 sm:rounded-[34px]"
         >
-          <LogOut size={17} aria-hidden="true" />
-          خروج از حساب و بازگشت به ورود
-        </Button>
+          {/* Static border for accessibility and an SVG perimeter runner above it. */}
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-0 overflow-hidden rounded-[28px] sm:rounded-[34px]"
+          >
+            <svg
+              className="absolute inset-0 h-full w-full"
+              preserveAspectRatio="none"
+              viewBox="0 0 100 100"
+            >
+              <rect
+                x="0.55"
+                y="0.55"
+                width="98.9"
+                height="98.9"
+                rx="4"
+                fill="none"
+                vectorEffect="non-scaling-stroke"
+                stroke="currentColor"
+                strokeWidth="1"
+                className="text-blue-500/20 dark:text-cyan-400/20"
+              />
+              <rect
+                x="0.55"
+                y="0.55"
+                width="98.9"
+                height="98.9"
+                rx="4"
+                pathLength="100"
+                fill="none"
+                vectorEffect="non-scaling-stroke"
+                stroke="url(#construction-border-glow)"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+                strokeDasharray="12 88"
+                className="uc-border-runner"
+              />
+              <defs>
+                <linearGradient id="construction-border-glow" x1="0" y1="0" x2="1" y2="1">
+                  <stop stopColor="#059669" />
+                  <stop offset="0.5" stopColor="#22d3ee" />
+                  <stop offset="1" stopColor="#2563eb" />
+                </linearGradient>
+              </defs>
+            </svg>
+          </div>
 
-        <div className="mt-6 flex items-center gap-2 text-xs text-slate-400 sm:mt-8">
-          <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500" />
-          پلتفرم سلطان العلماء بستک | سامانه مدیریت مدرسه
-        </div>
+          {/* This chip visually interrupts the top border like a sign on a frame. */}
+          <div className="absolute left-1/2 top-0 z-20 -translate-x-1/2 -translate-y-1/2 whitespace-nowrap rounded-full border border-amber-300/70 bg-amber-50 px-4 py-2 shadow-sm dark:border-amber-500/30 dark:bg-[#1b2130]">
+            <span className="flex items-center justify-center gap-2 text-[11px] font-bold tracking-normal text-amber-700 dark:text-amber-300 sm:text-xs">
+              <span className="size-2 shrink-0 animate-pulse rounded-full bg-amber-500 motion-reduce:animate-none" />
+              در حال ساخت و ساز
+            </span>
+          </div>
+
+          <div className="relative flex flex-col items-center px-4 pb-6 pt-9 text-center sm:px-10 sm:pb-9 sm:pt-11">
+            <div className="mb-3 inline-flex items-center gap-2 text-[11px] font-semibold text-emerald-700 dark:text-emerald-300">
+              <span className="h-px w-5 bg-emerald-400/60" />
+              سامانه مدیریت مدرسه سلطان العلماء بستک
+              <span className="h-px w-5 bg-emerald-400/60" />
+            </div>
+
+            {/* Full scene stays visible and scales within its 760:390 aspect ratio. */}
+            <div className="relative w-full max-w-[680px] overflow-hidden rounded-2xl bg-gradient-to-b from-sky-50/50 to-transparent dark:from-slate-800/20">
+              <ConstructionScene />
+            </div>
+
+            <h1
+              id="construction-title"
+              className="mt-4 max-w-lg text-balance text-[19px] font-extrabold leading-[1.9] tracking-tight sm:mt-5 sm:text-[28px]"
+            >
+              این بخش در حال آماده‌سازی است
+            </h1>
+            <p className="mt-1 max-w-[450px] text-pretty text-[12px] leading-7 text-slate-500 dark:text-slate-400 sm:mt-2 sm:text-sm sm:leading-8">
+              در حال ساخت امکانات جدید برای شما هستیم. از شکیبایی شما سپاسگزاریم؛ به‌زودی با
+              تجربه‌ای بهتر بازمی‌گردیم.
+            </p>
+
+            <div className="mt-5 w-full max-w-[420px] sm:mt-7">
+              <div className="mb-3 flex items-center justify-center gap-2 text-[11px] font-medium text-slate-500 dark:text-slate-400 sm:text-xs">
+                <span className="size-1.5 rounded-full bg-emerald-500" />
+                {finished ? "زمان پیش‌بینی‌شده به پایان رسیده است" : "زمان باقی‌مانده تا رونمایی"}
+              </div>
+
+              {/* English digital values with Persian labels. dir=ltr fixes mobile ordering. */}
+
+              <div className="grid grid-cols-4 gap-2 sm:gap-3" dir="rtl" aria-label="شمارش معکوس">
+                {units.map((unit) => (
+                  <RollingNumber key={unit.key} value={unit.value} label={unit.label} />
+                ))}
+              </div>
+            </div>
+
+            <Button
+              variant="soft"
+              className="mt-5 flex min-h-11 w-full max-w-[420px] items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white text-sm font-semibold shadow-sm transition-colors hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:hover:bg-slate-700 sm:mt-7"
+              loading={auth.status === "logging-out"}
+              onClick={() => void auth.logout()}
+            >
+              <LogOut size={17} aria-hidden="true" />
+              خروج از حساب و بازگشت به ورود
+            </Button>
+
+            <p className="mt-5 text-center text-[10px] leading-6 text-slate-400 dark:text-slate-500 sm:text-xs">
+              مدرسه دینی سلطان العلماء بستک
+            </p>
+          </div>
+        </section>
       </div>
 
       <style>{`
-        @keyframes float {
-          0%, 100% { transform: translateX(0); }
-          50% { transform: translateX(12px); }
-        }
-        @keyframes riseIn {
-          from { transform: translateY(35px); opacity: 0; }
-          to { transform: translateY(0); opacity: 1; }
-        }
-        @keyframes lift {
-          0%, 100% { transform: translateY(0); }
-          50% { transform: translateY(-28px); }
-        }
-        @keyframes windowGlow {
-          0%, 100% { opacity: .75; }
-          50% { opacity: 1; }
-        }
-        @keyframes sparkle {
-          0%, 100% { opacity: .2; transform: scale(.8); }
-          50% { opacity: 1; transform: scale(1.15); }
-        }
-        @media (prefers-reduced-motion: reduce) {
-          svg * { animation: none !important; }
-        }
+        .uc-border-runner { animation: uc-perimeter 7s linear infinite; }
+        @keyframes uc-perimeter { from { stroke-dashoffset: 0; } to { stroke-dashoffset: -100; } }
+        @media (prefers-reduced-motion: reduce) { .uc-border-runner { animation: none; stroke-dasharray: 100 0; } }
       `}</style>
     </main>
   );

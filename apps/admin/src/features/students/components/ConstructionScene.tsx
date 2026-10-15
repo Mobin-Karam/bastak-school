@@ -1,11 +1,195 @@
-import { useId } from "react";
+import { useEffect, useId, useState } from "react";
 
 /**
- * Animated desert-style Iranian school construction scene.
- * React + SVG + CSS only; no runtime animation library.
- * The art is decorative and intentionally stylized, not a reconstruction of the actual school.
+ * Real-time Bastak school construction scene.
+ * Solar lighting uses Bastak (27.2°N, 54.36°E), Asia/Tehran (UTC+03:30).
+ * No weather or prayer-time API is required. Moon placement is decorative.
  */
-export default function ConstructionScene() {
+type Rgb = [number, number, number];
+type Lighting = {
+  skyTop: string;
+  skyBottom: string;
+  haze: string;
+  ground: string;
+  road: string;
+  night: number;
+  lamps: number;
+  sunX: number;
+  sunY: number;
+  sunAlpha: number;
+  shadowDx: number;
+  shadowLength: number;
+  stars: number;
+  elevation: number;
+  label: string;
+  clock: string;
+};
+const BASTAK_LAT = 27.2;
+const BASTAK_LON = 54.36;
+const TEHRAN_OFFSET_HOURS = 3.5;
+const clamp = (n: number, lo = 0, hi = 1) => Math.max(lo, Math.min(hi, n));
+const mix = (a: number, b: number, t: number) => a + (b - a) * t;
+const blend = (a: Rgb, b: Rgb, t: number): Rgb =>
+  a.map((x, i) => Math.round(mix(x, b[i], t))) as Rgb;
+const rgb = (v: Rgb) => `rgb(${v.join(",")})`;
+
+function getLighting(now: Date): Lighting {
+  // Iran no longer observes daylight saving; Asia/Tehran is UTC+03:30.
+  const local = new Date(now.getTime() + TEHRAN_OFFSET_HOURS * 3600000);
+  const year = local.getUTCFullYear();
+  const day =
+    Math.floor(
+      (Date.UTC(year, local.getUTCMonth(), local.getUTCDate()) - Date.UTC(year, 0, 1)) / 86400000,
+    ) + 1;
+  const hour = local.getUTCHours() + local.getUTCMinutes() / 60 + local.getUTCSeconds() / 3600;
+  const gamma = ((2 * Math.PI) / 365) * (day - 1 + (hour - 12) / 24);
+  // NOAA fractional-year solar approximation: equation of time and declination.
+  const eqTime =
+    229.18 *
+    (0.000075 +
+      0.001868 * Math.cos(gamma) -
+      0.032077 * Math.sin(gamma) -
+      0.014615 * Math.cos(2 * gamma) -
+      0.040849 * Math.sin(2 * gamma));
+  const decl =
+    0.006918 -
+    0.399912 * Math.cos(gamma) +
+    0.070257 * Math.sin(gamma) -
+    0.006758 * Math.cos(2 * gamma) +
+    0.000907 * Math.sin(2 * gamma) -
+    0.002697 * Math.cos(3 * gamma) +
+    0.00148 * Math.sin(3 * gamma);
+  const trueSolarMinutes = hour * 60 + eqTime + 4 * BASTAK_LON - 60 * TEHRAN_OFFSET_HOURS;
+  const hourAngleDegrees = trueSolarMinutes / 4 - 180;
+  const ha = (hourAngleDegrees * Math.PI) / 180;
+  const lat = (BASTAK_LAT * Math.PI) / 180;
+  const elevation =
+    (Math.asin(Math.sin(lat) * Math.sin(decl) + Math.cos(lat) * Math.cos(decl) * Math.cos(ha)) *
+      180) /
+    Math.PI;
+  const morning = hourAngleDegrees < 0;
+
+  // Continuous 10+ visual transitions based on solar altitude, not arbitrary 5 clock buckets.
+  const stops: { alt: number; top: Rgb; bottom: Rgb; haze: Rgb }[] = [
+    { alt: -20, top: [8, 16, 42], bottom: [19, 31, 63], haze: [25, 36, 67] },
+    { alt: -13, top: [13, 25, 55], bottom: [37, 45, 83], haze: [51, 49, 79] },
+    { alt: -8, top: [25, 40, 79], bottom: [104, 68, 104], haze: [118, 72, 94] },
+    {
+      alt: -4,
+      top: [54, 67, 105],
+      bottom: morning ? [190, 105, 103] : [205, 89, 92],
+      haze: [219, 118, 95],
+    },
+    {
+      alt: 0,
+      top: [96, 128, 165],
+      bottom: morning ? [247, 164, 115] : [249, 121, 86],
+      haze: [250, 172, 119],
+    },
+    { alt: 5, top: [133, 187, 208], bottom: [251, 204, 145], haze: [246, 197, 135] },
+    { alt: 12, top: [146, 201, 225], bottom: [243, 219, 182], haze: [233, 211, 175] },
+    { alt: 25, top: [121, 193, 229], bottom: [229, 227, 205], haze: [224, 212, 173] },
+    { alt: 50, top: [90, 177, 231], bottom: [203, 226, 235], haze: [226, 205, 165] },
+    { alt: 90, top: [68, 160, 225], bottom: [191, 219, 239], haze: [224, 202, 163] },
+  ];
+  let lo = stops[0],
+    hi = stops[stops.length - 1];
+  for (let i = 0; i < stops.length - 1; i++) {
+    if (elevation < stops[i + 1].alt) {
+      lo = stops[i];
+      hi = stops[i + 1];
+      break;
+    }
+  }
+  const t = clamp((elevation - lo.alt) / (hi.alt - lo.alt));
+  const night = clamp((-elevation - 1) / 11);
+  const lamps = clamp((3 - elevation) / 9);
+  const shadowLength =
+    clamp(70 / Math.max(0.22, Math.tan((Math.max(3, elevation) * Math.PI) / 180)), 16, 170) *
+    clamp((elevation + 5) / 12);
+  const sunX = 380 + clamp(hourAngleDegrees / 110, -1, 1) * 314;
+  const sunY = 228 - Math.sin((clamp(elevation, 0, 85) * Math.PI) / 180) * 185;
+  const hourLabel =
+    elevation < -12
+      ? "شب"
+      : elevation < -6
+        ? morning
+          ? "پیش از سپیده‌دم"
+          : "آغاز شب"
+        : elevation < 0
+          ? morning
+            ? "سپیده‌دم"
+            : "گرگ‌ومیش"
+          : elevation < 9
+            ? morning
+              ? "طلوع آفتاب"
+              : "غروب آفتاب"
+            : elevation < 22
+              ? morning
+                ? "صبح زود"
+                : "عصر"
+              : elevation < 45
+                ? morning
+                  ? "صبح"
+                  : "بعدازظهر"
+                : "ظهر";
+  return {
+    skyTop: rgb(blend(lo.top, hi.top, t)),
+    skyBottom: rgb(blend(lo.bottom, hi.bottom, t)),
+    haze: rgb(blend(lo.haze, hi.haze, t)),
+    ground: rgb(blend([222, 181, 130], [64, 69, 83], night)),
+    road: rgb(blend([81, 91, 91], [25, 34, 53], night)),
+    night,
+    lamps,
+    stars: clamp((-elevation - 4) / 10),
+    elevation,
+    sunX,
+    sunY,
+    sunAlpha: clamp((elevation + 2) / 7),
+    shadowDx: (morning ? 1 : -1) * shadowLength,
+    shadowLength,
+    label: hourLabel,
+    clock: `${String(local.getUTCHours()).padStart(2, "0")}:${String(local.getUTCMinutes()).padStart(2, "0")}`,
+  };
+}
+
+export type ConstructionSceneProps = {
+  /** Test a time in Bastak, e.g. 0 for midnight, 6.5 for dawn, 18 for sunset. Omit for live time. */
+  previewHour?: number;
+  /** Show a compact Persian local-time status inside the illustration. */
+  showClock?: boolean;
+};
+
+export default function ConstructionScene({
+  previewHour,
+  showClock = true,
+}: ConstructionSceneProps = {}) {
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => {
+    if (previewHour !== undefined) return;
+    const timer = window.setInterval(() => setNow(new Date()), 15000);
+    const onVisible = () => {
+      if (document.visibilityState === "visible") setNow(new Date());
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      window.clearInterval(timer);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, [previewHour]);
+  const displayedDate =
+    previewHour === undefined
+      ? now
+      : (() => {
+          const local = new Date(now.getTime() + TEHRAN_OFFSET_HOURS * 3600000);
+          const startUtc = Date.UTC(
+            local.getUTCFullYear(),
+            local.getUTCMonth(),
+            local.getUTCDate(),
+          );
+          return new Date(startUtc + previewHour * 3600000 - TEHRAN_OFFSET_HOURS * 3600000);
+        })();
+  const light = getLighting(displayedDate);
   const uid = useId().replace(/:/g, "");
   const ids = {
     clip: `${uid}-clip`,
@@ -14,6 +198,9 @@ export default function ConstructionScene() {
     adobe: `${uid}-adobe`,
     door: `${uid}-door`,
     tile: `${uid}-tile`,
+    sunGlow: `${uid}-sun-glow`,
+    moonGlow: `${uid}-moon-glow`,
+    lampGlow: `${uid}-lamp-glow`,
   };
 
   const archWindow = (x: number, y: number, key: string, delay: number) => (
@@ -109,9 +296,9 @@ export default function ConstructionScene() {
           <rect x="12" y="2" width="736" height="380" rx="16" />
         </clipPath>
         <linearGradient id={ids.sky} x1="0" y1="0" x2="0" y2="1">
-          <stop stopColor="#e0f2fe" />
-          <stop offset=".66" stopColor="#fff1d2" />
-          <stop offset="1" stopColor="#f3d09d" />
+          <stop stopColor={light.skyTop} />
+          <stop offset=".66" stopColor={light.skyBottom} />
+          <stop offset="1" stopColor={light.skyBottom} />
         </linearGradient>
         <linearGradient id={ids.sand} x1="0" y1="0" x2="0" y2="1">
           <stop stopColor="#e9c18a" />
@@ -126,6 +313,18 @@ export default function ConstructionScene() {
           <stop stopColor="#674633" />
           <stop offset="1" stopColor="#392c2a" />
         </linearGradient>
+        <radialGradient id={ids.sunGlow}>
+          <stop stopColor="#ffeab2" stopOpacity=".65" />
+          <stop offset="1" stopColor="#ffca75" stopOpacity="0" />
+        </radialGradient>
+        <radialGradient id={ids.lampGlow}>
+          <stop stopColor="#fff6b8" stopOpacity=".6" />
+          <stop offset="1" stopColor="#ffdb7e" stopOpacity="0" />
+        </radialGradient>
+        <radialGradient id={ids.moonGlow}>
+          <stop stopColor="#d9e9ff" stopOpacity=".26" />
+          <stop offset="1" stopColor="#d9e9ff" stopOpacity="0" />
+        </radialGradient>
         <pattern id={ids.tile} width="14" height="14" patternUnits="userSpaceOnUse">
           <rect width="14" height="14" fill="#176b70" />
           <path d="M7 1L13 7L7 13L1 7Z" fill="none" stroke="#a7ddd0" strokeWidth="1.3" />
@@ -136,14 +335,36 @@ export default function ConstructionScene() {
       <g clipPath={`url(#${ids.clip})`}>
         {/* Warm desert sky and distant mountains */}
         <rect x="12" y="2" width="736" height="380" fill={`url(#${ids.sky})`} />
-        <circle cx="106" cy="79" r="33" fill="#f8ca76" opacity=".65" />
-        <circle cx="106" cy="79" r="44" fill="#f8ca76" opacity=".11" />
-        <g className="cs-cloud" opacity=".38" fill="#fff8e6">
+        {/* Celestial positions are local-solar-time driven. */}
+        <g opacity={light.sunAlpha}>
+          <circle cx={light.sunX} cy={light.sunY} r="85" fill={`url(#${ids.sunGlow})`} />
+          <circle cx={light.sunX} cy={light.sunY} r="23" fill="#ffe5a3" />
+        </g>
+        <g opacity={light.stars}>
+          {Array.from({ length: 32 }, (_, i) => {
+            const x = 33 + ((i * 119) % 687);
+            const y = 14 + ((i * 47) % 160);
+            return (
+              <circle
+                key={i}
+                cx={x}
+                cy={y}
+                r={i % 4 === 0 ? 1.5 : 0.8}
+                fill="#e5efff"
+                opacity={0.5 + (i % 4) * 0.13}
+              />
+            );
+          })}
+          <circle cx="126" cy="65" r="39" fill={`url(#${ids.moonGlow})`} />
+          <circle cx="126" cy="65" r="15" fill="#e3eafb" />
+          <circle cx="132" cy="59" r="15" fill={light.skyTop} />
+        </g>
+        <g className="cs-cloud" opacity={0.38 * (1 - light.night * 0.7)} fill="#fff8e6">
           <ellipse cx="162" cy="53" rx="41" ry="9" />
           <circle cx="151" cy="46" r="15" />
           <circle cx="177" cy="48" r="12" />
         </g>
-        <g className="cs-cloud cs-cloud-two" opacity=".4" fill="#fff8e6">
+        <g className="cs-cloud cs-cloud-two" opacity={0.4 * (1 - light.night * 0.7)} fill="#fff8e6">
           <ellipse cx="588" cy="80" rx="40" ry="9" />
           <circle cx="575" cy="73" r="15" />
           <circle cx="599" cy="74" r="12" />
@@ -160,7 +381,7 @@ export default function ConstructionScene() {
         />
 
         {/* Courtyard surface and masonry outline */}
-        <rect x="12" y="287" width="736" height="39" fill={`url(#${ids.sand})`} />
+        <rect x="12" y="287" width="736" height="39" fill={light.ground} />
         <path d="M12 287H748" stroke="#ad7e56" strokeWidth="2" opacity=".6" />
         <path
           d="M40 312H720"
@@ -170,6 +391,18 @@ export default function ConstructionScene() {
           opacity=".4"
         />
 
+        {/* Solar-projected building and palm shadows: short at noon, long at low sun. */}
+        <g opacity={(1 - light.night) * 0.21} fill="#523e34" pointerEvents="none">
+          <path
+            d={`M208 288H497L${497 + light.shadowDx} ${288 + Math.min(35, light.shadowLength * 0.24)}H${208 + light.shadowDx}Z`}
+          />
+          <path
+            d={`M146 290L${146 + light.shadowDx * 0.8} ${290 + Math.min(35, light.shadowLength * 0.22)}L${153 + light.shadowDx * 0.8} ${292 + Math.min(35, light.shadowLength * 0.22)}Z`}
+          />
+          <path
+            d={`M582 290L${582 + light.shadowDx * 0.8} ${290 + Math.min(35, light.shadowLength * 0.22)}L${589 + light.shadowDx * 0.8} ${292 + Math.min(35, light.shadowLength * 0.22)}Z`}
+          />
+        </g>
         {/* Scaffolding, positioned BEHIND the school */}
         <g stroke="#8a705a" strokeWidth="2.6" opacity=".55" fill="none">
           {[202, 244, 286, 328, 370, 412, 454].map((x) => (
@@ -208,6 +441,29 @@ export default function ConstructionScene() {
             <path d="M260 58V72" stroke="#f0d1a5" strokeWidth="2" />
           </g>
 
+          {/* Right rectangular tower with traditional crescent finial */}
+          <g>
+            <rect x="461" y="141" width="48" height="147" fill="#cf9b6b" />
+            <path
+              d="M463 152H507M463 183H507M463 215H507M463 248H507"
+              stroke="#a8754f"
+              strokeOpacity=".35"
+            />
+            <rect x="457" y="132" width="56" height="13" fill="#ac7854" />
+            {[466, 482, 498].map((x) => (
+              <rect key={x} x={x} y="124" width="11" height="9" fill="#c18d60" />
+            ))}
+            <rect x="471" y="185" width="28" height="11" fill={`url(#${ids.tile})`} />
+            {[207, 245].map((y) => (
+              <path
+                key={y}
+                d={`M477 ${y + 19}V${y + 6}Q485 ${y - 4} 493 ${y + 6}V${y + 19}Z`}
+                fill="#244c55"
+              />
+            ))}
+            <path d="M485 124V96" stroke="#916748" strokeWidth="3" />
+            <path d="M485 78A12 12 0 1 0 494 98A10 10 0 1 1 485 78Z" fill="#f8dc98" />
+          </g>
           {/* Adobe facade and subtle horizontal brick courses */}
           <rect x="213" y="141" width="243" height="147" rx="2" fill={`url(#${ids.adobe})`} />
           {[161, 194, 227, 259].map((y) => (
@@ -228,25 +484,24 @@ export default function ConstructionScene() {
           <path d="M304 133V118H364V133" fill="#176b70" />
 
           {/* Persian school sign: displayed as real SVG text */}
-          {/* school sign */}
           <g className="cs-sign">
             <rect
-              x="223"
+              x="229"
               y="149"
-              width="206"
+              width="211"
               height="29"
               rx="3"
               fill="#f7e6bd"
               stroke="#a66d46"
               strokeWidth="2"
             />
-            <path d="M228 154H424M228 173H424" stroke="#c18b5e" strokeWidth="1" />
-            <path d="M235 163l5-5 5 5-5 5ZM410 163l5-5 5 5-5 5Z" fill="#08767b" />
+            <path d="M234 154H435M234 173H435" stroke="#c18b5e" strokeWidth="1" />
+            <path d="M241 163l5-5 5 5-5 5ZM419 163l5-5 5 5-5 5Z" fill="#08767b" />
             <text
-              x="326"
+              x="334.5"
               y="167.5"
               textAnchor="middle"
-              fontSize="12.2"
+              fontSize="12.6"
               fontWeight="800"
               fill="#513e31"
               direction="rtl"
@@ -361,7 +616,7 @@ export default function ConstructionScene() {
         {worker("two", "#477ea1", "#c58f6b", true)}
 
         {/* Foreground road */}
-        <rect x="12" y="326" width="736" height="56" fill="#5a625f" />
+        <rect x="12" y="326" width="736" height="56" fill={light.road} />
         <path d="M12 326H748" stroke="#d6b98a" strokeWidth="3" />
         <path
           d="M23 355H736"
@@ -402,6 +657,102 @@ export default function ConstructionScene() {
           ))}
           <rect x="110" y="-4" width="6" height="5" rx="1" fill="#fff1ad" />
         </g>
+        {/* Night darkening, applied across all objects, below artificial lights. */}
+        <rect
+          x="12"
+          y="2"
+          width="736"
+          height="380"
+          fill="#06142c"
+          opacity={light.night * 0.53}
+          pointerEvents="none"
+        />
+
+        {/* Facade windows turn on progressively as the sun sets. */}
+        <g opacity={light.lamps} pointerEvents="none">
+          {[232, 269, 376, 413].flatMap((x, i) =>
+            [211, 251].map((y, j) => (
+              <g key={`${i}-${j}`} opacity={0.65 + ((i + j) % 3) * 0.15}>
+                <path
+                  d={`M${x + 2} ${y + 26}V${y + 14}Q${x + 2} ${y + 8} ${x + 11} ${y + 3}Q${x + 20} ${y + 8} ${x + 20} ${y + 14}V${y + 26}Z`}
+                  fill="#ffda8d"
+                />
+                <path d={`M${x + 11} ${y + 4}V${y + 26}`} stroke="#906444" strokeWidth="1.4" />
+              </g>
+            )),
+          )}
+          {[207, 245].map((y) => (
+            <path
+              key={y}
+              d={`M479 ${y + 17}V${y + 8}Q485 ${y + 1} 491 ${y + 8}V${y + 17}Z`}
+              fill="#ffd57b"
+            />
+          ))}
+          <ellipse cx="333" cy="285" rx="57" ry="9" fill="#ffe29c" opacity=".35" />
+          <path d="M316 239Q334 217 352 239V284H316Z" fill="#df9c47" opacity=".18" />
+        </g>
+
+        {/* Street lamps with real-time halos and cast pools of light. */}
+        {[173, 617].map((x, i) => (
+          <g key={x} pointerEvents="none">
+            <path
+              d={`M${x} 325V${i ? 217 : 225}Q${x} ${i ? 207 : 215} ${x + (i ? -16 : 16)} ${i ? 207 : 215}`}
+              stroke={light.night > 0.5 ? "#72839b" : "#786b5a"}
+              strokeWidth="4"
+              fill="none"
+            />
+            <path d={`M${x + (i ? -24 : 10)} ${i ? 208 : 216}h16v7h-16Z`} fill="#344b5d" />
+            <ellipse
+              cx={x}
+              cy="322"
+              rx="50"
+              ry="12"
+              fill={`url(#${ids.lampGlow})`}
+              opacity={light.lamps * 0.75}
+            />
+            <circle
+              cx={x + (i ? -16 : 18)}
+              cy={i ? 216 : 224}
+              r="47"
+              fill={`url(#${ids.lampGlow})`}
+              opacity={light.lamps}
+            />
+            <path
+              d={`M${x + (i ? -24 : 10)} ${i ? 215 : 223}h16`}
+              stroke="#fff0ab"
+              strokeWidth="3"
+              opacity={light.lamps}
+            />
+          </g>
+        ))}
+
+        {/* Vehicle headlights and beam cones appear at night, moving with the cars. */}
+        <g className="cs-truck" pointerEvents="none" opacity={light.lamps}>
+          <path d="M0-12L-88-40V22L0-8Z" fill="#ffe8ab" opacity=".25" />
+          <circle cx="-1" cy="-11" r="5" fill="#fff9ce" />
+        </g>
+        <g className="cs-car" pointerEvents="none" opacity={light.lamps}>
+          <path d="M110-4L200-33V25L110 0Z" fill="#fff2bb" opacity=".22" />
+          <circle cx="114" cy="-3" r="4" fill="#fff6c0" />
+        </g>
+
+        {/* Interactive-time debugging label can be hidden in production. */}
+        {showClock && (
+          <g>
+            <rect x="24" y="14" width="170" height="28" rx="12" fill="#12223b" opacity=".82" />
+            <text
+              x="109"
+              y="32"
+              textAnchor="middle"
+              fontSize="12"
+              fontWeight="700"
+              fill="#f9eacf"
+              style={{ fontFamily: "Vazirmatn, Tahoma, sans-serif" }}
+            >
+              {light.clock} | {light.label} · بستک
+            </text>
+          </g>
+        )}
       </g>
 
       <style>{`

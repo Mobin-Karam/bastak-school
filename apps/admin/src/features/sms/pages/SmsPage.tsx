@@ -14,15 +14,7 @@ import {
   UsersRound,
   XCircle,
 } from "lucide-react";
-import {
-  Button,
-  Card,
-  CheckboxGroup,
-  EmptyState,
-  Input,
-  LoadingState,
-  Textarea,
-} from "../../../shared/ui/ui";
+import { Button, Card, CheckboxGroup, Input, LoadingState, Textarea } from "../../../shared/ui/ui";
 import { SegmentedControl } from "../../../shared/ui/segmented-control";
 import {
   DataTable,
@@ -886,7 +878,7 @@ function CampaignList({
       value: (row) => statusLabel[row.status] || row.status,
       filter: {
         type: "select",
-        options: Object.entries(statusLabel).map(([value, label]) => ({ value: label, label })),
+        options: Object.entries(statusLabel).map(([label]) => ({ value: label, label })),
       },
       cell: (row) => (
         <span className="rounded-full bg-[rgb(var(--surface-muted))] px-2 py-1 text-xs font-bold text-slate-600 dark:text-slate-300">
