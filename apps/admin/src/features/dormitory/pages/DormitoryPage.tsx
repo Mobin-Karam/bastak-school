@@ -874,7 +874,7 @@ function DormitoryWorkspace() {
               !canAnnounce ||
               (target === "ROOM" &&
                 (!selected || assignmentsLoading || roomRecipientCount === 0)) ||
-              (target === "STUDENT" && Boolean(recipient) && !recipient.hasAccount)
+              (target === "STUDENT" && recipient?.hasAccount === false)
             }
             loading={saving}
             onClick={announce}
