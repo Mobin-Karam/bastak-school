@@ -1183,7 +1183,7 @@ export class AttendanceService {
       await manager.save(record);
       session.revision++;
       await manager.save(session);
-      await manager.save(
+      const correction = await manager.save(
         AttendanceCorrection,
         manager.create(AttendanceCorrection, {
           session,
@@ -1221,6 +1221,8 @@ export class AttendanceService {
         recordId: record.id,
         revision: record.revision,
         sessionRevision: session.revision,
+        correctionId: correction.id,
+        pendingReview: false,
       };
     });
   }
