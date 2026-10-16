@@ -1,5 +1,8 @@
 import type { AttendanceSessionDetail } from "@moshaver/api-contract";
-import { getSavedAttendanceSession } from "../api/attendance-operations.api";
+import {
+  getSavedAttendanceSession,
+  submitAttendanceAbsences,
+} from "../api/attendance-operations.api";
 import { DormDelegateEditor } from "../components/DormDelegateEditor";
 import {
   AttendanceStaffWorkspace,
@@ -29,6 +32,8 @@ import { ResponsiveModal } from "../../../shared/ui/responsive-modal";
 import { useAuth } from "../../auth";
 import { useAttendanceDiscard } from "../components/useAttendanceDiscard";
 import { AttendanceRosterView } from "../views/AttendanceRosterView";
+import { PendingCorrectionQueue } from "../components/PendingCorrectionQueue";
+import { AttendanceReviewQueue } from "../components/AttendanceReviewQueue";
 import {
   attendanceStatusMeta as statusMeta,
   attendanceStatuses as statuses,
@@ -87,7 +92,11 @@ export function AttendancePage() {
   const auth = useAuth();
   const { profile } = useLocale();
   const [linkedSession, setLinkedSession] = useState<AttendanceSessionDetail | null>(null);
-  const canManage = auth.can("attendance.manage") && linkedSession?.status !== "cancelled";
+  const canManage = linkedSession
+    ? (linkedSession.status === "open" || linkedSession.status === "scheduled") &&
+      (auth.can("attendance.manage") ||
+        (linkedSession.contextType === "class" && auth.can("attendance.class.manage")))
+    : auth.can("attendance.manage");
   const sections: AttendanceSection[] = auth.can("attendance.review")
     ? [...contextOrder, "sessions", "pool"]
     : contextOrder;
@@ -111,6 +120,7 @@ export function AttendancePage() {
   const [staffRefreshVersion, setStaffRefreshVersion] = useState(0);
   const [profileId, setProfileId] = useState<string | null>(null);
   const [filter, setFilter] = useState<Filter>("all");
+  const [search, setSearch] = useState("");
   const [loadingContexts, setLoadingContexts] = useState(true);
   const [loadingPeople, setLoadingPeople] = useState(false);
   const [peopleError, setPeopleError] = useState(false);
@@ -249,6 +259,7 @@ export function AttendancePage() {
     setPeopleError(false);
     setConflict(false);
     setFilter("all");
+    setSearch("");
     if (!selected) {
       setLoadingPeople(false);
       return;
@@ -366,10 +377,22 @@ export function AttendancePage() {
   );
   const marked = participants.length - counts.unmarked;
   const progress = participants.length ? Math.round((marked / participants.length) * 100) : 0;
-  const filtered = useMemo(
-    () => participants.filter((p) => filter === "all" || p.status === filter),
-    [participants, filter],
-  );
+  const filtered = useMemo(() => {
+    const normalizedSearch = search
+      .trim()
+      .toLocaleLowerCase("fa-IR")
+      .replaceAll("ي", "ی")
+      .replaceAll("ك", "ک");
+    return participants.filter((participant) => {
+      if (filter !== "all" && participant.status !== filter) return false;
+      if (!normalizedSearch) return true;
+      const haystack = `${participant.name} ${participant.studentNumber}`
+        .toLocaleLowerCase("fa-IR")
+        .replaceAll("ي", "ی")
+        .replaceAll("ك", "ک");
+      return haystack.includes(normalizedSearch);
+    });
+  }, [participants, filter, search]);
 
   function chooseAttendanceType(type: AttendanceSection) {
     if (type === chosenType) return;
@@ -442,7 +465,9 @@ export function AttendancePage() {
           p.status !== "unmarked" && p.status !== baseline.current.get(p.id),
       )
       .map((p) => ({ studentId: p.id, status: p.status }));
-    if (!entries.length) {
+    // A saved session is absence-first: an empty draft explicitly means
+    // everyone in its immutable roster is present.
+    if (!entries.length && !linkedSession) {
       setNotice({ kind: "warning", text: "ابتدا وضعیت حداقل یک طلبه را مشخص کنید." });
       return;
     }
@@ -472,7 +497,20 @@ export function AttendancePage() {
         }),
       );
       pendingWrite.current = write;
-      await bulkMarkAttendance(write.body);
+      if (linkedSession) {
+        await submitAttendanceAbsences(linkedSession.id, {
+          requestId: write.body.requestId!,
+          expectedRevision: linkedSession.revision,
+          absentStudentIds: participants
+            .filter((person) => person.status === "absent")
+            .map((person) => person.id),
+          lateStudentIds: participants
+            .filter((person) => person.status === "late")
+            .map((person) => person.id),
+        });
+      } else {
+        await bulkMarkAttendance(write.body);
+      }
       if (scopeRef.current !== scopeKey) return;
       pendingWrite.current = null;
       if (linkedSession) setRosterVersion((value) => value + 1);
@@ -787,20 +825,24 @@ export function AttendancePage() {
             ) : null}
             <AttendanceRosterView
               canManage={canManage}
+              absenceFirst={Boolean(linkedSession)}
               participants={participants}
               filtered={filtered}
               selected={Boolean(selected)}
               filter={filter}
+              search={search}
               loading={loadingPeople}
               saving={saving}
               conflict={conflict}
               unmarkedCount={counts.unmarked}
               onFilterChange={setFilter}
+              onSearchChange={setSearch}
               onViewProfile={auth.can("attendance.review") ? setProfileId : undefined}
               onMark={mark}
               onMarkAllPresent={markAllPresent}
               onClearFilters={() => {
                 setFilter("all");
+                setSearch("");
               }}
             />
 
@@ -920,22 +962,30 @@ export function AttendancePage() {
         </div>
       </ResponsiveModal>
       {auth.can("attendance.review") && (chosenType === "sessions" || chosenType === "pool") ? (
-        <AttendanceStaffWorkspace
-          key={`${scopeKey}:${chosenType}`}
-          section={chosenType === "pool" ? "pool" : "sessions"}
-          contexts={contexts}
-          scope={scopeKey}
-          refreshVersion={staffRefreshVersion}
-          onNewSession={() =>
-            discard.request(() => {
-              targetScrollRequested.current = true;
-              setChosenType("class");
-              setContextType("class");
-              setContextId("");
-              setGroupClassId("");
-            })
-          }
-        />
+        <>
+          <AttendanceStaffWorkspace
+            key={`${scopeKey}:${chosenType}`}
+            section={chosenType === "pool" ? "pool" : "sessions"}
+            contexts={contexts}
+            scope={scopeKey}
+            refreshVersion={staffRefreshVersion}
+            onNewSession={() =>
+              discard.request(() => {
+                targetScrollRequested.current = true;
+                setChosenType("class");
+                setContextType("class");
+                setContextId("");
+                setGroupClassId("");
+              })
+            }
+          />
+          {chosenType === "sessions" ? (
+            <>
+              <AttendanceReviewQueue />
+              <PendingCorrectionQueue />
+            </>
+          ) : null}
+        </>
       ) : null}
       {profileId && auth.can("attendance.review") ? (
         <AttendanceProfileDialog

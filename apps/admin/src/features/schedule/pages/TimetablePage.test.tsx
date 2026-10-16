@@ -230,6 +230,17 @@ beforeEach(() => {
         awaitingAttendance: 0,
       },
     ],
+    subjects: [
+      {
+        subjectId: "book",
+        subjectName: "نحو",
+        planned: 1,
+        cancelled: 0,
+        attendanceOpened: 1,
+        attendanceRecorded: 1,
+        awaitingAttendance: 0,
+      },
+    ],
   });
 });
 describe("responsive timetable workflows", () => {
@@ -237,6 +248,7 @@ describe("responsive timetable workflows", () => {
     mount();
     expect(await screen.findByText("پایش اجرای برنامه و حضور")).toBeVisible();
     expect(await screen.findByText("دارای ثبت حضور")).toBeVisible();
+    expect(await screen.findByText("نحو: 1/1")).toBeVisible();
     expect(fixtures.report).toHaveBeenCalledWith("org", week, expect.any(String));
   });
   it("shows read-only published lessons and staff view filters", async () => {

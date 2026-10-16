@@ -28,30 +28,37 @@ const buttonBase =
  */
 export function AttendanceRosterView({
   canManage,
+  absenceFirst = false,
   participants,
   filtered,
   selected,
   filter,
+  search,
   loading,
   saving,
   conflict,
   unmarkedCount,
   onFilterChange,
+  onSearchChange,
   onMark,
   onMarkAllPresent,
   onClearFilters,
   onViewProfile,
 }: {
   canManage: boolean;
+  /** Saved timetable sessions are committed absence-first; ad-hoc marking remains explicit. */
+  absenceFirst?: boolean;
   participants: AttendanceParticipant[];
   filtered: AttendanceParticipant[];
   selected: boolean;
   filter: AttendanceFilter;
+  search: string;
   loading: boolean;
   saving: boolean;
   conflict: boolean;
   unmarkedCount: number;
   onFilterChange: (value: AttendanceFilter) => void;
+  onSearchChange: (value: string) => void;
   onMark: (id: string, status: AttendanceStatus) => void;
   onMarkAllPresent: () => void;
   onClearFilters: () => void;
@@ -65,7 +72,9 @@ export function AttendanceRosterView({
             <h2 className="font-black">فهرست طلبه‌ها</h2>
             <p className={`text-xs ${muted}`}>
               {canManage
-                ? "برای هر نفر یک وضعیت انتخاب کنید"
+                ? absenceFirst
+                  ? "فقط غایب یا دیرآمده را انتخاب کنید؛ بقیه پس از تأیید حاضر می‌شوند."
+                  : "برای هر نفر یک وضعیت انتخاب کنید"
                 : "فهرست اعضا؛ دسترسی شما فقط برای مشاهده است."}
             </p>
           </div>
@@ -76,11 +85,22 @@ export function AttendanceRosterView({
               disabled={saving || conflict || loading || unmarkedCount === 0}
               className={`${buttonBase} border border-emerald-300 text-emerald-700 hover:bg-emerald-50 dark:text-emerald-300`}
             >
-              <CheckCheck size={17} /> ثبت‌نشده‌ها حاضر
+              <CheckCheck size={17} /> {absenceFirst ? "تأیید حضور همه" : "ثبت‌نشده‌ها حاضر"}
             </button>
           ) : null}
         </div>
         <div className="flex flex-col gap-2 sm:flex-row">
+          <input
+            type="search"
+            inputMode="search"
+            autoComplete="off"
+            maxLength={120}
+            value={search}
+            onChange={(event) => onSearchChange(event.target.value)}
+            aria-label="جستجوی طلبه"
+            placeholder="جستجو با نام یا شماره طلبه"
+            className={`min-h-12 w-full rounded-2xl ${shell} px-4 text-sm font-semibold sm:flex-1`}
+          />
           <select
             value={filter}
             onChange={(event) => onFilterChange(event.target.value as AttendanceFilter)}
@@ -174,7 +194,10 @@ export function AttendanceRosterView({
                   aria-label={`وضعیت ${student.name}`}
                   className="grid grid-cols-3 gap-2 md:w-80 md:shrink-0"
                 >
-                  {attendanceStatuses.map((status) => (
+                  {(absenceFirst
+                    ? attendanceStatuses.filter((status) => status !== "present")
+                    : attendanceStatuses
+                  ).map((status) => (
                     <button
                       key={status}
                       type="button"

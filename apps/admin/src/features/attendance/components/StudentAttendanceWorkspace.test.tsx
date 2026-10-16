@@ -95,6 +95,47 @@ describe("student room responsibility and gathering prompts", () => {
       ),
     );
   });
+  it("keeps residents unmarked until confirmation, then records an explicit all-present dorm roster", async () => {
+    mocks.assignments.mockResolvedValue([
+      {
+        id: "delegate-all-present",
+        roomId: "room",
+        roomName: "اتاق الف",
+        studentId: "student",
+        studentName: "علی",
+        startsOn: "2026-10-11",
+        endsOn: "2026-10-12",
+        nightDate: "2026-10-11",
+        revision: 0,
+        revoked: false,
+        canMark: true,
+        roster: [
+          { id: "resident-a", name: "احمد" },
+          { id: "resident-b", name: "حسین" },
+        ],
+        records: [],
+      },
+    ]);
+    const user = userEvent.setup();
+    render(<StudentAttendanceWorkspace scope="student-scope" />, { wrapper: Providers });
+    await user.click(await screen.findByRole("button", { name: "ثبت حضور شب جاری" }));
+    await user.click(screen.getByRole("button", { name: "تأیید حضور همه ساکنان" }));
+    expect(
+      screen.getByText("هیچ غایب یا تأخیری انتخاب نشده است؛ با تأیید، حضور همه ساکنان ثبت می‌شود."),
+    ).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "تأیید و ثبت حضور اتاق" }));
+    await waitFor(() =>
+      expect(mocks.mark).toHaveBeenCalledWith(
+        "delegate-all-present",
+        expect.objectContaining({
+          entries: [
+            { studentId: "resident-a", status: "present" },
+            { studentId: "resident-b", status: "present" },
+          ],
+        }),
+      ),
+    );
+  });
   it("does not offer attendance marking before the delegated window begins", async () => {
     mocks.assignments.mockResolvedValue([
       {

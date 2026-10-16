@@ -13,6 +13,7 @@ const {
   bulkMarkAttendanceMock,
   canMock,
   getSavedAttendanceSessionMock,
+  submitAttendanceAbsencesMock,
 } = vi.hoisted(() => ({
   listAttendanceSessionsMock: vi.fn(),
   listAttendanceContextsMock: vi.fn(),
@@ -20,6 +21,7 @@ const {
   bulkMarkAttendanceMock: vi.fn(),
   canMock: vi.fn(),
   getSavedAttendanceSessionMock: vi.fn(),
+  submitAttendanceAbsencesMock: vi.fn(),
 }));
 
 vi.mock("../api/attendance.api", () => ({
@@ -32,10 +34,22 @@ vi.mock("../api/attendance.api", () => ({
 
 vi.mock("../api/attendance-operations.api", () => ({
   getSavedAttendanceSession: getSavedAttendanceSessionMock,
+  submitAttendanceAbsences: submitAttendanceAbsencesMock,
 }));
 
 vi.mock("../../auth", () => ({
   useAuth: () => ({ can: canMock, context: { activeOrganization: { id: "org-1" } } }),
+}));
+
+vi.mock("../components/AttendanceStaffWorkspace", () => ({
+  AttendanceStaffWorkspace: () => <div>فضای کار جلسات</div>,
+  AttendanceProfileDialog: () => null,
+}));
+vi.mock("../components/PendingCorrectionQueue", () => ({
+  PendingCorrectionQueue: () => <div>صف اصلاحات حضور</div>,
+}));
+vi.mock("../components/AttendanceReviewQueue", () => ({
+  AttendanceReviewQueue: () => <div>صف بررسی غیبت</div>,
 }));
 
 function TestProviders({ children }: PropsWithChildren) {
@@ -60,6 +74,12 @@ describe("AttendancePage", () => {
     listAttendanceContextsMock.mockResolvedValue([]);
     getAttendanceParticipantsMock.mockResolvedValue([]);
     bulkMarkAttendanceMock.mockResolvedValue({ sessionId: "mock-session", count: 0 });
+    submitAttendanceAbsencesMock.mockResolvedValue({
+      sessionId: "mock-session",
+      revision: 1,
+      status: "submitted",
+      count: 0,
+    });
   });
 
   it("starts on classes and waits for a target instead of auto-loading a roster", async () => {
@@ -77,6 +97,16 @@ describe("AttendancePage", () => {
     expect(screen.queryByText("احمد محمدی")).not.toBeInTheDocument();
     expect(getAttendanceParticipantsMock).not.toHaveBeenCalled();
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it("mounts both scoped review queues in the sessions workspace", async () => {
+    canMock.mockImplementation((capability: string) => capability === "attendance.review");
+    const user = userEvent.setup();
+    render(<AttendancePage />, { wrapper: TestProviders });
+    await user.click(await screen.findByRole("button", { name: /سوابق حضور/ }));
+    expect(await screen.findByText("فضای کار جلسات")).toBeInTheDocument();
+    expect(screen.getByText("صف بررسی غیبت")).toBeInTheDocument();
+    expect(screen.getByText("صف اصلاحات حضور")).toBeInTheDocument();
   });
 
   it.each([false, true])("loads a roster in the responsive panel (mobile: %s)", async (mobile) => {
@@ -207,7 +237,7 @@ describe("AttendancePage", () => {
       </MemoryRouter>,
     );
     const group = await screen.findByRole("group", { name: "وضعیت علی" });
-    expect(screen.queryByRole("textbox", { name: "جستجوی طلبه" })).not.toBeInTheDocument();
+    expect(screen.getByRole("searchbox", { name: "جستجوی طلبه" })).toBeVisible();
     await user.click(within(group).getByRole("button", { name: "غایب" }));
     await user.click(screen.getByRole("button", { name: /بررسی و ثبت حضور/ }));
     expect(bulkMarkAttendanceMock).not.toHaveBeenCalled();
@@ -278,7 +308,7 @@ describe("AttendancePage", () => {
       contextId: "class-1",
       title: "کلاس",
       revision: 2,
-      status: "submitted",
+      status: "open",
       organizationId: "org-1",
       roster: [
         { id: "student-1", name: "علی" },
@@ -302,16 +332,117 @@ describe("AttendancePage", () => {
       </MemoryRouter>,
     );
     const group = await screen.findByRole("group", { name: "وضعیت علی" });
+    expect(within(group).queryByRole("button", { name: "حاضر" })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: /بررسی و ثبت حضور/ })).toBeDisabled();
     await user.click(within(group).getByRole("button", { name: "تأخیر" }));
     await user.click(screen.getByRole("button", { name: /بررسی و ثبت حضور/ }));
     await user.click(screen.getByRole("button", { name: "تأیید و ثبت" }));
-    await waitFor(() => expect(bulkMarkAttendanceMock).toHaveBeenCalledOnce());
-    expect(bulkMarkAttendanceMock.mock.calls[0][0]).toMatchObject({
-      sessionId: "session-1",
-      expectedRevision: 2,
-      entries: [{ studentId: "student-1", status: "late" }],
+    await waitFor(() => expect(submitAttendanceAbsencesMock).toHaveBeenCalledOnce());
+    expect(submitAttendanceAbsencesMock.mock.calls[0]).toMatchObject([
+      "session-1",
+      expect.objectContaining({
+        expectedRevision: 2,
+        absentStudentIds: [],
+        lateStudentIds: ["student-1"],
+      }),
+    ]);
+  });
+
+  it("allows a timetable-assigned teacher to submit a linked class session", async () => {
+    canMock.mockImplementation((capability: string) => capability === "attendance.class.manage");
+    listAttendanceContextsMock.mockResolvedValue([
+      {
+        id: "class-1",
+        contextType: "class",
+        name: "کلاس",
+        total: 1,
+        activeOrganizationId: "org-1",
+      },
+    ]);
+    getSavedAttendanceSessionMock.mockResolvedValue({
+      id: "session-1",
+      contextType: "class",
+      contextId: "class-1",
+      title: "کلاس",
+      revision: 0,
+      status: "open",
+      organizationId: "org-1",
+      roster: [{ id: "student-1", name: "علی" }],
+      records: [],
     });
+    const user = userEvent.setup();
+    render(
+      <MemoryRouter
+        initialEntries={[
+          "/admin/attendance?contextType=class&contextId=class-1&sessionId=session-1",
+        ]}
+      >
+        <LocaleProvider>
+          <AttendancePage />
+        </LocaleProvider>
+      </MemoryRouter>,
+    );
+    const group = await screen.findByRole("group", { name: "وضعیت علی" });
+    expect(within(group).queryByRole("button", { name: "حاضر" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "تأیید حضور همه" })).toBeEnabled();
+    await user.click(within(group).getByRole("button", { name: "غایب" }));
+    await user.click(screen.getByRole("button", { name: /بررسی و ثبت حضور/ }));
+    await user.click(screen.getByRole("button", { name: "تأیید و ثبت" }));
+    await waitFor(() => expect(submitAttendanceAbsencesMock).toHaveBeenCalledOnce());
+  });
+
+  it("keeps absence-first selections while the mobile roster is searched", async () => {
+    vi.stubGlobal(
+      "matchMedia",
+      vi.fn(() => ({ matches: true, addEventListener: vi.fn(), removeEventListener: vi.fn() })),
+    );
+    listAttendanceContextsMock.mockResolvedValue([
+      {
+        id: "class-1",
+        contextType: "class",
+        name: "کلاس",
+        total: 2,
+        activeOrganizationId: "org-1",
+      },
+    ]);
+    getSavedAttendanceSessionMock.mockResolvedValue({
+      id: "session-1",
+      contextType: "class",
+      contextId: "class-1",
+      title: "کلاس",
+      revision: 0,
+      status: "open",
+      organizationId: "org-1",
+      roster: [
+        { id: "student-1", name: "علی", nationalCode: "101" },
+        { id: "student-2", name: "رضا", nationalCode: "102" },
+      ],
+      records: [],
+    });
+    const user = userEvent.setup();
+    render(
+      <MemoryRouter
+        initialEntries={[
+          "/admin/attendance?contextType=class&contextId=class-1&sessionId=session-1",
+        ]}
+      >
+        <LocaleProvider>
+          <AttendancePage />
+        </LocaleProvider>
+      </MemoryRouter>,
+    );
+    const ali = await screen.findByRole("group", { name: "وضعیت علی" });
+    await user.click(within(ali).getByRole("button", { name: "غایب" }));
+    const search = screen.getByRole("searchbox", { name: "جستجوی طلبه" });
+    await user.type(search, "102");
+    expect(screen.queryByRole("group", { name: "وضعیت علی" })).not.toBeInTheDocument();
+    expect(screen.getByRole("group", { name: "وضعیت رضا" })).toBeVisible();
+    await user.clear(search);
+    expect(
+      within(await screen.findByRole("group", { name: "وضعیت علی" })).getByRole("button", {
+        name: "غایب",
+      }),
+    ).toHaveAttribute("aria-pressed", "true");
   });
 
   it("hides marking and save actions for read-only attendance access", async () => {

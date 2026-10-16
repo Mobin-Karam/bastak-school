@@ -108,7 +108,10 @@ export const listMyAttendanceAbsenceReviews = () =>
 
 export type SelfAttendanceRecord = {
   id: string;
+  sessionId?: string;
   status: "present" | "absent" | "late" | "excused";
+  physicalStatus?: "present" | "absent" | "late" | "legacy_unknown";
+  reviewStatus?: "pending" | "approved" | "rejected" | null;
   note: string;
   sessionDate: string;
   contextType: AttendanceContextType;
