@@ -64,7 +64,11 @@ function database(filename: string, baseline = false, runMigrations = true) {
       .filter(
         (file) =>
           file.endsWith(".ts") &&
-          (!baseline || Number(file.slice(0, 13)) <= 1730700000000),
+          (!baseline ||
+            Number(file.slice(0, 13)) <= 1730700000000 ||
+            file === "1731200400000-AttendanceSubjectSnapshots.ts" ||
+            file === "1731300000000-AttendanceCorrectionReview.ts" ||
+            file === "1731300100000-AttendanceAcademicSnapshots.ts"),
       )
       .map((file) => path.join(directory, file)),
     synchronize: false,

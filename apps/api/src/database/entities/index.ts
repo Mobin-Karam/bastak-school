@@ -77,6 +77,7 @@ export { DormRoomAssignment } from "./dorm-room-assignment.entity";
 export { PermissionRequest } from "./permission-request.entity";
 export { AttendanceSession } from "./attendance-session.entity";
 export { AttendanceRecord, AttendanceStatus } from "./attendance-record.entity";
+export { AttendanceCorrection } from "./attendance-correction.entity";
 export {
   LeaveRequest,
   LeaveRequestReviewerRole,

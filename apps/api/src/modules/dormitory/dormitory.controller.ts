@@ -1,5 +1,8 @@
 import { Body, Controller, Get, Param, Post, Put, Query } from "@nestjs/common";
-import { RequireCapabilities } from "../../common/decorators/capabilities.decorator";
+import {
+  RequireAnyCapabilities,
+  RequireCapabilities,
+} from "../../common/decorators/capabilities.decorator";
 import { CurrentUser } from "../../common/decorators/current-user.decorator";
 import { ok } from "../../common/utils/envelope";
 import { AuthenticatedUser } from "../auth";
@@ -41,7 +44,7 @@ export class DormitoryController {
   }
 
   @Post("announcements")
-  @RequireCapabilities("announcements.manage")
+  @RequireAnyCapabilities("announcements.manage", "dormitory.manage")
   announce(@CurrentUser() user: AuthenticatedUser, @Body() dto: SendDormAnnouncementDto) {
     return this.dormitory.sendAnnouncement(user, dto).then(ok);
   }

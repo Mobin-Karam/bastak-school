@@ -84,8 +84,8 @@ export type DemoRole =
 
 const copy: Record<AuthLanguage, AuthCopy> = {
   fa: {
-    brandName: "ZANIN",
-    productName: "مدرسه دینی سلطان‌العلمای بستک",
+    brandName: "مدرسه دینی سلطان العلماء بستک",
+    productName: "مدرسه دینی سلطان العلماء بستک",
     workspaceLogin: "ورود به میز کار",
     setupPlatform: "راه‌اندازی سامانه",
     welcome: "خوش آمدید",
@@ -169,7 +169,7 @@ const copy: Record<AuthLanguage, AuthCopy> = {
     localLogoutPending: "خروج محلی انجام شد؛ خروج سرور پس از اتصال تکمیل می‌شود.",
   },
   en: {
-    brandName: "ZANIN",
+    brandName: "Sultan al-Olama Bastak Islamic School",
     productName: "Sultan al-Olama Bastak Islamic School",
     workspaceLogin: "Workspace sign in",
     setupPlatform: "Set up platform",

@@ -5,6 +5,8 @@ description: Perform evidence-based code review focused on correctness, regressi
 
 # Code Review Skill
 
+For Moshaver, include public-entrypoint dependency direction, server-side capability/organization enforcement, contract consumers, and migration safety in the evidence review.
+
 ## Review order
 1. Correctness and user-visible regressions.
 2. Security/authorization/data exposure.

@@ -30,6 +30,7 @@ export const CAPABILITIES = [
   "attendance.group.read",
   "attendance.linked.read",
   "attendance.night.manage",
+  "attendance.correct",
   "attendance.reports.read",
   "attendance.settings.manage",
   "relationships.read",

@@ -51,12 +51,13 @@ describe("student collection scroll flow", () => {
     );
 
     expect(container.querySelector(".collection-toolbar")?.parentElement).toHaveClass("shrink-0");
-    expect(
-      screen.getByRole("region", { name: /فهرست دانش‌آموزان، جدول قابل پیمایش افقی/ }),
-    ).toHaveClass("min-[1200px]:overflow-y-auto", "min-[1200px]:overscroll-y-contain");
+    expect(screen.getByLabelText("فهرست دانش‌آموزان")).toHaveClass(
+      "overflow-y-auto",
+      "overscroll-y-contain",
+    );
     expect(screen.getByText("تعداد در صفحه")).toBeInTheDocument();
     expect(screen.getByLabelText("فیلتر سریع دانش‌آموزان")).toHaveTextContent("فعال");
-    expect(screen.queryByLabelText("انتخاب ردیف student-1")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /دانش‌آموز نمونه/ })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "فعال ۱" }));
     expect(onStatusChange).toHaveBeenCalledWith("active");
   });
@@ -84,47 +85,6 @@ describe("student collection scroll flow", () => {
     expect(screen.getByRole("button", { name: "دانش‌آموز جدید" })).toBeInTheDocument();
   });
 
-  it("lets an operator choose a card directory and restores that choice", () => {
-    const props = {
-      students: [student],
-      total: 1,
-      filteredTotal: 1,
-      page: 1,
-      pageCount: 1,
-      pageSize: 25,
-      setPage: vi.fn(),
-      setPageSize: vi.fn(),
-      selectedId: "",
-      search: "",
-      setSearch: vi.fn(),
-      status: "all" as const,
-      counts: { all: 1, active: 1, inactive: 0, archived: 0 },
-      incomplete: 0,
-      profileFilter: "all" as const,
-      sort: "name" as const,
-      sortDirection: "asc" as const,
-      onSort: vi.fn(),
-      onStatusChange: vi.fn(),
-      onIncompleteToggle: vi.fn(),
-      onClearFilters: vi.fn(),
-      onSelect: vi.fn(),
-    };
-    const { unmount } = render(<StudentList {...props} />);
-
-    fireEvent.click(screen.getByRole("button", { name: "کارت‌ها" }));
-    expect(screen.getByLabelText("فهرست دانش‌آموزان، نمای کارت")).toBeInTheDocument();
-    expect(
-      screen.queryByRole("region", { name: /فهرست دانش‌آموزان، جدول قابل پیمایش افقی/ }),
-    ).not.toBeInTheDocument();
-    expect(
-      window.localStorage.getItem("moshaver-admin:collection-view:student-directory"),
-    ).toContain('"layout":"cards"');
-
-    unmount();
-    render(<StudentList {...props} />);
-    expect(screen.getByLabelText("فهرست دانش‌آموزان، نمای کارت")).toBeInTheDocument();
-  });
-
   it("does not advertise profile editing when the current role cannot edit students", () => {
     render(<StudentOverview student={student} onRetry={vi.fn()} onEdit={undefined} />);
 
@@ -144,7 +104,7 @@ describe("student collection scroll flow", () => {
     expect(screen.getByLabelText("Profile completion")).toBeInTheDocument();
   });
 
-  it("localizes the student directory controls, table, and pagination for English", () => {
+  it("localizes the student directory controls, rows, and pagination for English", () => {
     window.localStorage.setItem("moshaver-admin-location", "international");
     render(
       <LocaleProvider>
@@ -177,7 +137,7 @@ describe("student collection scroll flow", () => {
 
     expect(screen.getByPlaceholderText("Name, ID, username, grade, track, or goal…")).toBeVisible();
     expect(screen.getByLabelText("Student directory")).toBeVisible();
-    expect(screen.getByRole("columnheader", { name: "Student" })).toBeVisible();
+    expect(screen.getByText(student.name)).toBeVisible();
     expect(screen.getByText("Showing 26–50 of 1,250")).toBeVisible();
     expect(screen.getByText("Items per page")).toBeVisible();
     expect(screen.getByRole("button", { name: /Previous/ })).toBeVisible();

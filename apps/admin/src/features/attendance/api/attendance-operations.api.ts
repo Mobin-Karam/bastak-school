@@ -15,10 +15,152 @@ import type {
 } from "@moshaver/api-contract";
 
 export const getAttendanceOverview = () => api.get<AttendanceDailyOverview>("/attendance/overview");
-export const getStaffAttendanceSessions = () =>
-  api.get<StaffAttendanceSession[]>("/attendance/staff-sessions");
+export const getAttendanceReportSummary = (params?: {
+  from?: string;
+  to?: string;
+  academicYearId?: string;
+  termId?: string;
+}) => {
+  const search = new URLSearchParams();
+  if (params?.from) search.set("from", `${params.from}T00:00:00.000Z`);
+  if (params?.to) search.set("to", `${params.to}T23:59:59.999Z`);
+  if (params?.academicYearId) search.set("academicYearId", params.academicYearId);
+  if (params?.termId) search.set("termId", params.termId);
+  const suffix = search.size ? `?${search.toString()}` : "";
+  return api.get<{
+    from: string | null;
+    to: string | null;
+    academicYearId: string | null;
+    termId: string | null;
+    finalizedSessions: number;
+    denominator: number;
+    present: number;
+    absent: number;
+    late: number;
+    excused: number;
+    attendanceRate: number | null;
+  }>(`/attendance/reports/summary${suffix}`);
+};
+export type AttendancePolicy = {
+  organizationId: string;
+  timeZone: string;
+  dayStartsAt: string;
+  allowPartialSubmission: boolean;
+  lateCountsAsPresent: boolean;
+  correctionRequiresReview: boolean;
+};
+export const getAttendancePolicy = () => api.get<AttendancePolicy>("/attendance/policy");
+export const updateAttendancePolicy = (body: AttendancePolicy) =>
+  api.patch<AttendancePolicy>("/attendance/policy", body);
+export type StaffAttendanceSessionPage = {
+  items: StaffAttendanceSession[];
+  page: number;
+  limit: number;
+  total: number;
+  hasNext: boolean;
+};
+export type AttendanceHistorySession = {
+  id: string;
+  organizationId: string;
+  contextType: "class" | "class_group" | "dorm";
+  contextId: string;
+  title: string;
+  subjectId: string | null;
+  subjectName: string | null;
+  status: "scheduled" | "open" | "submitted" | "finalized" | "cancelled";
+  sessionDate: string;
+  marked: number;
+  expected: number | null;
+};
+export type AttendanceHistorySessionPage = {
+  items: AttendanceHistorySession[];
+  page: number;
+  limit: number;
+  total: number;
+  hasNext: boolean;
+};
+export const getAttendanceHistorySessions = (page = 1, limit = 25) => {
+  const search = new URLSearchParams({ page: String(page), limit: String(limit) });
+  return api.get<AttendanceHistorySessionPage>(`/attendance/history/sessions?${search.toString()}`);
+};
+export const getStaffAttendanceSessions = (page = 1, limit = 25) =>
+  api.get<StaffAttendanceSessionPage>(
+    `/attendance/staff-sessions?page=${encodeURIComponent(page)}&limit=${encodeURIComponent(limit)}`,
+  );
 export const getSavedAttendanceSession = (id: string) =>
   api.get<AttendanceSessionDetail>(`/attendance/sessions/${encodeURIComponent(id)}`);
+export const submitAttendanceAbsences = (
+  id: string,
+  body: {
+    requestId: string;
+    expectedRevision: number;
+    absentStudentIds: string[];
+    lateStudentIds?: string[];
+  },
+) =>
+  api.post<{ sessionId: string; revision: number; status: string; count: number }>(
+    `/attendance/sessions/${encodeURIComponent(id)}/submit-absences`,
+    body,
+  );
+export const finalizeAttendanceSession = (
+  id: string,
+  body: { requestId: string; expectedRevision: number },
+) =>
+  api.post<{ sessionId: string; revision: number; status: "finalized" }>(
+    `/attendance/sessions/${encodeURIComponent(id)}/finalize`,
+    body,
+  );
+export const cancelAttendanceSession = (
+  id: string,
+  body: { requestId: string; expectedRevision: number; reason: string },
+) =>
+  api.post<{ sessionId: string; revision: number; status: "cancelled" }>(
+    `/attendance/sessions/${encodeURIComponent(id)}/cancel`,
+    body,
+  );
+export const correctAttendanceRecord = (
+  id: string,
+  body: {
+    requestId: string;
+    expectedRevision: number;
+    status: "present" | "absent" | "late";
+    reason: string;
+    minutesLate?: number;
+  },
+) =>
+  api.patch<{
+    recordId: string;
+    revision: number;
+    sessionRevision: number;
+    correctionId?: string;
+    pendingReview?: boolean;
+  }>(`/attendance/records/${encodeURIComponent(id)}/correction`, body);
+export type PendingAttendanceCorrection = {
+  id: string;
+  recordId: string;
+  sessionId: string;
+  organizationId: string;
+  contextType: "class" | "class_group" | "dorm";
+  contextId: string;
+  title: string;
+  studentId: string;
+  studentName: string;
+  requestedBy: string;
+  reason: string;
+  before: Record<string, unknown>;
+  after: Record<string, unknown>;
+  createdAt: string;
+};
+export const getPendingAttendanceCorrections = () =>
+  api.get<PendingAttendanceCorrection[]>("/attendance/corrections/pending");
+export const reviewAttendanceCorrection = (
+  id: string,
+  body: { requestId: string; decision: "approved" | "rejected"; note?: string },
+) =>
+  api.post<{ correctionId: string; status: "approved" | "rejected" }>(
+    `/attendance/corrections/${encodeURIComponent(id)}/review`,
+    body,
+  );
 export const getAttendanceProfile = (id: string) =>
   api.get<StaffAttendanceProfile>(`/attendance/students/${encodeURIComponent(id)}/profile`);
 export const getDormDelegates = () => api.get<DormAttendanceDelegate[]>("/attendance/delegates");

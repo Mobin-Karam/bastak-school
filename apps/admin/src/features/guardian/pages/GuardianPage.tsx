@@ -289,22 +289,24 @@ export function GuardianPage() {
                   </div>
                   <Badge
                     tone={
-                      record.status === "present"
+                      record.physicalStatus === "present"
                         ? "green"
-                        : record.status === "absent"
+                        : record.physicalStatus === "absent"
                           ? "red"
-                          : record.status === "late"
+                          : record.physicalStatus === "late"
                             ? "amber"
                             : "blue"
                     }
                   >
-                    {record.status === "present"
+                    {record.physicalStatus === "present"
                       ? "حاضر"
-                      : record.status === "absent"
-                        ? "غایب"
-                        : record.status === "late"
-                          ? "با تأخیر"
-                          : "موجه"}
+                      : record.physicalStatus === "late"
+                        ? "با تأخیر"
+                        : record.reviewStatus === "approved"
+                          ? "غایب موجه"
+                          : record.reviewStatus === "pending"
+                            ? "غایب · در انتظار بررسی"
+                            : "غایب"}
                   </Badge>
                 </div>
               ))}

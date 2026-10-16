@@ -152,7 +152,7 @@ export function PWAProvider() {
   const handleInstall = useCallback(async () => {
     const result = await installApp();
     if (result.outcome === "accepted") {
-      toast.success("زانین با موفقیت نصب شد");
+      toast.success("مدرسه دینی سلطان العلماء بستک با موفقیت نصب شد");
       setModalOpen(false);
     } else if (result.outcome === "dismissed") {
       dismissInstall();

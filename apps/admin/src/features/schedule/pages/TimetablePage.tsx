@@ -675,6 +675,13 @@ export function TimetablePage() {
                       .join(" · ")}
                   </p>
                 ) : null}
+                {attendanceReport.data.subjects.length ? (
+                  <p className="text-xs text-slate-500">
+                    {attendanceReport.data.subjects
+                      .map((row) => `${row.subjectName}: ${row.attendanceRecorded}/${row.planned}`)
+                      .join(" · ")}
+                  </p>
+                ) : null}
               </>
             ) : null}
           </Card>

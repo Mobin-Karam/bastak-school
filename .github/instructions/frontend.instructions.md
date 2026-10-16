@@ -9,3 +9,4 @@ applyTo: "**/*.html,**/*.css,**/*.scss,**/*.sass,**/*.less,**/*.vue,**/*.svelte,
 - Consider loading, empty, error, retry, disabled, responsive, keyboard, focus, accessibility, theme, and localization states when relevant.
 - Verify the actual backend/API contract before changing API-dependent UI.
 - Avoid introducing a new state manager or UI library for a small isolated change.
+- In Admin, gate by capabilities from `/me/context`, not role labels; preserve the shared desktop/mobile feature flow, RTL logical layout, Persian locale behavior, safe areas, and keyboard access.

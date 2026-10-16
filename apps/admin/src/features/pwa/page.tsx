@@ -14,7 +14,8 @@ export default function OfflinePage() {
         </div>
         <h1 className="mt-5 text-xl font-bold sm:text-2xl">اتصال اینترنت در دسترس نیست</h1>
         <p className="mt-2 text-sm leading-7 text-muted-foreground">
-          بخش‌های ذخیره‌شده زانین همچنان قابل استفاده‌اند. پس از بازگشت اینترنت دوباره تلاش کنید.
+          بخش‌های ذخیره‌شده مدرسه دینی سلطان العلماء بستک همچنان قابل استفاده‌اند. پس از بازگشت
+          اینترنت دوباره تلاش کنید.
         </p>
         <button
           type="button"

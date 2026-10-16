@@ -53,7 +53,13 @@ export class GuardianService {
     });
     const allowed: ReturnType<GuardianService["studentProjection"]>[] = [];
     for (const row of rows)
-      if (await this.authorization.canAccessStudent(this.context(user), row.toStudent.id, "guardian.students.read"))
+      if (
+        await this.authorization.canAccessStudent(
+          this.context(user),
+          row.toStudent.id,
+          "guardian.students.read",
+        )
+      )
         allowed.push(this.studentProjection(row.toStudent));
     return allowed;
   }
@@ -165,14 +171,21 @@ export class GuardianService {
       order: { createdAt: "DESC" },
       take: 60,
     });
-    return rows.map((row) => ({
-      id: row.id,
-      status: row.status,
-      note: row.note,
-      sessionDate: row.session.sessionDate.toISOString(),
-      organizationId: row.session.organization.id,
-      recordedAt: row.createdAt.toISOString(),
-    }));
+    return rows
+      .filter((row) => row.session.status !== "cancelled")
+      .map((row) => ({
+        id: row.id,
+        status: row.status,
+        physicalStatus:
+          row.physicalStatus ??
+          (row.status === "excused" ? "absent" : row.status),
+        reviewStatus:
+          row.reviewStatus ?? (row.status === "excused" ? "approved" : null),
+        note: row.note,
+        sessionDate: row.session.sessionDate.toISOString(),
+        organizationId: row.session.organization.id,
+        recordedAt: row.createdAt.toISOString(),
+      }));
   }
   async exams(user: AuthenticatedUser, studentId: string) {
     await this.requireChild(user, studentId);
@@ -247,7 +260,14 @@ export class GuardianService {
       },
       relations: { toStudent: { user: true } },
     });
-    if (!relation || !(await this.authorization.canAccessStudent(this.context(user), studentId, "guardian.students.read")))
+    if (
+      !relation ||
+      !(await this.authorization.canAccessStudent(
+        this.context(user),
+        studentId,
+        "guardian.students.read",
+      ))
+    )
       throw new ApiException(
         404,
         "CHILD_NOT_FOUND",
@@ -266,7 +286,12 @@ export class GuardianService {
     };
   }
   private context(user: AuthenticatedUser): UserContext {
-    return { ...user, roles: user.roles ?? [], capabilities: user.capabilities ?? [],
-      membershipIds: user.membershipIds ?? [], organizationIds: user.organizationIds ?? [] };
+    return {
+      ...user,
+      roles: user.roles ?? [],
+      capabilities: user.capabilities ?? [],
+      membershipIds: user.membershipIds ?? [],
+      organizationIds: user.organizationIds ?? [],
+    };
   }
 }

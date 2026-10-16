@@ -25,7 +25,11 @@ export type AttendanceRosterSnapshot = {
 };
 
 @Entity("attendance_sessions")
-@Index("IDX_attendance_session_org_date_id", ["organization", "sessionDate", "id"])
+@Index("IDX_attendance_session_org_date_id", [
+  "organization",
+  "sessionDate",
+  "id",
+])
 @Index("IDX_attendance_session_occurrence", ["organization", "occurrenceKey"], {
   unique: true,
 })
@@ -54,6 +58,18 @@ export class AttendanceSession {
   @Column({ type: "varchar", length: 64, nullable: true })
   creationFingerprint?: string | null;
   @Column({ length: 160, default: "" }) titleSnapshot!: string;
+  /** Immutable subject/book identity for timetable-backed lesson reporting. */
+  @Column({ type: "varchar", length: 120, nullable: true }) subjectIdSnapshot?:
+    string | null;
+  @Column({ type: "varchar", length: 240, nullable: true })
+  subjectNameSnapshot?: string | null;
+  @Column({ type: "varchar", length: 36, nullable: true }) academicYearIdSnapshot?:
+    string | null;
+  @Column({ type: "varchar", length: 240, nullable: true })
+  academicYearNameSnapshot?: string | null;
+  @Column({ type: "varchar", length: 36, nullable: true }) termIdSnapshot?: string | null;
+  @Column({ type: "varchar", length: 240, nullable: true }) termNameSnapshot?:
+    string | null;
   @Column({ length: 64, default: "Asia/Tehran" }) timeZone!: string;
   @Column({ type: "varchar", length: 10, nullable: true }) operationalDate?:
     string | null;

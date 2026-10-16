@@ -5,6 +5,8 @@ description: Refactor code safely while preserving observable behavior, tests, c
 
 # Refactoring Skill
 
+Preserve public entrypoints and the Moshaver dependency direction. Do not move product policy into CMB or add root workspace tooling as refactor collateral.
+
 ## Rules
 - Define the behavior that must remain unchanged.
 - Create/confirm tests around risky behavior before structural changes.

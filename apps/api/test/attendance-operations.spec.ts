@@ -27,7 +27,9 @@ import { DormRoom } from "../src/database/entities/dorm-room.entity";
 import { DormRoomAssignment } from "../src/database/entities/dorm-room-assignment.entity";
 import { AttendanceSession } from "../src/database/entities/attendance-session.entity";
 import { AttendanceRecord } from "../src/database/entities/attendance-record.entity";
+import { AttendanceStatus } from "../src/database/entities/attendance-record.entity";
 import { AttendancePool } from "../src/database/entities/attendance-pool.entity";
+import { AttendancePolicy } from "../src/database/entities/attendance-policy.entity";
 import { DormAttendanceDelegate } from "../src/database/entities/dorm-attendance-delegate.entity";
 import { AuditLog } from "../src/database/entities/audit-log.entity";
 import {
@@ -184,32 +186,85 @@ describe("attendance delegation, live pools and staff privacy (SQLite)", () => {
     };
   }
   it("grants every active school room and rejects residents outside the granted room", async () => {
-    await operations.setDormWideDelegate(staff, { studentId: students[0].id, startsOn: day, endsOn: day });
+    await operations.setDormWideDelegate(staff, {
+      studentId: students[0].id,
+      startsOn: day,
+      endsOn: day,
+    });
     const assignments = await operations.myDormAssignments(studentActor);
     expect(assignments).toHaveLength(2);
-    const other = assignments.find(row => row.roomId === otherRoom.id)!;
+    const other = assignments.find((row) => row.roomId === otherRoom.id)!;
     expect(other.dormWide).toBe(true);
-    await expect(operations.markDorm(studentActor, other.id, { requestId: randomUUID(), expectedRevision: 0, nightDate: day, entries: [{ studentId: students[2].id, status: "present" }] })).resolves.toMatchObject({ count: 1 });
-    await expect(operations.markDorm(studentActor, other.id, { requestId: randomUUID(), expectedRevision: 1, nightDate: day, entries: [{ studentId: students[1].id, status: "present" }] })).rejects.toMatchObject({ response: { error: { code: "ATTENDANCE_DELEGATE_SCOPE" } } });
-    await db.getRepository(DormRoomAssignment).delete({ student: { id: students[0].id } });
+    await expect(
+      operations.markDorm(studentActor, other.id, {
+        requestId: randomUUID(),
+        expectedRevision: 0,
+        nightDate: day,
+        entries: [{ studentId: students[2].id, status: "present" }],
+      }),
+    ).resolves.toMatchObject({ count: 1 });
+    await expect(
+      operations.markDorm(studentActor, other.id, {
+        requestId: randomUUID(),
+        expectedRevision: 1,
+        nightDate: day,
+        entries: [{ studentId: students[1].id, status: "present" }],
+      }),
+    ).rejects.toMatchObject({
+      response: { error: { code: "ATTENDANCE_DELEGATE_SCOPE" } },
+    });
+    await db
+      .getRepository(DormRoomAssignment)
+      .delete({ student: { id: students[0].id } });
     expect(await operations.myDormAssignments(studentActor)).toEqual([]);
-    await expect(operations.markDorm(studentActor, other.id, { requestId: randomUUID(), expectedRevision: 1, nightDate: day, entries: [{ studentId: students[2].id, status: "present" }] })).rejects.toThrow();
+    await expect(
+      operations.markDorm(studentActor, other.id, {
+        requestId: randomUUID(),
+        expectedRevision: 1,
+        nightDate: day,
+        entries: [{ studentId: students[2].id, status: "present" }],
+      }),
+    ).rejects.toThrow();
   });
   it("revokes dorm-wide access while preserving a room-specific replacement", async () => {
-    await operations.setDormWideDelegate(staff, { studentId: students[0].id, startsOn: day, endsOn: day });
-    await operations.setDelegate(staff, otherRoom.id, { studentId: students[2].id, startsOn: day, endsOn: day });
+    await operations.setDormWideDelegate(staff, {
+      studentId: students[0].id,
+      startsOn: day,
+      endsOn: day,
+    });
+    await operations.setDelegate(staff, otherRoom.id, {
+      studentId: students[2].id,
+      startsOn: day,
+      endsOn: day,
+    });
     await operations.revokeDormWideDelegate(staff);
     expect(await operations.myDormAssignments(studentActor)).toEqual([]);
     expect(await operations.myDormAssignments(otherActor)).toHaveLength(1);
   });
   it("requires staff authority for dorm-wide delegation and preserves room-only grants", async () => {
-    await expect(operations.setDormWideDelegate(studentActor, { studentId: students[0].id, startsOn: day, endsOn: day })).rejects.toThrow();
-    await operations.setDormWideDelegate(staff, { studentId: students[0].id, startsOn: day, endsOn: day });
-    await operations.setDelegate(staff, otherRoom.id, { studentId: students[2].id, startsOn: day, endsOn: day });
+    await expect(
+      operations.setDormWideDelegate(studentActor, {
+        studentId: students[0].id,
+        startsOn: day,
+        endsOn: day,
+      }),
+    ).rejects.toThrow();
+    await operations.setDormWideDelegate(staff, {
+      studentId: students[0].id,
+      startsOn: day,
+      endsOn: day,
+    });
+    await operations.setDelegate(staff, otherRoom.id, {
+      studentId: students[2].id,
+      startsOn: day,
+      endsOn: day,
+    });
     const assignments = await operations.myDormAssignments(studentActor);
     expect(assignments).toHaveLength(1);
     expect(assignments[0].roomId).toBe(room.id);
-    expect((await operations.myDormAssignments(otherActor))[0].dormWide).toBe(false);
+    expect((await operations.myDormAssignments(otherActor))[0].dormWide).toBe(
+      false,
+    );
   });
   it("allows one current room representative, replacing rather than stacking authority", async () => {
     await grant();
@@ -259,7 +314,7 @@ describe("attendance delegation, live pools and staff privacy (SQLite)", () => {
       nightDate: day,
       entries: [{ studentId: students[1].id, status: "absent" }],
     });
-    expect(result.count).toBe(1);
+    expect(result.count).toBe(2);
     const saved = await db
       .getRepository(AttendanceSession)
       .findOneByOrFail({ id: result.sessionId });
@@ -274,7 +329,7 @@ describe("attendance delegation, live pools and staff privacy (SQLite)", () => {
         entries: [{ studentId: students[2].id, status: "present" }],
       }),
     ).rejects.toThrow();
-    expect(await db.getRepository(AttendanceRecord).count()).toBe(1);
+    expect(await db.getRepository(AttendanceRecord).count()).toBe(2);
   });
   it("replays timed-out dorm writes, detects conflicting versions and rechecks revocation", async () => {
     const delegate = await grant();
@@ -300,7 +355,7 @@ describe("attendance delegation, live pools and staff privacy (SQLite)", () => {
     await expect(
       operations.markDorm(studentActor, delegate.id, write),
     ).rejects.toThrow();
-    expect(await db.getRepository(AttendanceRecord).count()).toBe(1);
+    expect(await db.getRepository(AttendanceRecord).count()).toBe(2);
   });
   it("blocks other accounts, expired dates and past-night marking", async () => {
     const delegate = await grant();
@@ -415,7 +470,13 @@ describe("attendance delegation, live pools and staff privacy (SQLite)", () => {
     expect(await operations.encouragement(studentActor)).toEqual(
       expect.objectContaining({ present: 1, attendanceRate: 100 }),
     );
-    expect(await service.listSelfRecords(studentActor)).toEqual([]);
+    expect(await service.listSelfRecords(studentActor)).toEqual([
+      expect.objectContaining({
+        status: "present",
+        physicalStatus: "present",
+        reviewStatus: null,
+      }),
+    ]);
     expect((await service.summary(studentActor)).recent).toEqual([]);
   });
   it("enforces operation capabilities, DTO limits and check-in self identity over HTTP", async () => {
@@ -530,7 +591,19 @@ describe("attendance delegation, live pools and staff privacy (SQLite)", () => {
       },
     ]);
     expect((await operations.dailyOverview(staff)).sessions).toBe(1);
-    expect(await operations.staffSessions(staff)).toHaveLength(2);
+    expect(await operations.staffSessions(staff)).toMatchObject({
+      total: 2,
+      items: expect.arrayContaining([
+        expect.objectContaining({ contextId: room.id }),
+      ]),
+    });
+    await expect(
+      operations.staffSessions(staff, { page: 1, limit: 1 }),
+    ).resolves.toMatchObject({
+      total: 2,
+      hasNext: true,
+      items: [expect.any(Object)],
+    });
     expect(await db.getRepository(AttendanceSession).count()).toBe(3);
     expect(
       attendanceSummaryWindow(new Date("2026-10-11T12:29:59.999Z")).day,
@@ -538,5 +611,152 @@ describe("attendance delegation, live pools and staff privacy (SQLite)", () => {
     expect(attendanceSummaryWindow(new Date("2026-10-11T12:30:00Z")).day).toBe(
       "2026-10-11",
     );
+  });
+
+  it("reports finalized facts only and excludes submitted/cancelled sessions from its denominator", async () => {
+    const [finalized, submitted, cancelled] = await db
+      .getRepository(AttendanceSession)
+      .save([
+        {
+          organization: org,
+          contextType: "dorm",
+          contextId: room.id,
+          sessionDate: new Date(),
+          status: "finalized",
+        },
+        {
+          organization: org,
+          contextType: "dorm",
+          contextId: room.id,
+          sessionDate: new Date(),
+          status: "submitted",
+        },
+        {
+          organization: org,
+          contextType: "dorm",
+          contextId: room.id,
+          sessionDate: new Date(),
+          status: "cancelled",
+        },
+      ]);
+    await db.getRepository(AttendanceRecord).save([
+      {
+        session: finalized,
+        student: students[0],
+        status: AttendanceStatus.PRESENT,
+      },
+      {
+        session: finalized,
+        student: students[1],
+        status: AttendanceStatus.ABSENT,
+      },
+      {
+        session: submitted,
+        student: students[0],
+        status: AttendanceStatus.ABSENT,
+      },
+      {
+        session: cancelled,
+        student: students[1],
+        status: AttendanceStatus.ABSENT,
+      },
+    ]);
+    const report = await operations.reportSummary({
+      ...staff,
+      capabilities: [...(staff.capabilities ?? []), "attendance.reports.read"],
+    });
+    expect(report).toMatchObject({
+      finalizedSessions: 1,
+      denominator: 2,
+      present: 1,
+      absent: 1,
+      attendanceRate: 50,
+    });
+  });
+
+  it("respects the organization policy when deciding whether late counts as present", async () => {
+    const finalized = await db.getRepository(AttendanceSession).save({
+      organization: org,
+      contextType: "dorm",
+      contextId: room.id,
+      sessionDate: new Date(),
+      status: "finalized",
+    });
+    await db.getRepository(AttendanceRecord).save({
+      session: finalized,
+      student: students[0],
+      status: AttendanceStatus.LATE,
+    });
+    await db.getRepository(AttendancePolicy).save({
+      organization: org,
+      lateCountsAsPresent: false,
+      dayStartsAt: "04:00",
+      timeZone: "Asia/Tehran",
+    });
+    const report = await operations.reportSummary({
+      ...staff,
+      capabilities: [...(staff.capabilities ?? []), "attendance.reports.read"],
+    });
+    expect(report).toMatchObject({
+      denominator: 1,
+      late: 1,
+      attendanceRate: 0,
+    });
+  });
+
+  it("rejects an inverted management report range before querying attendance facts", async () => {
+    await expect(
+      operations.reportSummary(
+        {
+          ...staff,
+          capabilities: [...(staff.capabilities ?? []), "attendance.reports.read"],
+        },
+        "2026-10-31T00:00:00.000Z",
+        "2026-10-01T23:59:59.999Z",
+      ),
+    ).rejects.toMatchObject({
+      response: { error: { code: "ATTENDANCE_REPORT_DATE_RANGE" } },
+    });
+  });
+
+  it("filters finalized report facts by immutable academic-year and term snapshots", async () => {
+    const [matching, other] = await db.getRepository(AttendanceSession).save([
+      {
+        organization: org,
+        contextType: "dorm",
+        contextId: room.id,
+        sessionDate: new Date(),
+        status: "finalized",
+        academicYearIdSnapshot: "year-a",
+        termIdSnapshot: "term-a",
+      },
+      {
+        organization: org,
+        contextType: "dorm",
+        contextId: room.id,
+        sessionDate: new Date(),
+        status: "finalized",
+        academicYearIdSnapshot: "year-b",
+        termIdSnapshot: "term-b",
+      },
+    ]);
+    await db.getRepository(AttendanceRecord).save([
+      { session: matching, student: students[0], status: AttendanceStatus.PRESENT },
+      { session: other, student: students[1], status: AttendanceStatus.ABSENT },
+    ]);
+    await expect(
+      operations.reportSummary(
+        { ...staff, capabilities: [...(staff.capabilities ?? []), "attendance.reports.read"] },
+        undefined,
+        undefined,
+        { academicYearId: "year-a", termId: "term-a" },
+      ),
+    ).resolves.toMatchObject({
+      finalizedSessions: 1,
+      present: 1,
+      absent: 0,
+      academicYearId: "year-a",
+      termId: "term-a",
+    });
   });
 });

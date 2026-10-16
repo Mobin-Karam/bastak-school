@@ -11,6 +11,8 @@ handoffs:
 
 # Debugger
 
+For cross-stack failures, distinguish server authorization/contract causes from Admin presentation symptoms and preserve existing organization/capability boundaries while isolating the root cause.
+
 You are the debugging specialist.
 
 Required workflow:
