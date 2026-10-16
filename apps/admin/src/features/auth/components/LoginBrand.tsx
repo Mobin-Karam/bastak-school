@@ -12,7 +12,7 @@ export function LoginBrand({ brandName, productName, variant = "compact" }: Logi
           src="/logo-bastak.webp"
           width={150}
           height={50}
-          alt="نشان زانین"
+          alt="نشان مدرسه دینی سلطان العلماء بستک"
           decoding="async"
           className="h-12 w-[7.5rem] shrink-0 object-contain object-center drop-shadow-sm"
         />
@@ -41,7 +41,7 @@ export function LoginBrand({ brandName, productName, variant = "compact" }: Logi
         src="/logo-bastak.webp"
         width={112}
         height={42}
-        alt="نشان زانین"
+        alt="نشان مدرسه دینی سلطان العلماء بستک"
         decoding="async"
         className="h-10 w-24 shrink-0 object-contain object-center"
       />

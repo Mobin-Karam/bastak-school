@@ -159,7 +159,7 @@ self.addEventListener("push", (event) => {
     const payload = readPushPayload(event);
     const id = String(payload.notificationId || payload.id || `zanin-${Date.now()}`);
     const url = safeAppUrl(payload.url || payload.link || DEFAULT_NOTIFICATION_URL);
-    const title = String(payload.title || payload.notification?.title || "زانین");
+    const title = String(payload.title || payload.notification?.title || "مدرسه دینی سلطان العلماء بستک");
     const body = String(payload.body || payload.message || payload.notification?.body || "اعلان جدیدی دارید.");
 
     const windows = await self.clients.matchAll({ type: "window", includeUncontrolled: true });

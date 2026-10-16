@@ -8,7 +8,7 @@ import {
   UsersRound,
 } from "lucide-react";
 import type { Student } from "../../../shared/types/domain";
-import { Button, Card, EmptyState, LoadingState } from "../../../shared/ui/ui";
+import { Button, Card, EmptyState, LoadingState, Select } from "../../../shared/ui/ui";
 import { AdminDataTable } from "../../../shared/ui/admin-data-table";
 import { CollectionToolbar } from "../../../shared/ui/collection-toolbar";
 import { SegmentedControl } from "../../../shared/ui/segmented-control";
@@ -272,11 +272,6 @@ export function StudentList({
           incompleteOnly={profileFilter === "incomplete"}
           onIncompleteToggle={onIncompleteToggle}
         />
-
-        {/* mobile sort stays here */}
-        <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-2 md:hidden">
-          {/* your existing sort control */}
-        </div>
       </div>
 
       {/* Item Summary */}
@@ -350,22 +345,9 @@ export function StudentList({
                     <label className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
                       <span>{copy.itemsPerPage}</span>
 
-                      <select
-                        className="
-                h-9 rounded-lg
-                border border-slate-200
-                bg-white
-                px-2
-                text-xs text-slate-700
-                outline-none
-                transition
-                focus:border-brand
-                focus:ring-2
-                focus:ring-brand/20
-                dark:border-slate-800
-                dark:bg-slate-900
-                dark:text-slate-200
-              "
+                      <Select
+                        aria-label={copy.itemsPerPage}
+                        className="h-9 min-w-16 px-2 text-xs"
                         value={pageSize}
                         onChange={(event) => setPageSize(Number(event.target.value))}
                       >
@@ -374,7 +356,7 @@ export function StudentList({
                         <option value={50}>{(50).toLocaleString(locale)}</option>
 
                         <option value={100}>{(100).toLocaleString(locale)}</option>
-                      </select>
+                      </Select>
                     </label>
 
                     {/* Pagination */}

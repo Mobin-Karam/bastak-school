@@ -4,7 +4,9 @@ import { useOptionalAdminLanguage } from "../../../shared/ui/locale";
 export function LoginSuccessSplash() {
   const language = useOptionalAdminLanguage();
   const isPersian = language === "fa";
-  const productName = isPersian ? "مدرسه دینی سلطان‌العلمای بستک" : "Zanin Islamic School";
+  const productName = isPersian
+    ? "مدرسه دینی سلطان العلماء بستک"
+    : "Sultan al-Olama Bastak Islamic School";
 
   return (
     <main
@@ -24,7 +26,7 @@ export function LoginSuccessSplash() {
       <section className="relative z-[1] grid max-w-sm justify-items-center text-center">
         <img
           src="/logo-bastak.webp"
-          alt="زانین"
+          alt="مدرسه دینی سلطان العلماء بستک"
           width={360}
           height={120}
           className="h-auto w-64 max-w-full object-contain drop-shadow-[0_14px_30px_rgb(0_0_0_/_30%)] motion-safe:animate-[pulse_2s_ease-in-out_infinite] motion-reduce:animate-none"

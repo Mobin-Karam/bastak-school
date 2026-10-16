@@ -20,7 +20,7 @@ export function MobileShell({ model }: { model: AdminShellModel }) {
             src="/logo-bastak.webp"
             width={120}
             height={40}
-            alt="زانین"
+            alt="مدرسه دینی سلطان العلماء بستک"
             decoding="async"
             className="relative z-10 h-10 w-auto max-w-[min(10rem,65vw)] object-contain"
           />
