@@ -33,7 +33,7 @@ function DormitoryWorkspace() {
   const t = useCallback((fa: string, en: string) => (language === "fa" ? fa : en), [language]);
   const canRead = auth.can("dormitory.read");
   const canManage = auth.can("dormitory.manage");
-  const canAnnounce = auth.can("announcements.manage");
+  const canAnnounce = auth.canAny(["announcements.manage", "dormitory.manage"]);
   const organizationId = auth.context?.activeOrganization?.id || "";
   const [rooms, setRooms] = useState<DormRoom[]>([]);
   const [selectedId, setSelectedId] = useState("");
@@ -95,6 +95,7 @@ function DormitoryWorkspace() {
   const totalCapacity = rooms.reduce((sum, room) => sum + room.capacity, 0);
   const totalResidents = rooms.reduce((sum, room) => sum + room.studentCount, 0);
   const remainingBeds = selected ? Math.max(0, selected.capacity - assigned.length) : 0;
+  const roomRecipientCount = assigned.filter((item) => item.userId).length;
 
   useEffect(() => {
     if (!canRead) {
@@ -394,6 +395,28 @@ function DormitoryWorkspace() {
         description: t(
           "گیرنده، عنوان و متن پیام را مشخص کنید.",
           "Choose a recipient and enter a title and message.",
+        ),
+      });
+      return;
+    }
+    if (target === "ROOM" && (assignmentsLoading || roomRecipientCount === 0)) {
+      notifications.warning(t("گیرنده‌ای آمادهٔ دریافت نیست.", "No recipients are ready."), {
+        id: "dormitory:announcement-recipients",
+        description: assignmentsLoading
+          ? t("ابتدا فهرست ساکنان اتاق را دریافت کنید.", "Wait for the room residents to load.")
+          : t(
+              "برای ارسال اعلان، حداقل یک ساکن اتاق باید حساب کاربری فعال داشته باشد.",
+              "At least one room resident needs an active account to receive this announcement.",
+            ),
+      });
+      return;
+    }
+    if (target === "STUDENT" && recipient && !recipient.hasAccount) {
+      notifications.warning(t("طلبه حساب کاربری ندارد.", "The student has no account."), {
+        id: "dormitory:announcement-recipient-account",
+        description: t(
+          "ابتدا برای این طلبه حساب کاربری ایجاد یا فعال کنید.",
+          "Create or activate this student's account before sending an announcement.",
         ),
       });
       return;
@@ -778,8 +801,16 @@ function DormitoryWorkspace() {
             </Button>
           </div>
           {target === "ROOM" ? (
-            <p className="rounded-lg bg-[rgb(var(--surface-muted))] p-3 text-sm">
+            <p className="rounded-lg bg-[rgb(var(--surface-muted))] p-3 text-sm" role="status">
               گیرنده: {selected?.name}
+              {assignmentsLoading
+                ? " · در حال بررسی حساب ساکنان…"
+                : ` · ${roomRecipientCount.toLocaleString("fa-IR")} حساب قابل دریافت`}
+              {!assignmentsLoading && roomRecipientCount === 0 ? (
+                <span className="mt-1 block text-xs font-semibold text-amber-700 dark:text-amber-300">
+                  برای ارسال اعلان، دست‌کم یک ساکن باید حساب کاربری فعال داشته باشد.
+                </span>
+              ) : null}
             </p>
           ) : (
             <Field label="نام یا شماره همراه" required>
@@ -809,6 +840,11 @@ function DormitoryWorkspace() {
                     <span dir="ltr" className="text-xs text-slate-500">
                       {item.phoneNumber}
                     </span>
+                    {!item.hasAccount ? (
+                      <span className="ms-2 text-xs font-semibold text-amber-700 dark:text-amber-300">
+                        بدون حساب کاربری
+                      </span>
+                    ) : null}
                   </button>
                 ))}
               </div>
@@ -832,7 +868,17 @@ function DormitoryWorkspace() {
               }
             />
           </Field>
-          <Button className="w-full" loading={saving} onClick={announce}>
+          <Button
+            className="w-full"
+            disabled={
+              !canAnnounce ||
+              (target === "ROOM" &&
+                (!selected || assignmentsLoading || roomRecipientCount === 0)) ||
+              (target === "STUDENT" && Boolean(recipient) && !recipient.hasAccount)
+            }
+            loading={saving}
+            onClick={announce}
+          >
             <Megaphone size={17} aria-hidden="true" />
             ارسال اعلان
           </Button>

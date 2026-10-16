@@ -44,7 +44,12 @@ export const setDormAssignments = (roomId: string, studentIds: string[]) =>
     { studentIds },
   );
 
-export type DormitoryStudent = { id: string; name: string; phoneNumber: string | null };
+export type DormitoryStudent = {
+  id: string;
+  name: string;
+  phoneNumber: string | null;
+  hasAccount: boolean;
+};
 export const findDormitoryStudents = (organizationId: string, query: string) =>
   api.get<DormitoryStudent[]>(
     `/dormitory/students?organizationId=${encodeURIComponent(organizationId)}&q=${encodeURIComponent(query)}`,

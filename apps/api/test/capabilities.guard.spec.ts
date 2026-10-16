@@ -5,6 +5,7 @@ import {
   ANY_CAPABILITIES_KEY,
   CAPABILITIES_KEY,
 } from "../src/common/decorators/capabilities.decorator";
+import { DormitoryController } from "../src/modules/dormitory/dormitory.controller";
 
 function context(capabilities: string[]): ExecutionContext {
   return {
@@ -67,5 +68,14 @@ describe("CapabilitiesGuard", () => {
         context(["attendance.read", "attendance.class.manage"]),
       ),
     ).toBe(true);
+  });
+
+  it("lets a dormitory manager send room announcements without a separate announcement grant", () => {
+    expect(
+      Reflect.getMetadata(
+        ANY_CAPABILITIES_KEY,
+        DormitoryController.prototype.announce,
+      ),
+    ).toEqual(["announcements.manage", "dormitory.manage"]);
   });
 });

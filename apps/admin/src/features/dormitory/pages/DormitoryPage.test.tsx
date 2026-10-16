@@ -40,6 +40,7 @@ vi.mock("../../access/api/access.api", () => ({
 vi.mock("../../auth", () => ({
   useAuth: () => ({
     can: () => true,
+    canAny: () => true,
     context: { activeOrganization: { id: "org-1", name: "S1" } },
   }),
 }));
@@ -183,19 +184,38 @@ describe("DormitoryPage", () => {
     expect(dialog.getByRole("button", { name: "ایجاد اتاق" })).toBeEnabled();
   });
 
-  it("keeps an undelivered announcement and shows a warning", async () => {
+  it("creates a complete room and immediately selects it", async () => {
+    renderPage();
+    fireEvent.click(await screen.findByRole("button", { name: "ایجاد اولین اتاق" }));
+    const dialog = within(screen.getByRole("dialog"));
+    fireEvent.change(dialog.getByLabelText(/کد اتاق/), { target: { value: "B-201" } });
+    fireEvent.change(dialog.getByLabelText(/نام اتاق/), { target: { value: "اتاق دوم" } });
+    fireEvent.change(dialog.getByLabelText(/طبقه/), { target: { value: "2" } });
+    fireEvent.change(dialog.getByLabelText(/ظرفیت/), { target: { value: "8" } });
+    fireEvent.click(dialog.getByRole("button", { name: "ایجاد اتاق" }));
+
+    await waitFor(() =>
+      expect(createDormRoomMock).toHaveBeenCalledWith({
+        organizationId: "org-1",
+        building: "ساختمان اصلی",
+        floor: 2,
+        code: "B-201",
+        name: "اتاق دوم",
+        capacity: 8,
+      }),
+    );
+    expect((await screen.findAllByText("اتاق A1")).length).toBeGreaterThan(0);
+  });
+
+  it("explains why a room announcement cannot be sent without a resident account", async () => {
     listDormRoomsMock.mockResolvedValue([room]);
     renderPage();
     fireEvent.click(await screen.findByRole("button", { name: "ارسال اعلان" }));
     const dialog = within(screen.getByRole("dialog"));
-    fireEvent.change(dialog.getByLabelText(/عنوان/), { target: { value: "یادآوری" } });
-    fireEvent.change(dialog.getByLabelText(/متن اعلان/), { target: { value: "پیام خوابگاه" } });
-    fireEvent.click(dialog.getByRole("button", { name: "ارسال اعلان" }));
-    await screen.findByText("گیرنده‌ای پیدا نشد.");
-    await waitFor(() =>
-      expect(document.querySelector("[data-sonner-toast]")).toHaveAttribute("data-type", "warning"),
-    );
-    expect(dialog.getByLabelText(/متن اعلان/)).toHaveValue("پیام خوابگاه");
-    expect(screen.getByRole("dialog")).toBeInTheDocument();
+    expect(
+      await dialog.findByText(/دست‌کم یک ساکن باید حساب کاربری فعال داشته باشد/),
+    ).toBeInTheDocument();
+    expect(dialog.getByRole("button", { name: "ارسال اعلان" })).toBeDisabled();
+    expect(sendDormitoryAnnouncementMock).not.toHaveBeenCalled();
   });
 });

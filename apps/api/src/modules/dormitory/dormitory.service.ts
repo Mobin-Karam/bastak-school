@@ -95,7 +95,12 @@ export class DormitoryService {
       take: 20,
       order: { name: "ASC" },
     });
-    return rows.map((student) => ({ id: student.id, name: student.name, phoneNumber: student.user?.phoneNumber ?? null }));
+    return rows.map((student) => ({
+      id: student.id,
+      name: student.name,
+      phoneNumber: student.user?.phoneNumber ?? null,
+      hasAccount: Boolean(student.user?.id),
+    }));
   }
 
   async sendAnnouncement(user: AuthenticatedUser, dto: SendDormAnnouncementDto) {
