@@ -870,63 +870,73 @@ export function StudentsPage() {
   ) : null;
 
   return (
-    <div className="grid gap-4 sm:gap-5">
-      {canTransfer ? (
-        <div className="flex justify-end">
-          <SpreadsheetTransferLauncher
-            title={language === "fa" ? "ورود و خروجی طلبه‌ها" : "Student import and export"}
-            description={
-              language === "fa"
-                ? "فایل را پیش‌نمایش بگیرید و سپس فقط ردیف‌های معتبر را ثبت کنید."
-                : "Preview the workbook before committing valid rows."
-            }
-            trigger={language === "fa" ? "ورود / خروجی Excel" : "Excel import / export"}
-          >
-            <StudentTransferWorkspace
-              organizationId={auth.context?.activeOrganization?.id ?? ""}
-              canImport={auth.can("students.import")}
-              canExport={auth.can("students.export")}
-              onCompleted={() => void qc.invalidateQueries({ queryKey: ["students"] })}
-            />
-          </SpreadsheetTransferLauncher>
-        </div>
-      ) : null}
+    <div className="min-[1200px]:h-[calc(100dvh-7rem)]">
       <ManagementMasterDetail
         directoryVisible={mobileDirectory}
         detailVisible={!mobileDirectory}
         detailWidth="minmax(420px,.75fr)"
         detailScroll={false}
         directory={
-          <div>
-            <StudentList
-              students={pagedStudents}
-              total={students.length}
-              filteredTotal={filtered.length}
-              page={activePage}
-              pageCount={pageCount}
-              pageSize={pageSize}
-              setPage={setPage}
-              setPageSize={setDirectoryPageSize}
-              selectedId={selectedId}
-              search={search}
-              setSearch={setDirectorySearch}
-              status={status}
-              counts={counts}
-              incomplete={incompleteCount}
-              profileFilter={profileFilter}
-              sort={sort}
-              sortDirection={sortDirection}
-              onSort={setSort}
-              onStatusChange={setDirectoryStatus}
-              onIncompleteToggle={toggleDirectoryIncomplete}
-              onClearFilters={clearFilters}
-              onSelect={requestSelection}
-              loading={studentStore.isLoading}
-              error={studentStore.isError}
-              onRetry={() => void studentStore.refetch()}
-              creating={creating}
-            />
-          </div>
+          <StudentList
+            students={pagedStudents}
+            total={students.length}
+            filteredTotal={filtered.length}
+            page={activePage}
+            pageCount={pageCount}
+            pageSize={pageSize}
+            setPage={setPage}
+            setPageSize={setDirectoryPageSize}
+            selectedId={selectedId}
+            search={search}
+            setSearch={setDirectorySearch}
+            status={status}
+            counts={counts}
+            incomplete={incompleteCount}
+            profileFilter={profileFilter}
+            sort={sort}
+            sortDirection={sortDirection}
+            onSort={setSort}
+            onStatusChange={setDirectoryStatus}
+            onIncompleteToggle={toggleDirectoryIncomplete}
+            onClearFilters={clearFilters}
+            onSelect={requestSelection}
+            directoryActions={
+              canTransfer || auth.can("students.create") ? (
+                <div className="flex w-full flex-wrap gap-2 sm:w-auto">
+                  {canTransfer ? (
+                    <SpreadsheetTransferLauncher
+                      title={
+                        language === "fa" ? "ورود و خروجی طلبه‌ها" : "Student import and export"
+                      }
+                      description={
+                        language === "fa"
+                          ? "فایل را پیش‌نمایش بگیرید و سپس فقط ردیف‌های معتبر را ثبت کنید."
+                          : "Preview the workbook before committing valid rows."
+                      }
+                      trigger={language === "fa" ? "ورود / خروجی Excel" : "Excel import / export"}
+                    >
+                      <StudentTransferWorkspace
+                        organizationId={auth.context?.activeOrganization?.id ?? ""}
+                        canImport={auth.can("students.import")}
+                        canExport={auth.can("students.export")}
+                        onCompleted={() => void qc.invalidateQueries({ queryKey: ["students"] })}
+                      />
+                    </SpreadsheetTransferLauncher>
+                  ) : null}
+                  {auth.can("students.create") ? (
+                    <Button onClick={startCreate}>
+                      <UserPlus size={16} />
+                      {copy.createStudent}
+                    </Button>
+                  ) : null}
+                </div>
+              ) : undefined
+            }
+            loading={studentStore.isLoading}
+            error={studentStore.isError}
+            onRetry={() => void studentStore.refetch()}
+            creating={creating}
+          />
         }
         detail={
           <div>
