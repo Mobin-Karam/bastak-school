@@ -165,6 +165,7 @@ function DormAttendanceEditor({
   const editingRevision = useRef(assignment.revision);
   const [participants, setParticipants] = useState(initial);
   const [filter, setFilter] = useState<AttendanceFilter>("all");
+  const [search, setSearch] = useState("");
   const [busy, setBusy] = useState(false);
   const [review, setReview] = useState(false);
   const [error, setError] = useState("");
@@ -187,16 +188,29 @@ function DormAttendanceEditor({
       ),
     [participants],
   );
-  const filtered = participants.filter((member) => filter === "all" || member.status === filter);
-  const entries = participants
-    .filter(
-      (member) =>
-        member.status === "present" || member.status === "absent" || member.status === "late",
-    )
-    .map((member) => ({
-      studentId: member.id,
-      status: member.status as "present" | "absent" | "late",
-    }));
+  const filtered = useMemo(() => {
+    const normalizedSearch = search
+      .trim()
+      .toLocaleLowerCase("fa-IR")
+      .replaceAll("ي", "ی")
+      .replaceAll("ك", "ک");
+    return participants.filter((member) => {
+      if (filter !== "all" && member.status !== filter) return false;
+      if (!normalizedSearch) return true;
+      return `${member.name} ${member.studentNumber}`
+        .toLocaleLowerCase("fa-IR")
+        .replaceAll("ي", "ی")
+        .replaceAll("ك", "ک")
+        .includes(normalizedSearch);
+    });
+  }, [filter, participants, search]);
+  // The editor deliberately keeps untouched residents unmarked.  Only the final,
+  // idempotent submission turns them into present records, matching lesson attendance.
+  const entries = participants.map((member) => ({
+    studentId: member.id,
+    status: (member.status === "unmarked" ? "present" : member.status) as
+      "present" | "absent" | "late",
+  }));
   async function save() {
     if (busy || !assignment.canMark || !entries.length) return;
     setBusy(true);
@@ -243,9 +257,10 @@ function DormAttendanceEditor({
           <AttendanceStatusTiles counts={counts} filter={filter} onFilter={setFilter} />
           {review ? (
             <div className="space-y-4">
-              <p className="text-sm">
-                {entries.length} وضعیت ثبت می‌شود. {counts.unmarked} نفر هنوز نامشخص هستند و غایب
-                محسوب نمی‌شوند.
+              <p className="text-sm leading-6">
+                {counts.absent || counts.late
+                  ? `${counts.absent + counts.late} وضعیت استثنایی انتخاب شده است؛ ${counts.unmarked} نفر انتخاب‌نشده در ثبت نهایی حاضر می‌شوند.`
+                  : "هیچ غایب یا تأخیری انتخاب نشده است؛ با تأیید، حضور همه ساکنان ثبت می‌شود."}
               </p>
               <div className="flex gap-2">
                 <button
@@ -274,12 +289,17 @@ function DormAttendanceEditor({
                 filtered={filtered}
                 selected
                 filter={filter}
+                search={search}
                 loading={false}
                 saving={busy}
                 conflict={false}
                 unmarkedCount={counts.unmarked}
                 onFilterChange={setFilter}
-                onClearFilters={() => setFilter("all")}
+                onSearchChange={setSearch}
+                onClearFilters={() => {
+                  setFilter("all");
+                  setSearch("");
+                }}
                 onMark={(id, status) =>
                   setParticipants((all) =>
                     all.map((member) => (member.id === id ? { ...member, status } : member)),
@@ -295,11 +315,13 @@ function DormAttendanceEditor({
               />
               <button
                 type="button"
-                disabled={busy || !entries.length || !assignment.canMark || !dirty}
+                disabled={busy || !entries.length || !assignment.canMark}
                 onClick={() => setReview(true)}
                 className="sticky bottom-0 min-h-14 w-full rounded-2xl bg-blue-600 font-bold text-white disabled:opacity-50"
               >
-                بررسی و ثبت حضور اتاق
+                {counts.unmarked === participants.length
+                  ? "تأیید حضور همه ساکنان"
+                  : "بررسی و ثبت حضور اتاق"}
               </button>
             </>
           )}

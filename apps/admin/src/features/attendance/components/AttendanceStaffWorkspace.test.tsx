@@ -8,21 +8,29 @@ import { LocaleProvider } from "../../../shared/ui/locale";
 import { AttendanceStaffWorkspace } from "./AttendanceStaffWorkspace";
 const mocks = vi.hoisted(() => ({
   overview: vi.fn(),
+  report: vi.fn(),
+  policy: vi.fn(),
+  updatePolicy: vi.fn(),
   sessions: vi.fn(),
   pools: vi.fn(),
   create: vi.fn(),
   detail: vi.fn(),
   profile: vi.fn(),
   history: vi.fn(),
+  cancel: vi.fn(),
 }));
 vi.mock("../api/attendance-operations.api", () => ({
   getAttendanceOverview: mocks.overview,
+  getAttendanceReportSummary: mocks.report,
+  getAttendancePolicy: mocks.policy,
+  updateAttendancePolicy: mocks.updatePolicy,
   getStaffAttendanceSessions: mocks.sessions,
   getAttendancePools: mocks.pools,
   createAttendancePool: mocks.create,
   getSavedAttendanceSession: mocks.detail,
   getAttendanceProfile: mocks.profile,
   getAttendanceSessionHistory: mocks.history,
+  cancelAttendanceSession: mocks.cancel,
 }));
 vi.mock("../../auth", () => ({ useAuth: () => ({ can: () => true }) }));
 vi.mock("../../../shared/api/api", () => ({ api: { openEvents: () => ({ close: vi.fn() }) } }));
@@ -73,26 +81,54 @@ beforeEach(() => {
     unmarked: 1,
     resetsAt: "2099-10-11T12:30:00Z",
   });
-  mocks.sessions.mockResolvedValue([
-    {
-      id: "session",
-      contextType: "class",
-      contextId: "class",
-      title: "جلسه کلاس الف",
-      sessionDate: "2026-10-11T10:00:00Z",
-      present: 1,
-      absent: 1,
-      unmarked: 1,
-    },
-  ]);
+  mocks.report.mockResolvedValue({
+    finalizedSessions: 0,
+    denominator: 0,
+    present: 0,
+    absent: 0,
+    late: 0,
+    excused: 0,
+    attendanceRate: null,
+  });
+  mocks.policy.mockResolvedValue({
+    organizationId: "org",
+    timeZone: "Asia/Tehran",
+    dayStartsAt: "04:00",
+    allowPartialSubmission: true,
+    lateCountsAsPresent: true,
+    correctionRequiresReview: false,
+  });
+  mocks.updatePolicy.mockResolvedValue({});
+  mocks.sessions.mockResolvedValue({
+    items: [
+      {
+        id: "session",
+        contextType: "class",
+        contextId: "class",
+        title: "جلسه کلاس الف",
+        sessionDate: "2026-10-11T10:00:00Z",
+        present: 1,
+        absent: 1,
+        unmarked: 1,
+      },
+    ],
+    page: 1,
+    limit: 25,
+    total: 1,
+    hasNext: false,
+  });
   mocks.pools.mockResolvedValue([]);
   mocks.history.mockResolvedValue([]);
+  mocks.cancel.mockResolvedValue({ sessionId: "session", revision: 1, status: "cancelled" });
   mocks.create.mockResolvedValue({ id: "pool" });
   mocks.detail.mockResolvedValue({
     id: "session",
     title: "جلسه کلاس الف",
     sessionDate: "2026-10-11T10:00:00Z",
     marked: 2,
+    academicYearName: "سال تحصیلی ۱۴۰۵",
+    termName: "نیم‌سال اول",
+    subjectName: "فقه",
     rosterComplete: true,
     roster: [
       { id: "a", name: "علی" },
@@ -106,6 +142,33 @@ beforeEach(() => {
   });
 });
 describe("staff session and pool creation", () => {
+  it("saves attendance policy through the existing workspace form", async () => {
+    const user = userEvent.setup();
+    render(
+      <AttendanceStaffWorkspace
+        contexts={contexts}
+        scope="staff"
+        refreshVersion={0}
+        section="sessions"
+      />,
+      { wrapper: Providers },
+    );
+    const partial = await screen.findByRole("checkbox", { name: "اجازه ثبت ناقص" });
+    await user.click(partial);
+    await user.click(screen.getByRole("button", { name: "ذخیره قوانین حضور" }));
+    await waitFor(() =>
+      expect(mocks.updatePolicy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          organizationId: "org",
+          dayStartsAt: "04:00",
+          allowPartialSubmission: false,
+          lateCountsAsPresent: true,
+          correctionRequiresReview: false,
+        }),
+      ),
+    );
+  });
+
   it("loads session change history only when staff opens it", async () => {
     const user = userEvent.setup();
     render(
@@ -123,6 +186,73 @@ describe("staff session and pool creation", () => {
     await user.click(summary);
     await waitFor(() => expect(mocks.history).toHaveBeenCalledWith("session"));
     expect(await screen.findByText("تغییری برای این جلسه ثبت نشده است.")).toBeInTheDocument();
+  });
+  it("renders the immutable academic and subject snapshots for a saved session", async () => {
+    const user = userEvent.setup();
+    render(
+      <AttendanceStaffWorkspace
+        contexts={contexts}
+        scope="staff"
+        refreshVersion={0}
+        section="sessions"
+      />,
+      { wrapper: Providers },
+    );
+    await user.click(await screen.findByText("جلسه کلاس الف"));
+    expect(await screen.findByText("سال تحصیلی ۱۴۰۵ · نیم‌سال اول · فقه")).toBeInTheDocument();
+  });
+  it("pages the staff session archive without requesting an unbounded list", async () => {
+    mocks.sessions
+      .mockResolvedValueOnce({
+        items: [
+          {
+            id: "newer",
+            contextType: "class",
+            contextId: "class",
+            title: "جلسه جدید",
+            sessionDate: "2026-10-12T10:00:00Z",
+            present: 1,
+            absent: 0,
+            unmarked: 0,
+          },
+        ],
+        page: 1,
+        limit: 1,
+        total: 2,
+        hasNext: true,
+      })
+      .mockResolvedValueOnce({
+        items: [
+          {
+            id: "older",
+            contextType: "class",
+            contextId: "class",
+            title: "جلسه قدیمی",
+            sessionDate: "2026-10-11T10:00:00Z",
+            present: 1,
+            absent: 0,
+            unmarked: 0,
+          },
+        ],
+        page: 2,
+        limit: 1,
+        total: 2,
+        hasNext: false,
+      });
+    const user = userEvent.setup();
+    render(
+      <AttendanceStaffWorkspace
+        contexts={contexts}
+        scope="staff"
+        refreshVersion={0}
+        section="sessions"
+      />,
+      { wrapper: Providers },
+    );
+    expect(await screen.findByText("جلسه جدید")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "قدیمی‌تر" }));
+    expect(await screen.findByText("جلسه قدیمی")).toBeInTheDocument();
+    expect(mocks.sessions).toHaveBeenNthCalledWith(2, 2);
   });
   it("creates a class-based pool on HTTP previews and preserves its request ID on retry", async () => {
     const getRandomValues = crypto.getRandomValues.bind(crypto);
@@ -176,6 +306,41 @@ describe("staff session and pool creation", () => {
     await user.selectOptions(screen.getByRole("combobox", { name: "فیلتر اعضای جلسه" }), "all");
     expect(screen.getByText("علی")).toBeInTheDocument();
     expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
+  });
+  it("requires a reason before a reviewer can cancel an unmarked session", async () => {
+    mocks.detail.mockResolvedValue({
+      id: "session",
+      title: "جلسه کلاس الف",
+      sessionDate: "2026-10-11T10:00:00Z",
+      marked: 0,
+      revision: 0,
+      status: "open",
+      rosterComplete: true,
+      roster: [],
+      records: [],
+    });
+    const user = userEvent.setup();
+    render(
+      <AttendanceStaffWorkspace
+        contexts={contexts}
+        scope="staff"
+        refreshVersion={0}
+        section="sessions"
+      />,
+      { wrapper: Providers },
+    );
+    await user.click(await screen.findByRole("button", { name: /جلسه کلاس الف/ }));
+    await user.click(await screen.findByRole("button", { name: "لغو جلسه" }));
+    const confirm = screen.getByRole("button", { name: "تأیید لغو جلسه" });
+    expect(confirm).toBeDisabled();
+    await user.type(screen.getByRole("textbox", { name: "دلیل لغو جلسه" }), "برگزاری نشد");
+    await user.click(confirm);
+    await waitFor(() =>
+      expect(mocks.cancel).toHaveBeenCalledWith(
+        "session",
+        expect.objectContaining({ expectedRevision: 0, reason: "برگزاری نشد" }),
+      ),
+    );
   });
   it("offers a clear new-session action and passes automated accessibility checks", async () => {
     const onNewSession = vi.fn(),

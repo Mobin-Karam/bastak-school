@@ -1,5 +1,5 @@
 import { RotateCcw, Save, UserPlus, X } from "lucide-react";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Button, Field, Input } from "../../../shared/ui/ui";
 import { api } from "../../../shared/api/api";
@@ -99,6 +99,7 @@ export function StudentEditor({
   saveDirty: boolean;
   usernameError?: string;
 }) {
+  const [createStep, setCreateStep] = useState<1 | 2 | 3>(1);
   const language = useOptionalAdminLanguage() ?? "fa";
   const copy = studentCopy[language];
   const catalog = useQuery({
@@ -129,10 +130,21 @@ export function StudentEditor({
     form.learnerProfile === "independent"
       ? !!form.independentType
       : !!form.gradeId && !!form.educationTypeId && (!structure?.track_required || !!form.trackId);
+  const identityValid =
+    !!form.firstName.trim() &&
+    !!form.lastName.trim() &&
+    !!form.username.trim() &&
+    passwordValid &&
+    !usernameError;
   const baseValid =
     !!form.firstName.trim() && !!form.lastName.trim() && !!form.username.trim() && educationValid;
   const saveDisabled = !baseValid || busy || !saveDirty || !passwordValid || !!usernameError;
   const completion = useMemo(() => formCompleteness(form, mode === "create"), [form, mode]);
+  const steps = [
+    language === "fa" ? "هویت و حساب" : "Identity & account",
+    language === "fa" ? "آموزش و پرونده" : "Education & profile",
+    language === "fa" ? "مرور و ثبت" : "Review & save",
+  ];
 
   return (
     <section className="grid gap-5">
@@ -165,7 +177,37 @@ export function StudentEditor({
 
       <Progress value={completion} label={copy.profileCompletion} language={language} />
 
-      <section className="grid gap-3 rounded-xl border border-slate-200 p-3 dark:border-slate-800">
+      {mode === "create" ? (
+        <ol
+          className="grid grid-cols-3 gap-2"
+          aria-label={language === "fa" ? "مراحل ایجاد طلبه" : "Student creation steps"}
+        >
+          {steps.map((label, index) => {
+            const step = (index + 1) as 1 | 2 | 3;
+            const active = createStep === step;
+            const complete = createStep > step;
+            return (
+              <li key={label}>
+                <button
+                  type="button"
+                  onClick={() => setCreateStep(step)}
+                  aria-current={active ? "step" : undefined}
+                  className={`flex min-h-14 w-full items-center gap-2 rounded-xl border px-3 text-start text-xs font-bold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand ${active ? "border-brand bg-brand/10 text-brand" : complete ? "border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-200" : "border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-muted))] text-slate-500"}`}
+                >
+                  <span className="grid size-6 shrink-0 place-items-center rounded-full bg-current/10">
+                    {step}
+                  </span>
+                  <span className="leading-4">{label}</span>
+                </button>
+              </li>
+            );
+          })}
+        </ol>
+      ) : null}
+
+      <section
+        className={`grid gap-3 rounded-xl border border-slate-200 p-3 dark:border-slate-800 ${mode === "create" && createStep !== 1 ? "hidden" : ""}`}
+      >
         <div>
           <h4 className="text-sm font-bold text-slate-800 dark:text-slate-100">
             {copy.accountInformation}
@@ -220,7 +262,9 @@ export function StudentEditor({
         ) : null}
       </section>
 
-      <section className="grid gap-3 rounded-xl border border-slate-200 p-3 dark:border-slate-800">
+      <section
+        className={`grid gap-3 rounded-xl border border-slate-200 p-3 dark:border-slate-800 ${mode === "create" && createStep !== 1 ? "hidden" : ""}`}
+      >
         <div>
           <h4 className="text-sm font-bold text-slate-800 dark:text-slate-100">
             {language === "fa" ? "مشخصات ثبت‌نام" : "Enrollment details"}
@@ -276,7 +320,9 @@ export function StudentEditor({
         </div>
       </section>
 
-      <section className="grid gap-3 rounded-xl border border-slate-200 p-3 dark:border-slate-800">
+      <section
+        className={`grid gap-3 rounded-xl border border-slate-200 p-3 dark:border-slate-800 ${mode === "create" && createStep !== 1 ? "hidden" : ""}`}
+      >
         <div>
           <h4 className="text-sm font-bold text-slate-800 dark:text-slate-100">
             {language === "fa" ? "حساب سرپرست‌ها" : "Guardian accounts"}
@@ -323,7 +369,9 @@ export function StudentEditor({
         </div>
       </section>
 
-      <section className="grid gap-3 rounded-xl border border-slate-200 p-3 dark:border-slate-800">
+      <section
+        className={`grid gap-3 rounded-xl border border-slate-200 p-3 dark:border-slate-800 ${mode === "create" && createStep !== 2 ? "hidden" : ""}`}
+      >
         <div>
           <h4 className="text-sm font-bold text-slate-800 dark:text-slate-100">
             {copy.educationStatus}
@@ -445,7 +493,9 @@ export function StudentEditor({
         ) : null}
       </section>
 
-      <section className="grid gap-3 rounded-xl border border-slate-200 p-3 dark:border-slate-800">
+      <section
+        className={`grid gap-3 rounded-xl border border-slate-200 p-3 dark:border-slate-800 ${mode === "create" && createStep !== 2 ? "hidden" : ""}`}
+      >
         <div>
           <h4 className="text-sm font-bold text-slate-800 dark:text-slate-100">
             {copy.goalAndCapacity}
@@ -490,19 +540,63 @@ export function StudentEditor({
         </div>
       </section>
 
+      {mode === "create" && createStep === 3 ? (
+        <section className="grid gap-2 rounded-xl border border-brand/25 bg-brand/5 p-4 text-sm">
+          <h4 className="font-black text-ink">
+            {language === "fa" ? "مرور نهایی" : "Final review"}
+          </h4>
+          <p className="text-slate-600 dark:text-slate-300">
+            {form.name || `${form.firstName} ${form.lastName}` || "—"} · {form.username || "—"}
+          </p>
+          <p className="text-xs text-slate-500">
+            {language === "fa"
+              ? "پس از ثبت، پرونده از فهرست قابل انتخاب و تکمیل خواهد بود."
+              : "After saving, the record can be selected and completed from the directory."}
+          </p>
+        </section>
+      ) : null}
+
       <div className="sticky bottom-2 z-10 grid gap-2 rounded-xl border border-slate-200 bg-white/95 p-2 shadow-lg backdrop-blur sm:grid-cols-[minmax(0,1fr)_auto] dark:border-slate-800 dark:bg-slate-950/95">
         <Button
           loading={busy}
           loadingLabel={mode === "create" ? copy.creating : copy.saving}
-          disabled={saveDisabled}
-          onClick={onSave}
+          disabled={
+            mode === "create"
+              ? busy ||
+                (createStep === 1 && !identityValid) ||
+                (createStep === 2 && !educationValid) ||
+                (createStep === 3 && saveDisabled)
+              : saveDisabled
+          }
+          onClick={() => {
+            if (mode === "create" && createStep < 3) setCreateStep((createStep + 1) as 2 | 3);
+            else onSave();
+          }}
         >
           <Save size={16} />
-          {mode === "create" ? copy.saveStudent : copy.saveChanges}
+          {mode === "create" && createStep < 3
+            ? language === "fa"
+              ? "ادامه"
+              : "Continue"
+            : mode === "create"
+              ? copy.saveStudent
+              : copy.saveChanges}
         </Button>
-        <Button variant="soft" disabled={!dirty || busy} onClick={onReset}>
+        <Button
+          variant="soft"
+          disabled={busy || (mode === "create" ? createStep === 1 : !dirty)}
+          onClick={() =>
+            mode === "create" && createStep > 1
+              ? setCreateStep((createStep - 1) as 1 | 2)
+              : onReset()
+          }
+        >
           <RotateCcw size={16} />
-          {copy.reset}
+          {mode === "create" && createStep > 1
+            ? language === "fa"
+              ? "مرحله قبل"
+              : "Previous step"
+            : copy.reset}
         </Button>
       </div>
     </section>

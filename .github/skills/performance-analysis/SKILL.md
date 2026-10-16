@@ -5,6 +5,8 @@ description: Measure and optimize runtime, database, network, frontend, memory, 
 
 # Performance Analysis Skill
 
+In Admin, keep capability-aware behavior, RTL/accessibility, and the shared desktop/mobile feature flow intact; do not trade authorization or correctness for a benchmark.
+
 ## Workflow
 1. Define the metric and target (latency, throughput, memory, bundle size, query count, etc.).
 2. Establish a baseline.

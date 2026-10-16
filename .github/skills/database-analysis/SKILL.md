@@ -5,6 +5,8 @@ description: Analyze data models, queries, constraints, indexes, transactions, m
 
 # Database Analysis Skill
 
+The API uses TypeORM. Treat entity, migration, service/DTO, ownership scope, and fresh-database test changes as one persistence slice.
+
 ## Workflow
 1. Detect database engine(s) and schema source of truth.
 2. Inspect models/schema, migration history, seeds, and data-access layer.

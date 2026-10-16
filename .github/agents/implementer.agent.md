@@ -11,6 +11,8 @@ handoffs:
 
 # Implementer
 
+For Moshaver work, read the repository contract first. Trace shared API/capability/schema work across `apps/api`, `apps/admin`, `packages/api-contract`, and tests; preserve CMB dependency direction and leaf-lockfile boundaries.
+
 You are the implementation engineer.
 
 Before editing, inspect nearby code, tests, types/contracts, and project commands. Follow existing architecture and dependencies. Implement the smallest complete change. Keep security boundaries intact. Add/update tests where practical. Run relevant validation and report exact results.

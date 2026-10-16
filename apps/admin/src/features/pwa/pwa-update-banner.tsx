@@ -40,7 +40,9 @@ export function PWAUpdateBanner({
             )}
           </div>
           <div className="min-w-0 flex-1">
-            <p className="text-sm font-bold sm:text-base">نسخه جدید زانین آماده است</p>
+            <p className="text-sm font-bold sm:text-base">
+              نسخه جدید مدرسه دینی سلطان العلماء بستک آماده است
+            </p>
             <p className="mt-1 text-xs leading-5 text-muted-foreground sm:text-sm">
               {updating
                 ? "در حال آماده‌سازی نسخه جدید…"

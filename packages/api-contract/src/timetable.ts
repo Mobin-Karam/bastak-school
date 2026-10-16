@@ -244,6 +244,16 @@ export type TimetableAttendanceReport = {
     attendanceRecorded: number;
     awaitingAttendance: number;
   }>;
+  /** Per scheduled class-book (subject) execution evidence for the requested date range. */
+  subjects: Array<{
+    subjectId: string;
+    subjectName: string;
+    planned: number;
+    cancelled: number;
+    attendanceOpened: number;
+    attendanceRecorded: number;
+    awaitingAttendance: number;
+  }>;
 };
 export type TimetableBulkWrite = {
   expectedRevision: number;

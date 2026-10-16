@@ -5,6 +5,8 @@ description: Analyze dependency usage, duplication, licensing/security signals, 
 
 # Dependency Analysis Skill
 
+This is a leaf-lockfile monorepo: `tooling/workspace/projects.json` is the package DAG. Do not add root npm workspaces or a root lockfile as a dependency-change side effect.
+
 ## Workflow
 - Detect package manager and workspace boundaries.
 - Confirm whether a dependency is direct, transitive, runtime, dev, or unused.

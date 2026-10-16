@@ -26,3 +26,15 @@ body:
     attributes:
       label: Environment
       description: OS, runtime/browser/device, database, deployment, or other relevant details.
+  - type: dropdown
+    id: surface
+    attributes:
+      label: Affected surface
+      options:
+        - API / database
+        - Admin (staff or student experience)
+        - Shared contract / CMB package
+        - CI / deployment / tooling
+        - Documentation
+    validations:
+      required: true

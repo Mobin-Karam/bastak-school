@@ -12,6 +12,7 @@ import { AdminShellChrome } from "./AdminShellChrome";
 import { SharedPageViewport } from "./SharedPageViewport";
 import { useAdminShellModel } from "./use-admin-shell-model";
 import { useViewportShell } from "./viewport-shell";
+import { currentViewportHeight } from "./viewport-height";
 
 function isEditableTarget(target: EventTarget | null) {
   if (!(target instanceof HTMLElement)) return false;
@@ -49,6 +50,33 @@ export function AdminLayout() {
 
     document.addEventListener("keydown", onKeyDown);
     return () => document.removeEventListener("keydown", onKeyDown);
+  }, []);
+
+  useEffect(() => {
+    const root = document.documentElement;
+    let frame: number | undefined;
+    const syncHeight = () => {
+      frame = undefined;
+      root.style.setProperty("--admin-viewport-height", `${currentViewportHeight(window)}px`);
+    };
+    const scheduleSync = () => {
+      if (frame !== undefined) return;
+      frame = window.requestAnimationFrame(syncHeight);
+    };
+    const visualViewport = window.visualViewport;
+
+    syncHeight();
+    window.addEventListener("resize", scheduleSync, { passive: true });
+    visualViewport?.addEventListener("resize", scheduleSync, { passive: true });
+    visualViewport?.addEventListener("scroll", scheduleSync, { passive: true });
+
+    return () => {
+      window.removeEventListener("resize", scheduleSync);
+      visualViewport?.removeEventListener("resize", scheduleSync);
+      visualViewport?.removeEventListener("scroll", scheduleSync);
+      if (frame !== undefined) window.cancelAnimationFrame(frame);
+      root.style.removeProperty("--admin-viewport-height");
+    };
   }, []);
 
   return (

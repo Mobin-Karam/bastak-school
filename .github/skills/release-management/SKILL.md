@@ -5,6 +5,8 @@ description: Prepare releases safely by validating versions, changelogs, migrati
 
 # Release Management Skill
 
+Validate with the workspace DAG and distinguish source checks, CI, deployment dispatch, live integrations, and production health. Releases promote `develop` to `main` through the protected PR path.
+
 ## Release checklist
 - determine project versioning/release policy
 - summarize user-visible changes

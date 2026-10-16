@@ -1,7 +1,10 @@
 import { CanActivate, ExecutionContext, Injectable } from "@nestjs/common";
 import { Reflector } from "@nestjs/core";
 import { ApiException } from "../exceptions/api.exception";
-import { CAPABILITIES_KEY } from "../decorators/capabilities.decorator";
+import {
+  ANY_CAPABILITIES_KEY,
+  CAPABILITIES_KEY,
+} from "../decorators/capabilities.decorator";
 
 @Injectable()
 export class CapabilitiesGuard implements CanActivate {
@@ -11,11 +14,20 @@ export class CapabilitiesGuard implements CanActivate {
       CAPABILITIES_KEY,
       [context.getHandler(), context.getClass()],
     );
-    if (!required?.length) return true;
+    const anyRequired = this.reflector.getAllAndOverride<string[]>(
+      ANY_CAPABILITIES_KEY,
+      [context.getHandler(), context.getClass()],
+    );
+    if (!required?.length && !anyRequired?.length) return true;
     const user = context.switchToHttp().getRequest().user;
     if (!user)
       throw new ApiException(401, "UNAUTHORIZED", "لطفاً وارد حساب شوید.");
-    if (!required.every((item) => user.capabilities?.includes(item)))
+    if (
+      (required?.length &&
+        !required.every((item) => user.capabilities?.includes(item))) ||
+      (anyRequired?.length &&
+        !anyRequired.some((item) => user.capabilities?.includes(item)))
+    )
       throw new ApiException(403, "FORBIDDEN", "دسترسی کافی ندارید.");
     return true;
   }

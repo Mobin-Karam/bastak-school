@@ -5,6 +5,8 @@ description: Trace and validate API contracts across producers, consumers, schem
 
 # Api Contract Validation Skill
 
+In Moshaver, trace `apps/api`, `packages/api-contract`, and actual Admin consumers. Preserve `/api/v2`; capability and organization scope are part of the contract.
+
 ## Contract checklist
 - method/transport and route/topic
 - authentication/authorization

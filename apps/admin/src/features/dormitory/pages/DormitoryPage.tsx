@@ -1,4 +1,4 @@
-import { Building2, Megaphone, Plus, Users } from "lucide-react";
+import { Building2, Megaphone, Plus, Search, Users } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Button, Card, ErrorState, Field, Input, Textarea } from "../../../shared/ui/ui";
 import { ManagementPageHeader } from "../../../shared/ui/management-workspace";
@@ -33,12 +33,14 @@ function DormitoryWorkspace() {
   const t = useCallback((fa: string, en: string) => (language === "fa" ? fa : en), [language]);
   const canRead = auth.can("dormitory.read");
   const canManage = auth.can("dormitory.manage");
-  const canAnnounce = auth.can("announcements.manage");
+  const canAnnounce = auth.canAny(["announcements.manage", "dormitory.manage"]);
   const organizationId = auth.context?.activeOrganization?.id || "";
   const [rooms, setRooms] = useState<DormRoom[]>([]);
   const [selectedId, setSelectedId] = useState("");
   const [assigned, setAssigned] = useState<DormAssignment[]>([]);
+  const [savedAssigned, setSavedAssigned] = useState<DormAssignment[]>([]);
   const [students, setStudents] = useState<Array<{ id: string; name: string }>>([]);
+  const [residentSearch, setResidentSearch] = useState("");
   const [roomDraft, setRoomDraft] = useState(emptyRoom);
   const [drawer, setDrawer] = useState<"room" | "announcement" | null>(null);
   const [loading, setLoading] = useState(true);
@@ -77,6 +79,23 @@ function DormitoryWorkspace() {
     [rooms],
   );
   const assignedIds = useMemo(() => new Set(assigned.map((item) => item.studentId)), [assigned]);
+  const savedAssignedIds = useMemo(
+    () => new Set(savedAssigned.map((item) => item.studentId)),
+    [savedAssigned],
+  );
+  const hasResidentChanges =
+    assignedIds.size !== savedAssignedIds.size ||
+    [...assignedIds].some((studentId) => !savedAssignedIds.has(studentId));
+  const visibleStudents = useMemo(() => {
+    const query = residentSearch.trim().toLocaleLowerCase("fa-IR");
+    return query
+      ? students.filter((student) => student.name.toLocaleLowerCase("fa-IR").includes(query))
+      : students;
+  }, [residentSearch, students]);
+  const totalCapacity = rooms.reduce((sum, room) => sum + room.capacity, 0);
+  const totalResidents = rooms.reduce((sum, room) => sum + room.studentCount, 0);
+  const remainingBeds = selected ? Math.max(0, selected.capacity - assigned.length) : 0;
+  const roomRecipientCount = assigned.filter((item) => item.userId).length;
 
   useEffect(() => {
     if (!canRead) {
@@ -120,6 +139,7 @@ function DormitoryWorkspace() {
   useEffect(() => {
     if (!selectedRoomId || !canRead) {
       setAssigned([]);
+      setSavedAssigned([]);
       setStudents([]);
       setAssignmentsLoading(false);
       return;
@@ -128,6 +148,7 @@ function DormitoryWorkspace() {
     setAssignmentsLoading(true);
     setAssignmentsError("");
     setAssigned([]);
+    setSavedAssigned([]);
     setStudents([]);
     const toastId = `dormitory:residents-load:${selectedRoomId}`;
     void Promise.all([
@@ -137,6 +158,7 @@ function DormitoryWorkspace() {
       .then(([nextAssigned, nextStudents]) => {
         if (!alive) return;
         setAssigned(nextAssigned);
+        setSavedAssigned(nextAssigned);
         setStudents(
           canManage
             ? nextStudents.map((student) => ({ id: student.id, name: student.name }))
@@ -168,6 +190,10 @@ function DormitoryWorkspace() {
       alive = false;
     };
   }, [canManage, canRead, organizationId, selectedRoomId, assignmentsVersion, t]);
+
+  useEffect(() => {
+    setResidentSearch("");
+  }, [selectedRoomId]);
 
   useEffect(() => {
     if (
@@ -346,12 +372,14 @@ function DormitoryWorkspace() {
           duration: 8000,
         }),
       },
-      (result) =>
+      (result) => {
+        setSavedAssigned(assigned);
         setRooms((current) =>
           current.map((room) =>
             room.id === roomId ? { ...room, studentCount: result.count } : room,
           ),
-        ),
+        );
+      },
     );
   };
   const announce = async () => {
@@ -367,6 +395,28 @@ function DormitoryWorkspace() {
         description: t(
           "گیرنده، عنوان و متن پیام را مشخص کنید.",
           "Choose a recipient and enter a title and message.",
+        ),
+      });
+      return;
+    }
+    if (target === "ROOM" && (assignmentsLoading || roomRecipientCount === 0)) {
+      notifications.warning(t("گیرنده‌ای آمادهٔ دریافت نیست.", "No recipients are ready."), {
+        id: "dormitory:announcement-recipients",
+        description: assignmentsLoading
+          ? t("ابتدا فهرست ساکنان اتاق را دریافت کنید.", "Wait for the room residents to load.")
+          : t(
+              "برای ارسال اعلان، حداقل یک ساکن اتاق باید حساب کاربری فعال داشته باشد.",
+              "At least one room resident needs an active account to receive this announcement.",
+            ),
+      });
+      return;
+    }
+    if (target === "STUDENT" && recipient && !recipient.hasAccount) {
+      notifications.warning(t("طلبه حساب کاربری ندارد.", "The student has no account."), {
+        id: "dormitory:announcement-recipient-account",
+        description: t(
+          "ابتدا برای این طلبه حساب کاربری ایجاد یا فعال کنید.",
+          "Create or activate this student's account before sending an announcement.",
         ),
       });
       return;
@@ -442,6 +492,26 @@ function DormitoryWorkspace() {
         title="مدیریت اتاق‌های خوابگاه"
         description="نمای ساختمان، طبقه و ظرفیت اتاق‌ها؛ تخصیص ساکنان و ارسال اعلان هدفمند."
       />
+      {!error && !loading && rooms.length > 0 ? (
+        <div className="grid gap-2 sm:grid-cols-3" aria-label="خلاصه ظرفیت خوابگاه">
+          {[
+            ["اتاق فعال", rooms.length, "text-brand"],
+            ["ساکن ثبت‌شده", totalResidents, "text-emerald-700 dark:text-emerald-300"],
+            [
+              "تخت خالی",
+              Math.max(0, totalCapacity - totalResidents),
+              "text-amber-700 dark:text-amber-300",
+            ],
+          ].map(([label, value, tone]) => (
+            <Card key={label as string} className="flex min-h-20 items-center justify-between p-3">
+              <span className="text-sm text-slate-500">{label}</span>
+              <strong className={`text-2xl font-black ${tone}`}>
+                {Number(value).toLocaleString("fa-IR")}
+              </strong>
+            </Card>
+          ))}
+        </div>
+      ) : null}
       {error ? (
         <ErrorState
           title="اتاق‌ها در دسترس نیستند"
@@ -520,6 +590,13 @@ function DormitoryWorkspace() {
                 <p className="mt-1 text-xs text-slate-500">
                   طبقه {selected?.floor} · {assigned.length}/{selected?.capacity} نفر
                 </p>
+                <p
+                  role="status"
+                  className="mt-2 text-xs font-bold text-emerald-700 dark:text-emerald-300"
+                >
+                  {remainingBeds.toLocaleString("fa-IR")} تخت خالی
+                  {hasResidentChanges ? " · تغییرات ذخیره نشده" : " · وضعیت ذخیره شده"}
+                </p>
               </div>
               <Button
                 size="icon"
@@ -549,8 +626,27 @@ function DormitoryWorkspace() {
                 }
               />
             ) : null}
-            <div className="mt-4 max-h-96 space-y-2 overflow-y-auto">
-              {students.map((student) => (
+            <label className="mt-4 block text-xs font-bold text-slate-600 dark:text-slate-300">
+              جست‌وجوی ساکن
+              <span className="relative mt-2 block">
+                <Search
+                  className="pointer-events-none absolute inset-y-0 start-3 my-auto size-4 text-slate-400"
+                  aria-hidden="true"
+                />
+                <Input
+                  value={residentSearch}
+                  onChange={(event) => setResidentSearch(event.target.value)}
+                  placeholder="نام طلبه"
+                  className="ps-9"
+                  disabled={assignmentsLoading || Boolean(assignmentsError)}
+                />
+              </span>
+            </label>
+            <div
+              className="mt-3 max-h-96 space-y-2 overflow-y-auto"
+              aria-label="فهرست ساکنان قابل تخصیص"
+            >
+              {visibleStudents.map((student) => (
                 <label
                   key={student.id}
                   className="flex cursor-pointer items-center justify-between gap-3 rounded-lg border border-[rgb(var(--border-subtle))] px-3 py-2"
@@ -567,16 +663,38 @@ function DormitoryWorkspace() {
                   />
                 </label>
               ))}
+              {!assignmentsLoading && !assignmentsError && !visibleStudents.length ? (
+                <p className="rounded-lg bg-[rgb(var(--surface-muted))] p-3 text-center text-sm text-slate-500">
+                  طلبه‌ای با این نام پیدا نشد.
+                </p>
+              ) : null}
             </div>
-            <Button
-              className="mt-4 w-full"
-              disabled={!canManage || assignmentsLoading || Boolean(assignmentsError)}
-              loading={saving}
-              onClick={save}
-            >
-              <Users size={17} aria-hidden="true" />
-              ذخیره اعضای اتاق
-            </Button>
+            <div className="mt-4 grid gap-2 sm:grid-cols-2 min-[960px]:grid-cols-1">
+              <Button
+                className="w-full"
+                disabled={
+                  !canManage ||
+                  assignmentsLoading ||
+                  Boolean(assignmentsError) ||
+                  !hasResidentChanges
+                }
+                loading={saving}
+                onClick={save}
+              >
+                <Users size={17} aria-hidden="true" />
+                ذخیره اعضای اتاق
+              </Button>
+              {hasResidentChanges ? (
+                <Button
+                  className="w-full"
+                  variant="soft"
+                  disabled={saving || assignmentsLoading}
+                  onClick={() => setAssigned(savedAssigned)}
+                >
+                  بازگردانی تغییرات
+                </Button>
+              ) : null}
+            </div>
           </Card>
         </div>
       ) : null}
@@ -683,8 +801,16 @@ function DormitoryWorkspace() {
             </Button>
           </div>
           {target === "ROOM" ? (
-            <p className="rounded-lg bg-[rgb(var(--surface-muted))] p-3 text-sm">
+            <p className="rounded-lg bg-[rgb(var(--surface-muted))] p-3 text-sm" role="status">
               گیرنده: {selected?.name}
+              {assignmentsLoading
+                ? " · در حال بررسی حساب ساکنان…"
+                : ` · ${roomRecipientCount.toLocaleString("fa-IR")} حساب قابل دریافت`}
+              {!assignmentsLoading && roomRecipientCount === 0 ? (
+                <span className="mt-1 block text-xs font-semibold text-amber-700 dark:text-amber-300">
+                  برای ارسال اعلان، دست‌کم یک ساکن باید حساب کاربری فعال داشته باشد.
+                </span>
+              ) : null}
             </p>
           ) : (
             <Field label="نام یا شماره همراه" required>
@@ -714,6 +840,11 @@ function DormitoryWorkspace() {
                     <span dir="ltr" className="text-xs text-slate-500">
                       {item.phoneNumber}
                     </span>
+                    {!item.hasAccount ? (
+                      <span className="ms-2 text-xs font-semibold text-amber-700 dark:text-amber-300">
+                        بدون حساب کاربری
+                      </span>
+                    ) : null}
                   </button>
                 ))}
               </div>
@@ -737,7 +868,17 @@ function DormitoryWorkspace() {
               }
             />
           </Field>
-          <Button className="w-full" loading={saving} onClick={announce}>
+          <Button
+            className="w-full"
+            disabled={
+              !canAnnounce ||
+              (target === "ROOM" &&
+                (!selected || assignmentsLoading || roomRecipientCount === 0)) ||
+              (target === "STUDENT" && recipient?.hasAccount === false)
+            }
+            loading={saving}
+            onClick={announce}
+          >
             <Megaphone size={17} aria-hidden="true" />
             ارسال اعلان
           </Button>

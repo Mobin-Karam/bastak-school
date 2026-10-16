@@ -1,20 +1,10 @@
-import {
-  CheckCircle2,
-  ChevronLeft,
-  ChevronRight,
-  LayoutGrid,
-  TableProperties,
-  UserRound,
-  UsersRound,
-} from "lucide-react";
+import { CheckCircle2, ChevronLeft, ChevronRight, UserRound, UsersRound } from "lucide-react";
+import type { ReactNode } from "react";
+
 import type { Student } from "../../../shared/types/domain";
-import { Button, Card, EmptyState, LoadingState } from "../../../shared/ui/ui";
-import { AdminDataTable } from "../../../shared/ui/admin-data-table";
+import { Button, Card, EmptyState, LoadingState, Select } from "../../../shared/ui/ui";
 import { CollectionToolbar } from "../../../shared/ui/collection-toolbar";
-import { SegmentedControl } from "../../../shared/ui/segmented-control";
 import { useOptionalAdminLanguage } from "../../../shared/ui/locale";
-import { useState } from "react";
-import { createCollectionView, createViewPreferenceStore } from "@moshaver/admin-workspace-ui";
 import {
   formatStudentLastSeen,
   getStudentProfileCompleteness,
@@ -37,21 +27,6 @@ export type {
   StudentStatusFilter,
 } from "./student-ui";
 
-const STUDENT_DIRECTORY_VIEW_ID = "student-directory";
-
-function studentDirectoryPreferenceStore() {
-  if (typeof window === "undefined") return undefined;
-  return createViewPreferenceStore({
-    namespace: "moshaver-admin",
-    storage: window.localStorage,
-  });
-}
-
-function readStudentDisplayMode(): "table" | "cards" {
-  const layout = studentDirectoryPreferenceStore()?.load(STUDENT_DIRECTORY_VIEW_ID)?.layout;
-  return layout === "cards" ? "cards" : "table";
-}
-
 function StudentStatus({ student, language }: { student: Student; language: "fa" | "en" }) {
   const status = studentStatusCopy[getStudentStatus(student)];
   const copy = studentCopy[language];
@@ -64,22 +39,14 @@ function StudentStatus({ student, language }: { student: Student; language: "fa"
   );
 }
 
-function Completeness({
-  student,
-  language,
-  compact = false,
-}: {
-  student: Student;
-  language: "fa" | "en";
-  compact?: boolean;
-}) {
+function Completeness({ student, language }: { student: Student; language: "fa" | "en" }) {
   const value = getStudentProfileCompleteness(student);
   const copy = studentCopy[language];
   const locale = language === "en" ? "en-US" : "fa-IR";
   return (
-    <div className={compact ? "min-w-0" : "min-w-28"}>
+    <div className="min-w-0">
       <div className="flex items-center justify-between gap-2 text-[11px] text-slate-500 dark:text-slate-400">
-        <span>{compact ? copy.profileCompletionShort : copy.directoryProfile}</span>
+        <span>{copy.profileCompletionShort}</span>
         <strong className="text-slate-700 dark:text-slate-200">
           {value.toLocaleString(locale)}%
         </strong>
@@ -124,6 +91,7 @@ export function StudentList({
   onIncompleteToggle,
   onClearFilters,
   onSelect,
+  directoryActions,
   loading = false,
   error = false,
   onRetry,
@@ -151,28 +119,15 @@ export function StudentList({
   onIncompleteToggle: () => void;
   onClearFilters: () => void;
   onSelect: (student: Student) => void;
+  directoryActions?: ReactNode;
   loading?: boolean;
   error?: boolean;
   onRetry?: () => void;
   creating?: boolean;
 }) {
-  const [displayMode, setDisplayMode] = useState<"table" | "cards">(readStudentDisplayMode);
   const language = useOptionalAdminLanguage();
   const copy = studentCopy[language];
   const locale = language === "en" ? "en-US" : "fa-IR";
-
-  function changeDisplayMode(next: "table" | "cards") {
-    setDisplayMode(next);
-    studentDirectoryPreferenceStore()?.save(
-      createCollectionView({
-        id: STUDENT_DIRECTORY_VIEW_ID,
-        title: copy.studentDirectoryPreference,
-        layout: next,
-        columns: ["name", "grade", "target", "lastSeen", "completeness"],
-        visibleColumns: ["name", "grade", "target", "lastSeen", "completeness"],
-      }),
-    );
-  }
   const hasFilters = !!search.trim() || status !== "all" || profileFilter !== "all";
   const startItem = filteredTotal ? (page - 1) * pageSize + 1 : 0;
   const endItem = Math.min(page * pageSize, filteredTotal);
@@ -183,28 +138,8 @@ export function StudentList({
     .replace("{total}", filteredTotal.toLocaleString(locale));
 
   return (
-    <Card className="min-w-0 overflow-hidden p-0 min-[1200px]:flex min-[1200px]:h-[calc(100dvh-6rem)] min-[1200px]:flex-col">
-      {/* Toolbar */}
-      <div
-        className="
-    z-10
-
-    grid
-    shrink-0
-    gap-3
-
-    border-b
-    border-slate-200
-
-    bg-[rgb(var(--surface-card))]
-
-    p-3
-
-    sm:p-4
-
-    dark:border-slate-800
-  "
-      >
+    <Card className="min-w-0 overflow-hidden p-0 min-[1200px]:flex min-[1200px]:h-full min-[1200px]:min-h-0 min-[1200px]:flex-col">
+      <div className="z-10 grid shrink-0 gap-3 border-b border-slate-200 bg-[rgb(var(--surface-card))] p-3 sm:p-4 dark:border-slate-800">
         <CollectionToolbar
           search={search}
           onSearchChange={setSearch}
@@ -224,7 +159,6 @@ export function StudentList({
                     {copy.statusFilter}: {statusLabel}
                   </span>
                 ) : null}
-
                 {profileFilter === "incomplete" ? (
                   <span className="whitespace-nowrap px-1.5 text-[11px] font-semibold text-amber-700 dark:text-amber-300">
                     {copy.profileIncomplete}
@@ -233,37 +167,8 @@ export function StudentList({
               </>
             ) : undefined
           }
-          actions={
-            <div className="hidden md:block">
-              <SegmentedControl
-                ariaLabel={copy.studentDirectory}
-                value={displayMode}
-                onValueChange={(value) => changeDisplayMode(value as "table" | "cards")}
-                options={[
-                  {
-                    value: "table",
-                    label: (
-                      <>
-                        <TableProperties size={14} />
-                        {copy.studentDirectoryTable}
-                      </>
-                    ),
-                  },
-                  {
-                    value: "cards",
-                    label: (
-                      <>
-                        <LayoutGrid size={14} />
-                        {copy.studentDirectoryCards}
-                      </>
-                    ),
-                  },
-                ]}
-              />
-            </div>
-          }
+          actions={directoryActions}
         />
-
         <StudentOverviewStats
           counts={counts}
           status={status}
@@ -272,14 +177,33 @@ export function StudentList({
           incompleteOnly={profileFilter === "incomplete"}
           onIncompleteToggle={onIncompleteToggle}
         />
-
-        {/* mobile sort stays here */}
-        <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-2 md:hidden">
-          {/* your existing sort control */}
+        <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 pt-3 dark:border-slate-800">
+          <label className="flex min-w-0 items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
+            <span className="shrink-0">{language === "fa" ? "مرتب‌سازی" : "Sort"}</span>
+            <Select
+              aria-label={language === "fa" ? "مرتب‌سازی فهرست طلبه‌ها" : "Sort student directory"}
+              className="h-9 min-w-32 text-xs"
+              value={sort}
+              onChange={(event) => onSort(event.target.value as StudentSort)}
+            >
+              <option value="name">{copy.students}</option>
+              <option value="username">{language === "fa" ? "نام کاربری" : "Username"}</option>
+              <option value="grade">{copy.gradeAndMajor}</option>
+              <option value="lastSeen">{copy.lastActivity}</option>
+              <option value="completeness">{copy.profileCompletionShort}</option>
+            </Select>
+          </label>
+          <Button variant="soft" className="h-9 px-3 text-xs" onClick={() => onSort(sort)}>
+            {sortDirection === "asc"
+              ? language === "fa"
+                ? "صعودی"
+                : "Ascending"
+              : language === "fa"
+                ? "نزولی"
+                : "Descending"}
+          </Button>
         </div>
       </div>
-
-      {/* Item Summary */}
       <div className="z-[1] flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-slate-100 bg-[rgb(var(--surface-card))] px-3 py-2.5 text-[11px] text-slate-500 sm:px-4 dark:border-slate-800 dark:text-slate-400">
         <span>
           {itemSummary}
@@ -298,13 +222,12 @@ export function StudentList({
           </span>
         ) : null}
       </div>
-
-      {/* Loading State */}
       {loading ? (
         <div className="p-4">
           <LoadingState label={copy.loadingDirectory} />
         </div>
-      ) : error ? (
+      ) : null}
+      {!loading && error ? (
         <div className="p-4">
           <EmptyState
             title={copy.directoryLoadFailed}
@@ -317,219 +240,105 @@ export function StudentList({
             }
           />
         </div>
-      ) : students.length ? (
+      ) : null}
+      {!loading && !error && students.length ? (
         <>
-          <div className="min-h-0 flex-1 overflow-hidden">
-            <AdminDataTable
-              rows={students}
-              rowId={(student) => student.id}
-              label={copy.studentDirectory}
-              activeId={creating ? undefined : selectedId}
-              sortId={sort}
-              sortDirection={sortDirection}
-              onSort={(value) => onSort(value as StudentSort)}
-              onRowClick={onSelect}
-              displayMode={displayMode}
-              scrollClassName="min-[1200px]:overflow-y-auto min-[1200px]:overscroll-y-contain"
-
-              footer={
-                filteredTotal > 0 ? (
-                  <div
-                    className="
-            z-[1]
-            flex flex-wrap
-            items-center justify-between
-            gap-3
-            border-t border-slate-200
-            bg-[rgb(var(--surface-card))]
-            p-3 sm:p-4
-            dark:border-slate-800
-          "
-                  >
-                    {/* Page size */}
-                    <label className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
-                      <span>{copy.itemsPerPage}</span>
-
-                      <select
-                        className="
-                h-9 rounded-lg
-                border border-slate-200
-                bg-white
-                px-2
-                text-xs text-slate-700
-                outline-none
-                transition
-                focus:border-brand
-                focus:ring-2
-                focus:ring-brand/20
-                dark:border-slate-800
-                dark:bg-slate-900
-                dark:text-slate-200
-              "
-                        value={pageSize}
-                        onChange={(event) => setPageSize(Number(event.target.value))}
-                      >
-                        <option value={25}>{(25).toLocaleString(locale)}</option>
-
-                        <option value={50}>{(50).toLocaleString(locale)}</option>
-
-                        <option value={100}>{(100).toLocaleString(locale)}</option>
-                      </select>
-                    </label>
-
-                    {/* Pagination */}
-                    <div className="flex items-center gap-2">
-                      <Button
-                        variant="soft"
-                        className="h-9 px-2.5"
-                        disabled={page <= 1}
-                        onClick={() => setPage(Math.max(1, page - 1))}
-                      >
-                        <ChevronRight size={15} className="ltr:rotate-180" />
-
-                        <span className="hidden sm:inline">{copy.previousPage}</span>
-                      </Button>
-
-                      <span className="min-w-20 whitespace-nowrap text-center text-xs font-semibold text-slate-600 dark:text-slate-300">
-                        {page.toLocaleString(locale)}
-                        {" / "}
-                        {Math.max(1, pageCount).toLocaleString(locale)}
-                      </span>
-
-                      <Button
-                        variant="soft"
-                        className="h-9 px-2.5"
-                        disabled={page >= pageCount}
-                        onClick={() => setPage(Math.min(pageCount, page + 1))}
-                      >
-                        <span className="hidden sm:inline">{copy.nextPage}</span>
-
-                        <ChevronLeft size={15} className="ltr:rotate-180" />
-                      </Button>
-                    </div>
-                  </div>
-                ) : null
-              }
-
-              mobileCard={(student) => {
+          <div
+            tabIndex={0}
+            aria-label={copy.studentDirectory}
+            className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain p-2 outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand min-[1200px]:scrollbar-thin"
+          >
+            <div className="grid gap-1.5">
+              {students.map((student) => {
                 const education =
                   [student.grade, student.major].filter(Boolean).join(" / ") ||
                   copy.educationNotSet;
-
+                const target = [
+                  student.targetField || student.target_major,
+                  student.targetUniversity || student.target_city,
+                ]
+                  .filter(Boolean)
+                  .join(" · ");
+                const selected = !creating && selectedId === student.id;
                 return (
-                  <div className="mobile-student-card grid min-h-[5.25rem] gap-3">
-                    <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-start gap-3">
+                  <button
+                    key={student.id}
+                    type="button"
+                    onClick={() => onSelect(student)}
+                    aria-pressed={selected}
+                    className={`grid w-full gap-3 rounded-xl border p-3 text-start transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand ${selected ? "border-brand/40 bg-brand/5" : "border-transparent bg-slate-50 hover:border-slate-200 hover:bg-white dark:bg-slate-900/40 dark:hover:border-slate-700 dark:hover:bg-slate-900"}`}
+                  >
+                    <span className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-start gap-3">
                       <span className="grid size-10 place-items-center rounded-full bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-300">
                         <UserRound size={18} />
                       </span>
-
                       <span className="min-w-0">
                         <span className="flex flex-wrap items-center gap-2">
                           <strong className="truncate text-sm text-ink">{student.name}</strong>
-
                           <StudentStatus student={student} language={language} />
                         </span>
-
                         <span className="mt-1 block truncate text-xs text-slate-500 dark:text-slate-400">
                           {education}
                         </span>
-                      </span>
-
-                      <ChevronLeft className="mt-2 text-slate-400 ltr:rotate-180" size={16} />
-                    </div>
-
-                    <Completeness student={student} language={language} compact />
-
-                    <div className="flex items-center justify-between gap-2 text-[11px] text-slate-500 dark:text-slate-400">
-                      <span>{formatStudentLastSeen(student.last_seen_at, language)}</span>
-
-                      <span className="font-bold text-brand">{copy.openRecord}</span>
-                    </div>
-                  </div>
-                );
-              }}
-
-              columns={[
-                {
-                  id: "name",
-                  header: copy.students,
-                  sortLabel: copy.students,
-
-                  cell: (student) => (
-                    <div className="flex max-w-[260px] items-center gap-3">
-                      <span className="grid size-10 shrink-0 place-items-center rounded-full bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-300">
-                        <UserRound size={18} />
-                      </span>
-
-                      <span className="min-w-0">
-                        <span className="flex flex-wrap items-center gap-2">
-                          <strong className="truncate text-sm text-ink">{student.name}</strong>
-
-                          <StudentStatus student={student} language={language} />
-                        </span>
-
-                        <span className="mt-1 block truncate text-xs text-slate-500" dir="ltr">
+                        <span className="mt-1 block truncate text-[11px] text-slate-400" dir="ltr">
                           {getStudentUsername(student) || copy.usernameNotSet}
                         </span>
                       </span>
-                    </div>
-                  ),
-                },
-
-                {
-                  id: "grade",
-                  header: copy.gradeAndMajor,
-                  sortLabel: copy.gradeAndMajor,
-
-                  cell: (student) => (
-                    <p className="max-w-[190px] truncate font-semibold text-slate-700 dark:text-slate-200">
-                      {[student.grade, student.major].filter(Boolean).join(" / ") ||
-                        copy.notRecorded}
-                    </p>
-                  ),
-                },
-
-                {
-                  id: "target",
-                  header: copy.goal,
-
-                  cell: (student) => (
-                    <p className="max-w-[220px] truncate text-xs text-slate-500">
-                      {[
-                        student.targetField || student.target_major,
-
-                        student.targetUniversity || student.target_city,
-                      ]
-                        .filter(Boolean)
-                        .join(" · ") || copy.notRecorded}
-                    </p>
-                  ),
-                },
-
-                {
-                  id: "lastSeen",
-                  header: copy.lastActivity,
-                  sortLabel: copy.lastActivity,
-
-                  cell: (student) => (
-                    <span className="text-xs text-slate-500">
-                      {formatStudentLastSeen(student.last_seen_at, language)}
+                      <ChevronLeft className="mt-2 text-slate-400 ltr:rotate-180" size={16} />
                     </span>
-                  ),
-                },
-
-                {
-                  id: "completeness",
-                  header: copy.directoryProfile,
-                  sortLabel: copy.profileCompletionShort,
-
-                  cell: (student) => <Completeness student={student} language={language} />,
-                },
-              ]}
-            />
+                    <span className="grid grid-cols-1 gap-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
+                      <Completeness student={student} language={language} />
+                      <span className="text-[11px] text-slate-500 dark:text-slate-400">
+                        {target || formatStudentLastSeen(student.last_seen_at, language)}
+                      </span>
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+          <div className="z-[1] flex shrink-0 flex-wrap items-center justify-between gap-3 border-t border-slate-200 bg-[rgb(var(--surface-card))] p-3 sm:p-4 dark:border-slate-800">
+            <label className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
+              <span>{copy.itemsPerPage}</span>
+              <Select
+                aria-label={copy.itemsPerPage}
+                className="h-9 min-w-16 px-2 text-xs"
+                value={pageSize}
+                onChange={(event) => setPageSize(Number(event.target.value))}
+              >
+                <option value={25}>{(25).toLocaleString(locale)}</option>
+                <option value={50}>{(50).toLocaleString(locale)}</option>
+                <option value={100}>{(100).toLocaleString(locale)}</option>
+              </Select>
+            </label>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="soft"
+                className="h-9 px-2.5"
+                disabled={page <= 1}
+                onClick={() => setPage(Math.max(1, page - 1))}
+              >
+                <ChevronRight size={15} className="ltr:rotate-180" />
+                <span className="hidden sm:inline">{copy.previousPage}</span>
+              </Button>
+              <span className="min-w-20 whitespace-nowrap text-center text-xs font-semibold text-slate-600 dark:text-slate-300">
+                {page.toLocaleString(locale)} {" / "}{" "}
+                {Math.max(1, pageCount).toLocaleString(locale)}
+              </span>
+              <Button
+                variant="soft"
+                className="h-9 px-2.5"
+                disabled={page >= pageCount}
+                onClick={() => setPage(Math.min(pageCount, page + 1))}
+              >
+                <span className="hidden sm:inline">{copy.nextPage}</span>
+                <ChevronLeft size={15} className="ltr:rotate-180" />
+              </Button>
+            </div>
           </div>
         </>
-      ) : (
+      ) : null}
+      {!loading && !error && !students.length ? (
         <div className="p-4">
           <EmptyState
             title={hasFilters ? copy.noStudentMatches : copy.noStudents}
@@ -542,7 +351,7 @@ export function StudentList({
             }
           />
         </div>
-      )}
+      ) : null}
     </Card>
   );
 }
