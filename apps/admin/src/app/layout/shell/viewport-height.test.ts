@@ -7,13 +7,13 @@ describe("currentViewportHeight", () => {
       currentViewportHeight({
         innerHeight: 844,
         visualViewport: { height: 521 } as VisualViewport,
-      } as Window),
+      } as unknown as Window),
     ).toBe(521);
   });
 
   it("falls back to the browser layout viewport", () => {
-    expect(currentViewportHeight({ innerHeight: 844, visualViewport: undefined } as Window)).toBe(
-      844,
-    );
+    expect(
+      currentViewportHeight({ innerHeight: 844, visualViewport: undefined } as unknown as Window),
+    ).toBe(844);
   });
 });
