@@ -474,7 +474,11 @@ function DormitoryWorkspace() {
           {[
             ["اتاق فعال", rooms.length, "text-brand"],
             ["ساکن ثبت‌شده", totalResidents, "text-emerald-700 dark:text-emerald-300"],
-            ["تخت خالی", Math.max(0, totalCapacity - totalResidents), "text-amber-700 dark:text-amber-300"],
+            [
+              "تخت خالی",
+              Math.max(0, totalCapacity - totalResidents),
+              "text-amber-700 dark:text-amber-300",
+            ],
           ].map(([label, value, tone]) => (
             <Card key={label as string} className="flex min-h-20 items-center justify-between p-3">
               <span className="text-sm text-slate-500">{label}</span>
@@ -563,7 +567,10 @@ function DormitoryWorkspace() {
                 <p className="mt-1 text-xs text-slate-500">
                   طبقه {selected?.floor} · {assigned.length}/{selected?.capacity} نفر
                 </p>
-                <p role="status" className="mt-2 text-xs font-bold text-emerald-700 dark:text-emerald-300">
+                <p
+                  role="status"
+                  className="mt-2 text-xs font-bold text-emerald-700 dark:text-emerald-300"
+                >
                   {remainingBeds.toLocaleString("fa-IR")} تخت خالی
                   {hasResidentChanges ? " · تغییرات ذخیره نشده" : " · وضعیت ذخیره شده"}
                 </p>
@@ -612,7 +619,10 @@ function DormitoryWorkspace() {
                 />
               </span>
             </label>
-            <div className="mt-3 max-h-96 space-y-2 overflow-y-auto" aria-label="فهرست ساکنان قابل تخصیص">
+            <div
+              className="mt-3 max-h-96 space-y-2 overflow-y-auto"
+              aria-label="فهرست ساکنان قابل تخصیص"
+            >
               {visibleStudents.map((student) => (
                 <label
                   key={student.id}

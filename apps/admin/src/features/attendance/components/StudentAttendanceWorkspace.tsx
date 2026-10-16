@@ -209,9 +209,7 @@ function DormAttendanceEditor({
   const entries = participants.map((member) => ({
     studentId: member.id,
     status: (member.status === "unmarked" ? "present" : member.status) as
-      | "present"
-      | "absent"
-      | "late",
+      "present" | "absent" | "late",
   }));
   async function save() {
     if (busy || !assignment.canMark || !entries.length) return;

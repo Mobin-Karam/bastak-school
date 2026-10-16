@@ -21,7 +21,11 @@ const statusLabel: Record<string, string> = {
 export function PendingCorrectionQueue() {
   const auth = useAuth();
   const client = useQueryClient();
-  const scope = JSON.stringify([auth.user?.id, auth.activeRole, auth.context?.activeOrganization?.id]);
+  const scope = JSON.stringify([
+    auth.user?.id,
+    auth.activeRole,
+    auth.context?.activeOrganization?.id,
+  ]);
   const [selected, setSelected] = useState<PendingAttendanceCorrection | null>(null);
   const [decision, setDecision] = useState<"approved" | "rejected" | null>(null);
   const [note, setNote] = useState("");
@@ -40,7 +44,10 @@ export function PendingCorrectionQueue() {
         decision,
         note: note.trim() || undefined,
       });
-      notify(decision === "approved" ? "اصلاح حضور تأیید و اعمال شد." : "درخواست اصلاح رد شد.", "success");
+      notify(
+        decision === "approved" ? "اصلاح حضور تأیید و اعمال شد." : "درخواست اصلاح رد شد.",
+        "success",
+      );
       setSelected(null);
       setDecision(null);
       setNote("");
@@ -62,7 +69,10 @@ export function PendingCorrectionQueue() {
       {corrections.isLoading ? <LoadingState label="دریافت درخواست‌های اصلاح…" /> : null}
       {corrections.isError ? (
         <div role="alert" className="text-sm text-rose-700">
-          دریافت درخواست‌ها انجام نشد. <Button variant="soft" onClick={() => void corrections.refetch()}>تلاش مجدد</Button>
+          دریافت درخواست‌ها انجام نشد.{" "}
+          <Button variant="soft" onClick={() => void corrections.refetch()}>
+            تلاش مجدد
+          </Button>
         </div>
       ) : null}
       {!corrections.isLoading && !corrections.isError && !corrections.data?.length ? (
@@ -70,30 +80,73 @@ export function PendingCorrectionQueue() {
       ) : null}
       <ul className="space-y-2" aria-label="اصلاح‌های منتظر بررسی">
         {corrections.data?.map((item) => (
-          <li key={item.id} className="flex items-center justify-between gap-3 rounded-xl border border-[rgb(var(--border-subtle))] p-3">
+          <li
+            key={item.id}
+            className="flex items-center justify-between gap-3 rounded-xl border border-[rgb(var(--border-subtle))] p-3"
+          >
             <div className="min-w-0">
-              <p className="font-bold">{item.studentName} · {item.title}</p>
+              <p className="font-bold">
+                {item.studentName} · {item.title}
+              </p>
               <p className="mt-1 text-xs text-slate-500">درخواست‌کننده: {item.requestedBy}</p>
             </div>
-            <Button variant="soft" onClick={() => { setSelected(item); setDecision(null); setNote(""); }}>بررسی</Button>
+            <Button
+              variant="soft"
+              onClick={() => {
+                setSelected(item);
+                setDecision(null);
+                setNote("");
+              }}
+            >
+              بررسی
+            </Button>
           </li>
         ))}
       </ul>
       <ResponsiveModal
         open={Boolean(selected)}
-        onOpenChange={(open) => { if (!open && !saving) setSelected(null); }}
+        onOpenChange={(open) => {
+          if (!open && !saving) setSelected(null);
+        }}
         title={decision ? "تأیید نهایی اصلاح" : "بررسی درخواست اصلاح"}
         description={selected ? `${selected.studentName} · ${selected.title}` : ""}
       >
         <div className="space-y-4">
-          <p className="rounded-xl bg-[rgb(var(--surface-muted))] p-3 text-sm leading-6">{selected?.reason}</p>
-          <p className="text-sm">تغییر پیشنهادی: {statusLabel[String(selected?.before.status)] ?? "نامشخص"} ← {statusLabel[String(selected?.after.status)] ?? "نامشخص"}</p>
+          <p className="rounded-xl bg-[rgb(var(--surface-muted))] p-3 text-sm leading-6">
+            {selected?.reason}
+          </p>
+          <p className="text-sm">
+            تغییر پیشنهادی: {statusLabel[String(selected?.before.status)] ?? "نامشخص"} ←{" "}
+            {statusLabel[String(selected?.after.status)] ?? "نامشخص"}
+          </p>
           {!decision ? (
-            <div className="flex gap-2"><Button className="flex-1" onClick={() => setDecision("approved")}>تأیید</Button><Button variant="soft" className="flex-1" onClick={() => setDecision("rejected")}>رد</Button></div>
+            <div className="flex gap-2">
+              <Button className="flex-1" onClick={() => setDecision("approved")}>
+                تأیید
+              </Button>
+              <Button variant="soft" className="flex-1" onClick={() => setDecision("rejected")}>
+                رد
+              </Button>
+            </div>
           ) : (
             <>
-              <label className="block text-sm font-bold">یادداشت بررسی (اختیاری)<textarea value={note} maxLength={500} onChange={(event) => setNote(event.target.value)} className="mt-2 min-h-24 w-full rounded-xl border border-[rgb(var(--border-subtle))] bg-card p-3 font-normal" /></label>
-              <div className="flex gap-2"><Button variant="soft" disabled={saving} onClick={() => setDecision(null)}>بازگشت</Button><Button className="flex-1" loading={saving} onClick={() => void submit()}>تأیید و ثبت تصمیم</Button></div>
+              <label className="block text-sm font-bold">
+                یادداشت بررسی (اختیاری)
+                <textarea
+                  value={note}
+                  maxLength={500}
+                  onChange={(event) => setNote(event.target.value)}
+                  className="mt-2 min-h-24 w-full rounded-xl border border-[rgb(var(--border-subtle))] bg-card p-3 font-normal"
+                />
+              </label>
+              <div className="flex gap-2">
+                <Button variant="soft" disabled={saving} onClick={() => setDecision(null)}>
+                  بازگشت
+                </Button>
+                <Button className="flex-1" loading={saving} onClick={() => void submit()}>
+                  تأیید و ثبت تصمیم
+                </Button>
+              </div>
             </>
           )}
         </div>

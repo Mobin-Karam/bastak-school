@@ -27,8 +27,7 @@ export const getAttendanceReportSummary = (params?: {
   if (params?.academicYearId) search.set("academicYearId", params.academicYearId);
   if (params?.termId) search.set("termId", params.termId);
   const suffix = search.size ? `?${search.toString()}` : "";
-  return (
-  api.get<{
+  return api.get<{
     from: string | null;
     to: string | null;
     academicYearId: string | null;
@@ -40,8 +39,7 @@ export const getAttendanceReportSummary = (params?: {
     late: number;
     excused: number;
     attendanceRate: number | null;
-  }>(`/attendance/reports/summary${suffix}`)
-  );
+  }>(`/attendance/reports/summary${suffix}`);
 };
 export type AttendancePolicy = {
   organizationId: string;
@@ -112,10 +110,7 @@ export const correctAttendanceRecord = (
     sessionRevision: number;
     correctionId?: string;
     pendingReview?: boolean;
-  }>(
-    `/attendance/records/${encodeURIComponent(id)}/correction`,
-    body,
-  );
+  }>(`/attendance/records/${encodeURIComponent(id)}/correction`, body);
 export type PendingAttendanceCorrection = {
   id: string;
   recordId: string;

@@ -190,7 +190,12 @@ describe("staff session and pool creation", () => {
   it("renders the immutable academic and subject snapshots for a saved session", async () => {
     const user = userEvent.setup();
     render(
-      <AttendanceStaffWorkspace contexts={contexts} scope="staff" refreshVersion={0} section="sessions" />,
+      <AttendanceStaffWorkspace
+        contexts={contexts}
+        scope="staff"
+        refreshVersion={0}
+        section="sessions"
+      />,
       { wrapper: Providers },
     );
     await user.click(await screen.findByText("جلسه کلاس الف"));
