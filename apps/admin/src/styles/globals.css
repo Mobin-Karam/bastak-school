@@ -19,6 +19,8 @@
    ========================================================= */
 
 :root {
+  /* Updated by AdminLayout from VisualViewport on Safari/iOS. */
+  --admin-viewport-height: 100vh;
   /* Zanin emblem: deep book-blue, oasis teal, and warm gold. */
   --color-ink: 14 50 77;
   --color-paper: 244 250 249;
@@ -1132,8 +1134,15 @@ html.is-scrolling :is(body, .scroll-reveal)::-webkit-scrollbar-thumb,
  */
 @media (max-width: 1023px) {
   .admin-role-shell {
-    min-height: 100dvh;
+    height: var(--admin-viewport-height);
+    min-height: var(--admin-viewport-height);
     padding-inline: env(safe-area-inset-right) env(safe-area-inset-left);
+  }
+
+  .admin-page-scroll {
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-y: contain;
+    touch-action: pan-y;
   }
 }
 

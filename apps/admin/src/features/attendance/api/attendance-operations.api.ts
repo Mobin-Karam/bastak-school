@@ -59,6 +59,30 @@ export type StaffAttendanceSessionPage = {
   total: number;
   hasNext: boolean;
 };
+export type AttendanceHistorySession = {
+  id: string;
+  organizationId: string;
+  contextType: "class" | "class_group" | "dorm";
+  contextId: string;
+  title: string;
+  subjectId: string | null;
+  subjectName: string | null;
+  status: "scheduled" | "open" | "submitted" | "finalized" | "cancelled";
+  sessionDate: string;
+  marked: number;
+  expected: number | null;
+};
+export type AttendanceHistorySessionPage = {
+  items: AttendanceHistorySession[];
+  page: number;
+  limit: number;
+  total: number;
+  hasNext: boolean;
+};
+export const getAttendanceHistorySessions = (page = 1, limit = 25) => {
+  const search = new URLSearchParams({ page: String(page), limit: String(limit) });
+  return api.get<AttendanceHistorySessionPage>(`/attendance/history/sessions?${search.toString()}`);
+};
 export const getStaffAttendanceSessions = (page = 1, limit = 25) =>
   api.get<StaffAttendanceSessionPage>(
     `/attendance/staff-sessions?page=${encodeURIComponent(page)}&limit=${encodeURIComponent(limit)}`,

@@ -16,6 +16,7 @@ import {
   getAttendanceOverview,
   getAttendancePolicy,
   getAttendanceReportSummary,
+  getAttendanceHistorySessions,
   getAttendancePools,
   getAttendanceProfile,
   getSavedAttendanceSession,
@@ -584,6 +585,11 @@ export function AttendanceStaffWorkspace({
     queryFn: () => getStaffAttendanceSessions(sessionsPage),
     refetchInterval: 15000,
   });
+  const history = useQuery({
+    queryKey: ["attendance-session-history", scope, sessionsPage],
+    queryFn: () => getAttendanceHistorySessions(sessionsPage),
+    enabled: section === "sessions" && auth.can("attendance.read"),
+  });
   const sessionItems = sessions.data?.items ?? [];
   const pools = useQuery({
     queryKey: ["attendance-pools", scope],
@@ -865,6 +871,27 @@ export function AttendanceStaffWorkspace({
       ) : null}
       {section === "sessions" ? (
         <div className="space-y-3">
+          {history.isLoading ? (
+            <p role="status" className="text-xs text-slate-500">
+              در حال دریافت سابقه جامع جلسات…
+            </p>
+          ) : history.isError ? (
+            <p role="alert" className="text-xs text-rose-700 dark:text-rose-300">
+              سابقه جامع جلسات دریافت نشد.{" "}
+              <button
+                type="button"
+                onClick={() => void history.refetch()}
+                className="font-bold underline"
+              >
+                تلاش دوباره
+              </button>
+            </p>
+          ) : history.data ? (
+            <p className="rounded-xl bg-[rgb(var(--surface-muted))] px-3 py-2 text-xs text-slate-600 dark:text-slate-300">
+              سابقه جامع: {history.data.total.toLocaleString("fa-IR")} جلسه ثبت‌شده در محدودهٔ
+              دسترسی شما
+            </p>
+          ) : null}
           {onNewSession && auth.can("attendance.manage") ? (
             <button
               type="button"
