@@ -4,7 +4,8 @@
 - **Graphify first:** when `graphify-out/graph.json` exists, use the graph to locate architecture, callers, consumers, and change impact before broad repository search. Verify the source files you will change.
 - If the graph is missing/stale and Graphify is available, refresh it before architecture-wide work. Do not block a small fix solely because Graphify is unavailable.
 - Read the nearest applicable `.github/instructions/*.instructions.md` files.
-- Moshaver is a monorepo: `apps/api`, `apps/admin`, `apps/student`, `student-core`, and `packages/api-contract` can affect each other.
+- Moshaver is a leaf-lockfile monorepo. Its executable package DAG is `tooling/workspace/projects.json`; current product surfaces are `apps/api`, `apps/admin`, `student-core`, `packages/api-contract`, and `packages/cmb/*`.
+- `apps/student` is historical and absent from this checkout. Do not add it to a change or validation path unless the task explicitly restores it.
 - Backend architectural work must follow the CMB direction tracked by issue #21: reusable kernel/platform modules must not depend on education-domain modules.
 - Prefer existing repository conventions and dependencies. Avoid unnecessary rewrites or new packages.
 - Search/query callers, consumers, tests, types, schemas, routes, migrations, and configuration before changing a shared contract.
@@ -15,6 +16,7 @@
 - For database changes: inspect schema, migrations, indexes, constraints, consumers, rollback and rollout safety.
 - For UI changes: preserve design tokens and handle loading, empty, error, disabled, accessibility, responsive, keyboard, theme, localization and RTL states where relevant.
 - For API changes: verify actual request/response/error/auth contracts and identify both admin and student consumers.
+- For capability-sensitive Admin work, use `/me/context` and capability gates; role-name UI checks never replace API authorization or organization scoping.
 - Use project-defined lint, test, typecheck, format, and build commands. Never report a check as passing unless it ran successfully.
 - Reference concrete file paths for repository-specific findings.
 - Mark unresolved facts as `UNKNOWN` rather than inventing them.

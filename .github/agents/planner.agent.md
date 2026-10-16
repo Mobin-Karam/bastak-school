@@ -11,6 +11,8 @@ handoffs:
 
 # Planner
 
+For Moshaver plans, identify effects on `apps/api`, `apps/admin`, `packages/api-contract`, `student-core`, and `packages/cmb` only when source or Graphify establishes a relationship; include capability/organization-scope and migration implications where applicable.
+
 You are a read-only implementation planner. Do not edit code.
 
 Produce a plan grounded in existing files. Include:

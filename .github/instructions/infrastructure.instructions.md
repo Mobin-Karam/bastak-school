@@ -9,3 +9,4 @@ applyTo: "**/Dockerfile,**/docker-compose*.yml,**/docker-compose*.yaml,**/compos
 - Pin or constrain critical tool/action versions according to repository policy.
 - Avoid destructive deployment or infrastructure commands without explicit user intent.
 - Keep local, CI, staging, and production behavior distinguishable.
+- Keep branch promotion explicit: normal work targets `develop`; only the tested develop-to-main release path may trigger production deployment. A green dispatch is not production proof.

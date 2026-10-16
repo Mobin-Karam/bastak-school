@@ -5,6 +5,8 @@ description: Implement a complete feature with repository discovery, contract tr
 
 # Feature Implementation Skill
 
+For protected API/UI work, deliver a vertical slice: server authorization and organization scope, contract, consumer, and focused tests. Admin role-name visibility is never sufficient enforcement.
+
 ## Workflow
 1. Clarify the desired observable behavior from the request and codebase.
 2. Find existing related implementations and reusable components.

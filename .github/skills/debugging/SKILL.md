@@ -5,6 +5,8 @@ description: Diagnose failures by reproduction, tracing, hypothesis testing, roo
 
 # Debugging Skill
 
+For Moshaver, trace from Admin/UI symptoms through the API contract and server authorization before changing a visible client behavior.
+
 ## Workflow
 1. Capture the exact failure, inputs, environment, and expected behavior.
 2. Reproduce with the narrowest command/test possible.

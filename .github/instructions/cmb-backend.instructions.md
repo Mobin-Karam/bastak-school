@@ -1,5 +1,5 @@
 ---
-applyTo: "apps/api/**,packages/backend-*/**,packages/api-contract/**"
+applyTo: "apps/api/**,packages/cmb/**,packages/api-contract/**"
 ---
 
 # CMB backend architecture instructions
@@ -14,3 +14,4 @@ CMB means **Composable Modular Backend Architecture**. Issue #21 is the architec
 - Persistence ownership and migrations must be deterministic and module-safe.
 - Preserve `/api/v2` compatibility during incremental extraction unless a breaking change is explicitly reviewed.
 - Run security regression coverage after changes to auth/session/authorization/tenancy/CSRF/realtime scope.
+- Run `npm run cmb:compatibility` and the architecture gate documented in `docs/architecture/cmb-reference-and-release.md` before declaring CMB work complete.

@@ -134,9 +134,27 @@ describe("DormitoryPage", () => {
     expect(setDormAssignmentsMock).not.toHaveBeenCalled();
     fireEvent.click(screen.getAllByRole("button", { name: "تلاش دوباره" })[0]);
     await waitFor(() =>
-      expect(screen.getByRole("button", { name: "ذخیره اعضای اتاق" })).toBeEnabled(),
+      expect(screen.getByRole("button", { name: "ذخیره اعضای اتاق" })).toBeDisabled(),
     );
     expect(listDormAssignmentsMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("shows capacity, narrows residents by search, and lets staff discard unsaved changes", async () => {
+    listDormRoomsMock.mockResolvedValue([room]);
+    listRelationshipStudentsMock.mockResolvedValue([
+      { id: "s1", name: "علی احمدی" },
+      { id: "s2", name: "حسین کریمی" },
+    ]);
+    renderPage();
+    expect(await screen.findByLabelText("خلاصه ظرفیت خوابگاه")).toBeInTheDocument();
+    fireEvent.change(screen.getByPlaceholderText("نام طلبه"), { target: { value: "حسین" } });
+    expect(screen.getByRole("checkbox", { name: "تخصیص حسین کریمی" })).toBeInTheDocument();
+    expect(screen.queryByRole("checkbox", { name: "تخصیص علی احمدی" })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("checkbox", { name: "تخصیص حسین کریمی" }));
+    expect(screen.getByRole("status")).toHaveTextContent("تغییرات ذخیره نشده");
+    expect(screen.getByRole("button", { name: "بازگردانی تغییرات" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "بازگردانی تغییرات" }));
+    expect(screen.getByRole("button", { name: "ذخیره اعضای اتاق" })).toBeDisabled();
   });
 
   it("warns instead of overfilling the room", async () => {

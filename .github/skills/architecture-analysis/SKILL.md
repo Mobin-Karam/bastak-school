@@ -5,6 +5,8 @@ description: Analyze software architecture, boundaries, dependencies, data flow,
 
 # Architecture Analysis Skill
 
+Use Graphify first when available, then source verification. Apply applications → product/domain → CMB platform → CMB kernel/contracts; CMB must not depend on Moshaver education domains.
+
 ## Checklist
 - entry points and runtime processes
 - module/package/service boundaries
