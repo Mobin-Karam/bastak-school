@@ -47,7 +47,7 @@ export class DormitoryService {
     if (await this.rooms.findOne({ where: { organization: { id: organization.id }, code } }))
       throw new ApiException(409, "DORM_ROOM_EXISTS", "این کد اتاق در مدرسه تکراری است.");
     const room = await this.rooms.save(this.rooms.create({
-      organization, code, name: dto.name.trim(), building: dto.building?.trim() || "ساختمان اصلی", floor: dto.floor ?? 1, capacity: Math.min(12, dto.capacity ?? 12), status: "ACTIVE",
+      organization, code, name: dto.name.trim(), building: dto.building?.trim() || "ساختمان اصلی", floor: dto.floor ?? 1, capacity: Math.min(14, dto.capacity ?? 14), status: "ACTIVE",
     }));
     return { id: room.id, organizationId: organization.id, code: room.code, name: room.name, building: room.building, floor: room.floor, capacity: room.capacity, status: room.status, studentCount: 0 };
   }
@@ -60,6 +60,19 @@ export class DormitoryService {
       order: { createdAt: "ASC" },
     });
     return rows.map((row) => ({ id: row.id, studentId: row.student.id, name: row.student.name, nationalCode: row.student.nationalCode, userId: row.student.user?.id ?? null }));
+  }
+
+  async listAvailableStudents(user: AuthenticatedUser, roomId: string) {
+    const room = await this.requireRoom(user, roomId);
+    return this.students.createQueryBuilder("student")
+      .leftJoin(DormRoomAssignment, "assignment", "assignment.studentId = student.id")
+      .select("student.id", "id")
+      .addSelect("student.name", "name")
+      .where("student.organizationId = :organizationId", { organizationId: room.organization.id })
+      .andWhere("(assignment.id IS NULL OR assignment.roomId = :roomId)", { roomId: room.id })
+      .orderBy("student.name", "ASC")
+      .addOrderBy("student.id", "ASC")
+      .getRawMany<{ id: string; name: string }>();
   }
 
   async setAssignments(user: AuthenticatedUser, roomId: string, studentIds: string[]) {

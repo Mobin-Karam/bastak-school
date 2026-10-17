@@ -10,31 +10,28 @@ const {
   listDormRoomsMock,
   createDormRoomMock,
   listDormAssignmentsMock,
+  listAvailableDormStudentsMock,
   setDormAssignmentsMock,
   findDormitoryStudentsMock,
   sendDormitoryAnnouncementMock,
-  listRelationshipStudentsMock,
 } = vi.hoisted(() => ({
   listDormRoomsMock: vi.fn(),
   createDormRoomMock: vi.fn(),
   listDormAssignmentsMock: vi.fn(),
+  listAvailableDormStudentsMock: vi.fn(),
   setDormAssignmentsMock: vi.fn(),
   findDormitoryStudentsMock: vi.fn(),
   sendDormitoryAnnouncementMock: vi.fn(),
-  listRelationshipStudentsMock: vi.fn(),
 }));
 
 vi.mock("../api/dormitory.api", () => ({
   listDormRooms: listDormRoomsMock,
   createDormRoom: createDormRoomMock,
   listDormAssignments: listDormAssignmentsMock,
+  listAvailableDormStudents: listAvailableDormStudentsMock,
   setDormAssignments: setDormAssignmentsMock,
   findDormitoryStudents: findDormitoryStudentsMock,
   sendDormitoryAnnouncement: sendDormitoryAnnouncementMock,
-}));
-
-vi.mock("../../access/api/access.api", () => ({
-  listRelationshipStudents: listRelationshipStudentsMock,
 }));
 
 vi.mock("../../auth", () => ({
@@ -76,7 +73,7 @@ describe("DormitoryPage", () => {
     vi.clearAllMocks();
     listDormRoomsMock.mockResolvedValue([]);
     listDormAssignmentsMock.mockResolvedValue([]);
-    listRelationshipStudentsMock.mockResolvedValue([]);
+    listAvailableDormStudentsMock.mockResolvedValue([]);
     findDormitoryStudentsMock.mockResolvedValue([]);
     sendDormitoryAnnouncementMock.mockResolvedValue({ delivered: 0 });
     createDormRoomMock.mockResolvedValue({
@@ -114,7 +111,7 @@ describe("DormitoryPage", () => {
 
   it("preserves resident selections when saving fails", async () => {
     listDormRoomsMock.mockResolvedValue([room]);
-    listRelationshipStudentsMock.mockResolvedValue([{ id: "student-1", name: "علی" }]);
+    listAvailableDormStudentsMock.mockResolvedValue([{ id: "student-1", name: "علی" }]);
     setDormAssignmentsMock.mockRejectedValueOnce(new Error("Offline"));
     renderPage();
     const checkbox = await screen.findByRole("checkbox", { name: "تخصیص علی" });
@@ -142,7 +139,7 @@ describe("DormitoryPage", () => {
 
   it("shows capacity, narrows residents by search, and lets staff discard unsaved changes", async () => {
     listDormRoomsMock.mockResolvedValue([room]);
-    listRelationshipStudentsMock.mockResolvedValue([
+    listAvailableDormStudentsMock.mockResolvedValue([
       { id: "s1", name: "علی احمدی" },
       { id: "s2", name: "حسین کریمی" },
     ]);
@@ -160,7 +157,7 @@ describe("DormitoryPage", () => {
 
   it("warns instead of overfilling the room", async () => {
     listDormRoomsMock.mockResolvedValue([room]);
-    listRelationshipStudentsMock.mockResolvedValue([
+    listAvailableDormStudentsMock.mockResolvedValue([
       { id: "s1", name: "علی" },
       { id: "s2", name: "رضا" },
     ]);
@@ -191,7 +188,7 @@ describe("DormitoryPage", () => {
     fireEvent.change(dialog.getByLabelText(/کد اتاق/), { target: { value: "B-201" } });
     fireEvent.change(dialog.getByLabelText(/نام اتاق/), { target: { value: "اتاق دوم" } });
     fireEvent.change(dialog.getByLabelText(/طبقه/), { target: { value: "2" } });
-    fireEvent.change(dialog.getByLabelText(/ظرفیت/), { target: { value: "8" } });
+    fireEvent.change(dialog.getByLabelText(/ظرفیت/), { target: { value: "99" } });
     fireEvent.click(dialog.getByRole("button", { name: "ایجاد اتاق" }));
 
     await waitFor(() =>
@@ -201,7 +198,7 @@ describe("DormitoryPage", () => {
         floor: 2,
         code: "B-201",
         name: "اتاق دوم",
-        capacity: 8,
+        capacity: 14,
       }),
     );
     expect((await screen.findAllByText("اتاق A1")).length).toBeGreaterThan(0);

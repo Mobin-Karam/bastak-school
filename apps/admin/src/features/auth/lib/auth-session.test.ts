@@ -15,20 +15,17 @@ describe("Admin role selection", () => {
     expect(isSupportedAdminPortalRole("COUNSELOR")).toBe(true);
   });
 
-  it.each([
-    "PRINCIPAL",
-    "SCHOOL_SUPERVISOR",
-    "DISCIPLINARIAN",
-    "STUDENT",
-    "TEACHER",
-    "GUARDIAN",
-  ] as const)("allows the released %s role", (role) => {
-    expect(isSupportedAdminPortalRole(role)).toBe(true);
-  });
+  it.each(["PRINCIPAL", "SCHOOL_SUPERVISOR", "STUDENT", "TEACHER", "GUARDIAN"] as const)(
+    "allows the released %s role",
+    (role) => {
+      expect(isSupportedAdminPortalRole(role)).toBe(true);
+    },
+  );
 
   it("holds unreleased but valid school roles at the coming-soon gate", () => {
     expect(isReleasedSchoolPortalRole("COUNSELOR")).toBe(false);
     expect(isReleasedSchoolPortalRole("MENTOR")).toBe(false);
+    expect(isReleasedSchoolPortalRole("DISCIPLINARIAN")).toBe(false);
     expect(isReleasedSchoolPortalRole("PRINCIPAL")).toBe(true);
   });
 

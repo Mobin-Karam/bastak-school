@@ -1,8 +1,9 @@
-import { CheckCircle2, ChevronLeft, ChevronRight, UserRound, UsersRound } from "lucide-react";
+import { CheckCircle2, ChevronLeft, ChevronRight, UsersRound } from "lucide-react";
 import type { ReactNode } from "react";
 
 import type { Student } from "../../../shared/types/domain";
-import { Button, Card, EmptyState, LoadingState, Select } from "../../../shared/ui/ui";
+import { AdminDataTable } from "../../../shared/ui/admin-data-table";
+import { Button, Card, Select } from "../../../shared/ui/ui";
 import { CollectionToolbar } from "../../../shared/ui/collection-toolbar";
 import { useOptionalAdminLanguage } from "../../../shared/ui/locale";
 import {
@@ -222,81 +223,85 @@ export function StudentList({
           </span>
         ) : null}
       </div>
-      {loading ? (
-        <div className="p-4">
-          <LoadingState label={copy.loadingDirectory} />
-        </div>
-      ) : null}
-      {!loading && error ? (
-        <div className="p-4">
-          <EmptyState
-            title={copy.directoryLoadFailed}
-            action={
-              onRetry ? (
-                <Button variant="soft" onClick={onRetry}>
-                  {copy.directoryRetry}
-                </Button>
-              ) : undefined
-            }
-          />
-        </div>
-      ) : null}
-      {!loading && !error && students.length ? (
-        <>
-          <div
-            tabIndex={0}
-            aria-label={copy.studentDirectory}
-            className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain p-2 outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand min-[1200px]:scrollbar-thin"
-          >
-            <div className="grid gap-1.5">
-              {students.map((student) => {
-                const education =
-                  [student.grade, student.major].filter(Boolean).join(" / ") ||
-                  copy.educationNotSet;
-                const target = [
-                  student.targetField || student.target_major,
-                  student.targetUniversity || student.target_city,
-                ]
-                  .filter(Boolean)
-                  .join(" · ");
-                const selected = !creating && selectedId === student.id;
-                return (
-                  <button
-                    key={student.id}
-                    type="button"
-                    onClick={() => onSelect(student)}
-                    aria-pressed={selected}
-                    className={`grid w-full gap-3 rounded-xl border p-3 text-start transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand ${selected ? "border-brand/40 bg-brand/5" : "border-transparent bg-slate-50 hover:border-slate-200 hover:bg-white dark:bg-slate-900/40 dark:hover:border-slate-700 dark:hover:bg-slate-900"}`}
-                  >
-                    <span className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-start gap-3">
-                      <span className="grid size-10 place-items-center rounded-full bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-300">
-                        <UserRound size={18} />
-                      </span>
-                      <span className="min-w-0">
-                        <span className="flex flex-wrap items-center gap-2">
-                          <strong className="truncate text-sm text-ink">{student.name}</strong>
-                          <StudentStatus student={student} language={language} />
-                        </span>
-                        <span className="mt-1 block truncate text-xs text-slate-500 dark:text-slate-400">
-                          {education}
-                        </span>
-                        <span className="mt-1 block truncate text-[11px] text-slate-400" dir="ltr">
-                          {getStudentUsername(student) || copy.usernameNotSet}
-                        </span>
-                      </span>
-                      <ChevronLeft className="mt-2 text-slate-400 ltr:rotate-180" size={16} />
-                    </span>
-                    <span className="grid grid-cols-1 gap-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
-                      <Completeness student={student} language={language} />
-                      <span className="text-[11px] text-slate-500 dark:text-slate-400">
-                        {target || formatStudentLastSeen(student.last_seen_at, language)}
-                      </span>
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
+      <AdminDataTable
+        rows={students}
+        rowId={(student) => student.id}
+        label={copy.studentDirectory}
+        loading={loading}
+        error={error}
+        emptyTitle={hasFilters ? copy.noStudentMatches : copy.noStudents}
+        errorTitle={copy.directoryLoadFailed}
+        onRetry={onRetry}
+        activeId={creating ? undefined : selectedId}
+        onRowClick={onSelect}
+        sortId={sort}
+        sortDirection={sortDirection}
+        onSort={(value) => onSort(value as StudentSort)}
+        scrollClassName="overflow-y-auto overscroll-y-contain [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        tableClassName="min-w-[780px]"
+        columns={[
+          {
+            id: "name",
+            header: copy.students,
+            sortLabel: copy.students,
+            className: "min-w-44",
+            cell: (student) => (
+              <div className="min-w-0">
+                <div className="flex items-center gap-2">
+                  <strong className="truncate text-ink">{student.name}</strong>
+                  <StudentStatus student={student} language={language} />
+                </div>
+                <span className="mt-1 block truncate text-xs text-slate-500 dark:text-slate-400">
+                  {student.grade || copy.educationNotSet}
+                </span>
+              </div>
+            ),
+          },
+          {
+            id: "username",
+            header: copy.username,
+            sortLabel: language === "fa" ? "نام کاربری" : "Username",
+            className: "min-w-36",
+            cell: (student) => (
+              <span
+                className="block max-w-44 truncate text-xs text-slate-600 dark:text-slate-300"
+                dir="ltr"
+              >
+                {getStudentUsername(student) || copy.usernameNotSet}
+              </span>
+            ),
+          },
+          {
+            id: "grade",
+            header: copy.gradeAndMajor,
+            sortLabel: copy.gradeAndMajor,
+            className: "min-w-32",
+            cell: (student) => (
+              <span className="text-xs text-slate-600 dark:text-slate-300">
+                {[student.grade, student.major].filter(Boolean).join(" / ") || copy.educationNotSet}
+              </span>
+            ),
+          },
+          {
+            id: "completeness",
+            header: copy.profileCompletionShort,
+            sortLabel: copy.profileCompletionShort,
+            className: "min-w-36",
+            cell: (student) => <Completeness student={student} language={language} />,
+          },
+          {
+            id: "lastSeen",
+            header: copy.lastActivity,
+            sortLabel: copy.lastActivity,
+            className: "min-w-32",
+            cell: (student) => (
+              <span className="whitespace-nowrap text-xs text-slate-500 dark:text-slate-400">
+                {formatStudentLastSeen(student.last_seen_at, language)}
+              </span>
+            ),
+          },
+        ]}
+        footer={
           <div className="z-[1] flex shrink-0 flex-wrap items-center justify-between gap-3 border-t border-slate-200 bg-[rgb(var(--surface-card))] p-3 sm:p-4 dark:border-slate-800">
             <label className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
               <span>{copy.itemsPerPage}</span>
@@ -336,22 +341,15 @@ export function StudentList({
               </Button>
             </div>
           </div>
-        </>
-      ) : null}
-      {!loading && !error && !students.length ? (
-        <div className="p-4">
-          <EmptyState
-            title={hasFilters ? copy.noStudentMatches : copy.noStudents}
-            action={
-              hasFilters ? (
-                <Button variant="soft" onClick={onClearFilters}>
-                  {copy.showAllStudents}
-                </Button>
-              ) : undefined
-            }
-          />
-        </div>
-      ) : null}
+        }
+        emptyAction={
+          hasFilters ? (
+            <Button variant="soft" onClick={onClearFilters}>
+              {copy.showAllStudents}
+            </Button>
+          ) : undefined
+        }
+      />
     </Card>
   );
 }

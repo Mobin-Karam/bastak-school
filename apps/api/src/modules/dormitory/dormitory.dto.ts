@@ -6,7 +6,7 @@ export class CreateDormRoomDto {
   @IsString() @MinLength(1) @MaxLength(160) name!: string;
   @IsOptional() @IsString() @MinLength(1) @MaxLength(120) building?: string;
   @IsOptional() @IsInt() @Min(1) @Max(200) floor?: number;
-  @IsOptional() @IsInt() @Min(1) @Max(12) capacity?: number;
+  @IsOptional() @IsInt() @Min(1) @Max(14) capacity?: number;
 }
 
 export class SetDormRoomAssignmentsDto {

@@ -9,19 +9,33 @@ const principal = {
 };
 
 describe("Principal account provisioning policy", () => {
-  it.each(["STUDENT", "SCHOOL_SUPERVISOR", "TEACHER", "GUARDIAN", "COUNSELOR", "DISCIPLINARIAN"])(
-    "allows a Principal to assign %s",
-    (role) => {
-      expect(() =>
-        assertRoleCodesAssignableByActor(principal, [role]),
-      ).not.toThrow();
-    },
-  );
+  it.each([
+    "STUDENT",
+    "SCHOOL_SUPERVISOR",
+    "TEACHER",
+    "GUARDIAN",
+    "RELIGIOUS_EDUCATION_MANAGER",
+    "GOVERNMENT_EDUCATION_MANAGER",
+    "STUDENT_AFFAIRS_MENTOR",
+    "COUNSELOR",
+    "ADVISOR",
+    "MENTOR",
+    "CONTENT_MANAGER",
+    "ORGANIZATION_ADMIN",
+    "PRINCIPAL",
+    "SCHOOL_ADMIN",
+  ])("allows a Principal to assign %s", (role) => {
+    expect(() =>
+      assertRoleCodesAssignableByActor(principal, [role]),
+    ).not.toThrow();
+  });
 
-  it("rejects a role outside the Principal provisioning list", () => {
+  it("keeps the duplicate disciplinarian role out of Principal provisioning", () => {
     try {
-      assertRoleCodesAssignableByActor(principal, ["ORGANIZATION_ADMIN"]);
-      fail("Expected the Principal assignment policy to reject ORGANIZATION_ADMIN.");
+      assertRoleCodesAssignableByActor(principal, ["DISCIPLINARIAN"]);
+      fail(
+        "Expected the Principal assignment policy to reject DISCIPLINARIAN.",
+      );
     } catch (error) {
       expect(error).toMatchObject({
         response: { error: { code: "PRINCIPAL_ROLE_ASSIGNMENT_RESTRICTED" } },
@@ -33,7 +47,7 @@ describe("Principal account provisioning policy", () => {
     expect(() =>
       assertRoleCodesAssignableByActor(
         { ...principal, roles: ["PRINCIPAL", "PLATFORM_ADMIN"] },
-        ["ORGANIZATION_ADMIN"],
+        ["DISCIPLINARIAN"],
       ),
     ).not.toThrow();
   });

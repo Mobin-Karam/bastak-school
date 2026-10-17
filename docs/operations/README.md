@@ -4,6 +4,7 @@ Start with the [repository runbook](./repository-runbook.md) for local commands.
 
 | Task | Canonical guide |
 | --- | --- |
+| Develop, test, release, and verify production | [Development to production guide](./development-to-production.md) |
 | Build or fix a feature | [Developer handbook](./developer-handbook.md) and [feature/bug playbook](./feature-and-bug-playbook.md) |
 | Deploy or recover | [GitHub CI/CD operations](./github-cicd.md), [database rollout](./database-multi-role-integrity-rollout.md) and [maintenance](./maintenance-guide.md) |
 | Maintain documentation | [Documentation maintenance](./documentation-maintenance.md) |

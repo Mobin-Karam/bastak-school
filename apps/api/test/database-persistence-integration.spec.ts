@@ -617,6 +617,18 @@ describe("migration-backed persistence and verified recovery (disposable SQLite 
     expect(await db.query("PRAGMA foreign_key_check")).toEqual([]);
   });
 
+  it("lists only unassigned students when choosing residents for another room", async () => {
+    await apply();
+    const available = await db
+      .getRepository(Student)
+      .save({ name: "Available", organization: a });
+    await residence().setAssignments(actor, room.id, [student.id]);
+
+    await expect(residence().listAvailableStudents(actor, otherRoom.id)).resolves.toEqual([
+      { id: available.id, name: "Available" },
+    ]);
+  });
+
   it("checks capacity and school before changing placements, and returns counts in one projection query", async () => {
     await apply();
     await residence().setAssignments(actor, room.id, [student.id]);
