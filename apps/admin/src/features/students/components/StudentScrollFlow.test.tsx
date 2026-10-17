@@ -23,6 +23,7 @@ describe("student collection scroll flow", () => {
 
   it("keeps the directory controls and pagination outside the scrolling rows", () => {
     const onStatusChange = vi.fn();
+    const onSelect = vi.fn();
     const { container } = render(
       <StudentList
         students={[student]}
@@ -46,18 +47,27 @@ describe("student collection scroll flow", () => {
         onStatusChange={onStatusChange}
         onIncompleteToggle={vi.fn()}
         onClearFilters={vi.fn()}
-        onSelect={vi.fn()}
+        onSelect={onSelect}
       />,
     );
 
     expect(container.querySelector(".collection-toolbar")?.parentElement).toHaveClass("shrink-0");
-    expect(screen.getByLabelText("فهرست دانش‌آموزان")).toHaveClass(
+    const directory = screen.getByRole("region", {
+      name: "فهرست دانش‌آموزان، جدول قابل پیمایش افقی",
+    });
+    expect(directory).toHaveClass(
       "overflow-y-auto",
       "overscroll-y-contain",
+      "[scrollbar-width:none]",
+      "[&::-webkit-scrollbar]:hidden",
     );
+    expect(screen.getByRole("table")).toBeInTheDocument();
     expect(screen.getByText("تعداد در صفحه")).toBeInTheDocument();
     expect(screen.getByLabelText("فیلتر سریع دانش‌آموزان")).toHaveTextContent("فعال");
-    expect(screen.getByRole("button", { name: /دانش‌آموز نمونه/ })).toBeInTheDocument();
+    const studentRow = screen.getByRole("row", { name: /دانش‌آموز نمونه/ });
+    expect(studentRow).toBeInTheDocument();
+    fireEvent.click(studentRow);
+    expect(onSelect).toHaveBeenCalledWith(student);
     fireEvent.click(screen.getByRole("button", { name: "فعال ۱" }));
     expect(onStatusChange).toHaveBeenCalledWith("active");
   });
@@ -91,17 +101,34 @@ describe("student collection scroll flow", () => {
     expect(screen.queryByRole("button", { name: "ویرایش پروفایل" })).not.toBeInTheDocument();
   });
 
-  it("uses English labels and numeric formatting for the profile overview", () => {
+  it("uses English labels without exposing legacy academic-goal fields in the profile overview", () => {
     window.localStorage.setItem("moshaver-admin-location", "international");
     render(
       <LocaleProvider>
-        <StudentOverview student={{ ...student, targetRank: "1500" }} onRetry={vi.fn()} />
+        <StudentOverview
+          student={{
+            ...student,
+            targetUniversity: "Legacy university",
+            targetField: "Legacy field",
+            targetRank: "1500",
+            dailyCapacity: "6 hours",
+          }}
+          onRetry={vi.fn()}
+        />
       </LocaleProvider>,
     );
 
     expect(screen.getByRole("heading", { name: "Student overview" })).toBeInTheDocument();
     expect(screen.getByText("Record status")).toBeInTheDocument();
     expect(screen.getByLabelText("Profile completion")).toBeInTheDocument();
+    expect(screen.queryByText("Target university")).not.toBeInTheDocument();
+    expect(screen.queryByText("Target field")).not.toBeInTheDocument();
+    expect(screen.queryByText("Target rank")).not.toBeInTheDocument();
+    expect(screen.queryByText("Daily capacity")).not.toBeInTheDocument();
+    expect(screen.queryByText("Legacy university")).not.toBeInTheDocument();
+    expect(screen.queryByText("Legacy field")).not.toBeInTheDocument();
+    expect(screen.queryByText("1500")).not.toBeInTheDocument();
+    expect(screen.queryByText("6 hours")).not.toBeInTheDocument();
   });
 
   it("localizes the student directory controls, rows, and pagination for English", () => {
@@ -135,8 +162,10 @@ describe("student collection scroll flow", () => {
       </LocaleProvider>,
     );
 
-    expect(screen.getByPlaceholderText("Name, ID, username, grade, track, or goal…")).toBeVisible();
-    expect(screen.getByLabelText("Student directory")).toBeVisible();
+    expect(screen.getByPlaceholderText("Name, ID, username, grade, or track…")).toBeVisible();
+    expect(
+      screen.getByRole("region", { name: "Student directory, horizontally scrollable table" }),
+    ).toBeVisible();
     expect(screen.getByText(student.name)).toBeVisible();
     expect(screen.getByText("Showing 26–50 of 1,250")).toBeVisible();
     expect(screen.getByText("Items per page")).toBeVisible();

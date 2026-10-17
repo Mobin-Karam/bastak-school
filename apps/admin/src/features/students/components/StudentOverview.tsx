@@ -1,11 +1,4 @@
-import {
-  AlertTriangle,
-  CalendarClock,
-  CheckCircle2,
-  GraduationCap,
-  Target,
-  UserRound,
-} from "lucide-react";
+import { AlertTriangle, CheckCircle2, GraduationCap, UserRound } from "lucide-react";
 import type { Student } from "../../../shared/types/domain";
 import { Button } from "../../../shared/ui/ui";
 import { useOptionalAdminLanguage } from "../../../shared/ui/locale";
@@ -43,18 +36,6 @@ export function StudentOverview({
       copy.gradeAndTrack,
       [student.grade, student.major].filter(Boolean).join(" / ") || copy.usernameNotSet,
       GraduationCap,
-    ],
-    [
-      copy.goal,
-      [student.targetField || student.target_major, student.targetUniversity || student.target_city]
-        .filter(Boolean)
-        .join(" · ") || copy.usernameNotSet,
-      Target,
-    ],
-    [
-      copy.dailyCapacity,
-      student.dailyCapacity || student.daily_capacity || copy.usernameNotSet,
-      CalendarClock,
     ],
     [copy.username, getStudentUsername(student) || copy.usernameNotSet, UserRound],
   ] as const;

@@ -6,9 +6,11 @@ export const PLATFORM_ROLE_CODES = ["PLATFORM_ADMIN"] as const;
 export const PRINCIPAL_ASSIGNABLE_ROLE_CODES = [
   "STUDENT",
   "GUARDIAN",
+  "ORGANIZATION_ADMIN",
+  "PRINCIPAL",
+  "SCHOOL_ADMIN",
   "SCHOOL_SUPERVISOR",
   "TEACHER",
-  "DISCIPLINARIAN",
   "RELIGIOUS_EDUCATION_MANAGER",
   "GOVERNMENT_EDUCATION_MANAGER",
   "STUDENT_AFFAIRS_MENTOR",
@@ -86,10 +88,10 @@ export function assertPlatformRolesAreUnscoped(
 }
 
 /**
- * The current school rollout lets a Principal provision only the three
- * school account types they supervise. They still cannot create peer owners,
- * principals, school administrators, organization administrators or platform
- * administrators. Platform administrators retain broader authority.
+ * A Principal can provision every school role exposed in the school account
+ * workflow. DISCIPLINARIAN is intentionally omitted there because it is a
+ * duplicate supervisor-facing role; platform administration remains global
+ * and cannot be created in an organization scope.
  */
 export function assertRoleCodesAssignableByActor(
   actor: Pick<AuthenticatedUser, "role" | "roles">,

@@ -180,7 +180,11 @@ describe("staff session and pool creation", () => {
       />,
       { wrapper: Providers },
     );
-    await user.click(await screen.findByText("جلسه کلاس الف"));
+    await screen.findByText("جلسه کلاس الف");
+    expect(screen.getByRole("region", { name: "فهرست جلسات حضور" })).toContainElement(
+      screen.getByRole("table"),
+    );
+    await user.click(screen.getByText("جلسه کلاس الف"));
     const summary = await screen.findByText("آخرین تغییرهای جلسه");
     expect(mocks.history).not.toHaveBeenCalled();
     await user.click(summary);

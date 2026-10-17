@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { LogOut, ShieldCheck } from "lucide-react";
+import { LogOut, ShieldCheck, UserRound } from "lucide-react";
 import { useAdminShellCopy, useLocale } from "../../../shared/ui/locale";
 import { useModal } from "../../../shared/ui/modal";
 import { notify } from "../../../shared/ui/notifications";
@@ -19,6 +19,7 @@ import { PhoneChangeRequests } from "../components/PhoneChangeRequests";
 import { ThemeSwitcher } from "../../../shared/theme/theme";
 import { Button, Card } from "../../../shared/ui/ui";
 import { PrayerTimeSettings } from "../components/PrayerTimeSettings";
+import { roleLabel } from "../../../shared/lib/role-ui";
 export function SettingsPage() {
   const auth = useAuth();
   return auth.activeRole === "STUDENT" || auth.activeRole === "TEACHER" ? (
@@ -203,6 +204,7 @@ function MobileAccountActions() {
   const auth = useAuth();
   const modal = useModal();
   const copy = useAdminShellCopy();
+  const { language } = useLocale();
 
   async function logout() {
     const confirmed = await modal.confirm({
@@ -223,6 +225,32 @@ function MobileAccountActions() {
         </div>
         <ThemeSwitcher />
       </div>
+      {(auth.context?.roles.length ?? 0) > 1 ? (
+        <label className="grid gap-1.5 rounded-xl bg-slate-50 p-3 text-xs font-semibold text-slate-700 dark:bg-slate-900 dark:text-slate-200">
+          <span className="flex items-center gap-2">
+            <UserRound size={15} aria-hidden="true" />
+            {copy.workContextLabel}
+          </span>
+          <select
+            className="h-11 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm text-ink outline-none focus-visible:ring-2 focus-visible:ring-brand disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:bg-slate-950"
+            value={auth.activeRole ?? ""}
+            disabled={auth.status === "checking"}
+            onChange={(event) =>
+              void auth
+                .setActiveRole(event.target.value as NonNullable<typeof auth.activeRole>)
+                .catch((error) =>
+                  notify(error instanceof Error ? error.message : String(error), "error"),
+                )
+            }
+          >
+            {auth.context?.roles.map((role) => (
+              <option key={role} value={role}>
+                {roleLabel(role, language)}
+              </option>
+            ))}
+          </select>
+        </label>
+      ) : null}
       <Button
         className="w-full justify-center text-rose-700 hover:bg-rose-50 dark:text-rose-300 dark:hover:bg-rose-950/30"
         variant="soft"

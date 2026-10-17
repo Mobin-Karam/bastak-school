@@ -6,10 +6,10 @@ import { ResponsiveDrawer } from "../../../shared/ui/responsive-drawer";
 import { useAuth } from "../../auth";
 import { notifications, type PromiseNotificationData } from "../../../shared/ui/notifications";
 import { useOptionalAdminLanguage } from "../../../shared/ui/locale";
-import { listRelationshipStudents } from "../../access/api/access.api";
 import {
   createDormRoom,
   findDormitoryStudents,
+  listAvailableDormStudents,
   listDormAssignments,
   listDormRooms,
   sendDormitoryAnnouncement,
@@ -19,7 +19,7 @@ import {
   type DormRoom,
 } from "../api/dormitory.api";
 
-const emptyRoom = { building: "ساختمان اصلی", floor: 1, code: "", name: "", capacity: 12 };
+const emptyRoom = { building: "ساختمان اصلی", floor: 1, code: "", name: "", capacity: 14 };
 
 export function DormitoryPage() {
   const auth = useAuth();
@@ -153,7 +153,7 @@ function DormitoryWorkspace() {
     const toastId = `dormitory:residents-load:${selectedRoomId}`;
     void Promise.all([
       listDormAssignments(selectedRoomId),
-      canManage ? listRelationshipStudents(organizationId) : Promise.resolve([]),
+      canManage ? listAvailableDormStudents(selectedRoomId) : Promise.resolve([]),
     ])
       .then(([nextAssigned, nextStudents]) => {
         if (!alive) return;
@@ -290,13 +290,13 @@ function DormitoryWorkspace() {
       roomDraft.floor > 200 ||
       !Number.isInteger(roomDraft.capacity) ||
       roomDraft.capacity < 1 ||
-      roomDraft.capacity > 12
+      roomDraft.capacity > 14
     ) {
       notifications.warning(t("اطلاعات اتاق را کامل کنید.", "Complete the room details."), {
         id: "dormitory:room-validation",
         description: t(
-          "سازمان، ساختمان، کد و نام اتاق لازم است؛ ظرفیت بین ۱ تا ۱۲ نفر و طبقه بین ۱ تا ۲۰۰ باشد.",
-          "Choose an organization and enter a building, code and name. Capacity must be 1–12 and floor 1–200.",
+          "سازمان، ساختمان، کد و نام اتاق لازم است؛ ظرفیت بین ۱ تا ۱۴ نفر و طبقه بین ۱ تا ۲۰۰ باشد.",
+          "Choose an organization and enter a building, code and name. Capacity must be 1–14 and floor 1–200.",
         ),
       });
       return;
@@ -532,7 +532,7 @@ function DormitoryWorkspace() {
             <Building2 className="mx-auto size-10 text-brand" aria-hidden="true" />
             <h2 className="mt-4 text-lg font-black text-ink">هنوز اتاقی ثبت نشده است</h2>
             <p className="mt-2 text-sm text-slate-500">
-              اولین اتاق را بسازید؛ ظرفیت پیش‌فرض هر اتاق ۱۲ نفر است.
+              اولین اتاق را بسازید؛ ظرفیت پیش‌فرض هر اتاق ۱۴ نفر است.
             </p>
             <Button
               className="mt-5"
@@ -741,12 +741,12 @@ function DormitoryWorkspace() {
                 disabled={saving}
                 type="number"
                 min={1}
-                max={12}
+                max={14}
                 value={roomDraft.capacity}
                 onChange={(event) =>
                   setRoomDraft((current) => ({
                     ...current,
-                    capacity: Math.min(12, Number(event.target.value) || 1),
+                    capacity: Math.min(14, Number(event.target.value) || 1),
                   }))
                 }
               />

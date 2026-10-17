@@ -33,7 +33,7 @@ export const contextLabelMap: Record<AttendanceContextType | "pool" | "night", s
   class: "کلاس",
   class_group: "گروه کلاس",
   dorm: "خوابگاه",
-  pool: "پول / فراخوان",
+  pool: "حوضچه / فراخوان",
   night: "حضور شب",
 };
 

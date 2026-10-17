@@ -35,16 +35,7 @@ export function getStudentUsername(student: Student) {
 export function getStudentProfileCompleteness(student: Student) {
   if (student.profileComplete === false || student.registrationStatus === "ACCOUNT_CREATED")
     return 0;
-  const values = [
-    student.name,
-    getStudentUsername(student),
-    student.grade,
-    student.major,
-    student.targetField || student.target_major,
-    student.targetUniversity || student.target_city,
-    student.targetRank || student.rank_goal,
-    student.dailyCapacity || student.daily_capacity,
-  ];
+  const values = [student.name, getStudentUsername(student), student.grade, student.major];
   const completed = values.filter((value) => String(value ?? "").trim()).length;
   return Math.round((completed / values.length) * 100);
 }
@@ -58,10 +49,6 @@ export function getMissingStudentProfileFields(student: Student, language: Admin
     [copy.username, getStudentUsername(student)],
     [copy.grade, student.grade],
     [copy.track, student.major],
-    [copy.targetField, student.targetField || student.target_major],
-    [copy.targetUniversity, student.targetUniversity || student.target_city],
-    [copy.targetRank, student.targetRank || student.rank_goal],
-    [copy.dailyCapacity, student.dailyCapacity || student.daily_capacity],
   ] as const;
   return fields.filter(([, value]) => !String(value ?? "").trim()).map(([label]) => label);
 }
