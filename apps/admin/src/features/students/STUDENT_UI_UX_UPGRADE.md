@@ -14,7 +14,7 @@ This package is a frontend-only redesign of the Students administration module. 
 ## Directory improvements
 
 - Compact status counts now double as filters, removing duplicated status controls.
-- Search covers name, ID, username, grade, major, field and university target.
+- Search covers name, ID, username, grade, and major.
 - Search filtering uses `useDeferredValue` so large client-side lists remain responsive.
 - Desktop sorting is attached directly to sortable table headers.
 - Mobile keeps a compact sort selector plus direction control.

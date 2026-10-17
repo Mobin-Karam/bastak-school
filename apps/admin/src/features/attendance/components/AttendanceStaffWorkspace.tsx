@@ -33,7 +33,7 @@ const field =
   "min-h-12 w-full rounded-xl border border-[rgb(var(--border-subtle))] bg-card px-3 text-sm";
 const action =
   "min-h-12 rounded-xl px-4 text-sm font-bold disabled:opacity-50 focus-visible:ring-2 focus-visible:ring-blue-500";
-const labels = { ...contextLabelMap, pool: "پول / فراخوان", night: "حضور شب" };
+const labels = { ...contextLabelMap, pool: "حوضچه / فراخوان", night: "حضور شب" };
 const statuses = {
   present: "حاضر",
   absent: "غایب",
@@ -434,49 +434,68 @@ function SavedSessionDialog({
                 فهرست کامل این جلسه قدیمی ثبت نشده؛ تعداد افراد با وضعیت نامشخص قابل محاسبه نیست.
               </p>
             ) : null}
-            <ul className="space-y-2">
-              {visible.map((member) => (
-                <li
-                  key={member.id}
-                  className="flex items-center justify-between gap-2 rounded-xl border border-[rgb(var(--border-subtle))] p-3"
-                >
-                  <div>
-                    <p className="text-sm font-bold">{member.name}</p>
-                    <p className="mt-1 text-xs text-slate-500">
-                      {member.status === "unmarked" ? "حضور تأیید نشده" : statuses[member.status]}
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setProfileId(member.id)}
-                    className={`${action} border border-[rgb(var(--border-subtle))]`}
-                  >
-                    پرونده حضور
-                  </button>
-                  {auth.can("attendance.correct") &&
-                  data.records.find((record) => record.studentId === member.id) ? (
-                    <button
-                      type="button"
-                      className={`${action} border border-amber-300 text-amber-800 dark:text-amber-200`}
-                      onClick={() => {
-                        const record = data.records.find((item) => item.studentId === member.id)!;
-                        setCorrection({
-                          id: record.id,
-                          revision: record.revision,
-                          status:
-                            record.physicalStatus === "late" || record.physicalStatus === "absent"
-                              ? record.physicalStatus
-                              : "present",
-                        });
-                        setCorrectionReason("");
-                      }}
-                    >
-                      اصلاح
-                    </button>
-                  ) : null}
-                </li>
-              ))}
-            </ul>
+            <div
+              className="overflow-x-auto rounded-xl border border-[rgb(var(--border-subtle))]"
+              role="region"
+              aria-label="اعضای جلسه"
+              tabIndex={0}
+            >
+              <table className="min-w-[620px] w-full text-start text-sm">
+                <thead className="bg-[rgb(var(--surface-muted))] text-xs text-slate-500">
+                  <tr>
+                    <th className="px-3 py-2 text-start font-bold">دانش‌آموز</th>
+                    <th className="px-3 py-2 text-start font-bold">وضعیت</th>
+                    <th className="px-3 py-2 text-end font-bold">عملیات</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[rgb(var(--border-subtle))]">
+                  {visible.map((member) => {
+                    const record = data.records.find((item) => item.studentId === member.id);
+                    return (
+                      <tr key={member.id}>
+                        <td className="px-3 py-3 font-bold">{member.name}</td>
+                        <td className="px-3 py-3 text-xs text-slate-500">
+                          {member.status === "unmarked"
+                            ? "حضور تأیید نشده"
+                            : statuses[member.status]}
+                        </td>
+                        <td className="px-3 py-3">
+                          <div className="flex justify-end gap-2">
+                            <button
+                              type="button"
+                              onClick={() => setProfileId(member.id)}
+                              className={`${action} min-h-9 border border-[rgb(var(--border-subtle))] px-3 text-xs`}
+                            >
+                              پرونده حضور
+                            </button>
+                            {auth.can("attendance.correct") && record ? (
+                              <button
+                                type="button"
+                                className={`${action} min-h-9 border border-amber-300 px-3 text-xs text-amber-800 dark:text-amber-200`}
+                                onClick={() => {
+                                  setCorrection({
+                                    id: record.id,
+                                    revision: record.revision,
+                                    status:
+                                      record.physicalStatus === "late" ||
+                                      record.physicalStatus === "absent"
+                                        ? record.physicalStatus
+                                        : "present",
+                                  });
+                                  setCorrectionReason("");
+                                }}
+                              >
+                                اصلاح
+                              </button>
+                            ) : null}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
             {data.rosterComplete && !visible.length ? (
               <p className="py-4 text-center text-sm text-slate-500">
                 عضوی با این وضعیت وجود ندارد.
@@ -688,17 +707,29 @@ export function AttendanceStaffWorkspace({
     }
   }
   return (
-    <Card className="space-y-5 rounded-3xl border border-sky-100 p-4 sm:p-6 dark:border-slate-700">
-      <div>
-        <h2 className="flex items-center gap-2 text-lg font-black">
-          <CalendarCheck2 className="text-blue-600" size={22} />{" "}
-          {section === "pool" ? "پول / فراخوان حضور" : "جلسات حضور"}
-        </h2>
-        <p className="mt-2 text-xs leading-6 text-slate-500">
-          خلاصه روزانه ساعت ۱۶ به وقت تهران از نو آغاز می‌شود. همه جلسات و پرونده‌ها در سوابق باقی
-          می‌مانند.
-        </p>
-      </div>
+    <Card className="space-y-6 rounded-3xl border border-sky-100 p-4 sm:p-6 dark:border-slate-700">
+      <header className="flex flex-wrap items-start justify-between gap-3 border-b border-[rgb(var(--border-subtle))] pb-4">
+        <div>
+          <p className="text-xs font-bold text-blue-700 dark:text-blue-300">عملیات حضور و غیاب</p>
+          <h2 className="mt-1 flex items-center gap-2 text-lg font-black text-ink">
+            <CalendarCheck2 className="text-blue-600" size={22} />
+            {section === "pool" ? "حوضچه / فراخوان حضور" : "جلسات حضور"}
+          </h2>
+          <p className="mt-2 max-w-2xl text-xs leading-6 text-slate-500">
+            خلاصه روزانه ساعت ۱۶ به وقت تهران از نو آغاز می‌شود. همه جلسات و پرونده‌ها در سوابق باقی
+            می‌مانند.
+          </p>
+        </div>
+        {section === "sessions" && onNewSession && auth.can("attendance.manage") ? (
+          <button
+            type="button"
+            onClick={onNewSession}
+            className={`${action} bg-blue-600 text-white`}
+          >
+            ثبت جلسه تازه اکنون
+          </button>
+        ) : null}
+      </header>
       {overview.isLoading ? (
         <p role="status">در حال دریافت خلاصه…</p>
       ) : overview.isError ? (
@@ -711,14 +742,34 @@ export function AttendanceStaffWorkspace({
       ) : overview.data ? (
         <dl className="grid grid-cols-2 gap-2 sm:grid-cols-5">
           {[
-            ["جلسه", overview.data.sessions],
-            ["حاضر", overview.data.present],
-            ["غایب", overview.data.absent],
-            ["تأخیر", overview.data.late],
-            ["نامشخص", overview.data.unmarked],
-          ].map(([label, count]) => (
-            <div key={label} className="rounded-2xl bg-[rgb(var(--surface-muted))] p-3 text-center">
-              <dt className="text-xs text-slate-500">{label}</dt>
+            [
+              "جلسه",
+              overview.data.sessions,
+              "border-blue-200 bg-blue-50/60 text-blue-800 dark:border-blue-900 dark:bg-blue-950/20 dark:text-blue-200",
+            ],
+            [
+              "حاضر",
+              overview.data.present,
+              "border-emerald-200 bg-emerald-50/60 text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950/20 dark:text-emerald-200",
+            ],
+            [
+              "غایب",
+              overview.data.absent,
+              "border-rose-200 bg-rose-50/60 text-rose-800 dark:border-rose-900 dark:bg-rose-950/20 dark:text-rose-200",
+            ],
+            [
+              "تأخیر",
+              overview.data.late,
+              "border-amber-200 bg-amber-50/60 text-amber-800 dark:border-amber-900 dark:bg-amber-950/20 dark:text-amber-200",
+            ],
+            [
+              "نامشخص",
+              overview.data.unmarked,
+              "border-slate-200 bg-slate-50 text-slate-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200",
+            ],
+          ].map(([label, count, tone]) => (
+            <div key={label} className={`rounded-2xl border p-3 text-center ${tone}`}>
+              <dt className="text-xs font-semibold opacity-75">{label}</dt>
               <dd className="mt-1 text-xl font-black">{Number(count).toLocaleString("fa-IR")}</dd>
             </div>
           ))}
@@ -870,7 +921,25 @@ export function AttendanceStaffWorkspace({
         ) : null
       ) : null}
       {section === "sessions" ? (
-        <div className="space-y-3">
+        <section
+          className="space-y-4 rounded-2xl border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-muted))]/40 p-3 sm:p-4"
+          aria-labelledby="attendance-session-archive"
+        >
+          <div className="flex flex-wrap items-start justify-between gap-2">
+            <div>
+              <h3 id="attendance-session-archive" className="text-base font-black text-ink">
+                آرشیو جلسات
+              </h3>
+              <p className="mt-1 text-xs text-slate-500">
+                یک جلسه را برای مرور اعضا، نهایی‌سازی یا اصلاح ثبت‌ها انتخاب کنید.
+              </p>
+            </div>
+            {sessions.data ? (
+              <span className="rounded-full bg-white px-2.5 py-1 text-xs font-bold text-slate-600 ring-1 ring-[rgb(var(--border-subtle))] dark:bg-slate-950 dark:text-slate-300">
+                {sessions.data.total.toLocaleString("fa-IR")} جلسه
+              </span>
+            ) : null}
+          </div>
           {history.isLoading ? (
             <p role="status" className="text-xs text-slate-500">
               در حال دریافت سابقه جامع جلسات…
@@ -892,54 +961,53 @@ export function AttendanceStaffWorkspace({
               دسترسی شما
             </p>
           ) : null}
-          {onNewSession && auth.can("attendance.manage") ? (
-            <button
-              type="button"
-              onClick={onNewSession}
-              className={`${action} w-full bg-blue-600 text-white`}
-            >
-              ثبت جلسه تازه اکنون
-            </button>
-          ) : null}
-          <select
-            aria-label="نوع جلسات حضور"
-            value={category}
-            onChange={(event) => {
-              setCategory(event.target.value as typeof category);
-              setContextFilter("");
-              setSessionsPage(1);
-            }}
-            className={field}
-          >
-            {Object.entries(labels).map(([key, label]) => (
-              <option key={key} value={key}>
-                {label}
-              </option>
-            ))}
-          </select>
-          <select
-            aria-label="کلاس یا اتاق جلسات"
-            className={field}
-            value={contextFilter}
-            onChange={(event) => setContextFilter(event.target.value)}
-          >
-            <option value="">همه کلاس‌ها و اتاق‌ها</option>
-            {Array.from(
-              new Map(
-                sessionItems
-                  .filter((session) => session.contextType === category)
-                  .map((session) => [
-                    session.contextId,
-                    contexts.find((context) => context.id === session.contextId)?.name ||
-                      session.title,
-                  ]),
-              ).entries(),
-            ).map(([id, name]) => (
-              <option key={id} value={id}>
-                {name}
-              </option>
-            ))}
-          </select>
+          <div className="grid gap-2 sm:grid-cols-2">
+            <label className="grid gap-1 text-xs font-bold text-slate-600 dark:text-slate-300">
+              نوع زمینه
+              <select
+                aria-label="نوع جلسات حضور"
+                value={category}
+                onChange={(event) => {
+                  setCategory(event.target.value as typeof category);
+                  setContextFilter("");
+                  setSessionsPage(1);
+                }}
+                className={field}
+              >
+                {Object.entries(labels).map(([key, label]) => (
+                  <option key={key} value={key}>
+                    {label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="grid gap-1 text-xs font-bold text-slate-600 dark:text-slate-300">
+              کلاس یا اتاق
+              <select
+                aria-label="کلاس یا اتاق جلسات"
+                className={field}
+                value={contextFilter}
+                onChange={(event) => setContextFilter(event.target.value)}
+              >
+                <option value="">همه کلاس‌ها و اتاق‌ها</option>
+                {Array.from(
+                  new Map(
+                    sessionItems
+                      .filter((session) => session.contextType === category)
+                      .map((session) => [
+                        session.contextId,
+                        contexts.find((context) => context.id === session.contextId)?.name ||
+                          session.title,
+                      ]),
+                  ).entries(),
+                ).map(([id, name]) => (
+                  <option key={id} value={id}>
+                    {name}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
           {sessions.isLoading ? (
             <p role="status">در حال دریافت جلسات…</p>
           ) : sessions.isError ? (
@@ -950,34 +1018,67 @@ export function AttendanceStaffWorkspace({
               </button>
             </p>
           ) : (
-            <ul className="space-y-2">
-              {sessionItems
-                ?.filter(
-                  (session) =>
-                    session.contextType === category &&
-                    (!contextFilter || session.contextId === contextFilter),
-                )
-                .map((session) => (
-                  <li key={session.id}>
-                    <button
-                      type="button"
-                      className="w-full rounded-2xl border border-[rgb(var(--border-subtle))] p-4 text-start hover:border-blue-400 focus-visible:ring-2 focus-visible:ring-blue-500"
-                      onClick={() => setSelectedId(session.id)}
-                    >
-                      <p className="font-bold">{session.title}</p>
-                      <p className="mt-1 text-xs text-slate-500">
-                        {new Date(session.sessionDate).toLocaleString("fa-IR", {
-                          timeZone: "Asia/Tehran",
-                        })}
-                      </p>
-                      <p className="mt-2 text-xs">
-                        {session.present} حاضر · {session.absent} غایب ·{" "}
-                        {session.unmarked ?? "نامعلوم"} نامشخص
-                      </p>
-                    </button>
-                  </li>
-                ))}
-            </ul>
+            <div
+              className="overflow-x-auto rounded-2xl border border-[rgb(var(--border-subtle))]"
+              role="region"
+              aria-label="فهرست جلسات حضور"
+              tabIndex={0}
+            >
+              <table className="min-w-[720px] w-full text-start text-sm">
+                <thead className="bg-[rgb(var(--surface-muted))] text-xs text-slate-500">
+                  <tr>
+                    <th className="px-3 py-3 text-start font-bold">جلسه</th>
+                    <th className="px-3 py-3 text-start font-bold">زمینه</th>
+                    <th className="px-3 py-3 text-start font-bold">زمان</th>
+                    <th className="px-3 py-3 text-center font-bold">حاضر</th>
+                    <th className="px-3 py-3 text-center font-bold">غایب</th>
+                    <th className="px-3 py-3 text-center font-bold">نامشخص</th>
+                    <th className="px-3 py-3 text-end font-bold">جزئیات</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[rgb(var(--border-subtle))]">
+                  {sessionItems
+                    .filter(
+                      (session) =>
+                        session.contextType === category &&
+                        (!contextFilter || session.contextId === contextFilter),
+                    )
+                    .map((session) => (
+                      <tr key={session.id} className="hover:bg-[rgb(var(--surface-muted))]">
+                        <td className="px-3 py-3 font-bold">
+                          <button
+                            type="button"
+                            className="text-start hover:text-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 dark:hover:text-blue-300"
+                            onClick={() => setSelectedId(session.id)}
+                          >
+                            {session.title}
+                          </button>
+                        </td>
+                        <td className="px-3 py-3 text-xs text-slate-500">
+                          {labels[session.contextType]}
+                        </td>
+                        <td className="px-3 py-3 whitespace-nowrap text-xs text-slate-500">
+                          {new Date(session.sessionDate).toLocaleString("fa-IR", {
+                            timeZone: "Asia/Tehran",
+                          })}
+                        </td>
+                        <td className="px-3 py-3 text-center">{session.present}</td>
+                        <td className="px-3 py-3 text-center">{session.absent}</td>
+                        <td className="px-3 py-3 text-center">{session.unmarked ?? "—"}</td>
+                        <td className="px-3 py-3 text-end">
+                          <button
+                            type="button"
+                            className={`${action} min-h-9 border border-[rgb(var(--border-subtle))] px-3 text-xs`}
+                            onClick={() => setSelectedId(session.id)}
+                          >
+                            مشاهده
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                </tbody>
+              </table>
+            </div>
           )}
           {sessions.data && !sessionItems.some((session) => session.contextType === category) ? (
             <p className="py-4 text-center text-sm text-slate-500">
@@ -1013,7 +1114,7 @@ export function AttendanceStaffWorkspace({
               </button>
             </nav>
           ) : null}
-        </div>
+        </section>
       ) : (
         <div className="space-y-4">
           <p className="text-sm leading-6 text-slate-500">

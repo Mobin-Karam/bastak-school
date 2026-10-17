@@ -38,6 +38,11 @@ export const createDormRoom = (body: {
 export const listDormAssignments = (roomId: string) =>
   api.get<DormAssignment[]>(`/dormitory/rooms/${encodeURIComponent(roomId)}/assignments`);
 
+export const listAvailableDormStudents = (roomId: string) =>
+  api.get<Array<{ id: string; name: string }>>(
+    `/dormitory/rooms/${encodeURIComponent(roomId)}/available-students`,
+  );
+
 export const setDormAssignments = (roomId: string, studentIds: string[]) =>
   api.put<{ roomId: string; count: number }>(
     `/dormitory/rooms/${encodeURIComponent(roomId)}/assignments`,

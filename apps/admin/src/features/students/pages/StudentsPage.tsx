@@ -226,15 +226,7 @@ export function StudentsPage() {
         (student) =>
           !needle ||
           normalizePersianText(
-            [
-              student.name,
-              student.id,
-              getStudentUsername(student),
-              student.grade,
-              student.major,
-              student.targetField || student.target_major,
-              student.targetUniversity || student.target_city,
-            ]
+            [student.name, student.id, getStudentUsername(student), student.grade, student.major]
               .filter(Boolean)
               .join(" "),
           ).includes(needle),

@@ -182,7 +182,7 @@ it("preserves all roles when saving only profile details", async () => {
   );
   expect(state.setUserRoles).not.toHaveBeenCalled();
 });
-it("removes only the unchecked role and retains roles the principal cannot edit", async () => {
+it("lets a principal update every operational school role", async () => {
   state.listUsers.mockResolvedValue([
     {
       id: "staff",
@@ -203,7 +203,7 @@ it("removes only the unchecked role and retains roles the principal cannot edit"
   await userEvent.click(within(row).getByRole("button", { name: /actions/i }));
   await userEvent.click(screen.getByRole("menuitem", { name: copy.edit }));
   const dialog = within(screen.getByRole("dialog"));
-  expect(dialog.getByRole("checkbox", { name: "Counselor" })).toBeDisabled();
+  expect(dialog.getByRole("checkbox", { name: "Counselor" })).not.toBeDisabled();
   await userEvent.click(dialog.getByRole("checkbox", { name: "Teacher" }));
   await userEvent.click(dialog.getByRole("button", { name: copy.saveChanges }));
   expect(state.updateUser).not.toHaveBeenCalled();
@@ -211,6 +211,21 @@ it("removes only the unchecked role and retains roles the principal cannot edit"
     roleCodes: ["SCHOOL_SUPERVISOR", "COUNSELOR"],
     organizationId: "school",
   });
+});
+it("shows the full operational school role catalog when a principal creates an account", async () => {
+  mount();
+  await screen.findByRole("table");
+  await userEvent.click(screen.getByRole("button", { name: copy.newUser }));
+  const dialog = within(screen.getByRole("dialog"));
+  await userEvent.type(dialog.getByLabelText(copy.phoneNumber), "09333333333");
+  await userEvent.type(dialog.getByLabelText(copy.password), "ValidPassword123");
+  await userEvent.click(dialog.getByRole("button", { name: "Continue" }));
+
+  expect(dialog.getByRole("checkbox", { name: "Guardian" })).toBeEnabled();
+  expect(dialog.getByRole("checkbox", { name: "Counselor" })).toBeEnabled();
+  expect(dialog.getByRole("checkbox", { name: "Content manager" })).toBeEnabled();
+  expect(dialog.getByRole("checkbox", { name: "School administrator" })).toBeEnabled();
+  expect(dialog.queryByRole("checkbox", { name: "Disciplinarian" })).not.toBeInTheDocument();
 });
 it("creates one account with supervisor and teacher roles", async () => {
   mount();

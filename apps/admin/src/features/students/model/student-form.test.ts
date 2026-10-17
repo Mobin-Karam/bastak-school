@@ -39,6 +39,19 @@ describe("student education form", () => {
     expect(form.username).toBe("09123456789");
   });
 
+  it("keeps an ISO date for the picker while sending the API its Jalali date", () => {
+    const form = studentToForm({
+      id: "student-3",
+      name: "مها کرام",
+      birthDate: "2010-03-21T00:00:00.000Z",
+    });
+
+    expect(form.birthDateJalali).toBe("2010-03-21");
+    expect(studentPayload({ ...form, username: "09123456789" }, false).birthDateJalali).toBe(
+      "1389/01/01",
+    );
+  });
+
   it("sends structured education identifiers for server-side catalog validation", () => {
     const payload = studentPayload(
       {
@@ -58,6 +71,10 @@ describe("student education form", () => {
       trackId: "experimental_sciences",
     });
     expect(normalizeIranianPhoneNumber(payload.username)).toBe("09123456789");
+    expect(payload).not.toHaveProperty("targetUniversity");
+    expect(payload).not.toHaveProperty("targetField");
+    expect(payload).not.toHaveProperty("targetRank");
+    expect(payload).not.toHaveProperty("dailyCapacity");
   });
 
   it("does not invent a school grade for an independent learner", () => {

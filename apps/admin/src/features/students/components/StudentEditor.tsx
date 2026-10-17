@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Button, Field, Input } from "../../../shared/ui/ui";
 import { api } from "../../../shared/api/api";
 import { useOptionalAdminLanguage } from "../../../shared/ui/locale";
+import { DatePicker } from "../../../shared/ui/date-picker";
 import type { StudentForm } from "../model/student-form";
 import { studentCopy } from "../model/student-locale";
 
@@ -30,10 +31,6 @@ function formCompleteness(form: StudentForm, includePassword: boolean) {
     ...(form.learnerProfile === "school"
       ? [form.gradeId, form.educationTypeId, form.trackId]
       : [form.independentType, form.learningLevel]),
-    form.targetUniversity,
-    form.targetField,
-    form.targetRank,
-    form.dailyCapacity,
     ...(includePassword ? [form.password] : []),
   ];
   return Math.round((values.filter((value) => value.trim()).length / values.length) * 100);
@@ -99,7 +96,7 @@ export function StudentEditor({
   saveDirty: boolean;
   usernameError?: string;
 }) {
-  const [createStep, setCreateStep] = useState<1 | 2 | 3>(1);
+  const [activeStep, setActiveStep] = useState<1 | 2 | 3 | 4 | 5>(1);
   const language = useOptionalAdminLanguage() ?? "fa";
   const copy = studentCopy[language];
   const catalog = useQuery({
@@ -142,7 +139,9 @@ export function StudentEditor({
   const completion = useMemo(() => formCompleteness(form, mode === "create"), [form, mode]);
   const steps = [
     language === "fa" ? "هویت و حساب" : "Identity & account",
-    language === "fa" ? "آموزش و پرونده" : "Education & profile",
+    language === "fa" ? "ثبت‌نام" : "Enrollment",
+    language === "fa" ? "آموزش" : "Education",
+    language === "fa" ? "سرپرست‌ها" : "Guardians",
     language === "fa" ? "مرور و ثبت" : "Review & save",
   ];
 
@@ -177,36 +176,34 @@ export function StudentEditor({
 
       <Progress value={completion} label={copy.profileCompletion} language={language} />
 
-      {mode === "create" ? (
-        <ol
-          className="grid grid-cols-3 gap-2"
-          aria-label={language === "fa" ? "مراحل ایجاد طلبه" : "Student creation steps"}
-        >
-          {steps.map((label, index) => {
-            const step = (index + 1) as 1 | 2 | 3;
-            const active = createStep === step;
-            const complete = createStep > step;
-            return (
-              <li key={label}>
-                <button
-                  type="button"
-                  onClick={() => setCreateStep(step)}
-                  aria-current={active ? "step" : undefined}
-                  className={`flex min-h-14 w-full items-center gap-2 rounded-xl border px-3 text-start text-xs font-bold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand ${active ? "border-brand bg-brand/10 text-brand" : complete ? "border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-200" : "border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-muted))] text-slate-500"}`}
-                >
-                  <span className="grid size-6 shrink-0 place-items-center rounded-full bg-current/10">
-                    {step}
-                  </span>
-                  <span className="leading-4">{label}</span>
-                </button>
-              </li>
-            );
-          })}
-        </ol>
-      ) : null}
+      <ol
+        className="grid grid-cols-2 gap-2 sm:grid-cols-5"
+        aria-label={language === "fa" ? "مراحل پرونده دانش‌آموز" : "Student profile steps"}
+      >
+        {steps.map((label, index) => {
+          const step = (index + 1) as 1 | 2 | 3 | 4 | 5;
+          const active = activeStep === step;
+          const complete = activeStep > step;
+          return (
+            <li key={label}>
+              <button
+                type="button"
+                onClick={() => setActiveStep(step)}
+                aria-current={active ? "step" : undefined}
+                className={`flex min-h-12 w-full items-center gap-2 rounded-xl border px-3 text-start text-xs font-bold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand ${active ? "border-brand bg-brand/10 text-brand" : complete ? "border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-200" : "border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-muted))] text-slate-500"}`}
+              >
+                <span className="grid size-6 shrink-0 place-items-center rounded-full bg-current/10">
+                  {step}
+                </span>
+                <span className="leading-4">{label}</span>
+              </button>
+            </li>
+          );
+        })}
+      </ol>
 
       <section
-        className={`grid gap-3 rounded-xl border border-slate-200 p-3 dark:border-slate-800 ${mode === "create" && createStep !== 1 ? "hidden" : ""}`}
+        className={`grid gap-3 rounded-xl border border-slate-200 p-3 dark:border-slate-800 ${activeStep !== 1 ? "hidden" : ""}`}
       >
         <div>
           <h4 className="text-sm font-bold text-slate-800 dark:text-slate-100">
@@ -263,7 +260,7 @@ export function StudentEditor({
       </section>
 
       <section
-        className={`grid gap-3 rounded-xl border border-slate-200 p-3 dark:border-slate-800 ${mode === "create" && createStep !== 1 ? "hidden" : ""}`}
+        className={`grid gap-3 rounded-xl border border-slate-200 p-3 dark:border-slate-800 ${activeStep !== 2 ? "hidden" : ""}`}
       >
         <div>
           <h4 className="text-sm font-bold text-slate-800 dark:text-slate-100">
@@ -285,11 +282,11 @@ export function StudentEditor({
             />
           </Field>
           <Field label={language === "fa" ? "تاریخ تولد (شمسی)" : "Birth date (Jalali)"}>
-            <Input
-              dir="ltr"
+            <DatePicker
+              calendar="persian"
               value={form.birthDateJalali}
-              onChange={(event) => setField("birthDateJalali", event.target.value)}
-              placeholder="۱۴۰۰/۰۱/۰۱"
+              onChange={(isoDate) => setField("birthDateJalali", isoDate)}
+              ariaLabel={language === "fa" ? "تاریخ تولد شمسی" : "Birth date"}
             />
           </Field>
           <Field label={language === "fa" ? "مدرسه دولتی" : "Government school"}>
@@ -321,7 +318,7 @@ export function StudentEditor({
       </section>
 
       <section
-        className={`grid gap-3 rounded-xl border border-slate-200 p-3 dark:border-slate-800 ${mode === "create" && createStep !== 1 ? "hidden" : ""}`}
+        className={`grid gap-3 rounded-xl border border-slate-200 p-3 dark:border-slate-800 ${activeStep !== 4 ? "hidden" : ""}`}
       >
         <div>
           <h4 className="text-sm font-bold text-slate-800 dark:text-slate-100">
@@ -370,7 +367,7 @@ export function StudentEditor({
       </section>
 
       <section
-        className={`grid gap-3 rounded-xl border border-slate-200 p-3 dark:border-slate-800 ${mode === "create" && createStep !== 2 ? "hidden" : ""}`}
+        className={`grid gap-3 rounded-xl border border-slate-200 p-3 dark:border-slate-800 ${activeStep !== 3 ? "hidden" : ""}`}
       >
         <div>
           <h4 className="text-sm font-bold text-slate-800 dark:text-slate-100">
@@ -493,54 +490,7 @@ export function StudentEditor({
         ) : null}
       </section>
 
-      <section
-        className={`grid gap-3 rounded-xl border border-slate-200 p-3 dark:border-slate-800 ${mode === "create" && createStep !== 2 ? "hidden" : ""}`}
-      >
-        <div>
-          <h4 className="text-sm font-bold text-slate-800 dark:text-slate-100">
-            {copy.goalAndCapacity}
-          </h4>
-          <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-            {copy.goalAndCapacityDescription}
-          </p>
-        </div>
-        <div className="grid gap-3 sm:grid-cols-2">
-          <Field label={copy.targetUniversity}>
-            <Input
-              value={form.targetUniversity}
-              onChange={(event) => setField("targetUniversity", event.target.value)}
-              placeholder={copy.targetUniversity}
-            />
-          </Field>
-          <Field label={copy.targetField}>
-            <Input
-              value={form.targetField}
-              onChange={(event) => setField("targetField", event.target.value)}
-              placeholder={copy.targetField}
-            />
-          </Field>
-        </div>
-        <div className="grid gap-3 sm:grid-cols-2">
-          <Field label={copy.targetRank}>
-            <Input
-              dir="ltr"
-              inputMode="numeric"
-              value={form.targetRank}
-              onChange={(event) => setField("targetRank", event.target.value)}
-              placeholder={copy.targetRankPlaceholder}
-            />
-          </Field>
-          <Field label={copy.dailyCapacity}>
-            <Input
-              value={form.dailyCapacity}
-              onChange={(event) => setField("dailyCapacity", event.target.value)}
-              placeholder={copy.dailyCapacityPlaceholder}
-            />
-          </Field>
-        </div>
-      </section>
-
-      {mode === "create" && createStep === 3 ? (
+      {activeStep === 5 ? (
         <section className="grid gap-2 rounded-xl border border-brand/25 bg-brand/5 p-4 text-sm">
           <h4 className="font-black text-ink">
             {language === "fa" ? "مرور نهایی" : "Final review"}
@@ -549,9 +499,13 @@ export function StudentEditor({
             {form.name || `${form.firstName} ${form.lastName}` || "—"} · {form.username || "—"}
           </p>
           <p className="text-xs text-slate-500">
-            {language === "fa"
-              ? "پس از ثبت، پرونده از فهرست قابل انتخاب و تکمیل خواهد بود."
-              : "After saving, the record can be selected and completed from the directory."}
+            {mode === "create"
+              ? language === "fa"
+                ? "پس از ثبت، پرونده از فهرست قابل انتخاب و تکمیل خواهد بود."
+                : "After saving, the record can be selected and completed from the directory."
+              : language === "fa"
+                ? "تغییرات پس از ذخیره در پرونده دانش‌آموز اعمال می‌شوند."
+                : "Changes will be applied to the student record after saving."}
           </p>
         </section>
       ) : null}
@@ -561,20 +515,18 @@ export function StudentEditor({
           loading={busy}
           loadingLabel={mode === "create" ? copy.creating : copy.saving}
           disabled={
-            mode === "create"
-              ? busy ||
-                (createStep === 1 && !identityValid) ||
-                (createStep === 2 && !educationValid) ||
-                (createStep === 3 && saveDisabled)
-              : saveDisabled
+            busy ||
+            (activeStep === 1 && !identityValid) ||
+            (activeStep === 3 && !educationValid) ||
+            (activeStep === 5 && saveDisabled)
           }
           onClick={() => {
-            if (mode === "create" && createStep < 3) setCreateStep((createStep + 1) as 2 | 3);
+            if (activeStep < 5) setActiveStep((activeStep + 1) as 2 | 3 | 4 | 5);
             else onSave();
           }}
         >
           <Save size={16} />
-          {mode === "create" && createStep < 3
+          {activeStep < 5
             ? language === "fa"
               ? "ادامه"
               : "Continue"
@@ -584,19 +536,13 @@ export function StudentEditor({
         </Button>
         <Button
           variant="soft"
-          disabled={busy || (mode === "create" ? createStep === 1 : !dirty)}
+          disabled={busy || (activeStep === 1 ? !dirty : false)}
           onClick={() =>
-            mode === "create" && createStep > 1
-              ? setCreateStep((createStep - 1) as 1 | 2)
-              : onReset()
+            activeStep > 1 ? setActiveStep((activeStep - 1) as 1 | 2 | 3 | 4) : onReset()
           }
         >
           <RotateCcw size={16} />
-          {mode === "create" && createStep > 1
-            ? language === "fa"
-              ? "مرحله قبل"
-              : "Previous step"
-            : copy.reset}
+          {activeStep > 1 ? (language === "fa" ? "مرحله قبل" : "Previous step") : copy.reset}
         </Button>
       </div>
     </section>

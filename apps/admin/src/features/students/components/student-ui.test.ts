@@ -13,10 +13,6 @@ const completeStudent: Student = {
   username: "student1",
   grade: "دوازدهم",
   major: "تجربی",
-  targetUniversity: "دانشگاه تهران",
-  targetField: "پزشکی",
-  targetRank: "1000",
-  dailyCapacity: "6 ساعت",
   accountStatus: "active",
 };
 
@@ -32,19 +28,15 @@ describe("student UI helpers", () => {
 
   it("computes profile completeness only from data already available on Student", () => {
     expect(getStudentProfileCompleteness(completeStudent)).toBe(100);
-    expect(
-      getStudentProfileCompleteness({ ...completeStudent, major: "", targetUniversity: "" }),
-    ).toBe(75);
+    expect(getStudentProfileCompleteness({ ...completeStudent, major: "" })).toBe(75);
     expect(
       getStudentProfileCompleteness({ ...completeStudent, registrationStatus: "ACCOUNT_CREATED" }),
     ).toBe(0);
   });
 
-  it("reports missing profile fields for actionable overview UI", () => {
+  it("reports missing visible profile fields for actionable overview UI", () => {
     expect(getMissingStudentProfileFields(completeStudent)).toEqual([]);
-    expect(
-      getMissingStudentProfileFields({ ...completeStudent, targetRank: "", dailyCapacity: "" }),
-    ).toEqual(["رتبه هدف", "ظرفیت روزانه"]);
+    expect(getMissingStudentProfileFields({ ...completeStudent, major: "" })).toEqual(["رشته"]);
     expect(getMissingStudentProfileFields({ ...completeStudent, profileComplete: false })).toEqual([
       "مشخصات ثبت‌نام",
     ]);

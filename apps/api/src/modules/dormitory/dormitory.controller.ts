@@ -31,6 +31,12 @@ export class DormitoryController {
     return this.dormitory.listAssignments(user, id).then(ok);
   }
 
+  @Get("rooms/:id/available-students")
+  @RequireCapabilities("dormitory.manage")
+  availableStudents(@CurrentUser() user: AuthenticatedUser, @Param("id") id: string) {
+    return this.dormitory.listAvailableStudents(user, id).then(ok);
+  }
+
   @Put("rooms/:id/assignments")
   @RequireCapabilities("dormitory.manage")
   setAssignments(@CurrentUser() user: AuthenticatedUser, @Param("id") id: string, @Body() dto: SetDormRoomAssignmentsDto) {

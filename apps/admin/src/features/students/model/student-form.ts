@@ -21,10 +21,6 @@ export type StudentForm = {
   trackId: string;
   grade: string;
   major: string;
-  targetUniversity: string;
-  targetField: string;
-  targetRank: string;
-  dailyCapacity: string;
 };
 export function normalizeIranianPhoneNumber(value: string) {
   const englishDigits = value
@@ -63,6 +59,12 @@ function isoToJalaliInput(value?: string | null) {
   return year && month && day ? `${year}/${month}/${day}` : "";
 }
 
+function isoDateInput(value?: string | null) {
+  if (!value) return "";
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? "" : date.toISOString().slice(0, 10);
+}
+
 export function emptyStudentForm(): StudentForm {
   return {
     name: "",
@@ -86,10 +88,6 @@ export function emptyStudentForm(): StudentForm {
     trackId: "",
     grade: "",
     major: "",
-    targetUniversity: "",
-    targetField: "",
-    targetRank: "",
-    dailyCapacity: "",
   };
 }
 export function studentToForm(student: Student): StudentForm {
@@ -105,7 +103,7 @@ export function studentToForm(student: Student): StudentForm {
       "",
     password: "",
     nationalCode: student.nationalCode || "",
-    birthDateJalali: isoToJalaliInput(student.birthDate),
+    birthDateJalali: isoDateInput(student.birthDate),
     governmentSchool: student.governmentSchool || "",
     classId: student.classId || "",
     motherPhoneNumber: "",
@@ -120,10 +118,6 @@ export function studentToForm(student: Student): StudentForm {
     trackId: student.trackId || "",
     grade: student.grade || "",
     major: student.major || "",
-    targetUniversity: student.targetUniversity || "",
-    targetField: student.targetField || student.target_major || "",
-    targetRank: student.targetRank || student.rank_goal || "",
-    dailyCapacity: student.dailyCapacity || student.daily_capacity || "",
   };
 }
 export function studentPayload(form: StudentForm, includePassword: boolean) {
@@ -133,7 +127,7 @@ export function studentPayload(form: StudentForm, includePassword: boolean) {
     username: form.username.trim(),
     ...(includePassword ? { password: form.password.trim() } : {}),
     nationalCode: form.nationalCode.trim() || undefined,
-    birthDateJalali: form.birthDateJalali.trim() || undefined,
+    birthDateJalali: isoToJalaliInput(form.birthDateJalali) || undefined,
     governmentSchool: form.governmentSchool.trim() || undefined,
     classId: form.classId || undefined,
     mother:
@@ -158,10 +152,6 @@ export function studentPayload(form: StudentForm, includePassword: boolean) {
     trackId: !isIndependent ? form.trackId || undefined : undefined,
     grade: form.grade.trim(),
     major: form.major.trim(),
-    targetUniversity: form.targetUniversity.trim(),
-    targetField: form.targetField.trim(),
-    targetRank: form.targetRank.trim(),
-    dailyCapacity: form.dailyCapacity.trim(),
   };
 }
 export function countData(value: unknown) {

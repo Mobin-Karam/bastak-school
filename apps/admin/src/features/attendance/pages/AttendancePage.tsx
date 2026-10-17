@@ -64,7 +64,7 @@ const sectionLabels = {
   class_group: "گروه کلاس",
   dorm: "خوابگاه",
   sessions: "جلسات",
-  pool: "پول",
+  pool: "حوضچه",
 };
 const contextIcon = {
   class: BookOpenCheck,
