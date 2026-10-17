@@ -8,14 +8,64 @@ const Database = require("better-sqlite3");
 // intentionally self-contained because production streams this helper to Node.
 const expectations = {
   AcademicSchedulingFoundation1730900000000: {
-    "education_classes.academicYearId": { nullable: true, value: "null" },
-    "timetable_periods.weekdays": { default: "[]", value: "default" },
+    "education_classes.academicYearId": {
+      nullable: true,
+      value: "null",
+    },
+    "timetable_periods.weekdays": {
+      default: "[]",
+      value: "default",
+    },
   },
+
   TimetableImportIdempotency1731000000000: {
-    "timetable_imports.fingerprint": { default: "", value: "legacy-id" },
+    "timetable_imports.fingerprint": {
+      default: "",
+      value: "legacy-id",
+    },
   },
+
   TimetableImportSourceRows1731100000000: {
-    "timetable_imports.sourceRows": { default: "[]", value: "default" },
+    "timetable_imports.sourceRows": {
+      default: "[]",
+      value: "default",
+    },
+  },
+
+  // Attendance correction approval migration
+  AttendanceCorrectionReview1731300000000: {
+    "attendance_policies.correctionRequiresReview": {
+      nullable: false,
+      default: 0,
+      value: "default",
+    },
+
+    "attendance_corrections.status": {
+      nullable: false,
+      default: "approved",
+      value: "default",
+    },
+
+    "attendance_corrections.reviewedById": {
+      nullable: true,
+      value: "null",
+    },
+
+    "attendance_corrections.reviewRequestId": {
+      nullable: true,
+      value: "null",
+    },
+
+    "attendance_corrections.reviewNote": {
+      nullable: false,
+      default: "",
+      value: "default",
+    },
+
+    "attendance_corrections.reviewedAt": {
+      nullable: true,
+      value: "null",
+    },
   },
 };
 const [command, original, destination] = process.argv.slice(2);
@@ -46,8 +96,16 @@ function tableInventory(db, name) {
   const columns = db
     .prepare(`PRAGMA table_info(${quote(name)})`)
     .all()
-    .map(({ name, notnull, dflt_value }) => ({ name, notnull: Boolean(notnull), default: dflt_value }));
-  const records = tableRows(db, name, columns.map(({ name: column }) => column));
+    .map(({ name, notnull, dflt_value }) => ({
+      name,
+      notnull: Boolean(notnull),
+      default: dflt_value,
+    }));
+  const records = tableRows(
+    db,
+    name,
+    columns.map(({ name: column }) => column),
+  );
   const encoded = records.map(stable).sort();
   return {
     columns,
@@ -107,11 +165,15 @@ function preservedRoleAssignments(before, after) {
   }
   for (const id of original.keys()) {
     if (!upgraded.has(id) && !approvedRemovals.has(id))
-      throw new Error("Migration removed a role assignment outside the approved orphan repair");
+      throw new Error(
+        "Migration removed a role assignment outside the approved orphan repair",
+      );
   }
   for (const id of approvedRemovals) {
     if (upgraded.has(id))
-      throw new Error("Migration did not remove an orphaned scoped role assignment");
+      throw new Error(
+        "Migration did not remove an orphaned scoped role assignment",
+      );
   }
 }
 function fail(table, reason, beforeValue, afterValue) {
@@ -126,13 +188,18 @@ function fail(table, reason, beforeValue, afterValue) {
   throw new Error(`Migration preservation failed (${details})`);
 }
 function appliedMigrationNames(before, after) {
-  const oldNames = new Set((before.rows.migrations?.records || []).map(({ name }) => name));
+  const oldNames = new Set(
+    (before.rows.migrations?.records || []).map(({ name }) => name),
+  );
   return new Set(
     (after.rows.migrations?.records || [])
       .map(({ name }) => name)
       .filter((name) => !oldNames.has(name)),
   );
 }
+
+//  -------------------------
+
 function expectationFor(applied, table, column) {
   const key = `${table}.${column}`;
   for (const migration of applied) {
@@ -147,43 +214,109 @@ function defaultValue(db, definition) {
 function same(left, right) {
   return stable(left) === stable(right);
 }
+
+//  -------------------------
+
 function validateAddedColumns(beforeTable, afterTable, table, applied, db) {
   const beforeColumns = new Set(beforeTable.columns.map(({ name }) => name));
-  const additions = afterTable.columns.filter(({ name }) => !beforeColumns.has(name));
+  const additions = afterTable.columns.filter(
+    ({ name }) => !beforeColumns.has(name),
+  );
   if (!additions.length) return;
   // Check schema even when the original table is empty.
   for (const column of additions) {
     const expectation = expectationFor(applied, table, column.name);
-    if (!expectation) fail(table, `unexpected added column ${column.name}`, beforeTable, afterTable);
-    if (expectation.nullable !== undefined && expectation.nullable !== !column.notnull)
-      fail(table, `unexpected nullability for ${column.name}`, beforeTable, afterTable);
-    if (expectation.default !== undefined && !same(defaultValue(db, column), expectation.default))
-      fail(table, `unexpected default for ${column.name}`, beforeTable, afterTable);
+    if (!expectation)
+      fail(
+        table,
+        `unexpected added column ${column.name}`,
+        beforeTable,
+        afterTable,
+      );
+    if (
+      expectation.nullable !== undefined &&
+      expectation.nullable !== !column.notnull
+    )
+      fail(
+        table,
+        `unexpected nullability for ${column.name}`,
+        beforeTable,
+        afterTable,
+      );
+    if (
+      expectation.default !== undefined &&
+      !same(defaultValue(db, column), expectation.default)
+    )
+      fail(
+        table,
+        `unexpected default for ${column.name}`,
+        beforeTable,
+        afterTable,
+      );
   }
   const originalColumns = beforeTable.columns.map(({ name }) => name);
   const unmatched = new Map();
   for (const encoded of beforeTable.encoded)
     unmatched.set(encoded, (unmatched.get(encoded) || 0) + 1);
   for (const row of afterTable.records) {
-    const projected = Object.fromEntries(originalColumns.map((name) => [name, row[name]]));
+    const projected = Object.fromEntries(
+      originalColumns.map((name) => [name, row[name]]),
+    );
     const encoded = stable(projected);
     if (!unmatched.get(encoded)) continue;
     unmatched.set(encoded, unmatched.get(encoded) - 1);
     for (const column of additions) {
       const expectation = expectationFor(applied, table, column.name);
-      if (!expectation) fail(table, `unexpected added column ${column.name}`, beforeTable, afterTable);
-      if (expectation.nullable !== undefined && expectation.nullable !== !column.notnull)
-        fail(table, `unexpected nullability for ${column.name}`, beforeTable, afterTable);
+      if (!expectation)
+        fail(
+          table,
+          `unexpected added column ${column.name}`,
+          beforeTable,
+          afterTable,
+        );
+      if (
+        expectation.nullable !== undefined &&
+        expectation.nullable !== !column.notnull
+      )
+        fail(
+          table,
+          `unexpected nullability for ${column.name}`,
+          beforeTable,
+          afterTable,
+        );
       const actualDefault = defaultValue(db, column);
-      if (expectation.default !== undefined && !same(actualDefault, expectation.default))
-        fail(table, `unexpected default for ${column.name}`, beforeTable, afterTable);
+      if (
+        expectation.default !== undefined &&
+        !same(actualDefault, expectation.default)
+      )
+        fail(
+          table,
+          `unexpected default for ${column.name}`,
+          beforeTable,
+          afterTable,
+        );
       const value = row[column.name];
       if (expectation.value === "null" && value !== null)
-        fail(table, `non-null value in ${column.name}`, beforeTable, afterTable);
+        fail(
+          table,
+          `non-null value in ${column.name}`,
+          beforeTable,
+          afterTable,
+        );
       if (expectation.value === "default" && !same(value, actualDefault))
-        fail(table, `non-default value in ${column.name}`, beforeTable, afterTable);
+        fail(
+          table,
+          `non-default value in ${column.name}`,
+          beforeTable,
+          afterTable,
+        );
       if (expectation.value === "legacy-id" && value !== `legacy-${row.id}`)
-        fail(table, `unexpected legacy value in ${column.name}`, beforeTable, afterTable);
+        fail(
+          table,
+          `unexpected legacy value in ${column.name}`,
+          beforeTable,
+          afterTable,
+        );
     }
   }
 }
@@ -201,17 +334,21 @@ function preserved(before, after, db) {
       continue;
     }
     const projected = upgraded.records
-      .map((row) => Object.fromEntries(value.columns.map(({ name }) => [name, row[name]])))
+      .map((row) =>
+        Object.fromEntries(value.columns.map(({ name }) => [name, row[name]])),
+      )
       .map(stable)
       .sort();
     const available = new Map();
     for (const encoded of projected)
       available.set(encoded, (available.get(encoded) || 0) + 1);
-    if (value.encoded.some((encoded) => {
-      const count = available.get(encoded) || 0;
-      available.set(encoded, count - 1);
-      return count === 0;
-    }))
+    if (
+      value.encoded.some((encoded) => {
+        const count = available.get(encoded) || 0;
+        available.set(encoded, count - 1);
+        return count === 0;
+      })
+    )
       fail(table, "existing logical records changed", value, upgraded);
     validateAddedColumns(value, upgraded, table, applied, db);
   }
@@ -303,7 +440,10 @@ async function main() {
   console.log("Snapshot restoration verified");
 }
 // CI and immutable deployment stream this self-contained helper through stdin.
-if (require.main === module || (process.argv[1] === "-" && module.id === "[stdin]")) {
+if (
+  require.main === module ||
+  (process.argv[1] === "-" && module.id === "[stdin]")
+) {
   main().catch((error) => {
     console.error(
       `Database recovery verification failed (${error.code || error.name}); live replacement is not authorized`,
