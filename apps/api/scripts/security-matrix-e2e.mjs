@@ -2,6 +2,47 @@ const base = (
   process.env.E2E_API_URL || "http://127.0.0.1:4000/api/v2"
 ).replace(/\/$/, "");
 const password = process.env.E2E_PASSWORD || "Moshaver-e2e-2026!";
+const bodyLimit = Number(process.env.MAX_BODY_SIZE || 2 * 1024 * 1024);
+
+function loginPayloadAtSize(bytes) {
+  const empty = JSON.stringify({ phoneNumber: "09999999999", password: "" });
+  return JSON.stringify({
+    phoneNumber: "09999999999",
+    password: "x".repeat(Math.max(0, bytes - Buffer.byteLength(empty))),
+  });
+}
+
+function isEarlyBodyLimitTermination(error) {
+  const cause = error instanceof Error ? error.cause : undefined;
+  return (
+    error instanceof TypeError &&
+    error.message === "fetch failed" &&
+    cause &&
+    typeof cause === "object" &&
+    (cause.code === "EPIPE" || cause.code === "ECONNRESET") &&
+    (cause.syscall === "write" || cause.code === "ECONNRESET")
+  );
+}
+
+async function health() {
+  const response = await fetch(new URL("/health", base));
+  const payload = await response.json().catch(() => null);
+  assert(response.status === 200, "server stays healthy after body-limit check", response.status, 200, payload);
+}
+
+async function submitSizedLogin(bytes) {
+  try {
+    const response = await fetch(`${base}/auth/login`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: loginPayloadAtSize(bytes),
+    });
+    return { response, payload: await response.text() };
+  } catch (error) {
+    if (isEarlyBodyLimitTermination(error)) return { earlyTermination: error };
+    throw error;
+  }
+}
 function seedPhoneNumber(identity) { let hash = 0; for (const character of identity) hash = (hash * 31 + character.charCodeAt(0)) >>> 0; return `091${String(hash % 100000000).padStart(8, "0")}`; }
 
 async function login(username) {
@@ -666,21 +707,26 @@ assert(
   400,
   malformedPayload,
 );
-const huge = await fetch(`${base}/auth/login`, {
-  method: "POST",
-  headers: { "content-type": "application/json" },
-  body: JSON.stringify({
-    username: "x",
-    password: "x".repeat(65 * 1024 * 1024),
-  }),
-});
-const hugePayload = await huge.text();
+const belowLimit = await submitSizedLogin(bodyLimit - 1024);
 assert(
-  huge.status === 413 && !/stack|\/home\//i.test(hugePayload),
-  "oversized request is rejected without path leakage",
-  huge.status,
-  413,
-  hugePayload.slice(0, 500),
+  belowLimit.response?.status === 400 && !/stack|\/home\//i.test(belowLimit.payload),
+  "request below body limit reaches safe validation",
+  belowLimit.response?.status ?? belowLimit.earlyTermination?.cause?.code,
+  400,
+  belowLimit.payload?.slice(0, 500),
 );
+const aboveLimit = await submitSizedLogin(bodyLimit + 1024);
+if (aboveLimit.response) {
+  assert(
+    aboveLimit.response.status === 413 && !/stack|\/home\//i.test(aboveLimit.payload),
+    "oversized request is rejected without path leakage",
+    aboveLimit.response.status,
+    413,
+    aboveLimit.payload.slice(0, 500),
+  );
+} else {
+  console.log(`PASS oversized request is rejected during write: ${aboveLimit.earlyTermination.cause.code}`);
+}
+await health();
 
 console.log("Security matrix E2E passed.");
