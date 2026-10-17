@@ -32,6 +32,16 @@ const expectations = {
     },
   },
 
+  // Historical attendance-session snapshots. These are intentionally nullable:
+  // sessions created before the snapshot features have no source value to copy.
+  AttendanceSubjectSnapshots1731200400000: {
+    "attendance_sessions.subjectIdSnapshot": { nullable: true, value: "null" },
+    "attendance_sessions.subjectNameSnapshot": {
+      nullable: true,
+      value: "null",
+    },
+  },
+
   // Attendance correction approval migration
   AttendanceCorrectionReview1731300000000: {
     "attendance_policies.correctionRequiresReview": {
@@ -66,6 +76,29 @@ const expectations = {
       nullable: true,
       value: "null",
     },
+  },
+
+  AttendanceAcademicSnapshots1731300100000: {
+    "attendance_sessions.academicYearIdSnapshot": {
+      nullable: true,
+      value: "null",
+    },
+    "attendance_sessions.academicYearNameSnapshot": {
+      nullable: true,
+      value: "null",
+    },
+    "attendance_sessions.termIdSnapshot": { nullable: true, value: "null" },
+    "attendance_sessions.termNameSnapshot": { nullable: true, value: "null" },
+  },
+};
+
+// A migration may be allowed to change an existing value only when the
+// migration itself performs that exact repair. This is deliberately separate
+// from additive-column expectations so a new migration cannot implicitly
+// authorize data rewrites.
+const legacyValueTransforms = {
+  AttendanceCorrectionReviewIntegrity1731300300000: {
+    "attendance_corrections.reviewedById": "null-if-missing-user",
   },
 };
 const [command, original, destination] = process.argv.slice(2);
@@ -207,12 +240,35 @@ function expectationFor(applied, table, column) {
   }
   return null;
 }
+function legacyValueTransformFor(applied, table, column) {
+  const key = `${table}.${column}`;
+  for (const migration of applied) {
+    if (legacyValueTransforms[migration]?.[key])
+      return legacyValueTransforms[migration][key];
+  }
+  return null;
+}
 function defaultValue(db, definition) {
   if (definition.default === null) return null;
   return db.prepare(`SELECT (${definition.default}) AS value`).get().value;
 }
 function same(left, right) {
   return stable(left) === stable(right);
+}
+
+function preservesOriginalRow(original, upgraded, table, applied, after) {
+  for (const [column, value] of Object.entries(original)) {
+    if (same(value, upgraded[column])) continue;
+    const transform = legacyValueTransformFor(applied, table, column);
+    if (transform === "null-if-missing-user" && upgraded[column] === null) {
+      const referencedUserStillExists = (after.rows.users?.records || []).some(
+        ({ id }) => id === value,
+      );
+      if (!referencedUserStillExists) continue;
+    }
+    return false;
+  }
+  return true;
 }
 
 //  -------------------------
@@ -333,23 +389,18 @@ function preserved(before, after, db) {
       preservedRoleAssignments(before, after);
       continue;
     }
-    const projected = upgraded.records
-      .map((row) =>
-        Object.fromEntries(value.columns.map(({ name }) => [name, row[name]])),
-      )
-      .map(stable)
-      .sort();
-    const available = new Map();
-    for (const encoded of projected)
-      available.set(encoded, (available.get(encoded) || 0) + 1);
-    if (
-      value.encoded.some((encoded) => {
-        const count = available.get(encoded) || 0;
-        available.set(encoded, count - 1);
-        return count === 0;
-      })
-    )
-      fail(table, "existing logical records changed", value, upgraded);
+    const originalColumns = value.columns.map(({ name }) => name);
+    const available = upgraded.records.map((row) =>
+      Object.fromEntries(originalColumns.map((name) => [name, row[name]])),
+    );
+    for (const original of value.records) {
+      const match = available.findIndex((candidate) =>
+        preservesOriginalRow(original, candidate, table, applied, after),
+      );
+      if (match < 0)
+        fail(table, "existing logical records changed", value, upgraded);
+      available.splice(match, 1);
+    }
     validateAddedColumns(value, upgraded, table, applied, db);
   }
 }

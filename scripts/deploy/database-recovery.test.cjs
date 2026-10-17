@@ -19,7 +19,9 @@ function fixture() {
 test("permits only the migration's orphaned scoped-role deletion", () => {
   const db = fixture();
   const before = inventory(db);
-  db.prepare("DELETE FROM user_role_assignments WHERE id='orphaned-student'").run();
+  db.prepare(
+    "DELETE FROM user_role_assignments WHERE id='orphaned-student'",
+  ).run();
   assert.doesNotThrow(() => preserved(before, inventory(db)));
   db.close();
 });
@@ -27,8 +29,13 @@ test("permits only the migration's orphaned scoped-role deletion", () => {
 test("rejects an unrelated role-assignment removal or change", () => {
   const db = fixture();
   const before = inventory(db);
-  db.prepare("DELETE FROM user_role_assignments WHERE id='retained-admin'").run();
-  assert.throws(() => preserved(before, inventory(db)), /outside the approved orphan repair/);
+  db.prepare(
+    "DELETE FROM user_role_assignments WHERE id='retained-admin'",
+  ).run();
+  assert.throws(
+    () => preserved(before, inventory(db)),
+    /outside the approved orphan repair/,
+  );
   db.close();
 });
 
@@ -58,16 +65,24 @@ test("preserves class records while applying the approved orphan-role repair", (
   `);
   assert.doesNotThrow(() => preserved(before, inventory(db), db));
   db.prepare("UPDATE education_classes SET name='changed'").run();
-  assert.throws(() => preserved(before, inventory(db), db), /existing logical records changed/);
+  assert.throws(
+    () => preserved(before, inventory(db), db),
+    /existing logical records changed/,
+  );
   db.close();
 });
 
 test("rejects a missing role-assignment table even when every row is an approved orphan", () => {
   const db = fixture();
-  db.prepare("DELETE FROM user_role_assignments WHERE id='retained-admin'").run();
+  db.prepare(
+    "DELETE FROM user_role_assignments WHERE id='retained-admin'",
+  ).run();
   const before = inventory(db);
   db.exec("DROP TABLE user_role_assignments");
-  assert.throws(() => preserved(before, inventory(db), db), /table missing after migration/);
+  assert.throws(
+    () => preserved(before, inventory(db), db),
+    /table missing after migration/,
+  );
   db.close();
 });
 
@@ -79,10 +94,15 @@ for (const sql of [
 ]) {
   test(`rejects original-record loss: ${sql}`, () => {
     const db = new Database(":memory:");
-    db.exec("CREATE TABLE records (value TEXT, optional TEXT); INSERT INTO records VALUES ('same',NULL),('same',NULL)");
+    db.exec(
+      "CREATE TABLE records (value TEXT, optional TEXT); INSERT INTO records VALUES ('same',NULL),('same',NULL)",
+    );
     const before = inventory(db);
     db.exec(sql);
-    assert.throws(() => preserved(before, inventory(db), db), /Migration preservation failed/);
+    assert.throws(
+      () => preserved(before, inventory(db), db),
+      /Migration preservation failed/,
+    );
     db.close();
   });
 }
@@ -92,7 +112,62 @@ test("rejects undeclared schema additions to an empty table", () => {
   db.exec("CREATE TABLE records (value TEXT)");
   const before = inventory(db);
   db.exec("ALTER TABLE records ADD COLUMN surprise TEXT");
-  assert.throws(() => preserved(before, inventory(db), db), /unexpected added column/);
+  assert.throws(
+    () => preserved(before, inventory(db), db),
+    /unexpected added column/,
+  );
+  db.close();
+});
+
+test("permits only null subject and academic snapshots for existing attendance sessions", () => {
+  const db = new Database(":memory:");
+  db.exec(`
+    CREATE TABLE attendance_sessions (id TEXT PRIMARY KEY, sessionDate TEXT NOT NULL);
+    INSERT INTO attendance_sessions VALUES ('session-1', '2026-10-17');
+    CREATE TABLE migrations (name TEXT);
+  `);
+  const before = inventory(db);
+  db.exec(`
+    ALTER TABLE attendance_sessions ADD COLUMN subjectIdSnapshot varchar(120);
+    ALTER TABLE attendance_sessions ADD COLUMN subjectNameSnapshot varchar(240);
+    ALTER TABLE attendance_sessions ADD COLUMN academicYearIdSnapshot varchar(36);
+    ALTER TABLE attendance_sessions ADD COLUMN academicYearNameSnapshot varchar(240);
+    ALTER TABLE attendance_sessions ADD COLUMN termIdSnapshot varchar(36);
+    ALTER TABLE attendance_sessions ADD COLUMN termNameSnapshot varchar(240);
+    INSERT INTO migrations(name) VALUES
+      ('AttendanceSubjectSnapshots1731200400000'),
+      ('AttendanceAcademicSnapshots1731300100000');
+  `);
+  assert.doesNotThrow(() => preserved(before, inventory(db), db));
+  db.prepare(
+    "UPDATE attendance_sessions SET subjectIdSnapshot='math' WHERE id='session-1'",
+  ).run();
+  assert.throws(() => preserved(before, inventory(db), db), /non-null value/);
+  db.close();
+});
+
+test("permits only the correction-review repair for a missing reviewer", () => {
+  const db = new Database(":memory:");
+  db.exec(`
+    CREATE TABLE users (id TEXT PRIMARY KEY);
+    CREATE TABLE attendance_corrections (id TEXT PRIMARY KEY, reviewedById TEXT, reason TEXT NOT NULL);
+    CREATE TABLE migrations (name TEXT);
+    INSERT INTO users VALUES ('reviewer');
+    INSERT INTO attendance_corrections VALUES ('orphaned', 'deleted-reviewer', 'legacy'), ('retained', 'reviewer', 'verified');
+  `);
+  const before = inventory(db);
+  db.exec(`
+    UPDATE attendance_corrections SET reviewedById=NULL WHERE id='orphaned';
+    INSERT INTO migrations(name) VALUES ('AttendanceCorrectionReviewIntegrity1731300300000');
+  `);
+  assert.doesNotThrow(() => preserved(before, inventory(db), db));
+  db.prepare(
+    "UPDATE attendance_corrections SET reviewedById=NULL WHERE id='retained'",
+  ).run();
+  assert.throws(
+    () => preserved(before, inventory(db), db),
+    /existing logical records changed/,
+  );
   db.close();
 });
 
@@ -102,10 +177,14 @@ for (const sql of [
 ]) {
   test(`rejects invalid values for an approved column: ${sql}`, () => {
     const db = new Database(":memory:");
-    db.exec("CREATE TABLE education_classes (id TEXT); INSERT INTO education_classes VALUES ('class'); CREATE TABLE migrations (name TEXT)");
+    db.exec(
+      "CREATE TABLE education_classes (id TEXT); INSERT INTO education_classes VALUES ('class'); CREATE TABLE migrations (name TEXT)",
+    );
     const before = inventory(db);
     db.exec(sql);
-    db.exec("INSERT INTO migrations VALUES ('AcademicSchedulingFoundation1730900000000')");
+    db.exec(
+      "INSERT INTO migrations VALUES ('AcademicSchedulingFoundation1730900000000')",
+    );
     assert.throws(() => preserved(before, inventory(db), db), /non-null value/);
     db.close();
   });
