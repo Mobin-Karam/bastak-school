@@ -8,6 +8,7 @@ import { ResponsiveDrawer } from "../../../shared/ui/responsive-drawer";
 import { useModal } from "../../../shared/ui/modal";
 import { notify } from "../../../shared/ui/notifications";
 import { ManagementPageHeader } from "../../../shared/ui/management-workspace";
+import { SearchBar } from "../../../shared/ui/mobile/forms";
 import {
   createClassGroup,
   updateClassGroup,
@@ -188,7 +189,7 @@ function ClassGroupsWorkspace() {
           </Select>
         </Field>
         <Field label={fa ? "جستجوی گروه‌ها" : "Search groups"}>
-          <Input
+          <SearchBar
             value={search}
             onChange={(event) => setSearch(event.target.value)}
             placeholder={fa ? "نام، کد یا توضیحات گروه" : "Group name, code, or description"}
@@ -528,7 +529,11 @@ function GroupMembers({
             ) : null}
           </div>
           <Field label={fa ? "جستجوی دانش‌آموز" : "Search students"}>
-            <Input value={search} onChange={(event) => setSearch(event.target.value)} />
+            <SearchBar
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder={fa ? "نام دانش‌آموز" : "Student name"}
+            />
           </Field>
           {outdated.length ? (
             <div

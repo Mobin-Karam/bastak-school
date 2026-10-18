@@ -25,7 +25,7 @@ export function MobileNotificationTabs({
         role="tab"
         aria-selected={panel === "notifications"}
         className={[
-          "flex flex-1 items-center justify-center gap-1 rounded-lg px-2 py-1.5 text-xs transition",
+          "flex min-h-11 flex-1 items-center justify-center gap-1 rounded-lg px-2 py-1.5 text-xs transition",
           panel === "notifications"
             ? "bg-white font-bold shadow-sm dark:bg-slate-700 dark:text-white"
             : "text-slate-500 dark:text-slate-400",
@@ -41,7 +41,7 @@ export function MobileNotificationTabs({
         role="tab"
         aria-selected={panel === "inbox"}
         className={[
-          "flex flex-1 items-center justify-center gap-1 rounded-lg px-2 py-1.5 text-xs transition",
+          "flex min-h-11 flex-1 items-center justify-center gap-1 rounded-lg px-2 py-1.5 text-xs transition",
           panel === "inbox"
             ? "bg-white font-bold shadow-sm dark:bg-slate-700 dark:text-white"
             : "text-slate-500 dark:text-slate-400",

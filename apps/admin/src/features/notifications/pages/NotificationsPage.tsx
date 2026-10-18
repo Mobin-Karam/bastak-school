@@ -13,7 +13,7 @@ import { useFilteredNotifications } from "../hooks/useFilteredNotifications";
 import { useAuth } from "../../auth";
 import { useLocale } from "../../../shared/ui/locale";
 import { notificationCopy } from "../model/notification-copy";
-import { useViewportShell } from "../../../app/layout/shell/viewport-shell";
+import { useViewportShell } from "../../../app/layout/lib/viewport-shell";
 
 const notificationTypes = ["all", "message", "exam", "lesson", "announcement"] as const;
 

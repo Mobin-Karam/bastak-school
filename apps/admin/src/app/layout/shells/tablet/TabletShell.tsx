@@ -1,6 +1,6 @@
-import type { AdminShellModel } from "./use-admin-shell-model";
-import { AdminMainSidebar } from "../navigation/AdminMainSidebar";
-import { AdminHeader } from "./AdminHeader";
+import type { AdminShellModel } from "../../hooks/use-admin-shell-model";
+import { AdminMainSidebar } from "../../navigation/desktop/AdminMainSidebar";
+import { AdminHeader } from "../../components/AdminHeader";
 
 /** Compact rail plus workspace header for 768px through 1199px viewports. */
 export function TabletShell({

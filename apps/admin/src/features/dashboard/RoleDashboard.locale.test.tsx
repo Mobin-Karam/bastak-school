@@ -12,7 +12,7 @@ vi.mock("../auth", () => ({
   useAuth: () => ({ activeRole: "ADVISOR", capabilities: ["exams.read"], can: () => false }),
 }));
 
-vi.mock("../../app/layout/shell/viewport-shell", () => ({
+vi.mock("../../app/layout/lib/viewport-shell", () => ({
   useViewportShell: viewportShellMock,
 }));
 

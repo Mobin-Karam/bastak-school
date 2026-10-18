@@ -15,7 +15,7 @@ import {
   UsersRound,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
-import type { AdminLanguage } from "../../../shared/ui/locale";
+import type { AdminLanguage } from "../../../../shared/ui/locale";
 
 type NavigationItem = {
   path: string;

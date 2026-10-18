@@ -51,7 +51,7 @@ import { DashboardCalendar } from "./DashboardCalendar";
 import { MobileDashboardHome } from "./MobileDashboardHome";
 import { todayIso } from "../../../shared/lib/utils";
 import { CurrentPrayerCard } from "../../school-home/components/CurrentPrayerCard";
-import { useViewportShell } from "../../../app/layout/shell/viewport-shell";
+import { useViewportShell } from "../../../app/layout/lib/viewport-shell";
 
 const n = (value: unknown) => (typeof value === "number" ? value : 0);
 

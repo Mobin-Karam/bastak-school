@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { readFileSync, readdirSync } from "node:fs";
-import { adminContentOffsetClass } from "../src/app/layout/shell/layout-geometry";
+import { adminContentOffsetClass } from "../src/app/layout/lib/layout-geometry";
 
 test.use({
   reducedMotion: "reduce",

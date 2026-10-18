@@ -18,6 +18,7 @@ import { PhoneNumberSettings } from "../components/PhoneNumberSettings";
 import { PhoneChangeRequests } from "../components/PhoneChangeRequests";
 import { ThemeSwitcher } from "../../../shared/theme/theme";
 import { Button, Card } from "../../../shared/ui/ui";
+import { MobileSelect } from "../../../shared/ui/mobile/forms";
 import { PrayerTimeSettings } from "../components/PrayerTimeSettings";
 import { roleLabel } from "../../../shared/lib/role-ui";
 export function SettingsPage() {
@@ -226,13 +227,14 @@ function MobileAccountActions() {
         <ThemeSwitcher />
       </div>
       {(auth.context?.roles.length ?? 0) > 1 ? (
-        <label className="grid gap-1.5 rounded-xl bg-slate-50 p-3 text-xs font-semibold text-slate-700 dark:bg-slate-900 dark:text-slate-200">
-          <span className="flex items-center gap-2">
-            <UserRound size={15} aria-hidden="true" />
-            {copy.workContextLabel}
-          </span>
-          <select
-            className="h-11 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm text-ink outline-none focus-visible:ring-2 focus-visible:ring-brand disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:bg-slate-950"
+        <div className="rounded-xl bg-slate-50 p-3 dark:bg-slate-900">
+          <MobileSelect
+            label={
+              <span className="flex items-center gap-2">
+                <UserRound size={15} aria-hidden="true" />
+                {copy.workContextLabel}
+              </span>
+            }
             value={auth.activeRole ?? ""}
             disabled={auth.status === "checking"}
             onChange={(event) =>
@@ -248,8 +250,8 @@ function MobileAccountActions() {
                 {roleLabel(role, language)}
               </option>
             ))}
-          </select>
-        </label>
+          </MobileSelect>
+        </div>
       ) : null}
       <Button
         className="w-full justify-center text-rose-700 hover:bg-rose-50 dark:text-rose-300 dark:hover:bg-rose-950/30"

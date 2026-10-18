@@ -3,7 +3,8 @@ import { useSearchParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Pencil, Plus, Trash2 } from "lucide-react";
 import { ManagementPageHeader } from "../../../shared/ui/management-workspace";
-import { Button, Card, EmptyState, Field } from "../../../shared/ui/ui";
+import { Button, Card, EmptyState } from "../../../shared/ui/ui";
+import { MobileSelect } from "../../../shared/ui/mobile/forms";
 import {
   DataTable,
   useDataTableUrlQuery,
@@ -292,31 +293,29 @@ function BooksWorkspace({ scope }: { scope: string }) {
         }
       />
       <Card className="grid gap-4 p-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
-        <Field label={fa ? "کلاس" : "Class"}>
-          <select
-            className="h-11 w-full rounded-lg border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card))] px-3 text-sm"
-            value={selectedClass?.id ?? ""}
-            disabled={!canReadClasses || classes.isLoading || busy}
-            onChange={(event) =>
-              setParams((current) => {
-                const next = new URLSearchParams(current);
-                if (event.target.value) next.set("class", event.target.value);
-                else next.delete("class");
-                next.delete("books");
-                return next;
-              })
-            }
-          >
-            <option value="">{fa ? "انتخاب کلاس" : "Choose a class"}</option>
-            {(classes.data ?? [])
-              .filter((item) => item.status === "ACTIVE")
-              .map((item) => (
-                <option key={item.id} value={item.id}>
-                  {item.name} · {item.schoolYear}
-                </option>
-              ))}
-          </select>
-        </Field>
+        <MobileSelect
+          label={fa ? "کلاس" : "Class"}
+          value={selectedClass?.id ?? ""}
+          disabled={!canReadClasses || classes.isLoading || busy}
+          onChange={(event) =>
+            setParams((current) => {
+              const next = new URLSearchParams(current);
+              if (event.target.value) next.set("class", event.target.value);
+              else next.delete("class");
+              next.delete("books");
+              return next;
+            })
+          }
+        >
+          <option value="">{fa ? "انتخاب کلاس" : "Choose a class"}</option>
+          {(classes.data ?? [])
+            .filter((item) => item.status === "ACTIVE")
+            .map((item) => (
+              <option key={item.id} value={item.id}>
+                {item.name} · {item.schoolYear}
+              </option>
+            ))}
+        </MobileSelect>
         {selectedClass ? (
           <p className="text-sm text-slate-500 dark:text-slate-400">
             {books.length.toLocaleString(profile.locale)} {fa ? "کتاب" : "books"} ·{" "}

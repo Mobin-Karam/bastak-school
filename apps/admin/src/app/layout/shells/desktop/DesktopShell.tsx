@@ -1,8 +1,8 @@
-import type { AdminShellModel } from "./use-admin-shell-model";
-import { AdminContextSidebar } from "../navigation/AdminContextSidebar";
-import { AdminMainSidebar } from "../navigation/AdminMainSidebar";
-import { adminContentOffsetClass } from "./layout-geometry";
-import { AdminHeader } from "./AdminHeader";
+import type { AdminShellModel } from "../../hooks/use-admin-shell-model";
+import { AdminContextSidebar } from "../../navigation/desktop/AdminContextSidebar";
+import { AdminMainSidebar } from "../../navigation/desktop/AdminMainSidebar";
+import { adminContentOffsetClass } from "../../lib/layout-geometry";
+import { AdminHeader } from "../../components/AdminHeader";
 
 export function DesktopShell({
   model,

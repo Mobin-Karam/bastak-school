@@ -32,6 +32,11 @@
   --color-saffron: 205 149 39;
   --color-rosewood: 190 50 72;
 
+  /* Mobile-system accents: Bastak blue, emerald and amber. */
+  --mobile-primary: 37 99 235;
+  --mobile-secondary: 5 150 105;
+  --mobile-accent: 245 158 11;
+
   --surface-card: 255 255 254;
   --surface-muted: 235 246 244;
   --surface-raised: 250 253 252;
@@ -133,6 +138,10 @@
 
   --color-saffron: 245 188 86;
   --color-rosewood: 251 113 133;
+
+  --mobile-primary: 96 165 250;
+  --mobile-secondary: 52 211 153;
+  --mobile-accent: 251 191 36;
 
   --surface-card: 15 45 55;
   --surface-muted: 20 57 64;

@@ -1,7 +1,8 @@
-import { Building2, Megaphone, Plus, Search, Users } from "lucide-react";
+import { Building2, Megaphone, Plus, Users } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Button, Card, ErrorState, Field, Input, Textarea } from "../../../shared/ui/ui";
 import { ManagementPageHeader } from "../../../shared/ui/management-workspace";
+import { SearchBar } from "../../../shared/ui/mobile";
 import { ResponsiveDrawer } from "../../../shared/ui/responsive-drawer";
 import { useAuth } from "../../auth";
 import { notifications, type PromiseNotificationData } from "../../../shared/ui/notifications";
@@ -628,19 +629,14 @@ function DormitoryWorkspace() {
             ) : null}
             <label className="mt-4 block text-xs font-bold text-slate-600 dark:text-slate-300">
               جست‌وجوی ساکن
-              <span className="relative mt-2 block">
-                <Search
-                  className="pointer-events-none absolute inset-y-0 start-3 my-auto size-4 text-slate-400"
-                  aria-hidden="true"
-                />
-                <Input
-                  value={residentSearch}
-                  onChange={(event) => setResidentSearch(event.target.value)}
-                  placeholder="نام طلبه"
-                  className="ps-9"
-                  disabled={assignmentsLoading || Boolean(assignmentsError)}
-                />
-              </span>
+              <SearchBar
+                aria-label="جست‌وجوی ساکن"
+                value={residentSearch}
+                onChange={(event) => setResidentSearch(event.target.value)}
+                placeholder="نام طلبه"
+                className="mt-2"
+                disabled={assignmentsLoading || Boolean(assignmentsError)}
+              />
             </label>
             <div
               className="mt-3 max-h-96 space-y-2 overflow-y-auto"

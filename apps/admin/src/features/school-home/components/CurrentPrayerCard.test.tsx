@@ -1,7 +1,7 @@
 import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("../../../app/layout/shell/use-device-performance", () => ({
+vi.mock("../../../app/layout/hooks/use-device-performance", () => ({
   useDevicePerformance: () => "reduced",
 }));
 vi.mock("../hooks/use-current-prayer", () => ({

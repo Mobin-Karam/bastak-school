@@ -1,7 +1,7 @@
 import { BellRing, CalendarClock, Clock3 } from "lucide-react";
 import { Link } from "react-router-dom";
 import type { RoleCode } from "../../../shared/types/domain";
-import { Card } from "../../../shared/ui/ui";
+import { MobileCard } from "../../../shared/ui/mobile";
 import { DashboardCalendar } from "./DashboardCalendar";
 import { quickActionsForRole, type RoleQuickAction } from "../model/role-experience";
 import type { RoleDashboardData } from "../model/dashboard.types";
@@ -54,7 +54,7 @@ export function MobileDashboardHome({
       <CurrentPrayerCard times={prayerTimes} />
 
       {data.home?.announcements?.length ? (
-        <Card className="mobile-task-card p-3" aria-label="پیام‌های مدرسه">
+        <MobileCard className="mobile-task-card p-3" aria-label="پیام‌های مدرسه">
           <div className="flex items-center gap-2 text-brand">
             <BellRing size={17} aria-hidden="true" />
             <h2 className="text-sm font-black text-ink">پیام‌های مدرسه</h2>
@@ -69,7 +69,7 @@ export function MobileDashboardHome({
               </article>
             ))}
           </div>
-        </Card>
+        </MobileCard>
       ) : null}
 
       <nav aria-label="دسترسی سریع" className="grid grid-cols-3 gap-2">
@@ -91,7 +91,9 @@ function ClassCard({
   emphasized?: boolean;
 }) {
   return (
-    <Card className={`mobile-task-card ${emphasized ? "border-brand/25 bg-brand/[0.04]" : ""} p-3`}>
+    <MobileCard
+      className={`mobile-task-card ${emphasized ? "border-brand/25 bg-brand/[0.04]" : ""} p-3`}
+    >
       <div className="flex items-center gap-2 text-brand">
         <CalendarClock size={16} aria-hidden="true" />
         <h2 className="text-xs font-black text-ink">{title}</h2>
@@ -114,7 +116,7 @@ function ClassCard({
           کلاسی برای این بخش از روز ندارید.
         </p>
       )}
-    </Card>
+    </MobileCard>
   );
 }
 

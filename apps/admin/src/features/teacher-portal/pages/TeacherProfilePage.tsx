@@ -3,7 +3,7 @@ import { UserRound } from "lucide-react";
 import { useAuth } from "../../auth";
 import { getAccountProfile } from "../../settings/api/settings.api";
 import { ManagementPageHeader } from "../../../shared/ui/management-workspace";
-import { Card } from "../../../shared/ui/ui";
+import { MobileCard } from "../../../shared/ui/mobile/layout";
 
 export function TeacherProfilePage() {
   const auth = useAuth();
@@ -21,7 +21,7 @@ export function TeacherProfilePage() {
         title="پروفایل من"
         description="اطلاعات حساب استاد را مرور کنید."
       />
-      <Card className="flex items-center gap-3 p-4">
+      <MobileCard className="flex items-center gap-3 p-4">
         <span className="grid size-12 shrink-0 place-items-center rounded-2xl bg-brand/10 text-brand">
           <UserRound size={24} aria-hidden="true" />
         </span>
@@ -33,7 +33,7 @@ export function TeacherProfilePage() {
               : profile.data?.phoneNumber || "شماره همراه ثبت نشده"}
           </p>
         </div>
-      </Card>
+      </MobileCard>
     </section>
   );
 }

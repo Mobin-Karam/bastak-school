@@ -5,11 +5,11 @@ import { HeaderClock } from "../../../features/clock";
 import { ThemeSwitcher } from "../../../shared/theme/theme";
 import { WorkContextBar } from "../../../shared/ui/work-context-bar";
 import { PlatformOrganizationPicker } from "../../../shared/ui/platform-organization-picker";
-import { adminDestination, resolveAdminNavigation } from "../navigation/admin-navigation";
+import { adminDestination, resolveAdminNavigation } from "../navigation/config/admin-navigation";
 import { AdminAccountMenu } from "./AdminAccountMenu";
-import type { AdminBreadcrumb, AdminCurrentNavigation } from "./layout-types";
+import type { AdminBreadcrumb, AdminCurrentNavigation } from "../model/layout-types";
 import { useAdminShellCopy, useLocale } from "../../../shared/ui/locale";
-import type { AdminPerformanceProfile } from "./device-performance";
+import type { AdminPerformanceProfile } from "../lib/device-performance";
 
 export function AdminHeader({
   current,

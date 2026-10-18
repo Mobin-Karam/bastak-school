@@ -40,9 +40,10 @@ import { todayIso } from "../../../shared/lib/utils";
 import { useModal } from "../../../shared/ui/modal";
 import { SpreadsheetTransferActions } from "../../../shared/ui/spreadsheet-transfer-actions";
 import { SpreadsheetTransferLauncher } from "../../../shared/ui/spreadsheet-transfer-launcher";
-import { useViewportShell } from "../../../app/layout/shell/viewport-shell";
+import { useViewportShell } from "../../../app/layout/lib/viewport-shell";
+import { MobileTabs } from "../../../shared/ui/mobile";
 
-const weekdays = ["یکشنبه", "دوشنبه", "سه‌شنبه", "چهارشنبه", "پنجشنبه", "جمعه", "شنبه"];
+const weekdays = ["شنبه", "یکشنبه", "دوشنبه", "سه‌شنبه", "چهارشنبه", "پنجشنبه", "جمعه"];
 const blank = (): ScheduleDraft => ({
   organizationId: "",
   title: "",
@@ -425,26 +426,17 @@ function ScheduleWorkspace({
         </div>
 
         <div className="border-b border-[rgb(var(--border-subtle))] px-3 py-2 md:hidden">
-          <div
-            className="flex gap-1.5 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-            aria-label="انتخاب روز برنامه"
-          >
-            {displayWeekdays.map((weekday) => (
-              <button
-                key={weekday}
-                type="button"
-                aria-pressed={weekday === activeWeekday}
-                onClick={() => onWeekdayChange(weekday)}
-                className={`min-h-9 shrink-0 rounded-xl px-3 text-xs font-bold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand ${
-                  weekday === activeWeekday
-                    ? "bg-brand text-white shadow-[0_7px_12px_-8px_rgba(13,118,111,.85)]"
-                    : "bg-[rgb(var(--surface-muted))] text-slate-600 dark:text-slate-300"
-                }`}
-              >
-                {weekdays[weekday]}
-              </button>
-            ))}
-          </div>
+          <MobileTabs
+            ariaLabel="انتخاب روز برنامه"
+            value={activeWeekday}
+            onValueChange={onWeekdayChange}
+            options={displayWeekdays.map((weekday) => ({
+              value: weekday,
+              label: weekdays[weekday],
+              className: "min-h-11 shrink-0 rounded-xl px-3 text-xs",
+            }))}
+            className="justify-start gap-1.5 border-0 bg-transparent p-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+          />
         </div>
 
         {isMobileShell ? (

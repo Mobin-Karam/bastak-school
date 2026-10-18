@@ -1,7 +1,7 @@
 import { Download, Settings2 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../auth";
-import { localizedNavigationForCapabilities } from "../../app/layout/navigation/admin-navigation";
+import { localizedNavigationForCapabilities } from "../../app/layout/navigation/config/admin-navigation";
 import { openPWAInstall } from "../pwa";
 import { useLocale } from "../../shared/ui/locale";
 

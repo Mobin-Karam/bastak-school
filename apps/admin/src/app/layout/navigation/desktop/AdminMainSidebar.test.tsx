@@ -1,7 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { LocaleProvider } from "../../../shared/ui/locale";
+import { LocaleProvider } from "../../../../shared/ui/locale";
 import { AdminMainSidebar } from "./AdminMainSidebar";
 
 const auth = {
@@ -9,7 +9,7 @@ const auth = {
   capabilities: ["plans.read", "chat.read"],
 };
 
-vi.mock("../../../features/auth", () => ({ useAuth: () => auth }));
+vi.mock("../../../../features/auth", () => ({ useAuth: () => auth }));
 
 describe("AdminMainSidebar locale flow", () => {
   afterEach(() => window.localStorage.clear());

@@ -8,7 +8,9 @@ import { listSchedule } from "../../schedule/api/schedule.api";
 import { listTimetableOccurrences } from "../../schedule/api/timetable.api";
 import { todayIso } from "../../../shared/lib/utils";
 import { useLocale } from "../../../shared/ui/locale";
-import { Badge, Button, Card, EmptyState, ErrorState, Field, Select } from "../../../shared/ui/ui";
+import { Badge, Button, Card, EmptyState, ErrorState } from "../../../shared/ui/ui";
+import { StatisticCard } from "../../../shared/ui/mobile/data-display";
+import { MobileSelect } from "../../../shared/ui/mobile/forms";
 import { guardianApi } from "../api/guardian.api";
 import { ManagementPageHeader } from "../../../shared/ui/management-workspace";
 import { guardianCopy } from "../model/guardian-copy";
@@ -131,15 +133,17 @@ export function GuardianPage() {
         description={copy.description}
       />
       <Card className="p-3">
-        <Field label={copy.selectStudent}>
-          <Select value={studentId} onChange={(event) => setStudentId(event.target.value)}>
-            {children.data.map((student) => (
-              <option key={student.id} value={student.id}>
-                {student.name}
-              </option>
-            ))}
-          </Select>
-        </Field>
+        <MobileSelect
+          label={copy.selectStudent}
+          value={studentId}
+          onChange={(event) => setStudentId(event.target.value)}
+        >
+          {children.data.map((student) => (
+            <option key={student.id} value={student.id}>
+              {student.name}
+            </option>
+          ))}
+        </MobileSelect>
       </Card>
       <DashboardCalendar
         value={calendarDate}
@@ -345,10 +349,5 @@ export function GuardianPage() {
 }
 
 function Metric({ label, value }: { label: string; value: string }) {
-  return (
-    <Card className="p-3">
-      <p className="text-xs text-slate-500">{label}</p>
-      <p className="mt-2 text-xl font-bold">{value}</p>
-    </Card>
-  );
+  return <StatisticCard label={label} value={value} />;
 }

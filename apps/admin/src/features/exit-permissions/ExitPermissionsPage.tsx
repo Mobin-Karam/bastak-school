@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "../auth";
 import { useModal } from "../../shared/ui/modal";
 import { Badge, Button, Card, EmptyState, Input, LoadingState } from "../../shared/ui/ui";
+import { SearchBar } from "../../shared/ui/mobile/forms";
 import { notify } from "../../shared/ui/notifications";
 import { api } from "../../shared/api/api";
 import {
@@ -289,7 +290,7 @@ export function ExitPermissionsPage() {
       ) : null}
 
       <Card className="grid gap-3 p-3 sm:grid-cols-[1fr_auto]">
-        <Input
+        <SearchBar
           value={search}
           onChange={(event) => setSearch(event.target.value)}
           placeholder="جست‌وجوی دانش‌آموز، مقصد یا دلیل…"

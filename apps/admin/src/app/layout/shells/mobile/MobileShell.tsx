@@ -1,43 +1,39 @@
 import { AlertTriangle } from "lucide-react";
-import type { AdminShellModel } from "./use-admin-shell-model";
-import { AdminMobileBottomNav } from "../navigation/AdminMobileNavigation";
+import { useNavigate } from "react-router-dom";
+import type { AdminShellModel } from "../../hooks/use-admin-shell-model";
+import { AdminMobileBottomNav } from "../../navigation/mobile/AdminMobileNavigation";
+import { BackButton, MobileHeader } from "../../../../shared/ui/mobile";
 
 export function MobileShell({ model }: { model: AdminShellModel }) {
+  const navigate = useNavigate();
+  const isRoot = model.current.path === "";
+
   return (
     <>
-      <header className="admin-mobile-masthead relative z-30 flex min-h-[calc(5rem+env(safe-area-inset-top))] shrink-0 flex-col items-center justify-center gap-1 overflow-hidden bg-paper pb-2 pt-[env(safe-area-inset-top)] lg:hidden">
-        <div className="relative flex h-10 w-full justify-center">
-          <img
-            src="/right-left-angel.png"
-            width={136}
-            height={46}
-            alt=""
-            aria-hidden="true"
-            decoding="async"
-            className="pointer-events-none absolute end-[calc(50%+3.5rem)] bottom-1 h-9 w-[8.5rem] max-w-[31vw] object-contain object-right"
-          />
+      <MobileHeader
+        title={model.current.title}
+        start={
+          isRoot ? undefined : (
+            <BackButton
+              onClick={() => {
+                if (window.history.length > 1) navigate(-1);
+                else navigate("/admin");
+              }}
+            />
+          )
+        }
+        end={
           <img
             src="/logo-bastak.webp"
-            width={120}
-            height={40}
+            width={88}
+            height={32}
             alt="مدرسه دینی سلطان العلماء بستک"
             decoding="async"
-            className="relative z-10 h-10 w-auto max-w-[min(10rem,65vw)] object-contain"
+            className="h-8 w-auto max-w-[5.5rem] object-contain"
           />
-          <img
-            src="/right-left-angel.png"
-            width={136}
-            height={46}
-            alt=""
-            aria-hidden="true"
-            decoding="async"
-            className="pointer-events-none absolute start-[calc(50%+3.5rem)] bottom-1 h-9 w-[8.5rem] max-w-[31vw] scale-x-[-1] object-contain object-right"
-          />
-        </div>
-        <h1 className="max-w-full truncate px-3 text-sm font-bold text-ink">
-          {model.current.title}
-        </h1>
-      </header>
+        }
+        className="admin-mobile-masthead relative z-30 shrink-0 lg:hidden"
+      />
       {model.auth.activeRole === "PLATFORM_ADMIN" ? (
         <section
           className="mx-3 mt-2 flex shrink-0 items-start gap-2 rounded-lg border border-amber-300/80 bg-amber-50 px-3 py-2.5 text-xs leading-5 text-amber-950 dark:border-amber-700 dark:bg-amber-950/35 dark:text-amber-100"

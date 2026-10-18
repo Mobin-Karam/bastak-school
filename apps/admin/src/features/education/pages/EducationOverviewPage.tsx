@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { ArrowLeft, CircleHelp, FilePlus2, RotateCcw, Sparkles } from "lucide-react";
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { educationNavigation } from "../../../app/layout/navigation/admin-navigation";
+import { educationNavigation } from "../../../app/layout/navigation/config/admin-navigation";
 import { ManagementPageHeader } from "../../../shared/ui/management-workspace";
 import { Button } from "../../../shared/ui/ui";
 import { useAuth } from "../../auth";

@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { Check, RefreshCw, X } from "lucide-react";
 import { api } from "../../shared/api/api";
-import { Button, Card, EmptyState, Input, Badge } from "../../shared/ui/ui";
+import { Button, Card, EmptyState, Badge } from "../../shared/ui/ui";
+import { SearchBar } from "../../shared/ui/mobile/forms";
 import { useLocale } from "../../shared/ui/locale";
 import { leaveRequestsCopy } from "./leave-requests-locale";
 
@@ -85,7 +86,7 @@ export function LeaveRequestsPage() {
         </Button>
       </section>
       <Card className="grid gap-3 p-3 sm:grid-cols-[1fr_auto]">
-        <Input
+        <SearchBar
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder={copy.search}

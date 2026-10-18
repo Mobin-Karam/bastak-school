@@ -10,9 +10,9 @@ import {
   localizedAdminCurrentNavigation,
   localizedNavigationForCapabilities,
   resolveAdminNavigation,
-} from "../navigation/admin-navigation";
-import { usePersistentCollapse } from "../layout-storage";
-import { shouldAutoCollapseMainRail } from "./layout-geometry";
+} from "../navigation/config/admin-navigation";
+import { usePersistentCollapse } from "../lib/layout-storage";
+import { shouldAutoCollapseMainRail } from "../lib/layout-geometry";
 import { useDevicePerformance } from "./use-device-performance";
 
 function readSelectedStudentId(search: string) {

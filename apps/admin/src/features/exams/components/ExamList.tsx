@@ -19,7 +19,7 @@ import { SegmentedControl } from "../../../shared/ui/segmented-control";
 import { useLocale } from "../../../shared/ui/locale";
 import { examsCopy } from "../exams-locale";
 import { ExamCard } from "./ExamCard";
-import { useViewportShell } from "../../../app/layout/shell/viewport-shell";
+import { useViewportShell } from "../../../app/layout/lib/viewport-shell";
 
 type ViewMode = "grid" | "list";
 

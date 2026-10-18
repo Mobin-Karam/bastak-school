@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { navigationForCapabilities, resolveAdminNavigation } from "./admin-navigation";
+import { navigationForCapabilities, resolveAdminNavigation } from "./config/admin-navigation";
 
 describe("student navigation", () => {
   it("adds registration only when the student has registration access", () => {

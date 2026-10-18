@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { navigationForCapabilities } from "./admin-navigation";
+import { navigationForCapabilities } from "./config/admin-navigation";
 
 const pathsFor = (capabilities: readonly string[], role: string) =>
   navigationForCapabilities(capabilities, role).flatMap((group) =>

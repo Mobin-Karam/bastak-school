@@ -3,8 +3,8 @@ import { render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 import { MemoryRouter } from "react-router-dom";
 import { LocaleProvider } from "../../../shared/ui/locale";
-import { localizedAdminCurrentNavigation } from "../navigation/admin-navigation";
-import { AdminContextSidebar } from "../navigation/AdminContextSidebar";
+import { localizedAdminCurrentNavigation } from "../navigation/config/admin-navigation";
+import { AdminContextSidebar } from "../navigation/desktop/AdminContextSidebar";
 
 describe("AdminContextSidebar LTR flow", () => {
   afterEach(() => window.localStorage.clear());

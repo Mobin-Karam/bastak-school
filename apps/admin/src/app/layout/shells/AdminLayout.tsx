@@ -4,15 +4,15 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Outlet, useNavigate } from "react-router-dom";
 import { useAuth } from "../../../features/auth";
 import { AdminCommandPalette } from "../command-palette/AdminCommandPalette";
-import { adminContentOffsetClass } from "./layout-geometry";
+import { adminContentOffsetClass } from "../lib/layout-geometry";
 import { api } from "../../../shared/api/api";
 import { useModal } from "../../../shared/ui/modal";
 import { Button } from "../../../shared/ui/ui";
 import { AdminShellChrome } from "./AdminShellChrome";
-import { SharedPageViewport } from "./SharedPageViewport";
-import { useAdminShellModel } from "./use-admin-shell-model";
-import { useViewportShell } from "./viewport-shell";
-import { currentViewportHeight } from "./viewport-height";
+import { SharedPageViewport } from "../components/SharedPageViewport";
+import { useAdminShellModel } from "../hooks/use-admin-shell-model";
+import { useViewportShell } from "../lib/viewport-shell";
+import { currentViewportHeight } from "../lib/viewport-height";
 
 function isEditableTarget(target: EventTarget | null) {
   if (!(target instanceof HTMLElement)) return false;

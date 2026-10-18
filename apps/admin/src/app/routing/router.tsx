@@ -12,7 +12,7 @@ import {
   useAuth,
 } from "../../features/auth";
 import { AUTH_SUCCESS_SPLASH_KEY } from "../../features/auth/lib/auth-session";
-import { AdminLayout } from "../layout/shell/AdminLayout";
+import { AdminLayout } from "../layout/shells/AdminLayout";
 import { RouteErrorBoundary } from "../../shared/errors";
 import { underBuilding, underBuildingEndsAt } from "../config/under-building";
 import UnderConstruction from "../../features/students/components/UnderConstruction";

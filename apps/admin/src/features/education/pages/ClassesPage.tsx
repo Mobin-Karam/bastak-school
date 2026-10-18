@@ -192,7 +192,7 @@ export function ClassesPage() {
               key={row.id}
               type="button"
               onClick={() => setSelectedId(row.id)}
-              className={`grid gap-2 rounded-lg border p-3 text-start shadow-[var(--shadow-surface)] transition ${selectedId === row.id ? "border-brand bg-brand/5 ring-1 ring-brand/15" : "border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card))] hover:border-brand/40"}`}
+              className={`grid min-h-24 gap-2 rounded-lg border p-3 text-start shadow-[var(--shadow-surface)] transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 ${selectedId === row.id ? "border-brand bg-brand/5 ring-1 ring-brand/15" : "border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card))] hover:border-brand/40"}`}
             >
               <span className="flex items-center justify-between gap-2">
                 <span className="flex items-center gap-2">
@@ -773,7 +773,7 @@ function ClassYearPicker({
               type="button"
               aria-pressed={selected}
               onClick={() => onChange(`${year}-${Number(year) + 1}`)}
-              className={`min-h-10 shrink-0 rounded-lg border px-3 text-sm font-bold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand ${
+              className={`min-h-11 shrink-0 rounded-lg border px-3 text-sm font-bold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand ${
                 selected
                   ? "border-brand bg-brand text-white"
                   : "border-slate-200 bg-white text-slate-700 hover:border-brand/40 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"

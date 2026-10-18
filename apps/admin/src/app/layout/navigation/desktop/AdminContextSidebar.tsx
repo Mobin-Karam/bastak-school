@@ -1,9 +1,9 @@
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import type { ComponentType } from "react";
 import { NavLink } from "react-router-dom";
-import { adminDestination } from "./admin-navigation";
-import type { AdminCurrentNavigation } from "../shell/layout-types";
-import { useAdminShellCopy, useLocale } from "../../../shared/ui/locale";
+import { adminDestination } from "../config/admin-navigation";
+import type { AdminCurrentNavigation } from "../../model/layout-types";
+import { useAdminShellCopy, useLocale } from "../../../../shared/ui/locale";
 
 export function AdminContextSidebar({
   collapsed,

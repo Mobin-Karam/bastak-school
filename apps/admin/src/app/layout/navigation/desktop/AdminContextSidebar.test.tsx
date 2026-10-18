@@ -2,8 +2,8 @@ import { UsersRound } from "lucide-react";
 import { render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 import { MemoryRouter } from "react-router-dom";
-import { LocaleProvider } from "../../../shared/ui/locale";
-import { localizedAdminCurrentNavigation } from "./admin-navigation";
+import { LocaleProvider } from "../../../../shared/ui/locale";
+import { localizedAdminCurrentNavigation } from "../config/admin-navigation";
 import { AdminContextSidebar } from "./AdminContextSidebar";
 
 describe("AdminContextSidebar LTR flow", () => {

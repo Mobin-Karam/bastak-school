@@ -1,10 +1,10 @@
 import { cleanup, render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { LocaleProvider } from "../../../shared/ui/locale";
+import { LocaleProvider } from "../../../../shared/ui/locale";
 import { AdminMobileBottomNav } from "./AdminMobileNavigation";
 
-vi.mock("../../../features/auth", () => ({
+vi.mock("../../../../features/auth", () => ({
   useAuth: () => ({
     activeRole: "TEACHER",
     capabilities: ["classes.read", "attendance.read", "schedule.read"],
@@ -14,7 +14,7 @@ vi.mock("../../../features/auth", () => ({
 describe("AdminMobileBottomNav", () => {
   afterEach(cleanup);
 
-  it("keeps a five-icon dock and reserves its last icon for more pages", () => {
+  it("keeps only role-relevant primary destinations in the dock", () => {
     render(
       <MemoryRouter>
         <LocaleProvider>
@@ -32,11 +32,12 @@ describe("AdminMobileBottomNav", () => {
       "href",
       "/admin/schedule",
     );
-    expect(screen.getByRole("link", { name: "همه مسیرهای مدیریت" })).toBeVisible();
-    expect(screen.getAllByRole("link")[2]).toHaveAccessibleName("میز استاد");
+    expect(screen.getByRole("button", { name: "همه مسیرهای مدیریت" })).toBeVisible();
+    expect(screen.getAllByRole("link")).toHaveLength(4);
   });
 
-  it("keeps exactly four destination links plus the more-pages button in reduced mode", () => {
+  it("opens an accessible capability-filtered navigation sheet", async () => {
+    const user = (await import("@testing-library/user-event")).default.setup();
     render(
       <MemoryRouter>
         <LocaleProvider>
@@ -49,10 +50,12 @@ describe("AdminMobileBottomNav", () => {
       </MemoryRouter>,
     );
 
-    expect(screen.getAllByRole("link")).toHaveLength(5);
-    expect(screen.getByRole("link", { name: "همه مسیرهای مدیریت" })).toHaveAttribute(
+    await user.click(screen.getByRole("button", { name: "همه مسیرهای مدیریت" }));
+    expect(screen.getByRole("dialog")).toHaveAccessibleName("همه مسیرهای مدیریت");
+    expect(screen.getByRole("link", { name: /برنامه هفتگی/ })).toHaveAttribute(
       "href",
-      "/admin/more",
+      "/admin/schedule",
     );
+    expect(screen.queryByRole("link", { name: "مدارس / سازمان‌ها" })).not.toBeInTheDocument();
   });
 });
