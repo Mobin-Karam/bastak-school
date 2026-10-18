@@ -1,24 +1,21 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useAttendanceDiscard } from "../../attendance/components/useAttendanceDiscard";
-import { useAuth } from "../../auth";
-import { Check, MessageSquareText } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
 import {
   bulkMarkAttendance,
   getAttendanceParticipants,
   listMyAttendanceAbsenceReviews,
+  prepareAttendanceWrite,
+  type PendingAttendanceWrite,
   type SelfAttendanceRecord,
-} from "../../attendance/api/attendance.api";
+  useAttendanceDiscard,
+} from "../../attendance/public";
+import { useAuth } from "../../auth";
+import { Check, MessageSquareText } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 import type { ScheduleEntry } from "../../schedule/api/schedule.api";
 import { notify } from "../../../shared/ui/notifications";
 import { api } from "../../../shared/api/api";
 import { ResponsiveModal } from "../../../shared/ui/responsive-modal";
 import { Button, EmptyState, LoadingState } from "../../../shared/ui/ui";
-
-import {
-  prepareAttendanceWrite,
-  type PendingAttendanceWrite,
-} from "../../attendance/model/attendance-write";
 
 type AttendanceStatus = SelfAttendanceRecord["status"];
 

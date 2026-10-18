@@ -3,7 +3,7 @@ import { BellRing, UsersRound } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../../auth";
-import { getAttendanceOverview } from "../../attendance/api/attendance-operations.api";
+import { getAttendanceOverview } from "../../attendance/public";
 import { listSchedule } from "../../schedule/api/schedule.api";
 import { DashboardCalendar } from "../../dashboard/components/DashboardCalendar";
 import { todayIso } from "../../../shared/lib/utils";

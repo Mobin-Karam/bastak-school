@@ -1,4 +1,4 @@
-import { StudentAttendancePoolPrompt } from "../../../features/attendance/components/StudentAttendanceWorkspace";
+import { StudentAttendancePoolPrompt } from "../../../features/attendance/public";
 import { useQuery } from "@tanstack/react-query";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Outlet, useNavigate } from "react-router-dom";
