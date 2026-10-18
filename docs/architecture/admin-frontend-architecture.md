@@ -21,6 +21,75 @@ Routes are composed in `apps/admin/src/app/routing/router.tsx`; authenticated ro
 
 The source currently has 818 TypeScript/TSX files. Feature folders commonly contain `api`, `components`, `model`, `pages`, `hooks`, and tests, although their exact depth follows feature complexity. `shared` contains the Admin design primitives, transport client, general hooks, theme, and utilities. It must not import a product feature.
 
+### Feature inventory
+
+The following source-derived inventory maps all current feature roots. Counts include production source only in the named conventional subfolders; a zero means the feature uses a root-level file or does not currently need that concern.
+
+| Feature          | Pages | Hooks | Components | API | Model |
+| ---------------- | ----: | ----: | ---------: | --: | ----: |
+| access           |     0 |     0 |          3 |   1 |     3 |
+| attendance       |     4 |     0 |         11 |   4 |     5 |
+| attention        |     2 |     0 |          0 |   2 |     0 |
+| auth             |     3 |     3 |         19 |   2 |     3 |
+| chat             |     1 |     9 |         29 |   2 |     6 |
+| class-groups     |     2 |     0 |          0 |   1 |     0 |
+| clock            |     0 |     9 |          6 |   0 |     2 |
+| dashboard        |     3 |     2 |         31 |   2 |    10 |
+| dormitory        |     2 |     0 |          0 |   1 |     0 |
+| education        |     4 |     0 |         13 |   3 |     8 |
+| exams            |     1 |     5 |         13 |   1 |     2 |
+| exit-permissions |     0 |     0 |          0 |   2 |     0 |
+| followup         |     0 |     0 |          2 |   1 |     1 |
+| guardian         |     1 |     0 |          0 |   1 |     2 |
+| learning         |     1 |     3 |         13 |   2 |     3 |
+| live             |     1 |     3 |         15 |   2 |     2 |
+| notifications    |     1 |     8 |         13 |   1 |     3 |
+| onboarding       |     1 |     0 |          2 |   1 |     2 |
+| planner          |     2 |     5 |         23 |   3 |     2 |
+| pwa              |     0 |     2 |          0 |   0 |     0 |
+| questions        |     1 |     0 |          5 |   3 |     1 |
+| quizzes          |     1 |     0 |          5 |   2 |     2 |
+| registration     |     4 |     0 |          0 |   1 |     0 |
+| reports          |     1 |     0 |          4 |   1 |     1 |
+| resources        |     0 |     0 |          0 |   1 |     1 |
+| schedule         |     4 |     0 |         12 |   3 |     0 |
+| school-home      |     0 |     1 |          4 |   1 |     2 |
+| security         |     0 |     0 |          1 |   0 |     0 |
+| settings         |     1 |     0 |          7 |   1 |     1 |
+| sms              |     1 |     0 |          0 |   2 |     0 |
+| student-portal   |     4 |     0 |          0 |   1 |     0 |
+| students         |     1 |     0 |         20 |   2 |     6 |
+| subjects         |     1 |     0 |          1 |   2 |     1 |
+| system           |     1 |     0 |         10 |   1 |     1 |
+| teacher-portal   |     4 |     0 |          2 |   0 |     0 |
+
+`app/providers/providers.tsx` owns provider composition. `app/routing/router.tsx` owns routes and client capability guards. `app/layout/` owns the responsive shell, navigation, command palette, and layout measurement. Shared implementation is grouped in `shared/api`, `shared/errors`, `shared/hooks`, `shared/lib`, `shared/theme`, `shared/types`, and `shared/ui` (including the composable data table).
+
+### Route inventory
+
+| URL                       | Lazy feature surface | Client capability gate              |
+| ------------------------- | -------------------- | ----------------------------------- |
+| `/login`, `/register`     | auth                 | public                              |
+| `/admin`                  | dashboard            | authenticated supported portal role |
+| `/admin/students`         | students             | `students.read`                     |
+| `/admin/registration`     | registration         | `registration.read`                 |
+| `/admin/schedule`         | schedule             | `schedule.read`                     |
+| `/admin/classes`          | education/classes    | `classes.read`                      |
+| `/admin/class-groups`     | class-groups         | `class_groups.read`                 |
+| `/admin/attendance`       | attendance           | `attendance.read`                   |
+| `/admin/my-attendance`    | attendance           | `attendance.self.read`              |
+| `/admin/family`           | guardian             | `guardian.students.read`            |
+| `/admin/leave-requests`   | leave-requests       | `leave.read`                        |
+| `/admin/exit-permissions` | exit-permissions     | `exit.read`                         |
+| `/admin/dormitory`        | dormitory            | `dormitory.read`                    |
+| `/admin/users`            | access               | `users.read`                        |
+| `/admin/organizations`    | access               | `organization.read`                 |
+| `/admin/sms`              | sms                  | `sms.read`                          |
+| `/admin/system`           | system               | `system.manage`                     |
+| `/admin/student-leave`    | student-portal       | `leave.read` and `leave.manage`     |
+
+Additional authenticated, role-scoped surfaces are books, teacher profile/chat, settings, student profile, and mobile more. Their role support is enforced by `ProtectedRoute`; their backend requests retain authority checks.
+
 ## Shared packages and contracts
 
 - `packages/api-contract` is the typed, shared HTTP boundary. Admin features use it for attendance, timetable, academic structure, organization, notification, and SMS DTOs. It is a type/contract package, not a location for UI behavior.
