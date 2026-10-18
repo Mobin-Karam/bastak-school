@@ -1,7 +1,7 @@
-import { Card, EmptyState } from "../../../shared/ui/ui";
-import { useLocale } from "../../../shared/ui/locale";
+import { Card, EmptyState } from "../../../../shared/ui/ui";
+import { useLocale } from "../../../../shared/ui/locale";
 import { liveCopy } from "../model/live-copy";
-import type { LivePanel, LiveStudent } from "../model/live.types";
+import type { LivePanel, LiveStudent } from "../model/live.types.ts";
 import { StudentDetail } from "./StudentDetail";
 
 export function StudentDetailPanel({

@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
-import { useAuth } from "../../auth";
-import { getAdminDashboard, getDashboardWorkQueue } from "../api/dashboard.api";
+import { useAuth } from "../../../identity/auth";
+import { getAdminDashboard, getDashboardWorkQueue } from "../api/dashboard.api.ts";
 
 export function useDashboardData() {
   const auth = useAuth();

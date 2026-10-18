@@ -1,5 +1,5 @@
 export type AccessFlowScope = "users" | "organizations";
-import type { AdminLanguage } from "../../../shared/ui/locale";
+import type { AdminLanguage } from "../../../../shared/ui/locale";
 
 /**
  * Keeps the operational guidance on the two access pages consistent. Server

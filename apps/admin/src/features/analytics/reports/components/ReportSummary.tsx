@@ -7,8 +7,8 @@ import {
   Flame,
   Target,
 } from "lucide-react";
-import { Card } from "../../../shared/ui/ui";
-import { useLocale } from "../../../shared/ui/locale";
+import { Card } from "../../../../shared/ui/ui";
+import { useLocale } from "../../../../shared/ui/locale";
 import { reportCopy } from "../model/report-copy";
 
 export function ReportSummary({

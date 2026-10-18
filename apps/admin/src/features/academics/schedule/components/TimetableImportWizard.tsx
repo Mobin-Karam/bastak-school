@@ -6,22 +6,22 @@ import type {
   TimetableImportPreview,
   TimetableImportRow,
 } from "@moshaver/api-contract";
-import { ResponsiveModal } from "../../../shared/ui/responsive-modal";
-import { Button, Field, Input } from "../../../shared/ui/ui";
+import { ResponsiveModal } from "../../../../shared/ui/responsive-modal";
+import { Button, Field, Input } from "../../../../shared/ui/ui";
 import {
   readSpreadsheetLayout,
   defineSpreadsheet,
   downloadSpreadsheet,
   type SpreadsheetLayoutSheet,
-} from "../../../shared/lib/spreadsheet-transfer";
-import { notify } from "../../../shared/ui/notifications";
+} from "../../../../shared/lib/spreadsheet-transfer";
+import { notify } from "../../../../shared/ui/notifications";
 import {
   detectWorkbookBlocks,
   extractWorkbookLessons,
   persianWeekdays,
   type WorkbookBlock,
 } from "../lib/timetable-workbook";
-import { commitTimetableImport, previewTimetableImport } from "../api/timetable.api";
+import { commitTimetableImport, previewTimetableImport } from "../api/timetable.api.ts";
 import { proposeTimetableMappings } from "../lib/timetable-import-mapping";
 import { TimetableImportCatalog } from "./TimetableImportCatalog";
 import { timetableSelectClass } from "./TimetableLessonEditor";

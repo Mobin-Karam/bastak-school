@@ -1,5 +1,5 @@
 import { Activity } from "lucide-react";
-import { useOptionalAdminLanguage } from "../../../shared/ui/locale";
+import { useOptionalAdminLanguage } from "../../../../shared/ui/locale";
 import { studentCopy } from "../model/student-locale";
 
 export function StudentActivityTimeline({ events }: { events: Array<Record<string, unknown>> }) {

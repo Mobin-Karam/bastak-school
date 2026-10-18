@@ -1,7 +1,7 @@
 import { Edit3, History, RefreshCw, Trash2 } from "lucide-react";
-import { todayIso } from "../../../shared/lib/utils";
-import { Badge, Button } from "../../../shared/ui/ui";
-import { useLocale } from "../../../shared/ui/locale";
+import { todayIso } from "../../../../shared/lib/utils";
+import { Badge, Button } from "../../../../shared/ui/ui";
+import { useLocale } from "../../../../shared/ui/locale";
 import { isLearningDue, type LearningItem } from "../model/learning-model";
 import { learningCopy, learningStatusLabel } from "../learning-locale";
 

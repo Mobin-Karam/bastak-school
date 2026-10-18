@@ -3,7 +3,7 @@ import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { PropsWithChildren } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { LocaleProvider } from "../../../shared/ui/locale";
+import { LocaleProvider } from "../../../../shared/ui/locale";
 import { DormDelegateEditor } from "./DormDelegateEditor";
 const mocks = vi.hoisted(() => ({
   delegates: vi.fn(),
@@ -13,7 +13,7 @@ const mocks = vi.hoisted(() => ({
   revokeAll: vi.fn(),
   revokeRoom: vi.fn(),
 }));
-vi.mock("../api/attendance-operations.api", () => ({
+vi.mock("../api/attendance-operations.api.ts", () => ({
   getDormDelegates: mocks.delegates,
   getDormResidents: mocks.residents,
   setDormWideDelegate: mocks.all,
@@ -21,7 +21,7 @@ vi.mock("../api/attendance-operations.api", () => ({
   revokeDormWideDelegate: mocks.revokeAll,
   revokeDormDelegate: mocks.revokeRoom,
 }));
-vi.mock("../../../shared/ui/notifications", () => ({ notify: vi.fn() }));
+vi.mock("../../../../shared/ui/notifications", () => ({ notify: vi.fn() }));
 function Providers({ children }: PropsWithChildren) {
   return (
     <QueryClientProvider

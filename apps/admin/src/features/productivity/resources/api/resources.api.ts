@@ -1,5 +1,5 @@
-import { api } from "../../../shared/api/api";
-import type { Student } from "../../../shared/types/domain";
+import { api } from "../../../../shared/api/api";
+import type { Student } from "../../../../shared/types/domain";
 
 export type LearningResource = {
   id: string;

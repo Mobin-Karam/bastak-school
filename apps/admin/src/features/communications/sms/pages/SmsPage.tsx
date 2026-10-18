@@ -14,15 +14,15 @@ import {
   UsersRound,
   XCircle,
 } from "lucide-react";
-import { Button, Card, CheckboxGroup, Input, LoadingState, Textarea } from "../../../shared/ui/ui";
-import { SegmentedControl } from "../../../shared/ui/segmented-control";
+import { Button, Card, CheckboxGroup, Input, LoadingState, Textarea } from "../../../../shared/ui/ui";
+import { SegmentedControl } from "../../../../shared/ui/segmented-control";
 import {
   DataTable,
   type DataTableAction,
   type DataTableColumn,
-} from "../../../shared/ui/data-table";
-import { notify } from "../../../shared/ui/notifications";
-import { useAuth } from "../../auth";
+} from "../../../../shared/ui/data-table";
+import { notify } from "../../../../shared/ui/notifications";
+import { useAuth } from "../../../identity/auth";
 import {
   cancelCampaign,
   configureSmsProvider,
@@ -38,7 +38,7 @@ import {
   type Criteria,
   type ProviderStatus,
   type Preview,
-} from "../api/sms.api";
+} from "../api/sms.api.ts";
 import type { SmsCampaignDetail } from "@moshaver/api-contract";
 
 const audienceRoles = [

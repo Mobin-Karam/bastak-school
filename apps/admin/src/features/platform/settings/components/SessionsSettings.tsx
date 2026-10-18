@@ -1,9 +1,9 @@
 import type { UseMutationResult, UseQueryResult } from "@tanstack/react-query";
 import { Laptop, RefreshCw, ShieldCheck, Smartphone } from "lucide-react";
-import { Badge, Button, Card, EmptyState } from "../../../shared/ui/ui";
-import { useLocale } from "../../../shared/ui/locale";
+import { Badge, Button, Card, EmptyState } from "../../../../shared/ui/ui";
+import { useLocale } from "../../../../shared/ui/locale";
 import { settingsCopy } from "../settings-locale";
-import type { Session } from "../model/settings.types";
+import type { Session } from "../model/settings.types.ts";
 export function SessionsSettings({
   sessions,
   revoke,

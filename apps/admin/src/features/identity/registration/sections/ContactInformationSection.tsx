@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
-import { Card, Input, Button } from "../../../shared/ui/ui";
+import { Card, Input, Button } from "../../../../shared/ui/ui";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { getRegistrationSelf, updateRegistrationProfile } from "../api/registration.api";
+import { getRegistrationSelf, updateRegistrationProfile } from "../api/registration.api.ts";
 
 export function ContactInformationSection() {
   const queryClient = useQueryClient();

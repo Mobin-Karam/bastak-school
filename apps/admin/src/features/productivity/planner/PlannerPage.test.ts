@@ -11,7 +11,7 @@ import {
   getTimelineRange,
   timeToPosition,
 } from "./PlannerPage";
-import type { Plan } from "../../shared/types/domain";
+import type { Plan } from "../../../shared/types/domain";
 
 describe("planner parity helpers", () => {
   it("builds Saturday-first week and exact month ranges", () => {

@@ -1,7 +1,7 @@
 "use client";
 
 import { X } from "lucide-react";
-import { Button } from "../../shared/ui/ui";
+import { Button } from "../../../shared/ui/ui";
 
 export function PWAInstallBanner({
   visible,

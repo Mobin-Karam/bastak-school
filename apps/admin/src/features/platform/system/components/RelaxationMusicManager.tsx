@@ -1,17 +1,17 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Music2, PauseCircle, PlayCircle, Plus, Power, Users } from "lucide-react";
 import { useRef, useState } from "react";
-import { notify } from "../../../shared/ui/notifications";
-import { Button, Card, EmptyState, Field, Input } from "../../../shared/ui/ui";
-import { useLocale } from "../../../shared/ui/locale";
-import { listOrganizations } from "../../access/api/access.api";
+import { notify } from "../../../../shared/ui/notifications";
+import { Button, Card, EmptyState, Field, Input } from "../../../../shared/ui/ui";
+import { useLocale } from "../../../../shared/ui/locale";
+import { listOrganizations } from "../../../identity/access/api/access.api.ts";
 import {
   createRelaxationTrack,
   getRelaxationTrackAudience,
   getRelaxationTracks,
   updateRelaxationTrack,
   type RelaxationTrackDraft,
-} from "../api/system.api";
+} from "../api/system.api.ts";
 import { systemCopy } from "../system-locale";
 
 const emptyDraft: RelaxationTrackDraft = {

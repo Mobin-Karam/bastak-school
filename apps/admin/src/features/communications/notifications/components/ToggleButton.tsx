@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { useLocale } from "../../../shared/ui/locale";
+import { useLocale } from "../../../../shared/ui/locale";
 import { notificationCopy } from "../model/notification-copy";
 
 export function ToggleButton({

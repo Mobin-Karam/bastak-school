@@ -1,7 +1,7 @@
 import { Sunrise, Sun, SunMedium, SunDim, Sunset, MoonStar } from "lucide-react";
 
-import { useDevicePerformance } from "../../../app/layout/hooks/use-device-performance";
-import { fa } from "../../../shared/lib/utils";
+import { useDevicePerformance } from "../../../../app/layout/hooks/use-device-performance";
+import { fa } from "../../../../shared/lib/utils";
 import { useCurrentPrayer } from "../hooks/use-current-prayer";
 import type { PrayerSchedule } from "../model/current-prayer";
 

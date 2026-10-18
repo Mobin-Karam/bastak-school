@@ -1,7 +1,7 @@
 // ─────────────────────────────────────────────────────────────
 // EducationOverviewSkeleton.tsx
 // ─────────────────────────────────────────────────────────────
-import { useLocale } from "../../../shared/ui/locale";
+import { useLocale } from "../../../../shared/ui/locale";
 import { educationCopy } from "../model/education-copy";
 
 export function EducationOverviewSkeleton() {

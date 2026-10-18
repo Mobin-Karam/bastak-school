@@ -1,5 +1,5 @@
-import type { Conversation } from "../../../../shared/types/domain";
-import { EmptyState } from "../../../../shared/ui/ui";
+import type { Conversation } from "../../../../../shared/types/domain";
+import { EmptyState } from "../../../../../shared/ui/ui";
 import { ConversationListItem } from "./ConversationListItem";
 
 export function ConversationList({

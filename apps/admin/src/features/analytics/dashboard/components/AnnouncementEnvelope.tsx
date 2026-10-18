@@ -1,7 +1,7 @@
 import { BellRing, Clock3, MailOpen, X } from "lucide-react";
 import { useMemo, useState } from "react";
-import { MobileSheet } from "../../../shared/ui/mobile-sheet";
-import { Button, EmptyState } from "../../../shared/ui/ui";
+import { MobileSheet } from "../../../../shared/ui/mobile-sheet";
+import { Button, EmptyState } from "../../../../shared/ui/ui";
 
 export type AnnouncementEnvelopeItem = {
   id: string;

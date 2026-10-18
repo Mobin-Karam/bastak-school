@@ -1,6 +1,6 @@
 import type { ComponentType, SVGProps } from "react";
-import type { RoleCode } from "../../../shared/types/domain";
-import type { AdminLanguage } from "../../../shared/ui/locale";
+import type { RoleCode } from "../../../../shared/types/domain";
+import type { AdminLanguage } from "../../../../shared/ui/locale";
 import {
   GraduationCap,
   Users,

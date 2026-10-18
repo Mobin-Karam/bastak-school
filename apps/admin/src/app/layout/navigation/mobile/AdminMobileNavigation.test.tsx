@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { LocaleProvider } from "../../../../shared/ui/locale";
 import { AdminMobileBottomNav } from "./AdminMobileNavigation";
 
-vi.mock("../../../../features/auth", () => ({
+vi.mock("../../../../features/identity/auth", () => ({
   useAuth: () => ({
     activeRole: "TEACHER",
     capabilities: ["classes.read", "attendance.read", "schedule.read"],

@@ -1,5 +1,5 @@
 import type { AcademicPage, AcademicEnrollmentHistory } from "@moshaver/api-contract";
-import { api } from "../../../shared/api/api";
+import { api } from "../../../../shared/api/api";
 
 export type EducationClassBook = {
   id: string;

@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { api } from "../../../shared/api/api";
-import { commitTimetableBulk, previewTimetableBulk } from "./timetable.api";
+import { api } from "../../../../shared/api/api";
+import { commitTimetableBulk, previewTimetableBulk } from "./timetable.api.ts";
 
 describe("bulk timetable client safety", () => {
   afterEach(() => vi.restoreAllMocks());

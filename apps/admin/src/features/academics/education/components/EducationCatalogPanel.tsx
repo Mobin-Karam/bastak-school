@@ -1,9 +1,9 @@
 import { useMemo, useState, type ChangeEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Archive, CheckCircle2, Pencil, Search, Upload, Users } from "lucide-react";
-import { Button, Card, Field, Input, LoadingState, Textarea } from "../../../shared/ui/ui";
-import { useModal } from "../../../shared/ui/modal";
-import { notify } from "../../../shared/ui/notifications";
+import { Button, Card, Field, Input, LoadingState, Textarea } from "../../../../shared/ui/ui";
+import { useModal } from "../../../../shared/ui/modal";
+import { notify } from "../../../../shared/ui/notifications";
 import { useEducationCatalogCopy } from "../model/education-catalog-copy";
 import {
   commitEducationImport,
@@ -15,7 +15,7 @@ import {
   updateEducationBook,
   type EducationBookInput,
   type ManagedEducationBook,
-} from "../api/education-catalog.api";
+} from "../api/education-catalog.api.ts";
 
 const blank = (defaults: {
   schoolYear: string;

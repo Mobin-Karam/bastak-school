@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { Button } from "../../../shared/ui/ui";
-import { ResponsiveModal } from "../../../shared/ui/responsive-modal";
+import { Button } from "../../../../shared/ui/ui";
+import { ResponsiveModal } from "../../../../shared/ui/responsive-modal";
 import { LegacySchedulePage } from "./LegacySchedulePage";
 /** Existing unversioned schedules remain available during gradual migration. */
 export function SchedulePage() {

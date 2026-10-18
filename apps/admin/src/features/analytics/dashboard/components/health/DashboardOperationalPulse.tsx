@@ -8,10 +8,10 @@ import {
   TrendingUp,
 } from "lucide-react";
 
-import { Card } from "../../../../shared/ui/ui";
-import { useLocale } from "../../../../shared/ui/locale";
+import { Card } from "../../../../../shared/ui/ui";
+import { useLocale } from "../../../../../shared/ui/locale";
 import { dashboardCopy } from "../../model/dashboard-copy";
-import type { RoleDashboardData } from "../../model/dashboard.types";
+import type { RoleDashboardData } from "../../model/dashboard.types.ts";
 
 /* =========================================================
    TYPES

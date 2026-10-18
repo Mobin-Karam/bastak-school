@@ -1,4 +1,4 @@
-import { api } from "../../../shared/api/api";
+import { api } from "../../../../shared/api/api";
 import type {
   DatabaseMeta,
   HistoryRow,
@@ -7,7 +7,7 @@ import type {
   Readiness,
   ServiceHealth,
   Session,
-} from "../model/system.types";
+} from "../model/system.types.ts";
 export const getDatabaseMeta = () => api.get<DatabaseMeta>("/system/database");
 export const getServiceHealth = () => api.get<ServiceHealth>("/health");
 export const getReadiness = () => api.get<Readiness>("/ready");

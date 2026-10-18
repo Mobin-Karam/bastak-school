@@ -2,7 +2,7 @@ import { BookOpen } from "lucide-react";
 import { afterEach, describe, expect, it } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
-import { LocaleProvider } from "../../shared/ui/locale";
+import { LocaleProvider } from "../../../shared/ui/locale";
 import { EducationOverviewSkeleton } from "./components/ EducationOverviewSkeleton";
 import { EducationSectionCard } from "./components/EducationSectionGrid";
 

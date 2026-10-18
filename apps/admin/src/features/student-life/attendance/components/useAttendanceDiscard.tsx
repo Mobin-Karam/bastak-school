@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import { ResponsiveModal } from "../../../shared/ui/responsive-modal";
-import { Button } from "../../../shared/ui/ui";
+import { ResponsiveModal } from "../../../../shared/ui/responsive-modal";
+import { Button } from "../../../../shared/ui/ui";
 
 /** Keep a mounted draft until the user explicitly confirms a destructive navigation. */
 export function useAttendanceDiscard(dirty: boolean, busy: boolean, scope: string) {

@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import type { InfiniteData, QueryClient } from "@tanstack/react-query";
-import { api } from "../../../shared/api/api";
-import { notifications } from "../../../shared/ui/notifications";
+import { api } from "../../../../shared/api/api";
+import { notifications } from "../../../../shared/ui/notifications";
 import {
   normalizeAdminNotification,
   notificationAdminUrl,

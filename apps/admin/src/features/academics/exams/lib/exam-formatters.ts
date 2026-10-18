@@ -1,4 +1,4 @@
-import type { Exam } from "../../../shared/types/domain";
+import type { Exam } from "../../../../shared/types/domain";
 
 const attemptDateFormatter = new Intl.DateTimeFormat("fa-IR-u-ca-persian", {
   dateStyle: "medium",

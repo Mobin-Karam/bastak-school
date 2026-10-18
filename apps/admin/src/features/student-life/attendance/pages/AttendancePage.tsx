@@ -2,7 +2,7 @@ import type { AttendanceSessionDetail } from "@moshaver/api-contract";
 import {
   getSavedAttendanceSession,
   submitAttendanceAbsences,
-} from "../api/attendance-operations.api";
+} from "../api/attendance-operations.api.ts";
 import { DormDelegateEditor } from "../components/DormDelegateEditor";
 import {
   AttendanceStaffWorkspace,
@@ -24,12 +24,12 @@ import {
   Radio,
 } from "lucide-react";
 import { useSearchParams } from "react-router-dom";
-import { useLocale } from "../../../shared/ui/locale";
-import { Card } from "../../../shared/ui/ui";
-import { api, ApiError } from "../../../shared/api/api";
-import { notify } from "../../../shared/ui/notifications";
-import { ResponsiveModal } from "../../../shared/ui/responsive-modal";
-import { useAuth } from "../../auth";
+import { useLocale } from "../../../../shared/ui/locale";
+import { Card } from "../../../../shared/ui/ui";
+import { api, ApiError } from "../../../../shared/api/api";
+import { notify } from "../../../../shared/ui/notifications";
+import { ResponsiveModal } from "../../../../shared/ui/responsive-modal";
+import { useAuth } from "../../../identity/auth";
 import { useAttendanceDiscard } from "../components/useAttendanceDiscard";
 import { AttendanceRosterView } from "../views/AttendanceRosterView";
 import { PendingCorrectionQueue } from "../components/PendingCorrectionQueue";
@@ -48,7 +48,7 @@ import {
   listAttendanceContexts,
   type AttendanceContextOption,
   type AttendanceContextType,
-} from "../api/attendance.api";
+} from "../api/attendance.api.ts";
 
 type MarkedStatus = MarkedAttendanceStatus;
 type Participant = AttendanceParticipant;

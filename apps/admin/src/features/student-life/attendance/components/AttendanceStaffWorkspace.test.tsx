@@ -4,7 +4,7 @@ import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import axe from "axe-core";
-import { LocaleProvider } from "../../../shared/ui/locale";
+import { LocaleProvider } from "../../../../shared/ui/locale";
 import { AttendanceStaffWorkspace } from "./AttendanceStaffWorkspace";
 const mocks = vi.hoisted(() => ({
   overview: vi.fn(),
@@ -19,7 +19,7 @@ const mocks = vi.hoisted(() => ({
   history: vi.fn(),
   cancel: vi.fn(),
 }));
-vi.mock("../api/attendance-operations.api", () => ({
+vi.mock("../api/attendance-operations.api.ts", () => ({
   getAttendanceOverview: mocks.overview,
   getAttendanceReportSummary: mocks.report,
   getAttendancePolicy: mocks.policy,
@@ -32,8 +32,8 @@ vi.mock("../api/attendance-operations.api", () => ({
   getAttendanceSessionHistory: mocks.history,
   cancelAttendanceSession: mocks.cancel,
 }));
-vi.mock("../../auth", () => ({ useAuth: () => ({ can: () => true }) }));
-vi.mock("../../../shared/api/api", () => ({ api: { openEvents: () => ({ close: vi.fn() }) } }));
+vi.mock("../../../identity/auth", () => ({ useAuth: () => ({ can: () => true }) }));
+vi.mock("../../../../shared/api/api", () => ({ api: { openEvents: () => ({ close: vi.fn() }) } }));
 function Providers({ children }: PropsWithChildren) {
   return (
     <QueryClientProvider

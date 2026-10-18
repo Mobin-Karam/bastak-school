@@ -1,5 +1,5 @@
 import { useState } from "react";
-import type { Plan, PlanTask } from "../../../shared/types/domain";
+import type { Plan, PlanTask } from "../../../../shared/types/domain";
 
 export function usePlannerUI() {
   const [filtersOpen, setFiltersOpen] = useState(false);

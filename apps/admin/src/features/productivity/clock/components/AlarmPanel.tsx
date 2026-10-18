@@ -3,7 +3,7 @@ import { useState } from "react";
 import type { ChangeEvent } from "react";
 import { useAlarms } from "../hooks/useAlarms";
 import { clockCopy, clockDays } from "../model/clock-copy";
-import { useLocale } from "../../../shared/ui/locale";
+import { useLocale } from "../../../../shared/ui/locale";
 
 export function AlarmPanel() {
   const { language } = useLocale();

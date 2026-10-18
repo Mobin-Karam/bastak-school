@@ -1,6 +1,6 @@
 import { ChevronDown } from "lucide-react";
-import { Button, Card, Field, Input, Textarea } from "../../../shared/ui/ui";
-import { useLocale } from "../../../shared/ui/locale";
+import { Button, Card, Field, Input, Textarea } from "../../../../shared/ui/ui";
+import { useLocale } from "../../../../shared/ui/locale";
 import type { QuestionDraft } from "../model/question-model";
 import { questionsCopy } from "../questions-locale";
 export function QuestionEditor({

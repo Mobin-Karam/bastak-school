@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { Button, Field, Textarea } from "../../../shared/ui/ui";
-import { useLocale } from "../../../shared/ui/locale";
+import { Button, Field, Textarea } from "../../../../shared/ui/ui";
+import { useLocale } from "../../../../shared/ui/locale";
 import { examsCopy } from "../exams-locale";
 
 export function RetryReviewForm({

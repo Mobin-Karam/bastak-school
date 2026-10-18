@@ -1,18 +1,18 @@
-import { api } from "../../../shared/api/api";
-import type { ChatMessage } from "../../../shared/types/domain";
+import { api } from "../../../../shared/api/api";
+import type { ChatMessage } from "../../../../shared/types/domain";
 import type {
   CombinedConversationPage,
   ConversationCursor,
   ConversationPage,
   MessagePage,
-} from "../model/chat.types";
+} from "../model/chat.types.ts";
 import type {
   ChatUser,
   GroupDetail,
   GroupMember,
   GroupPermissions,
   GroupRole,
-} from "../model/group.types";
+} from "../model/group.types.ts";
 
 type WireChatMessage = Partial<ChatMessage> & {
   id: string;

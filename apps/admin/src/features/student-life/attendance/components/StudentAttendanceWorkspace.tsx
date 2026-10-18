@@ -7,11 +7,11 @@ import type {
   DormAttendanceWrite,
   StudentAttendancePool,
 } from "@moshaver/api-contract";
-import { useAuth } from "../../auth";
-import { api } from "../../../shared/api/api";
-import { Card } from "../../../shared/ui/ui";
-import { ResponsiveModal } from "../../../shared/ui/responsive-modal";
-import { notify } from "../../../shared/ui/notifications";
+import { useAuth } from "../../../identity/auth";
+import { api } from "../../../../shared/api/api";
+import { Card } from "../../../../shared/ui/ui";
+import { ResponsiveModal } from "../../../../shared/ui/responsive-modal";
+import { notify } from "../../../../shared/ui/notifications";
 import { AttendanceRosterView } from "../views/AttendanceRosterView";
 import { AttendanceStatusTiles } from "./AttendanceStatusTiles";
 import { useAttendanceDiscard } from "./useAttendanceDiscard";
@@ -25,7 +25,7 @@ import {
   getMyAttendancePools,
   getMyDormAssignments,
   markDelegatedDormAttendance,
-} from "../api/attendance-operations.api";
+} from "../api/attendance-operations.api.ts";
 
 function PoolConfirmation({
   pool,

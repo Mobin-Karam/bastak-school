@@ -3,7 +3,7 @@ import type {
   AcademicTeachingAssignment,
   AcademicSubjectBookReference,
 } from "@moshaver/api-contract";
-import { api } from "../../../shared/api/api";
+import { api } from "../../../../shared/api/api";
 export type AcademicQuery = {
   offset?: number;
   limit?: number;

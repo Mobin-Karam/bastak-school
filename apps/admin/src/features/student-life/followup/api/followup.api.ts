@@ -1,8 +1,8 @@
-import { api } from "../../../shared/api/api";
+import { api } from "../../../../shared/api/api";
 import type {
   RecoveryRequest,
   RecoveryActionInput,
-} from "../../notifications/model/notification.types";
+} from "../../../communications/notifications/model/notification.types.ts";
 
 export type ScopedRecoveryRequest = RecoveryRequest & {
   student?: { id: string; name?: string };

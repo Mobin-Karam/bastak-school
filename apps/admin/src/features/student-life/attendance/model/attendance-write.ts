@@ -1,5 +1,5 @@
 import { attendanceRequestId } from "./attendance-request-id";
-import type { AttendanceBulkMarkRequest } from "../api/attendance.api";
+import type { AttendanceBulkMarkRequest } from "../api/attendance.api.ts";
 
 export type PendingAttendanceWrite = {
   signature: string;

@@ -1,6 +1,6 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import { LocaleProvider } from "../../../shared/ui/locale";
+import { LocaleProvider } from "../../../../shared/ui/locale";
 import { LearningList } from "./LearningList";
 
 describe("LearningList flow", () => {

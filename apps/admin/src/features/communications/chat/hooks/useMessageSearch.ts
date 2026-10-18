@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import type { ChatMessage } from "../../../shared/types/domain";
-import { normalizePersianText } from "../../../shared/lib/utils";
+import type { ChatMessage } from "../../../../shared/types/domain";
+import { normalizePersianText } from "../../../../shared/lib/utils";
 
 function normalize(value: string) {
   return normalizePersianText(value).toLocaleLowerCase("fa");

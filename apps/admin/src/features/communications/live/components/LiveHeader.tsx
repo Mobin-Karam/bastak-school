@@ -1,6 +1,6 @@
 import { RefreshCw } from "lucide-react";
-import { Button } from "../../../shared/ui/ui";
-import { useLocale } from "../../../shared/ui/locale";
+import { Button } from "../../../../shared/ui/ui";
+import { useLocale } from "../../../../shared/ui/locale";
 import { liveCopy } from "../model/live-copy";
 
 export function LiveHeader({

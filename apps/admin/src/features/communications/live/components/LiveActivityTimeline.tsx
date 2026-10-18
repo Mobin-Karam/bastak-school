@@ -1,5 +1,5 @@
 import { Clock3 } from "lucide-react";
-import { useLocale } from "../../../shared/ui/locale";
+import { useLocale } from "../../../../shared/ui/locale";
 import { liveCopy } from "../model/live-copy";
 
 export function LiveActivityTimeline({ events }: { events: Array<Record<string, unknown>> }) {

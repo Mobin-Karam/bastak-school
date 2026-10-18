@@ -6,7 +6,7 @@ import {
   registerPushSubscription,
   sendTestPush,
   updatePushPreferences,
-} from "../api/notifications.api";
+} from "../api/notifications.api.ts";
 import { defaultPushPreferences, supportsPush, vapidBytes } from "../lib/push";
 import { notificationAdminUrl } from "../model/notification-model";
 import type { PushPreferences, PushStatus } from "../model/notification-model";

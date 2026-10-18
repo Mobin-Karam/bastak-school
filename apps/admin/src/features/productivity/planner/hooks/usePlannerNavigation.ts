@@ -1,6 +1,6 @@
 import { useCallback, useState } from "react";
-import { todayIso } from "../../../shared/lib/utils";
-import type { PlannerMode } from "../model/planner.types";
+import { todayIso } from "../../../../shared/lib/utils";
+import type { PlannerMode } from "../model/planner.types.ts";
 
 export function usePlannerNavigation(initial: PlannerMode = "week") {
   const [date, setDate] = useState(todayIso());

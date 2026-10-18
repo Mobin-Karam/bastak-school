@@ -1,11 +1,11 @@
 import type { UseQueryResult } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
-import { ManagementStat } from "../../../shared/ui/management-workspace";
-import { Button, Card, EmptyState, LoadingState } from "../../../shared/ui/ui";
-import type { Exam } from "../../../shared/types/domain";
-import type { RetryRequest } from "../../exams/model/exam.types";
+import { ManagementStat } from "../../../../shared/ui/management-workspace";
+import { Button, Card, EmptyState, LoadingState } from "../../../../shared/ui/ui";
+import type { Exam } from "../../../../shared/types/domain";
+import type { RetryRequest } from "../../exams/model/exam.types.ts";
 import { educationMetrics, subjectDistribution } from "../model/education-overview";
-import { useLocale } from "../../../shared/ui/locale";
+import { useLocale } from "../../../../shared/ui/locale";
 import { educationCopy } from "../model/education-copy";
 
 export function EducationExamSnapshot({

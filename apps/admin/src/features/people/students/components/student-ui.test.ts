@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { Student } from "../../../shared/types/domain";
+import type { Student } from "../../../../shared/types/domain";
 import {
   formatStudentLastSeen,
   getMissingStudentProfileFields,

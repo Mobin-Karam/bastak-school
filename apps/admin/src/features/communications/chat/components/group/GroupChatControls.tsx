@@ -13,11 +13,11 @@ import {
   Users,
 } from "lucide-react";
 import { useEffect, useState } from "react";
-import { useModal } from "../../../../shared/ui/modal";
-import { notifications } from "../../../../shared/ui/notifications";
-import { useLocale } from "../../../../shared/ui/locale";
-import { Badge, Button, Field, Input, Textarea } from "../../../../shared/ui/ui";
-import { api } from "../../../../shared/api/api";
+import { useModal } from "../../../../../shared/ui/modal";
+import { notifications } from "../../../../../shared/ui/notifications";
+import { useLocale } from "../../../../../shared/ui/locale";
+import { Badge, Button, Field, Input, Textarea } from "../../../../../shared/ui/ui";
+import { api } from "../../../../../shared/api/api";
 import { permissionLabels } from "../../model/permissions";
 import { chatCopy } from "../../model/chat-copy";
 import type {
@@ -26,7 +26,7 @@ import type {
   GroupMember,
   GroupPermissions,
   GroupRole,
-} from "../../model/group.types";
+} from "../../model/group.types.ts";
 
 function interpolate(template: string, values: Record<string, string | number>) {
   return template.replace(/\{(\w+)\}/g, (_, key: string) => String(values[key] ?? `{${key}}`));

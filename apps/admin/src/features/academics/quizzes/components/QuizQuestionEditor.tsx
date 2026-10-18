@@ -1,4 +1,4 @@
-import { Button, Card, Field, Input, Select, Textarea } from "../../../shared/ui/ui";
+import { Button, Card, Field, Input, Select, Textarea } from "../../../../shared/ui/ui";
 import type { QuestionDraft } from "../../questions/question-model";
 import { useQuizCopy } from "../model/quiz-locale";
 export function QuizQuestionEditor({

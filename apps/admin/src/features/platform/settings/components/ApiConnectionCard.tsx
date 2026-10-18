@@ -1,8 +1,8 @@
 import { CheckCircle2, Copy, Server } from "lucide-react";
 import { useState } from "react";
-import { getBackendTargetUrl } from "../../../shared/api/api";
-import { Button, Card } from "../../../shared/ui/ui";
-import { useLocale } from "../../../shared/ui/locale";
+import { getBackendTargetUrl } from "../../../../shared/api/api";
+import { Button, Card } from "../../../../shared/ui/ui";
+import { useLocale } from "../../../../shared/ui/locale";
 import { settingsCopy } from "../settings-locale";
 
 export function ApiConnectionCard() {

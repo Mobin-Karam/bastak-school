@@ -1,6 +1,6 @@
 import { Bell, Inbox } from "lucide-react";
-import { Badge } from "../../../shared/ui/ui";
-import { useLocale } from "../../../shared/ui/locale";
+import { Badge } from "../../../../shared/ui/ui";
+import { useLocale } from "../../../../shared/ui/locale";
 import { notificationCopy } from "../model/notification-copy";
 
 export function MobileNotificationTabs({

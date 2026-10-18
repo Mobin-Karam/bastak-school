@@ -1,6 +1,6 @@
-import { useLocale } from "../../../shared/ui/locale";
+import { useLocale } from "../../../../shared/ui/locale";
 import { liveCopy } from "../model/live-copy";
-import { Card } from "../../../shared/ui/ui";
+import { Card } from "../../../../shared/ui/ui";
 
 export function LiveSkeleton() {
   const { language } = useLocale();

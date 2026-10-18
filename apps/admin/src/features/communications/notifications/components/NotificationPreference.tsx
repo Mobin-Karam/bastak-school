@@ -1,8 +1,8 @@
 import { useState, type Dispatch, type SetStateAction } from "react";
 import { LoaderCircle } from "lucide-react";
-import { notify } from "../../../shared/ui/notifications";
+import { notify } from "../../../../shared/ui/notifications";
 import { notificationCopy } from "../model/notification-copy";
-import type { AdminLanguage } from "../../../shared/ui/locale";
+import type { AdminLanguage } from "../../../../shared/ui/locale";
 import type { PushPreferences, PushStatus } from "../model/notification-model";
 
 export function NotificationPreference({

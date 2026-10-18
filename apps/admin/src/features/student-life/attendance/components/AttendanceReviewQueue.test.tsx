@@ -4,11 +4,11 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, afterEach, describe, expect, it, vi } from "vitest";
 import { AttendanceReviewQueue } from "./AttendanceReviewQueue";
 const mocks = vi.hoisted(() => ({ list: vi.fn(), review: vi.fn() }));
-vi.mock("../api/attendance.api", () => ({
+vi.mock("../api/attendance.api.ts", () => ({
   listAttendanceAbsenceReviews: mocks.list,
   reviewAttendanceAbsence: mocks.review,
 }));
-vi.mock("../../auth", () => ({
+vi.mock("../../../identity/auth", () => ({
   useAuth: () => ({
     user: { id: "reviewer" },
     activeRole: "PRINCIPAL",
@@ -16,7 +16,7 @@ vi.mock("../../auth", () => ({
     can: () => true,
   }),
 }));
-vi.mock("../../../shared/api/api", () => ({ api: { openEvents: () => ({ close: vi.fn() }) } }));
+vi.mock("../../../../shared/api/api", () => ({ api: { openEvents: () => ({ close: vi.fn() }) } }));
 const record = {
   id: "record",
   studentName: "علی",

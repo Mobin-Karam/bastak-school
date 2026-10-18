@@ -15,12 +15,12 @@ import {
 import { Link, useSearchParams } from "react-router-dom";
 import { useCallback, useMemo, useState } from "react";
 import type { ReactNode } from "react";
-import { useAuth } from "../../auth";
-import { Badge, Button, Card, EmptyState, LoadingState } from "../../../shared/ui/ui";
-import { useLocale } from "../../../shared/ui/locale";
-import { DashboardWorkspace } from "../../../shared/ui/dashboard-workspace";
-import { ZaninBrand } from "../../../shared/ui/zanin-brand";
-import type { DashboardWorkItem, RoleDashboardData } from "../model/dashboard.types";
+import { useAuth } from "../../../identity/auth";
+import { Badge, Button, Card, EmptyState, LoadingState } from "../../../../shared/ui/ui";
+import { useLocale } from "../../../../shared/ui/locale";
+import { DashboardWorkspace } from "../../../../shared/ui/dashboard-workspace";
+import { ZaninBrand } from "../../../../shared/ui/zanin-brand";
+import type { DashboardWorkItem, RoleDashboardData } from "../model/dashboard.types.ts";
 import { dashboardCopy } from "../model/dashboard-copy";
 import { DashboardWorkQueue } from "./work/DashboardWorkQueue";
 import { getRoleConfig } from "../model/role-config";
@@ -33,8 +33,8 @@ import { DashboardOperationalPulse } from "./health/DashboardOperationalPulse";
 import {
   DashboardLayoutBoard,
   type DashboardBoardItem,
-} from "../../../shared/ui/dashboard-layout-board";
-import { SegmentedControl } from "../../../shared/ui/segmented-control";
+} from "../../../../shared/ui/dashboard-layout-board";
+import { SegmentedControl } from "../../../../shared/ui/segmented-control";
 import {
   createRoleDashboardView,
   dashboardSearchForView,
@@ -49,9 +49,9 @@ import { Metric } from "../model/dashboard-metrics";
 import { DashboardMetricGrid } from "./metrics/DashboardMetricGrid";
 import { DashboardCalendar } from "./DashboardCalendar";
 import { MobileDashboardHome } from "./MobileDashboardHome";
-import { todayIso } from "../../../shared/lib/utils";
+import { todayIso } from "../../../../shared/lib/utils";
 import { CurrentPrayerCard } from "../../school-home/components/CurrentPrayerCard";
-import { useViewportShell } from "../../../app/layout/lib/viewport-shell";
+import { useViewportShell } from "../../../../app/layout/lib/viewport-shell";
 
 const n = (value: unknown) => (typeof value === "number" ? value : 0);
 

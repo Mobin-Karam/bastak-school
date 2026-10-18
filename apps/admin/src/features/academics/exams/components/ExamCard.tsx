@@ -8,9 +8,9 @@ import {
   Users,
 } from "lucide-react";
 import { Link } from "react-router-dom";
-import type { Exam } from "../../../shared/types/domain";
-import { useLocale } from "../../../shared/ui/locale";
-import { Badge, Button } from "../../../shared/ui/ui";
+import type { Exam } from "../../../../shared/types/domain";
+import { useLocale } from "../../../../shared/ui/locale";
+import { Badge, Button } from "../../../../shared/ui/ui";
 import { examReadiness } from "../model/exam-model";
 import { statusLabel } from "../lib/exam-formatters";
 import { Metric } from "./Metric";

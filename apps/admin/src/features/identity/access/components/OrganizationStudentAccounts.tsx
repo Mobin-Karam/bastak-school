@@ -1,14 +1,14 @@
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { api } from "../../../shared/api/api";
+import { api } from "../../../../shared/api/api";
 import { useAuth } from "../../auth";
-import { useLocale } from "../../../shared/ui/locale";
-import { Button, EmptyState, Field, Input, Select } from "../../../shared/ui/ui";
-import { ResponsiveDrawer } from "../../../shared/ui/responsive-drawer";
-import { createStudent } from "../../students/api/students.api";
-import { emptyStudentForm, normalizeIranianPhoneNumber } from "../../students/model/student-form";
-import type { Student } from "../../../shared/types/domain";
-import { notify } from "../../../shared/ui/notifications";
+import { useLocale } from "../../../../shared/ui/locale";
+import { Button, EmptyState, Field, Input, Select } from "../../../../shared/ui/ui";
+import { ResponsiveDrawer } from "../../../../shared/ui/responsive-drawer";
+import { createStudent } from "../../../people/students/api/students.api.ts";
+import { emptyStudentForm, normalizeIranianPhoneNumber } from "../../../people/students/model/student-form";
+import type { Student } from "../../../../shared/types/domain";
+import { notify } from "../../../../shared/ui/notifications";
 
 type Catalog = {
   grades: { id: number; fa: string }[];

@@ -23,12 +23,12 @@ import type {
   TimetablePeriod,
   TimetableOverrideDraft,
 } from "@moshaver/api-contract";
-import { useAuth } from "../../auth";
-import { Button, Card, EmptyState, Field, Input, LoadingState } from "../../../shared/ui/ui";
-import { ResponsiveModal } from "../../../shared/ui/responsive-modal";
-import { useMobileDialog } from "../../../shared/ui/responsive-modal";
-import { notify } from "../../../shared/ui/notifications";
-import { defineSpreadsheet, downloadSpreadsheet } from "../../../shared/lib/spreadsheet-transfer";
+import { useAuth } from "../../../identity/auth";
+import { Button, Card, EmptyState, Field, Input, LoadingState } from "../../../../shared/ui/ui";
+import { ResponsiveModal } from "../../../../shared/ui/responsive-modal";
+import { useMobileDialog } from "../../../../shared/ui/responsive-modal";
+import { notify } from "../../../../shared/ui/notifications";
+import { defineSpreadsheet, downloadSpreadsheet } from "../../../../shared/lib/spreadsheet-transfer";
 import {
   getTimetable,
   createTimetableVersion,
@@ -38,7 +38,7 @@ import {
   overrideTimetable,
   openTimetableAttendance,
   getTimetableAttendanceReport,
-} from "../api/timetable.api";
+} from "../api/timetable.api.ts";
 import { TimetableLessonEditor, timetableSelectClass } from "../components/TimetableLessonEditor";
 import { timetableSetup, TimetableOnboarding } from "../components/TimetableOnboarding";
 import { TimetableSettings } from "../components/TimetableSettings";

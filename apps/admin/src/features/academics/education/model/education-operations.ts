@@ -1,4 +1,4 @@
-import type { EducationOperationsOverview } from "../api/education-catalog.api";
+import type { EducationOperationsOverview } from "../api/education-catalog.api.ts";
 
 export type EducationOperationsFilters = {
   periodFrom: string;

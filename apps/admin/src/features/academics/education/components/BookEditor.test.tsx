@@ -2,10 +2,10 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { getClassOptions, type ClassOptions } from "../api/classes.api";
+import { getClassOptions, type ClassOptions } from "../api/classes.api.ts";
 import { BookEditor } from "./BookEditor";
 
-vi.mock("../api/classes.api", () => ({ getClassOptions: vi.fn() }));
+vi.mock("../api/classes.api.ts", () => ({ getClassOptions: vi.fn() }));
 const options = { teachers: [{ id: "teacher-1", name: "Teacher One" }] } as ClassOptions;
 function mount(onSubmit = vi.fn().mockResolvedValue(undefined)) {
   render(

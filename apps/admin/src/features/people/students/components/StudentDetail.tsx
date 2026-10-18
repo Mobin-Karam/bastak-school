@@ -11,9 +11,9 @@ import {
   Workflow,
 } from "lucide-react";
 import { useState, type ReactNode } from "react";
-import type { Student } from "../../../shared/types/domain";
-import { useOptionalAdminLanguage } from "../../../shared/ui/locale";
-import { Button, Card } from "../../../shared/ui/ui";
+import type { Student } from "../../../../shared/types/domain";
+import { useOptionalAdminLanguage } from "../../../../shared/ui/locale";
+import { Button, Card } from "../../../../shared/ui/ui";
 import { studentCopy } from "../model/student-locale";
 import {
   formatStudentLastSeen,

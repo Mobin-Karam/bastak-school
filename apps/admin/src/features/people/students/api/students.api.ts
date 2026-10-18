@@ -1,6 +1,6 @@
-import { api } from "../../../shared/api/api";
-import type { Student } from "../../../shared/types/domain";
-import type { LearningResponse } from "../../learning/learning-model";
+import { api } from "../../../../shared/api/api";
+import type { Student } from "../../../../shared/types/domain";
+import type { LearningResponse } from "../../../academics/learning/learning-model";
 import type { StudentForm } from "../model/student-form";
 import { normalizeIranianPhoneNumber, studentPayload } from "../model/student-form";
 export const createStudent = (body: StudentForm, organizationId?: string) => {

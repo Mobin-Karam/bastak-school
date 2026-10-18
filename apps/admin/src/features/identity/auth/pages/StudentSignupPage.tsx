@@ -5,9 +5,9 @@ import {
 } from "../components/PublicSchoolProfile";
 import { FormEvent, useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Button, Input } from "../../../shared/ui/ui";
-import { ThemeSwitcher } from "../../../shared/theme/theme";
-import { getStudentSignupOptions, studentSignup, type SignupOrganization } from "../api/signup.api";
+import { Button, Input } from "../../../../shared/ui/ui";
+import { ThemeSwitcher } from "../../../../shared/theme/theme";
+import { getStudentSignupOptions, studentSignup, type SignupOrganization } from "../api/signup.api.ts";
 import { LoginShell } from "../components";
 
 const steps = [

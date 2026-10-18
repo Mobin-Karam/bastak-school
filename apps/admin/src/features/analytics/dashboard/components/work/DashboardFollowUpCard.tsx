@@ -1,10 +1,10 @@
 import { AlertTriangle, Clock3, MessageSquareText, RotateCcw, type LucideIcon } from "lucide-react";
 import { Link } from "react-router-dom";
-import { Card } from "../../../../shared/ui/ui";
-import { cn, fa } from "../../../../shared/lib/utils";
-import { useLocale } from "../../../../shared/ui/locale";
+import { Card } from "../../../../../shared/ui/ui";
+import { cn, fa } from "../../../../../shared/lib/utils";
+import { useLocale } from "../../../../../shared/ui/locale";
 import { dashboardCopy } from "../../model/dashboard-copy";
-import type { FollowUpMetric } from "../../model/dashboard.types";
+import type { FollowUpMetric } from "../../model/dashboard.types.ts";
 
 const icons: Record<FollowUpMetric["key"], LucideIcon> = {
   recoveries: RotateCcw,

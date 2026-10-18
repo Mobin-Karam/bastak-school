@@ -1,5 +1,5 @@
 import type { TimetableWorkspace } from "@moshaver/api-contract";
-import { Button, Card } from "../../../shared/ui/ui";
+import { Button, Card } from "../../../../shared/ui/ui";
 export function timetableSetup(workspace: TimetableWorkspace) {
   const year = workspace.years.find((y) => y.active) ?? workspace.years[0];
   const term =

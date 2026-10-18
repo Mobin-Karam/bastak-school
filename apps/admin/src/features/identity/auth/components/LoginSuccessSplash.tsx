@@ -1,4 +1,4 @@
-import { useOptionalAdminLanguage } from "../../../shared/ui/locale";
+import { useOptionalAdminLanguage } from "../../../../shared/ui/locale";
 
 /** A brief, explicit-login-only transition before opening the workspace. */
 export function LoginSuccessSplash() {

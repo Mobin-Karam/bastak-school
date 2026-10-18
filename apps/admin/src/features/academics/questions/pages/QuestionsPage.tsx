@@ -2,19 +2,19 @@ import { useDeferredValue, useEffect, useMemo, useState } from "react";
 import { BookOpen, Plus, WandSparkles } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSearchParams } from "react-router-dom";
-import { useStudentSelection } from "../../../shared/hooks/useStudentSelection";
-import { useAuth } from "../../auth/hooks/useAuth";
-import { useModal } from "../../../shared/ui/modal";
-import { Button, Card } from "../../../shared/ui/ui";
-import { notify } from "../../../shared/ui/notifications";
-import { useLocale } from "../../../shared/ui/locale";
+import { useStudentSelection } from "../../../../shared/hooks/useStudentSelection";
+import { useAuth } from "../../../identity/auth/hooks/useAuth";
+import { useModal } from "../../../../shared/ui/modal";
+import { Button, Card } from "../../../../shared/ui/ui";
+import { notify } from "../../../../shared/ui/notifications";
+import { useLocale } from "../../../../shared/ui/locale";
 import {
   createExamQuestion,
   deleteExamQuestion,
   getExamQuestions,
   getQuestionBankExams,
   updateQuestion,
-} from "../api/questions.api";
+} from "../api/questions.api.ts";
 import { QuestionEditor } from "../components/QuestionEditor";
 import { QuestionsList } from "../components/QuestionsList";
 import { QuestionsSelector } from "../components/QuestionsSelector";

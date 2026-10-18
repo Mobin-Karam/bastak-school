@@ -1,9 +1,9 @@
 import { useState } from "react";
-import { DatePicker, DateTimePicker } from "../../../shared/ui/date-picker";
-import { Button, Field, Input, Select, Textarea } from "../../../shared/ui/ui";
+import { DatePicker, DateTimePicker } from "../../../../shared/ui/date-picker";
+import { Button, Field, Input, Select, Textarea } from "../../../../shared/ui/ui";
 import { persianDateForIso, replaceIsoDay } from "../lib/exam-formatters";
 import { examDraftError, type ExamDraft } from "../model/exam-model";
-import { useLocale } from "../../../shared/ui/locale";
+import { useLocale } from "../../../../shared/ui/locale";
 import { examsCopy } from "../exams-locale";
 
 export function ExamForm({

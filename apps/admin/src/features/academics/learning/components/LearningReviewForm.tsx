@@ -1,9 +1,9 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { notify } from "../../../shared/ui/notifications";
-import { Button, Field, Select } from "../../../shared/ui/ui";
-import { useLocale } from "../../../shared/ui/locale";
-import { reviewLearningItem } from "../api/learning.api";
+import { notify } from "../../../../shared/ui/notifications";
+import { Button, Field, Select } from "../../../../shared/ui/ui";
+import { useLocale } from "../../../../shared/ui/locale";
+import { reviewLearningItem } from "../api/learning.api.ts";
 import { learningCopy } from "../learning-locale";
 
 export function LearningReviewForm({

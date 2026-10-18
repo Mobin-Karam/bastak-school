@@ -1,15 +1,15 @@
 import { AlertCircle } from "lucide-react";
-import { Button, EmptyState, LoadingState } from "../../../shared/ui/ui";
+import { Button, EmptyState, LoadingState } from "../../../../shared/ui/ui";
 import type {
   AdminDashboardSummary,
   AttentionStudent,
   FollowUpMetric,
-} from "../model/dashboard.types";
+} from "../model/dashboard.types.ts";
 import { AttentionInbox } from "./work/AttentionInbox";
 import { DashboardFollowUpCard } from "./work/DashboardFollowUpCard";
 import { DashboardMetricCards } from "./metrics/DashboardMetricCards";
 import { RecentReportsCard } from "./reports/RecentReportsCard";
-import { useLocale } from "../../../shared/ui/locale";
+import { useLocale } from "../../../../shared/ui/locale";
 import { dashboardCopy } from "../model/dashboard-copy";
 
 export function DashboardContent({

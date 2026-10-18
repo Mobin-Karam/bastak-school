@@ -1,7 +1,7 @@
-import { api } from "../../../shared/api/api";
-import type { Exam, Plan } from "../../../shared/types/domain";
-import type { PlanDraft, TaskDraft, TaskFilter } from "../model/planner.types";
-import { normalizePersianText } from "../../../shared/lib/utils";
+import { api } from "../../../../shared/api/api";
+import type { Exam, Plan } from "../../../../shared/types/domain";
+import type { PlanDraft, TaskDraft, TaskFilter } from "../model/planner.types.ts";
+import { normalizePersianText } from "../../../../shared/lib/utils";
 import { normalizeTaskDraft } from "../lib/planner-model";
 export type PlannerEducationBook = {
   id: string;

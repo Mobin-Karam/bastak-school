@@ -1,10 +1,10 @@
 import { BellRing, CalendarClock, Clock3 } from "lucide-react";
 import { Link } from "react-router-dom";
-import type { RoleCode } from "../../../shared/types/domain";
-import { MobileCard } from "../../../shared/ui/mobile";
+import type { RoleCode } from "../../../../shared/types/domain";
+import { MobileCard } from "../../../../shared/ui/mobile";
 import { DashboardCalendar } from "./DashboardCalendar";
 import { quickActionsForRole, type RoleQuickAction } from "../model/role-experience";
-import type { RoleDashboardData } from "../model/dashboard.types";
+import type { RoleDashboardData } from "../model/dashboard.types.ts";
 import { CurrentPrayerCard } from "../../school-home/components/CurrentPrayerCard";
 
 type MobileDashboardHomeProps = {

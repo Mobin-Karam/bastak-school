@@ -1,10 +1,10 @@
 import { InfiniteData, useInfiniteQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
-import type { Conversation } from "../../../shared/types/domain";
-import { fetchConversationPage } from "../api/chat.api";
-import { chatKeys } from "../api/chat.keys";
+import type { Conversation } from "../../../../shared/types/domain";
+import { fetchConversationPage } from "../api/chat.api.ts";
+import { chatKeys } from "../api/chat.keys.ts";
 import { sortConversations } from "../lib/chat-helpers";
-import type { CombinedConversationPage, ConversationCursor } from "../model/chat.types";
+import type { CombinedConversationPage, ConversationCursor } from "../model/chat.types.ts";
 
 const initialCursor: ConversationCursor = {
   directOffset: 0,

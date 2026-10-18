@@ -1,6 +1,6 @@
 import { ChevronDown, ChevronUp, Search, X } from "lucide-react";
 import { toFa } from "../../lib/chat-formatters";
-import { useLocale } from "../../../../shared/ui/locale";
+import { useLocale } from "../../../../../shared/ui/locale";
 import { chatCopy } from "../../model/chat-copy";
 
 export function MessageSearchBar({

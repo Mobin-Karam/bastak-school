@@ -1,7 +1,7 @@
 import { MoreHorizontal, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { NavLink, useLocation } from "react-router-dom";
-import { useAuth } from "../../../../features/auth";
+import { useAuth } from "../../../../features/identity/auth";
 import { cn } from "../../../../shared/lib/utils";
 import { ResponsiveDrawer } from "../../../../shared/ui/responsive-drawer";
 import { useAdminShellCopy, useLocale } from "../../../../shared/ui/locale";

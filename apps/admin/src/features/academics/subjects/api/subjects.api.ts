@@ -1,5 +1,5 @@
-import { api } from "../../../shared/api/api";
-import type { EducationBook, StudentSubject, Subject } from "../model/subject.types";
+import { api } from "../../../../shared/api/api";
+import type { EducationBook, StudentSubject, Subject } from "../model/subject.types.ts";
 
 export const getSubjects = (includeArchived = false) => {
   if (includeArchived) return api.get<Subject[]>("/subjects?includeArchived=true");

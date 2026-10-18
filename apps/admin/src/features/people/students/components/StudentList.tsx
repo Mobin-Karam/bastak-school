@@ -1,11 +1,11 @@
 import { CheckCircle2, ChevronLeft, ChevronRight, UsersRound } from "lucide-react";
 import type { ReactNode } from "react";
 
-import type { Student } from "../../../shared/types/domain";
-import { AdminDataTable } from "../../../shared/ui/admin-data-table";
-import { Button, Card, Select } from "../../../shared/ui/ui";
-import { CollectionToolbar } from "../../../shared/ui/collection-toolbar";
-import { useOptionalAdminLanguage } from "../../../shared/ui/locale";
+import type { Student } from "../../../../shared/types/domain";
+import { AdminDataTable } from "../../../../shared/ui/admin-data-table";
+import { Button, Card, Select } from "../../../../shared/ui/ui";
+import { CollectionToolbar } from "../../../../shared/ui/collection-toolbar";
+import { useOptionalAdminLanguage } from "../../../../shared/ui/locale";
 import {
   formatStudentLastSeen,
   getStudentProfileCompleteness,

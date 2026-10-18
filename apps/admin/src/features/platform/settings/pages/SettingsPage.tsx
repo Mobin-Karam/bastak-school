@@ -1,26 +1,26 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { LogOut, ShieldCheck, UserRound } from "lucide-react";
-import { useAdminShellCopy, useLocale } from "../../../shared/ui/locale";
-import { useModal } from "../../../shared/ui/modal";
-import { notify } from "../../../shared/ui/notifications";
-import { changePassword, getSessions, revokeSession } from "../api/settings.api";
+import { useAdminShellCopy, useLocale } from "../../../../shared/ui/locale";
+import { useModal } from "../../../../shared/ui/modal";
+import { notify } from "../../../../shared/ui/notifications";
+import { changePassword, getSessions, revokeSession } from "../api/settings.api.ts";
 import { LocationSettings } from "../components/LocationSettings";
 import { SessionsSettings } from "../components/SessionsSettings";
 import { ApiConnectionCard } from "../components/ApiConnectionCard";
 import { AccountSecurityPanel } from "../../system/components/AccountSecurityPanel";
 import { ChatProfileSettings } from "../components/ChatProfileSettings";
-import { ManagementPageHeader } from "../../../shared/ui/management-workspace";
+import { ManagementPageHeader } from "../../../../shared/ui/management-workspace";
 import { settingsCopy } from "../settings-locale";
 import { PWAInstallSettingsCard } from "../../pwa";
-import { useAuth } from "../../auth";
+import { useAuth } from "../../../identity/auth";
 import { PhoneNumberSettings } from "../components/PhoneNumberSettings";
 import { PhoneChangeRequests } from "../components/PhoneChangeRequests";
-import { ThemeSwitcher } from "../../../shared/theme/theme";
-import { Button, Card } from "../../../shared/ui/ui";
-import { MobileSelect } from "../../../shared/ui/mobile/forms";
+import { ThemeSwitcher } from "../../../../shared/theme/theme";
+import { Button, Card } from "../../../../shared/ui/ui";
+import { MobileSelect } from "../../../../shared/ui/mobile/forms";
 import { PrayerTimeSettings } from "../components/PrayerTimeSettings";
-import { roleLabel } from "../../../shared/lib/role-ui";
+import { roleLabel } from "../../../../shared/lib/role-ui";
 export function SettingsPage() {
   const auth = useAuth();
   return auth.activeRole === "STUDENT" || auth.activeRole === "TEACHER" ? (

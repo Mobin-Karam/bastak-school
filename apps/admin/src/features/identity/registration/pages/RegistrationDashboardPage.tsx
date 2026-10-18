@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
-import { Card, Button, Badge } from "../../../shared/ui/ui";
+import { Card, Button, Badge } from "../../../../shared/ui/ui";
 import { useQuery } from "@tanstack/react-query";
-import { getRegistrationStatus } from "../api/registration.api";
+import { getRegistrationStatus } from "../api/registration.api.ts";
 
 export function RegistrationDashboardPage() {
   const [status, setStatus] = useState<any>(null);

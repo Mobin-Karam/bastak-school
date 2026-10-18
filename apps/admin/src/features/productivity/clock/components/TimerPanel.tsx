@@ -4,7 +4,7 @@ import type { ChangeEvent } from "react";
 import { useCountdownTimer } from "../hooks/useCountdownTimer";
 import { formatDuration } from "../lib/time";
 import { clockCopy } from "../model/clock-copy";
-import { useLocale } from "../../../shared/ui/locale";
+import { useLocale } from "../../../../shared/ui/locale";
 
 const PRESETS = [60, 5 * 60, 10 * 60, 25 * 60, 45 * 60, 60 * 60];
 

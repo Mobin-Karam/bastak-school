@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { checkBackendHealth } from "../api/auth.api";
-import type { BackendHealth } from "../model/auth.types";
+import { checkBackendHealth } from "../api/auth.api.ts";
+import type { BackendHealth } from "../model/auth.types.ts";
 
 type BackendHealthState = {
   status: "checking" | "ready" | "unavailable";

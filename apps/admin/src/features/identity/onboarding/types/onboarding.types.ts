@@ -1,4 +1,4 @@
-import type { PortalOrganization, PortalUser } from "../../access/api/access.api";
+import type { PortalOrganization, PortalUser } from "../../access/api/access.api.ts";
 
 export type OnboardingMode = "AUTO" | "MANUAL";
 

@@ -1,12 +1,12 @@
 import { useState, type ReactNode } from "react";
 import { Trash2, X } from "lucide-react";
 import { Link } from "react-router-dom";
-import type { Exam, PlanTask } from "../../../shared/types/domain";
-import { DatePicker } from "../../../shared/ui/date-picker";
-import { Button, Field, Input, Select, Textarea } from "../../../shared/ui/ui";
-import { useLocale } from "../../../shared/ui/locale";
-import type { PlanDraft, TaskDraft } from "../model/planner.types";
-import type { PlannerEducationBook } from "../api/planner.api";
+import type { Exam, PlanTask } from "../../../../shared/types/domain";
+import { DatePicker } from "../../../../shared/ui/date-picker";
+import { Button, Field, Input, Select, Textarea } from "../../../../shared/ui/ui";
+import { useLocale } from "../../../../shared/ui/locale";
+import type { PlanDraft, TaskDraft } from "../model/planner.types.ts";
+import type { PlannerEducationBook } from "../api/planner.api.ts";
 import { errorMessage, validateTaskDraft } from "../lib/planner-model";
 import { plannerCopy, plannerTaskTypeLabel } from "../model/planner-copy";
 
@@ -430,7 +430,7 @@ function Actions({ busy, onCancel }: { busy: boolean; onCancel: () => void }) {
 }
 export function toPlanDraft(
   date: string,
-  plan?: import("../../../shared/types/domain").Plan,
+  plan?: import("../../../../shared/types/domain").Plan,
 ): PlanDraft {
   return {
     planDate: date,

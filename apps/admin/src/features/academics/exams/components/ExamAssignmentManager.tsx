@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import type { Student } from "../../../shared/types/domain";
-import { notify } from "../../../shared/ui/notifications";
-import { Button, EmptyState, LoadingState } from "../../../shared/ui/ui";
-import { StudentAllocationControl } from "../../../shared/ui/student-allocation-control";
-import { useLocale } from "../../../shared/ui/locale";
-import { listClasses } from "../../education/api/classes.api";
+import type { Student } from "../../../../shared/types/domain";
+import { notify } from "../../../../shared/ui/notifications";
+import { Button, EmptyState, LoadingState } from "../../../../shared/ui/ui";
+import { StudentAllocationControl } from "../../../../shared/ui/student-allocation-control";
+import { useLocale } from "../../../../shared/ui/locale";
+import { listClasses } from "../../education/api/classes.api.ts";
 import {
   assignExam,
   getExamAssignments,
@@ -13,7 +13,7 @@ import {
   setExamAudienceRules,
   setExamClassAssignments,
   unassignExam,
-} from "../api/exams.api";
+} from "../api/exams.api.ts";
 
 export function ExamAssignmentManager({
   examId,

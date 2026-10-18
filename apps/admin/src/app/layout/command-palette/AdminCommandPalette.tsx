@@ -8,7 +8,7 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
-import { useAuth } from "../../../features/auth";
+import { useAuth } from "../../../features/identity/auth";
 import { normalizePersianText } from "../../../shared/lib/utils";
 import { useAdminShellCopy, useLocale } from "../../../shared/ui/locale";
 import { adminDestination, navigationForCapabilities } from "../navigation/config/admin-navigation";

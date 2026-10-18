@@ -5,17 +5,17 @@ import {
   previewClassTransfer,
   type ClassTransferPreview,
   type ClassTransferRow,
-} from "../api/classes.api";
+} from "../api/classes.api.ts";
 import {
   defineSpreadsheet,
   downloadSpreadsheet,
   readSpreadsheet,
   spreadsheetIssues,
-} from "../../../shared/lib/spreadsheet-transfer";
-import { useLocale } from "../../../shared/ui/locale";
-import { notify } from "../../../shared/ui/notifications";
-import { SpreadsheetTransferActions } from "../../../shared/ui/spreadsheet-transfer-actions";
-import { Button, Card, EmptyState } from "../../../shared/ui/ui";
+} from "../../../../shared/lib/spreadsheet-transfer";
+import { useLocale } from "../../../../shared/ui/locale";
+import { notify } from "../../../../shared/ui/notifications";
+import { SpreadsheetTransferActions } from "../../../../shared/ui/spreadsheet-transfer-actions";
+import { Button, Card, EmptyState } from "../../../../shared/ui/ui";
 import { FileSpreadsheet, FileUp } from "lucide-react";
 
 const classSheet = defineSpreadsheet<ClassTransferRow>({

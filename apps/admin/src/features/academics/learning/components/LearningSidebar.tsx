@@ -1,5 +1,5 @@
-import { Card } from "../../../shared/ui/ui";
-import { useLocale } from "../../../shared/ui/locale";
+import { Card } from "../../../../shared/ui/ui";
+import { useLocale } from "../../../../shared/ui/locale";
 import type { LearningSummary } from "../model/learning-model";
 import { learningCopy } from "../learning-locale";
 

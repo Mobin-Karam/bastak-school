@@ -1,10 +1,10 @@
-import { fa } from "../../../shared/lib/utils";
-import { Card, Select } from "../../../shared/ui/ui";
-import { CollectionToolbar } from "../../../shared/ui/collection-toolbar";
-import { SegmentedControl } from "../../../shared/ui/segmented-control";
-import { useLocale } from "../../../shared/ui/locale";
+import { fa } from "../../../../shared/lib/utils";
+import { Card, Select } from "../../../../shared/ui/ui";
+import { CollectionToolbar } from "../../../../shared/ui/collection-toolbar";
+import { SegmentedControl } from "../../../../shared/ui/segmented-control";
+import { useLocale } from "../../../../shared/ui/locale";
 import { liveCopy } from "../model/live-copy";
-import type { LiveFilter, LivePanel } from "../model/live.types";
+import type { LiveFilter, LivePanel } from "../model/live.types.ts";
 
 export function LiveControls({
   search,

@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 
 const logout = vi.fn<() => Promise<void>>().mockResolvedValue(undefined);
 
-vi.mock("../../auth", () => ({
+vi.mock("../../../identity/auth", () => ({
   useAuth: () => ({ status: "authenticated", logout }),
 }));
 

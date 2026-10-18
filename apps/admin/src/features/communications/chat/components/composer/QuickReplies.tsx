@@ -5,7 +5,7 @@ import {
   readQuickReplies,
   writeQuickReplies,
 } from "../../lib/chat-ui-storage";
-import { useLocale } from "../../../../shared/ui/locale";
+import { useLocale } from "../../../../../shared/ui/locale";
 import { chatCopy } from "../../model/chat-copy";
 
 export const defaultQuickReplies = fallbackQuickReplies;

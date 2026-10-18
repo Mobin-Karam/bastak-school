@@ -1,4 +1,4 @@
-import type { AccountContext, OrganizationSummary, User } from "../../../shared/types/domain";
+import type { AccountContext, OrganizationSummary, User } from "../../../../shared/types/domain";
 
 export type AuthStatus = "checking" | "authenticated" | "anonymous" | "logging-out";
 

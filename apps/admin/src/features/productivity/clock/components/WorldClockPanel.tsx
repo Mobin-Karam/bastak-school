@@ -4,7 +4,7 @@ import type { ChangeEvent } from "react";
 import { useWorldClocks } from "../hooks/useWorldClocks";
 import { formatClockTime, getDayOffsetLabel } from "../lib/time";
 import { clockCopy, clockZones } from "../model/clock-copy";
-import { useLocale } from "../../../shared/ui/locale";
+import { useLocale } from "../../../../shared/ui/locale";
 
 export function WorldClockPanel({ now }: { now: Date }) {
   const { language } = useLocale();

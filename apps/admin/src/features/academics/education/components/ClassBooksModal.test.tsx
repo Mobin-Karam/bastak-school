@@ -2,12 +2,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { LocaleProvider } from "../../../shared/ui/locale";
-import { ModalProvider, useModal } from "../../../shared/ui/modal";
+import { LocaleProvider } from "../../../../shared/ui/locale";
+import { ModalProvider, useModal } from "../../../../shared/ui/modal";
 import { ClassBooksModal } from "./ClassBooksModal";
-import type { EducationClass, ClassOptions } from "../api/classes.api";
-import { deleteEducationBook } from "../api/education-catalog.api";
-vi.mock("../api/education-catalog.api", () => ({ deleteEducationBook: vi.fn() }));
+import type { EducationClass, ClassOptions } from "../api/classes.api.ts";
+import { deleteEducationBook } from "../api/education-catalog.api.ts";
+vi.mock("../api/education-catalog.api.ts", () => ({ deleteEducationBook: vi.fn() }));
 const classroom = {
   id: "class",
   name: "Class",

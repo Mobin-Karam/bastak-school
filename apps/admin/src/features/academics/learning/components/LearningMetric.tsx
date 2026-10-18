@@ -1,6 +1,6 @@
 import type { LucideIcon } from "lucide-react";
-import { Card } from "../../../shared/ui/ui";
-import { useOptionalAdminLanguage } from "../../../shared/ui/locale";
+import { Card } from "../../../../shared/ui/ui";
+import { useOptionalAdminLanguage } from "../../../../shared/ui/locale";
 
 export function LearningMetric({
   icon: Icon,

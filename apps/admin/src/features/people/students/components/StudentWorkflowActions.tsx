@@ -1,6 +1,6 @@
 import { ArrowUpLeft, BookOpenCheck, CalendarDays, FileBarChart, Sparkles } from "lucide-react";
 import { Link } from "react-router-dom";
-import { useOptionalAdminLanguage } from "../../../shared/ui/locale";
+import { useOptionalAdminLanguage } from "../../../../shared/ui/locale";
 import { studentCopy } from "../model/student-locale";
 import { studentWorkflowActions } from "../model/student-workflow";
 

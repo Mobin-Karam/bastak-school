@@ -1,5 +1,5 @@
-import type { Exam } from "../../../shared/types/domain";
-import type { RetryRequest } from "../../exams/model/exam.types";
+import type { Exam } from "../../../../shared/types/domain";
+import type { RetryRequest } from "../../exams/model/exam.types.ts";
 
 export type EducationMetric = {
   key: string;

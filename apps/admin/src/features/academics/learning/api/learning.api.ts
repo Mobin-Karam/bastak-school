@@ -1,6 +1,6 @@
-import { api } from "../../../shared/api/api";
+import { api } from "../../../../shared/api/api";
 import type { LearningResponse, LearningReview } from "../model/learning-model";
-import type { LearningFormValues } from "../model/learning-form.schema";
+import type { LearningFormValues } from "../model/learning-form.schema.ts";
 
 export function getStudentLearning(studentId: string) {
   return api.get<LearningResponse>(`/students/${studentId}/learning`);

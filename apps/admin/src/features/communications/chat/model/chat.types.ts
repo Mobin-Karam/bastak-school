@@ -1,4 +1,4 @@
-import type { ChatMessage, Conversation } from "../../../shared/types/domain";
+import type { ChatMessage, Conversation } from "../../../../shared/types/domain";
 
 export type ConversationFilter =
   "all" | "unread" | "direct" | "group" | "favorites" | "drafts" | "online";

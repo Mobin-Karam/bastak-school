@@ -1,10 +1,10 @@
 import { Link } from "react-router-dom";
 import { ChevronLeft } from "lucide-react";
 
-import { Card } from "../../../../shared/ui/ui";
+import { Card } from "../../../../../shared/ui/ui";
 import { quickActionsForRole } from "../../model/role-experience";
-import { useAuth } from "../../../auth";
-import { useLocale } from "../../../../shared/ui/locale";
+import { useAuth } from "../../../../identity/auth";
+import { useLocale } from "../../../../../shared/ui/locale";
 import { dashboardCopy } from "../../model/dashboard-copy";
 
 export function DashboardQuickActions() {

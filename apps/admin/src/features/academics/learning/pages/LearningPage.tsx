@@ -1,7 +1,7 @@
 import { useQueryClient } from "@tanstack/react-query";
-import { useLocale } from "../../../shared/ui/locale";
-import { useModal } from "../../../shared/ui/modal";
-import { Button, EmptyState } from "../../../shared/ui/ui";
+import { useLocale } from "../../../../shared/ui/locale";
+import { useModal } from "../../../../shared/ui/modal";
+import { Button, EmptyState } from "../../../../shared/ui/ui";
 import { LearningForm } from "../components/LearningForm";
 import { LearningHeader } from "../components/LearningHeader";
 import { LearningList } from "../components/LearningList";
@@ -13,8 +13,8 @@ import { useLearningData } from "../hooks/useLearningData";
 import { useLearningMutations } from "../hooks/useLearningMutations";
 import { useLearningPageState } from "../hooks/useLearningPageState";
 import type { LearningItem } from "../model/learning-model";
-import { notifications, notify } from "../../../shared/ui/notifications";
-import { useAuth } from "../../auth";
+import { notifications, notify } from "../../../../shared/ui/notifications";
+import { useAuth } from "../../../identity/auth";
 import { learningCopy } from "../learning-locale";
 
 export function LearningPage() {

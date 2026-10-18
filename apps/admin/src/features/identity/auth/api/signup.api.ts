@@ -1,4 +1,4 @@
-import { api } from "../../../shared/api/api";
+import { api } from "../../../../shared/api/api";
 
 export type SignupOrganization = { id: string; name: string; type: string; remaining: number };
 export const getStudentSignupOptions = () =>

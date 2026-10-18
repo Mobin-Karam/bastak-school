@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { AppWindow, Save } from "lucide-react";
-import type { AppVersion } from "../api/system.api";
-import { Button, Card, EmptyState, Field, Input, Textarea } from "../../../shared/ui/ui";
-import { useLocale } from "../../../shared/ui/locale";
+import type { AppVersion } from "../api/system.api.ts";
+import { Button, Card, EmptyState, Field, Input, Textarea } from "../../../../shared/ui/ui";
+import { useLocale } from "../../../../shared/ui/locale";
 import { systemCopy } from "../system-locale";
 
 export function AppVersionManager({

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { roleDashboardMetrics } from "./components/RoleDashboard";
 import { quickActionsForRole } from "./model/role-experience";
-import type { RoleDashboardData } from "./model/dashboard.types";
+import type { RoleDashboardData } from "./model/dashboard.types.ts";
 
 describe("role dashboard metrics", () => {
   it.each([

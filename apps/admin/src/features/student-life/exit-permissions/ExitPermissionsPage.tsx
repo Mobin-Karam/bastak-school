@@ -1,12 +1,12 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Check, DoorOpen, LogIn, Phone, RefreshCw, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import { useAuth } from "../auth";
-import { useModal } from "../../shared/ui/modal";
-import { Badge, Button, Card, EmptyState, Input, LoadingState } from "../../shared/ui/ui";
-import { SearchBar } from "../../shared/ui/mobile/forms";
-import { notify } from "../../shared/ui/notifications";
-import { api } from "../../shared/api/api";
+import { useAuth } from "../../identity/auth";
+import { useModal } from "../../../shared/ui/modal";
+import { Badge, Button, Card, EmptyState, Input, LoadingState } from "../../../shared/ui/ui";
+import { SearchBar } from "../../../shared/ui/mobile/forms";
+import { notify } from "../../../shared/ui/notifications";
+import { api } from "../../../shared/api/api";
 import {
   getSchoolOccupancy,
   listExitPermissions,
@@ -18,7 +18,7 @@ import {
   reviewExitPermission,
   type ExitPermission,
   type ExitPermissionStatus,
-} from "./api/exit-permissions.api";
+} from "./api/exit-permissions.api.ts";
 
 const tones: Record<ExitPermissionStatus, "amber" | "green" | "red" | "blue" | "neutral"> = {
   PENDING: "amber",

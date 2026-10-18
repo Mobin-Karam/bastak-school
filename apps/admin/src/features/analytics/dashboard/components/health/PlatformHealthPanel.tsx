@@ -1,9 +1,9 @@
 import { useId } from "react";
 import { Database, ShieldCheck, ServerCog } from "lucide-react";
-import { Badge, Card } from "../../../../shared/ui/ui";
-import { useLocale } from "../../../../shared/ui/locale";
+import { Badge, Card } from "../../../../../shared/ui/ui";
+import { useLocale } from "../../../../../shared/ui/locale";
 import { dashboardCopy } from "../../model/dashboard-copy";
-import type { RoleDashboardData } from "../../model/dashboard.types";
+import type { RoleDashboardData } from "../../model/dashboard.types.ts";
 
 export function PlatformHealthPanel({ data }: { data: RoleDashboardData }) {
   const titleId = useId();

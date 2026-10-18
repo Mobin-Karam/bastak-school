@@ -7,13 +7,13 @@ import {
   type LucideIcon,
 } from "lucide-react";
 
-import { Button, Card, Badge } from "../../../../shared/ui/ui";
+import { Button, Card, Badge } from "../../../../../shared/ui/ui";
 
-import { fa } from "../../../../shared/lib/utils";
-import { useLocale } from "../../../../shared/ui/locale";
+import { fa } from "../../../../../shared/lib/utils";
+import { useLocale } from "../../../../../shared/ui/locale";
 import { dashboardCopy } from "../../model/dashboard-copy";
 
-import type { AdminDashboardSummary } from "../../model/dashboard.types";
+import type { AdminDashboardSummary } from "../../model/dashboard.types.ts";
 
 type Metric = {
   label: string;

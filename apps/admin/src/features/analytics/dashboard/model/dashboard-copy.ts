@@ -1,4 +1,4 @@
-import type { AdminLanguage } from "../../../shared/ui/locale";
+import type { AdminLanguage } from "../../../../shared/ui/locale";
 
 export const dashboardCopy: Record<AdminLanguage, Record<string, string>> = {
   fa: {

@@ -1,10 +1,10 @@
 import { cleanup, render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { LocaleProvider } from "../../../shared/ui/locale";
+import { LocaleProvider } from "../../../../shared/ui/locale";
 import { SectionDashboardPage } from "./SectionDashboardPage";
 
-vi.mock("../../auth", () => ({
+vi.mock("../../../identity/auth", () => ({
   useAuth: () => ({
     activeRole: "ORGANIZATION_ADMIN",
     capabilities: ["chat.read", "student.live.read", "students.read", "users.read"],

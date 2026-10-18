@@ -1,11 +1,11 @@
 import { Clock3 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import { addDays, todayIso } from "../../../shared/lib/utils";
+import { addDays, todayIso } from "../../../../shared/lib/utils";
 import {
   DateNavigator,
   type DateNavigatorDay,
   type DateNavigatorItem,
-} from "../../../shared/ui/date-navigator";
+} from "../../../../shared/ui/date-navigator";
 
 type DashboardCalendarProps = {
   value: string;

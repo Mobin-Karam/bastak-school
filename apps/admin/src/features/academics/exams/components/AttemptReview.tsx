@@ -1,6 +1,6 @@
 import { ArrowRight, CheckCircle2, Clock3, XCircle } from "lucide-react";
-import { Badge, Button, EmptyState } from "../../../shared/ui/ui";
-import { useLocale } from "../../../shared/ui/locale";
+import { Badge, Button, EmptyState } from "../../../../shared/ui/ui";
+import { useLocale } from "../../../../shared/ui/locale";
 import { optionLabel } from "../lib/exam-formatters";
 import { examsCopy } from "../exams-locale";
 import type { AttemptDetail } from "../model/exam-model";

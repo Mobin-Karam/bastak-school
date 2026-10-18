@@ -16,4 +16,4 @@ export type {
   StopwatchState,
   TimerStatus,
   WorldClockItem,
-} from "./model/clock.types";
+} from "./model/clock.types.ts";

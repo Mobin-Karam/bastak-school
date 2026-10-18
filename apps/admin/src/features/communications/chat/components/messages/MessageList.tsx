@@ -1,14 +1,14 @@
 import { Check, CheckCheck } from "lucide-react";
 import { useMemo } from "react";
-import type { ChatMessage } from "../../../../shared/types/domain";
+import type { ChatMessage } from "../../../../../shared/types/domain";
 import { formatTime, toFa } from "../../lib/chat-formatters";
 import { showDateSeparator } from "../../lib/chat-helpers";
 import { canUseMessageAction } from "../../model/permissions";
-import type { GroupDetail } from "../../model/group.types";
+import type { GroupDetail } from "../../model/group.types.ts";
 import { DateSeparator } from "./DateSeparator";
 import { EmojiReactionPicker } from "./EmojiReactionPicker";
 import { MessageContextMenu } from "./MessageContextMenu";
-import { useLocale } from "../../../../shared/ui/locale";
+import { useLocale } from "../../../../../shared/ui/locale";
 import { chatCopy } from "../../model/chat-copy";
 
 type MessageAction = (method: "post" | "delete", path: string, body?: unknown) => void;

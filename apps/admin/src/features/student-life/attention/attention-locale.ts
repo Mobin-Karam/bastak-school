@@ -1,5 +1,5 @@
-import type { AdminLanguage } from "../../shared/ui/locale";
-import type { AttentionItem } from "./api/attention.api";
+import type { AdminLanguage } from "../../../shared/ui/locale";
+import type { AttentionItem } from "./api/attention.api.ts";
 
 const copy = {
   fa: {

@@ -2,7 +2,7 @@ import { afterEach, describe, it, expect } from "vitest";
 import { cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useState } from "react";
-import { Field, Button } from "../../../shared/ui/ui";
+import { Field, Button } from "../../../../shared/ui/ui";
 import { TimetableTimeInput } from "./TimetableTimeInput";
 afterEach(cleanup);
 function Probe() {

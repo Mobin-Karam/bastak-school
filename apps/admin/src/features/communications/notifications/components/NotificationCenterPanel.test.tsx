@@ -25,8 +25,8 @@ const mocks = vi.hoisted(() => ({
 vi.mock("../hooks/useAdminNotifications", () => ({
   useAdminNotifications: () => mocks.notifications,
 }));
-vi.mock("../../../shared/ui/locale", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("../../../shared/ui/locale")>()),
+vi.mock("../../../../shared/ui/locale", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../../../../shared/ui/locale")>()),
   useLocale: () => ({ language: "fa", formatDateTime: (value: string) => value }),
 }));
 

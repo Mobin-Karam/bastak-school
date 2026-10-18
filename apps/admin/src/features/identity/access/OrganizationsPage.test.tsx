@@ -3,8 +3,8 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { cleanup, render, screen, within, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import { LocaleProvider } from "../../shared/ui/locale";
-import { ModalProvider } from "../../shared/ui/modal";
+import { LocaleProvider } from "../../../shared/ui/locale";
+import { ModalProvider } from "../../../shared/ui/modal";
 import { OrganizationsPage } from "./OrganizationsPage";
 import { accessCopy } from "./model/access-copy";
 const state = vi.hoisted(() => ({
@@ -30,10 +30,10 @@ vi.mock("../auth", () => ({
 vi.mock("./OrganizationWorkspace", () => ({
   OrganizationWorkspace: () => <div>Members workspace</div>,
 }));
-vi.mock("../../shared/api/api", () => ({ api: { get: state.get } }));
-vi.mock("../students/api/students.api", () => ({ createStudent: state.createStudent }));
-vi.mock("./api/access.api", async (original) => ({
-  ...(await original<typeof import("./api/access.api")>()),
+vi.mock("../../../shared/api/api", () => ({ api: { get: state.get } }));
+vi.mock("../../people/students/api/students.api.ts", () => ({ createStudent: state.createStudent }));
+vi.mock("./api/access.api.ts", async (original) => ({
+  ...(await original<typeof import("./api/access.api.ts")>()),
   listOrganizations: state.list,
   getPlatformStudentSignupPolicy: vi.fn().mockResolvedValue({ enabled: true }),
   setOrganizationFeatures: state.saveFeatures,

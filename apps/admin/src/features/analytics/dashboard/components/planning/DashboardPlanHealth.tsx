@@ -1,7 +1,7 @@
 import { ArrowLeft, CalendarCheck2, CheckCircle2, ListChecks } from "lucide-react";
 import { Link } from "react-router-dom";
-import { Card, EmptyState } from "../../../../shared/ui/ui";
-import { useLocale } from "../../../../shared/ui/locale";
+import { Card, EmptyState } from "../../../../../shared/ui/ui";
+import { useLocale } from "../../../../../shared/ui/locale";
 import { dashboardCopy } from "../../model/dashboard-copy";
 
 export type DashboardPlanHealthValue = {

@@ -1,7 +1,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { api } from "../../../shared/api/api";
-import { notify } from "../../../shared/ui/notifications";
-import { chatKeys } from "../api/chat.keys";
+import { api } from "../../../../shared/api/api";
+import { notify } from "../../../../shared/ui/notifications";
+import { chatKeys } from "../api/chat.keys.ts";
 
 export function useMessageActions(conversationId?: string) {
   const queryClient = useQueryClient();

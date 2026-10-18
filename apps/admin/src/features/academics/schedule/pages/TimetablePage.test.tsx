@@ -3,11 +3,11 @@ import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-li
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MemoryRouter } from "react-router-dom";
-import { ThemeProvider } from "../../../shared/theme/theme";
-import { LocaleProvider } from "../../../shared/ui/locale";
+import { ThemeProvider } from "../../../../shared/theme/theme";
+import { LocaleProvider } from "../../../../shared/ui/locale";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { saveTimetableConfig } from "../api/timetable.api";
+import { saveTimetableConfig } from "../api/timetable.api.ts";
 import { TimetablePage } from "./TimetablePage";
 import { timetableToday, timetableWeekStart } from "../lib/timetable-time";
 afterEach(cleanup);
@@ -24,7 +24,7 @@ const fixtures = vi.hoisted(() => ({
   report: vi.fn(),
   write: vi.fn(),
 }));
-vi.mock("../../auth", () => ({
+vi.mock("../../../identity/auth", () => ({
   useAuth: () => ({
     activeRole: fixtures.full ? "PRINCIPAL" : "STUDENT",
     context: { activeOrganization: { id: "org", name: "مدرسه" }, availableOrganizations: [] },
@@ -53,7 +53,7 @@ vi.mock("../components/TimetableDateInput", () => ({
     />
   ),
 }));
-vi.mock("../api/timetable.api", () => ({
+vi.mock("../api/timetable.api.ts", () => ({
   getTimetable: fixtures.get,
   getTimetableAttendanceReport: fixtures.report,
   writeTimetableLesson: fixtures.write,

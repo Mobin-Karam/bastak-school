@@ -1,4 +1,4 @@
-import { api } from "../../../shared/api/api";
+import { api } from "../../../../shared/api/api";
 
 export type StudentLeaveStatus = "PENDING" | "APPROVED" | "REJECTED" | "CANCELLED" | "COMPLETED";
 export type StudentLeaveType = "SCHOOL_EXIT" | "LEAVE";

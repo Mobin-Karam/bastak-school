@@ -11,11 +11,11 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { useAuth } from "../../auth/hooks/useAuth";
-import { useModal } from "../../../shared/ui/modal";
-import { notify } from "../../../shared/ui/notifications";
-import { useLocale } from "../../../shared/ui/locale";
-import { Badge, Button, Card, EmptyState } from "../../../shared/ui/ui";
+import { useAuth } from "../../../identity/auth/hooks/useAuth";
+import { useModal } from "../../../../shared/ui/modal";
+import { notify } from "../../../../shared/ui/notifications";
+import { useLocale } from "../../../../shared/ui/locale";
+import { Badge, Button, Card, EmptyState } from "../../../../shared/ui/ui";
 import {
   downloadDatabaseBackup,
   getAppVersions,
@@ -29,7 +29,7 @@ import {
   restoreDatabase,
   saveAppRelease,
   saveAppVersion,
-} from "../api/system.api";
+} from "../api/system.api.ts";
 import { AppVersionManager } from "../components/AppVersionManager";
 import { DatabaseBackupPanel } from "../components/DatabaseBackupPanel";
 import { ReleasePanel } from "../components/ReleasePanel";

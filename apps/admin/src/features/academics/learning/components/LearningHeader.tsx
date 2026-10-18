@@ -1,8 +1,8 @@
 import { Plus } from "lucide-react";
 import type { ComponentProps } from "react";
-import { StudentPicker } from "../../../shared/ui/StudentPicker";
-import { Button, Card } from "../../../shared/ui/ui";
-import { useLocale } from "../../../shared/ui/locale";
+import { StudentPicker } from "../../../../shared/ui/StudentPicker";
+import { Button, Card } from "../../../../shared/ui/ui";
+import { useLocale } from "../../../../shared/ui/locale";
 import { learningCopy } from "../learning-locale";
 
 type StudentPickerProps = ComponentProps<typeof StudentPicker>;

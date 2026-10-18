@@ -1,8 +1,8 @@
-import { useAuth } from "../../auth";
-import { GuardianPage } from "../../guardian";
+import { useAuth } from "../../../identity/auth";
+import { GuardianPage } from "../../../people/guardian";
 import { RoleDashboard } from "../components/RoleDashboard";
 import { StudentDashboard } from "../components/StudentDashboard";
-import { TeacherDashboard } from "../../teacher-portal";
+import { TeacherDashboard } from "../../../people/teacher-portal";
 import { SchoolManagerDashboard } from "../../school-home";
 import { useDashboardData } from "../hooks/useDashboardData";
 import { SchoolOccupancyBanner } from "../../school-home/components/SchoolOccupancyBanner";

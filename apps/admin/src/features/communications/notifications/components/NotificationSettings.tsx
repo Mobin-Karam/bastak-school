@@ -1,14 +1,14 @@
 import { useCallback, useEffect, useState } from "react";
 import { AlertCircle, RefreshCw, Volume2 } from "lucide-react";
-import { Button } from "../../../shared/ui/ui";
-import { notify } from "../../../shared/ui/notifications";
+import { Button } from "../../../../shared/ui/ui";
+import { notify } from "../../../../shared/ui/notifications";
 import { notificationRequestErrorMessage } from "../lib/api-error";
 import { useAdminNotifications } from "../hooks/useAdminNotifications";
 import type { PushStatus } from "../model/notification-model";
-import type { NotificationContextValue } from "../model/notification.types";
+import type { NotificationContextValue } from "../model/notification.types.ts";
 import { NotificationPreference } from "./NotificationPreference";
 import { notificationCopy } from "../model/notification-copy";
-import type { AdminLanguage } from "../../../shared/ui/locale";
+import type { AdminLanguage } from "../../../../shared/ui/locale";
 
 type Props = {
   notifications?: NotificationContextValue;

@@ -2,12 +2,12 @@ import { describe, expect, it, vi } from "vitest";
 
 const { get } = vi.hoisted(() => ({ get: vi.fn() }));
 
-vi.mock("../../../shared/api/api", () => ({ api: { get } }));
+vi.mock("../../../../shared/api/api", () => ({ api: { get } }));
 
 import {
   getAttendanceHistorySessions,
   getAttendanceReportSummary,
-} from "./attendance-operations.api";
+} from "./attendance-operations.api.ts";
 
 describe("attendance report API", () => {
   it("omits empty filters and sends inclusive date and academic filters when selected", () => {

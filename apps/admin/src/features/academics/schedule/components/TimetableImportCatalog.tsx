@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import type { TimetableWorkspace } from "@moshaver/api-contract";
-import { useAuth } from "../../auth";
+import { useAuth } from "../../../identity/auth";
 import {
   createClass,
   getClassOptions,
@@ -9,7 +9,7 @@ import {
   createEducationBook,
   publishEducationBook,
 } from "../../education/catalog";
-import { Button, Field, Input } from "../../../shared/ui/ui";
+import { Button, Field, Input } from "../../../../shared/ui/ui";
 import { timetableSelectClass } from "./TimetableLessonEditor";
 
 /** Explicit preparation uses the school catalog's own permission-checked APIs. */

@@ -2,27 +2,27 @@ import { useEffect, useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Pencil, Plus, Trash2 } from "lucide-react";
-import { ManagementPageHeader } from "../../../shared/ui/management-workspace";
-import { Button, Card, EmptyState } from "../../../shared/ui/ui";
-import { MobileSelect } from "../../../shared/ui/mobile/forms";
+import { ManagementPageHeader } from "../../../../shared/ui/management-workspace";
+import { Button, Card, EmptyState } from "../../../../shared/ui/ui";
+import { MobileSelect } from "../../../../shared/ui/mobile/forms";
 import {
   DataTable,
   useDataTableUrlQuery,
   type DataTableColumn,
   type DataTableAction,
-} from "../../../shared/ui/data-table";
-import { notify } from "../../../shared/ui/notifications";
-import { useLocale } from "../../../shared/ui/locale";
-import { useModal } from "../../../shared/ui/modal";
-import { useAuth } from "../../auth";
+} from "../../../../shared/ui/data-table";
+import { notify } from "../../../../shared/ui/notifications";
+import { useLocale } from "../../../../shared/ui/locale";
+import { useModal } from "../../../../shared/ui/modal";
+import { useAuth } from "../../../identity/auth";
 import { BookEditor } from "../components/BookEditor";
-import { listClasses, setClassBooks, type EducationClassBook } from "../api/classes.api";
+import { listClasses, setClassBooks, type EducationClassBook } from "../api/classes.api.ts";
 import {
   createEducationBook,
   deleteEducationBook,
   updateEducationBook,
   type EducationBookInput,
-} from "../api/education-catalog.api";
+} from "../api/education-catalog.api.ts";
 
 export function BookShelfPage() {
   const auth = useAuth();

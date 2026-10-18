@@ -7,7 +7,7 @@ import {
   usePublicSchoolProfile,
 } from "./PublicSchoolProfile";
 const state = vi.hoisted(() => ({ request: vi.fn() }));
-vi.mock("../../../shared/api/api", () => ({ request: state.request }));
+vi.mock("../../../../shared/api/api", () => ({ request: state.request }));
 function Selection() {
   const { school, selectSchool } = usePublicSchoolProfile();
   return (

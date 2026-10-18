@@ -1,15 +1,15 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AlertTriangle, BrainCircuit, Lightbulb, RefreshCw } from "lucide-react";
-import { useAuth } from "../../auth";
-import { Button, Card, EmptyState, Field, Input, Textarea } from "../../../shared/ui/ui";
-import { useOptionalAdminLanguage } from "../../../shared/ui/locale";
+import { useAuth } from "../../../identity/auth";
+import { Button, Card, EmptyState, Field, Input, Textarea } from "../../../../shared/ui/ui";
+import { useOptionalAdminLanguage } from "../../../../shared/ui/locale";
 import {
   createStudentRecommendation,
   getStudentAnalytics,
   getStudentMistakes,
   getStudentRecommendations,
-} from "../api/students.api";
+} from "../api/students.api.ts";
 import { studentCopy } from "../model/student-locale";
 
 const number = (value: number | null | undefined, suffix = "", locale = "fa-IR") =>

@@ -7,7 +7,7 @@ import {
   Minus,
   UserRound,
 } from "lucide-react";
-import { Card } from "../../../shared/ui/ui";
+import { Card } from "../../../../shared/ui/ui";
 import {
   attendanceStatusMeta,
   attendanceStatuses,

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import { Card } from "../../../../shared/ui/ui";
+import { Card } from "../../../../../shared/ui/ui";
 import type { Metric } from "../../model/dashboard-metrics";
 
 export function DashboardMetricGrid({

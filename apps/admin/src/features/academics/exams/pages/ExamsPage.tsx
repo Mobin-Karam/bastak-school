@@ -1,7 +1,7 @@
-import { useModal } from "../../../shared/ui/modal";
-import { notifications, notify } from "../../../shared/ui/notifications";
-import { DataTransferWorkspace } from "../../../shared/ui/data-transfer";
-import type { Exam } from "../../../shared/types/domain";
+import { useModal } from "../../../../shared/ui/modal";
+import { notifications, notify } from "../../../../shared/ui/notifications";
+import { DataTransferWorkspace } from "../../../../shared/ui/data-transfer";
+import type { Exam } from "../../../../shared/types/domain";
 import { ExamAttempts } from "../components/ExamAttempts";
 import { ExamAssignmentManager } from "../components/ExamAssignmentManager";
 import { ExamFilters } from "../components/ExamFilters";
@@ -16,14 +16,14 @@ import { useExamFilters } from "../hooks/useExamFilters";
 import { useExamMutations } from "../hooks/useExamMutations";
 import { useExamsData } from "../hooks/useExamsData";
 import { makeExamDraft } from "../model/exam-model";
-import type { BulkExamAction, RetryRequest } from "../model/exam.types";
-import { useAuth } from "../../auth";
+import type { BulkExamAction, RetryRequest } from "../model/exam.types.ts";
+import { useAuth } from "../../../identity/auth";
 import { useQuery } from "@tanstack/react-query";
-import { getExamAnalytics, type ExamAnalytics } from "../api/exams.api";
-import { Card, EmptyState, LoadingState } from "../../../shared/ui/ui";
+import { getExamAnalytics, type ExamAnalytics } from "../api/exams.api.ts";
+import { Card, EmptyState, LoadingState } from "../../../../shared/ui/ui";
 import { useCallback, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
-import { useLocale } from "../../../shared/ui/locale";
+import { useLocale } from "../../../../shared/ui/locale";
 import { examsCopy } from "../exams-locale";
 
 export function ExamsPage() {

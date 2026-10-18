@@ -7,15 +7,15 @@ import {
   type PendingAttendanceWrite,
   type SelfAttendanceRecord,
   useAttendanceDiscard,
-} from "../../attendance/public";
-import { useAuth } from "../../auth";
+} from "../../../student-life/attendance/public";
+import { useAuth } from "../../../identity/auth";
 import { Check, MessageSquareText } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import type { ScheduleEntry } from "../../schedule/api/schedule.api";
-import { notify } from "../../../shared/ui/notifications";
-import { api } from "../../../shared/api/api";
-import { ResponsiveModal } from "../../../shared/ui/responsive-modal";
-import { Button, EmptyState, LoadingState } from "../../../shared/ui/ui";
+import type { ScheduleEntry } from "../../../academics/schedule/api/schedule.api.ts";
+import { notify } from "../../../../shared/ui/notifications";
+import { api } from "../../../../shared/api/api";
+import { ResponsiveModal } from "../../../../shared/ui/responsive-modal";
+import { Button, EmptyState, LoadingState } from "../../../../shared/ui/ui";
 
 type AttendanceStatus = SelfAttendanceRecord["status"];
 

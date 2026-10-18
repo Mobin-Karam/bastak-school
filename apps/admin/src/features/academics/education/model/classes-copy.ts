@@ -1,4 +1,4 @@
-import { useLocale, type AdminLanguage } from "../../../shared/ui/locale";
+import { useLocale, type AdminLanguage } from "../../../../shared/ui/locale";
 
 const copy = {
   fa: {

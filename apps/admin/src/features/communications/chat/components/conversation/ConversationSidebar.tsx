@@ -1,15 +1,15 @@
 import { RefreshCw } from "lucide-react";
-import type { Conversation } from "../../../../shared/types/domain";
-import { AdminList } from "../../../../shared/ui/admin-list";
-import { Badge, Button } from "../../../../shared/ui/ui";
+import type { Conversation } from "../../../../../shared/types/domain";
+import { AdminList } from "../../../../../shared/ui/admin-list";
+import { Badge, Button } from "../../../../../shared/ui/ui";
 import { CreateGroupButton } from "../group/GroupChatControls";
-import type { ConversationFilter, ConversationSort } from "../../model/chat.types";
+import type { ConversationFilter, ConversationSort } from "../../model/chat.types.ts";
 import { toFa } from "../../lib/chat-formatters";
 import { ConversationList } from "./ConversationList";
 import { ConversationSearch } from "./ConversationSearch";
 import { ConversationToolbar } from "./ConversationToolbar";
 import { CreateDirectButton } from "./CreateDirectButton";
-import { useLocale } from "../../../../shared/ui/locale";
+import { useLocale } from "../../../../../shared/ui/locale";
 import { chatCopy } from "../../model/chat-copy";
 
 export function ConversationSidebar({

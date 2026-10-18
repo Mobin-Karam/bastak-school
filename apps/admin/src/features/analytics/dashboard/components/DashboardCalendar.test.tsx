@@ -1,7 +1,7 @@
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { todayIso } from "../../../shared/lib/utils";
-import { LocaleProvider } from "../../../shared/ui/locale";
+import { todayIso } from "../../../../shared/lib/utils";
+import { LocaleProvider } from "../../../../shared/ui/locale";
 import { DashboardCalendar } from "./DashboardCalendar";
 
 describe("DashboardCalendar", () => {

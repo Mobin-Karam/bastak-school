@@ -1,18 +1,18 @@
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import type { Plan } from "../../../shared/types/domain";
-import { StudentAllocationControl } from "../../../shared/ui/student-allocation-control";
-import { Button, EmptyState } from "../../../shared/ui/ui";
-import { notify } from "../../../shared/ui/notifications";
-import { useLocale } from "../../../shared/ui/locale";
-import { listClasses } from "../../education/api/classes.api";
+import type { Plan } from "../../../../shared/types/domain";
+import { StudentAllocationControl } from "../../../../shared/ui/student-allocation-control";
+import { Button, EmptyState } from "../../../../shared/ui/ui";
+import { notify } from "../../../../shared/ui/notifications";
+import { useLocale } from "../../../../shared/ui/locale";
+import { listClasses } from "../../../academics/education/api/classes.api.ts";
 import {
   applyPlanTemplate,
   createPlanTemplate,
   getPlanTemplates,
   publishPlanTemplate,
   type PlanTemplate,
-} from "../api/plan-templates.api";
+} from "../api/plan-templates.api.ts";
 import { plannerCopy } from "../model/planner-copy";
 
 type Props = {

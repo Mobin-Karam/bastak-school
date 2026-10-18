@@ -1,20 +1,20 @@
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { CalendarCheck2, CalendarDays, Clock3, GraduationCap, RefreshCw } from "lucide-react";
-import { useAuth } from "../../auth";
-import { getAdminDashboard } from "../../dashboard/api/dashboard.api";
-import { DashboardCalendar } from "../../dashboard/components/DashboardCalendar";
-import { listSchedule } from "../../schedule/api/schedule.api";
-import { listTimetableOccurrences } from "../../schedule/api/timetable.api";
-import { todayIso } from "../../../shared/lib/utils";
-import { useLocale } from "../../../shared/ui/locale";
-import { Badge, Button, Card, EmptyState, ErrorState } from "../../../shared/ui/ui";
-import { StatisticCard } from "../../../shared/ui/mobile/data-display";
-import { MobileSelect } from "../../../shared/ui/mobile/forms";
-import { guardianApi } from "../api/guardian.api";
-import { ManagementPageHeader } from "../../../shared/ui/management-workspace";
+import { useAuth } from "../../../identity/auth";
+import { getAdminDashboard } from "../../../analytics/dashboard/api/dashboard.api.ts";
+import { DashboardCalendar } from "../../../analytics/dashboard/components/DashboardCalendar";
+import { listSchedule } from "../../../academics/schedule/api/schedule.api.ts";
+import { listTimetableOccurrences } from "../../../academics/schedule/api/timetable.api.ts";
+import { todayIso } from "../../../../shared/lib/utils";
+import { useLocale } from "../../../../shared/ui/locale";
+import { Badge, Button, Card, EmptyState, ErrorState } from "../../../../shared/ui/ui";
+import { StatisticCard } from "../../../../shared/ui/mobile/data-display";
+import { MobileSelect } from "../../../../shared/ui/mobile/forms";
+import { guardianApi } from "../api/guardian.api.ts";
+import { ManagementPageHeader } from "../../../../shared/ui/management-workspace";
 import { guardianCopy } from "../model/guardian-copy";
-import { CurrentPrayerCard } from "../../school-home/components/CurrentPrayerCard";
+import { CurrentPrayerCard } from "../../../analytics/school-home/components/CurrentPrayerCard";
 
 export function GuardianPage() {
   const auth = useAuth();

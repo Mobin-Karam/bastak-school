@@ -1,13 +1,13 @@
 import { useState } from "react";
-import { api } from "../../../shared/api/api";
+import { api } from "../../../../shared/api/api";
 import {
   defineSpreadsheet,
   downloadSpreadsheet,
   readSpreadsheet,
   spreadsheetIssues,
-} from "../../../shared/lib/spreadsheet-transfer";
-import { Button, Card } from "../../../shared/ui/ui";
-import { SpreadsheetTransferActions } from "../../../shared/ui/spreadsheet-transfer-actions";
+} from "../../../../shared/lib/spreadsheet-transfer";
+import { Button, Card } from "../../../../shared/ui/ui";
+import { SpreadsheetTransferActions } from "../../../../shared/ui/spreadsheet-transfer-actions";
 
 type ImportRow = {
   firstName: string;

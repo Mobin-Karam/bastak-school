@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { DatePicker } from "../../../shared/ui/date-picker";
-import { notify } from "../../../shared/ui/notifications";
+import { DatePicker } from "../../../../shared/ui/date-picker";
+import { notify } from "../../../../shared/ui/notifications";
 import {
   getDormDelegates,
   getDormResidents,
@@ -9,7 +9,7 @@ import {
   revokeDormWideDelegate,
   revokeDormDelegate,
   setDormDelegate,
-} from "../api/attendance-operations.api";
+} from "../api/attendance-operations.api.ts";
 import type { AttendanceParticipant } from "../model/attendance-workflow";
 
 export function DormDelegateEditor({

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { Exam } from "../../../shared/types/domain";
+import type { Exam } from "../../../../shared/types/domain";
 import { educationMetrics, subjectDistribution } from "./education-overview";
 
 describe("education overview", () => {

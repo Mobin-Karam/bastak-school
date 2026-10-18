@@ -1,4 +1,4 @@
-import { api } from "../../../shared/api/api";
+import { api } from "../../../../shared/api/api";
 
 export type AttendanceContextType = "class" | "class_group" | "dorm";
 

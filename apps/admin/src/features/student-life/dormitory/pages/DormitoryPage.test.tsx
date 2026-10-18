@@ -1,9 +1,9 @@
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { toast } from "sonner";
-import { ThemeProvider } from "../../../shared/theme/theme";
-import { LocaleProvider } from "../../../shared/ui/locale";
-import { AppToaster } from "../../../shared/ui/notifications";
+import { ThemeProvider } from "../../../../shared/theme/theme";
+import { LocaleProvider } from "../../../../shared/ui/locale";
+import { AppToaster } from "../../../../shared/ui/notifications";
 import { DormitoryPage } from "./DormitoryPage";
 
 const {
@@ -24,7 +24,7 @@ const {
   sendDormitoryAnnouncementMock: vi.fn(),
 }));
 
-vi.mock("../api/dormitory.api", () => ({
+vi.mock("../api/dormitory.api.ts", () => ({
   listDormRooms: listDormRoomsMock,
   createDormRoom: createDormRoomMock,
   listDormAssignments: listDormAssignmentsMock,
@@ -34,7 +34,7 @@ vi.mock("../api/dormitory.api", () => ({
   sendDormitoryAnnouncement: sendDormitoryAnnouncementMock,
 }));
 
-vi.mock("../../auth", () => ({
+vi.mock("../../../identity/auth", () => ({
   useAuth: () => ({
     can: () => true,
     canAny: () => true,

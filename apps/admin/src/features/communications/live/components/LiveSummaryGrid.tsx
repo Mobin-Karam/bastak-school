@@ -1,7 +1,7 @@
 import { AlertTriangle, BookOpenCheck, Clock3, PauseCircle, Users, Wifi } from "lucide-react";
-import type { LiveFilter, LiveSnapshot } from "../model/live.types";
+import type { LiveFilter, LiveSnapshot } from "../model/live.types.ts";
 import { SummaryCard } from "./SummaryCard";
-import { useLocale } from "../../../shared/ui/locale";
+import { useLocale } from "../../../../shared/ui/locale";
 import { liveCopy } from "../model/live-copy";
 
 export function LiveSummaryGrid({

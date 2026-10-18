@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { LogOut } from "lucide-react";
-import { useAuth } from "../../auth";
-import { Button } from "../../../shared/ui/ui";
+import { useAuth } from "../../../identity/auth";
+import { Button } from "../../../../shared/ui/ui";
 import ConstructionScene from "./ConstructionScene";
 import RollingNumber from "./RollingNumber";
 

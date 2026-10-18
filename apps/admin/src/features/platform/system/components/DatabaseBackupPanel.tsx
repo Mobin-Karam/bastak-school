@@ -8,8 +8,8 @@ import {
   Upload,
 } from "lucide-react";
 import { useState } from "react";
-import { Button, Card, Input } from "../../../shared/ui/ui";
-import { useLocale } from "../../../shared/ui/locale";
+import { Button, Card, Input } from "../../../../shared/ui/ui";
+import { useLocale } from "../../../../shared/ui/locale";
 import { systemCopy } from "../system-locale";
 // Matches the API default (`MAX_RESTORE_BODY`); production can raise both through
 // its deployment configuration, but the default UI must not invite a guaranteed 400.

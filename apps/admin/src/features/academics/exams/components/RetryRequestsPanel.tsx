@@ -1,8 +1,8 @@
 import { Check, X } from "lucide-react";
-import { Button, Badge, Card } from "../../../shared/ui/ui";
-import { useLocale } from "../../../shared/ui/locale";
+import { Button, Badge, Card } from "../../../../shared/ui/ui";
+import { useLocale } from "../../../../shared/ui/locale";
 import { examsCopy } from "../exams-locale";
-import type { RetryRequest } from "../model/exam.types";
+import type { RetryRequest } from "../model/exam.types.ts";
 
 export function RetryRequestsPanel({
   requests,

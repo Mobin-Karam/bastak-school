@@ -14,24 +14,24 @@ import {
   X,
 } from "lucide-react";
 import { useSearchParams } from "react-router-dom";
-import type { Plan, PlanTask, Student } from "../../../shared/types/domain";
-import { useStudentSelection } from "../../../shared/hooks/useStudentSelection";
+import type { Plan, PlanTask, Student } from "../../../../shared/types/domain";
+import { useStudentSelection } from "../../../../shared/hooks/useStudentSelection";
 import {
   addDays,
   educationLabel,
   fa,
   normalizePersianText,
   todayIso,
-} from "../../../shared/lib/utils";
-import { StudentPicker } from "../../../shared/ui/StudentPicker";
-import { DataTransferWorkspace } from "../../../shared/ui/data-transfer";
-import { DatePicker } from "../../../shared/ui/date-picker";
-import { DateNavigator } from "../../../shared/ui/date-navigator";
-import { useLocale } from "../../../shared/ui/locale";
+} from "../../../../shared/lib/utils";
+import { StudentPicker } from "../../../../shared/ui/StudentPicker";
+import { DataTransferWorkspace } from "../../../../shared/ui/data-transfer";
+import { DatePicker } from "../../../../shared/ui/date-picker";
+import { DateNavigator } from "../../../../shared/ui/date-navigator";
+import { useLocale } from "../../../../shared/ui/locale";
 import { plannerCopy, plannerFilterLabel } from "../model/planner-copy";
-import { useModal } from "../../../shared/ui/modal";
-import { notify } from "../../../shared/ui/notifications";
-import { Badge, Button, Card, EmptyState } from "../../../shared/ui/ui";
+import { useModal } from "../../../../shared/ui/modal";
+import { notify } from "../../../../shared/ui/notifications";
+import { Badge, Button, Card, EmptyState } from "../../../../shared/ui/ui";
 import {
   createPlan,
   deletePlan,
@@ -48,7 +48,7 @@ import {
   savePlannerTask,
   sharePlanRange,
   updatePlan,
-} from "../api/planner.api";
+} from "../api/planner.api.ts";
 import { PlannerCanvas } from "../components/PlannerCanvas";
 import {
   DateAction,
@@ -77,13 +77,13 @@ import {
   sortPlanTasks,
   summarizePlans,
 } from "../lib/planner-model";
-import type { PlannerMode, TaskDraft, TaskFilter } from "../model/planner.types";
+import type { PlannerMode, TaskDraft, TaskFilter } from "../model/planner.types.ts";
 import { PlannerMoreMenu } from "../components/PlannerMoreMenu";
 import { PlanTemplateLibrary } from "../components/PlanTemplateLibrary";
 import { TemplateOrganizationPicker } from "../components/TemplateOrganizationPicker";
 import { PlannerFilterPopover } from "../components/PlannerFilterPopover";
-import { useAuth } from "../../auth";
-import { listOrganizations } from "../../access/api/access.api";
+import { useAuth } from "../../../identity/auth";
+import { listOrganizations } from "../../../identity/access/api/access.api.ts";
 
 export function PlannerPage() {
   const auth = useAuth();

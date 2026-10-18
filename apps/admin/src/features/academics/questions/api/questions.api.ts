@@ -1,5 +1,5 @@
-import { api } from "../../../shared/api/api";
-import type { Exam } from "../../../shared/types/domain";
+import { api } from "../../../../shared/api/api";
+import type { Exam } from "../../../../shared/types/domain";
 import type { QuestionDraft, QuestionView } from "../model/question-model";
 export const getQuestionBankExams = () => api.get<Exam[]>("/question-bank/exams");
 export const getExamQuestions = (examId: string) =>

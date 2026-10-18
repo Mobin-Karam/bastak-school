@@ -1,6 +1,6 @@
-import { listOrganizations, listUsers } from "../../../features/access/api/access.api";
-import { getExams } from "../../../features/exams/api/exams.api";
-import { listStudents } from "../../../features/students/api/students.api";
+import { listOrganizations, listUsers } from "../../../features/identity/access/api/access.api.ts";
+import { getExams } from "../../../features/academics/exams/api/exams.api.ts";
+import { listStudents } from "../../../features/people/students/api/students.api.ts";
 import { api } from "../../../shared/api/api";
 import { normalizePersianText } from "../../../shared/lib/utils";
 

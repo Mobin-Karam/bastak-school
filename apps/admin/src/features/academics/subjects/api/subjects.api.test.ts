@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { api } from "../../../shared/api/api";
+import { api } from "../../../../shared/api/api";
 import {
   createSubject,
   getStudentSubjects,
@@ -7,7 +7,7 @@ import {
   setSubjectActive,
   updateStudentSubject,
   updateSubject,
-} from "./subjects.api";
+} from "./subjects.api.ts";
 
 describe("subjects API contract", () => {
   beforeEach(() => vi.restoreAllMocks());

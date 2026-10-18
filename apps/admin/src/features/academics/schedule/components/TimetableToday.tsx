@@ -2,10 +2,10 @@ import type { TimetableOccurrence } from "@moshaver/api-contract";
 import { useEffect, useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Link, useNavigate } from "react-router-dom";
-import { useAuth } from "../../auth";
-import { Card, Button } from "../../../shared/ui/ui";
-import { notify } from "../../../shared/ui/notifications";
-import { getTimetable, openTimetableAttendance } from "../api/timetable.api";
+import { useAuth } from "../../../identity/auth";
+import { Card, Button } from "../../../../shared/ui/ui";
+import { notify } from "../../../../shared/ui/notifications";
+import { getTimetable, openTimetableAttendance } from "../api/timetable.api.ts";
 import { timetableDateLabel, timetableToday, timetableWeekStart } from "../lib/timetable-time";
 export function TimetableToday() {
   const auth = useAuth();

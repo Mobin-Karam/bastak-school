@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { Check, RefreshCw, X } from "lucide-react";
-import { api } from "../../shared/api/api";
-import { Button, Card, EmptyState, Badge } from "../../shared/ui/ui";
-import { SearchBar } from "../../shared/ui/mobile/forms";
-import { useLocale } from "../../shared/ui/locale";
+import { api } from "../../../shared/api/api";
+import { Button, Card, EmptyState, Badge } from "../../../shared/ui/ui";
+import { SearchBar } from "../../../shared/ui/mobile/forms";
+import { useLocale } from "../../../shared/ui/locale";
 import { leaveRequestsCopy } from "./leave-requests-locale";
 
 type Status = "PENDING" | "APPROVED" | "REJECTED" | "CANCELLED" | "COMPLETED";

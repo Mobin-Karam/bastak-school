@@ -1,8 +1,8 @@
 import { useEffect, useRef } from "react";
 import { useLocation } from "react-router-dom";
 
-import { useAuth } from "../../../features/auth";
-import { useAdminNotifications } from "../../../features/notifications";
+import { useAuth } from "../../../features/identity/auth";
+import { useAdminNotifications } from "../../../features/communications/notifications";
 import { roleLabel } from "../../../shared/lib/role-ui";
 import { useLocale } from "../../../shared/ui/locale";
 import {

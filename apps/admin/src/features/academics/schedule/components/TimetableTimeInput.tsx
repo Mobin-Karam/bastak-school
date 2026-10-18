@@ -1,5 +1,5 @@
 import { forwardRef, type ComponentProps } from "react";
-import { Input } from "../../../shared/ui/ui";
+import { Input } from "../../../../shared/ui/ui";
 import { normalizeTimetableClock } from "../lib/timetable-input";
 export const TimetableTimeInput = forwardRef<HTMLInputElement, ComponentProps<typeof Input>>(
   ({ onBlur, onChange, ...props }, ref) => (

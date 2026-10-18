@@ -2,7 +2,7 @@ import { useState } from "react";
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { api, getApiWorkContextKey, setApiWorkContext } from "../../shared/api/api";
+import { api, getApiWorkContextKey, setApiWorkContext } from "../../../shared/api/api";
 import { AuthProvider, useAuth } from "./AuthProvider";
 
 const originalFetch = globalThis.fetch;

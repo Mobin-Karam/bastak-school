@@ -1,14 +1,14 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
-import { useAuth } from "../../auth";
-import { api } from "../../../shared/api/api";
-import { ResponsiveModal } from "../../../shared/ui/responsive-modal";
-import { Button, Card, EmptyState, LoadingState } from "../../../shared/ui/ui";
+import { useAuth } from "../../../identity/auth";
+import { api } from "../../../../shared/api/api";
+import { ResponsiveModal } from "../../../../shared/ui/responsive-modal";
+import { Button, Card, EmptyState, LoadingState } from "../../../../shared/ui/ui";
 import {
   listAttendanceAbsenceReviews,
   reviewAttendanceAbsence,
   type AttendanceAbsenceReview,
-} from "../api/attendance.api";
+} from "../api/attendance.api.ts";
 
 /** Scoped principal/supervisor review: inspect, choose a decision, confirm. */
 export function AttendanceReviewQueue() {

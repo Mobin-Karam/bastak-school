@@ -1,7 +1,7 @@
 import { Eye } from "lucide-react";
 import type { UseQueryResult } from "@tanstack/react-query";
-import { Badge, Button, EmptyState } from "../../../shared/ui/ui";
-import { useLocale } from "../../../shared/ui/locale";
+import { Badge, Button, EmptyState } from "../../../../shared/ui/ui";
+import { useLocale } from "../../../../shared/ui/locale";
 import { examsCopy } from "../exams-locale";
 import type { AttemptSummary } from "../model/exam-model";
 

@@ -1,8 +1,8 @@
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { getStudentLearning } from "../api/learning.api";
+import { getStudentLearning } from "../api/learning.api.ts";
 import { filterLearningItems } from "../lib/learning-filters";
-import type { LearningFilter } from "../model/learning.types";
+import type { LearningFilter } from "../model/learning.types.ts";
 
 export function useLearningData({
   studentId,

@@ -1,10 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { MessageCircleHeart, Save } from "lucide-react";
 import { useEffect, useState } from "react";
-import { chatApi } from "../../chat/api/chat.api";
-import { notify } from "../../../shared/ui/notifications";
-import { Button, Card, EmptyState } from "../../../shared/ui/ui";
-import { useLocale } from "../../../shared/ui/locale";
+import { chatApi } from "../../../communications/chat/api/chat.api.ts";
+import { notify } from "../../../../shared/ui/notifications";
+import { Button, Card, EmptyState } from "../../../../shared/ui/ui";
+import { useLocale } from "../../../../shared/ui/locale";
 import { systemCopy } from "../system-locale";
 
 const catalog = [

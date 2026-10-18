@@ -4,8 +4,8 @@ import { cleanup, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import { LocaleProvider } from "../../shared/ui/locale";
-import { ModalProvider } from "../../shared/ui/modal";
+import { LocaleProvider } from "../../../shared/ui/locale";
+import { ModalProvider } from "../../../shared/ui/modal";
 import { UsersPage } from "./UsersPage";
 import { accessCopy } from "./model/access-copy";
 
@@ -25,7 +25,7 @@ vi.mock("../auth", () => ({
     context: { user: { id: "self" }, activeOrganization: { id: "school" } },
   }),
 }));
-vi.mock("./api/access.api", () => ({
+vi.mock("./api/access.api.ts", () => ({
   listUsers: state.listUsers,
   listOrganizations: vi.fn(),
   setUserActive: state.setUserActive,

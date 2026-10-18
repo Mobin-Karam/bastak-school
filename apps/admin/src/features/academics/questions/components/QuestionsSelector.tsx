@@ -1,13 +1,13 @@
 import { Link } from "react-router-dom";
 import { BookOpen } from "lucide-react";
-import type { Exam } from "../../../shared/types/domain";
+import type { Exam } from "../../../../shared/types/domain";
 import {
   AssessmentMetric,
   AssessmentWorkspaceIntro,
-} from "../../../shared/ui/assessment-workspace-intro";
-import { StudentPicker } from "../../../shared/ui/StudentPicker";
-import { Button, Card, Field, Select } from "../../../shared/ui/ui";
-import { useLocale } from "../../../shared/ui/locale";
+} from "../../../../shared/ui/assessment-workspace-intro";
+import { StudentPicker } from "../../../../shared/ui/StudentPicker";
+import { Button, Card, Field, Select } from "../../../../shared/ui/ui";
+import { useLocale } from "../../../../shared/ui/locale";
 import { questionsCopy } from "../questions-locale";
 export function QuestionsSelector({
   students,

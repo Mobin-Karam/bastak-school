@@ -1,12 +1,12 @@
 import { CheckCheck, RefreshCw } from "lucide-react";
 import type { Dispatch, SetStateAction } from "react";
 import { useNavigate } from "react-router-dom";
-import { useLocale } from "../../../shared/ui/locale";
+import { useLocale } from "../../../../shared/ui/locale";
 import { notificationCopy } from "../model/notification-copy";
-import { AdminList } from "../../../shared/ui/admin-list";
-import { Badge, Button } from "../../../shared/ui/ui";
-import { CollectionToolbar } from "../../../shared/ui/collection-toolbar";
-import { SegmentedControl } from "../../../shared/ui/segmented-control";
+import { AdminList } from "../../../../shared/ui/admin-list";
+import { Badge, Button } from "../../../../shared/ui/ui";
+import { CollectionToolbar } from "../../../../shared/ui/collection-toolbar";
+import { SegmentedControl } from "../../../../shared/ui/segmented-control";
 import { useAdminNotifications } from "../hooks/useAdminNotifications";
 import type { AdminNotification } from "../model/notification-model";
 import {

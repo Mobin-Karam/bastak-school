@@ -4,7 +4,7 @@ import {
   canSubmitManualAssignment,
   displayAdvisor,
   eligibleAdvisorsForOrganization,
-} from "./onboarding.model";
+} from "./onboarding.model.ts";
 
 describe("onboarding model", () => {
   it("builds assignment payloads for both onboarding modes", () => {

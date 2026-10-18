@@ -1,9 +1,9 @@
 import { CheckCircle2, FilePenLine, SlidersHorizontal, Trash2 } from "lucide-react";
-import type { Exam } from "../../../shared/types/domain";
-import { CollectionToolbar } from "../../../shared/ui/collection-toolbar";
-import { Badge, Button, Card, Select } from "../../../shared/ui/ui";
-import { useLocale } from "../../../shared/ui/locale";
-import type { ExamFilterStatus, ExamVisibilityFilter } from "../model/exam.types";
+import type { Exam } from "../../../../shared/types/domain";
+import { CollectionToolbar } from "../../../../shared/ui/collection-toolbar";
+import { Badge, Button, Card, Select } from "../../../../shared/ui/ui";
+import { useLocale } from "../../../../shared/ui/locale";
+import type { ExamFilterStatus, ExamVisibilityFilter } from "../model/exam.types.ts";
 import { examsCopy } from "../exams-locale";
 
 export function ExamFilters({

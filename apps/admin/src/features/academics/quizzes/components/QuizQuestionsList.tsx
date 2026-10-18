@@ -1,7 +1,7 @@
 import { CheckCircle2, Pencil, Search, Trash2 } from "lucide-react";
-import { AdminList } from "../../../shared/ui/admin-list";
-import { Badge, Button, Input } from "../../../shared/ui/ui";
-import type { QuizQuestion } from "../model/quiz.types";
+import { AdminList } from "../../../../shared/ui/admin-list";
+import { Badge, Button, Input } from "../../../../shared/ui/ui";
+import type { QuizQuestion } from "../model/quiz.types.ts";
 import { useQuizCopy } from "../model/quiz-locale";
 
 type Props = {

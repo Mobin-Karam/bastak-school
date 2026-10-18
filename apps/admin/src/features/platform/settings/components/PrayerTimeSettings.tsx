@@ -1,15 +1,15 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Clock3, RotateCcw, Save, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
-import { useAuth } from "../../auth";
+import { useAuth } from "../../../identity/auth";
 import {
   deletePrayerTimes,
   getPrayerTimes,
   savePrayerTimes,
-} from "../../school-home/api/school-home.api";
-import { useModal } from "../../../shared/ui/modal";
-import { notify } from "../../../shared/ui/notifications";
-import { Button, Card, ErrorState, Input, LoadingState } from "../../../shared/ui/ui";
+} from "../../../analytics/school-home/api/school-home.api.ts";
+import { useModal } from "../../../../shared/ui/modal";
+import { notify } from "../../../../shared/ui/notifications";
+import { Button, Card, ErrorState, Input, LoadingState } from "../../../../shared/ui/ui";
 
 const prayerFields = [
   ["fajr", "صبح"],

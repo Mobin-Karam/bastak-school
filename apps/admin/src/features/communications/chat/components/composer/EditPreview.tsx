@@ -1,6 +1,6 @@
 import { X } from "lucide-react";
-import type { ChatMessage } from "../../../../shared/types/domain";
-import { useLocale } from "../../../../shared/ui/locale";
+import type { ChatMessage } from "../../../../../shared/types/domain";
+import { useLocale } from "../../../../../shared/ui/locale";
 import { chatCopy } from "../../model/chat-copy";
 
 export function EditPreview({ message, onClose }: { message: ChatMessage; onClose: () => void }) {

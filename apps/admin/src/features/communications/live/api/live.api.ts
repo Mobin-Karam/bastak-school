@@ -1,5 +1,5 @@
-import { api } from "../../../shared/api/api";
-import type { LiveSnapshot } from "../model/live.types";
+import { api } from "../../../../shared/api/api";
+import type { LiveSnapshot } from "../model/live.types.ts";
 
 type WireLiveStudent = {
   id: string;

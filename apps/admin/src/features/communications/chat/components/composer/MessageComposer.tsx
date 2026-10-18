@@ -4,10 +4,10 @@ import type { KeyboardEvent } from "react";
 
 import { useEffect, useRef } from "react";
 
-import type { ChatMessage } from "../../../../shared/types/domain";
+import type { ChatMessage } from "../../../../../shared/types/domain";
 
-import { Textarea } from "../../../../shared/ui/ui";
-import { useLocale } from "../../../../shared/ui/locale";
+import { Textarea } from "../../../../../shared/ui/ui";
+import { useLocale } from "../../../../../shared/ui/locale";
 import { chatCopy } from "../../model/chat-copy";
 
 import { EditPreview } from "./EditPreview";

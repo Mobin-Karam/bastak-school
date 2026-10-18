@@ -16,13 +16,13 @@ import {
   formatShortDate,
   getNextAlarmTimestamp,
 } from "../lib/time";
-import type { PlatformSessionStats } from "../model/clock.types";
+import type { PlatformSessionStats } from "../model/clock.types.ts";
 import { AlarmPanel } from "./AlarmPanel";
 import { SessionStats } from "./SessionStats";
 import { StopwatchPanel } from "./StopwatchPanel";
 import { TimerPanel } from "./TimerPanel";
 import { WorldClockPanel } from "./WorldClockPanel";
-import { useLocale } from "../../../shared/ui/locale";
+import { useLocale } from "../../../../shared/ui/locale";
 import { clockCopy } from "../model/clock-copy";
 
 export function HeaderClock({

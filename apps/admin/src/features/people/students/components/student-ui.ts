@@ -1,5 +1,5 @@
-import type { Student } from "../../../shared/types/domain";
-import type { AdminLanguage } from "../../../shared/ui/locale";
+import type { Student } from "../../../../shared/types/domain";
+import type { AdminLanguage } from "../../../../shared/ui/locale";
 import { studentCopy } from "../model/student-locale";
 
 export type StudentStatusFilter = "all" | "active" | "inactive" | "archived";

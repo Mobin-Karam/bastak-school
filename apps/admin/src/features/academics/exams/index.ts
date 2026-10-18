@@ -11,4 +11,4 @@ export type {
   ExamVisibilityFilter,
   RetryRequest,
   SyllabusDraft,
-} from "./model/exam.types";
+} from "./model/exam.types.ts";

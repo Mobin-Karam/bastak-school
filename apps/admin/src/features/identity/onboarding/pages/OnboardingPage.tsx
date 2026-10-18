@@ -1,28 +1,28 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { CheckCircle2, RefreshCw } from "lucide-react";
 import { useState } from "react";
-import { Button, Card } from "../../../shared/ui/ui";
-import { useLocale } from "../../../shared/ui/locale";
+import { Button, Card } from "../../../../shared/ui/ui";
+import { useLocale } from "../../../../shared/ui/locale";
 import {
   ManagementPageHeader,
   ManagementStat,
   ManagementSummaryBar,
-} from "../../../shared/ui/management-workspace";
+} from "../../../../shared/ui/management-workspace";
 import {
   assignStudent,
   listAdvisors,
   listOnboardingOrganizations,
   listPendingStudents,
-} from "../api/onboarding.api";
+} from "../api/onboarding.api.ts";
 import { OnboardingModeSelector } from "../components/OnboardingModeSelector";
 import { OnboardingQueueItem } from "../components/OnboardingQueueItem";
-import { assignmentInputFor, displayAdvisor } from "../model/onboarding.model";
+import { assignmentInputFor, displayAdvisor } from "../model/onboarding.model.ts";
 import { onboardingCopy } from "../onboarding-locale";
 import type {
   ManualAssignmentChoice,
   OnboardingMode,
   StudentAssignment,
-} from "../types/onboarding.types";
+} from "../types/onboarding.types.ts";
 
 const emptyManualChoice: ManualAssignmentChoice = { organizationId: "", advisorUserId: "" };
 

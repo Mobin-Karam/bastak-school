@@ -1,7 +1,7 @@
 import { AlertTriangle, CheckCircle2, GraduationCap, UserRound } from "lucide-react";
-import type { Student } from "../../../shared/types/domain";
-import { Button } from "../../../shared/ui/ui";
-import { useOptionalAdminLanguage } from "../../../shared/ui/locale";
+import type { Student } from "../../../../shared/types/domain";
+import { Button } from "../../../../shared/ui/ui";
+import { useOptionalAdminLanguage } from "../../../../shared/ui/locale";
 import { studentCopy } from "../model/student-locale";
 import { countData } from "../model/student-form";
 import {

@@ -1,6 +1,6 @@
 import { CalendarDays, MapPin } from "lucide-react";
-import { Card, Field, Select } from "../../../shared/ui/ui";
-import { locationLabel, locations, useLocale, type LocationId } from "../../../shared/ui/locale";
+import { Card, Field, Select } from "../../../../shared/ui/ui";
+import { locationLabel, locations, useLocale, type LocationId } from "../../../../shared/ui/locale";
 import { settingsCopy } from "../settings-locale";
 export function LocationSettings({
   locale,

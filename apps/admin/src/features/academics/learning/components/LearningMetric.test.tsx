@@ -1,7 +1,7 @@
 import { Hash } from "lucide-react";
 import { render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
-import { LocaleProvider } from "../../../shared/ui/locale";
+import { LocaleProvider } from "../../../../shared/ui/locale";
 import { LearningMetric } from "./LearningMetric";
 
 describe("LearningMetric localization", () => {

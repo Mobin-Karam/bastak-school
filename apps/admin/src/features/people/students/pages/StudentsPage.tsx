@@ -2,15 +2,15 @@ import { useDeferredValue, useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowRight, UserPlus, X } from "lucide-react";
 import { useSearchParams } from "react-router-dom";
-import type { Student } from "../../../shared/types/domain";
-import { useStudents } from "../../../shared/hooks/useStudents";
-import { normalizePersianText } from "../../../shared/lib/utils";
-import { useModal } from "../../../shared/ui/modal";
-import { useOptionalAdminLanguage } from "../../../shared/ui/locale";
-import { useAuth } from "../../auth";
-import { getApiWorkContextKey } from "../../../shared/api/api";
-import { Button, Card, EmptyState, ErrorState, LoadingState } from "../../../shared/ui/ui";
-import { ManagementMasterDetail } from "../../../shared/ui/management-workspace";
+import type { Student } from "../../../../shared/types/domain";
+import { useStudents } from "../../../../shared/hooks/useStudents";
+import { normalizePersianText } from "../../../../shared/lib/utils";
+import { useModal } from "../../../../shared/ui/modal";
+import { useOptionalAdminLanguage } from "../../../../shared/ui/locale";
+import { useAuth } from "../../../identity/auth";
+import { getApiWorkContextKey } from "../../../../shared/api/api";
+import { Button, Card, EmptyState, ErrorState, LoadingState } from "../../../../shared/ui/ui";
+import { ManagementMasterDetail } from "../../../../shared/ui/management-workspace";
 import {
   archiveStudent,
   createStudent,
@@ -22,7 +22,7 @@ import {
   resetStudentPassword,
   studentLifecycle,
   updateStudent,
-} from "../api/students.api";
+} from "../api/students.api.ts";
 import { StudentAdminAccess } from "../components/StudentAdminAccess";
 import { StudentDetail } from "../components/StudentDetail";
 import {
@@ -36,8 +36,8 @@ import { StudentOverview } from "../components/StudentOverview";
 import { StudentSecurity } from "../components/StudentSecurity";
 import { StudentSupportWorkspace } from "../components/StudentSupportWorkspace";
 import { StudentTransferWorkspace } from "../components/StudentTransferWorkspace";
-import { SpreadsheetTransferLauncher } from "../../../shared/ui/spreadsheet-transfer-launcher";
-import { getStudentSyncHealth, reviewStudentSyncHealth } from "../api/student-activity.api";
+import { SpreadsheetTransferLauncher } from "../../../../shared/ui/spreadsheet-transfer-launcher";
+import { getStudentSyncHealth, reviewStudentSyncHealth } from "../api/student-activity.api.ts";
 import {
   getStudentProfileCompleteness,
   getStudentStatus,

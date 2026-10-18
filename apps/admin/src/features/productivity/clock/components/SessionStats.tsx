@@ -1,9 +1,9 @@
 import type { ReactNode } from "react";
 import { Activity, CalendarClock, LogIn, LogOut } from "lucide-react";
 import { formatDateTime, formatDuration } from "../lib/time";
-import type { PlatformSessionStats } from "../model/clock.types";
+import type { PlatformSessionStats } from "../model/clock.types.ts";
 import { clockCopy } from "../model/clock-copy";
-import { useLocale } from "../../../shared/ui/locale";
+import { useLocale } from "../../../../shared/ui/locale";
 
 export function SessionStats({ stats }: { stats: PlatformSessionStats }) {
   const { language } = useLocale();

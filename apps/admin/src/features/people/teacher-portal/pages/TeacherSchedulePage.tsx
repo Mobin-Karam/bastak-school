@@ -1,9 +1,9 @@
 import { CalendarClock, MapPin, UsersRound } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
-import { useAuth } from "../../auth";
-import { listSchedule, type ScheduleEntry } from "../../schedule/api/schedule.api";
-import { Card, EmptyState, LoadingState } from "../../../shared/ui/ui";
+import { useAuth } from "../../../identity/auth";
+import { listSchedule, type ScheduleEntry } from "../../../academics/schedule/api/schedule.api.ts";
+import { Card, EmptyState, LoadingState } from "../../../../shared/ui/ui";
 import { TeacherClassAttendanceSheet } from "../components/TeacherClassAttendanceSheet";
 
 const weekdays = ["یکشنبه", "دوشنبه", "سه‌شنبه", "چهارشنبه", "پنجشنبه", "جمعه", "شنبه"];

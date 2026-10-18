@@ -1,8 +1,8 @@
 import { BellRing, MessageSquare, Settings2, Volume2, VolumeX } from "lucide-react";
-import { Button, Card } from "../../../shared/ui/ui";
+import { Button, Card } from "../../../../shared/ui/ui";
 import { useAdminNotifications } from "../hooks/useAdminNotifications";
 import { ToggleButton } from "./ToggleButton";
-import { useLocale } from "../../../shared/ui/locale";
+import { useLocale } from "../../../../shared/ui/locale";
 import { notificationCopy } from "../model/notification-copy";
 
 export function NotificationsToolbar({ onOpenSettings }: { onOpenSettings: () => void }) {

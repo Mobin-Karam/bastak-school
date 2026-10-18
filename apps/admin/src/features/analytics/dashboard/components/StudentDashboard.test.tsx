@@ -2,16 +2,16 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { LocaleProvider } from "../../../shared/ui/locale";
+import { LocaleProvider } from "../../../../shared/ui/locale";
 import { StudentDashboard } from "./StudentDashboard";
 
-vi.mock("../../auth", () => ({
+vi.mock("../../../identity/auth", () => ({
   useAuth: () => ({
     can: () => true,
     capabilities: ["schedule.read", "prayer_times.read", "attendance.self.read"],
   }),
 }));
-vi.mock("../../schedule/api/schedule.api", () => ({
+vi.mock("../../../academics/schedule/api/schedule.api.ts", () => ({
   listSchedule: async () => [
     {
       id: "schedule-1",
@@ -25,7 +25,7 @@ vi.mock("../../schedule/api/schedule.api", () => ({
     },
   ],
 }));
-vi.mock("../../attendance/api/attendance-operations.api", () => ({
+vi.mock("../../../student-life/attendance/api/attendance-operations.api.ts", () => ({
   getAttendanceEncouragement: async () => ({
     studentId: "student-1",
     totalSessions: 3,
@@ -37,7 +37,7 @@ vi.mock("../../attendance/api/attendance-operations.api", () => ({
     message: "برای حضور منظم‌تر برنامه‌ریزی کنید.",
   }),
 }));
-vi.mock("../api/dashboard.api", () => ({
+vi.mock("../api/dashboard.api.ts", () => ({
   getAdminDashboard: async () => ({
     context: "STUDENT",
     generatedAt: "2026-10-08T08:00:00.000Z",

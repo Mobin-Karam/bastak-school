@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { notify } from "../../../shared/ui/notifications";
-import { deleteLearningItem } from "../api/learning.api";
+import { notify } from "../../../../shared/ui/notifications";
+import { deleteLearningItem } from "../api/learning.api.ts";
 import type { LearningResponse } from "../model/learning-model";
 
 export function useLearningMutations(studentId: string) {

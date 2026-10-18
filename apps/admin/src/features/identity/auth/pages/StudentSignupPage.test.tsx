@@ -2,13 +2,13 @@ import { cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { LocaleProvider } from "../../../shared/ui/locale";
-import { getStudentSignupOptions, studentSignup } from "../api/signup.api";
+import { LocaleProvider } from "../../../../shared/ui/locale";
+import { getStudentSignupOptions, studentSignup } from "../api/signup.api.ts";
 import { StudentSignupPage } from "./StudentSignupPage";
 
-vi.mock("../api/signup.api", () => ({ getStudentSignupOptions: vi.fn(), studentSignup: vi.fn() }));
-vi.mock("../../../shared/theme/theme", async (original) => ({
-  ...(await original<typeof import("../../../shared/theme/theme")>()),
+vi.mock("../api/signup.api.ts", () => ({ getStudentSignupOptions: vi.fn(), studentSignup: vi.fn() }));
+vi.mock("../../../../shared/theme/theme", async (original) => ({
+  ...(await original<typeof import("../../../../shared/theme/theme")>()),
   ThemeSwitcher: () => null,
 }));
 afterEach(cleanup);

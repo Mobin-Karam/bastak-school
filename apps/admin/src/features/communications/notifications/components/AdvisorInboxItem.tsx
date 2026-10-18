@@ -9,16 +9,16 @@ import {
   XCircle,
 } from "lucide-react";
 import { useState } from "react";
-import { Badge, Button, Textarea } from "../../../shared/ui/ui";
-import { useLocale } from "../../../shared/ui/locale";
-import { fa } from "../../../shared/lib/utils";
+import { Badge, Button, Textarea } from "../../../../shared/ui/ui";
+import { useLocale } from "../../../../shared/ui/locale";
+import { fa } from "../../../../shared/lib/utils";
 import { inboxCreatedAt, issueTypeLabel } from "../lib/notification-utils";
 import { notificationCopy } from "../model/notification-copy";
 import type {
   AdvisorInboxRow,
   RecoveryActionInput,
   TaskIssueActionInput,
-} from "../model/notification.types";
+} from "../model/notification.types.ts";
 
 export function AdvisorInboxItem({
   row,

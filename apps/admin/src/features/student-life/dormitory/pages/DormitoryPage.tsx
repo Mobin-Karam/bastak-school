@@ -1,12 +1,12 @@
 import { Building2, Megaphone, Plus, Users } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Button, Card, ErrorState, Field, Input, Textarea } from "../../../shared/ui/ui";
-import { ManagementPageHeader } from "../../../shared/ui/management-workspace";
-import { SearchBar } from "../../../shared/ui/mobile";
-import { ResponsiveDrawer } from "../../../shared/ui/responsive-drawer";
-import { useAuth } from "../../auth";
-import { notifications, type PromiseNotificationData } from "../../../shared/ui/notifications";
-import { useOptionalAdminLanguage } from "../../../shared/ui/locale";
+import { Button, Card, ErrorState, Field, Input, Textarea } from "../../../../shared/ui/ui";
+import { ManagementPageHeader } from "../../../../shared/ui/management-workspace";
+import { SearchBar } from "../../../../shared/ui/mobile";
+import { ResponsiveDrawer } from "../../../../shared/ui/responsive-drawer";
+import { useAuth } from "../../../identity/auth";
+import { notifications, type PromiseNotificationData } from "../../../../shared/ui/notifications";
+import { useOptionalAdminLanguage } from "../../../../shared/ui/locale";
 import {
   createDormRoom,
   findDormitoryStudents,
@@ -18,7 +18,7 @@ import {
   type DormAssignment,
   type DormitoryStudent,
   type DormRoom,
-} from "../api/dormitory.api";
+} from "../api/dormitory.api.ts";
 
 const emptyRoom = { building: "ساختمان اصلی", floor: 1, code: "", name: "", capacity: 14 };
 

@@ -1,6 +1,6 @@
 import { Copy, Pencil, Reply, Trash2 } from "lucide-react";
 import type { ReactNode } from "react";
-import { useLocale } from "../../../../shared/ui/locale";
+import { useLocale } from "../../../../../shared/ui/locale";
 import { chatCopy } from "../../model/chat-copy";
 
 export function MessageContextMenu({

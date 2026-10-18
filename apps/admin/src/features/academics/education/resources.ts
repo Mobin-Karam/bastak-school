@@ -1,1 +1,1 @@
-export { ResourcesPage } from "../resources";
+export { ResourcesPage } from "../../productivity/resources";

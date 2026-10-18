@@ -1,7 +1,7 @@
 import { ChevronLeft, ChevronRight, Home } from "lucide-react";
 import { NavLink } from "react-router-dom";
-import { HeaderClock } from "../../../features/clock";
-// import { HeaderNotifications } from "../../../features/notifications";
+import { HeaderClock } from "../../../features/productivity/clock";
+// import { HeaderNotifications } from "../../../features/communications/notifications";
 import { ThemeSwitcher } from "../../../shared/theme/theme";
 import { WorkContextBar } from "../../../shared/ui/work-context-bar";
 import { PlatformOrganizationPicker } from "../../../shared/ui/platform-organization-picker";

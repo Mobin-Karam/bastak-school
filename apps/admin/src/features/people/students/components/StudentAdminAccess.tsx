@@ -9,8 +9,8 @@ import {
   NotebookTabs,
 } from "lucide-react";
 import { Link } from "react-router-dom";
-import { useAuth } from "../../auth";
-import { useOptionalAdminLanguage } from "../../../shared/ui/locale";
+import { useAuth } from "../../../identity/auth";
+import { useOptionalAdminLanguage } from "../../../../shared/ui/locale";
 import { studentCopy } from "../model/student-locale";
 
 const destinations = [

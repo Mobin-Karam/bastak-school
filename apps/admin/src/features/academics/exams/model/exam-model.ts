@@ -1,5 +1,5 @@
-import type { Exam } from "../../../shared/types/domain";
-import { normalizePersianText } from "../../../shared/lib/utils";
+import type { Exam } from "../../../../shared/types/domain";
+import { normalizePersianText } from "../../../../shared/lib/utils";
 
 export type ExamDraft = {
   title: string;

@@ -2,16 +2,16 @@ import { useQuery } from "@tanstack/react-query";
 import { ArrowLeft, CircleHelp, FilePlus2, RotateCcw, Sparkles } from "lucide-react";
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { educationNavigation } from "../../../app/layout/navigation/config/admin-navigation";
-import { ManagementPageHeader } from "../../../shared/ui/management-workspace";
-import { Button } from "../../../shared/ui/ui";
-import { useAuth } from "../../auth";
-import { useLocale } from "../../../shared/ui/locale";
-import { getExams, getRetryRequests } from "../../exams/api/exams.api";
+import { educationNavigation } from "../../../../app/layout/navigation/config/admin-navigation";
+import { ManagementPageHeader } from "../../../../shared/ui/management-workspace";
+import { Button } from "../../../../shared/ui/ui";
+import { useAuth } from "../../../identity/auth";
+import { useLocale } from "../../../../shared/ui/locale";
+import { getExams, getRetryRequests } from "../../exams/api/exams.api.ts";
 import {
   getEducationOperations,
   type EducationOperationsOverview,
-} from "../api/education-catalog.api";
+} from "../api/education-catalog.api.ts";
 import { EducationCatalogPanel } from "../components/EducationCatalogPanel";
 import { EducationExamSnapshot } from "../components/EducationExamSnapshot";
 import { EducationOperationsPanel } from "../components/EducationOperationsPanel";

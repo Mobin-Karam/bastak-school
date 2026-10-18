@@ -14,16 +14,16 @@ import {
 } from "lucide-react";
 import { useDeferredValue, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { useStudentSelection } from "../../../shared/hooks/useStudentSelection";
-import { useAuth } from "../../auth/hooks/useAuth";
-import { fa, normalizePersianText } from "../../../shared/lib/utils";
-import { useModal } from "../../../shared/ui/modal";
-import { notify } from "../../../shared/ui/notifications";
-import { StudentPicker } from "../../../shared/ui/StudentPicker";
-import { CollectionToolbar } from "../../../shared/ui/collection-toolbar";
-import { useLocale } from "../../../shared/ui/locale";
-import { SegmentedControl } from "../../../shared/ui/segmented-control";
-import { Badge, Button, Card, EmptyState, Field, Input, Select } from "../../../shared/ui/ui";
+import { useStudentSelection } from "../../../../shared/hooks/useStudentSelection";
+import { useAuth } from "../../../identity/auth/hooks/useAuth";
+import { fa, normalizePersianText } from "../../../../shared/lib/utils";
+import { useModal } from "../../../../shared/ui/modal";
+import { notify } from "../../../../shared/ui/notifications";
+import { StudentPicker } from "../../../../shared/ui/StudentPicker";
+import { CollectionToolbar } from "../../../../shared/ui/collection-toolbar";
+import { useLocale } from "../../../../shared/ui/locale";
+import { SegmentedControl } from "../../../../shared/ui/segmented-control";
+import { Badge, Button, Card, EmptyState, Field, Input, Select } from "../../../../shared/ui/ui";
 import {
   createSubject,
   commitSubjectImport,
@@ -38,13 +38,13 @@ import {
   updateStudentSubject,
   updateSubject,
   type SubjectDraft,
-} from "../api/subjects.api";
+} from "../api/subjects.api.ts";
 import type {
   EducationBook,
   StudentSubject,
   Subject,
   SubjectsMode as Mode,
-} from "../model/subject.types";
+} from "../model/subject.types.ts";
 import { TeacherAssignments } from "../components/TeacherAssignments";
 import { subjectCopy } from "../subject-locale";
 

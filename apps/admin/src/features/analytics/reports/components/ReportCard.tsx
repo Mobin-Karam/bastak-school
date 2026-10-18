@@ -7,9 +7,9 @@ import {
   Target,
   XCircle,
 } from "lucide-react";
-import { Badge } from "../../../shared/ui/ui";
-import { useLocale } from "../../../shared/ui/locale";
-import type { ReportRow } from "../api/reports.api";
+import { Badge } from "../../../../shared/ui/ui";
+import { useLocale } from "../../../../shared/ui/locale";
+import type { ReportRow } from "../api/reports.api.ts";
 import { reportCopy } from "../model/report-copy";
 import { reportAccuracy, reportNumber } from "../report-utils";
 

@@ -1,4 +1,4 @@
-import type { RoleCode } from "../../../shared/types/domain";
+import type { RoleCode } from "../../../../shared/types/domain";
 
 /**
  * Selects an existing dashboard composition for an AccountContext role. This is

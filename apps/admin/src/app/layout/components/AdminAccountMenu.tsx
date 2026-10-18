@@ -1,6 +1,6 @@
 import { ChevronDown, LogOut, ShieldCheck, UserRound } from "lucide-react";
 import { useState } from "react";
-import { useAuth } from "../../../features/auth";
+import { useAuth } from "../../../features/identity/auth";
 import { ThemeSwitcher } from "../../../shared/theme/theme";
 import { useModal } from "../../../shared/ui/modal";
 import { ViewportPopover } from "../../../shared/ui/popover";

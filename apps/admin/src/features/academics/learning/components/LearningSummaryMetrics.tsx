@@ -1,7 +1,7 @@
 import { BookOpenCheck, CalendarClock, Sparkles, TrendingUp } from "lucide-react";
 import type { LearningSummary } from "../model/learning-model";
 import { LearningMetric } from "./LearningMetric";
-import { useLocale } from "../../../shared/ui/locale";
+import { useLocale } from "../../../../shared/ui/locale";
 import { learningCopy } from "../learning-locale";
 
 export function LearningSummaryMetrics({ summary }: { summary?: LearningSummary }) {

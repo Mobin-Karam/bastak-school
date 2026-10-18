@@ -14,21 +14,21 @@ import {
   UserRound,
   GraduationCap,
 } from "lucide-react";
-import type { RoleCode } from "../../shared/types/domain";
-import { Button, Card, EmptyState, Field, Input, Select } from "../../shared/ui/ui";
-import { DataTable } from "../../shared/ui/data-table";
-import { ResponsiveModal } from "../../shared/ui/responsive-modal";
-import { useModal } from "../../shared/ui/modal";
-import { notify } from "../../shared/ui/notifications";
-import { roleLabel } from "../../shared/lib/role-ui";
+import type { RoleCode } from "../../../shared/types/domain";
+import { Button, Card, EmptyState, Field, Input, Select } from "../../../shared/ui/ui";
+import { DataTable } from "../../../shared/ui/data-table";
+import { ResponsiveModal } from "../../../shared/ui/responsive-modal";
+import { useModal } from "../../../shared/ui/modal";
+import { notify } from "../../../shared/ui/notifications";
+import { roleLabel } from "../../../shared/lib/role-ui";
 import { useAuth } from "../auth";
-import { useLocale } from "../../shared/ui/locale";
+import { useLocale } from "../../../shared/ui/locale";
 import { accessCopy } from "./model/access-copy";
 import {
   principalAssignableRoles,
   rolesForOrganizationType,
   type AdminOrganizationType,
-} from "../../shared/lib/organization-role-policy";
+} from "../../../shared/lib/organization-role-policy";
 import {
   acceptRelationship,
   addOrganizationMember,
@@ -45,7 +45,7 @@ import {
   setOrganizationStudentSignupPolicy,
   type OrganizationMember,
   type RelationshipStudent,
-} from "./api/access.api";
+} from "./api/access.api.ts";
 
 const statusTones: Record<string, string> = {
   PENDING:

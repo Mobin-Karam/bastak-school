@@ -2,24 +2,24 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { BellRing, UsersRound } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { useAuth } from "../../auth";
-import { getAttendanceOverview } from "../../attendance/public";
-import { listSchedule } from "../../schedule/api/schedule.api";
+import { useAuth } from "../../../identity/auth";
+import { getAttendanceOverview } from "../../../student-life/attendance/public";
+import { listSchedule } from "../../../academics/schedule/api/schedule.api.ts";
 import { DashboardCalendar } from "../../dashboard/components/DashboardCalendar";
-import { todayIso } from "../../../shared/lib/utils";
-import { notify } from "../../../shared/ui/notifications";
-import { api } from "../../../shared/api/api";
-import { Button, Card, Input, LoadingState, Textarea } from "../../../shared/ui/ui";
+import { todayIso } from "../../../../shared/lib/utils";
+import { notify } from "../../../../shared/ui/notifications";
+import { api } from "../../../../shared/api/api";
+import { Button, Card, Input, LoadingState, Textarea } from "../../../../shared/ui/ui";
 import {
   createAnnouncement,
   getPrayerTimes,
   listAnnouncements,
   type SchoolAnnouncement,
   updateAnnouncement,
-} from "../api/school-home.api";
+} from "../api/school-home.api.ts";
 import { CurrentPrayerCard } from "./CurrentPrayerCard";
 import { SchoolOccupancyBanner } from "./SchoolOccupancyBanner";
-import { ResponsiveDrawer } from "../../../shared/ui/responsive-drawer";
+import { ResponsiveDrawer } from "../../../../shared/ui/responsive-drawer";
 
 /** Principal and supervisor home: school calendar, live prayer time, announcements and attendance totals. */
 export function SchoolManagerDashboard() {

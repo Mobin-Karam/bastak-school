@@ -1,14 +1,14 @@
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Layers3, Pencil, Plus, Trash2, Users } from "lucide-react";
-import { useAuth } from "../../auth";
-import { useLocale } from "../../../shared/ui/locale";
-import { Button, Card, EmptyState, Field, Input, Select, Textarea } from "../../../shared/ui/ui";
-import { ResponsiveDrawer } from "../../../shared/ui/responsive-drawer";
-import { useModal } from "../../../shared/ui/modal";
-import { notify } from "../../../shared/ui/notifications";
-import { ManagementPageHeader } from "../../../shared/ui/management-workspace";
-import { SearchBar } from "../../../shared/ui/mobile/forms";
+import { useAuth } from "../../../identity/auth";
+import { useLocale } from "../../../../shared/ui/locale";
+import { Button, Card, EmptyState, Field, Input, Select, Textarea } from "../../../../shared/ui/ui";
+import { ResponsiveDrawer } from "../../../../shared/ui/responsive-drawer";
+import { useModal } from "../../../../shared/ui/modal";
+import { notify } from "../../../../shared/ui/notifications";
+import { ManagementPageHeader } from "../../../../shared/ui/management-workspace";
+import { SearchBar } from "../../../../shared/ui/mobile/forms";
 import {
   createClassGroup,
   updateClassGroup,
@@ -19,7 +19,7 @@ import {
   listGroupStudents,
   setGroupMembers,
   type ClassGroupSummary,
-} from "../api/class-groups.api";
+} from "../api/class-groups.api.ts";
 
 const errorMessage = (error: unknown, fa: boolean) =>
   error instanceof Error

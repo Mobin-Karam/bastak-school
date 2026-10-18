@@ -1,6 +1,6 @@
 import { Power, Save, Trash2 } from "lucide-react";
-import { Button, Card, Field, Input } from "../../../shared/ui/ui";
-import type { Quiz, QuizDraft } from "../model/quiz.types";
+import { Button, Card, Field, Input } from "../../../../shared/ui/ui";
+import type { Quiz, QuizDraft } from "../model/quiz.types.ts";
 import { useQuizCopy } from "../model/quiz-locale";
 export function QuizEditor({
   quiz,

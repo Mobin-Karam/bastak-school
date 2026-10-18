@@ -13,13 +13,13 @@ import {
   UserRoundCheck,
 } from "lucide-react";
 
-import type { Exam } from "../../../shared/types/domain";
-import { Badge, Button, Card, EmptyState } from "../../../shared/ui/ui";
-import { SegmentedControl } from "../../../shared/ui/segmented-control";
-import { useLocale } from "../../../shared/ui/locale";
+import type { Exam } from "../../../../shared/types/domain";
+import { Badge, Button, Card, EmptyState } from "../../../../shared/ui/ui";
+import { SegmentedControl } from "../../../../shared/ui/segmented-control";
+import { useLocale } from "../../../../shared/ui/locale";
 import { examsCopy } from "../exams-locale";
 import { ExamCard } from "./ExamCard";
-import { useViewportShell } from "../../../app/layout/lib/viewport-shell";
+import { useViewportShell } from "../../../../app/layout/lib/viewport-shell";
 
 type ViewMode = "grid" | "list";
 

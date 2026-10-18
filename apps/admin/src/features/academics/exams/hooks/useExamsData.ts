@@ -1,8 +1,8 @@
 import { useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { getExams, getRetryRequests } from "../api/exams.api";
+import { getExams, getRetryRequests } from "../api/exams.api.ts";
 import { matchesExam } from "../model/exam-model";
-import type { ExamFilterStatus, ExamVisibilityFilter } from "../model/exam.types";
+import type { ExamFilterStatus, ExamVisibilityFilter } from "../model/exam.types.ts";
 
 export function useExamsData({
   search,

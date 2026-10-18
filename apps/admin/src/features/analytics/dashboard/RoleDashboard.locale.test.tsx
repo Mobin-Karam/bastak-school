@@ -1,18 +1,18 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { MemoryRouter, useLocation } from "react-router-dom";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { LocaleProvider } from "../../shared/ui/locale";
+import { LocaleProvider } from "../../../shared/ui/locale";
 import { RoleDashboard } from "./components/RoleDashboard";
 
 const { viewportShellMock } = vi.hoisted(() => ({
   viewportShellMock: vi.fn(() => "desktop"),
 }));
 
-vi.mock("../auth", () => ({
+vi.mock("../../identity/auth", () => ({
   useAuth: () => ({ activeRole: "ADVISOR", capabilities: ["exams.read"], can: () => false }),
 }));
 
-vi.mock("../../app/layout/lib/viewport-shell", () => ({
+vi.mock("../../../app/layout/lib/viewport-shell", () => ({
   useViewportShell: viewportShellMock,
 }));
 

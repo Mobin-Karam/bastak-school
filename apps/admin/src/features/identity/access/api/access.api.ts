@@ -1,7 +1,7 @@
 import type { OrganizationAuthProfile } from "@moshaver/api-contract";
-import { api } from "../../../shared/api/api";
-import type { RoleCode } from "../../../shared/types/domain";
-import type { AdminOrganizationType } from "../../../shared/lib/organization-role-policy";
+import { api } from "../../../../shared/api/api";
+import type { RoleCode } from "../../../../shared/types/domain";
+import type { AdminOrganizationType } from "../../../../shared/lib/organization-role-policy";
 
 export type PortalUser = {
   id: string;

@@ -1,18 +1,18 @@
 import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSearchParams } from "react-router-dom";
-import { useModal } from "../../../shared/ui/modal";
+import { useModal } from "../../../../shared/ui/modal";
 import {
   AssessmentMetric,
   AssessmentWorkspaceIntro,
-} from "../../../shared/ui/assessment-workspace-intro";
+} from "../../../../shared/ui/assessment-workspace-intro";
 import { BookOpen, CircleHelp, Pencil, Plus } from "lucide-react";
-import { notify } from "../../../shared/ui/notifications";
-import { useAuth } from "../../auth/hooks/useAuth";
-import { listStudents } from "../../students/api/students.api";
-import { listClasses } from "../../education/api/classes.api";
-import { StudentAllocationControl } from "../../../shared/ui/student-allocation-control";
-import { Button, Card } from "../../../shared/ui/ui";
+import { notify } from "../../../../shared/ui/notifications";
+import { useAuth } from "../../../identity/auth/hooks/useAuth";
+import { listStudents } from "../../../people/students/api/students.api.ts";
+import { listClasses } from "../../education/api/classes.api.ts";
+import { StudentAllocationControl } from "../../../../shared/ui/student-allocation-control";
+import { Button, Card } from "../../../../shared/ui/ui";
 import {
   emptyQuestion,
   questionDraft,
@@ -35,15 +35,15 @@ import {
   setQuizClassAssignments,
   updateQuiz,
   updateQuizQuestion,
-} from "../api/quizzes.api";
+} from "../api/quizzes.api.ts";
 import { QuizEditor } from "../components/QuizEditor";
 import { QuizQuestionEditor } from "../components/QuizQuestionEditor";
 import { QuizQuestionsList } from "../components/QuizQuestionsList";
 import { QuizSidebar } from "../components/QuizSidebar";
 import { QuizQuestionBankPanel } from "../components/QuizQuestionBankPanel";
-import type { QuizDraft } from "../model/quiz.types";
+import type { QuizDraft } from "../model/quiz.types.ts";
 import { useQuizCopy } from "../model/quiz-locale";
-import { normalizePersianText } from "../../../shared/lib/utils";
+import { normalizePersianText } from "../../../../shared/lib/utils";
 export function QuizzesPage() {
   const copy = useQuizCopy();
   const qc = useQueryClient();
@@ -543,7 +543,7 @@ export function QuizzesPage() {
   );
 }
 
-function QuizAnalyticsPanel({ value }: { value: import("../api/quizzes.api").QuizAnalytics }) {
+function QuizAnalyticsPanel({ value }: { value: import("../api/quizzes.api.ts").QuizAnalytics }) {
   const copy = useQuizCopy();
   return (
     <Card className="grid gap-3 p-3">
@@ -889,7 +889,7 @@ function QuizEditorModal({
   onDelete,
 }: {
   initial: QuizDraft;
-  selected?: import("../model/quiz.types").Quiz;
+  selected?: import("../model/quiz.types.ts").Quiz;
   busy: boolean;
   onSave: (draft: QuizDraft) => Promise<void>;
   onToggle: () => void;

@@ -1,7 +1,7 @@
 import { SmilePlus } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
-import { chatApi } from "../../api/chat.api";
-import { useLocale } from "../../../../shared/ui/locale";
+import { chatApi } from "../../api/chat.api.ts";
+import { useLocale } from "../../../../../shared/ui/locale";
 import { chatCopy } from "../../model/chat-copy";
 
 const fallback = ["❤️", "👍", "😂", "👏", "😮", "😢", "🔥", "🎉", "🙏", "✅"];

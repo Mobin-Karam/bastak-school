@@ -1,4 +1,4 @@
-import { useLocale } from "../../shared/ui/locale";
+import { useLocale } from "../../../shared/ui/locale";
 
 const copy = {
   fa: {

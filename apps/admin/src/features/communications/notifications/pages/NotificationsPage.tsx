@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { useStudentSelection } from "../../../shared/hooks/useStudentSelection";
-import { useModal } from "../../../shared/ui/modal";
+import { useStudentSelection } from "../../../../shared/hooks/useStudentSelection";
+import { useModal } from "../../../../shared/ui/modal";
 import { AdvisorInboxPanel } from "../components/AdvisorInboxPanel";
 import { MobileNotificationTabs } from "../components/MobileNotificationTabs";
 import { NotificationCenterPanel } from "../components/NotificationCenterPanel";
@@ -10,10 +10,10 @@ import { NotificationsToolbar } from "../components/NotificationsToolbar";
 import { useAdminNotifications } from "../hooks/useAdminNotifications";
 import { useAdvisorInbox } from "../hooks/useAdvisorInbox";
 import { useFilteredNotifications } from "../hooks/useFilteredNotifications";
-import { useAuth } from "../../auth";
-import { useLocale } from "../../../shared/ui/locale";
+import { useAuth } from "../../../identity/auth";
+import { useLocale } from "../../../../shared/ui/locale";
 import { notificationCopy } from "../model/notification-copy";
-import { useViewportShell } from "../../../app/layout/lib/viewport-shell";
+import { useViewportShell } from "../../../../app/layout/lib/viewport-shell";
 
 const notificationTypes = ["all", "message", "exam", "lesson", "announcement"] as const;
 

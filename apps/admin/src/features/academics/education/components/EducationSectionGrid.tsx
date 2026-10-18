@@ -3,8 +3,8 @@
 // ─────────────────────────────────────────────────────────────
 import { Link } from "react-router-dom";
 import { ArrowUpLeft, ArrowUpRight } from "lucide-react";
-import { EducationSection } from "../model/eduction.types";
-import { useLocale } from "../../../shared/ui/locale";
+import { EducationSection } from "../model/eduction.types.ts";
+import { useLocale } from "../../../../shared/ui/locale";
 
 const CARD_CLASS = [
   "group relative flex items-center gap-2.5 rounded-xl px-3 py-2.5",

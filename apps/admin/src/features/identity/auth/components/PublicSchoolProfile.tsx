@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import type { PublicOrganizationProfile } from "@moshaver/api-contract";
-import { request } from "../../../shared/api/api";
+import { request } from "../../../../shared/api/api";
 
 const SchoolProfileContext = createContext<{
   schools: PublicOrganizationProfile[];

@@ -1,10 +1,10 @@
-import { api } from "../../../shared/api/api";
+import { api } from "../../../../shared/api/api";
 import type {
   AttentionReason,
   AttentionStudent,
   RoleDashboardData,
   DashboardWorkQueue,
-} from "../model/dashboard.types";
+} from "../model/dashboard.types.ts";
 
 type AttentionSignal = {
   type?: string;

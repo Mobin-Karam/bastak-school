@@ -1,8 +1,8 @@
 import { cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, expect, it } from "vitest";
-import { ThemeProvider, ThemeSwitcher } from "../../../shared/theme/theme";
-import { LocaleProvider } from "../../../shared/ui/locale";
+import { ThemeProvider, ThemeSwitcher } from "../../../../shared/theme/theme";
+import { LocaleProvider } from "../../../../shared/ui/locale";
 import { LoginShell } from "./LoginShell";
 
 beforeEach(() => localStorage.clear());

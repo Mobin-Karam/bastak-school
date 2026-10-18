@@ -5,12 +5,12 @@ import {
   useMutation,
   useQueryClient,
 } from "@tanstack/react-query";
-import { notify } from "../../../shared/ui/notifications";
+import { notify } from "../../../../shared/ui/notifications";
 import {
   getNotificationsPage,
   markAllNotificationsRead,
   markNotificationRead,
-} from "../api/notifications.api";
+} from "../api/notifications.api.ts";
 import {
   getHttpStatus,
   notificationRequestErrorMessage,

@@ -1,4 +1,4 @@
-import { api } from "../../../shared/api/api";
+import { api } from "../../../../shared/api/api";
 
 export const getStudentActivity = (id: string, limit = 300) =>
   api.get<unknown[]>(`/students/${id}/activity?limit=${limit}`);

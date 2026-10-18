@@ -3,24 +3,24 @@ import { cleanup, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, useLocation } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { LocaleProvider } from "../../../shared/ui/locale";
-import { ModalProvider } from "../../../shared/ui/modal";
+import { LocaleProvider } from "../../../../shared/ui/locale";
+import { ModalProvider } from "../../../../shared/ui/modal";
 import { BookShelfPage } from "./BookShelfPage";
 import {
   getClassOptions,
   listClasses,
   setClassBooks,
   type EducationClass,
-} from "../api/classes.api";
+} from "../api/classes.api.ts";
 import {
   createEducationBook,
   deleteEducationBook,
   updateEducationBook,
   type ManagedEducationBook,
-} from "../api/education-catalog.api";
+} from "../api/education-catalog.api.ts";
 
 const authority = vi.hoisted(() => ({ manage: true, organizationId: "org-one" }));
-vi.mock("../../auth", () => ({
+vi.mock("../../../identity/auth", () => ({
   useAuth: () => ({
     user: { id: "staff-one" },
     activeRole: "ORGANIZATION_ADMIN",
@@ -30,17 +30,17 @@ vi.mock("../../auth", () => ({
       (authority.manage && capability === "education.catalog.manage"),
   }),
 }));
-vi.mock("../api/classes.api", () => ({
+vi.mock("../api/classes.api.ts", () => ({
   listClasses: vi.fn(),
   setClassBooks: vi.fn(),
   getClassOptions: vi.fn(),
 }));
-vi.mock("../api/education-catalog.api", () => ({
+vi.mock("../api/education-catalog.api.ts", () => ({
   createEducationBook: vi.fn(),
   deleteEducationBook: vi.fn(),
   updateEducationBook: vi.fn(),
 }));
-vi.mock("../../../shared/ui/notifications", () => ({ notify: vi.fn() }));
+vi.mock("../../../../shared/ui/notifications", () => ({ notify: vi.fn() }));
 const fixture = (): EducationClass => ({
   id: "class-one",
   organization: { id: "org-one", name: "School One" },

@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { render, screen } from "@testing-library/react";
-import { LocaleProvider } from "../../shared/ui/locale";
+import { LocaleProvider } from "../../../shared/ui/locale";
 import { ReportSummary } from "./components/ReportSummary";
 
 describe("ReportSummary localization", () => {

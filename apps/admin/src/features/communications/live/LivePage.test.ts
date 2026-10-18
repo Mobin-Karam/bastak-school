@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { normalizeLiveSnapshot } from "./api/live.api";
+import { normalizeLiveSnapshot } from "./api/live.api.ts";
 import { filterLiveStudents, needsAttention, type LiveStudent } from "./LivePage";
 
 const students: LiveStudent[] = [

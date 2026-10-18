@@ -4,8 +4,8 @@ import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AuthProvider } from "./AuthProvider";
 import { LoginPage } from "./LoginPage";
-import { ThemeProvider } from "../../shared/theme/theme";
-import { LocaleProvider } from "../../shared/ui/locale";
+import { ThemeProvider } from "../../../shared/theme/theme";
+import { LocaleProvider } from "../../../shared/ui/locale";
 
 afterEach(cleanup);
 beforeEach(() => localStorage.clear());

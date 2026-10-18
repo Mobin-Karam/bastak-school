@@ -8,12 +8,12 @@ import {
   UserRound,
 } from "lucide-react";
 import { Link } from "react-router-dom";
-import { AdminList } from "../../../shared/ui/admin-list";
-import { Badge, Button } from "../../../shared/ui/ui";
-import { ManagementPageHeader } from "../../../shared/ui/management-workspace";
-import { CollectionToolbar } from "../../../shared/ui/collection-toolbar";
-import { useLocale } from "../../../shared/ui/locale";
-import { getAttentionQueue, type AttentionItem } from "../api/attention.api";
+import { AdminList } from "../../../../shared/ui/admin-list";
+import { Badge, Button } from "../../../../shared/ui/ui";
+import { ManagementPageHeader } from "../../../../shared/ui/management-workspace";
+import { CollectionToolbar } from "../../../../shared/ui/collection-toolbar";
+import { useLocale } from "../../../../shared/ui/locale";
+import { getAttentionQueue, type AttentionItem } from "../api/attention.api.ts";
 import { useMemo, useState } from "react";
 import {
   attentionCopy,

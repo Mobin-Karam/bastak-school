@@ -1,7 +1,7 @@
 import { Archive, CheckCircle2, CircleOff, FileWarning, UsersRound } from "lucide-react";
 
 import type { StudentStatusFilter } from "./student-ui";
-import { useOptionalAdminLanguage } from "../../../shared/ui/locale";
+import { useOptionalAdminLanguage } from "../../../../shared/ui/locale";
 import { studentCopy } from "../model/student-locale";
 
 const items = [

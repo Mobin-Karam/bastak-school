@@ -1,10 +1,10 @@
 import { ArrowUpLeft, ClipboardCheck, Target } from "lucide-react";
 import { Link } from "react-router-dom";
-import { Card, EmptyState } from "../../../../shared/ui/ui";
-import { fa } from "../../../../shared/lib/utils";
-import { useLocale } from "../../../../shared/ui/locale";
+import { Card, EmptyState } from "../../../../../shared/ui/ui";
+import { fa } from "../../../../../shared/lib/utils";
+import { useLocale } from "../../../../../shared/ui/locale";
 import { dashboardCopy } from "../../model/dashboard-copy";
-import type { DashboardRecentReport } from "../../model/dashboard.types";
+import type { DashboardRecentReport } from "../../model/dashboard.types.ts";
 
 function reportStudentId(report: DashboardRecentReport) {
   return report.studentId || report.student_id || "";

@@ -12,16 +12,16 @@ import {
   UserRound,
 } from "lucide-react";
 import { useMemo, useState, type ReactNode } from "react";
-import { listOrganizations } from "../../access/api/access.api";
-import { useAuth } from "../../auth";
-import { listClasses } from "../../education/api/classes.api";
-import { Button, Card, EmptyState, Input, LoadingState } from "../../../shared/ui/ui";
-import { notify } from "../../../shared/ui/notifications";
+import { listOrganizations } from "../../../identity/access/api/access.api.ts";
+import { useAuth } from "../../../identity/auth";
+import { listClasses } from "../../education/api/classes.api.ts";
+import { Button, Card, EmptyState, Input, LoadingState } from "../../../../shared/ui/ui";
+import { notify } from "../../../../shared/ui/notifications";
 import {
   defineSpreadsheet,
   downloadSpreadsheet,
   readSpreadsheet,
-} from "../../../shared/lib/spreadsheet-transfer";
+} from "../../../../shared/lib/spreadsheet-transfer";
 import {
   archiveScheduleEntry,
   commitScheduleImport,
@@ -32,16 +32,16 @@ import {
   previewScheduleImport,
   type ScheduleDraft,
   updateScheduleEntry,
-} from "../api/schedule.api";
-import type { ScheduleEntry } from "../api/schedule.api";
-import { TeacherSchedulePage } from "../../teacher-portal";
-import { OrganizationTag } from "../../../shared/ui/organization-tag";
-import { todayIso } from "../../../shared/lib/utils";
-import { useModal } from "../../../shared/ui/modal";
-import { SpreadsheetTransferActions } from "../../../shared/ui/spreadsheet-transfer-actions";
-import { SpreadsheetTransferLauncher } from "../../../shared/ui/spreadsheet-transfer-launcher";
-import { useViewportShell } from "../../../app/layout/lib/viewport-shell";
-import { MobileTabs } from "../../../shared/ui/mobile";
+} from "../api/schedule.api.ts";
+import type { ScheduleEntry } from "../api/schedule.api.ts";
+import { TeacherSchedulePage } from "../../../people/teacher-portal";
+import { OrganizationTag } from "../../../../shared/ui/organization-tag";
+import { todayIso } from "../../../../shared/lib/utils";
+import { useModal } from "../../../../shared/ui/modal";
+import { SpreadsheetTransferActions } from "../../../../shared/ui/spreadsheet-transfer-actions";
+import { SpreadsheetTransferLauncher } from "../../../../shared/ui/spreadsheet-transfer-launcher";
+import { useViewportShell } from "../../../../app/layout/lib/viewport-shell";
+import { MobileTabs } from "../../../../shared/ui/mobile";
 
 const weekdays = ["شنبه", "یکشنبه", "دوشنبه", "سه‌شنبه", "چهارشنبه", "پنجشنبه", "جمعه"];
 const blank = (): ScheduleDraft => ({

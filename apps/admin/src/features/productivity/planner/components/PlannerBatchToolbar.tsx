@@ -1,5 +1,5 @@
 import { CheckSquare, X } from "lucide-react";
-import { useLocale } from "../../../shared/ui/locale";
+import { useLocale } from "../../../../shared/ui/locale";
 import { plannerCopy } from "../model/planner-copy";
 
 export function PlannerBatchToolbar({

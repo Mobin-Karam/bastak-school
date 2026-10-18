@@ -1,13 +1,13 @@
 import { createContext, useMemo, type ReactNode } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { useAuth } from "../../auth/hooks/useAuth";
+import { useAuth } from "../../../identity/auth/hooks/useAuth";
 import { useNotificationInbox } from "../hooks/useNotificationInbox";
 import { useNotificationRealtime } from "../hooks/useNotificationRealtime";
 import { useNotificationSound } from "../hooks/useNotificationSound";
 import { usePushNotifications } from "../hooks/usePushNotifications";
-import type { NotificationContextValue } from "../model/notification.types";
-import { useModal } from "../../../shared/ui/modal";
-import { Button } from "../../../shared/ui/ui";
+import type { NotificationContextValue } from "../model/notification.types.ts";
+import { useModal } from "../../../../shared/ui/modal";
+import { Button } from "../../../../shared/ui/ui";
 
 export const NotificationContext = createContext<NotificationContextValue | null>(null);
 

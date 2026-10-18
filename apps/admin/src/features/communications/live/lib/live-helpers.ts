@@ -1,6 +1,6 @@
-import { normalizePersianText } from "../../../shared/lib/utils";
-import type { LiveEvent, LiveFilter, LiveState, LiveStudent } from "../model/live.types";
-import type { AdminLanguage } from "../../../shared/ui/locale";
+import { normalizePersianText } from "../../../../shared/lib/utils";
+import type { LiveEvent, LiveFilter, LiveState, LiveStudent } from "../model/live.types.ts";
+import type { AdminLanguage } from "../../../../shared/ui/locale";
 import { liveActivityCopy, liveStateCopy } from "../model/live-copy";
 
 export function needsAttention(student: LiveStudent) {

@@ -1,16 +1,16 @@
 import { useEffect, useId, useMemo, useState } from "react";
 import { Check, RefreshCw, X } from "lucide-react";
-import { api } from "../../shared/api/api";
-import { AdminList } from "../../shared/ui/admin-list";
-import { CollectionToolbar } from "../../shared/ui/collection-toolbar";
+import { api } from "../../../shared/api/api";
+import { AdminList } from "../../../shared/ui/admin-list";
+import { CollectionToolbar } from "../../../shared/ui/collection-toolbar";
 import {
   ManagementPageHeader,
   ManagementStat,
   ManagementSummaryBar,
-} from "../../shared/ui/management-workspace";
-import { useModal } from "../../shared/ui/modal";
-import { Badge, Button, Textarea } from "../../shared/ui/ui";
-import { useLocale, useOptionalAdminLanguage } from "../../shared/ui/locale";
+} from "../../../shared/ui/management-workspace";
+import { useModal } from "../../../shared/ui/modal";
+import { Badge, Button, Textarea } from "../../../shared/ui/ui";
+import { useLocale, useOptionalAdminLanguage } from "../../../shared/ui/locale";
 import { permissionRequestsCopy } from "./permission-requests-locale";
 
 type Request = {

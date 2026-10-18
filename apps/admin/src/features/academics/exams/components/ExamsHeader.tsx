@@ -1,7 +1,7 @@
 import { History, Plus, Upload } from "lucide-react";
-import { StudentPicker } from "../../../shared/ui/StudentPicker";
-import { Button } from "../../../shared/ui/ui";
-import { useLocale } from "../../../shared/ui/locale";
+import { StudentPicker } from "../../../../shared/ui/StudentPicker";
+import { Button } from "../../../../shared/ui/ui";
+import { useLocale } from "../../../../shared/ui/locale";
 import { examsCopy } from "../exams-locale";
 
 export function ExamsHeader({

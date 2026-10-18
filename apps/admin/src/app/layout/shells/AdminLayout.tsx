@@ -1,8 +1,8 @@
-import { StudentAttendancePoolPrompt } from "../../../features/attendance/public";
+import { StudentAttendancePoolPrompt } from "../../../features/student-life/attendance/public";
 import { useQuery } from "@tanstack/react-query";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Outlet, useNavigate } from "react-router-dom";
-import { useAuth } from "../../../features/auth";
+import { useAuth } from "../../../features/identity/auth";
 import { AdminCommandPalette } from "../command-palette/AdminCommandPalette";
 import { adminContentOffsetClass } from "../lib/layout-geometry";
 import { api } from "../../../shared/api/api";

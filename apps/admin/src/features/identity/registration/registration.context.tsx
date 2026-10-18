@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect } from "react";
-import { useRegistrationSelf } from "./registration.hooks";
+import { useRegistrationSelf } from "./registration.hooks.ts";
 
 interface RegistrationContextType {
   student: any;

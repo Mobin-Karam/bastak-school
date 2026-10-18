@@ -2,7 +2,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { cleanup, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { ScheduleEntry } from "../../schedule/api/schedule.api";
+import type { ScheduleEntry } from "../../../academics/schedule/api/schedule.api.ts";
 import { TeacherClassAttendanceSheet } from "./TeacherClassAttendanceSheet";
 
 const {
@@ -15,13 +15,13 @@ const {
   bulkMarkAttendanceMock: vi.fn(),
 }));
 
-vi.mock("../../attendance/api/attendance.api", () => ({
+vi.mock("../../../student-life/attendance/api/attendance.api.ts", () => ({
   getAttendanceParticipants: getAttendanceParticipantsMock,
   listMyAttendanceAbsenceReviews: listMyAttendanceAbsenceReviewsMock,
   bulkMarkAttendance: bulkMarkAttendanceMock,
 }));
 
-vi.mock("../../auth", () => ({
+vi.mock("../../../identity/auth", () => ({
   useAuth: () => ({
     user: { id: "staff" },
     activeRole: "TEACHER",
@@ -29,11 +29,11 @@ vi.mock("../../auth", () => ({
   }),
 }));
 
-vi.mock("../../../shared/api/api", () => ({
+vi.mock("../../../../shared/api/api", () => ({
   api: { openEvents: () => ({ close: vi.fn() }) },
 }));
 
-vi.mock("../../../shared/ui/notifications", () => ({ notify: vi.fn() }));
+vi.mock("../../../../shared/ui/notifications", () => ({ notify: vi.fn() }));
 
 const entry: ScheduleEntry = {
   id: "schedule-1",

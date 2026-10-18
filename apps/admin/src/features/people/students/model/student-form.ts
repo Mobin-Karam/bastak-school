@@ -1,4 +1,4 @@
-import type { Student } from "../../../shared/types/domain";
+import type { Student } from "../../../../shared/types/domain";
 export type StudentForm = {
   name: string;
   firstName: string;

@@ -1,12 +1,12 @@
 import { ArrowRight, CheckCheck, LoaderCircle, Search, X } from "lucide-react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useState } from "react";
-import type { Conversation } from "../../../../shared/types/domain";
-import type { GroupDetail } from "../../model/group.types";
+import type { Conversation } from "../../../../../shared/types/domain";
+import type { GroupDetail } from "../../model/group.types.ts";
 import { GroupInfoButton } from "../group/GroupChatControls";
-import { chatApi } from "../../api/chat.api";
-import { notify } from "../../../../shared/ui/notifications";
-import { useLocale } from "../../../../shared/ui/locale";
+import { chatApi } from "../../api/chat.api.ts";
+import { notify } from "../../../../../shared/ui/notifications";
+import { useLocale } from "../../../../../shared/ui/locale";
 import { chatCopy } from "../../model/chat-copy";
 
 export function ChatHeader({

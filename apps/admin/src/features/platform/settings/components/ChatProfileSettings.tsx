@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { MessageCircle, RefreshCw } from "lucide-react";
-import { chatApi } from "../../chat/api/chat.api";
-import { notify } from "../../../shared/ui/notifications";
-import { Button, Card, ErrorState, Field, Input, Textarea } from "../../../shared/ui/ui";
-import { useLocale } from "../../../shared/ui/locale";
+import { chatApi } from "../../../communications/chat/api/chat.api.ts";
+import { notify } from "../../../../shared/ui/notifications";
+import { Button, Card, ErrorState, Field, Input, Textarea } from "../../../../shared/ui/ui";
+import { useLocale } from "../../../../shared/ui/locale";
 import { settingsCopy } from "../settings-locale";
 
 export function ChatProfileSettings() {

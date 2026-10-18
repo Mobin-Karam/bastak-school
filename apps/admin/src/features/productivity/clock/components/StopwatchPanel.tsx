@@ -2,7 +2,7 @@ import { Flag, Pause, Play, RotateCcw } from "lucide-react";
 import { useStopwatch } from "../hooks/useStopwatch";
 import { formatStopwatchDuration } from "../lib/time";
 import { clockCopy } from "../model/clock-copy";
-import { useLocale } from "../../../shared/ui/locale";
+import { useLocale } from "../../../../shared/ui/locale";
 
 export function StopwatchPanel() {
   const { language } = useLocale();

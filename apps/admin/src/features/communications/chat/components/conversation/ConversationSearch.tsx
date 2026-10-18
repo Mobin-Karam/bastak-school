@@ -1,6 +1,6 @@
 import { Search } from "lucide-react";
-import type { ConversationFilter } from "../../model/chat.types";
-import { useLocale } from "../../../../shared/ui/locale";
+import type { ConversationFilter } from "../../model/chat.types.ts";
+import { useLocale } from "../../../../../shared/ui/locale";
 import { chatCopy } from "../../model/chat-copy";
 
 export function ConversationSearch({

@@ -1,5 +1,5 @@
-import type { MessageAction } from "./chat.types";
-import type { GroupDetail, GroupRole, PermissionKey } from "./group.types";
+import type { MessageAction } from "./chat.types.ts";
+import type { GroupDetail, GroupRole, PermissionKey } from "./group.types.ts";
 
 export const permissionLabels: Array<[PermissionKey, string]> = [
   ["members_can_send_messages", "اعضا بتوانند پیام بفرستند"],

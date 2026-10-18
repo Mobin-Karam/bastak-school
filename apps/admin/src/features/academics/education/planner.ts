@@ -1,1 +1,1 @@
-export { PlannerPage, PlanTemplatesPage } from "../planner";
+export { PlannerPage, PlanTemplatesPage } from "../../productivity/planner";

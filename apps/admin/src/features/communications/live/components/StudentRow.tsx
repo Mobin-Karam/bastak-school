@@ -1,8 +1,8 @@
 import { AlertTriangle } from "lucide-react";
-import { Badge } from "../../../shared/ui/ui";
+import { Badge } from "../../../../shared/ui/ui";
 import { elapsed, needsAttention, stateLabel, stateTone } from "../lib/live-helpers";
-import type { LiveStudent } from "../model/live.types";
-import { useLocale } from "../../../shared/ui/locale";
+import type { LiveStudent } from "../model/live.types.ts";
+import { useLocale } from "../../../../shared/ui/locale";
 import { liveCopy } from "../model/live-copy";
 
 export function StudentRow({

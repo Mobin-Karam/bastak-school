@@ -1,15 +1,15 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { useAuth } from "../../auth";
-import { Button, Card, EmptyState, LoadingState } from "../../../shared/ui/ui";
-import { ResponsiveModal } from "../../../shared/ui/responsive-modal";
-import { notify } from "../../../shared/ui/notifications";
+import { useAuth } from "../../../identity/auth";
+import { Button, Card, EmptyState, LoadingState } from "../../../../shared/ui/ui";
+import { ResponsiveModal } from "../../../../shared/ui/responsive-modal";
+import { notify } from "../../../../shared/ui/notifications";
 import { attendanceRequestId } from "../model/attendance-request-id";
 import {
   getPendingAttendanceCorrections,
   reviewAttendanceCorrection,
   type PendingAttendanceCorrection,
-} from "../api/attendance-operations.api";
+} from "../api/attendance-operations.api.ts";
 
 const statusLabel: Record<string, string> = {
   present: "حاضر",

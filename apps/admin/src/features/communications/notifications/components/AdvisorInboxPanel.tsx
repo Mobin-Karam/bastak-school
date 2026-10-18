@@ -1,14 +1,14 @@
 import type { ComponentProps } from "react";
-import { StudentPicker } from "../../../shared/ui/StudentPicker";
-import { AdminList } from "../../../shared/ui/admin-list";
-import { Badge } from "../../../shared/ui/ui";
+import { StudentPicker } from "../../../../shared/ui/StudentPicker";
+import { AdminList } from "../../../../shared/ui/admin-list";
+import { Badge } from "../../../../shared/ui/ui";
 import type {
   AdvisorInboxRow,
   RecoveryActionInput,
   TaskIssueActionInput,
-} from "../model/notification.types";
+} from "../model/notification.types.ts";
 import { AdvisorInboxItem } from "./AdvisorInboxItem";
-import { useLocale } from "../../../shared/ui/locale";
+import { useLocale } from "../../../../shared/ui/locale";
 import { notificationCopy } from "../model/notification-copy";
 
 type StudentPickerProps = ComponentProps<typeof StudentPicker>;

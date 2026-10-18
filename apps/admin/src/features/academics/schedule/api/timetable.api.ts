@@ -14,7 +14,7 @@ import type {
   TimetableConflict,
   TimetableAttendanceReport,
 } from "@moshaver/api-contract";
-import { api } from "../../../shared/api/api";
+import { api } from "../../../../shared/api/api";
 export const getTimetable = (
   organizationId: string,
   versionId: string | undefined,

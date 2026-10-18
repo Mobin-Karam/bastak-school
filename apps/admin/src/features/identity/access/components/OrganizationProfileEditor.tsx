@@ -1,10 +1,10 @@
 import { useState } from "react";
 import type { OrganizationAuthProfile } from "@moshaver/api-contract";
 import { useQueryClient } from "@tanstack/react-query";
-import { useLocale } from "../../../shared/ui/locale";
-import { Button, Field, Input } from "../../../shared/ui/ui";
-import { updateOrganizationAuthProfile, type PortalOrganization } from "../api/access.api";
-import { notify } from "../../../shared/ui/notifications";
+import { useLocale } from "../../../../shared/ui/locale";
+import { Button, Field, Input } from "../../../../shared/ui/ui";
+import { updateOrganizationAuthProfile, type PortalOrganization } from "../api/access.api.ts";
+import { notify } from "../../../../shared/ui/notifications";
 
 export const profileFields: Array<{
   key: Exclude<keyof OrganizationAuthProfile, "published">;

@@ -1,6 +1,6 @@
 import { clockActions } from "../lib/clock-store";
 import { requestClockNotificationPermission } from "../lib/notifications";
-import type { AlarmItem } from "../model/clock.types";
+import type { AlarmItem } from "../model/clock.types.ts";
 import { useClockStore } from "./useClockStore";
 
 export function useAlarms() {

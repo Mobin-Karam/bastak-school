@@ -9,12 +9,12 @@ import {
   ShieldCheck,
 } from "lucide-react";
 import { useState } from "react";
-import { useAuth } from "../../auth";
-import { DashboardCalendar } from "../../dashboard/components/DashboardCalendar";
-import { todayIso } from "../../../shared/lib/utils";
-import { DatePicker } from "../../../shared/ui/date-picker";
-import { useLocale } from "../../../shared/ui/locale";
-import { notify } from "../../../shared/ui/notifications";
+import { useAuth } from "../../../identity/auth";
+import { DashboardCalendar } from "../../../analytics/dashboard/components/DashboardCalendar";
+import { todayIso } from "../../../../shared/lib/utils";
+import { DatePicker } from "../../../../shared/ui/date-picker";
+import { useLocale } from "../../../../shared/ui/locale";
+import { notify } from "../../../../shared/ui/notifications";
 import {
   Badge,
   Button,
@@ -23,13 +23,13 @@ import {
   ErrorState,
   LoadingState,
   Textarea,
-} from "../../../shared/ui/ui";
+} from "../../../../shared/ui/ui";
 import {
   createStudentLeaveRequest,
   listStudentLeaveRequests,
   type StudentLeaveStatus,
   type StudentLeaveType,
-} from "../api/student-leave.api";
+} from "../api/student-leave.api.ts";
 
 const requestTypes: ReadonlyArray<{
   id: StudentLeaveType;

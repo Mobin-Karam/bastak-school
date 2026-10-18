@@ -9,7 +9,7 @@ const auth = {
   capabilities: ["plans.read", "chat.read"],
 };
 
-vi.mock("../../../../features/auth", () => ({ useAuth: () => auth }));
+vi.mock("../../../../features/identity/auth", () => ({ useAuth: () => auth }));
 
 describe("AdminMainSidebar locale flow", () => {
   afterEach(() => window.localStorage.clear());

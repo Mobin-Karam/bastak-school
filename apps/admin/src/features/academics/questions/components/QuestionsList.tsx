@@ -1,8 +1,8 @@
 import { CheckCircle2, Copy, Pencil, Trash2 } from "lucide-react";
-import { AdminList } from "../../../shared/ui/admin-list";
-import { CollectionToolbar } from "../../../shared/ui/collection-toolbar";
-import { Button } from "../../../shared/ui/ui";
-import { useLocale } from "../../../shared/ui/locale";
+import { AdminList } from "../../../../shared/ui/admin-list";
+import { CollectionToolbar } from "../../../../shared/ui/collection-toolbar";
+import { Button } from "../../../../shared/ui/ui";
+import { useLocale } from "../../../../shared/ui/locale";
 import type { QuestionView } from "../model/question-model";
 import { questionNumber } from "../model/question-model";
 import { questionsCopy } from "../questions-locale";

@@ -1,8 +1,8 @@
 import { ArrowLeft, MonitorSmartphone } from "lucide-react";
 import { Link } from "react-router-dom";
-import { Badge, Card, EmptyState } from "../../../shared/ui/ui";
-import { useLocale } from "../../../shared/ui/locale";
-import type { Session } from "../model/system.types";
+import { Badge, Card, EmptyState } from "../../../../shared/ui/ui";
+import { useLocale } from "../../../../shared/ui/locale";
+import type { Session } from "../model/system.types.ts";
 import { settingsCopy } from "../../settings/settings-locale";
 export function SystemSessionsPanel({
   sessions = [],

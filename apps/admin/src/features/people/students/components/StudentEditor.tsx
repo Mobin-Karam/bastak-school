@@ -1,10 +1,10 @@
 import { RotateCcw, Save, UserPlus, X } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Button, Field, Input } from "../../../shared/ui/ui";
-import { api } from "../../../shared/api/api";
-import { useOptionalAdminLanguage } from "../../../shared/ui/locale";
-import { DatePicker } from "../../../shared/ui/date-picker";
+import { Button, Field, Input } from "../../../../shared/ui/ui";
+import { api } from "../../../../shared/api/api";
+import { useOptionalAdminLanguage } from "../../../../shared/ui/locale";
+import { DatePicker } from "../../../../shared/ui/date-picker";
 import type { StudentForm } from "../model/student-form";
 import { studentCopy } from "../model/student-locale";
 

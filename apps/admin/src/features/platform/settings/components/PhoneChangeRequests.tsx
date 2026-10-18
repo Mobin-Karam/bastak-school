@@ -1,8 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Check, ClipboardList, X } from "lucide-react";
-import { notify } from "../../../shared/ui/notifications";
-import { Badge, Button, Card, EmptyState, LoadingState } from "../../../shared/ui/ui";
-import { listPhoneChangeRequests, reviewPhoneChangeRequest } from "../api/settings.api";
+import { notify } from "../../../../shared/ui/notifications";
+import { Badge, Button, Card, EmptyState, LoadingState } from "../../../../shared/ui/ui";
+import { listPhoneChangeRequests, reviewPhoneChangeRequest } from "../api/settings.api.ts";
 
 export function PhoneChangeRequests() {
   const queryClient = useQueryClient();

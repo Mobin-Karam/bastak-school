@@ -1,6 +1,6 @@
 import { MoreHorizontal } from "lucide-react";
-import { ViewportPopover } from "../../../shared/ui/popover";
-import { useLocale } from "../../../shared/ui/locale";
+import { ViewportPopover } from "../../../../shared/ui/popover";
+import { useLocale } from "../../../../shared/ui/locale";
 import { plannerCopy } from "../model/planner-copy";
 
 export function PlannerMoreMenu({

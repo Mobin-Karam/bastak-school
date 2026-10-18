@@ -13,17 +13,17 @@ import {
   ShieldCheck,
 } from "lucide-react";
 import { useAuth } from "../auth";
-import type { OrganizationSummary } from "../../shared/types/domain";
-import { useModal } from "../../shared/ui/modal";
-import { notify } from "../../shared/ui/notifications";
-import { useLocale } from "../../shared/ui/locale";
-import { Button, Card, EmptyState, Field, Input, Select } from "../../shared/ui/ui";
-import { ResponsiveDrawer } from "../../shared/ui/responsive-drawer";
+import type { OrganizationSummary } from "../../../shared/types/domain";
+import { useModal } from "../../../shared/ui/modal";
+import { notify } from "../../../shared/ui/notifications";
+import { useLocale } from "../../../shared/ui/locale";
+import { Button, Card, EmptyState, Field, Input, Select } from "../../../shared/ui/ui";
+import { ResponsiveDrawer } from "../../../shared/ui/responsive-drawer";
 import { OrganizationProfileEditor } from "./components/OrganizationProfileEditor";
 import { OrganizationStudentAccounts } from "./components/OrganizationStudentAccounts";
-import { ViewportPopover } from "../../shared/ui/popover";
-import { CollectionToolbar } from "../../shared/ui/collection-toolbar";
-import { ManagementPageHeader } from "../../shared/ui/management-workspace";
+import { ViewportPopover } from "../../../shared/ui/popover";
+import { CollectionToolbar } from "../../../shared/ui/collection-toolbar";
+import { ManagementPageHeader } from "../../../shared/ui/management-workspace";
 import {
   archiveOrganization,
   createOrganization,
@@ -36,7 +36,7 @@ import {
   setOrganizationStudentSignupPolicy,
   updateOrganization,
   type PortalOrganization,
-} from "./api/access.api";
+} from "./api/access.api.ts";
 import { OrganizationWorkspace } from "./OrganizationWorkspace";
 import { AccessFlowGuidance } from "./components/AccessFlowGuidance";
 import { emptyAccessResult } from "./model/access-flow";
@@ -44,7 +44,7 @@ import { accessCopy } from "./model/access-copy";
 import {
   organizationTypes,
   type AdminOrganizationType,
-} from "../../shared/lib/organization-role-policy";
+} from "../../../shared/lib/organization-role-policy";
 
 const errorText = (error: unknown, fallback: string) =>
   error instanceof Error ? error.message : fallback;

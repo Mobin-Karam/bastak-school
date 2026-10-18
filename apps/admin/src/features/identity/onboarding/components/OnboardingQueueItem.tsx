@@ -1,20 +1,20 @@
 import { Building2, UsersRound, WandSparkles } from "lucide-react";
 import type { ReactNode } from "react";
-import type { PortalOrganization } from "../../access/api/access.api";
-import { Button, Card } from "../../../shared/ui/ui";
-import { useLocale } from "../../../shared/ui/locale";
+import type { PortalOrganization } from "../../access/api/access.api.ts";
+import { Button, Card } from "../../../../shared/ui/ui";
+import { useLocale } from "../../../../shared/ui/locale";
 import { onboardingCopy } from "../onboarding-locale";
 import {
   canSubmitManualAssignment,
   displayAdvisor,
   eligibleAdvisorsForOrganization,
-} from "../model/onboarding.model";
+} from "../model/onboarding.model.ts";
 import type {
   AssignmentAdvisor,
   ManualAssignmentChoice,
   OnboardingMode,
   PendingStudent,
-} from "../types/onboarding.types";
+} from "../types/onboarding.types.ts";
 
 export function OnboardingQueueItem({
   student,

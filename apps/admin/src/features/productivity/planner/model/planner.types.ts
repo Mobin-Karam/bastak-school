@@ -1,4 +1,4 @@
-import type { Plan } from "../../../shared/types/domain";
+import type { Plan } from "../../../../shared/types/domain";
 
 export type PlannerMode = "day" | "week" | "month" | "list";
 export type TaskFilter = "all" | "published" | "draft" | "incomplete";

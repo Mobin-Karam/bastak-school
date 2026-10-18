@@ -3,8 +3,8 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { cleanup, render, screen, within, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import { ModalProvider } from "../../../shared/ui/modal";
-import { LocaleProvider } from "../../../shared/ui/locale";
+import { ModalProvider } from "../../../../shared/ui/modal";
+import { LocaleProvider } from "../../../../shared/ui/locale";
 import { ClassGroupsPage } from "./ClassGroupsPage";
 const state = vi.hoisted(() => ({
   classes: vi.fn(),
@@ -17,14 +17,14 @@ const state = vi.hoisted(() => ({
   remove: vi.fn(),
   manage: true,
 }));
-vi.mock("../../auth", () => ({
+vi.mock("../../../identity/auth", () => ({
   useAuth: () => ({
     can: (capability: string) => capability !== "class_groups.manage" || state.manage,
     activeRole: "PRINCIPAL",
     context: { user: { id: "staff" }, activeOrganization: { id: "school" } },
   }),
 }));
-vi.mock("../api/class-groups.api", () => ({
+vi.mock("../api/class-groups.api.ts", () => ({
   listGroupClasses: state.classes,
   listClassGroups: state.groups,
   listGroupMembers: state.members,

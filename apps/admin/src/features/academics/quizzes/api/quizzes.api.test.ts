@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { api } from "../../../shared/api/api";
-import { createQuizQuestion, getQuizQuestions, updateQuizQuestion } from "./quizzes.api";
+import { api } from "../../../../shared/api/api";
+import { createQuizQuestion, getQuizQuestions, updateQuizQuestion } from "./quizzes.api.ts";
 
 const editorDraft = {
   question: "دو به علاوه دو؟",

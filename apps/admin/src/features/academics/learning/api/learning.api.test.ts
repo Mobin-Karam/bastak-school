@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { api } from "../../../shared/api/api";
-import { createLearningItem, reviewLearningItem, updateLearningItem } from "./learning.api";
+import { api } from "../../../../shared/api/api";
+import { createLearningItem, reviewLearningItem, updateLearningItem } from "./learning.api.ts";
 
 const values = {
   title: "مرور مشتق",

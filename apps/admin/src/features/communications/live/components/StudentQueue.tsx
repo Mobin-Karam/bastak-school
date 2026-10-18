@@ -1,10 +1,10 @@
-import { Badge, Card, EmptyState } from "../../../shared/ui/ui";
-import { fa } from "../../../shared/lib/utils";
+import { Badge, Card, EmptyState } from "../../../../shared/ui/ui";
+import { fa } from "../../../../shared/lib/utils";
 import { needsAttention } from "../lib/live-helpers";
-import type { LivePanel, LiveStudent } from "../model/live.types";
+import type { LivePanel, LiveStudent } from "../model/live.types.ts";
 import { CompactSkeleton } from "./CompactSkeleton";
 import { StudentRow } from "./StudentRow";
-import { useLocale } from "../../../shared/ui/locale";
+import { useLocale } from "../../../../shared/ui/locale";
 import { liveCopy } from "../model/live-copy";
 
 export function StudentQueue({

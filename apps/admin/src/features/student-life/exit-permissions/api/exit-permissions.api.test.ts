@@ -6,7 +6,7 @@ const { get, post, patch } = vi.hoisted(() => ({
   patch: vi.fn(),
 }));
 
-vi.mock("../../../shared/api/api", () => ({ api: { get, post, patch } }));
+vi.mock("../../../../shared/api/api", () => ({ api: { get, post, patch } }));
 
 import {
   getSchoolOccupancy,
@@ -14,7 +14,7 @@ import {
   recordDeparture,
   recordReturn,
   reviewExitPermission,
-} from "./exit-permissions.api";
+} from "./exit-permissions.api.ts";
 
 describe("exit-permissions API", () => {
   beforeEach(() => vi.clearAllMocks());

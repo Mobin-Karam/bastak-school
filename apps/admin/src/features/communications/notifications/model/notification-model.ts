@@ -1,5 +1,5 @@
 import type { NotificationContract } from "@moshaver/api-contract";
-import type { AdminLanguage } from "../../../shared/ui/locale";
+import type { AdminLanguage } from "../../../../shared/ui/locale";
 import { notificationCopy } from "./notification-copy";
 
 export type AdminNotification = Partial<NotificationContract> &

@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { filterLiveStudents, sortLiveStudents } from "../lib/live-helpers";
-import type { LiveFilter, LiveStudent } from "../model/live.types";
+import type { LiveFilter, LiveStudent } from "../model/live.types.ts";
 
 export function useLiveStudents({
   students,

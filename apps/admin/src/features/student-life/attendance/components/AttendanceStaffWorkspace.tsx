@@ -2,14 +2,14 @@ import { attendanceRequestId } from "../model/attendance-request-id";
 import { useEffect, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { CalendarCheck2, MapPin, UsersRound } from "lucide-react";
-import { useAuth } from "../../auth";
-import { Card } from "../../../shared/ui/ui";
-import { DatePicker } from "../../../shared/ui/date-picker";
-import { ResponsiveModal } from "../../../shared/ui/responsive-modal";
-import { notify } from "../../../shared/ui/notifications";
-import { api } from "../../../shared/api/api";
-import type { AttendanceContextOption } from "../api/attendance.api";
-import { contextLabelMap } from "../api/attendance.api";
+import { useAuth } from "../../../identity/auth";
+import { Card } from "../../../../shared/ui/ui";
+import { DatePicker } from "../../../../shared/ui/date-picker";
+import { ResponsiveModal } from "../../../../shared/ui/responsive-modal";
+import { notify } from "../../../../shared/ui/notifications";
+import { api } from "../../../../shared/api/api";
+import type { AttendanceContextOption } from "../api/attendance.api.ts";
+import { contextLabelMap } from "../api/attendance.api.ts";
 import {
   closeAttendancePool,
   createAttendancePool,
@@ -26,7 +26,7 @@ import {
   finalizeAttendanceSession,
   cancelAttendanceSession,
   correctAttendanceRecord,
-} from "../api/attendance-operations.api";
+} from "../api/attendance-operations.api.ts";
 import type { AttendancePoolDraft, StaffAttendanceSession } from "@moshaver/api-contract";
 
 const field =

@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { readSpreadsheetLayout } from "../../../shared/lib/spreadsheet-transfer";
+import { readSpreadsheetLayout } from "../../../../shared/lib/spreadsheet-transfer";
 import {
   detectWorkbookBlocks,
   extractWorkbookLessons,

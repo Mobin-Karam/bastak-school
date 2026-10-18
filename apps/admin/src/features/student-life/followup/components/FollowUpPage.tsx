@@ -1,11 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { CheckCircle2, RefreshCw, XCircle } from "lucide-react";
-import { useAuth } from "../../auth";
-import { notify } from "../../../shared/ui/notifications";
-import { Badge, Button, Card, EmptyState, ErrorState } from "../../../shared/ui/ui";
-import { ManagementPageHeader } from "../../../shared/ui/management-workspace";
-import { useLocale } from "../../../shared/ui/locale";
-import { listRecoveryRequests, moderateRecoveryRequest } from "../api/followup.api";
+import { useAuth } from "../../../identity/auth";
+import { notify } from "../../../../shared/ui/notifications";
+import { Badge, Button, Card, EmptyState, ErrorState } from "../../../../shared/ui/ui";
+import { ManagementPageHeader } from "../../../../shared/ui/management-workspace";
+import { useLocale } from "../../../../shared/ui/locale";
+import { listRecoveryRequests, moderateRecoveryRequest } from "../api/followup.api.ts";
 import { followupCopy } from "../model/followup-copy";
 
 export function FollowUpPage() {

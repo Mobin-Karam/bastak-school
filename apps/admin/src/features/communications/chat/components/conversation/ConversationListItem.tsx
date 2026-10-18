@@ -2,18 +2,18 @@ import { Building2, Star, UserRoundCog, Users } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import type { Conversation } from "../../../../shared/types/domain";
-import { Badge, Button, Field, Select } from "../../../../shared/ui/ui";
-import { useModal } from "../../../../shared/ui/modal";
-import { notify } from "../../../../shared/ui/notifications";
-import { useAuth } from "../../../auth/AuthProvider";
+import type { Conversation } from "../../../../../shared/types/domain";
+import { Badge, Button, Field, Select } from "../../../../../shared/ui/ui";
+import { useModal } from "../../../../../shared/ui/modal";
+import { notify } from "../../../../../shared/ui/notifications";
+import { useAuth } from "../../../../identity/auth/AuthProvider";
 import {
   assignStudent,
   listAdvisors,
   listOnboardingOrganizations,
-} from "../../../onboarding/api/onboarding.api";
+} from "../../../../identity/onboarding/api/onboarding.api.ts";
 import { formatConversationTime } from "../../lib/chat-formatters";
-import { useLocale } from "../../../../shared/ui/locale";
+import { useLocale } from "../../../../../shared/ui/locale";
 import { chatCopy } from "../../model/chat-copy";
 
 export function ConversationListItem({

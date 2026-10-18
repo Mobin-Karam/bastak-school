@@ -1,15 +1,15 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { cleanup, render, screen } from "@testing-library/react";
 import { beforeEach, afterEach, describe, expect, it, vi } from "vitest";
-import { LocaleProvider } from "../../../shared/ui/locale";
+import { LocaleProvider } from "../../../../shared/ui/locale";
 import { MyAttendancePage } from "./MyAttendancePage";
 const mocks = vi.hoisted(() => ({ encouragement: vi.fn(), assignments: vi.fn(), pools: vi.fn() }));
-vi.mock("../api/attendance-operations.api", () => ({
+vi.mock("../api/attendance-operations.api.ts", () => ({
   getAttendanceEncouragement: mocks.encouragement,
   getMyDormAssignments: mocks.assignments,
   getMyAttendancePools: mocks.pools,
 }));
-vi.mock("../../auth", () => ({
+vi.mock("../../../identity/auth", () => ({
   useAuth: () => ({
     user: { id: "student" },
     activeRole: "STUDENT",

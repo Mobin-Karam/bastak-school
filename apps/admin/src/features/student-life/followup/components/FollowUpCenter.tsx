@@ -37,5 +37,5 @@ export function FollowUpCenter({
     </div>
   );
 }
-import { useLocale } from "../../../shared/ui/locale";
+import { useLocale } from "../../../../shared/ui/locale";
 import { followupCopy } from "../model/followup-copy";

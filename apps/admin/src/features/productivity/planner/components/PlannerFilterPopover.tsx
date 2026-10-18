@@ -1,10 +1,10 @@
 import { Filter } from "lucide-react";
 
-import { Button, Badge } from "../../../shared/ui/ui";
-import { ViewportPopover } from "../../../shared/ui/popover";
+import { Button, Badge } from "../../../../shared/ui/ui";
+import { ViewportPopover } from "../../../../shared/ui/popover";
 
-import type { TaskFilter } from "../model/planner.types";
-import { useLocale } from "../../../shared/ui/locale";
+import type { TaskFilter } from "../model/planner.types.ts";
+import { useLocale } from "../../../../shared/ui/locale";
 import { plannerCopy, plannerFilterLabel } from "../model/planner-copy";
 
 export function PlannerFilterPopover({

@@ -4,7 +4,7 @@ import {
   updateRegistrationProfile,
   uploadStudentDocument,
   completeRegistration,
-} from "./api/registration.api";
+} from "./api/registration.api.ts";
 
 export function useRegistrationSelf() {
   return useQuery({

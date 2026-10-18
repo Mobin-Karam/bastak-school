@@ -1,4 +1,4 @@
-import type { RoleCode, User } from "../../../shared/types/domain";
+import type { RoleCode, User } from "../../../../shared/types/domain";
 
 export const AUTH_SIGNAL_KEY = "moshaver_admin_auth_signal";
 export const PENDING_LOGOUT_KEY = "moshaver_admin_logout_pending";

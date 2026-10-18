@@ -1,12 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { api } from "../../../shared/api/api";
+import { api } from "../../../../shared/api/api";
 import {
   createExamQuestion,
   deleteExamQuestion,
   getExamQuestions,
   getQuestionBankExams,
   updateQuestion,
-} from "./questions.api";
+} from "./questions.api.ts";
 
 const draft = {
   question: "دو به علاوه دو؟",

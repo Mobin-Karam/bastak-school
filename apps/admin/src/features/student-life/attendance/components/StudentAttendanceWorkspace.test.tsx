@@ -3,7 +3,7 @@ import { cleanup, render, screen, waitFor, within } from "@testing-library/react
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { PropsWithChildren } from "react";
-import { LocaleProvider } from "../../../shared/ui/locale";
+import { LocaleProvider } from "../../../../shared/ui/locale";
 import {
   StudentAttendancePoolPrompt,
   StudentAttendanceWorkspace,
@@ -15,13 +15,13 @@ const mocks = vi.hoisted(() => ({
   confirm: vi.fn(),
   can: vi.fn(),
 }));
-vi.mock("../api/attendance-operations.api", () => ({
+vi.mock("../api/attendance-operations.api.ts", () => ({
   getMyDormAssignments: mocks.assignments,
   getMyAttendancePools: mocks.pools,
   markDelegatedDormAttendance: mocks.mark,
   confirmAttendancePool: mocks.confirm,
 }));
-vi.mock("../../auth", () => ({
+vi.mock("../../../identity/auth", () => ({
   useAuth: () => ({
     can: mocks.can,
     user: { id: "student" },
@@ -29,7 +29,7 @@ vi.mock("../../auth", () => ({
     context: { activeOrganization: { id: "org" } },
   }),
 }));
-vi.mock("../../../shared/api/api", () => ({ api: { openEvents: () => ({ close: vi.fn() }) } }));
+vi.mock("../../../../shared/api/api", () => ({ api: { openEvents: () => ({ close: vi.fn() }) } }));
 function Providers({ children }: PropsWithChildren) {
   return (
     <QueryClientProvider

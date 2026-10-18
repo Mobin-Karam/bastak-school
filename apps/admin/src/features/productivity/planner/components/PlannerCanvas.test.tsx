@@ -1,7 +1,7 @@
 import { cleanup, fireEvent, render } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { LocaleProvider } from "../../../shared/ui/locale";
-import type { Plan } from "../../../shared/types/domain";
+import { LocaleProvider } from "../../../../shared/ui/locale";
+import type { Plan } from "../../../../shared/types/domain";
 import { PlannerCanvas } from "./PlannerCanvas";
 
 function dataTransfer() {

@@ -3,15 +3,15 @@ import { useSearchParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Crown, Pencil, Plus, X } from "lucide-react";
 import { useAuth } from "../auth";
-import type { RoleCode } from "../../shared/types/domain";
-import { roleLabel, roleLabels } from "../../shared/lib/role-ui";
-import { useModal } from "../../shared/ui/modal";
-import { notify } from "../../shared/ui/notifications";
-import { useLocale } from "../../shared/ui/locale";
-import { Button, Card, EmptyState, Field, Input, PasswordInput, Select } from "../../shared/ui/ui";
-import { DataTable, defaultTableQuery, type DataTableQuery } from "../../shared/ui/data-table";
-import { ResponsiveModal, useMobileDialog } from "../../shared/ui/responsive-modal";
-import { ResponsiveDrawer } from "../../shared/ui/responsive-drawer";
+import type { RoleCode } from "../../../shared/types/domain";
+import { roleLabel, roleLabels } from "../../../shared/lib/role-ui";
+import { useModal } from "../../../shared/ui/modal";
+import { notify } from "../../../shared/ui/notifications";
+import { useLocale } from "../../../shared/ui/locale";
+import { Button, Card, EmptyState, Field, Input, PasswordInput, Select } from "../../../shared/ui/ui";
+import { DataTable, defaultTableQuery, type DataTableQuery } from "../../../shared/ui/data-table";
+import { ResponsiveModal, useMobileDialog } from "../../../shared/ui/responsive-modal";
+import { ResponsiveDrawer } from "../../../shared/ui/responsive-drawer";
 
 import {
   archiveUser,
@@ -24,13 +24,13 @@ import {
   updateUser,
   type PortalOrganization,
   type PortalUser,
-} from "./api/access.api";
+} from "./api/access.api.ts";
 import { accessCopy } from "./model/access-copy";
 import {
   principalAssignableRoles,
   rolesForOrganizationType,
-} from "../../shared/lib/organization-role-policy";
-import { OrganizationTag } from "../../shared/ui/organization-tag";
+} from "../../../shared/lib/organization-role-policy";
+import { OrganizationTag } from "../../../shared/ui/organization-tag";
 
 const allRoles = Object.keys(roleLabels) as RoleCode[];
 const nameOf = (user: PortalUser) =>

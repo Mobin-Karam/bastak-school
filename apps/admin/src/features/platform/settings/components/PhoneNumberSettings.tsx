@@ -1,14 +1,14 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Phone, ShieldCheck } from "lucide-react";
 import { useState } from "react";
-import { useAuth } from "../../auth";
-import { notify } from "../../../shared/ui/notifications";
-import { Button, Card, Field, Input, Textarea } from "../../../shared/ui/ui";
+import { useAuth } from "../../../identity/auth";
+import { notify } from "../../../../shared/ui/notifications";
+import { Button, Card, Field, Input, Textarea } from "../../../../shared/ui/ui";
 import {
   changeOwnPhoneNumber,
   getAccountProfile,
   requestPhoneNumberChange,
-} from "../api/settings.api";
+} from "../api/settings.api.ts";
 
 export function PhoneNumberSettings() {
   const auth = useAuth();

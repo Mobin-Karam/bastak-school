@@ -7,7 +7,7 @@ import { AdminAccountMenu } from "./AdminAccountMenu";
 const { user } = vi.hoisted(() => ({
   user: { firstName: "علی", lastName: "رضایی", username: "09120000000", displayName: "" },
 }));
-vi.mock("../../../features/auth", () => ({
+vi.mock("../../../features/identity/auth", () => ({
   useAuth: () => ({
     user,
     activeRole: "PRINCIPAL",

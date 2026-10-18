@@ -1,10 +1,10 @@
 import { useMemo } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { notify } from "../../../shared/ui/notifications";
-import { getAdvisorInbox, updateRecoveryRequest, updateTaskIssue } from "../api/notifications.api";
+import { notify } from "../../../../shared/ui/notifications";
+import { getAdvisorInbox, updateRecoveryRequest, updateTaskIssue } from "../api/notifications.api.ts";
 import { buildAdvisorInboxRows } from "../lib/notification-utils";
 import { shouldRetryNotificationRequest } from "../lib/api-error";
-import type { RecoveryActionInput, TaskIssueActionInput } from "../model/notification.types";
+import type { RecoveryActionInput, TaskIssueActionInput } from "../model/notification.types.ts";
 
 export function useAdvisorInbox(
   studentId: string,

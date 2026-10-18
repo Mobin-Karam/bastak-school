@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Archive, ClipboardCopy, Link2, Pencil, Plus, Search } from "lucide-react";
-import { listOrganizations } from "../../access/api/access.api";
+import { listOrganizations } from "../../../identity/access/api/access.api.ts";
 import {
   addBankItemToQuiz,
   archiveQuestionBankItem,
@@ -11,22 +11,22 @@ import {
   type QuestionBankDraft,
   type QuestionBankItem,
   updateQuestionBankItem,
-} from "../../questions/api/question-bank.api";
+} from "../../questions/api/question-bank.api.ts";
 import { useQuizCopy } from "../model/quiz-locale";
-import { useModal } from "../../../shared/ui/modal";
-import { notify } from "../../../shared/ui/notifications";
-import { Badge, Button, Card, EmptyState, Input, LoadingState } from "../../../shared/ui/ui";
-import { DataTransferWorkspace } from "../../../shared/ui/data-transfer";
+import { useModal } from "../../../../shared/ui/modal";
+import { notify } from "../../../../shared/ui/notifications";
+import { Badge, Button, Card, EmptyState, Input, LoadingState } from "../../../../shared/ui/ui";
+import { DataTransferWorkspace } from "../../../../shared/ui/data-transfer";
 import {
   downloadQuestionBankWorkbook,
   readQuestionBankWorkbook,
-} from "../../../shared/lib/question-bank-transfer";
+} from "../../../../shared/lib/question-bank-transfer";
 import {
   exportQuestionBank,
   getQuestionBankTemplate,
   importQuestionBank,
   type QuestionBankTransfer,
-} from "../../questions/api/question-bank.api";
+} from "../../questions/api/question-bank.api.ts";
 
 export function QuizQuestionBankPanel({
   selectedQuizId,

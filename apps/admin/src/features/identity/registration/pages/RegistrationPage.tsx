@@ -1,6 +1,6 @@
 import { FormEvent, useEffect, useState } from "react";
 import { useAuth } from "../../auth";
-import { Button, Card, Input } from "../../../shared/ui/ui";
+import { Button, Card, Input } from "../../../../shared/ui/ui";
 import {
   getRegistrationRequirements,
   getRegistrationSelf,
@@ -10,7 +10,7 @@ import {
   updateRegistrationProfile,
   type RegistrationSection,
   type RegistrationSelf,
-} from "../api/registration.api";
+} from "../api/registration.api.ts";
 
 const sectionNames: Record<string, string> = {
   BASIC_INFORMATION: "اطلاعات پایه",

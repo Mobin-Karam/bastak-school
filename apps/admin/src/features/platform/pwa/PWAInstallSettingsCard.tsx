@@ -1,5 +1,5 @@
 import { Download, Smartphone } from "lucide-react";
-import { Button, Card } from "../../shared/ui/ui";
+import { Button, Card } from "../../../shared/ui/ui";
 import { openPWAInstall } from "./install-launcher";
 
 export function PWAInstallSettingsCard() {

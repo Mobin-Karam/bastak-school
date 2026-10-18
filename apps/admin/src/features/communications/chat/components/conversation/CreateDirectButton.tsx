@@ -1,11 +1,11 @@
 import { useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { MessageSquarePlus } from "lucide-react";
-import { useModal } from "../../../../shared/ui/modal";
-import { notifications } from "../../../../shared/ui/notifications";
-import { Button, EmptyState, Field, Input } from "../../../../shared/ui/ui";
-import { chatApi } from "../../api/chat.api";
-import { useLocale } from "../../../../shared/ui/locale";
+import { useModal } from "../../../../../shared/ui/modal";
+import { notifications } from "../../../../../shared/ui/notifications";
+import { Button, EmptyState, Field, Input } from "../../../../../shared/ui/ui";
+import { chatApi } from "../../api/chat.api.ts";
+import { useLocale } from "../../../../../shared/ui/locale";
 import { chatCopy } from "../../model/chat-copy";
 
 export function CreateDirectButton({ onCreated }: { onCreated: (id: string) => void }) {

@@ -1,5 +1,5 @@
-import { DevBackendSwitcher } from "../../../app/dev/DevBackendSwitcher";
-import { ThemeSwitcher } from "../../../shared/theme/theme";
+import { DevBackendSwitcher } from "../../../../app/dev/DevBackendSwitcher";
+import { ThemeSwitcher } from "../../../../shared/theme/theme";
 
 export function LoginToolbar() {
   return (

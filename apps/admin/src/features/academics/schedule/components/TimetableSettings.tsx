@@ -4,10 +4,10 @@ import { TimetableDateInput } from "./TimetableDateInput";
 import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import type { TimetableWorkspace } from "@moshaver/api-contract";
-import { ResponsiveModal } from "../../../shared/ui/responsive-modal";
-import { Button, Field, Input } from "../../../shared/ui/ui";
-import { notify } from "../../../shared/ui/notifications";
-import { saveTimetableConfig } from "../api/timetable.api";
+import { ResponsiveModal } from "../../../../shared/ui/responsive-modal";
+import { Button, Field, Input } from "../../../../shared/ui/ui";
+import { notify } from "../../../../shared/ui/notifications";
+import { saveTimetableConfig } from "../api/timetable.api.ts";
 import { timetableSelectClass } from "./TimetableLessonEditor";
 import { persianWeekdays } from "../lib/timetable-workbook";
 const kinds = [

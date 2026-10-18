@@ -7,7 +7,7 @@ import {
   pushDeviceLabel,
 } from "./components/NotificationSettings";
 import type { PushStatus } from "./model/notification-model";
-import type { NotificationContextValue } from "./model/notification.types";
+import type { NotificationContextValue } from "./model/notification.types.ts";
 
 afterEach(cleanup);
 

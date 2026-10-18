@@ -1,4 +1,4 @@
-import { api } from "../../../shared/api/api";
+import { api } from "../../../../shared/api/api";
 import {
   normalizeAdminNotification,
   type NotificationPage,
@@ -9,7 +9,7 @@ import type {
   AdvisorInbox,
   RecoveryActionInput,
   TaskIssueActionInput,
-} from "../model/notification.types";
+} from "../model/notification.types.ts";
 
 export async function getNotificationsPage(cursor?: string) {
   const page = await api.get<NotificationPage>(

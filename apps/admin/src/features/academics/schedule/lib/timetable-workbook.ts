@@ -1,4 +1,4 @@
-import type { SpreadsheetLayoutSheet } from "../../../shared/lib/spreadsheet-transfer";
+import type { SpreadsheetLayoutSheet } from "../../../../shared/lib/spreadsheet-transfer";
 export const persianWeekdays = [
   { id: 6, name: "شنبه" },
   { id: 0, name: "یکشنبه" },

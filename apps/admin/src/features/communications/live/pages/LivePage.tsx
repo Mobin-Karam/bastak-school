@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { Card, Button } from "../../../shared/ui/ui";
-import { useLocale } from "../../../shared/ui/locale";
+import { Card, Button } from "../../../../shared/ui/ui";
+import { useLocale } from "../../../../shared/ui/locale";
 import { LiveControls } from "../components/LiveControls";
 import { LiveHeader } from "../components/LiveHeader";
 import { LiveSummaryGrid } from "../components/LiveSummaryGrid";
@@ -10,7 +10,7 @@ import { TimelinePanel } from "../components/TimelinePanel";
 import { useLiveClock } from "../hooks/useLiveClock";
 import { useLiveData } from "../hooks/useLiveData";
 import { useLiveStudents } from "../hooks/useLiveStudents";
-import type { LiveFilter, LivePanel } from "../model/live.types";
+import type { LiveFilter, LivePanel } from "../model/live.types.ts";
 import { liveCopy } from "../model/live-copy";
 
 export function LivePage() {

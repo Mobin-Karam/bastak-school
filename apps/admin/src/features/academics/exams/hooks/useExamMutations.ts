@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import type { Exam } from "../../../shared/types/domain";
-import { notify } from "../../../shared/ui/notifications";
+import type { Exam } from "../../../../shared/types/domain";
+import { notify } from "../../../../shared/ui/notifications";
 import {
   addExamSyllabus,
   createExam,
@@ -9,9 +9,9 @@ import {
   reviewRetryRequest,
   setExamPublished,
   updateExam,
-} from "../api/exams.api";
+} from "../api/exams.api.ts";
 import type { ExamDraft } from "../model/exam-model";
-import type { SyllabusDraft } from "../model/exam.types";
+import type { SyllabusDraft } from "../model/exam.types.ts";
 
 export function useExamMutations(studentId: string) {
   const queryClient = useQueryClient();

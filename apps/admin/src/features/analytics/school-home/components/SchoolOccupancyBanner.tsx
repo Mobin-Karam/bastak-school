@@ -2,9 +2,9 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Building2, LogOut, UsersRound } from "lucide-react";
 import { useEffect } from "react";
 import { Link } from "react-router-dom";
-import { getSchoolOccupancy } from "../../exit-permissions/api/exit-permissions.api";
-import { useAuth } from "../../auth";
-import { api } from "../../../shared/api/api";
+import { getSchoolOccupancy } from "../../../student-life/exit-permissions/api/exit-permissions.api.ts";
+import { useAuth } from "../../../identity/auth";
+import { api } from "../../../../shared/api/api";
 
 /**
  * Live, server-authoritative school occupancy. It deliberately does not render

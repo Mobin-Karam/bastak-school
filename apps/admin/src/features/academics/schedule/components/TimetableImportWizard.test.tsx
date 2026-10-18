@@ -1,4 +1,4 @@
-import { LocaleProvider } from "../../../shared/ui/locale";
+import { LocaleProvider } from "../../../../shared/ui/locale";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -6,17 +6,17 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { TimetableWorkspace } from "@moshaver/api-contract";
 import { TimetableImportWizard } from "./TimetableImportWizard";
 const mocks = vi.hoisted(() => ({ preview: vi.fn(), commit: vi.fn() }));
-vi.mock("../../auth", () => ({ useAuth: () => ({ can: () => false, canAny: () => false }) }));
-vi.mock("../../../shared/ui/responsive-modal", () => ({
+vi.mock("../../../identity/auth", () => ({ useAuth: () => ({ can: () => false, canAny: () => false }) }));
+vi.mock("../../../../shared/ui/responsive-modal", () => ({
   ResponsiveModal: ({ children }: { children: React.ReactNode }) => (
     <div role="dialog">{children}</div>
   ),
 }));
-vi.mock("../api/timetable.api", () => ({
+vi.mock("../api/timetable.api.ts", () => ({
   previewTimetableImport: mocks.preview,
   commitTimetableImport: mocks.commit,
 }));
-vi.mock("../../../shared/lib/spreadsheet-transfer", () => ({
+vi.mock("../../../../shared/lib/spreadsheet-transfer", () => ({
   readSpreadsheetLayout: async () => [
     {
       name: "اصلی",
@@ -43,7 +43,7 @@ vi.mock("../../../shared/lib/spreadsheet-transfer", () => ({
     },
   ],
 }));
-vi.mock("../../../shared/ui/notifications", () => ({ notify: vi.fn() }));
+vi.mock("../../../../shared/ui/notifications", () => ({ notify: vi.fn() }));
 const workspace: TimetableWorkspace = {
   organizationId: "org",
   years: [],

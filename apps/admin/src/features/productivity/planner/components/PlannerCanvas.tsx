@@ -12,12 +12,12 @@ import {
   Plus,
   Trash2,
 } from "lucide-react";
-import type { Plan, PlanTask } from "../../../shared/types/domain";
-import { useLocale } from "../../../shared/ui/locale";
-import { Badge } from "../../../shared/ui/ui";
-import { ViewportPopover } from "../../../shared/ui/popover";
-import { fa, todayIso } from "../../../shared/lib/utils";
-import type { PlannerMode } from "../model/planner.types";
+import type { Plan, PlanTask } from "../../../../shared/types/domain";
+import { useLocale } from "../../../../shared/ui/locale";
+import { Badge } from "../../../../shared/ui/ui";
+import { ViewportPopover } from "../../../../shared/ui/popover";
+import { fa, todayIso } from "../../../../shared/lib/utils";
+import type { PlannerMode } from "../model/planner.types.ts";
 import { plannerCopy, plannerTaskTypeLabel } from "../model/planner-copy";
 import {
   addMinutes,

@@ -1,5 +1,5 @@
 import type { LucideIcon } from "lucide-react";
-import { fa } from "../../../shared/lib/utils";
+import { fa } from "../../../../shared/lib/utils";
 
 export function SummaryCard({
   icon: Icon,

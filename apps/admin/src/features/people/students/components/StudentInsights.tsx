@@ -1,6 +1,6 @@
 import { Activity, BarChart3, BookOpenCheck, CalendarDays, RefreshCw } from "lucide-react";
-import { Button } from "../../../shared/ui/ui";
-import { useOptionalAdminLanguage } from "../../../shared/ui/locale";
+import { Button } from "../../../../shared/ui/ui";
+import { useOptionalAdminLanguage } from "../../../../shared/ui/locale";
 import { studentCopy } from "../model/student-locale";
 
 const icons = [BookOpenCheck, Activity, CalendarDays, BarChart3];

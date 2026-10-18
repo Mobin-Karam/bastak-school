@@ -1,8 +1,8 @@
 import { CalendarDays, GraduationCap, UsersRound, UserRoundCheck } from "lucide-react";
 
-import type { RoleDashboardData } from "../../model/dashboard.types";
-import { OrganizationTag } from "../../../../shared/ui/organization-tag";
-import { Card, EmptyState } from "../../../../shared/ui/ui";
+import type { RoleDashboardData } from "../../model/dashboard.types.ts";
+import { OrganizationTag } from "../../../../../shared/ui/organization-tag";
+import { Card, EmptyState } from "../../../../../shared/ui/ui";
 
 export function PlatformOrganizationOverview({ data }: { data: RoleDashboardData }) {
   const organizations = data.platformOrganizations ?? [];

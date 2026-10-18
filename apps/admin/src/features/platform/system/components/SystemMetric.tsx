@@ -1,4 +1,4 @@
-import { Card } from "../../../shared/ui/ui";
+import { Card } from "../../../../shared/ui/ui";
 export function SystemMetric({ label, value }: { label: string; value: string }) {
   return (
     <Card className="p-3">

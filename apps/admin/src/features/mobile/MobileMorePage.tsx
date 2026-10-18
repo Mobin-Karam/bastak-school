@@ -1,8 +1,8 @@
 import { Download, Settings2 } from "lucide-react";
 import { Link } from "react-router-dom";
-import { useAuth } from "../auth";
+import { useAuth } from "../identity/auth";
 import { localizedNavigationForCapabilities } from "../../app/layout/navigation/config/admin-navigation";
-import { openPWAInstall } from "../pwa";
+import { openPWAInstall } from "../platform/pwa";
 import { useLocale } from "../../shared/ui/locale";
 
 /** The mobile-only app hub; desktop continues to use the structured side rails. */

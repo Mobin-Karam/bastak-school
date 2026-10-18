@@ -1,4 +1,4 @@
-import { AuthThemeProvider } from "../../../shared/theme/theme";
+import { AuthThemeProvider } from "../../../../shared/theme/theme";
 import { usePublicSchoolProfile } from "./PublicSchoolProfile";
 import type { ReactNode } from "react";
 

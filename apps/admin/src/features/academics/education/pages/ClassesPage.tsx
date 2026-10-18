@@ -13,13 +13,13 @@ import {
 } from "lucide-react";
 import { useMemo, useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
-import { listOrganizations } from "../../access/api/access.api";
-import { useAuth } from "../../auth";
-import { useModal } from "../../../shared/ui/modal";
-import { notify } from "../../../shared/ui/notifications";
-import { OrganizationTag } from "../../../shared/ui/organization-tag";
-import { SpreadsheetTransferLauncher } from "../../../shared/ui/spreadsheet-transfer-launcher";
-import { Badge, Button, Card, EmptyState, Input, LoadingState } from "../../../shared/ui/ui";
+import { listOrganizations } from "../../../identity/access/api/access.api.ts";
+import { useAuth } from "../../../identity/auth";
+import { useModal } from "../../../../shared/ui/modal";
+import { notify } from "../../../../shared/ui/notifications";
+import { OrganizationTag } from "../../../../shared/ui/organization-tag";
+import { SpreadsheetTransferLauncher } from "../../../../shared/ui/spreadsheet-transfer-launcher";
+import { Badge, Button, Card, EmptyState, Input, LoadingState } from "../../../../shared/ui/ui";
 import {
   createClass,
   deleteClass,
@@ -30,7 +30,7 @@ import {
   type ClassDraft,
   type EducationClass,
   updateClass,
-} from "../api/classes.api";
+} from "../api/classes.api.ts";
 import { ClassTransferWorkspace } from "../components/ClassTransferWorkspace";
 import { useClassesCopy } from "../model/classes-copy";
 

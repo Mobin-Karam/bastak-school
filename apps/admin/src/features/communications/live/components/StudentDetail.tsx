@@ -1,8 +1,8 @@
 import { AlertTriangle, ExternalLink, MessageCircle } from "lucide-react";
 import { Link } from "react-router-dom";
-import { fa } from "../../../shared/lib/utils";
-import { Badge } from "../../../shared/ui/ui";
-import { useLocale } from "../../../shared/ui/locale";
+import { fa } from "../../../../shared/lib/utils";
+import { Badge } from "../../../../shared/ui/ui";
+import { useLocale } from "../../../../shared/ui/locale";
 import {
   attentionSignalCount,
   elapsed,
@@ -10,7 +10,7 @@ import {
   stateLabel,
   stateTone,
 } from "../lib/live-helpers";
-import type { LiveStudent } from "../model/live.types";
+import type { LiveStudent } from "../model/live.types.ts";
 import { MiniMetric } from "./MiniMetric";
 import { liveCopy } from "../model/live-copy";
 

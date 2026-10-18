@@ -3,8 +3,8 @@ import {
   getAdminDashboard,
   getDashboardWorkQueue,
   normalizeAttentionStudent,
-} from "./dashboard.api";
-import { api } from "../../../shared/api/api";
+} from "./dashboard.api.ts";
+import { api } from "../../../../shared/api/api";
 import { beforeEach, vi } from "vitest";
 
 describe("normalizeAttentionStudent", () => {

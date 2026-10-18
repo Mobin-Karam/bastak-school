@@ -1,9 +1,9 @@
 import { AlertCircle, Bell, CheckCheck, ExternalLink, RefreshCw } from "lucide-react";
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { useLocale } from "../../../shared/ui/locale";
-import { Badge, Button, EmptyState } from "../../../shared/ui/ui";
-import { ViewportPopover } from "../../../shared/ui/popover";
+import { useLocale } from "../../../../shared/ui/locale";
+import { Badge, Button, EmptyState } from "../../../../shared/ui/ui";
+import { ViewportPopover } from "../../../../shared/ui/popover";
 import { useAdminNotifications } from "../hooks/useAdminNotifications";
 import { notificationCopy } from "../model/notification-copy";
 import {

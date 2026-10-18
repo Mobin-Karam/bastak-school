@@ -1,6 +1,6 @@
 import { ShieldCheck } from "lucide-react";
-import { Card } from "../../../shared/ui/ui";
-import { useLocale } from "../../../shared/ui/locale";
+import { Card } from "../../../../shared/ui/ui";
+import { useLocale } from "../../../../shared/ui/locale";
 import { accessFlowGuidance, type AccessFlowScope } from "../model/access-flow";
 
 export function AccessFlowGuidance({

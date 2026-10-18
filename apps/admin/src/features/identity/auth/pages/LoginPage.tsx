@@ -4,7 +4,7 @@ import {
 } from "../components/PublicSchoolProfile";
 import { Link, Navigate } from "react-router-dom";
 
-import { useLocale } from "../../../shared/ui/locale";
+import { useLocale } from "../../../../shared/ui/locale";
 
 import { BackendHealthStatus } from "../components/BackendHealthStatus";
 

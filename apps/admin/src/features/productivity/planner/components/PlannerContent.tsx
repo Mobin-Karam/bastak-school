@@ -1,6 +1,6 @@
-import { Card, EmptyState } from "../../../shared/ui/ui";
+import { Card, EmptyState } from "../../../../shared/ui/ui";
 import { PlannerCanvas } from "./PlannerCanvas";
-import { useLocale } from "../../../shared/ui/locale";
+import { useLocale } from "../../../../shared/ui/locale";
 import { plannerCopy } from "../model/planner-copy";
 
 export function PlannerContent(props: any) {

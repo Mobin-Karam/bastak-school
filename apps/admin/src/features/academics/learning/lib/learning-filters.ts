@@ -1,6 +1,6 @@
-import { normalizePersianText, todayIso } from "../../../shared/lib/utils";
+import { normalizePersianText, todayIso } from "../../../../shared/lib/utils";
 import { isLearningDue, type LearningItem } from "../model/learning-model";
-import type { LearningFilter } from "../model/learning.types";
+import type { LearningFilter } from "../model/learning.types.ts";
 
 const validFilters: LearningFilter[] = ["all", "due", "pending", "done", "archived"];
 

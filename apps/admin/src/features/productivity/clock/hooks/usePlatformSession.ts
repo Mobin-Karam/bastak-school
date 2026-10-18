@@ -6,7 +6,7 @@ import {
   saveTabSession,
 } from "../lib/clock-storage";
 import { getTodayKey } from "../lib/time";
-import type { PlatformSessionStats } from "../model/clock.types";
+import type { PlatformSessionStats } from "../model/clock.types.ts";
 
 const IDLE_AFTER_MS = 5 * 60_000;
 const SAVE_INTERVAL_MS = 10_000;

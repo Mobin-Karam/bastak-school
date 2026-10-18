@@ -1,6 +1,6 @@
 import type { ComponentProps } from "react";
 import { timetableToday } from "../lib/timetable-time";
-import { DatePicker } from "../../../shared/ui/date-picker";
+import { DatePicker } from "../../../../shared/ui/date-picker";
 export function TimetableDateInput({
   label,
   timeZone = "Asia/Tehran",

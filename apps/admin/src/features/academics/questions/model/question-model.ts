@@ -1,4 +1,4 @@
-import { normalizePersianText } from "../../../shared/lib/utils";
+import { normalizePersianText } from "../../../../shared/lib/utils";
 
 export type QuestionDraft = {
   question: string;

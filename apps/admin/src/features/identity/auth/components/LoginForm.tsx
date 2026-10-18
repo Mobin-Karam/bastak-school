@@ -2,11 +2,11 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Eye, EyeOff } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
-import { Button, Field, Input } from "../../../shared/ui/ui";
+import { Button, Field, Input } from "../../../../shared/ui/ui";
 import { useAuth } from "../hooks/useAuth";
-import { createLoginSchema, type LoginFormValues } from "../model/login.schema";
+import { createLoginSchema, type LoginFormValues } from "../model/login.schema.ts";
 import { useAuthLocale } from "../model/auth-locale";
-import { checkLoginPhone } from "../api/auth.api";
+import { checkLoginPhone } from "../api/auth.api.ts";
 
 export function LoginForm() {
   const auth = useAuth();

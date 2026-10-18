@@ -1,7 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { describe, expect, it } from "vitest";
-import { LocaleProvider } from "../../../shared/ui/locale";
+import { LocaleProvider } from "../../../../shared/ui/locale";
 import { AttentionCard, attentionStatusLabels, formatAttentionDueDate } from "./AttentionPage";
 
 describe("AttentionPage queue metadata", () => {

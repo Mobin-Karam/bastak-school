@@ -1,19 +1,19 @@
 import { InfiniteData, useMutation, useQueryClient } from "@tanstack/react-query";
 import { ArrowDown, ChevronUp, WifiOff } from "lucide-react";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { Button, Card, EmptyState } from "../../../shared/ui/ui";
-import { useModal } from "../../../shared/ui/modal";
-import { useLocale } from "../../../shared/ui/locale";
-import { notify } from "../../../shared/ui/notifications";
-import { api } from "../../../shared/api/api";
-import type { ChatMessage, Conversation } from "../../../shared/types/domain";
-import { useAuth } from "../../auth/AuthProvider";
+import { Button, Card, EmptyState } from "../../../../shared/ui/ui";
+import { useModal } from "../../../../shared/ui/modal";
+import { useLocale } from "../../../../shared/ui/locale";
+import { notify } from "../../../../shared/ui/notifications";
+import { api } from "../../../../shared/api/api";
+import type { ChatMessage, Conversation } from "../../../../shared/types/domain";
+import { useAuth } from "../../../identity/auth/AuthProvider";
 import { MessageComposer } from "../components/composer/MessageComposer";
 import { ConversationSidebar } from "../components/conversation/ConversationSidebar";
 import { MessageList, MessageSkeleton } from "../components/messages/MessageList";
 import { ChatHeader } from "../components/messages/ChatHeader";
 import { MessageSearchBar } from "../components/messages/MessageSearchBar";
-import { chatApi, normalizeChatMessage } from "../api/chat.api";
+import { chatApi, normalizeChatMessage } from "../api/chat.api.ts";
 import { useChatSelectionParams } from "../hooks/useChatSelection";
 import { useConversation } from "../hooks/useConversation";
 import { useConversationFavorites } from "../hooks/useConversationFavorites";
@@ -24,7 +24,7 @@ import { useMessages } from "../hooks/useMessages";
 import { isNearBottom, mergeMessagePages, persistDraft, readDraft } from "../lib/chat-helpers";
 import { persistConversationScroll, readConversationScroll } from "../lib/chat-ui-storage";
 import { toFa } from "../lib/chat-formatters";
-import type { CombinedConversationPage, MessagePage } from "../model/chat.types";
+import type { CombinedConversationPage, MessagePage } from "../model/chat.types.ts";
 import { chatCopy } from "../model/chat-copy";
 import {
   filterAndSortConversations,

@@ -9,7 +9,7 @@ vi.mock("./CreateDirectButton", () => ({
 }));
 
 import { ConversationSidebar } from "./ConversationSidebar";
-import { LocaleProvider } from "../../../../shared/ui/locale";
+import { LocaleProvider } from "../../../../../shared/ui/locale";
 
 const defaults = {
   visible: true,

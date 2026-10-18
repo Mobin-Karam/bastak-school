@@ -1,34 +1,34 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import { LocaleProvider } from "../../../shared/ui/locale";
+import { LocaleProvider } from "../../../../shared/ui/locale";
 import { StudentLeaveRequestsPage } from "./StudentLeaveRequestsPage";
 
 const { createStudentLeaveRequest } = vi.hoisted(() => ({
   createStudentLeaveRequest: vi.fn(),
 }));
 
-vi.mock("../../auth", () => ({
+vi.mock("../../../identity/auth", () => ({
   useAuth: () => ({
     capabilities: ["leave.read", "leave.manage"],
     context: { activeOrganization: { id: "org-1" }, availableOrganizations: [] },
   }),
 }));
-vi.mock("../../dashboard/components/DashboardCalendar", () => ({
+vi.mock("../../../analytics/dashboard/components/DashboardCalendar", () => ({
   DashboardCalendar: ({ value, onChange }: { value: string; onChange: (date: string) => void }) => (
     <button type="button" onClick={() => onChange("2026-10-12")}>
       تقویم اشتراکی: {value}
     </button>
   ),
 }));
-vi.mock("../../../shared/ui/date-picker", () => ({
+vi.mock("../../../../shared/ui/date-picker", () => ({
   DatePicker: ({ value, onChange }: { value: string; onChange: (date: string) => void }) => (
     <button type="button" onClick={() => onChange("2026-10-13")}>
       انتخاب پایان: {value}
     </button>
   ),
 }));
-vi.mock("../api/student-leave.api", () => ({
+vi.mock("../api/student-leave.api.ts", () => ({
   listStudentLeaveRequests: async () => [],
   createStudentLeaveRequest,
 }));

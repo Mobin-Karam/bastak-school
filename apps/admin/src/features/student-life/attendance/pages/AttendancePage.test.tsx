@@ -3,7 +3,7 @@ import { cleanup, render, screen, waitFor, within } from "@testing-library/react
 import { MemoryRouter } from "react-router-dom";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { LocaleProvider } from "../../../shared/ui/locale";
+import { LocaleProvider } from "../../../../shared/ui/locale";
 import { AttendancePage } from "./AttendancePage";
 
 const {
@@ -24,7 +24,7 @@ const {
   submitAttendanceAbsencesMock: vi.fn(),
 }));
 
-vi.mock("../api/attendance.api", () => ({
+vi.mock("../api/attendance.api.ts", () => ({
   contextLabelMap: { class: "کلاس", class_group: "گروه کلاس", dorm: "خوابگاه" },
   listAttendanceSessions: listAttendanceSessionsMock,
   listAttendanceContexts: listAttendanceContextsMock,
@@ -32,12 +32,12 @@ vi.mock("../api/attendance.api", () => ({
   bulkMarkAttendance: bulkMarkAttendanceMock,
 }));
 
-vi.mock("../api/attendance-operations.api", () => ({
+vi.mock("../api/attendance-operations.api.ts", () => ({
   getSavedAttendanceSession: getSavedAttendanceSessionMock,
   submitAttendanceAbsences: submitAttendanceAbsencesMock,
 }));
 
-vi.mock("../../auth", () => ({
+vi.mock("../../../identity/auth", () => ({
   useAuth: () => ({ can: canMock, context: { activeOrganization: { id: "org-1" } } }),
 }));
 
