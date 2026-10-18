@@ -45,14 +45,19 @@ import { normalizeIranianMobile } from "../../common/utils/phone-number";
 import { StudentProfile } from "../../database/entities/student-profile.entity";
 import { EducationClass } from "../../database/entities/education-class.entity";
 import { EducationClassEnrollment } from "../../database/entities/education-class-enrollment.entity";
-import { normalizeNationalCode, isValidIranianNationalCode } from "../onboarding";
+import {
+  normalizeNationalCode,
+  isValidIranianNationalCode,
+} from "../onboarding";
 
 @Injectable()
 export class StudentAdministrationService {
   constructor(
     @InjectRepository(Student) private students: Repository<Student>,
-    @InjectRepository(StudentProfile) private profiles: Repository<StudentProfile>,
-    @InjectRepository(EducationClass) private classes: Repository<EducationClass>,
+    @InjectRepository(StudentProfile)
+    private profiles: Repository<StudentProfile>,
+    @InjectRepository(EducationClass)
+    private classes: Repository<EducationClass>,
     @InjectRepository(EducationClassEnrollment)
     private enrollments: Repository<EducationClassEnrollment>,
     @InjectRepository(User) private users: Repository<User>,
@@ -104,13 +109,17 @@ export class StudentAdministrationService {
         : organizationId
           ? context.organizationIds.filter((id) => id === organizationId)
           : context.organizationIds;
-      if (allowedOrganizationIds && !allowedOrganizationIds.length)
-        return [];
+      if (allowedOrganizationIds && !allowedOrganizationIds.length) return [];
       const rows = await this.students.find({
         where: allowedOrganizationIds?.length
           ? { organization: { id: In(allowedOrganizationIds) } }
           : undefined,
-        relations: { user: true, organization: true, profile: true, enrollments: { classroom: true } },
+        relations: {
+          user: true,
+          organization: true,
+          profile: true,
+          enrollments: { classroom: true },
+        },
         order: { createdAt: "DESC" },
       });
       return rows.map((student) => this.project(student));
@@ -123,7 +132,12 @@ export class StudentAdministrationService {
     const own = context.roles.includes("STUDENT")
       ? await this.students.find({
           where: { user: { id: user.id } },
-          relations: { user: true, organization: true, profile: true, enrollments: { classroom: true } },
+          relations: {
+            user: true,
+            organization: true,
+            profile: true,
+            enrollments: { classroom: true },
+          },
         })
       : [];
     const linked = links.map((link) => link.toStudent);
@@ -132,8 +146,14 @@ export class StudentAdministrationService {
     );
     const allowed = [];
     for (const student of unique.values())
-      if ((!organizationId || student.organization?.id === organizationId) &&
-          await this.authorization.canAccessStudent(context, student.id, "students.read"))
+      if (
+        (!organizationId || student.organization?.id === organizationId) &&
+        (await this.authorization.canAccessStudent(
+          context,
+          student.id,
+          "students.read",
+        ))
+      )
         allowed.push(this.project(student));
     return allowed;
   }
@@ -149,7 +169,12 @@ export class StudentAdministrationService {
       throw new ApiException(404, "NOT_FOUND", "دانش‌آموز یافت نشد.");
     const student = await this.students.findOne({
       where: { id },
-      relations: { user: true, organization: true, profile: true, enrollments: { classroom: true } },
+      relations: {
+        user: true,
+        organization: true,
+        profile: true,
+        enrollments: { classroom: true },
+      },
     });
     if (!student)
       throw new ApiException(404, "NOT_FOUND", "دانش‌آموز یافت نشد.");
@@ -493,7 +518,9 @@ export class StudentAdministrationService {
             );
           }
         }
-        const [firstName = "", ...lastNameParts] = (requestedStudentName ?? student.name)
+        const [firstName = "", ...lastNameParts] = (
+          requestedStudentName ?? student.name
+        )
           .trim()
           .split(/\s+/);
         manager.merge(User, student.user, {
@@ -505,8 +532,18 @@ export class StudentAdministrationService {
       }
 
       const saved = await manager.save(Student, student);
-      await this.syncSchoolProfile(manager, saved, student.organization ?? null, dto);
-      await this.syncGuardians(manager, saved, student.organization ?? null, dto);
+      await this.syncSchoolProfile(
+        manager,
+        saved,
+        student.organization ?? null,
+        dto,
+      );
+      await this.syncGuardians(
+        manager,
+        saved,
+        student.organization ?? null,
+        dto,
+      );
       return saved;
     });
     return this.project({ ...updated, user: updated.user ?? undefined });
@@ -642,18 +679,47 @@ export class StudentAdministrationService {
   }
   private jalaliToDate(value: string) {
     const match = value.trim().match(/^(1[34]\d\d)[/-](\d{1,2})[/-](\d{1,2})$/);
-    if (!match) throw new ApiException(422, "INVALID_BIRTH_DATE", "تاریخ تولد شمسی نامعتبر است.");
-    const jy = Number(match[1]), jm = Number(match[2]), jd = Number(match[3]);
+    if (!match)
+      throw new ApiException(
+        422,
+        "INVALID_BIRTH_DATE",
+        "تاریخ تولد شمسی نامعتبر است.",
+      );
+    const jy = Number(match[1]),
+      jm = Number(match[2]),
+      jd = Number(match[3]);
     if (jm < 1 || jm > 12 || jd < 1 || jd > 31)
-      throw new ApiException(422, "INVALID_BIRTH_DATE", "تاریخ تولد شمسی نامعتبر است.");
-    const jDayNo = 365 * (jy - 979) + Math.floor((jy - 979) / 33) * 8 + Math.floor(((jy - 979) % 33 + 3) / 4) + (jm < 7 ? (jm - 1) * 31 : (jm - 7) * 30 + 186) + jd - 1;
+      throw new ApiException(
+        422,
+        "INVALID_BIRTH_DATE",
+        "تاریخ تولد شمسی نامعتبر است.",
+      );
+    const jDayNo =
+      365 * (jy - 979) +
+      Math.floor((jy - 979) / 33) * 8 +
+      Math.floor((((jy - 979) % 33) + 3) / 4) +
+      (jm < 7 ? (jm - 1) * 31 : (jm - 7) * 30 + 186) +
+      jd -
+      1;
     let gDayNo = jDayNo + 79;
     let gy = 1600 + 400 * Math.floor(gDayNo / 146097);
     gDayNo %= 146097;
     let leap = true;
-    if (gDayNo >= 36525) { gDayNo--; gy += 100 * Math.floor(gDayNo / 36524); gDayNo %= 36524; if (gDayNo >= 365) gDayNo++; else leap = false; }
-    gy += 4 * Math.floor(gDayNo / 1461); gDayNo %= 1461;
-    if (gDayNo >= 366) { leap = false; gDayNo--; gy += Math.floor(gDayNo / 365); gDayNo %= 365; }
+    if (gDayNo >= 36525) {
+      gDayNo--;
+      gy += 100 * Math.floor(gDayNo / 36524);
+      gDayNo %= 36524;
+      if (gDayNo >= 365) gDayNo++;
+      else leap = false;
+    }
+    gy += 4 * Math.floor(gDayNo / 1461);
+    gDayNo %= 1461;
+    if (gDayNo >= 366) {
+      leap = false;
+      gDayNo--;
+      gy += Math.floor(gDayNo / 365);
+      gDayNo %= 365;
+    }
     const days = [31, leap ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
     let gm = 0;
     while (gDayNo >= days[gm]) gDayNo -= days[gm++];
@@ -669,45 +735,101 @@ export class StudentAdministrationService {
     if (dto.nationalCode !== undefined) {
       const nationalCode = normalizeNationalCode(dto.nationalCode);
       if (!isValidIranianNationalCode(nationalCode))
-        throw new ApiException(422, "INVALID_NATIONAL_CODE", "کد ملی معتبر نیست.");
-      const duplicate = await manager.findOne(Student, { where: { nationalCode } });
+        throw new ApiException(
+          422,
+          "INVALID_NATIONAL_CODE",
+          "کد ملی معتبر نیست.",
+        );
+      const duplicate = await manager.findOne(Student, {
+        where: { nationalCode },
+      });
       if (duplicate && duplicate.id !== student.id)
-        throw new ApiException(409, "NATIONAL_CODE_EXISTS", "برای این کد ملی پرونده دانش‌آموزی وجود دارد.");
+        throw new ApiException(
+          409,
+          "NATIONAL_CODE_EXISTS",
+          "برای این کد ملی پرونده دانش‌آموزی وجود دارد.",
+        );
       student.nationalCode = nationalCode;
       await manager.save(Student, student);
     }
-    if (dto.birthDateJalali !== undefined || dto.governmentSchool !== undefined) {
-      let profile = await manager.findOne(StudentProfile, { where: { student: { id: student.id } } });
+    if (
+      dto.birthDateJalali !== undefined ||
+      dto.governmentSchool !== undefined
+    ) {
+      let profile = await manager.findOne(StudentProfile, {
+        where: { student: { id: student.id } },
+      });
       profile ??= manager.create(StudentProfile, { student });
-      if (dto.birthDateJalali !== undefined) profile.birthDate = this.jalaliToDate(dto.birthDateJalali);
-      if (dto.governmentSchool !== undefined) profile.previousSchool = dto.governmentSchool.trim() || null;
+      if (dto.birthDateJalali !== undefined)
+        profile.birthDate = this.jalaliToDate(dto.birthDateJalali);
+      if (dto.governmentSchool !== undefined)
+        profile.previousSchool = dto.governmentSchool.trim() || null;
       await manager.save(StudentProfile, profile);
     }
     if (dto.classId !== undefined || ("clearClass" in dto && dto.clearClass)) {
-      if (!organization) throw new ApiException(422, "ORGANIZATION_REQUIRED", "برای ثبت کلاس، سازمان دانش‌آموز الزامی است.");
-      if ("clearClass" in dto && dto.clearClass) await manager.delete(EducationClassEnrollment, { student: { id: student.id } });
+      if (!organization)
+        throw new ApiException(
+          422,
+          "ORGANIZATION_REQUIRED",
+          "برای ثبت کلاس، سازمان دانش‌آموز الزامی است.",
+        );
+      if ("clearClass" in dto && dto.clearClass)
+        await manager.delete(EducationClassEnrollment, {
+          student: { id: student.id },
+        });
       if (dto.classId) {
-        const classroom = await manager.findOne(EducationClass, { where: { id: dto.classId }, relations: { organization: true, enrollments: true } });
+        const classroom = await manager.findOne(EducationClass, {
+          where: { id: dto.classId },
+          relations: { organization: true, enrollments: true },
+        });
         if (!classroom || classroom.organization.id !== organization.id)
-          throw new ApiException(404, "CLASS_NOT_FOUND", "کلاس در سازمان دانش‌آموز یافت نشد.");
-        if (classroom.status !== "ACTIVE") throw new ApiException(422, "CLASS_INACTIVE", "کلاس انتخاب‌شده فعال نیست.");
-        const existing = await manager.findOne(EducationClassEnrollment, { where: { classroom: { id: classroom.id }, student: { id: student.id } } });
+          throw new ApiException(
+            404,
+            "CLASS_NOT_FOUND",
+            "کلاس در سازمان دانش‌آموز یافت نشد.",
+          );
+        if (classroom.status !== "ACTIVE")
+          throw new ApiException(
+            422,
+            "CLASS_INACTIVE",
+            "کلاس انتخاب‌شده فعال نیست.",
+          );
+        const existing = await manager.findOne(EducationClassEnrollment, {
+          where: {
+            classroom: { id: classroom.id },
+            student: { id: student.id },
+          },
+        });
         if (!existing) {
-          if (classroom.enrollments.length >= classroom.capacity) throw new ApiException(422, "CLASS_CAPACITY_EXCEEDED", "ظرفیت کلاس تکمیل است.");
-          await manager.delete(EducationClassEnrollment, { student: { id: student.id } });
-          await manager.save(EducationClassEnrollment, manager.create(EducationClassEnrollment, { classroom, student }));
+          if (classroom.enrollments.length >= classroom.capacity)
+            throw new ApiException(
+              422,
+              "CLASS_CAPACITY_EXCEEDED",
+              "ظرفیت کلاس تکمیل است.",
+            );
+          await manager.delete(EducationClassEnrollment, {
+            student: { id: student.id },
+          });
+          await manager.save(
+            EducationClassEnrollment,
+            manager.create(EducationClassEnrollment, { classroom, student }),
+          );
         }
       }
     }
     const [profile, enrollment] = await Promise.all([
-      manager.findOne(StudentProfile, { where: { student: { id: student.id } } }),
-      manager.findOne(EducationClassEnrollment, { where: { student: { id: student.id } } }),
+      manager.findOne(StudentProfile, {
+        where: { student: { id: student.id } },
+      }),
+      manager.findOne(EducationClassEnrollment, {
+        where: { student: { id: student.id } },
+      }),
     ]);
     const complete = Boolean(
       student.nationalCode &&
-        profile?.birthDate &&
-        profile.previousSchool?.trim() &&
-        enrollment,
+      profile?.birthDate &&
+      profile.previousSchool?.trim() &&
+      enrollment,
     );
     student.registrationStatus = complete ? "ACTIVE" : "ACCOUNT_CREATED";
     await manager.save(Student, student);
@@ -719,24 +841,87 @@ export class StudentAdministrationService {
     organization: Organization | null | undefined,
     dto: CreateStudentDto | UpdateStudentDto,
   ) {
-    const requested = [dto.mother, dto.father].filter(Boolean) as Array<{ phoneNumber: string; password: string }>;
+    const requested = [dto.mother, dto.father].filter(Boolean) as Array<{
+      phoneNumber: string;
+      password: string;
+    }>;
     if (!requested.length) return;
-    if (!organization) throw new ApiException(422, "ORGANIZATION_REQUIRED", "برای ثبت سرپرست، سازمان دانش‌آموز الزامی است.");
-    const guardianRole = await manager.findOneByOrFail(Role, { code: "GUARDIAN" });
+    if (!organization)
+      throw new ApiException(
+        422,
+        "ORGANIZATION_REQUIRED",
+        "برای ثبت سرپرست، سازمان دانش‌آموز الزامی است.",
+      );
+    const guardianRole = await manager.findOneByOrFail(Role, {
+      code: "GUARDIAN",
+    });
     for (const input of requested) {
       const phoneNumber = normalizeIranianMobile(input.phoneNumber);
       let guardian = await manager.findOne(User, { where: { phoneNumber } });
-      if (!guardian) guardian = await manager.save(User, manager.create(User, { username: phoneNumber, phoneNumber, passwordHash: await bcrypt.hash(input.password, 12), firstName: "", lastName: "", role: UserRole.GUARDIAN, status: UserStatus.ACTIVE }));
-      let membership = await manager.findOne(OrganizationMembership, { where: { user: { id: guardian.id }, organization: { id: organization.id } } });
-      if (!membership) membership = await manager.save(OrganizationMembership, manager.create(OrganizationMembership, { user: guardian, organization, status: MembershipStatus.ACTIVE }));
+      if (!guardian)
+        guardian = await manager.save(
+          User,
+          manager.create(User, {
+            username: phoneNumber,
+            phoneNumber,
+            passwordHash: await bcrypt.hash(input.password, 12),
+            firstName: "",
+            lastName: "",
+            role: UserRole.GUARDIAN,
+            status: UserStatus.ACTIVE,
+          }),
+        );
+      let membership = await manager.findOne(OrganizationMembership, {
+        where: {
+          user: { id: guardian.id },
+          organization: { id: organization.id },
+        },
+      });
+      if (!membership)
+        membership = await manager.save(
+          OrganizationMembership,
+          manager.create(OrganizationMembership, {
+            user: guardian,
+            organization,
+            status: MembershipStatus.ACTIVE,
+          }),
+        );
       else if (membership.status !== MembershipStatus.ACTIVE) {
         membership.status = MembershipStatus.ACTIVE;
         membership = await manager.save(OrganizationMembership, membership);
       }
-      const assignment = await manager.findOne(UserRoleAssignment, { where: { user: { id: guardian.id }, role: { id: guardianRole.id }, ...(guardianRole.organizationScoped ? { membership: { id: membership.id } } : {}) } });
-      if (!assignment) await manager.save(UserRoleAssignment, manager.create(UserRoleAssignment, { user: guardian, role: guardianRole, membership: guardianRole.organizationScoped ? membership : null }));
-      let relationship = await manager.findOne(UserRelationship, { where: { fromUser: { id: guardian.id }, toStudent: { id: student.id }, organization: { id: organization.id }, type: "GUARDIAN_OF" as any } });
-      relationship ??= manager.create(UserRelationship, { fromUser: guardian, toStudent: student, organization, type: "GUARDIAN_OF" as any });
+      const assignment = await manager.findOne(UserRoleAssignment, {
+        where: {
+          user: { id: guardian.id },
+          role: { id: guardianRole.id },
+          ...(guardianRole.organizationScoped
+            ? { membership: { id: membership.id } }
+            : {}),
+        },
+      });
+      if (!assignment)
+        await manager.save(
+          UserRoleAssignment,
+          manager.create(UserRoleAssignment, {
+            user: guardian,
+            role: guardianRole,
+            membership: guardianRole.organizationScoped ? membership : null,
+          }),
+        );
+      let relationship = await manager.findOne(UserRelationship, {
+        where: {
+          fromUser: { id: guardian.id },
+          toStudent: { id: student.id },
+          organization: { id: organization.id },
+          type: "GUARDIAN_OF" as any,
+        },
+      });
+      relationship ??= manager.create(UserRelationship, {
+        fromUser: guardian,
+        toStudent: student,
+        organization,
+        type: "GUARDIAN_OF" as any,
+      });
       relationship.status = RelationshipStatus.ACTIVE;
       relationship.acceptedAt = new Date();
       await manager.save(UserRelationship, relationship);
