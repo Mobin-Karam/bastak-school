@@ -18,7 +18,7 @@ import {
   type DormAssignment,
   type DormitoryStudent,
   type DormRoom,
-} from "../api/dormitory.api.ts";
+} from "../api/dormitory.api";
 
 const emptyRoom = { building: "ساختمان اصلی", floor: 1, code: "", name: "", capacity: 14 };
 

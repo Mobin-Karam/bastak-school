@@ -9,7 +9,7 @@ import {
   getPendingAttendanceCorrections,
   reviewAttendanceCorrection,
   type PendingAttendanceCorrection,
-} from "../api/attendance-operations.api.ts";
+} from "../api/attendance-operations.api";
 
 const statusLabel: Record<string, string> = {
   present: "حاضر",

@@ -9,9 +9,9 @@ import {
   reviewRetryRequest,
   setExamPublished,
   updateExam,
-} from "../api/exams.api.ts";
+} from "../api/exams.api";
 import type { ExamDraft } from "../model/exam-model";
-import type { SyllabusDraft } from "../model/exam.types.ts";
+import type { SyllabusDraft } from "../model/exam.types";
 
 export function useExamMutations(studentId: string) {
   const queryClient = useQueryClient();

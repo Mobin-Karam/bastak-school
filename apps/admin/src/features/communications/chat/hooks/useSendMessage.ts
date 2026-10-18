@@ -1,5 +1,5 @@
 import { useMutation } from "@tanstack/react-query";
-import { chatApi } from "../api/chat.api.ts";
+import { chatApi } from "../api/chat.api";
 
 export type SendMessageInput = {
   conversationId: string;

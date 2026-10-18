@@ -1,6 +1,6 @@
 import { api, request } from "../../../../shared/api/api";
 import type { AccountContext, User } from "../../../../shared/types/domain";
-import type { BackendHealth, LoginResponse } from "../model/auth.types.ts";
+import type { BackendHealth, LoginResponse } from "../model/auth.types";
 
 export function getCurrentUser() {
   return request<User>("GET", "/auth/me", undefined, {

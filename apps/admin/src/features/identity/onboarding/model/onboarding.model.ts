@@ -1,10 +1,10 @@
-import type { PortalUser } from "../../access/api/access.api.ts";
+import type { PortalUser } from "../../access/api/access.api";
 import type {
   AssignmentAdvisor,
   AssignmentInput,
   ManualAssignmentChoice,
   OnboardingMode,
-} from "../types/onboarding.types.ts";
+} from "../types/onboarding.types";
 
 export function displayAdvisor(user: Pick<PortalUser, "username" | "firstName" | "lastName">) {
   return [user.firstName, user.lastName].filter(Boolean).join(" ") || user.username;

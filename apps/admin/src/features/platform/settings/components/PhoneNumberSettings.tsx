@@ -8,7 +8,7 @@ import {
   changeOwnPhoneNumber,
   getAccountProfile,
   requestPhoneNumberChange,
-} from "../api/settings.api.ts";
+} from "../api/settings.api";
 
 export function PhoneNumberSettings() {
   const auth = useAuth();

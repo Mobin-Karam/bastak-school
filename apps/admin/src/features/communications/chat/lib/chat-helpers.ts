@@ -1,7 +1,7 @@
 import type { InfiniteData } from "@tanstack/react-query";
 import { normalizePersianText } from "../../../../shared/lib/utils";
 import type { ChatMessage, Conversation } from "../../../../shared/types/domain";
-import type { MessagePage } from "../model/chat.types.ts";
+import type { MessagePage } from "../model/chat.types";
 export { canUseMessageAction } from "../model/permissions";
 
 export function chatSearchMatch(item: Conversation, search: string) {

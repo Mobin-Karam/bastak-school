@@ -4,12 +4,12 @@ import { BookOpenCheck, CalendarClock, ChevronLeft, Clock3, UsersRound } from "l
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../../../identity/auth";
-import { listSchedule, type ScheduleEntry } from "../../../academics/schedule/api/schedule.api.ts";
-import { listClasses } from "../../../academics/education/api/classes.api.ts";
+import { listSchedule, type ScheduleEntry } from "../../../academics/schedule/api/schedule.api";
+import { listClasses } from "../../../academics/education/api/classes.api";
 import { todayIso } from "../../../../shared/lib/utils";
 import { useLocale } from "../../../../shared/ui/locale";
 import { Card, EmptyState, LoadingState } from "../../../../shared/ui/ui";
-import { getAdminDashboard } from "../../../analytics/dashboard/api/dashboard.api.ts";
+import { getAdminDashboard } from "../../../analytics/dashboard/api/dashboard.api";
 import { DashboardCalendar } from "../../../analytics/dashboard/components/DashboardCalendar";
 import { AnnouncementEnvelope } from "../../../analytics/dashboard/components/AnnouncementEnvelope";
 import { CurrentPrayerCard } from "../../../analytics/school-home/components/CurrentPrayerCard";

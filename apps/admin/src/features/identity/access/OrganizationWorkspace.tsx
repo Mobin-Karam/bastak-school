@@ -45,7 +45,7 @@ import {
   setOrganizationStudentSignupPolicy,
   type OrganizationMember,
   type RelationshipStudent,
-} from "./api/access.api.ts";
+} from "./api/access.api";
 
 const statusTones: Record<string, string> = {
   PENDING:

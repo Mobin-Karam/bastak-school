@@ -1,5 +1,5 @@
 import { ArrowDownAZ, Clock3, Star, Wifi } from "lucide-react";
-import type { ConversationSort } from "../../model/chat.types.ts";
+import type { ConversationSort } from "../../model/chat.types";
 import { useLocale } from "../../../../../shared/ui/locale";
 import { chatCopy } from "../../model/chat-copy";
 

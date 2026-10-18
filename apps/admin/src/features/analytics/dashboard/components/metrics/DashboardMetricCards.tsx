@@ -13,7 +13,7 @@ import { fa } from "../../../../../shared/lib/utils";
 import { useLocale } from "../../../../../shared/ui/locale";
 import { dashboardCopy } from "../../model/dashboard-copy";
 
-import type { AdminDashboardSummary } from "../../model/dashboard.types.ts";
+import type { AdminDashboardSummary } from "../../model/dashboard.types";
 
 type Metric = {
   label: string;

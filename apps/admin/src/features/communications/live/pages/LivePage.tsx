@@ -10,7 +10,7 @@ import { TimelinePanel } from "../components/TimelinePanel";
 import { useLiveClock } from "../hooks/useLiveClock";
 import { useLiveData } from "../hooks/useLiveData";
 import { useLiveStudents } from "../hooks/useLiveStudents";
-import type { LiveFilter, LivePanel } from "../model/live.types.ts";
+import type { LiveFilter, LivePanel } from "../model/live.types";
 import { liveCopy } from "../model/live-copy";
 
 export function LivePage() {

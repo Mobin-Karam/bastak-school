@@ -1,4 +1,4 @@
-import type { ReportRow } from "./api/reports.api.ts";
+import type { ReportRow } from "./api/reports.api";
 
 export function reportNumber(value: unknown): number {
   if (typeof value === "number" && Number.isFinite(value)) return value;

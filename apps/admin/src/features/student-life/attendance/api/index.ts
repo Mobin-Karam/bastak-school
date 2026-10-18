@@ -2,11 +2,11 @@ export {
   bulkMarkAttendance,
   getAttendanceParticipants,
   listMyAttendanceAbsenceReviews,
-} from "./attendance.api.ts";
+} from "./attendance.api";
 export type {
   AttendanceBulkMarkRequest,
   AttendanceContextOption,
   AttendanceContextType,
   SelfAttendanceRecord,
-} from "./attendance.api.ts";
-export { getAttendanceEncouragement, getAttendanceOverview } from "./attendance-operations.api.ts";
+} from "./attendance.api";
+export { awardAttendancePoints, getAttendanceEncouragement, getAttendanceOverview } from "./attendance-operations.api";

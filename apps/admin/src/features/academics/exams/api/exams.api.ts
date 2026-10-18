@@ -1,7 +1,7 @@
 import { api } from "../../../../shared/api/api";
 import type { Exam } from "../../../../shared/types/domain";
 import type { AttemptDetail, AttemptSummary, ExamDraft } from "../model/exam-model";
-import type { RetryRequest, SyllabusDraft } from "../model/exam.types.ts";
+import type { RetryRequest, SyllabusDraft } from "../model/exam.types";
 
 export type ExamAssignmentView = {
   id: string;

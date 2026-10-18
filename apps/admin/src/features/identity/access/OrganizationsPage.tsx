@@ -36,7 +36,7 @@ import {
   setOrganizationStudentSignupPolicy,
   updateOrganization,
   type PortalOrganization,
-} from "./api/access.api.ts";
+} from "./api/access.api";
 import { OrganizationWorkspace } from "./OrganizationWorkspace";
 import { AccessFlowGuidance } from "./components/AccessFlowGuidance";
 import { emptyAccessResult } from "./model/access-flow";

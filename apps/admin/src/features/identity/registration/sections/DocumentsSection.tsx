@@ -1,7 +1,7 @@
 import { useState, useRef } from "react";
 import { Card, Badge, Alert } from "../../../../shared/ui/ui";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { getRegistrationSelf, uploadStudentDocument } from "../api/registration.api.ts";
+import { getRegistrationSelf, uploadStudentDocument } from "../api/registration.api";
 
 export function DocumentsSection() {
   const queryClient = useQueryClient();

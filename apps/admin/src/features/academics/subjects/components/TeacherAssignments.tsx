@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { UserPlus, Users } from "lucide-react";
-import { listOrganizationMembers } from "../../../identity/access/api/access.api.ts";
+import { listOrganizationMembers } from "../../../identity/access/api/access.api";
 import { Button, EmptyState, Field, Select } from "../../../../shared/ui/ui";
 import { useModal } from "../../../../shared/ui/modal";
 import { useLocale } from "../../../../shared/ui/locale";
@@ -9,7 +9,7 @@ import {
   assignSubjectTeacher,
   getSubjectTeachers,
   unassignSubjectTeacher,
-} from "../api/subjects.api.ts";
+} from "../api/subjects.api";
 import { subjectCopy } from "../subject-locale";
 
 export function TeacherAssignments({

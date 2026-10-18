@@ -5,7 +5,7 @@ import { notify } from "../../../../shared/ui/notifications";
 import { Button, EmptyState, LoadingState } from "../../../../shared/ui/ui";
 import { StudentAllocationControl } from "../../../../shared/ui/student-allocation-control";
 import { useLocale } from "../../../../shared/ui/locale";
-import { listClasses } from "../../education/api/classes.api.ts";
+import { listClasses } from "../../education/api/classes.api";
 import {
   assignExam,
   getExamAssignments,
@@ -13,7 +13,7 @@ import {
   setExamAudienceRules,
   setExamClassAssignments,
   unassignExam,
-} from "../api/exams.api.ts";
+} from "../api/exams.api";
 
 export function ExamAssignmentManager({
   examId,

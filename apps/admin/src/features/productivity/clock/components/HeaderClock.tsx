@@ -16,7 +16,7 @@ import {
   formatShortDate,
   getNextAlarmTimestamp,
 } from "../lib/time";
-import type { PlatformSessionStats } from "../model/clock.types.ts";
+import type { PlatformSessionStats } from "../model/clock.types";
 import { AlarmPanel } from "./AlarmPanel";
 import { SessionStats } from "./SessionStats";
 import { StopwatchPanel } from "./StopwatchPanel";

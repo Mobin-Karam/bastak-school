@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 
-import { getPlatformBootstrapStatus } from "../api/auth.api.ts";
+import { getPlatformBootstrapStatus } from "../api/auth.api";
 
 export function usePlatformBootstrap() {
   const [setupRequired, setSetupRequired] = useState(false);

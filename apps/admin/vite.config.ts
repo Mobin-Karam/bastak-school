@@ -12,8 +12,10 @@ const backendTargets = {
   remote:
     process.env.MOSHAVER_REMOTE_API_ORIGIN ||
     process.env.VITE_REMOTE_API_ORIGIN ||
-    "https://api.mahakaram.ir",
+    "https://api.sultano.ir",
 } as const;
+
+const localPortalHosts = ["localhost", "127.0.0.1", "::1", "app.localhost", "stud.localhost"];
 
 function selectedBackend(cookieHeader = "") {
   const match = cookieHeader.match(/(?:^|;\s*)moshaver_admin_backend=(local|remote)(?:;|$)/);
@@ -121,8 +123,18 @@ export default defineConfig({
     },
   },
   server: {
-    port: 8081,
+    // Exact local portal names exercise the same hostname policy as production
+    // without accepting arbitrary Host headers or exposing the dev server.
+    host: "localhost",
+    port: 5173,
     strictPort: true,
+    allowedHosts: localPortalHosts,
+  },
+  preview: {
+    host: "localhost",
+    port: 5173,
+    strictPort: true,
+    allowedHosts: localPortalHosts,
   },
   resolve: {
     // Keep lazy route modules and the application shell on the same React

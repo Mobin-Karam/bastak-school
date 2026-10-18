@@ -10,7 +10,7 @@ import {
   stateLabel,
   stateTone,
 } from "../lib/live-helpers";
-import type { LiveStudent } from "../model/live.types.ts";
+import type { LiveStudent } from "../model/live.types";
 import { MiniMetric } from "./MiniMetric";
 import { liveCopy } from "../model/live-copy";
 

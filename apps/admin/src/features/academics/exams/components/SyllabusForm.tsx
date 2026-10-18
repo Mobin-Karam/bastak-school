@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Button, Field, Input, Textarea } from "../../../../shared/ui/ui";
 import { useLocale } from "../../../../shared/ui/locale";
 import { examsCopy } from "../exams-locale";
-import type { SyllabusDraft } from "../model/exam.types.ts";
+import type { SyllabusDraft } from "../model/exam.types";
 
 export function SyllabusForm({
   onSubmit,

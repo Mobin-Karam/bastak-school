@@ -10,7 +10,7 @@ import { SegmentedControl } from "../../../../shared/ui/segmented-control";
 import { Button, Card, EmptyState, Select } from "../../../../shared/ui/ui";
 import { useStudentSelection } from "../../../../shared/hooks/useStudentSelection";
 import { addDays, todayIso, normalizePersianText } from "../../../../shared/lib/utils";
-import { getReports } from "../api/reports.api.ts";
+import { getReports } from "../api/reports.api";
 import { ReportCard } from "../components/ReportCard";
 import { ReportCompactList } from "../components/ReportCompactList";
 import { ReportSummary } from "../components/ReportSummary";

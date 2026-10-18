@@ -3,7 +3,7 @@
 // ─────────────────────────────────────────────────────────────
 import { Link } from "react-router-dom";
 import { ArrowUpLeft, ArrowUpRight } from "lucide-react";
-import { EducationSection } from "../model/eduction.types.ts";
+import { EducationSection } from "../model/eduction.types";
 import { useLocale } from "../../../../shared/ui/locale";
 
 const CARD_CLASS = [

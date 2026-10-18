@@ -9,7 +9,7 @@ import type {
   AdvisorInbox,
   RecoveryActionInput,
   TaskIssueActionInput,
-} from "../model/notification.types.ts";
+} from "../model/notification.types";
 
 export async function getNotificationsPage(cursor?: string) {
   const page = await api.get<NotificationPage>(

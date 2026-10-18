@@ -9,7 +9,7 @@ import {
   getStudentAnalytics,
   getStudentMistakes,
   getStudentRecommendations,
-} from "../api/students.api.ts";
+} from "../api/students.api";
 import { studentCopy } from "../model/student-locale";
 
 const number = (value: number | null | undefined, suffix = "", locale = "fa-IR") =>

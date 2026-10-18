@@ -2,7 +2,7 @@ import { SlidersHorizontal, WandSparkles } from "lucide-react";
 import { SegmentedControl } from "../../../../shared/ui/segmented-control";
 import { useLocale } from "../../../../shared/ui/locale";
 import { onboardingCopy } from "../onboarding-locale";
-import type { OnboardingMode } from "../types/onboarding.types.ts";
+import type { OnboardingMode } from "../types/onboarding.types";
 
 export function OnboardingModeSelector({
   value,

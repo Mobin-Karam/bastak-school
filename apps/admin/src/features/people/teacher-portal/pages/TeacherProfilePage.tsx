@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { UserRound } from "lucide-react";
 import { useAuth } from "../../../identity/auth";
-import { getAccountProfile } from "../../../platform/settings/api/settings.api.ts";
+import { getAccountProfile } from "../../../platform/settings/api/settings.api";
 import { ManagementPageHeader } from "../../../../shared/ui/management-workspace";
 import { MobileCard } from "../../../../shared/ui/mobile/layout";
 

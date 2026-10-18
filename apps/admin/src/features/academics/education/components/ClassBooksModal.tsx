@@ -3,8 +3,8 @@ import { Save } from "lucide-react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "../../../../shared/ui/ui";
 import { useClassesCopy } from "../model/classes-copy";
-import { deleteEducationBook } from "../api/education-catalog.api.ts";
-import type { EducationClass, getClassOptions } from "../api/classes.api.ts";
+import { deleteEducationBook } from "../api/education-catalog.api";
+import type { EducationClass, getClassOptions } from "../api/classes.api";
 
 export function ClassBooksModal({
   options,

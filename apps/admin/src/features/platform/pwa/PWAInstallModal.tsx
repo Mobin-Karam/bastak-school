@@ -10,7 +10,7 @@ const benefits = [
   "باز شدن مانند یک اپلیکیشن مستقل",
   "دسترسی سریع از صفحه اصلی",
   "پشتیبانی بهتر از حالت آفلاین",
-  "دریافت نسخه‌های جدید زانین",
+  "دریافت نسخه‌های جدید پلتفرم مدرسه",
 ];
 
 export function PWAInstallModal({
@@ -71,24 +71,24 @@ export function PWAInstallModal({
               src="/app-logo.png"
               width={56}
               height={56}
-              alt="نشان زانین"
+              alt="نشان برنامه"
               decoding="async"
               className="size-14 rounded-2xl object-contain drop-shadow-sm"
             />
             <span className="inline-flex items-center gap-1 rounded-full bg-brand/10 px-2.5 py-1 text-[11px] font-bold text-brand">
               <Sparkles size={13} aria-hidden="true" />
-              تجربه اپلیکیشن زانین
+              تجربه اپلیکیشن مدرسه
             </span>
           </div>
           <DialogTitle className="pe-10 text-xl font-bold sm:text-2xl">
             {isIOS
-              ? "نصب زانین در آیفون یا آیپد"
+              ? "نصب برنامه در آیفون یا آیپد"
               : isAndroid
-                ? "نصب زانین برای اندروید"
-                : "زانین را به دستگاه خود اضافه کنید"}
+                ? "نصب برنامه برای اندروید"
+                : "برنامه را به دستگاه خود اضافه کنید"}
           </DialogTitle>
           <DialogDescription className="text-right leading-7">
-            زانین را روی دستگاه خود نصب کنید تا با دسترسی سریع‌تر، فضای بیشتر و تجربه‌ای شبیه
+            برنامه را روی دستگاه خود نصب کنید تا با دسترسی سریع‌تر، فضای بیشتر و تجربه‌ای شبیه
             اپلیکیشن از آن استفاده کنید.
           </DialogDescription>
         </DialogHeader>
@@ -98,7 +98,7 @@ export function PWAInstallModal({
             {[
               ["۱", "در Safari دکمه Share را بزنید", Share2],
               ["۲", "Add to Home Screen را انتخاب کنید", Download],
-              ["۳", "Add را بزنید و زانین را از صفحه اصلی باز کنید", CheckCircle2],
+              ["۳", "Add را بزنید و برنامه را از صفحه اصلی باز کنید", CheckCircle2],
             ].map(([step, text, Icon]) => (
               <li
                 key={step as string}
@@ -167,7 +167,7 @@ export function PWAInstallModal({
                 ? "راهنمای نصب اندروید"
                 : isAndroid
                   ? "نصب برای اندروید"
-                  : "نصب زانین"}
+                  : "نصب برنامه"}
           </Button>
           <Button
             variant="soft"

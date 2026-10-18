@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { LocaleProvider } from "../../../../shared/ui/locale";
-import { getStudentSignupOptions, studentSignup } from "../api/signup.api.ts";
+import { getStudentSignupOptions, studentSignup } from "../api/signup.api";
 import { StudentSignupPage } from "./StudentSignupPage";
 
 vi.mock("../api/signup.api.ts", () => ({ getStudentSignupOptions: vi.fn(), studentSignup: vi.fn() }));

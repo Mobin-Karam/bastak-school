@@ -5,7 +5,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../../../identity/auth";
 import { Card, Button } from "../../../../shared/ui/ui";
 import { notify } from "../../../../shared/ui/notifications";
-import { getTimetable, openTimetableAttendance } from "../api/timetable.api.ts";
+import { getTimetable, openTimetableAttendance } from "../api/timetable.api";
 import { timetableDateLabel, timetableToday, timetableWeekStart } from "../lib/timetable-time";
 export function TimetableToday() {
   const auth = useAuth();

@@ -38,7 +38,7 @@ import {
   overrideTimetable,
   openTimetableAttendance,
   getTimetableAttendanceReport,
-} from "../api/timetable.api.ts";
+} from "../api/timetable.api";
 import { TimetableLessonEditor, timetableSelectClass } from "../components/TimetableLessonEditor";
 import { timetableSetup, TimetableOnboarding } from "../components/TimetableOnboarding";
 import { TimetableSettings } from "../components/TimetableSettings";

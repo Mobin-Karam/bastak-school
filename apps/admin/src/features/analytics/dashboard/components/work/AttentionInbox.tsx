@@ -15,7 +15,7 @@ import { SegmentedControl } from "../../../../../shared/ui/segmented-control";
 import { cn } from "../../../../../shared/lib/utils";
 import { useLocale } from "../../../../../shared/ui/locale";
 import { dashboardCopy } from "../../model/dashboard-copy";
-import type { AttentionSeverity, AttentionStudent } from "../../model/dashboard.types.ts";
+import type { AttentionSeverity, AttentionStudent } from "../../model/dashboard.types";
 
 type Filter = "all" | "red" | "yellow";
 

@@ -5,7 +5,7 @@ import { notify } from "../../../../shared/ui/notifications";
 import { notificationRequestErrorMessage } from "../lib/api-error";
 import { useAdminNotifications } from "../hooks/useAdminNotifications";
 import type { PushStatus } from "../model/notification-model";
-import type { NotificationContextValue } from "../model/notification.types.ts";
+import type { NotificationContextValue } from "../model/notification.types";
 import { NotificationPreference } from "./NotificationPreference";
 import { notificationCopy } from "../model/notification-copy";
 import type { AdminLanguage } from "../../../../shared/ui/locale";

@@ -12,6 +12,7 @@ import {
   localizedMainNavigationForCapabilities,
   localizedNavigationForCapabilities,
 } from "../config/admin-navigation";
+import { ThemeSwitcher } from "@/shared/theme/theme";
 
 const MAX_PRIMARY_DESTINATIONS = 4;
 
@@ -93,6 +94,10 @@ export function AdminMobileBottomNav({
         }
         className="md:hidden"
       >
+        <div className="flex items-center justify-between border rounded-lg p-1 px-2 mb-1 border-gray-300 dark:border-green-900">
+          <p className="">تغییر حالت صفحه</p>
+          <ThemeSwitcher />
+        </div>
         <aside id="admin-mobile-navigation-sheet" dir={profile.direction} className="grid gap-5">
           {navigationGroups.map((group) => (
             <section

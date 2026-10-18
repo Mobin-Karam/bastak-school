@@ -1,5 +1,5 @@
 import { createContext } from "react";
-import type { AuthState } from "./model/auth.types.ts";
+import type { AuthState } from "./model/auth.types";
 
 /**
  * Keep the context identity outside the hot-reloaded provider implementation.

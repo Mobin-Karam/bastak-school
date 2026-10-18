@@ -15,7 +15,7 @@ import type {
 import { ResponsiveModal } from "../../../../shared/ui/responsive-modal";
 import { Button, Field, Input } from "../../../../shared/ui/ui";
 import { notify } from "../../../../shared/ui/notifications";
-import { previewTimetableLesson, writeTimetableLesson } from "../api/timetable.api.ts";
+import { previewTimetableLesson, writeTimetableLesson } from "../api/timetable.api";
 import { persianWeekdays } from "../lib/timetable-workbook";
 
 const schema = z

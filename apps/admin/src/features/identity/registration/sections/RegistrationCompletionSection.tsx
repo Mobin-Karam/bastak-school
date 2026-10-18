@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Card, Button, Badge, Alert } from "../../../../shared/ui/ui";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { getRegistrationSelf, completeRegistration } from "../api/registration.api.ts";
+import { getRegistrationSelf, completeRegistration } from "../api/registration.api";
 
 export function RegistrationCompletionSection() {
   const queryClient = useQueryClient();

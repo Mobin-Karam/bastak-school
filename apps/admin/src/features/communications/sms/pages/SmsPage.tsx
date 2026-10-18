@@ -38,7 +38,7 @@ import {
   type Criteria,
   type ProviderStatus,
   type Preview,
-} from "../api/sms.api.ts";
+} from "../api/sms.api";
 import type { SmsCampaignDetail } from "@moshaver/api-contract";
 
 const audienceRoles = [

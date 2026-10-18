@@ -4,7 +4,7 @@ import type {
   AdminDashboardSummary,
   AttentionStudent,
   FollowUpMetric,
-} from "../model/dashboard.types.ts";
+} from "../model/dashboard.types";
 import { AttentionInbox } from "./work/AttentionInbox";
 import { DashboardFollowUpCard } from "./work/DashboardFollowUpCard";
 import { DashboardMetricCards } from "./metrics/DashboardMetricCards";

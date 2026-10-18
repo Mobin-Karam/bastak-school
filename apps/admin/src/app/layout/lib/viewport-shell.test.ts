@@ -35,6 +35,10 @@ describe("adaptive Admin shell breakpoints", () => {
     expect(shellForViewportWidth(DESKTOP_MIN_WIDTH)).toBe("desktop");
   });
 
+  it.each([320, 360, 390, 430])("keeps a %ipx phone viewport on the mobile shell", (width) => {
+    expect(shellForViewportWidth(width)).toBe("mobile");
+  });
+
   it("keeps orientation-width changes within the same deterministic classifier", () => {
     expect(shellForViewportWidth(1024)).toBe("tablet");
     expect(shellForViewportWidth(667)).toBe("mobile");

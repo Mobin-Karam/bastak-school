@@ -1,1 +1,1 @@
-export * from "../questions/api/question-bank.api.ts";
+export * from "../questions/api/question-bank.api";

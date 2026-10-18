@@ -3,7 +3,7 @@ import type { Exam } from "../../../../shared/types/domain";
 import { CollectionToolbar } from "../../../../shared/ui/collection-toolbar";
 import { Badge, Button, Card, Select } from "../../../../shared/ui/ui";
 import { useLocale } from "../../../../shared/ui/locale";
-import type { ExamFilterStatus, ExamVisibilityFilter } from "../model/exam.types.ts";
+import type { ExamFilterStatus, ExamVisibilityFilter } from "../model/exam.types";
 import { examsCopy } from "../exams-locale";
 
 export function ExamFilters({

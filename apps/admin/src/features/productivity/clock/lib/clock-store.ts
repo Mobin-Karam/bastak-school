@@ -1,4 +1,4 @@
-import type { AlarmItem, ClockTab, ClockToolsState } from "../model/clock.types.ts";
+import type { AlarmItem, ClockTab, ClockToolsState } from "../model/clock.types";
 import {
   CLOCK_TOOLS_STORAGE_KEY,
   createId,

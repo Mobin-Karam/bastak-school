@@ -1,6 +1,6 @@
 import { Activity } from "lucide-react";
 import { activityLabel, activityMeta } from "../lib/live-helpers";
-import type { LiveEvent } from "../model/live.types.ts";
+import type { LiveEvent } from "../model/live.types";
 import { useLocale } from "../../../../shared/ui/locale";
 
 export function TimelineItem({

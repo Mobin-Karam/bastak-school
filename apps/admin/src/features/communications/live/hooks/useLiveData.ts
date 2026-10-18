@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../../../../shared/api/api";
-import { getLiveStudentsSnapshot } from "../api/live.api.ts";
+import { getLiveStudentsSnapshot } from "../api/live.api";
 
 export function useLiveData() {
   const queryClient = useQueryClient();

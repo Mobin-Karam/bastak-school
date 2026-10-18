@@ -5,14 +5,14 @@ import type {
   ConversationCursor,
   ConversationPage,
   MessagePage,
-} from "../model/chat.types.ts";
+} from "../model/chat.types";
 import type {
   ChatUser,
   GroupDetail,
   GroupMember,
   GroupPermissions,
   GroupRole,
-} from "../model/group.types.ts";
+} from "../model/group.types";
 
 type WireChatMessage = Partial<ChatMessage> & {
   id: string;

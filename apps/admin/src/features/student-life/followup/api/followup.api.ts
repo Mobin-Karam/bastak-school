@@ -2,7 +2,7 @@ import { api } from "../../../../shared/api/api";
 import type {
   RecoveryRequest,
   RecoveryActionInput,
-} from "../../../communications/notifications/model/notification.types.ts";
+} from "../../../communications/notifications/model/notification.types";
 
 export type ScopedRecoveryRequest = RecoveryRequest & {
   student?: { id: string; name?: string };

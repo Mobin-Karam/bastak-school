@@ -38,13 +38,13 @@ import {
   updateStudentSubject,
   updateSubject,
   type SubjectDraft,
-} from "../api/subjects.api.ts";
+} from "../api/subjects.api";
 import type {
   EducationBook,
   StudentSubject,
   Subject,
   SubjectsMode as Mode,
-} from "../model/subject.types.ts";
+} from "../model/subject.types";
 import { TeacherAssignments } from "../components/TeacherAssignments";
 import { subjectCopy } from "../subject-locale";
 

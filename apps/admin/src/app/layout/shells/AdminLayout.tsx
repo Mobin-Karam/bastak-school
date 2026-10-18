@@ -1,6 +1,5 @@
-import { StudentAttendancePoolPrompt } from "../../../features/student-life/attendance/public";
 import { useQuery } from "@tanstack/react-query";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { Outlet, useNavigate } from "react-router-dom";
 import { useAuth } from "../../../features/identity/auth";
 import { AdminCommandPalette } from "../command-palette/AdminCommandPalette";
@@ -13,6 +12,12 @@ import { SharedPageViewport } from "../components/SharedPageViewport";
 import { useAdminShellModel } from "../hooks/use-admin-shell-model";
 import { useViewportShell } from "../lib/viewport-shell";
 import { currentViewportHeight } from "../lib/viewport-height";
+
+const StudentAttendancePoolPrompt = lazy(() =>
+  import("../../../features/student-life/attendance/components/StudentAttendanceWorkspace").then(
+    (module) => ({ default: module.StudentAttendancePoolPrompt }),
+  ),
+);
 
 function isEditableTarget(target: EventTarget | null) {
   if (!(target instanceof HTMLElement)) return false;
@@ -88,7 +93,11 @@ export function AdminLayout() {
       dir={model.direction}
     >
       <PrincipalLeaveRequestAlert />
-      {model.auth.can("attendance.self.read") ? <StudentAttendancePoolPrompt /> : null}
+      {model.auth.can("attendance.self.read") ? (
+        <Suspense fallback={null}>
+          <StudentAttendancePoolPrompt />
+        </Suspense>
+      ) : null}
       <AdminShellChrome shell={shell} model={model} onOpenCommandPalette={openCommandPalette} />
       <SharedPageViewport
         contentOffsetClassName={

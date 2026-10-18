@@ -7,7 +7,7 @@ import { FormEvent, useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button, Input } from "../../../../shared/ui/ui";
 import { ThemeSwitcher } from "../../../../shared/theme/theme";
-import { getStudentSignupOptions, studentSignup, type SignupOrganization } from "../api/signup.api.ts";
+import { getStudentSignupOptions, studentSignup, type SignupOrganization } from "../api/signup.api";
 import { LoginShell } from "../components";
 
 const steps = [

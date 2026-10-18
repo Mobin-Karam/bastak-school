@@ -4,7 +4,7 @@ import { Card } from "../../../../../shared/ui/ui";
 import { cn, fa } from "../../../../../shared/lib/utils";
 import { useLocale } from "../../../../../shared/ui/locale";
 import { dashboardCopy } from "../../model/dashboard-copy";
-import type { FollowUpMetric } from "../../model/dashboard.types.ts";
+import type { FollowUpMetric } from "../../model/dashboard.types";
 
 const icons: Record<FollowUpMetric["key"], LucideIcon> = {
   recoveries: RotateCcw,

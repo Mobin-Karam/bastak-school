@@ -1,6 +1,6 @@
 import { Activity } from "lucide-react";
 import { Badge, Card, EmptyState } from "../../../../shared/ui/ui";
-import type { LiveEvent, LivePanel } from "../model/live.types.ts";
+import type { LiveEvent, LivePanel } from "../model/live.types";
 import { CompactSkeleton } from "./CompactSkeleton";
 import { TimelineItem } from "./TimelineItem";
 import { useLocale } from "../../../../shared/ui/locale";

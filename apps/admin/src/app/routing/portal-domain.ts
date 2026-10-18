@@ -1,0 +1,90 @@
+import type { RoleCode } from "../../shared/types/domain";
+
+export type AppDomain = "student" | "admin" | "local" | "unknown";
+
+const STUDENT_HOSTS = new Set(["stud.sultano.ir", "stud.localhost"]);
+const ADMIN_HOSTS = new Set(["app.sultano.ir", "app.localhost"]);
+const LOCAL_HOSTS = new Set(["localhost", "127.0.0.1", "::1"]);
+
+const STUDENT_ONLY_ROUTES = new Set(["my-attendance", "profile", "student-leave"]);
+const SHARED_PORTAL_ROUTES = new Set(["", "schedule", "books", "registration", "settings", "more"]);
+
+export function resolveAppDomain(hostname: string | null | undefined): AppDomain {
+  const host = hostname?.trim().toLowerCase().replace(/\.$/, "") ?? "";
+  if (STUDENT_HOSTS.has(host)) return "student";
+  if (ADMIN_HOSTS.has(host)) return "admin";
+  if (LOCAL_HOSTS.has(host)) return "local";
+  return "unknown";
+}
+
+export function currentAppDomain(): AppDomain {
+  return typeof window === "undefined" ? "unknown" : resolveAppDomain(window.location.hostname);
+}
+
+export function adminRouteSegment(pathname: string): string {
+  const normalized = pathname.split(/[?#]/, 1)[0].replace(/^\/+|\/+$/g, "");
+  if (normalized === "admin") return "";
+  if (!normalized.startsWith("admin/")) return "";
+  return normalized.slice("admin/".length).split("/", 1)[0] ?? "";
+}
+
+export function isRouteAvailableOnDomain(pathname: string, domain: AppDomain): boolean {
+  if (domain === "local") return true;
+  if (domain === "unknown") return false;
+
+  const route = adminRouteSegment(pathname);
+  if (domain === "student")
+    return STUDENT_ONLY_ROUTES.has(route) || SHARED_PORTAL_ROUTES.has(route);
+  return !STUDENT_ONLY_ROUTES.has(route);
+}
+
+export function preferredPortal(
+  roles: readonly RoleCode[],
+): Exclude<AppDomain, "local" | "unknown"> | null {
+  if (roles.some((role) => role !== "STUDENT")) return "admin";
+  return roles.includes("STUDENT") ? "student" : null;
+}
+
+export function preferredRoleForDomain(
+  roles: readonly RoleCode[],
+  domain: Exclude<AppDomain, "local" | "unknown">,
+): RoleCode | null {
+  if (domain === "student") return roles.includes("STUDENT") ? "STUDENT" : null;
+  return roles.find((role) => role !== "STUDENT") ?? null;
+}
+
+export function portalUrl(
+  domain: Exclude<AppDomain, "local" | "unknown">,
+  path = "/admin",
+  location: Pick<Location, "protocol" | "hostname" | "port"> | null = typeof window === "undefined"
+    ? null
+    : window.location,
+): string | null {
+  if (!location || resolveAppDomain(location.hostname) === "local") return null;
+  const hostname = location.hostname.toLowerCase();
+  const local = hostname.endsWith(".localhost");
+  const targetHost = local
+    ? domain === "student"
+      ? "stud.localhost"
+      : "app.localhost"
+    : domain === "student"
+      ? "stud.sultano.ir"
+      : "app.sultano.ir";
+  const protocol = local ? location.protocol : "https:";
+  const port = local && location.port ? `:${location.port}` : "";
+  return `${protocol}//${targetHost}${port}${path.startsWith("/") ? path : `/${path}`}`;
+}
+
+export function loginDestination(
+  roles: readonly RoleCode[],
+  requestedPath: string | null | undefined,
+): { domain: Exclude<AppDomain, "local" | "unknown">; path: string } | null {
+  const requestedDomain =
+    requestedPath && isRouteAvailableOnDomain(requestedPath, "student") ? "student" : null;
+  const domain =
+    requestedDomain === "student" && roles.includes("STUDENT") ? "student" : preferredPortal(roles);
+  if (!domain) return null;
+  const path =
+    requestedPath && isRouteAvailableOnDomain(requestedPath, domain) ? requestedPath : "/admin";
+  return { domain, path };
+}

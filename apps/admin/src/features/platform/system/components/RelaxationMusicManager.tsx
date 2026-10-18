@@ -4,14 +4,14 @@ import { useRef, useState } from "react";
 import { notify } from "../../../../shared/ui/notifications";
 import { Button, Card, EmptyState, Field, Input } from "../../../../shared/ui/ui";
 import { useLocale } from "../../../../shared/ui/locale";
-import { listOrganizations } from "../../../identity/access/api/access.api.ts";
+import { listOrganizations } from "../../../identity/access/api/access.api";
 import {
   createRelaxationTrack,
   getRelaxationTrackAudience,
   getRelaxationTracks,
   updateRelaxationTrack,
   type RelaxationTrackDraft,
-} from "../api/system.api.ts";
+} from "../api/system.api";
 import { systemCopy } from "../system-locale";
 
 const emptyDraft: RelaxationTrackDraft = {

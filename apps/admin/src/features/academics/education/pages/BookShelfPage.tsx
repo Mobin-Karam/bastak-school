@@ -16,13 +16,13 @@ import { useLocale } from "../../../../shared/ui/locale";
 import { useModal } from "../../../../shared/ui/modal";
 import { useAuth } from "../../../identity/auth";
 import { BookEditor } from "../components/BookEditor";
-import { listClasses, setClassBooks, type EducationClassBook } from "../api/classes.api.ts";
+import { listClasses, setClassBooks, type EducationClassBook } from "../api/classes.api";
 import {
   createEducationBook,
   deleteEducationBook,
   updateEducationBook,
   type EducationBookInput,
-} from "../api/education-catalog.api.ts";
+} from "../api/education-catalog.api";
 
 export function BookShelfPage() {
   const auth = useAuth();

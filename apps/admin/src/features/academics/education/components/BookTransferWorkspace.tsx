@@ -5,7 +5,7 @@ import {
   previewEducationImport,
   type EducationBookInput,
   type EducationImportPreview,
-} from "../api/education-catalog.api.ts";
+} from "../api/education-catalog.api";
 import {
   defineSpreadsheet,
   downloadSpreadsheet,

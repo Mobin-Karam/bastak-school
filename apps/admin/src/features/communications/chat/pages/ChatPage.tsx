@@ -13,7 +13,7 @@ import { ConversationSidebar } from "../components/conversation/ConversationSide
 import { MessageList, MessageSkeleton } from "../components/messages/MessageList";
 import { ChatHeader } from "../components/messages/ChatHeader";
 import { MessageSearchBar } from "../components/messages/MessageSearchBar";
-import { chatApi, normalizeChatMessage } from "../api/chat.api.ts";
+import { chatApi, normalizeChatMessage } from "../api/chat.api";
 import { useChatSelectionParams } from "../hooks/useChatSelection";
 import { useConversation } from "../hooks/useConversation";
 import { useConversationFavorites } from "../hooks/useConversationFavorites";
@@ -24,7 +24,7 @@ import { useMessages } from "../hooks/useMessages";
 import { isNearBottom, mergeMessagePages, persistDraft, readDraft } from "../lib/chat-helpers";
 import { persistConversationScroll, readConversationScroll } from "../lib/chat-ui-storage";
 import { toFa } from "../lib/chat-formatters";
-import type { CombinedConversationPage, MessagePage } from "../model/chat.types.ts";
+import type { CombinedConversationPage, MessagePage } from "../model/chat.types";
 import { chatCopy } from "../model/chat-copy";
 import {
   filterAndSortConversations,

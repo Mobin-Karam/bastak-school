@@ -2,7 +2,7 @@
 // EducationSections.tsx
 // ─────────────────────────────────────────────────────────────
 import { BookOpen } from "lucide-react";
-import { EducationSection } from "../model/eduction.types.ts";
+import { EducationSection } from "../model/eduction.types";
 import { EducationSectionCard } from "./EducationSectionGrid";
 import { useLocale } from "../../../../shared/ui/locale";
 import { educationCopy } from "../model/education-copy";

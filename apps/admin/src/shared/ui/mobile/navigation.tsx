@@ -12,7 +12,7 @@ export function MobileHeader({
   end,
   className,
 }: {
-  title: ReactNode;
+  title?: ReactNode;
   start?: ReactNode;
   end?: ReactNode;
   className?: string;
@@ -20,12 +20,12 @@ export function MobileHeader({
   return (
     <header
       className={cn(
-        "flex min-h-14 items-center gap-2 border-b border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card))] px-4 pt-[env(safe-area-inset-top)]",
+        "flex min-h-14 items-center gap-2 px-4 pt-[env(safe-area-inset-top)]",
         className,
       )}
     >
       <div className="min-w-11">{start}</div>
-      <h1 className="min-w-0 flex-1 truncate text-center text-base font-black text-ink">{title}</h1>
+      <div className="min-w-0 flex-1 text-center">{title}</div>
       <div className="flex min-w-11 justify-end">{end}</div>
     </header>
   );

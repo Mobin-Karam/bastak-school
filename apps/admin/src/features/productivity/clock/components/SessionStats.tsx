@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { Activity, CalendarClock, LogIn, LogOut } from "lucide-react";
 import { formatDateTime, formatDuration } from "../lib/time";
-import type { PlatformSessionStats } from "../model/clock.types.ts";
+import type { PlatformSessionStats } from "../model/clock.types";
 import { clockCopy } from "../model/clock-copy";
 import { useLocale } from "../../../../shared/ui/locale";
 

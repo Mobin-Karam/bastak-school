@@ -4,9 +4,9 @@ import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { Button, Field, Input } from "../../../../shared/ui/ui";
 import { useAuth } from "../hooks/useAuth";
-import { createLoginSchema, type LoginFormValues } from "../model/login.schema.ts";
+import { createLoginSchema, type LoginFormValues } from "../model/login.schema";
 import { useAuthLocale } from "../model/auth-locale";
-import { checkLoginPhone } from "../api/auth.api.ts";
+import { checkLoginPhone } from "../api/auth.api";
 
 export function LoginForm() {
   const auth = useAuth();

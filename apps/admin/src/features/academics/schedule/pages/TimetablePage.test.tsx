@@ -7,7 +7,7 @@ import { ThemeProvider } from "../../../../shared/theme/theme";
 import { LocaleProvider } from "../../../../shared/ui/locale";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { saveTimetableConfig } from "../api/timetable.api.ts";
+import { saveTimetableConfig } from "../api/timetable.api";
 import { TimetablePage } from "./TimetablePage";
 import { timetableToday, timetableWeekStart } from "../lib/timetable-time";
 afterEach(cleanup);

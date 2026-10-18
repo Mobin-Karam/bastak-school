@@ -1,4 +1,4 @@
-import type { AlarmItem, ClockToolsState, WorldClockItem } from "../model/clock.types.ts";
+import type { AlarmItem, ClockToolsState, WorldClockItem } from "../model/clock.types";
 import { getTodayKey } from "./time";
 
 export const CLOCK_TOOLS_STORAGE_KEY = "ravin:clock:tools:v2";

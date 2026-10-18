@@ -104,6 +104,7 @@ export type AttendanceEncouragement = {
   late: number;
   excused: number;
   attendanceRate: number | null;
+  points: number;
   message: string;
 };
 export type AttendanceMissingMember = Pick<

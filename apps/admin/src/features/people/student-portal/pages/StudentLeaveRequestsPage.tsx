@@ -29,7 +29,7 @@ import {
   listStudentLeaveRequests,
   type StudentLeaveStatus,
   type StudentLeaveType,
-} from "../api/student-leave.api.ts";
+} from "../api/student-leave.api";
 
 const requestTypes: ReadonlyArray<{
   id: StudentLeaveType;

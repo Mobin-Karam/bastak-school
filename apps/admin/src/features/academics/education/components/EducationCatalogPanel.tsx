@@ -15,7 +15,7 @@ import {
   updateEducationBook,
   type EducationBookInput,
   type ManagedEducationBook,
-} from "../api/education-catalog.api.ts";
+} from "../api/education-catalog.api";
 
 const blank = (defaults: {
   schoolYear: string;

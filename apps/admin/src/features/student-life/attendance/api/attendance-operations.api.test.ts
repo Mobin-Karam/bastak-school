@@ -7,7 +7,7 @@ vi.mock("../../../../shared/api/api", () => ({ api: { get } }));
 import {
   getAttendanceHistorySessions,
   getAttendanceReportSummary,
-} from "./attendance-operations.api.ts";
+} from "./attendance-operations.api";
 
 describe("attendance report API", () => {
   it("omits empty filters and sends inclusive date and academic filters when selected", () => {

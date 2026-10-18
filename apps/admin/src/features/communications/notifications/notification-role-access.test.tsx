@@ -2,7 +2,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { renderHook } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { getAdvisorInbox } from "./api/notifications.api.ts";
+import { getAdvisorInbox } from "./api/notifications.api";
 import { useAdvisorInbox } from "./hooks/useAdvisorInbox";
 import { notificationAccess } from "./pages/NotificationsPage";
 

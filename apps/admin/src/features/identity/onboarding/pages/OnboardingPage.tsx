@@ -13,16 +13,16 @@ import {
   listAdvisors,
   listOnboardingOrganizations,
   listPendingStudents,
-} from "../api/onboarding.api.ts";
+} from "../api/onboarding.api";
 import { OnboardingModeSelector } from "../components/OnboardingModeSelector";
 import { OnboardingQueueItem } from "../components/OnboardingQueueItem";
-import { assignmentInputFor, displayAdvisor } from "../model/onboarding.model.ts";
+import { assignmentInputFor, displayAdvisor } from "../model/onboarding.model";
 import { onboardingCopy } from "../onboarding-locale";
 import type {
   ManualAssignmentChoice,
   OnboardingMode,
   StudentAssignment,
-} from "../types/onboarding.types.ts";
+} from "../types/onboarding.types";
 
 const emptyManualChoice: ManualAssignmentChoice = { organizationId: "", advisorUserId: "" };
 

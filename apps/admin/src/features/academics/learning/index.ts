@@ -10,4 +10,4 @@ export type {
   LearningSummary,
 } from "./model/learning-model";
 
-export type { LearningFilter } from "./model/learning.types.ts";
+export type { LearningFilter } from "./model/learning.types";

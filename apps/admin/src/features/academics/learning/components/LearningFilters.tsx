@@ -1,6 +1,6 @@
 import { Badge, Select } from "../../../../shared/ui/ui";
 import { CollectionToolbar } from "../../../../shared/ui/collection-toolbar";
-import type { LearningFilter } from "../model/learning.types.ts";
+import type { LearningFilter } from "../model/learning.types";
 import { useLocale } from "../../../../shared/ui/locale";
 import { learningCopy } from "../learning-locale";
 

@@ -20,7 +20,7 @@ import { notify } from "../../../shared/ui/notifications";
 import { useModal } from "../../../shared/ui/modal";
 import { useLocale } from "../../../shared/ui/locale";
 import { StudentAllocationControl } from "../../../shared/ui/student-allocation-control";
-import { listClasses } from "../../academics/education/api/classes.api.ts";
+import { listClasses } from "../../academics/education/api/classes.api";
 import { Badge, Button, Card, EmptyState, Input, Textarea } from "../../../shared/ui/ui";
 import { AdminList } from "../../../shared/ui/admin-list";
 import { CollectionToolbar } from "../../../shared/ui/collection-toolbar";
@@ -34,7 +34,7 @@ import {
   type ResourceInput,
   shareResource,
   updateResource,
-} from "./api/resources.api.ts";
+} from "./api/resources.api";
 import { resourcesCopy } from "./model/resources-copy";
 
 function emptyResource(category = ""): ResourceInput {

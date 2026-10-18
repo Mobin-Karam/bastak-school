@@ -13,7 +13,7 @@ import {
 } from "lucide-react";
 import { useMemo, useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
-import { listOrganizations } from "../../../identity/access/api/access.api.ts";
+import { listOrganizations } from "../../../identity/access/api/access.api";
 import { useAuth } from "../../../identity/auth";
 import { useModal } from "../../../../shared/ui/modal";
 import { notify } from "../../../../shared/ui/notifications";
@@ -30,7 +30,7 @@ import {
   type ClassDraft,
   type EducationClass,
   updateClass,
-} from "../api/classes.api.ts";
+} from "../api/classes.api";
 import { ClassTransferWorkspace } from "../components/ClassTransferWorkspace";
 import { useClassesCopy } from "../model/classes-copy";
 

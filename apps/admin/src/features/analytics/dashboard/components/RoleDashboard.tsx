@@ -20,7 +20,7 @@ import { Badge, Button, Card, EmptyState, LoadingState } from "../../../../share
 import { useLocale } from "../../../../shared/ui/locale";
 import { DashboardWorkspace } from "../../../../shared/ui/dashboard-workspace";
 import { ZaninBrand } from "../../../../shared/ui/zanin-brand";
-import type { DashboardWorkItem, RoleDashboardData } from "../model/dashboard.types.ts";
+import type { DashboardWorkItem, RoleDashboardData } from "../model/dashboard.types";
 import { dashboardCopy } from "../model/dashboard-copy";
 import { DashboardWorkQueue } from "./work/DashboardWorkQueue";
 import { getRoleConfig } from "../model/role-config";

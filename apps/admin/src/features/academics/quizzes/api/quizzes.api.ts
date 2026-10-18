@@ -1,6 +1,6 @@
 import { api } from "../../../../shared/api/api";
 import type { QuestionDraft } from "../../questions/question-model";
-import type { Quiz, QuizDraft, QuizQuestion } from "../model/quiz.types.ts";
+import type { Quiz, QuizDraft, QuizQuestion } from "../model/quiz.types";
 export const getQuizzes = () => api.get<Quiz[]>("/quizzes");
 type QuizQuestionResponse = {
   id: string;

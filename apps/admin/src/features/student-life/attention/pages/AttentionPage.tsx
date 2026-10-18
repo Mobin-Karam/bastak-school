@@ -13,7 +13,7 @@ import { Badge, Button } from "../../../../shared/ui/ui";
 import { ManagementPageHeader } from "../../../../shared/ui/management-workspace";
 import { CollectionToolbar } from "../../../../shared/ui/collection-toolbar";
 import { useLocale } from "../../../../shared/ui/locale";
-import { getAttentionQueue, type AttentionItem } from "../api/attention.api.ts";
+import { getAttentionQueue, type AttentionItem } from "../api/attention.api";
 import { useMemo, useState } from "react";
 import {
   attentionCopy,

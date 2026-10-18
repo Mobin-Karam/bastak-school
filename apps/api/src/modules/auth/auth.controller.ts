@@ -179,10 +179,12 @@ export class AuthController {
     await this.auth.logout(
       req.cookies?.[cookieName],
       req.cookies?.[refreshCookieName],
-      typeof req.headers["x-csrf-token"] === "string" ? req.headers["x-csrf-token"] : undefined,
+      typeof req.headers["x-csrf-token"] === "string"
+        ? req.headers["x-csrf-token"]
+        : undefined,
     );
-    res.clearCookie(cookieName, { path: "/" });
-    res.clearCookie(refreshCookieName, { path: "/" });
+    res.clearCookie(cookieName, this.cookieOptions());
+    res.clearCookie(refreshCookieName, this.cookieOptions());
     return ok({ loggedOut: true });
   }
 
@@ -212,15 +214,7 @@ export class AuthController {
       refreshExpiresAt: Date;
     },
   ) {
-    const options = {
-      path: "/",
-      httpOnly: true,
-      secure: this.config.get<boolean>("cookieSecure", false),
-      sameSite: this.config.get<"lax" | "strict" | "none">(
-        "cookieSameSite",
-        "lax",
-      ),
-    } as const;
+    const options = this.cookieOptions();
     res.setCookie(
       this.config.get<string>("cookieName", "moshaver_v2_session"),
       result.accessToken,
@@ -231,5 +225,19 @@ export class AuthController {
       result.refreshToken,
       { ...options, expires: result.refreshExpiresAt },
     );
+  }
+
+  private cookieOptions() {
+    const domain = this.config.get<string | undefined>("cookieDomain");
+    return {
+      path: "/",
+      httpOnly: true,
+      secure: this.config.get<boolean>("cookieSecure", false),
+      sameSite: this.config.get<"lax" | "strict" | "none">(
+        "cookieSameSite",
+        "lax",
+      ),
+      ...(domain ? { domain } : {}),
+    } as const;
   }
 }

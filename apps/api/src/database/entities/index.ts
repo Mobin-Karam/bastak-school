@@ -107,6 +107,7 @@ export {
 export { SmsProviderConfiguration } from "./sms-provider-configuration.entity";
 
 export { AttendancePolicy } from "./attendance-policy.entity";
+export { StudentPointLedger } from "./student-point-ledger.entity";
 export { AttendanceSchedule } from "./attendance-schedule.entity";
 export { DormAttendanceDelegate } from "./dorm-attendance-delegate.entity";
 export { AttendancePool } from "./attendance-pool.entity";

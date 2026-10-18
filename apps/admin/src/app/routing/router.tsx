@@ -1,5 +1,5 @@
 import { lazy, Suspense, type ReactNode, useEffect, useState } from "react";
-import { createBrowserRouter, Navigate, Outlet } from "react-router-dom";
+import { createBrowserRouter, Navigate, Outlet, useLocation } from "react-router-dom";
 import { RefreshCw } from "lucide-react";
 import { Button } from "../../shared/ui/ui";
 import { useAdminShellCopy } from "../../shared/ui/locale";
@@ -16,6 +16,13 @@ import { AdminLayout } from "../layout/shells/AdminLayout";
 import { RouteErrorBoundary } from "../../shared/errors";
 import { underBuilding, underBuildingEndsAt } from "../config/under-building";
 import UnderConstruction from "../../features/people/students/components/UnderConstruction";
+import {
+  currentAppDomain,
+  isRouteAvailableOnDomain,
+  portalUrl,
+  preferredPortal,
+  preferredRoleForDomain,
+} from "./portal-domain";
 
 const StudentSignupPage = lazy(() =>
   import("../../features/identity/auth/pages/StudentSignupPage").then((m) => ({
@@ -50,10 +57,14 @@ const SchedulePage = lazy(() =>
   import("../../features/academics/schedule").then((m) => ({ default: m.SchedulePage })),
 );
 const LeaveRequestsPage = lazy(() =>
-  import("../../features/student-life/leave-requests").then((m) => ({ default: m.LeaveRequestsPage })),
+  import("../../features/student-life/leave-requests").then((m) => ({
+    default: m.LeaveRequestsPage,
+  })),
 );
 const ExitPermissionsPage = lazy(() =>
-  import("../../features/student-life/exit-permissions").then((m) => ({ default: m.ExitPermissionsPage })),
+  import("../../features/student-life/exit-permissions").then((m) => ({
+    default: m.ExitPermissionsPage,
+  })),
 );
 const DormitoryPage = lazy(() =>
   import("../../features/student-life/dormitory").then((m) => ({ default: m.DormitoryPage })),
@@ -76,7 +87,9 @@ const StudentProfilePage = lazy(() =>
   import("../../features/people/student-portal").then((m) => ({ default: m.StudentProfilePage })),
 );
 const StudentLeaveRequestsPage = lazy(() =>
-  import("../../features/people/student-portal").then((m) => ({ default: m.StudentLeaveRequestsPage })),
+  import("../../features/people/student-portal").then((m) => ({
+    default: m.StudentLeaveRequestsPage,
+  })),
 );
 const TeacherProfilePage = lazy(() =>
   import("../../features/people/teacher-portal").then((m) => ({ default: m.TeacherProfilePage })),
@@ -89,7 +102,9 @@ const TeacherChatComingSoonPage = lazy(() =>
 const SystemPage = lazy(() =>
   import("../../features/platform/system").then((m) => ({ default: m.SystemPage })),
 );
-const SmsPage = lazy(() => import("../../features/communications/sms").then((m) => ({ default: m.SmsPage })));
+const SmsPage = lazy(() =>
+  import("../../features/communications/sms").then((m) => ({ default: m.SmsPage })),
+);
 const MobileMorePage = lazy(() =>
   import("../../features/mobile/MobileMorePage").then((m) => ({ default: m.MobileMorePage })),
 );
@@ -116,6 +131,7 @@ function RouteLoading() {
 function ProtectedRoute() {
   const auth = useAuth();
   const copy = useAdminShellCopy();
+  const location = useLocation();
   const [showLoginSplash, setShowLoginSplash] = useState(
     () => sessionStorage.getItem(AUTH_SUCCESS_SPLASH_KEY) === "1",
   );
@@ -151,12 +167,87 @@ function ProtectedRoute() {
       </div>
     );
   }
-  if (auth.status !== "authenticated") return <Navigate to="/login" replace />;
+  if (auth.status !== "authenticated") {
+    return (
+      <Navigate
+        to="/login"
+        replace
+        state={{ from: `${location.pathname}${location.search}${location.hash}` }}
+      />
+    );
+  }
   if (!isSupportedAdminPortalRole(auth.activeRole)) return <UnsupportedRoleModal />;
   if (!isReleasedSchoolPortalRole(auth.activeRole)) return <UnsupportedRoleModal />;
   if (showLoginSplash) return <LoginSuccessSplash />;
   if (underBuilding) return <UnderConstruction endTime={underBuildingEndsAt} />;
-  return <Outlet />;
+  return <PortalHostBoundary />;
+}
+
+function PortalHostBoundary() {
+  const auth = useAuth();
+  const location = useLocation();
+  const domain = currentAppDomain();
+  const requestedPath = `${location.pathname}${location.search}${location.hash}`;
+
+  if (domain === "unknown") {
+    return <PortalUnavailable title="این نشانی برای ورود به سامانه تأیید نشده است." />;
+  }
+  if (domain === "local") return <Outlet />;
+  if (!isRouteAvailableOnDomain(requestedPath, domain)) {
+    return <PortalUnavailable title="این صفحه در نشانی فعلی سامانه در دسترس نیست." />;
+  }
+
+  const desiredRole = preferredRoleForDomain(auth.context?.roles ?? [], domain);
+  if (desiredRole && auth.activeRole !== desiredRole) {
+    return <PortalRoleSwitch desiredRole={desiredRole} />;
+  }
+  if (desiredRole) return <Outlet />;
+
+  const destination = preferredPortal(auth.context?.roles ?? []);
+  const target = destination ? portalUrl(destination, "/admin") : null;
+  return target ? (
+    <PortalRedirect target={target} />
+  ) : (
+    <PortalUnavailable title="این حساب به هیچ پرتال فعالی دسترسی ندارد." />
+  );
+}
+
+function PortalRoleSwitch({
+  desiredRole,
+}: {
+  desiredRole: NonNullable<ReturnType<typeof preferredRoleForDomain>>;
+}) {
+  const auth = useAuth();
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    let alive = true;
+    void auth.setActiveRole(desiredRole).catch(() => alive && setFailed(true));
+    return () => {
+      alive = false;
+    };
+  }, [auth, desiredRole]);
+
+  if (failed) return <PortalUnavailable title="تغییر زمینه کاری برای این پرتال تأیید نشد." />;
+  return <RouteLoading />;
+}
+
+function PortalRedirect({ target }: { target: string }) {
+  useEffect(() => {
+    window.location.replace(target);
+  }, [target]);
+  return <RouteLoading />;
+}
+
+function PortalUnavailable({ title }: { title: string }) {
+  return (
+    <main className="grid min-h-screen place-items-center bg-paper p-4" role="alert">
+      <section className="max-w-md rounded-lg border border-amber-200 bg-amber-50 p-5 text-center text-amber-950 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-100">
+        <h1 className="font-bold">{title}</h1>
+        <p className="mt-2 text-sm">مجوزهای حساب شما همچنان در سمت سرور بررسی می‌شوند.</p>
+      </section>
+    </main>
+  );
 }
 
 export function CapabilityRoute({

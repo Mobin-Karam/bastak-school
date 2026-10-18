@@ -10,7 +10,7 @@ import {
   getNotificationsPage,
   markAllNotificationsRead,
   markNotificationRead,
-} from "../api/notifications.api.ts";
+} from "../api/notifications.api";
 import {
   getHttpStatus,
   notificationRequestErrorMessage,

@@ -5,14 +5,14 @@ import { StudentAllocationControl } from "../../../../shared/ui/student-allocati
 import { Button, EmptyState } from "../../../../shared/ui/ui";
 import { notify } from "../../../../shared/ui/notifications";
 import { useLocale } from "../../../../shared/ui/locale";
-import { listClasses } from "../../../academics/education/api/classes.api.ts";
+import { listClasses } from "../../../academics/education/api/classes.api";
 import {
   applyPlanTemplate,
   createPlanTemplate,
   getPlanTemplates,
   publishPlanTemplate,
   type PlanTemplate,
-} from "../api/plan-templates.api.ts";
+} from "../api/plan-templates.api";
 import { plannerCopy } from "../model/planner-copy";
 
 type Props = {

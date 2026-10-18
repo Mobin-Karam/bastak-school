@@ -5,7 +5,7 @@ import {
   previewClassTransfer,
   type ClassTransferPreview,
   type ClassTransferRow,
-} from "../api/classes.api.ts";
+} from "../api/classes.api";
 import {
   defineSpreadsheet,
   downloadSpreadsheet,

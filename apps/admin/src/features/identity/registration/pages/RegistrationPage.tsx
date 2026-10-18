@@ -10,7 +10,7 @@ import {
   updateRegistrationProfile,
   type RegistrationSection,
   type RegistrationSelf,
-} from "../api/registration.api.ts";
+} from "../api/registration.api";
 
 const sectionNames: Record<string, string> = {
   BASIC_INFORMATION: "اطلاعات پایه",

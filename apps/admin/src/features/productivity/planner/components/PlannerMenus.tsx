@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Calendar, CalendarDays, Command, Plus } from "lucide-react";
 import type { Plan, PlanTask } from "../../../../shared/types/domain";
 import { todayIso } from "../../../../shared/lib/utils";
-import type { PlannerMode, TaskFilter } from "../model/planner.types.ts";
+import type { PlannerMode, TaskFilter } from "../model/planner.types";
 import { SegmentedControl } from "../../../../shared/ui/segmented-control";
 import { useLocale } from "../../../../shared/ui/locale";
 import { plannerCopy, plannerFilterLabel, plannerModeLabel } from "../model/planner-copy";

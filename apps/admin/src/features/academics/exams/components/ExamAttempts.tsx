@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
-import { getExamAttemptDetail, getExamAttemptHistory } from "../api/exams.api.ts";
+import { getExamAttemptDetail, getExamAttemptHistory } from "../api/exams.api";
 import { AttemptHistoryList } from "./AttemptHistoryList";
 import { AttemptReview } from "./AttemptReview";
 

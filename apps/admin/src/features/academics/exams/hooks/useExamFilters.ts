@@ -1,7 +1,7 @@
 import { useDeferredValue, useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useStudentSelection } from "../../../../shared/hooks/useStudentSelection";
-import type { ExamFilterStatus, ExamVisibilityFilter } from "../model/exam.types.ts";
+import type { ExamFilterStatus, ExamVisibilityFilter } from "../model/exam.types";
 
 export function useExamFilters() {
   const students = useStudentSelection({ clearOnChange: ["search"] });

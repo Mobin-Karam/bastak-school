@@ -12,9 +12,9 @@ import {
   UserRound,
 } from "lucide-react";
 import { useMemo, useState, type ReactNode } from "react";
-import { listOrganizations } from "../../../identity/access/api/access.api.ts";
+import { listOrganizations } from "../../../identity/access/api/access.api";
 import { useAuth } from "../../../identity/auth";
-import { listClasses } from "../../education/api/classes.api.ts";
+import { listClasses } from "../../education/api/classes.api";
 import { Button, Card, EmptyState, Input, LoadingState } from "../../../../shared/ui/ui";
 import { notify } from "../../../../shared/ui/notifications";
 import {
@@ -32,8 +32,8 @@ import {
   previewScheduleImport,
   type ScheduleDraft,
   updateScheduleEntry,
-} from "../api/schedule.api.ts";
-import type { ScheduleEntry } from "../api/schedule.api.ts";
+} from "../api/schedule.api";
+import type { ScheduleEntry } from "../api/schedule.api";
 import { TeacherSchedulePage } from "../../../people/teacher-portal";
 import { OrganizationTag } from "../../../../shared/ui/organization-tag";
 import { todayIso } from "../../../../shared/lib/utils";

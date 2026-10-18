@@ -7,7 +7,7 @@ import type { TimetableWorkspace } from "@moshaver/api-contract";
 import { ResponsiveModal } from "../../../../shared/ui/responsive-modal";
 import { Button, Field, Input } from "../../../../shared/ui/ui";
 import { notify } from "../../../../shared/ui/notifications";
-import { saveTimetableConfig } from "../api/timetable.api.ts";
+import { saveTimetableConfig } from "../api/timetable.api";
 import { timetableSelectClass } from "./TimetableLessonEditor";
 import { persianWeekdays } from "../lib/timetable-workbook";
 const kinds = [

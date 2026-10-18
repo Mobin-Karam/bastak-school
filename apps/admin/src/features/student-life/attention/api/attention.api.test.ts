@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { api } from "../../../../shared/api/api";
-import { getAttentionQueue } from "./attention.api.ts";
+import { getAttentionQueue } from "./attention.api";
 
 describe("attention queue API contract", () => {
   beforeEach(() => vi.restoreAllMocks());

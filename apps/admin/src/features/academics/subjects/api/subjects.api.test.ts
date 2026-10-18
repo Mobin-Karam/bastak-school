@@ -7,7 +7,7 @@ import {
   setSubjectActive,
   updateStudentSubject,
   updateSubject,
-} from "./subjects.api.ts";
+} from "./subjects.api";
 
 describe("subjects API contract", () => {
   beforeEach(() => vi.restoreAllMocks());

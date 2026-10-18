@@ -7,7 +7,7 @@ import type {
   Readiness,
   ServiceHealth,
   Session,
-} from "../model/system.types.ts";
+} from "../model/system.types";
 export const getDatabaseMeta = () => api.get<DatabaseMeta>("/system/database");
 export const getServiceHealth = () => api.get<ServiceHealth>("/health");
 export const getReadiness = () => api.get<Readiness>("/ready");

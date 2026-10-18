@@ -3,7 +3,7 @@ import type { Conversation } from "../../../../../shared/types/domain";
 import { AdminList } from "../../../../../shared/ui/admin-list";
 import { Badge, Button } from "../../../../../shared/ui/ui";
 import { CreateGroupButton } from "../group/GroupChatControls";
-import type { ConversationFilter, ConversationSort } from "../../model/chat.types.ts";
+import type { ConversationFilter, ConversationSort } from "../../model/chat.types";
 import { toFa } from "../../lib/chat-formatters";
 import { ConversationList } from "./ConversationList";
 import { ConversationSearch } from "./ConversationSearch";

@@ -1,6 +1,6 @@
 import type { Plan, PlanTask } from "../../../../shared/types/domain";
 import { addDays, normalizePersianText } from "../../../../shared/lib/utils";
-import type { PlannerMode, TaskDraft, TaskFilter } from "../model/planner.types.ts";
+import type { PlannerMode, TaskDraft, TaskFilter } from "../model/planner.types";
 
 export type PlannerTimelineConfig = {
   startHour: number;

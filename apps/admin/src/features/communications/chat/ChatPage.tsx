@@ -5,4 +5,4 @@ export {
   mergeMessagePages,
   sortConversations,
 } from "./lib/chat-helpers";
-export type { MessagePage } from "./model/chat.types.ts";
+export type { MessagePage } from "./model/chat.types";

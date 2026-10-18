@@ -29,7 +29,7 @@ import {
   restoreDatabase,
   saveAppRelease,
   saveAppVersion,
-} from "../api/system.api.ts";
+} from "../api/system.api";
 import { AppVersionManager } from "../components/AppVersionManager";
 import { DatabaseBackupPanel } from "../components/DatabaseBackupPanel";
 import { ReleasePanel } from "../components/ReleasePanel";

@@ -2,7 +2,7 @@ import { Eye, EyeOff, ShieldCheck } from "lucide-react";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button, Field, Input } from "../../../../shared/ui/ui";
-import { bootstrapPlatformAdmin } from "../api/auth.api.ts";
+import { bootstrapPlatformAdmin } from "../api/auth.api";
 import { useAuth } from "../hooks/useAuth";
 import { useAuthLocale } from "../model/auth-locale";
 

@@ -5,7 +5,7 @@ import { notify } from "../../../../shared/ui/notifications";
 import { Badge, Button, Card, EmptyState, ErrorState } from "../../../../shared/ui/ui";
 import { ManagementPageHeader } from "../../../../shared/ui/management-workspace";
 import { useLocale } from "../../../../shared/ui/locale";
-import { listRecoveryRequests, moderateRecoveryRequest } from "../api/followup.api.ts";
+import { listRecoveryRequests, moderateRecoveryRequest } from "../api/followup.api";
 import { followupCopy } from "../model/followup-copy";
 
 export function FollowUpPage() {

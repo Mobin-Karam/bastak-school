@@ -9,8 +9,8 @@ import {
 import { BookOpen, CircleHelp, Pencil, Plus } from "lucide-react";
 import { notify } from "../../../../shared/ui/notifications";
 import { useAuth } from "../../../identity/auth/hooks/useAuth";
-import { listStudents } from "../../../people/students/api/students.api.ts";
-import { listClasses } from "../../education/api/classes.api.ts";
+import { listStudents } from "../../../people/students/api/students.api";
+import { listClasses } from "../../education/api/classes.api";
 import { StudentAllocationControl } from "../../../../shared/ui/student-allocation-control";
 import { Button, Card } from "../../../../shared/ui/ui";
 import {
@@ -35,13 +35,13 @@ import {
   setQuizClassAssignments,
   updateQuiz,
   updateQuizQuestion,
-} from "../api/quizzes.api.ts";
+} from "../api/quizzes.api";
 import { QuizEditor } from "../components/QuizEditor";
 import { QuizQuestionEditor } from "../components/QuizQuestionEditor";
 import { QuizQuestionsList } from "../components/QuizQuestionsList";
 import { QuizSidebar } from "../components/QuizSidebar";
 import { QuizQuestionBankPanel } from "../components/QuizQuestionBankPanel";
-import type { QuizDraft } from "../model/quiz.types.ts";
+import type { QuizDraft } from "../model/quiz.types";
 import { useQuizCopy } from "../model/quiz-locale";
 import { normalizePersianText } from "../../../../shared/lib/utils";
 export function QuizzesPage() {

@@ -1,5 +1,5 @@
 import { AlertTriangle, Target } from "lucide-react";
-import type { ReportRow } from "../api/reports.api.ts";
+import type { ReportRow } from "../api/reports.api";
 import { reportAccuracy, reportNumber } from "../report-utils";
 import { AdminDataTable } from "../../../../shared/ui/admin-data-table";
 import { useLocale } from "../../../../shared/ui/locale";

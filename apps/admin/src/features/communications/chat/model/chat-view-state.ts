@@ -1,5 +1,5 @@
 import type { Conversation } from "../../../../shared/types/domain";
-import type { ConversationFilter, ConversationSort } from "./chat.types.ts";
+import type { ConversationFilter, ConversationSort } from "./chat.types";
 
 const conversationFilters: ConversationFilter[] = [
   "all",

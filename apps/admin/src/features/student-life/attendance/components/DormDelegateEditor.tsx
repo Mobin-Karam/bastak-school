@@ -9,7 +9,7 @@ import {
   revokeDormWideDelegate,
   revokeDormDelegate,
   setDormDelegate,
-} from "../api/attendance-operations.api.ts";
+} from "../api/attendance-operations.api";
 import type { AttendanceParticipant } from "../model/attendance-workflow";
 
 export function DormDelegateEditor({

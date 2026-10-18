@@ -8,4 +8,4 @@ export type {
   AttentionStudent,
   DashboardRecentReport,
   FollowUpMetric,
-} from "./model/dashboard.types.ts";
+} from "./model/dashboard.types";

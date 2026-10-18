@@ -1,6 +1,6 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
-import { normalizeChatMessage } from "./api/chat.api.ts";
+import { normalizeChatMessage } from "./api/chat.api";
 import { MessageBody } from "./components/messages/MessageList";
 
 describe("chat message content", () => {

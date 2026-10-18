@@ -2,7 +2,7 @@ import { CalendarDays, Clock3 } from "lucide-react";
 import { Card, EmptyState } from "../../../../../shared/ui/ui";
 import { useLocale } from "../../../../../shared/ui/locale";
 import { dashboardCopy } from "../../model/dashboard-copy";
-import type { RoleDashboardData } from "../../model/dashboard.types.ts";
+import type { RoleDashboardData } from "../../model/dashboard.types";
 
 export type DashboardScheduleItem = {
   id: string;

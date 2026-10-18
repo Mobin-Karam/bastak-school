@@ -5,8 +5,8 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { LocaleProvider } from "../../../../shared/ui/locale";
 import { ModalProvider, useModal } from "../../../../shared/ui/modal";
 import { ClassBooksModal } from "./ClassBooksModal";
-import type { EducationClass, ClassOptions } from "../api/classes.api.ts";
-import { deleteEducationBook } from "../api/education-catalog.api.ts";
+import type { EducationClass, ClassOptions } from "../api/classes.api";
+import { deleteEducationBook } from "../api/education-catalog.api";
 vi.mock("../api/education-catalog.api.ts", () => ({ deleteEducationBook: vi.fn() }));
 const classroom = {
   id: "class",

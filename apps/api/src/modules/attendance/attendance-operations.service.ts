@@ -20,6 +20,7 @@ import {
   AttendanceReviewStatus,
   AttendanceStatus,
 } from "../../database/entities/attendance-record.entity";
+import { StudentPointLedger } from "../../database/entities/student-point-ledger.entity";
 import { AttendancePool } from "../../database/entities/attendance-pool.entity";
 import { DormAttendanceDelegate } from "../../database/entities/dorm-attendance-delegate.entity";
 import { DormRoom } from "../../database/entities/dorm-room.entity";
@@ -1241,6 +1242,10 @@ export class AttendanceOperationsService {
       },
     });
     const counts = this.counts(rows);
+    const pointRows = await this.repo(StudentPointLedger).find({
+      where: { student: { id: student.id } },
+    });
+    const points = pointRows.reduce((total, row) => total + row.points, 0);
     const rate = rows.length
       ? Math.round(((counts.present + counts.late) / rows.length) * 100)
       : null;
@@ -1248,6 +1253,7 @@ export class AttendanceOperationsService {
       totalSessions: rows.length,
       ...counts,
       attendanceRate: rate,
+      points,
       message: !rows.length
         ? "با حضور منظم، شروع خوبی بسازید."
         : counts.absent > 0
@@ -1255,7 +1261,7 @@ export class AttendanceOperationsService {
           : counts.late > 0
             ? "حضور شما خوب است؛ با رسیدن به‌موقع آن را بهتر کنید."
             : "حضور منظم شما قابل تقدیر است؛ همین مسیر را ادامه دهید.",
-    };
+    } as AttendanceEncouragement;
   }
   private counts(rows: AttendanceRecord[]) {
     const counts = { present: 0, absent: 0, late: 0, excused: 0 };

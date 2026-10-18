@@ -4,8 +4,8 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useQuery } from "@tanstack/react-query";
 import { Button, Field, Input } from "../../../../shared/ui/ui";
-import { getClassOptions, type EducationClassBook } from "../api/classes.api.ts";
-import { type EducationBookInput } from "../api/education-catalog.api.ts";
+import { getClassOptions, type EducationClassBook } from "../api/classes.api";
+import { type EducationBookInput } from "../api/education-catalog.api";
 
 // getRandomValues also works when the workspace is served over plain HTTP.
 function createClassBookId() {

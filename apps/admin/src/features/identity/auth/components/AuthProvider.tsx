@@ -1,7 +1,7 @@
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api, ApiError, onAuthFailure, setApiWorkContext } from "../../../../shared/api/api";
 import type { AccountContext, OrganizationSummary, User } from "../../../../shared/types/domain";
-import { getCurrentUser, getAccountContext, loginRequest, logoutRequest } from "../api/auth.api.ts";
+import { getCurrentUser, getAccountContext, loginRequest, logoutRequest } from "../api/auth.api";
 import {
   AUTH_SIGNAL_KEY,
   AUTH_SUCCESS_SPLASH_KEY,
@@ -10,7 +10,7 @@ import {
   PENDING_LOGOUT_KEY,
   signalAuthEvent,
 } from "../lib/auth-session";
-import type { AuthState, AuthStatus } from "../model/auth.types.ts";
+import type { AuthState, AuthStatus } from "../model/auth.types";
 import { authSessionCopy } from "../model/auth-locale";
 import { useOptionalAdminLanguage } from "../../../../shared/ui/locale";
 import { hasAllCapabilities, hasAnyCapability, hasCapability } from "../lib/capabilities";

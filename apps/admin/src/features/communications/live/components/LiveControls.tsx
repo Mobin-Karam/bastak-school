@@ -4,7 +4,7 @@ import { CollectionToolbar } from "../../../../shared/ui/collection-toolbar";
 import { SegmentedControl } from "../../../../shared/ui/segmented-control";
 import { useLocale } from "../../../../shared/ui/locale";
 import { liveCopy } from "../model/live-copy";
-import type { LiveFilter, LivePanel } from "../model/live.types.ts";
+import type { LiveFilter, LivePanel } from "../model/live.types";
 
 export function LiveControls({
   search,

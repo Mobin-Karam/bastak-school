@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { ArrowRight, Building2 } from "lucide-react";
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { listOrganizations } from "../../../identity/access/api/access.api.ts";
+import { listOrganizations } from "../../../identity/access/api/access.api";
 import { useAuth } from "../../../identity/auth";
 import { useStudentSelection } from "../../../../shared/hooks/useStudentSelection";
 import { Button, Card, ErrorState, LoadingState } from "../../../../shared/ui/ui";

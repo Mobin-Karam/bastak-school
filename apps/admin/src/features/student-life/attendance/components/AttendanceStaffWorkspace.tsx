@@ -8,8 +8,8 @@ import { DatePicker } from "../../../../shared/ui/date-picker";
 import { ResponsiveModal } from "../../../../shared/ui/responsive-modal";
 import { notify } from "../../../../shared/ui/notifications";
 import { api } from "../../../../shared/api/api";
-import type { AttendanceContextOption } from "../api/attendance.api.ts";
-import { contextLabelMap } from "../api/attendance.api.ts";
+import type { AttendanceContextOption } from "../api/attendance.api";
+import { contextLabelMap } from "../api/attendance.api";
 import {
   closeAttendancePool,
   createAttendancePool,
@@ -26,7 +26,7 @@ import {
   finalizeAttendanceSession,
   cancelAttendanceSession,
   correctAttendanceRecord,
-} from "../api/attendance-operations.api.ts";
+} from "../api/attendance-operations.api";
 import type { AttendancePoolDraft, StaffAttendanceSession } from "@moshaver/api-contract";
 
 const field =

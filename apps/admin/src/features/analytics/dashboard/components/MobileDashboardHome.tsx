@@ -4,7 +4,7 @@ import type { RoleCode } from "../../../../shared/types/domain";
 import { MobileCard } from "../../../../shared/ui/mobile";
 import { DashboardCalendar } from "./DashboardCalendar";
 import { quickActionsForRole, type RoleQuickAction } from "../model/role-experience";
-import type { RoleDashboardData } from "../model/dashboard.types.ts";
+import type { RoleDashboardData } from "../model/dashboard.types";
 import { CurrentPrayerCard } from "../../school-home/components/CurrentPrayerCard";
 
 type MobileDashboardHomeProps = {

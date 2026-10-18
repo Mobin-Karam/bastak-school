@@ -3,7 +3,7 @@ import { Laptop, RefreshCw, ShieldCheck, Smartphone } from "lucide-react";
 import { Badge, Button, Card, EmptyState } from "../../../../shared/ui/ui";
 import { useLocale } from "../../../../shared/ui/locale";
 import { settingsCopy } from "../settings-locale";
-import type { Session } from "../model/settings.types.ts";
+import type { Session } from "../model/settings.types";
 export function SessionsSettings({
   sessions,
   revoke,

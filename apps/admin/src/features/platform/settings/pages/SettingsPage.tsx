@@ -4,7 +4,7 @@ import { LogOut, ShieldCheck, UserRound } from "lucide-react";
 import { useAdminShellCopy, useLocale } from "../../../../shared/ui/locale";
 import { useModal } from "../../../../shared/ui/modal";
 import { notify } from "../../../../shared/ui/notifications";
-import { changePassword, getSessions, revokeSession } from "../api/settings.api.ts";
+import { changePassword, getSessions, revokeSession } from "../api/settings.api";
 import { LocationSettings } from "../components/LocationSettings";
 import { SessionsSettings } from "../components/SessionsSettings";
 import { ApiConnectionCard } from "../components/ApiConnectionCard";
@@ -16,7 +16,6 @@ import { PWAInstallSettingsCard } from "../../pwa";
 import { useAuth } from "../../../identity/auth";
 import { PhoneNumberSettings } from "../components/PhoneNumberSettings";
 import { PhoneChangeRequests } from "../components/PhoneChangeRequests";
-import { ThemeSwitcher } from "../../../../shared/theme/theme";
 import { Button, Card } from "../../../../shared/ui/ui";
 import { MobileSelect } from "../../../../shared/ui/mobile/forms";
 import { PrayerTimeSettings } from "../components/PrayerTimeSettings";
@@ -150,9 +149,9 @@ function PersonalSettingsPage() {
         title="تنظیمات"
         description="شماره همراه، گذرواژه و نشست‌های فعال حساب شما."
       />
-      <MobileAccountActions />
       <PhoneNumberSettings />
-      <section aria-labelledby="personal-account-security-title">
+      <MobileAccountActions />
+      {/* <section aria-labelledby="personal-account-security-title">
         <h2
           id="personal-account-security-title"
           className="mb-3 flex items-center gap-2 text-sm font-bold"
@@ -191,7 +190,7 @@ function PersonalSettingsPage() {
             }
           />
         </div>
-      </section>
+      </section> */}
     </div>
   );
 }
@@ -224,7 +223,7 @@ function MobileAccountActions() {
           <h2 className="text-sm font-black text-ink">{copy.accountMenu}</h2>
           <p className="mt-1 text-xs text-slate-500">{copy.display}</p>
         </div>
-        <ThemeSwitcher />
+
       </div>
       {(auth.context?.roles.length ?? 0) > 1 ? (
         <div className="rounded-xl bg-slate-50 p-3 dark:bg-slate-900">

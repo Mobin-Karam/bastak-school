@@ -19,7 +19,7 @@ import {
   listGroupStudents,
   setGroupMembers,
   type ClassGroupSummary,
-} from "../api/class-groups.api.ts";
+} from "../api/class-groups.api";
 
 const errorMessage = (error: unknown, fa: boolean) =>
   error instanceof Error

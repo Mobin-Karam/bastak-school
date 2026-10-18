@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 const { post, patch } = vi.hoisted(() => ({ post: vi.fn(), patch: vi.fn() }));
 vi.mock("../../../../shared/api/api", () => ({ api: { post, patch } }));
 
-import { createPlan, updatePlan } from "./planner.api.ts";
+import { createPlan, updatePlan } from "./planner.api";
 
 const draft = {
   planDate: "2026-09-26",

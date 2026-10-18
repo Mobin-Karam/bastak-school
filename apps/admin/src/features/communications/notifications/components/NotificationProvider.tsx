@@ -1,11 +1,11 @@
-import { createContext, useMemo, type ReactNode } from "react";
+import { createContext, useEffect, useMemo, useRef, type ReactNode } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "../../../identity/auth/hooks/useAuth";
 import { useNotificationInbox } from "../hooks/useNotificationInbox";
 import { useNotificationRealtime } from "../hooks/useNotificationRealtime";
 import { useNotificationSound } from "../hooks/useNotificationSound";
 import { usePushNotifications } from "../hooks/usePushNotifications";
-import type { NotificationContextValue } from "../model/notification.types.ts";
+import type { NotificationContextValue } from "../model/notification.types";
 import { useModal } from "../../../../shared/ui/modal";
 import { Button } from "../../../../shared/ui/ui";
 
@@ -18,6 +18,32 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
   const notifications = useNotificationInbox(auth.status === "authenticated");
   const sound = useNotificationSound();
   const push = usePushNotifications(notifications.refresh);
+  const shownAbsences = useRef(new Set<string>());
+
+  useEffect(() => {
+    if (!auth.hasRole("STUDENT")) return;
+    const absence = notifications.items.find(
+      (item) => item.category === "attendance_absence" && !item.isRead && !shownAbsences.current.has(item.id),
+    );
+    if (!absence) return;
+    shownAbsences.current.add(absence.id);
+    modal.open({
+      title: "هشدار غیبت در کلاس",
+      description: "پیگیری حضوری لازم است",
+      size: "full",
+      content: (
+        <section className="grid min-h-[60vh] content-center gap-6 p-6 text-center" dir="rtl">
+          <p className="text-2xl font-black text-rose-700 dark:text-rose-300">شما در کلاس غایب ثبت شده‌اید.</p>
+          <p className="mx-auto max-w-md text-base leading-8 text-slate-700 dark:text-slate-200">برای دریافت اجازه حضور، به مدیر یا ناظر مدرسه مراجعه کنید. پس از بررسی، نتیجه برای شما ارسال می‌شود.</p>
+          <p className="text-sm text-slate-500">یک امتیاز غیبت در کارنامه حضور شما ثبت شده است.</p>
+          <div className="flex justify-center gap-2">
+            <Button onClick={() => { notifications.markRead(absence.id); window.location.assign("/admin/my-attendance"); }}>مشاهده سوابق حضور</Button>
+            <Button variant="ghost" onClick={() => { notifications.markRead(absence.id); modal.close(); }}>متوجه شدم</Button>
+          </div>
+        </section>
+      ),
+    });
+  }, [auth, modal, notifications.items, notifications.markRead]);
 
   useNotificationRealtime({
     authenticated: auth.status === "authenticated",

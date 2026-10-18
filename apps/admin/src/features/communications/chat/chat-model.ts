@@ -1,2 +1,2 @@
-export * from "./model/group.types.ts";
+export * from "./model/group.types";
 export { permissionLabels, roleLabel } from "./model/permissions";

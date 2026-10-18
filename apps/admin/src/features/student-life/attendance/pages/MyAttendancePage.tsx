@@ -3,7 +3,7 @@ import { CalendarCheck2 } from "lucide-react";
 import { useAuth } from "../../../identity/auth";
 import { Card, ErrorState, LoadingState } from "../../../../shared/ui/ui";
 import { ManagementPageHeader } from "../../../../shared/ui/management-workspace";
-import { getAttendanceEncouragement } from "../api/attendance-operations.api.ts";
+import { getAttendanceEncouragement } from "../api/attendance-operations.api";
 import { StudentAttendanceWorkspace } from "../components/StudentAttendanceWorkspace";
 
 /** Student accounts see encouragement and scoped tasks; detailed profiles belong to staff. */

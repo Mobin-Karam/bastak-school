@@ -175,6 +175,15 @@ export const closeAttendancePool = (id: string) =>
   api.post<{ closed: boolean }>(`/attendance/pools/${encodeURIComponent(id)}/close`, {});
 export const getAttendanceEncouragement = () =>
   api.get<AttendanceEncouragement>("/student/attendance/encouragement");
+export const awardAttendancePoints = (body: {
+  requestId: string;
+  organizationId: string;
+  contextType: "class" | "class_group" | "dorm";
+  contextId: string;
+  studentId: string;
+  points: number;
+  reason: string;
+}) => api.post<{ id: string; studentId: string; points: number; reason: string }>("/attendance/points", body);
 export const getMyDormAssignments = () =>
   api.get<DormAttendanceAssignment[]>("/student/attendance/dorm-assignments");
 export const markDelegatedDormAttendance = (id: string, body: DormAttendanceWrite) =>

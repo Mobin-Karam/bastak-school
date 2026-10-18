@@ -2,7 +2,7 @@ import { AdminList } from "../../../../shared/ui/admin-list";
 import type { LearningItem } from "../model/learning-model";
 import { LearningFilters } from "./LearningFilters";
 import { LearningRow } from "./LearningRow";
-import type { LearningFilter } from "../model/learning.types.ts";
+import type { LearningFilter } from "../model/learning.types";
 import { useLocale } from "../../../../shared/ui/locale";
 import { learningCopy } from "../learning-locale";
 

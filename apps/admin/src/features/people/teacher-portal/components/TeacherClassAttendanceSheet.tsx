@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   bulkMarkAttendance,
+  awardAttendancePoints,
   getAttendanceParticipants,
   listMyAttendanceAbsenceReviews,
   prepareAttendanceWrite,
@@ -9,9 +10,9 @@ import {
   useAttendanceDiscard,
 } from "../../../student-life/attendance/public";
 import { useAuth } from "../../../identity/auth";
-import { Check, MessageSquareText } from "lucide-react";
+import { Check, MessageSquareText, Minus, Plus, Trophy } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import type { ScheduleEntry } from "../../../academics/schedule/api/schedule.api.ts";
+import type { ScheduleEntry } from "../../../academics/schedule/api/schedule.api";
 import { notify } from "../../../../shared/ui/notifications";
 import { api } from "../../../../shared/api/api";
 import { ResponsiveModal } from "../../../../shared/ui/responsive-modal";
@@ -58,6 +59,8 @@ export function TeacherClassAttendanceSheet({
   const [reviewing, setReviewing] = useState(false);
   const [marks, setMarks] = useState<Record<string, AttendanceStatus>>({});
   const [reasons, setReasons] = useState<Record<string, string>>({});
+  const [pointTarget, setPointTarget] = useState<{ id: string; name: string; points: number } | null>(null);
+  const [pointReason, setPointReason] = useState("");
   const participants = useQuery({
     queryKey: ["attendance", "participants", scopeKey, "class", entry?.classroom?.id],
     queryFn: () => getAttendanceParticipants("class", entry!.classroom!.id),
@@ -77,6 +80,8 @@ export function TeacherClassAttendanceSheet({
     setMarks({});
     setReasons({});
     pendingWrite.current = null;
+    setPointTarget(null);
+    setPointReason("");
   }, [entry?.id, open, scopeKey]);
 
   useEffect(() => {
@@ -136,6 +141,27 @@ export function TeacherClassAttendanceSheet({
     save.isPending,
     `${scopeKey}:${entry?.id}:${open}`,
   );
+  const points = useMutation({
+    mutationFn: () => {
+      if (!entry?.classroom?.id || !pointTarget) throw new Error("دانش‌آموز یا کلاس انتخاب نشده است.");
+      if (pointReason.trim().length < 3) throw new Error("دلیل امتیاز را وارد کنید.");
+      return awardAttendancePoints({
+        requestId: crypto.randomUUID(),
+        organizationId: entry.organization.id,
+        contextType: "class",
+        contextId: entry.classroom.id,
+        studentId: pointTarget.id,
+        points: pointTarget.points,
+        reason: pointReason.trim(),
+      });
+    },
+    onSuccess: () => {
+      notify("امتیاز کلاس ثبت شد.", "success");
+      setPointTarget(null);
+      setPointReason("");
+    },
+    onError: (error) => notify(error instanceof Error ? error.message : "ثبت امتیاز انجام نشد.", "error"),
+  });
 
   return (
     <>
@@ -256,6 +282,13 @@ export function TeacherClassAttendanceSheet({
                         />
                       </label>
                     ) : null}
+                    {canManage ? (
+                      <div className="mt-3 flex items-center gap-2 border-t border-[rgb(var(--border-subtle))] pt-2">
+                        <span className="flex items-center gap-1 text-[11px] font-bold text-slate-500"><Trophy size={13} aria-hidden="true" /> امتیاز کلاسی</span>
+                        <button type="button" disabled={save.isPending || points.isPending} onClick={() => { setPointTarget({ id: student.id, name: student.name, points: 1 }); setPointReason(""); }} className="inline-flex min-h-8 items-center gap-1 rounded-lg bg-emerald-50 px-2 text-[11px] font-bold text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-200"><Plus size={13} aria-hidden="true" />۱</button>
+                        <button type="button" disabled={save.isPending || points.isPending} onClick={() => { setPointTarget({ id: student.id, name: student.name, points: -1 }); setPointReason(""); }} className="inline-flex min-h-8 items-center gap-1 rounded-lg bg-rose-50 px-2 text-[11px] font-bold text-rose-800 dark:bg-rose-950/40 dark:text-rose-200"><Minus size={13} aria-hidden="true" />۱</button>
+                      </div>
+                    ) : null}
                   </li>
                 ))}
               </ul>
@@ -340,6 +373,20 @@ export function TeacherClassAttendanceSheet({
         </section>
       </ResponsiveModal>
       {discard.confirmation}
+      <ResponsiveModal
+        open={Boolean(pointTarget)}
+        onOpenChange={(next) => !next && !points.isPending && setPointTarget(null)}
+        title={pointTarget?.points && pointTarget.points > 0 ? "افزودن امتیاز کلاسی" : "کسر امتیاز کلاسی"}
+        description={pointTarget?.name ?? ""}
+      >
+        <div className="space-y-4" dir="rtl">
+          <p className="text-sm leading-6">برای ثبت {pointTarget?.points ?? 0} امتیاز، دلیل روشن و قابل پیگیری وارد کنید.</p>
+          <label className="block text-sm font-bold">دلیل
+            <textarea autoFocus value={pointReason} onChange={(event) => setPointReason(event.target.value)} maxLength={500} className="mt-2 min-h-24 w-full rounded-xl border border-[rgb(var(--border-subtle))] bg-card p-3 font-normal" />
+          </label>
+          <Button loading={points.isPending} disabled={pointReason.trim().length < 3} onClick={() => points.mutate()}>ثبت امتیاز</Button>
+        </div>
+      </ResponsiveModal>
     </>
   );
 }

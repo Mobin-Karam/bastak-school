@@ -6,8 +6,8 @@ import { DatePicker } from "../../../../shared/ui/date-picker";
 import { notify } from "../../../../shared/ui/notifications";
 import { Button, Field, Input, Select, Textarea } from "../../../../shared/ui/ui";
 import { useLocale } from "../../../../shared/ui/locale";
-import { createLearningItem, updateLearningItem } from "../api/learning.api.ts";
-import { learningFormSchema, type LearningFormValues } from "../model/learning-form.schema.ts";
+import { createLearningItem, updateLearningItem } from "../api/learning.api";
+import { learningFormSchema, type LearningFormValues } from "../model/learning-form.schema";
 import type { LearningItem } from "../model/learning-model";
 import { learningCopy } from "../learning-locale";
 

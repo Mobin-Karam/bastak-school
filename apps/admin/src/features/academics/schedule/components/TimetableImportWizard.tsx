@@ -21,7 +21,7 @@ import {
   persianWeekdays,
   type WorkbookBlock,
 } from "../lib/timetable-workbook";
-import { commitTimetableImport, previewTimetableImport } from "../api/timetable.api.ts";
+import { commitTimetableImport, previewTimetableImport } from "../api/timetable.api";
 import { proposeTimetableMappings } from "../lib/timetable-import-mapping";
 import { TimetableImportCatalog } from "./TimetableImportCatalog";
 import { timetableSelectClass } from "./TimetableLessonEditor";

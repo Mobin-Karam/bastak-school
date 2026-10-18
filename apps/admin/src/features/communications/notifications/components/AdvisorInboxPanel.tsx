@@ -6,7 +6,7 @@ import type {
   AdvisorInboxRow,
   RecoveryActionInput,
   TaskIssueActionInput,
-} from "../model/notification.types.ts";
+} from "../model/notification.types";
 import { AdvisorInboxItem } from "./AdvisorInboxItem";
 import { useLocale } from "../../../../shared/ui/locale";
 import { notificationCopy } from "../model/notification-copy";

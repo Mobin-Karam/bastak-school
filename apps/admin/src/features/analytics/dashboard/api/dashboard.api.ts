@@ -4,7 +4,7 @@ import type {
   AttentionStudent,
   RoleDashboardData,
   DashboardWorkQueue,
-} from "../model/dashboard.types.ts";
+} from "../model/dashboard.types";
 
 type AttentionSignal = {
   type?: string;

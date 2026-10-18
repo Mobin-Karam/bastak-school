@@ -11,7 +11,7 @@ import {
   assignStudent,
   listAdvisors,
   listOnboardingOrganizations,
-} from "../../../../identity/onboarding/api/onboarding.api.ts";
+} from "../../../../identity/onboarding/api/onboarding.api";
 import { formatConversationTime } from "../../lib/chat-formatters";
 import { useLocale } from "../../../../../shared/ui/locale";
 import { chatCopy } from "../../model/chat-copy";

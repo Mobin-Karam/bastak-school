@@ -9,6 +9,7 @@ export {
   getAttendanceParticipants,
   getAttendanceEncouragement,
   getAttendanceOverview,
+  awardAttendancePoints,
   listMyAttendanceAbsenceReviews,
 } from "./api";
 export type {

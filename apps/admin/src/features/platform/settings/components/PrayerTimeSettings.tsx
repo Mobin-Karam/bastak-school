@@ -6,7 +6,7 @@ import {
   deletePrayerTimes,
   getPrayerTimes,
   savePrayerTimes,
-} from "../../../analytics/school-home/api/school-home.api.ts";
+} from "../../../analytics/school-home/api/school-home.api";
 import { useModal } from "../../../../shared/ui/modal";
 import { notify } from "../../../../shared/ui/notifications";
 import { Button, Card, ErrorState, Input, LoadingState } from "../../../../shared/ui/ui";

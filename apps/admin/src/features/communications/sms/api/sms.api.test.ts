@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { api } from "../../../../shared/api/api";
-import { getCampaign } from "./sms.api.ts";
+import { getCampaign } from "./sms.api";
 
 describe("SMS API contract", () => {
   beforeEach(() => vi.restoreAllMocks());

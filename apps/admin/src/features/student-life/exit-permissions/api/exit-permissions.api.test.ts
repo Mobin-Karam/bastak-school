@@ -14,7 +14,7 @@ import {
   recordDeparture,
   recordReturn,
   reviewExitPermission,
-} from "./exit-permissions.api.ts";
+} from "./exit-permissions.api";
 
 describe("exit-permissions API", () => {
   beforeEach(() => vi.clearAllMocks());

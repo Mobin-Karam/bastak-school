@@ -1,7 +1,7 @@
 import { CalendarDays, Clock3, MessageCircle, UserRound } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../../../identity/auth";
-import { getAccountProfile } from "../../../platform/settings/api/settings.api.ts";
+import { getAccountProfile } from "../../../platform/settings/api/settings.api";
 import { useQuery } from "@tanstack/react-query";
 import { ManagementPageHeader } from "../../../../shared/ui/management-workspace";
 import { Card } from "../../../../shared/ui/ui";

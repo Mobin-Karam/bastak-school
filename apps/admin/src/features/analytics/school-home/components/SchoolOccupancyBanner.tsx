@@ -2,7 +2,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Building2, LogOut, UsersRound } from "lucide-react";
 import { useEffect } from "react";
 import { Link } from "react-router-dom";
-import { getSchoolOccupancy } from "../../../student-life/exit-permissions/api/exit-permissions.api.ts";
+import { getSchoolOccupancy } from "../../../student-life/exit-permissions/api/exit-permissions.api";
 import { useAuth } from "../../../identity/auth";
 import { api } from "../../../../shared/api/api";
 

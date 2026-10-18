@@ -5,7 +5,7 @@ import { DatePicker } from "../../../../shared/ui/date-picker";
 import { ManagementStat } from "../../../../shared/ui/management-workspace";
 import { Button, Card } from "../../../../shared/ui/ui";
 import { useLocale } from "../../../../shared/ui/locale";
-import type { EducationOperationsOverview } from "../api/education-catalog.api.ts";
+import type { EducationOperationsOverview } from "../api/education-catalog.api";
 import type { EducationOperationsFilters } from "../model/education-operations";
 import { educationCopy } from "../model/education-copy";
 

@@ -5,7 +5,7 @@ import { SegmentedControl } from "../../../../../shared/ui/segmented-control";
 import { Badge, Button, Card, EmptyState } from "../../../../../shared/ui/ui";
 import { useLocale } from "../../../../../shared/ui/locale";
 import { dashboardCopy } from "../../model/dashboard-copy";
-import type { DashboardWorkItem } from "../../model/dashboard.types.ts";
+import type { DashboardWorkItem } from "../../model/dashboard.types";
 
 type PriorityFilter = "all" | DashboardWorkItem["priority"];
 

@@ -2,7 +2,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { cleanup, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { ScheduleEntry } from "../../../academics/schedule/api/schedule.api.ts";
+import type { ScheduleEntry } from "../../../academics/schedule/api/schedule.api";
 import { TeacherClassAttendanceSheet } from "./TeacherClassAttendanceSheet";
 
 const {

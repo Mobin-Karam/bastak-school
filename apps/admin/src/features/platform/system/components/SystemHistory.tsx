@@ -1,7 +1,7 @@
 import { History, RotateCcw } from "lucide-react";
 import { Button, Card, EmptyState } from "../../../../shared/ui/ui";
 import { useLocale } from "../../../../shared/ui/locale";
-import type { HistoryRow } from "../model/system.types.ts";
+import type { HistoryRow } from "../model/system.types";
 import { systemCopy } from "../system-locale";
 export function SystemHistory({
   title,

@@ -2,7 +2,7 @@ import type { AttendanceSessionDetail } from "@moshaver/api-contract";
 import {
   getSavedAttendanceSession,
   submitAttendanceAbsences,
-} from "../api/attendance-operations.api.ts";
+} from "../api/attendance-operations.api";
 import { DormDelegateEditor } from "../components/DormDelegateEditor";
 import {
   AttendanceStaffWorkspace,
@@ -48,7 +48,7 @@ import {
   listAttendanceContexts,
   type AttendanceContextOption,
   type AttendanceContextType,
-} from "../api/attendance.api.ts";
+} from "../api/attendance.api";
 
 type MarkedStatus = MarkedAttendanceStatus;
 type Participant = AttendanceParticipant;

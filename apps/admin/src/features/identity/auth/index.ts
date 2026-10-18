@@ -6,4 +6,4 @@ export { LoginSuccessSplash } from "./components/LoginSuccessSplash";
 export { useAuth } from "./hooks/useAuth";
 export { isReleasedSchoolPortalRole, isSupportedAdminPortalRole } from "./lib/auth-session";
 
-export type { AuthState, AuthStatus, BackendHealth, LoginResponse } from "./model/auth.types.ts";
+export type { AuthState, AuthStatus, BackendHealth, LoginResponse } from "./model/auth.types";

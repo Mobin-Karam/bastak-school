@@ -8,7 +8,7 @@ import {
   listAttendanceAbsenceReviews,
   reviewAttendanceAbsence,
   type AttendanceAbsenceReview,
-} from "../api/attendance.api.ts";
+} from "../api/attendance.api";
 
 /** Scoped principal/supervisor review: inspect, choose a decision, confirm. */
 export function AttendanceReviewQueue() {

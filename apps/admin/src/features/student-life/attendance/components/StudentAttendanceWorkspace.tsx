@@ -25,7 +25,7 @@ import {
   getMyAttendancePools,
   getMyDormAssignments,
   markDelegatedDormAttendance,
-} from "../api/attendance-operations.api.ts";
+} from "../api/attendance-operations.api";
 
 function PoolConfirmation({
   pool,

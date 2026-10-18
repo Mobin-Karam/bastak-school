@@ -1,4 +1,4 @@
-import type { AdvisorInbox, AdvisorInboxRow, TaskIssue } from "../model/notification.types.ts";
+import type { AdvisorInbox, AdvisorInboxRow, TaskIssue } from "../model/notification.types";
 
 function itemKey(prefix: string, value: Record<string, unknown>, index: number) {
   return `${prefix}:${String(value.id || value.taskId || value.task_id || index)}`;

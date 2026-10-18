@@ -26,7 +26,7 @@ import type {
   GroupMember,
   GroupPermissions,
   GroupRole,
-} from "../../model/group.types.ts";
+} from "../../model/group.types";
 
 function interpolate(template: string, values: Record<string, string | number>) {
   return template.replace(/\{(\w+)\}/g, (_, key: string) => String(values[key] ?? `{${key}}`));

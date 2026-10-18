@@ -6,7 +6,7 @@ import {
   getExamQuestions,
   getQuestionBankExams,
   updateQuestion,
-} from "./questions.api.ts";
+} from "./questions.api";
 
 const draft = {
   question: "دو به علاوه دو؟",

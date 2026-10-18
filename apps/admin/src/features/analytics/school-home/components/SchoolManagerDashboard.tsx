@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../../../identity/auth";
 import { getAttendanceOverview } from "../../../student-life/attendance/public";
-import { listSchedule } from "../../../academics/schedule/api/schedule.api.ts";
+import { listSchedule } from "../../../academics/schedule/api/schedule.api";
 import { DashboardCalendar } from "../../dashboard/components/DashboardCalendar";
 import { todayIso } from "../../../../shared/lib/utils";
 import { notify } from "../../../../shared/ui/notifications";
@@ -16,7 +16,7 @@ import {
   listAnnouncements,
   type SchoolAnnouncement,
   updateAnnouncement,
-} from "../api/school-home.api.ts";
+} from "../api/school-home.api";
 import { CurrentPrayerCard } from "./CurrentPrayerCard";
 import { SchoolOccupancyBanner } from "./SchoolOccupancyBanner";
 import { ResponsiveDrawer } from "../../../../shared/ui/responsive-drawer";

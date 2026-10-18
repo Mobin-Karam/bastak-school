@@ -18,7 +18,7 @@ import type {
   AdvisorInboxRow,
   RecoveryActionInput,
   TaskIssueActionInput,
-} from "../model/notification.types.ts";
+} from "../model/notification.types";
 
 export function AdvisorInboxItem({
   row,

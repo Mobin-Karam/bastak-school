@@ -3,7 +3,7 @@ import {
   getAdminDashboard,
   getDashboardWorkQueue,
   normalizeAttentionStudent,
-} from "./dashboard.api.ts";
+} from "./dashboard.api";
 import { api } from "../../../../shared/api/api";
 import { beforeEach, vi } from "vitest";
 

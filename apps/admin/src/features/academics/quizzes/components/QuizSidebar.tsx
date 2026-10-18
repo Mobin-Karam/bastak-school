@@ -2,7 +2,7 @@ import { CalendarClock, CircleHelp, Plus, RotateCcw } from "lucide-react";
 import { AdminList } from "../../../../shared/ui/admin-list";
 import { CollectionToolbar } from "../../../../shared/ui/collection-toolbar";
 import { Badge, Button, Select } from "../../../../shared/ui/ui";
-import type { Quiz } from "../model/quiz.types.ts";
+import type { Quiz } from "../model/quiz.types";
 import { useQuizCopy } from "../model/quiz-locale";
 
 type Props = {

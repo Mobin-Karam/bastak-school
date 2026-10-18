@@ -1,8 +1,8 @@
 import type { Exam } from "../../../../shared/types/domain";
 import { notify } from "../../../../shared/ui/notifications";
-import type { ReturnTypeOfUseModal } from "./useExamBulkActions.types.ts";
-import { deleteExam, setExamPublished } from "../api/exams.api.ts";
-import type { BulkExamAction } from "../model/exam.types.ts";
+import type { ReturnTypeOfUseModal } from "./useExamBulkActions.types";
+import { deleteExam, setExamPublished } from "../api/exams.api";
+import type { BulkExamAction } from "../model/exam.types";
 
 export async function runExamBulkAction({
   action,

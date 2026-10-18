@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { getLearningReviewHistory } from "../api/learning.api.ts";
+import { getLearningReviewHistory } from "../api/learning.api";
 import { Badge, EmptyState } from "../../../../shared/ui/ui";
 import { LearningSkeleton } from "./LearningSkeleton";
 import { useLocale } from "../../../../shared/ui/locale";

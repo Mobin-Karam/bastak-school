@@ -522,11 +522,6 @@
     inset 0 1px 0 rgb(255 255 255 / 72%);
 }
 
-.admin-mobile-masthead {
-  box-shadow:
-    0 8px 24px rgb(14 50 77 / 8%),
-    inset 0 -1px 0 rgb(var(--border-subtle) / 80%);
-}
 
 .admin-main-rail {
   background-image: linear-gradient(

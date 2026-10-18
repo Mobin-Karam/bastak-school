@@ -1,4 +1,4 @@
-import type { PortalOrganization } from "../../../identity/access/api/access.api.ts";
+import type { PortalOrganization } from "../../../identity/access/api/access.api";
 import { Button, EmptyState } from "../../../../shared/ui/ui";
 import { useLocale } from "../../../../shared/ui/locale";
 import { plannerCopy } from "../model/planner-copy";

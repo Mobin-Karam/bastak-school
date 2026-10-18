@@ -4,6 +4,8 @@ import { AuditLog } from "../../database/entities/audit-log.entity";
 import { createHash } from "node:crypto";
 import { AttendanceWriteReceipt } from "../../database/entities/attendance-write-receipt.entity";
 import { AttendancePolicy } from "../../database/entities/attendance-policy.entity";
+import { StudentPointLedger } from "../../database/entities/student-point-ledger.entity";
+import { Notification, NotificationType } from "../../database/entities/notification.entity";
 import { AttendanceCorrection } from "../../database/entities/attendance-correction.entity";
 import { Injectable } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
@@ -45,6 +47,7 @@ import {
   BulkMarkAttendanceDto,
   CreateAttendanceSessionDto,
   ReviewAttendanceAbsenceDto,
+  AwardAttendancePointsDto,
   SubmitAttendanceAbsencesDto,
   FinalizeAttendanceSessionDto,
   CancelAttendanceSessionDto,
@@ -1385,7 +1388,7 @@ export class AttendanceService {
       );
     }
 
-    const { result, recipients, organizationId, contextType, contextId } =
+    const { result, recipients, organizationId, contextType, contextId, notificationEvents } =
       await this.attendanceTransaction(async (manager) => {
         const sessions = manager.getRepository(AttendanceSession);
         const records = manager.getRepository(AttendanceRecord);
@@ -1434,6 +1437,7 @@ export class AttendanceService {
               organizationId: organization.id,
               contextType: receipt.session.contextType,
               contextId: receipt.session.contextId,
+              notificationEvents: [],
             };
           }
         }
@@ -1604,6 +1608,20 @@ export class AttendanceService {
             },
           });
         }
+        const ledger = manager.getRepository(StudentPointLedger);
+        for (const record of saved) {
+          const points = record.physicalStatus === "present" ? 1 : record.physicalStatus === "absent" ? -1 : 0;
+          const reason =
+            points > 0 ? "یک امتیاز برای حضور در کلاس" : points < 0 ? "کسر یک امتیاز برای غیبت در کلاس" : "وضعیت حضور بدون تغییر امتیاز";
+          const existing = await ledger.findOne({ where: { attendanceRecord: { id: record.id } } });
+          if (existing) {
+            existing.points = points;
+            existing.reason = reason;
+            await ledger.save(existing);
+          } else {
+            await ledger.save(ledger.create({ student: record.student, attendanceRecord: record, points, reason, source: "attendance" }));
+          }
+        }
         if (options.submit) {
           if (session.status !== "open" && session.status !== "scheduled")
             throw new ApiException(
@@ -1639,7 +1657,7 @@ export class AttendanceService {
               organization: { id: organization.id },
               status: MembershipStatus.ACTIVE,
             },
-            relations: { user: true },
+            relations: { user: true, roleAssignments: { role: true } },
           });
         const result = {
           sessionId: session.id,
@@ -1664,12 +1682,51 @@ export class AttendanceService {
               result,
             }),
           );
+        const notifications = manager.getRepository(Notification);
+        const reviewRecipients = members
+          .filter((member) => member.roleAssignments.some((assignment) =>
+            ["PRINCIPAL", "SCHOOL_SUPERVISOR"].includes(assignment.role.code),
+          ))
+          .map((member) => member.user.id);
+        const notificationEvents: Array<{ userId: string; id: string; title: string; body: string; category: string; url: string }> = [];
+        for (const record of saved.filter((row) => row.physicalStatus === "absent")) {
+          const studentUser = await students.findOne({ where: { id: record.student.id }, relations: { user: true } });
+          if (studentUser?.user) {
+            const item = await notifications.save(notifications.create({
+              user: studentUser.user,
+              organization,
+              type: NotificationType.WARNING,
+              category: "attendance_absence",
+              title: "غیبت شما در کلاس ثبت شد",
+              body: "شما در کلاس غایب ثبت شده‌اید. برای دریافت اجازه حضور، به مدیر یا ناظر مدرسه مراجعه کنید.",
+              url: "/admin/my-attendance",
+              priority: "high",
+              dedupeKey: `attendance-absence-student:${record.id}`,
+            }));
+            notificationEvents.push({ userId: studentUser.user.id, id: item.id, title: item.title, body: item.body, category: item.category, url: item.url ?? "/admin/my-attendance" });
+          }
+          for (const reviewerId of reviewRecipients) {
+            const item = await notifications.save(notifications.create({
+              user: { id: reviewerId } as User,
+              organization,
+              type: NotificationType.WARNING,
+              category: "attendance_review",
+              title: "درخواست بررسی غیبت جدید",
+              body: `غیبت ${record.student.name} توسط معلم ثبت شده و منتظر بررسی است.`,
+              url: "/admin/attendance",
+              priority: "high",
+              dedupeKey: `attendance-absence-review:${record.id}:${reviewerId}`,
+            }));
+            notificationEvents.push({ userId: reviewerId, id: item.id, title: item.title, body: item.body, category: item.category, url: item.url ?? "/admin/attendance" });
+          }
+        }
         return {
           result,
           recipients: members.map((member) => member.user.id),
           organizationId: organization.id,
           contextType,
           contextId,
+          notificationEvents,
         };
       });
     // Never publish an attendance update for a rolled-back transaction.
@@ -1681,7 +1738,27 @@ export class AttendanceService {
         contextId,
         updatedBy: user.id,
       });
+    for (const event of notificationEvents ?? [])
+      this.realtime.emitToUsers([event.userId], "notification.created", event);
     return result;
+  }
+
+  async awardPoints(user: AuthenticatedUser, dto: AwardAttendancePointsDto) {
+    if (!dto.points) throw new ApiException(422, "ATTENDANCE_POINTS_ZERO", "امتیاز باید مثبت یا منفی باشد.");
+    const organization = await this.authorizeOrganization(user, dto.organizationId);
+    await this.assertContextAccess(user, dto.contextType, dto.contextId, organization.id, true);
+    const studentIds = await this.participantIds(user, dto.contextType, dto.contextId, organization.id);
+    if (!studentIds.has(dto.studentId)) throw new ApiException(422, "ATTENDANCE_STUDENT_NOT_IN_CONTEXT", "دانش‌آموز عضو این کلاس نیست.");
+    return this.attendanceTransaction(async (manager) => {
+      const ledger = manager.getRepository(StudentPointLedger);
+      const existing = await ledger.findOne({ where: { requestId: dto.requestId }, relations: { student: true } });
+      if (existing) return { id: existing.id, studentId: existing.student.id, points: existing.points, reason: existing.reason };
+      const student = await manager.getRepository(Student).findOneBy({ id: dto.studentId });
+      if (!student) throw new ApiException(404, "STUDENT_NOT_FOUND", "دانش‌آموز پیدا نشد.");
+      const row = await ledger.save(ledger.create({ student, awardedBy: { id: user.id } as User, points: dto.points, source: "teacher_adjustment", requestId: dto.requestId, reason: dto.reason.trim() }));
+      await manager.getRepository(AuditLog).save({ user: { id: user.id }, organizationId: organization.id, entity: "student_point_ledger", action: "attendance.points.adjusted", metadata: { studentId: student.id, contextType: dto.contextType, contextId: dto.contextId, points: row.points, reason: row.reason } });
+      return { id: row.id, studentId: student.id, points: row.points, reason: row.reason };
+    });
   }
 
   private attendanceTransaction<T>(
@@ -1964,6 +2041,25 @@ export class AttendanceService {
       recordId: saved.id,
       decision: dto.decision,
     });
+    if (saved.student.user?.id) {
+      const notification = await this.sessions.manager.getRepository(Notification).save({
+        user: { id: saved.student.user.id } as User,
+        organization: saved.session.organization,
+        type: NotificationType.WARNING,
+        category: "attendance_review",
+        title: dto.decision === "approved" ? "اجازه مراجعه به کلاس تأیید شد" : "درخواست غیبت بررسی شد",
+        body: dto.decision === "approved"
+          ? "درخواست شما تأیید شد. برای ادامه حضور در کلاس به مدیر یا ناظر مراجعه کنید. یک امتیاز غیبت در کارنامه شما حفظ شده است."
+          : "درخواست غیبت شما رد شد. برای پیگیری با مدیر یا ناظر مدرسه صحبت کنید.",
+        url: "/admin/my-attendance",
+        priority: "high",
+        dedupeKey: `attendance-review-student:${saved.id}`,
+      });
+      this.realtime.emitToUsers([saved.student.user.id], "notification.created", {
+        id: notification.id, title: notification.title, body: notification.body,
+        category: notification.category, url: notification.url, type: notification.type,
+      });
+    }
     return this.reviewView(saved);
   }
 

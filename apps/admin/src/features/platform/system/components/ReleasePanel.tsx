@@ -1,7 +1,7 @@
 import { Rocket } from "lucide-react";
 import { Button, Card, Field, Input, Select, Textarea } from "../../../../shared/ui/ui";
 import { useLocale } from "../../../../shared/ui/locale";
-import type { ReleaseDraft } from "../model/system.types.ts";
+import type { ReleaseDraft } from "../model/system.types";
 import { systemCopy } from "../system-locale";
 export function ReleasePanel({
   release,

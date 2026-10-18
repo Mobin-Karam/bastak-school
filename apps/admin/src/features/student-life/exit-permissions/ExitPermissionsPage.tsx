@@ -18,7 +18,7 @@ import {
   reviewExitPermission,
   type ExitPermission,
   type ExitPermissionStatus,
-} from "./api/exit-permissions.api.ts";
+} from "./api/exit-permissions.api";
 
 const tones: Record<ExitPermissionStatus, "amber" | "green" | "red" | "blue" | "neutral"> = {
   PENDING: "amber",

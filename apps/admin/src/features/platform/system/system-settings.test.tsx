@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AccountSecurityPanel } from "./components/AccountSecurityPanel";
 import { DatabaseBackupPanel } from "./components/DatabaseBackupPanel";
 import { AppVersionManager } from "./components/AppVersionManager";
-import type { PasswordDraft } from "./model/system.types.ts";
+import type { PasswordDraft } from "./model/system.types";
 import { LocaleProvider } from "../../../shared/ui/locale";
 
 function renderWithLocale(node: React.ReactElement) {

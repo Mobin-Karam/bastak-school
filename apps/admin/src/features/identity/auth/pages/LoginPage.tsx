@@ -2,7 +2,8 @@ import {
   PublicSchoolProfileProvider,
   usePublicSchoolProfile,
 } from "../components/PublicSchoolProfile";
-import { Link, Navigate } from "react-router-dom";
+import { useEffect } from "react";
+import { Link, Navigate, useLocation } from "react-router-dom";
 
 import { useLocale } from "../../../../shared/ui/locale";
 
@@ -14,6 +15,11 @@ import { useAuth } from "../hooks/useAuth";
 import { usePlatformBootstrap } from "../hooks/usePlatformBootstrap";
 import { AuthLocaleProvider, resolveAuthLanguage, useAuthLocale } from "../model/auth-locale";
 import { LoginShell, LoginToolbar } from "../components";
+import {
+  currentAppDomain,
+  loginDestination,
+  portalUrl,
+} from "../../../../app/routing/portal-domain";
 
 /* =========================================================
    PAGE
@@ -42,6 +48,7 @@ export function LoginPage() {
 
 function LoginPageContent() {
   const auth = useAuth();
+  const location = useLocation();
   const { school, schools, selectedId, selectSchool } = usePublicSchoolProfile();
   const { copy, direction } = useAuthLocale();
 
@@ -49,7 +56,24 @@ function LoginPageContent() {
     usePlatformBootstrap();
 
   if (auth.status === "authenticated") {
-    return <Navigate to="/admin" replace />;
+    const requestedPath = (location.state as { from?: unknown } | null)?.from;
+    const destination = loginDestination(
+      auth.context?.roles ?? [],
+      typeof requestedPath === "string" ? requestedPath : undefined,
+    );
+    if (
+      !destination ||
+      currentAppDomain() === "local" ||
+      currentAppDomain() === destination.domain
+    ) {
+      return <Navigate to={destination?.path ?? "/admin"} replace />;
+    }
+    const target = portalUrl(destination.domain, destination.path);
+    return target ? (
+      <CrossPortalLoginRedirect target={target} />
+    ) : (
+      <Navigate to={destination.path} replace />
+    );
   }
 
   return (
@@ -188,6 +212,17 @@ function LoginPageContent() {
         </footer> */}
       </section>
     </LoginShell>
+  );
+}
+
+function CrossPortalLoginRedirect({ target }: { target: string }) {
+  useEffect(() => {
+    window.location.replace(target);
+  }, [target]);
+  return (
+    <p role="status" className="sr-only">
+      در حال انتقال به پرتال مناسب…
+    </p>
   );
 }
 

@@ -14,7 +14,7 @@ import {
   getExamQuestions,
   getQuestionBankExams,
   updateQuestion,
-} from "../api/questions.api.ts";
+} from "../api/questions.api";
 import { QuestionEditor } from "../components/QuestionEditor";
 import { QuestionsList } from "../components/QuestionsList";
 import { QuestionsSelector } from "../components/QuestionsSelector";

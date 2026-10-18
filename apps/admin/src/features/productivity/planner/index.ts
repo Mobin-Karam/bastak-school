@@ -10,4 +10,4 @@ export {
   planWarnings,
   comparePlanTasks,
 } from "./lib/planner-model";
-export type { PlannerMode, TaskFilter, PlanDraft, TaskDraft } from "./model/planner.types.ts";
+export type { PlannerMode, TaskFilter, PlanDraft, TaskDraft } from "./model/planner.types";

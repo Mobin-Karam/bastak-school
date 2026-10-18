@@ -9,7 +9,7 @@ import {
 } from "lucide-react";
 import { Badge } from "../../../../shared/ui/ui";
 import { useLocale } from "../../../../shared/ui/locale";
-import type { ReportRow } from "../api/reports.api.ts";
+import type { ReportRow } from "../api/reports.api";
 import { reportCopy } from "../model/report-copy";
 import { reportAccuracy, reportNumber } from "../report-utils";
 

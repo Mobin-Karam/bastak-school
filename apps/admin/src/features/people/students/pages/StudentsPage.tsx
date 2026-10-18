@@ -22,7 +22,7 @@ import {
   resetStudentPassword,
   studentLifecycle,
   updateStudent,
-} from "../api/students.api.ts";
+} from "../api/students.api";
 import { StudentAdminAccess } from "../components/StudentAdminAccess";
 import { StudentDetail } from "../components/StudentDetail";
 import {
@@ -37,7 +37,7 @@ import { StudentSecurity } from "../components/StudentSecurity";
 import { StudentSupportWorkspace } from "../components/StudentSupportWorkspace";
 import { StudentTransferWorkspace } from "../components/StudentTransferWorkspace";
 import { SpreadsheetTransferLauncher } from "../../../../shared/ui/spreadsheet-transfer-launcher";
-import { getStudentSyncHealth, reviewStudentSyncHealth } from "../api/student-activity.api.ts";
+import { getStudentSyncHealth, reviewStudentSyncHealth } from "../api/student-activity.api";
 import {
   getStudentProfileCompleteness,
   getStudentStatus,

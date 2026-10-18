@@ -7,11 +7,11 @@ import { ManagementPageHeader } from "../../../../shared/ui/management-workspace
 import { Button } from "../../../../shared/ui/ui";
 import { useAuth } from "../../../identity/auth";
 import { useLocale } from "../../../../shared/ui/locale";
-import { getExams, getRetryRequests } from "../../exams/api/exams.api.ts";
+import { getExams, getRetryRequests } from "../../exams/api/exams.api";
 import {
   getEducationOperations,
   type EducationOperationsOverview,
-} from "../api/education-catalog.api.ts";
+} from "../api/education-catalog.api";
 import { EducationCatalogPanel } from "../components/EducationCatalogPanel";
 import { EducationExamSnapshot } from "../components/EducationExamSnapshot";
 import { EducationOperationsPanel } from "../components/EducationOperationsPanel";

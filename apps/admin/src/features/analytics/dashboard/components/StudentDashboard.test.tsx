@@ -101,15 +101,16 @@ describe("StudentDashboard", () => {
       </MemoryRouter>,
     );
 
-    expect(await screen.findByRole("region", { name: "خانه دانش‌آموز" })).toBeVisible();
+    const dashboard = await screen.findByRole("region", { name: "خانه دانش‌آموز" });
+    expect(dashboard).toBeVisible();
+    expect(dashboard).toHaveClass("overflow-hidden");
     expect(screen.getByRole("region", { name: "کلاس جاری" })).toHaveTextContent("فقه کاربردی");
-    expect(screen.getByRole("group", { name: "اوقات شرعی" }).querySelector("time")).toBeVisible();
+    expect(
+      screen.getByRole("region", { name: "وقت شرعی پیش رو" }).querySelector("time"),
+    ).toBeVisible();
     expect(screen.getByRole("region", { name: "زمان کلاس‌های امروز" })).toHaveTextContent("۰۸:۰۰");
     expect(screen.getByRole("region", { name: "خلاصه حضور و غیاب" })).toHaveTextContent("حاضر");
-    expect(screen.getByRole("link", { name: /برنامه کامل/ })).toHaveAttribute(
-      "href",
-      "/admin/schedule",
-    );
+    expect(screen.getByRole("link", { name: "همه" })).toHaveAttribute("href", "/admin/schedule");
     fireEvent.click(screen.getByRole("button", { name: /باز کردن ۱ پیام مدرسه/ }));
     expect(screen.getByRole("dialog")).toHaveTextContent("برنامه مراسم صبحگاه");
     expect(screen.queryByRole("link", { name: /مشاهده همه/ })).not.toBeInTheDocument();

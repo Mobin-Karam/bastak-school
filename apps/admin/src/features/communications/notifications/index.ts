@@ -17,4 +17,4 @@ export type {
   PushStatus,
 } from "./model/notification-model";
 
-export type { NotificationContextValue } from "./model/notification.types.ts";
+export type { NotificationContextValue } from "./model/notification.types";

@@ -11,13 +11,13 @@ import {
   listClasses,
   setClassBooks,
   type EducationClass,
-} from "../api/classes.api.ts";
+} from "../api/classes.api";
 import {
   createEducationBook,
   deleteEducationBook,
   updateEducationBook,
   type ManagedEducationBook,
-} from "../api/education-catalog.api.ts";
+} from "../api/education-catalog.api";
 
 const authority = vi.hoisted(() => ({ manage: true, organizationId: "org-one" }));
 vi.mock("../../../identity/auth", () => ({

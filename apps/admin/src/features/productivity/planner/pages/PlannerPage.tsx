@@ -48,7 +48,7 @@ import {
   savePlannerTask,
   sharePlanRange,
   updatePlan,
-} from "../api/planner.api.ts";
+} from "../api/planner.api";
 import { PlannerCanvas } from "../components/PlannerCanvas";
 import {
   DateAction,
@@ -77,13 +77,13 @@ import {
   sortPlanTasks,
   summarizePlans,
 } from "../lib/planner-model";
-import type { PlannerMode, TaskDraft, TaskFilter } from "../model/planner.types.ts";
+import type { PlannerMode, TaskDraft, TaskFilter } from "../model/planner.types";
 import { PlannerMoreMenu } from "../components/PlannerMoreMenu";
 import { PlanTemplateLibrary } from "../components/PlanTemplateLibrary";
 import { TemplateOrganizationPicker } from "../components/TemplateOrganizationPicker";
 import { PlannerFilterPopover } from "../components/PlannerFilterPopover";
 import { useAuth } from "../../../identity/auth";
-import { listOrganizations } from "../../../identity/access/api/access.api.ts";
+import { listOrganizations } from "../../../identity/access/api/access.api";
 
 export function PlannerPage() {
   const auth = useAuth();

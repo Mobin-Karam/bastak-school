@@ -2,7 +2,7 @@ import { useDeferredValue, useEffect, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { useStudentSelection } from "../../../../shared/hooks/useStudentSelection";
 import { parseLearningFilter } from "../lib/learning-filters";
-import type { LearningFilter } from "../model/learning.types.ts";
+import type { LearningFilter } from "../model/learning.types";
 
 export function useLearningPageState() {
   const params = useParams();

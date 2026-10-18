@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Archive, ClipboardCopy, Link2, Pencil, Plus, Search } from "lucide-react";
-import { listOrganizations } from "../../../identity/access/api/access.api.ts";
+import { listOrganizations } from "../../../identity/access/api/access.api";
 import {
   addBankItemToQuiz,
   archiveQuestionBankItem,
@@ -11,7 +11,7 @@ import {
   type QuestionBankDraft,
   type QuestionBankItem,
   updateQuestionBankItem,
-} from "../../questions/api/question-bank.api.ts";
+} from "../../questions/api/question-bank.api";
 import { useQuizCopy } from "../model/quiz-locale";
 import { useModal } from "../../../../shared/ui/modal";
 import { notify } from "../../../../shared/ui/notifications";
@@ -26,7 +26,7 @@ import {
   getQuestionBankTemplate,
   importQuestionBank,
   type QuestionBankTransfer,
-} from "../../questions/api/question-bank.api.ts";
+} from "../../questions/api/question-bank.api";
 
 export function QuizQuestionBankPanel({
   selectedQuizId,

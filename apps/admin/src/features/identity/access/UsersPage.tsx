@@ -24,7 +24,7 @@ import {
   updateUser,
   type PortalOrganization,
   type PortalUser,
-} from "./api/access.api.ts";
+} from "./api/access.api";
 import { accessCopy } from "./model/access-copy";
 import {
   principalAssignableRoles,
