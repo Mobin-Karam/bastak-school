@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ExternalLink, Headphones, PlayCircle, Send } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useAuth } from "../../identity/auth";
+import { roleLabel } from "../../../shared/lib/role-ui";
 import { Button, Card, EmptyState, Input, LoadingState, Textarea } from "../../../shared/ui/ui";
 import { notify } from "../../../shared/ui/notifications";
 import { useFloatingIsland } from "../../../shared/ui/floating-island";
@@ -112,6 +113,8 @@ export function AnnouncementManagementPage() {
   const organizationId = auth.context?.activeOrganization?.id ?? "";
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState<string[]>([]);
+  const [selectedRoles, setSelectedRoles] = useState<string[]>([]);
+  const [audienceMode, setAudienceMode] = useState<"ALL" | "ROLES" | "USERS">("USERS");
   const [form, setForm] = useState({
     title: "",
     body: "",
@@ -132,8 +135,9 @@ export function AnnouncementManagementPage() {
         linkUrl: form.linkUrl || null,
         mediaUrl: form.mediaUrl || null,
         mediaType: form.mediaUrl ? form.mediaType : null,
-        audience: "USERS",
-        recipientIds: selected,
+        audience: audienceMode === "ALL" ? "ALL" : "USERS",
+        recipientIds: audienceMode === "USERS" ? selected : [],
+        recipientRoleCodes: audienceMode === "ROLES" ? selectedRoles : [],
         status: "ACTIVE",
       }),
     onSuccess: () => {
@@ -146,12 +150,19 @@ export function AnnouncementManagementPage() {
         mediaType: "VIDEO",
       });
       setSelected([]);
+      setSelectedRoles([]);
+      setAudienceMode("USERS");
       void client.invalidateQueries({ queryKey: ["announcements"] });
       notify("رسانه برای دریافت‌کنندگان انتخاب‌شده منتشر شد.", "success");
     },
     onError: () => notify("انتشار انجام نشد. نشانی و دریافت‌کنندگان را بررسی کنید.", "error"),
   });
-  const eligible = useMemo(() => recipients.data ?? [], [recipients.data]);
+  const eligible = useMemo(() => recipients.data?.members ?? [], [recipients.data]);
+  const availableRoles = recipients.data?.roles ?? [];
+  const audienceReady =
+    audienceMode === "ALL" ||
+    (audienceMode === "ROLES" && selectedRoles.length > 0) ||
+    (audienceMode === "USERS" && selected.length > 0);
   return (
     <main className="mx-auto grid w-full max-w-5xl gap-4" dir="rtl">
       <header>
@@ -196,42 +207,109 @@ export function AnnouncementManagementPage() {
             <option value="AUDIO">صوت</option>
           </select>
         </div>
-        <div>
-          <Input
-            placeholder="جستجوی نام یا نام کاربری"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-          />
-          <div className="mt-3 max-h-72 overflow-auto rounded-xl border p-2">
-            {eligible.map((member) => (
+        <fieldset className="grid gap-3" aria-label="گروه دریافت‌کنندگان">
+          <legend className="text-sm font-black text-ink">دریافت‌کنندگان</legend>
+          <div className="grid grid-cols-3 gap-2">
+            {[
+              ["ALL", "همه اعضای فعال"],
+              ["ROLES", "براساس نقش"],
+              ["USERS", "افراد مشخص"],
+            ].map(([value, label]) => (
               <label
-                key={member.id}
-                className="flex cursor-pointer items-center gap-2 rounded-lg p-2 hover:bg-black/5"
+                key={value}
+                className={`cursor-pointer rounded-lg border p-2 text-center text-xs font-bold transition ${audienceMode === value ? "border-brand bg-brand/10 text-brand" : "border-[rgb(var(--border-subtle))] text-slate-600"}`}
               >
                 <input
-                  type="checkbox"
-                  checked={selected.includes(member.id)}
-                  onChange={() =>
-                    setSelected((current) =>
-                      current.includes(member.id)
-                        ? current.filter((id) => id !== member.id)
-                        : [...current, member.id],
-                    )
-                  }
+                  className="sr-only"
+                  type="radio"
+                  name="announcement-audience"
+                  value={value}
+                  checked={audienceMode === value}
+                  onChange={() => setAudienceMode(value as "ALL" | "ROLES" | "USERS")}
                 />
-                <span>
-                  {member.name} <small className="text-slate-500">@{member.username}</small>
-                </span>
+                {label}
               </label>
             ))}
           </div>
-          <p className="mt-2 text-xs text-slate-500">
-            {selected.length.toLocaleString("fa-IR")} دریافت‌کننده انتخاب شده
+
+          {audienceMode === "ALL" ? (
+            <p className="rounded-lg bg-brand/10 p-3 text-sm text-brand">
+              اطلاعیه برای همه اعضای فعال مدرسه منتشر می‌شود.
+            </p>
+          ) : null}
+
+          {audienceMode === "ROLES" ? (
+            <div className="grid max-h-60 grid-cols-2 gap-2 overflow-auto rounded-xl border p-2 sm:grid-cols-3">
+              {availableRoles.map((role) => (
+                <label
+                  key={role}
+                  className="flex cursor-pointer items-center gap-2 rounded-lg p-2 hover:bg-black/5"
+                >
+                  <input
+                    type="checkbox"
+                    checked={selectedRoles.includes(role)}
+                    onChange={() =>
+                      setSelectedRoles((current) =>
+                        current.includes(role)
+                          ? current.filter((code) => code !== role)
+                          : [...current, role],
+                      )
+                    }
+                  />
+                  <span className="text-xs font-bold">{roleLabel(role)}</span>
+                </label>
+              ))}
+              {!availableRoles.length && !recipients.isLoading ? (
+                <p className="col-span-full p-2 text-sm text-slate-500">
+                  نقش فعالی برای انتخاب وجود ندارد.
+                </p>
+              ) : null}
+            </div>
+          ) : null}
+
+          {audienceMode === "USERS" ? (
+            <>
+              <Input
+                placeholder="جستجوی نام یا نام کاربری"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+              />
+              <div className="max-h-56 overflow-auto rounded-xl border p-2">
+                {eligible.map((member) => (
+                  <label
+                    key={member.id}
+                    className="flex cursor-pointer items-center gap-2 rounded-lg p-2 hover:bg-black/5"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={selected.includes(member.id)}
+                      onChange={() =>
+                        setSelected((current) =>
+                          current.includes(member.id)
+                            ? current.filter((id) => id !== member.id)
+                            : [...current, member.id],
+                        )
+                      }
+                    />
+                    <span>
+                      {member.name} <small className="text-slate-500">@{member.username}</small>
+                    </span>
+                  </label>
+                ))}
+              </div>
+            </>
+          ) : null}
+          <p className="text-xs text-slate-500">
+            {audienceMode === "ROLES"
+              ? `${selectedRoles.length.toLocaleString("fa-IR")} نقش انتخاب شده`
+              : audienceMode === "USERS"
+                ? `${selected.length.toLocaleString("fa-IR")} دریافت‌کننده انتخاب شده`
+                : "همه اعضای فعال دریافت‌کننده هستند"}
           </p>
-        </div>
+        </fieldset>
         <Button
           className="lg:col-span-2"
-          disabled={!form.title.trim() || !form.body.trim() || !selected.length}
+          disabled={!form.title.trim() || !form.body.trim() || !audienceReady}
           loading={publish.isPending}
           onClick={() => publish.mutate()}
         >

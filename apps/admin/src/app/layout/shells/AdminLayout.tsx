@@ -102,7 +102,7 @@ export function AdminLayout() {
         </Suspense>
       ) : null}
       <AdminShellChrome shell={shell} model={model} onOpenCommandPalette={openCommandPalette} />
-      <AdminFloatingIsland model={model} />
+      {shell === "mobile" ? <AdminFloatingIsland model={model} /> : null}
       <SharedPageViewport
         contentOffsetClassName={
           shell === "desktop"

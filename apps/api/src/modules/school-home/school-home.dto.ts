@@ -1,4 +1,5 @@
 import {
+  ArrayMaxSize,
   IsDateString,
   IsIn,
   IsOptional,
@@ -28,10 +29,17 @@ export class SavePrayerTimeDto {
 export class SaveSchoolAnnouncementDto {
   @IsString() @MaxLength(180) title!: string;
   @IsString() @MaxLength(4000) body!: string;
-  @IsIn(["STAFF", "STUDENTS", "CLASS", "USERS"]) audience!:
-    "STAFF" | "STUDENTS" | "CLASS" | "USERS";
+  @IsIn(["ALL", "STAFF", "STUDENTS", "CLASS", "USERS"]) audience!:
+    "ALL" | "STAFF" | "STUDENTS" | "CLASS" | "USERS";
   @IsOptional() @IsString() classroomId?: string;
-  @IsOptional() @IsString({ each: true }) recipientIds?: string[];
+  @IsOptional()
+  @ArrayMaxSize(100)
+  @IsString({ each: true })
+  recipientIds?: string[];
+  @IsOptional()
+  @ArrayMaxSize(24)
+  @IsString({ each: true })
+  recipientRoleCodes?: string[];
   @IsOptional() @IsString() @MaxLength(48) category?: string;
   @IsOptional() @IsString() @MaxLength(2048) linkUrl?: string;
   @IsOptional() @IsString() @MaxLength(2048) mediaUrl?: string;

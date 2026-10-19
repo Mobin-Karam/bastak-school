@@ -13,10 +13,7 @@ import { Organization } from "./organization.entity";
 import { User } from "./user.entity";
 
 export type SchoolAnnouncementAudience =
-  | "STAFF"
-  | "STUDENTS"
-  | "CLASS"
-  | "USERS";
+  "ALL" | "STAFF" | "STUDENTS" | "CLASS" | "USERS";
 
 @Entity("school_announcements")
 @Index(["organization", "audience", "publishedAt"])

@@ -1,6 +1,6 @@
 import { Injectable } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { Brackets, In, Repository } from "typeorm";
+import { Brackets, Repository } from "typeorm";
 import { ApiException } from "../../common/exceptions/api.exception";
 import { EducationClass } from "../../database/entities/education-class.entity";
 import { EducationClassEnrollment } from "../../database/entities/education-class-enrollment.entity";
@@ -161,7 +161,7 @@ export class SchoolHomeService {
       query.andWhere(
         new Brackets((qb) => {
           if (this.isStudentAudience(context)) {
-            qb.where("announcement.audience = 'STUDENTS'");
+            qb.where("announcement.audience IN ('ALL', 'STUDENTS')");
             qb.orWhere(
               "announcement.audience = 'USERS' AND recipient.userId = :userId",
               {
@@ -175,7 +175,7 @@ export class SchoolHomeService {
               );
             return;
           }
-          qb.where("announcement.audience = 'STAFF'").orWhere(
+          qb.where("announcement.audience IN ('ALL', 'STAFF')").orWhere(
             "announcement.audience = 'USERS' AND recipient.userId = :userId",
             {
               userId: user.id,
@@ -208,26 +208,52 @@ export class SchoolHomeService {
   ) {
     await this.scopedOrganization(user, organizationId, "announcements.manage");
     const needle = query?.trim().toLowerCase();
-    const rows = await this.memberships.find({
-      where: {
-        organization: { id: organizationId },
-        status: MembershipStatus.ACTIVE,
-      },
-      relations: { user: true },
-      take: 100,
-    });
-    return rows
+    const [rows, roleRows] = await Promise.all([
+      this.memberships.find({
+        where: {
+          organization: { id: organizationId },
+          status: MembershipStatus.ACTIVE,
+        },
+        relations: { user: true, roleAssignments: { role: true } },
+        take: 100,
+      }),
+      this.memberships
+        .createQueryBuilder("membership")
+        .innerJoin("membership.roleAssignments", "assignment")
+        .innerJoin("assignment.role", "role")
+        .select("role.code", "code")
+        .where("membership.organizationId = :organizationId", {
+          organizationId,
+        })
+        .andWhere("membership.status = :status", {
+          status: MembershipStatus.ACTIVE,
+        })
+        .distinct(true)
+        .getRawMany<{ code: string }>(),
+    ]);
+    const roleCodesByUser = new Map(
+      rows.map((membership) => [
+        membership.user.id,
+        membership.roleAssignments.map((assignment) => assignment.role.code),
+      ]),
+    );
+    const members = rows
       .map(({ user: member }) => ({
         id: member.id,
         name:
           `${member.firstName} ${member.lastName}`.trim() || member.username,
         username: member.username,
+        roleCodes: roleCodesByUser.get(member.id) ?? [],
       }))
       .filter(
         (member) =>
           !needle ||
           `${member.name} ${member.username}`.toLowerCase().includes(needle),
       );
+    return {
+      members,
+      roles: roleRows.map((role) => role.code).sort(),
+    };
   }
 
   async saveAnnouncement(
@@ -536,26 +562,70 @@ export class SchoolHomeService {
     organizationId: string,
     dto: SaveSchoolAnnouncementDto,
   ) {
-    if (dto.audience !== "USERS") return [];
-    const ids = [...new Set(dto.recipientIds ?? [])];
-    if (!ids.length || ids.length > 100)
+    if (dto.audience !== "USERS" && dto.audience !== "ALL") return [];
+    const explicitIds = [...new Set(dto.recipientIds ?? [])];
+    const roleCodes = [...new Set(dto.recipientRoleCodes ?? [])];
+    if (dto.audience === "ALL")
+      return this.activeOrganizationUserIds(organizationId);
+    if ((!explicitIds.length && !roleCodes.length) || explicitIds.length > 100)
       throw new ApiException(
         400,
         "INVALID_RECIPIENTS",
-        "حداقل یک و حداکثر ۱۰۰ دریافت‌کننده انتخاب کنید.",
+        "حداقل یک دریافت‌کننده یا نقش دریافت‌کننده انتخاب کنید.",
       );
-    const found = await this.memberships.count({
-      where: {
-        organization: { id: organizationId },
-        user: { id: In(ids) },
+    const rows = await this.memberships
+      .createQueryBuilder("membership")
+      .innerJoin("membership.user", "user")
+      .leftJoin("membership.roleAssignments", "assignment")
+      .leftJoin("assignment.role", "role")
+      .select("user.id", "id")
+      .where("membership.organizationId = :organizationId", { organizationId })
+      .andWhere("membership.status = :status", {
         status: MembershipStatus.ACTIVE,
-      },
-    });
-    if (found !== ids.length)
+      })
+      .andWhere(
+        new Brackets((qb) => {
+          if (explicitIds.length)
+            qb.where("user.id IN (:...explicitIds)", { explicitIds });
+          if (roleCodes.length) {
+            if (explicitIds.length)
+              qb.orWhere("role.code IN (:...roleCodes)", { roleCodes });
+            else qb.where("role.code IN (:...roleCodes)", { roleCodes });
+          }
+        }),
+      )
+      .distinct(true)
+      .getRawMany<{ id: string }>();
+    const ids = rows.map((row) => row.id);
+    if (explicitIds.some((id) => !ids.includes(id)))
       throw new ApiException(
         403,
         "RECIPIENT_OUT_OF_SCOPE",
         "دریافت‌کننده خارج از مدرسه فعال است.",
+      );
+    if (!ids.length)
+      throw new ApiException(
+        422,
+        "RECIPIENT_ROLE_EMPTY",
+        "برای نقش‌های انتخاب‌شده عضو فعالی پیدا نشد.",
+      );
+    return ids;
+  }
+
+  private async activeOrganizationUserIds(organizationId: string) {
+    const rows = await this.memberships.find({
+      where: {
+        organization: { id: organizationId },
+        status: MembershipStatus.ACTIVE,
+      },
+      relations: { user: true },
+    });
+    const ids = [...new Set(rows.map((membership) => membership.user.id))];
+    if (!ids.length)
+      throw new ApiException(
+        422,
+        "RECIPIENTS_EMPTY",
+        "عضو فعالی در مدرسه وجود ندارد.",
       );
     return ids;
   }

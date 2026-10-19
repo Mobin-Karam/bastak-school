@@ -15,7 +15,7 @@ export type PrayerTimes = {
 
 export type SchoolAnnouncement = {
   id: string;
-  audience: "STAFF" | "STUDENTS" | "CLASS" | "USERS";
+  audience: "ALL" | "STAFF" | "STUDENTS" | "CLASS" | "USERS";
   classroomId: string | null;
   title: string;
   body: string;
@@ -72,16 +72,26 @@ export type SaveAnnouncementInput = Pick<
 > & {
   classroomId?: string | null;
   recipientIds?: string[];
+  recipientRoleCodes?: string[];
   category?: string;
   linkUrl?: string | null;
   mediaUrl?: string | null;
   mediaType?: "VIDEO" | "AUDIO" | null;
 };
 
-export type AnnouncementRecipient = { id: string; name: string; username: string };
+export type AnnouncementRecipient = {
+  id: string;
+  name: string;
+  username: string;
+  roleCodes: string[];
+};
+export type AnnouncementRecipientDirectory = {
+  members: AnnouncementRecipient[];
+  roles: string[];
+};
 
 export const listAnnouncementRecipients = (organizationId: string, query = "") =>
-  api.get<AnnouncementRecipient[]>(
+  api.get<AnnouncementRecipientDirectory>(
     `/organizations/${encodeURIComponent(organizationId)}/announcement-recipients${query ? `?q=${encodeURIComponent(query)}` : ""}`,
   );
 
