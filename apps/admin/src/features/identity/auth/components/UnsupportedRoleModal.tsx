@@ -2,7 +2,12 @@ import { Clock3, LogOut, Sparkles } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { roleLabel } from "../../../../shared/lib/role-ui";
 import { Button } from "../../../../shared/ui/ui";
-import { Dialog, DialogContent, DialogDescription, DialogTitle } from "../../../../shared/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogTitle,
+} from "../../../../shared/ui/dialog";
 import { useOptionalAdminLanguage } from "../../../../shared/ui/locale";
 import { useAuth } from "../hooks/useAuth";
 

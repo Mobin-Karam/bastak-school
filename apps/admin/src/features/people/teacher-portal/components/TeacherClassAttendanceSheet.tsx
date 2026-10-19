@@ -59,7 +59,11 @@ export function TeacherClassAttendanceSheet({
   const [reviewing, setReviewing] = useState(false);
   const [marks, setMarks] = useState<Record<string, AttendanceStatus>>({});
   const [reasons, setReasons] = useState<Record<string, string>>({});
-  const [pointTarget, setPointTarget] = useState<{ id: string; name: string; points: number } | null>(null);
+  const [pointTarget, setPointTarget] = useState<{
+    id: string;
+    name: string;
+    points: number;
+  } | null>(null);
   const [pointReason, setPointReason] = useState("");
   const participants = useQuery({
     queryKey: ["attendance", "participants", scopeKey, "class", entry?.classroom?.id],
@@ -143,7 +147,8 @@ export function TeacherClassAttendanceSheet({
   );
   const points = useMutation({
     mutationFn: () => {
-      if (!entry?.classroom?.id || !pointTarget) throw new Error("دانش‌آموز یا کلاس انتخاب نشده است.");
+      if (!entry?.classroom?.id || !pointTarget)
+        throw new Error("دانش‌آموز یا کلاس انتخاب نشده است.");
       if (pointReason.trim().length < 3) throw new Error("دلیل امتیاز را وارد کنید.");
       return awardAttendancePoints({
         requestId: crypto.randomUUID(),
@@ -160,7 +165,8 @@ export function TeacherClassAttendanceSheet({
       setPointTarget(null);
       setPointReason("");
     },
-    onError: (error) => notify(error instanceof Error ? error.message : "ثبت امتیاز انجام نشد.", "error"),
+    onError: (error) =>
+      notify(error instanceof Error ? error.message : "ثبت امتیاز انجام نشد.", "error"),
   });
 
   return (
@@ -284,9 +290,31 @@ export function TeacherClassAttendanceSheet({
                     ) : null}
                     {canManage ? (
                       <div className="mt-3 flex items-center gap-2 border-t border-[rgb(var(--border-subtle))] pt-2">
-                        <span className="flex items-center gap-1 text-[11px] font-bold text-slate-500"><Trophy size={13} aria-hidden="true" /> امتیاز کلاسی</span>
-                        <button type="button" disabled={save.isPending || points.isPending} onClick={() => { setPointTarget({ id: student.id, name: student.name, points: 1 }); setPointReason(""); }} className="inline-flex min-h-8 items-center gap-1 rounded-lg bg-emerald-50 px-2 text-[11px] font-bold text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-200"><Plus size={13} aria-hidden="true" />۱</button>
-                        <button type="button" disabled={save.isPending || points.isPending} onClick={() => { setPointTarget({ id: student.id, name: student.name, points: -1 }); setPointReason(""); }} className="inline-flex min-h-8 items-center gap-1 rounded-lg bg-rose-50 px-2 text-[11px] font-bold text-rose-800 dark:bg-rose-950/40 dark:text-rose-200"><Minus size={13} aria-hidden="true" />۱</button>
+                        <span className="flex items-center gap-1 text-[11px] font-bold text-slate-500">
+                          <Trophy size={13} aria-hidden="true" /> امتیاز کلاسی
+                        </span>
+                        <button
+                          type="button"
+                          disabled={save.isPending || points.isPending}
+                          onClick={() => {
+                            setPointTarget({ id: student.id, name: student.name, points: 1 });
+                            setPointReason("");
+                          }}
+                          className="inline-flex min-h-8 items-center gap-1 rounded-lg bg-emerald-50 px-2 text-[11px] font-bold text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-200"
+                        >
+                          <Plus size={13} aria-hidden="true" />۱
+                        </button>
+                        <button
+                          type="button"
+                          disabled={save.isPending || points.isPending}
+                          onClick={() => {
+                            setPointTarget({ id: student.id, name: student.name, points: -1 });
+                            setPointReason("");
+                          }}
+                          className="inline-flex min-h-8 items-center gap-1 rounded-lg bg-rose-50 px-2 text-[11px] font-bold text-rose-800 dark:bg-rose-950/40 dark:text-rose-200"
+                        >
+                          <Minus size={13} aria-hidden="true" />۱
+                        </button>
                       </div>
                     ) : null}
                   </li>
@@ -376,15 +404,32 @@ export function TeacherClassAttendanceSheet({
       <ResponsiveModal
         open={Boolean(pointTarget)}
         onOpenChange={(next) => !next && !points.isPending && setPointTarget(null)}
-        title={pointTarget?.points && pointTarget.points > 0 ? "افزودن امتیاز کلاسی" : "کسر امتیاز کلاسی"}
+        title={
+          pointTarget?.points && pointTarget.points > 0 ? "افزودن امتیاز کلاسی" : "کسر امتیاز کلاسی"
+        }
         description={pointTarget?.name ?? ""}
       >
         <div className="space-y-4" dir="rtl">
-          <p className="text-sm leading-6">برای ثبت {pointTarget?.points ?? 0} امتیاز، دلیل روشن و قابل پیگیری وارد کنید.</p>
-          <label className="block text-sm font-bold">دلیل
-            <textarea autoFocus value={pointReason} onChange={(event) => setPointReason(event.target.value)} maxLength={500} className="mt-2 min-h-24 w-full rounded-xl border border-[rgb(var(--border-subtle))] bg-card p-3 font-normal" />
+          <p className="text-sm leading-6">
+            برای ثبت {pointTarget?.points ?? 0} امتیاز، دلیل روشن و قابل پیگیری وارد کنید.
+          </p>
+          <label className="block text-sm font-bold">
+            دلیل
+            <textarea
+              autoFocus
+              value={pointReason}
+              onChange={(event) => setPointReason(event.target.value)}
+              maxLength={500}
+              className="mt-2 min-h-24 w-full rounded-xl border border-[rgb(var(--border-subtle))] bg-card p-3 font-normal"
+            />
           </label>
-          <Button loading={points.isPending} disabled={pointReason.trim().length < 3} onClick={() => points.mutate()}>ثبت امتیاز</Button>
+          <Button
+            loading={points.isPending}
+            disabled={pointReason.trim().length < 3}
+            onClick={() => points.mutate()}
+          >
+            ثبت امتیاز
+          </Button>
         </div>
       </ResponsiveModal>
     </>

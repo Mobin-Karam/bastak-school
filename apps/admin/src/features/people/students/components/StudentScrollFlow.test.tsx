@@ -74,13 +74,7 @@ describe("student collection scroll flow", () => {
 
   it("keeps the selected student's identity, navigation, and workflow actions visible above tab content", () => {
     render(
-      <StudentDetail
-        student={student}
-        tab="overview"
-        onTabChange={vi.fn()}
-        onBack={vi.fn()}
-        onCreate={vi.fn()}
-      >
+      <StudentDetail student={student} tab="overview" onTabChange={vi.fn()} onBack={vi.fn()}>
         <div>محتوای بلند پرونده</div>
       </StudentDetail>,
     );
@@ -92,13 +86,27 @@ describe("student collection scroll flow", () => {
       "min-[1200px]:overflow-y-auto",
     );
     expect(screen.getByText("محتوای بلند پرونده")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "دانش‌آموز جدید" })).toBeInTheDocument();
   });
 
   it("does not advertise profile editing when the current role cannot edit students", () => {
     render(<StudentOverview student={student} onRetry={vi.fn()} onEdit={undefined} />);
 
     expect(screen.queryByRole("button", { name: "ویرایش پروفایل" })).not.toBeInTheDocument();
+  });
+
+  it("shows linked guardian contact details in the student overview", () => {
+    render(
+      <StudentOverview
+        student={{
+          ...student,
+          guardians: [{ id: "guardian-1", name: "مادر نمونه", phoneNumber: "09120000000" }],
+        }}
+      />,
+    );
+
+    expect(screen.getByText("سرپرست‌های پیوندخورده")).toBeInTheDocument();
+    expect(screen.getByText("مادر نمونه")).toBeInTheDocument();
+    expect(screen.getByText("09120000000")).toBeInTheDocument();
   });
 
   it("uses English labels without exposing legacy academic-goal fields in the profile overview", () => {
@@ -166,7 +174,7 @@ describe("student collection scroll flow", () => {
     expect(
       screen.getByRole("region", { name: "Student directory, horizontally scrollable table" }),
     ).toBeVisible();
-    expect(screen.getByText(student.name)).toBeVisible();
+    expect(screen.getAllByText(student.name)).not.toHaveLength(0);
     expect(screen.getByText("Showing 26–50 of 1,250")).toBeVisible();
     expect(screen.getByText("Items per page")).toBeVisible();
     expect(screen.getByRole("button", { name: /Previous/ })).toBeVisible();

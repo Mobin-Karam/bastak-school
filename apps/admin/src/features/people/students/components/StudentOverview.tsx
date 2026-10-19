@@ -1,4 +1,4 @@
-import { AlertTriangle, CheckCircle2, GraduationCap, UserRound } from "lucide-react";
+import { AlertTriangle, CheckCircle2, GraduationCap, UserRound, UsersRound } from "lucide-react";
 import type { Student } from "../../../../shared/types/domain";
 import { Button } from "../../../../shared/ui/ui";
 import { useOptionalAdminLanguage } from "../../../../shared/ui/locale";
@@ -57,6 +57,39 @@ export function StudentOverview({
             {copy.editProfile}
           </Button>
         ) : null}
+      </div>
+
+      <div className="rounded-xl border border-slate-200 p-3 dark:border-slate-800">
+        <div className="flex items-center gap-2">
+          <UsersRound size={16} className="text-brand" />
+          <strong className="text-sm text-ink">
+            {language === "fa" ? "سرپرست‌های پیوندخورده" : "Linked guardians"}
+          </strong>
+        </div>
+        {student.guardians?.length ? (
+          <ul className="mt-3 grid gap-2 sm:grid-cols-2">
+            {student.guardians.map((guardian) => (
+              <li
+                key={guardian.id}
+                className="rounded-lg bg-slate-50 px-3 py-2 text-sm dark:bg-slate-900"
+              >
+                <strong className="block text-slate-700 dark:text-slate-200">
+                  {guardian.name}
+                </strong>
+                <span className="mt-0.5 block text-xs text-slate-500" dir="ltr">
+                  {guardian.phoneNumber ||
+                    (language === "fa" ? "شماره ثبت نشده" : "No phone number")}
+                </span>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
+            {language === "fa"
+              ? "سرپرستی برای این دانش‌آموز پیوند نخورده است."
+              : "No guardian is linked to this student."}
+          </p>
+        )}
       </div>
 
       <div className="grid gap-2 sm:grid-cols-2">

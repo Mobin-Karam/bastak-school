@@ -35,7 +35,7 @@ beforeEach(() => {
   mocks.review.mockResolvedValue({ ...record, reviewStatus: "approved" });
 });
 afterEach(cleanup);
-function mount() {
+function mount(initialRecordId?: string) {
   return render(
     <QueryClientProvider
       client={
@@ -44,7 +44,7 @@ function mount() {
         })
       }
     >
-      <AttendanceReviewQueue />
+      <AttendanceReviewQueue initialRecordId={initialRecordId} />
     </QueryClientProvider>,
   );
 }
@@ -79,5 +79,13 @@ describe("guided absence decisions", () => {
     await user.click(screen.getByRole("button", { name: "تأیید و ثبت تصمیم" }));
     await waitFor(() => expect(mocks.review).toHaveBeenCalledTimes(2));
     expect(mocks.review.mock.calls[1]).toEqual(mocks.review.mock.calls[0]);
+  });
+
+  it("opens the review named by an attendance notification URL", async () => {
+    mount("record");
+    const dialog = await screen.findByRole("dialog");
+    expect(within(dialog).getByText("بیماری")).toBeInTheDocument();
+    await userEvent.setup().click(within(dialog).getByRole("button", { name: "بستن پنجره" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
   });
 });

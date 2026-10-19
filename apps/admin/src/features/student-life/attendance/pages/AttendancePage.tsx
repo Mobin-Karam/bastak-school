@@ -23,12 +23,12 @@ import {
   CalendarCheck2,
   Radio,
 } from "lucide-react";
-import { useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useLocale } from "../../../../shared/ui/locale";
 import { Card } from "../../../../shared/ui/ui";
 import { api, ApiError } from "../../../../shared/api/api";
 import { notify } from "../../../../shared/ui/notifications";
-import { ResponsiveModal } from "../../../../shared/ui/responsive-modal";
+import { Modal } from "../../../../shared/ui/modal";
 import { useAuth } from "../../../identity/auth";
 import { useAttendanceDiscard } from "../components/useAttendanceDiscard";
 import { AttendanceRosterView } from "../views/AttendanceRosterView";
@@ -90,16 +90,20 @@ function errorText(error: unknown, fallback: string) {
 
 export function AttendancePage() {
   const auth = useAuth();
+  const canViewStaffSessions = auth.canAny(["attendance.review", "attendance.class.read"]);
   const { profile } = useLocale();
+  const navigate = useNavigate();
   const [linkedSession, setLinkedSession] = useState<AttendanceSessionDetail | null>(null);
   const canManage = linkedSession
     ? (linkedSession.status === "open" || linkedSession.status === "scheduled") &&
       (auth.can("attendance.manage") ||
         (linkedSession.contextType === "class" && auth.can("attendance.class.manage")))
     : auth.can("attendance.manage");
-  const sections: AttendanceSection[] = auth.can("attendance.review")
-    ? [...contextOrder, "sessions", "pool"]
-    : contextOrder;
+  const sections: AttendanceSection[] = [
+    ...contextOrder,
+    ...(canViewStaffSessions ? (["sessions"] as const) : []),
+    ...(auth.can("attendance.review") ? (["pool"] as const) : []),
+  ];
   const scopeKey = JSON.stringify([
     auth.user?.id,
     auth.activeRole,
@@ -111,6 +115,16 @@ export function AttendancePage() {
   const requestedId = searchParams.get("contextId");
   const requestedType = searchParams.get("contextType");
   const requestedSessionId = searchParams.get("sessionId");
+  const requestedSection =
+    searchParams.get("section") === "sessions" && canViewStaffSessions
+      ? "sessions"
+      : searchParams.get("section") === "pool" && auth.can("attendance.review")
+        ? "pool"
+        : "class";
+  const requestedReviewRecordId =
+    requestedSection === "sessions" ? searchParams.get("reviewRecordId") : null;
+  const requestedCorrectionId =
+    requestedSection === "sessions" ? searchParams.get("correctionId") : null;
   const [contexts, setContexts] = useState<AttendanceContextOption[]>([]);
   const [contextType, setContextType] = useState<AttendanceContextType>("class");
   const [chosenType, setChosenType] = useState<AttendanceSection>("class");
@@ -140,6 +154,18 @@ export function AttendancePage() {
     () => contexts.find((c) => c.id === contextId && c.contextType === contextType) ?? null,
     [contexts, contextId, contextType],
   );
+  useEffect(() => {
+    setChosenType(requestedSection);
+    if (!requestedId) return;
+    const requested = contexts.find(
+      (context) =>
+        context.id === requestedId && (!requestedType || context.contextType === requestedType),
+    );
+    if (!requested) return;
+    setContextType(requested.contextType);
+    setContextId(requested.id);
+    setGroupClassId(requested.classId || "");
+  }, [contexts, requestedId, requestedSection, requestedType]);
   const visibleContexts = useMemo(
     () =>
       contexts.filter((c) =>
@@ -183,7 +209,7 @@ export function AttendancePage() {
     pendingWrite.current = null;
     setContexts([]);
     setContextId("");
-    setChosenType("class");
+    setChosenType(requestedSection);
     setGroupClassId("");
     setParticipants([]);
     setNotice(null);
@@ -394,6 +420,22 @@ export function AttendancePage() {
     });
   }, [participants, filter, search]);
 
+  function setAttendanceUrl(
+    section: AttendanceSection,
+    context?: {
+      type: AttendanceContextType;
+      id: string;
+    },
+  ) {
+    const params = new URLSearchParams();
+    params.set("section", section);
+    if (context) {
+      params.set("contextType", context.type);
+      params.set("contextId", context.id);
+    }
+    navigate(`/admin/attendance?${params.toString()}`);
+  }
+
   function chooseAttendanceType(type: AttendanceSection) {
     if (type === chosenType) return;
     discard.request(() => {
@@ -402,6 +444,7 @@ export function AttendancePage() {
       if (type !== "sessions" && type !== "pool") setContextType(type);
       setContextId("");
       setNotice(null);
+      setAttendanceUrl(type);
     });
   }
   function chooseContext(type: AttendanceContextType, id: string) {
@@ -410,6 +453,7 @@ export function AttendancePage() {
       setContextType(type);
       setContextId(id);
       setNotice(null);
+      setAttendanceUrl(chosenType, { type, id });
     });
   }
   function closeRoster() {
@@ -417,6 +461,7 @@ export function AttendancePage() {
       setContextId("");
       setReviewOpen(false);
       setNotice(null);
+      setAttendanceUrl(chosenType);
     });
   }
   function mark(id: string, status: AttendanceStatus) {
@@ -710,9 +755,9 @@ export function AttendancePage() {
                           aria-label={`${item.name} ${item.code} · ${item.total.toLocaleString("fa-IR")} نفر`}
                           disabled={saving}
                           onClick={() => {
-                            if (chosenType === "class_group" && !groupClassId)
+                            if (chosenType === "class_group" && !groupClassId) {
                               setGroupClassId(item.id);
-                            else chooseContext(contextType, item.id);
+                            } else chooseContext(contextType, item.id);
                           }}
                           aria-pressed={active}
                           className={`min-h-32 rounded-2xl border p-5 text-start transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500 ${active ? "border-blue-500 bg-blue-50 text-blue-900 dark:bg-blue-950/40 dark:text-blue-100" : "border-sky-100 bg-[rgb(var(--surface-muted))] text-ink hover:border-blue-400 hover:bg-blue-50/40 dark:border-slate-700 dark:hover:bg-slate-800"}`}
@@ -763,13 +808,14 @@ export function AttendancePage() {
         </Card>
       ) : null}
 
-      <ResponsiveModal
+      <Modal
         open={Boolean(selected)}
+        dismissible={!saving}
         onOpenChange={(open) => {
           if (!open) closeRoster();
         }}
         title={reviewOpen ? "مرحله ۳: بررسی و ثبت حضور" : selected?.name || "حضور و غیاب"}
-        size="wide"
+        size="xl"
         description="وضعیت اعضا را انتخاب کنید، سپس حضور جلسه را بررسی و ثبت کنید."
       >
         <div dir={profile.direction} className="space-y-4">
@@ -837,7 +883,7 @@ export function AttendancePage() {
               unmarkedCount={counts.unmarked}
               onFilterChange={setFilter}
               onSearchChange={setSearch}
-              onViewProfile={auth.can("attendance.review") ? setProfileId : undefined}
+              onViewProfile={canViewStaffSessions ? setProfileId : undefined}
               onMark={mark}
               onMarkAllPresent={markAllPresent}
               onClearFilters={() => {
@@ -960,8 +1006,9 @@ export function AttendancePage() {
             </div>
           ) : null}
         </div>
-      </ResponsiveModal>
-      {auth.can("attendance.review") && (chosenType === "sessions" || chosenType === "pool") ? (
+      </Modal>
+      {((chosenType === "sessions" && canViewStaffSessions) ||
+        (chosenType === "pool" && auth.can("attendance.review"))) ? (
         <>
           <AttendanceStaffWorkspace
             key={`${scopeKey}:${chosenType}`}
@@ -976,18 +1023,19 @@ export function AttendancePage() {
                 setContextType("class");
                 setContextId("");
                 setGroupClassId("");
+                setAttendanceUrl("class");
               })
             }
           />
-          {chosenType === "sessions" ? (
-            <>
-              <AttendanceReviewQueue />
-              <PendingCorrectionQueue />
-            </>
+          {chosenType === "sessions" && auth.can("attendance.review") ? (
+            <div className="grid items-start gap-4 xl:grid-cols-2">
+              <AttendanceReviewQueue initialRecordId={requestedReviewRecordId} />
+              <PendingCorrectionQueue initialCorrectionId={requestedCorrectionId} />
+            </div>
           ) : null}
         </>
       ) : null}
-      {profileId && auth.can("attendance.review") ? (
+      {profileId && canViewStaffSessions ? (
         <AttendanceProfileDialog
           studentId={profileId}
           scope={scopeKey}

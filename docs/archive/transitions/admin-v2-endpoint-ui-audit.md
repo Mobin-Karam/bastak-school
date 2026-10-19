@@ -3,7 +3,7 @@
 Date: 2026-09-06  
 Scope: current `apps/api` controllers and `apps/admin` consumers on `feat/v2-parity-completion`.
 
-Snapshot notice: “current” below means the dated 2026-09-06 checkout. Use the [capability matrix](../reference/admin-capability-matrix.md) and generated [OpenAPI contract](../components/backend-v2-http-api.md) for the present source.
+Snapshot notice: “current” below means the dated 2026-09-06 checkout. Use the [capability matrix](../../reference/admin-capability-matrix.md) and generated [OpenAPI contract](../../components/backend-v2-http-api.md) for the present source.
 
 ## Findings and delivered fixes
 

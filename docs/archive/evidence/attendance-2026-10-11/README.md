@@ -1,6 +1,6 @@
 # Attendance audit — 11 October 2026
 
-Implementation has since started; see the [implementation ledger](../../change-notes/attendance-modernization.md) for fixes and current limitations. The findings below describe the original audit baseline.
+Implementation has since started; see the [implementation ledger](../../../change-notes/attendance-modernization.md) for fixes and current limitations. The findings below describe the original audit baseline.
 
 This audit covers the principal and school supervisor workspaces, teacher schedule/attendance drawer, student self-attendance page in Admin, and their API implementation. It also documents the desktop header/profile fixes made with this review.
 
@@ -18,7 +18,7 @@ This audit covers the principal and school supervisor workspaces, teacher schedu
 | Student in Admin     | Four summary counters and latest attendance statuses with dates and optional notes; loading, empty, and retry states                                                                                                | `/admin/my-attendance` requires `attendance.self.read`. API resolves the student from the signed-in user, rather than accepting a student ID from the client. Records endpoint returns up to 60 rows; summary counts all stored rows.                                                                                                                                     |
 | Separate student app | **UNKNOWN**                                                                                                                                                                                                         | `apps/student/` is absent. No attendance feature was located in the runtime-neutral `student-core` sources.                                                                                                                                                                                                                                                               |
 
-Primary sources: [navigation](../../../apps/admin/src/app/layout/navigation/admin-navigation.ts), [route guards](../../../apps/admin/src/app/routing/router.tsx), [controller](../../../apps/api/src/modules/attendance/attendance.controller.ts), [service](../../../apps/api/src/modules/attendance/attendance.service.ts), [teacher sheet](../../../apps/admin/src/features/teacher-portal/components/TeacherClassAttendanceSheet.tsx), [student page](../../../apps/admin/src/features/attendance/pages/MyAttendancePage.tsx).
+Primary sources: [navigation](../../../../apps/admin/src/app/layout/navigation/config/admin-navigation.ts), [route guards](../../../../apps/admin/src/app/routing/router.tsx), [controller](../../../../apps/api/src/modules/attendance/attendance.controller.ts), [service](../../../../apps/api/src/modules/attendance/attendance.service.ts), [teacher sheet](../../../../apps/admin/src/features/people/teacher-portal/components/TeacherClassAttendanceSheet.tsx), [student page](../../../../apps/admin/src/features/student-life/attendance/pages/MyAttendancePage.tsx).
 
 ## How attendance works
 
@@ -31,7 +31,7 @@ Primary sources: [navigation](../../../apps/admin/src/app/layout/navigation/admi
 7. `attendance.reviewed` is emitted to the original recorder and reviewer. Teacher drawer invalidates its review query and displays the result. Other reviewers and the student self-page do not receive an equivalent guaranteed refresh through these components.
 8. Students view their own saved records and summary. The current list displays date/status/note, but not a resolved class/group/room name.
 
-Sources: [main workflow](../../../apps/admin/src/features/attendance/pages/AttendancePage.tsx), [roster](../../../apps/admin/src/features/attendance/views/AttendanceRosterView.tsx), [API adapter](../../../apps/admin/src/features/attendance/api/attendance.api.ts), [review queue](../../../apps/admin/src/features/attendance/components/AttendanceReviewQueue.tsx), [DTOs](../../../apps/api/src/modules/attendance/attendance.dto.ts), [record entity](../../../apps/api/src/database/entities/attendance-record.entity.ts).
+Sources: [main workflow](../../../../apps/admin/src/features/student-life/attendance/pages/AttendancePage.tsx), [roster](../../../../apps/admin/src/features/student-life/attendance/views/AttendanceRosterView.tsx), [API adapter](../../../../apps/admin/src/features/student-life/attendance/api/attendance.api.ts), [review queue](../../../../apps/admin/src/features/student-life/attendance/components/AttendanceReviewQueue.tsx), [DTOs](../../../../apps/api/src/modules/attendance/attendance.dto.ts), [record entity](../../../../apps/api/src/database/entities/attendance-record.entity.ts).
 
 ## Findings and practical fixes
 
@@ -43,7 +43,7 @@ Attendance behavior was audited, not changed in this task. These findings remain
 
 **Fix:** resolve context ownership for every write, require its organization to match the authorized session organization, and then apply role/assignment checks. Add cross-organization principal/supervisor regression tests. No exploit was run against production.
 
-Evidence: [service `createSession`, `bulkMark`, `participantIds`, and `assertContextAccess`](../../../apps/api/src/modules/attendance/attendance.service.ts).
+Evidence: [service `createSession`, `bulkMark`, `participantIds`, and `assertContextAccess`](../../../../apps/api/src/modules/attendance/attendance.service.ts).
 
 ### A2 — High: partial writes and duplicate submissions
 
@@ -51,7 +51,7 @@ A new session is saved before participant validation; invalid input can leave an
 
 **Fix:** validate the complete bounded batch before persistence, use one transaction, reject duplicate student IDs, and introduce a deliberate session identity/idempotency policy. Tests should cover invalid members, midway failure, timeout/retry, and duplicate submission.
 
-Evidence: [bulk service](../../../apps/api/src/modules/attendance/attendance.service.ts), [DTO](../../../apps/api/src/modules/attendance/attendance.dto.ts), [session entity](../../../apps/api/src/database/entities/attendance-session.entity.ts).
+Evidence: [bulk service](../../../../apps/api/src/modules/attendance/attendance.service.ts), [DTO](../../../../apps/api/src/modules/attendance/attendance.dto.ts), [session entity](../../../../apps/api/src/database/entities/attendance-session.entity.ts).
 
 ### A3 — High: read-only users receive editing controls
 
@@ -59,7 +59,7 @@ The main attendance route requires `attendance.read`, but its mark, bulk-present
 
 **Fix:** use the management capability for interaction states and a clear read-only presentation, while retaining API guards. Test a user with read but no manage capability.
 
-Evidence: [AttendancePage](../../../apps/admin/src/features/attendance/pages/AttendancePage.tsx), [AttendanceRosterView](../../../apps/admin/src/features/attendance/views/AttendanceRosterView.tsx), [controller](../../../apps/api/src/modules/attendance/attendance.controller.ts).
+Evidence: [AttendancePage](../../../../apps/admin/src/features/student-life/attendance/pages/AttendancePage.tsx), [AttendanceRosterView](../../../../apps/admin/src/features/student-life/attendance/views/AttendanceRosterView.tsx), [controller](../../../../apps/api/src/modules/attendance/attendance.controller.ts).
 
 ### A4 — High: review races and incomplete live refresh
 
@@ -67,7 +67,7 @@ Review uses a read/check/save sequence with no atomic pending-state update or ve
 
 **Fix:** atomically transition pending reviews, return a conflict for the losing decision, scope events precisely, and notify authorized review subscribers. Add concurrent-review and stale-draft tests.
 
-Evidence: [review service](../../../apps/api/src/modules/attendance/attendance.service.ts), [queue subscription](../../../apps/admin/src/features/attendance/components/AttendanceReviewQueue.tsx), [main conflict handling](../../../apps/admin/src/features/attendance/pages/AttendancePage.tsx).
+Evidence: [review service](../../../../apps/api/src/modules/attendance/attendance.service.ts), [queue subscription](../../../../apps/admin/src/features/student-life/attendance/components/AttendanceReviewQueue.tsx), [main conflict handling](../../../../apps/admin/src/features/student-life/attendance/pages/AttendancePage.tsx).
 
 ### A5 — Medium: review failures are invisible
 
@@ -75,7 +75,7 @@ Review mutation has `onSuccess` but no visible `onError`. Fetch failures have te
 
 **Fix:** explicit loading/error/retry states, actionable mutation feedback, and server-side pending filtering with pagination. Expose a review-note input if reviewer explanations are part of the workflow.
 
-Evidence: [queue](../../../apps/admin/src/features/attendance/components/AttendanceReviewQueue.tsx), [service `listAbsenceReviews`](../../../apps/api/src/modules/attendance/attendance.service.ts).
+Evidence: [queue](../../../../apps/admin/src/features/student-life/attendance/components/AttendanceReviewQueue.tsx), [service `listAbsenceReviews`](../../../../apps/api/src/modules/attendance/attendance.service.ts).
 
 ### A6 — Medium: saved-session history is not an editing workflow
 
@@ -83,7 +83,7 @@ Both frontends submit new sessions and never reload a saved session's marks. His
 
 **Fix:** define a saved-session detail/edit contract, resolve context names, retain roster totals, and replace implementation text with instructions users can act on.
 
-Evidence: [history and save UI](../../../apps/admin/src/features/attendance/pages/AttendancePage.tsx), [service `listSessions`](../../../apps/api/src/modules/attendance/attendance.service.ts).
+Evidence: [history and save UI](../../../../apps/admin/src/features/student-life/attendance/pages/AttendancePage.tsx), [service `listSessions`](../../../../apps/api/src/modules/attendance/attendance.service.ts).
 
 ### A7 — Medium: organization/role changes can retain stale attendance state
 
@@ -91,7 +91,7 @@ Main-page initial context/history effect depends on `loadVersion`, not active or
 
 **Fix:** scope query keys and page state to the authenticated user, active role, and organization; refresh `/me/context` before feature requests. Test a scope switch while a draft or fetch is active.
 
-Evidence: [main effects](../../../apps/admin/src/features/attendance/pages/AttendancePage.tsx), [queue keys](../../../apps/admin/src/features/attendance/components/AttendanceReviewQueue.tsx), [teacher keys](../../../apps/admin/src/features/teacher-portal/components/TeacherClassAttendanceSheet.tsx).
+Evidence: [main effects](../../../../apps/admin/src/features/student-life/attendance/pages/AttendancePage.tsx), [queue keys](../../../../apps/admin/src/features/student-life/attendance/components/AttendanceReviewQueue.tsx), [teacher keys](../../../../apps/admin/src/features/people/teacher-portal/components/TeacherClassAttendanceSheet.tsx).
 
 ### A8 — Medium: teacher drawer can discard or change a pending draft
 
@@ -99,7 +99,7 @@ Changing entry/open resets marks and reasons without an unsaved-change confirmat
 
 **Fix:** prevent duplicate/draft-changing actions during save, confirm draft abandonment, clarify the attendance date, add retry on roster failure, and enlarge/retest status controls.
 
-Evidence: [teacher sheet](../../../apps/admin/src/features/teacher-portal/components/TeacherClassAttendanceSheet.tsx).
+Evidence: [teacher sheet](../../../../apps/admin/src/features/people/teacher-portal/components/TeacherClassAttendanceSheet.tsx).
 
 ### A9 — Medium: student summary failures and context are unclear
 
@@ -107,7 +107,7 @@ The student page handles record-fetch errors, but summary failures leave “summ
 
 **Fix:** distinguish loading, all-time summary, and recent-record fallback; offer summary retry; show class/group/room labels and useful review status; add scoped refresh and pagination.
 
-Evidence: [student page](../../../apps/admin/src/features/attendance/pages/MyAttendancePage.tsx), [self API](../../../apps/api/src/modules/attendance/attendance.service.ts).
+Evidence: [student page](../../../../apps/admin/src/features/student-life/attendance/pages/MyAttendancePage.tsx), [self API](../../../../apps/api/src/modules/attendance/attendance.service.ts).
 
 ### A10 — Low/Medium: localization and legacy night attendance are incomplete
 
@@ -115,7 +115,7 @@ Attendance UI copy/date labels are mostly Persian and the main page forces RTL e
 
 **Fix:** translate through the shared locale system and either implement a complete night flow with tests or document the legacy value as unsupported.
 
-Evidence: [main page](../../../apps/admin/src/features/attendance/pages/AttendancePage.tsx), [entity](../../../apps/api/src/database/entities/attendance-session.entity.ts), [DTO](../../../apps/api/src/modules/attendance/attendance.dto.ts), [night migration](../../../apps/api/src/database/migrations/1728234800000-NightAttendance.ts).
+Evidence: [main page](../../../../apps/admin/src/features/student-life/attendance/pages/AttendancePage.tsx), [entity](../../../../apps/api/src/database/entities/attendance-session.entity.ts), [DTO](../../../../apps/api/src/modules/attendance/attendance.dto.ts), [night migration](../../../../apps/api/src/database/migrations/1728234800000-NightAttendance.ts).
 
 ## Desktop header changes delivered
 
@@ -124,7 +124,7 @@ Evidence: [main page](../../../apps/admin/src/features/attendance/pages/Attendan
 - Desktop account trigger shows a 44px avatar, larger controls, the signed-in name and phone username beside each other, and the actual active role. Name falls back to first/last name before username. Phone stays LTR in Persian layouts and appears in the account popover too.
 - Context/organization controls have their own header row; long titles/breadcrumbs can wrap. The clock remains available on wider desktop screens. Breadcrumb/profile text contrast was corrected based on browser accessibility results.
 
-Sources: [DesktopShell](../../../apps/admin/src/app/layout/shell/DesktopShell.tsx), [AdminLayout](../../../apps/admin/src/app/layout/shell/AdminLayout.tsx), [viewport](../../../apps/admin/src/app/layout/shell/SharedPageViewport.tsx), [header](../../../apps/admin/src/app/layout/shell/AdminHeader.tsx), [account menu](../../../apps/admin/src/app/layout/shell/AdminAccountMenu.tsx).
+Sources: [DesktopShell](../../../../apps/admin/src/app/layout/shells/desktop/DesktopShell.tsx), [AdminLayout](../../../../apps/admin/src/app/layout/shells/AdminLayout.tsx), [viewport](../../../../apps/admin/src/app/layout/components/SharedPageViewport.tsx), [header](../../../../apps/admin/src/app/layout/components/AdminHeader.tsx), [account menu](../../../../apps/admin/src/app/layout/components/AdminAccountMenu.tsx).
 
 ## Screenshots by section
 

@@ -21,6 +21,9 @@ describe("admin notification model", () => {
     expect(notificationAdminUrl("/admin/audit")).toBe("/admin/audit");
     expect(notificationAdminUrl("/messages/c1")).toBe("/admin/communication/chat");
     expect(notificationAdminUrl("/plans/2026-01-01")).toBe("/admin/planner");
+    expect(notificationAdminUrl("/attendance?section=sessions&reviewRecordId=record-1")).toBe(
+      "/admin/attendance?section=sessions&reviewRecordId=record-1",
+    );
   });
 
   it("provides consistent labels and colors", () => {

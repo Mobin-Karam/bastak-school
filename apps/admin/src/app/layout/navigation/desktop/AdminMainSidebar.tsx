@@ -1,6 +1,9 @@
 import { ChevronLeft, ChevronRight, Search } from "lucide-react";
 import { NavLink } from "react-router-dom";
-import { adminDestination, localizedMainNavigationForCapabilities } from "../config/admin-navigation";
+import {
+  adminDestination,
+  localizedMainNavigationForCapabilities,
+} from "../config/admin-navigation";
 import { useAuth } from "../../../../features/identity/auth";
 import { rolePortalTitle } from "../../../../shared/lib/role-ui";
 import { useAdminShellCopy, useLocale } from "../../../../shared/ui/locale";

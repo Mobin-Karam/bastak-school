@@ -1,14 +1,50 @@
-import { BellRing, MessageSquare, Settings2, Volume2, VolumeX } from "lucide-react";
+import {
+  BellRing,
+  MessageSquare,
+  Settings2,
+  SlidersHorizontal,
+  Volume2,
+  VolumeX,
+} from "lucide-react";
 import { Button, Card } from "../../../../shared/ui/ui";
 import { useAdminNotifications } from "../hooks/useAdminNotifications";
 import { ToggleButton } from "./ToggleButton";
 import { useLocale } from "../../../../shared/ui/locale";
 import { notificationCopy } from "../model/notification-copy";
 
-export function NotificationsToolbar({ onOpenSettings }: { onOpenSettings: () => void }) {
+export function NotificationsToolbar({
+  onOpenSettings,
+  studentMobile = false,
+  onOpenStudentControls,
+}: {
+  onOpenSettings: () => void;
+  studentMobile?: boolean;
+  onOpenStudentControls?: () => void;
+}) {
   const notifications = useAdminNotifications();
   const { language } = useLocale();
   const copy = notificationCopy[language];
+
+  if (studentMobile) {
+    return (
+      <Card className="flex shrink-0 items-center gap-3 p-3 dark:border-slate-800 dark:bg-slate-900">
+        <span className="grid size-10 shrink-0 place-items-center rounded-2xl bg-brand/10 text-brand">
+          <BellRing size={19} aria-hidden="true" />
+        </span>
+        <div className="min-w-0 flex-1">
+          <strong className="block text-sm text-ink">{copy.center}</strong>
+          <p className="mt-0.5 text-[11px] text-slate-500 dark:text-slate-400">
+            {notifications.unread.toLocaleString(language === "fa" ? "fa-IR" : "en-US")}{" "}
+            {copy.unreadCount}
+          </p>
+        </div>
+        <Button variant="soft" size="sm" onClick={onOpenStudentControls}>
+          <SlidersHorizontal size={16} aria-hidden="true" />
+          {copy.options}
+        </Button>
+      </Card>
+    );
+  }
 
   return (
     <Card className="mobile-notification-toolbar flex shrink-0 flex-wrap items-center gap-2 p-2 sm:gap-3 dark:border-slate-800 dark:bg-slate-900">

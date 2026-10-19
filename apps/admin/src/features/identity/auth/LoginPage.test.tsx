@@ -6,9 +6,18 @@ import { AuthProvider } from "./AuthProvider";
 import { LoginPage } from "./LoginPage";
 import { ThemeProvider } from "../../../shared/theme/theme";
 import { LocaleProvider } from "../../../shared/ui/locale";
+import { currentAppDomain } from "../../../app/routing/portal-domain";
+
+vi.mock("../../../app/routing/portal-domain", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../../../app/routing/portal-domain")>()),
+  currentAppDomain: vi.fn(() => "local"),
+}));
 
 afterEach(cleanup);
-beforeEach(() => localStorage.clear());
+beforeEach(() => {
+  localStorage.clear();
+  vi.mocked(currentAppDomain).mockReturnValue("local");
+});
 
 describe("LoginPage", () => {
   it("validates required fields", async () => {
@@ -159,5 +168,29 @@ describe("LoginPage", () => {
     expect(screen.queryByRole("button", { name: "English" })).not.toBeInTheDocument();
     expect(document.documentElement).toHaveAttribute("dir", "rtl");
     expect(document.documentElement).toHaveAttribute("lang", "fa-IR");
+  });
+
+  it("uses the dedicated student portal login presentation on the student hostname", async () => {
+    vi.mocked(currentAppDomain).mockReturnValue("student");
+    globalThis.fetch = vi.fn(
+      async () => new Response(JSON.stringify({ ok: true, data: { status: "ok" } })),
+    ) as typeof fetch;
+
+    render(
+      <MemoryRouter>
+        <ThemeProvider>
+          <LocaleProvider>
+            <AuthProvider>
+              <LoginPage />
+            </AuthProvider>
+          </LocaleProvider>
+        </ThemeProvider>
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByRole("heading", { name: "ورود دانش‌آموزان" })).toBeInTheDocument();
+    expect(screen.getByText("پرتال دانش‌آموزی")).toBeInTheDocument();
+    expect(screen.getByText("برنامه")).toBeInTheDocument();
+    expect(screen.getByText("کتابخانه")).toBeInTheDocument();
   });
 });

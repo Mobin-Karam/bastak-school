@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { BellRing, UsersRound } from "lucide-react";
+import { BellRing, ClipboardCheck, MessageSquare, UsersRound } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../../../identity/auth";
@@ -20,6 +20,8 @@ import {
 import { CurrentPrayerCard } from "./CurrentPrayerCard";
 import { SchoolOccupancyBanner } from "./SchoolOccupancyBanner";
 import { ResponsiveDrawer } from "../../../../shared/ui/responsive-drawer";
+import { useAdminNotifications } from "../../../communications/notifications/hooks/useAdminNotifications";
+import { notificationAdminUrl } from "../../../communications/notifications/model/notification-model";
 
 /** Principal and supervisor home: school calendar, live prayer time, announcements and attendance totals. */
 export function SchoolManagerDashboard() {
@@ -114,6 +116,7 @@ export function SchoolManagerDashboard() {
     () => (announcements.data ?? []).filter((item) => item.status === "ACTIVE"),
     [announcements.data],
   );
+  const canReviewIncomingWork = auth.canAny(["permission_requests.read", "leave.read"]);
 
   if (schedule.isLoading) return <LoadingState label="در حال آماده‌سازی میز مدرسه…" />;
   return (
@@ -179,6 +182,7 @@ export function SchoolManagerDashboard() {
             </Button>
           </div>
         </Card>
+        {canReviewIncomingWork ? <SchoolIncomingPanel /> : null}
         <ResponsiveDrawer
           open={announcementsOpen}
           onOpenChange={setAnnouncementsOpen}
@@ -275,6 +279,79 @@ export function SchoolManagerDashboard() {
         </ResponsiveDrawer>
       </div>
     </section>
+  );
+}
+
+/**
+ * Keeps school leaders' new messages and request alerts visible at the point
+ * where they start their work. Individual notification URLs remain the source
+ * of truth for the target screen, so this never bypasses route authorization.
+ */
+export function SchoolIncomingPanel() {
+  const notifications = useAdminNotifications();
+  const incoming = notifications.items.filter((item) => !item.isRead).slice(0, 3);
+
+  return (
+    <Card className="p-4" aria-labelledby="school-incoming-title">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="flex min-w-0 items-center gap-2">
+          <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-brand/10 text-brand">
+            <ClipboardCheck size={18} aria-hidden="true" />
+          </span>
+          <div>
+            <h2 id="school-incoming-title" className="font-black text-ink">
+              پیگیری‌های ورودی
+            </h2>
+            <p className="mt-1 text-xs leading-5 text-slate-500">
+              درخواست‌ها و پیام‌های تازه دانش‌آموزان را از همین‌جا باز کنید.
+            </p>
+          </div>
+        </div>
+        <Link to="/admin/communication/notifications" className="text-xs font-bold text-brand">
+          همه اعلان‌ها
+        </Link>
+      </div>
+
+      {notifications.loading ? (
+        <div className="mt-3 grid gap-2" aria-busy="true" aria-label="در حال دریافت پیگیری‌ها">
+          {[1, 2].map((key) => (
+            <div
+              key={key}
+              className="h-14 animate-pulse rounded-xl bg-[rgb(var(--surface-muted))]"
+            />
+          ))}
+        </div>
+      ) : notifications.error ? (
+        <p role="alert" className="mt-3 text-sm text-rose-600">
+          پیگیری‌های ورودی دریافت نشد.{" "}
+          <button type="button" className="font-bold underline" onClick={notifications.refresh}>
+            تلاش مجدد
+          </button>
+        </p>
+      ) : incoming.length ? (
+        <div className="mt-3 divide-y divide-[rgb(var(--border-subtle))]">
+          {incoming.map((item) => (
+            <Link
+              key={item.id}
+              to={notificationAdminUrl(item.url ?? undefined)}
+              className="flex items-start gap-2 py-3 outline-none transition-colors hover:text-brand focus-visible:ring-2 focus-visible:ring-brand"
+            >
+              <MessageSquare className="mt-0.5 shrink-0 text-brand" size={16} aria-hidden="true" />
+              <span className="min-w-0">
+                <strong className="block truncate text-sm text-ink">{item.title}</strong>
+                {item.body ? (
+                  <span className="mt-0.5 block line-clamp-2 text-xs leading-5 text-slate-500">
+                    {item.body}
+                  </span>
+                ) : null}
+              </span>
+            </Link>
+          ))}
+        </div>
+      ) : (
+        <p className="mt-4 text-sm text-slate-500">درخواست یا پیام خوانده‌نشده‌ای ندارید.</p>
+      )}
+    </Card>
   );
 }
 

@@ -2,7 +2,7 @@ import {
   PublicSchoolProfileProvider,
   usePublicSchoolProfile,
 } from "../components/PublicSchoolProfile";
-import { useEffect } from "react";
+import { lazy, Suspense, useEffect } from "react";
 import { Link, Navigate, useLocation } from "react-router-dom";
 
 import { useLocale } from "../../../../shared/ui/locale";
@@ -20,6 +20,10 @@ import {
   loginDestination,
   portalUrl,
 } from "../../../../app/routing/portal-domain";
+
+const StudentLoginPage = lazy(() =>
+  import("./StudentLoginPage").then(({ StudentLoginPage: Page }) => ({ default: Page })),
+);
 
 /* =========================================================
    PAGE
@@ -73,6 +77,15 @@ function LoginPageContent() {
       <CrossPortalLoginRedirect target={target} />
     ) : (
       <Navigate to={destination.path} replace />
+    );
+  }
+
+  if (currentAppDomain() === "student") {
+    // if (true) {
+    return (
+      <Suspense fallback={<StudentLoginLoading direction={direction} />}>
+        <StudentLoginPage />
+      </Suspense>
     );
   }
 
@@ -147,7 +160,7 @@ function LoginPageContent() {
                 <LoginForm />
                 <Link
                   to={
-                    school
+                    school?.id
                       ? `/register?organizationId=${encodeURIComponent(school.id)}`
                       : "/register"
                   }
@@ -210,6 +223,22 @@ function LoginPageContent() {
           {school?.profile.securityNotice || copy.securityNotice}
           <SchoolContactDetails />
         </footer> */}
+      </section>
+    </LoginShell>
+  );
+}
+
+function StudentLoginLoading({ direction }: { direction: "rtl" | "ltr" }) {
+  return (
+    <LoginShell direction={direction}>
+      <section className="grid min-h-dvh place-items-center bg-[#eff6ff] px-5 dark:bg-[#07111f]">
+        <div
+          role="status"
+          aria-label={
+            direction === "rtl" ? "در حال آماده‌سازی پرتال دانش‌آموزی" : "Preparing student portal"
+          }
+          className="h-24 w-full max-w-sm animate-pulse rounded-[1.75rem] border border-sky-200/80 bg-white/80 shadow-xl dark:border-slate-700 dark:bg-slate-950/80"
+        />
       </section>
     </LoginShell>
   );

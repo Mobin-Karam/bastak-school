@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ResponsiveModal } from "../../../../shared/ui/responsive-modal";
+import { Modal } from "../../../../shared/ui/modal";
 import { Button } from "../../../../shared/ui/ui";
 
 /** Keep a mounted draft until the user explicitly confirms a destructive navigation. */
@@ -12,8 +12,9 @@ export function useAttendanceDiscard(dirty: boolean, busy: boolean, scope: strin
     else next();
   }
   const confirmation = (
-    <ResponsiveModal
+    <Modal
       open={Boolean(action)}
+      dismissible={!busy}
       onOpenChange={(open) => {
         if (!open && !busy) setAction(null);
       }}
@@ -38,7 +39,7 @@ export function useAttendanceDiscard(dirty: boolean, busy: boolean, scope: strin
           ادامه و پاک‌کردن
         </Button>
       </div>
-    </ResponsiveModal>
+    </Modal>
   );
   return { request, confirmation };
 }

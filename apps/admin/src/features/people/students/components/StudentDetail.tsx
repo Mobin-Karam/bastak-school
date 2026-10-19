@@ -6,25 +6,24 @@ import {
   LayoutGrid,
   Pencil,
   ShieldCheck,
-  UserPlus,
   UserRound,
+  UsersRound,
   Workflow,
 } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import type { Student } from "../../../../shared/types/domain";
 import { useOptionalAdminLanguage } from "../../../../shared/ui/locale";
-import { Button, Card } from "../../../../shared/ui/ui";
 import { studentCopy } from "../model/student-locale";
 import {
   formatStudentLastSeen,
   getStudentStatus,
-  getStudentUsername,
   getStudentStatusCopy,
+  getStudentUsername,
   type StudentDetailTab,
 } from "./student-ui";
 import { StudentWorkflowActions } from "./StudentWorkflowActions";
 
-const tabOptions = [
+const tabs = [
   ["overview", "overview", LayoutGrid],
   ["activity", "activity", Activity],
   ["profile", "profile", Pencil],
@@ -41,7 +40,6 @@ export function StudentDetail({
   dirty = false,
   visibleTabs,
   capabilities = [],
-  onCreate,
 }: {
   student: Student;
   tab: StudentDetailTab;
@@ -51,130 +49,113 @@ export function StudentDetail({
   dirty?: boolean;
   visibleTabs?: readonly StudentDetailTab[];
   capabilities?: readonly string[];
-  onCreate?: () => void;
 }) {
   const [copied, setCopied] = useState<"id" | "username" | "">("");
   const language = useOptionalAdminLanguage();
   const copy = studentCopy[language];
   const status = getStudentStatusCopy(getStudentStatus(student), language);
-
-  async function copyToClipboard(value: string, type: "id" | "username") {
+  const username = getStudentUsername(student);
+  const locale = language === "fa" ? "fa-IR" : "en-US";
+  async function copyValue(value: string, field: "id" | "username") {
     if (!value || !navigator.clipboard) return;
     try {
       await navigator.clipboard.writeText(value);
-      setCopied(type);
+      setCopied(field);
       window.setTimeout(() => setCopied(""), 1400);
     } catch {
       setCopied("");
     }
   }
-
   return (
-    <Card className="min-w-0 overflow-hidden p-0 min-[1200px]:flex min-[1200px]:max-h-[calc(100dvh-6rem)] min-[1200px]:flex-col">
-      <div className="z-[1] shrink-0 border-b border-slate-200 bg-slate-50/70 p-3 sm:p-4 dark:border-slate-800 dark:bg-slate-900/60">
+    <article className="min-w-0 text-ink" aria-labelledby="student-record-title">
+      <header className="border-b border-[rgb(var(--border-subtle))] pb-4">
         <button
           type="button"
           onClick={onBack}
-          className="mb-3 inline-flex items-center gap-1 rounded-lg px-2 py-1.5 text-xs font-bold text-slate-600 hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand min-[1200px]:hidden dark:text-slate-300 dark:hover:bg-slate-800"
+          className="mb-4 inline-flex min-h-11 items-center gap-1 rounded-lg px-2 text-xs font-bold text-slate-600 hover:bg-[rgb(var(--surface-muted))] focus-visible:ring-2 focus-visible:ring-brand"
         >
           <ArrowLeft size={15} className="rtl:rotate-180" />
           {copy.backToList}
         </button>
-        <div className="flex min-w-0 items-start gap-3">
-          <span className="grid size-11 shrink-0 place-items-center rounded-xl bg-brand text-white">
-            <UserRound size={20} />
+        <div className="flex flex-wrap items-start gap-3">
+          <span className="grid size-12 place-items-center rounded-2xl bg-brand text-white">
+            <UserRound size={22} />
           </span>
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
-              <h2 className="truncate font-black text-ink">{student.name}</h2>
-              <span className={`rounded-full px-2 py-1 text-[10px] font-bold ${status.className}`}>
+              <h2 id="student-record-title" className="truncate text-lg font-black">
+                {student.name}
+              </h2>
+              <span className={`rounded-full px-2 py-1 text-[11px] font-bold ${status.className}`}>
                 {status.label}
               </span>
               {dirty ? (
-                <span className="rounded-full border border-amber-200 bg-amber-50 px-2 py-1 text-[10px] font-bold text-amber-700 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-300">
+                <span className="rounded-full bg-amber-50 px-2 py-1 text-[11px] font-bold text-amber-700">
                   {copy.unsavedChanges}
                 </span>
               ) : null}
             </div>
-            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+            <p className="mt-1 text-xs text-slate-500">
               {copy.lastActivity}: {formatStudentLastSeen(student.last_seen_at, language)}
             </p>
+            <p className="mt-2 inline-flex items-center gap-1 text-xs text-slate-500">
+              <UsersRound size={14} />
+              {(student.guardians?.length || 0).toLocaleString(locale)}{" "}
+              {language === "fa" ? "سرپرست پیوندخورده" : "linked guardians"}
+            </p>
           </div>
-          {onCreate ? (
-            <Button size="sm" className="ms-auto shrink-0" onClick={onCreate}>
-              <UserPlus size={15} />
-              {copy.createStudent}
-            </Button>
-          ) : null}
         </div>
-        <div className="mt-3 grid gap-2 sm:grid-cols-2">
-          <button
-            type="button"
-            onClick={() => void copyToClipboard(student.id, "id")}
-            className="flex min-w-0 items-center justify-between gap-2 rounded-lg border border-slate-200 bg-white p-2 text-start text-[11px] hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand dark:border-slate-800 dark:bg-slate-950 dark:hover:bg-slate-900"
-          >
-            <span className="min-w-0">
-              <span className="block text-slate-500 dark:text-slate-400">{copy.studentId}</span>
-              <strong className="block truncate text-slate-700 dark:text-slate-200" dir="ltr">
-                {student.id}
-              </strong>
-            </span>
-            {copied === "id" ? (
-              <Check size={14} className="text-brand" />
-            ) : (
-              <Copy size={14} className="text-slate-400" />
-            )}
-          </button>
-          <button
-            type="button"
-            disabled={!getStudentUsername(student)}
-            onClick={() => void copyToClipboard(getStudentUsername(student), "username")}
-            className="flex min-w-0 items-center justify-between gap-2 rounded-lg border border-slate-200 bg-white p-2 text-start text-[11px] hover:bg-slate-50 disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand dark:border-slate-800 dark:bg-slate-950 dark:hover:bg-slate-900"
-          >
-            <span className="min-w-0">
-              <span className="block text-slate-500 dark:text-slate-400">{copy.username}</span>
-              <strong className="block truncate text-slate-700 dark:text-slate-200" dir="ltr">
-                {getStudentUsername(student) || copy.usernameNotSet}
-              </strong>
-            </span>
-            {copied === "username" ? (
-              <Check size={14} className="text-brand" />
-            ) : (
-              <Copy size={14} className="text-slate-400" />
-            )}
-          </button>
+        <div className="mt-4 grid gap-2 sm:grid-cols-2">
+          {(
+            [
+              ["id", copy.studentId, student.id],
+              ["username", copy.username, username || copy.usernameNotSet],
+            ] as const
+          ).map(([field, label, value]) => (
+            <button
+              key={field}
+              type="button"
+              disabled={!value || (field === "username" && !username)}
+              onClick={() => void copyValue(value, field)}
+              className="flex min-h-11 items-center justify-between rounded-lg bg-[rgb(var(--surface-muted))] px-3 text-start text-xs disabled:opacity-60 focus-visible:ring-2 focus-visible:ring-brand"
+            >
+              <span>
+                <span className="block text-slate-500">{label}</span>
+                <strong dir="ltr">{value}</strong>
+              </span>
+              {copied === field ? (
+                <Check size={15} className="text-brand" />
+              ) : (
+                <Copy size={15} className="text-slate-400" />
+              )}
+            </button>
+          ))}
         </div>
-        <span className="sr-only" aria-live="polite">
-          {copied === "id" ? copy.idCopied : copied === "username" ? copy.usernameCopied : ""}
-        </span>
         <StudentWorkflowActions studentId={student.id} capabilities={capabilities} />
-      </div>
-
+      </header>
       <nav
-        className="z-[1] shrink-0 overflow-x-auto border-b border-slate-200 bg-[rgb(var(--surface-card))] px-2 dark:border-slate-800"
+        className="mt-4 flex shrink-0 gap-1 overflow-x-auto border-b border-[rgb(var(--border-subtle))]"
         aria-label={copy.detailSections}
       >
-        <div className="flex min-w-max items-center gap-1">
-          {tabOptions
-            .filter(([value]) => !visibleTabs || visibleTabs.includes(value))
-            .map(([value, label, Icon]) => (
-              <button
-                key={value}
-                type="button"
-                aria-current={tab === value ? "page" : undefined}
-                onClick={() => onTabChange(value)}
-                className={`relative inline-flex h-11 items-center gap-1.5 px-2.5 text-xs font-bold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand ${tab === value ? "text-brand after:absolute after:inset-x-2 after:bottom-0 after:h-0.5 after:rounded-full after:bg-brand" : "text-slate-500 hover:text-ink dark:text-slate-400"}`}
-              >
-                <Icon size={14} />
-                {copy[label]}
-              </button>
-            ))}
-        </div>
+        {tabs
+          .filter(([value]) => !visibleTabs || visibleTabs.includes(value))
+          .map(([value, label, Icon]) => (
+            <button
+              key={value}
+              type="button"
+              onClick={() => onTabChange(value)}
+              aria-current={tab === value ? "page" : undefined}
+              className={`inline-flex min-h-11 shrink-0 items-center gap-1.5 border-b-2 px-3 text-xs font-bold focus-visible:ring-2 focus-visible:ring-brand ${tab === value ? "border-brand text-brand" : "border-transparent text-slate-500 hover:text-ink"}`}
+            >
+              <Icon size={14} />
+              {copy[label]}
+            </button>
+          ))}
       </nav>
-
-      <div className="min-h-0 p-3 sm:p-4 min-[1200px]:flex-1 min-[1200px]:overflow-y-auto min-[1200px]:overscroll-contain">
-        {children}
-      </div>
-    </Card>
+      <div className="min-[1200px]:flex-1 min-[1200px]:overflow-y-auto py-5">{children}</div>
+      <span className="sr-only" aria-live="polite">
+        {copied === "id" ? copy.idCopied : copied === "username" ? copy.usernameCopied : ""}
+      </span>
+    </article>
   );
 }

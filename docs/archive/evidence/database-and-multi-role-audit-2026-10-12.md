@@ -10,7 +10,7 @@ All ten findings have implementation fixes and regression coverage in this worki
 tree. The historical findings below describe the audited pre-fix behavior.
 UI changes were described to the user before editing: multi-role account selection
 and preservation, and tenant-valid work-role selection during school switching.
-See [rollout and compatibility notes](../operations/database-multi-role-integrity-rollout.md)
+See [rollout and compatibility notes](../../operations/database-multi-role-integrity-rollout.md)
 for migration behavior, data conflict handling, and deployment/rollback steps.
 Deployed database contents and migration state remain unverified. The API applies
 configured startup migrations when it starts; validation commands used disposable
@@ -42,7 +42,7 @@ databases.
 
 The workspace still emits existing non-failing lint and bundle warnings. Validation
 used disposable databases; deployed data and migration state remain UNKNOWN. See
-[the rollout notes](../operations/database-multi-role-integrity-rollout.md) before
+[the rollout notes](../../operations/database-multi-role-integrity-rollout.md) before
 applying the migration to deployed data. Ambiguous student ownership or conflicting
 relationship decisions cause an atomic migration failure rather than a guessed merge.
 
@@ -62,7 +62,7 @@ from a database built with the actual migration chain.
 
 ### 1. High: relationship creation permits a student from another school
 
-Evidence: [RelationshipsService.create](../../apps/api/src/modules/relationships/relationships.service.ts#L76)
+Evidence: [RelationshipsService.create](../../../apps/api/src/modules/relationships/relationships.service.ts#L76)
 checks the actor's organization access and the source user's membership, but loads
 the target student by ID without validating the student's organization or target
 membership. A School A manager can create a School A relationship to School B's
@@ -78,7 +78,7 @@ the relationship. Regression: School A manager linking School B student must fai
 
 ### 2. High: a user can reactivate their own revoked relationship
 
-Evidence: [RelationshipsService.update](../../apps/api/src/modules/relationships/relationships.service.ts#L163)
+Evidence: [RelationshipsService.update](../../../apps/api/src/modules/relationships/relationships.service.ts#L163)
 allows the source user to choose ACTIVE or REJECTED regardless of previous
 status. After a manager revokes a link, its source can call the accept/update
 endpoint and restore access.
@@ -92,11 +92,11 @@ manager. Regression: accepting a revoked link returns a denied/conflict response
 
 ### 3. High: roles from one school can affect authorization in another
 
-Evidence: [buildAuthorizationContext](../../packages/cmb/authorization/src/index.js#L6)
+Evidence: [buildAuthorizationContext](../../../packages/cmb/authorization/src/index.js#L6)
 filters capabilities by requested organization but returns `allRoles` from all
 organizations when no work role is supplied. A requested work role is also
 validated against all assignments rather than its assignment in the selected
-organization. [canAccessStudent](../../apps/api/src/modules/authorization/authorization.service.ts#L236)
+organization. [canAccessStudent](../../../apps/api/src/modules/authorization/authorization.service.ts#L236)
 uses privileged role names plus organization IDs to allow broad student access.
 
 Validation: a user who is TEACHER in A and PRINCIPAL in B, requesting organization
@@ -110,9 +110,9 @@ in B must not grant school-wide student access in A.
 
 ### 4. High: editing a multi-role user silently removes other roles
 
-Evidence: [UsersPage save](../../apps/admin/src/features/access/UsersPage.tsx#L145)
+Evidence: [UsersPage save](../../../apps/admin/src/features/identity/access/UsersPage.tsx#L145)
 always sends `roleCodes: [editDraft.role]`, including when only a name or phone
-number changes. [UsersService.setRoles](../../apps/api/src/modules/users/users.service.ts#L318)
+number changes. [UsersService.setRoles](../../../apps/api/src/modules/users/users.service.ts#L318)
 replaces all assignments in the selected membership. `startEdit` selects one
 assignment; the create form also sends only one role.
 
@@ -125,7 +125,7 @@ editing profile fields preserves all roles; explicitly removing one preserves ot
 
 ### 5. Medium: the database does not enforce the student/user one-to-one link
 
-Evidence: [Student.user](../../apps/api/src/database/entities/student.entity.ts#L26)
+Evidence: [Student.user](../../../apps/api/src/database/entities/student.entity.ts#L26)
 declares OneToOne, but the initial migration creates `students.userId` without a
 unique constraint, and the complete migration replay still permits duplicates.
 Student services use `findOne` by user ID, so duplicate links make the chosen
@@ -163,7 +163,7 @@ applies the declared delete policy. Do not use synchronize as a migration fix.
 
 ### 7. Medium: global role uniqueness is ineffective when membership is null
 
-Evidence: [assignment index](../../apps/api/src/database/entities/user-role-assignment.entity.ts#L13)
+Evidence: [assignment index](../../../apps/api/src/database/entities/user-role-assignment.entity.ts#L13)
 and `IDX_assignment_scope` include nullable `membershipId`. SQLite permits multiple
 rows with the same user and role when this value is NULL.
 
@@ -177,7 +177,7 @@ where `membershipId IS NULL`. Consider the same NULL-scope uniqueness issue for
 
 ### 8. Medium: an assignment can reference another user's membership
 
-Evidence: [UserRoleAssignment](../../apps/api/src/database/entities/user-role-assignment.entity.ts)
+Evidence: [UserRoleAssignment](../../../apps/api/src/database/entities/user-role-assignment.entity.ts)
 has independent foreign keys for user and membership, without enforcing
 `assignment.userId = membership.userId`. Role scope consistency is also enforced
 by application conventions rather than a database invariant.
@@ -192,7 +192,7 @@ must fail even through direct persistence.
 
 ### 9. Medium: user detail exposes assignments from other organizations
 
-Evidence: [UsersService.get](../../apps/api/src/modules/users/users.service.ts#L187)
+Evidence: [UsersService.get](../../../apps/api/src/modules/users/users.service.ts#L187)
 authorizes access if any assignment shares an organization with the actor, then
 projects every assignment. `/users/:id/roles` and `/users/:id/capabilities` reuse
 this result. A School A user administrator can inspect a shared user's School B
@@ -205,10 +205,10 @@ authority for shared users also needs an explicit product policy review.
 
 ### 10. Medium: student provisioning and login still depend on the legacy role
 
-Evidence: [UsersService.create](../../apps/api/src/modules/users/users.service.ts#L236)
+Evidence: [UsersService.create](../../../apps/api/src/modules/users/users.service.ts#L236)
 sets `users.role = STUDENT` whenever STUDENT is among the requested roles, but
-does not create a Student record. [AuthService.login](../../apps/api/src/modules/auth/auth.service.ts#L107)
-and [hasActiveStudentAccount](../../apps/api/src/modules/auth/auth.service.ts#L636)
+does not create a Student record. [AuthService.login](../../../apps/api/src/modules/auth/auth.service.ts#L107)
+and [hasActiveStudentAccount](../../../apps/api/src/modules/auth/auth.service.ts#L636)
 require an active Student record based on this legacy discriminator.
 
 Consequences: creating STUDENT through the generic user form/API yields an

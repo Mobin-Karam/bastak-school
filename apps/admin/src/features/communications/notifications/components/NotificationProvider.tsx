@@ -23,7 +23,10 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!auth.hasRole("STUDENT")) return;
     const absence = notifications.items.find(
-      (item) => item.category === "attendance_absence" && !item.isRead && !shownAbsences.current.has(item.id),
+      (item) =>
+        item.category === "attendance_absence" &&
+        !item.isRead &&
+        !shownAbsences.current.has(item.id),
     );
     if (!absence) return;
     shownAbsences.current.add(absence.id);
@@ -33,12 +36,32 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
       size: "full",
       content: (
         <section className="grid min-h-[60vh] content-center gap-6 p-6 text-center" dir="rtl">
-          <p className="text-2xl font-black text-rose-700 dark:text-rose-300">شما در کلاس غایب ثبت شده‌اید.</p>
-          <p className="mx-auto max-w-md text-base leading-8 text-slate-700 dark:text-slate-200">برای دریافت اجازه حضور، به مدیر یا ناظر مدرسه مراجعه کنید. پس از بررسی، نتیجه برای شما ارسال می‌شود.</p>
+          <p className="text-2xl font-black text-rose-700 dark:text-rose-300">
+            شما در کلاس غایب ثبت شده‌اید.
+          </p>
+          <p className="mx-auto max-w-md text-base leading-8 text-slate-700 dark:text-slate-200">
+            برای دریافت اجازه حضور، به مدیر یا ناظر مدرسه مراجعه کنید. پس از بررسی، نتیجه برای شما
+            ارسال می‌شود.
+          </p>
           <p className="text-sm text-slate-500">یک امتیاز غیبت در کارنامه حضور شما ثبت شده است.</p>
           <div className="flex justify-center gap-2">
-            <Button onClick={() => { notifications.markRead(absence.id); window.location.assign("/admin/my-attendance"); }}>مشاهده سوابق حضور</Button>
-            <Button variant="ghost" onClick={() => { notifications.markRead(absence.id); modal.close(); }}>متوجه شدم</Button>
+            <Button
+              onClick={() => {
+                notifications.markRead(absence.id);
+                window.location.assign("/admin/my-attendance");
+              }}
+            >
+              مشاهده سوابق حضور
+            </Button>
+            <Button
+              variant="ghost"
+              onClick={() => {
+                notifications.markRead(absence.id);
+                modal.close();
+              }}
+            >
+              متوجه شدم
+            </Button>
           </div>
         </section>
       ),

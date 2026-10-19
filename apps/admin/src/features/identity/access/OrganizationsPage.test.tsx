@@ -31,7 +31,9 @@ vi.mock("./OrganizationWorkspace", () => ({
   OrganizationWorkspace: () => <div>Members workspace</div>,
 }));
 vi.mock("../../../shared/api/api", () => ({ api: { get: state.get } }));
-vi.mock("../../people/students/api/students.api.ts", () => ({ createStudent: state.createStudent }));
+vi.mock("../../people/students/api/students.api.ts", () => ({
+  createStudent: state.createStudent,
+}));
 vi.mock("./api/access.api.ts", async (original) => ({
   ...(await original<typeof import("./api/access.api.ts")>()),
   listOrganizations: state.list,

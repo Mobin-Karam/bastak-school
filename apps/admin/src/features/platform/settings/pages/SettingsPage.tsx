@@ -223,7 +223,6 @@ function MobileAccountActions() {
           <h2 className="text-sm font-black text-ink">{copy.accountMenu}</h2>
           <p className="mt-1 text-xs text-slate-500">{copy.display}</p>
         </div>
-
       </div>
       {(auth.context?.roles.length ?? 0) > 1 ? (
         <div className="rounded-xl bg-slate-50 p-3 dark:bg-slate-900">

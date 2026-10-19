@@ -255,7 +255,7 @@ export function LegacySchedulePage() {
   };
   return (
     <section
-      className="mx-auto grid w-full max-w-7xl gap-4 pb-[calc(6rem+env(safe-area-inset-bottom))] min-[960px]:grid-cols-[minmax(0,1fr)_22rem] min-[960px]:pb-6"
+      className="grid w-full max-w-none gap-4 pb-[calc(6rem+env(safe-area-inset-bottom))] min-[960px]:grid-cols-[minmax(0,1fr)_22rem] min-[960px]:pb-6"
       dir="rtl"
     >
       <div className="order-2 grid gap-3 min-[960px]:order-1">

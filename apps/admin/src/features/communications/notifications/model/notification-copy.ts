@@ -2,8 +2,8 @@ import type { AdminLanguage } from "../../../../shared/ui/locale";
 
 export const notificationCopy: Record<AdminLanguage, Record<string, string>> = {
   fa: {
-    center: "اعلان‌های مدیر",
-    centerDescription: "پیام‌ها، آزمون‌ها و اطلاعیه‌های بارگذاری‌شده را در همین‌جا پیگیری کنید.",
+    center: "اعلان‌های من",
+    centerDescription: "پیام‌ها، آزمون‌ها و اطلاعیه‌های خود را در همین‌جا پیگیری کنید.",
     inbox: "صندوق پیگیری",
     inboxDescription: "مشکلات و ریکاوری‌ها از همین صفحه قابل پاسخ و بستن هستند.",
     loadFailed: "دریافت اعلان‌ها ناموفق بود.",
@@ -40,6 +40,9 @@ export const notificationCopy: Record<AdminLanguage, Record<string, string>> = {
     enabled: "فعال",
     disabled: "غیرفعال",
     notificationSections: "بخش اعلان‌ها",
+    options: "گزینه‌ها",
+    notificationOptions: "گزینه‌های اعلان‌ها",
+    filterNotifications: "جستجو و فیلتر اعلان‌ها",
     followUp: "پیگیری",
     settingsTitle: "اعلان سیستمی و صدا",
     savePreferenceFailed: "ذخیره ترجیح اعلان انجام نشد.",
@@ -98,8 +101,8 @@ export const notificationCopy: Record<AdminLanguage, Record<string, string>> = {
     days: "روز",
   },
   en: {
-    center: "Admin notifications",
-    centerDescription: "Follow loaded messages, exams, and announcements here.",
+    center: "My notifications",
+    centerDescription: "Follow your messages, exams, and announcements here.",
     inbox: "Follow-up inbox",
     inboxDescription: "Respond to and resolve issues and recovery requests from this workspace.",
     loadFailed: "Couldn’t load notifications.",
@@ -136,6 +139,9 @@ export const notificationCopy: Record<AdminLanguage, Record<string, string>> = {
     enabled: "Enabled",
     disabled: "Disabled",
     notificationSections: "Notification sections",
+    options: "Options",
+    notificationOptions: "Notification options",
+    filterNotifications: "Search and filter notifications",
     followUp: "Follow-up",
     settingsTitle: "System notifications and sound",
     savePreferenceFailed: "Couldn’t save notification preference.",

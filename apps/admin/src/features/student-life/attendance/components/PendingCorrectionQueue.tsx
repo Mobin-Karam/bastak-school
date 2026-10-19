@@ -1,8 +1,8 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useAuth } from "../../../identity/auth";
 import { Button, Card, EmptyState, LoadingState } from "../../../../shared/ui/ui";
-import { ResponsiveModal } from "../../../../shared/ui/responsive-modal";
+import { Modal } from "../../../../shared/ui/modal";
 import { notify } from "../../../../shared/ui/notifications";
 import { attendanceRequestId } from "../model/attendance-request-id";
 import {
@@ -18,7 +18,11 @@ const statusLabel: Record<string, string> = {
 };
 
 /** Reviewer-only queue; a pending request never mutates the attendance record. */
-export function PendingCorrectionQueue() {
+export function PendingCorrectionQueue({
+  initialCorrectionId,
+}: {
+  initialCorrectionId?: string | null;
+}) {
   const auth = useAuth();
   const client = useQueryClient();
   const scope = JSON.stringify([
@@ -35,6 +39,15 @@ export function PendingCorrectionQueue() {
     queryFn: getPendingAttendanceCorrections,
     enabled: auth.can("attendance.review"),
   });
+  const focusedCorrection = initialCorrectionId
+    ? (corrections.data?.find((item) => item.id === initialCorrectionId) ?? null)
+    : null;
+  useEffect(() => {
+    if (!focusedCorrection || selected) return;
+    setSelected(focusedCorrection);
+    setDecision(null);
+    setNote("");
+  }, [focusedCorrection, selected]);
   async function submit() {
     if (!selected || !decision || saving) return;
     setSaving(true);
@@ -61,7 +74,7 @@ export function PendingCorrectionQueue() {
   }
   if (!auth.can("attendance.review")) return null;
   return (
-    <Card className="space-y-3 p-4">
+    <Card id="attendance-correction-reviews" className="space-y-3 p-4">
       <header>
         <h2 className="font-black">درخواست‌های اصلاح حضور</h2>
         <p className="mt-1 text-sm text-slate-500">تا زمان تأیید، هیچ رکورد حضوری تغییر نمی‌کند.</p>
@@ -103,8 +116,9 @@ export function PendingCorrectionQueue() {
           </li>
         ))}
       </ul>
-      <ResponsiveModal
+      <Modal
         open={Boolean(selected)}
+        dismissible={!saving}
         onOpenChange={(open) => {
           if (!open && !saving) setSelected(null);
         }}
@@ -150,7 +164,7 @@ export function PendingCorrectionQueue() {
             </>
           )}
         </div>
-      </ResponsiveModal>
+      </Modal>
     </Card>
   );
 }

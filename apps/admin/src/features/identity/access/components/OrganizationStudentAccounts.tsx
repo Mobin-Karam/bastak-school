@@ -6,7 +6,10 @@ import { useLocale } from "../../../../shared/ui/locale";
 import { Button, EmptyState, Field, Input, Select } from "../../../../shared/ui/ui";
 import { ResponsiveDrawer } from "../../../../shared/ui/responsive-drawer";
 import { createStudent } from "../../../people/students/api/students.api";
-import { emptyStudentForm, normalizeIranianPhoneNumber } from "../../../people/students/model/student-form";
+import {
+  emptyStudentForm,
+  normalizeIranianPhoneNumber,
+} from "../../../people/students/model/student-form";
 import type { Student } from "../../../../shared/types/domain";
 import { notify } from "../../../../shared/ui/notifications";
 

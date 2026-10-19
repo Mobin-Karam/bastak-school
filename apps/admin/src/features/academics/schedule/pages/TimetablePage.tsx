@@ -28,7 +28,10 @@ import { Button, Card, EmptyState, Field, Input, LoadingState } from "../../../.
 import { ResponsiveModal } from "../../../../shared/ui/responsive-modal";
 import { useMobileDialog } from "../../../../shared/ui/responsive-modal";
 import { notify } from "../../../../shared/ui/notifications";
-import { defineSpreadsheet, downloadSpreadsheet } from "../../../../shared/lib/spreadsheet-transfer";
+import {
+  defineSpreadsheet,
+  downloadSpreadsheet,
+} from "../../../../shared/lib/spreadsheet-transfer";
 import {
   getTimetable,
   createTimetableVersion,

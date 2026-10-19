@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { cleanup, render, screen, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { AdminNotification } from "../model/notification-model";
@@ -32,6 +32,7 @@ vi.mock("../../../../shared/ui/locale", async (importOriginal) => ({
 
 describe("NotificationCenterPanel", () => {
   beforeEach(() => {
+    cleanup();
     mocks.notifications.items = [
       {
         id: "notice-1",
@@ -63,7 +64,7 @@ describe("NotificationCenterPanel", () => {
       </MemoryRouter>,
     );
 
-    expect(screen.getByRole("heading", { name: "اعلان‌های مدیر" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "اعلان‌های من" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /خواندن همه/ })).toBeInTheDocument();
     expect(screen.getByRole("textbox", { name: "جستجوی اعلان‌ها" })).toBeInTheDocument();
     expect(screen.getByText("پیام جدید")).toBeInTheDocument();
@@ -92,5 +93,28 @@ describe("NotificationCenterPanel", () => {
 
     expect(screen.getByRole("alert")).toHaveTextContent("خطای دریافت");
     expect(screen.getByRole("button", { name: /تلاش دوباره/ })).toBeInTheDocument();
+  });
+
+  it("keeps student-mobile settings and filters out of the inbox surface", () => {
+    const { container } = render(
+      <MemoryRouter>
+        <NotificationCenterPanel
+          compact
+          filter="all"
+          setFilter={vi.fn()}
+          typeFilter="all"
+          setTypeFilter={vi.fn()}
+          search=""
+          setSearch={vi.fn()}
+          items={mocks.notifications.items}
+        />
+      </MemoryRouter>,
+    );
+
+    expect(
+      within(container).queryByRole("textbox", { name: "جستجوی اعلان‌ها" }),
+    ).not.toBeInTheDocument();
+    expect(within(container).queryByRole("button", { name: /خواندن همه/ })).not.toBeInTheDocument();
+    expect(within(container).getByText("پیام جدید")).toBeInTheDocument();
   });
 });

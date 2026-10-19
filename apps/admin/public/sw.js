@@ -6,7 +6,7 @@ const CACHE_PREFIX = `${APP_NAME}-pwa`;
 const SHELL_CACHE = `${CACHE_PREFIX}-shell-${CACHE_VERSION}`;
 const RUNTIME_CACHE = `${CACHE_PREFIX}-runtime-${CACHE_VERSION}`;
 const OFFLINE_URL = "/offline";
-const DEFAULT_NOTIFICATION_URL = "/notifications";
+const DEFAULT_NOTIFICATION_URL = "/admin/communication/notifications";
 
 const APP_SHELL = [
   "/",
@@ -212,7 +212,14 @@ function safeAppUrl(value) {
   try {
     const url = new URL(typeof value === "string" ? value : DEFAULT_NOTIFICATION_URL, self.location.origin);
     if (url.origin !== self.location.origin || url.pathname.startsWith("/api/")) return DEFAULT_NOTIFICATION_URL;
-    return `${url.pathname}${url.search}${url.hash}`;
+    if (url.pathname.startsWith("/admin/")) return `${url.pathname}${url.search}${url.hash}`;
+    if (url.pathname.startsWith("/attendance")) return `/admin/attendance${url.search}${url.hash}`;
+    if (url.pathname.startsWith("/communication/chat") || url.pathname.startsWith("/chat") || url.pathname.startsWith("/messages")) {
+      return `/admin/communication/chat${url.search}${url.hash}`;
+    }
+    if (url.pathname.startsWith("/exams")) return `/admin/exams${url.search}${url.hash}`;
+    if (url.pathname.startsWith("/schedule") || url.pathname.startsWith("/plans")) return `/admin/planner${url.search}${url.hash}`;
+    return DEFAULT_NOTIFICATION_URL;
   } catch { return DEFAULT_NOTIFICATION_URL; }
 }
 

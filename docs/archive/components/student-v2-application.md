@@ -2,7 +2,7 @@
 
 Last reviewed: 2026-10-12
 
-The standalone `apps/student/` application described below is absent from the current checkout. Student accounts now use student-facing views in `apps/admin/`; `student-core/` remains runtime-neutral. The routes and feature lists below are historical design evidence and must not be used as current implementation or release instructions. For current ownership and validation, use the [system map](../architecture/system-map.md), [Admin application guide](./admin-v2-application.md) and [testing strategy](../engineering/testing-strategy.md).
+The standalone `apps/student/` application described below is absent from the current checkout. Student accounts now use student-facing views in `apps/admin/`; `student-core/` remains runtime-neutral. The routes and feature lists below are historical design evidence and must not be used as current implementation or release instructions. For current ownership and validation, use the [system map](../../architecture/system-map.md), [Admin application guide](../../components/admin-v2-application.md) and [testing strategy](../../engineering/testing-strategy.md).
 
 ## Confirmed routes and access gates
 
@@ -62,5 +62,5 @@ npm run build
 
 For native acceptance, run the relevant `tauri:build` or `android:build` gate
 and then test the produced artifact on its target device. See the
-[Student runtime boundary](../architecture/student-v2-tauri-runtime.md) and
-[repository runbook](../operations/repository-runbook.md).
+[Student runtime boundary](../../architecture/student-v2-tauri-runtime.md) and
+[repository runbook](../../operations/repository-runbook.md).

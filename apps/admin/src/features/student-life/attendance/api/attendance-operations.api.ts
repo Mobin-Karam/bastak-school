@@ -183,7 +183,11 @@ export const awardAttendancePoints = (body: {
   studentId: string;
   points: number;
   reason: string;
-}) => api.post<{ id: string; studentId: string; points: number; reason: string }>("/attendance/points", body);
+}) =>
+  api.post<{ id: string; studentId: string; points: number; reason: string }>(
+    "/attendance/points",
+    body,
+  );
 export const getMyDormAssignments = () =>
   api.get<DormAttendanceAssignment[]>("/student/attendance/dorm-assignments");
 export const markDelegatedDormAttendance = (id: string, body: DormAttendanceWrite) =>

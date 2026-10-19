@@ -86,6 +86,15 @@ export type AttendanceDailyOverview = {
 export type StaffAttendanceProfile = {
   studentId: string;
   name: string;
+  schoolName: string;
+  classNames: string[];
+  points: number;
+  /** Percentage of the visible student's recorded attendance that is present or late. */
+  attendanceRate: number | null;
+  /** Percentage of eligible sessions that have an attendance record. */
+  attendanceCoverage: number | null;
+  totalSessions: number;
+  scopedToTeacherClasses: boolean;
   counts: { present: number; absent: number; late: number; excused: number };
   records: Array<{
     id: string;

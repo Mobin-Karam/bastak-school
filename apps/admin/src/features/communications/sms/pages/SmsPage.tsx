@@ -14,7 +14,14 @@ import {
   UsersRound,
   XCircle,
 } from "lucide-react";
-import { Button, Card, CheckboxGroup, Input, LoadingState, Textarea } from "../../../../shared/ui/ui";
+import {
+  Button,
+  Card,
+  CheckboxGroup,
+  Input,
+  LoadingState,
+  Textarea,
+} from "../../../../shared/ui/ui";
 import { SegmentedControl } from "../../../../shared/ui/segmented-control";
 import {
   DataTable,

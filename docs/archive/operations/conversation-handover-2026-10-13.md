@@ -49,10 +49,10 @@ The repository is a grouped product monorepo with a modular-monolith backend and
 
 The detailed audits remain in the canonical documentation rather than being duplicated here:
 
-- [Current architecture](../architecture/current-state.md), [target architecture](../architecture/target-state.md), [refactor plan](../architecture/refactor-plan.md).
-- [Application security audit](../security/application-security-audit.md), [role/resource matrix](../security/permission-matrix.md), [permission baseline](../security/permission-baseline.json).
-- [Reliability runbook](./reliability-runbook.md), [synthetic baseline](./reliability-baseline.json).
-- [GitHub deployment operations](./github-cicd.md), [immutable LAN runbook](./immutable-lan-runbook.md), [database rollout](./database-multi-role-integrity-rollout.md).
+- [Current architecture](../../architecture/current-state.md), [target architecture](../../architecture/target-state.md), [refactor plan](../../architecture/refactor-plan.md).
+- [Application security audit](../../security/application-security-audit.md), [role/resource matrix](../../security/permission-matrix.md), [permission baseline](../../security/permission-baseline.json).
+- [Reliability runbook](../../operations/reliability-runbook.md), [synthetic baseline](../../operations/reliability-baseline.json).
+- [GitHub deployment operations](../../operations/github-cicd.md), [immutable LAN runbook](../../operations/immutable-lan-runbook.md), [database rollout](../../operations/database-multi-role-integrity-rollout.md).
 
 The conversation records these completed changes and checks:
 

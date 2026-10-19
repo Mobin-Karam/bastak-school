@@ -6,7 +6,10 @@ import { LocaleProvider } from "../../../../shared/ui/locale";
 import { getStudentSignupOptions, studentSignup } from "../api/signup.api";
 import { StudentSignupPage } from "./StudentSignupPage";
 
-vi.mock("../api/signup.api.ts", () => ({ getStudentSignupOptions: vi.fn(), studentSignup: vi.fn() }));
+vi.mock("../api/signup.api.ts", () => ({
+  getStudentSignupOptions: vi.fn(),
+  studentSignup: vi.fn(),
+}));
 vi.mock("../../../../shared/theme/theme", async (original) => ({
   ...(await original<typeof import("../../../../shared/theme/theme")>()),
   ThemeSwitcher: () => null,

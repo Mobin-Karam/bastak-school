@@ -7,7 +7,16 @@ const ADMIN_HOSTS = new Set(["app.sultano.ir", "app.localhost"]);
 const LOCAL_HOSTS = new Set(["localhost", "127.0.0.1", "::1"]);
 
 const STUDENT_ONLY_ROUTES = new Set(["my-attendance", "profile", "student-leave"]);
-const SHARED_PORTAL_ROUTES = new Set(["", "schedule", "books", "registration", "settings", "more"]);
+const STUDENT_PORTAL_ROUTES = new Set([
+  "",
+  ...STUDENT_ONLY_ROUTES,
+  "schedule",
+  "books",
+  "registration",
+  "settings",
+  "more",
+  "communication/notifications",
+]);
 
 export function resolveAppDomain(hostname: string | null | undefined): AppDomain {
   const host = hostname?.trim().toLowerCase().replace(/\.$/, "") ?? "";
@@ -22,20 +31,24 @@ export function currentAppDomain(): AppDomain {
 }
 
 export function adminRouteSegment(pathname: string): string {
-  const normalized = pathname.split(/[?#]/, 1)[0].replace(/^\/+|\/+$/g, "");
-  if (normalized === "admin") return "";
-  if (!normalized.startsWith("admin/")) return "";
-  return normalized.slice("admin/".length).split("/", 1)[0] ?? "";
+  const route = adminRoutePath(pathname);
+  return route.split("/", 1)[0] ?? "";
+}
+
+function adminRoutePath(pathname: string): string {
+  const segments = pathname.split(/[?#]/, 1)[0].split("/").filter(Boolean);
+  if (segments[0] !== "admin") return "";
+  return segments.slice(1).join("/");
 }
 
 export function isRouteAvailableOnDomain(pathname: string, domain: AppDomain): boolean {
   if (domain === "local") return true;
   if (domain === "unknown") return false;
 
-  const route = adminRouteSegment(pathname);
-  if (domain === "student")
-    return STUDENT_ONLY_ROUTES.has(route) || SHARED_PORTAL_ROUTES.has(route);
-  return !STUDENT_ONLY_ROUTES.has(route);
+  const route = adminRoutePath(pathname);
+  if (domain === "student") return STUDENT_PORTAL_ROUTES.has(route);
+  const segment = adminRouteSegment(pathname);
+  return !STUDENT_ONLY_ROUTES.has(segment);
 }
 
 export function preferredPortal(

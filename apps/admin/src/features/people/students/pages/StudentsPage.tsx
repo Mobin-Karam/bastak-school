@@ -9,8 +9,8 @@ import { useModal } from "../../../../shared/ui/modal";
 import { useOptionalAdminLanguage } from "../../../../shared/ui/locale";
 import { useAuth } from "../../../identity/auth";
 import { getApiWorkContextKey } from "../../../../shared/api/api";
-import { Button, Card, EmptyState, ErrorState, LoadingState } from "../../../../shared/ui/ui";
-import { ManagementMasterDetail } from "../../../../shared/ui/management-workspace";
+import { Button, EmptyState, ErrorState, LoadingState } from "../../../../shared/ui/ui";
+import { ResponsiveModal } from "../../../../shared/ui/responsive-modal";
 import {
   archiveStudent,
   createStudent,
@@ -25,6 +25,7 @@ import {
 } from "../api/students.api";
 import { StudentAdminAccess } from "../components/StudentAdminAccess";
 import { StudentDetail } from "../components/StudentDetail";
+import { StudentAdminWorkspace } from "../components/StudentAdminWorkspace";
 import {
   StudentEditor,
   type StudentEditorFeedback,
@@ -151,6 +152,7 @@ export function StudentsPage() {
   );
   const [creating, setCreating] = useState(() => searchParams.get("create") === "1");
   const [selectedId, setSelectedId] = useState(() => searchParams.get("studentId") || "");
+  const [detailOpen, setDetailOpen] = useState(() => Boolean(searchParams.get("studentId")));
   const [detailTab, setDetailTab] = useState<StudentDetailTab>(() => {
     const value = searchParams.get("tab") as StudentDetailTab | null;
     return value && detailTabs.includes(value) ? value : "overview";
@@ -283,6 +285,7 @@ export function StudentsPage() {
   function commitSelection(student: Student) {
     setCreating(false);
     setSelectedId(student.id);
+    setDetailOpen(true);
     studentStore.setStudentId(student.id);
     updateStudentContext(student.id);
     setDetailTab("overview");
@@ -294,6 +297,7 @@ export function StudentsPage() {
 
   function requestSelection(student: Student) {
     if (mode === "edit" && student.id === selectedId) {
+      setDetailOpen(true);
       setMobileDirectory(false);
       return;
     }
@@ -312,6 +316,7 @@ export function StudentsPage() {
   function startCreate() {
     const run = () => {
       setCreating(true);
+      setDetailOpen(false);
       setSelectedId("");
       setSearchParams(
         (current) => {
@@ -348,6 +353,7 @@ export function StudentsPage() {
     const run = () => {
       const previous = students.find((student) => student.id === studentStore.studentId) ?? null;
       setCreating(false);
+      setDetailOpen(false);
       setMobileDirectory(true);
       setFeedback(null);
       if (previous) {
@@ -374,6 +380,37 @@ export function StudentsPage() {
 
   function showDirectory() {
     const run = () => setMobileDirectory(true);
+    if (!dirty) return run();
+    void modal
+      .confirm({
+        title: copy.returnToDirectoryTitle,
+        description: copy.returnToDirectoryDescription,
+        confirmLabel: copy.backToList,
+      })
+      .then((ok) => {
+        if (ok) run();
+      });
+  }
+
+  function dismissDetail() {
+    const run = () => {
+      setDetailOpen(false);
+      setSelectedId("");
+      setForm(emptyStudentForm());
+      setFeedback(null);
+      setMobileDirectory(true);
+      studentStore.setStudentId("");
+      setSearchParams(
+        (current) => {
+          const next = new URLSearchParams(current);
+          next.delete("studentId");
+          next.delete("tab");
+          return next;
+        },
+        { replace: true },
+      );
+    };
+
     if (!dirty) return run();
     void modal
       .confirm({
@@ -568,23 +605,10 @@ export function StudentsPage() {
       }
       if (studentStore.studentId !== fromUrlStudent.id)
         studentStore.setStudentId(fromUrlStudent.id);
+      setDetailOpen(true);
       return;
     }
-    if (selectedId && students.some((student) => student.id === selectedId)) return;
-    const stored = students.find((student) => student.id === studentStore.studentId) ?? null;
-    if (stored) {
-      setSelectedId(stored.id);
-      setForm(studentToForm(stored));
-      updateStudentContext(stored.id);
-    }
-  }, [
-    creating,
-    searchParams,
-    studentStore.isLoading,
-    studentStore.studentId,
-    students,
-    selectedId,
-  ]);
+  }, [creating, searchParams, studentStore.isLoading, students, selectedId]);
 
   useEffect(() => {
     setPage(1);
@@ -807,6 +831,7 @@ export function StudentsPage() {
         {detailTab === "profile" && auth.can("students.update") ? (
           <StudentEditor
             mode="edit"
+            student={selected}
             form={form}
             setField={setField}
             dirty={dirty}
@@ -862,12 +887,10 @@ export function StudentsPage() {
   ) : null;
 
   return (
-    <div className="min-[1200px]:h-[calc(100dvh-7rem)]">
-      <ManagementMasterDetail
+    <div>
+      <StudentAdminWorkspace
         directoryVisible={mobileDirectory}
         detailVisible={!mobileDirectory}
-        detailWidth="minmax(420px,.75fr)"
-        detailScroll={false}
         directory={
           <StudentList
             students={pagedStudents}
@@ -933,57 +956,75 @@ export function StudentsPage() {
         detail={
           <div>
             {mode === "create" ? (
-              <Card className="overflow-hidden p-0 min-[1200px]:flex min-[1200px]:max-h-[calc(100dvh-6rem)] min-[1200px]:flex-col">
-                <div className="border-b border-slate-200 p-3 min-[1200px]:hidden dark:border-slate-800">
-                  <button
-                    type="button"
-                    onClick={cancelCreate}
-                    className="inline-flex items-center gap-1 rounded-lg px-2 py-1.5 text-xs font-bold text-slate-600 hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand dark:text-slate-300 dark:hover:bg-slate-800"
-                  >
-                    <ArrowRight size={15} className="ltr:rotate-180" />
-                    {copy.backToDirectory}
-                  </button>
-                </div>
-                <div className="min-h-0 p-3 sm:p-4 min-[1200px]:flex-1 min-[1200px]:overflow-y-auto min-[1200px]:overscroll-contain">
-                  <FeedbackBanner
-                    feedback={feedback}
-                    onDismiss={() => setFeedback(null)}
-                    closeLabel={copy.closeMessage}
-                  />
-                  <div className={feedback ? "mt-4" : ""}>
-                    <StudentEditor
-                      mode="create"
-                      form={form}
-                      setField={setField}
-                      dirty={dirty}
-                      saveDirty={saveDirty}
-                      usernameError={usernameError}
-                      busy={create.isPending}
-                      onCancelCreate={cancelCreate}
-                      onReset={() => {
-                        setFeedback(null);
-                        setForm(emptyStudentForm());
-                      }}
-                      onSave={() => create.mutate(form)}
-                    />
-                  </div>
-                </div>
-              </Card>
-            ) : selected ? (
-              <StudentDetail
-                student={selected}
-                tab={detailTab}
-                onTabChange={setDetailTab}
-                onBack={showDirectory}
-                dirty={dirty}
-                visibleTabs={visibleDetailTabs}
-                capabilities={auth.capabilities}
-                onCreate={auth.can("students.create") ? startCreate : undefined}
+              <ResponsiveModal
+                open={creating}
+                onOpenChange={(open) => !open && cancelCreate()}
+                title={copy.createStudent}
+                description={copy.createDescription}
+                size="wide"
               >
-                {detailContent}
-              </StudentDetail>
+                <section className="overflow-hidden">
+                  <div className="border-b border-slate-200 p-3 min-[1200px]:hidden dark:border-slate-800">
+                    <button
+                      type="button"
+                      onClick={cancelCreate}
+                      className="inline-flex items-center gap-1 rounded-lg px-2 py-1.5 text-xs font-bold text-slate-600 hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand dark:text-slate-300 dark:hover:bg-slate-800"
+                    >
+                      <ArrowRight size={15} className="ltr:rotate-180" />
+                      {copy.backToDirectory}
+                    </button>
+                  </div>
+                  <div className="min-h-0 p-3 sm:p-4 min-[1200px]:flex-1 min-[1200px]:overflow-y-auto min-[1200px]:overscroll-contain">
+                    <FeedbackBanner
+                      feedback={feedback}
+                      onDismiss={() => setFeedback(null)}
+                      closeLabel={copy.closeMessage}
+                    />
+                    <div className={feedback ? "mt-4" : ""}>
+                      <StudentEditor
+                        mode="create"
+                        form={form}
+                        setField={setField}
+                        dirty={dirty}
+                        saveDirty={saveDirty}
+                        usernameError={usernameError}
+                        busy={create.isPending}
+                        onCancelCreate={cancelCreate}
+                        onReset={() => {
+                          setFeedback(null);
+                          setForm(emptyStudentForm());
+                        }}
+                        onSave={() => create.mutate(form)}
+                      />
+                    </div>
+                  </div>
+                </section>
+              </ResponsiveModal>
+            ) : selected ? (
+              <ResponsiveModal
+                open={detailOpen && !creating}
+                onOpenChange={(open) => {
+                  if (open) setDetailOpen(true);
+                  else dismissDetail();
+                }}
+                title={selected.name}
+                description={copy.detailSections}
+                size="wide"
+              >
+                <StudentDetail
+                  student={selected}
+                  tab={detailTab}
+                  onTabChange={setDetailTab}
+                  onBack={dismissDetail}
+                  dirty={dirty}
+                  visibleTabs={visibleDetailTabs}
+                  capabilities={auth.capabilities}
+                >
+                  {detailContent}
+                </StudentDetail>
+              </ResponsiveModal>
             ) : (
-              <Card className="hidden min-[1200px]:block">
+              <section className="hidden min-[1200px]:block">
                 <div className="grid min-h-64 place-items-center text-center">
                   {studentStore.isLoading ? (
                     <LoadingState label={copy.preparingRecords} />
@@ -1027,7 +1068,7 @@ export function StudentsPage() {
                     />
                   )}
                 </div>
-              </Card>
+              </section>
             )}
           </div>
         }

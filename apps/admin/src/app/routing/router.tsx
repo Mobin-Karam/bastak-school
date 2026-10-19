@@ -61,6 +61,11 @@ const LeaveRequestsPage = lazy(() =>
     default: m.LeaveRequestsPage,
   })),
 );
+const PermissionRequestsPage = lazy(() =>
+  import("../../features/student-life/permission-requests").then((m) => ({
+    default: m.PermissionRequestsPage,
+  })),
+);
 const ExitPermissionsPage = lazy(() =>
   import("../../features/student-life/exit-permissions").then((m) => ({
     default: m.ExitPermissionsPage,
@@ -91,6 +96,11 @@ const StudentLeaveRequestsPage = lazy(() =>
     default: m.StudentLeaveRequestsPage,
   })),
 );
+const StudentTextbooksPage = lazy(() =>
+  import("../../features/people/student-portal").then((m) => ({
+    default: m.StudentTextbooksPage,
+  })),
+);
 const TeacherProfilePage = lazy(() =>
   import("../../features/people/teacher-portal").then((m) => ({ default: m.TeacherProfilePage })),
 );
@@ -105,12 +115,25 @@ const SystemPage = lazy(() =>
 const SmsPage = lazy(() =>
   import("../../features/communications/sms").then((m) => ({ default: m.SmsPage })),
 );
+const NotificationsPage = lazy(() =>
+  import("../../features/communications/notifications").then((m) => ({
+    default: m.NotificationsPage,
+  })),
+);
 const MobileMorePage = lazy(() =>
   import("../../features/mobile/MobileMorePage").then((m) => ({ default: m.MobileMorePage })),
+);
+const AchievementsComingSoonPage = lazy(() =>
+  import("../../features/achievements").then((m) => ({ default: m.AchievementsComingSoonPage })),
 );
 
 function RouteScreen({ children }: { children: ReactNode }) {
   return <Suspense fallback={<RouteLoading />}>{children}</Suspense>;
+}
+
+function BooksPage() {
+  const auth = useAuth();
+  return auth.activeRole === "STUDENT" ? <StudentTextbooksPage /> : <BookShelfPage />;
 }
 
 function RouteLoading() {
@@ -369,7 +392,7 @@ export const router = createBrowserRouter([
             path: "books",
             element: (
               <RouteScreen>
-                <BookShelfPage />
+                <BooksPage />
               </RouteScreen>
             ),
           },
@@ -419,6 +442,16 @@ export const router = createBrowserRouter([
               <CapabilityRoute capability="leave.read">
                 <RouteScreen>
                   <LeaveRequestsPage />
+                </RouteScreen>
+              </CapabilityRoute>
+            ),
+          },
+          {
+            path: "permission-requests",
+            element: (
+              <CapabilityRoute capability="permission_requests.read">
+                <RouteScreen>
+                  <PermissionRequestsPage />
                 </RouteScreen>
               </CapabilityRoute>
             ),
@@ -474,6 +507,14 @@ export const router = createBrowserRouter([
             ),
           },
           {
+            path: "communication/notifications",
+            element: (
+              <RouteScreen>
+                <NotificationsPage />
+              </RouteScreen>
+            ),
+          },
+          {
             path: "system",
             element: (
               <CapabilityRoute capability="system.manage">
@@ -525,6 +566,14 @@ export const router = createBrowserRouter([
             element: (
               <RouteScreen>
                 <MobileMorePage />
+              </RouteScreen>
+            ),
+          },
+          {
+            path: "achievements",
+            element: (
+              <RouteScreen>
+                <AchievementsComingSoonPage />
               </RouteScreen>
             ),
           },

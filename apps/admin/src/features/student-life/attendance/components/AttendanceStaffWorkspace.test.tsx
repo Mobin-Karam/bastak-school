@@ -311,6 +311,40 @@ describe("staff session and pool creation", () => {
     expect(screen.getByText("علی")).toBeInTheDocument();
     expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
   });
+  it("renders the authorized student attendance profile with identity and summary cards", async () => {
+    mocks.profile.mockResolvedValue({
+      studentId: "b",
+      name: "احمد",
+      schoolName: "دبیرستان نمونه",
+      classNames: ["هفتم الف"],
+      points: 125,
+      attendanceRate: 92,
+      attendanceCoverage: 100,
+      totalSessions: 12,
+      scopedToTeacherClasses: true,
+      counts: { present: 10, absent: 1, late: 1, excused: 0 },
+      records: [],
+    });
+    const user = userEvent.setup();
+    render(
+      <AttendanceStaffWorkspace
+        contexts={contexts}
+        scope="staff"
+        refreshVersion={0}
+        section="sessions"
+      />,
+      { wrapper: Providers },
+    );
+    await user.click(await screen.findByRole("button", { name: /جلسه کلاس الف/ }));
+    await user.click((await screen.findAllByRole("button", { name: "پرونده حضور" }))[0]);
+
+    expect(await screen.findByText("دبیرستان نمونه")).toBeInTheDocument();
+    expect(screen.getByText("هفتم الف")).toBeInTheDocument();
+    expect(screen.getByText("امتیاز")).toBeInTheDocument();
+    expect(screen.getByText("درصد حضور")).toBeInTheDocument();
+    expect(screen.getByText("تکمیل ثبت همه جلسه‌ها")).toBeInTheDocument();
+    expect(mocks.profile).toHaveBeenCalledWith("b");
+  });
   it("requires a reason before a reviewer can cancel an unmarked session", async () => {
     mocks.detail.mockResolvedValue({
       id: "session",

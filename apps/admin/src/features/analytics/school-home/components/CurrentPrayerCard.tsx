@@ -129,7 +129,6 @@ export const CurrentPrayerCard = memo(function CurrentPrayerCard({
         "
       />
 
-
       {/* Prayer details */}
       <div className="relative z-10 min-w-0 flex-1">
         <div className="flex items-center gap-1.5">

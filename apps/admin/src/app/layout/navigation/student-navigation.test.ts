@@ -4,7 +4,7 @@ import { navigationForCapabilities, resolveAdminNavigation } from "./config/admi
 describe("student navigation", () => {
   it("adds registration only when the student has registration access", () => {
     const paths = navigationForCapabilities(
-      ["schedule.read", "attendance.self.read", "registration.read"] as const,
+      ["schedule.read", "attendance.self.read", "leave.manage", "registration.read"] as const,
       "STUDENT",
     ).flatMap((group) => group.items.map((item) => item.path));
 
@@ -13,6 +13,8 @@ describe("student navigation", () => {
       "schedule",
       "books",
       "my-attendance",
+      "student-leave",
+      "communication/notifications",
       "registration",
       "profile",
       "settings",
@@ -31,6 +33,14 @@ describe("student navigation", () => {
     expect(resolveAdminNavigation("/admin/schedule", "STUDENT")).toMatchObject({
       section: "برنامه من",
       path: "schedule",
+    });
+    expect(resolveAdminNavigation("/admin/student-leave", "STUDENT")).toMatchObject({
+      section: "درخواست‌های من",
+      path: "student-leave",
+    });
+    expect(resolveAdminNavigation("/admin/communication/notifications", "STUDENT")).toMatchObject({
+      section: "اعلان‌ها",
+      path: "communication/notifications",
     });
   });
 });

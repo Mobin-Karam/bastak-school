@@ -29,6 +29,7 @@ import { AttendanceWriteReceipt } from "../../database/entities/attendance-write
 import { AttendancePolicy } from "../../database/entities/attendance-policy.entity";
 import { AuditLog } from "../../database/entities/audit-log.entity";
 import { Student } from "../../database/entities/student.entity";
+import { EducationClassEnrollment } from "../../database/entities/education-class-enrollment.entity";
 import { User, UserStatus } from "../../database/entities/user.entity";
 import { AuthenticatedUser } from "../auth";
 import { SchoolAccessService } from "../school-access";
@@ -74,10 +75,16 @@ export class AttendanceOperationsService {
     if (!user.capabilities?.includes(capability))
       throw new ApiException(403, "FORBIDDEN", "دسترسی کافی ندارید.");
   }
-  private staff(user: AuthenticatedUser, capability = "attendance.review") {
-    this.requireCapability(user, capability);
+  private staff(
+    user: AuthenticatedUser,
+    capabilities: string | readonly string[] = ["attendance.review"],
+  ) {
+    const allowed = typeof capabilities === "string" ? [capabilities] : capabilities;
+    if (!allowed.some((capability) => user.capabilities?.includes(capability)))
+      throw new ApiException(403, "FORBIDDEN", "دسترسی کافی ندارید.");
     if (
       ![
+        "TEACHER",
         "PRINCIPAL",
         "SCHOOL_SUPERVISOR",
         "ORGANIZATION_ADMIN",
@@ -87,7 +94,7 @@ export class AttendanceOperationsService {
       throw new ApiException(
         403,
         "FORBIDDEN",
-        "این بخش فقط برای مدیر و ناظر مدرسه است.",
+        "این بخش فقط برای معلم، مدیر و ناظر مدرسه است.",
       );
   }
   private async orgIds(user: AuthenticatedUser) {
@@ -1021,20 +1028,30 @@ export class AttendanceOperationsService {
     total: number;
     hasNext: boolean;
   }> {
-    this.staff(user);
+    this.staff(user, ["attendance.review", "attendance.class.read"]);
     const ids = await this.orgIds(user);
     const page = query.page ?? 1;
     const limit = query.limit ?? 25;
-    const [rows, total] = ids.length
-      ? await this.sessions.findAndCount({
+    const schoolWide = this.attendance.hasSchoolWideScope(user);
+    const sessionQuery = {
           where: { organization: { id: In(ids) } },
-          relations: { records: true },
+          relations: { records: true, organization: true },
           order: { sessionDate: "DESC" },
-          skip: (page - 1) * limit,
-          take: limit,
-        })
-      : [[], 0];
-    const items = rows.map((session) => {
+        } as const;
+    const [rows, total] = !ids.length
+      ? [[], 0]
+      : schoolWide
+        ? await this.sessions.findAndCount({
+            ...sessionQuery,
+            skip: (page - 1) * limit,
+            take: limit,
+          })
+        : [await this.sessions.find(sessionQuery), 0];
+    const visibleRows = await this.visibleSessions(user, rows);
+    const pageRows = schoolWide
+      ? visibleRows
+      : visibleRows.slice((page - 1) * limit, page * limit);
+    const items = pageRows.map((session) => {
       const counts = this.counts(session.records ?? []);
       return {
         id: session.id,
@@ -1057,18 +1074,25 @@ export class AttendanceOperationsService {
               ),
       };
     });
-    return { items, page, limit, total, hasNext: page * limit < total };
+    return {
+      items,
+      page,
+      limit,
+      total: schoolWide ? total : visibleRows.length,
+      hasNext: schoolWide ? page * limit < total : page * limit < visibleRows.length,
+    };
   }
   async dailyOverview(
     user: AuthenticatedUser,
   ): Promise<AttendanceDailyOverview> {
-    this.staff(user);
+    this.staff(user, ["attendance.review", "attendance.class.read"]);
     const ids = await this.orgIds(user);
     const window = attendanceSummaryWindow();
     const rows = ids.length
       ? await this.sessions
           .createQueryBuilder("session")
           .leftJoinAndSelect("session.records", "record")
+          .leftJoinAndSelect("session.organization", "organization")
           .where("session.organizationId IN (:...ids)", { ids })
           .andWhere(
             "session.sessionDate >= :start AND session.sessionDate < :end",
@@ -1076,17 +1100,18 @@ export class AttendanceOperationsService {
           )
           .getMany()
       : [];
+    const visibleRows = await this.visibleSessions(user, rows);
     return {
       day: window.day,
       startsAt: window.startsAt.toISOString(),
       resetsAt: window.resetsAt.toISOString(),
       timeZone: zone,
-      sessions: rows.length,
-      present: rows.reduce((n, s) => n + this.counts(s.records).present, 0),
-      absent: rows.reduce((n, s) => n + this.counts(s.records).absent, 0),
-      late: rows.reduce((n, s) => n + this.counts(s.records).late, 0),
-      excused: rows.reduce((n, s) => n + this.counts(s.records).excused, 0),
-      unmarked: rows.reduce(
+      sessions: visibleRows.length,
+      present: visibleRows.reduce((n, s) => n + this.counts(s.records).present, 0),
+      absent: visibleRows.reduce((n, s) => n + this.counts(s.records).absent, 0),
+      late: visibleRows.reduce((n, s) => n + this.counts(s.records).late, 0),
+      excused: visibleRows.reduce((n, s) => n + this.counts(s.records).excused, 0),
+      unmarked: visibleRows.reduce(
         (n, s) =>
           n +
           Math.max(
@@ -1194,12 +1219,12 @@ export class AttendanceOperationsService {
     user: AuthenticatedUser,
     id: string,
   ): Promise<StaffAttendanceProfile> {
-    this.staff(user);
+    this.staff(user, ["attendance.review", "attendance.class.read"]);
     const ids = await this.orgIds(user);
     const student = ids.length
       ? await this.repo(Student).findOne({
           where: { id, organization: { id: In(ids) } },
-          relations: { user: true },
+          relations: { user: true, organization: true },
         })
       : null;
     if (!student || student.user?.id === user.id)
@@ -1208,16 +1233,86 @@ export class AttendanceOperationsService {
         "STUDENT_NOT_FOUND",
         "پرونده مجاز طلبه پیدا نشد.",
       );
+    const enrollments = await this.repo(EducationClassEnrollment).find({
+      where: { student: { id } },
+      relations: { classroom: { organization: true } },
+    });
+    const schoolWide = this.attendance.hasSchoolWideScope(user);
+    const organizationEnrollments = enrollments.filter(({ classroom }) =>
+      ids.includes(classroom.organization.id),
+    );
+    const visibleEnrollments = schoolWide
+      ? organizationEnrollments
+      : (
+          await Promise.all(
+            organizationEnrollments.map(async (enrollment) => {
+              try {
+                await this.attendance.authorizeContext(
+                  user,
+                  "class",
+                  enrollment.classroom.id,
+                  enrollment.classroom.organization.id,
+                  false,
+                );
+                return enrollment;
+              } catch (error) {
+                if (error instanceof ApiException && error.getStatus() === 403)
+                  return null;
+                throw error;
+              }
+            }),
+          )
+        ).filter((enrollment): enrollment is EducationClassEnrollment => Boolean(enrollment));
+    if (!schoolWide && !visibleEnrollments.length)
+      throw new ApiException(404, "STUDENT_NOT_FOUND", "پرونده مجاز دانش‌آموز پیدا نشد.");
+
     const rows = await this.repo(AttendanceRecord).find({
       where: { student: { id }, session: { organization: { id: In(ids) } } },
       relations: { session: true },
       order: { createdAt: "DESC" },
     });
+    const visibleClassIds = new Set(visibleEnrollments.map(({ classroom }) => classroom.id));
+    const visibleRows = schoolWide
+      ? rows
+      : rows.filter(
+          (row) =>
+            row.session.contextType === "class" && visibleClassIds.has(row.session.contextId),
+        );
+    const points = await this.repo(StudentPointLedger).find({
+      where: { student: { id }, organization: { id: student.organization!.id } },
+    });
+    const counts = this.counts(visibleRows);
+    const totalSessions = visibleRows.length;
+    const attendanceRate = totalSessions
+      ? Math.round(((counts.present + counts.late) / totalSessions) * 100)
+      : null;
+    const eligibleSessions = await this.sessions.find({
+      where: { organization: { id: student.organization!.id } },
+      select: { id: true, rosterSnapshot: true, contextType: true, contextId: true },
+    });
+    const visibleSessions = schoolWide
+      ? eligibleSessions
+      : eligibleSessions.filter(
+          (session) =>
+            session.contextType === "class" && visibleClassIds.has(session.contextId),
+        );
+    const eligibleSessionCount = visibleSessions.filter((session) =>
+      (session.rosterSnapshot ?? []).some((member) => member.id === id),
+    ).length;
     return {
       studentId: id,
       name: student.name,
-      counts: this.counts(rows),
-      records: rows.slice(0, 200).map((row) => ({
+      schoolName: student.organization?.name ?? "—",
+      classNames: visibleEnrollments.map(({ classroom }) => classroom.name),
+      points: points.reduce((total, row) => total + row.points, 0),
+      attendanceRate,
+      attendanceCoverage: eligibleSessionCount
+        ? Math.round((totalSessions / eligibleSessionCount) * 100)
+        : null,
+      totalSessions,
+      scopedToTeacherClasses: !schoolWide,
+      counts,
+      records: visibleRows.slice(0, 200).map((row) => ({
         id: row.id,
         sessionId: row.session.id,
         title: row.session.titleSnapshot || "جلسه ثبت‌شده",
@@ -1267,6 +1362,34 @@ export class AttendanceOperationsService {
     const counts = { present: 0, absent: 0, late: 0, excused: 0 };
     for (const row of rows) counts[row.status]++;
     return counts;
+  }
+  /** Teachers see only sessions whose context is assigned to them; school-wide roles keep their full scope. */
+  private async visibleSessions(user: AuthenticatedUser, sessions: AttendanceSession[]) {
+    if (this.attendance.hasSchoolWideScope(user)) return sessions;
+    return (
+      await Promise.all(
+        sessions.map(async (session) => {
+          if (
+            !session.organization ||
+            !["class", "class_group", "study_group"].includes(session.contextType)
+          )
+            return null;
+          try {
+            await this.attendance.authorizeContext(
+              user,
+              session.contextType,
+              session.contextId,
+              session.organization.id,
+              false,
+            );
+            return session;
+          } catch (error) {
+            if (error instanceof ApiException && error.getStatus() === 403) return null;
+            throw error;
+          }
+        }),
+      )
+    ).filter((session): session is AttendanceSession => Boolean(session));
   }
   private async audit(
     manager: EntityManager,

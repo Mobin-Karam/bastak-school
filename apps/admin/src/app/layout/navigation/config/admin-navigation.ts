@@ -1,5 +1,6 @@
 import {
   Building2,
+  Bell,
   BookOpen,
   CalendarDays,
   ClipboardCheck,
@@ -139,6 +140,13 @@ export const adminNavigation = [
         description: "اتاق‌ها، تخصیص طلبه‌ها و حضور شبانه",
         icon: Building2,
         capability: "dormitory.read",
+      },
+      {
+        path: "permission-requests",
+        title: "درخواست‌های مجوز",
+        description: "درخواست‌های ورودی دانش‌آموزان را بررسی و نتیجه را ثبت کنید",
+        icon: ClipboardCheck,
+        capability: "permission_requests.read",
       },
       {
         path: "users",
@@ -290,6 +298,29 @@ const studentNavigation: readonly NavigationGroup[] = [
         description: "خلاصه حضور و ثبت حضور اتاق‌های واگذار شده",
         icon: ClipboardCheck,
         capability: "attendance.self.read",
+      },
+    ],
+  },
+  {
+    section: "درخواست‌های من",
+    items: [
+      {
+        path: "student-leave",
+        title: "خروج و مرخصی",
+        description: "ثبت و پیگیری درخواست خروج موقت یا مرخصی",
+        icon: DoorOpen,
+        capability: "leave.manage",
+      },
+    ],
+  },
+  {
+    section: "اعلان‌ها",
+    items: [
+      {
+        path: "communication/notifications",
+        title: "اعلان‌ها",
+        description: "پیام‌ها و اطلاعیه‌های شخصی مدرسه",
+        icon: Bell,
       },
     ],
   },
@@ -506,6 +537,8 @@ const en: Record<string, string> = {
   "مدارس / سازمان‌ها": "Schools / organizations",
   "وضعیت سامانه": "System status",
   "تنظیمات حساب": "Account settings",
+  اعلان‌ها: "Notifications",
+  "پیام‌ها و اطلاعیه‌های شخصی مدرسه": "Your school messages and announcements",
 };
 
 function localizeText(value: string, language: AdminLanguage) {

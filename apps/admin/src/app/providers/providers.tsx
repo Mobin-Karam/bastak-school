@@ -9,6 +9,7 @@ import { ThemeProvider } from "../../shared/theme/theme";
 import { LocaleProvider } from "../../shared/ui/locale";
 import { ModalProvider } from "../../shared/ui/modal";
 import { AppToaster } from "../../shared/ui/notifications";
+import { FloatingIslandProvider } from "../../shared/ui/floating-island";
 
 import { queryClient } from "./query-client";
 
@@ -20,7 +21,7 @@ export function AppProviders({ children }: { children: ReactNode }) {
           <ModalProvider>
             <AuthProvider>
               <NotificationProvider>
-                {children}
+                <FloatingIslandProvider>{children}</FloatingIslandProvider>
                 <PWAProvider />
               </NotificationProvider>
             </AuthProvider>

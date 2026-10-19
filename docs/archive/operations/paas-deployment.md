@@ -1,6 +1,6 @@
 # Moshaver v2 PaaS deployment
 
-For the supported Coolify setup, use [the Coolify deployment guide](coolify-deployment.md) and `docker-compose.coolify.yml`. This document remains the provider-neutral topology and release reference.
+For the supported Coolify setup, use [the Coolify deployment guide](../../operations/coolify-deployment.md) and `docker-compose.coolify.yml`. This document remains the provider-neutral topology and release reference.
 
 The current production topology is three Docker services: one API, one Student web service, and one Admin web service. SQLite is the active database, so the API must run as exactly one replica with a persistent disk mounted at `/data`. Do not enable horizontal API scaling until the PostgreSQL adapter and migration path have been validated.
 

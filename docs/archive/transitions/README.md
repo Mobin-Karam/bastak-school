@@ -1,4 +1,4 @@
-# Transition and compatibility work
+# Archived transition and compatibility work
 
 These documents track transitions, gaps and delivery plans. Their status may change after a release; verify the current implementation and contract before using them as a runbook.
 
@@ -7,4 +7,4 @@ These documents track transitions, gaps and delivery plans. Their status may cha
 - [Student v1-to-v2 audit](./student-v1-to-v2-audit.md), [parity gaps](./student-v2-parity-gaps.md) and [delivery plan](./student-v2-delivery-plan.md)
 - [Student and family exam audit](./STUDENT_FAMILY_EXAM_AUDIT.md)
 
-Current release instructions live in [operations](../operations/README.md).
+Current release instructions live in [operations](../../operations/README.md).

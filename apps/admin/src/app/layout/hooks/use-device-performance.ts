@@ -1,5 +1,8 @@
 import { useEffect, useState } from "react";
-import { resolveAdminPerformanceProfile, type AdminPerformanceProfile } from "../lib/device-performance";
+import {
+  resolveAdminPerformanceProfile,
+  type AdminPerformanceProfile,
+} from "../lib/device-performance";
 
 type NavigatorWithDeviceHints = Navigator & {
   connection?: {

@@ -122,7 +122,7 @@ export class StudentAdministrationService {
         },
         order: { createdAt: "DESC" },
       });
-      return rows.map((student) => this.project(student));
+      return this.projectMany(rows);
     }
 
     const links = await this.relationships.find({
@@ -154,8 +154,8 @@ export class StudentAdministrationService {
           "students.read",
         ))
       )
-        allowed.push(this.project(student));
-    return allowed;
+        allowed.push(student);
+    return this.projectMany(allowed);
   }
 
   async get(user: AuthenticatedUser, id: string, capability = "students.read") {
@@ -213,7 +213,7 @@ export class StudentAdministrationService {
     }
 
     return {
-      ...this.project(student),
+      ...(await this.project(student)),
       identity: {
         firstName: student.user?.firstName ?? "",
         lastName: student.user?.lastName ?? "",
@@ -928,7 +928,45 @@ export class StudentAdministrationService {
     }
   }
 
-  private project(student: Student) {
+  private async projectMany(students: Student[]) {
+    if (!students.length) return [];
+    const guardianRelationships = await this.relationships.find({
+      where: {
+        toStudent: { id: In(students.map((student) => student.id)) },
+        type: "GUARDIAN_OF" as any,
+        status: RelationshipStatus.ACTIVE,
+      },
+      relations: { fromUser: true, toStudent: true },
+      order: { createdAt: "ASC" },
+    });
+    const byStudent = new Map<string, UserRelationship[]>();
+    for (const relationship of guardianRelationships) {
+      const relationships = byStudent.get(relationship.toStudent.id) ?? [];
+      relationships.push(relationship);
+      byStudent.set(relationship.toStudent.id, relationships);
+    }
+    return Promise.all(
+      students.map((student) =>
+        this.project(student, byStudent.get(student.id) ?? []),
+      ),
+    );
+  }
+
+  private async project(
+    student: Student,
+    linkedGuardians?: UserRelationship[],
+  ) {
+    const guardianRelationships =
+      linkedGuardians ??
+      (await this.relationships.find({
+        where: {
+          toStudent: { id: student.id },
+          type: "GUARDIAN_OF" as any,
+          status: RelationshipStatus.ACTIVE,
+        },
+        relations: { fromUser: true },
+        order: { createdAt: "ASC" },
+      }));
     return {
       id: student.id,
       name: student.name,
@@ -964,6 +1002,14 @@ export class StudentAdministrationService {
             status: student.user.status,
           }
         : null,
+      guardians: guardianRelationships.map((relationship) => ({
+        id: relationship.fromUser.id,
+        name:
+          [relationship.fromUser.firstName, relationship.fromUser.lastName]
+            .filter(Boolean)
+            .join(" ") || "—",
+        phoneNumber: relationship.fromUser.phoneNumber ?? null,
+      })),
       createdAt: student.createdAt,
       updatedAt: student.updatedAt,
     };

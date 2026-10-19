@@ -94,6 +94,11 @@ export function notificationAdminUrl(url?: string) {
     return url;
   }
 
+  if (url.startsWith("/attendance")) {
+    const query = url.includes("?") ? url.slice(url.indexOf("?")) : "";
+    return `/admin/attendance${query}`;
+  }
+
   if (
     url.startsWith("/communication/chat") ||
     url.startsWith("/chat") ||

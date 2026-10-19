@@ -1,9 +1,9 @@
-import { CheckCircle2, ChevronLeft, ChevronRight, UsersRound } from "lucide-react";
+import { CheckCircle2, ChevronLeft, ChevronRight, ShieldCheck, UsersRound } from "lucide-react";
 import type { ReactNode } from "react";
 
 import type { Student } from "../../../../shared/types/domain";
 import { AdminDataTable } from "../../../../shared/ui/admin-data-table";
-import { Button, Card, Select } from "../../../../shared/ui/ui";
+import { Button, Select } from "../../../../shared/ui/ui";
 import { CollectionToolbar } from "../../../../shared/ui/collection-toolbar";
 import { useOptionalAdminLanguage } from "../../../../shared/ui/locale";
 import {
@@ -139,8 +139,21 @@ export function StudentList({
     .replace("{total}", filteredTotal.toLocaleString(locale));
 
   return (
-    <Card className="min-w-0 overflow-hidden p-0 min-[1200px]:flex min-[1200px]:h-full min-[1200px]:min-h-0 min-[1200px]:flex-col">
+    <section className="min-w-0 overflow-hidden rounded-2xl border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card))] shadow-[var(--shadow-surface)] min-[1200px]:flex min-[1200px]:h-full min-[1200px]:min-h-0 min-[1200px]:flex-col">
       <div className="z-10 grid shrink-0 gap-3 border-b border-slate-200 bg-[rgb(var(--surface-card))] p-3 sm:p-4 dark:border-slate-800">
+        <div className="flex items-start gap-3">
+          <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-brand/10 text-brand">
+            <UsersRound size={19} aria-hidden="true" />
+          </span>
+          <div className="min-w-0">
+            <h2 className="text-sm font-black text-ink">{copy.students}</h2>
+            <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
+              {language === "fa"
+                ? "جست‌وجو، بررسی پرونده و پیگیری وضعیت حساب از یک فضای کاری"
+                : "Search, review records, and manage account status in one workspace."}
+            </p>
+          </div>
+        </div>
         <CollectionToolbar
           search={search}
           onSearchChange={setSearch}
@@ -283,6 +296,17 @@ export function StudentList({
             ),
           },
           {
+            id: "guardians",
+            header: language === "fa" ? "سرپرست‌ها" : "Guardians",
+            className: "min-w-28",
+            cell: (student) => (
+              <span className="inline-flex items-center gap-1.5 text-xs text-slate-600 dark:text-slate-300">
+                <ShieldCheck size={14} className="text-brand" aria-hidden="true" />
+                {(student.guardians?.length || 0).toLocaleString(locale)}
+              </span>
+            ),
+          },
+          {
             id: "completeness",
             header: copy.profileCompletionShort,
             sortLabel: copy.profileCompletionShort,
@@ -301,6 +325,35 @@ export function StudentList({
             ),
           },
         ]}
+        mobileCard={(student) => (
+          <div className="grid gap-3">
+            <div className="flex min-w-0 items-start justify-between gap-3">
+              <div className="min-w-0">
+                <strong className="block truncate text-sm text-ink">{student.name}</strong>
+                <span className="mt-1 block truncate text-xs text-slate-500" dir="ltr">
+                  {getStudentUsername(student) || copy.usernameNotSet}
+                </span>
+              </div>
+              <StudentStatus student={student} language={language} />
+            </div>
+            <div className="grid grid-cols-2 gap-2 border-t border-slate-100 pt-3 text-xs dark:border-slate-800">
+              <span className="text-slate-500">
+                {language === "fa" ? "تحصیل" : "Education"}
+                <strong className="mt-1 block truncate text-slate-700 dark:text-slate-200">
+                  {[student.grade, student.major].filter(Boolean).join(" / ") ||
+                    copy.educationNotSet}
+                </strong>
+              </span>
+              <span className="text-slate-500">
+                {language === "fa" ? "سرپرست" : "Guardians"}
+                <strong className="mt-1 block text-slate-700 dark:text-slate-200">
+                  {(student.guardians?.length || 0).toLocaleString(locale)}
+                </strong>
+              </span>
+            </div>
+            <Completeness student={student} language={language} />
+          </div>
+        )}
         footer={
           <div className="z-[1] flex shrink-0 flex-wrap items-center justify-between gap-3 border-t border-slate-200 bg-[rgb(var(--surface-card))] p-3 sm:p-4 dark:border-slate-800">
             <label className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
@@ -350,6 +403,6 @@ export function StudentList({
           ) : undefined
         }
       />
-    </Card>
+    </section>
   );
 }

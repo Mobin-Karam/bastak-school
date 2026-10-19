@@ -5,6 +5,7 @@ import { Button, Field, Input } from "../../../../shared/ui/ui";
 import { api } from "../../../../shared/api/api";
 import { useOptionalAdminLanguage } from "../../../../shared/ui/locale";
 import { DatePicker } from "../../../../shared/ui/date-picker";
+import type { Student } from "../../../../shared/types/domain";
 import type { StudentForm } from "../model/student-form";
 import { studentCopy } from "../model/student-locale";
 
@@ -84,6 +85,7 @@ export function StudentEditor({
   dirty,
   saveDirty,
   usernameError,
+  student,
 }: {
   mode: Exclude<StudentEditorMode, "empty">;
   form: StudentForm;
@@ -95,6 +97,7 @@ export function StudentEditor({
   dirty: boolean;
   saveDirty: boolean;
   usernameError?: string;
+  student?: Student;
 }) {
   const [activeStep, setActiveStep] = useState<1 | 2 | 3 | 4 | 5>(1);
   const language = useOptionalAdminLanguage() ?? "fa";
@@ -330,6 +333,34 @@ export function StudentEditor({
               : "Mother and father are optional. Each account can access only linked students."}
           </p>
         </div>
+        {mode === "edit" ? (
+          <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-xs dark:border-slate-800 dark:bg-slate-900">
+            <strong className="block text-slate-700 dark:text-slate-200">
+              {language === "fa" ? "سرپرست‌های فعلی" : "Current linked guardians"}
+            </strong>
+            {student?.guardians?.length ? (
+              <ul className="mt-2 grid gap-1.5 sm:grid-cols-2">
+                {student.guardians.map((guardian) => (
+                  <li key={guardian.id} className="rounded bg-white px-2 py-1.5 dark:bg-slate-950">
+                    <span className="font-semibold text-ink">{guardian.name}</span>
+                    <span className="ms-1 text-slate-500" dir="ltr">
+                      {guardian.phoneNumber || "—"}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="mt-1.5 text-slate-500">
+                {language === "fa" ? "سرپرستی پیوند نخورده است." : "No guardian is linked yet."}
+              </p>
+            )}
+            <p className="mt-2 text-slate-500">
+              {language === "fa"
+                ? "گذرواژه‌های قبلی نمایش داده نمی‌شوند. برای افزودن سرپرست جدید، شماره و گذرواژه را وارد کنید."
+                : "Existing passwords are never shown. Enter a phone number and password only to add a guardian."}
+            </p>
+          </div>
+        ) : null}
         <div className="grid gap-3 sm:grid-cols-2">
           <Field label={language === "fa" ? "شماره مادر" : "Mother phone"}>
             <Input

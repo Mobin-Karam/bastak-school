@@ -1,5 +1,6 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { LocaleProvider } from "../../../../shared/ui/locale";
@@ -33,9 +34,38 @@ vi.mock("../../../student-life/attendance/api/attendance-operations.api.ts", () 
     absent: 1,
     late: 0,
     excused: 0,
+    points: 8,
     attendanceRate: 67,
     message: "برای حضور منظم‌تر برنامه‌ریزی کنید.",
   }),
+}));
+vi.mock("../../../student-life/attendance/api/attendance.api.ts", () => ({
+  listSelfAttendance: async () => [
+    {
+      id: "attendance-1",
+      sessionId: "session-1",
+      status: "present",
+      note: "",
+      title: "فقه کاربردی · کلاس دهم",
+      sessionDate: "2026-10-08T08:00:00.000Z",
+      contextType: "class",
+      contextId: "class-1",
+      organizationId: "org-1",
+      recordedAt: "2026-10-08T09:00:00.000Z",
+    },
+    {
+      id: "attendance-2",
+      sessionId: "session-2",
+      status: "absent",
+      note: "غیبت ثبت‌شده",
+      title: "اخلاق · کلاس دهم",
+      sessionDate: "2026-10-07T08:00:00.000Z",
+      contextType: "class",
+      contextId: "class-1",
+      organizationId: "org-1",
+      recordedAt: "2026-10-07T09:00:00.000Z",
+    },
+  ],
 }));
 vi.mock("../api/dashboard.api.ts", () => ({
   getAdminDashboard: async () => ({
@@ -103,16 +133,41 @@ describe("StudentDashboard", () => {
 
     const dashboard = await screen.findByRole("region", { name: "خانه دانش‌آموز" });
     expect(dashboard).toBeVisible();
-    expect(dashboard).toHaveClass("overflow-hidden");
+    expect(dashboard).toHaveClass("student-dashboard");
     expect(screen.getByRole("region", { name: "کلاس جاری" })).toHaveTextContent("فقه کاربردی");
     expect(
       screen.getByRole("region", { name: "وقت شرعی پیش رو" }).querySelector("time"),
     ).toBeVisible();
     expect(screen.getByRole("region", { name: "زمان کلاس‌های امروز" })).toHaveTextContent("۰۸:۰۰");
     expect(screen.getByRole("region", { name: "خلاصه حضور و غیاب" })).toHaveTextContent("حاضر");
+    expect(screen.getByRole("region", { name: "خلاصه حضور و غیاب" })).toHaveTextContent("۸");
+    expect(document.querySelector('img[src="/images/mascots/zanin-coin.svg"]')).toBeVisible();
     expect(screen.getByRole("link", { name: "همه" })).toHaveAttribute("href", "/admin/schedule");
     fireEvent.click(screen.getByRole("button", { name: /باز کردن ۱ پیام مدرسه/ }));
     expect(screen.getByRole("dialog")).toHaveTextContent("برنامه مراسم صبحگاه");
     expect(screen.queryByRole("link", { name: /مشاهده همه/ })).not.toBeInTheDocument();
+  });
+
+  it("opens the complete attendance drawer with points and per-class history", async () => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    render(
+      <MemoryRouter>
+        <QueryClientProvider client={client}>
+          <LocaleProvider>
+            <StudentDashboard />
+          </LocaleProvider>
+        </QueryClientProvider>
+      </MemoryRouter>,
+    );
+
+    await user.click(await screen.findByRole("button", { name: "جزئیات" }));
+    const drawer = await screen.findByRole("dialog");
+    expect(drawer).toHaveTextContent("پرونده کامل حضور من");
+    expect(drawer).toHaveTextContent("۸");
+    expect(drawer).toHaveTextContent("فقه کاربردی · کلاس دهم");
+    expect(drawer).toHaveTextContent("اخلاق · کلاس دهم");
+    expect(drawer).toHaveTextContent("غایب");
+    expect(screen.getByRole("button", { name: "کشیدن برای بستن پنل" })).toBeVisible();
   });
 });

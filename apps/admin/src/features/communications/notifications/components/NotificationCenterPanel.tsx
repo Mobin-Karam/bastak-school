@@ -23,6 +23,7 @@ export function NotificationCenterPanel({
   search,
   setSearch,
   items,
+  compact = false,
 }: {
   /** Kept for existing callers; shell composition now decides whether to mount this panel. */
   mobilePanel?: "notifications" | "inbox";
@@ -33,6 +34,8 @@ export function NotificationCenterPanel({
   search: string;
   setSearch: Dispatch<SetStateAction<string>>;
   items: AdminNotification[];
+  /** Student mobile view keeps controls in a focused dialog. */
+  compact?: boolean;
 }) {
   const notifications = useAdminNotifications();
   const { formatDateTime, language } = useLocale();
@@ -59,77 +62,81 @@ export function NotificationCenterPanel({
             : copy.none
       }
       actions={
-        <>
-          {notifications.unread ? (
+        compact ? undefined : (
+          <>
+            {notifications.unread ? (
+              <Button
+                className="h-8 px-2 text-xs"
+                variant="ghost"
+                loading={notifications.markingAllRead}
+                onClick={notifications.markAllRead}
+              >
+                <CheckCheck size={15} />
+                {copy.markAll}
+              </Button>
+            ) : null}
             <Button
-              className="h-8 px-2 text-xs"
+              className="h-8 px-2"
               variant="ghost"
-              loading={notifications.markingAllRead}
-              onClick={notifications.markAllRead}
+              aria-label={copy.refresh}
+              loading={notifications.refreshing}
+              onClick={notifications.refresh}
             >
-              <CheckCheck size={15} />
-              {copy.markAll}
+              <RefreshCw size={15} />
             </Button>
-          ) : null}
-          <Button
-            className="h-8 px-2"
-            variant="ghost"
-            aria-label={copy.refresh}
-            loading={notifications.refreshing}
-            onClick={notifications.refresh}
-          >
-            <RefreshCw size={15} />
-          </Button>
-        </>
+          </>
+        )
       }
       toolbar={
-        <CollectionToolbar
-          search={search}
-          onSearchChange={setSearch}
-          placeholder={copy.searchPlaceholder}
-          searchLabel={copy.search}
-          searchInputType="text"
-          onClear={search ? () => setSearch("") : undefined}
-          filters={
-            <select
-              className="h-8 min-w-28 border-0 bg-transparent px-2 text-xs outline-none"
-              value={typeFilter}
-              onChange={(event) => setTypeFilter(event.target.value)}
-              aria-label={copy.type}
-            >
-              <option value="all">{copy.allTypes}</option>
-              <option value="message">{copy.message}</option>
-              <option value="exam">{copy.exam}</option>
-              <option value="lesson">{copy.lesson}</option>
-              <option value="announcement">{copy.announcement}</option>
-            </select>
-          }
-          actions={
-            <SegmentedControl
-              ariaLabel={copy.readState}
-              value={filter}
-              onValueChange={setFilter}
-              options={[
-                { value: "all", label: copy.all },
-                {
-                  value: "unread",
-                  label: (
-                    <>
-                      {copy.unread}{" "}
-                      {notifications.unread > 0 ? (
-                        <span className="rounded-full bg-rose-600 px-1.5 text-white">
-                          {notifications.unread.toLocaleString(
-                            language === "fa" ? "fa-IR" : "en-US",
-                          )}
-                        </span>
-                      ) : null}
-                    </>
-                  ),
-                },
-              ]}
-            />
-          }
-        />
+        compact ? undefined : (
+          <CollectionToolbar
+            search={search}
+            onSearchChange={setSearch}
+            placeholder={copy.searchPlaceholder}
+            searchLabel={copy.search}
+            searchInputType="text"
+            onClear={search ? () => setSearch("") : undefined}
+            filters={
+              <select
+                className="h-8 min-w-28 border-0 bg-transparent px-2 text-xs outline-none"
+                value={typeFilter}
+                onChange={(event) => setTypeFilter(event.target.value)}
+                aria-label={copy.type}
+              >
+                <option value="all">{copy.allTypes}</option>
+                <option value="message">{copy.message}</option>
+                <option value="exam">{copy.exam}</option>
+                <option value="lesson">{copy.lesson}</option>
+                <option value="announcement">{copy.announcement}</option>
+              </select>
+            }
+            actions={
+              <SegmentedControl
+                ariaLabel={copy.readState}
+                value={filter}
+                onValueChange={setFilter}
+                options={[
+                  { value: "all", label: copy.all },
+                  {
+                    value: "unread",
+                    label: (
+                      <>
+                        {copy.unread}{" "}
+                        {notifications.unread > 0 ? (
+                          <span className="rounded-full bg-rose-600 px-1.5 text-white">
+                            {notifications.unread.toLocaleString(
+                              language === "fa" ? "fa-IR" : "en-US",
+                            )}
+                          </span>
+                        ) : null}
+                      </>
+                    ),
+                  },
+                ]}
+              />
+            }
+          />
+        )
       }
       footer={
         notifications.hasMore ? (

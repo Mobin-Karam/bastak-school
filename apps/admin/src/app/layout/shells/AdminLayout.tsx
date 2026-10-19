@@ -9,6 +9,7 @@ import { useModal } from "../../../shared/ui/modal";
 import { Button } from "../../../shared/ui/ui";
 import { AdminShellChrome } from "./AdminShellChrome";
 import { SharedPageViewport } from "../components/SharedPageViewport";
+import { AdminFloatingIsland } from "../components/AdminFloatingIsland";
 import { useAdminShellModel } from "../hooks/use-admin-shell-model";
 import { useViewportShell } from "../lib/viewport-shell";
 import { currentViewportHeight } from "../lib/viewport-height";
@@ -99,6 +100,7 @@ export function AdminLayout() {
         </Suspense>
       ) : null}
       <AdminShellChrome shell={shell} model={model} onOpenCommandPalette={openCommandPalette} />
+      <AdminFloatingIsland model={model} />
       <SharedPageViewport
         contentOffsetClassName={
           shell === "desktop"

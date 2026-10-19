@@ -10,7 +10,7 @@ import type {
 import { useAuth } from "../../../identity/auth";
 import { api } from "../../../../shared/api/api";
 import { Card } from "../../../../shared/ui/ui";
-import { ResponsiveModal } from "../../../../shared/ui/responsive-modal";
+import { Modal } from "../../../../shared/ui/modal";
 import { notify } from "../../../../shared/ui/notifications";
 import { AttendanceRosterView } from "../views/AttendanceRosterView";
 import { AttendanceStatusTiles } from "./AttendanceStatusTiles";
@@ -53,8 +53,9 @@ function PoolConfirmation({
     }
   }
   return (
-    <ResponsiveModal
+    <Modal
       open
+      dismissible={!busy}
       onOpenChange={(open) => {
         if (!open && !busy) onClose();
       }}
@@ -98,7 +99,7 @@ function PoolConfirmation({
           هنوز در محل نیستم
         </button>
       </div>
-    </ResponsiveModal>
+    </Modal>
   );
 }
 
@@ -236,8 +237,9 @@ function DormAttendanceEditor({
   }
   return (
     <>
-      <ResponsiveModal
+      <Modal
         open
+        dismissible={!busy}
         onOpenChange={(open) => {
           if (!open) discard.request(onClose);
         }}
@@ -326,7 +328,7 @@ function DormAttendanceEditor({
             </>
           )}
         </div>
-      </ResponsiveModal>
+      </Modal>
       {discard.confirmation}
     </>
   );

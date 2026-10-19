@@ -1,4 +1,4 @@
-import { Download, Settings2 } from "lucide-react";
+import { Download, Medal, Settings2 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../identity/auth";
 import { localizedNavigationForCapabilities } from "../../app/layout/navigation/config/admin-navigation";
@@ -50,6 +50,25 @@ export function MobileMorePage() {
           </section>
         ))}
       </div>
+
+      <section aria-labelledby="mobile-more-future-features">
+        <h2
+          id="mobile-more-future-features"
+          className="mb-2 px-1 text-xs font-black text-slate-500 dark:text-slate-400"
+        >
+          به‌زودی
+        </h2>
+        <Link
+          to="/admin/achievements"
+          className="group flex min-h-28 flex-col rounded-2xl border border-slate-900 bg-slate-950 p-3 text-white outline-none transition duration-200 motion-reduce:transition-none hover:-translate-y-0.5 hover:bg-slate-800 focus-visible:ring-2 focus-visible:ring-brand active:scale-[0.98]"
+        >
+          <span className="grid size-10 place-items-center rounded-xl bg-white/10 text-white">
+            <Medal size={20} aria-hidden="true" />
+          </span>
+          <strong className="mt-3 text-sm">دستاوردها</strong>
+          <span className="mt-1 text-[10px] leading-4 text-slate-300">نشان‌ها و مسیر پیشرفت شما</span>
+        </Link>
+      </section>
 
       <section className="grid gap-2 rounded-2xl border border-brand/15 bg-brand/5 p-3">
         <button

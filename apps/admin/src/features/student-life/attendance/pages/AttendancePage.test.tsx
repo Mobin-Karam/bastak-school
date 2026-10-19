@@ -12,6 +12,7 @@ const {
   getAttendanceParticipantsMock,
   bulkMarkAttendanceMock,
   canMock,
+  canAnyMock,
   getSavedAttendanceSessionMock,
   submitAttendanceAbsencesMock,
 } = vi.hoisted(() => ({
@@ -20,6 +21,7 @@ const {
   getAttendanceParticipantsMock: vi.fn(),
   bulkMarkAttendanceMock: vi.fn(),
   canMock: vi.fn(),
+  canAnyMock: vi.fn(),
   getSavedAttendanceSessionMock: vi.fn(),
   submitAttendanceAbsencesMock: vi.fn(),
 }));
@@ -38,7 +40,11 @@ vi.mock("../api/attendance-operations.api.ts", () => ({
 }));
 
 vi.mock("../../../identity/auth", () => ({
-  useAuth: () => ({ can: canMock, context: { activeOrganization: { id: "org-1" } } }),
+  useAuth: () => ({
+    can: canMock,
+    canAny: canAnyMock,
+    context: { activeOrganization: { id: "org-1" } },
+  }),
 }));
 
 vi.mock("../components/AttendanceStaffWorkspace", () => ({
@@ -70,6 +76,9 @@ describe("AttendancePage", () => {
     );
     vi.clearAllMocks();
     canMock.mockImplementation((capability: string) => capability === "attendance.manage");
+    canAnyMock.mockImplementation((capabilities: readonly string[]) =>
+      capabilities.some((capability) => canMock(capability)),
+    );
     listAttendanceSessionsMock.mockResolvedValue([]);
     listAttendanceContextsMock.mockResolvedValue([]);
     getAttendanceParticipantsMock.mockResolvedValue([]);
@@ -107,6 +116,30 @@ describe("AttendancePage", () => {
     expect(await screen.findByText("فضای کار جلسات")).toBeInTheDocument();
     expect(screen.getByText("صف بررسی غیبت")).toBeInTheDocument();
     expect(screen.getByText("صف اصلاحات حضور")).toBeInTheDocument();
+  });
+  it("gives a teacher the sessions workspace without reviewer queues", async () => {
+    canMock.mockImplementation((capability: string) => capability === "attendance.class.read");
+    const user = userEvent.setup();
+    render(<AttendancePage />, { wrapper: TestProviders });
+    await user.click(await screen.findByRole("button", { name: /سوابق حضور/ }));
+    expect(await screen.findByText("فضای کار جلسات")).toBeInTheDocument();
+    expect(screen.queryByText("صف بررسی غیبت")).not.toBeInTheDocument();
+    expect(screen.queryByText("صف اصلاحات حضور")).not.toBeInTheDocument();
+  });
+
+  it("opens the review workspace from a principal or supervisor notification URL", async () => {
+    canMock.mockImplementation((capability: string) => capability === "attendance.review");
+    render(
+      <MemoryRouter initialEntries={["/admin/attendance?section=sessions&reviewRecordId=review-1"]}>
+        <LocaleProvider>
+          <AttendancePage />
+        </LocaleProvider>
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByText("فضای کار جلسات")).toBeInTheDocument();
+    expect(screen.getByText("صف بررسی غیبت")).toBeInTheDocument();
+    expect(screen.queryByText("صف اصلاحات حضور")).toBeInTheDocument();
   });
 
   it.each([false, true])("loads a roster in the responsive panel (mobile: %s)", async (mobile) => {

@@ -14,6 +14,8 @@ import { useAuth } from "../../../identity/auth";
 import { useLocale } from "../../../../shared/ui/locale";
 import { notificationCopy } from "../model/notification-copy";
 import { useViewportShell } from "../../../../app/layout/lib/viewport-shell";
+import { Button, Input } from "../../../../shared/ui/ui";
+import { SegmentedControl } from "../../../../shared/ui/segmented-control";
 
 const notificationTypes = ["all", "message", "exam", "lesson", "announcement"] as const;
 
@@ -47,6 +49,7 @@ export function NotificationsPage() {
   const search = params.get("q") || "";
   const [mobilePanel, setMobilePanel] = useState<"notifications" | "inbox">("notifications");
   const isMobileShell = useViewportShell() === "mobile";
+  const isStudentMobile = isMobileShell && auth.activeRole === "STUDENT";
 
   function setNotificationView(nextView: { filter?: "all" | "unread"; type?: string; q?: string }) {
     setParams(
@@ -74,18 +77,43 @@ export function NotificationsPage() {
     search,
   });
 
+  const openSettings = () =>
+    modal.open({
+      title: copy.settingsTitle,
+      size: "lg",
+      content: <NotificationSettings notifications={notifications} language={language} />,
+    });
+
+  const openStudentControls = () =>
+    modal.open({
+      title: copy.notificationOptions,
+      description: copy.filterNotifications,
+      size: "md",
+      content: (
+        <StudentNotificationControls
+          copy={copy}
+          filter={filter}
+          typeFilter={typeFilter}
+          search={search}
+          unread={notifications.unread}
+          markingAllRead={notifications.markingAllRead}
+          refreshing={notifications.refreshing}
+          onFilterChange={(next) => setNotificationView({ filter: next })}
+          onTypeFilterChange={(next) => setNotificationView({ type: next })}
+          onSearchChange={(next) => setNotificationView({ q: next })}
+          onMarkAllRead={notifications.markAllRead}
+          onRefresh={notifications.refresh}
+          onOpenSettings={openSettings}
+        />
+      ),
+    });
+
   return (
     <div className="flex h-[calc(100dvh-132px)] min-h-0 flex-col gap-3 overflow-hidden lg:h-[calc(100dvh-96px)]">
       <NotificationsToolbar
-        onOpenSettings={() =>
-          modal.open({
-            title: copy.settingsTitle,
-            size: "lg",
-            // Important: global modal providers may render outside NotificationProvider.
-            // Passing the controller avoids a context crash in modal content.
-            content: <NotificationSettings notifications={notifications} language={language} />,
-          })
-        }
+        onOpenSettings={openSettings}
+        studentMobile={isStudentMobile}
+        onOpenStudentControls={openStudentControls}
       />
 
       {access.advisorInbox && isMobileShell ? (
@@ -118,6 +146,7 @@ export function NotificationsPage() {
               setNotificationView({ q: typeof next === "function" ? next(search) : next })
             }
             items={items}
+            compact={isStudentMobile}
           />
         ) : null}
 
@@ -141,6 +170,87 @@ export function NotificationsPage() {
           />
         ) : null}
       </section>
+    </div>
+  );
+}
+
+function StudentNotificationControls({
+  copy,
+  filter,
+  typeFilter,
+  search,
+  unread,
+  markingAllRead,
+  refreshing,
+  onFilterChange,
+  onTypeFilterChange,
+  onSearchChange,
+  onMarkAllRead,
+  onRefresh,
+  onOpenSettings,
+}: {
+  copy: Record<string, string>;
+  filter: "all" | "unread";
+  typeFilter: string;
+  search: string;
+  unread: number;
+  markingAllRead: boolean;
+  refreshing: boolean;
+  onFilterChange: (value: "all" | "unread") => void;
+  onTypeFilterChange: (value: string) => void;
+  onSearchChange: (value: string) => void;
+  onMarkAllRead: () => void;
+  onRefresh: () => void;
+  onOpenSettings: () => void;
+}) {
+  return (
+    <div className="grid gap-4" dir="rtl">
+      <SegmentedControl
+        ariaLabel={copy.readState}
+        value={filter}
+        onValueChange={onFilterChange}
+        options={[
+          { value: "all", label: copy.all },
+          {
+            value: "unread",
+            label: `${copy.unread}${unread ? ` (${unread.toLocaleString("fa-IR")})` : ""}`,
+          },
+        ]}
+      />
+      <label className="grid gap-1.5 text-sm font-bold text-ink">
+        {copy.search}
+        <Input
+          type="search"
+          value={search}
+          onChange={(event) => onSearchChange(event.target.value)}
+          placeholder={copy.searchPlaceholder}
+        />
+      </label>
+      <label className="grid gap-1.5 text-sm font-bold text-ink">
+        {copy.type}
+        <select
+          className="h-11 rounded-lg border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card))] px-3 text-sm text-ink outline-none focus-visible:ring-2 focus-visible:ring-brand"
+          value={typeFilter}
+          onChange={(event) => onTypeFilterChange(event.target.value)}
+        >
+          <option value="all">{copy.allTypes}</option>
+          <option value="message">{copy.message}</option>
+          <option value="exam">{copy.exam}</option>
+          <option value="lesson">{copy.lesson}</option>
+          <option value="announcement">{copy.announcement}</option>
+        </select>
+      </label>
+      <div className="grid gap-2 sm:grid-cols-2">
+        <Button variant="soft" loading={refreshing} onClick={onRefresh}>
+          {copy.refresh}
+        </Button>
+        <Button variant="soft" disabled={!unread} loading={markingAllRead} onClick={onMarkAllRead}>
+          {copy.markAll}
+        </Button>
+      </div>
+      <Button variant="ghost" onClick={onOpenSettings}>
+        {copy.deviceSettings}
+      </Button>
     </div>
   );
 }

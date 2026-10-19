@@ -9,4 +9,8 @@ export type {
   AttendanceContextType,
   SelfAttendanceRecord,
 } from "./attendance.api";
-export { awardAttendancePoints, getAttendanceEncouragement, getAttendanceOverview } from "./attendance-operations.api";
+export {
+  awardAttendancePoints,
+  getAttendanceEncouragement,
+  getAttendanceOverview,
+} from "./attendance-operations.api";

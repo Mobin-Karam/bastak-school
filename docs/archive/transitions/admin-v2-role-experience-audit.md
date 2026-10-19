@@ -3,7 +3,7 @@
 Date: 2026-09-06
 Branch: `feat/v2-parity-completion`
 
-Snapshot notice: this document records the 2026-09-06 audit. For current behavior use the [capability matrix](../reference/admin-capability-matrix.md), [Admin v2 component guide](../components/admin-v2-application.md), and current source.
+Snapshot notice: this document records the 2026-09-06 audit. For current behavior use the [capability matrix](../../reference/admin-capability-matrix.md), [Admin v2 component guide](../../components/admin-v2-application.md), and current source.
 
 ## Role coverage
 
@@ -18,7 +18,7 @@ Snapshot notice: this document records the 2026-09-06 audit. For current behavio
 | Platform administrator | `e2e.platform` | Organizations, users, system, releases, database and audit | platform totals, health, release and security summary |
 | Multi-role staff | `e2e.multi` | Switchable advisor and teacher work contexts | server-selected contract for active role |
 
-The audited role accounts used `Moshaver-e2e-2026!`. Current local role-account seed behavior is documented in the [Backend v2 service guide](../components/backend-v2-service.md); production seeding remains prohibited.
+The audited role accounts used `Moshaver-e2e-2026!`. Current local role-account seed behavior is documented in the [Backend v2 service guide](../../components/backend-v2-service.md); production seeding remains prohibited.
 
 ## UX corrections
 

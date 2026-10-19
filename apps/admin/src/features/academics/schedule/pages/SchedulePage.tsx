@@ -6,7 +6,7 @@ import { LegacySchedulePage } from "./LegacySchedulePage";
 export function SchedulePage() {
   const [showComingSoon, setShowComingSoon] = useState(false);
   return (
-    <div className="grid gap-3">
+    <div className="schedule-page grid w-full gap-3">
       <div className="timetable-controls flex gap-2" aria-label="نوع برنامه">
         <Button variant="soft" onClick={() => setShowComingSoon(true)}>
           برنامه درسی نسخه‌بندی‌شده

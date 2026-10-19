@@ -6,7 +6,9 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { TimetableWorkspace } from "@moshaver/api-contract";
 import { TimetableImportWizard } from "./TimetableImportWizard";
 const mocks = vi.hoisted(() => ({ preview: vi.fn(), commit: vi.fn() }));
-vi.mock("../../../identity/auth", () => ({ useAuth: () => ({ can: () => false, canAny: () => false }) }));
+vi.mock("../../../identity/auth", () => ({
+  useAuth: () => ({ can: () => false, canAny: () => false }),
+}));
 vi.mock("../../../../shared/ui/responsive-modal", () => ({
   ResponsiveModal: ({ children }: { children: React.ReactNode }) => (
     <div role="dialog">{children}</div>

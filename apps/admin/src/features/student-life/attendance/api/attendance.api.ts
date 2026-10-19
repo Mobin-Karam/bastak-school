@@ -116,6 +116,7 @@ export type SelfAttendanceRecord = {
   sessionDate: string;
   contextType: AttendanceContextType;
   contextId: string;
+  title?: string;
   organizationId: string;
   recordedAt: string;
 };

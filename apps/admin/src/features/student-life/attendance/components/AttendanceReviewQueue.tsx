@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 import { useAuth } from "../../../identity/auth";
 import { api } from "../../../../shared/api/api";
-import { ResponsiveModal } from "../../../../shared/ui/responsive-modal";
+import { Modal } from "../../../../shared/ui/modal";
 import { Button, Card, EmptyState, LoadingState } from "../../../../shared/ui/ui";
 import {
   listAttendanceAbsenceReviews,
@@ -11,12 +11,13 @@ import {
 } from "../api/attendance.api";
 
 /** Scoped principal/supervisor review: inspect, choose a decision, confirm. */
-export function AttendanceReviewQueue() {
+export function AttendanceReviewQueue({ initialRecordId }: { initialRecordId?: string | null }) {
   const client = useQueryClient();
   const auth = useAuth();
   const organizationId = auth.context?.activeOrganization?.id;
   const scope = JSON.stringify([auth.user?.id, auth.activeRole, organizationId]);
   const scopeRef = useRef(scope);
+  const openedInitialRecordId = useRef<string | null>(null);
   scopeRef.current = scope;
   const [selected, setSelected] = useState<AttendanceAbsenceReview | null>(null);
   const [decision, setDecision] = useState<"approved" | "rejected" | null>(null);
@@ -66,8 +67,21 @@ export function AttendanceReviewQueue() {
     },
   });
   const pending = (reviews.data ?? []).filter((review) => review.reviewStatus === "pending");
+  const focusedReview = initialRecordId
+    ? (pending.find((review) => review.id === initialRecordId) ?? null)
+    : null;
+
+  useEffect(() => {
+    if (!focusedReview || selected || openedInitialRecordId.current === focusedReview.id) return;
+    openedInitialRecordId.current = focusedReview.id;
+    mutation.reset();
+    setSelected(focusedReview);
+    setDecision(null);
+    setNote("");
+  }, [focusedReview, mutation, selected]);
+
   return (
-    <Card className="space-y-3 p-4">
+    <Card id="attendance-absence-reviews" className="space-y-3 p-4">
       <header>
         <h2 className="font-black">دلیل‌های غیبت</h2>
         <p className="mt-1 text-sm text-slate-500">
@@ -121,8 +135,9 @@ export function AttendanceReviewQueue() {
       ) : (
         <EmptyState title="موردی در انتظار بررسی نیست." />
       )}
-      <ResponsiveModal
+      <Modal
         open={Boolean(selected)}
+        dismissible={!mutation.isPending}
         onOpenChange={(open) => {
           if (!open && !mutation.isPending) setSelected(null);
         }}
@@ -193,7 +208,7 @@ export function AttendanceReviewQueue() {
             </>
           )}
         </div>
-      </ResponsiveModal>
+      </Modal>
     </Card>
   );
 }

@@ -1,11 +1,11 @@
 import { attendanceRequestId } from "../model/attendance-request-id";
 import { useEffect, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { CalendarCheck2, MapPin, UsersRound } from "lucide-react";
+import { CalendarCheck2, CircleUserRound, Coins, MapPin, UsersRound } from "lucide-react";
 import { useAuth } from "../../../identity/auth";
 import { Card } from "../../../../shared/ui/ui";
 import { DatePicker } from "../../../../shared/ui/date-picker";
-import { ResponsiveModal } from "../../../../shared/ui/responsive-modal";
+import { Modal } from "../../../../shared/ui/modal";
 import { notify } from "../../../../shared/ui/notifications";
 import { api } from "../../../../shared/api/api";
 import type { AttendanceContextOption } from "../api/attendance.api";
@@ -42,6 +42,10 @@ const statuses = {
   unmarked: "نامشخص",
 };
 
+function percent(value: number | null) {
+  return value === null ? "—" : `${value.toLocaleString("fa-IR")}٪`;
+}
+
 export function AttendanceProfileDialog({
   studentId,
   scope,
@@ -56,13 +60,13 @@ export function AttendanceProfileDialog({
     queryFn: () => getAttendanceProfile(studentId),
   });
   return (
-    <ResponsiveModal
+    <Modal
       open
       onOpenChange={(open) => {
         if (!open) onClose();
       }}
       title={query.data?.name || "پرونده حضور طلبه"}
-      description="پرونده کامل فقط برای مدیر و ناظر مدرسه قابل مشاهده است."
+      description="خلاصه حضور بر پایه جلسات مجازِ همین کاربر نمایش داده می‌شود."
     >
       {query.isLoading ? (
         <p role="status">در حال دریافت پرونده…</p>
@@ -74,8 +78,54 @@ export function AttendanceProfileDialog({
           </button>
         </p>
       ) : query.data ? (
-        <div className="space-y-4">
-          <dl className="grid grid-cols-4 gap-2">
+        <div className="space-y-4" dir="rtl">
+          <header className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-3 rounded-2xl border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-muted))] p-4" dir="ltr">
+            <span
+              className="grid size-16 place-items-center rounded-full bg-brand/10 text-brand ring-4 ring-card"
+              aria-label="تصویر پیش‌فرض دانش‌آموز"
+            >
+              <CircleUserRound size={38} aria-hidden="true" />
+            </span>
+            <div className="min-w-0 text-right" dir="rtl">
+              <h3 className="truncate text-base font-black text-ink">{query.data.name}</h3>
+              <p className="mt-1 truncate text-sm font-bold text-slate-700 dark:text-slate-200">
+                {query.data.classNames.length
+                  ? query.data.classNames.join(" · ")
+                  : "کلاس ثبت نشده"}
+              </p>
+              <p className="mt-1 truncate text-xs text-slate-500 dark:text-slate-400">
+                {query.data.schoolName}
+              </p>
+            </div>
+          </header>
+
+          <dl className="grid gap-2 sm:grid-cols-3">
+            <div className="rounded-2xl border border-amber-200 bg-amber-50 p-3 text-amber-950 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-100">
+              <dt className="flex items-center gap-1.5 text-xs font-bold">
+                <Coins size={16} aria-hidden="true" /> امتیاز
+              </dt>
+              <dd className="mt-2 text-2xl font-black">
+                {query.data.points.toLocaleString("fa-IR")}
+              </dd>
+            </div>
+            <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-3 text-emerald-950 dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-emerald-100">
+              <dt className="text-xs font-bold">درصد حضور</dt>
+              <dd className="mt-2 text-2xl font-black">{percent(query.data.attendanceRate)}</dd>
+              <p className="mt-1 text-[11px]">از {query.data.totalSessions.toLocaleString("fa-IR")} ثبت حضور</p>
+            </div>
+            <div className="rounded-2xl border border-sky-200 bg-sky-50 p-3 text-sky-950 dark:border-sky-900/60 dark:bg-sky-950/30 dark:text-sky-100">
+              <dt className="text-xs font-bold">تکمیل ثبت همه جلسه‌ها</dt>
+              <dd className="mt-2 text-2xl font-black">{percent(query.data.attendanceCoverage)}</dd>
+              <p className="mt-1 text-[11px]">جلسه‌های دارای ثبت وضعیت</p>
+            </div>
+          </dl>
+          {query.data.scopedToTeacherClasses ? (
+            <p className="rounded-xl border border-violet-200 bg-violet-50 px-3 py-2 text-xs font-bold text-violet-900 dark:border-violet-900/60 dark:bg-violet-950/30 dark:text-violet-100">
+              این آمار فقط برای کلاس‌های واگذارشده به شما محاسبه شده است.
+            </p>
+          ) : null}
+
+          <dl className="grid grid-cols-2 gap-2 sm:grid-cols-4">
             {Object.entries(query.data.counts).map(([key, count]) => (
               <div key={key} className="rounded-xl bg-[rgb(var(--surface-muted))] p-3 text-center">
                 <dt className="text-xs">{statuses[key as keyof typeof statuses]}</dt>
@@ -107,7 +157,7 @@ export function AttendanceProfileDialog({
           ) : null}
         </div>
       ) : null}
-    </ResponsiveModal>
+    </Modal>
   );
 }
 
@@ -229,7 +279,7 @@ function SavedSessionDialog({
   }
   return (
     <>
-      <ResponsiveModal
+      <Modal
         open
         onOpenChange={(open) => {
           if (!open) onClose();
@@ -532,7 +582,7 @@ function SavedSessionDialog({
             ) : null}
           </div>
         ) : null}
-      </ResponsiveModal>
+      </Modal>
       {profileId ? (
         <AttendanceProfileDialog
           studentId={profileId}

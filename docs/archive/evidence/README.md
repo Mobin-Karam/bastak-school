@@ -1,4 +1,4 @@
-# Evidence and audits
+# Archived evidence and audits
 
 Audits record the system and checks at the date in each document. They are useful leads, not proof of current behavior. Verify claims in current source, migrations and tests before changing code.
 
@@ -7,4 +7,4 @@ Audits record the system and checks at the date in each document. They are usefu
 - [Attendance V3 foundation addendum, 2026-10-16](./attendance-v3-foundation-2026-10-16.md), covering the delivered absence-first, lifecycle, policy and correction foundation.
 - [Database and multi-role audit, 2026-10-12](./database-and-multi-role-audit-2026-10-12.md).
 
-Older snapshots are indexed in [history](../archive/README.md). Current guidance lives in [engineering](../engineering/README.md) and [operations](../operations/README.md).
+Older snapshots are indexed in [history](../README.md). Current guidance lives in [engineering](../../engineering/README.md) and [operations](../../operations/README.md).
