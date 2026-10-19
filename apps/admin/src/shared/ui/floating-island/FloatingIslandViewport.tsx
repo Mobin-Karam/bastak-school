@@ -5,10 +5,13 @@ import {
   CircleAlert,
   Clock3,
   Coins,
+  Headphones,
+  Pause,
+  Play,
   GraduationCap,
   X,
 } from "lucide-react";
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { cn } from "../../lib/utils";
 import type { AdminPerformanceProfile } from "../../../app/layout/lib/device-performance";
@@ -22,6 +25,7 @@ const activityIcons: Record<FloatingIslandKind, typeof Bell> = {
   class: GraduationCap,
   prayer: Clock3,
   reward: Coins,
+  audio: Headphones,
 };
 
 function primaryActivity(activities: readonly FloatingIslandActivity[]) {
@@ -41,6 +45,9 @@ export function FloatingIslandViewport({
   const ref = useRef<HTMLDivElement>(null);
   const activity = useMemo(() => primaryActivity(island.activities), [island.activities]);
   const expanded = activity ? island.expandedId === activity.id : false;
+  const audio = useRef<HTMLAudioElement>(null);
+  const [playing, setPlaying] = useState(false);
+  const [progress, setProgress] = useState(0);
 
   useEffect(() => {
     if (!expanded) return;
@@ -63,6 +70,12 @@ export function FloatingIslandViewport({
   const compactLabel = activity.description
     ? `${activity.title}، ${activity.description}`
     : activity.title;
+  const isAudio = activity.kind === "audio" && Boolean(activity.audioSrc);
+  const toggleAudio = () => {
+    if (!audio.current) return;
+    if (audio.current.paused) void audio.current.play();
+    else audio.current.pause();
+  };
 
   return (
     <div
@@ -78,7 +91,9 @@ export function FloatingIslandViewport({
           performance === "standard" && "backdrop-blur-md",
           expanded
             ? "w-[min(24rem,calc(100vw-1.5rem))] max-h-64"
-            : "w-fit max-w-[min(18rem,calc(100vw-1.5rem))] max-h-12",
+            : isAudio
+              ? "w-[min(13rem,calc(100vw-1.5rem))] max-h-12"
+              : "w-fit max-w-[min(18rem,calc(100vw-1.5rem))] max-h-12",
         )}
       >
         <button
@@ -91,7 +106,20 @@ export function FloatingIslandViewport({
           <span className="grid size-7 shrink-0 place-items-center rounded-full bg-brand/12 text-brand">
             <Icon size={16} aria-hidden="true" />
           </span>
-          <span className="min-w-0 flex-1 truncate text-xs font-black">{compactLabel}</span>
+          <span className="min-w-0 flex-1 truncate text-xs font-black">
+            {isAudio ? activity.title : compactLabel}
+          </span>
+          {isAudio ? (
+            <span
+              aria-hidden="true"
+              className={cn("flex h-4 items-center gap-0.5", playing && "floating-audio-bars")}
+            >
+              <i />
+              <i />
+              <i />
+              <i />
+            </span>
+          ) : null}
           <ChevronDown
             className={cn(
               "shrink-0 transition-transform duration-300 motion-reduce:transition-none",
@@ -119,6 +147,39 @@ export function FloatingIslandViewport({
               ) : null}
             </div>
           </div>
+          {isAudio ? (
+            <div className="grid gap-2">
+              <audio
+                ref={audio}
+                src={activity.audioSrc}
+                preload="metadata"
+                onPlay={() => setPlaying(true)}
+                onPause={() => setPlaying(false)}
+                onEnded={() => {
+                  setPlaying(false);
+                  setProgress(0);
+                }}
+                onTimeUpdate={(event) =>
+                  setProgress(
+                    event.currentTarget.duration
+                      ? event.currentTarget.currentTime / event.currentTarget.duration
+                      : 0,
+                  )
+                }
+              />
+              <div className="h-1 overflow-hidden rounded-full bg-brand/15">
+                <div className="h-full bg-brand" style={{ width: `${progress * 100}%` }} />
+              </div>
+              <button
+                type="button"
+                onClick={toggleAudio}
+                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-brand px-3 text-xs font-black text-white outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"
+              >
+                {playing ? <Pause size={16} /> : <Play size={16} />}
+                {playing ? "توقف" : "پخش"}
+              </button>
+            </div>
+          ) : null}
           <div className="flex items-center justify-end gap-2">
             {activity.dismissible ? (
               <button

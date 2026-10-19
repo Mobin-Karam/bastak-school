@@ -15,7 +15,8 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
   const auth = useAuth();
   const modal = useModal();
   const queryClient = useQueryClient();
-  const notifications = useNotificationInbox(auth.status === "authenticated");
+  const notificationScopeKey = `${auth.user?.id ?? "anonymous"}:${auth.context?.activeOrganization?.id ?? "none"}:${auth.activeRole ?? "none"}`;
+  const notifications = useNotificationInbox(auth.status === "authenticated", notificationScopeKey);
   const sound = useNotificationSound();
   const push = usePushNotifications(notifications.refresh);
   const shownAbsences = useRef(new Set<string>());
@@ -43,7 +44,7 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
             برای دریافت اجازه حضور، به مدیر یا ناظر مدرسه مراجعه کنید. پس از بررسی، نتیجه برای شما
             ارسال می‌شود.
           </p>
-          <p className="text-sm text-slate-500">یک امتیاز غیبت در کارنامه حضور شما ثبت شده است.</p>
+          <p className="text-sm text-slate-500">یک سکه غیبت در کارنامه حضور شما ثبت شده است.</p>
           <div className="flex justify-center gap-2">
             <Button
               onClick={() => {

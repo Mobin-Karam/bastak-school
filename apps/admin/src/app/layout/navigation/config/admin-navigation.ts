@@ -99,6 +99,20 @@ export const adminNavigation = [
     section: "خانه",
     items: [
       {
+        path: "announcements",
+        title: "رسانه‌ها و اطلاعیه‌ها",
+        description: "رسانه‌ها و پیوندهای منتشرشده برای شما",
+        icon: Bell,
+        capability: "announcements.read",
+      },
+      {
+        path: "announcements/manage",
+        title: "مدیریت رسانه‌ها",
+        description: "انتشار رسانه برای اعضای انتخاب‌شده",
+        icon: Bell,
+        capability: "announcements.manage",
+      },
+      {
         path: "",
         title: "داشبورد",
         description: "نمای کلی مدرسه و کارهای مرتبط با نقش شما",
@@ -371,6 +385,30 @@ const teacherNavigation: readonly NavigationGroup[] = [
         description: "کلاس‌های هفته و فهرست دانش‌آموزان هر کلاس",
         icon: CalendarDays,
         capability: "schedule.read",
+      },
+    ],
+  },
+  {
+    section: "کلاس‌های من",
+    items: [
+      {
+        path: "classes",
+        title: "کلاس‌ها و کتاب‌های من",
+        description: "کلاس‌ها، کتاب‌ها و فهرست دانش‌آموزان واگذارشده به شما",
+        icon: School,
+        capability: "classes.read",
+      },
+    ],
+  },
+  {
+    section: "حضور و غیاب",
+    items: [
+      {
+        path: "attendance",
+        title: "حضور و غیاب کلاس",
+        description: "ثبت و پیگیری حضور کلاس‌های واگذارشده به شما",
+        icon: ClipboardCheck,
+        capability: "attendance.read",
       },
     ],
   },

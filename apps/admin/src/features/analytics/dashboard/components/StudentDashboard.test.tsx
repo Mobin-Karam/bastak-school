@@ -141,14 +141,26 @@ describe("StudentDashboard", () => {
     expect(screen.getByRole("region", { name: "زمان کلاس‌های امروز" })).toHaveTextContent("۰۸:۰۰");
     expect(screen.getByRole("region", { name: "خلاصه حضور و غیاب" })).toHaveTextContent("حاضر");
     expect(screen.getByRole("region", { name: "خلاصه حضور و غیاب" })).toHaveTextContent("۸");
-    expect(document.querySelector('img[src="/images/mascots/zanin-coin.svg"]')).toBeVisible();
+    expect(screen.getByRole("heading", { name: "دستاوردهای من" })).toBeVisible();
+    expect(screen.getByRole("heading", { name: "بازار سکه‌های من" })).toBeVisible();
+    expect(screen.getByRole("link", { name: /دیدن بازار آینده/ })).toHaveAttribute(
+      "href",
+      "/admin/coin-shop",
+    );
+    expect(screen.getByRole("link", { name: /دیدن دستاوردها/ })).toHaveAttribute(
+      "href",
+      "/admin/achievements",
+    );
+    expect(
+      document.querySelector('img[src="/images/coin/Ornate%20Gold%20Kaaba%20Medallion.png"]'),
+    ).toBeVisible();
     expect(screen.getByRole("link", { name: "همه" })).toHaveAttribute("href", "/admin/schedule");
     fireEvent.click(screen.getByRole("button", { name: /باز کردن ۱ پیام مدرسه/ }));
     expect(screen.getByRole("dialog")).toHaveTextContent("برنامه مراسم صبحگاه");
     expect(screen.queryByRole("link", { name: /مشاهده همه/ })).not.toBeInTheDocument();
   });
 
-  it("opens the complete attendance drawer with points and per-class history", async () => {
+  it("opens the complete attendance drawer with coins and per-class history", async () => {
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
     render(

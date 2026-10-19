@@ -15,6 +15,7 @@ const {
   canAnyMock,
   getSavedAttendanceSessionMock,
   submitAttendanceAbsencesMock,
+  awardAttendancePointsMock,
 } = vi.hoisted(() => ({
   listAttendanceSessionsMock: vi.fn(),
   listAttendanceContextsMock: vi.fn(),
@@ -24,6 +25,7 @@ const {
   canAnyMock: vi.fn(),
   getSavedAttendanceSessionMock: vi.fn(),
   submitAttendanceAbsencesMock: vi.fn(),
+  awardAttendancePointsMock: vi.fn(),
 }));
 
 vi.mock("../api/attendance.api.ts", () => ({
@@ -37,6 +39,7 @@ vi.mock("../api/attendance.api.ts", () => ({
 vi.mock("../api/attendance-operations.api.ts", () => ({
   getSavedAttendanceSession: getSavedAttendanceSessionMock,
   submitAttendanceAbsences: submitAttendanceAbsencesMock,
+  awardAttendancePoints: awardAttendancePointsMock,
 }));
 
 vi.mock("../../../identity/auth", () => ({
@@ -89,6 +92,7 @@ describe("AttendancePage", () => {
       status: "submitted",
       count: 0,
     });
+    awardAttendancePointsMock.mockResolvedValue({ id: "point-1" });
   });
 
   it("starts on classes and waits for a target instead of auto-loading a roster", async () => {
@@ -246,6 +250,98 @@ describe("AttendancePage", () => {
     expect(
       screen.getByRole("button", { name: "دهم ب 10-B · ۲ نفر", hidden: true }),
     ).toHaveAttribute("aria-pressed", "true");
+  });
+
+  it.each(["class", "class_group", "dorm"] as const)(
+    "lets a supervisor adjust a student's points in a %s roster",
+    async (contextType) => {
+      canMock.mockImplementation((capability: string) => capability === "attendance.points.adjust");
+      listAttendanceContextsMock.mockResolvedValue([
+        {
+          id: `${contextType}-1`,
+          contextType,
+          code: "A",
+          name: "فضای آزمون",
+          label: "فضای آزمون",
+          total: 1,
+          activeOrganizationId: "org-1",
+          ...(contextType === "class_group" ? { classId: "class-1" } : {}),
+        },
+        ...(contextType === "class_group"
+          ? [
+              {
+                id: "class-1",
+                contextType: "class",
+                code: "C",
+                name: "کلاس آزمون",
+                label: "کلاس آزمون",
+                total: 1,
+                activeOrganizationId: "org-1",
+              },
+            ]
+          : []),
+      ]);
+      getAttendanceParticipantsMock.mockResolvedValue([{ id: "student-1", name: "علی" }]);
+      const user = userEvent.setup();
+      render(
+        <MemoryRouter
+          initialEntries={[
+            `/admin/attendance?contextType=${contextType}&contextId=${contextType}-1&section=${contextType}`,
+          ]}
+        >
+          <LocaleProvider>
+            <AttendancePage />
+          </LocaleProvider>
+        </MemoryRouter>,
+      );
+
+      await user.click(await screen.findByRole("button", { name: "افزودن یک امتیاز برای علی" }));
+      await user.type(screen.getByRole("textbox", { name: "دلیل" }), "همکاری خوب");
+      await user.click(screen.getByRole("button", { name: "ثبت امتیاز" }));
+
+      await waitFor(() =>
+        expect(awardAttendancePointsMock).toHaveBeenCalledWith(
+          expect.objectContaining({
+            organizationId: "org-1",
+            contextType,
+            contextId: `${contextType}-1`,
+            studentId: "student-1",
+            points: 1,
+            reason: "همکاری خوب",
+          }),
+        ),
+      );
+    },
+  );
+
+  it("restores a shared dorm section URL before a room is selected", async () => {
+    listAttendanceContextsMock.mockResolvedValue([
+      {
+        id: "dorm-1",
+        contextType: "dorm",
+        code: "101",
+        name: "اتاق ۱۰۱",
+        label: "اتاق ۱۰۱",
+        total: 2,
+        building: "ساختمان اصلی",
+        floor: 1,
+        activeOrganizationId: "org-1",
+      },
+    ]);
+
+    render(
+      <MemoryRouter initialEntries={["/admin/attendance?section=dorm"]}>
+        <LocaleProvider>
+          <AttendancePage />
+        </LocaleProvider>
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByRole("button", { name: "خوابگاه 1 مورد" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    expect(screen.getByText("ساختمان اصلی")).toBeVisible();
   });
   it("keeps a retry's original timestamp and request ID after a timeout", async () => {
     listAttendanceContextsMock.mockResolvedValue([

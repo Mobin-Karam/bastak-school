@@ -1,5 +1,13 @@
 import { useQuery } from "@tanstack/react-query";
-import { BookOpen, CalendarCheck2, ChevronLeft, Clock3, Sparkles } from "lucide-react";
+import {
+  BookOpen,
+  CalendarCheck2,
+  ChevronLeft,
+  Clock3,
+  LockKeyhole,
+  Medal,
+  Sparkles,
+} from "lucide-react";
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import {
@@ -11,6 +19,9 @@ import { useAuth } from "../../../identity/auth";
 import { fa, todayIso } from "../../../../shared/lib/utils";
 import { useLocale } from "../../../../shared/ui/locale";
 import { Card, EmptyState, LoadingState } from "../../../../shared/ui/ui";
+import { AttendanceCoin } from "../../../../shared/ui/attendance-coin";
+import { AchievementCountdown } from "../../../achievements";
+import { CoinShopTeaser } from "../../../coin-shop";
 import { CurrentPrayerCard } from "../../school-home/components/CurrentPrayerCard";
 import { getAdminDashboard } from "../api/dashboard.api";
 import { AnnouncementEnvelope } from "./AnnouncementEnvelope";
@@ -229,13 +240,8 @@ export function StudentDashboard() {
           </div>
           <div className="mt-3 flex items-center justify-between rounded-2xl border border-amber-200 bg-amber-50 px-3 py-2.5 text-amber-950 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-100">
             <span className="flex items-center gap-1 text-[11px] font-bold">
-              <img
-                src="/images/mascots/zanin-coin.svg"
-                alt=""
-                aria-hidden="true"
-                className="size-5"
-              />
-              امتیاز
+              <AttendanceCoin className="size-5 object-contain" />
+              سکه‌ها
             </span>
             <strong className="text-sm">{attendancePoints.toLocaleString("fa-IR")}</strong>
           </div>
@@ -246,6 +252,51 @@ export function StudentDashboard() {
           ) : null}
         </Card>
       </div>
+
+      <section
+        className="mt-3 overflow-hidden rounded-3xl border border-slate-800 bg-slate-950 p-4 text-white shadow-sm sm:p-5"
+        aria-labelledby="student-achievements-title"
+      >
+        <div className="grid items-center gap-4 sm:grid-cols-[minmax(0,1fr)_minmax(15rem,.72fr)]">
+          <div className="min-w-0">
+            <div className="flex items-center gap-2">
+              <span className="grid size-10 shrink-0 place-items-center rounded-2xl border border-white/15 bg-white/10 text-amber-300">
+                <Medal size={19} aria-hidden="true" />
+              </span>
+              <div className="min-w-0">
+                <p className="text-[10px] font-black tracking-[0.16em] text-slate-400">
+                  ویژگی آینده
+                </p>
+                <h2
+                  id="student-achievements-title"
+                  className="mt-0.5 text-sm font-black sm:text-base"
+                >
+                  دستاوردهای من
+                </h2>
+              </div>
+            </div>
+            <p className="mt-3 max-w-xl text-xs leading-6 text-slate-300">
+              نشان‌ها و مسیر پیشرفت شما به‌زودی فعال می‌شوند. از همین‌جا می‌توانید نشان‌های در راه
+              را ببینید.
+            </p>
+            <Link
+              to="/admin/achievements"
+              className="mt-3 inline-flex min-h-10 items-center gap-1 rounded-xl bg-white px-3 text-xs font-black text-slate-950 transition hover:bg-slate-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
+            >
+              دیدن دستاوردها <ChevronLeft size={15} aria-hidden="true" />
+            </Link>
+          </div>
+          <div className="grid gap-3 rounded-2xl border border-white/10 bg-white/[0.06] p-3">
+            <div className="flex items-center gap-2 text-xs font-bold text-slate-200">
+              <LockKeyhole size={15} className="text-slate-400" aria-hidden="true" />
+              تا باز شدن دستاوردها
+            </div>
+            <AchievementCountdown compact />
+          </div>
+        </div>
+      </section>
+
+      <CoinShopTeaser audience="student" className="mt-3" />
 
       <div className="mt-3">
         <AnnouncementEnvelope announcements={home.data?.home?.announcements} />

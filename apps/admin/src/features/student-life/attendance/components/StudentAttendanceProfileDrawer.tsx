@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
-import { Check, CircleSlash2, Clock3, Medal, X } from "lucide-react";
+import { Check, CircleSlash2, Clock3, X } from "lucide-react";
 import { ResponsiveDrawer } from "../../../../shared/ui/responsive-drawer";
+import { AttendanceCoin } from "../../../../shared/ui/attendance-coin";
 import { EmptyState, LoadingState } from "../../../../shared/ui/ui";
 import { listSelfAttendance, type SelfAttendanceRecord } from "../api/attendance.api";
 
@@ -61,7 +62,7 @@ export function StudentAttendanceProfileDrawer({
       <section aria-label="تاریخچه کامل حضور" className="space-y-4" dir="rtl">
         <div className="flex items-center justify-between rounded-2xl border border-amber-200 bg-amber-50 p-4 text-amber-950 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-100">
           <span className="flex items-center gap-2 text-sm font-black">
-            <Medal size={20} aria-hidden="true" /> امتیاز حضور و رفتار
+            <AttendanceCoin className="size-5 object-contain" /> سکه‌های حضور و رفتار
           </span>
           <strong className="text-xl">{points.toLocaleString("fa-IR")}</strong>
         </div>

@@ -1,10 +1,19 @@
-import { BookOpen, CalendarCheck2, CalendarDays, Medal, MoreHorizontal, X } from "lucide-react";
+import {
+  BookOpen,
+  CalendarCheck2,
+  CalendarDays,
+  Landmark,
+  Medal,
+  MoreHorizontal,
+  X,
+} from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { NavLink, useLocation } from "react-router-dom";
 import { useAuth } from "../../../../features/identity/auth";
 import { cn } from "../../../../shared/lib/utils";
 import { ResponsiveDrawer } from "../../../../shared/ui/responsive-drawer";
+import { AttendanceCoin } from "../../../../shared/ui/attendance-coin";
 import { useAdminShellCopy, useLocale } from "../../../../shared/ui/locale";
 import type { AdminPerformanceProfile } from "../../lib/device-performance";
 import type { AdminCurrentNavigation } from "../../model/layout-types";
@@ -14,13 +23,13 @@ import {
   localizedNavigationForCapabilities,
 } from "../config/admin-navigation";
 import { ThemeSwitcher } from "@/shared/theme/theme";
-import { GlassActiveIndicator } from "../../../../shared/ui/glass/GlassActiveIndicator";
 import { getAttendanceEncouragement } from "../../../../features/student-life/attendance/public";
 import { AchievementCountdown } from "../../../../features/achievements";
+// import "./admin-mobile-bottom-nav-3d.css";
 
 const MAX_PRIMARY_DESTINATIONS = 4;
 
-/** Phone renderer for the shared capability-derived Admin navigation. */
+/** Lightweight CSS-only 3D glass navigation; existing routes/permissions preserved. */
 export function AdminMobileBottomNav({
   current,
   selectedStudentId,
@@ -46,9 +55,6 @@ export function AdminMobileBottomNav({
     auth.activeRole,
     language,
   );
-  const activePrimaryIndex = primaryItems.findIndex(
-    ({ path, section }) => current.sectionKey === section || (path === "" && current.path === ""),
-  );
 
   useEffect(() => setSheetOpen(false), [location.pathname]);
 
@@ -56,44 +62,45 @@ export function AdminMobileBottomNav({
     <>
       <nav
         aria-label={language === "fa" ? "ناوبری اصلی" : "Primary navigation"}
+        dir={profile.direction}
         className={cn(
-          "admin-mobile-bottom-nav fixed inset-x-2 bottom-[max(0.5rem,env(safe-area-inset-bottom))] z-30 flex rounded-[1.5rem] border border-[rgb(var(--glass-border))] bg-[rgb(var(--glass-bg))] px-1 py-1 shadow-[var(--glass-shadow)] supports-[backdrop-filter]:bg-[rgb(var(--glass-bg))] sm:inset-x-3",
-          performance === "enhanced" && "backdrop-blur-md",
+          "admin-mobile-bottom-nav glass-3d-dock fixed inset-x-3 z-30 mx-auto max-w-[460px]",
+          performance === "enhanced" && "glass-3d-dock--enhanced",
         )}
       >
-        <GlassActiveIndicator index={activePrimaryIndex} count={primaryItems.length + 1} />
-        {primaryItems.map(({ path, section, title, icon: Icon }) => {
-          const active = current.sectionKey === section || (path === "" && current.path === "");
-          return (
-            <NavLink
-              key={path}
-              to={adminDestination(path, section, selectedStudentId)}
-              aria-current={active ? "page" : undefined}
-              className={cn(
-                "student-mobile-nav-item relative z-10 grid min-h-14 min-w-0 flex-1 place-items-center gap-1 rounded-[1.15rem] px-0.5 text-center text-[10px] font-semibold leading-none outline-none transition-[color,transform] duration-200 motion-reduce:transition-none focus-visible:ring-2 focus-visible:ring-brand active:scale-[0.96]",
-                active ? " text-brand" : "text-slate-500 dark:text-slate-300",
-              )}
-            >
-              <Icon size={20} aria-hidden="true" />
-              <span className="max-w-full truncate leading-tight">{title}</span>
-            </NavLink>
-          );
-        })}
-        <button
-          type="button"
-          aria-controls="admin-mobile-navigation-sheet"
-          aria-expanded={sheetOpen}
-          aria-label={copy.allRoutes}
-          onClick={() => setSheetOpen(true)}
-          className={cn(
-            "relative z-10 grid min-h-14 min-w-0 flex-1 place-items-center gap-1 rounded-[1.15rem] px-0.5 text-center text-[10px] font-semibold leading-none text-slate-500 outline-none transition-[color,transform] duration-200 hover:text-brand focus-visible:ring-2 focus-visible:ring-brand active:scale-[0.96] dark:text-slate-300",
-          )}
-        >
-          <MoreHorizontal size={21} aria-hidden="true" />
-          <span className="max-w-full truncate leading-tight">
-            {language === "fa" ? "بیشتر" : "More"}
-          </span>
-        </button>
+        <span className="glass-3d-dock__shine" aria-hidden="true" />
+        <div className="glass-3d-dock__items">
+          {primaryItems.map(({ path, section, title, icon: Icon }) => {
+            const active = current.sectionKey === section || (path === "" && current.path === "");
+            return (
+              <NavLink
+                key={`${section}:${path}`}
+                to={adminDestination(path, section, selectedStudentId)}
+                aria-label={title}
+                title={title}
+                aria-current={active ? "page" : undefined}
+                className={cn("glass-3d-dock__item", active && "glass-3d-dock__item--active")}
+              >
+                <span className="glass-3d-dock__orb" aria-hidden="true">
+                  <Icon className="glass-3d-dock__icon" size={23} strokeWidth={2.2} />
+                </span>
+              </NavLink>
+            );
+          })}
+          <button
+            type="button"
+            aria-controls="admin-mobile-navigation-sheet"
+            aria-expanded={sheetOpen}
+            aria-label={copy.allRoutes}
+            title={copy.allRoutes}
+            onClick={() => setSheetOpen(true)}
+            className={cn("glass-3d-dock__item", sheetOpen && "glass-3d-dock__item--active")}
+          >
+            <span className="glass-3d-dock__orb" aria-hidden="true">
+              <MoreHorizontal className="glass-3d-dock__icon" size={23} strokeWidth={2.2} />
+            </span>
+          </button>
+        </div>
       </nav>
 
       <ResponsiveDrawer
@@ -112,24 +119,45 @@ export function AdminMobileBottomNav({
           <ThemeSwitcher />
         </div>
         <aside id="admin-mobile-navigation-sheet" dir={profile.direction} className="grid gap-5">
-          <NavLink
-            to="/admin/achievements"
-            onClick={() => setSheetOpen(false)}
-            className="grid gap-3 rounded-2xl border border-slate-800 bg-slate-950 p-3 text-white outline-none transition hover:bg-slate-800 focus-visible:ring-2 focus-visible:ring-brand"
-          >
-            <span className="flex items-center gap-3">
-              <span className="grid size-10 place-items-center rounded-xl bg-white/10">
-                <Medal size={20} aria-hidden="true" />
-              </span>
-              <span className="min-w-0 flex-1 text-start">
-                <strong className="block text-sm">دستاوردها</strong>
-                <span className="mt-1 block text-xs text-slate-300">
-                  نشان‌ها به‌زودی فعال می‌شوند
+          {isStudentNavigation ? (
+            <NavLink
+              to="/admin/achievements"
+              onClick={() => setSheetOpen(false)}
+              className="grid gap-3 rounded-2xl border border-slate-800 bg-slate-950 p-3 text-white outline-none transition hover:bg-slate-800 focus-visible:ring-2 focus-visible:ring-brand"
+            >
+              <span className="flex items-center gap-3">
+                <span className="grid size-10 place-items-center rounded-xl bg-white/10">
+                  <Medal size={20} aria-hidden="true" />
+                </span>
+                <span className="min-w-0 flex-1 text-start">
+                  <strong className="block text-sm">دستاوردها</strong>
+                  <span className="mt-1 block text-xs text-slate-300">
+                    نشان‌ها به‌زودی فعال می‌شوند
+                  </span>
                 </span>
               </span>
-            </span>
-            <AchievementCountdown compact />
-          </NavLink>
+              <AchievementCountdown compact />
+            </NavLink>
+          ) : null}
+          {auth.activeRole === "PRINCIPAL" ? (
+            <NavLink
+              to="/admin/management"
+              onClick={() => setSheetOpen(false)}
+              className="grid gap-3 rounded-2xl border border-slate-800 bg-slate-950 p-3 text-white outline-none transition hover:bg-slate-800 focus-visible:ring-2 focus-visible:ring-brand"
+            >
+              <span className="flex items-center gap-3">
+                <span className="grid size-10 place-items-center rounded-xl bg-white/10">
+                  <Landmark size={20} aria-hidden="true" />
+                </span>
+                <span className="min-w-0 flex-1 text-start">
+                  <strong className="block text-sm">مدیریت مدرسه</strong>
+                  <span className="mt-1 block text-xs text-slate-300">
+                    میز یکپارچه مدیریت به‌زودی فعال می‌شود
+                  </span>
+                </span>
+              </span>
+            </NavLink>
+          ) : null}
           {isStudentNavigation ? (
             <StudentMoreDrawerHeader
               capabilities={auth.capabilities}
@@ -220,17 +248,12 @@ function StudentMoreDrawerHeader({
       <NavLink
         to="/admin/my-attendance"
         onClick={onNavigate}
-        aria-label="امتیازهای من"
+        aria-label="سکه‌های من"
         className="flex min-h-20 items-center gap-3 rounded-2xl border border-amber-300/70 bg-amber-50 p-3 text-amber-950 outline-none transition hover:border-amber-400 hover:bg-amber-100/70 focus-visible:ring-2 focus-visible:ring-brand dark:border-amber-700/70 dark:bg-amber-950/30 dark:text-amber-100 dark:hover:bg-amber-950/50"
       >
-        <img
-          src="/images/mascots/zanin-coin.svg"
-          alt=""
-          aria-hidden="true"
-          className="size-14 shrink-0"
-        />
+        <AttendanceCoin className="size-14 shrink-0 object-contain" />
         <span className="min-w-0 flex-1">
-          <span className="block text-xs font-bold">امتیازهای من</span>
+          <span className="block text-xs font-bold">سکه‌های من</span>
           <strong className="mt-1 block text-2xl font-black tabular-nums">
             {points.isLoading
               ? "…"

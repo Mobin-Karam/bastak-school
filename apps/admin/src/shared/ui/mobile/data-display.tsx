@@ -15,7 +15,7 @@ export function StatisticCard({
   return (
     <section
       className={cn(
-        "grid gap-1 rounded-2xl border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card))] p-4",
+        "grid gap-1 rounded-2xl border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card))] p-4 shadow-[var(--shadow-surface)]",
         className,
       )}
     >
@@ -37,7 +37,7 @@ export function ProgressIndicator({ value, label }: { value: number; label: Reac
       </div>
       <div className="h-2 overflow-hidden rounded-full bg-[rgb(var(--surface-muted))]">
         <div
-          className="h-full rounded-full bg-[rgb(var(--mobile-primary))] transition-[width] motion-reduce:transition-none"
+          className="h-full rounded-full bg-brand transition-[width] motion-reduce:transition-none"
           style={{ width: `${bounded}%` }}
         />
       </div>
@@ -53,7 +53,7 @@ export function ProgressRing({ value, label }: { value: number; label: string })
       aria-valuemin={0}
       aria-valuemax={100}
       aria-valuenow={bounded}
-      className="grid size-16 place-items-center rounded-full bg-[conic-gradient(rgb(var(--mobile-primary))_var(--progress),rgb(var(--surface-muted))_0)]"
+      className="grid size-16 place-items-center rounded-full bg-[conic-gradient(rgb(var(--color-brand))_var(--progress),rgb(var(--surface-muted))_0)]"
       style={{ "--progress": `${bounded}%` } as CSSProperties}
     >
       <span className="grid size-12 place-items-center rounded-full bg-[rgb(var(--surface-card))] text-xs font-bold">
@@ -90,7 +90,7 @@ export function Timeline({
     <ol className="grid gap-4 border-s-2 border-[rgb(var(--border-subtle))] ps-4">
       {items.map((item, index) => (
         <li key={index} className="relative">
-          <span className="absolute -start-[1.58rem] top-1 size-3 rounded-full bg-[rgb(var(--mobile-primary))] ring-4 ring-[rgb(var(--surface-card))]" />
+          <span className="absolute -start-[1.58rem] top-1 size-3 rounded-full bg-brand ring-4 ring-[rgb(var(--surface-card))]" />
           <p className="font-bold">{item.title}</p>
           {item.description ? (
             <p className="mt-1 text-sm text-slate-500">{item.description}</p>

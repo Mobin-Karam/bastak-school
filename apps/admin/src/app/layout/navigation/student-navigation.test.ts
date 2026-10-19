@@ -48,13 +48,21 @@ describe("student navigation", () => {
 describe("teacher navigation", () => {
   it("adds registration only when the teacher has registration access", () => {
     const paths = navigationForCapabilities(
-      ["schedule.read", "attendance.manage", "registration.read"] as const,
+      [
+        "schedule.read",
+        "classes.read",
+        "attendance.read",
+        "attendance.manage",
+        "registration.read",
+      ] as const,
       "TEACHER",
     ).flatMap((group) => group.items.map((item) => item.path));
 
     expect(paths).toEqual([
       "",
       "schedule",
+      "classes",
+      "attendance",
       "teacher-chat",
       "teacher-profile",
       "settings",

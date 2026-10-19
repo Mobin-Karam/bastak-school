@@ -1,4 +1,4 @@
-import { Download, Medal, Settings2 } from "lucide-react";
+import { Download, Medal, Settings2, Store } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../identity/auth";
 import { localizedNavigationForCapabilities } from "../../app/layout/navigation/config/admin-navigation";
@@ -9,6 +9,10 @@ import { useLocale } from "../../shared/ui/locale";
 export function MobileMorePage() {
   const auth = useAuth();
   const { language, profile } = useLocale();
+  const isStudentNavigation = auth.activeRole === "STUDENT";
+  const canViewCoinShop = ["STUDENT", "PRINCIPAL", "SCHOOL_SUPERVISOR"].includes(
+    auth.activeRole ?? "",
+  );
   const groups = localizedNavigationForCapabilities(auth.capabilities, auth.activeRole, language);
 
   return (
@@ -51,24 +55,44 @@ export function MobileMorePage() {
         ))}
       </div>
 
-      <section aria-labelledby="mobile-more-future-features">
-        <h2
-          id="mobile-more-future-features"
-          className="mb-2 px-1 text-xs font-black text-slate-500 dark:text-slate-400"
-        >
-          به‌زودی
-        </h2>
-        <Link
-          to="/admin/achievements"
-          className="group flex min-h-28 flex-col rounded-2xl border border-slate-900 bg-slate-950 p-3 text-white outline-none transition duration-200 motion-reduce:transition-none hover:-translate-y-0.5 hover:bg-slate-800 focus-visible:ring-2 focus-visible:ring-brand active:scale-[0.98]"
-        >
-          <span className="grid size-10 place-items-center rounded-xl bg-white/10 text-white">
-            <Medal size={20} aria-hidden="true" />
-          </span>
-          <strong className="mt-3 text-sm">دستاوردها</strong>
-          <span className="mt-1 text-[10px] leading-4 text-slate-300">نشان‌ها و مسیر پیشرفت شما</span>
-        </Link>
-      </section>
+      {isStudentNavigation || canViewCoinShop ? (
+        <section aria-labelledby="mobile-more-future-features">
+          <h2
+            id="mobile-more-future-features"
+            className="mb-2 px-1 text-xs font-black text-slate-500 dark:text-slate-400"
+          >
+            به‌زودی
+          </h2>
+          {isStudentNavigation ? (
+            <Link
+              to="/admin/achievements"
+              className="group flex min-h-28 flex-col rounded-2xl border border-slate-900 bg-slate-950 p-3 text-white outline-none transition duration-200 motion-reduce:transition-none hover:-translate-y-0.5 hover:bg-slate-800 focus-visible:ring-2 focus-visible:ring-brand active:scale-[0.98]"
+            >
+              <span className="grid size-10 place-items-center rounded-xl bg-white/10 text-white">
+                <Medal size={20} aria-hidden="true" />
+              </span>
+              <strong className="mt-3 text-sm">دستاوردها</strong>
+              <span className="mt-1 text-[10px] leading-4 text-slate-300">
+                نشان‌ها و مسیر پیشرفت شما
+              </span>
+            </Link>
+          ) : null}
+          {canViewCoinShop ? (
+            <Link
+              to="/admin/coin-shop"
+              className="group flex min-h-28 flex-col rounded-2xl border border-amber-200/20 bg-slate-950 p-3 text-white outline-none transition duration-200 motion-reduce:transition-none hover:-translate-y-0.5 hover:bg-slate-800 focus-visible:ring-2 focus-visible:ring-amber-200 active:scale-[0.98]"
+            >
+              <span className="grid size-10 place-items-center rounded-xl bg-amber-300/10 text-amber-200">
+                <Store size={20} aria-hidden="true" />
+              </span>
+              <strong className="mt-3 text-sm">بازار سکه</strong>
+              <span className="mt-1 text-[10px] leading-4 text-slate-300">
+                خرید آیتم با سکه‌های مدرسه
+              </span>
+            </Link>
+          ) : null}
+        </section>
+      ) : null}
 
       <section className="grid gap-2 rounded-2xl border border-brand/15 bg-brand/5 p-3">
         <button

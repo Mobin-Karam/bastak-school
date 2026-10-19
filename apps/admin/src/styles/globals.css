@@ -401,8 +401,223 @@
   transform: scale(0.98);
 }
 
+/* Supervisor attendance: four context launchers use restrained iOS glass and
+ * depth cues. Color supports recognition, while each card retains explicit text. */
+.supervisor-attendance-launchpad {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid rgb(var(--glass-border));
+  border-radius: 1.5rem;
+  background:
+    radial-gradient(circle at 90% 0%, rgb(255 255 255 / 64%), transparent 32%), rgb(var(--glass-bg));
+  box-shadow: var(--glass-shadow);
+  padding: 1rem;
+}
+
+.supervisor-attendance-launchpad--enhanced {
+  backdrop-filter: blur(16px) saturate(132%);
+  -webkit-backdrop-filter: blur(16px) saturate(132%);
+}
+
+.supervisor-attendance-launchpad__heading {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.9rem;
+}
+
+.supervisor-attendance-launchpad__eyebrow {
+  margin: 0;
+  color: rgb(var(--color-brand));
+  font-size: 0.7rem;
+  font-weight: 800;
+}
+
+.supervisor-attendance-launchpad__heading h1 {
+  margin: 0.15rem 0 0;
+  color: rgb(var(--color-ink));
+  font-size: 1.15rem;
+  font-weight: 900;
+}
+
+.supervisor-attendance-launchpad__heading > p {
+  max-width: 20rem;
+  margin: 0;
+  color: rgb(100 116 139);
+  font-size: 0.72rem;
+  line-height: 1.55;
+}
+
+.supervisor-attendance-launchpad__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.65rem;
+}
+
+.supervisor-attendance-card {
+  --attendance-accent: 37 99 235;
+  --attendance-soft: 219 234 254;
+  position: relative;
+  display: flex;
+  min-height: 6.4rem;
+  align-items: center;
+  gap: 0.7rem;
+  overflow: hidden;
+  border: 1px solid rgb(255 255 255 / 74%);
+  border-radius: 1.1rem;
+  background: linear-gradient(145deg, rgb(255 255 255 / 88%), rgb(var(--attendance-soft) / 48%));
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 90%),
+    0 0.38rem 0 rgb(var(--attendance-accent) / 13%),
+    0 0.8rem 1.15rem rgb(15 23 42 / 10%);
+  color: rgb(var(--color-ink));
+  padding: 0.75rem;
+  text-decoration: none;
+  transform: translateY(0);
+  transition:
+    transform 180ms ease,
+    box-shadow 180ms ease;
+}
+
+.supervisor-attendance-card::after {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(115deg, rgb(255 255 255 / 44%), transparent 45%);
+  content: "";
+  pointer-events: none;
+}
+
+.supervisor-attendance-card[data-tone="dorm"] {
+  --attendance-accent: 5 150 105;
+  --attendance-soft: 209 250 229;
+}
+.supervisor-attendance-card[data-tone="groups"] {
+  --attendance-accent: 124 58 237;
+  --attendance-soft: 237 233 254;
+}
+.supervisor-attendance-card[data-tone="sessions"] {
+  --attendance-accent: 217 119 6;
+  --attendance-soft: 254 243 199;
+}
+
+.supervisor-attendance-card__icon {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  width: 2.65rem;
+  height: 2.65rem;
+  flex: none;
+  place-items: center;
+  border: 1px solid rgb(255 255 255 / 85%);
+  border-radius: 0.9rem;
+  background: radial-gradient(
+    circle at 72% 16%,
+    rgb(255 255 255 / 95%),
+    rgb(var(--attendance-soft)) 55%,
+    rgb(var(--attendance-accent) / 25%)
+  );
+  box-shadow:
+    inset 0 2px 2px rgb(255 255 255 / 90%),
+    inset 0 -3px 6px rgb(var(--attendance-accent) / 13%),
+    0 0.3rem 0.5rem rgb(var(--attendance-accent) / 18%);
+  color: rgb(var(--attendance-accent));
+}
+
+.supervisor-attendance-card__copy {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  min-width: 0;
+  gap: 0.15rem;
+}
+.supervisor-attendance-card__copy strong {
+  font-size: 0.87rem;
+  font-weight: 900;
+}
+.supervisor-attendance-card__copy span {
+  color: rgb(71 85 105);
+  font-size: 0.68rem;
+  font-weight: 600;
+  line-height: 1.5;
+}
+.supervisor-attendance-card__arrow {
+  position: relative;
+  z-index: 1;
+  margin-inline-start: auto;
+  color: rgb(var(--attendance-accent));
+  font-size: 1.15rem;
+  font-weight: 900;
+}
+.supervisor-attendance-card:focus-visible {
+  outline: 3px solid rgb(var(--attendance-accent) / 50%);
+  outline-offset: 3px;
+}
+.supervisor-attendance-card:active {
+  box-shadow:
+    inset 0 2px 5px rgb(var(--attendance-accent) / 18%),
+    0 0.2rem 0 rgb(var(--attendance-accent) / 10%);
+  transform: translateY(0.18rem);
+}
+
+@media (hover: hover) {
+  .supervisor-attendance-card:hover {
+    box-shadow:
+      inset 0 1px 0 rgb(255 255 255 / 95%),
+      0 0.55rem 0 rgb(var(--attendance-accent) / 15%),
+      0 1rem 1.4rem rgb(15 23 42 / 13%);
+    transform: translateY(-0.18rem);
+  }
+}
+
+.dark .supervisor-attendance-card {
+  border-color: rgb(255 255 255 / 13%);
+  background: linear-gradient(145deg, rgb(30 41 59 / 88%), rgb(var(--attendance-accent) / 23%));
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 11%),
+    0 0.4rem 0 rgb(0 0 0 / 18%),
+    0 0.85rem 1.3rem rgb(0 0 0 / 25%);
+}
+.dark .supervisor-attendance-card__copy span {
+  color: rgb(203 213 225);
+}
+.dark .supervisor-attendance-card__icon {
+  border-color: rgb(255 255 255 / 18%);
+  background: radial-gradient(
+    circle at 72% 16%,
+    rgb(255 255 255 / 25%),
+    rgb(var(--attendance-accent) / 44%)
+  );
+  color: rgb(255 255 255);
+}
+
+@media (min-width: 640px) {
+  .supervisor-attendance-launchpad {
+    padding: 1.2rem;
+  }
+  .supervisor-attendance-launchpad__grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+  .supervisor-attendance-card {
+    min-height: 7.25rem;
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .supervisor-attendance-card__arrow {
+    position: absolute;
+    inset-block-end: 0.65rem;
+    inset-inline-end: 0.75rem;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .admin-role-shell[data-shell="mobile"] .mobile-quick-action:active {
+    transform: none;
+  }
+  .supervisor-attendance-card {
+    transition: none;
+  }
+  .supervisor-attendance-card:active {
     transform: none;
   }
 }
@@ -615,7 +830,6 @@
     0 10px 28px rgb(14 50 77 / 7%),
     inset 0 1px 0 rgb(255 255 255 / 72%);
 }
-
 
 .admin-main-rail {
   background-image: linear-gradient(
@@ -1637,5 +1851,209 @@ html.is-scrolling :is(body, .scroll-reveal)::-webkit-scrollbar-thumb,
     height: auto;
     min-height: 12rem;
     flex: 1 1 12rem;
+  }
+}
+
+/* Import next to AdminMobileBottomNav.tsx. No WebGL, image assets or animation libraries. */
+.glass-3d-dock {
+  bottom: max(12px, env(safe-area-inset-bottom));
+  height: 76px;
+  border: 1px solid rgba(255, 255, 255, 0.88);
+  border-radius: 30px;
+  background: linear-gradient(
+    145deg,
+    rgba(245, 250, 255, 0.94) 0%,
+    rgba(211, 229, 255, 0.78) 53%,
+    rgba(247, 251, 255, 0.93) 100%
+  );
+  box-shadow:
+    0 15px 32px rgba(24, 64, 138, 0.2),
+    inset 0 2px 2px rgba(255, 255, 255, 0.95),
+    inset 0 -4px 8px rgba(53, 100, 166, 0.12);
+  isolation: isolate;
+}
+.glass-3d-dock--enhanced {
+  backdrop-filter: blur(16px) saturate(150%);
+  -webkit-backdrop-filter: blur(16px) saturate(150%);
+}
+.glass-3d-dock::before {
+  content: "";
+  position: absolute;
+  inset: 3px;
+  pointer-events: none;
+  border: 1px solid rgba(255, 255, 255, 0.54);
+  border-radius: 27px;
+}
+.glass-3d-dock__shine {
+  position: absolute;
+  pointer-events: none;
+  inset: 5px 8px auto;
+  height: 35%;
+  border-radius: 28px 28px 50% 50%;
+  background: linear-gradient(to bottom, rgba(255, 255, 255, 0.55), transparent);
+}
+.glass-3d-dock__items {
+  display: flex;
+  align-items: center;
+  height: 100%;
+  padding: 0 5px;
+}
+.glass-3d-dock__item {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  flex: 1 1 0;
+  min-width: 0;
+  height: 64px;
+  place-items: center;
+  border: 0;
+  border-radius: 20px;
+  background: transparent;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.glass-3d-dock__item:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: 3px;
+}
+.glass-3d-dock__orb {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  border: 1px solid rgba(255, 255, 255, 0.85);
+  border-radius: 18px;
+  color: #1d4ed8;
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.94), rgba(221, 236, 255, 0.8));
+  box-shadow:
+    inset 0 2px 3px rgba(255, 255, 255, 0.95),
+    inset 0 -3px 5px rgba(65, 105, 176, 0.1),
+    0 5px 10px rgba(42, 80, 150, 0.12);
+  transition:
+    transform 0.24s ease,
+    box-shadow 0.24s ease,
+    background 0.24s ease;
+}
+.glass-3d-dock__orb::before {
+  content: "";
+  position: absolute;
+  left: 12%;
+  right: 12%;
+  top: 6%;
+  height: 38%;
+  border-radius: 100%;
+  background: linear-gradient(to bottom, rgba(255, 255, 255, 0.65), transparent);
+  pointer-events: none;
+}
+.glass-3d-dock__icon {
+  position: relative;
+  z-index: 1;
+  filter: drop-shadow(0 2px 1px rgba(10, 45, 113, 0.1));
+}
+.glass-3d-dock__item--active {
+  z-index: 2;
+}
+.glass-3d-dock__item--active .glass-3d-dock__orb {
+  width: 66px;
+  height: 66px;
+  border-radius: 50%;
+  color: white;
+  background: radial-gradient(
+    circle at 70% 12%,
+    #67d8ff 0%,
+    #2e9cfb 29%,
+    #2563eb 58%,
+    #123bb8 100%
+  );
+  border: 2px solid rgba(236, 250, 255, 0.94);
+  box-shadow:
+    0 0 0 4px rgba(196, 227, 255, 0.82),
+    0 12px 22px rgba(20, 76, 196, 0.32),
+    inset 0 3px 5px rgba(255, 255, 255, 0.58),
+    inset 0 -7px 12px rgba(12, 40, 136, 0.26);
+  transform: translateY(-18px);
+}
+.glass-3d-dock__item--active .glass-3d-dock__icon {
+  width: 28px;
+  height: 28px;
+  filter: drop-shadow(0 3px 2px rgba(12, 30, 100, 0.32));
+}
+@media (hover: hover) {
+  .glass-3d-dock__item:not(.glass-3d-dock__item--active):hover .glass-3d-dock__orb {
+    transform: translateY(-3px);
+  }
+}
+.glass-3d-dock__item:active .glass-3d-dock__orb {
+  scale: 0.95;
+}
+.dark .glass-3d-dock {
+  border-color: rgba(155, 193, 250, 0.34);
+  background: linear-gradient(145deg, rgba(25, 48, 82, 0.94), rgba(20, 35, 67, 0.91));
+  box-shadow:
+    0 15px 32px rgba(0, 0, 0, 0.4),
+    inset 0 2px 2px rgba(255, 255, 255, 0.15);
+}
+.dark .glass-3d-dock__orb:not(.glass-3d-dock__item--active .glass-3d-dock__orb) {
+  color: #bfdbfe;
+  border-color: rgba(165, 197, 245, 0.28);
+  background: linear-gradient(145deg, rgba(62, 86, 128, 0.85), rgba(31, 52, 90, 0.9));
+  box-shadow:
+    inset 0 2px 3px rgba(255, 255, 255, 0.12),
+    0 5px 10px rgba(0, 0, 0, 0.2);
+}
+@media (max-width: 355px) {
+  .glass-3d-dock {
+    height: 70px;
+  }
+  .glass-3d-dock__orb {
+    width: 42px;
+    height: 42px;
+    border-radius: 15px;
+  }
+  .glass-3d-dock__item--active .glass-3d-dock__orb {
+    width: 58px;
+    height: 58px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .glass-3d-dock__orb {
+    transition: none;
+  }
+}
+@keyframes floating-audio-level {
+  0%,
+  100% {
+    transform: scaleY(0.35);
+  }
+  50% {
+    transform: scaleY(1);
+  }
+}
+
+.floating-audio-bars i {
+  display: block;
+  width: 2px;
+  height: 14px;
+  transform-origin: center;
+  border-radius: 999px;
+  background: rgb(var(--brand));
+  animation: floating-audio-level 0.75s ease-in-out infinite;
+}
+
+.floating-audio-bars i:nth-child(2) {
+  animation-delay: 0.12s;
+}
+.floating-audio-bars i:nth-child(3) {
+  animation-delay: 0.24s;
+}
+.floating-audio-bars i:nth-child(4) {
+  animation-delay: 0.36s;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .floating-audio-bars i {
+    animation: none;
+    transform: scaleY(0.65);
   }
 }

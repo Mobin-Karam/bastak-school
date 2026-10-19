@@ -10,13 +10,14 @@ import {
   useAttendanceDiscard,
 } from "../../../student-life/attendance/public";
 import { useAuth } from "../../../identity/auth";
-import { Check, MessageSquareText, Minus, Plus, Trophy } from "lucide-react";
+import { Check, MessageSquareText, Minus, Plus } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import type { ScheduleEntry } from "../../../academics/schedule/api/schedule.api";
 import { notify } from "../../../../shared/ui/notifications";
 import { api } from "../../../../shared/api/api";
 import { ResponsiveModal } from "../../../../shared/ui/responsive-modal";
 import { Button, EmptyState, LoadingState } from "../../../../shared/ui/ui";
+import { AttendanceCoin } from "../../../../shared/ui/attendance-coin";
 
 type AttendanceStatus = SelfAttendanceRecord["status"];
 
@@ -149,7 +150,7 @@ export function TeacherClassAttendanceSheet({
     mutationFn: () => {
       if (!entry?.classroom?.id || !pointTarget)
         throw new Error("دانش‌آموز یا کلاس انتخاب نشده است.");
-      if (pointReason.trim().length < 3) throw new Error("دلیل امتیاز را وارد کنید.");
+      if (pointReason.trim().length < 3) throw new Error("دلیل سکه را وارد کنید.");
       return awardAttendancePoints({
         requestId: crypto.randomUUID(),
         organizationId: entry.organization.id,
@@ -161,12 +162,12 @@ export function TeacherClassAttendanceSheet({
       });
     },
     onSuccess: () => {
-      notify("امتیاز کلاس ثبت شد.", "success");
+      notify("سکه کلاسی ثبت شد.", "success");
       setPointTarget(null);
       setPointReason("");
     },
     onError: (error) =>
-      notify(error instanceof Error ? error.message : "ثبت امتیاز انجام نشد.", "error"),
+      notify(error instanceof Error ? error.message : "ثبت سکه انجام نشد.", "error"),
   });
 
   return (
@@ -291,7 +292,7 @@ export function TeacherClassAttendanceSheet({
                     {canManage ? (
                       <div className="mt-3 flex items-center gap-2 border-t border-[rgb(var(--border-subtle))] pt-2">
                         <span className="flex items-center gap-1 text-[11px] font-bold text-slate-500">
-                          <Trophy size={13} aria-hidden="true" /> امتیاز کلاسی
+                          <AttendanceCoin className="size-4 object-contain" /> سکه کلاسی
                         </span>
                         <button
                           type="button"
@@ -404,14 +405,12 @@ export function TeacherClassAttendanceSheet({
       <ResponsiveModal
         open={Boolean(pointTarget)}
         onOpenChange={(next) => !next && !points.isPending && setPointTarget(null)}
-        title={
-          pointTarget?.points && pointTarget.points > 0 ? "افزودن امتیاز کلاسی" : "کسر امتیاز کلاسی"
-        }
+        title={pointTarget?.points && pointTarget.points > 0 ? "افزودن سکه کلاسی" : "کسر سکه کلاسی"}
         description={pointTarget?.name ?? ""}
       >
         <div className="space-y-4" dir="rtl">
           <p className="text-sm leading-6">
-            برای ثبت {pointTarget?.points ?? 0} امتیاز، دلیل روشن و قابل پیگیری وارد کنید.
+            برای ثبت {pointTarget?.points ?? 0} سکه، دلیل روشن و قابل پیگیری وارد کنید.
           </p>
           <label className="block text-sm font-bold">
             دلیل
@@ -428,7 +427,7 @@ export function TeacherClassAttendanceSheet({
             disabled={pointReason.trim().length < 3}
             onClick={() => points.mutate()}
           >
-            ثبت امتیاز
+            ثبت سکه
           </Button>
         </div>
       </ResponsiveModal>

@@ -11,7 +11,7 @@ export function MobilePageContainer({ className, children, ...props }: MobilePag
   return (
     <main
       className={cn(
-        "mx-auto w-full max-w-2xl px-4 py-4 pb-[calc(1rem+env(safe-area-inset-bottom))] sm:px-5",
+        "mx-auto w-full max-w-2xl px-4 py-5 pb-[calc(6rem+env(safe-area-inset-bottom))] sm:px-5",
         className,
       )}
       {...props}
@@ -74,7 +74,7 @@ export function MobileSection({
       {title ? (
         <header className="flex min-w-0 items-start justify-between gap-3">
           <div className="min-w-0">
-            <h2 className="text-base font-black text-ink">{title}</h2>
+            <h2 className="text-base font-black tracking-tight text-ink">{title}</h2>
             {description ? (
               <p className="mt-1 text-sm leading-6 text-slate-500 dark:text-slate-300">
                 {description}
@@ -149,7 +149,7 @@ export function CollapsibleSection({
     <details
       open={open}
       className={cn(
-        "rounded-2xl border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card))]",
+        "rounded-2xl border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card))] shadow-[var(--shadow-surface)]",
         className,
       )}
     >

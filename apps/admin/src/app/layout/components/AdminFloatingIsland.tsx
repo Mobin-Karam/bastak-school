@@ -9,10 +9,14 @@ import type { AdminShellModel } from "../hooks/use-admin-shell-model";
 export function AdminFloatingIsland({ model }: { model: AdminShellModel }) {
   const island = useFloatingIsland();
   const { dismiss, reset, show } = island;
-  const unread = model.notificationState.unread;
+  const canViewNotifications =
+    model.auth.status === "authenticated" && Boolean(model.auth.user?.id);
+  const canReadAnnouncements = canViewNotifications && model.auth.can("announcements.read");
+  const unread = canViewNotifications ? model.notificationState.unread : 0;
   const scopeKey = `${model.auth.user?.id ?? "anonymous"}:${model.auth.context?.activeOrganization?.id ?? "none"}:${model.auth.activeRole ?? "none"}`;
   const previousScopeKey = useRef(scopeKey);
   const shownNotificationId = useRef<string | null>(null);
+  const shownAnnouncementId = useRef<string | null>(null);
   const shownAnnouncementSignature = useRef<string | null>(null);
   const dashboard = useQuery({
     queryKey: [
@@ -21,14 +25,16 @@ export function AdminFloatingIsland({ model }: { model: AdminShellModel }) {
       model.auth.context?.activeOrganization?.id || "platform",
     ],
     queryFn: () => getAdminDashboard(model.auth.activeRole ?? undefined),
-    enabled: model.auth.status === "authenticated",
+    enabled: canReadAnnouncements,
     staleTime: 10_000,
   });
   const newestUnread = useMemo(
-    () => model.notificationState.items.find((item) => !item.isRead),
-    [model.notificationState.items],
+    () =>
+      canViewNotifications ? model.notificationState.items.find((item) => !item.isRead) : undefined,
+    [canViewNotifications, model.notificationState.items],
   );
   const latestAnnouncement = useMemo(() => {
+    if (!canReadAnnouncements) return undefined;
     const now = Date.now();
     return (dashboard.data?.home?.announcements ?? [])
       .filter(
@@ -42,13 +48,14 @@ export function AdminFloatingIsland({ model }: { model: AdminShellModel }) {
           new Date(right.publishedAt ?? right.createdAt).getTime() -
           new Date(left.publishedAt ?? left.createdAt).getTime(),
       )[0];
-  }, [dashboard.data?.home?.announcements]);
+  }, [canReadAnnouncements, dashboard.data?.home?.announcements]);
 
   useEffect(() => {
     if (previousScopeKey.current === scopeKey) return;
     previousScopeKey.current = scopeKey;
     reset();
     shownNotificationId.current = null;
+    shownAnnouncementId.current = null;
     shownAnnouncementSignature.current = null;
   }, [reset, scopeKey]);
 
@@ -96,10 +103,18 @@ export function AdminFloatingIsland({ model }: { model: AdminShellModel }) {
   }, [dismiss, newestUnread, show]);
 
   useEffect(() => {
-    if (!latestAnnouncement) return;
+    if (!latestAnnouncement) {
+      if (shownAnnouncementId.current) {
+        dismiss(`announcement:${shownAnnouncementId.current}`);
+        shownAnnouncementId.current = null;
+        shownAnnouncementSignature.current = null;
+      }
+      return;
+    }
     const signature = `${latestAnnouncement.id}:${latestAnnouncement.publishedAt ?? ""}`;
     if (signature === shownAnnouncementSignature.current) return;
     shownAnnouncementSignature.current = signature;
+    shownAnnouncementId.current = latestAnnouncement.id;
     const expiresAt = latestAnnouncement.expiresAt
       ? new Date(latestAnnouncement.expiresAt).getTime()
       : null;
@@ -113,7 +128,7 @@ export function AdminFloatingIsland({ model }: { model: AdminShellModel }) {
       dismissible: true,
       action: { label: "مشاهده اطلاعیه‌ها", to: "/admin" },
     });
-  }, [latestAnnouncement, show]);
+  }, [dismiss, latestAnnouncement, show]);
 
   return <FloatingIslandViewport direction={model.direction} performance={model.performance} />;
 }

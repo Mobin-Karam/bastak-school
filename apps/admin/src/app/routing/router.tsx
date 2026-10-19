@@ -120,11 +120,27 @@ const NotificationsPage = lazy(() =>
     default: m.NotificationsPage,
   })),
 );
+const AnnouncementInboxPage = lazy(() =>
+  import("../../features/communications/announcements").then((m) => ({
+    default: m.AnnouncementInboxPage,
+  })),
+);
+const AnnouncementManagementPage = lazy(() =>
+  import("../../features/communications/announcements").then((m) => ({
+    default: m.AnnouncementManagementPage,
+  })),
+);
 const MobileMorePage = lazy(() =>
   import("../../features/mobile/MobileMorePage").then((m) => ({ default: m.MobileMorePage })),
 );
 const AchievementsComingSoonPage = lazy(() =>
   import("../../features/achievements").then((m) => ({ default: m.AchievementsComingSoonPage })),
+);
+const CoinShopComingSoonPage = lazy(() =>
+  import("../../features/coin-shop").then((m) => ({ default: m.CoinShopComingSoonPage })),
+);
+const ManagementComingSoonPage = lazy(() =>
+  import("../../features/management").then((m) => ({ default: m.ManagementComingSoonPage })),
 );
 
 function RouteScreen({ children }: { children: ReactNode }) {
@@ -305,6 +321,30 @@ export function CapabilityRoute({
   return <>{children}</>;
 }
 
+function StudentOnlyRoute({ children }: { children: ReactNode }) {
+  const auth = useAuth();
+  return auth.activeRole === "STUDENT" ? <>{children}</> : <Navigate to="/admin" replace />;
+}
+
+function PrincipalOnlyRoute({ children }: { children: ReactNode }) {
+  const auth = useAuth();
+  return auth.activeRole === "PRINCIPAL" ? <>{children}</> : <Navigate to="/admin" replace />;
+}
+
+function CoinShopAudienceRoute({ children }: { children: ReactNode }) {
+  const auth = useAuth();
+  return ["STUDENT", "PRINCIPAL", "SCHOOL_SUPERVISOR"].includes(auth.activeRole ?? "") ? (
+    <>{children}</>
+  ) : (
+    <Navigate to="/admin" replace />
+  );
+}
+
+function TeacherOnlyRoute({ children }: { children: ReactNode }) {
+  const auth = useAuth();
+  return auth.activeRole === "TEACHER" ? <>{children}</> : <Navigate to="/admin" replace />;
+}
+
 export const router = createBrowserRouter([
   { path: "/login", element: <LoginPage />, errorElement: <RouteErrorBoundary /> },
   {
@@ -365,17 +405,21 @@ export const router = createBrowserRouter([
           {
             path: "teacher-profile",
             element: (
-              <RouteScreen>
-                <TeacherProfilePage />
-              </RouteScreen>
+              <TeacherOnlyRoute>
+                <RouteScreen>
+                  <TeacherProfilePage />
+                </RouteScreen>
+              </TeacherOnlyRoute>
             ),
           },
           {
             path: "teacher-chat",
             element: (
-              <RouteScreen>
-                <TeacherChatComingSoonPage />
-              </RouteScreen>
+              <TeacherOnlyRoute>
+                <RouteScreen>
+                  <TeacherChatComingSoonPage />
+                </RouteScreen>
+              </TeacherOnlyRoute>
             ),
           },
           {
@@ -515,6 +559,24 @@ export const router = createBrowserRouter([
             ),
           },
           {
+            path: "announcements",
+            element: (
+              <RouteScreen>
+                <AnnouncementInboxPage />
+              </RouteScreen>
+            ),
+          },
+          {
+            path: "announcements/manage",
+            element: (
+              <CapabilityRoute capability="announcements.manage">
+                <RouteScreen>
+                  <AnnouncementManagementPage />
+                </RouteScreen>
+              </CapabilityRoute>
+            ),
+          },
+          {
             path: "system",
             element: (
               <CapabilityRoute capability="system.manage">
@@ -535,9 +597,11 @@ export const router = createBrowserRouter([
           {
             path: "profile",
             element: (
-              <RouteScreen>
-                <StudentProfilePage />
-              </RouteScreen>
+              <StudentOnlyRoute>
+                <RouteScreen>
+                  <StudentProfilePage />
+                </RouteScreen>
+              </StudentOnlyRoute>
             ),
           },
           {
@@ -572,9 +636,31 @@ export const router = createBrowserRouter([
           {
             path: "achievements",
             element: (
-              <RouteScreen>
-                <AchievementsComingSoonPage />
-              </RouteScreen>
+              <StudentOnlyRoute>
+                <RouteScreen>
+                  <AchievementsComingSoonPage />
+                </RouteScreen>
+              </StudentOnlyRoute>
+            ),
+          },
+          {
+            path: "coin-shop",
+            element: (
+              <CoinShopAudienceRoute>
+                <RouteScreen>
+                  <CoinShopComingSoonPage />
+                </RouteScreen>
+              </CoinShopAudienceRoute>
+            ),
+          },
+          {
+            path: "management",
+            element: (
+              <PrincipalOnlyRoute>
+                <RouteScreen>
+                  <ManagementComingSoonPage />
+                </RouteScreen>
+              </PrincipalOnlyRoute>
             ),
           },
         ],

@@ -1,4 +1,5 @@
 dist
+storybook-static
 coverage
 test-results
 playwright-report

@@ -18,10 +18,9 @@ import {
 } from "../lib/api-error";
 import type { NotificationPage } from "../model/notification-model";
 
-const notificationQueryKey = ["notifications"] as const;
-
-export function useNotificationInbox(enabled: boolean) {
+export function useNotificationInbox(enabled: boolean, scopeKey: string) {
   const queryClient = useQueryClient();
+  const notificationQueryKey = ["notifications", scopeKey] as const;
 
   const inbox = useInfiniteQuery({
     queryKey: notificationQueryKey,

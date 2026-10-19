@@ -13,6 +13,7 @@ import { AdminFloatingIsland } from "../components/AdminFloatingIsland";
 import { useAdminShellModel } from "../hooks/use-admin-shell-model";
 import { useViewportShell } from "../lib/viewport-shell";
 import { currentViewportHeight } from "../lib/viewport-height";
+import { StudentPortalOnboarding } from "../../../features/people/student-portal/components/StudentPortalOnboarding";
 
 const StudentAttendancePoolPrompt = lazy(() =>
   import("../../../features/student-life/attendance/components/StudentAttendanceWorkspace").then(
@@ -93,6 +94,7 @@ export function AdminLayout() {
       data-shell={shell}
       dir={model.direction}
     >
+      <StudentPortalOnboarding />
       <PrincipalLeaveRequestAlert />
       {model.auth.can("attendance.self.read") ? (
         <Suspense fallback={null}>

@@ -25,9 +25,10 @@ describe("DashboardCalendar", () => {
     );
 
     expect(screen.getAllByRole("option")).toHaveLength(3);
-    // CSSOM may normalize calc() or resolve it to pixels; check the responsive declaration.
+    // CSSOM may normalize calc() or resolve it to pixels; the card sizing is
+    // tied to its rail so split panes and tablet layouts still show three days.
     const expectedStyle = document.createElement("div").style;
-    expectedStyle.width = "calc((100vw - 3rem) / 3)";
+    expectedStyle.width = "calc((100% - 1rem) / 3)";
     expect(screen.getAllByRole("option")[0].style.width).toBe(expectedStyle.width);
     act(() => idle?.());
     expect(screen.getAllByRole("option")).toHaveLength(61);
@@ -43,5 +44,17 @@ describe("DashboardCalendar", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "امروز" }));
     expect(onChange).toHaveBeenCalledWith(todayIso());
+  });
+
+  it("does not reset a deliberately selected date when the browser restores the page", () => {
+    const onChange = vi.fn();
+    render(
+      <LocaleProvider>
+        <DashboardCalendar value="2026-10-07" onChange={onChange} capabilities={[]} />
+      </LocaleProvider>,
+    );
+
+    window.dispatchEvent(new Event("pageshow"));
+    expect(onChange).not.toHaveBeenCalled();
   });
 });

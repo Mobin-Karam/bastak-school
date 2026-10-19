@@ -1,5 +1,14 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { BellRing, ClipboardCheck, MessageSquare, UsersRound } from "lucide-react";
+import {
+  BedDouble,
+  BellRing,
+  CalendarClock,
+  ClipboardCheck,
+  Layers3,
+  MessageSquare,
+  School,
+  UsersRound,
+} from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../../../identity/auth";
@@ -22,6 +31,8 @@ import { SchoolOccupancyBanner } from "./SchoolOccupancyBanner";
 import { ResponsiveDrawer } from "../../../../shared/ui/responsive-drawer";
 import { useAdminNotifications } from "../../../communications/notifications/hooks/useAdminNotifications";
 import { notificationAdminUrl } from "../../../communications/notifications/model/notification-model";
+import { useDevicePerformance } from "../../../../app/layout/hooks/use-device-performance";
+import { CoinShopTeaser } from "../../../coin-shop";
 
 /** Principal and supervisor home: school calendar, live prayer time, announcements and attendance totals. */
 export function SchoolManagerDashboard() {
@@ -117,6 +128,8 @@ export function SchoolManagerDashboard() {
     [announcements.data],
   );
   const canReviewIncomingWork = auth.canAny(["permission_requests.read", "leave.read"]);
+  const isSupervisorAttendanceWorkspace =
+    auth.activeRole === "SCHOOL_SUPERVISOR" && auth.can("attendance.read");
 
   if (schedule.isLoading) return <LoadingState label="در حال آماده‌سازی میز مدرسه…" />;
   return (
@@ -129,7 +142,9 @@ export function SchoolManagerDashboard() {
           schedule={schedule.data ?? []}
         />
       </div>
+      <CoinShopTeaser audience="school" />
       <div className="">
+        {isSupervisorAttendanceWorkspace ? <SupervisorAttendanceLaunchpad /> : null}
         <SchoolOccupancyBanner />
         <div className="grid gap-3 lg:grid-cols-2">
           <CurrentPrayerCard times={prayerValues} className="h-full" />
@@ -278,6 +293,76 @@ export function SchoolManagerDashboard() {
           </div>
         </ResponsiveDrawer>
       </div>
+    </section>
+  );
+}
+
+/**
+ * A concise starting point for the supervisor's four attendance contexts.
+ * The links only select a client-side context; AttendancePage and its API
+ * capability checks remain the authority for viewing or changing records.
+ */
+export function SupervisorAttendanceLaunchpad() {
+  const performance = useDevicePerformance();
+  const actions = [
+    {
+      label: "کلاس‌ها",
+      description: "حضور و غیاب هر کلاس",
+      to: "/admin/attendance?section=class",
+      icon: School,
+      tone: "class",
+    },
+    {
+      label: "خوابگاه",
+      description: "اتاق‌ها و ساکنان",
+      to: "/admin/attendance?section=dorm",
+      icon: BedDouble,
+      tone: "dorm",
+    },
+    {
+      label: "گروه‌های کلاس",
+      description: "گروه‌های آموزشی",
+      to: "/admin/attendance?section=class_group",
+      icon: Layers3,
+      tone: "groups",
+    },
+    {
+      label: "جلسات",
+      description: "سوابق و بررسی‌ها",
+      to: "/admin/attendance?section=sessions",
+      icon: CalendarClock,
+      tone: "sessions",
+    },
+  ] as const;
+
+  return (
+    <section
+      aria-labelledby="supervisor-attendance-title"
+      className={`supervisor-attendance-launchpad ${performance === "enhanced" ? "supervisor-attendance-launchpad--enhanced" : ""}`}
+    >
+      <div className="supervisor-attendance-launchpad__heading">
+        <div>
+          <p className="supervisor-attendance-launchpad__eyebrow">میز سرپرست</p>
+          <h1 id="supervisor-attendance-title">حضور و غیاب مدرسه</h1>
+        </div>
+        <p>یک زمینه را برای پیگیری حضور امروز انتخاب کنید.</p>
+      </div>
+      <nav aria-label="بخش‌های حضور و غیاب" className="supervisor-attendance-launchpad__grid">
+        {actions.map(({ label, description, to, icon: Icon, tone }) => (
+          <Link key={to} to={to} className="supervisor-attendance-card" data-tone={tone}>
+            <span className="supervisor-attendance-card__icon" aria-hidden="true">
+              <Icon size={22} strokeWidth={2.15} />
+            </span>
+            <span className="supervisor-attendance-card__copy">
+              <strong>{label}</strong>
+              <span>{description}</span>
+            </span>
+            <span className="supervisor-attendance-card__arrow" aria-hidden="true">
+              ←
+            </span>
+          </Link>
+        ))}
+      </nav>
     </section>
   );
 }

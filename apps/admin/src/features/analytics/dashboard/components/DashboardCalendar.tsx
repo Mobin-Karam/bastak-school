@@ -1,6 +1,6 @@
 import { Clock3 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import { addDays, todayIso } from "../../../../shared/lib/utils";
+import { addDays } from "../../../../shared/lib/utils";
 import {
   DateNavigator,
   type DateNavigatorDay,
@@ -53,15 +53,6 @@ export function DashboardCalendar({
     const timer = window.setTimeout(promote, 180);
     return () => window.clearTimeout(timer);
   }, []);
-  // Browser back/forward cache can restore a dashboard with a stale selected
-  // day. Treat a restored page as a fresh dashboard visit and return to today.
-  useEffect(() => {
-    const restoreToday = (event: PageTransitionEvent) => {
-      if (event.persisted) onChange(todayIso());
-    };
-    window.addEventListener("pageshow", restoreToday);
-    return () => window.removeEventListener("pageshow", restoreToday);
-  }, [onChange]);
   const days = useMemo<readonly DateNavigatorDay[]>(() => {
     const start = addDays(value, -radius);
     return Array.from({ length: radius * 2 + 1 }, (_, index) => {

@@ -105,10 +105,10 @@ export function AdminMainSidebar({
               key={path}
               to={adminDestination(active ? currentPath : path, section, selectedStudentId)}
               end={path === ""}
-              title={collapsed ? title : undefined}
+              title={title}
               aria-label={title}
               aria-current={active ? "location" : undefined}
-              className={`relative flex h-10 items-center rounded-lg text-sm font-medium outline-none transition focus-visible:ring-2 focus-visible:ring-brand ${collapsed ? "justify-center px-2" : "gap-3 px-3"} ${active ? "admin-rail-item-active bg-brand/10 text-brand" : "text-slate-600 hover:bg-[rgb(var(--surface-muted))] hover:text-ink dark:text-slate-300"}`}
+              className={`relative flex h-10 items-center justify-center rounded-lg px-2 text-sm font-medium outline-none transition focus-visible:ring-2 focus-visible:ring-brand ${active ? "admin-rail-item-active bg-brand/10 text-brand" : "text-slate-600 hover:bg-[rgb(var(--surface-muted))] hover:text-ink dark:text-slate-300"}`}
             >
               {active ? (
                 <span
@@ -117,7 +117,6 @@ export function AdminMainSidebar({
                 />
               ) : null}
               <Icon className="shrink-0" size={19} strokeWidth={active ? 2.4 : 1.9} />
-              {!collapsed ? <span className="truncate">{title}</span> : null}
             </NavLink>
           );
         })}

@@ -47,7 +47,7 @@ describe("AdminMobileBottomNav", () => {
     );
     expect(screen.getByRole("button", { name: "همه مسیرهای مدیریت" })).toBeVisible();
     expect(screen.getAllByRole("link")).toHaveLength(4);
-    expect(container.querySelector("nav")).toHaveClass("backdrop-blur-md");
+    expect(container.querySelector("nav")).toHaveClass("glass-3d-dock--enhanced");
     expect(container.querySelector("nav")).not.toHaveClass("student-mobile-navigation");
   });
 
@@ -68,16 +68,42 @@ describe("AdminMobileBottomNav", () => {
     );
 
     await user.click(screen.getByRole("button", { name: "همه مسیرهای مدیریت" }));
-    expect(container.querySelector("nav")).not.toHaveClass("backdrop-blur-md");
+    expect(container.querySelector("nav")).not.toHaveClass("glass-3d-dock--enhanced");
     expect(screen.getByRole("dialog")).toHaveAccessibleName("همه مسیرهای مدیریت");
     expect(screen.getByRole("link", { name: /برنامه هفتگی/ })).toHaveAttribute(
       "href",
       "/admin/schedule",
     );
     expect(screen.queryByRole("link", { name: "مدارس / سازمان‌ها" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "دستاوردها" })).not.toBeInTheDocument();
   });
 
-  it("puts student points and capability-filtered quick actions before full navigation", async () => {
+  it("shows the future management workspace only for principals", async () => {
+    authState.activeRole = "PRINCIPAL";
+    const user = (await import("@testing-library/user-event")).default.setup();
+    render(
+      <MemoryRouter>
+        <ThemeProvider>
+          <LocaleProvider>
+            <AdminMobileBottomNav
+              current={{ path: "", section: "خانه" } as never}
+              selectedStudentId=""
+              performance="reduced"
+            />
+          </LocaleProvider>
+        </ThemeProvider>
+      </MemoryRouter>,
+    );
+
+    await user.click(screen.getByRole("button", { name: "همه مسیرهای مدیریت" }));
+    expect(screen.getByRole("link", { name: /مدیریت مدرسه/ })).toHaveAttribute(
+      "href",
+      "/admin/management",
+    );
+    expect(screen.queryByRole("link", { name: /دستاوردها/ })).not.toBeInTheDocument();
+  });
+
+  it("puts student coins and capability-filtered quick actions before full navigation", async () => {
     authState.activeRole = "STUDENT";
     authState.capabilities = ["attendance.self.read", "schedule.read"];
     const user = (await import("@testing-library/user-event")).default.setup();
@@ -101,7 +127,8 @@ describe("AdminMobileBottomNav", () => {
     expect(screen.getByRole("link", { name: "خانه من" })).toBeVisible();
     expect(screen.getByRole("button", { name: "همه مسیرهای مدیریت" })).toBeVisible();
     await user.click(screen.getByRole("button", { name: "همه مسیرهای مدیریت" }));
-    expect(await screen.findByRole("link", { name: "امتیازهای من" })).toHaveTextContent("۱۲");
+    expect(screen.queryByRole("link", { name: "دستاوردها" })).not.toBeInTheDocument();
+    expect(await screen.findByRole("link", { name: "سکه‌های من" })).toHaveTextContent("۱۲");
     expect(screen.getByRole("heading", { name: "دسترسی سریع" })).toBeVisible();
     expect(screen.getByRole("link", { name: "حضور من" })).toHaveAttribute(
       "href",
@@ -110,6 +137,10 @@ describe("AdminMobileBottomNav", () => {
     expect(screen.getByRole("link", { name: "برنامه هفتگی" })).toHaveAttribute(
       "href",
       "/admin/schedule",
+    );
+    expect(screen.getByRole("link", { name: /دستاوردها/ })).toHaveAttribute(
+      "href",
+      "/admin/achievements",
     );
   });
 });

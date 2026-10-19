@@ -28,9 +28,14 @@ export class SavePrayerTimeDto {
 export class SaveSchoolAnnouncementDto {
   @IsString() @MaxLength(180) title!: string;
   @IsString() @MaxLength(4000) body!: string;
-  @IsIn(["STAFF", "STUDENTS", "CLASS"]) audience!:
-    "STAFF" | "STUDENTS" | "CLASS";
+  @IsIn(["STAFF", "STUDENTS", "CLASS", "USERS"]) audience!:
+    "STAFF" | "STUDENTS" | "CLASS" | "USERS";
   @IsOptional() @IsString() classroomId?: string;
+  @IsOptional() @IsString({ each: true }) recipientIds?: string[];
+  @IsOptional() @IsString() @MaxLength(48) category?: string;
+  @IsOptional() @IsString() @MaxLength(2048) linkUrl?: string;
+  @IsOptional() @IsString() @MaxLength(2048) mediaUrl?: string;
+  @IsOptional() @IsIn(["VIDEO", "AUDIO"]) mediaType?: "VIDEO" | "AUDIO";
   @IsOptional() @IsIn(["DRAFT", "ACTIVE", "ARCHIVED"]) status?:
     "DRAFT" | "ACTIVE" | "ARCHIVED";
 }

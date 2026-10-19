@@ -9,7 +9,7 @@ const achievements = [
   ["reader", "مطالعه مستمر"],
   ["participation", "مشارکت فعال"],
   ["next-level", "سطح بالاتر"],
-  ["top-score", "گردآورنده امتیاز"],
+  ["top-score", "گردآورنده سکه"],
   ["prayer", "پایبندی به نماز"],
   ["quran", "حافظ قرآن"],
   ["growth", "رشد علمی"],

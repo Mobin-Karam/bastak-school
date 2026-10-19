@@ -6,10 +6,11 @@ const STUDENT_HOSTS = new Set(["stud.sultano.ir", "stud.localhost"]);
 const ADMIN_HOSTS = new Set(["app.sultano.ir", "app.localhost"]);
 const LOCAL_HOSTS = new Set(["localhost", "127.0.0.1", "::1"]);
 
-const STUDENT_ONLY_ROUTES = new Set(["my-attendance", "profile", "student-leave"]);
+const STUDENT_ONLY_ROUTES = new Set(["achievements", "my-attendance", "profile", "student-leave"]);
 const STUDENT_PORTAL_ROUTES = new Set([
   "",
   ...STUDENT_ONLY_ROUTES,
+  "coin-shop",
   "schedule",
   "books",
   "registration",

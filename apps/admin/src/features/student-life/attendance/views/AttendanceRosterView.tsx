@@ -5,6 +5,8 @@ import {
   UsersRound,
   Clock3,
   Minus,
+  Plus,
+  Trophy,
   UserRound,
 } from "lucide-react";
 import { Card } from "../../../../shared/ui/ui";
@@ -44,6 +46,7 @@ export function AttendanceRosterView({
   onMarkAllPresent,
   onClearFilters,
   onViewProfile,
+  onAdjustPoints,
 }: {
   canManage: boolean;
   /** Saved timetable sessions are committed absence-first; ad-hoc marking remains explicit. */
@@ -63,6 +66,7 @@ export function AttendanceRosterView({
   onMarkAllPresent: () => void;
   onClearFilters: () => void;
   onViewProfile?: (id: string) => void;
+  onAdjustPoints?: (student: AttendanceParticipant, points: 1 | -1) => void;
 }) {
   return (
     <Card className="overflow-hidden rounded-3xl border border-sky-100 p-0 dark:border-slate-700">
@@ -174,6 +178,33 @@ export function AttendanceRosterView({
                   >
                     پرونده حضور
                   </button>
+                ) : null}
+                {onAdjustPoints ? (
+                  <div
+                    className="flex shrink-0 items-center gap-1"
+                    role="group"
+                    aria-label={`امتیاز ${student.name}`}
+                  >
+                    <Trophy size={15} className="text-amber-600" aria-hidden="true" />
+                    <button
+                      type="button"
+                      className="grid min-h-9 min-w-9 place-items-center rounded-lg bg-emerald-50 text-emerald-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-200"
+                      aria-label={`افزودن یک امتیاز برای ${student.name}`}
+                      disabled={saving}
+                      onClick={() => onAdjustPoints(student, 1)}
+                    >
+                      <Plus size={16} aria-hidden="true" />
+                    </button>
+                    <button
+                      type="button"
+                      className="grid min-h-9 min-w-9 place-items-center rounded-lg bg-rose-50 text-rose-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-rose-600 dark:bg-rose-950/40 dark:text-rose-200"
+                      aria-label={`کسر یک امتیاز از ${student.name}`}
+                      disabled={saving}
+                      onClick={() => onAdjustPoints(student, -1)}
+                    >
+                      <Minus size={16} aria-hidden="true" />
+                    </button>
+                  </div>
                 ) : null}
                 {student.status !== "unmarked" ? (
                   <Check size={15} className="shrink-0 text-emerald-600" aria-label="تعیین شده" />

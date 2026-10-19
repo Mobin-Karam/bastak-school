@@ -340,7 +340,7 @@ describe("staff session and pool creation", () => {
 
     expect(await screen.findByText("دبیرستان نمونه")).toBeInTheDocument();
     expect(screen.getByText("هفتم الف")).toBeInTheDocument();
-    expect(screen.getByText("امتیاز")).toBeInTheDocument();
+    expect(screen.getByText("سکه‌ها")).toBeInTheDocument();
     expect(screen.getByText("درصد حضور")).toBeInTheDocument();
     expect(screen.getByText("تکمیل ثبت همه جلسه‌ها")).toBeInTheDocument();
     expect(mocks.profile).toHaveBeenCalledWith("b");

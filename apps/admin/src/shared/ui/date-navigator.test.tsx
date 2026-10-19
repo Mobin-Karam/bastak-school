@@ -65,4 +65,23 @@ describe("DateNavigator", () => {
     fireEvent.keyDown(screen.getByRole("listbox"), { key: "ArrowLeft" });
     expect(onChange).toHaveBeenCalledWith("2026-09-01");
   });
+
+  it("keeps the rail as the single keyboard focus stop and localizes the today action", () => {
+    render(
+      <LocaleProvider>
+        <DateNavigator
+          value="2026-08-31"
+          onChange={() => undefined}
+          days={[{ date: "2026-08-30" }, { date: "2026-08-31" }, { date: "2026-09-01" }]}
+        />
+      </LocaleProvider>,
+    );
+
+    const rail = screen.getByRole("listbox");
+    expect(rail).toHaveAttribute("aria-activedescendant");
+    screen
+      .getAllByRole("option")
+      .forEach((option) => expect(option).not.toHaveAttribute("tabindex"));
+    expect(screen.getByRole("button", { name: "امروز" })).toBeInTheDocument();
+  });
 });

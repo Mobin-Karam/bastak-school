@@ -40,7 +40,7 @@ export function MobileBottomNavigation({
   return (
     <nav
       aria-label="ناوبری اصلی"
-      className="fixed inset-x-0 bottom-0 z-30 flex border-t border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card))]/95 px-2 pb-[env(safe-area-inset-bottom)] pt-1 backdrop-blur supports-[backdrop-filter]:bg-[rgb(var(--surface-card))]/85"
+      className="mobile-menu-dock fixed inset-x-2 bottom-[max(0.5rem,env(safe-area-inset-bottom))] z-30 mx-auto flex max-w-[460px] sm:inset-x-3"
     >
       {items.slice(0, 5).map((item) => (
         <button
@@ -49,10 +49,8 @@ export function MobileBottomNavigation({
           aria-current={currentPath === item.path ? "page" : undefined}
           onClick={item.onSelect}
           className={cn(
-            "grid min-h-14 flex-1 place-items-center gap-1 rounded-xl px-1 text-[11px] font-semibold",
-            currentPath === item.path
-              ? "text-[rgb(var(--mobile-primary))]"
-              : "text-slate-500 dark:text-slate-300",
+            "mobile-menu-dock__item",
+            currentPath === item.path ? "mobile-menu-dock__item--active" : undefined,
           )}
         >
           {item.icon}

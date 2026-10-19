@@ -27,17 +27,17 @@ describe("MobileShell", () => {
     );
   }
 
-  it("keeps the masthead brand separate from the shell-level floating island", () => {
+  it("uses the current page title instead of a decorative masthead logo", () => {
     const { container } = renderShell({
       ...studentModel,
       auth: { activeRole: "PRINCIPAL", user: { firstName: "مدیر" } },
       notificationState: { unread: 0 },
     } as AdminShellModel);
 
-    expect(screen.getByRole("img", { name: "مدرسه دینی سلطان العلماء بستک" })).toHaveAttribute(
-      "src",
-      "/logo-bastak.webp",
-    );
-    expect(container.querySelectorAll('img[src="/right-left-angel.png"]')).toHaveLength(2);
+    expect(screen.getByText("خانه")).toBeVisible();
+    expect(
+      screen.queryByRole("img", { name: "مدرسه دینی سلطان العلماء بستک" }),
+    ).not.toBeInTheDocument();
+    expect(container.querySelectorAll('img[src="/right-left-angel.png"]')).toHaveLength(0);
   });
 });

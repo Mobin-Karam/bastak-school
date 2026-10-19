@@ -1,7 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { SchoolIncomingPanel } from "./SchoolManagerDashboard";
+import { SchoolIncomingPanel, SupervisorAttendanceLaunchpad } from "./SchoolManagerDashboard";
 
 const notifications = {
   items: [] as Array<{
@@ -62,5 +62,33 @@ describe("SchoolIncomingPanel", () => {
     );
 
     expect(screen.getByRole("alert")).toHaveTextContent("پیگیری‌های ورودی دریافت نشد");
+  });
+});
+
+describe("SupervisorAttendanceLaunchpad", () => {
+  it("links each attendance context to its shareable attendance section", () => {
+    render(
+      <MemoryRouter>
+        <SupervisorAttendanceLaunchpad />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByRole("heading", { name: "حضور و غیاب مدرسه" })).toBeVisible();
+    expect(screen.getByRole("link", { name: /کلاس‌ها/ })).toHaveAttribute(
+      "href",
+      "/admin/attendance?section=class",
+    );
+    expect(screen.getByRole("link", { name: /خوابگاه/ })).toHaveAttribute(
+      "href",
+      "/admin/attendance?section=dorm",
+    );
+    expect(screen.getByRole("link", { name: /گروه‌های کلاس/ })).toHaveAttribute(
+      "href",
+      "/admin/attendance?section=class_group",
+    );
+    expect(screen.getByRole("link", { name: /جلسات/ })).toHaveAttribute(
+      "href",
+      "/admin/attendance?section=sessions",
+    );
   });
 });

@@ -33,7 +33,7 @@ export function MobileListItem({
 }) {
   const content = (
     <>
-      <span className="grid size-11 shrink-0 place-items-center rounded-xl bg-[rgb(var(--mobile-primary)/0.1)] text-[rgb(var(--mobile-primary))]">
+      <span className="grid size-11 shrink-0 place-items-center rounded-xl bg-[rgb(var(--color-brand-soft))] text-brand">
         {leading}
       </span>
       <span className="min-w-0 flex-1">
@@ -52,14 +52,14 @@ export function MobileListItem({
     <button
       type="button"
       onClick={onClick}
-      className="flex min-h-16 w-full items-center gap-3 rounded-2xl border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card))] px-3 text-start focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+      className="flex min-h-16 w-full items-center gap-3 rounded-2xl border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card))] px-3 text-start shadow-[var(--shadow-surface)] transition-colors hover:bg-[rgb(var(--surface-muted))] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
     >
       {content}
     </button>
   ) : (
     <div
       role="listitem"
-      className="flex min-h-16 items-center gap-3 rounded-2xl border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card))] px-3"
+      className="flex min-h-16 items-center gap-3 rounded-2xl border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card))] px-3 shadow-[var(--shadow-surface)]"
     >
       {content}
     </div>
@@ -138,7 +138,7 @@ export function FilterChips({
           className={cn(
             "min-h-11 shrink-0 rounded-full border px-3 text-sm font-semibold",
             value.includes(option.value)
-              ? "border-[rgb(var(--mobile-primary))] bg-[rgb(var(--mobile-primary))] text-white"
+              ? "border-brand bg-brand text-white"
               : "border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card))]",
           )}
         >

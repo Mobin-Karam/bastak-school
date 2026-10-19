@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
 
-const RELEASE_AT = new Date("2026-11-08T23:59:59+03:30").getTime();
+const ACHIEVEMENT_RELEASE_AT = new Date("2026-11-08T23:59:59+03:30").getTime();
 
-function remainingTime() {
-  const seconds = Math.max(0, Math.floor((RELEASE_AT - Date.now()) / 1_000));
+function remainingTime(releaseAt: number) {
+  const seconds = Math.max(0, Math.floor((releaseAt - Date.now()) / 1_000));
   return {
     days: Math.floor(seconds / 86_400),
     hours: Math.floor((seconds % 86_400) / 3_600),
@@ -15,13 +15,22 @@ function remainingTime() {
 const twoDigits = (value: number) => value.toLocaleString("fa-IR", { minimumIntegerDigits: 2 });
 
 /** Release clock rendered in the intentional left-to-right day/hour/minute/second order. */
-export function AchievementCountdown({ compact = false }: { compact?: boolean }) {
-  const [remaining, setRemaining] = useState(remainingTime);
+export function AchievementCountdown({
+  compact = false,
+  releaseAt = ACHIEVEMENT_RELEASE_AT,
+  ariaLabel = "زمان باقی‌مانده تا انتشار دستاوردها؛ روز، ساعت، دقیقه، ثانیه",
+}: {
+  compact?: boolean;
+  releaseAt?: number;
+  ariaLabel?: string;
+}) {
+  const [remaining, setRemaining] = useState(() => remainingTime(releaseAt));
 
   useEffect(() => {
-    const timer = window.setInterval(() => setRemaining(remainingTime()), 1_000);
+    setRemaining(remainingTime(releaseAt));
+    const timer = window.setInterval(() => setRemaining(remainingTime(releaseAt)), 1_000);
     return () => window.clearInterval(timer);
-  }, []);
+  }, [releaseAt]);
 
   const units = [
     [remaining.days, "روز"],
@@ -35,7 +44,7 @@ export function AchievementCountdown({ compact = false }: { compact?: boolean })
       dir="ltr"
       className={`grid grid-cols-4 gap-2 ${compact ? "w-full" : "mx-auto mt-5 max-w-md"}`}
       role="timer"
-      aria-label="زمان باقی‌مانده تا انتشار دستاوردها؛ روز، ساعت، دقیقه، ثانیه"
+      aria-label={ariaLabel}
     >
       {units.map(([value, label]) => (
         <div

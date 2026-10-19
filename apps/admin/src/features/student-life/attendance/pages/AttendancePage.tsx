@@ -1,5 +1,6 @@
 import type { AttendanceSessionDetail } from "@moshaver/api-contract";
 import {
+  awardAttendancePoints,
   getSavedAttendanceSession,
   submitAttendanceAbsences,
 } from "../api/attendance-operations.api";
@@ -22,6 +23,7 @@ import {
   X,
   CalendarCheck2,
   Radio,
+  Trophy,
 } from "lucide-react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useLocale } from "../../../../shared/ui/locale";
@@ -115,12 +117,15 @@ export function AttendancePage() {
   const requestedId = searchParams.get("contextId");
   const requestedType = searchParams.get("contextType");
   const requestedSessionId = searchParams.get("sessionId");
-  const requestedSection =
-    searchParams.get("section") === "sessions" && canViewStaffSessions
+  const requestedSectionParam = searchParams.get("section");
+  const requestedSection: AttendanceSection =
+    requestedSectionParam === "sessions" && canViewStaffSessions
       ? "sessions"
-      : searchParams.get("section") === "pool" && auth.can("attendance.review")
+      : requestedSectionParam === "pool" && auth.can("attendance.review")
         ? "pool"
-        : "class";
+        : contextOrder.includes(requestedSectionParam as AttendanceContextType)
+          ? (requestedSectionParam as AttendanceContextType)
+          : "class";
   const requestedReviewRecordId =
     requestedSection === "sessions" ? searchParams.get("reviewRecordId") : null;
   const requestedCorrectionId =
@@ -133,6 +138,13 @@ export function AttendancePage() {
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [staffRefreshVersion, setStaffRefreshVersion] = useState(0);
   const [profileId, setProfileId] = useState<string | null>(null);
+  const [pointTarget, setPointTarget] = useState<{
+    id: string;
+    name: string;
+    points: 1 | -1;
+  } | null>(null);
+  const [pointReason, setPointReason] = useState("");
+  const [savingPoints, setSavingPoints] = useState(false);
   const [filter, setFilter] = useState<Filter>("all");
   const [search, setSearch] = useState("");
   const [loadingContexts, setLoadingContexts] = useState(true);
@@ -156,6 +168,9 @@ export function AttendancePage() {
   );
   useEffect(() => {
     setChosenType(requestedSection);
+    if (contextOrder.includes(requestedSection as AttendanceContextType)) {
+      setContextType(requestedSection as AttendanceContextType);
+    }
     if (!requestedId) return;
     const requested = contexts.find(
       (context) =>
@@ -477,6 +492,35 @@ export function AttendancePage() {
       ),
     );
     setNotice(null);
+  }
+  async function savePoints() {
+    if (!pointTarget || !selected || savingPoints) return;
+    const reason = pointReason.trim();
+    if (reason.length < 3) return;
+    const organizationId = selected.activeOrganizationId ?? auth.context?.activeOrganization?.id;
+    if (!organizationId) {
+      notify("مدرسه فعال برای ثبت امتیاز مشخص نیست.", "error");
+      return;
+    }
+    setSavingPoints(true);
+    try {
+      await awardAttendancePoints({
+        requestId: crypto.randomUUID(),
+        organizationId,
+        contextType: selected.contextType,
+        contextId: selected.id,
+        studentId: pointTarget.id,
+        points: pointTarget.points,
+        reason,
+      });
+      notify("امتیاز دانش‌آموز ثبت شد.", "success");
+      setPointTarget(null);
+      setPointReason("");
+    } catch (error) {
+      notify(errorText(error, "ثبت امتیاز انجام نشد."), "error");
+    } finally {
+      setSavingPoints(false);
+    }
   }
   function markAllPresent() {
     if (!canManage || saving || conflict) return;
@@ -884,6 +928,14 @@ export function AttendancePage() {
               onFilterChange={setFilter}
               onSearchChange={setSearch}
               onViewProfile={canViewStaffSessions ? setProfileId : undefined}
+              onAdjustPoints={
+                auth.can("attendance.points.adjust")
+                  ? (student, points) => {
+                      setPointTarget({ id: student.id, name: student.name, points });
+                      setPointReason("");
+                    }
+                  : undefined
+              }
               onMark={mark}
               onMarkAllPresent={markAllPresent}
               onClearFilters={() => {
@@ -1007,8 +1059,8 @@ export function AttendancePage() {
           ) : null}
         </div>
       </Modal>
-      {((chosenType === "sessions" && canViewStaffSessions) ||
-        (chosenType === "pool" && auth.can("attendance.review"))) ? (
+      {(chosenType === "sessions" && canViewStaffSessions) ||
+      (chosenType === "pool" && auth.can("attendance.review")) ? (
         <>
           <AttendanceStaffWorkspace
             key={`${scopeKey}:${chosenType}`}
@@ -1042,6 +1094,44 @@ export function AttendancePage() {
           onClose={() => setProfileId(null)}
         />
       ) : null}
+      <Modal
+        open={Boolean(pointTarget)}
+        dismissible={!savingPoints}
+        onOpenChange={(open) => {
+          if (!open && !savingPoints) {
+            setPointTarget(null);
+            setPointReason("");
+          }
+        }}
+        title={pointTarget?.points === 1 ? "افزودن امتیاز" : "کسر امتیاز"}
+        description={pointTarget ? `${pointTarget.name} · ${selected?.name ?? ""}` : ""}
+      >
+        <div className="space-y-4" dir="rtl">
+          <p className="flex items-center gap-2 text-sm leading-6 text-slate-700 dark:text-slate-200">
+            <Trophy size={18} className="shrink-0 text-amber-600" aria-hidden="true" />
+            برای ثبت {pointTarget?.points ?? 0} امتیاز، دلیل روشن و قابل پیگیری وارد کنید.
+          </p>
+          <label className="block text-sm font-bold">
+            دلیل
+            <textarea
+              autoFocus
+              value={pointReason}
+              onChange={(event) => setPointReason(event.target.value)}
+              maxLength={500}
+              disabled={savingPoints}
+              className="mt-2 min-h-24 w-full rounded-xl border border-[rgb(var(--border-subtle))] bg-card p-3 font-normal text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500"
+            />
+          </label>
+          <button
+            type="button"
+            disabled={savingPoints || pointReason.trim().length < 3}
+            onClick={() => void savePoints()}
+            className={`${buttonBase} w-full bg-blue-600 text-white hover:bg-blue-700`}
+          >
+            {savingPoints ? "در حال ثبت…" : "ثبت امتیاز"}
+          </button>
+        </div>
+      </Modal>
       {discard.confirmation}
     </section>
   );

@@ -1,15 +1,22 @@
 import { Injectable } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { Brackets, Repository } from "typeorm";
+import { Brackets, In, Repository } from "typeorm";
 import { ApiException } from "../../common/exceptions/api.exception";
 import { EducationClass } from "../../database/entities/education-class.entity";
 import { EducationClassEnrollment } from "../../database/entities/education-class-enrollment.entity";
 import { Organization } from "../../database/entities/organization.entity";
 import { SchoolAnnouncement } from "../../database/entities/school-announcement.entity";
+import { SchoolAnnouncementRecipient } from "../../database/entities/school-announcement-recipient.entity";
+import {
+  OrganizationMembership,
+  MembershipStatus,
+} from "../../database/entities/organization-membership.entity";
+import { User } from "../../database/entities/user.entity";
 import { SchoolPrayerTime } from "../../database/entities/school-prayer-time.entity";
 import { UserRelationship } from "../../database/entities/user-relationship.entity";
 import { AuthenticatedUser } from "../auth";
 import { AuthorizationService, UserContext } from "../authorization";
+import { NotificationsService } from "../notifications";
 import {
   SavePrayerTimeDto,
   SaveSchoolAnnouncementDto,
@@ -24,6 +31,10 @@ export class SchoolHomeService {
     private readonly prayers: Repository<SchoolPrayerTime>,
     @InjectRepository(SchoolAnnouncement)
     private readonly announcementsRepo: Repository<SchoolAnnouncement>,
+    @InjectRepository(SchoolAnnouncementRecipient)
+    private readonly recipients: Repository<SchoolAnnouncementRecipient>,
+    @InjectRepository(OrganizationMembership)
+    private readonly memberships: Repository<OrganizationMembership>,
     @InjectRepository(EducationClass)
     private readonly classes: Repository<EducationClass>,
     @InjectRepository(EducationClassEnrollment)
@@ -31,6 +42,7 @@ export class SchoolHomeService {
     @InjectRepository(UserRelationship)
     private readonly relationships: Repository<UserRelationship>,
     private readonly authorization: AuthorizationService,
+    private readonly notifications: NotificationsService,
   ) {}
 
   async prayerTimes(
@@ -122,6 +134,8 @@ export class SchoolHomeService {
     const query = this.announcementsRepo
       .createQueryBuilder("announcement")
       .leftJoinAndSelect("announcement.classroom", "classroom")
+      .leftJoinAndSelect("announcement.recipients", "recipient")
+      .leftJoinAndSelect("recipient.user", "recipientUser")
       .where("announcement.organizationId = :organizationId", {
         organizationId: organization.id,
       })
@@ -139,6 +153,12 @@ export class SchoolHomeService {
         new Brackets((qb) => {
           if (this.isStudentAudience(context)) {
             qb.where("announcement.audience = 'STUDENTS'");
+            qb.orWhere(
+              "announcement.audience = 'USERS' AND recipient.userId = :userId",
+              {
+                userId: user.id,
+              },
+            );
             if (classIds.length)
               qb.orWhere(
                 "announcement.audience = 'CLASS' AND announcement.classroomId IN (:...classIds)",
@@ -146,8 +166,23 @@ export class SchoolHomeService {
               );
             return;
           }
-          qb.where("announcement.audience = 'STAFF'");
+          qb.where("announcement.audience = 'STAFF'").orWhere(
+            "announcement.audience = 'USERS' AND recipient.userId = :userId",
+            {
+              userId: user.id,
+            },
+          );
         }),
+      );
+    } else {
+      query.andWhere(
+        new Brackets((qb) =>
+          qb
+            .where("announcement.audience != 'USERS'")
+            .orWhere("recipient.userId = :userId", {
+              userId: user.id,
+            }),
+        ),
       );
     }
     const rows = await query
@@ -155,6 +190,35 @@ export class SchoolHomeService {
       .addOrderBy("announcement.createdAt", "DESC")
       .getMany();
     return rows.map((row) => this.announcementView(row));
+  }
+
+  async announcementRecipients(
+    user: AuthenticatedUser,
+    organizationId: string,
+    query?: string,
+  ) {
+    await this.scopedOrganization(user, organizationId, "announcements.manage");
+    const needle = query?.trim().toLowerCase();
+    const rows = await this.memberships.find({
+      where: {
+        organization: { id: organizationId },
+        status: MembershipStatus.ACTIVE,
+      },
+      relations: { user: true },
+      take: 100,
+    });
+    return rows
+      .map(({ user: member }) => ({
+        id: member.id,
+        name:
+          `${member.firstName} ${member.lastName}`.trim() || member.username,
+        username: member.username,
+      }))
+      .filter(
+        (member) =>
+          !needle ||
+          `${member.name} ${member.username}`.toLowerCase().includes(needle),
+      );
   }
 
   async saveAnnouncement(
@@ -174,12 +238,17 @@ export class SchoolHomeService {
     );
     const status = dto.status ?? "ACTIVE";
     const publishedAt = status === "ACTIVE" ? new Date() : null;
+    const recipientIds = await this.recipientIds(organization.id, dto);
+    const media = this.media(dto);
     const row = this.announcementsRepo.create({
       organization,
       classroom,
       audience: dto.audience,
       title: dto.title.trim(),
       body: dto.body.trim(),
+      category: dto.category?.trim() || "general",
+      linkUrl: this.optionalUrl(dto.linkUrl),
+      ...media,
       status,
       publishedAt,
       // School notices are intentionally short-lived. Client-supplied expiry
@@ -189,7 +258,23 @@ export class SchoolHomeService {
         : null,
       createdBy: { id: user.id } as any,
     });
-    return this.announcementView(await this.announcementsRepo.save(row));
+    const saved = await this.announcementsRepo.save(row);
+    await this.setRecipients(saved, recipientIds);
+    if (status === "ACTIVE" && recipientIds.length) {
+      await this.notifications.createForUsers(recipientIds, {
+        type: "ANNOUNCEMENT",
+        title: saved.title,
+        body: saved.body,
+        category: "announcement",
+        url: "/admin/announcements",
+      });
+    }
+    return this.announcementView(
+      await this.announcementsRepo.findOneOrFail({
+        where: { id: saved.id },
+        relations: { recipients: { user: true } },
+      }),
+    );
   }
 
   async updateAnnouncement(
@@ -214,6 +299,8 @@ export class SchoolHomeService {
       dto.classroomId,
     );
     const status = dto.status ?? row.status;
+    const recipientIds = await this.recipientIds(row.organization.id, dto);
+    const media = this.media(dto);
     const publishedAt =
       status === "ACTIVE" ? (row.publishedAt ?? new Date()) : null;
     Object.assign(row, {
@@ -221,6 +308,14 @@ export class SchoolHomeService {
       audience: dto.audience,
       title: dto.title.trim(),
       body: dto.body.trim(),
+      category: dto.category?.trim() || row.category,
+      linkUrl:
+        dto.linkUrl === undefined
+          ? (row.linkUrl ?? null)
+          : this.optionalUrl(dto.linkUrl),
+      ...(dto.mediaUrl === undefined
+        ? { mediaUrl: row.mediaUrl ?? null, mediaType: row.mediaType ?? null }
+        : media),
       status,
       publishedAt,
       expiresAt: publishedAt
@@ -228,7 +323,14 @@ export class SchoolHomeService {
           new Date(publishedAt.getTime() + 24 * 60 * 60 * 1000))
         : null,
     });
-    return this.announcementView(await this.announcementsRepo.save(row));
+    const saved = await this.announcementsRepo.save(row);
+    await this.setRecipients(saved, recipientIds);
+    return this.announcementView(
+      await this.announcementsRepo.findOneOrFail({
+        where: { id: saved.id },
+        relations: { recipients: { user: true } },
+      }),
+    );
   }
 
   private async scopedOrganization(
@@ -358,10 +460,100 @@ export class SchoolHomeService {
       classroomId: row.classroom?.id ?? null,
       title: row.title,
       body: row.body,
+      category: row.category,
+      linkUrl: row.linkUrl ?? null,
+      mediaUrl: row.mediaUrl ?? null,
+      mediaType: row.mediaType ?? null,
+      recipientIds: row.recipients?.map((recipient) => recipient.user.id) ?? [],
       status: row.status,
       publishedAt: row.publishedAt,
       expiresAt: row.expiresAt,
       createdAt: row.createdAt,
     };
+  }
+
+  private optionalUrl(value?: string) {
+    if (!value?.trim()) return null;
+    try {
+      const url = new URL(value);
+      if (url.protocol !== "https:") throw new Error();
+      return url.toString();
+    } catch {
+      throw new ApiException(
+        400,
+        "INVALID_LINK",
+        "نشانی پیوند باید HTTPS معتبر باشد.",
+      );
+    }
+  }
+
+  private media(dto: SaveSchoolAnnouncementDto) {
+    const mediaUrl = this.optionalUrl(dto.mediaUrl);
+    if (!mediaUrl) return { mediaUrl: null, mediaType: null };
+    if (!dto.mediaType)
+      throw new ApiException(
+        400,
+        "MEDIA_TYPE_REQUIRED",
+        "نوع رسانه مشخص نیست.",
+      );
+    const host = new URL(mediaUrl).hostname.toLowerCase();
+    if (
+      dto.mediaType === "VIDEO" &&
+      ![
+        "youtube.com",
+        "www.youtube.com",
+        "youtu.be",
+        "aparat.com",
+        "www.aparat.com",
+      ].includes(host)
+    ) {
+      throw new ApiException(
+        400,
+        "MEDIA_HOST_FORBIDDEN",
+        "فقط ویدئوی YouTube یا Aparat پشتیبانی می‌شود.",
+      );
+    }
+    return { mediaUrl, mediaType: dto.mediaType };
+  }
+
+  private async recipientIds(
+    organizationId: string,
+    dto: SaveSchoolAnnouncementDto,
+  ) {
+    if (dto.audience !== "USERS") return [];
+    const ids = [...new Set(dto.recipientIds ?? [])];
+    if (!ids.length || ids.length > 100)
+      throw new ApiException(
+        400,
+        "INVALID_RECIPIENTS",
+        "حداقل یک و حداکثر ۱۰۰ دریافت‌کننده انتخاب کنید.",
+      );
+    const found = await this.memberships.count({
+      where: {
+        organization: { id: organizationId },
+        user: { id: In(ids) },
+        status: MembershipStatus.ACTIVE,
+      },
+    });
+    if (found !== ids.length)
+      throw new ApiException(
+        403,
+        "RECIPIENT_OUT_OF_SCOPE",
+        "دریافت‌کننده خارج از مدرسه فعال است.",
+      );
+    return ids;
+  }
+
+  private async setRecipients(
+    announcement: SchoolAnnouncement,
+    userIds: string[],
+  ) {
+    await this.recipients.delete({ announcement: { id: announcement.id } });
+    if (userIds.length)
+      await this.recipients.save(
+        userIds.map((id) =>
+          this.recipients.create({ announcement, user: { id } as User }),
+        ),
+      );
   }
 }
