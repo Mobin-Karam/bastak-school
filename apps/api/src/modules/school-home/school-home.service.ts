@@ -22,6 +22,10 @@ import {
   SaveSchoolAnnouncementDto,
 } from "./school-home.dto";
 
+type SchoolAnnouncementWithRecipients = SchoolAnnouncement & {
+  recipients?: SchoolAnnouncementRecipient[];
+};
+
 @Injectable()
 export class SchoolHomeService {
   constructor(
@@ -134,7 +138,12 @@ export class SchoolHomeService {
     const query = this.announcementsRepo
       .createQueryBuilder("announcement")
       .leftJoinAndSelect("announcement.classroom", "classroom")
-      .leftJoinAndSelect("announcement.recipients", "recipient")
+      .leftJoinAndMapMany(
+        "announcement.recipients",
+        SchoolAnnouncementRecipient,
+        "recipient",
+        "recipient.announcementId = announcement.id",
+      )
       .leftJoinAndSelect("recipient.user", "recipientUser")
       .where("announcement.organizationId = :organizationId", {
         organizationId: organization.id,
@@ -270,10 +279,7 @@ export class SchoolHomeService {
       });
     }
     return this.announcementView(
-      await this.announcementsRepo.findOneOrFail({
-        where: { id: saved.id },
-        relations: { recipients: { user: true } },
-      }),
+      await this.announcementWithRecipients(saved.id),
     );
   }
 
@@ -326,10 +332,7 @@ export class SchoolHomeService {
     const saved = await this.announcementsRepo.save(row);
     await this.setRecipients(saved, recipientIds);
     return this.announcementView(
-      await this.announcementsRepo.findOneOrFail({
-        where: { id: saved.id },
-        relations: { recipients: { user: true } },
-      }),
+      await this.announcementWithRecipients(saved.id),
     );
   }
 
@@ -452,7 +455,7 @@ export class SchoolHomeService {
       updatedAt: row.updatedAt,
     };
   }
-  private announcementView(row: SchoolAnnouncement) {
+  private announcementView(row: SchoolAnnouncementWithRecipients) {
     return {
       id: row.id,
       organizationId: row.organization?.id,
@@ -470,6 +473,19 @@ export class SchoolHomeService {
       expiresAt: row.expiresAt,
       createdAt: row.createdAt,
     };
+  }
+
+  private async announcementWithRecipients(
+    id: string,
+  ): Promise<SchoolAnnouncementWithRecipients> {
+    const [announcement, recipients] = await Promise.all([
+      this.announcementsRepo.findOneOrFail({ where: { id } }),
+      this.recipients.find({
+        where: { announcement: { id } },
+        relations: { user: true },
+      }),
+    ]);
+    return Object.assign(announcement, { recipients });
   }
 
   private optionalUrl(value?: string) {

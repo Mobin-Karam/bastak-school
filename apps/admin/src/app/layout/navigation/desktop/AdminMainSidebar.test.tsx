@@ -35,5 +35,6 @@ describe("AdminMainSidebar locale flow", () => {
 
     expect(screen.getAllByText("Advisor workspace").length).toBeGreaterThan(0);
     expect(screen.queryByText("پنل مشاور")).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Dashboard" })).toHaveAttribute("href", "/admin");
   });
 });

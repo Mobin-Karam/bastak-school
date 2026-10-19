@@ -52,6 +52,7 @@ describe("school navigation registry", () => {
       "PLATFORM_ADMIN",
     );
     expect(items.map((item) => item.title)).toContain("نمای پلتفرم");
+    expect(items[0]).toMatchObject({ path: "", section: "داشبورد" });
     expect(
       navigationForCapabilities([], "PLATFORM_ADMIN")
         .flatMap((group) => group.items)
@@ -76,6 +77,16 @@ describe("school navigation registry", () => {
     expect(adminBreadcrumbs("")).toEqual([{ title: "خانه", path: "" }]);
     const crumbs = adminBreadcrumbs("classes");
     expect(new Set(crumbs.map((item) => item.path)).size).toBe(crumbs.length);
+  });
+  it("keeps the dashboard out of contextual navigation while resolving it at the root", () => {
+    expect(
+      navigationForCapabilities([], "TEACHER").flatMap((group) => group.items),
+    ).not.toContainEqual(expect.objectContaining({ path: "" }));
+    expect(resolveAdminNavigation("/admin", "TEACHER")).toMatchObject({
+      path: "",
+      section: "داشبورد",
+      title: "میز استاد",
+    });
   });
   it("localizes the same capability-filtered destinations", () => {
     const fa = navigationForCapabilities(["students.read", "attendance.read"]);

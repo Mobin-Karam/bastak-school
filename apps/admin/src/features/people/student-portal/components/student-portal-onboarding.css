@@ -60,6 +60,8 @@
 .student-onboarding__dots {
   display: flex;
   justify-content: center;
+  /* align-items: ; */
+  direction: ltr;
   gap: 0.45rem;
 }
 
@@ -89,7 +91,7 @@
 
 .student-onboarding__actions {
   display: grid;
-  grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.45fr);
+  grid-template-columns: minmax(0, 1.45fr) minmax(0, 0.8fr);
   gap: 0.7rem;
 }
 

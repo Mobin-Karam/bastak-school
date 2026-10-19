@@ -47,6 +47,14 @@ describe("portal-domain", () => {
     expect(preferredRoleForDomain(["STUDENT", "TEACHER"], "student")).toBe("STUDENT");
   });
 
+  it("keeps guardian-only accounts on the student portal", () => {
+    expect(preferredPortal(["GUARDIAN"])).toBe("student");
+    expect(preferredRoleForDomain(["GUARDIAN"], "student")).toBe("GUARDIAN");
+    expect(preferredRoleForDomain(["GUARDIAN"], "admin")).toBeNull();
+    expect(isRouteAvailableOnDomain("/admin/family", "student")).toBe(true);
+    expect(isRouteAvailableOnDomain("/admin/family", "admin")).toBe(false);
+  });
+
   it("preserves an authorized student deep link and otherwise uses the normal portal", () => {
     expect(loginDestination(["STUDENT"], "/admin/profile?tab=security")).toEqual({
       domain: "student",

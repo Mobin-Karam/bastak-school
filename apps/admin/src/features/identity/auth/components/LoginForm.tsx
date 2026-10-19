@@ -3,6 +3,7 @@ import { Eye, EyeOff } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { Button, Field, Input } from "../../../../shared/ui/ui";
+import { ApiError } from "../../../../shared/api/api";
 import { useAuth } from "../hooks/useAuth";
 import { createLoginSchema, type LoginFormValues } from "../model/login.schema";
 import { useAuthLocale } from "../model/auth-locale";
@@ -13,6 +14,7 @@ export function LoginForm() {
   const [step, setStep] = useState<"phone" | "password">("phone");
   const [checkingPhone, setCheckingPhone] = useState(false);
   const [error, setError] = useState("");
+  const [portalUrl, setPortalUrl] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
   const { copy, direction } = useAuthLocale();
 
@@ -34,8 +36,24 @@ export function LoginForm() {
 
   const busy = checking || checkingPhone || formState.isSubmitting;
 
+  function showLoginError(error: unknown) {
+    setPortalUrl(null);
+    if (error instanceof ApiError && error.code === "PORTAL_DOMAIN_MISMATCH") {
+      const url =
+        error.details &&
+        typeof error.details === "object" &&
+        "portalUrl" in error.details &&
+        typeof error.details.portalUrl === "string"
+          ? error.details.portalUrl
+          : null;
+      if (url && /^https:\/\/(?:app|stud)\.sultano\.ir$/.test(url)) setPortalUrl(url);
+    }
+    setError(error instanceof Error ? error.message : copy.loginFailed);
+  }
+
   async function continueWithPhone() {
     setError("");
+    setPortalUrl(null);
     if (!(await trigger("phoneNumber"))) return;
     setCheckingPhone(true);
     try {
@@ -43,7 +61,7 @@ export function LoginForm() {
       if (result.exists) setStep("password");
       else setError(copy.phoneNotFound);
     } catch (e) {
-      setError(e instanceof Error ? e.message : copy.loginFailed);
+      showLoginError(e);
     } finally {
       setCheckingPhone(false);
     }
@@ -64,11 +82,12 @@ export function LoginForm() {
         }
         void handleSubmit(async (data) => {
           setError("");
+          setPortalUrl(null);
 
           try {
             await auth.login(data.phoneNumber, data.password);
           } catch (e) {
-            setError(e instanceof Error ? e.message : copy.loginFailed);
+            showLoginError(e);
           }
         })(event);
       }}
@@ -97,6 +116,7 @@ export function LoginForm() {
               setValue("password", "");
               setShowPassword(false);
               setError("");
+              setPortalUrl(null);
             }}
           >
             {copy.changePhone}
@@ -152,6 +172,14 @@ export function LoginForm() {
           ].join(" ")}
         >
           {error || auth.message}
+          {portalUrl ? (
+            <a
+              href={portalUrl}
+              className="mt-2 block w-fit font-black text-brand underline underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+            >
+              {portalUrl}
+            </a>
+          ) : null}
         </p>
       ) : null}
 

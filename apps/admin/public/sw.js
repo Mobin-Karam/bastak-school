@@ -1,7 +1,8 @@
 "use strict";
 
 const APP_NAME = "zanin";
-const CACHE_VERSION = "0.1.2";
+// Replaced with an immutable build id by vite.config.ts for every production build.
+const CACHE_VERSION = "development";
 const CACHE_PREFIX = `${APP_NAME}-pwa`;
 const SHELL_CACHE = `${CACHE_PREFIX}-shell-${CACHE_VERSION}`;
 const RUNTIME_CACHE = `${CACHE_PREFIX}-runtime-${CACHE_VERSION}`;
@@ -13,6 +14,7 @@ const APP_SHELL = [
   OFFLINE_URL,
   "/manifest.webmanifest",
   "/version.json",
+  "/pwa-precache.json",
   "/icons/icon-192.png",
   "/icons/icon-512.png",
   "/app-logo.png",
@@ -22,7 +24,7 @@ const APP_SHELL = [
 ];
 
 self.addEventListener("install", (event) => {
-  event.waitUntil(warmCache(APP_SHELL));
+  event.waitUntil(precacheApplication());
   // Development servers must never leave an old worker in control of Vite's
   // changing module graph. Production keeps the explicit update confirmation.
   if (isLocalDevelopmentHost()) void self.skipWaiting();
@@ -140,6 +142,26 @@ async function warmCache(urls) {
       if (response.ok) await cache.put(url, response);
     } catch {}
   }));
+}
+
+async function precacheApplication() {
+  let assets = [];
+  try {
+    const response = await fetch("/pwa-precache.json", { cache: "no-store" });
+    const manifest = response.ok ? await response.json() : null;
+    if (Array.isArray(manifest?.assets)) {
+      assets = manifest.assets.filter(
+        (asset) =>
+          typeof asset === "string" &&
+          asset.startsWith("/") &&
+          !asset.startsWith("//") &&
+          !asset.includes(".."),
+      );
+    }
+  } catch {
+    // A shell-only cache still gives users an offline recovery page.
+  }
+  await warmCache([...APP_SHELL, ...assets]);
 }
 
 self.addEventListener("message", (event) => {

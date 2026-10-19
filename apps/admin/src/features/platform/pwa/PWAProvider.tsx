@@ -78,6 +78,9 @@ export function PWAProvider() {
       if (!alive) return;
       if (event.type === "waiting" || event.type === "update-available") {
         setWaitingWorker(event.worker);
+        // A changed worker means a new immutable asset graph exists even if a
+        // release version was not manually changed.
+        setShowUpdate(true);
         checkForUpdate().then((result) => alive && applyVersionResult(result));
       } else if (event.type === "controller-change" && !reloading.current) {
         reloading.current = true;

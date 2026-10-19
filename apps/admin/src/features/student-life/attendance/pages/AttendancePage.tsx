@@ -56,6 +56,7 @@ type MarkedStatus = MarkedAttendanceStatus;
 type Participant = AttendanceParticipant;
 type Filter = AttendanceFilter;
 import { prepareAttendanceWrite, type PendingAttendanceWrite } from "../model/attendance-write";
+import { attendanceSessionWindow } from "../model/attendance-session-window";
 
 type Notice = { kind: "success" | "warning" | "error" | "info"; text: string };
 
@@ -96,8 +97,20 @@ export function AttendancePage() {
   const { profile } = useLocale();
   const navigate = useNavigate();
   const [linkedSession, setLinkedSession] = useState<AttendanceSessionDetail | null>(null);
+  const [windowNow, setWindowNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (!linkedSession?.scheduledStartAt || !linkedSession.scheduledEndAt) return;
+    setWindowNow(Date.now());
+    const timer = window.setInterval(() => setWindowNow(Date.now()), 30_000);
+    return () => window.clearInterval(timer);
+  }, [linkedSession?.id, linkedSession?.scheduledStartAt, linkedSession?.scheduledEndAt]);
+  const sessionWindow = linkedSession
+    ? attendanceSessionWindow(linkedSession, windowNow)
+    : null;
+  const sessionWindowActive = !sessionWindow || sessionWindow.active;
   const canManage = linkedSession
     ? (linkedSession.status === "open" || linkedSession.status === "scheduled") &&
+      sessionWindowActive &&
       (auth.can("attendance.manage") ||
         (linkedSession.contextType === "class" && auth.can("attendance.class.manage")))
     : auth.can("attendance.manage");
@@ -869,6 +882,11 @@ export function AttendancePage() {
                 ? `${linkedSession.title} · ${linkedSession.status === "cancelled" ? "لغو شده؛ فقط مشاهده تاریخچه" : "حضور همین وقوع درس ثبت می‌شود."}`
                 : "این جلسه با زمان فعلی ثبت می‌شود."}
             </p>
+            {linkedSession && sessionWindow?.message ? (
+              <p role="status" className="rounded-xl bg-amber-50 px-4 py-3 text-xs text-amber-900 dark:bg-amber-950/30 dark:text-amber-100">
+                {sessionWindow.message}
+              </p>
+            ) : null}
             {notice && !reviewOpen ? (
               <p role={notice.kind === "error" ? "alert" : "status"} className="text-sm">
                 {notice.text}

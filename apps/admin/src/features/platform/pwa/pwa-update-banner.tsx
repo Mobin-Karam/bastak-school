@@ -1,8 +1,8 @@
 "use client";
 
 import { useCallback, useState } from "react";
-import { RefreshCw, Sparkles, X } from "lucide-react";
-import { cn } from "../../../shared/lib/utils";
+import { RefreshCw, Sparkles } from "lucide-react";
+import { ResponsiveModal } from "../../../shared/ui/responsive-modal";
 
 export function PWAUpdateBanner({
   visible,
@@ -24,14 +24,16 @@ export function PWAUpdateBanner({
   }, [onUpdate]);
   if (!visible) return null;
   return (
-    <aside
-      dir="rtl"
-      role="status"
-      aria-live="polite"
-      className="pointer-events-none fixed inset-x-0 bottom-0 z-[100] px-3 pb-[calc(env(safe-area-inset-bottom)+5.25rem)] sm:px-4 sm:pb-[calc(env(safe-area-inset-bottom)+1rem)]"
+    <ResponsiveModal
+      open={visible}
+      onOpenChange={(open) => {
+        if (!open && !updating) onDismiss();
+      }}
+      title="نسخه جدید آماده است"
+      description="نسخه جدید فایل‌های برنامه را جایگزین می‌کند و سپس برنامه را دوباره باز می‌کند."
     >
-      <div className="pointer-events-auto mx-auto max-w-2xl overflow-hidden rounded-2xl border bg-card/95 shadow-2xl backdrop-blur-xl">
-        <div className="flex items-start gap-3 p-3 sm:items-center sm:p-4">
+      <section dir="rtl" aria-live="polite" className="mt-5 space-y-4">
+        <div className="flex items-start gap-3 rounded-2xl bg-primary/5 p-4">
           <div className="grid size-11 shrink-0 place-items-center rounded-xl bg-primary text-primary-foreground">
             {updating ? (
               <RefreshCw className="size-5 animate-spin" />
@@ -39,50 +41,36 @@ export function PWAUpdateBanner({
               <Sparkles className="size-5" />
             )}
           </div>
-          <div className="min-w-0 flex-1">
-            <p className="text-sm font-bold sm:text-base">
-              نسخه جدید مدرسه دینی سلطان العلماء بستک آماده است
-            </p>
-            <p className="mt-1 text-xs leading-5 text-muted-foreground sm:text-sm">
-              {updating
-                ? "در حال آماده‌سازی نسخه جدید…"
-                : "برای دریافت آخرین امکانات و اصلاحات، برنامه را به‌روزرسانی کنید."}
-            </p>
-            {(currentVersion || nextVersion) && (
-              <p dir="ltr" className="mt-1.5 text-left text-[11px] text-muted-foreground">
-                {currentVersion ?? "—"} → {nextVersion ?? "—"}
-              </p>
-            )}
-          </div>
+          <p className="text-sm leading-6 text-muted-foreground">
+            {updating
+              ? "در حال آماده‌سازی نسخه جدید…"
+              : "نسخه جدید هم‌اکنون روی دستگاه ذخیره می‌شود تا باز شدن صفحه‌ها سریع‌تر باشد."}
+          </p>
+        </div>
+        {(currentVersion || nextVersion) && (
+          <p dir="ltr" className="text-center text-[11px] text-muted-foreground">
+            {currentVersion ?? "—"} → {nextVersion ?? "—"}
+          </p>
+        )}
+        <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
           <button
             type="button"
             onClick={onDismiss}
             disabled={updating}
-            className="grid size-10 shrink-0 place-items-center rounded-xl text-muted-foreground hover:bg-muted hover:text-foreground"
-            aria-label="بعداً"
+            className="min-h-11 rounded-xl px-4 text-sm font-bold text-muted-foreground hover:bg-muted disabled:opacity-60"
           >
-            <X className="size-4" />
+            بعداً
           </button>
-        </div>
-        <div className="flex gap-2 border-t p-3 sm:justify-end">
           <button
             type="button"
             onClick={update}
             disabled={updating}
-            className={cn(
-              "min-h-11 flex-1 rounded-xl bg-primary px-5 text-sm font-semibold text-primary-foreground transition sm:flex-none",
-              "disabled:cursor-wait disabled:opacity-70",
-            )}
+            className="min-h-11 rounded-xl bg-primary px-5 text-sm font-semibold text-primary-foreground transition disabled:cursor-wait disabled:opacity-70"
           >
             {updating ? "در حال به‌روزرسانی…" : "به‌روزرسانی اکنون"}
           </button>
         </div>
-        {updating && (
-          <div className="h-1 overflow-hidden bg-muted">
-            <div className="h-full w-2/3 animate-pulse bg-primary" />
-          </div>
-        )}
-      </div>
-    </aside>
+      </section>
+    </ResponsiveModal>
   );
 }

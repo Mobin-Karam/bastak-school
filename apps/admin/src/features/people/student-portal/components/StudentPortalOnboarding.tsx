@@ -122,21 +122,22 @@ export function StudentPortalOnboarding() {
           </div>
 
           <div className="student-onboarding__actions">
+            {" "}
+            <button
+              type="button"
+              className="student-onboarding__button student-onboarding__button--primary"
+              onClick={() => (page === PAGE_COUNT - 1 ? complete() : goTo(page + 1))}
+            >
+              <ChevronRight size={20} aria-hidden="true" />
+              {page === PAGE_COUNT - 1 ? "شروع ورود به سامانه" : "ادامه"}
+            </button>
             <button
               type="button"
               className="student-onboarding__button student-onboarding__button--secondary"
               onClick={() => goTo(page - 1)}
               disabled={page === 0}
             >
-              <ChevronRight size={20} aria-hidden="true" />
               بازگشت
-            </button>
-            <button
-              type="button"
-              className="student-onboarding__button student-onboarding__button--primary"
-              onClick={() => (page === PAGE_COUNT - 1 ? complete() : goTo(page + 1))}
-            >
-              {page === PAGE_COUNT - 1 ? "شروع ورود به سامانه" : "ادامه"}
               <ChevronLeft size={20} aria-hidden="true" />
             </button>
           </div>

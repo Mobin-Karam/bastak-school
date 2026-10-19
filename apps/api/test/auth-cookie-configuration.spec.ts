@@ -1,5 +1,8 @@
 import { ConfigService } from "@nestjs/config";
-import { AuthController } from "../src/modules/auth/auth.controller";
+import {
+  AuthController,
+  loginPortalFromOrigin,
+} from "../src/modules/auth/auth.controller";
 import { normalizeCookieDomain } from "../src/config/auth.config";
 import { resolveTrustedProxy } from "../src/config/trusted-proxy";
 
@@ -20,6 +23,14 @@ const loginResult = {
 };
 
 describe("API cookie and proxy configuration", () => {
+  it("derives the login portal only from approved browser origins", () => {
+    expect(loginPortalFromOrigin("https://stud.sultano.ir")).toBe("student");
+    expect(loginPortalFromOrigin("https://app.sultano.ir")).toBe("admin");
+    expect(loginPortalFromOrigin("http://stud.localhost:5173")).toBe("student");
+    expect(loginPortalFromOrigin("https://evil.example")).toBeUndefined();
+    expect(loginPortalFromOrigin(undefined)).toBeUndefined();
+  });
+
   it("keeps access and refresh cookies host-only by default", async () => {
     const auth = {
       login: jest.fn().mockResolvedValue(loginResult),

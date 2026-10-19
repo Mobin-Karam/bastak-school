@@ -2,7 +2,7 @@ import {
   PublicSchoolProfileProvider,
   usePublicSchoolProfile,
 } from "../components/PublicSchoolProfile";
-import { lazy, Suspense, useEffect } from "react";
+import { lazy, Suspense } from "react";
 import { Link, Navigate, useLocation } from "react-router-dom";
 
 import { useLocale } from "../../../../shared/ui/locale";
@@ -74,7 +74,7 @@ function LoginPageContent() {
     }
     const target = portalUrl(destination.domain, destination.path);
     return target ? (
-      <CrossPortalLoginRedirect target={target} />
+      <CrossPortalLoginMessage target={target} />
     ) : (
       <Navigate to={destination.path} replace />
     );
@@ -244,14 +244,22 @@ function StudentLoginLoading({ direction }: { direction: "rtl" | "ltr" }) {
   );
 }
 
-function CrossPortalLoginRedirect({ target }: { target: string }) {
-  useEffect(() => {
-    window.location.replace(target);
-  }, [target]);
+function CrossPortalLoginMessage({ target }: { target: string }) {
   return (
-    <p role="status" className="sr-only">
-      در حال انتقال به پرتال مناسب…
-    </p>
+    <LoginShell direction="rtl">
+      <main className="grid min-h-dvh place-items-center bg-paper p-5" role="alert">
+        <section className="w-full max-w-md rounded-2xl border border-amber-200 bg-amber-50 p-6 text-center text-amber-950 shadow-sm dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-100">
+          <h1 className="text-lg font-black">این حساب در این پرتال قابل استفاده نیست.</h1>
+          <p className="mt-2 text-sm leading-6">برای ادامه، نشانی درست را باز کنید.</p>
+          <a
+            href={target}
+            className="mt-5 inline-flex min-h-11 items-center justify-center rounded-xl bg-brand px-4 text-sm font-black text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"
+          >
+            {target}
+          </a>
+        </section>
+      </main>
+    </LoginShell>
   );
 }
 

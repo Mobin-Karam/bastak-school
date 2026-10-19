@@ -6,7 +6,14 @@ const STUDENT_HOSTS = new Set(["stud.sultano.ir", "stud.localhost"]);
 const ADMIN_HOSTS = new Set(["app.sultano.ir", "app.localhost"]);
 const LOCAL_HOSTS = new Set(["localhost", "127.0.0.1", "::1"]);
 
-const STUDENT_ONLY_ROUTES = new Set(["achievements", "my-attendance", "profile", "student-leave"]);
+const STUDENT_PORTAL_ROLES = new Set<RoleCode>(["STUDENT", "GUARDIAN"]);
+const STUDENT_ONLY_ROUTES = new Set([
+  "achievements",
+  "family",
+  "my-attendance",
+  "profile",
+  "student-leave",
+]);
 const STUDENT_PORTAL_ROUTES = new Set([
   "",
   ...STUDENT_ONLY_ROUTES,
@@ -55,16 +62,16 @@ export function isRouteAvailableOnDomain(pathname: string, domain: AppDomain): b
 export function preferredPortal(
   roles: readonly RoleCode[],
 ): Exclude<AppDomain, "local" | "unknown"> | null {
-  if (roles.some((role) => role !== "STUDENT")) return "admin";
-  return roles.includes("STUDENT") ? "student" : null;
+  if (roles.some((role) => !STUDENT_PORTAL_ROLES.has(role))) return "admin";
+  return roles.some((role) => STUDENT_PORTAL_ROLES.has(role)) ? "student" : null;
 }
 
 export function preferredRoleForDomain(
   roles: readonly RoleCode[],
   domain: Exclude<AppDomain, "local" | "unknown">,
 ): RoleCode | null {
-  if (domain === "student") return roles.includes("STUDENT") ? "STUDENT" : null;
-  return roles.find((role) => role !== "STUDENT") ?? null;
+  if (domain === "student") return roles.find((role) => STUDENT_PORTAL_ROLES.has(role)) ?? null;
+  return roles.find((role) => !STUDENT_PORTAL_ROLES.has(role)) ?? null;
 }
 
 export function portalUrl(

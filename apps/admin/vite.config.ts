@@ -1,7 +1,10 @@
 import http from "node:http";
 import https from "node:https";
+import { createHash } from "node:crypto";
+import { readFile, writeFile } from "node:fs/promises";
+import path from "node:path";
 import react from "@vitejs/plugin-react";
-import { defineConfig } from "vite";
+import { defineConfig, type Plugin } from "vite";
 import { fileURLToPath } from "node:url";
 
 const backendTargets = {
@@ -96,11 +99,48 @@ function devBackendProxy() {
   };
 }
 
+/**
+ * The public service worker is intentionally framework-neutral. This plugin
+ * gives each build an immutable manifest of every emitted application asset
+ * and changes sw.js itself, so browsers always discover a new worker when the
+ * bundle changes.
+ */
+function pwaPrecacheManifest(): Plugin {
+  let buildId = "development";
+  return {
+    name: "pwa-precache-manifest",
+    apply: "build",
+    generateBundle(_, bundle) {
+      const assets = Object.values(bundle)
+        .map((entry) => `/${entry.fileName}`)
+        .filter((fileName) => !fileName.endsWith(".map"))
+        .sort();
+      buildId = createHash("sha256").update(assets.join("\n")).digest("hex").slice(0, 16);
+      this.emitFile({
+        type: "asset",
+        fileName: "pwa-precache.json",
+        source: JSON.stringify({ buildId, assets }),
+      });
+    },
+    async closeBundle() {
+      const serviceWorker = path.resolve("dist/sw.js");
+      const source = await readFile(serviceWorker, "utf8");
+      const updated = source.replace(
+        /const CACHE_VERSION = "[^"]+";/,
+        `const CACHE_VERSION = "${buildId}";`,
+      );
+      if (updated === source)
+        throw new Error("PWA service-worker cache version marker is missing.");
+      await writeFile(serviceWorker, updated);
+    },
+  };
+}
+
 export default defineConfig({
   // A dedicated cache namespace makes configuration/runtime upgrades start
   // from a coherent dependency graph instead of serving stale React chunks.
   cacheDir: "node_modules/.vite-zanin",
-  plugins: [devBackendProxy(), react()],
+  plugins: [devBackendProxy(), react(), pwaPrecacheManifest()],
   build: {
     rollupOptions: {
       output: {

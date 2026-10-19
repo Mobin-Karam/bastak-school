@@ -1578,6 +1578,7 @@ export class AttendanceService {
           "ATTENDANCE_SESSION_CANCELLED",
           "این درس لغو شده است؛ حضور تاریخی فقط قابل مشاهده است.",
         );
+      this.assertSessionIsActiveForMarking(session);
       if (session?.occurrenceKey && !options.allowOccurrence)
         throw new ApiException(
           409,
@@ -2698,6 +2699,23 @@ export class AttendanceService {
       422,
       "ATTENDANCE_CONTEXT_INVALID",
       "نوع حضور و غیاب معتبر نیست.",
+    );
+  }
+  /**
+   * A scheduled occurrence can only be marked during its published time.
+   * This is server-side because a disabled Admin control is not a security
+   * boundary. Legacy/manual sessions have no complete range to enforce yet.
+   */
+  private assertSessionIsActiveForMarking(session: AttendanceSession | null) {
+    if (!session?.scheduledStartAt || !session.scheduledEndAt) return;
+    const now = Date.now();
+    const startsAt = session.scheduledStartAt.getTime();
+    const endsAt = session.scheduledEndAt.getTime();
+    if (now >= startsAt && now < endsAt) return;
+    throw new ApiException(
+      409,
+      "ATTENDANCE_SESSION_NOT_ACTIVE",
+      "ثبت یا تغییر حضور فقط در بازه زمانی همین جلسه مجاز است.",
     );
   }
   private status(value: string) {

@@ -15,9 +15,17 @@ import { authSessionCopy } from "../model/auth-locale";
 import { useOptionalAdminLanguage } from "../../../../shared/ui/locale";
 import { hasAllCapabilities, hasAnyCapability, hasCapability } from "../lib/capabilities";
 import { AuthContext } from "../context";
+import { currentAppDomain, preferredRoleForDomain } from "../../../../app/routing/portal-domain";
 
 const MAX_RESTORE_ATTEMPTS = 3;
 const RESTORE_RETRY_DELAY_MS = 1_800;
+
+function portalRole(roles: AccountContext["roles"]) {
+  const domain = currentAppDomain();
+  if (domain === "student" || domain === "admin")
+    return preferredRoleForDomain(roles, domain) ?? adminPortalRole(roles);
+  return adminPortalRole(roles);
+}
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const language = useOptionalAdminLanguage();
@@ -63,7 +71,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (current !== operation.current) return;
 
-      const role = adminPortalRole(context.roles);
+      const role = portalRole(context.roles);
       if (!role) {
         try {
           await logoutRequest();
@@ -208,9 +216,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
         const contextUser = normalizeUser({
           ...context.user,
-          role: context.roles[0] ?? normalizedUser.role,
+          role: portalRole(context.roles) ?? normalizedUser.role,
         });
-        const role = adminPortalRole(context.roles);
+        const role = portalRole(context.roles);
         if (!role) {
           try {
             await logoutRequest();
@@ -287,7 +295,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         accountContext?.capabilities ??
         [],
       async setActiveRole(role) {
-        if (!accountContext?.roles.includes(role) || adminPortalRole([role]) !== role) return;
+        const domain = currentAppDomain();
+        const roleAllowedOnDomain =
+          domain === "student" || domain === "admin"
+            ? preferredRoleForDomain([role], domain) === role
+            : adminPortalRole([role]) === role;
+        if (!accountContext?.roles.includes(role) || !roleAllowedOnDomain) return;
         const current = ++operation.current;
         setStatus("checking");
         try {
@@ -316,10 +329,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             organizationId: organization?.id,
           });
           if (current !== operation.current) return;
+          const domain = currentAppDomain();
+          const activeRoleAllowedOnDomain =
+            activeRole &&
+            (domain === "student" || domain === "admin"
+              ? preferredRoleForDomain([activeRole], domain) === activeRole
+              : adminPortalRole([activeRole]) === activeRole);
           const role =
-            activeRole && refreshed.roles.includes(activeRole)
+            activeRoleAllowedOnDomain && refreshed.roles.includes(activeRole!)
               ? activeRole
-              : adminPortalRole(refreshed.roles);
+              : portalRole(refreshed.roles);
           if (!role) throw new Error(copy.accessVerificationFailed);
           setAccountContext(refreshed);
           setUser(normalizeUser({ ...refreshed.user, role }));

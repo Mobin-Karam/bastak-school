@@ -24,6 +24,25 @@ import {
 } from "./dto/phone-number-change.dto";
 import { RequireCapabilities } from "../../common/decorators/capabilities.decorator";
 
+type LoginPortal = "student" | "admin";
+
+/** Only browser origins identify a portal. Native clients have no such host. */
+export function loginPortalFromOrigin(
+  origin: string | string[] | undefined,
+): LoginPortal | undefined {
+  if (typeof origin !== "string") return undefined;
+  try {
+    const hostname = new URL(origin).hostname.toLowerCase();
+    if (hostname === "stud.sultano.ir" || hostname === "stud.localhost")
+      return "student";
+    if (hostname === "app.sultano.ir" || hostname === "app.localhost")
+      return "admin";
+  } catch {
+    // CORS rejects malformed browser origins. Keep native API clients unaffected.
+  }
+  return undefined;
+}
+
 @Controller("auth")
 export class AuthController {
   constructor(
@@ -42,7 +61,12 @@ export class AuthController {
     @Req() req: FastifyRequest,
     @Res({ passthrough: true }) res: FastifyReply,
   ) {
-    const result = await this.auth.login(dto.phoneNumber, dto.password, req.ip);
+    const result = await this.auth.login(
+      dto.phoneNumber,
+      dto.password,
+      req.ip,
+      loginPortalFromOrigin(req.headers?.origin),
+    );
     this.setAuthCookies(res, result);
     return ok({
       user: {

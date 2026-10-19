@@ -1315,6 +1315,40 @@ describe("AttendanceService organization boundaries (real SQLite)", () => {
     });
   });
 
+  it("allows attendance changes only while a scheduled session is active", async () => {
+    const created = await service.createSession(actor, {
+      organizationId: orgA.id,
+      contextType: "class",
+      contextId: assignedClass.id,
+      sessionDate: new Date().toISOString(),
+    });
+    await db.getRepository(AttendanceSession).update(created.id, {
+      scheduledStartAt: new Date(Date.now() - 60_000),
+      scheduledEndAt: new Date(Date.now() + 60_000),
+    });
+
+    await expect(
+      service.bulkMark(actor, {
+        organizationId: orgA.id,
+        sessionId: created.id,
+        entries: [{ studentId: studentA.id, status: "present" }],
+      }),
+    ).resolves.toMatchObject({ sessionId: created.id, count: 1 });
+
+    await db.getRepository(AttendanceSession).update(created.id, {
+      scheduledEndAt: new Date(Date.now() - 1),
+    });
+    await expect(
+      service.bulkMark(actor, {
+        organizationId: orgA.id,
+        sessionId: created.id,
+        entries: [{ studentId: studentA.id, status: "late" }],
+      }),
+    ).rejects.toMatchObject({
+      response: { error: { code: "ATTENDANCE_SESSION_NOT_ACTIVE" } },
+    });
+  });
+
   it("does not reuse active-organization authority in another membership", async () => {
     await db
       .getRepository(OrganizationMembership)

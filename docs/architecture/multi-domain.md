@@ -36,10 +36,12 @@ still lazy-loads route modules, and
 `CapabilityRoute` only controls UI access. NestJS role, capability,
 organization, and relationship checks remain authoritative for every API call.
 
-For multi-role accounts, the resolver can select the Student role on the
-student host and a non-student role on the staff host through the existing
-server-verified role switch. Cross-host destinations are allowlisted by the
-same resolver; arbitrary `redirect` query values are not used.
+The login endpoint rejects a student/guardian-only account on the staff host
+and a staff account on the student host before it creates a session. The error
+names the correct portal URL. An account that has any staff role is a staff
+account for this decision; a student and guardian-only account belongs to the
+student portal. Cross-host destinations are allowlisted by the same resolver;
+arbitrary `redirect` query values are not used.
 
 ## Authentication, API, and security
 

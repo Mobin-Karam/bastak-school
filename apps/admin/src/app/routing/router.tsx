@@ -245,7 +245,10 @@ function PortalHostBoundary() {
   const destination = preferredPortal(auth.context?.roles ?? []);
   const target = destination ? portalUrl(destination, "/admin") : null;
   return target ? (
-    <PortalRedirect target={target} />
+    <PortalUnavailable
+      title="این حساب در نشانی فعلی سامانه قابل استفاده نیست."
+      portalUrl={target}
+    />
   ) : (
     <PortalUnavailable title="این حساب به هیچ پرتال فعالی دسترسی ندارد." />
   );
@@ -271,19 +274,20 @@ function PortalRoleSwitch({
   return <RouteLoading />;
 }
 
-function PortalRedirect({ target }: { target: string }) {
-  useEffect(() => {
-    window.location.replace(target);
-  }, [target]);
-  return <RouteLoading />;
-}
-
-function PortalUnavailable({ title }: { title: string }) {
+function PortalUnavailable({ title, portalUrl }: { title: string; portalUrl?: string }) {
   return (
     <main className="grid min-h-screen place-items-center bg-paper p-4" role="alert">
       <section className="max-w-md rounded-lg border border-amber-200 bg-amber-50 p-5 text-center text-amber-950 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-100">
         <h1 className="font-bold">{title}</h1>
         <p className="mt-2 text-sm">مجوزهای حساب شما همچنان در سمت سرور بررسی می‌شوند.</p>
+        {portalUrl ? (
+          <a
+            href={portalUrl}
+            className="mt-4 inline-flex min-h-10 items-center justify-center rounded-lg bg-brand px-4 text-sm font-bold text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"
+          >
+            {portalUrl}
+          </a>
+        ) : null}
       </section>
     </main>
   );

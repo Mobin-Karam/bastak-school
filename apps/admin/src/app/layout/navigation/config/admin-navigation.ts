@@ -27,6 +27,19 @@ type NavigationItem = {
 };
 type NavigationGroup = { section: string; items: readonly NavigationItem[] };
 
+/**
+ * The dashboard is a global destination, not a member of the Home context
+ * menu. Keeping it separate prevents announcements from displacing the route
+ * people use to return to their work overview.
+ */
+const dashboardNavigationItem = {
+  path: "",
+  title: "داشبورد",
+  description: "نمای کلی مدرسه و کارهای مرتبط با نقش شما",
+  icon: LayoutDashboard,
+  section: "داشبورد",
+} as const;
+
 export const educationNavigation = [
   {
     path: "schedule",
@@ -111,12 +124,6 @@ export const adminNavigation = [
         description: "انتشار رسانه برای اعضای انتخاب‌شده",
         icon: Bell,
         capability: "announcements.manage",
-      },
-      {
-        path: "",
-        title: "داشبورد",
-        description: "نمای کلی مدرسه و کارهای مرتبط با نقش شما",
-        icon: LayoutDashboard,
       },
     ],
   },
@@ -270,17 +277,6 @@ const registrationNavigation: readonly NavigationGroup[] = [
 /** Student navigation is intentionally a small, personal product surface. */
 const studentNavigation: readonly NavigationGroup[] = [
   {
-    section: "خانه",
-    items: [
-      {
-        path: "",
-        title: "خانه",
-        description: "تقویم، کلاس جاری، اوقات شرعی و حضور من",
-        icon: LayoutDashboard,
-      },
-    ],
-  },
-  {
     section: "برنامه من",
     items: [
       {
@@ -365,17 +361,6 @@ const studentNavigation: readonly NavigationGroup[] = [
 
 /** Teachers get a deliberately small, class-first workspace on every device. */
 const teacherNavigation: readonly NavigationGroup[] = [
-  {
-    section: "خانه",
-    items: [
-      {
-        path: "",
-        title: "خانه استاد",
-        description: "تقویم، کلاس جاری و اوقات شرعی مدرسه",
-        icon: LayoutDashboard,
-      },
-    ],
-  },
   {
     section: "برنامه من",
     items: [
@@ -481,14 +466,20 @@ export function mainNavigationForCapabilities(
   role?: string | null,
 ) {
   const titles = role ? roleSectionTitles[role] : undefined;
-  return navigationForCapabilities(capabilities, role).map((group) => ({
-    ...group.items[0],
-    section: group.section,
-    title:
-      titles?.[group.section] ??
-      mainAdminNavigation.find((item) => item.section === group.section)?.title ??
-      group.section,
-  }));
+  return [
+    {
+      ...dashboardNavigationItem,
+      title: titles?.["خانه"] ?? roleTitles[role ?? ""]?.[""] ?? dashboardNavigationItem.title,
+    },
+    ...navigationForCapabilities(capabilities, role).map((group) => ({
+      ...group.items[0],
+      section: group.section,
+      title:
+        titles?.[group.section] ??
+        mainAdminNavigation.find((item) => item.section === group.section)?.title ??
+        group.section,
+    })),
+  ];
 }
 
 export function normalizeAdminPath(pathname: string) {
@@ -509,6 +500,15 @@ function routeMatches(pattern: string, path: string) {
 
 export function resolveAdminNavigation(pathname: string, role?: string | null) {
   const path = normalizeAdminPath(pathname);
+  if (!path) {
+    return {
+      ...dashboardNavigationItem,
+      title:
+        roleSectionTitles[role ?? ""]?.["خانه"] ??
+        roleTitles[role ?? ""]?.[""] ??
+        dashboardNavigationItem.title,
+    };
+  }
   const personalItems = studentNavigation.flatMap((group) =>
     group.items.map((item) => ({ ...item, section: group.section })),
   );

@@ -35,6 +35,9 @@ export function AdminMainSidebar({
     auth.activeRole,
     language,
   );
+  const [dashboard, ...sectionNavigation] = visibleMainNavigation;
+  const dashboardActive = currentPath === "";
+  const DashboardIcon = dashboard?.icon;
   return (
     <aside
       className={`admin-main-rail fixed inset-y-0 start-0 z-50 hidden flex-col border-e border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card))] transition-[width,padding] duration-200 motion-reduce:transition-none ${viewport === "tablet" ? "md:flex min-[1200px]:hidden" : "min-[1200px]:flex"} ${direction === "rtl" ? "shadow-[-1px_0_0_rgb(24_24_27_/_2%)]" : "shadow-[1px_0_0_rgb(24_24_27_/_2%)]"} ${collapsed ? "w-[4.25rem] p-2" : "w-60 p-3"}`}
@@ -74,6 +77,19 @@ export function AdminMainSidebar({
         </button>
       </div>
 
+      {dashboard && DashboardIcon ? (
+        <NavLink
+          to={adminDestination(dashboard.path, dashboard.section, selectedStudentId)}
+          title={dashboard.title}
+          aria-label={dashboard.title}
+          aria-current={dashboardActive ? "page" : undefined}
+          className={`mb-3 flex h-11 w-full shrink-0 items-center rounded-lg border px-3 text-sm font-bold outline-none transition focus-visible:ring-2 focus-visible:ring-brand ${dashboardActive ? "border-brand/30 bg-brand text-white shadow-sm" : "border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-muted))] text-slate-600 hover:border-brand/30 hover:bg-brand/5 hover:text-brand dark:text-slate-300"} ${collapsed ? "justify-center px-2" : "gap-2"}`}
+        >
+          <DashboardIcon className="shrink-0" size={19} strokeWidth={dashboardActive ? 2.4 : 2} />
+          {!collapsed ? <span className="truncate">{dashboard.title}</span> : null}
+        </NavLink>
+      ) : null}
+
       <button
         type="button"
         className={`mb-3 flex h-10 w-full shrink-0 items-center rounded-lg border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-muted))] text-slate-500 outline-none transition hover:bg-[rgb(var(--surface-card))] hover:text-brand focus-visible:ring-2 focus-visible:ring-brand ${collapsed ? "justify-center px-2" : "gap-2 px-3"}`}
@@ -98,8 +114,8 @@ export function AdminMainSidebar({
       </button>
 
       <nav className="grid min-h-0 flex-1 content-start gap-1 overflow-y-auto overscroll-contain pb-2">
-        {visibleMainNavigation.map(({ path, title, section, icon: Icon }) => {
-          const active = currentSection === section;
+        {sectionNavigation.map(({ path, title, section, icon: Icon }) => {
+          const active = !dashboardActive && currentSection === section;
           return (
             <NavLink
               key={path}
