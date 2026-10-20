@@ -43,7 +43,7 @@ never bypass branch protection. This does not apply to the separately reviewed
 
 ## MCP servers
 
-[`config.toml`](./config.toml) is a local, ignored configuration. It registers
+`config.toml` is a local, ignored configuration. It registers
 the project Graphify server and laptop-available OpenAI Developer Docs, GitHub,
 Liara, Graph-it-Live, and Torob servers. Codex also inherits the laptop's
 managed `node_repl` server. A configured server may still require OAuth login,

@@ -9,7 +9,7 @@ role briefs, workflows, prompt templates, and scoped policies are linked—not
 copied—from [`.codex/README.md`](.codex/README.md). When a task matches one of
 those workflows, read the source file through that catalog before acting.
 
-The local [`.codex/config.toml`](.codex/config.toml) may register MCP servers
+The local `.codex/config.toml` may register MCP servers
 for this laptop. It is ignored by Git: do not commit it, credentials, OAuth
 material, or account-specific endpoints. A configured server is not proof that
 the current Codex session can call it; verify with `codex mcp list`.
