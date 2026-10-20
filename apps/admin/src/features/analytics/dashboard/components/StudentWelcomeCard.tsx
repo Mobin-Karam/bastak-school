@@ -1,4 +1,3 @@
-import { formatDate } from "@/features/communications/chat/lib/chat-formatters";
 import { useAdminShellCopy } from "@/shared/ui/locale";
 import { ResponsiveDrawer } from "@/shared/ui/responsive-drawer";
 import { ArrowUpLeft, GraduationCap, School } from "lucide-react";

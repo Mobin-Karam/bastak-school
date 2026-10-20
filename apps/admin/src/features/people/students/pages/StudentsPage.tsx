@@ -378,20 +378,6 @@ export function StudentsPage() {
       });
   }
 
-  function showDirectory() {
-    const run = () => setMobileDirectory(true);
-    if (!dirty) return run();
-    void modal
-      .confirm({
-        title: copy.returnToDirectoryTitle,
-        description: copy.returnToDirectoryDescription,
-        confirmLabel: copy.backToList,
-      })
-      .then((ok) => {
-        if (ok) run();
-      });
-  }
-
   function dismissDetail() {
     const run = () => {
       setDetailOpen(false);

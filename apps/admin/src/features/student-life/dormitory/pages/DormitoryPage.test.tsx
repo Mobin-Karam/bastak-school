@@ -145,6 +145,7 @@ describe("DormitoryPage", () => {
     ]);
     renderPage();
     expect(await screen.findByLabelText("خلاصه ظرفیت خوابگاه")).toBeInTheDocument();
+    await screen.findByRole("checkbox", { name: "تخصیص حسین کریمی" });
     fireEvent.change(screen.getByPlaceholderText("نام طلبه"), { target: { value: "حسین" } });
     expect(screen.getByRole("checkbox", { name: "تخصیص حسین کریمی" })).toBeInTheDocument();
     expect(screen.queryByRole("checkbox", { name: "تخصیص علی احمدی" })).not.toBeInTheDocument();

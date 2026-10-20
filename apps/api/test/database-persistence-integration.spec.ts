@@ -68,7 +68,9 @@ function database(filename: string, baseline = false, runMigrations = true) {
             Number(file.slice(0, 13)) <= 1730700000000 ||
             file === "1731200400000-AttendanceSubjectSnapshots.ts" ||
             file === "1731300000000-AttendanceCorrectionReview.ts" ||
-            file === "1731300100000-AttendanceAcademicSnapshots.ts"),
+            file === "1731300100000-AttendanceAcademicSnapshots.ts" ||
+            file === "1731400000000-StudentAttendancePoints.ts" ||
+            file === "1731400100000-StudentPointLedgerIdempotencyScope.ts"),
       )
       .map((file) => path.join(directory, file)),
     synchronize: false,

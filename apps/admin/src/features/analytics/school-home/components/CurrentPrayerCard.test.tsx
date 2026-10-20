@@ -19,6 +19,6 @@ describe("CurrentPrayerCard", () => {
     const time = screen.getByText("۱۲:۰۵");
     expect(time).toHaveAttribute("dateTime", "12:05");
     expect(time).toHaveAttribute("lang", "fa");
-    expect(screen.getByRole("group")).toHaveClass("max-md:-mx-4");
+    expect(screen.getByRole("region", { name: "وقت شرعی پیش رو" })).toHaveClass("rounded-2xl");
   });
 });

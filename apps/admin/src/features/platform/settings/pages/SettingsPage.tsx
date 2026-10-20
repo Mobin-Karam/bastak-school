@@ -116,32 +116,6 @@ function WorkspaceSettingsPage() {
 
 /** Personal accounts deliberately omit operational integrations and organization settings. */
 function PersonalSettingsPage() {
-  const qc = useQueryClient();
-  const modal = useModal();
-  const locale = useLocale();
-  const copy = settingsCopy(locale.language);
-  const [passwords, setPasswords] = useState({
-    currentPassword: "",
-    newPassword: "",
-    confirmPassword: "",
-  });
-  const sessions = useQuery({ queryKey: ["sessions"], queryFn: getSessions });
-  const revoke = useMutation({
-    mutationFn: revokeSession,
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["sessions"] }),
-    meta: { successMessage: copy.sessionRevoked },
-  });
-  const password = useMutation({
-    mutationFn: () => changePassword(passwords),
-    onSuccess: () => {
-      setPasswords({ currentPassword: "", newPassword: "", confirmPassword: "" });
-      notify(copy.passwordChanged);
-      void qc.invalidateQueries({ queryKey: ["sessions"] });
-    },
-    onError: (error) =>
-      notify(error instanceof Error ? error.message : copy.passwordFailed, "error"),
-  });
-
   return (
     <div className="mx-auto grid w-full max-w-2xl gap-4">
       <ManagementPageHeader

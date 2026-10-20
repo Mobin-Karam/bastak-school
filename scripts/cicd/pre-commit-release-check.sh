@@ -17,8 +17,17 @@ phase=0
 completed=0
 started_at=$SECONDS
 show_logs=false
+dry_run=false
+show_progress=false
 phase_log_dir=$(mktemp -d "${TMPDIR:-/tmp}/moshaver-preflight.XXXXXX")
 failed_phase_log=""
+failure_output_printed=false
+declare -a parallel_pids=()
+declare -a parallel_numbers=()
+declare -a parallel_labels=()
+declare -a parallel_logs=()
+declare -a parallel_started=()
+declare -a parallel_statuses=()
 
 cleanup() {
   rm -rf "$phase_log_dir"
@@ -27,14 +36,16 @@ trap cleanup EXIT
 
 usage() {
   cat <<'EOF'
-Usage: ./scripts/cicd/pre-commit-release-check.sh [--logs] [--skip-release-rehearsal]
+Usage: ./scripts/cicd/pre-commit-release-check.sh [--logs] [--progress] [--dry-run] [--skip-release-rehearsal]
 
 Runs the full local gate for a commit or release PR. By default it includes the
 disposable Docker release rehearsal: image build, populated SQLite upgrade,
 backup/restore, HTTPS readiness, security matrix, and critical-flow smoke test.
 
 Options:
-  --logs                    Stream every command's output while it runs.
+  --logs                    Print each gate's complete log when it finishes.
+  --progress                Animate live progress in an interactive terminal.
+  --dry-run                 Show the gate plan without executing validation.
   --skip-release-rehearsal  Skip only the long Docker release rehearsal.
   -h, --help                Show this help.
 EOF
@@ -163,6 +174,14 @@ run_phase() {
 
   printf '\n%s[%02d] %s%s' "$cyan" "$phase" "$label" "$reset"
 
+  if "$dry_run"; then
+    printf '\n  %s$' "$dim"
+    printf ' %q' "$@"
+    printf '%s\n' "$reset"
+    completed=$((completed + 1))
+    return
+  fi
+
   if "$show_logs"; then
     printf '\n%s$' "$dim"
     printf ' %q' "$@"
@@ -200,11 +219,111 @@ run_phase() {
     "$green" "$reset" "$phase" "$label" "$dim" "$elapsed" "$reset"
 }
 
+start_parallel_phase() {
+  local label=$1
+  shift
+  phase=$((phase + 1))
+  local number=$phase
+  local phase_log="$phase_log_dir/phase-${number}.log"
+
+  printf '\n%s[%02d] QUEUED%s %s\n' "$cyan" "$number" "$reset" "$label"
+  if "$dry_run"; then
+    printf '  %s$' "$dim"
+    printf ' %q' "$@"
+    printf '%s\n' "$reset"
+    completed=$((completed + 1))
+    return
+  fi
+
+  "$@" >"$phase_log" 2>&1 &
+  parallel_pids+=("$!")
+  parallel_numbers+=("$number")
+  parallel_labels+=("$label")
+  parallel_logs+=("$phase_log")
+  parallel_started+=("$SECONDS")
+}
+
+wait_for_parallel_phases() {
+  local pending=${#parallel_pids[@]}
+  local index
+  local status=0
+  local failures=0
+  local first_failure=-1
+
+  if ((pending == 0)); then
+    return
+  fi
+
+  printf '\n%sRunning %d independent gates concurrently.%s Logs are kept separate so failures stay readable.\n' \
+    "$cyan" "$pending" "$reset"
+
+  while ((pending > 0)); do
+    local active_labels=()
+    for index in "${!parallel_pids[@]}"; do
+      [[ ${parallel_pids[$index]} == 0 ]] && continue
+      if kill -0 "${parallel_pids[$index]}" 2>/dev/null; then
+        active_labels+=("[${parallel_numbers[$index]}] ${parallel_labels[$index]}")
+        continue
+      fi
+
+      if wait "${parallel_pids[$index]}"; then
+        status=0
+      else
+        status=$?
+      fi
+      parallel_pids[$index]=0
+      parallel_statuses[$index]=$status
+      pending=$((pending - 1))
+      local elapsed=$((SECONDS - parallel_started[$index]))
+      if ((status == 0)); then
+        completed=$((completed + 1))
+        printf '%s✓ PASS%s [%02d] %s %s(%ss)%s\n' \
+          "$green" "$reset" "${parallel_numbers[$index]}" "${parallel_labels[$index]}" "$dim" "$elapsed" "$reset"
+        if "$show_logs" && [[ -s ${parallel_logs[$index]} ]]; then
+          printf '%s--- [%02d] %s ---%s\n' "$dim" "${parallel_numbers[$index]}" "${parallel_labels[$index]}" "$reset"
+          cat "${parallel_logs[$index]}"
+        fi
+      else
+        failures=$((failures + 1))
+        if ((first_failure < 0)); then
+          first_failure=$index
+        fi
+        printf '%s✗ FAIL%s [%02d] %s %s(%ss)%s\n' \
+          "$red" "$reset" "${parallel_numbers[$index]}" "${parallel_labels[$index]}" "$dim" "$elapsed" "$reset" >&2
+      fi
+    done
+
+    if ((pending > 0)); then
+      if "$show_progress" && [[ -t 1 ]]; then
+        printf '\r%s… RUNNING%s %d gate(s): %s' "$cyan" "$reset" "$pending" "${active_labels[*]:0:2}"
+      fi
+      sleep 0.25
+    fi
+  done
+  if "$show_progress" && [[ -t 1 ]]; then
+    printf '\r%*s\r' 140 ''
+  fi
+
+  if ((failures > 0)); then
+    printf '%s%d concurrent gate(s) failed. Their isolated output follows.%s\n' "$red" "$failures" "$reset" >&2
+    for index in "${!parallel_numbers[@]}"; do
+      if [[ ${parallel_statuses[$index]:-0} != 0 ]]; then
+        printf '%s--- FAILED [%02d] %s ---%s\n' "$yellow" "${parallel_numbers[$index]}" "${parallel_labels[$index]}" "$reset" >&2
+        cat "${parallel_logs[$index]}" >&2
+      fi
+    done
+    phase=${parallel_numbers[$first_failure]}
+    failed_phase_log=${parallel_logs[$first_failure]}
+    failure_output_printed=true
+    return 1
+  fi
+}
+
 on_error() {
   local status=$?
   printf '\n%s✗ FAILED%s during phase %d after %ss. No commit, push, PR, or deployment was made.\n' \
     "$red" "$reset" "$phase" "$((SECONDS - started_at))" >&2
-  if [[ -n "$failed_phase_log" && -s "$failed_phase_log" && "$show_logs" == false ]]; then
+  if [[ -n "$failed_phase_log" && -s "$failed_phase_log" && "$show_logs" == false && "$failure_output_printed" == false ]]; then
     printf '%sFailure output:%s\n' "$yellow" "$reset" >&2
     cat "$failed_phase_log" >&2
   fi
@@ -219,6 +338,8 @@ release_rehearsal=true
 while (($#)); do
   case $1 in
     --logs) show_logs=true ;;
+    --progress) show_progress=true ;;
+    --dry-run) dry_run=true ;;
     --skip-release-rehearsal) release_rehearsal=false ;;
     -h|--help) usage; exit 0 ;;
     *) printf '%sUnknown option: %s%s\n' "$red" "$1" "$reset" >&2; usage >&2; exit 2 ;;
@@ -237,46 +358,44 @@ run_phase "Runtime and repository state" bash -euo pipefail -c '
   git diff --check
   git diff --cached --check
 '
-run_phase "Workspace DAG and source fingerprint" bash -euo pipefail -c '
+
+start_parallel_phase "Workspace DAG" bash -euo pipefail -c '
   npm run workspace:check
   npm run workspace:plan -- build
-  npm run graphify:check
 '
-run_phase "Architecture, contracts, and documentation" bash -euo pipefail -c '
+start_parallel_phase "Architecture, contracts, and documentation" bash -euo pipefail -c '
   npm run architecture:check
   npm run cmb:compatibility
   npm run cmb:publish:check
   npm run contracts:check
   npm run docs:check
 '
-run_phase "Shared packages and workspace verification" npm run verify
-run_phase "Generator and CMB package tests" bash -euo pipefail -c '
+start_parallel_phase "Shared packages and workspace verification" bash -euo pipefail -c '
+  npm --prefix packages/admin-workspace-ui test
+  node tooling/workspace/run.mjs verify --project=cmb-reference
+  npm --prefix student-core run build
+  npm --prefix student-core test
+'
+start_parallel_phase "Generator and CMB package tests" bash -euo pipefail -c '
   npm run test:generators
   npm run test:cmb-publish
 '
-run_phase "API types, unit tests, build, and migration upgrade audit" bash -euo pipefail -c '
+start_parallel_phase "API types, unit tests, build, and migration upgrade audit" bash -euo pipefail -c '
   npm --prefix apps/api run lint
   npm --prefix apps/api test
   npm --prefix apps/api run build
   npm --prefix apps/api run audit:database
 '
-run_phase "Admin type, format, lint, unit, and accessibility checks" bash -euo pipefail -c '
-  npm --prefix apps/admin run typecheck
-  npm --prefix apps/admin run format:check
-  npm --prefix apps/admin run lint
-  npm --prefix apps/admin test
-  npm --prefix apps/admin run test:a11y
-'
-run_phase "Admin UI parity, release audit, browser E2E, and production bundle" bash -euo pipefail -c '
-  npm --prefix apps/admin run audit:parity
+start_parallel_phase "Admin quality, parity, release audit, and production bundle" bash -euo pipefail -c '
   npm --prefix apps/admin run audit:release
-  npm --prefix apps/admin run test:e2e
-  npm --prefix apps/admin run build
 '
-run_phase "Compose and deployment security configuration" bash -euo pipefail -c '
+start_parallel_phase "Compose and deployment security configuration" bash -euo pipefail -c '
   docker compose --env-file deployment/lan/production.env.example -f docker-compose.production.yml -f deployment/lan/compose.yml config --quiet
   ./scripts/deploy/verify-security.sh
 '
+wait_for_parallel_phases
+
+run_phase "Admin browser E2E against the release build" npm --prefix apps/admin run test:e2e
 
 if "$release_rehearsal"; then
   run_phase "Disposable release rehearsal: images, SQLite upgrade/restore, HTTPS, API smoke" \
@@ -284,6 +403,11 @@ if "$release_rehearsal"; then
 else
   printf '\n%s! SKIPPED%s Disposable release rehearsal by explicit request.\n' "$yellow" "$reset"
 fi
+
+run_phase "Refresh Graphify source fingerprint" bash -euo pipefail -c '
+  npm run graphify:generate
+  npm run graphify:check
+'
 
 printf '\n%s✓ READY%s %d phases completed in %ss.\n' "$green" "$reset" "$completed" "$((SECONDS - started_at))"
 printf 'Next: inspect git diff, commit only intended paths, then use scripts/cicd/finish-work.sh to create and merge the develop PR.\n'

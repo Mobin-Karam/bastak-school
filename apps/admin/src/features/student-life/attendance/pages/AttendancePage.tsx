@@ -104,9 +104,7 @@ export function AttendancePage() {
     const timer = window.setInterval(() => setWindowNow(Date.now()), 30_000);
     return () => window.clearInterval(timer);
   }, [linkedSession?.id, linkedSession?.scheduledStartAt, linkedSession?.scheduledEndAt]);
-  const sessionWindow = linkedSession
-    ? attendanceSessionWindow(linkedSession, windowNow)
-    : null;
+  const sessionWindow = linkedSession ? attendanceSessionWindow(linkedSession, windowNow) : null;
   const sessionWindowActive = !sessionWindow || sessionWindow.active;
   const canManage = linkedSession
     ? (linkedSession.status === "open" || linkedSession.status === "scheduled") &&
@@ -883,7 +881,10 @@ export function AttendancePage() {
                 : "این جلسه با زمان فعلی ثبت می‌شود."}
             </p>
             {linkedSession && sessionWindow?.message ? (
-              <p role="status" className="rounded-xl bg-amber-50 px-4 py-3 text-xs text-amber-900 dark:bg-amber-950/30 dark:text-amber-100">
+              <p
+                role="status"
+                className="rounded-xl bg-amber-50 px-4 py-3 text-xs text-amber-900 dark:bg-amber-950/30 dark:text-amber-100"
+              >
                 {sessionWindow.message}
               </p>
             ) : null}

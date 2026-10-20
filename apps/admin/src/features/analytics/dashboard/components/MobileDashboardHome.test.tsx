@@ -30,8 +30,10 @@ describe("MobileDashboardHome", () => {
     );
 
     expect(screen.getByRole("region", { name: "کلاس‌های امروز" })).toBeVisible();
-    expect(screen.getByRole("region", { name: "اوقات شرعی" })).toBeVisible();
-    expect(screen.getByRole("region", { name: "اوقات شرعی" }).querySelector("time")).toBeVisible();
+    expect(screen.getByRole("region", { name: "وقت شرعی پیش رو" })).toBeVisible();
+    expect(
+      screen.getByRole("region", { name: "وقت شرعی پیش رو" }).querySelector("time"),
+    ).toBeVisible();
     expect(screen.getByRole("region", { name: "پیام‌های مدرسه" })).toBeVisible();
     expect(screen.getByText("یادآوری جلسه اولیا")).toBeVisible();
     expect(

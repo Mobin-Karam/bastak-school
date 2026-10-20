@@ -24,13 +24,6 @@ export function StudentLoginPage() {
   const { copy, direction } = useAuthLocale();
   const { loading, setupRequired, showBootstrap, openBootstrap, closeBootstrap } =
     usePlatformBootstrap();
-  const studentTitle =
-    direction === "rtl" ? "به دنیای یادگیری خوش آمدی!" : "Welcome to your learning world!";
-  const studentDescription =
-    direction === "rtl"
-      ? "برنامه، کتاب‌ها و مسیر پیشرفتت، همه در یک جای دوست‌داشتنی."
-      : "Your schedule, books, and progress—all in one lovely place.";
-
   return (
     <LoginShell direction={direction}>
       <main
@@ -59,6 +52,9 @@ export function StudentLoginPage() {
           </header>
 
           <section aria-labelledby="student-login-title" className="mt-7 text-center sm:mt-9">
+            <h1 id="student-login-title" className="sr-only">
+              {direction === "rtl" ? "ورود دانش‌آموزان" : "Student sign in"}
+            </h1>
             <div className="student-glass-logo relative mx-auto grid place-items-center rounded-[32px] p-4 sm:size-[116px]">
               <div
                 aria-hidden="true"

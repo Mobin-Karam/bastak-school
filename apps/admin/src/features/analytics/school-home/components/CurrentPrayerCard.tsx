@@ -1,5 +1,5 @@
-import { memo, type ComponentType, type SVGProps } from "react";
-import { Sunrise, Sun, SunMedium, SunDim, Sunset, MoonStar, Clock3 } from "lucide-react";
+import { memo } from "react";
+import { Clock3 } from "lucide-react";
 
 import { fa } from "../../../../shared/lib/utils";
 import { useCurrentPrayer } from "../hooks/use-current-prayer";
@@ -9,40 +9,6 @@ type CurrentPrayerCardProps = {
   times: PrayerSchedule | null | undefined;
   className?: string;
 };
-
-type PrayerIconType = ComponentType<
-  SVGProps<SVGSVGElement> & {
-    size?: number;
-    strokeWidth?: number;
-  }
->;
-
-const PRAYER_ICONS: Record<string, PrayerIconType> = {
-  fajr: Sunrise,
-  صبح: Sunrise,
-  فجر: Sunrise,
-
-  sunrise: Sun,
-  "طلوع آفتاب": Sun,
-  طلوع: Sun,
-
-  dhuhr: SunMedium,
-  ظهر: SunMedium,
-
-  asr: SunDim,
-  عصر: SunDim,
-
-  maghrib: Sunset,
-  مغرب: Sunset,
-
-  isha: MoonStar,
-  عشاء: MoonStar,
-  عشا: MoonStar,
-};
-
-function getPrayerIcon(label: string): PrayerIconType {
-  return PRAYER_ICONS[label.trim().toLowerCase()] ?? SunMedium;
-}
 
 function normalizePrayerTime(value: string): string {
   return value
@@ -80,8 +46,6 @@ export const CurrentPrayerCard = memo(function CurrentPrayerCard({
   ) {
     return null;
   }
-
-  const Icon = getPrayerIcon(active.label);
 
   const machineTime = normalizePrayerTime(active.time);
   const displayTime = fa(machineTime);

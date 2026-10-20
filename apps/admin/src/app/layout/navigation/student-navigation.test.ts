@@ -9,7 +9,6 @@ describe("student navigation", () => {
     ).flatMap((group) => group.items.map((item) => item.path));
 
     expect(paths).toEqual([
-      "",
       "schedule",
       "books",
       "my-attendance",
@@ -59,7 +58,6 @@ describe("teacher navigation", () => {
     ).flatMap((group) => group.items.map((item) => item.path));
 
     expect(paths).toEqual([
-      "",
       "schedule",
       "classes",
       "attendance",
@@ -96,7 +94,7 @@ describe("supervisor navigation", () => {
     ).flatMap((group) => group.items.map((item) => item.path));
 
     expect(paths).toEqual(
-      expect.arrayContaining(["", "schedule", "classes", "attendance", "students", "registration"]),
+      expect.arrayContaining(["schedule", "classes", "attendance", "students", "registration"]),
     );
   });
 });

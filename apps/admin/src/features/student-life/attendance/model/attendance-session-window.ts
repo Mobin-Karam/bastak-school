@@ -18,8 +18,7 @@ export function attendanceSessionWindow(
   const endsAt = Date.parse(session.scheduledEndAt);
   if (!Number.isFinite(startsAt) || !Number.isFinite(endsAt))
     return { active: false, restricted: true, message: "زمان جلسه معتبر نیست." };
-  if (now >= startsAt && now < endsAt)
-    return { active: true, restricted: true, message: null };
+  if (now >= startsAt && now < endsAt) return { active: true, restricted: true, message: null };
 
   return {
     active: false,
