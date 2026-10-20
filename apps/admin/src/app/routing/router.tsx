@@ -1,5 +1,12 @@
 import { lazy, Suspense, type ReactNode, useEffect, useState } from "react";
-import { createBrowserRouter, Navigate, Outlet, useLocation } from "react-router-dom";
+import {
+  createBrowserRouter,
+  createMemoryRouter,
+  Navigate,
+  Outlet,
+  type RouteObject,
+  useLocation,
+} from "react-router-dom";
 import { RefreshCw } from "lucide-react";
 import { Button } from "../../shared/ui/ui";
 import { useAdminShellCopy } from "../../shared/ui/locale";
@@ -349,7 +356,7 @@ function TeacherOnlyRoute({ children }: { children: ReactNode }) {
   return auth.activeRole === "TEACHER" ? <>{children}</> : <Navigate to="/admin" replace />;
 }
 
-export const router = createBrowserRouter([
+export const adminRouteObjects = [
   { path: "/login", element: <LoginPage />, errorElement: <RouteErrorBoundary /> },
   {
     path: "/register",
@@ -679,4 +686,11 @@ export const router = createBrowserRouter([
       <Navigate to="/admin" replace />
     ),
   },
-]);
+] satisfies RouteObject[];
+
+export const router = createBrowserRouter(adminRouteObjects);
+
+/** Reuses the production route tree for deterministic Storybook page stories. */
+export function createStorybookRouter(initialEntry = "/admin") {
+  return createMemoryRouter(adminRouteObjects, { initialEntries: [initialEntry] });
+}

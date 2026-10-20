@@ -3008,3 +3008,39 @@ export const componentCatalog = [
     "storyPath": "shared/ui/zanin-brand.stories.tsx"
   }
 ] as const satisfies readonly ComponentCatalogEntry[];
+
+export const adminStoryRoutes = [
+  "/admin",
+  "/admin/achievements",
+  "/admin/announcements",
+  "/admin/announcements/manage",
+  "/admin/attendance",
+  "/admin/books",
+  "/admin/class-groups",
+  "/admin/classes",
+  "/admin/coin-shop",
+  "/admin/communication/notifications",
+  "/admin/dormitory",
+  "/admin/exit-permissions",
+  "/admin/family",
+  "/admin/leave-requests",
+  "/admin/management",
+  "/admin/more",
+  "/admin/my-attendance",
+  "/admin/organizations",
+  "/admin/permission-requests",
+  "/admin/profile",
+  "/admin/registration",
+  "/admin/schedule",
+  "/admin/settings",
+  "/admin/sms",
+  "/admin/student-leave",
+  "/admin/student-registration",
+  "/admin/students",
+  "/admin/system",
+  "/admin/teacher-chat",
+  "/admin/teacher-profile",
+  "/admin/users",
+  "/login",
+  "/register"
+] as const;
