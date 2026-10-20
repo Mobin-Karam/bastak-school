@@ -1,12 +1,11 @@
 import { useOptionalAdminLanguage } from "../../../../shared/ui/locale";
+import { brand, brandText } from "../../../../app/config/brand";
 
 /** A brief, explicit-login-only transition before opening the workspace. */
 export function LoginSuccessSplash() {
   const language = useOptionalAdminLanguage();
   const isPersian = language === "fa";
-  const productName = isPersian
-    ? "مدرسه دینی سلطان العلماء بستک"
-    : "Sultan al-Olama Bastak Islamic School";
+  const productName = brandText("name", isPersian ? "fa" : "en");
 
   return (
     <main
@@ -25,8 +24,8 @@ export function LoginSuccessSplash() {
       />
       <section className="relative z-[1] grid max-w-sm justify-items-center text-center">
         <img
-          src="/logo-bastak.webp"
-          alt="مدرسه دینی سلطان العلماء بستک"
+          src={brand.asset.logo}
+          alt={brand.name.fa}
           width={360}
           height={120}
           className="h-auto w-64 max-w-full object-contain drop-shadow-[0_14px_30px_rgb(0_0_0_/_30%)] motion-safe:animate-[pulse_2s_ease-in-out_infinite] motion-reduce:animate-none"

@@ -2,6 +2,41 @@
 
 Moshaver is a multi-application monorepo. Treat this file as the primary repository-wide operating contract for AI coding agents.
 
+## Codex project context
+
+Codex uses this file as the primary project instruction. The GitHub-maintained
+role briefs, workflows, prompt templates, and scoped policies are linked—not
+copied—from [`.codex/README.md`](.codex/README.md). When a task matches one of
+those workflows, read the source file through that catalog before acting.
+
+The local [`.codex/config.toml`](.codex/config.toml) may register MCP servers
+for this laptop. It is ignored by Git: do not commit it, credentials, OAuth
+material, or account-specific endpoints. A configured server is not proof that
+the current Codex session can call it; verify with `codex mcp list`.
+
+### Codex branch-first rule
+
+Before starting any repository-affecting task (editing files, running a
+state-changing project command, committing, or creating a PR), Codex must
+inspect the current branch. If it is `develop`, `main`, detached, or otherwise
+not a dedicated task branch, create and switch to a new normal local branch
+from the current `develop` baseline before continuing. Use a supported prefix
+(`feat/`, `fix/`, `chore/`, or `ci/`) and a concise task slug. Preserve a dirty
+worktree: never reset, clean, stash, or discard changes merely to branch. For
+read-only questions and audits, inspect the branch but do not create one unless
+the task becomes repository-affecting. Do not create a fresh branch when
+already on the dedicated branch for the active task.
+
+When a repository-affecting Codex task is complete, unless the user explicitly
+opts out, Codex must: review the task-scoped diff, run the applicable
+validation, stage only task files, create a focused commit, push the task
+branch, and create or update a pull request with base `develop`. Then request
+squash auto-merge for that work-branch PR. If required checks, reviews, branch
+protection, or GitHub permissions prevent auto-merge, report the exact pending
+condition and leave the PR open; never bypass protection. This automation never
+applies to the protected `develop` → `main` release PR or to unreviewed,
+unvalidated, or unrelated dirty changes.
+
 ## Graphify-first discovery
 
 Before broad grep/search or reading many source files, use the repository knowledge graph when `graphify-out/graph.json` is available.
@@ -213,6 +248,6 @@ Never claim a validation command passed unless it actually ran successfully.
 
 ## Branch and release lifecycle
 
-For new work, start from current `origin/develop` and use a normal local branch in the existing checkout. Follow the branch names in Codex Workspace and Git Rules above; repository lifecycle scripts currently accept `feat/`, `fix/`, `chore/`, or `ci/`. Use `scripts/cicd/start-work.sh` only for supported branch names and without a worktree path. If the checkout is dirty, preserve existing edits before switching branches; never create a separate worktree. When explicitly asked to switch to `develop`, fast-forward it to `origin/develop` without overwriting existing work. Commit only the task's changes. Use `scripts/cicd/finish-work.sh` to push, create the develop PR, wait for CI, and merge only when GitHub checks and configured reviews permit it. Do not bypass protection or force push.
+For new work, start from current `origin/develop` and use a normal local branch in the existing checkout. Codex must apply the branch-first and task-completion rules above before and after repository-affecting work. Follow the branch names in Codex Workspace and Git Rules above; repository lifecycle scripts currently accept `feat/`, `fix/`, `chore/`, or `ci/`. Use `scripts/cicd/start-work.sh` only for supported branch names and without a worktree path. If the checkout is dirty, preserve existing edits before switching branches; never create a separate worktree. When explicitly asked to switch to `develop`, fast-forward it to `origin/develop` without overwriting existing work. Commit only the task's changes. Use `scripts/cicd/finish-work.sh` to push, create the develop PR, wait for CI, and merge only when GitHub checks and configured reviews permit it. Do not bypass protection or force push.
 
 After develop passes CI, automation opens a develop-to-main release PR. Merge that PR with a merge commit after its required checks and release review. Main's successful push CI dispatches the exact tested commit to the private bastak-school-deploy repository, whose server workflow validates CI again before production deployment. Do not merge unrelated application work merely to activate infrastructure. See `docs/operations/github-cicd.md` for setup, recovery, and learning guidance.

@@ -1,6 +1,7 @@
 "use client";
 
 import { RefreshCw, WifiOff } from "lucide-react";
+import { brandText } from "../../../app/config/brand";
 
 export default function OfflinePage() {
   return (
@@ -14,7 +15,7 @@ export default function OfflinePage() {
         </div>
         <h1 className="mt-5 text-xl font-bold sm:text-2xl">اتصال اینترنت در دسترس نیست</h1>
         <p className="mt-2 text-sm leading-7 text-muted-foreground">
-          بخش‌های ذخیره‌شده مدرسه دینی سلطان العلماء بستک همچنان قابل استفاده‌اند. پس از بازگشت
+          بخش‌های ذخیره‌شده {brandText("name", "fa")} همچنان قابل استفاده‌اند. پس از بازگشت
           اینترنت دوباره تلاش کنید.
         </p>
         <button
