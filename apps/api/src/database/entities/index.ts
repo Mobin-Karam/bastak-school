@@ -69,6 +69,7 @@ export { EducationClassEnrollment } from "./education-class-enrollment.entity";
 export { SchoolScheduleEntry } from "./school-schedule-entry.entity";
 export { SchoolPrayerTime } from "./school-prayer-time.entity";
 export { SchoolAnnouncement } from "./school-announcement.entity";
+export { SchoolAnnouncementRecipient } from "./school-announcement-recipient.entity";
 export { AccountChangeRequest } from "./account-change-request.entity";
 export { StudyGroup } from "./study-group.entity";
 export { StudyGroupMembership } from "./study-group-membership.entity";
@@ -107,6 +108,7 @@ export {
 export { SmsProviderConfiguration } from "./sms-provider-configuration.entity";
 
 export { AttendancePolicy } from "./attendance-policy.entity";
+export { StudentPointLedger } from "./student-point-ledger.entity";
 export { AttendanceSchedule } from "./attendance-schedule.entity";
 export { DormAttendanceDelegate } from "./dorm-attendance-delegate.entity";
 export { AttendancePool } from "./attendance-pool.entity";

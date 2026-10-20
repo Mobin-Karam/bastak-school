@@ -1,6 +1,6 @@
 # Development to production guide
 
-This is the practical, current guide for developing, testing, releasing, and verifying Moshaver/Bastak School. It is based on the executable workspace, CI workflows, and LAN deployment scripts in this repository. It does not authorize direct production changes.
+This is the practical, current guide for developing, testing, releasing, and verifying Moshaver/Bastak School. It is based on the executable workspace, CI workflows, and LAN deployment scripts in this repository. It does not authorize direct production changes. The source repository contains the immutable-receiver template; whether the separately maintained private receiver has published and enabled it remains an operator verification, not a repository fact.
 
 Use it with the [developer handbook](./developer-handbook.md), [repository runbook](./repository-runbook.md), and [GitHub CI/CD operations](./github-cicd.md). The latter is the authoritative guide for credentials, runner installation, and recovery.
 
@@ -245,7 +245,7 @@ Production is the LAN Compose deployment controlled by the private `Mobin-Karam/
 
 Only a successful **push** CI on the current `main` SHA and `PRODUCTION_DEPLOY_TARGET=lan` triggers `LAN Production Deployment`. That workflow sends a `verified-main` dispatch containing the SHA and source CI run ID to the private repository. The dispatch is only a request—not evidence that production is healthy.
 
-The private receiver independently validates the source run and exact SHA, checks out that commit on the privileged server runner, builds/replaces health-gated services, creates a consistent SQLite backup, and checks HTTPS readiness. Credentials, certificates, production environment values, backup storage, deployment lock, and release receipt are kept outside the repository.
+The private receiver independently validates the source run and exact SHA. The current source template downloads the exact CI image archive, verifies its checksum, revision label and image identity, rehearses the candidate migration against a restored SQLite copy, then starts those verified images with `--no-build --pull never`. It creates a consistent SQLite backup and checks HTTPS readiness. Credentials, certificates, production environment values, backup storage, deployment lock, and release receipt are kept outside the repository. Confirm that this template was actually published to the private receiver and that `IMMUTABLE_DEPLOY_ENABLED=true` was deliberately approved before relying on that behavior.
 
 After a release, confirm all of the following before declaring deployment complete:
 
@@ -272,6 +272,14 @@ Most failed deployments are detectable before release. Treat this as a required 
 7. **Keep release configuration consistent.** Any change to Docker, Compose, proxy, environment variables, workflow, or deployment scripts needs a matching source update, documentation update, and a reviewed rollback/recovery plan. Never place production secrets in tracked environment files.
 8. **Let protected CI decide.** Fix failures on the feature branch or through `develop`; do not override required checks, merge a stale head SHA, or bypass the release PR because a local command passed.
 
+For every deployment-related change, also check the production-only boundary that the disposable rehearsal cannot know:
+
+- Run `docker compose ... config --quiet` with only non-secret placeholder values for every Compose profile you changed. Required variables such as `CORS_ORIGINS` and disposable `CI_TLS_DIR` must be supplied; never make them optional merely to silence config validation.
+- Keep `docker-compose.production.yml` free of `build:` at runtime by applying `deployment/lan/immutable.yml`; the receiver must use the archived content IDs, not `latest` tags or a host rebuild.
+- Preserve the external SQLite volume name, `/data` mount, host UID permissions, TLS paths and the existing-stack precondition. The immutable deployment intentionally refuses bootstrap, unknown volumes, expired certificates and a concurrent lock.
+- Update both the source receiver template and the separately maintained private workflow, then verify the published private revision before release. Editing this repository alone cannot change the private deployment repository.
+- Treat a source dispatch, a successful image artifact upload, and `/ready` as separate evidence. A healthy release requires all three plus the private receiver success, receipt/backup, and an authorized production smoke.
+
 Use this compact PR preflight record:
 
 ```text
@@ -290,6 +298,8 @@ Stop at the first failed stage and inspect its logs and the exact SHA. Do not by
 - **Feature PR fails:** fix on the branch, add/adjust focused tests, push, and let the PR checks rerun.
 - **Release PR fails:** fix through `develop`, wait for its push CI, then review the updated release PR. Do not patch `main` directly.
 - **Source dispatch passes but production is unhealthy:** inspect the private receiver run and live readiness; source dispatch success alone is insufficient.
+- **Private receiver cannot download/verify the bundle:** check the source CI run ID/SHA, unexpired `production-images-<sha>` artifact, `SOURCE_ARTIFACT_READ_TOKEN`, protected environment approval, and the receiver's Docker platform. Do not rebuild the image on the host or substitute a tag.
+- **Candidate stops after migrations:** keep ingress stopped, preserve the backup and logs, and assess schema/data state. Do not restart the old application against a potentially migrated volume without a compatible-image rehearsal.
 - **Application regression:** make a reviewed `fix/` revert from `develop` and follow the same release path. Code rollback does not roll back schema or data.
 - **Migration/data incident:** preserve the pre-deploy backup, stop and assess schema/data state, then follow [database rollout](./database-multi-role-integrity-rollout.md). Restore is a deliberate operation after reviewing writes since the backup; it is not automatic.
 

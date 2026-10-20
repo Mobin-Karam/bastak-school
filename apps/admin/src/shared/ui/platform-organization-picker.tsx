@@ -1,7 +1,7 @@
 import { Building2 } from "lucide-react";
 import { useState } from "react";
 
-import { useAuth } from "../../features/auth";
+import { useAuth } from "../../features/identity/auth";
 import type { OrganizationSummary } from "../types/domain";
 import { notify } from "./notifications";
 import { Select } from "./ui";

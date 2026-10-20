@@ -9,6 +9,7 @@ apps/api/dist-dev/
 coverage/
 apps/admin/playwright-report/
 apps/admin/test-results/
+apps/admin/storybook-static/
 build/
 target/
 *.tsbuildinfo

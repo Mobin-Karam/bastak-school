@@ -2,12 +2,12 @@ import axe from "axe-core";
 import { cleanup, render } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { LoginPage } from "../features/auth/pages/LoginPage";
-import { RoleDashboard } from "../features/dashboard/components/RoleDashboard";
-import { NotificationCenterPanel } from "../features/notifications/components/NotificationCenterPanel";
-import { AdvisorInboxPanel } from "../features/notifications/components/AdvisorInboxPanel";
-import { ConversationSidebar } from "../features/chat/components/conversation/ConversationSidebar";
-import { StudentList } from "../features/students/components/StudentList";
+import { LoginPage } from "../features/identity/auth/pages/LoginPage";
+import { RoleDashboard } from "../features/analytics/dashboard/components/RoleDashboard";
+import { NotificationCenterPanel } from "../features/communications/notifications/components/NotificationCenterPanel";
+import { AdvisorInboxPanel } from "../features/communications/notifications/components/AdvisorInboxPanel";
+import { ConversationSidebar } from "../features/communications/chat/components/conversation/ConversationSidebar";
+import { StudentList } from "../features/people/students/components/StudentList";
 import { LocaleProvider } from "../shared/ui/locale";
 
 const auth = {
@@ -33,15 +33,15 @@ const notifications = {
   loadMore: vi.fn(),
 };
 
-vi.mock("../features/auth/hooks/useAuth", () => ({ useAuth: () => auth }));
-vi.mock("../features/auth", () => ({ useAuth: () => auth }));
-vi.mock("../features/notifications/hooks/useAdminNotifications", () => ({
+vi.mock("../features/identity/auth/hooks/useAuth", () => ({ useAuth: () => auth }));
+vi.mock("../features/identity/auth", () => ({ useAuth: () => auth }));
+vi.mock("../features/communications/notifications/hooks/useAdminNotifications", () => ({
   useAdminNotifications: () => notifications,
 }));
-vi.mock("../features/chat/components/group/GroupChatControls", () => ({
+vi.mock("../features/communications/chat/components/group/GroupChatControls", () => ({
   CreateGroupButton: () => <button type="button">گروه جدید</button>,
 }));
-vi.mock("../features/chat/components/conversation/CreateDirectButton", () => ({
+vi.mock("../features/communications/chat/components/conversation/CreateDirectButton", () => ({
   CreateDirectButton: () => <button type="button">گفتگوی جدید</button>,
 }));
 

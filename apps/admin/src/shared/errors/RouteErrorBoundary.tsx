@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { useRouteError } from "react-router-dom";
-import { useAuth } from "../../features/auth";
+import { useAuth } from "../../features/identity/auth";
 import { ErrorFallback } from "./ErrorFallback";
 import { classifyAppError } from "./error-utils";
 import { reportAppError } from "./errorReporter";

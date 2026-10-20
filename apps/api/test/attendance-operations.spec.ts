@@ -479,6 +479,68 @@ describe("attendance delegation, live pools and staff privacy (SQLite)", () => {
     ]);
     expect((await service.summary(studentActor)).recent).toEqual([]);
   });
+  it("gives a teacher only the profile facts for their assigned class", async () => {
+    const teacher = await db.getRepository(User).findOneByOrFail({ id: staff.id });
+    const classroom = await db.getRepository(EducationClass).save({
+      organization: org,
+      code: "7-A",
+      name: "هفتم الف",
+      schoolYear: "1405-1406",
+      gradeId: 7,
+      educationTypeId: "general",
+      trackId: "general",
+      advisor: teacher,
+    });
+    await db.getRepository(EducationClassEnrollment).save({
+      classroom,
+      student: students[0],
+    });
+    const session = await db.getRepository(AttendanceSession).save({
+      organization: org,
+      contextType: "class",
+      contextId: classroom.id,
+      sessionDate: new Date(),
+      titleSnapshot: "ریاضی",
+      rosterSnapshot: [
+        {
+          id: students[0].id,
+          name: students[0].name,
+          nationalCode: null,
+          userId: students[0].user?.id ?? null,
+        },
+      ],
+    });
+    await db.getRepository(AttendanceRecord).save({
+      session,
+      student: students[0],
+      status: AttendanceStatus.PRESENT,
+    });
+
+    const teacherActor = {
+      ...staff,
+      role: "TEACHER",
+      roles: ["TEACHER"],
+      capabilities: ["attendance.class.read"],
+    };
+    const profile = await operations.staffProfile(teacherActor, students[0].id);
+
+    expect(profile).toMatchObject({
+      classNames: ["هفتم الف"],
+      attendanceRate: 100,
+      attendanceCoverage: 100,
+      scopedToTeacherClasses: true,
+      counts: { present: 1 },
+    });
+    expect(profile.records).toHaveLength(1);
+    await expect(operations.staffSessions(teacherActor)).resolves.toMatchObject({
+      total: 1,
+      items: [expect.objectContaining({ contextId: classroom.id })],
+    });
+    await expect(operations.dailyOverview(teacherActor)).resolves.toMatchObject({
+      sessions: 1,
+      present: 1,
+    });
+  });
   it("enforces operation capabilities, DTO limits and check-in self identity over HTTP", async () => {
     const module = await Test.createTestingModule({
       controllers: [AttendanceOperationsController],

@@ -44,6 +44,38 @@ export type ModalOptions = {
   onConfirm?: () => void | boolean | Promise<void | boolean>;
 };
 
+/**
+ * Declarative access to the application-wide modal surface. Use this for
+ * feature-owned state; use `useModal()` for imperative actions and confirms.
+ */
+export function Modal({
+  open,
+  onOpenChange,
+  title,
+  description,
+  children,
+  size = "md",
+  dismissible = true,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  title: ReactNode;
+  description?: ReactNode;
+  children: ReactNode;
+  size?: ModalSize;
+  dismissible?: boolean;
+}) {
+  if (!open) return null;
+
+  return (
+    <ModalSurface
+      modal={{ title, description, content: children, size, dismissible }}
+      onCancel={() => onOpenChange(false)}
+      onConfirm={() => onOpenChange(false)}
+    />
+  );
+}
+
 type ModalContextValue = {
   open: (options: ModalOptions) => void;
   close: () => void;
