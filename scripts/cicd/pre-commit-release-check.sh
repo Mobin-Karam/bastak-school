@@ -63,6 +63,13 @@ print_remediation() {
 
   printf '\n%sHow to fix this%s\n' "$cyan" "$reset" >&2
 
+  if grep -q 'npm ci.*in sync\|Missing: .* from lock file\|npm error code EUSAGE' "$log_file"; then
+    printf 'A leaf package manifest and lockfile are out of sync. Regenerate only the affected leaf lockfile, review it, then rerun the clean-install gate.\n' >&2
+    print_command 'npm --prefix apps/admin install --package-lock-only --ignore-scripts --no-audit --no-fund'
+    print_command 'npm run preflight:release -- --skip-release-rehearsal'
+    return
+  fi
+
   if grep -q 'new backend import cycle:' "$log_file"; then
     cycle=$(sed -n 's/.*new backend import cycle: //p' "$log_file" | head -n 1)
     cycle_left=$(basename "${cycle%% <-> *}" .ts)
@@ -388,6 +395,16 @@ start_parallel_phase "API types, unit tests, build, and migration upgrade audit"
 '
 start_parallel_phase "Admin quality, parity, release audit, and production bundle" bash -euo pipefail -c '
   npm --prefix apps/admin run audit:release
+'
+start_parallel_phase "CI-compatible Admin clean install" bash -euo pipefail -c '
+  docker run --rm \
+    --user "$(id -u):$(id -g)" \
+    -e npm_config_cache=/tmp/npm-cache \
+    -v "$PWD":/workspace:ro \
+    -v /workspace/apps/admin/node_modules \
+    -w /workspace/apps/admin \
+    node:22.23.3-bookworm-slim \
+    npm ci --dry-run --ignore-scripts --no-audit --no-fund
 '
 start_parallel_phase "Compose and deployment security configuration" bash -euo pipefail -c '
   docker compose --env-file deployment/lan/production.env.example -f docker-compose.production.yml -f deployment/lan/compose.yml config --quiet
