@@ -35,8 +35,8 @@ function Catalog() {
         <h1 className="text-2xl font-black">فهرست اجزای رابط کاربری</h1>
         <p className="max-w-3xl text-sm leading-6 text-slate-600 dark:text-slate-300">
           این فهرست از کد منبع تولید می‌شود. «داستان تعاملی» یعنی نمونهٔ ایزوله با دادهٔ واقعی‌نما
-          موجود است؛ اجزای متصل به مجوز، API یا جریان‌های دامنه تا زمان تعریف fixture صادقانه به‌عنوان
-          نیازمند داستان علامت می‌خورند.
+          موجود است؛ اجزای متصل به مجوز، API یا جریان‌های دامنه تا زمان تعریف fixture صادقانه
+          به‌عنوان نیازمند داستان علامت می‌خورند.
         </p>
       </header>
 
@@ -57,27 +57,52 @@ function Catalog() {
         </label>
         <label className="flex items-center gap-2 text-sm font-semibold">
           دسته
-          <select value={scope} onChange={(event) => setScope(event.target.value as typeof scope)} className="rounded border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-muted))] px-2 py-1 text-xs">
+          <select
+            value={scope}
+            onChange={(event) => setScope(event.target.value as typeof scope)}
+            className="rounded border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-muted))] px-2 py-1 text-xs"
+          >
             <option value="all">همه</option>
             <option value="page">صفحه‌ها</option>
             <option value="component">اجزا</option>
           </select>
         </label>
-        <span className="text-xs text-slate-500">{entries.length.toLocaleString("fa-IR")} ماژول</span>
+        <span className="text-xs text-slate-500">
+          {entries.length.toLocaleString("fa-IR")} ماژول
+        </span>
       </div>
 
       <ul className="grid gap-3 sm:grid-cols-2">
         {entries.map((entry) => (
-          <li key={entry.sourcePath} className="rounded-xl border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card))] p-4 shadow-sm">
+          <li
+            key={entry.sourcePath}
+            className="rounded-xl border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card))] p-4 shadow-sm"
+          >
             <div className="flex items-start justify-between gap-3">
-              <code dir="ltr" className="break-all text-xs text-slate-500">{entry.sourcePath}</code>
-              <span className={entry.storyPath ? "shrink-0 text-xs font-bold text-emerald-700" : "shrink-0 text-xs font-bold text-amber-700"}>
-                {entry.storyPath ? "تعاملی" : entry.kind === "page" ? "نیازمند fixture صفحه" : "نیازمند fixture"}
+              <code dir="ltr" className="break-all text-xs text-slate-500">
+                {entry.sourcePath}
+              </code>
+              <span
+                className={
+                  entry.storyPath
+                    ? "shrink-0 text-xs font-bold text-emerald-700"
+                    : "shrink-0 text-xs font-bold text-amber-700"
+                }
+              >
+                {entry.storyPath
+                  ? "تعاملی"
+                  : entry.kind === "page"
+                    ? "نیازمند fixture صفحه"
+                    : "نیازمند fixture"}
               </span>
             </div>
             <p className="mt-3 text-sm font-bold">{entry.exports.join("، ")}</p>
             <p className="mt-1 text-xs text-slate-500">{entry.kind === "page" ? "صفحه" : "جزء"}</p>
-            {entry.storyPath ? <code dir="ltr" className="mt-2 block text-xs text-slate-500">{entry.storyPath}</code> : null}
+            {entry.storyPath ? (
+              <code dir="ltr" className="mt-2 block text-xs text-slate-500">
+                {entry.storyPath}
+              </code>
+            ) : null}
           </li>
         ))}
       </ul>

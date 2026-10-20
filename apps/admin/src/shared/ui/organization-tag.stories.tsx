@@ -12,9 +12,14 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 export const ActiveSchool: Story = {
-  args: { organization: { name: "مدرسه دینی سلطان العلماء بستک", type: "SCHOOL", status: "ACTIVE" } },
+  args: {
+    organization: { name: "مدرسه دینی سلطان العلماء بستک", type: "SCHOOL", status: "ACTIVE" },
+  },
 };
 
 export const InactiveCompact: Story = {
-  args: { organization: { name: "واحد آزمایشی", type: "INSTITUTION", status: "INACTIVE" }, compact: true },
+  args: {
+    organization: { name: "واحد آزمایشی", type: "INSTITUTION", status: "INACTIVE" },
+    compact: true,
+  },
 };

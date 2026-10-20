@@ -2,7 +2,12 @@ import type { ReactNode } from "react";
 
 import { AuthContext } from "../../src/features/identity/auth/context";
 import type { AuthState } from "../../src/features/identity/auth/model/auth.types";
-import type { AccountContext, OrganizationSummary, RoleCode, User } from "../../src/shared/types/domain";
+import type {
+  AccountContext,
+  OrganizationSummary,
+  RoleCode,
+  User,
+} from "../../src/shared/types/domain";
 
 export const storybookOrganization: OrganizationSummary = {
   id: "storybook-bastak",

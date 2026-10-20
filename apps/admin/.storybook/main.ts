@@ -16,6 +16,9 @@ const config: StorybookConfig = {
       ...(config.resolve.alias ?? {}),
       "@": fileURLToPath(new URL("../src", import.meta.url)),
     };
+    // Storybook has no app `dist/sw.js`; the production-only PWA plugin would
+    // otherwise try to stamp that missing file after its own build completes.
+    config.plugins = config.plugins?.filter((plugin) => plugin?.name !== "pwa-precache-manifest");
     return config;
   },
 };

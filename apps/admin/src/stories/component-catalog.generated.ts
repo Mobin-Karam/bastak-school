@@ -9,2795 +9,1956 @@ export type ComponentCatalogEntry = {
 
 export const componentCatalog = [
   {
-    "sourcePath": "app/dev/DevBackendSwitcher.tsx",
-    "kind": "component",
-    "exports": [
-      "DevBackendSwitcher"
-    ],
-    "storyPath": null
-  },
-  {
-    "sourcePath": "app/layout/command-palette/AdminCommandPalette.tsx",
-    "kind": "component",
-    "exports": [
-      "AdminCommandPalette"
-    ],
-    "storyPath": null
-  },
-  {
-    "sourcePath": "app/layout/components/AdminAccountMenu.tsx",
-    "kind": "component",
-    "exports": [
-      "AdminAccountMenu"
-    ],
-    "storyPath": "app/layout/components/AdminAccountMenu.stories.tsx"
-  },
-  {
-    "sourcePath": "app/layout/components/AdminFloatingIsland.tsx",
-    "kind": "component",
-    "exports": [
-      "AdminFloatingIsland"
-    ],
-    "storyPath": null
-  },
-  {
-    "sourcePath": "app/layout/components/AdminHeader.tsx",
-    "kind": "component",
-    "exports": [
-      "AdminHeader"
-    ],
-    "storyPath": null
-  },
-  {
-    "sourcePath": "app/layout/components/SharedPageViewport.tsx",
-    "kind": "component",
-    "exports": [
-      "SharedPageViewport"
-    ],
-    "storyPath": null
-  },
-  {
-    "sourcePath": "app/layout/navigation/desktop/AdminContextSidebar.tsx",
-    "kind": "component",
-    "exports": [
-      "AdminContextSidebar"
-    ],
-    "storyPath": null
-  },
-  {
-    "sourcePath": "app/layout/navigation/desktop/AdminMainSidebar.tsx",
-    "kind": "component",
-    "exports": [
-      "AdminMainSidebar"
-    ],
-    "storyPath": null
-  },
-  {
-    "sourcePath": "app/layout/navigation/mobile/AdminMobileNavigation.tsx",
-    "kind": "component",
-    "exports": [
-      "AdminMobileBottomNav"
-    ],
-    "storyPath": null
-  },
-  {
-    "sourcePath": "app/layout/shells/AdminLayout.tsx",
-    "kind": "component",
-    "exports": [
-      "AdminLayout"
-    ],
-    "storyPath": null
-  },
-  {
-    "sourcePath": "app/layout/shells/AdminShellChrome.tsx",
-    "kind": "component",
-    "exports": [
-      "AdminShellChrome"
-    ],
-    "storyPath": null
-  },
-  {
-    "sourcePath": "app/layout/shells/desktop/DesktopShell.tsx",
-    "kind": "component",
-    "exports": [
-      "DesktopShell"
-    ],
-    "storyPath": null
-  },
-  {
-    "sourcePath": "app/layout/shells/mobile/MobileShell.tsx",
-    "kind": "component",
-    "exports": [
-      "MobileShell"
-    ],
-    "storyPath": null
+    sourcePath: "app/dev/DevBackendSwitcher.tsx",
+    kind: "component",
+    exports: ["DevBackendSwitcher"],
+    storyPath: null,
   },
   {
-    "sourcePath": "app/layout/shells/tablet/TabletShell.tsx",
-    "kind": "component",
-    "exports": [
-      "TabletShell"
-    ],
-    "storyPath": null
+    sourcePath: "app/layout/command-palette/AdminCommandPalette.tsx",
+    kind: "component",
+    exports: ["AdminCommandPalette"],
+    storyPath: null,
   },
   {
-    "sourcePath": "app/providers/providers.tsx",
-    "kind": "component",
-    "exports": [
-      "AppProviders"
-    ],
-    "storyPath": null
+    sourcePath: "app/layout/components/AdminAccountMenu.tsx",
+    kind: "component",
+    exports: ["AdminAccountMenu"],
+    storyPath: "app/layout/components/AdminAccountMenu.stories.tsx",
   },
   {
-    "sourcePath": "app/routing/router.tsx",
-    "kind": "component",
-    "exports": [
-      "CapabilityRoute"
-    ],
-    "storyPath": null
+    sourcePath: "app/layout/components/AdminFloatingIsland.tsx",
+    kind: "component",
+    exports: ["AdminFloatingIsland"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/academics/class-groups/pages/ClassGroupsPage.tsx",
-    "kind": "page",
-    "exports": [
-      "ClassGroupsPage"
-    ],
-    "storyPath": null
+    sourcePath: "app/layout/components/AdminHeader.tsx",
+    kind: "component",
+    exports: ["AdminHeader"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/academics/education/components/ EducationOverviewSkeleton.tsx",
-    "kind": "component",
-    "exports": [
-      "EducationOverviewSkeleton"
-    ],
-    "storyPath": null
+    sourcePath: "app/layout/components/SharedPageViewport.tsx",
+    kind: "component",
+    exports: ["SharedPageViewport"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/academics/education/components/BookEditor.tsx",
-    "kind": "component",
-    "exports": [
-      "BookEditor"
-    ],
-    "storyPath": null
+    sourcePath: "app/layout/navigation/desktop/AdminContextSidebar.tsx",
+    kind: "component",
+    exports: ["AdminContextSidebar"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/academics/education/components/BookTransferWorkspace.tsx",
-    "kind": "component",
-    "exports": [
-      "BookTransferWorkspace"
-    ],
-    "storyPath": null
+    sourcePath: "app/layout/navigation/desktop/AdminMainSidebar.tsx",
+    kind: "component",
+    exports: ["AdminMainSidebar"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/academics/education/components/ClassBooksModal.tsx",
-    "kind": "component",
-    "exports": [
-      "ClassBooksModal"
-    ],
-    "storyPath": null
+    sourcePath: "app/layout/navigation/mobile/AdminMobileNavigation.tsx",
+    kind: "component",
+    exports: ["AdminMobileBottomNav"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/academics/education/components/ClassTransferWorkspace.tsx",
-    "kind": "component",
-    "exports": [
-      "ClassTransferWorkspace"
-    ],
-    "storyPath": null
+    sourcePath: "app/layout/shells/AdminLayout.tsx",
+    kind: "component",
+    exports: ["AdminLayout"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/academics/education/components/EducationCatalogPanel.tsx",
-    "kind": "component",
-    "exports": [
-      "EducationCatalogPanel"
-    ],
-    "storyPath": null
+    sourcePath: "app/layout/shells/AdminShellChrome.tsx",
+    kind: "component",
+    exports: ["AdminShellChrome"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/academics/education/components/EducationExamSnapshot.tsx",
-    "kind": "component",
-    "exports": [
-      "EducationExamSnapshot"
-    ],
-    "storyPath": null
+    sourcePath: "app/layout/shells/desktop/DesktopShell.tsx",
+    kind: "component",
+    exports: ["DesktopShell"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/academics/education/components/EducationOperationsPanel.tsx",
-    "kind": "component",
-    "exports": [
-      "EducationOperationsPanel"
-    ],
-    "storyPath": null
+    sourcePath: "app/layout/shells/mobile/MobileShell.tsx",
+    kind: "component",
+    exports: ["MobileShell"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/academics/education/components/EducationSection.tsx",
-    "kind": "component",
-    "exports": [
-      "EducationSections"
-    ],
-    "storyPath": null
+    sourcePath: "app/layout/shells/tablet/TabletShell.tsx",
+    kind: "component",
+    exports: ["TabletShell"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/academics/education/components/EducationSectionGrid.tsx",
-    "kind": "component",
-    "exports": [
-      "EducationSectionCard"
-    ],
-    "storyPath": null
+    sourcePath: "app/providers/providers.tsx",
+    kind: "component",
+    exports: ["AppProviders"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/academics/education/pages/BookShelfPage.tsx",
-    "kind": "page",
-    "exports": [
-      "BookShelfPage"
-    ],
-    "storyPath": null
+    sourcePath: "app/routing/router.tsx",
+    kind: "component",
+    exports: ["CapabilityRoute"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/academics/education/pages/ClassesPage.tsx",
-    "kind": "page",
-    "exports": [
-      "ClassesPage"
-    ],
-    "storyPath": null
+    sourcePath: "features/academics/class-groups/pages/ClassGroupsPage.tsx",
+    kind: "page",
+    exports: ["ClassGroupsPage"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/academics/education/pages/EducationOverviewPage.tsx",
-    "kind": "page",
-    "exports": [
-      "EducationOverviewPage"
-    ],
-    "storyPath": null
+    sourcePath: "features/academics/education/components/ EducationOverviewSkeleton.tsx",
+    kind: "component",
+    exports: ["EducationOverviewSkeleton"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/academics/exams/components/AttemptHistoryList.tsx",
-    "kind": "component",
-    "exports": [
-      "AttemptHistoryList"
-    ],
-    "storyPath": null
+    sourcePath: "features/academics/education/components/BookEditor.tsx",
+    kind: "component",
+    exports: ["BookEditor"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/academics/exams/components/AttemptReview.tsx",
-    "kind": "component",
-    "exports": [
-      "AttemptReview"
-    ],
-    "storyPath": null
+    sourcePath: "features/academics/education/components/BookTransferWorkspace.tsx",
+    kind: "component",
+    exports: ["BookTransferWorkspace"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/academics/exams/components/ExamAssignmentManager.tsx",
-    "kind": "component",
-    "exports": [
-      "ExamAssignmentManager"
-    ],
-    "storyPath": null
+    sourcePath: "features/academics/education/components/ClassBooksModal.tsx",
+    kind: "component",
+    exports: ["ClassBooksModal"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/academics/exams/components/ExamAttempts.tsx",
-    "kind": "component",
-    "exports": [
-      "ExamAttempts"
-    ],
-    "storyPath": null
+    sourcePath: "features/academics/education/components/ClassTransferWorkspace.tsx",
+    kind: "component",
+    exports: ["ClassTransferWorkspace"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/academics/exams/components/ExamCard.tsx",
-    "kind": "component",
-    "exports": [
-      "ExamCard"
-    ],
-    "storyPath": null
+    sourcePath: "features/academics/education/components/EducationCatalogPanel.tsx",
+    kind: "component",
+    exports: ["EducationCatalogPanel"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/academics/exams/components/ExamFilters.tsx",
-    "kind": "component",
-    "exports": [
-      "ExamFilters"
-    ],
-    "storyPath": null
+    sourcePath: "features/academics/education/components/EducationExamSnapshot.tsx",
+    kind: "component",
+    exports: ["EducationExamSnapshot"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/academics/exams/components/ExamForm.tsx",
-    "kind": "component",
-    "exports": [
-      "ExamForm"
-    ],
-    "storyPath": null
+    sourcePath: "features/academics/education/components/EducationOperationsPanel.tsx",
+    kind: "component",
+    exports: ["EducationOperationsPanel"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/academics/exams/components/ExamList.tsx",
-    "kind": "component",
-    "exports": [
-      "ExamList"
-    ],
-    "storyPath": null
+    sourcePath: "features/academics/education/components/EducationSection.tsx",
+    kind: "component",
+    exports: ["EducationSections"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/academics/exams/components/ExamsHeader.tsx",
-    "kind": "component",
-    "exports": [
-      "ExamsHeader"
-    ],
-    "storyPath": null
+    sourcePath: "features/academics/education/components/EducationSectionGrid.tsx",
+    kind: "component",
+    exports: ["EducationSectionCard"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/academics/exams/components/Metric.tsx",
-    "kind": "component",
-    "exports": [
-      "Metric"
-    ],
-    "storyPath": null
+    sourcePath: "features/academics/education/pages/BookShelfPage.tsx",
+    kind: "page",
+    exports: ["BookShelfPage"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/academics/exams/components/RetryRequestsPanel.tsx",
-    "kind": "component",
-    "exports": [
-      "RetryRequestsPanel"
-    ],
-    "storyPath": null
+    sourcePath: "features/academics/education/pages/ClassesPage.tsx",
+    kind: "page",
+    exports: ["ClassesPage"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/academics/exams/components/RetryReviewForm.tsx",
-    "kind": "component",
-    "exports": [
-      "RetryReviewForm"
-    ],
-    "storyPath": null
+    sourcePath: "features/academics/education/pages/EducationOverviewPage.tsx",
+    kind: "page",
+    exports: ["EducationOverviewPage"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/academics/exams/components/SyllabusForm.tsx",
-    "kind": "component",
-    "exports": [
-      "SyllabusForm"
-    ],
-    "storyPath": null
+    sourcePath: "features/academics/exams/components/AttemptHistoryList.tsx",
+    kind: "component",
+    exports: ["AttemptHistoryList"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/academics/exams/pages/ExamsPage.tsx",
-    "kind": "page",
-    "exports": [
-      "ExamsPage"
-    ],
-    "storyPath": null
+    sourcePath: "features/academics/exams/components/AttemptReview.tsx",
+    kind: "component",
+    exports: ["AttemptReview"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/academics/learning/components/LearningFilters.tsx",
-    "kind": "component",
-    "exports": [
-      "LearningFilters"
-    ],
-    "storyPath": null
+    sourcePath: "features/academics/exams/components/ExamAssignmentManager.tsx",
+    kind: "component",
+    exports: ["ExamAssignmentManager"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/academics/learning/components/LearningForm.tsx",
-    "kind": "component",
-    "exports": [
-      "LearningForm"
-    ],
-    "storyPath": null
+    sourcePath: "features/academics/exams/components/ExamAttempts.tsx",
+    kind: "component",
+    exports: ["ExamAttempts"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/academics/learning/components/LearningHeader.tsx",
-    "kind": "component",
-    "exports": [
-      "LearningHeader"
-    ],
-    "storyPath": null
+    sourcePath: "features/academics/exams/components/ExamCard.tsx",
+    kind: "component",
+    exports: ["ExamCard"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/academics/learning/components/LearningList.tsx",
-    "kind": "component",
-    "exports": [
-      "LearningList"
-    ],
-    "storyPath": null
+    sourcePath: "features/academics/exams/components/ExamFilters.tsx",
+    kind: "component",
+    exports: ["ExamFilters"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/academics/learning/components/LearningMetric.tsx",
-    "kind": "component",
-    "exports": [
-      "LearningMetric"
-    ],
-    "storyPath": null
+    sourcePath: "features/academics/exams/components/ExamForm.tsx",
+    kind: "component",
+    exports: ["ExamForm"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/academics/learning/components/LearningReviewForm.tsx",
-    "kind": "component",
-    "exports": [
-      "LearningReviewForm"
-    ],
-    "storyPath": null
+    sourcePath: "features/academics/exams/components/ExamList.tsx",
+    kind: "component",
+    exports: ["ExamList"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/academics/learning/components/LearningRow.tsx",
-    "kind": "component",
-    "exports": [
-      "LearningRow"
-    ],
-    "storyPath": null
+    sourcePath: "features/academics/exams/components/ExamsHeader.tsx",
+    kind: "component",
+    exports: ["ExamsHeader"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/academics/learning/components/LearningSidebar.tsx",
-    "kind": "component",
-    "exports": [
-      "LearningSidebar"
-    ],
-    "storyPath": null
+    sourcePath: "features/academics/exams/components/Metric.tsx",
+    kind: "component",
+    exports: ["Metric"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/academics/learning/components/LearningSkeleton.tsx",
-    "kind": "component",
-    "exports": [
-      "LearningSkeleton"
-    ],
-    "storyPath": null
+    sourcePath: "features/academics/exams/components/RetryRequestsPanel.tsx",
+    kind: "component",
+    exports: ["RetryRequestsPanel"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/academics/learning/components/LearningSummaryMetrics.tsx",
-    "kind": "component",
-    "exports": [
-      "LearningSummaryMetrics"
-    ],
-    "storyPath": null
+    sourcePath: "features/academics/exams/components/RetryReviewForm.tsx",
+    kind: "component",
+    exports: ["RetryReviewForm"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/academics/learning/components/ReviewHistory.tsx",
-    "kind": "component",
-    "exports": [
-      "ReviewHistory"
-    ],
-    "storyPath": null
+    sourcePath: "features/academics/exams/components/SyllabusForm.tsx",
+    kind: "component",
+    exports: ["SyllabusForm"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/academics/learning/pages/LearningPage.tsx",
-    "kind": "page",
-    "exports": [
-      "LearningPage"
-    ],
-    "storyPath": null
+    sourcePath: "features/academics/exams/pages/ExamsPage.tsx",
+    kind: "page",
+    exports: ["ExamsPage"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/academics/questions/components/QuestionBankPanel.tsx",
-    "kind": "component",
-    "exports": [
-      "QuestionBankPanel"
-    ],
-    "storyPath": null
+    sourcePath: "features/academics/learning/components/LearningFilters.tsx",
+    kind: "component",
+    exports: ["LearningFilters"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/academics/questions/components/QuestionEditor.tsx",
-    "kind": "component",
-    "exports": [
-      "QuestionEditor"
-    ],
-    "storyPath": null
+    sourcePath: "features/academics/learning/components/LearningForm.tsx",
+    kind: "component",
+    exports: ["LearningForm"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/academics/questions/components/QuestionsList.tsx",
-    "kind": "component",
-    "exports": [
-      "QuestionsList"
-    ],
-    "storyPath": null
+    sourcePath: "features/academics/learning/components/LearningHeader.tsx",
+    kind: "component",
+    exports: ["LearningHeader"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/academics/questions/components/QuestionsSelector.tsx",
-    "kind": "component",
-    "exports": [
-      "QuestionsSelector"
-    ],
-    "storyPath": null
+    sourcePath: "features/academics/learning/components/LearningList.tsx",
+    kind: "component",
+    exports: ["LearningList"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/academics/questions/pages/QuestionsPage.tsx",
-    "kind": "page",
-    "exports": [
-      "QuestionsPage"
-    ],
-    "storyPath": null
+    sourcePath: "features/academics/learning/components/LearningMetric.tsx",
+    kind: "component",
+    exports: ["LearningMetric"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/academics/quizzes/components/QuizEditor.tsx",
-    "kind": "component",
-    "exports": [
-      "QuizEditor"
-    ],
-    "storyPath": null
+    sourcePath: "features/academics/learning/components/LearningReviewForm.tsx",
+    kind: "component",
+    exports: ["LearningReviewForm"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/academics/quizzes/components/QuizQuestionBankPanel.tsx",
-    "kind": "component",
-    "exports": [
-      "QuizQuestionBankPanel"
-    ],
-    "storyPath": null
+    sourcePath: "features/academics/learning/components/LearningRow.tsx",
+    kind: "component",
+    exports: ["LearningRow"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/academics/quizzes/components/QuizQuestionEditor.tsx",
-    "kind": "component",
-    "exports": [
-      "QuizQuestionEditor"
-    ],
-    "storyPath": null
+    sourcePath: "features/academics/learning/components/LearningSidebar.tsx",
+    kind: "component",
+    exports: ["LearningSidebar"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/academics/quizzes/components/QuizQuestionsList.tsx",
-    "kind": "component",
-    "exports": [
-      "QuizQuestionsList"
-    ],
-    "storyPath": null
+    sourcePath: "features/academics/learning/components/LearningSkeleton.tsx",
+    kind: "component",
+    exports: ["LearningSkeleton"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/academics/quizzes/components/QuizSidebar.tsx",
-    "kind": "component",
-    "exports": [
-      "QuizSidebar"
-    ],
-    "storyPath": null
+    sourcePath: "features/academics/learning/components/LearningSummaryMetrics.tsx",
+    kind: "component",
+    exports: ["LearningSummaryMetrics"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/academics/quizzes/pages/QuizzesPage.tsx",
-    "kind": "page",
-    "exports": [
-      "QuizzesPage"
-    ],
-    "storyPath": null
+    sourcePath: "features/academics/learning/components/ReviewHistory.tsx",
+    kind: "component",
+    exports: ["ReviewHistory"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/academics/schedule/components/TimetableDateInput.tsx",
-    "kind": "component",
-    "exports": [
-      "TimetableDateInput"
-    ],
-    "storyPath": null
+    sourcePath: "features/academics/learning/pages/LearningPage.tsx",
+    kind: "page",
+    exports: ["LearningPage"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/academics/schedule/components/TimetableGrid.tsx",
-    "kind": "component",
-    "exports": [
-      "TimetableGrid"
-    ],
-    "storyPath": null
+    sourcePath: "features/academics/questions/components/QuestionBankPanel.tsx",
+    kind: "component",
+    exports: ["QuestionBankPanel"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/academics/schedule/components/TimetableImportCatalog.tsx",
-    "kind": "component",
-    "exports": [
-      "TimetableImportCatalog"
-    ],
-    "storyPath": null
+    sourcePath: "features/academics/questions/components/QuestionEditor.tsx",
+    kind: "component",
+    exports: ["QuestionEditor"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/academics/schedule/components/TimetableImportWizard.tsx",
-    "kind": "component",
-    "exports": [
-      "TimetableImportWizard"
-    ],
-    "storyPath": null
+    sourcePath: "features/academics/questions/components/QuestionsList.tsx",
+    kind: "component",
+    exports: ["QuestionsList"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/academics/schedule/components/TimetableLessonEditor.tsx",
-    "kind": "component",
-    "exports": [
-      "TimetableLessonEditor"
-    ],
-    "storyPath": null
+    sourcePath: "features/academics/questions/components/QuestionsSelector.tsx",
+    kind: "component",
+    exports: ["QuestionsSelector"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/academics/schedule/components/TimetableOnboarding.tsx",
-    "kind": "component",
-    "exports": [
-      "TimetableOnboarding"
-    ],
-    "storyPath": null
+    sourcePath: "features/academics/questions/pages/QuestionsPage.tsx",
+    kind: "page",
+    exports: ["QuestionsPage"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/academics/schedule/components/TimetableSettings.tsx",
-    "kind": "component",
-    "exports": [
-      "TimetableSettings"
-    ],
-    "storyPath": null
+    sourcePath: "features/academics/quizzes/components/QuizEditor.tsx",
+    kind: "component",
+    exports: ["QuizEditor"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/academics/schedule/components/TimetableTimeInput.tsx",
-    "kind": "component",
-    "exports": [
-      "TimetableTimeInput"
-    ],
-    "storyPath": null
+    sourcePath: "features/academics/quizzes/components/QuizQuestionBankPanel.tsx",
+    kind: "component",
+    exports: ["QuizQuestionBankPanel"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/academics/schedule/components/TimetableToday.tsx",
-    "kind": "component",
-    "exports": [
-      "TimetableToday"
-    ],
-    "storyPath": null
+    sourcePath: "features/academics/quizzes/components/QuizQuestionEditor.tsx",
+    kind: "component",
+    exports: ["QuizQuestionEditor"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/academics/schedule/pages/LegacySchedulePage.tsx",
-    "kind": "page",
-    "exports": [
-      "LegacySchedulePage"
-    ],
-    "storyPath": null
+    sourcePath: "features/academics/quizzes/components/QuizQuestionsList.tsx",
+    kind: "component",
+    exports: ["QuizQuestionsList"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/academics/schedule/pages/SchedulePage.tsx",
-    "kind": "page",
-    "exports": [
-      "SchedulePage"
-    ],
-    "storyPath": null
+    sourcePath: "features/academics/quizzes/components/QuizSidebar.tsx",
+    kind: "component",
+    exports: ["QuizSidebar"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/academics/schedule/pages/TimetablePage.tsx",
-    "kind": "page",
-    "exports": [
-      "TimetablePage"
-    ],
-    "storyPath": null
+    sourcePath: "features/academics/quizzes/pages/QuizzesPage.tsx",
+    kind: "page",
+    exports: ["QuizzesPage"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/academics/subjects/components/TeacherAssignments.tsx",
-    "kind": "component",
-    "exports": [
-      "TeacherAssignments"
-    ],
-    "storyPath": null
+    sourcePath: "features/academics/schedule/components/TimetableDateInput.tsx",
+    kind: "component",
+    exports: ["TimetableDateInput"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/academics/subjects/pages/SubjectsPage.tsx",
-    "kind": "page",
-    "exports": [
-      "SubjectsPage"
-    ],
-    "storyPath": null
+    sourcePath: "features/academics/schedule/components/TimetableGrid.tsx",
+    kind: "component",
+    exports: ["TimetableGrid"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/achievements/components/AchievementCountdown.tsx",
-    "kind": "component",
-    "exports": [
-      "AchievementCountdown"
-    ],
-    "storyPath": null
+    sourcePath: "features/academics/schedule/components/TimetableImportCatalog.tsx",
+    kind: "component",
+    exports: ["TimetableImportCatalog"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/achievements/pages/AchievementsComingSoonPage.tsx",
-    "kind": "page",
-    "exports": [
-      "AchievementsComingSoonPage"
-    ],
-    "storyPath": "features/achievements/pages/AchievementsComingSoonPage.stories.tsx"
+    sourcePath: "features/academics/schedule/components/TimetableImportWizard.tsx",
+    kind: "component",
+    exports: ["TimetableImportWizard"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/analytics/dashboard/components/AnnouncementChatBubble.tsx",
-    "kind": "component",
-    "exports": [
-      "AnnouncementChatBubble"
-    ],
-    "storyPath": null
+    sourcePath: "features/academics/schedule/components/TimetableLessonEditor.tsx",
+    kind: "component",
+    exports: ["TimetableLessonEditor"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/analytics/dashboard/components/AnnouncementEnvelope.tsx",
-    "kind": "component",
-    "exports": [
-      "AnnouncementEnvelope"
-    ],
-    "storyPath": null
+    sourcePath: "features/academics/schedule/components/TimetableOnboarding.tsx",
+    kind: "component",
+    exports: ["TimetableOnboarding"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/analytics/dashboard/components/DashboardCalendar.tsx",
-    "kind": "component",
-    "exports": [
-      "DashboardCalendar"
-    ],
-    "storyPath": null
+    sourcePath: "features/academics/schedule/components/TimetableSettings.tsx",
+    kind: "component",
+    exports: ["TimetableSettings"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/analytics/dashboard/components/DashboardContent.tsx",
-    "kind": "component",
-    "exports": [
-      "DashboardContent"
-    ],
-    "storyPath": null
+    sourcePath: "features/academics/schedule/components/TimetableTimeInput.tsx",
+    kind: "component",
+    exports: ["TimetableTimeInput"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/analytics/dashboard/components/MobileDashboardHome.tsx",
-    "kind": "component",
-    "exports": [
-      "MobileDashboardHome"
-    ],
-    "storyPath": null
+    sourcePath: "features/academics/schedule/components/TimetableToday.tsx",
+    kind: "component",
+    exports: ["TimetableToday"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/analytics/dashboard/components/RoleDashboard.tsx",
-    "kind": "component",
-    "exports": [
-      "RoleDashboard"
-    ],
-    "storyPath": null
+    sourcePath: "features/academics/schedule/pages/LegacySchedulePage.tsx",
+    kind: "page",
+    exports: ["LegacySchedulePage"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/analytics/dashboard/components/StudentDashboard.tsx",
-    "kind": "component",
-    "exports": [
-      "StudentDashboard"
-    ],
-    "storyPath": null
+    sourcePath: "features/academics/schedule/pages/SchedulePage.tsx",
+    kind: "page",
+    exports: ["SchedulePage"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/analytics/dashboard/components/StudentWelcomeCard.tsx",
-    "kind": "component",
-    "exports": [
-      "StudentWelcomeCard"
-    ],
-    "storyPath": null
+    sourcePath: "features/academics/schedule/pages/TimetablePage.tsx",
+    kind: "page",
+    exports: ["TimetablePage"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/analytics/dashboard/components/health/DashboardOperationalPulse.tsx",
-    "kind": "component",
-    "exports": [
-      "DashboardOperationalPulse"
-    ],
-    "storyPath": null
+    sourcePath: "features/academics/subjects/components/TeacherAssignments.tsx",
+    kind: "component",
+    exports: ["TeacherAssignments"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/analytics/dashboard/components/health/PlatformHealthPanel.tsx",
-    "kind": "component",
-    "exports": [
-      "PlatformHealthPanel"
-    ],
-    "storyPath": null
+    sourcePath: "features/academics/subjects/pages/SubjectsPage.tsx",
+    kind: "page",
+    exports: ["SubjectsPage"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/analytics/dashboard/components/health/PlatformOrganizationOverview.tsx",
-    "kind": "component",
-    "exports": [
-      "PlatformOrganizationOverview"
-    ],
-    "storyPath": null
+    sourcePath: "features/achievements/components/AchievementCountdown.tsx",
+    kind: "component",
+    exports: ["AchievementCountdown"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/analytics/dashboard/components/metrics/DashboardMetricCards.tsx",
-    "kind": "component",
-    "exports": [
-      "DashboardMetricCards"
-    ],
-    "storyPath": null
+    sourcePath: "features/achievements/pages/AchievementsComingSoonPage.tsx",
+    kind: "page",
+    exports: ["AchievementsComingSoonPage"],
+    storyPath: "features/achievements/pages/AchievementsComingSoonPage.stories.tsx",
   },
   {
-    "sourcePath": "features/analytics/dashboard/components/metrics/DashboardMetricGrid.tsx",
-    "kind": "component",
-    "exports": [
-      "DashboardMetricGrid"
-    ],
-    "storyPath": null
+    sourcePath: "features/analytics/dashboard/components/AnnouncementChatBubble.tsx",
+    kind: "component",
+    exports: ["AnnouncementChatBubble"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/analytics/dashboard/components/planning/DashboardPlanHealth.tsx",
-    "kind": "component",
-    "exports": [
-      "DashboardPlanHealth"
-    ],
-    "storyPath": null
+    sourcePath: "features/analytics/dashboard/components/AnnouncementEnvelope.tsx",
+    kind: "component",
+    exports: ["AnnouncementEnvelope"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/analytics/dashboard/components/planning/DashboardSchedule.tsx",
-    "kind": "component",
-    "exports": [
-      "DashboardSchedule"
-    ],
-    "storyPath": null
+    sourcePath: "features/analytics/dashboard/components/DashboardCalendar.tsx",
+    kind: "component",
+    exports: ["DashboardCalendar"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/analytics/dashboard/components/reports/RecentReportsCard.tsx",
-    "kind": "component",
-    "exports": [
-      "RecentReportsCard"
-    ],
-    "storyPath": null
+    sourcePath: "features/analytics/dashboard/components/DashboardContent.tsx",
+    kind: "component",
+    exports: ["DashboardContent"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/analytics/dashboard/components/work/AttentionInbox.tsx",
-    "kind": "component",
-    "exports": [
-      "AttentionInbox"
-    ],
-    "storyPath": null
+    sourcePath: "features/analytics/dashboard/components/MobileDashboardHome.tsx",
+    kind: "component",
+    exports: ["MobileDashboardHome"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/analytics/dashboard/components/work/DashboardFollowUpCard.tsx",
-    "kind": "component",
-    "exports": [
-      "DashboardFollowUpCard"
-    ],
-    "storyPath": null
+    sourcePath: "features/analytics/dashboard/components/RoleDashboard.tsx",
+    kind: "component",
+    exports: ["RoleDashboard"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/analytics/dashboard/components/work/DashboardQuickActions.tsx",
-    "kind": "component",
-    "exports": [
-      "DashboardQuickActions"
-    ],
-    "storyPath": null
-  },
+    sourcePath: "features/analytics/dashboard/components/StudentDashboard.tsx",
+    kind: "component",
+    exports: ["StudentDashboard"],
+    storyPath: null,
+  },
+  {
+    sourcePath: "features/analytics/dashboard/components/StudentWelcomeCard.tsx",
+    kind: "component",
+    exports: ["StudentWelcomeCard"],
+    storyPath: null,
+  },
+  {
+    sourcePath: "features/analytics/dashboard/components/health/DashboardOperationalPulse.tsx",
+    kind: "component",
+    exports: ["DashboardOperationalPulse"],
+    storyPath: null,
+  },
+  {
+    sourcePath: "features/analytics/dashboard/components/health/PlatformHealthPanel.tsx",
+    kind: "component",
+    exports: ["PlatformHealthPanel"],
+    storyPath: null,
+  },
+  {
+    sourcePath: "features/analytics/dashboard/components/health/PlatformOrganizationOverview.tsx",
+    kind: "component",
+    exports: ["PlatformOrganizationOverview"],
+    storyPath: null,
+  },
+  {
+    sourcePath: "features/analytics/dashboard/components/metrics/DashboardMetricCards.tsx",
+    kind: "component",
+    exports: ["DashboardMetricCards"],
+    storyPath: null,
+  },
+  {
+    sourcePath: "features/analytics/dashboard/components/metrics/DashboardMetricGrid.tsx",
+    kind: "component",
+    exports: ["DashboardMetricGrid"],
+    storyPath: null,
+  },
+  {
+    sourcePath: "features/analytics/dashboard/components/planning/DashboardPlanHealth.tsx",
+    kind: "component",
+    exports: ["DashboardPlanHealth"],
+    storyPath: null,
+  },
+  {
+    sourcePath: "features/analytics/dashboard/components/planning/DashboardSchedule.tsx",
+    kind: "component",
+    exports: ["DashboardSchedule"],
+    storyPath: null,
+  },
+  {
+    sourcePath: "features/analytics/dashboard/components/reports/RecentReportsCard.tsx",
+    kind: "component",
+    exports: ["RecentReportsCard"],
+    storyPath: null,
+  },
+  {
+    sourcePath: "features/analytics/dashboard/components/work/AttentionInbox.tsx",
+    kind: "component",
+    exports: ["AttentionInbox"],
+    storyPath: null,
+  },
+  {
+    sourcePath: "features/analytics/dashboard/components/work/DashboardFollowUpCard.tsx",
+    kind: "component",
+    exports: ["DashboardFollowUpCard"],
+    storyPath: null,
+  },
+  {
+    sourcePath: "features/analytics/dashboard/components/work/DashboardQuickActions.tsx",
+    kind: "component",
+    exports: ["DashboardQuickActions"],
+    storyPath: null,
+  },
+  {
+    sourcePath: "features/analytics/dashboard/components/work/DashboardWorkQueue.tsx",
+    kind: "component",
+    exports: ["DashboardWorkQueue"],
+    storyPath: null,
+  },
+  {
+    sourcePath: "features/analytics/dashboard/pages/DashboardPage.tsx",
+    kind: "page",
+    exports: ["DashboardPage"],
+    storyPath: null,
+  },
+  {
+    sourcePath: "features/analytics/dashboard/pages/SectionDashboardPage.tsx",
+    kind: "page",
+    exports: ["SectionDashboardPage"],
+    storyPath: null,
+  },
+  {
+    sourcePath: "features/analytics/reports/components/ReportCard.tsx",
+    kind: "component",
+    exports: ["ReportCard"],
+    storyPath: null,
+  },
+  {
+    sourcePath: "features/analytics/reports/components/ReportCompactList.tsx",
+    kind: "component",
+    exports: ["ReportCompactList"],
+    storyPath: null,
+  },
+  {
+    sourcePath: "features/analytics/reports/components/ReportMetrics.tsx",
+    kind: "component",
+    exports: ["ReportMetrics"],
+    storyPath: null,
+  },
+  {
+    sourcePath: "features/analytics/reports/components/ReportSummary.tsx",
+    kind: "component",
+    exports: ["ReportSummary"],
+    storyPath: null,
+  },
+  {
+    sourcePath: "features/analytics/reports/pages/ReportsPage.tsx",
+    kind: "page",
+    exports: ["ReportsPage"],
+    storyPath: null,
+  },
+  {
+    sourcePath: "features/analytics/school-home/components/CurrentPrayerCard.tsx",
+    kind: "component",
+    exports: ["CurrentPrayerCard"],
+    storyPath: null,
+  },
+  {
+    sourcePath: "features/analytics/school-home/components/SchoolManagerDashboard.tsx",
+    kind: "component",
+    exports: ["SchoolIncomingPanel", "SchoolManagerDashboard", "SupervisorAttendanceLaunchpad"],
+    storyPath: null,
+  },
+  {
+    sourcePath: "features/analytics/school-home/components/SchoolOccupancyBanner.tsx",
+    kind: "component",
+    exports: ["SchoolOccupancyBanner"],
+    storyPath: null,
+  },
+  {
+    sourcePath: "features/coin-shop/components/CoinShopTeaser.tsx",
+    kind: "component",
+    exports: ["COIN_SHOP_RELEASE_AT", "CoinShopTeaser"],
+    storyPath: null,
+  },
+  {
+    sourcePath: "features/coin-shop/pages/CoinShopComingSoonPage.tsx",
+    kind: "page",
+    exports: ["CoinShopComingSoonPage"],
+    storyPath: "features/coin-shop/pages/CoinShopComingSoonPage.stories.tsx",
+  },
+  {
+    sourcePath: "features/communications/announcements/AnnouncementPages.tsx",
+    kind: "component",
+    exports: ["AnnouncementInboxPage", "AnnouncementManagementPage"],
+    storyPath: null,
+  },
+  {
+    sourcePath: "features/communications/chat/components/composer/EditPreview.tsx",
+    kind: "component",
+    exports: ["EditPreview"],
+    storyPath: null,
+  },
+  {
+    sourcePath: "features/communications/chat/components/composer/MessageComposer.tsx",
+    kind: "component",
+    exports: ["MessageComposer"],
+    storyPath: null,
+  },
+  {
+    sourcePath: "features/communications/chat/components/composer/QuickReplies.tsx",
+    kind: "component",
+    exports: ["QuickReplies"],
+    storyPath: null,
+  },
+  {
+    sourcePath: "features/communications/chat/components/composer/ReplyPreview.tsx",
+    kind: "component",
+    exports: ["ReplyPreview"],
+    storyPath: null,
+  },
+  {
+    sourcePath: "features/communications/chat/components/conversation/ConversationList.tsx",
+    kind: "component",
+    exports: ["ConversationList"],
+    storyPath: null,
+  },
   {
-    "sourcePath": "features/analytics/dashboard/components/work/DashboardWorkQueue.tsx",
-    "kind": "component",
-    "exports": [
-      "DashboardWorkQueue"
-    ],
-    "storyPath": null
-  },
+    sourcePath: "features/communications/chat/components/conversation/ConversationListItem.tsx",
+    kind: "component",
+    exports: ["ConversationListItem"],
+    storyPath: null,
+  },
+  {
+    sourcePath: "features/communications/chat/components/conversation/ConversationSearch.tsx",
+    kind: "component",
+    exports: ["ConversationSearch"],
+    storyPath: null,
+  },
+  {
+    sourcePath: "features/communications/chat/components/conversation/ConversationSidebar.tsx",
+    kind: "component",
+    exports: ["ConversationSidebar"],
+    storyPath: null,
+  },
+  {
+    sourcePath: "features/communications/chat/components/conversation/ConversationSkeleton.tsx",
+    kind: "component",
+    exports: ["ConversationSkeleton"],
+    storyPath: null,
+  },
   {
-    "sourcePath": "features/analytics/dashboard/pages/DashboardPage.tsx",
-    "kind": "page",
-    "exports": [
-      "DashboardPage"
-    ],
-    "storyPath": null
-  },
-  {
-    "sourcePath": "features/analytics/dashboard/pages/SectionDashboardPage.tsx",
-    "kind": "page",
-    "exports": [
-      "SectionDashboardPage"
-    ],
-    "storyPath": null
-  },
-  {
-    "sourcePath": "features/analytics/reports/components/ReportCard.tsx",
-    "kind": "component",
-    "exports": [
-      "ReportCard"
-    ],
-    "storyPath": null
-  },
-  {
-    "sourcePath": "features/analytics/reports/components/ReportCompactList.tsx",
-    "kind": "component",
-    "exports": [
-      "ReportCompactList"
-    ],
-    "storyPath": null
-  },
-  {
-    "sourcePath": "features/analytics/reports/components/ReportMetrics.tsx",
-    "kind": "component",
-    "exports": [
-      "ReportMetrics"
-    ],
-    "storyPath": null
-  },
-  {
-    "sourcePath": "features/analytics/reports/components/ReportSummary.tsx",
-    "kind": "component",
-    "exports": [
-      "ReportSummary"
-    ],
-    "storyPath": null
-  },
-  {
-    "sourcePath": "features/analytics/reports/pages/ReportsPage.tsx",
-    "kind": "page",
-    "exports": [
-      "ReportsPage"
-    ],
-    "storyPath": null
-  },
-  {
-    "sourcePath": "features/analytics/school-home/components/CurrentPrayerCard.tsx",
-    "kind": "component",
-    "exports": [
-      "CurrentPrayerCard"
-    ],
-    "storyPath": null
-  },
-  {
-    "sourcePath": "features/analytics/school-home/components/SchoolManagerDashboard.tsx",
-    "kind": "component",
-    "exports": [
-      "SchoolIncomingPanel",
-      "SchoolManagerDashboard",
-      "SupervisorAttendanceLaunchpad"
-    ],
-    "storyPath": null
+    sourcePath: "features/communications/chat/components/conversation/ConversationToolbar.tsx",
+    kind: "component",
+    exports: ["ConversationToolbar"],
+    storyPath: null,
   },
-  {
-    "sourcePath": "features/analytics/school-home/components/SchoolOccupancyBanner.tsx",
-    "kind": "component",
-    "exports": [
-      "SchoolOccupancyBanner"
-    ],
-    "storyPath": null
+  {
+    sourcePath: "features/communications/chat/components/conversation/CreateDirectButton.tsx",
+    kind: "component",
+    exports: ["CreateDirectButton"],
+    storyPath: null,
   },
-  {
-    "sourcePath": "features/coin-shop/components/CoinShopTeaser.tsx",
-    "kind": "component",
-    "exports": [
-      "COIN_SHOP_RELEASE_AT",
-      "CoinShopTeaser"
-    ],
-    "storyPath": null
-  },
-  {
-    "sourcePath": "features/coin-shop/pages/CoinShopComingSoonPage.tsx",
-    "kind": "page",
-    "exports": [
-      "CoinShopComingSoonPage"
-    ],
-    "storyPath": "features/coin-shop/pages/CoinShopComingSoonPage.stories.tsx"
-  },
-  {
-    "sourcePath": "features/communications/announcements/AnnouncementPages.tsx",
-    "kind": "component",
-    "exports": [
-      "AnnouncementInboxPage",
-      "AnnouncementManagementPage"
-    ],
-    "storyPath": null
-  },
-  {
-    "sourcePath": "features/communications/chat/components/composer/EditPreview.tsx",
-    "kind": "component",
-    "exports": [
-      "EditPreview"
-    ],
-    "storyPath": null
-  },
-  {
-    "sourcePath": "features/communications/chat/components/composer/MessageComposer.tsx",
-    "kind": "component",
-    "exports": [
-      "MessageComposer"
-    ],
-    "storyPath": null
-  },
-  {
-    "sourcePath": "features/communications/chat/components/composer/QuickReplies.tsx",
-    "kind": "component",
-    "exports": [
-      "QuickReplies"
-    ],
-    "storyPath": null
-  },
-  {
-    "sourcePath": "features/communications/chat/components/composer/ReplyPreview.tsx",
-    "kind": "component",
-    "exports": [
-      "ReplyPreview"
-    ],
-    "storyPath": null
-  },
-  {
-    "sourcePath": "features/communications/chat/components/conversation/ConversationList.tsx",
-    "kind": "component",
-    "exports": [
-      "ConversationList"
-    ],
-    "storyPath": null
-  },
-  {
-    "sourcePath": "features/communications/chat/components/conversation/ConversationListItem.tsx",
-    "kind": "component",
-    "exports": [
-      "ConversationListItem"
-    ],
-    "storyPath": null
-  },
-  {
-    "sourcePath": "features/communications/chat/components/conversation/ConversationSearch.tsx",
-    "kind": "component",
-    "exports": [
-      "ConversationSearch"
-    ],
-    "storyPath": null
-  },
-  {
-    "sourcePath": "features/communications/chat/components/conversation/ConversationSidebar.tsx",
-    "kind": "component",
-    "exports": [
-      "ConversationSidebar"
-    ],
-    "storyPath": null
-  },
-  {
-    "sourcePath": "features/communications/chat/components/conversation/ConversationSkeleton.tsx",
-    "kind": "component",
-    "exports": [
-      "ConversationSkeleton"
-    ],
-    "storyPath": null
-  },
-  {
-    "sourcePath": "features/communications/chat/components/conversation/ConversationToolbar.tsx",
-    "kind": "component",
-    "exports": [
-      "ConversationToolbar"
-    ],
-    "storyPath": null
-  },
-  {
-    "sourcePath": "features/communications/chat/components/conversation/CreateDirectButton.tsx",
-    "kind": "component",
-    "exports": [
-      "CreateDirectButton"
-    ],
-    "storyPath": null
-  },
-  {
-    "sourcePath": "features/communications/chat/components/group/GroupChatControls.tsx",
-    "kind": "component",
-    "exports": [
+  {
+    sourcePath: "features/communications/chat/components/group/GroupChatControls.tsx",
+    kind: "component",
+    exports: [
       "CreateGroupButton",
       "CreateGroupForm",
       "GroupInfoButton",
       "GroupManager",
       "GroupMeta",
       "MemberRow",
-      "PermissionEditor"
+      "PermissionEditor",
     ],
-    "storyPath": null
+    storyPath: null,
   },
   {
-    "sourcePath": "features/communications/chat/components/messages/ChatHeader.tsx",
-    "kind": "component",
-    "exports": [
-      "ChatHeader"
-    ],
-    "storyPath": null
+    sourcePath: "features/communications/chat/components/messages/ChatHeader.tsx",
+    kind: "component",
+    exports: ["ChatHeader"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/communications/chat/components/messages/DateSeparator.tsx",
-    "kind": "component",
-    "exports": [
-      "DateSeparator"
-    ],
-    "storyPath": null
+    sourcePath: "features/communications/chat/components/messages/DateSeparator.tsx",
+    kind: "component",
+    exports: ["DateSeparator"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/communications/chat/components/messages/EmojiReactionPicker.tsx",
-    "kind": "component",
-    "exports": [
-      "EmojiReactionPicker"
-    ],
-    "storyPath": null
+    sourcePath: "features/communications/chat/components/messages/EmojiReactionPicker.tsx",
+    kind: "component",
+    exports: ["EmojiReactionPicker"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/communications/chat/components/messages/MessageContextMenu.tsx",
-    "kind": "component",
-    "exports": [
-      "MessageContextMenu"
-    ],
-    "storyPath": null
+    sourcePath: "features/communications/chat/components/messages/MessageContextMenu.tsx",
+    kind: "component",
+    exports: ["MessageContextMenu"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/communications/chat/components/messages/MessageList.tsx",
-    "kind": "component",
-    "exports": [
+    sourcePath: "features/communications/chat/components/messages/MessageList.tsx",
+    kind: "component",
+    exports: [
       "MessageBody",
       "MessageBubble",
       "MessageList",
       "MessageSkeleton",
-      "StructuredMessage"
+      "StructuredMessage",
     ],
-    "storyPath": null
+    storyPath: null,
   },
   {
-    "sourcePath": "features/communications/chat/components/messages/MessageSearchBar.tsx",
-    "kind": "component",
-    "exports": [
-      "MessageSearchBar"
-    ],
-    "storyPath": null
-  },
-  {
-    "sourcePath": "features/communications/chat/pages/ChatPage.tsx",
-    "kind": "page",
-    "exports": [
-      "ChatPage"
-    ],
-    "storyPath": null
-  },
-  {
-    "sourcePath": "features/communications/live/components/CompactSkeleton.tsx",
-    "kind": "component",
-    "exports": [
-      "CompactSkeleton"
-    ],
-    "storyPath": null
-  },
-  {
-    "sourcePath": "features/communications/live/components/LiveActivityTimeline.tsx",
-    "kind": "component",
-    "exports": [
-      "LiveActivityTimeline"
-    ],
-    "storyPath": null
-  },
-  {
-    "sourcePath": "features/communications/live/components/LiveControls.tsx",
-    "kind": "component",
-    "exports": [
-      "LiveControls"
-    ],
-    "storyPath": null
-  },
-  {
-    "sourcePath": "features/communications/live/components/LiveHeader.tsx",
-    "kind": "component",
-    "exports": [
-      "LiveHeader"
-    ],
-    "storyPath": null
-  },
-  {
-    "sourcePath": "features/communications/live/components/LiveSkeleton.tsx",
-    "kind": "component",
-    "exports": [
-      "LiveSkeleton"
-    ],
-    "storyPath": null
-  },
-  {
-    "sourcePath": "features/communications/live/components/LiveSummaryGrid.tsx",
-    "kind": "component",
-    "exports": [
-      "LiveSummaryGrid"
-    ],
-    "storyPath": null
-  },
-  {
-    "sourcePath": "features/communications/live/components/MiniMetric.tsx",
-    "kind": "component",
-    "exports": [
-      "MiniMetric"
-    ],
-    "storyPath": null
-  },
-  {
-    "sourcePath": "features/communications/live/components/StudentCard.tsx",
-    "kind": "component",
-    "exports": [
-      "StudentCard"
-    ],
-    "storyPath": null
-  },
-  {
-    "sourcePath": "features/communications/live/components/StudentDetail.tsx",
-    "kind": "component",
-    "exports": [
-      "StudentDetail"
-    ],
-    "storyPath": null
-  },
-  {
-    "sourcePath": "features/communications/live/components/StudentDetailPanel.tsx",
-    "kind": "component",
-    "exports": [
-      "StudentDetailPanel"
-    ],
-    "storyPath": null
-  },
-  {
-    "sourcePath": "features/communications/live/components/StudentQueue.tsx",
-    "kind": "component",
-    "exports": [
-      "StudentQueue"
-    ],
-    "storyPath": null
-  },
-  {
-    "sourcePath": "features/communications/live/components/StudentRow.tsx",
-    "kind": "component",
-    "exports": [
-      "StudentRow"
-    ],
-    "storyPath": null
-  },
-  {
-    "sourcePath": "features/communications/live/components/SummaryCard.tsx",
-    "kind": "component",
-    "exports": [
-      "SummaryCard"
-    ],
-    "storyPath": null
-  },
-  {
-    "sourcePath": "features/communications/live/components/TimelineItem.tsx",
-    "kind": "component",
-    "exports": [
-      "TimelineItem"
-    ],
-    "storyPath": null
-  },
-  {
-    "sourcePath": "features/communications/live/components/TimelinePanel.tsx",
-    "kind": "component",
-    "exports": [
-      "TimelinePanel"
-    ],
-    "storyPath": null
-  },
-  {
-    "sourcePath": "features/communications/live/pages/LivePage.tsx",
-    "kind": "page",
-    "exports": [
-      "LivePage"
-    ],
-    "storyPath": null
-  },
-  {
-    "sourcePath": "features/communications/notifications/components/AdvisorInboxItem.tsx",
-    "kind": "component",
-    "exports": [
-      "AdvisorInboxItem"
-    ],
-    "storyPath": null
-  },
-  {
-    "sourcePath": "features/communications/notifications/components/AdvisorInboxPanel.tsx",
-    "kind": "component",
-    "exports": [
-      "AdvisorInboxPanel"
-    ],
-    "storyPath": null
-  },
-  {
-    "sourcePath": "features/communications/notifications/components/HeaderNotifications.tsx",
-    "kind": "component",
-    "exports": [
-      "HeaderNotifications"
-    ],
-    "storyPath": null
+    sourcePath: "features/communications/chat/components/messages/MessageSearchBar.tsx",
+    kind: "component",
+    exports: ["MessageSearchBar"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/communications/notifications/components/MobileNotificationTabs.tsx",
-    "kind": "component",
-    "exports": [
-      "MobileNotificationTabs"
-    ],
-    "storyPath": null
+    sourcePath: "features/communications/chat/pages/ChatPage.tsx",
+    kind: "page",
+    exports: ["ChatPage"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/communications/notifications/components/NotificationCenterPanel.tsx",
-    "kind": "component",
-    "exports": [
-      "NotificationCenterPanel"
-    ],
-    "storyPath": null
+    sourcePath: "features/communications/live/components/CompactSkeleton.tsx",
+    kind: "component",
+    exports: ["CompactSkeleton"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/communications/notifications/components/NotificationPreference.tsx",
-    "kind": "component",
-    "exports": [
-      "NotificationPreference"
-    ],
-    "storyPath": null
+    sourcePath: "features/communications/live/components/LiveActivityTimeline.tsx",
+    kind: "component",
+    exports: ["LiveActivityTimeline"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/communications/notifications/components/NotificationProvider.tsx",
-    "kind": "component",
-    "exports": [
-      "NotificationContext",
-      "NotificationProvider"
-    ],
-    "storyPath": null
+    sourcePath: "features/communications/live/components/LiveControls.tsx",
+    kind: "component",
+    exports: ["LiveControls"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/communications/notifications/components/NotificationSettings.tsx",
-    "kind": "component",
-    "exports": [
-      "NotificationSettings"
-    ],
-    "storyPath": null
+    sourcePath: "features/communications/live/components/LiveHeader.tsx",
+    kind: "component",
+    exports: ["LiveHeader"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/communications/notifications/components/NotificationSkeletons.tsx",
-    "kind": "component",
-    "exports": [
-      "NotificationSkeletons"
-    ],
-    "storyPath": null
+    sourcePath: "features/communications/live/components/LiveSkeleton.tsx",
+    kind: "component",
+    exports: ["LiveSkeleton"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/communications/notifications/components/NotificationsToolbar.tsx",
-    "kind": "component",
-    "exports": [
-      "NotificationsToolbar"
-    ],
-    "storyPath": null
+    sourcePath: "features/communications/live/components/LiveSummaryGrid.tsx",
+    kind: "component",
+    exports: ["LiveSummaryGrid"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/communications/notifications/components/ToggleButton.tsx",
-    "kind": "component",
-    "exports": [
-      "ToggleButton"
-    ],
-    "storyPath": null
+    sourcePath: "features/communications/live/components/MiniMetric.tsx",
+    kind: "component",
+    exports: ["MiniMetric"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/communications/notifications/pages/NotificationsPage.tsx",
-    "kind": "page",
-    "exports": [
-      "NotificationsPage"
-    ],
-    "storyPath": null
+    sourcePath: "features/communications/live/components/StudentCard.tsx",
+    kind: "component",
+    exports: ["StudentCard"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/communications/sms/pages/SmsPage.tsx",
-    "kind": "page",
-    "exports": [
-      "SmsPage"
-    ],
-    "storyPath": null
+    sourcePath: "features/communications/live/components/StudentDetail.tsx",
+    kind: "component",
+    exports: ["StudentDetail"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/identity/access/OrganizationWorkspace.tsx",
-    "kind": "component",
-    "exports": [
-      "OrganizationWorkspace"
-    ],
-    "storyPath": null
+    sourcePath: "features/communications/live/components/StudentDetailPanel.tsx",
+    kind: "component",
+    exports: ["StudentDetailPanel"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/identity/access/OrganizationsPage.tsx",
-    "kind": "component",
-    "exports": [
-      "OrganizationsPage"
-    ],
-    "storyPath": null
+    sourcePath: "features/communications/live/components/StudentQueue.tsx",
+    kind: "component",
+    exports: ["StudentQueue"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/identity/access/UsersPage.tsx",
-    "kind": "component",
-    "exports": [
-      "UsersPage"
-    ],
-    "storyPath": null
+    sourcePath: "features/communications/live/components/StudentRow.tsx",
+    kind: "component",
+    exports: ["StudentRow"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/identity/access/components/AccessFlowGuidance.tsx",
-    "kind": "component",
-    "exports": [
-      "AccessFlowGuidance"
-    ],
-    "storyPath": null
+    sourcePath: "features/communications/live/components/SummaryCard.tsx",
+    kind: "component",
+    exports: ["SummaryCard"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/identity/access/components/OrganizationProfileEditor.tsx",
-    "kind": "component",
-    "exports": [
-      "OrganizationProfileEditor"
-    ],
-    "storyPath": null
+    sourcePath: "features/communications/live/components/TimelineItem.tsx",
+    kind: "component",
+    exports: ["TimelineItem"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/identity/access/components/OrganizationStudentAccounts.tsx",
-    "kind": "component",
-    "exports": [
-      "OrganizationStudentAccounts"
-    ],
-    "storyPath": null
+    sourcePath: "features/communications/live/components/TimelinePanel.tsx",
+    kind: "component",
+    exports: ["TimelinePanel"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/identity/auth/components/AuthProvider.tsx",
-    "kind": "component",
-    "exports": [
-      "AuthProvider"
-    ],
-    "storyPath": null
+    sourcePath: "features/communications/live/pages/LivePage.tsx",
+    kind: "page",
+    exports: ["LivePage"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/identity/auth/components/BackendHealthStatus.tsx",
-    "kind": "component",
-    "exports": [
-      "BackendHealthStatus"
-    ],
-    "storyPath": null
+    sourcePath: "features/communications/notifications/components/AdvisorInboxItem.tsx",
+    kind: "component",
+    exports: ["AdvisorInboxItem"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/identity/auth/components/CapabilityGate.tsx",
-    "kind": "component",
-    "exports": [
-      "CapabilityGate"
-    ],
-    "storyPath": null
+    sourcePath: "features/communications/notifications/components/AdvisorInboxPanel.tsx",
+    kind: "component",
+    exports: ["AdvisorInboxPanel"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/identity/auth/components/DemoAccountPicker.tsx",
-    "kind": "component",
-    "exports": [
-      "DemoAccountPicker"
-    ],
-    "storyPath": null
+    sourcePath: "features/communications/notifications/components/HeaderNotifications.tsx",
+    kind: "component",
+    exports: ["HeaderNotifications"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/identity/auth/components/LoginBenefit.tsx",
-    "kind": "component",
-    "exports": [
-      "LoginBenefit"
-    ],
-    "storyPath": null
+    sourcePath: "features/communications/notifications/components/MobileNotificationTabs.tsx",
+    kind: "component",
+    exports: ["MobileNotificationTabs"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/identity/auth/components/LoginBrand.tsx",
-    "kind": "component",
-    "exports": [
-      "LoginBrand"
-    ],
-    "storyPath": null
+    sourcePath: "features/communications/notifications/components/NotificationCenterPanel.tsx",
+    kind: "component",
+    exports: ["NotificationCenterPanel"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/identity/auth/components/LoginForm.tsx",
-    "kind": "component",
-    "exports": [
-      "LoginForm"
-    ],
-    "storyPath": null
+    sourcePath: "features/communications/notifications/components/NotificationPreference.tsx",
+    kind: "component",
+    exports: ["NotificationPreference"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/identity/auth/components/LoginHero.tsx",
-    "kind": "component",
-    "exports": [
-      "LoginHero"
-    ],
-    "storyPath": null
+    sourcePath: "features/communications/notifications/components/NotificationProvider.tsx",
+    kind: "component",
+    exports: ["NotificationContext", "NotificationProvider"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/identity/auth/components/LoginShell.tsx",
-    "kind": "component",
-    "exports": [
-      "LoginShell"
-    ],
-    "storyPath": null
+    sourcePath: "features/communications/notifications/components/NotificationSettings.tsx",
+    kind: "component",
+    exports: ["NotificationSettings"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/identity/auth/components/LoginSuccessSplash.tsx",
-    "kind": "component",
-    "exports": [
-      "LoginSuccessSplash"
-    ],
-    "storyPath": null
+    sourcePath: "features/communications/notifications/components/NotificationSkeletons.tsx",
+    kind: "component",
+    exports: ["NotificationSkeletons"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/identity/auth/components/LoginToolbar.tsx",
-    "kind": "component",
-    "exports": [
-      "LoginToolbar"
-    ],
-    "storyPath": null
+    sourcePath: "features/communications/notifications/components/NotificationsToolbar.tsx",
+    kind: "component",
+    exports: ["NotificationsToolbar"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/identity/auth/components/PlatformBootstrapForm.tsx",
-    "kind": "component",
-    "exports": [
-      "PlatformBootstrapForm"
-    ],
-    "storyPath": null
+    sourcePath: "features/communications/notifications/components/ToggleButton.tsx",
+    kind: "component",
+    exports: ["ToggleButton"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/identity/auth/components/PublicSchoolProfile.tsx",
-    "kind": "component",
-    "exports": [
-      "PublicSchoolProfileProvider",
-      "SchoolContactDetails"
-    ],
-    "storyPath": null
+    sourcePath: "features/communications/notifications/pages/NotificationsPage.tsx",
+    kind: "page",
+    exports: ["NotificationsPage"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/identity/auth/components/UnsupportedRoleModal.tsx",
-    "kind": "component",
-    "exports": [
-      "UnsupportedRoleModal"
-    ],
-    "storyPath": null
+    sourcePath: "features/communications/sms/pages/SmsPage.tsx",
+    kind: "page",
+    exports: ["SmsPage"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/identity/auth/model/auth-locale.tsx",
-    "kind": "component",
-    "exports": [
-      "AuthLocaleProvider"
-    ],
-    "storyPath": null
+    sourcePath: "features/identity/access/OrganizationWorkspace.tsx",
+    kind: "component",
+    exports: ["OrganizationWorkspace"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/identity/auth/pages/LoginPage.tsx",
-    "kind": "page",
-    "exports": [
-      "LoginPage"
-    ],
-    "storyPath": null
+    sourcePath: "features/identity/access/OrganizationsPage.tsx",
+    kind: "component",
+    exports: ["OrganizationsPage"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/identity/auth/pages/StudentLoginPage.tsx",
-    "kind": "page",
-    "exports": [
-      "StudentLoginPage"
-    ],
-    "storyPath": null
+    sourcePath: "features/identity/access/UsersPage.tsx",
+    kind: "component",
+    exports: ["UsersPage"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/identity/auth/pages/StudentSignupPage.tsx",
-    "kind": "page",
-    "exports": [
-      "StudentSignupPage"
-    ],
-    "storyPath": null
+    sourcePath: "features/identity/access/components/AccessFlowGuidance.tsx",
+    kind: "component",
+    exports: ["AccessFlowGuidance"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/identity/onboarding/components/OnboardingModeSelector.tsx",
-    "kind": "component",
-    "exports": [
-      "OnboardingModeSelector"
-    ],
-    "storyPath": null
+    sourcePath: "features/identity/access/components/OrganizationProfileEditor.tsx",
+    kind: "component",
+    exports: ["OrganizationProfileEditor"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/identity/onboarding/components/OnboardingQueueItem.tsx",
-    "kind": "component",
-    "exports": [
-      "OnboardingQueueItem"
-    ],
-    "storyPath": null
+    sourcePath: "features/identity/access/components/OrganizationStudentAccounts.tsx",
+    kind: "component",
+    exports: ["OrganizationStudentAccounts"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/identity/onboarding/pages/OnboardingPage.tsx",
-    "kind": "page",
-    "exports": [
-      "OnboardingPage"
-    ],
-    "storyPath": null
+    sourcePath: "features/identity/auth/components/AuthProvider.tsx",
+    kind: "component",
+    exports: ["AuthProvider"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/identity/registration/RegistrationDashboardPage.tsx",
-    "kind": "component",
-    "exports": [
-      "RegistrationDashboardPage"
-    ],
-    "storyPath": null
+    sourcePath: "features/identity/auth/components/BackendHealthStatus.tsx",
+    kind: "component",
+    exports: ["BackendHealthStatus"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/identity/registration/RegistrationLayout.tsx",
-    "kind": "component",
-    "exports": [
-      "RegistrationLayout"
-    ],
-    "storyPath": null
+    sourcePath: "features/identity/auth/components/CapabilityGate.tsx",
+    kind: "component",
+    exports: ["CapabilityGate"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/identity/registration/pages/RegistrationComingSoonPage.tsx",
-    "kind": "page",
-    "exports": [
-      "RegistrationComingSoonPage"
-    ],
-    "storyPath": null
+    sourcePath: "features/identity/auth/components/DemoAccountPicker.tsx",
+    kind: "component",
+    exports: ["DemoAccountPicker"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/identity/registration/pages/RegistrationDashboardPage.tsx",
-    "kind": "page",
-    "exports": [
-      "RegistrationDashboardPage"
-    ],
-    "storyPath": null
+    sourcePath: "features/identity/auth/components/LoginBenefit.tsx",
+    kind: "component",
+    exports: ["LoginBenefit"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/identity/registration/pages/RegistrationPage.tsx",
-    "kind": "page",
-    "exports": [
-      "RegistrationPage"
-    ],
-    "storyPath": null
+    sourcePath: "features/identity/auth/components/LoginBrand.tsx",
+    kind: "component",
+    exports: ["LoginBrand"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/identity/registration/registration.context.tsx",
-    "kind": "component",
-    "exports": [
-      "RegistrationProvider"
-    ],
-    "storyPath": null
+    sourcePath: "features/identity/auth/components/LoginForm.tsx",
+    kind: "component",
+    exports: ["LoginForm"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/identity/registration/registration.entry.tsx",
-    "kind": "component",
-    "exports": [
-      "RegistrationEntry"
-    ],
-    "storyPath": null
+    sourcePath: "features/identity/auth/components/LoginHero.tsx",
+    kind: "component",
+    exports: ["LoginHero"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/identity/registration/registration.provider.tsx",
-    "kind": "component",
-    "exports": [
-      "RegistrationFeatureProvider"
-    ],
-    "storyPath": null
+    sourcePath: "features/identity/auth/components/LoginShell.tsx",
+    kind: "component",
+    exports: ["LoginShell"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/identity/registration/sections/AcademicHistorySection.tsx",
-    "kind": "component",
-    "exports": [
-      "AcademicHistorySection"
-    ],
-    "storyPath": null
+    sourcePath: "features/identity/auth/components/LoginSuccessSplash.tsx",
+    kind: "component",
+    exports: ["LoginSuccessSplash"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/identity/registration/sections/AcademicInterestsSection.tsx",
-    "kind": "component",
-    "exports": [
-      "AcademicInterestsSection"
-    ],
-    "storyPath": null
+    sourcePath: "features/identity/auth/components/LoginToolbar.tsx",
+    kind: "component",
+    exports: ["LoginToolbar"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/identity/registration/sections/BasicInformationSection.tsx",
-    "kind": "component",
-    "exports": [
-      "BasicInformationSection"
-    ],
-    "storyPath": null
+    sourcePath: "features/identity/auth/components/PlatformBootstrapForm.tsx",
+    kind: "component",
+    exports: ["PlatformBootstrapForm"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/identity/registration/sections/ConsentAndAgreementsSection.tsx",
-    "kind": "component",
-    "exports": [
-      "ConsentAndAgreementsSection"
-    ],
-    "storyPath": null
+    sourcePath: "features/identity/auth/components/PublicSchoolProfile.tsx",
+    kind: "component",
+    exports: ["PublicSchoolProfileProvider", "SchoolContactDetails"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/identity/registration/sections/ContactInformationSection.tsx",
-    "kind": "component",
-    "exports": [
-      "ContactInformationSection"
-    ],
-    "storyPath": null
+    sourcePath: "features/identity/auth/components/UnsupportedRoleModal.tsx",
+    kind: "component",
+    exports: ["UnsupportedRoleModal"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/identity/registration/sections/DocumentsSection.tsx",
-    "kind": "component",
-    "exports": [
-      "DocumentsSection"
-    ],
-    "storyPath": null
+    sourcePath: "features/identity/auth/model/auth-locale.tsx",
+    kind: "component",
+    exports: ["AuthLocaleProvider"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/identity/registration/sections/EducationalBackgroundSection.tsx",
-    "kind": "component",
-    "exports": [
-      "EducationalBackgroundSection"
-    ],
-    "storyPath": null
+    sourcePath: "features/identity/auth/pages/LoginPage.tsx",
+    kind: "page",
+    exports: ["LoginPage"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/identity/registration/sections/EmergencyContactsSection.tsx",
-    "kind": "component",
-    "exports": [
-      "EmergencyContactsSection"
-    ],
-    "storyPath": null
+    sourcePath: "features/identity/auth/pages/StudentLoginPage.tsx",
+    kind: "page",
+    exports: ["StudentLoginPage"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/identity/registration/sections/ExtracurricularActivitiesSection.tsx",
-    "kind": "component",
-    "exports": [
-      "ExtracurricularActivitiesSection"
-    ],
-    "storyPath": null
+    sourcePath: "features/identity/auth/pages/StudentSignupPage.tsx",
+    kind: "page",
+    exports: ["StudentSignupPage"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/identity/registration/sections/FamilyInformationSection.tsx",
-    "kind": "component",
-    "exports": [
-      "FamilyInformationSection"
-    ],
-    "storyPath": null
+    sourcePath: "features/identity/onboarding/components/OnboardingModeSelector.tsx",
+    kind: "component",
+    exports: ["OnboardingModeSelector"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/identity/registration/sections/FinancialInformationSection.tsx",
-    "kind": "component",
-    "exports": [
-      "FinancialInformationSection"
-    ],
-    "storyPath": null
+    sourcePath: "features/identity/onboarding/components/OnboardingQueueItem.tsx",
+    kind: "component",
+    exports: ["OnboardingQueueItem"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/identity/registration/sections/HealthInformationSection.tsx",
-    "kind": "component",
-    "exports": [
-      "HealthInformationSection"
-    ],
-    "storyPath": null
+    sourcePath: "features/identity/onboarding/pages/OnboardingPage.tsx",
+    kind: "page",
+    exports: ["OnboardingPage"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/identity/registration/sections/IdentityInformationSection.tsx",
-    "kind": "component",
-    "exports": [
-      "IdentityInformationSection"
-    ],
-    "storyPath": null
+    sourcePath: "features/identity/security/components/PermissionMatrix.tsx",
+    kind: "component",
+    exports: ["PermissionMatrix"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/identity/registration/sections/RegistrationCompletionSection.tsx",
-    "kind": "component",
-    "exports": [
-      "RegistrationCompletionSection"
-    ],
-    "storyPath": null
+    sourcePath: "features/management/pages/ManagementComingSoonPage.tsx",
+    kind: "page",
+    exports: ["ManagementComingSoonPage"],
+    storyPath: "features/management/pages/ManagementComingSoonPage.stories.tsx",
   },
   {
-    "sourcePath": "features/identity/registration/sections/TransportationSection.tsx",
-    "kind": "component",
-    "exports": [
-      "TransportationSection"
-    ],
-    "storyPath": null
+    sourcePath: "features/mobile/MobileMorePage.tsx",
+    kind: "component",
+    exports: ["MobileMorePage"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/identity/security/components/PermissionMatrix.tsx",
-    "kind": "component",
-    "exports": [
-      "PermissionMatrix"
-    ],
-    "storyPath": null
+    sourcePath: "features/people/guardian/pages/GuardianPage.tsx",
+    kind: "page",
+    exports: ["GuardianPage"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/management/pages/ManagementComingSoonPage.tsx",
-    "kind": "page",
-    "exports": [
-      "ManagementComingSoonPage"
-    ],
-    "storyPath": "features/management/pages/ManagementComingSoonPage.stories.tsx"
+    sourcePath: "features/people/student-portal/components/StudentPortalOnboarding.tsx",
+    kind: "component",
+    exports: ["StudentPortalOnboarding"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/mobile/MobileMorePage.tsx",
-    "kind": "component",
-    "exports": [
-      "MobileMorePage"
-    ],
-    "storyPath": null
+    sourcePath: "features/people/student-portal/pages/StudentLeaveRequestsPage.tsx",
+    kind: "page",
+    exports: ["StudentLeaveRequestsPage"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/people/guardian/pages/GuardianPage.tsx",
-    "kind": "page",
-    "exports": [
-      "GuardianPage"
-    ],
-    "storyPath": null
+    sourcePath: "features/people/student-portal/pages/StudentProfilePage.tsx",
+    kind: "page",
+    exports: ["StudentProfilePage"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/people/student-portal/components/StudentPortalOnboarding.tsx",
-    "kind": "component",
-    "exports": [
-      "StudentPortalOnboarding"
-    ],
-    "storyPath": null
+    sourcePath: "features/people/student-portal/pages/StudentRegistrationComingSoonPage.tsx",
+    kind: "page",
+    exports: ["StudentRegistrationComingSoonPage"],
+    storyPath: "features/people/student-portal/pages/StudentRegistrationComingSoonPage.stories.tsx",
   },
   {
-    "sourcePath": "features/people/student-portal/pages/StudentLeaveRequestsPage.tsx",
-    "kind": "page",
-    "exports": [
-      "StudentLeaveRequestsPage"
-    ],
-    "storyPath": null
+    sourcePath: "features/people/student-portal/pages/StudentTextbooksPage.tsx",
+    kind: "page",
+    exports: ["StudentTextbooksPage"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/people/student-portal/pages/StudentProfilePage.tsx",
-    "kind": "page",
-    "exports": [
-      "StudentProfilePage"
-    ],
-    "storyPath": null
+    sourcePath: "features/people/students/components/StudentActivityTimeline.tsx",
+    kind: "component",
+    exports: ["StudentActivityTimeline"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/people/student-portal/pages/StudentRegistrationComingSoonPage.tsx",
-    "kind": "page",
-    "exports": [
-      "StudentRegistrationComingSoonPage"
-    ],
-    "storyPath": "features/people/student-portal/pages/StudentRegistrationComingSoonPage.stories.tsx"
+    sourcePath: "features/people/students/components/StudentAdminAccess.tsx",
+    kind: "component",
+    exports: ["StudentAdminAccess"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/people/student-portal/pages/StudentTextbooksPage.tsx",
-    "kind": "page",
-    "exports": [
-      "StudentTextbooksPage"
-    ],
-    "storyPath": null
+    sourcePath: "features/people/students/components/StudentAdminWorkspace.tsx",
+    kind: "component",
+    exports: ["StudentAdminWorkspace"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/people/students/components/StudentActivityTimeline.tsx",
-    "kind": "component",
-    "exports": [
-      "StudentActivityTimeline"
-    ],
-    "storyPath": null
+    sourcePath: "features/people/students/components/StudentDetail.tsx",
+    kind: "component",
+    exports: ["StudentDetail"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/people/students/components/StudentAdminAccess.tsx",
-    "kind": "component",
-    "exports": [
-      "StudentAdminAccess"
-    ],
-    "storyPath": null
+    sourcePath: "features/people/students/components/StudentEditor.tsx",
+    kind: "component",
+    exports: ["StudentEditor"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/people/students/components/StudentAdminWorkspace.tsx",
-    "kind": "component",
-    "exports": [
-      "StudentAdminWorkspace"
-    ],
-    "storyPath": null
+    sourcePath: "features/people/students/components/StudentInsights.tsx",
+    kind: "component",
+    exports: ["StudentInsights"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/people/students/components/StudentDetail.tsx",
-    "kind": "component",
-    "exports": [
-      "StudentDetail"
-    ],
-    "storyPath": null
+    sourcePath: "features/people/students/components/StudentList.tsx",
+    kind: "component",
+    exports: ["StudentList"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/people/students/components/StudentEditor.tsx",
-    "kind": "component",
-    "exports": [
-      "StudentEditor"
-    ],
-    "storyPath": null
+    sourcePath: "features/people/students/components/StudentOverview.tsx",
+    kind: "component",
+    exports: ["StudentOverview"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/people/students/components/StudentInsights.tsx",
-    "kind": "component",
-    "exports": [
-      "StudentInsights"
-    ],
-    "storyPath": null
+    sourcePath: "features/people/students/components/StudentOverviewStats.tsx",
+    kind: "component",
+    exports: ["StudentOverviewStats"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/people/students/components/StudentList.tsx",
-    "kind": "component",
-    "exports": [
-      "StudentList"
-    ],
-    "storyPath": null
+    sourcePath: "features/people/students/components/StudentSecurity.tsx",
+    kind: "component",
+    exports: ["StudentSecurity"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/people/students/components/StudentOverview.tsx",
-    "kind": "component",
-    "exports": [
-      "StudentOverview"
-    ],
-    "storyPath": null
+    sourcePath: "features/people/students/components/StudentSupportWorkspace.tsx",
+    kind: "component",
+    exports: ["StudentSupportWorkspace"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/people/students/components/StudentOverviewStats.tsx",
-    "kind": "component",
-    "exports": [
-      "StudentOverviewStats"
-    ],
-    "storyPath": null
+    sourcePath: "features/people/students/components/StudentTransferWorkspace.tsx",
+    kind: "component",
+    exports: ["StudentTransferWorkspace"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/people/students/components/StudentSecurity.tsx",
-    "kind": "component",
-    "exports": [
-      "StudentSecurity"
-    ],
-    "storyPath": null
+    sourcePath: "features/people/students/components/StudentWorkflowActions.tsx",
+    kind: "component",
+    exports: ["StudentWorkflowActions"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/people/students/components/StudentSupportWorkspace.tsx",
-    "kind": "component",
-    "exports": [
-      "StudentSupportWorkspace"
-    ],
-    "storyPath": null
+    sourcePath: "features/people/students/pages/StudentsPage.tsx",
+    kind: "page",
+    exports: ["StudentsPage"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/people/students/components/StudentTransferWorkspace.tsx",
-    "kind": "component",
-    "exports": [
-      "StudentTransferWorkspace"
-    ],
-    "storyPath": null
+    sourcePath: "features/people/teacher-portal/components/TeacherClassAttendanceSheet.tsx",
+    kind: "component",
+    exports: ["TeacherClassAttendanceSheet"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/people/students/components/StudentWorkflowActions.tsx",
-    "kind": "component",
-    "exports": [
-      "StudentWorkflowActions"
-    ],
-    "storyPath": null
+    sourcePath: "features/people/teacher-portal/pages/TeacherChatComingSoonPage.tsx",
+    kind: "page",
+    exports: ["TeacherChatComingSoonPage"],
+    storyPath: "features/people/teacher-portal/pages/TeacherChatComingSoonPage.stories.tsx",
   },
   {
-    "sourcePath": "features/people/students/pages/StudentsPage.tsx",
-    "kind": "page",
-    "exports": [
-      "StudentsPage"
-    ],
-    "storyPath": null
+    sourcePath: "features/people/teacher-portal/pages/TeacherDashboard.tsx",
+    kind: "page",
+    exports: ["TeacherDashboard"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/people/teacher-portal/components/TeacherClassAttendanceSheet.tsx",
-    "kind": "component",
-    "exports": [
-      "TeacherClassAttendanceSheet"
-    ],
-    "storyPath": null
+    sourcePath: "features/people/teacher-portal/pages/TeacherProfilePage.tsx",
+    kind: "page",
+    exports: ["TeacherProfilePage"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/people/teacher-portal/pages/TeacherChatComingSoonPage.tsx",
-    "kind": "page",
-    "exports": [
-      "TeacherChatComingSoonPage"
-    ],
-    "storyPath": "features/people/teacher-portal/pages/TeacherChatComingSoonPage.stories.tsx"
+    sourcePath: "features/people/teacher-portal/pages/TeacherSchedulePage.tsx",
+    kind: "page",
+    exports: ["TeacherSchedulePage"],
+    storyPath: "features/people/teacher-portal/pages/TeacherSchedulePage.stories.tsx",
   },
   {
-    "sourcePath": "features/people/teacher-portal/pages/TeacherDashboard.tsx",
-    "kind": "page",
-    "exports": [
-      "TeacherDashboard"
-    ],
-    "storyPath": null
+    sourcePath: "features/platform/pwa/PWAInstallBanner.tsx",
+    kind: "component",
+    exports: ["PWAInstallBanner"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/people/teacher-portal/pages/TeacherProfilePage.tsx",
-    "kind": "page",
-    "exports": [
-      "TeacherProfilePage"
-    ],
-    "storyPath": null
+    sourcePath: "features/platform/pwa/PWAInstallModal.tsx",
+    kind: "component",
+    exports: ["PWAInstallModal"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/people/teacher-portal/pages/TeacherSchedulePage.tsx",
-    "kind": "page",
-    "exports": [
-      "TeacherSchedulePage"
-    ],
-    "storyPath": "features/people/teacher-portal/pages/TeacherSchedulePage.stories.tsx"
+    sourcePath: "features/platform/pwa/PWAInstallSettingsCard.tsx",
+    kind: "component",
+    exports: ["PWAInstallSettingsCard"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/platform/pwa/PWAInstallBanner.tsx",
-    "kind": "component",
-    "exports": [
-      "PWAInstallBanner"
-    ],
-    "storyPath": null
+    sourcePath: "features/platform/pwa/PWAProvider.tsx",
+    kind: "component",
+    exports: ["PWAProvider"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/platform/pwa/PWAInstallModal.tsx",
-    "kind": "component",
-    "exports": [
-      "PWAInstallModal"
-    ],
-    "storyPath": null
+    sourcePath: "features/platform/pwa/pwa-update-banner.tsx",
+    kind: "component",
+    exports: ["PWAUpdateBanner"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/platform/pwa/PWAInstallSettingsCard.tsx",
-    "kind": "component",
-    "exports": [
-      "PWAInstallSettingsCard"
-    ],
-    "storyPath": null
+    sourcePath: "features/platform/settings/components/ApiConnectionCard.tsx",
+    kind: "component",
+    exports: ["ApiConnectionCard"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/platform/pwa/PWAProvider.tsx",
-    "kind": "component",
-    "exports": [
-      "PWAProvider"
-    ],
-    "storyPath": null
+    sourcePath: "features/platform/settings/components/ChatProfileSettings.tsx",
+    kind: "component",
+    exports: ["ChatProfileSettings"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/platform/pwa/pwa-update-banner.tsx",
-    "kind": "component",
-    "exports": [
-      "PWAUpdateBanner"
-    ],
-    "storyPath": null
+    sourcePath: "features/platform/settings/components/LocationSettings.tsx",
+    kind: "component",
+    exports: ["LocationSettings"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/platform/settings/components/ApiConnectionCard.tsx",
-    "kind": "component",
-    "exports": [
-      "ApiConnectionCard"
-    ],
-    "storyPath": null
+    sourcePath: "features/platform/settings/components/PhoneChangeRequests.tsx",
+    kind: "component",
+    exports: ["PhoneChangeRequests"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/platform/settings/components/ChatProfileSettings.tsx",
-    "kind": "component",
-    "exports": [
-      "ChatProfileSettings"
-    ],
-    "storyPath": null
+    sourcePath: "features/platform/settings/components/PhoneNumberSettings.tsx",
+    kind: "component",
+    exports: ["PhoneNumberSettings"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/platform/settings/components/LocationSettings.tsx",
-    "kind": "component",
-    "exports": [
-      "LocationSettings"
-    ],
-    "storyPath": null
+    sourcePath: "features/platform/settings/components/PrayerTimeSettings.tsx",
+    kind: "component",
+    exports: ["PrayerTimeSettings"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/platform/settings/components/PhoneChangeRequests.tsx",
-    "kind": "component",
-    "exports": [
-      "PhoneChangeRequests"
-    ],
-    "storyPath": null
+    sourcePath: "features/platform/settings/components/SessionsSettings.tsx",
+    kind: "component",
+    exports: ["SessionsSettings"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/platform/settings/components/PhoneNumberSettings.tsx",
-    "kind": "component",
-    "exports": [
-      "PhoneNumberSettings"
-    ],
-    "storyPath": null
+    sourcePath: "features/platform/settings/pages/SettingsPage.tsx",
+    kind: "page",
+    exports: ["SettingsPage"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/platform/settings/components/PrayerTimeSettings.tsx",
-    "kind": "component",
-    "exports": [
-      "PrayerTimeSettings"
-    ],
-    "storyPath": null
+    sourcePath: "features/platform/system/components/AccountSecurityPanel.tsx",
+    kind: "component",
+    exports: ["AccountSecurityPanel"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/platform/settings/components/SessionsSettings.tsx",
-    "kind": "component",
-    "exports": [
-      "SessionsSettings"
-    ],
-    "storyPath": null
+    sourcePath: "features/platform/system/components/AppVersionManager.tsx",
+    kind: "component",
+    exports: ["AppVersionManager"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/platform/settings/pages/SettingsPage.tsx",
-    "kind": "page",
-    "exports": [
-      "SettingsPage"
-    ],
-    "storyPath": null
+    sourcePath: "features/platform/system/components/ChatEmojiManager.tsx",
+    kind: "component",
+    exports: ["ChatEmojiManager"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/platform/system/components/AccountSecurityPanel.tsx",
-    "kind": "component",
-    "exports": [
-      "AccountSecurityPanel"
-    ],
-    "storyPath": null
+    sourcePath: "features/platform/system/components/DatabaseBackupPanel.tsx",
+    kind: "component",
+    exports: ["DatabaseBackupPanel"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/platform/system/components/AppVersionManager.tsx",
-    "kind": "component",
-    "exports": [
-      "AppVersionManager"
-    ],
-    "storyPath": null
+    sourcePath: "features/platform/system/components/RelaxationMusicManager.tsx",
+    kind: "component",
+    exports: ["RelaxationMusicManager"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/platform/system/components/ChatEmojiManager.tsx",
-    "kind": "component",
-    "exports": [
-      "ChatEmojiManager"
-    ],
-    "storyPath": null
+    sourcePath: "features/platform/system/components/ReleasePanel.tsx",
+    kind: "component",
+    exports: ["ReleasePanel"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/platform/system/components/DatabaseBackupPanel.tsx",
-    "kind": "component",
-    "exports": [
-      "DatabaseBackupPanel"
-    ],
-    "storyPath": null
+    sourcePath: "features/platform/system/components/SystemHealthCards.tsx",
+    kind: "component",
+    exports: ["SystemHealthCards"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/platform/system/components/RelaxationMusicManager.tsx",
-    "kind": "component",
-    "exports": [
-      "RelaxationMusicManager"
-    ],
-    "storyPath": null
+    sourcePath: "features/platform/system/components/SystemHistory.tsx",
+    kind: "component",
+    exports: ["SystemHistory"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/platform/system/components/ReleasePanel.tsx",
-    "kind": "component",
-    "exports": [
-      "ReleasePanel"
-    ],
-    "storyPath": null
+    sourcePath: "features/platform/system/components/SystemMetric.tsx",
+    kind: "component",
+    exports: ["SystemMetric"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/platform/system/components/SystemHealthCards.tsx",
-    "kind": "component",
-    "exports": [
-      "SystemHealthCards"
-    ],
-    "storyPath": null
+    sourcePath: "features/platform/system/components/SystemSessionsPanel.tsx",
+    kind: "component",
+    exports: ["SystemSessionsPanel"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/platform/system/components/SystemHistory.tsx",
-    "kind": "component",
-    "exports": [
-      "SystemHistory"
-    ],
-    "storyPath": null
+    sourcePath: "features/platform/system/pages/SystemPage.tsx",
+    kind: "page",
+    exports: ["SystemPage"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/platform/system/components/SystemMetric.tsx",
-    "kind": "component",
-    "exports": [
-      "SystemMetric"
-    ],
-    "storyPath": null
+    sourcePath: "features/productivity/clock/components/AlarmPanel.tsx",
+    kind: "component",
+    exports: ["AlarmPanel"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/platform/system/components/SystemSessionsPanel.tsx",
-    "kind": "component",
-    "exports": [
-      "SystemSessionsPanel"
-    ],
-    "storyPath": null
+    sourcePath: "features/productivity/clock/components/HeaderClock.tsx",
+    kind: "component",
+    exports: ["HeaderClock"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/platform/system/pages/SystemPage.tsx",
-    "kind": "page",
-    "exports": [
-      "SystemPage"
-    ],
-    "storyPath": null
+    sourcePath: "features/productivity/clock/components/SessionStats.tsx",
+    kind: "component",
+    exports: ["SessionStats"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/productivity/clock/components/AlarmPanel.tsx",
-    "kind": "component",
-    "exports": [
-      "AlarmPanel"
-    ],
-    "storyPath": null
+    sourcePath: "features/productivity/clock/components/StopwatchPanel.tsx",
+    kind: "component",
+    exports: ["StopwatchPanel"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/productivity/clock/components/HeaderClock.tsx",
-    "kind": "component",
-    "exports": [
-      "HeaderClock"
-    ],
-    "storyPath": null
+    sourcePath: "features/productivity/clock/components/TimerPanel.tsx",
+    kind: "component",
+    exports: ["TimerPanel"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/productivity/clock/components/SessionStats.tsx",
-    "kind": "component",
-    "exports": [
-      "SessionStats"
-    ],
-    "storyPath": null
+    sourcePath: "features/productivity/clock/components/WorldClockPanel.tsx",
+    kind: "component",
+    exports: ["WorldClockPanel"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/productivity/clock/components/StopwatchPanel.tsx",
-    "kind": "component",
-    "exports": [
-      "StopwatchPanel"
-    ],
-    "storyPath": null
+    sourcePath: "features/productivity/planner/components/PlanTemplateLibrary.tsx",
+    kind: "component",
+    exports: ["PlanTemplateLibrary"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/productivity/clock/components/TimerPanel.tsx",
-    "kind": "component",
-    "exports": [
-      "TimerPanel"
-    ],
-    "storyPath": null
+    sourcePath: "features/productivity/planner/components/PlannerBatchToolbar.tsx",
+    kind: "component",
+    exports: ["PlannerBatchToolbar"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/productivity/clock/components/WorldClockPanel.tsx",
-    "kind": "component",
-    "exports": [
-      "WorldClockPanel"
-    ],
-    "storyPath": null
+    sourcePath: "features/productivity/planner/components/PlannerCanvas.tsx",
+    kind: "component",
+    exports: ["PlannerCanvas"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/productivity/planner/components/PlanTemplateLibrary.tsx",
-    "kind": "component",
-    "exports": [
-      "PlanTemplateLibrary"
-    ],
-    "storyPath": null
+    sourcePath: "features/productivity/planner/components/PlannerContent.tsx",
+    kind: "component",
+    exports: ["PlannerContent"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/productivity/planner/components/PlannerBatchToolbar.tsx",
-    "kind": "component",
-    "exports": [
-      "PlannerBatchToolbar"
-    ],
-    "storyPath": null
+    sourcePath: "features/productivity/planner/components/PlannerDialogs.tsx",
+    kind: "component",
+    exports: ["PlannerDialogs"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/productivity/planner/components/PlannerCanvas.tsx",
-    "kind": "component",
-    "exports": [
-      "PlannerCanvas"
-    ],
-    "storyPath": null
+    sourcePath: "features/productivity/planner/components/PlannerFilterPopover.tsx",
+    kind: "component",
+    exports: ["PlannerFilterPopover"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/productivity/planner/components/PlannerContent.tsx",
-    "kind": "component",
-    "exports": [
-      "PlannerContent"
-    ],
-    "storyPath": null
+    sourcePath: "features/productivity/planner/components/PlannerForms.tsx",
+    kind: "component",
+    exports: ["DateAction", "PlanForm", "TaskDrawer", "TaskForm"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/productivity/planner/components/PlannerDialogs.tsx",
-    "kind": "component",
-    "exports": [
-      "PlannerDialogs"
-    ],
-    "storyPath": null
+    sourcePath: "features/productivity/planner/components/PlannerHeader.tsx",
+    kind: "component",
+    exports: ["PlannerHeader"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/productivity/planner/components/PlannerFilterPopover.tsx",
-    "kind": "component",
-    "exports": [
-      "PlannerFilterPopover"
-    ],
-    "storyPath": null
-  },
-  {
-    "sourcePath": "features/productivity/planner/components/PlannerForms.tsx",
-    "kind": "component",
-    "exports": [
-      "DateAction",
-      "PlanForm",
-      "TaskDrawer",
-      "TaskForm"
-    ],
-    "storyPath": null
+    sourcePath: "features/productivity/planner/components/PlannerMenus.tsx",
+    kind: "component",
+    exports: ["CommandPalette", "FilterMenu", "MoreMenu", "ViewSwitch"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/productivity/planner/components/PlannerHeader.tsx",
-    "kind": "component",
-    "exports": [
-      "PlannerHeader"
-    ],
-    "storyPath": null
-  },
-  {
-    "sourcePath": "features/productivity/planner/components/PlannerMenus.tsx",
-    "kind": "component",
-    "exports": [
-      "CommandPalette",
-      "FilterMenu",
-      "MoreMenu",
-      "ViewSwitch"
-    ],
-    "storyPath": null
+    sourcePath: "features/productivity/planner/components/PlannerMoreMenu.tsx",
+    kind: "component",
+    exports: ["PlannerMoreMenu"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/productivity/planner/components/PlannerMoreMenu.tsx",
-    "kind": "component",
-    "exports": [
-      "PlannerMoreMenu"
-    ],
-    "storyPath": null
+    sourcePath: "features/productivity/planner/components/PlannerOverlays.tsx",
+    kind: "component",
+    exports: ["PlannerOverlays"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/productivity/planner/components/PlannerOverlays.tsx",
-    "kind": "component",
-    "exports": [
-      "PlannerOverlays"
-    ],
-    "storyPath": null
+    sourcePath: "features/productivity/planner/components/PlannerOverview.tsx",
+    kind: "component",
+    exports: ["PlannerOverview"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/productivity/planner/components/PlannerOverview.tsx",
-    "kind": "component",
-    "exports": [
-      "PlannerOverview"
-    ],
-    "storyPath": null
+    sourcePath: "features/productivity/planner/components/PlannerPageLayout.tsx",
+    kind: "component",
+    exports: ["PlannerPageLayout"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/productivity/planner/components/PlannerPageLayout.tsx",
-    "kind": "component",
-    "exports": [
-      "PlannerPageLayout"
-    ],
-    "storyPath": null
+    sourcePath: "features/productivity/planner/components/PlannerPageShell.tsx",
+    kind: "component",
+    exports: ["PlannerPageShell"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/productivity/planner/components/PlannerPageShell.tsx",
-    "kind": "component",
-    "exports": [
-      "PlannerPageShell"
-    ],
-    "storyPath": null
+    sourcePath: "features/productivity/planner/components/PlannerToolbar.tsx",
+    kind: "component",
+    exports: ["PlannerToolbar"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/productivity/planner/components/PlannerToolbar.tsx",
-    "kind": "component",
-    "exports": [
-      "PlannerToolbar"
-    ],
-    "storyPath": null
+    sourcePath: "features/productivity/planner/components/TemplateOrganizationPicker.tsx",
+    kind: "component",
+    exports: ["TemplateOrganizationPicker"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/productivity/planner/components/TemplateOrganizationPicker.tsx",
-    "kind": "component",
-    "exports": [
-      "TemplateOrganizationPicker"
-    ],
-    "storyPath": null
+    sourcePath: "features/productivity/planner/components/dialogs/PlannerDialogHost.tsx",
+    kind: "component",
+    exports: ["PlannerDialogHost"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/productivity/planner/components/dialogs/PlannerDialogHost.tsx",
-    "kind": "component",
-    "exports": [
-      "PlannerDialogHost"
-    ],
-    "storyPath": null
+    sourcePath: "features/productivity/planner/components/layout/PlannerLayout.tsx",
+    kind: "component",
+    exports: ["PlannerLayout"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/productivity/planner/components/layout/PlannerLayout.tsx",
-    "kind": "component",
-    "exports": [
-      "PlannerLayout"
-    ],
-    "storyPath": null
+    sourcePath: "features/productivity/planner/components/summary/PlannerSummaryCard.tsx",
+    kind: "component",
+    exports: ["PlannerSummaryCard"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/productivity/planner/components/summary/PlannerSummaryCard.tsx",
-    "kind": "component",
-    "exports": [
-      "PlannerSummaryCard"
-    ],
-    "storyPath": null
+    sourcePath: "features/productivity/planner/components/toolbar/PlannerToolbarLayout.tsx",
+    kind: "component",
+    exports: ["PlannerToolbarLayout"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/productivity/planner/components/toolbar/PlannerToolbarLayout.tsx",
-    "kind": "component",
-    "exports": [
-      "PlannerToolbarLayout"
-    ],
-    "storyPath": null
+    sourcePath: "features/productivity/planner/pages/PlanTemplatesPage.tsx",
+    kind: "page",
+    exports: ["PlanTemplatesPage"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/productivity/planner/pages/PlanTemplatesPage.tsx",
-    "kind": "page",
-    "exports": [
-      "PlanTemplatesPage"
-    ],
-    "storyPath": null
+    sourcePath: "features/productivity/planner/pages/PlannerPage.tsx",
+    kind: "page",
+    exports: ["PlannerPage"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/productivity/planner/pages/PlannerPage.tsx",
-    "kind": "page",
-    "exports": [
-      "PlannerPage"
-    ],
-    "storyPath": null
+    sourcePath: "features/productivity/resources/ResourcesPage.tsx",
+    kind: "component",
+    exports: ["ResourcesPage"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/productivity/resources/ResourcesPage.tsx",
-    "kind": "component",
-    "exports": [
-      "ResourcesPage"
-    ],
-    "storyPath": null
+    sourcePath: "features/student-life/attendance/components/AttendanceReviewQueue.tsx",
+    kind: "component",
+    exports: ["AttendanceReviewQueue"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/student-life/attendance/components/AttendanceReviewQueue.tsx",
-    "kind": "component",
-    "exports": [
-      "AttendanceReviewQueue"
-    ],
-    "storyPath": null
+    sourcePath: "features/student-life/attendance/components/AttendanceStaffWorkspace.tsx",
+    kind: "component",
+    exports: ["AttendanceProfileDialog", "AttendanceStaffWorkspace"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/student-life/attendance/components/AttendanceStaffWorkspace.tsx",
-    "kind": "component",
-    "exports": [
-      "AttendanceProfileDialog",
-      "AttendanceStaffWorkspace"
-    ],
-    "storyPath": null
+    sourcePath: "features/student-life/attendance/components/AttendanceStatusTiles.tsx",
+    kind: "component",
+    exports: ["AttendanceStatusTiles"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/student-life/attendance/components/AttendanceStatusTiles.tsx",
-    "kind": "component",
-    "exports": [
-      "AttendanceStatusTiles"
-    ],
-    "storyPath": null
+    sourcePath: "features/student-life/attendance/components/DormDelegateEditor.tsx",
+    kind: "component",
+    exports: ["DormDelegateEditor"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/student-life/attendance/components/DormDelegateEditor.tsx",
-    "kind": "component",
-    "exports": [
-      "DormDelegateEditor"
-    ],
-    "storyPath": null
+    sourcePath: "features/student-life/attendance/components/PendingCorrectionQueue.tsx",
+    kind: "component",
+    exports: ["PendingCorrectionQueue"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/student-life/attendance/components/PendingCorrectionQueue.tsx",
-    "kind": "component",
-    "exports": [
-      "PendingCorrectionQueue"
-    ],
-    "storyPath": null
+    sourcePath: "features/student-life/attendance/components/StudentAttendanceProfileDrawer.tsx",
+    kind: "component",
+    exports: ["StudentAttendanceProfileDrawer"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/student-life/attendance/components/StudentAttendanceProfileDrawer.tsx",
-    "kind": "component",
-    "exports": [
-      "StudentAttendanceProfileDrawer"
-    ],
-    "storyPath": null
+    sourcePath: "features/student-life/attendance/components/StudentAttendanceWorkspace.tsx",
+    kind: "component",
+    exports: ["StudentAttendancePoolPrompt", "StudentAttendanceWorkspace"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/student-life/attendance/components/StudentAttendanceWorkspace.tsx",
-    "kind": "component",
-    "exports": [
-      "StudentAttendancePoolPrompt",
-      "StudentAttendanceWorkspace"
-    ],
-    "storyPath": null
+    sourcePath: "features/student-life/attendance/pages/AttendancePage.tsx",
+    kind: "page",
+    exports: ["AttendancePage"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/student-life/attendance/pages/AttendancePage.tsx",
-    "kind": "page",
-    "exports": [
-      "AttendancePage"
-    ],
-    "storyPath": null
+    sourcePath: "features/student-life/attendance/pages/MyAttendancePage.tsx",
+    kind: "page",
+    exports: ["MyAttendancePage"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/student-life/attendance/pages/MyAttendancePage.tsx",
-    "kind": "page",
-    "exports": [
-      "MyAttendancePage"
-    ],
-    "storyPath": null
+    sourcePath: "features/student-life/attendance/views/AttendanceRosterView.tsx",
+    kind: "component",
+    exports: ["AttendanceRosterView"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/student-life/attendance/views/AttendanceRosterView.tsx",
-    "kind": "component",
-    "exports": [
-      "AttendanceRosterView"
-    ],
-    "storyPath": null
+    sourcePath: "features/student-life/attention/pages/AttentionPage.tsx",
+    kind: "page",
+    exports: ["AttentionCard", "AttentionPage"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/student-life/attention/pages/AttentionPage.tsx",
-    "kind": "page",
-    "exports": [
-      "AttentionCard",
-      "AttentionPage"
-    ],
-    "storyPath": null
+    sourcePath: "features/student-life/dormitory/pages/DormitoryPage.tsx",
+    kind: "page",
+    exports: ["DormitoryPage"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/student-life/dormitory/pages/DormitoryPage.tsx",
-    "kind": "page",
-    "exports": [
-      "DormitoryPage"
-    ],
-    "storyPath": null
+    sourcePath: "features/student-life/exit-permissions/ExitPermissionsPage.tsx",
+    kind: "component",
+    exports: ["ExitPermissionsPage"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/student-life/exit-permissions/ExitPermissionsPage.tsx",
-    "kind": "component",
-    "exports": [
-      "ExitPermissionsPage"
-    ],
-    "storyPath": null
+    sourcePath: "features/student-life/followup/components/FollowUpCenter.tsx",
+    kind: "component",
+    exports: ["FollowUpCenter"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/student-life/followup/components/FollowUpCenter.tsx",
-    "kind": "component",
-    "exports": [
-      "FollowUpCenter"
-    ],
-    "storyPath": null
+    sourcePath: "features/student-life/followup/components/FollowUpPage.tsx",
+    kind: "component",
+    exports: ["FollowUpPage"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/student-life/followup/components/FollowUpPage.tsx",
-    "kind": "component",
-    "exports": [
-      "FollowUpPage"
-    ],
-    "storyPath": null
+    sourcePath: "features/student-life/leave-requests/LeaveRequestsPage.tsx",
+    kind: "component",
+    exports: ["LeaveRequestsPage"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/student-life/leave-requests/LeaveRequestsPage.tsx",
-    "kind": "component",
-    "exports": [
-      "LeaveRequestsPage"
-    ],
-    "storyPath": null
+    sourcePath: "features/student-life/permission-requests/PermissionRequestsPage.tsx",
+    kind: "component",
+    exports: ["PermissionDecisionModal", "PermissionRequestsPage"],
+    storyPath: null,
   },
   {
-    "sourcePath": "features/student-life/permission-requests/PermissionRequestsPage.tsx",
-    "kind": "component",
-    "exports": [
-      "PermissionDecisionModal",
-      "PermissionRequestsPage"
-    ],
-    "storyPath": null
+    sourcePath: "shared/errors/AppErrorBoundary.tsx",
+    kind: "component",
+    exports: ["AppErrorBoundary"],
+    storyPath: null,
   },
   {
-    "sourcePath": "shared/errors/AppErrorBoundary.tsx",
-    "kind": "component",
-    "exports": [
-      "AppErrorBoundary"
-    ],
-    "storyPath": null
+    sourcePath: "shared/errors/ErrorFallback.tsx",
+    kind: "component",
+    exports: ["ErrorFallback"],
+    storyPath: null,
   },
   {
-    "sourcePath": "shared/errors/ErrorFallback.tsx",
-    "kind": "component",
-    "exports": [
-      "ErrorFallback"
-    ],
-    "storyPath": null
+    sourcePath: "shared/errors/RouteErrorBoundary.tsx",
+    kind: "component",
+    exports: ["RouteErrorBoundary"],
+    storyPath: null,
   },
   {
-    "sourcePath": "shared/errors/RouteErrorBoundary.tsx",
-    "kind": "component",
-    "exports": [
-      "RouteErrorBoundary"
-    ],
-    "storyPath": null
-  },
-  {
-    "sourcePath": "shared/theme/theme.tsx",
-    "kind": "component",
-    "exports": [
-      "AuthThemeProvider",
-      "ThemeProvider",
-      "ThemeSwitcher"
-    ],
-    "storyPath": null
+    sourcePath: "shared/theme/theme.tsx",
+    kind: "component",
+    exports: ["AuthThemeProvider", "ThemeProvider", "ThemeSwitcher"],
+    storyPath: null,
   },
   {
-    "sourcePath": "shared/ui/StudentPicker.tsx",
-    "kind": "component",
-    "exports": [
-      "StudentPicker"
-    ],
-    "storyPath": null
+    sourcePath: "shared/ui/StudentPicker.tsx",
+    kind: "component",
+    exports: ["StudentPicker"],
+    storyPath: null,
   },
   {
-    "sourcePath": "shared/ui/admin-data-table.tsx",
-    "kind": "component",
-    "exports": [
-      "AdminDataTable"
-    ],
-    "storyPath": null
+    sourcePath: "shared/ui/admin-data-table.tsx",
+    kind: "component",
+    exports: ["AdminDataTable"],
+    storyPath: null,
   },
   {
-    "sourcePath": "shared/ui/admin-list.tsx",
-    "kind": "component",
-    "exports": [
-      "AdminList"
-    ],
-    "storyPath": null
+    sourcePath: "shared/ui/admin-list.tsx",
+    kind: "component",
+    exports: ["AdminList"],
+    storyPath: null,
   },
   {
-    "sourcePath": "shared/ui/assessment-workspace-intro.tsx",
-    "kind": "component",
-    "exports": [
-      "AssessmentMetric",
-      "AssessmentWorkspaceIntro"
-    ],
-    "storyPath": null
+    sourcePath: "shared/ui/assessment-workspace-intro.tsx",
+    kind: "component",
+    exports: ["AssessmentMetric", "AssessmentWorkspaceIntro"],
+    storyPath: null,
   },
   {
-    "sourcePath": "shared/ui/attendance-coin.tsx",
-    "kind": "component",
-    "exports": [
-      "AttendanceCoin"
-    ],
-    "storyPath": null
+    sourcePath: "shared/ui/attendance-coin.tsx",
+    kind: "component",
+    exports: ["AttendanceCoin"],
+    storyPath: null,
   },
   {
-    "sourcePath": "shared/ui/collection-toolbar.tsx",
-    "kind": "component",
-    "exports": [
-      "CollectionToolbar"
-    ],
-    "storyPath": null
+    sourcePath: "shared/ui/collection-toolbar.tsx",
+    kind: "component",
+    exports: ["CollectionToolbar"],
+    storyPath: null,
   },
   {
-    "sourcePath": "shared/ui/dashboard-layout-board.tsx",
-    "kind": "component",
-    "exports": [
-      "DashboardLayoutBoard"
-    ],
-    "storyPath": null
+    sourcePath: "shared/ui/dashboard-layout-board.tsx",
+    kind: "component",
+    exports: ["DashboardLayoutBoard"],
+    storyPath: null,
   },
   {
-    "sourcePath": "shared/ui/dashboard-preferences-content.tsx/DashboardPreferencesContent.tsx",
-    "kind": "component",
-    "exports": [
-      "DashboardPreferencesContent"
-    ],
-    "storyPath": null
+    sourcePath: "shared/ui/dashboard-preferences-content.tsx/DashboardPreferencesContent.tsx",
+    kind: "component",
+    exports: ["DashboardPreferencesContent"],
+    storyPath: null,
   },
   {
-    "sourcePath": "shared/ui/dashboard-workspace.tsx",
-    "kind": "component",
-    "exports": [
-      "DashboardWorkspace"
-    ],
-    "storyPath": null
+    sourcePath: "shared/ui/dashboard-workspace.tsx",
+    kind: "component",
+    exports: ["DashboardWorkspace"],
+    storyPath: null,
   },
   {
-    "sourcePath": "shared/ui/data-table/data-table-desktop.tsx",
-    "kind": "component",
-    "exports": [
-      "DataTableDesktop"
-    ],
-    "storyPath": null
+    sourcePath: "shared/ui/data-table/data-table-desktop.tsx",
+    kind: "component",
+    exports: ["DataTableDesktop"],
+    storyPath: null,
   },
   {
-    "sourcePath": "shared/ui/data-table/data-table-filters.tsx",
-    "kind": "component",
-    "exports": [
-      "DataTableFilters"
-    ],
-    "storyPath": null
+    sourcePath: "shared/ui/data-table/data-table-filters.tsx",
+    kind: "component",
+    exports: ["DataTableFilters"],
+    storyPath: null,
   },
   {
-    "sourcePath": "shared/ui/data-table/data-table-mobile-card.tsx",
-    "kind": "component",
-    "exports": [
-      "DataTableMobileCards"
-    ],
-    "storyPath": null
+    sourcePath: "shared/ui/data-table/data-table-mobile-card.tsx",
+    kind: "component",
+    exports: ["DataTableMobileCards"],
+    storyPath: null,
   },
   {
-    "sourcePath": "shared/ui/data-table/data-table-pagination.tsx",
-    "kind": "component",
-    "exports": [
-      "DataTablePagination"
-    ],
-    "storyPath": null
+    sourcePath: "shared/ui/data-table/data-table-pagination.tsx",
+    kind: "component",
+    exports: ["DataTablePagination"],
+    storyPath: null,
   },
   {
-    "sourcePath": "shared/ui/data-table/data-table-row-actions.tsx",
-    "kind": "component",
-    "exports": [
-      "DataTableRowActions"
-    ],
-    "storyPath": null
+    sourcePath: "shared/ui/data-table/data-table-row-actions.tsx",
+    kind: "component",
+    exports: ["DataTableRowActions"],
+    storyPath: null,
   },
   {
-    "sourcePath": "shared/ui/data-table/data-table-toolbar.tsx",
-    "kind": "component",
-    "exports": [
-      "DataTableToolbar"
-    ],
-    "storyPath": null
+    sourcePath: "shared/ui/data-table/data-table-toolbar.tsx",
+    kind: "component",
+    exports: ["DataTableToolbar"],
+    storyPath: null,
   },
   {
-    "sourcePath": "shared/ui/data-table/data-table.tsx",
-    "kind": "component",
-    "exports": [
-      "DataTable"
-    ],
-    "storyPath": null
+    sourcePath: "shared/ui/data-table/data-table.tsx",
+    kind: "component",
+    exports: ["DataTable"],
+    storyPath: null,
   },
   {
-    "sourcePath": "shared/ui/data-transfer.tsx",
-    "kind": "component",
-    "exports": [
-      "DataTransferWorkspace"
-    ],
-    "storyPath": null
+    sourcePath: "shared/ui/data-transfer.tsx",
+    kind: "component",
+    exports: ["DataTransferWorkspace"],
+    storyPath: null,
   },
   {
-    "sourcePath": "shared/ui/date-navigator.tsx",
-    "kind": "component",
-    "exports": [
-      "DateNavigator"
-    ],
-    "storyPath": null
+    sourcePath: "shared/ui/date-navigator.tsx",
+    kind: "component",
+    exports: ["DateNavigator"],
+    storyPath: null,
   },
   {
-    "sourcePath": "shared/ui/date-picker.tsx",
-    "kind": "component",
-    "exports": [
-      "DatePicker",
-      "DateTimePicker"
-    ],
-    "storyPath": null
+    sourcePath: "shared/ui/date-picker.tsx",
+    kind: "component",
+    exports: ["DatePicker", "DateTimePicker"],
+    storyPath: null,
   },
   {
-    "sourcePath": "shared/ui/floating-island/FloatingIslandProvider.tsx",
-    "kind": "component",
-    "exports": [
-      "FloatingIslandProvider"
-    ],
-    "storyPath": null
+    sourcePath: "shared/ui/floating-island/FloatingIslandProvider.tsx",
+    kind: "component",
+    exports: ["FloatingIslandProvider"],
+    storyPath: null,
   },
   {
-    "sourcePath": "shared/ui/floating-island/FloatingIslandViewport.tsx",
-    "kind": "component",
-    "exports": [
-      "FloatingIslandViewport"
-    ],
-    "storyPath": null
+    sourcePath: "shared/ui/floating-island/FloatingIslandViewport.tsx",
+    kind: "component",
+    exports: ["FloatingIslandViewport"],
+    storyPath: null,
   },
   {
-    "sourcePath": "shared/ui/glass/GlassActiveIndicator.tsx",
-    "kind": "component",
-    "exports": [
-      "GlassActiveIndicator"
-    ],
-    "storyPath": null
+    sourcePath: "shared/ui/glass/GlassActiveIndicator.tsx",
+    kind: "component",
+    exports: ["GlassActiveIndicator"],
+    storyPath: null,
   },
   {
-    "sourcePath": "shared/ui/locale.tsx",
-    "kind": "component",
-    "exports": [
-      "LocaleProvider"
-    ],
-    "storyPath": null
+    sourcePath: "shared/ui/locale.tsx",
+    kind: "component",
+    exports: ["LocaleProvider"],
+    storyPath: null,
   },
   {
-    "sourcePath": "shared/ui/management-workspace.tsx",
-    "kind": "component",
-    "exports": [
+    sourcePath: "shared/ui/management-workspace.tsx",
+    kind: "component",
+    exports: [
       "ManagementMasterDetail",
       "ManagementPageHeader",
       "ManagementSearch",
       "ManagementStat",
-      "ManagementSummaryBar"
+      "ManagementSummaryBar",
     ],
-    "storyPath": null
+    storyPath: null,
   },
   {
-    "sourcePath": "shared/ui/mobile-sheet.tsx",
-    "kind": "component",
-    "exports": [
-      "MobileSheet"
-    ],
-    "storyPath": null
+    sourcePath: "shared/ui/mobile-sheet.tsx",
+    kind: "component",
+    exports: ["MobileSheet"],
+    storyPath: null,
   },
   {
-    "sourcePath": "shared/ui/mobile/data-display.tsx",
-    "kind": "component",
-    "exports": [
+    sourcePath: "shared/ui/mobile/data-display.tsx",
+    kind: "component",
+    exports: [
       "CompactChartContainer",
       "ProgressIndicator",
       "ProgressRing",
       "StatisticCard",
       "StatusBadge",
-      "Timeline"
+      "Timeline",
     ],
-    "storyPath": null
+    storyPath: null,
   },
   {
-    "sourcePath": "shared/ui/mobile/feedback.tsx",
-    "kind": "component",
-    "exports": [
-      "MobileSkeleton",
-      "OfflineBanner",
-      "ToastNotification",
-      "UndoAction"
-    ],
-    "storyPath": null
+    sourcePath: "shared/ui/mobile/feedback.tsx",
+    kind: "component",
+    exports: ["MobileSkeleton", "OfflineBanner", "ToastNotification", "UndoAction"],
+    storyPath: null,
   },
   {
-    "sourcePath": "shared/ui/mobile/forms.tsx",
-    "kind": "component",
-    "exports": [
+    sourcePath: "shared/ui/mobile/forms.tsx",
+    kind: "component",
+    exports: [
       "FormStepper",
       "MobileCheckbox",
       "MobileFileUpload",
@@ -2808,14 +1969,14 @@ export const componentCatalog = [
       "NationalCodeField",
       "PersianDatePicker",
       "PhoneNumberField",
-      "SearchBar"
+      "SearchBar",
     ],
-    "storyPath": null
+    storyPath: null,
   },
   {
-    "sourcePath": "shared/ui/mobile/layout.tsx",
-    "kind": "component",
-    "exports": [
+    sourcePath: "shared/ui/mobile/layout.tsx",
+    kind: "component",
+    exports: [
       "CollapsibleSection",
       "MobileCard",
       "MobileGrid",
@@ -2823,158 +1984,131 @@ export const componentCatalog = [
       "MobileSection",
       "MobileStack",
       "PageHeader",
-      "SafeAreaContainer"
+      "SafeAreaContainer",
     ],
-    "storyPath": null
+    storyPath: null,
   },
   {
-    "sourcePath": "shared/ui/mobile/lists.tsx",
-    "kind": "component",
-    "exports": [
+    sourcePath: "shared/ui/mobile/lists.tsx",
+    kind: "component",
+    exports: [
       "EmptyListState",
       "FilterChips",
       "MobileDataList",
       "MobileListItem",
       "MobileSelectionList",
-      "SortSheet"
+      "SortSheet",
     ],
-    "storyPath": null
+    storyPath: null,
   },
   {
-    "sourcePath": "shared/ui/mobile/navigation.tsx",
-    "kind": "component",
-    "exports": [
+    sourcePath: "shared/ui/mobile/navigation.tsx",
+    kind: "component",
+    exports: [
       "BackButton",
       "ContextMenu",
       "MobileBottomNavigation",
       "MobileHeader",
       "MobileTabs",
       "NavigationSheet",
-      "StickyActionBar"
+      "StickyActionBar",
     ],
-    "storyPath": null
+    storyPath: null,
   },
   {
-    "sourcePath": "shared/ui/mobile/sheets.tsx",
-    "kind": "component",
-    "exports": [
+    sourcePath: "shared/ui/mobile/sheets.tsx",
+    kind: "component",
+    exports: [
       "ActionSheet",
       "ConfirmationDialog",
       "DetailSheet",
       "FullScreenDialog",
-      "MobileBottomSheet"
+      "MobileBottomSheet",
     ],
-    "storyPath": null
+    storyPath: null,
   },
   {
-    "sourcePath": "shared/ui/modal.tsx",
-    "kind": "component",
-    "exports": [
-      "Modal",
-      "ModalProvider"
-    ],
-    "storyPath": null
+    sourcePath: "shared/ui/modal.tsx",
+    kind: "component",
+    exports: ["Modal", "ModalProvider"],
+    storyPath: null,
   },
   {
-    "sourcePath": "shared/ui/notifications.tsx",
-    "kind": "component",
-    "exports": [
-      "AppToaster"
-    ],
-    "storyPath": null
+    sourcePath: "shared/ui/notifications.tsx",
+    kind: "component",
+    exports: ["AppToaster"],
+    storyPath: null,
   },
   {
-    "sourcePath": "shared/ui/organization-tag.tsx",
-    "kind": "component",
-    "exports": [
-      "OrganizationTag"
-    ],
-    "storyPath": "shared/ui/organization-tag.stories.tsx"
+    sourcePath: "shared/ui/organization-tag.tsx",
+    kind: "component",
+    exports: ["OrganizationTag"],
+    storyPath: "shared/ui/organization-tag.stories.tsx",
   },
   {
-    "sourcePath": "shared/ui/platform-organization-picker.tsx",
-    "kind": "component",
-    "exports": [
-      "PlatformOrganizationPicker"
-    ],
-    "storyPath": null
+    sourcePath: "shared/ui/platform-organization-picker.tsx",
+    kind: "component",
+    exports: ["PlatformOrganizationPicker"],
+    storyPath: null,
   },
   {
-    "sourcePath": "shared/ui/popover.tsx",
-    "kind": "component",
-    "exports": [
-      "ViewportPopover"
-    ],
-    "storyPath": null
+    sourcePath: "shared/ui/popover.tsx",
+    kind: "component",
+    exports: ["ViewportPopover"],
+    storyPath: null,
   },
   {
-    "sourcePath": "shared/ui/question-bank-data-transfer.tsx",
-    "kind": "component",
-    "exports": [
-      "QuestionBankDataTransfer"
-    ],
-    "storyPath": null
+    sourcePath: "shared/ui/question-bank-data-transfer.tsx",
+    kind: "component",
+    exports: ["QuestionBankDataTransfer"],
+    storyPath: null,
   },
   {
-    "sourcePath": "shared/ui/responsive-drawer.tsx",
-    "kind": "component",
-    "exports": [
-      "ResponsiveDrawer"
-    ],
-    "storyPath": null
+    sourcePath: "shared/ui/responsive-drawer.tsx",
+    kind: "component",
+    exports: ["ResponsiveDrawer"],
+    storyPath: null,
   },
   {
-    "sourcePath": "shared/ui/responsive-modal.tsx",
-    "kind": "component",
-    "exports": [
-      "ResponsiveModal"
-    ],
-    "storyPath": null
+    sourcePath: "shared/ui/responsive-modal.tsx",
+    kind: "component",
+    exports: ["ResponsiveModal"],
+    storyPath: null,
   },
   {
-    "sourcePath": "shared/ui/segmented-control.tsx",
-    "kind": "component",
-    "exports": [
-      "SegmentedControl"
-    ],
-    "storyPath": "shared/ui/segmented-control.stories.tsx"
+    sourcePath: "shared/ui/segmented-control.tsx",
+    kind: "component",
+    exports: ["SegmentedControl"],
+    storyPath: "shared/ui/segmented-control.stories.tsx",
   },
   {
-    "sourcePath": "shared/ui/soft-confirmation-button.tsx",
-    "kind": "component",
-    "exports": [
-      "SoftConfirmButton"
-    ],
-    "storyPath": null
+    sourcePath: "shared/ui/soft-confirmation-button.tsx",
+    kind: "component",
+    exports: ["SoftConfirmButton"],
+    storyPath: null,
   },
   {
-    "sourcePath": "shared/ui/spreadsheet-transfer-actions.tsx",
-    "kind": "component",
-    "exports": [
-      "SpreadsheetTransferActions"
-    ],
-    "storyPath": null
+    sourcePath: "shared/ui/spreadsheet-transfer-actions.tsx",
+    kind: "component",
+    exports: ["SpreadsheetTransferActions"],
+    storyPath: null,
   },
   {
-    "sourcePath": "shared/ui/spreadsheet-transfer-launcher.tsx",
-    "kind": "component",
-    "exports": [
-      "SpreadsheetTransferLauncher"
-    ],
-    "storyPath": null
+    sourcePath: "shared/ui/spreadsheet-transfer-launcher.tsx",
+    kind: "component",
+    exports: ["SpreadsheetTransferLauncher"],
+    storyPath: null,
   },
   {
-    "sourcePath": "shared/ui/student-allocation-control.tsx",
-    "kind": "component",
-    "exports": [
-      "StudentAllocationControl"
-    ],
-    "storyPath": null
+    sourcePath: "shared/ui/student-allocation-control.tsx",
+    kind: "component",
+    exports: ["StudentAllocationControl"],
+    storyPath: null,
   },
   {
-    "sourcePath": "shared/ui/ui.tsx",
-    "kind": "component",
-    "exports": [
+    sourcePath: "shared/ui/ui.tsx",
+    kind: "component",
+    exports: [
       "Badge",
       "Button",
       "Card",
@@ -2987,26 +2121,22 @@ export const componentCatalog = [
       "LoadingState",
       "PasswordInput",
       "Select",
-      "Textarea"
+      "Textarea",
     ],
-    "storyPath": "shared/ui/ui.stories.tsx"
+    storyPath: "shared/ui/ui.stories.tsx",
   },
   {
-    "sourcePath": "shared/ui/work-context-bar.tsx",
-    "kind": "component",
-    "exports": [
-      "WorkContextBar"
-    ],
-    "storyPath": null
+    sourcePath: "shared/ui/work-context-bar.tsx",
+    kind: "component",
+    exports: ["WorkContextBar"],
+    storyPath: null,
   },
   {
-    "sourcePath": "shared/ui/zanin-brand.tsx",
-    "kind": "component",
-    "exports": [
-      "ZaninBrand"
-    ],
-    "storyPath": "shared/ui/zanin-brand.stories.tsx"
-  }
+    sourcePath: "shared/ui/zanin-brand.tsx",
+    kind: "component",
+    exports: ["ZaninBrand"],
+    storyPath: "shared/ui/zanin-brand.stories.tsx",
+  },
 ] as const satisfies readonly ComponentCatalogEntry[];
 
 export const adminStoryRoutes = [
@@ -3042,5 +2172,5 @@ export const adminStoryRoutes = [
   "/admin/teacher-profile",
   "/admin/users",
   "/login",
-  "/register"
+  "/register",
 ] as const;

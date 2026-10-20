@@ -1,6 +1,7 @@
 import { mkdir, readFile, readdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import prettier from "prettier";
 
 const adminRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const sourceRoot = path.join(adminRoot, "src");
@@ -42,16 +43,24 @@ const allRelativePaths = new Set(
 );
 const components = [];
 const routerSource = await readFile(path.join(sourceRoot, "app", "routing", "router.tsx"), "utf8");
-const routePaths = ["/admin", ...new Set(
-  [...routerSource.matchAll(/\bpath:\s*"([^"]+)"/g)]
-    .map((match) => match[1])
-    .filter((route) => route !== "*" && route !== "/admin")
-    .map((route) => (route.startsWith("/") ? route : `/admin/${route}`)),
-)].sort();
+const routePaths = [
+  "/admin",
+  ...new Set(
+    [...routerSource.matchAll(/\bpath:\s*"([^"]+)"/g)]
+      .map((match) => match[1])
+      .filter((route) => route !== "*" && route !== "/admin")
+      .map((route) => (route.startsWith("/") ? route : `/admin/${route}`)),
+  ),
+].sort();
 
 for (const file of allFiles.sort()) {
   const relativePath = path.relative(sourceRoot, file).split(path.sep).join("/");
-  if (!relativePath.endsWith(".tsx") || /\.(test|stories)\.tsx$/.test(relativePath)) continue;
+  if (
+    !relativePath.endsWith(".tsx") ||
+    /\.(test|stories)\.tsx$/.test(relativePath) ||
+    relativePath.startsWith("features/identity/registration/")
+  )
+    continue;
   const exports = exportedComponents(await readFile(file, "utf8"));
   if (exports.length === 0) continue;
   components.push({
@@ -62,11 +71,17 @@ for (const file of allFiles.sort()) {
   });
 }
 
-const generated = sourceFor(components);
+const prettierConfig = (await prettier.resolveConfig(outputPath)) ?? {};
+const generated = await prettier.format(sourceFor(components), {
+  ...prettierConfig,
+  filepath: outputPath,
+});
 if (checkOnly) {
   const current = await readFile(outputPath, "utf8").catch(() => "");
   if (current !== generated) {
-    throw new Error("Storybook component catalog is stale. Run `npm run storybook:catalog` in apps/admin.");
+    throw new Error(
+      "Storybook component catalog is stale. Run `npm run storybook:catalog` in apps/admin.",
+    );
   }
   console.log(`Storybook catalog is current (${components.length} component modules).`);
 } else {
