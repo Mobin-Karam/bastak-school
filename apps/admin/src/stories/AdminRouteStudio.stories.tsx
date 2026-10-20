@@ -1,10 +1,10 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { RouterProvider } from "react-router-dom";
-import { useMemo, useState } from "react";
+import { useNavigate, useRoutes } from "react-router-dom";
+import { useEffect, useState } from "react";
 
 import { StorybookApiFixture } from "../../.storybook/fixtures/api";
 import { StorybookAuthProvider } from "../../.storybook/fixtures/auth";
-import { createStorybookRouter } from "../app/routing/router";
+import { adminRouteObjects } from "../app/routing/router";
 import { adminStoryRoutes } from "./component-catalog.generated";
 
 const meta = { title: "Bastak School/Admin route studio", parameters: { layout: "fullscreen" }, tags: ["autodocs"] } satisfies Meta;
@@ -14,7 +14,10 @@ type Story = StoryObj<typeof meta>;
 function RouteCanvas() {
   const [route, setRoute] = useState<(typeof adminStoryRoutes)[number]>("/admin");
   const [role, setRole] = useState<"SCHOOL_ADMIN" | "TEACHER" | "STUDENT" | "PRINCIPAL">("SCHOOL_ADMIN");
-  const router = useMemo(() => createStorybookRouter(route), [route]);
+  const navigate = useNavigate();
+  useEffect(() => {
+    navigate(route, { replace: true });
+  }, [navigate, route]);
   return (
     <div className="min-h-screen bg-paper" dir="rtl">
       <header className="sticky top-0 z-50 flex flex-wrap items-center gap-3 border-b border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card))] p-3 shadow-sm">
@@ -24,11 +27,15 @@ function RouteCanvas() {
       </header>
       <StorybookApiFixture>
         <StorybookAuthProvider role={role} capabilities={["students.read", "classes.read", "schedule.read", "attendance.read", "attendance.manage", "attendance.review", "attendance.class.read", "attendance.class.manage", "registration.read", "system.manage", "announcements.manage", "leave.read", "leave.manage"]}>
-          <RouterProvider key={`${role}:${route}`} router={router} />
+          <RouteTree />
         </StorybookAuthProvider>
       </StorybookApiFixture>
     </div>
   );
+}
+
+function RouteTree() {
+  return useRoutes(adminRouteObjects);
 }
 
 export const AllRoutes: Story = { render: () => <RouteCanvas /> };
