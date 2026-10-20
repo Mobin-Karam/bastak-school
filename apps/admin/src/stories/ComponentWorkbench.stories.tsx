@@ -29,7 +29,7 @@ class PreviewBoundary extends Component<{ children: ReactNode }, { error: string
 }
 
 function firstEntry() {
-  return componentCatalog.find((entry) => entry.kind === "component")!;
+  return componentCatalog[0];
 }
 
 function Workbench() {
@@ -64,7 +64,7 @@ function Workbench() {
         <h1 className="text-lg font-black">کارگاه اجزا</h1>
         <p className="mt-2 text-xs leading-5 text-slate-500">همهٔ اجزای صادرشده از کد منبع را در همین محیط بررسی کنید. اجزای دارای props یا دادهٔ دامنه، خطای fixture را آشکارا نمایش می‌دهند.</p>
         <select value={selectedPath} onChange={(event) => setSelectedPath(event.target.value)} className="mt-4 w-full rounded border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-muted))] p-2 text-xs" dir="ltr">
-          {componentCatalog.filter((entry) => entry.kind === "component").map((entry) => <option key={entry.sourcePath} value={entry.sourcePath}>{entry.sourcePath}</option>)}
+          {componentCatalog.map((entry) => <option key={entry.sourcePath} value={entry.sourcePath}>{entry.kind === "page" ? "[page] " : ""}{entry.sourcePath}</option>)}
         </select>
         <select value={selectedExport} onChange={(event) => setSelectedExport(event.target.value)} className="mt-2 w-full rounded border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-muted))] p-2 text-xs" dir="ltr">
           {selected.exports.map((entry) => <option key={entry} value={entry}>{entry}</option>)}
