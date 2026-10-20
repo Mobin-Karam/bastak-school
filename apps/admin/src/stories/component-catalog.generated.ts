@@ -2,6 +2,7 @@
 
 export type ComponentCatalogEntry = {
   sourcePath: string;
+  kind: "component" | "page";
   exports: readonly string[];
   storyPath: string | null;
 };
@@ -9,6 +10,7 @@ export type ComponentCatalogEntry = {
 export const componentCatalog = [
   {
     "sourcePath": "app/dev/DevBackendSwitcher.tsx",
+    "kind": "component",
     "exports": [
       "DevBackendSwitcher"
     ],
@@ -16,6 +18,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "app/layout/command-palette/AdminCommandPalette.tsx",
+    "kind": "component",
     "exports": [
       "AdminCommandPalette"
     ],
@@ -23,6 +26,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "app/layout/components/AdminAccountMenu.tsx",
+    "kind": "component",
     "exports": [
       "AdminAccountMenu"
     ],
@@ -30,6 +34,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "app/layout/components/AdminFloatingIsland.tsx",
+    "kind": "component",
     "exports": [
       "AdminFloatingIsland"
     ],
@@ -37,6 +42,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "app/layout/components/AdminHeader.tsx",
+    "kind": "component",
     "exports": [
       "AdminHeader"
     ],
@@ -44,6 +50,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "app/layout/components/SharedPageViewport.tsx",
+    "kind": "component",
     "exports": [
       "SharedPageViewport"
     ],
@@ -51,6 +58,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "app/layout/navigation/desktop/AdminContextSidebar.tsx",
+    "kind": "component",
     "exports": [
       "AdminContextSidebar"
     ],
@@ -58,6 +66,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "app/layout/navigation/desktop/AdminMainSidebar.tsx",
+    "kind": "component",
     "exports": [
       "AdminMainSidebar"
     ],
@@ -65,6 +74,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "app/layout/navigation/mobile/AdminMobileNavigation.tsx",
+    "kind": "component",
     "exports": [
       "AdminMobileBottomNav"
     ],
@@ -72,6 +82,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "app/layout/shells/AdminLayout.tsx",
+    "kind": "component",
     "exports": [
       "AdminLayout"
     ],
@@ -79,6 +90,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "app/layout/shells/AdminShellChrome.tsx",
+    "kind": "component",
     "exports": [
       "AdminShellChrome"
     ],
@@ -86,6 +98,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "app/layout/shells/desktop/DesktopShell.tsx",
+    "kind": "component",
     "exports": [
       "DesktopShell"
     ],
@@ -93,6 +106,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "app/layout/shells/mobile/MobileShell.tsx",
+    "kind": "component",
     "exports": [
       "MobileShell"
     ],
@@ -100,6 +114,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "app/layout/shells/tablet/TabletShell.tsx",
+    "kind": "component",
     "exports": [
       "TabletShell"
     ],
@@ -107,6 +122,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "app/providers/providers.tsx",
+    "kind": "component",
     "exports": [
       "AppProviders"
     ],
@@ -114,6 +130,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "app/routing/router.tsx",
+    "kind": "component",
     "exports": [
       "CapabilityRoute"
     ],
@@ -121,6 +138,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/academics/class-groups/pages/ClassGroupsPage.tsx",
+    "kind": "page",
     "exports": [
       "ClassGroupsPage"
     ],
@@ -128,6 +146,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/academics/education/components/ EducationOverviewSkeleton.tsx",
+    "kind": "component",
     "exports": [
       "EducationOverviewSkeleton"
     ],
@@ -135,6 +154,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/academics/education/components/BookEditor.tsx",
+    "kind": "component",
     "exports": [
       "BookEditor"
     ],
@@ -142,6 +162,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/academics/education/components/BookTransferWorkspace.tsx",
+    "kind": "component",
     "exports": [
       "BookTransferWorkspace"
     ],
@@ -149,6 +170,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/academics/education/components/ClassBooksModal.tsx",
+    "kind": "component",
     "exports": [
       "ClassBooksModal"
     ],
@@ -156,6 +178,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/academics/education/components/ClassTransferWorkspace.tsx",
+    "kind": "component",
     "exports": [
       "ClassTransferWorkspace"
     ],
@@ -163,6 +186,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/academics/education/components/EducationCatalogPanel.tsx",
+    "kind": "component",
     "exports": [
       "EducationCatalogPanel"
     ],
@@ -170,6 +194,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/academics/education/components/EducationExamSnapshot.tsx",
+    "kind": "component",
     "exports": [
       "EducationExamSnapshot"
     ],
@@ -177,6 +202,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/academics/education/components/EducationOperationsPanel.tsx",
+    "kind": "component",
     "exports": [
       "EducationOperationsPanel"
     ],
@@ -184,6 +210,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/academics/education/components/EducationSection.tsx",
+    "kind": "component",
     "exports": [
       "EducationSections"
     ],
@@ -191,6 +218,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/academics/education/components/EducationSectionGrid.tsx",
+    "kind": "component",
     "exports": [
       "EducationSectionCard"
     ],
@@ -198,6 +226,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/academics/education/pages/BookShelfPage.tsx",
+    "kind": "page",
     "exports": [
       "BookShelfPage"
     ],
@@ -205,6 +234,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/academics/education/pages/ClassesPage.tsx",
+    "kind": "page",
     "exports": [
       "ClassesPage"
     ],
@@ -212,6 +242,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/academics/education/pages/EducationOverviewPage.tsx",
+    "kind": "page",
     "exports": [
       "EducationOverviewPage"
     ],
@@ -219,6 +250,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/academics/exams/components/AttemptHistoryList.tsx",
+    "kind": "component",
     "exports": [
       "AttemptHistoryList"
     ],
@@ -226,6 +258,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/academics/exams/components/AttemptReview.tsx",
+    "kind": "component",
     "exports": [
       "AttemptReview"
     ],
@@ -233,6 +266,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/academics/exams/components/ExamAssignmentManager.tsx",
+    "kind": "component",
     "exports": [
       "ExamAssignmentManager"
     ],
@@ -240,6 +274,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/academics/exams/components/ExamAttempts.tsx",
+    "kind": "component",
     "exports": [
       "ExamAttempts"
     ],
@@ -247,6 +282,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/academics/exams/components/ExamCard.tsx",
+    "kind": "component",
     "exports": [
       "ExamCard"
     ],
@@ -254,6 +290,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/academics/exams/components/ExamFilters.tsx",
+    "kind": "component",
     "exports": [
       "ExamFilters"
     ],
@@ -261,6 +298,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/academics/exams/components/ExamForm.tsx",
+    "kind": "component",
     "exports": [
       "ExamForm"
     ],
@@ -268,6 +306,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/academics/exams/components/ExamList.tsx",
+    "kind": "component",
     "exports": [
       "ExamList"
     ],
@@ -275,6 +314,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/academics/exams/components/ExamsHeader.tsx",
+    "kind": "component",
     "exports": [
       "ExamsHeader"
     ],
@@ -282,6 +322,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/academics/exams/components/Metric.tsx",
+    "kind": "component",
     "exports": [
       "Metric"
     ],
@@ -289,6 +330,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/academics/exams/components/RetryRequestsPanel.tsx",
+    "kind": "component",
     "exports": [
       "RetryRequestsPanel"
     ],
@@ -296,6 +338,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/academics/exams/components/RetryReviewForm.tsx",
+    "kind": "component",
     "exports": [
       "RetryReviewForm"
     ],
@@ -303,6 +346,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/academics/exams/components/SyllabusForm.tsx",
+    "kind": "component",
     "exports": [
       "SyllabusForm"
     ],
@@ -310,6 +354,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/academics/exams/pages/ExamsPage.tsx",
+    "kind": "page",
     "exports": [
       "ExamsPage"
     ],
@@ -317,6 +362,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/academics/learning/components/LearningFilters.tsx",
+    "kind": "component",
     "exports": [
       "LearningFilters"
     ],
@@ -324,6 +370,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/academics/learning/components/LearningForm.tsx",
+    "kind": "component",
     "exports": [
       "LearningForm"
     ],
@@ -331,6 +378,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/academics/learning/components/LearningHeader.tsx",
+    "kind": "component",
     "exports": [
       "LearningHeader"
     ],
@@ -338,6 +386,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/academics/learning/components/LearningList.tsx",
+    "kind": "component",
     "exports": [
       "LearningList"
     ],
@@ -345,6 +394,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/academics/learning/components/LearningMetric.tsx",
+    "kind": "component",
     "exports": [
       "LearningMetric"
     ],
@@ -352,6 +402,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/academics/learning/components/LearningReviewForm.tsx",
+    "kind": "component",
     "exports": [
       "LearningReviewForm"
     ],
@@ -359,6 +410,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/academics/learning/components/LearningRow.tsx",
+    "kind": "component",
     "exports": [
       "LearningRow"
     ],
@@ -366,6 +418,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/academics/learning/components/LearningSidebar.tsx",
+    "kind": "component",
     "exports": [
       "LearningSidebar"
     ],
@@ -373,6 +426,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/academics/learning/components/LearningSkeleton.tsx",
+    "kind": "component",
     "exports": [
       "LearningSkeleton"
     ],
@@ -380,6 +434,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/academics/learning/components/LearningSummaryMetrics.tsx",
+    "kind": "component",
     "exports": [
       "LearningSummaryMetrics"
     ],
@@ -387,6 +442,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/academics/learning/components/ReviewHistory.tsx",
+    "kind": "component",
     "exports": [
       "ReviewHistory"
     ],
@@ -394,6 +450,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/academics/learning/pages/LearningPage.tsx",
+    "kind": "page",
     "exports": [
       "LearningPage"
     ],
@@ -401,6 +458,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/academics/questions/components/QuestionBankPanel.tsx",
+    "kind": "component",
     "exports": [
       "QuestionBankPanel"
     ],
@@ -408,6 +466,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/academics/questions/components/QuestionEditor.tsx",
+    "kind": "component",
     "exports": [
       "QuestionEditor"
     ],
@@ -415,6 +474,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/academics/questions/components/QuestionsList.tsx",
+    "kind": "component",
     "exports": [
       "QuestionsList"
     ],
@@ -422,6 +482,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/academics/questions/components/QuestionsSelector.tsx",
+    "kind": "component",
     "exports": [
       "QuestionsSelector"
     ],
@@ -429,6 +490,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/academics/questions/pages/QuestionsPage.tsx",
+    "kind": "page",
     "exports": [
       "QuestionsPage"
     ],
@@ -436,6 +498,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/academics/quizzes/components/QuizEditor.tsx",
+    "kind": "component",
     "exports": [
       "QuizEditor"
     ],
@@ -443,6 +506,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/academics/quizzes/components/QuizQuestionBankPanel.tsx",
+    "kind": "component",
     "exports": [
       "QuizQuestionBankPanel"
     ],
@@ -450,6 +514,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/academics/quizzes/components/QuizQuestionEditor.tsx",
+    "kind": "component",
     "exports": [
       "QuizQuestionEditor"
     ],
@@ -457,6 +522,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/academics/quizzes/components/QuizQuestionsList.tsx",
+    "kind": "component",
     "exports": [
       "QuizQuestionsList"
     ],
@@ -464,6 +530,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/academics/quizzes/components/QuizSidebar.tsx",
+    "kind": "component",
     "exports": [
       "QuizSidebar"
     ],
@@ -471,6 +538,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/academics/quizzes/pages/QuizzesPage.tsx",
+    "kind": "page",
     "exports": [
       "QuizzesPage"
     ],
@@ -478,6 +546,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/academics/schedule/components/TimetableDateInput.tsx",
+    "kind": "component",
     "exports": [
       "TimetableDateInput"
     ],
@@ -485,6 +554,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/academics/schedule/components/TimetableGrid.tsx",
+    "kind": "component",
     "exports": [
       "TimetableGrid"
     ],
@@ -492,6 +562,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/academics/schedule/components/TimetableImportCatalog.tsx",
+    "kind": "component",
     "exports": [
       "TimetableImportCatalog"
     ],
@@ -499,6 +570,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/academics/schedule/components/TimetableImportWizard.tsx",
+    "kind": "component",
     "exports": [
       "TimetableImportWizard"
     ],
@@ -506,6 +578,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/academics/schedule/components/TimetableLessonEditor.tsx",
+    "kind": "component",
     "exports": [
       "TimetableLessonEditor"
     ],
@@ -513,6 +586,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/academics/schedule/components/TimetableOnboarding.tsx",
+    "kind": "component",
     "exports": [
       "TimetableOnboarding"
     ],
@@ -520,6 +594,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/academics/schedule/components/TimetableSettings.tsx",
+    "kind": "component",
     "exports": [
       "TimetableSettings"
     ],
@@ -527,6 +602,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/academics/schedule/components/TimetableTimeInput.tsx",
+    "kind": "component",
     "exports": [
       "TimetableTimeInput"
     ],
@@ -534,6 +610,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/academics/schedule/components/TimetableToday.tsx",
+    "kind": "component",
     "exports": [
       "TimetableToday"
     ],
@@ -541,6 +618,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/academics/schedule/pages/LegacySchedulePage.tsx",
+    "kind": "page",
     "exports": [
       "LegacySchedulePage"
     ],
@@ -548,6 +626,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/academics/schedule/pages/SchedulePage.tsx",
+    "kind": "page",
     "exports": [
       "SchedulePage"
     ],
@@ -555,6 +634,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/academics/schedule/pages/TimetablePage.tsx",
+    "kind": "page",
     "exports": [
       "TimetablePage"
     ],
@@ -562,6 +642,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/academics/subjects/components/TeacherAssignments.tsx",
+    "kind": "component",
     "exports": [
       "TeacherAssignments"
     ],
@@ -569,6 +650,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/academics/subjects/pages/SubjectsPage.tsx",
+    "kind": "page",
     "exports": [
       "SubjectsPage"
     ],
@@ -576,6 +658,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/achievements/components/AchievementCountdown.tsx",
+    "kind": "component",
     "exports": [
       "AchievementCountdown"
     ],
@@ -583,13 +666,15 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/achievements/pages/AchievementsComingSoonPage.tsx",
+    "kind": "page",
     "exports": [
       "AchievementsComingSoonPage"
     ],
-    "storyPath": null
+    "storyPath": "features/achievements/pages/AchievementsComingSoonPage.stories.tsx"
   },
   {
     "sourcePath": "features/analytics/dashboard/components/AnnouncementChatBubble.tsx",
+    "kind": "component",
     "exports": [
       "AnnouncementChatBubble"
     ],
@@ -597,6 +682,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/analytics/dashboard/components/AnnouncementEnvelope.tsx",
+    "kind": "component",
     "exports": [
       "AnnouncementEnvelope"
     ],
@@ -604,6 +690,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/analytics/dashboard/components/DashboardCalendar.tsx",
+    "kind": "component",
     "exports": [
       "DashboardCalendar"
     ],
@@ -611,6 +698,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/analytics/dashboard/components/DashboardContent.tsx",
+    "kind": "component",
     "exports": [
       "DashboardContent"
     ],
@@ -618,6 +706,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/analytics/dashboard/components/MobileDashboardHome.tsx",
+    "kind": "component",
     "exports": [
       "MobileDashboardHome"
     ],
@@ -625,6 +714,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/analytics/dashboard/components/RoleDashboard.tsx",
+    "kind": "component",
     "exports": [
       "RoleDashboard"
     ],
@@ -632,6 +722,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/analytics/dashboard/components/StudentDashboard.tsx",
+    "kind": "component",
     "exports": [
       "StudentDashboard"
     ],
@@ -639,6 +730,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/analytics/dashboard/components/StudentWelcomeCard.tsx",
+    "kind": "component",
     "exports": [
       "StudentWelcomeCard"
     ],
@@ -646,6 +738,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/analytics/dashboard/components/health/DashboardOperationalPulse.tsx",
+    "kind": "component",
     "exports": [
       "DashboardOperationalPulse"
     ],
@@ -653,6 +746,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/analytics/dashboard/components/health/PlatformHealthPanel.tsx",
+    "kind": "component",
     "exports": [
       "PlatformHealthPanel"
     ],
@@ -660,6 +754,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/analytics/dashboard/components/health/PlatformOrganizationOverview.tsx",
+    "kind": "component",
     "exports": [
       "PlatformOrganizationOverview"
     ],
@@ -667,6 +762,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/analytics/dashboard/components/metrics/DashboardMetricCards.tsx",
+    "kind": "component",
     "exports": [
       "DashboardMetricCards"
     ],
@@ -674,6 +770,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/analytics/dashboard/components/metrics/DashboardMetricGrid.tsx",
+    "kind": "component",
     "exports": [
       "DashboardMetricGrid"
     ],
@@ -681,6 +778,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/analytics/dashboard/components/planning/DashboardPlanHealth.tsx",
+    "kind": "component",
     "exports": [
       "DashboardPlanHealth"
     ],
@@ -688,6 +786,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/analytics/dashboard/components/planning/DashboardSchedule.tsx",
+    "kind": "component",
     "exports": [
       "DashboardSchedule"
     ],
@@ -695,6 +794,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/analytics/dashboard/components/reports/RecentReportsCard.tsx",
+    "kind": "component",
     "exports": [
       "RecentReportsCard"
     ],
@@ -702,6 +802,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/analytics/dashboard/components/work/AttentionInbox.tsx",
+    "kind": "component",
     "exports": [
       "AttentionInbox"
     ],
@@ -709,6 +810,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/analytics/dashboard/components/work/DashboardFollowUpCard.tsx",
+    "kind": "component",
     "exports": [
       "DashboardFollowUpCard"
     ],
@@ -716,6 +818,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/analytics/dashboard/components/work/DashboardQuickActions.tsx",
+    "kind": "component",
     "exports": [
       "DashboardQuickActions"
     ],
@@ -723,6 +826,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/analytics/dashboard/components/work/DashboardWorkQueue.tsx",
+    "kind": "component",
     "exports": [
       "DashboardWorkQueue"
     ],
@@ -730,6 +834,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/analytics/dashboard/pages/DashboardPage.tsx",
+    "kind": "page",
     "exports": [
       "DashboardPage"
     ],
@@ -737,6 +842,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/analytics/dashboard/pages/SectionDashboardPage.tsx",
+    "kind": "page",
     "exports": [
       "SectionDashboardPage"
     ],
@@ -744,6 +850,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/analytics/reports/components/ReportCard.tsx",
+    "kind": "component",
     "exports": [
       "ReportCard"
     ],
@@ -751,6 +858,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/analytics/reports/components/ReportCompactList.tsx",
+    "kind": "component",
     "exports": [
       "ReportCompactList"
     ],
@@ -758,6 +866,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/analytics/reports/components/ReportMetrics.tsx",
+    "kind": "component",
     "exports": [
       "ReportMetrics"
     ],
@@ -765,6 +874,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/analytics/reports/components/ReportSummary.tsx",
+    "kind": "component",
     "exports": [
       "ReportSummary"
     ],
@@ -772,6 +882,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/analytics/reports/pages/ReportsPage.tsx",
+    "kind": "page",
     "exports": [
       "ReportsPage"
     ],
@@ -779,6 +890,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/analytics/school-home/components/CurrentPrayerCard.tsx",
+    "kind": "component",
     "exports": [
       "CurrentPrayerCard"
     ],
@@ -786,6 +898,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/analytics/school-home/components/SchoolManagerDashboard.tsx",
+    "kind": "component",
     "exports": [
       "SchoolIncomingPanel",
       "SchoolManagerDashboard",
@@ -795,6 +908,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/analytics/school-home/components/SchoolOccupancyBanner.tsx",
+    "kind": "component",
     "exports": [
       "SchoolOccupancyBanner"
     ],
@@ -802,6 +916,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/coin-shop/components/CoinShopTeaser.tsx",
+    "kind": "component",
     "exports": [
       "COIN_SHOP_RELEASE_AT",
       "CoinShopTeaser"
@@ -810,13 +925,15 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/coin-shop/pages/CoinShopComingSoonPage.tsx",
+    "kind": "page",
     "exports": [
       "CoinShopComingSoonPage"
     ],
-    "storyPath": null
+    "storyPath": "features/coin-shop/pages/CoinShopComingSoonPage.stories.tsx"
   },
   {
     "sourcePath": "features/communications/announcements/AnnouncementPages.tsx",
+    "kind": "component",
     "exports": [
       "AnnouncementInboxPage",
       "AnnouncementManagementPage"
@@ -825,6 +942,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/communications/chat/components/composer/EditPreview.tsx",
+    "kind": "component",
     "exports": [
       "EditPreview"
     ],
@@ -832,6 +950,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/communications/chat/components/composer/MessageComposer.tsx",
+    "kind": "component",
     "exports": [
       "MessageComposer"
     ],
@@ -839,6 +958,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/communications/chat/components/composer/QuickReplies.tsx",
+    "kind": "component",
     "exports": [
       "QuickReplies"
     ],
@@ -846,6 +966,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/communications/chat/components/composer/ReplyPreview.tsx",
+    "kind": "component",
     "exports": [
       "ReplyPreview"
     ],
@@ -853,6 +974,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/communications/chat/components/conversation/ConversationList.tsx",
+    "kind": "component",
     "exports": [
       "ConversationList"
     ],
@@ -860,6 +982,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/communications/chat/components/conversation/ConversationListItem.tsx",
+    "kind": "component",
     "exports": [
       "ConversationListItem"
     ],
@@ -867,6 +990,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/communications/chat/components/conversation/ConversationSearch.tsx",
+    "kind": "component",
     "exports": [
       "ConversationSearch"
     ],
@@ -874,6 +998,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/communications/chat/components/conversation/ConversationSidebar.tsx",
+    "kind": "component",
     "exports": [
       "ConversationSidebar"
     ],
@@ -881,6 +1006,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/communications/chat/components/conversation/ConversationSkeleton.tsx",
+    "kind": "component",
     "exports": [
       "ConversationSkeleton"
     ],
@@ -888,6 +1014,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/communications/chat/components/conversation/ConversationToolbar.tsx",
+    "kind": "component",
     "exports": [
       "ConversationToolbar"
     ],
@@ -895,6 +1022,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/communications/chat/components/conversation/CreateDirectButton.tsx",
+    "kind": "component",
     "exports": [
       "CreateDirectButton"
     ],
@@ -902,6 +1030,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/communications/chat/components/group/GroupChatControls.tsx",
+    "kind": "component",
     "exports": [
       "CreateGroupButton",
       "CreateGroupForm",
@@ -915,6 +1044,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/communications/chat/components/messages/ChatHeader.tsx",
+    "kind": "component",
     "exports": [
       "ChatHeader"
     ],
@@ -922,6 +1052,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/communications/chat/components/messages/DateSeparator.tsx",
+    "kind": "component",
     "exports": [
       "DateSeparator"
     ],
@@ -929,6 +1060,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/communications/chat/components/messages/EmojiReactionPicker.tsx",
+    "kind": "component",
     "exports": [
       "EmojiReactionPicker"
     ],
@@ -936,6 +1068,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/communications/chat/components/messages/MessageContextMenu.tsx",
+    "kind": "component",
     "exports": [
       "MessageContextMenu"
     ],
@@ -943,6 +1076,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/communications/chat/components/messages/MessageList.tsx",
+    "kind": "component",
     "exports": [
       "MessageBody",
       "MessageBubble",
@@ -954,6 +1088,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/communications/chat/components/messages/MessageSearchBar.tsx",
+    "kind": "component",
     "exports": [
       "MessageSearchBar"
     ],
@@ -961,6 +1096,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/communications/chat/pages/ChatPage.tsx",
+    "kind": "page",
     "exports": [
       "ChatPage"
     ],
@@ -968,6 +1104,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/communications/live/components/CompactSkeleton.tsx",
+    "kind": "component",
     "exports": [
       "CompactSkeleton"
     ],
@@ -975,6 +1112,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/communications/live/components/LiveActivityTimeline.tsx",
+    "kind": "component",
     "exports": [
       "LiveActivityTimeline"
     ],
@@ -982,6 +1120,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/communications/live/components/LiveControls.tsx",
+    "kind": "component",
     "exports": [
       "LiveControls"
     ],
@@ -989,6 +1128,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/communications/live/components/LiveHeader.tsx",
+    "kind": "component",
     "exports": [
       "LiveHeader"
     ],
@@ -996,6 +1136,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/communications/live/components/LiveSkeleton.tsx",
+    "kind": "component",
     "exports": [
       "LiveSkeleton"
     ],
@@ -1003,6 +1144,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/communications/live/components/LiveSummaryGrid.tsx",
+    "kind": "component",
     "exports": [
       "LiveSummaryGrid"
     ],
@@ -1010,6 +1152,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/communications/live/components/MiniMetric.tsx",
+    "kind": "component",
     "exports": [
       "MiniMetric"
     ],
@@ -1017,6 +1160,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/communications/live/components/StudentCard.tsx",
+    "kind": "component",
     "exports": [
       "StudentCard"
     ],
@@ -1024,6 +1168,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/communications/live/components/StudentDetail.tsx",
+    "kind": "component",
     "exports": [
       "StudentDetail"
     ],
@@ -1031,6 +1176,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/communications/live/components/StudentDetailPanel.tsx",
+    "kind": "component",
     "exports": [
       "StudentDetailPanel"
     ],
@@ -1038,6 +1184,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/communications/live/components/StudentQueue.tsx",
+    "kind": "component",
     "exports": [
       "StudentQueue"
     ],
@@ -1045,6 +1192,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/communications/live/components/StudentRow.tsx",
+    "kind": "component",
     "exports": [
       "StudentRow"
     ],
@@ -1052,6 +1200,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/communications/live/components/SummaryCard.tsx",
+    "kind": "component",
     "exports": [
       "SummaryCard"
     ],
@@ -1059,6 +1208,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/communications/live/components/TimelineItem.tsx",
+    "kind": "component",
     "exports": [
       "TimelineItem"
     ],
@@ -1066,6 +1216,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/communications/live/components/TimelinePanel.tsx",
+    "kind": "component",
     "exports": [
       "TimelinePanel"
     ],
@@ -1073,6 +1224,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/communications/live/pages/LivePage.tsx",
+    "kind": "page",
     "exports": [
       "LivePage"
     ],
@@ -1080,6 +1232,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/communications/notifications/components/AdvisorInboxItem.tsx",
+    "kind": "component",
     "exports": [
       "AdvisorInboxItem"
     ],
@@ -1087,6 +1240,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/communications/notifications/components/AdvisorInboxPanel.tsx",
+    "kind": "component",
     "exports": [
       "AdvisorInboxPanel"
     ],
@@ -1094,6 +1248,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/communications/notifications/components/HeaderNotifications.tsx",
+    "kind": "component",
     "exports": [
       "HeaderNotifications"
     ],
@@ -1101,6 +1256,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/communications/notifications/components/MobileNotificationTabs.tsx",
+    "kind": "component",
     "exports": [
       "MobileNotificationTabs"
     ],
@@ -1108,6 +1264,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/communications/notifications/components/NotificationCenterPanel.tsx",
+    "kind": "component",
     "exports": [
       "NotificationCenterPanel"
     ],
@@ -1115,6 +1272,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/communications/notifications/components/NotificationPreference.tsx",
+    "kind": "component",
     "exports": [
       "NotificationPreference"
     ],
@@ -1122,6 +1280,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/communications/notifications/components/NotificationProvider.tsx",
+    "kind": "component",
     "exports": [
       "NotificationContext",
       "NotificationProvider"
@@ -1130,6 +1289,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/communications/notifications/components/NotificationSettings.tsx",
+    "kind": "component",
     "exports": [
       "NotificationSettings"
     ],
@@ -1137,6 +1297,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/communications/notifications/components/NotificationSkeletons.tsx",
+    "kind": "component",
     "exports": [
       "NotificationSkeletons"
     ],
@@ -1144,6 +1305,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/communications/notifications/components/NotificationsToolbar.tsx",
+    "kind": "component",
     "exports": [
       "NotificationsToolbar"
     ],
@@ -1151,6 +1313,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/communications/notifications/components/ToggleButton.tsx",
+    "kind": "component",
     "exports": [
       "ToggleButton"
     ],
@@ -1158,6 +1321,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/communications/notifications/pages/NotificationsPage.tsx",
+    "kind": "page",
     "exports": [
       "NotificationsPage"
     ],
@@ -1165,6 +1329,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/communications/sms/pages/SmsPage.tsx",
+    "kind": "page",
     "exports": [
       "SmsPage"
     ],
@@ -1172,6 +1337,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/identity/access/OrganizationWorkspace.tsx",
+    "kind": "component",
     "exports": [
       "OrganizationWorkspace"
     ],
@@ -1179,6 +1345,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/identity/access/OrganizationsPage.tsx",
+    "kind": "component",
     "exports": [
       "OrganizationsPage"
     ],
@@ -1186,6 +1353,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/identity/access/UsersPage.tsx",
+    "kind": "component",
     "exports": [
       "UsersPage"
     ],
@@ -1193,6 +1361,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/identity/access/components/AccessFlowGuidance.tsx",
+    "kind": "component",
     "exports": [
       "AccessFlowGuidance"
     ],
@@ -1200,6 +1369,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/identity/access/components/OrganizationProfileEditor.tsx",
+    "kind": "component",
     "exports": [
       "OrganizationProfileEditor"
     ],
@@ -1207,6 +1377,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/identity/access/components/OrganizationStudentAccounts.tsx",
+    "kind": "component",
     "exports": [
       "OrganizationStudentAccounts"
     ],
@@ -1214,6 +1385,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/identity/auth/components/AuthProvider.tsx",
+    "kind": "component",
     "exports": [
       "AuthProvider"
     ],
@@ -1221,6 +1393,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/identity/auth/components/BackendHealthStatus.tsx",
+    "kind": "component",
     "exports": [
       "BackendHealthStatus"
     ],
@@ -1228,6 +1401,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/identity/auth/components/CapabilityGate.tsx",
+    "kind": "component",
     "exports": [
       "CapabilityGate"
     ],
@@ -1235,6 +1409,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/identity/auth/components/DemoAccountPicker.tsx",
+    "kind": "component",
     "exports": [
       "DemoAccountPicker"
     ],
@@ -1242,6 +1417,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/identity/auth/components/LoginBenefit.tsx",
+    "kind": "component",
     "exports": [
       "LoginBenefit"
     ],
@@ -1249,6 +1425,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/identity/auth/components/LoginBrand.tsx",
+    "kind": "component",
     "exports": [
       "LoginBrand"
     ],
@@ -1256,6 +1433,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/identity/auth/components/LoginForm.tsx",
+    "kind": "component",
     "exports": [
       "LoginForm"
     ],
@@ -1263,6 +1441,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/identity/auth/components/LoginHero.tsx",
+    "kind": "component",
     "exports": [
       "LoginHero"
     ],
@@ -1270,6 +1449,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/identity/auth/components/LoginShell.tsx",
+    "kind": "component",
     "exports": [
       "LoginShell"
     ],
@@ -1277,6 +1457,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/identity/auth/components/LoginSuccessSplash.tsx",
+    "kind": "component",
     "exports": [
       "LoginSuccessSplash"
     ],
@@ -1284,6 +1465,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/identity/auth/components/LoginToolbar.tsx",
+    "kind": "component",
     "exports": [
       "LoginToolbar"
     ],
@@ -1291,6 +1473,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/identity/auth/components/PlatformBootstrapForm.tsx",
+    "kind": "component",
     "exports": [
       "PlatformBootstrapForm"
     ],
@@ -1298,6 +1481,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/identity/auth/components/PublicSchoolProfile.tsx",
+    "kind": "component",
     "exports": [
       "PublicSchoolProfileProvider",
       "SchoolContactDetails"
@@ -1306,6 +1490,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/identity/auth/components/UnsupportedRoleModal.tsx",
+    "kind": "component",
     "exports": [
       "UnsupportedRoleModal"
     ],
@@ -1313,6 +1498,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/identity/auth/model/auth-locale.tsx",
+    "kind": "component",
     "exports": [
       "AuthLocaleProvider"
     ],
@@ -1320,6 +1506,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/identity/auth/pages/LoginPage.tsx",
+    "kind": "page",
     "exports": [
       "LoginPage"
     ],
@@ -1327,6 +1514,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/identity/auth/pages/StudentLoginPage.tsx",
+    "kind": "page",
     "exports": [
       "StudentLoginPage"
     ],
@@ -1334,6 +1522,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/identity/auth/pages/StudentSignupPage.tsx",
+    "kind": "page",
     "exports": [
       "StudentSignupPage"
     ],
@@ -1341,6 +1530,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/identity/onboarding/components/OnboardingModeSelector.tsx",
+    "kind": "component",
     "exports": [
       "OnboardingModeSelector"
     ],
@@ -1348,6 +1538,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/identity/onboarding/components/OnboardingQueueItem.tsx",
+    "kind": "component",
     "exports": [
       "OnboardingQueueItem"
     ],
@@ -1355,6 +1546,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/identity/onboarding/pages/OnboardingPage.tsx",
+    "kind": "page",
     "exports": [
       "OnboardingPage"
     ],
@@ -1362,6 +1554,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/identity/registration/RegistrationDashboardPage.tsx",
+    "kind": "component",
     "exports": [
       "RegistrationDashboardPage"
     ],
@@ -1369,6 +1562,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/identity/registration/RegistrationLayout.tsx",
+    "kind": "component",
     "exports": [
       "RegistrationLayout"
     ],
@@ -1376,6 +1570,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/identity/registration/pages/RegistrationComingSoonPage.tsx",
+    "kind": "page",
     "exports": [
       "RegistrationComingSoonPage"
     ],
@@ -1383,6 +1578,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/identity/registration/pages/RegistrationDashboardPage.tsx",
+    "kind": "page",
     "exports": [
       "RegistrationDashboardPage"
     ],
@@ -1390,6 +1586,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/identity/registration/pages/RegistrationPage.tsx",
+    "kind": "page",
     "exports": [
       "RegistrationPage"
     ],
@@ -1397,6 +1594,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/identity/registration/registration.context.tsx",
+    "kind": "component",
     "exports": [
       "RegistrationProvider"
     ],
@@ -1404,6 +1602,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/identity/registration/registration.entry.tsx",
+    "kind": "component",
     "exports": [
       "RegistrationEntry"
     ],
@@ -1411,6 +1610,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/identity/registration/registration.provider.tsx",
+    "kind": "component",
     "exports": [
       "RegistrationFeatureProvider"
     ],
@@ -1418,6 +1618,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/identity/registration/sections/AcademicHistorySection.tsx",
+    "kind": "component",
     "exports": [
       "AcademicHistorySection"
     ],
@@ -1425,6 +1626,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/identity/registration/sections/AcademicInterestsSection.tsx",
+    "kind": "component",
     "exports": [
       "AcademicInterestsSection"
     ],
@@ -1432,6 +1634,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/identity/registration/sections/BasicInformationSection.tsx",
+    "kind": "component",
     "exports": [
       "BasicInformationSection"
     ],
@@ -1439,6 +1642,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/identity/registration/sections/ConsentAndAgreementsSection.tsx",
+    "kind": "component",
     "exports": [
       "ConsentAndAgreementsSection"
     ],
@@ -1446,6 +1650,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/identity/registration/sections/ContactInformationSection.tsx",
+    "kind": "component",
     "exports": [
       "ContactInformationSection"
     ],
@@ -1453,6 +1658,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/identity/registration/sections/DocumentsSection.tsx",
+    "kind": "component",
     "exports": [
       "DocumentsSection"
     ],
@@ -1460,6 +1666,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/identity/registration/sections/EducationalBackgroundSection.tsx",
+    "kind": "component",
     "exports": [
       "EducationalBackgroundSection"
     ],
@@ -1467,6 +1674,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/identity/registration/sections/EmergencyContactsSection.tsx",
+    "kind": "component",
     "exports": [
       "EmergencyContactsSection"
     ],
@@ -1474,6 +1682,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/identity/registration/sections/ExtracurricularActivitiesSection.tsx",
+    "kind": "component",
     "exports": [
       "ExtracurricularActivitiesSection"
     ],
@@ -1481,6 +1690,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/identity/registration/sections/FamilyInformationSection.tsx",
+    "kind": "component",
     "exports": [
       "FamilyInformationSection"
     ],
@@ -1488,6 +1698,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/identity/registration/sections/FinancialInformationSection.tsx",
+    "kind": "component",
     "exports": [
       "FinancialInformationSection"
     ],
@@ -1495,6 +1706,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/identity/registration/sections/HealthInformationSection.tsx",
+    "kind": "component",
     "exports": [
       "HealthInformationSection"
     ],
@@ -1502,6 +1714,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/identity/registration/sections/IdentityInformationSection.tsx",
+    "kind": "component",
     "exports": [
       "IdentityInformationSection"
     ],
@@ -1509,6 +1722,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/identity/registration/sections/RegistrationCompletionSection.tsx",
+    "kind": "component",
     "exports": [
       "RegistrationCompletionSection"
     ],
@@ -1516,6 +1730,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/identity/registration/sections/TransportationSection.tsx",
+    "kind": "component",
     "exports": [
       "TransportationSection"
     ],
@@ -1523,6 +1738,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/identity/security/components/PermissionMatrix.tsx",
+    "kind": "component",
     "exports": [
       "PermissionMatrix"
     ],
@@ -1530,13 +1746,15 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/management/pages/ManagementComingSoonPage.tsx",
+    "kind": "page",
     "exports": [
       "ManagementComingSoonPage"
     ],
-    "storyPath": null
+    "storyPath": "features/management/pages/ManagementComingSoonPage.stories.tsx"
   },
   {
     "sourcePath": "features/mobile/MobileMorePage.tsx",
+    "kind": "component",
     "exports": [
       "MobileMorePage"
     ],
@@ -1544,6 +1762,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/people/guardian/pages/GuardianPage.tsx",
+    "kind": "page",
     "exports": [
       "GuardianPage"
     ],
@@ -1551,6 +1770,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/people/student-portal/components/StudentPortalOnboarding.tsx",
+    "kind": "component",
     "exports": [
       "StudentPortalOnboarding"
     ],
@@ -1558,6 +1778,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/people/student-portal/pages/StudentLeaveRequestsPage.tsx",
+    "kind": "page",
     "exports": [
       "StudentLeaveRequestsPage"
     ],
@@ -1565,6 +1786,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/people/student-portal/pages/StudentProfilePage.tsx",
+    "kind": "page",
     "exports": [
       "StudentProfilePage"
     ],
@@ -1572,13 +1794,15 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/people/student-portal/pages/StudentRegistrationComingSoonPage.tsx",
+    "kind": "page",
     "exports": [
       "StudentRegistrationComingSoonPage"
     ],
-    "storyPath": null
+    "storyPath": "features/people/student-portal/pages/StudentRegistrationComingSoonPage.stories.tsx"
   },
   {
     "sourcePath": "features/people/student-portal/pages/StudentTextbooksPage.tsx",
+    "kind": "page",
     "exports": [
       "StudentTextbooksPage"
     ],
@@ -1586,6 +1810,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/people/students/components/StudentActivityTimeline.tsx",
+    "kind": "component",
     "exports": [
       "StudentActivityTimeline"
     ],
@@ -1593,6 +1818,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/people/students/components/StudentAdminAccess.tsx",
+    "kind": "component",
     "exports": [
       "StudentAdminAccess"
     ],
@@ -1600,6 +1826,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/people/students/components/StudentAdminWorkspace.tsx",
+    "kind": "component",
     "exports": [
       "StudentAdminWorkspace"
     ],
@@ -1607,6 +1834,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/people/students/components/StudentDetail.tsx",
+    "kind": "component",
     "exports": [
       "StudentDetail"
     ],
@@ -1614,6 +1842,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/people/students/components/StudentEditor.tsx",
+    "kind": "component",
     "exports": [
       "StudentEditor"
     ],
@@ -1621,6 +1850,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/people/students/components/StudentInsights.tsx",
+    "kind": "component",
     "exports": [
       "StudentInsights"
     ],
@@ -1628,6 +1858,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/people/students/components/StudentList.tsx",
+    "kind": "component",
     "exports": [
       "StudentList"
     ],
@@ -1635,6 +1866,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/people/students/components/StudentOverview.tsx",
+    "kind": "component",
     "exports": [
       "StudentOverview"
     ],
@@ -1642,6 +1874,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/people/students/components/StudentOverviewStats.tsx",
+    "kind": "component",
     "exports": [
       "StudentOverviewStats"
     ],
@@ -1649,6 +1882,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/people/students/components/StudentSecurity.tsx",
+    "kind": "component",
     "exports": [
       "StudentSecurity"
     ],
@@ -1656,6 +1890,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/people/students/components/StudentSupportWorkspace.tsx",
+    "kind": "component",
     "exports": [
       "StudentSupportWorkspace"
     ],
@@ -1663,6 +1898,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/people/students/components/StudentTransferWorkspace.tsx",
+    "kind": "component",
     "exports": [
       "StudentTransferWorkspace"
     ],
@@ -1670,6 +1906,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/people/students/components/StudentWorkflowActions.tsx",
+    "kind": "component",
     "exports": [
       "StudentWorkflowActions"
     ],
@@ -1677,6 +1914,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/people/students/pages/StudentsPage.tsx",
+    "kind": "page",
     "exports": [
       "StudentsPage"
     ],
@@ -1684,6 +1922,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/people/teacher-portal/components/TeacherClassAttendanceSheet.tsx",
+    "kind": "component",
     "exports": [
       "TeacherClassAttendanceSheet"
     ],
@@ -1691,13 +1930,15 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/people/teacher-portal/pages/TeacherChatComingSoonPage.tsx",
+    "kind": "page",
     "exports": [
       "TeacherChatComingSoonPage"
     ],
-    "storyPath": null
+    "storyPath": "features/people/teacher-portal/pages/TeacherChatComingSoonPage.stories.tsx"
   },
   {
     "sourcePath": "features/people/teacher-portal/pages/TeacherDashboard.tsx",
+    "kind": "page",
     "exports": [
       "TeacherDashboard"
     ],
@@ -1705,6 +1946,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/people/teacher-portal/pages/TeacherProfilePage.tsx",
+    "kind": "page",
     "exports": [
       "TeacherProfilePage"
     ],
@@ -1712,13 +1954,15 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/people/teacher-portal/pages/TeacherSchedulePage.tsx",
+    "kind": "page",
     "exports": [
       "TeacherSchedulePage"
     ],
-    "storyPath": null
+    "storyPath": "features/people/teacher-portal/pages/TeacherSchedulePage.stories.tsx"
   },
   {
     "sourcePath": "features/platform/pwa/PWAInstallBanner.tsx",
+    "kind": "component",
     "exports": [
       "PWAInstallBanner"
     ],
@@ -1726,6 +1970,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/platform/pwa/PWAInstallModal.tsx",
+    "kind": "component",
     "exports": [
       "PWAInstallModal"
     ],
@@ -1733,6 +1978,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/platform/pwa/PWAInstallSettingsCard.tsx",
+    "kind": "component",
     "exports": [
       "PWAInstallSettingsCard"
     ],
@@ -1740,6 +1986,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/platform/pwa/PWAProvider.tsx",
+    "kind": "component",
     "exports": [
       "PWAProvider"
     ],
@@ -1747,6 +1994,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/platform/pwa/pwa-update-banner.tsx",
+    "kind": "component",
     "exports": [
       "PWAUpdateBanner"
     ],
@@ -1754,6 +2002,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/platform/settings/components/ApiConnectionCard.tsx",
+    "kind": "component",
     "exports": [
       "ApiConnectionCard"
     ],
@@ -1761,6 +2010,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/platform/settings/components/ChatProfileSettings.tsx",
+    "kind": "component",
     "exports": [
       "ChatProfileSettings"
     ],
@@ -1768,6 +2018,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/platform/settings/components/LocationSettings.tsx",
+    "kind": "component",
     "exports": [
       "LocationSettings"
     ],
@@ -1775,6 +2026,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/platform/settings/components/PhoneChangeRequests.tsx",
+    "kind": "component",
     "exports": [
       "PhoneChangeRequests"
     ],
@@ -1782,6 +2034,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/platform/settings/components/PhoneNumberSettings.tsx",
+    "kind": "component",
     "exports": [
       "PhoneNumberSettings"
     ],
@@ -1789,6 +2042,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/platform/settings/components/PrayerTimeSettings.tsx",
+    "kind": "component",
     "exports": [
       "PrayerTimeSettings"
     ],
@@ -1796,6 +2050,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/platform/settings/components/SessionsSettings.tsx",
+    "kind": "component",
     "exports": [
       "SessionsSettings"
     ],
@@ -1803,6 +2058,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/platform/settings/pages/SettingsPage.tsx",
+    "kind": "page",
     "exports": [
       "SettingsPage"
     ],
@@ -1810,6 +2066,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/platform/system/components/AccountSecurityPanel.tsx",
+    "kind": "component",
     "exports": [
       "AccountSecurityPanel"
     ],
@@ -1817,6 +2074,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/platform/system/components/AppVersionManager.tsx",
+    "kind": "component",
     "exports": [
       "AppVersionManager"
     ],
@@ -1824,6 +2082,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/platform/system/components/ChatEmojiManager.tsx",
+    "kind": "component",
     "exports": [
       "ChatEmojiManager"
     ],
@@ -1831,6 +2090,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/platform/system/components/DatabaseBackupPanel.tsx",
+    "kind": "component",
     "exports": [
       "DatabaseBackupPanel"
     ],
@@ -1838,6 +2098,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/platform/system/components/RelaxationMusicManager.tsx",
+    "kind": "component",
     "exports": [
       "RelaxationMusicManager"
     ],
@@ -1845,6 +2106,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/platform/system/components/ReleasePanel.tsx",
+    "kind": "component",
     "exports": [
       "ReleasePanel"
     ],
@@ -1852,6 +2114,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/platform/system/components/SystemHealthCards.tsx",
+    "kind": "component",
     "exports": [
       "SystemHealthCards"
     ],
@@ -1859,6 +2122,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/platform/system/components/SystemHistory.tsx",
+    "kind": "component",
     "exports": [
       "SystemHistory"
     ],
@@ -1866,6 +2130,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/platform/system/components/SystemMetric.tsx",
+    "kind": "component",
     "exports": [
       "SystemMetric"
     ],
@@ -1873,6 +2138,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/platform/system/components/SystemSessionsPanel.tsx",
+    "kind": "component",
     "exports": [
       "SystemSessionsPanel"
     ],
@@ -1880,6 +2146,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/platform/system/pages/SystemPage.tsx",
+    "kind": "page",
     "exports": [
       "SystemPage"
     ],
@@ -1887,6 +2154,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/productivity/clock/components/AlarmPanel.tsx",
+    "kind": "component",
     "exports": [
       "AlarmPanel"
     ],
@@ -1894,6 +2162,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/productivity/clock/components/HeaderClock.tsx",
+    "kind": "component",
     "exports": [
       "HeaderClock"
     ],
@@ -1901,6 +2170,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/productivity/clock/components/SessionStats.tsx",
+    "kind": "component",
     "exports": [
       "SessionStats"
     ],
@@ -1908,6 +2178,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/productivity/clock/components/StopwatchPanel.tsx",
+    "kind": "component",
     "exports": [
       "StopwatchPanel"
     ],
@@ -1915,6 +2186,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/productivity/clock/components/TimerPanel.tsx",
+    "kind": "component",
     "exports": [
       "TimerPanel"
     ],
@@ -1922,6 +2194,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/productivity/clock/components/WorldClockPanel.tsx",
+    "kind": "component",
     "exports": [
       "WorldClockPanel"
     ],
@@ -1929,6 +2202,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/productivity/planner/components/PlanTemplateLibrary.tsx",
+    "kind": "component",
     "exports": [
       "PlanTemplateLibrary"
     ],
@@ -1936,6 +2210,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/productivity/planner/components/PlannerBatchToolbar.tsx",
+    "kind": "component",
     "exports": [
       "PlannerBatchToolbar"
     ],
@@ -1943,6 +2218,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/productivity/planner/components/PlannerCanvas.tsx",
+    "kind": "component",
     "exports": [
       "PlannerCanvas"
     ],
@@ -1950,6 +2226,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/productivity/planner/components/PlannerContent.tsx",
+    "kind": "component",
     "exports": [
       "PlannerContent"
     ],
@@ -1957,6 +2234,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/productivity/planner/components/PlannerDialogs.tsx",
+    "kind": "component",
     "exports": [
       "PlannerDialogs"
     ],
@@ -1964,6 +2242,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/productivity/planner/components/PlannerFilterPopover.tsx",
+    "kind": "component",
     "exports": [
       "PlannerFilterPopover"
     ],
@@ -1971,6 +2250,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/productivity/planner/components/PlannerForms.tsx",
+    "kind": "component",
     "exports": [
       "DateAction",
       "PlanForm",
@@ -1981,6 +2261,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/productivity/planner/components/PlannerHeader.tsx",
+    "kind": "component",
     "exports": [
       "PlannerHeader"
     ],
@@ -1988,6 +2269,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/productivity/planner/components/PlannerMenus.tsx",
+    "kind": "component",
     "exports": [
       "CommandPalette",
       "FilterMenu",
@@ -1998,6 +2280,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/productivity/planner/components/PlannerMoreMenu.tsx",
+    "kind": "component",
     "exports": [
       "PlannerMoreMenu"
     ],
@@ -2005,6 +2288,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/productivity/planner/components/PlannerOverlays.tsx",
+    "kind": "component",
     "exports": [
       "PlannerOverlays"
     ],
@@ -2012,6 +2296,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/productivity/planner/components/PlannerOverview.tsx",
+    "kind": "component",
     "exports": [
       "PlannerOverview"
     ],
@@ -2019,6 +2304,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/productivity/planner/components/PlannerPageLayout.tsx",
+    "kind": "component",
     "exports": [
       "PlannerPageLayout"
     ],
@@ -2026,6 +2312,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/productivity/planner/components/PlannerPageShell.tsx",
+    "kind": "component",
     "exports": [
       "PlannerPageShell"
     ],
@@ -2033,6 +2320,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/productivity/planner/components/PlannerToolbar.tsx",
+    "kind": "component",
     "exports": [
       "PlannerToolbar"
     ],
@@ -2040,6 +2328,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/productivity/planner/components/TemplateOrganizationPicker.tsx",
+    "kind": "component",
     "exports": [
       "TemplateOrganizationPicker"
     ],
@@ -2047,6 +2336,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/productivity/planner/components/dialogs/PlannerDialogHost.tsx",
+    "kind": "component",
     "exports": [
       "PlannerDialogHost"
     ],
@@ -2054,6 +2344,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/productivity/planner/components/layout/PlannerLayout.tsx",
+    "kind": "component",
     "exports": [
       "PlannerLayout"
     ],
@@ -2061,6 +2352,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/productivity/planner/components/summary/PlannerSummaryCard.tsx",
+    "kind": "component",
     "exports": [
       "PlannerSummaryCard"
     ],
@@ -2068,6 +2360,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/productivity/planner/components/toolbar/PlannerToolbarLayout.tsx",
+    "kind": "component",
     "exports": [
       "PlannerToolbarLayout"
     ],
@@ -2075,6 +2368,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/productivity/planner/pages/PlanTemplatesPage.tsx",
+    "kind": "page",
     "exports": [
       "PlanTemplatesPage"
     ],
@@ -2082,6 +2376,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/productivity/planner/pages/PlannerPage.tsx",
+    "kind": "page",
     "exports": [
       "PlannerPage"
     ],
@@ -2089,6 +2384,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/productivity/resources/ResourcesPage.tsx",
+    "kind": "component",
     "exports": [
       "ResourcesPage"
     ],
@@ -2096,6 +2392,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/student-life/attendance/components/AttendanceReviewQueue.tsx",
+    "kind": "component",
     "exports": [
       "AttendanceReviewQueue"
     ],
@@ -2103,6 +2400,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/student-life/attendance/components/AttendanceStaffWorkspace.tsx",
+    "kind": "component",
     "exports": [
       "AttendanceProfileDialog",
       "AttendanceStaffWorkspace"
@@ -2111,6 +2409,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/student-life/attendance/components/AttendanceStatusTiles.tsx",
+    "kind": "component",
     "exports": [
       "AttendanceStatusTiles"
     ],
@@ -2118,6 +2417,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/student-life/attendance/components/DormDelegateEditor.tsx",
+    "kind": "component",
     "exports": [
       "DormDelegateEditor"
     ],
@@ -2125,6 +2425,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/student-life/attendance/components/PendingCorrectionQueue.tsx",
+    "kind": "component",
     "exports": [
       "PendingCorrectionQueue"
     ],
@@ -2132,6 +2433,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/student-life/attendance/components/StudentAttendanceProfileDrawer.tsx",
+    "kind": "component",
     "exports": [
       "StudentAttendanceProfileDrawer"
     ],
@@ -2139,6 +2441,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/student-life/attendance/components/StudentAttendanceWorkspace.tsx",
+    "kind": "component",
     "exports": [
       "StudentAttendancePoolPrompt",
       "StudentAttendanceWorkspace"
@@ -2147,6 +2450,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/student-life/attendance/pages/AttendancePage.tsx",
+    "kind": "page",
     "exports": [
       "AttendancePage"
     ],
@@ -2154,6 +2458,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/student-life/attendance/pages/MyAttendancePage.tsx",
+    "kind": "page",
     "exports": [
       "MyAttendancePage"
     ],
@@ -2161,6 +2466,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/student-life/attendance/views/AttendanceRosterView.tsx",
+    "kind": "component",
     "exports": [
       "AttendanceRosterView"
     ],
@@ -2168,6 +2474,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/student-life/attention/pages/AttentionPage.tsx",
+    "kind": "page",
     "exports": [
       "AttentionCard",
       "AttentionPage"
@@ -2176,6 +2483,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/student-life/dormitory/pages/DormitoryPage.tsx",
+    "kind": "page",
     "exports": [
       "DormitoryPage"
     ],
@@ -2183,6 +2491,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/student-life/exit-permissions/ExitPermissionsPage.tsx",
+    "kind": "component",
     "exports": [
       "ExitPermissionsPage"
     ],
@@ -2190,6 +2499,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/student-life/followup/components/FollowUpCenter.tsx",
+    "kind": "component",
     "exports": [
       "FollowUpCenter"
     ],
@@ -2197,6 +2507,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/student-life/followup/components/FollowUpPage.tsx",
+    "kind": "component",
     "exports": [
       "FollowUpPage"
     ],
@@ -2204,6 +2515,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/student-life/leave-requests/LeaveRequestsPage.tsx",
+    "kind": "component",
     "exports": [
       "LeaveRequestsPage"
     ],
@@ -2211,6 +2523,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "features/student-life/permission-requests/PermissionRequestsPage.tsx",
+    "kind": "component",
     "exports": [
       "PermissionDecisionModal",
       "PermissionRequestsPage"
@@ -2219,6 +2532,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "shared/errors/AppErrorBoundary.tsx",
+    "kind": "component",
     "exports": [
       "AppErrorBoundary"
     ],
@@ -2226,6 +2540,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "shared/errors/ErrorFallback.tsx",
+    "kind": "component",
     "exports": [
       "ErrorFallback"
     ],
@@ -2233,6 +2548,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "shared/errors/RouteErrorBoundary.tsx",
+    "kind": "component",
     "exports": [
       "RouteErrorBoundary"
     ],
@@ -2240,6 +2556,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "shared/theme/theme.tsx",
+    "kind": "component",
     "exports": [
       "AuthThemeProvider",
       "ThemeProvider",
@@ -2249,6 +2566,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "shared/ui/StudentPicker.tsx",
+    "kind": "component",
     "exports": [
       "StudentPicker"
     ],
@@ -2256,6 +2574,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "shared/ui/admin-data-table.tsx",
+    "kind": "component",
     "exports": [
       "AdminDataTable"
     ],
@@ -2263,6 +2582,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "shared/ui/admin-list.tsx",
+    "kind": "component",
     "exports": [
       "AdminList"
     ],
@@ -2270,6 +2590,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "shared/ui/assessment-workspace-intro.tsx",
+    "kind": "component",
     "exports": [
       "AssessmentMetric",
       "AssessmentWorkspaceIntro"
@@ -2278,6 +2599,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "shared/ui/attendance-coin.tsx",
+    "kind": "component",
     "exports": [
       "AttendanceCoin"
     ],
@@ -2285,6 +2607,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "shared/ui/collection-toolbar.tsx",
+    "kind": "component",
     "exports": [
       "CollectionToolbar"
     ],
@@ -2292,6 +2615,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "shared/ui/dashboard-layout-board.tsx",
+    "kind": "component",
     "exports": [
       "DashboardLayoutBoard"
     ],
@@ -2299,6 +2623,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "shared/ui/dashboard-preferences-content.tsx/DashboardPreferencesContent.tsx",
+    "kind": "component",
     "exports": [
       "DashboardPreferencesContent"
     ],
@@ -2306,6 +2631,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "shared/ui/dashboard-workspace.tsx",
+    "kind": "component",
     "exports": [
       "DashboardWorkspace"
     ],
@@ -2313,6 +2639,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "shared/ui/data-table/data-table-desktop.tsx",
+    "kind": "component",
     "exports": [
       "DataTableDesktop"
     ],
@@ -2320,6 +2647,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "shared/ui/data-table/data-table-filters.tsx",
+    "kind": "component",
     "exports": [
       "DataTableFilters"
     ],
@@ -2327,6 +2655,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "shared/ui/data-table/data-table-mobile-card.tsx",
+    "kind": "component",
     "exports": [
       "DataTableMobileCards"
     ],
@@ -2334,6 +2663,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "shared/ui/data-table/data-table-pagination.tsx",
+    "kind": "component",
     "exports": [
       "DataTablePagination"
     ],
@@ -2341,6 +2671,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "shared/ui/data-table/data-table-row-actions.tsx",
+    "kind": "component",
     "exports": [
       "DataTableRowActions"
     ],
@@ -2348,6 +2679,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "shared/ui/data-table/data-table-toolbar.tsx",
+    "kind": "component",
     "exports": [
       "DataTableToolbar"
     ],
@@ -2355,6 +2687,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "shared/ui/data-table/data-table.tsx",
+    "kind": "component",
     "exports": [
       "DataTable"
     ],
@@ -2362,6 +2695,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "shared/ui/data-transfer.tsx",
+    "kind": "component",
     "exports": [
       "DataTransferWorkspace"
     ],
@@ -2369,6 +2703,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "shared/ui/date-navigator.tsx",
+    "kind": "component",
     "exports": [
       "DateNavigator"
     ],
@@ -2376,6 +2711,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "shared/ui/date-picker.tsx",
+    "kind": "component",
     "exports": [
       "DatePicker",
       "DateTimePicker"
@@ -2384,6 +2720,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "shared/ui/floating-island/FloatingIslandProvider.tsx",
+    "kind": "component",
     "exports": [
       "FloatingIslandProvider"
     ],
@@ -2391,6 +2728,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "shared/ui/floating-island/FloatingIslandViewport.tsx",
+    "kind": "component",
     "exports": [
       "FloatingIslandViewport"
     ],
@@ -2398,6 +2736,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "shared/ui/glass/GlassActiveIndicator.tsx",
+    "kind": "component",
     "exports": [
       "GlassActiveIndicator"
     ],
@@ -2405,6 +2744,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "shared/ui/locale.tsx",
+    "kind": "component",
     "exports": [
       "LocaleProvider"
     ],
@@ -2412,6 +2752,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "shared/ui/management-workspace.tsx",
+    "kind": "component",
     "exports": [
       "ManagementMasterDetail",
       "ManagementPageHeader",
@@ -2423,6 +2764,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "shared/ui/mobile-sheet.tsx",
+    "kind": "component",
     "exports": [
       "MobileSheet"
     ],
@@ -2430,6 +2772,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "shared/ui/mobile/data-display.tsx",
+    "kind": "component",
     "exports": [
       "CompactChartContainer",
       "ProgressIndicator",
@@ -2442,6 +2785,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "shared/ui/mobile/feedback.tsx",
+    "kind": "component",
     "exports": [
       "MobileSkeleton",
       "OfflineBanner",
@@ -2452,6 +2796,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "shared/ui/mobile/forms.tsx",
+    "kind": "component",
     "exports": [
       "FormStepper",
       "MobileCheckbox",
@@ -2469,6 +2814,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "shared/ui/mobile/layout.tsx",
+    "kind": "component",
     "exports": [
       "CollapsibleSection",
       "MobileCard",
@@ -2483,6 +2829,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "shared/ui/mobile/lists.tsx",
+    "kind": "component",
     "exports": [
       "EmptyListState",
       "FilterChips",
@@ -2495,6 +2842,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "shared/ui/mobile/navigation.tsx",
+    "kind": "component",
     "exports": [
       "BackButton",
       "ContextMenu",
@@ -2508,6 +2856,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "shared/ui/mobile/sheets.tsx",
+    "kind": "component",
     "exports": [
       "ActionSheet",
       "ConfirmationDialog",
@@ -2519,6 +2868,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "shared/ui/modal.tsx",
+    "kind": "component",
     "exports": [
       "Modal",
       "ModalProvider"
@@ -2527,6 +2877,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "shared/ui/notifications.tsx",
+    "kind": "component",
     "exports": [
       "AppToaster"
     ],
@@ -2534,6 +2885,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "shared/ui/organization-tag.tsx",
+    "kind": "component",
     "exports": [
       "OrganizationTag"
     ],
@@ -2541,6 +2893,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "shared/ui/platform-organization-picker.tsx",
+    "kind": "component",
     "exports": [
       "PlatformOrganizationPicker"
     ],
@@ -2548,6 +2901,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "shared/ui/popover.tsx",
+    "kind": "component",
     "exports": [
       "ViewportPopover"
     ],
@@ -2555,6 +2909,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "shared/ui/question-bank-data-transfer.tsx",
+    "kind": "component",
     "exports": [
       "QuestionBankDataTransfer"
     ],
@@ -2562,6 +2917,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "shared/ui/responsive-drawer.tsx",
+    "kind": "component",
     "exports": [
       "ResponsiveDrawer"
     ],
@@ -2569,6 +2925,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "shared/ui/responsive-modal.tsx",
+    "kind": "component",
     "exports": [
       "ResponsiveModal"
     ],
@@ -2576,6 +2933,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "shared/ui/segmented-control.tsx",
+    "kind": "component",
     "exports": [
       "SegmentedControl"
     ],
@@ -2583,6 +2941,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "shared/ui/soft-confirmation-button.tsx",
+    "kind": "component",
     "exports": [
       "SoftConfirmButton"
     ],
@@ -2590,6 +2949,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "shared/ui/spreadsheet-transfer-actions.tsx",
+    "kind": "component",
     "exports": [
       "SpreadsheetTransferActions"
     ],
@@ -2597,6 +2957,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "shared/ui/spreadsheet-transfer-launcher.tsx",
+    "kind": "component",
     "exports": [
       "SpreadsheetTransferLauncher"
     ],
@@ -2604,6 +2965,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "shared/ui/student-allocation-control.tsx",
+    "kind": "component",
     "exports": [
       "StudentAllocationControl"
     ],
@@ -2611,6 +2973,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "shared/ui/ui.tsx",
+    "kind": "component",
     "exports": [
       "Badge",
       "Button",
@@ -2630,6 +2993,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "shared/ui/work-context-bar.tsx",
+    "kind": "component",
     "exports": [
       "WorkContextBar"
     ],
@@ -2637,6 +3001,7 @@ export const componentCatalog = [
   },
   {
     "sourcePath": "shared/ui/zanin-brand.tsx",
+    "kind": "component",
     "exports": [
       "ZaninBrand"
     ],

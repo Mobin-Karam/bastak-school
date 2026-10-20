@@ -16,9 +16,11 @@ npm run storybook:catalog
 npm run storybook:catalog:check
 ```
 
-The catalog covers every exported TSX component module. A module marked
-`نیازمند fixture` is not a missing source record: it requires deterministic
-auth, API, or workflow data before an isolated interactive story can be
-truthfully added. Follow
+The catalog separately covers every exported TSX component module and every
+Admin page module. Page stories are the primary UI/UX development surface:
+start with `.storybook/fixtures/auth.tsx` and deterministic feature data, then
+wire the production API only in the application. A module marked `نیازمند
+fixture` is not a missing source record: it requires deterministic auth, API,
+or workflow data before an isolated interactive story can be truthfully added. Follow
 [`storybook-documentation`](../../.github/skills/storybook-documentation/SKILL.md)
 when extending coverage.

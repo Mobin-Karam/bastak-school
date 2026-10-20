@@ -3,10 +3,11 @@ description: Document Bastak School components in Storybook with truthful fixtur
 ---
 
 Use the `storybook-documentation` agent and skill to audit the requested
-Admin component scope. Read `AGENTS.md`, query Graphify, run the catalog
+Admin component and page scope. Read `AGENTS.md`, query Graphify, run the catalog
 generator, and inspect each component's providers, tests, locale, styles, and
 consumer boundaries. Add or update co-located CSF stories with autodocs and
-meaningful interactive states; cover loading, empty, error, disabled,
+meaningful interactive states; for each Admin page use deterministic Storybook
+fixtures as the UI/UX development source before live integration. Cover loading, empty, error, disabled,
 keyboard/focus, responsive, RTL, and theme variants where applicable.
 
 Do not call a production API, use credentials, weaken authorization, or invent

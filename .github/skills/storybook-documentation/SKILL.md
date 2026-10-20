@@ -17,10 +17,12 @@ not proof that a data-connected feature can safely render without fixtures.
    the generated catalog committed and run `npm run storybook:catalog:check`
    before handoff.
 3. Co-locate an interactive `*.stories.tsx` file with every reusable visual
-   component. Use CSF, autodocs, Persian/RTL defaults, and meaningful states:
+   component and Admin page. Use CSF, autodocs, Persian/RTL defaults, and meaningful states:
    default, empty/loading/error/disabled, narrow viewport, and LTR only when
    mixed-direction behavior matters.
-4. Reuse the global Storybook providers. Do not weaken server authorization,
+4. For pages, start from `.storybook/fixtures/auth.tsx` and compose deterministic
+   feature fixtures; make page stories the primary UI/UX design surface before
+   wiring live API behavior. Reuse the global Storybook providers. Do not weaken server authorization,
    call production APIs, hard-code credentials, or invent live domain data.
    Components that require an authenticated API or complex workflow need an
    explicit fixture boundary and must remain accurately marked in the catalog

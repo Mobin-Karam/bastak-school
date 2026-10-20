@@ -15,13 +15,18 @@ type Story = StoryObj<typeof meta>;
 function Catalog() {
   const [query, setQuery] = useState("");
   const [onlyInteractive, setOnlyInteractive] = useState(false);
+  const [scope, setScope] = useState<"all" | "page" | "component">("all");
   const entries = useMemo(() => {
     const normalized = query.trim().toLowerCase();
     return componentCatalog.filter((entry) => {
       const haystack = `${entry.sourcePath} ${entry.exports.join(" ")}`.toLowerCase();
-      return (!normalized || haystack.includes(normalized)) && (!onlyInteractive || entry.storyPath);
+      return (
+        (!normalized || haystack.includes(normalized)) &&
+        (!onlyInteractive || entry.storyPath) &&
+        (scope === "all" || entry.kind === scope)
+      );
     });
-  }, [onlyInteractive, query]);
+  }, [onlyInteractive, query, scope]);
 
   return (
     <main className="mx-auto grid max-w-6xl gap-6 p-6 text-[rgb(var(--color-ink))]" dir="rtl">
@@ -50,6 +55,14 @@ function Catalog() {
           />
           فقط داستان‌های تعاملی
         </label>
+        <label className="flex items-center gap-2 text-sm font-semibold">
+          دسته
+          <select value={scope} onChange={(event) => setScope(event.target.value as typeof scope)} className="rounded border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-muted))] px-2 py-1 text-xs">
+            <option value="all">همه</option>
+            <option value="page">صفحه‌ها</option>
+            <option value="component">اجزا</option>
+          </select>
+        </label>
         <span className="text-xs text-slate-500">{entries.length.toLocaleString("fa-IR")} ماژول</span>
       </div>
 
@@ -59,10 +72,11 @@ function Catalog() {
             <div className="flex items-start justify-between gap-3">
               <code dir="ltr" className="break-all text-xs text-slate-500">{entry.sourcePath}</code>
               <span className={entry.storyPath ? "shrink-0 text-xs font-bold text-emerald-700" : "shrink-0 text-xs font-bold text-amber-700"}>
-                {entry.storyPath ? "تعاملی" : "نیازمند fixture"}
+                {entry.storyPath ? "تعاملی" : entry.kind === "page" ? "نیازمند fixture صفحه" : "نیازمند fixture"}
               </span>
             </div>
             <p className="mt-3 text-sm font-bold">{entry.exports.join("، ")}</p>
+            <p className="mt-1 text-xs text-slate-500">{entry.kind === "page" ? "صفحه" : "جزء"}</p>
             {entry.storyPath ? <code dir="ltr" className="mt-2 block text-xs text-slate-500">{entry.storyPath}</code> : null}
           </li>
         ))}
