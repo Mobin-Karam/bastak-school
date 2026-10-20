@@ -5,8 +5,10 @@
   "type": "module",
   "scripts": {
     "dev": "vite --config vite.config.ts",
-    "storybook": "storybook dev -p 6006",
-    "storybook:build": "storybook build",
+    "storybook": "npm run storybook:catalog && storybook dev -p 6006",
+    "storybook:catalog": "node scripts/generate-storybook-catalog.mjs",
+    "storybook:catalog:check": "node scripts/generate-storybook-catalog.mjs --check",
+    "storybook:build": "npm run storybook:catalog:check && storybook build",
     "build": "tsc -b && vite build --config vite.config.ts",
     "typecheck": "tsc -b --pretty false",
     "preview": "vite preview --config vite.config.ts",
