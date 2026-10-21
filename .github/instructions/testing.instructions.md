@@ -10,3 +10,4 @@ applyTo: "**/*"
 - Cover success, failure, boundary, authorization, and state-transition cases when relevant.
 - Do not delete or weaken tests only to obtain a green build.
 - Never claim validation passed unless the command was executed successfully.
+- Separate source-level proof from browser/device, live provider, deployment, and production verification; state any unrun boundary clearly.

@@ -15,6 +15,8 @@ import { Permission } from "../src/database/entities/permission.entity";
 import { RolePermission } from "../src/database/entities/role-permission.entity";
 import { UserRoleAssignment } from "../src/database/entities/user-role-assignment.entity";
 import { AttendanceWriteReceipt } from "../src/database/entities/attendance-write-receipt.entity";
+import { Notification } from "../src/database/entities/notification.entity";
+import { StudentPointLedger } from "../src/database/entities/student-point-ledger.entity";
 import { AttendanceWriteReceipts1730100000000 } from "../src/database/migrations/1730100000000-AttendanceWriteReceipts";
 import { AttendanceController } from "../src/modules/attendance/attendance.controller";
 import { plainToInstance } from "class-transformer";
@@ -27,7 +29,13 @@ import { SchoolAccessService } from "../src/modules/school-access/school-access.
 import { AuthorizationService } from "../src/modules/authorization";
 import { RealtimeService } from "../src/modules/realtime/realtime.service";
 import type { AuthenticatedUser } from "../src/modules/auth";
-import { AttendanceRecord } from "../src/database/entities/attendance-record.entity";
+import {
+  AttendanceRecord,
+  AttendanceReviewStatus,
+  AttendanceStatus,
+} from "../src/database/entities/attendance-record.entity";
+import { AttendanceCorrection } from "../src/database/entities/attendance-correction.entity";
+import { AttendancePolicy } from "../src/database/entities/attendance-policy.entity";
 import { AttendanceSession } from "../src/database/entities/attendance-session.entity";
 import {
   Organization,
@@ -282,6 +290,214 @@ describe("AttendanceService organization boundaries (real SQLite)", () => {
     });
   });
 
+  it("pages scoped session history with bounded results", async () => {
+    await db.getRepository(AttendanceSession).save([
+      {
+        organization: orgA,
+        contextType: "class",
+        contextId: assignedClass.id,
+        sessionDate: new Date("2026-10-10T08:00:00Z"),
+        titleSnapshot: "قدیمی",
+      },
+      {
+        organization: orgA,
+        contextType: "class",
+        contextId: assignedClass.id,
+        sessionDate: new Date("2026-10-11T08:00:00Z"),
+        titleSnapshot: "جدید",
+      },
+    ]);
+    const history = await service.paginatedSessions(actor, {
+      page: 1,
+      limit: 1,
+    });
+    expect(history).toMatchObject({
+      page: 1,
+      limit: 1,
+      total: 2,
+      hasNext: true,
+    });
+    expect(history.items).toHaveLength(1);
+    expect(history.items[0].title).toBe("جدید");
+    await expect(
+      service.paginatedSessions(actor, {
+        page: 1,
+        limit: 25,
+        contextType: "class",
+        contextId: assignedClass.id,
+        from: "2026-10-11T00:00:00.000Z",
+      }),
+    ).resolves.toMatchObject({
+      total: 1,
+      hasNext: false,
+      items: [expect.objectContaining({ title: "جدید" })],
+    });
+  });
+
+  it("paginates only a teacher's assigned contexts", async () => {
+    const unassignedClass = await db.getRepository(EducationClass).save({
+      organization: orgA,
+      code: "UNASSIGNED",
+      name: "Unassigned class",
+      schoolYear: "1405",
+      gradeId: 1,
+      educationTypeId: "school",
+      trackId: "general",
+    });
+    await db.getRepository(AttendanceSession).save([
+      {
+        organization: orgA,
+        contextType: "class",
+        contextId: unassignedClass.id,
+        sessionDate: new Date("2026-10-12T08:00:00Z"),
+        titleSnapshot: "غیرمجاز",
+      },
+      {
+        organization: orgA,
+        contextType: "class",
+        contextId: assignedClass.id,
+        sessionDate: new Date("2026-10-11T08:00:00Z"),
+        titleSnapshot: "مجاز",
+      },
+    ]);
+    const history = await service.paginatedSessions(
+      { ...actor, role: "TEACHER", roles: ["TEACHER"] },
+      { page: 1, limit: 1 },
+    );
+    expect(history).toMatchObject({ total: 1, hasNext: false });
+    expect(history.items).toEqual([
+      expect.objectContaining({ title: "مجاز", contextId: assignedClass.id }),
+    ]);
+  });
+
+  it("returns a student's own non-cancelled history without crossing organizations", async () => {
+    const studentUser = await db.getRepository(User).save({
+      username: "student-history",
+      passwordHash: "not-a-login-hash",
+      role: UserRole.STUDENT,
+    });
+    await db
+      .getRepository(OrganizationMembership)
+      .save({ organization: orgA, user: studentUser });
+    studentA.user = studentUser;
+    await db.getRepository(Student).save(studentA);
+    const recorded = await service.bulkMark(actor, {
+      organizationId: orgA.id,
+      contextType: "class",
+      contextId: assignedClass.id,
+      entries: [{ studentId: studentA.id, status: "absent" }],
+    });
+    await db.getRepository(AttendanceSession).save({
+      organization: orgB,
+      contextType: "class",
+      contextId: foreignClass.id,
+      sessionDate: new Date(),
+      status: "submitted",
+      records: [],
+    });
+    const history = await service.listSelfRecords({
+      id: studentUser.id,
+      username: studentUser.username,
+      role: "STUDENT",
+      roles: ["STUDENT"],
+      capabilities: ["attendance.self.read"],
+      sessionId: "student-history",
+      organizationIds: [orgA.id],
+      activeOrganizationId: orgA.id,
+    });
+    expect(history).toEqual([
+      expect.objectContaining({
+        id: recorded.records[0].id,
+        organizationId: orgA.id,
+      }),
+    ]);
+  });
+
+  it("keeps a marker's absence-review history inside the active organization", async () => {
+    const account = await db
+      .getRepository(User)
+      .findOneByOrFail({ id: actor.id });
+    await db
+      .getRepository(OrganizationMembership)
+      .save({ organization: orgB, user: account });
+    const [localSession, foreignSession] = await db
+      .getRepository(AttendanceSession)
+      .save([
+        {
+          organization: orgA,
+          contextType: "class",
+          contextId: assignedClass.id,
+          sessionDate: new Date(),
+          status: "submitted",
+        },
+        {
+          organization: orgB,
+          contextType: "class",
+          contextId: foreignClass.id,
+          sessionDate: new Date(),
+          status: "submitted",
+        },
+      ]);
+    const [local, foreign] = await db.getRepository(AttendanceRecord).save([
+      {
+        session: localSession,
+        student: studentA,
+        recordedBy: account,
+        status: AttendanceStatus.ABSENT,
+        reviewStatus: AttendanceReviewStatus.PENDING,
+      },
+      {
+        session: foreignSession,
+        student: studentB,
+        recordedBy: account,
+        status: AttendanceStatus.ABSENT,
+        reviewStatus: AttendanceReviewStatus.PENDING,
+      },
+    ]);
+    await expect(service.listMyAbsenceReviews(actor)).resolves.toEqual([
+      expect.objectContaining({ id: local.id, organizationId: orgA.id }),
+    ]);
+    expect(foreign.id).toBeTruthy();
+  });
+
+  it("enforces the organization partial-submission policy on the server", async () => {
+    const member = await db.getRepository(Student).save({
+      organization: orgA,
+      name: "Second member",
+    });
+    await db.getRepository(EducationClassEnrollment).save({
+      classroom: assignedClass,
+      student: member,
+    });
+    const administrator = {
+      ...actor,
+      capabilities: [
+        ...(actor.capabilities ?? []),
+        "attendance.settings.manage",
+      ],
+    };
+    await service.updatePolicy(administrator, {
+      organizationId: orgA.id,
+      timeZone: "Asia/Tehran",
+      dayStartsAt: "04:00",
+      allowPartialSubmission: false,
+      lateCountsAsPresent: true,
+    });
+    await expect(
+      service.bulkMark(actor, {
+        organizationId: orgA.id,
+        contextType: "class",
+        contextId: assignedClass.id,
+        entries: [{ studentId: studentA.id, status: "present" }],
+      }),
+    ).rejects.toMatchObject({
+      response: { error: { code: "ATTENDANCE_PARTIAL_SUBMISSION_DISABLED" } },
+    });
+    expect(
+      (await service.policy(administrator, orgA.id)).allowPartialSubmission,
+    ).toBe(false);
+  });
+
   it("retrieves immutable roster and staff snapshots after membership and timetable changes", async () => {
     const roster = [
       {
@@ -330,6 +546,442 @@ describe("AttendanceService organization boundaries (real SQLite)", () => {
       }),
     ).rejects.toMatchObject({
       response: { error: { code: "ATTENDANCE_SESSION_WORKFLOW_REQUIRED" } },
+    });
+  });
+
+  it("preserves the timetable subject snapshot when creating a lesson session", async () => {
+    const created = await service.createTimetableSession(actor, {
+      organizationId: orgA.id,
+      classroomId: assignedClass.id,
+      lessonId: randomUUID(),
+      date: "2026-10-11",
+      title: "پایه سوم · فقه",
+      subjectId: "book-fiqh",
+      subjectName: "فقه",
+      academicYearId: "year-1405",
+      academicYearName: "سال تحصیلی ۱۴۰۵",
+      termId: "term-one",
+      termName: "نیم‌سال اول",
+      startsAt: "2026-10-11T04:30:00.000Z",
+      endsAt: "2026-10-11T05:15:00.000Z",
+      timeZone: "Asia/Tehran",
+      teacherId: null,
+    });
+    await expect(
+      db.getRepository(AttendanceSession).findOneByOrFail({ id: created.id }),
+    ).resolves.toMatchObject({
+      subjectIdSnapshot: "book-fiqh",
+      subjectNameSnapshot: "فقه",
+      academicYearIdSnapshot: "year-1405",
+      academicYearNameSnapshot: "سال تحصیلی ۱۴۰۵",
+      termIdSnapshot: "term-one",
+      termNameSnapshot: "نیم‌سال اول",
+    });
+    await expect(
+      service.sessionDetail(actor, created.id),
+    ).resolves.toMatchObject({
+      subjectId: "book-fiqh",
+      subjectName: "فقه",
+      academicYearId: "year-1405",
+      academicYearName: "سال تحصیلی ۱۴۰۵",
+      termId: "term-one",
+      termName: "نیم‌سال اول",
+    });
+    await expect(
+      service.paginatedSessions(actor, {
+        page: 1,
+        limit: 25,
+        subjectId: "book-fiqh",
+      }),
+    ).resolves.toMatchObject({
+      total: 1,
+      items: [
+        expect.objectContaining({ subjectId: "book-fiqh", subjectName: "فقه" }),
+      ],
+    });
+  });
+
+  it("submits an immutable roster absence-first in one revisioned, idempotent write", async () => {
+    const lateMember = await db.getRepository(Student).save({
+      organization: orgA,
+      name: "Late member",
+    });
+    await db.getRepository(EducationClassEnrollment).save({
+      classroom: assignedClass,
+      student: lateMember,
+    });
+    const session = await db.getRepository(AttendanceSession).save({
+      organization: orgA,
+      contextType: "class",
+      contextId: assignedClass.id,
+      sessionDate: new Date(),
+      status: "open",
+      revision: 4,
+      titleSnapshot: "فقه",
+      rosterSnapshot: [
+        {
+          id: studentA.id,
+          name: studentA.name,
+          nationalCode: null,
+          userId: null,
+        },
+        {
+          id: lateMember.id,
+          name: lateMember.name,
+          nationalCode: null,
+          userId: null,
+        },
+      ],
+    });
+    const requestId = randomUUID();
+    const body = {
+      requestId,
+      expectedRevision: 4,
+      absentStudentIds: [studentA.id],
+      lateStudentIds: [lateMember.id],
+    };
+
+    const committed = await service.submitAbsences(actor, session.id, body);
+    expect(committed).toMatchObject({
+      sessionId: session.id,
+      count: 2,
+      revision: 5,
+      status: "submitted",
+    });
+    expect(await service.submitAbsences(actor, session.id, body)).toEqual(
+      committed,
+    );
+    expect(
+      (
+        await db
+          .getRepository(AttendanceRecord)
+          .find({ where: { session: { id: session.id } } })
+      )
+        .map((record) => record.status)
+        .sort(),
+    ).toEqual(["absent", "late"]);
+    await expect(
+      service.submitAbsences(actor, session.id, {
+        ...body,
+        requestId: randomUUID(),
+        expectedRevision: 5,
+      }),
+    ).rejects.toMatchObject({
+      response: { error: { code: "ATTENDANCE_SESSION_ALREADY_SUBMITTED" } },
+    });
+  });
+
+  it("records all 30 roster members as present after explicit all-present confirmation", async () => {
+    const additional = await db.getRepository(Student).save(
+      Array.from({ length: 29 }, (_, index) => ({
+        organization: orgA,
+        name: `All present ${index + 2}`,
+      })),
+    );
+    await db
+      .getRepository(EducationClassEnrollment)
+      .save(
+        additional.map((student) => ({ classroom: assignedClass, student })),
+      );
+    const roster = [studentA, ...additional];
+    const session = await db.getRepository(AttendanceSession).save({
+      organization: orgA,
+      contextType: "class",
+      contextId: assignedClass.id,
+      sessionDate: new Date(),
+      status: "open",
+      rosterSnapshot: roster.map((student) => ({
+        id: student.id,
+        name: student.name,
+        nationalCode: null,
+        userId: null,
+      })),
+    });
+    const result = await service.submitAbsences(actor, session.id, {
+      requestId: randomUUID(),
+      expectedRevision: 0,
+      absentStudentIds: [],
+    });
+    expect(result).toMatchObject({ count: 30, status: "submitted" });
+    expect(
+      await db.getRepository(AttendanceRecord).count({
+        where: {
+          session: { id: session.id },
+          status: AttendanceStatus.PRESENT,
+        },
+      }),
+    ).toBe(30);
+  });
+
+  it("rejects an absence-first overlap or an ID outside the session snapshot", async () => {
+    const session = await db.getRepository(AttendanceSession).save({
+      organization: orgA,
+      contextType: "class",
+      contextId: assignedClass.id,
+      sessionDate: new Date(),
+      status: "open",
+      rosterSnapshot: [
+        {
+          id: studentA.id,
+          name: studentA.name,
+          nationalCode: null,
+          userId: null,
+        },
+      ],
+    });
+    await expect(
+      service.submitAbsences(actor, session.id, {
+        requestId: randomUUID(),
+        expectedRevision: 0,
+        absentStudentIds: [studentA.id],
+        lateStudentIds: [studentA.id],
+      }),
+    ).rejects.toMatchObject({
+      response: { error: { code: "ATTENDANCE_STATUS_CONFLICT" } },
+    });
+    await expect(
+      service.submitAbsences(actor, session.id, {
+        requestId: randomUUID(),
+        expectedRevision: 0,
+        absentStudentIds: [studentB.id],
+      }),
+    ).rejects.toMatchObject({
+      response: { error: { code: "ATTENDANCE_STUDENT_NOT_IN_SESSION" } },
+    });
+    expect(await db.getRepository(AttendanceRecord).count()).toBe(0);
+  });
+
+  it("finalizes a submitted session and records a revisioned correction without reopening it", async () => {
+    const marked = await service.bulkMark(actor, {
+      organizationId: orgA.id,
+      contextType: "class",
+      contextId: assignedClass.id,
+      entries: [{ studentId: studentA.id, status: "absent" }],
+    });
+    const reviewer = {
+      ...actor,
+      capabilities: [...(actor.capabilities ?? []), "attendance.review"],
+    };
+    const finalized = await service.finalizeSession(
+      reviewer,
+      marked.sessionId,
+      {
+        requestId: randomUUID(),
+        expectedRevision: 1,
+      },
+    );
+    expect(finalized).toMatchObject({ status: "finalized", revision: 2 });
+    const correctedRequestId = randomUUID();
+    const corrected = await service.correctRecord(
+      {
+        ...reviewer,
+        capabilities: [...(reviewer.capabilities ?? []), "attendance.correct"],
+      },
+      marked.records[0].id,
+      {
+        requestId: correctedRequestId,
+        expectedRevision: 1,
+        status: "late",
+        minutesLate: 10,
+        reason: "ثبت زمان ورود",
+      },
+    );
+    expect(corrected).toMatchObject({ revision: 2, sessionRevision: 3 });
+    await expect(
+      service.correctRecord(
+        {
+          ...reviewer,
+          capabilities: [
+            ...(reviewer.capabilities ?? []),
+            "attendance.correct",
+          ],
+        },
+        marked.records[0].id,
+        {
+          requestId: correctedRequestId,
+          expectedRevision: 1,
+          status: "late",
+          minutesLate: 10,
+          reason: "ثبت زمان ورود",
+        },
+      ),
+    ).resolves.toEqual(corrected);
+    expect(await db.getRepository(AttendanceCorrection).find()).toEqual([
+      expect.objectContaining({ reason: "ثبت زمان ورود" }),
+    ]);
+    expect(await service.sessionDetail(actor, marked.sessionId)).toMatchObject({
+      status: "finalized",
+      revision: 3,
+      records: [
+        expect.objectContaining({ physicalStatus: "late", minutesLate: 10 }),
+      ],
+    });
+    expect(await service.sessionHistory(actor, marked.sessionId)).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ action: "attendance.session.finalized" }),
+        expect.objectContaining({ action: "attendance.record.corrected" }),
+      ]),
+    );
+  });
+
+  it("cancels an unmarked session with an audit trail and prevents absence-first submission", async () => {
+    const session = await service.createSession(actor, {
+      organizationId: orgA.id,
+      contextType: "class",
+      contextId: assignedClass.id,
+      sessionDate: "2026-10-11T05:00:00Z",
+    });
+    const reviewer = {
+      ...actor,
+      capabilities: [...(actor.capabilities ?? []), "attendance.review"],
+    };
+    const cancelled = await service.cancelSession(reviewer, session.id, {
+      requestId: randomUUID(),
+      expectedRevision: 0,
+      reason: "کلاس به علت مراسم برگزار نشد",
+    });
+    expect(cancelled).toMatchObject({ status: "cancelled", revision: 1 });
+    await expect(
+      service.submitAbsences(actor, session.id, {
+        requestId: randomUUID(),
+        expectedRevision: 1,
+        absentStudentIds: [],
+      }),
+    ).rejects.toMatchObject({
+      response: { error: { code: "ATTENDANCE_SESSION_LOCKED" } },
+    });
+    expect(await service.sessionHistory(reviewer, session.id)).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ action: "attendance.session.cancelled" }),
+      ]),
+    );
+  });
+
+  it("holds a correction as append-only evidence until a reviewer approves the policy-gated request", async () => {
+    const marked = await service.bulkMark(actor, {
+      organizationId: orgA.id,
+      contextType: "class",
+      contextId: assignedClass.id,
+      entries: [{ studentId: studentA.id, status: "absent" }],
+    });
+    await db.getRepository(AttendancePolicy).save({
+      organization: orgA,
+      timeZone: "Asia/Tehran",
+      dayStartsAt: "04:00",
+      allowPartialSubmission: true,
+      lateCountsAsPresent: true,
+      correctionRequiresReview: true,
+    });
+    const requested = await service.correctRecord(
+      {
+        ...actor,
+        capabilities: [...(actor.capabilities ?? []), "attendance.correct"],
+      },
+      marked.records[0].id,
+      {
+        requestId: randomUUID(),
+        expectedRevision: 1,
+        status: "late",
+        minutesLate: 7,
+        reason: "ورود با تأخیر ثبت نشده بود",
+      },
+    );
+    expect(requested).toMatchObject({ pendingReview: true, revision: 1 });
+    const beforeReview = await db
+      .getRepository(AttendanceRecord)
+      .findOneByOrFail({
+        id: marked.records[0].id,
+      });
+    expect(beforeReview.status).toBe(AttendanceStatus.ABSENT);
+    const correction = await db
+      .getRepository(AttendanceCorrection)
+      .findOneByOrFail({
+        id: requested.correctionId,
+      });
+    expect(correction.status).toBe("pending");
+    await expect(
+      service.listPendingCorrections(
+        {
+          ...actor,
+          capabilities: [...(actor.capabilities ?? []), "attendance.review"],
+        },
+        orgA.id,
+      ),
+    ).resolves.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: correction.id,
+          studentId: studentA.id,
+          title: expect.any(String),
+        }),
+      ]),
+    );
+    const unassigned = await db.getRepository(EducationClass).save({
+      organization: orgA,
+      code: "PENDING-OTHER",
+      name: "کلاس خارج از انتساب",
+      schoolYear: "1405",
+      gradeId: 1,
+      educationTypeId: "school",
+      trackId: "general",
+    });
+    const otherSession = await db.getRepository(AttendanceSession).save({
+      organization: orgA,
+      contextType: "class",
+      contextId: unassigned.id,
+      sessionDate: new Date(),
+      titleSnapshot: "جلسه خارج از انتساب",
+      status: "submitted",
+    });
+    const otherRecord = await db.getRepository(AttendanceRecord).save({
+      session: otherSession,
+      student: studentA,
+      status: AttendanceStatus.ABSENT,
+      revision: 1,
+    });
+    await db.getRepository(AttendanceCorrection).save({
+      session: otherSession,
+      record: otherRecord,
+      actor: { id: actor.id },
+      requestId: randomUUID(),
+      reason: "درخواست خارج از محدوده",
+      before: { revision: 1, status: "absent" },
+      after: { revision: 2, status: "late" },
+      status: "pending",
+    });
+    const teacherQueue = await service.listPendingCorrections(
+      {
+        ...actor,
+        role: "TEACHER",
+        roles: ["TEACHER"],
+        capabilities: ["attendance.review"],
+      },
+      orgA.id,
+    );
+    expect(teacherQueue.map((row) => row.contextId)).toEqual([
+      assignedClass.id,
+    ]);
+    const reviewed = await service.reviewCorrection(
+      {
+        ...actor,
+        capabilities: [...(actor.capabilities ?? []), "attendance.review"],
+      },
+      correction.id,
+      {
+        requestId: randomUUID(),
+        decision: "approved",
+        note: "مدرک ورود بررسی شد",
+      },
+    );
+    expect(reviewed).toMatchObject({ status: "approved", revision: 2 });
+    const afterReview = await db
+      .getRepository(AttendanceRecord)
+      .findOneByOrFail({
+        id: marked.records[0].id,
+      });
+    expect(afterReview).toMatchObject({
+      status: AttendanceStatus.LATE,
+      minutesLate: 7,
     });
   });
 
@@ -663,6 +1315,40 @@ describe("AttendanceService organization boundaries (real SQLite)", () => {
     });
   });
 
+  it("allows attendance changes only while a scheduled session is active", async () => {
+    const created = await service.createSession(actor, {
+      organizationId: orgA.id,
+      contextType: "class",
+      contextId: assignedClass.id,
+      sessionDate: new Date().toISOString(),
+    });
+    await db.getRepository(AttendanceSession).update(created.id, {
+      scheduledStartAt: new Date(Date.now() - 60_000),
+      scheduledEndAt: new Date(Date.now() + 60_000),
+    });
+
+    await expect(
+      service.bulkMark(actor, {
+        organizationId: orgA.id,
+        sessionId: created.id,
+        entries: [{ studentId: studentA.id, status: "present" }],
+      }),
+    ).resolves.toMatchObject({ sessionId: created.id, count: 1 });
+
+    await db.getRepository(AttendanceSession).update(created.id, {
+      scheduledEndAt: new Date(Date.now() - 1),
+    });
+    await expect(
+      service.bulkMark(actor, {
+        organizationId: orgA.id,
+        sessionId: created.id,
+        entries: [{ studentId: studentA.id, status: "late" }],
+      }),
+    ).rejects.toMatchObject({
+      response: { error: { code: "ATTENDANCE_SESSION_NOT_ACTIVE" } },
+    });
+  });
+
   it("does not reuse active-organization authority in another membership", async () => {
     await db
       .getRepository(OrganizationMembership)
@@ -929,9 +1615,7 @@ describe("AttendanceService organization boundaries (real SQLite)", () => {
         sessionDate: "2026-10-11T05:00:00Z",
       }),
     ).rejects.toMatchObject({ response: { error: { code: "FORBIDDEN" } } });
-    await expect(service.listAbsenceReviews(actor)).rejects.toMatchObject({
-      response: { error: { code: "FORBIDDEN" } },
-    });
+    await expect(service.listAbsenceReviews(actor)).resolves.toEqual([]);
     expect(await db.getRepository(AttendanceSession).count()).toBe(0);
   });
   it("keeps teacher study-group writes assigned and denies even an own-school dorm", async () => {
@@ -1125,6 +1809,121 @@ describe("AttendanceService organization boundaries (real SQLite)", () => {
       expect.arrayContaining([actor.id, reviewer.id]),
     );
     expect(emit.mock.calls[0][0]).not.toContain(unrelated.id);
+  });
+
+  it("links principal and supervisor absence-review notifications to the targeted review", async () => {
+    const users = db.getRepository(User);
+    const principal = await users.findOneByOrFail({
+      username: "attendance-test-staff",
+    });
+    const supervisor = await users.save({
+      username: "attendance-notification-supervisor",
+      passwordHash: "not-a-login-hash",
+      role: UserRole.TEACHER,
+    });
+    const principalMembership = await db
+      .getRepository(OrganizationMembership)
+      .findOneByOrFail({
+        organization: { id: orgA.id },
+        user: { id: principal.id },
+      });
+    const supervisorMembership = await db
+      .getRepository(OrganizationMembership)
+      .save({ organization: orgA, user: supervisor });
+    const [principalRole, supervisorRole] = await db.getRepository(Role).save([
+      { code: "PRINCIPAL", name: "Principal", organizationScoped: true },
+      {
+        code: "SCHOOL_SUPERVISOR",
+        name: "Supervisor",
+        organizationScoped: true,
+      },
+    ]);
+    await db.getRepository(UserRoleAssignment).save([
+      { user: principal, membership: principalMembership, role: principalRole },
+      {
+        user: supervisor,
+        membership: supervisorMembership,
+        role: supervisorRole,
+      },
+    ]);
+
+    const mark = await service.bulkMark(actor, {
+      organizationId: orgA.id,
+      contextType: "class",
+      contextId: assignedClass.id,
+      entries: [{ studentId: studentA.id, status: "absent" }],
+    });
+    const notifications = await db.getRepository(Notification).find({
+      where: { category: "attendance_review" },
+      relations: { user: true },
+    });
+    const expectedUrl = `/admin/attendance?section=sessions&reviewRecordId=${mark.records[0].id}`;
+
+    expect(notifications).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          user: expect.objectContaining({ id: principal.id }),
+          url: expectedUrl,
+        }),
+        expect.objectContaining({
+          user: expect.objectContaining({ id: supervisor.id }),
+          url: expectedUrl,
+        }),
+      ]),
+    );
+  });
+
+  it("scopes attendance-point request idempotency to its actor and organization", async () => {
+    const requestId = randomUUID();
+    const first = await service.awardPoints(actor, {
+      requestId,
+      organizationId: orgA.id,
+      contextType: "class",
+      contextId: assignedClass.id,
+      studentId: studentA.id,
+      points: 1,
+      reason: "رفتار سازنده",
+    });
+    expect(
+      await service.awardPoints(actor, {
+        requestId,
+        organizationId: orgA.id,
+        contextType: "class",
+        contextId: assignedClass.id,
+        studentId: studentA.id,
+        points: 1,
+        reason: "رفتار سازنده",
+      }),
+    ).toEqual(first);
+
+    const secondUser = await db.getRepository(User).save({
+      username: "attendance-second-points-actor",
+      passwordHash: "not-a-login-hash",
+      role: UserRole.TEACHER,
+    });
+    await db
+      .getRepository(OrganizationMembership)
+      .save({ organization: orgA, user: secondUser });
+    const second = await service.awardPoints(
+      {
+        ...actor,
+        id: secondUser.id,
+        username: secondUser.username,
+        sessionId: "second-points-session",
+      },
+      {
+        requestId,
+        organizationId: orgA.id,
+        contextType: "class",
+        contextId: assignedClass.id,
+        studentId: studentA.id,
+        points: -1,
+        reason: "تاخیر تکراری",
+      },
+    );
+
+    expect(second.id).not.toBe(first.id);
+    expect(await db.getRepository(StudentPointLedger).count()).toBe(2);
   });
 });
 

@@ -8,11 +8,28 @@ export const organizationTypes: readonly AdminOrganizationType[] = [
   "ORGANIZATION",
 ];
 
-/** Roles a Principal can provision in the current school release. */
+/**
+ * School roles a Principal can provision.
+ *
+ * This mirrors the server-side assignment policy. DISCIPLINARIAN is not
+ * offered because SCHOOL_SUPERVISOR is the single supervisor role presented
+ * to schools. Platform administration remains global-only.
+ */
 export const principalAssignableRoles: readonly RoleCode[] = [
   "STUDENT",
+  "GUARDIAN",
+  "ORGANIZATION_ADMIN",
+  "PRINCIPAL",
+  "SCHOOL_ADMIN",
   "SCHOOL_SUPERVISOR",
   "TEACHER",
+  "RELIGIOUS_EDUCATION_MANAGER",
+  "GOVERNMENT_EDUCATION_MANAGER",
+  "STUDENT_AFFAIRS_MENTOR",
+  "COUNSELOR",
+  "ADVISOR",
+  "MENTOR",
+  "CONTENT_MANAGER",
 ];
 
 const sharedRoles: readonly RoleCode[] = [
@@ -30,7 +47,6 @@ const schoolOnlyRoles: readonly RoleCode[] = [
   "PRINCIPAL",
   "SCHOOL_ADMIN",
   "SCHOOL_SUPERVISOR",
-  "DISCIPLINARIAN",
   "RELIGIOUS_EDUCATION_MANAGER",
   "GOVERNMENT_EDUCATION_MANAGER",
   "STUDENT_AFFAIRS_MENTOR",

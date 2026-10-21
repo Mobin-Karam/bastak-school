@@ -113,8 +113,8 @@ warn(
 );
 
 const requiredDocs = [
-  join(repository, "docs/ADMIN_V2_CAPABILITY_MATRIX.md"),
-  join(repository, "docs/API_V1_V2_AUDIT.md"),
+  join(repository, "docs/reference/admin-capability-matrix.md"),
+  join(repository, "docs/reference/api-v1-v2-audit.md"),
   join(root, "MIGRATION-AUDIT.md"),
   join(repository, "docs/operations/admin-v2-web-push-verification.md"),
 ];

@@ -111,7 +111,7 @@ const backendCapabilities = new Set();
 
 for (const file of walk(backendSrc)) {
   const source = fs.readFileSync(file, "utf8");
-  for (const decorator of source.matchAll(/RequireCapabilities\(([^)]*)\)/g)) {
+  for (const decorator of source.matchAll(/Require(?:Any)?Capabilities\(([^)]*)\)/g)) {
     for (const capability of decorator[1].matchAll(/["']([^"']+)["']/g)) {
       backendCapabilities.add(capability[1]);
     }

@@ -5,6 +5,8 @@ description: Discover repository structure, languages, frameworks, package manag
 
 # Repository Discovery Skill
 
+Read `AGENTS.md`, query Graphify when available, and use `tooling/workspace/projects.json` as the current project graph. `apps/student` is historical and absent; do not report it as an active component.
+
 ## Workflow
 1. Inspect root files and manifests without traversing generated/vendor directories.
 2. Detect package/workspace managers and monorepo configuration.

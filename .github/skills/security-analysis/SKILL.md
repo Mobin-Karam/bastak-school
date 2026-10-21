@@ -5,6 +5,8 @@ description: Audit relevant application security surfaces and produce prioritize
 
 # Security Analysis Skill
 
+For Moshaver, verify API capability checks, organization isolation, `/me/context` switching behavior, CSRF/session boundaries, and least-privilege CI/deployment permissions.
+
 ## Inspect when applicable
 - authentication/session/token lifecycle
 - authorization, roles, ownership, tenant/workspace isolation

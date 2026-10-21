@@ -5,6 +5,8 @@ description: Work safely with Git branches, commits, diffs, merges, rebases, pul
 
 # Git Workflow Skill
 
+Normal work targets `develop`; preserve unrelated dirty changes. Do not merge a release PR or treat CI dispatch as production confirmation without the project’s required evidence.
+
 ## Safety rules
 - Inspect `git status`, current branch, remotes, and relevant diff before disruptive operations.
 - Preserve uncommitted user changes.

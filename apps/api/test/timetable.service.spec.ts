@@ -1211,6 +1211,14 @@ describe("versioned timetable integration (migration-built SQLite)", () => {
         awaitingAttendance: 0,
       });
       expect(report.classes).toHaveLength(1);
+      expect(report.subjects).toEqual([
+        expect.objectContaining({
+          subjectId: lesson.classBookId,
+          subjectName: "نحو",
+          planned: 1,
+          attendanceRecorded: 1,
+        }),
+      ]);
       await service.override(staff, draftId, {
         expectedRevision: 2,
         lessonId: written.id,

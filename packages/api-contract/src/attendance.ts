@@ -31,6 +31,12 @@ export type AttendanceSessionDetail = {
   contextType: AttendanceContext | "night" | "pool";
   contextId: string;
   title: string;
+  subjectId: string | null;
+  subjectName: string | null;
+  academicYearId: string | null;
+  academicYearName: string | null;
+  termId: string | null;
+  termName: string | null;
   operationalDate: string | null;
   sessionDate: string;
   scheduledStartAt: string | null;
@@ -68,6 +74,12 @@ export type AttendanceSessionWriteResult = {
   status: AttendanceSessionStatus;
   count: number;
 };
+export type SubmitAttendanceAbsences = {
+  requestId: string;
+  expectedRevision: number;
+  absentStudentIds: string[];
+  lateStudentIds?: string[];
+};
 export type ResolveAttendanceSession = {
   organizationId: string;
   source: "class_schedule" | "attendance_schedule";
@@ -80,4 +92,5 @@ export type AttendancePolicyContract = {
   dayStartsAt: string;
   allowPartialSubmission: boolean;
   lateCountsAsPresent: boolean;
+  correctionRequiresReview: boolean;
 };

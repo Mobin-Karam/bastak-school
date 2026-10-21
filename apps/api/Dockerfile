@@ -5,7 +5,17 @@ COPY packages/api-contract /app/packages/api-contract
 COPY packages/cmb ./packages/cmb
 COPY apps/api/package*.json ./apps/api/
 WORKDIR /app/apps/api
-RUN npm ci --no-audit --no-fund
+# On the self-hosted production runner, overlayfs can briefly keep esbuild's
+# postinstall binary open, causing npm's immediate validation to fail with
+# ETXTBSY. A clean retry makes the dependency layer deterministic without
+# masking persistent install failures.
+RUN attempt=1; \
+    until npm ci --no-audit --no-fund; do \
+      if [ "$attempt" -ge 3 ]; then exit 1; fi; \
+      attempt=$((attempt + 1)); \
+      rm -rf node_modules; \
+      sleep 2; \
+    done
 
 FROM deps AS prod-deps
 WORKDIR /app/apps/api

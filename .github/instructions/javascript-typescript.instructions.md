@@ -9,3 +9,4 @@ applyTo: "**/*.js,**/*.jsx,**/*.mjs,**/*.cjs,**/*.ts,**/*.tsx,**/*.mts,**/*.cts"
 - Avoid `any`, unsafe assertions, and broad lint suppression unless justified by existing patterns.
 - Use project scripts from `package.json` rather than inventing commands.
 - Do not assume React, Next.js, Node.js, Bun, Deno, NestJS, Prisma, or any particular library until verified.
+- Respect leaf `package-lock.json` files and the project DAG; do not run a root install or introduce root workspace dependencies.

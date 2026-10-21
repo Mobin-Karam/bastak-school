@@ -5,6 +5,8 @@ description: Design and implement maintainable unit, integration, contract, end-
 
 # Test Generation Skill
 
+For capability-sensitive features, prioritize server authorization and cross-organization isolation tests; add Admin gating tests as a complementary presentation layer.
+
 ## Selection guide
 - Unit: isolated business rules and transformations.
 - Integration: database, framework, service boundary, or module interaction.

@@ -725,7 +725,7 @@ export function Field({
   required = false,
   id,
 }: {
-  label: string;
+  label: ReactNode;
   children: ReactNode;
   description?: ReactNode;
   error?: string;

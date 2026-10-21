@@ -22,3 +22,8 @@ body:
     attributes:
       label: Constraints / context
       description: Compatibility, security, performance, migration, UI, API, or rollout constraints.
+  - type: textarea
+    id: authorization_scope
+    attributes:
+      label: Access and scope
+      description: Which capabilities, organizations, users, and data boundaries apply? Use N/A only when no protected data or action is involved.

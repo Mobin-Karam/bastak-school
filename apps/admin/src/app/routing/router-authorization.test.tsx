@@ -5,7 +5,7 @@ import { LocaleProvider } from "../../shared/ui/locale";
 const can = vi.fn<(capability: string) => boolean>();
 const canAny = vi.fn<(capabilities: readonly string[]) => boolean>();
 const canAll = vi.fn<(capabilities: readonly string[]) => boolean>();
-vi.mock("../../features/auth", () => ({
+vi.mock("../../features/identity/auth", () => ({
   LoginPage: () => null,
   useAuth: () => ({ can, canAny, canAll }),
 }));
