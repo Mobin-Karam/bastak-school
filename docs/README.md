@@ -1,6 +1,6 @@
-# Moshaver documentation
+# Bastak School documentation
 
-This is the maintained starting point for Moshaver/Bastak School. Start with a current repository document, verify its claims in source and tests, then use official external documentation only for the underlying technology. Dated audits, old plans, and retired application references live in the [archive](./archive/README.md); they explain history, not today's contract.
+This is the maintained starting point for Bastak School. The repository retains Moshaver names only where they are technical compatibility identifiers (package scopes, persisted storage, and historical architecture records). Start with a current repository document, verify its claims in source and tests, then use official external documentation only for the underlying technology. Dated audits, old plans, and retired application references live in the [archive](./archive/README.md); they explain history, not today's contract.
 
 ## Start here
 

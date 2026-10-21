@@ -50,6 +50,8 @@ FROM nginx:1.30.5-alpine AS runtime
 ARG RELEASE_SHA=development
 LABEL org.opencontainers.image.revision=$RELEASE_SHA
 LABEL org.opencontainers.image.source=https://github.com/Mobin-Karam/bastak-school
+LABEL org.opencontainers.image.title="Bastak School Web"
+LABEL org.opencontainers.image.description="Bastak School Admin and Student portal"
 
 COPY apps/admin/nginx.conf.template /etc/nginx/templates/default.conf.template
 

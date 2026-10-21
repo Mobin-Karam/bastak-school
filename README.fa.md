@@ -1,193 +1,82 @@
 <p align="center">
-  <img src="docs/assets/moshaver-readme-hero.svg" alt="مشاور v2 — پلتفرم آموزشی نقش‌محور" width="100%" />
+  <img src="docs/assets/bastak-school-readme-hero.svg" alt="مدرسه بستک — عملیات آموزشی نقش‌محور" width="100%" />
 </p>
 
-<h1 align="center">مشاور v2</h1>
+<h1 align="center">مدرسه دینی سلطان العلماء بستک</h1>
 
 <p align="center">
-  <strong>برنامه‌ریزی · یادگیری · ارتباط · سنجش</strong><br />
-  پلتفرم نقش‌محور مدیریت و پشتیبانی آموزشی برای تیم‌های آموزشی، مشاوران، دانش‌آموزان و خانواده‌ها.
+  <strong>فضای کاری امن و نقش‌محور برای آموزش، حضور و غیاب، ارتباط و پیگیری مدرسه.</strong>
 </p>
 
 <p align="center">
-  <a href="README.md">English</a> · <a href="README.fa.md"><strong>فارسی</strong></a> ·
-  <a href="SHOWCASE.md">نمای محصول</a> · <a href="docs/README.md">مستندات</a>
+  <a href="README.md">English</a> · <a href="README.fa.md"><strong>فارسی</strong></a> · <a href="SHOWCASE.md">نمای محصول</a> · <a href="docs/README.md">مستندات</a>
 </p>
 
-## مشاور چیست؟
+## محصول
 
-**مشاور** یک پلتفرم متن‌باز عملیات آموزشی است که افراد و جریان‌های کاری پیرامون دانش‌آموز را در یک سیستم به هم متصل می‌کند.
+مدرسه بستک برای دانش‌آموز، سرپرست، دبیر، ناظر و مدیر مدرسه یک فضای کاری یکپارچه فراهم می‌کند: یادگیری، برنامه‌ریزی، حضور و غیاب، ارتباط و پیگیری. تجربه‌های Admin و Student در یک برنامه وب واکنش‌گرا ارائه می‌شوند، اما مسیرها و اقدام‌ها فقط بر پایه حساب واردشده، نقش فعال، سازمان و capability صادرشده از سرور نمایش و اجرا می‌شوند.
 
-به‌جای جدا بودن برنامه‌ریزی، ارزیابی، ارتباط، گزارش‌گیری و پیگیری در چند ابزار مختلف، مشاور این بخش‌ها را در کنار هم ارائه می‌کند:
-
-- **پنل Admin نقش‌محور** برای تیم‌های آموزشی و مشاوران؛
-- **اپ دانش‌آموز** برای برنامه، یادگیری، آزمون، گفت‌وگو، اعلان و مشاهده پیشرفت؛
-- **API نسخه‌دار** با مجوزدهی و محدودسازی داده در سمت سرور؛
-- قراردادهای اشتراکی و ماژول‌های قابل‌ترکیب برای توسعه بلندمدت؛
-- مسیر اجرا برای وب، PWA، Tauri و Android.
-
-خط فعال محصول **v2** است. نسخه تاریخی v1.4 روی branch `archive/v1.4` نگه‌داری می‌شود.
-
-## چرا مشاور؟
-
-هدف مشاور پاسخ‌دادن به سؤال‌های واقعی تیم آموزشی در یک جریان کاری متصل است:
-
-> امروز کدام دانش‌آموز نیاز به توجه دارد؟ روی چه برنامه‌ای کار می‌کند؟ آیا عقب افتاده؟ بعد از ارزیابی چه تغییری کرده؟ چه کسی پیگیری کرده و قدم بعدی چیست؟
-
-### قابلیت‌های اصلی
-
-| حوزه | قابلیت‌ها |
-| --- | --- |
-| عملیات دانش‌آموز | پرونده، ارتباط با والد/سرپرست، onboarding، پیگیری و دسترسی محدودشده |
-| برنامه‌ریزی | برنامه مطالعه، task، study session، پیشرفت و follow-up |
-| ارزیابی | آزمون، آزمونک، سؤال، مرور اشتباهات، پیشنهاد و تحلیل |
-| ارتباط | Chat، قابلیت‌های realtime، اعلان و جریان‌های ارتباطی Admin |
-| یادگیری | درس‌ها، منابع آموزشی و فرایندهای یادگیری |
-| گزارش | Dashboard، گزارش، فعالیت و analytics |
-| عملیات | Needs attention، ابزارهای سیستمی، retry/recovery و import/export |
-| اجرا | Admin وب، Student وب/PWA، Tauri و مسیر Android |
-
-برای مشاهده مسیرهای اصلی محصول، [SHOWCASE.md](SHOWCASE.md) را ببینید.
-
-## جریان متصل دانش‌آموز
-
-یک مسیر معمول در مشاور:
-
-1. باز کردن **Needs attention** و دیدن موارد مهم.
-2. انتخاب دانش‌آموز و مشاهده زمینه فعال او.
-3. رفتن به **Planner** و بررسی یا تنظیم برنامه.
-4. مشاهده **Reports** برای درک پیشرفت.
-5. ادامه ارتباط در **Chat**.
-6. بررسی **Assessments** و موارد نیازمند پیگیری.
-7. اجرای اقدام‌ها مطابق نقش، capability و scope سمت سرور.
-
-صفحه‌ها و عملیات دقیق هر کاربر بر اساس نقش، دسترسی، سازمان و محدوده دانش‌آموز تعیین می‌شود.
+قرارداد API نسخه‌دار `/api/v2` و مجوزدهی سمت سرور بدون تغییر حفظ شده‌اند. CMB نیز لایه قابل‌استفاده مجدد بک‌اند است و نباید به دامنه آموزشی یا برند محصول وابسته شود.
 
 ## اجزای اصلی
 
-| پروژه | مسئولیت | فناوری | پورت محلی |
-| --- | --- | --- | ---: |
-| [`apps/admin/`](apps/admin/) | عملیات آموزشی نقش‌محور | React 18 + Vite | `8081` |
-| [`apps/api/`](apps/api/) | API نسخه‌دار و composition root | NestJS 11 + Fastify + TypeORM | `4000` |
-| [`student-core/`](student-core/) | دامنه و قرارداد مستقل از runtime | TypeScript | — |
-| [`packages/api-contract/`](packages/api-contract/) | قراردادهای اشتراکی API | TypeScript | — |
-| [`packages/cmb/`](packages/cmb/) | قابلیت‌های قابل‌ترکیب بک‌اند | TypeScript | — |
-
-## معماری
-
-مشاور یک **grouped product monorepo** با **modular-monolith backend** است.
-
-```text
-Admin ───────┐
-             ├── /api/v2 ──> NestJS + Fastify API ──> TypeORM / SQLite
-Student ─────┘
-  │
-  └── student-core
-
-api-contract ──> Admin / student-core
-CMB packages ──> API
-```
-
-برای جزئیات بیشتر:
-
-- [معماری مخزن](ARCHITECTURE.md)
-- [نقشه سیستم](docs/architecture/system-map.md)
-- [مرزهای وابستگی](docs/architecture/dependency-boundaries.md)
-- [طراحی Backend v2](docs/architecture/backend-v2-design.md)
-- [Student/Tauri runtime](docs/architecture/student-v2-tauri-runtime.md)
+| پروژه | مسئولیت | پورت محلی |
+| --- | --- | ---: |
+| [`apps/admin/`](apps/admin/) | تجربه وب/PWA مدیر و دانش‌آموز مدرسه بستک | `8081` |
+| [`apps/api/`](apps/api/) | API و composition root مبتنی بر NestJS/Fastify | `4000` |
+| [`student-core/`](student-core/) | قراردادهای دامنه دانش‌آموز، مستقل از runtime | — |
+| [`packages/api-contract/`](packages/api-contract/) | مرز قراردادهای اشتراکی API | — |
+| [`packages/cmb/`](packages/cmb/) | قابلیت‌های قابل‌ترکیب بک‌اند | — |
 
 ## شروع سریع
 
-### اجرای کامل با Docker
-
-نیازمندی‌ها: **Git** و **Docker Compose**.
+Node.js `>=22.13.0 <23` لازم است. هر پروژه lockfile مستقل خود را دارد:
 
 ```bash
-git clone https://github.com/Mobin-Karam/moshaver.git
-cd moshaver
+npm run workspace:check
+npm run bootstrap
+
+cp apps/api/.env.example apps/api/.env
+npm --prefix apps/api run migration:run
+npm --prefix apps/api run dev
+
+# در یک ترمینال دیگر
+npm --prefix apps/admin run dev
+```
+
+پنل را در `http://localhost:8081` و readiness API را در `http://localhost:4000/ready` باز کنید.
+
+برای Compose محلی:
+
+```bash
 docker compose up --build
 ```
 
-| سرویس | آدرس |
-| --- | --- |
-| Student | `http://localhost:8080` |
-| Admin | `http://localhost:8081` |
-| API health | `http://localhost:4000/health` |
-| Swagger | `http://localhost:4000/api/v2/docs` |
+نام پروژه و metadata کانتینرها با هویت مدرسه بستک تنظیم شده‌اند. از `--volumes` فقط زمانی استفاده کنید که حذف داده محلی عمدی است.
 
-توقف:
+## معماری و امنیت
 
-```bash
-docker compose down
-```
+این مخزن یک grouped product monorepo با modular-monolith backend است. وابستگی‌ها از composition root برنامه‌ها به دامنه محصول، سپس CMB و در پایان kernel/قراردادهای عمومی جریان دارند. [ARCHITECTURE.md](ARCHITECTURE.md) و [مرزهای وابستگی](docs/architecture/dependency-boundaries.md) را بخوانید.
 
-از `--volumes` فقط زمانی استفاده کنید که حذف داده محلی عمدی است.
+مجوزدهی، scope سازمان/دانش‌آموز، validation، CSRF، cookie و audit در API اعمال می‌شوند؛ مخفی‌کردن یک کنترل در UI مرز اختیار نیست.
 
-### توسعه محلی
+## برند و سازگاری
 
-ابزارهای سطح مخزن به Node.js `>=22.13.0 <23` نیاز دارند.
+منبع قابل‌ویرایش هویت ظاهری در [`apps/admin/brand.config.json`](apps/admin/brand.config.json) است. این فایل نام‌های Admin/Student را کنترل می‌کند و دستور [`npm --prefix apps/admin run brand:check`](apps/admin/package.json) همسانی metadata PWA را بررسی می‌کند.
 
-```bash
-npm run bootstrap
-npm run workspace:check
-```
+scopeهای `@moshaver/*`، شناسه‌های `moshaver_*` برای ذخیره‌سازی/cookie/cache، نام فایل و volume دیتابیس، مستندات تاریخی و برچسب‌های credential آزمایشی فقط برای سازگاری باقی مانده‌اند. بدون برنامه migration صریح، آن‌ها را تغییر ندهید.
 
-Backend:
-
-```bash
-cp apps/api/.env.example apps/api/.env
-npm --prefix apps/api run migration:run
-npm --prefix apps/api run seed
-npm --prefix apps/api run dev
-```
-
-Frontend:
-
-```bash
-npm --prefix apps/admin run dev
-# یا
-npm --prefix apps/student run dev
-```
-
-فایل‌های `.env`، token، کلید خصوصی، داده production یا credential را commit نکنید.
-
-## کیفیت و امنیت
+## اعتبارسنجی
 
 ```bash
 npm run workspace:check
 npm run architecture:check
 npm run contracts:check
-npm run verify
+npm --prefix apps/admin run typecheck
+npm --prefix apps/admin run test
+npm --prefix apps/admin run build
+npm --prefix apps/api run build
 npm run docs:check
 ```
 
-امنیت فقط در UI اعمال نمی‌شود. authorization، scope سازمان/دانش‌آموز، validation، CORS، Helmet، جریان احراز هویت، CSRF و migration در سمت سرور حفظ می‌شوند.
-
-آسیب‌پذیری مشکوک را در issue عمومی منتشر نکنید؛ [SECURITY.md](SECURITY.md) را دنبال کنید.
-
-## مستندات
-
-| نیاز | شروع از |
-| --- | --- |
-| دیدن محصول | [SHOWCASE.md](SHOWCASE.md) |
-| فهم معماری | [ARCHITECTURE.md](ARCHITECTURE.md) |
-| همه مستندات | [docs/README.md](docs/README.md) |
-| اجرا و validation | [Repository runbook](docs/operations/repository-runbook.md) |
-| توسعه امن | [Developer handbook](docs/operations/developer-handbook.md) |
-| پوشش Admin | [Admin capability matrix](docs/reference/admin-capability-matrix.md) |
-| مسیر محصول | [Version roadmap](docs/product/version-roadmap.md) |
-
-## مشارکت
-
-برای مشارکت، [CONTRIBUTING.md](CONTRIBUTING.md) را بخوانید.
-
-## مجوز
-
-مشاور تحت **MIT License** منتشر شده است. متن مجوز در [LICENSE](LICENSE) قرار دارد.
-
----
-
-<p align="center">
-  <strong>مشاور v2</strong><br />
-  یک فضای کاری متصل برای برنامه‌ریزی، یادگیری، ارتباط، ارزیابی و پیگیری دانش‌آموز.
-</p>
+برای عملیات، [فهرست مستندات](docs/README.md)، [راهنمای توسعه تا تولید](docs/operations/development-to-production.md) و [راهنمای Coolify](docs/operations/coolify-deployment.md) را ببینید. بررسی‌های کد جایگزین آزمایش مرورگر، دستگاه، استقرار یا جریان مجاز در production نیستند.

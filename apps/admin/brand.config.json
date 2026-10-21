@@ -1,0 +1,20 @@
+{
+  "id": "bastak-school",
+  "name": {
+    "fa": "مدرسه دینی سلطان العلماء بستک",
+    "en": "Sultan al-Olama Bastak Islamic School"
+  },
+  "shortName": {
+    "fa": "مدرسه بستک",
+    "en": "Bastak School"
+  },
+  "description": {
+    "fa": "سامانه مدیریت یکپارچه مدرسه دینی سلطان العلماء بستک.",
+    "en": "Role-aware learning and school operations for Sultan al-Olama Bastak Islamic School."
+  },
+  "asset": {
+    "logo": "/logo-bastak.webp",
+    "icon": "/icons/icon-192.png"
+  },
+  "themeColor": "#0f766e"
+}

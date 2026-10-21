@@ -11,6 +11,9 @@ services:
     image: ${BACKEND_IMAGE:-bastak-school/backend-v2:latest}
     restart: unless-stopped
     init: true
+    labels:
+      org.opencontainers.image.title: Bastak School API
+      org.opencontainers.image.description: Bastak School private API service
 
     environment:
       NODE_ENV: production
@@ -75,6 +78,9 @@ services:
     image: ${ADMIN_IMAGE:-bastak-school/admin-v2:latest}
     restart: unless-stopped
     init: true
+    labels:
+      org.opencontainers.image.title: Bastak School Web
+      org.opencontainers.image.description: Bastak School Admin and Student portal
 
     environment:
       API_PROXY_TARGET: http://backend-v2:4000
