@@ -1463,27 +1463,37 @@ html.is-scrolling :is(body, .scroll-reveal)::-webkit-scrollbar-thumb,
    ========================================================= */
 
 .admin-sonner-toaster {
-  font-family: inherit;
-  --normal-bg: rgb(var(--surface-card));
-  --normal-border: rgb(var(--border-subtle));
-  --normal-text: rgb(var(--color-ink));
+  /* Sonner renders in a portal: explicitly carry the Persian type stack
+   * rather than relying on inheritance from the application shell. */
+  font-family: Vazirmatn, Tahoma, Arial, sans-serif;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
+  text-rendering: optimizeLegibility;
+  --normal-bg: rgb(var(--popover));
+  --normal-border: rgb(var(--border));
+  --normal-text: rgb(var(--foreground));
 }
 
 .admin-sonner-toaster [data-sonner-toast].admin-sonner-toast[data-styled="true"] {
-  --toast-accent: rgb(var(--color-brand));
+  --toast-accent: rgb(var(--primary));
+  --toast-tint: rgb(var(--accent));
+  --toast-border: rgb(var(--border));
+  --toast-action-text: rgb(var(--primary-foreground));
   display: grid;
   grid-template-columns: 2.25rem minmax(0, 1fr) 2.75rem;
   align-items: start;
   gap: 0.65rem;
   width: 100%;
-  min-height: 4.75rem;
-  padding: 0.875rem;
-  border: 1px solid rgb(var(--border-subtle));
+  min-height: 5rem;
+  padding: 0.875rem 0.9375rem;
+  border: 1px solid var(--toast-border);
   border-inline-start: 4px solid var(--toast-accent);
-  border-radius: 0.875rem;
-  background: rgb(var(--surface-card));
-  color: rgb(var(--color-ink));
-  box-shadow: 0 8px 28px rgb(8 32 47 / 16%);
+  border-radius: 1rem;
+  background: linear-gradient(135deg, var(--toast-tint), rgb(var(--popover)) 42%);
+  color: rgb(var(--foreground));
+  box-shadow:
+    0 1.25rem 2.75rem rgb(var(--foreground) / 14%),
+    0 1px 0 rgb(255 255 255 / 18%) inset;
 }
 
 .admin-sonner-toaster [data-sonner-toast].admin-sonner-toast [data-content] {
