@@ -194,6 +194,7 @@ export const CAPABILITIES = [
 export type Capability = (typeof CAPABILITIES)[number];
 
 export * from "./sms";
+export * from "./principal-dashboard";
 
 export type ApiErrorContract = {
   ok: false;

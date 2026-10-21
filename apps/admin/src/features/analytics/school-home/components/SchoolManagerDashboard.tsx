@@ -33,10 +33,12 @@ import { useAdminNotifications } from "../../../communications/notifications/hoo
 import { notificationAdminUrl } from "../../../communications/notifications/model/notification-model";
 import { useDevicePerformance } from "../../../../app/layout/hooks/use-device-performance";
 import { CoinShopTeaser } from "../../../coin-shop";
+import { PrincipalDashboard } from "./PrincipalDashboard";
 
 /** Principal and supervisor home: school calendar, live prayer time, announcements and attendance totals. */
 export function SchoolManagerDashboard() {
   const auth = useAuth();
+  if (auth.activeRole === "PRINCIPAL") return <PrincipalDashboard />;
   const client = useQueryClient();
   const [date, setDate] = useState(todayIso);
   const [announcementsOpen, setAnnouncementsOpen] = useState(false);
