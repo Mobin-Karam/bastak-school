@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Card, Button, Badge } from "../../../shared/ui/ui";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { getRegistrationSelf } from "../api/registration.api";
+import { getRegistrationSelf } from "./api/registration.api";
 import { BasicInformationSection } from "./sections/BasicInformationSection";
 import { IdentityInformationSection } from "./sections/IdentityInformationSection";
 import { DocumentsSection } from "./sections/DocumentsSection";

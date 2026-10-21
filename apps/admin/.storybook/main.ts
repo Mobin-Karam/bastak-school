@@ -6,7 +6,8 @@ const config: StorybookConfig = {
   // excluded from the Admin app tsconfig. Its legacy story is therefore not a
   // valid Admin Storybook entry until that module is migrated back in.
   stories: ["../src/**/!(*registration).stories.@(js|jsx|mjs|ts|tsx)"],
-  addons: ["@storybook/addon-a11y"],
+  addons: ["@storybook/addon-a11y", "@storybook/addon-docs"],
+  docs: { autodocs: "tag" },
   framework: "@storybook/react-vite",
   staticDirs: ["../public"],
   async viteFinal(config) {
@@ -15,6 +16,9 @@ const config: StorybookConfig = {
       ...(config.resolve.alias ?? {}),
       "@": fileURLToPath(new URL("../src", import.meta.url)),
     };
+    // Storybook has no app `dist/sw.js`; the production-only PWA plugin would
+    // otherwise try to stamp that missing file after its own build completes.
+    config.plugins = config.plugins?.filter((plugin) => plugin?.name !== "pwa-precache-manifest");
     return config;
   },
 };
