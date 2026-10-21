@@ -33,9 +33,22 @@ import { useAdminNotifications } from "../../../communications/notifications/hoo
 import { notificationAdminUrl } from "../../../communications/notifications/model/notification-model";
 import { useDevicePerformance } from "../../../../app/layout/hooks/use-device-performance";
 import { CoinShopTeaser } from "../../../coin-shop";
+import { PrincipalDashboard } from "./PrincipalDashboard";
 
 /** Principal and supervisor home: school calendar, live prayer time, announcements and attendance totals. */
 export function SchoolManagerDashboard() {
+  const auth = useAuth();
+  return auth.activeRole === "PRINCIPAL" ? (
+    <>
+      <PrincipalDashboard />
+      <SchoolOperationsDashboard principalMode />
+    </>
+  ) : (
+    <SchoolOperationsDashboard />
+  );
+}
+
+function SchoolOperationsDashboard({ principalMode = false }: { principalMode?: boolean }) {
   const auth = useAuth();
   const client = useQueryClient();
   const [date, setDate] = useState(todayIso);
@@ -142,48 +155,52 @@ export function SchoolManagerDashboard() {
           schedule={schedule.data ?? []}
         />
       </div>
-      <CoinShopTeaser audience="school" />
+      {principalMode ? null : <CoinShopTeaser audience="school" />}
       <div className="">
-        {isSupervisorAttendanceWorkspace ? <SupervisorAttendanceLaunchpad /> : null}
+        {!principalMode && isSupervisorAttendanceWorkspace ? (
+          <SupervisorAttendanceLaunchpad />
+        ) : null}
         <SchoolOccupancyBanner />
-        <div className="grid gap-3 lg:grid-cols-2">
-          <CurrentPrayerCard times={prayerValues} className="h-full" />
-          <Card className="p-4">
-            <div className="flex items-center justify-between gap-3">
-              <div className="flex items-center gap-2">
-                <UsersRound className="text-brand" size={19} />
-                <h2 className="font-black text-ink">خلاصه حضور مدرسه</h2>
-              </div>
-              <Link to="/admin/attendance" className="text-xs font-bold text-brand">
-                مدیریت حضور
-              </Link>
-            </div>
-            <p className="mt-2 text-xs leading-6 text-slate-500">
-              خلاصه روز جاری از ساعت ۱۶ به وقت تهران؛ سوابق حضور حفظ می‌شوند.
-            </p>
-            {attendance.isError ? (
-              <p role="alert" className="mt-2 text-sm text-rose-600">
-                خلاصه حضور دریافت نشد.{" "}
-                <button type="button" onClick={() => void attendance.refetch()}>
-                  تلاش مجدد
-                </button>
-              </p>
-            ) : null}
-            <div className="mt-4 grid grid-cols-4 gap-2 text-center text-xs">
-              {[
-                ["حاضر", totals.present, "bg-emerald-50 text-emerald-700"],
-                ["غایب", totals.absent, "bg-rose-50 text-rose-700"],
-                ["تأخیر", totals.late, "bg-amber-50 text-amber-700"],
-                ["موجه", totals.excused, "bg-sky-50 text-sky-700"],
-              ].map(([label, value, style]) => (
-                <div key={String(label)} className={`rounded-xl p-2 ${style}`}>
-                  <b className="block text-base">{Number(value).toLocaleString("fa-IR")}</b>
-                  <span>{label}</span>
+        {!principalMode ? (
+          <div className="grid gap-3 lg:grid-cols-2">
+            <CurrentPrayerCard times={prayerValues} className="h-full" />
+            <Card className="p-4">
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  <UsersRound className="text-brand" size={19} />
+                  <h2 className="font-black text-ink">خلاصه حضور مدرسه</h2>
                 </div>
-              ))}
-            </div>
-          </Card>
-        </div>
+                <Link to="/admin/attendance" className="text-xs font-bold text-brand">
+                  مدیریت حضور
+                </Link>
+              </div>
+              <p className="mt-2 text-xs leading-6 text-slate-500">
+                خلاصه روز جاری از ساعت ۱۶ به وقت تهران؛ سوابق حضور حفظ می‌شوند.
+              </p>
+              {attendance.isError ? (
+                <p role="alert" className="mt-2 text-sm text-rose-600">
+                  خلاصه حضور دریافت نشد.{" "}
+                  <button type="button" onClick={() => void attendance.refetch()}>
+                    تلاش مجدد
+                  </button>
+                </p>
+              ) : null}
+              <div className="mt-4 grid grid-cols-4 gap-2 text-center text-xs">
+                {[
+                  ["حاضر", totals.present, "bg-emerald-50 text-emerald-700"],
+                  ["غایب", totals.absent, "bg-rose-50 text-rose-700"],
+                  ["تأخیر", totals.late, "bg-amber-50 text-amber-700"],
+                  ["موجه", totals.excused, "bg-sky-50 text-sky-700"],
+                ].map(([label, value, style]) => (
+                  <div key={String(label)} className={`rounded-xl p-2 ${style}`}>
+                    <b className="block text-base">{Number(value).toLocaleString("fa-IR")}</b>
+                    <span>{label}</span>
+                  </div>
+                ))}
+              </div>
+            </Card>
+          </div>
+        ) : null}
         <Card className="p-4">
           <div className="flex items-center justify-between gap-3">
             <div>
@@ -197,7 +214,7 @@ export function SchoolManagerDashboard() {
             </Button>
           </div>
         </Card>
-        {canReviewIncomingWork ? <SchoolIncomingPanel /> : null}
+        {canReviewIncomingWork || auth.can("chat.read") ? <SchoolIncomingPanel /> : null}
         <ResponsiveDrawer
           open={announcementsOpen}
           onOpenChange={setAnnouncementsOpen}
