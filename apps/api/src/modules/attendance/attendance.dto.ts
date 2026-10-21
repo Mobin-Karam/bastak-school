@@ -60,6 +60,19 @@ export class ReviewAttendanceAbsenceDto {
   @IsOptional() @IsString() @MaxLength(500) note?: string;
 }
 
+export class AwardAttendancePointsDto {
+  @IsUUID() requestId!: string;
+  @IsUUID() organizationId!: string;
+  @IsIn(["class", "class_group", "dorm"]) contextType!:
+    | "class"
+    | "class_group"
+    | "dorm";
+  @IsUUID() contextId!: string;
+  @IsUUID() studentId!: string;
+  @IsInt() @Min(-50) @Max(50) points!: number;
+  @IsString() @MinLength(3) @MaxLength(500) reason!: string;
+}
+
 export class ResolveAttendanceSessionDto {
   @IsUUID() organizationId!: string;
   @IsIn(["class_schedule", "attendance_schedule"]) source!:

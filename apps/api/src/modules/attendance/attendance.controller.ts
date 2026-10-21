@@ -19,6 +19,7 @@ import {
   BulkMarkAttendanceDto,
   CreateAttendanceSessionDto,
   ReviewAttendanceAbsenceDto,
+  AwardAttendancePointsDto,
   SubmitAttendanceAbsencesDto,
   FinalizeAttendanceSessionDto,
   CancelAttendanceSessionDto,
@@ -210,6 +211,15 @@ export class AttendanceController {
     @Body() dto: ReviewAttendanceAbsenceDto,
   ) {
     return this.attendance.reviewAbsence(user, id, dto).then(ok);
+  }
+
+  @Post("attendance/points")
+  @RequireAnyCapabilities("attendance.points.adjust", "attendance.class.manage")
+  awardPoints(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() dto: AwardAttendancePointsDto,
+  ) {
+    return this.attendance.awardPoints(user, dto).then(ok);
   }
 
   @Get("attendance/my-absence-reviews")

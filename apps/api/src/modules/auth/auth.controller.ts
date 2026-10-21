@@ -24,6 +24,25 @@ import {
 } from "./dto/phone-number-change.dto";
 import { RequireCapabilities } from "../../common/decorators/capabilities.decorator";
 
+type LoginPortal = "student" | "admin";
+
+/** Only browser origins identify a portal. Native clients have no such host. */
+export function loginPortalFromOrigin(
+  origin: string | string[] | undefined,
+): LoginPortal | undefined {
+  if (typeof origin !== "string") return undefined;
+  try {
+    const hostname = new URL(origin).hostname.toLowerCase();
+    if (hostname === "stud.sultano.ir" || hostname === "stud.localhost")
+      return "student";
+    if (hostname === "app.sultano.ir" || hostname === "app.localhost")
+      return "admin";
+  } catch {
+    // CORS rejects malformed browser origins. Keep native API clients unaffected.
+  }
+  return undefined;
+}
+
 @Controller("auth")
 export class AuthController {
   constructor(
@@ -42,7 +61,12 @@ export class AuthController {
     @Req() req: FastifyRequest,
     @Res({ passthrough: true }) res: FastifyReply,
   ) {
-    const result = await this.auth.login(dto.phoneNumber, dto.password, req.ip);
+    const result = await this.auth.login(
+      dto.phoneNumber,
+      dto.password,
+      req.ip,
+      loginPortalFromOrigin(req.headers?.origin),
+    );
     this.setAuthCookies(res, result);
     return ok({
       user: {
@@ -179,10 +203,12 @@ export class AuthController {
     await this.auth.logout(
       req.cookies?.[cookieName],
       req.cookies?.[refreshCookieName],
-      typeof req.headers["x-csrf-token"] === "string" ? req.headers["x-csrf-token"] : undefined,
+      typeof req.headers["x-csrf-token"] === "string"
+        ? req.headers["x-csrf-token"]
+        : undefined,
     );
-    res.clearCookie(cookieName, { path: "/" });
-    res.clearCookie(refreshCookieName, { path: "/" });
+    res.clearCookie(cookieName, this.cookieOptions());
+    res.clearCookie(refreshCookieName, this.cookieOptions());
     return ok({ loggedOut: true });
   }
 
@@ -212,15 +238,7 @@ export class AuthController {
       refreshExpiresAt: Date;
     },
   ) {
-    const options = {
-      path: "/",
-      httpOnly: true,
-      secure: this.config.get<boolean>("cookieSecure", false),
-      sameSite: this.config.get<"lax" | "strict" | "none">(
-        "cookieSameSite",
-        "lax",
-      ),
-    } as const;
+    const options = this.cookieOptions();
     res.setCookie(
       this.config.get<string>("cookieName", "moshaver_v2_session"),
       result.accessToken,
@@ -231,5 +249,19 @@ export class AuthController {
       result.refreshToken,
       { ...options, expires: result.refreshExpiresAt },
     );
+  }
+
+  private cookieOptions() {
+    const domain = this.config.get<string | undefined>("cookieDomain");
+    return {
+      path: "/",
+      httpOnly: true,
+      secure: this.config.get<boolean>("cookieSecure", false),
+      sameSite: this.config.get<"lax" | "strict" | "none">(
+        "cookieSameSite",
+        "lax",
+      ),
+      ...(domain ? { domain } : {}),
+    } as const;
   }
 }

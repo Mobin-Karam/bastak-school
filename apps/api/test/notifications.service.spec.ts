@@ -57,11 +57,13 @@ function repository<T>(items: T[] = []) {
 describe("NotificationsService", () => {
   it("emits the canonical notification event after persistence", async () => {
     const realtime = { emitToUser: jest.fn() };
+    const push = { sendToUser: jest.fn().mockResolvedValue({ sent: 1, removed: 0 }) };
     const service = new NotificationsService(
       repository() as any,
       repository() as any,
       realtime as any,
       repository([{ id: "user-1" }]) as any,
+      push as any,
     );
     await service.createForUser("user-1", {
       type: NotificationType.MESSAGE,
@@ -71,6 +73,10 @@ describe("NotificationsService", () => {
     expect(realtime.emitToUser).toHaveBeenCalledWith(
       "user-1",
       "notification.created",
+      expect.objectContaining({ title: "پیام تازه", body: "متن اعلان" }),
+    );
+    expect(push.sendToUser).toHaveBeenCalledWith(
+      "user-1",
       expect.objectContaining({ title: "پیام تازه", body: "متن اعلان" }),
     );
   });

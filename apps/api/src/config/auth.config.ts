@@ -1,7 +1,15 @@
 export default () => ({
   cookieName: process.env.SESSION_COOKIE_NAME || "moshaver_v2_session",
-  cookieSecure: process.env.COOKIE_SECURE === undefined ? process.env.NODE_ENV === "production" : process.env.COOKIE_SECURE === "1",
-  cookieSameSite: (process.env.COOKIE_SAMESITE || (process.env.NODE_ENV === "production" ? "none" : "lax")) as "lax" | "strict" | "none",
+  cookieSecure:
+    process.env.COOKIE_SECURE === undefined
+      ? process.env.NODE_ENV === "production"
+      : process.env.COOKIE_SECURE === "1",
+  cookieSameSite: (process.env.COOKIE_SAMESITE ||
+    (process.env.NODE_ENV === "production" ? "none" : "lax")) as
+    "lax" | "strict" | "none",
+  // Omit this by default. Host-only cookies bound to api.sultano.ir are sent
+  // by both first-party portals without exposing credentials to sibling hosts.
+  cookieDomain: normalizeCookieDomain(process.env.COOKIE_DOMAIN),
   accessTokenTtlMinutes: Number(process.env.ACCESS_TOKEN_TTL_MINUTES || 15),
   refreshTokenTtlDays: Number(process.env.REFRESH_TOKEN_TTL_DAYS || 30),
   refreshCookieName: process.env.REFRESH_COOKIE_NAME || "moshaver_v2_refresh",
@@ -11,3 +19,20 @@ export default () => ({
   signupWindowMs: Number(process.env.SIGNUP_WINDOW_MS || 3600000),
   signupMaxAttempts: Number(process.env.SIGNUP_MAX_ATTEMPTS || 5),
 });
+
+export function normalizeCookieDomain(value: string | undefined) {
+  const domain = value?.trim().toLowerCase().replace(/^\./, "");
+  if (!domain) return undefined;
+  if (
+    domain.includes(":") ||
+    domain.includes("/") ||
+    !/^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)+$/.test(
+      domain,
+    )
+  ) {
+    throw new Error(
+      "COOKIE_DOMAIN must be a hostname without protocol, port, or path.",
+    );
+  }
+  return domain;
+}

@@ -8,17 +8,17 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
-import { useAuth } from "../../../features/auth";
+import { useAuth } from "../../../features/identity/auth";
 import { normalizePersianText } from "../../../shared/lib/utils";
 import { useAdminShellCopy, useLocale } from "../../../shared/ui/locale";
-import { adminDestination, navigationForCapabilities } from "../navigation/admin-navigation";
+import { adminDestination, navigationForCapabilities } from "../navigation/config/admin-navigation";
 import {
   matchesCommandPaletteQuery,
   searchCommandPaletteEntities,
   type CommandPaletteEntity,
 } from "./command-palette-search";
-import { readStoredList, writeStoredList } from "../layout-storage";
-import type { AdminCurrentNavigation } from "../shell/layout-types";
+import { readStoredList, writeStoredList } from "../lib/layout-storage";
+import type { AdminCurrentNavigation } from "../model/layout-types";
 
 const RECENT_NAVIGATION_KEY = "admin-recent-navigation";
 const HOME_TOKEN = "__admin_home__";

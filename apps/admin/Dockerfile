@@ -26,7 +26,7 @@ FROM node:22.23.3-bookworm-slim AS build
 
 WORKDIR /app/apps/admin
 
-ARG VITE_API_URL=/api/v2
+ARG VITE_API_URL=https://api.sultano.ir
 ENV VITE_API_URL=${VITE_API_URL}
 
 # Installed dependencies

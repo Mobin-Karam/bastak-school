@@ -1,6 +1,6 @@
 # CI/CD pipeline: from change to production
 
-This page is the current pipeline map for `Mobin-Karam/bastak-school`, verified against workflow and script files on 2026-10-12. [GitHub CI/CD operations](./github-cicd.md) owns setup, credentials and recovery commands; [release evidence](./release-evidence.md) owns environment-specific sign-off. The [engineering roadmap](../engineering/roadmap.md) separates proposed improvements from implemented gates.
+This page is the current pipeline map for `Mobin-Karam/bastak-school`, verified against workflow and script files on 2026-10-18. [GitHub CI/CD operations](./github-cicd.md) owns setup, credentials and recovery commands; [release evidence](./release-evidence.md) owns environment-specific sign-off. The [engineering roadmap](../engineering/roadmap.md) separates proposed improvements from implemented gates.
 
 ```text
 feat/fix/chore/ci branch from origin/develop
@@ -16,7 +16,7 @@ Main push CI ──► LAN Production Deployment verifies current tested SHA
        │ verified-main dispatch
        ▼
 Private deployment repo verifies source CI again
-       │ self-hosted runner: build → SQLite backup → replace → HTTPS readiness
+       │ self-hosted runner: verify image bundle → SQLite backup/rehearsal → replace → HTTPS readiness
        ▼
 Release receipt; operator checks target behavior and monitoring
 ```
@@ -69,9 +69,9 @@ npm run verify
 
 On a successful main **push** CI run, [LAN Production Deployment](../../.github/workflows/lan-production.yml) checks the CI event, branch, source repository, conclusion and current main SHA. It sends a `verified-main` dispatch with the tested SHA and run ID using a token scoped to the private deployment repository. The private [server workflow source](../../.github/deployment/server-deploy.yml) independently verifies that exact source CI run and current main head. Only then does its private self-hosted runner check out that SHA.
 
-The runner's [`lan.sh`](../../scripts/deploy/lan.sh) obtains a deployment lock, builds the images, backs up the running SQLite database with restricted permissions, replaces containers and checks `/ready` over HTTPS. Production startup applies migrations; seeds are not part of deployment. The receipt is written only after the script returns successfully. The backup, TLS files, environment and receipt live outside checkout cleanup. There is one API replica with SQLite; deployment can involve restart downtime.
+The source template's [`lan-immutable.sh`](../../scripts/deploy/lan-immutable.sh) obtains a deployment lock, downloads the exact CI archive, verifies its provenance/checksum/image IDs, backs up the running SQLite database with restricted permissions, rehearses candidate migrations against a restored copy, replaces containers without a build or pull, and checks `/ready` over HTTPS. Production startup applies migrations; seeds are not part of deployment. The receipt is written only after the script returns successfully. The backup, TLS files, environment and receipt live outside checkout cleanup. There is one API replica with SQLite; deployment can involve restart downtime.
 
-The installed private pipeline still builds images on the deployment runner. The staged replacement builds and smoke-tests commit-tagged images in CI, retains checksummed image archives, and promotes their content image IDs through a protected private environment. It is disabled until the template is explicitly published, credentials/protections are configured and rehearsal passes. See the [deployment audit](./deployment-audit.md) and [immutable LAN runbook](./immutable-lan-runbook.md). A registry is not required for this artifact transport. Similarly, a required staging environment and load-test gate are proposals, not current stages.
+The immutable receiver is enabled only when the private repository has published the source template, configured its protected `production` environment and explicitly set `IMMUTABLE_DEPLOY_ENABLED=true`. Verify that external state for every release; this repository cannot prove it. Until then, the private receiver's actual behavior is **UNKNOWN** and must not be represented as CI-tested image promotion. See the [archived deployment audit](../archive/operations/deployment-audit.md) and [immutable LAN runbook](./immutable-lan-runbook.md). A registry is not required for the immutable artifact transport. Similarly, a required staging environment and load-test gate are proposals, not current stages.
 
 ## Failure and recovery
 
@@ -82,7 +82,7 @@ The installed private pipeline still builds images on the deployment runner. The
 | Develop release PR | Tested SHA vs current develop, empty diff, `RELEASE_PR_TOKEN` | Rerun failed workflow after correcting scope or token |
 | Main dispatch | Main head vs tested SHA, `PRODUCTION_DEPLOY_TARGET`, `DEPLOY_DISPATCH_TOKEN` | Verify source run and private dispatch status |
 | Private authorization | Source run ID, SHA, branch, repo and workflow path | Reject mismatch; do not manually substitute another commit |
-| Server deployment | Build logs, migration state, backup and HTTPS readiness | Stop further changes, preserve backup, diagnose before recovery |
+| Server deployment | Bundle provenance/identity, migration state, backup and HTTPS readiness | Stop further changes, preserve backup, diagnose before recovery |
 
 A failed build should leave existing containers running. A failed replacement can leave some new containers running; inspect state before retrying. Reverting application code does not reverse SQLite schema/data changes. Rehearse restore against a disposable copy and follow the [database rollout](./database-multi-role-integrity-rollout.md) for migration-specific decisions. Never reset or seed production to repair a release. Confirm the private workflow, release receipt, readiness, login, role/school switch and one authorized operation before calling a production release healthy.
 
@@ -96,5 +96,5 @@ A failed build should leave existing containers running. A failed replacement ca
 | Develop-to-main PR | [Release promotion](../../.github/workflows/release-promotion.yml) |
 | Main authorization and dispatch | [LAN Production Deployment](../../.github/workflows/lan-production.yml) |
 | Private server workflow template | [Server deployment](../../.github/deployment/server-deploy.yml) |
-| Production compose/backup/readiness | [`lan.sh`](../../scripts/deploy/lan.sh) |
+| Immutable production compose/backup/readiness | [`lan-immutable.sh`](../../scripts/deploy/lan-immutable.sh) |
 | Tokens, runner registration and retries | [GitHub CI/CD operations](./github-cicd.md) |

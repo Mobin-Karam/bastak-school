@@ -42,7 +42,9 @@ export function getApiWorkContextKey() {
 }
 
 const DEFAULT_LOCAL_ORIGIN = "http://localhost:4000";
-const DEFAULT_REMOTE_ORIGIN = "https://api.mahakaram.ir";
+// Production uses this independent API origin. Development retains the
+// same-origin Vite proxy unless VITE_API_URL explicitly selects an API host.
+const DEFAULT_REMOTE_ORIGIN = "https://api.sultano.ir";
 
 function stripApiVersionSuffix(origin: string) {
   return origin.replace(/\/$/, "").replace(/\/api\/v[12]$/, "");
