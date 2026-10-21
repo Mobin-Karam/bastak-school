@@ -29,6 +29,13 @@ export type PrincipalDashboardContract = {
   from: string;
   to: string;
   attendance?: {
+    today: {
+      present: number;
+      absent: number;
+      late: number;
+      excused: number;
+      rate: number | null;
+    };
     present: number;
     absent: number;
     late: number;

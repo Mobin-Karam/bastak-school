@@ -24,9 +24,10 @@ type AttendanceData = NonNullable<PrincipalDashboardContract["attendance"]>;
 export function PrincipalDashboard() {
   const auth = useAuth();
   const [range, setRange] = useState<"7d" | "30d">("7d");
+  const [classId, setClassId] = useState("");
   const dashboard = useQuery({
-    queryKey: ["principal-dashboard", range, auth.context?.activeOrganization?.id],
-    queryFn: () => getPrincipalDashboard(range),
+    queryKey: ["principal-dashboard", range, classId, auth.context?.activeOrganization?.id],
+    queryFn: () => getPrincipalDashboard(range, classId || undefined),
   });
   if (dashboard.isLoading) return <LoadingState label="در حال آماده‌سازی داشبورد مدیریت…" />;
   if (dashboard.isError || !dashboard.data)
@@ -35,8 +36,12 @@ export function PrincipalDashboard() {
   const attendance = data.attendance;
   const queues = data.queues;
   const operations = data.operations;
-  const totalAttendance = attendance
-    ? attendance.present + attendance.absent + attendance.late + attendance.excused
+  const todayAttendance = attendance?.today;
+  const totalAttendance = todayAttendance
+    ? todayAttendance.present +
+      todayAttendance.absent +
+      todayAttendance.late +
+      todayAttendance.excused
     : 0;
   const queueItems = [
     {
@@ -90,6 +95,20 @@ export function PrincipalDashboard() {
           >
             ۳۰ روز
           </button>
+          {attendance?.classes.length ? (
+            <select
+              aria-label="فیلتر کلاس"
+              value={classId}
+              onChange={(event) => setClassId(event.target.value)}
+            >
+              <option value="">همهٔ کلاس‌ها</option>
+              {attendance.classes.map((item) => (
+                <option key={item.id} value={item.id}>
+                  {item.name}
+                </option>
+              ))}
+            </select>
+          ) : null}
           <span>
             به‌روزرسانی:{" "}
             {new Date(data.generatedAt).toLocaleTimeString("fa-IR", {
@@ -113,22 +132,20 @@ export function PrincipalDashboard() {
               </Link>
             </div>
             <div className="principal-dashboard__attendance-grid">
-              <Gauge value={attendance.rate} label="نرخ حضور" />
+              <Gauge value={todayAttendance?.rate ?? null} label="نرخ حضور امروز" />
               <Pie
                 points={[
-                  { label: "حاضر", value: attendance.present, color: "#22c55e" },
-                  { label: "غایب", value: attendance.absent, color: "#f43f5e" },
-                  { label: "تأخیر", value: attendance.late, color: "#f59e0b" },
-                  { label: "موجه", value: attendance.excused, color: "#38bdf8" },
+                  { label: "حاضر", value: todayAttendance?.present ?? 0, color: "#22c55e" },
+                  { label: "غایب", value: todayAttendance?.absent ?? 0, color: "#f43f5e" },
+                  { label: "تأخیر", value: todayAttendance?.late ?? 0, color: "#f59e0b" },
+                  { label: "موجه", value: todayAttendance?.excused ?? 0, color: "#38bdf8" },
                 ]}
                 total={totalAttendance}
               />
             </div>
-            <AttendanceLegend attendance={attendance} />
+            <AttendanceLegend attendance={todayAttendance} />
           </Card>
-        ) : (
-          <LockedSection title="وضعیت حضور" capability="گزارش یا بررسی حضور" />
-        )}
+        ) : null}
         <Card className="principal-dashboard__queues p-5">
           <div className="principal-dashboard__section-heading">
             <div>
@@ -165,25 +182,28 @@ export function PrincipalDashboard() {
             </div>
             <div className="principal-dashboard__behaviour-grid">
               <Radar dimensions={data.behaviour.dimensions} />
-              <div className="principal-dashboard__radar-notes">
-                {data.behaviour.dimensions.map((item) => (
-                  <div key={item.key}>
-                    <span>{item.label}</span>
-                    <strong>
-                      {item.value == null ? "—" : `${item.value.toLocaleString("fa-IR")}٪`}
-                    </strong>
-                  </div>
-                ))}
-              </div>
+              <table className="principal-dashboard__radar-table">
+                <caption>مقادیر نمایه بر پایهٔ نسبت حضور و مشارکت</caption>
+                <tbody>
+                  {data.behaviour.dimensions.map((item) => (
+                    <tr key={item.key}>
+                      <th scope="row">{item.label}</th>
+                      <td>
+                        {item.value == null
+                          ? "دادهٔ کافی نیست"
+                          : `${item.value.toLocaleString("fa-IR")}٪`}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
             <p className="principal-dashboard__chart-note">
               این نما یک شاخص تجمیعی است، نه ارزیابی فردی. برای اقدام، فهرست نیازمند توجه را باز
               کنید.
             </p>
           </Card>
-        ) : (
-          <LockedSection title="رفتار و پیشرفت" capability="تحلیل دانش‌آموزان" />
-        )}
+        ) : null}
         {data.behaviour ? (
           <Card className="p-5">
             <div className="principal-dashboard__section-heading">
@@ -262,7 +282,7 @@ export function PrincipalDashboard() {
           icon={DoorOpen}
           label="خارج از مدرسه"
           value={operations?.currentlyOut}
-          visible={auth.can("dormitory.read")}
+          visible={auth.can("exit.read")}
         />
         <Metric
           icon={CalendarDays}
@@ -332,7 +352,8 @@ function Pie({ points, total }: { points: Point[]; total: number }) {
     </div>
   );
 }
-function AttendanceLegend({ attendance }: { attendance: AttendanceData }) {
+function AttendanceLegend({ attendance }: { attendance: AttendanceData["today"] | undefined }) {
+  if (!attendance) return null;
   return (
     <div className="principal-dashboard__legend">
       {[
@@ -401,8 +422,12 @@ function RadialBars({ classes }: { classes: AttendanceData["classes"] }) {
               />
             </svg>
             <span>
-              <strong>{(item.rate ?? 0).toLocaleString("fa-IR")}٪</strong>
+              <strong>{item.rate == null ? "—" : `${item.rate.toLocaleString("fa-IR")}٪`}</strong>
               <small>{item.name}</small>
+              <small>
+                {item.marked.toLocaleString("fa-IR")} / {item.expected.toLocaleString("fa-IR")}{" "}
+                ثبت‌شده
+              </small>
             </span>
           </div>
         ))
@@ -447,15 +472,6 @@ function Metric({
       <Icon aria-hidden="true" />
       <span>{label}</span>
       <strong>{(value ?? 0).toLocaleString("fa-IR")}</strong>
-    </Card>
-  );
-}
-function LockedSection({ title, capability }: { title: string; capability: string }) {
-  return (
-    <Card className="principal-dashboard__locked p-5">
-      <AlertTriangle aria-hidden="true" />
-      <h2>{title}</h2>
-      <p>برای نمایش این بخش، دسترسی «{capability}» لازم است.</p>
     </Card>
   );
 }

@@ -28,16 +28,18 @@ describe("PrincipalDashboardService", () => {
         expect(parameters).not.toContain("school-b");
         if (sql.includes("COUNT(r.id) total"))
           return [{ present: 8, absent: 1, late: 1, excused: 0, total: 10 }];
-        if (sql.includes("GROUP BY date(s.sessionDate)"))
+        if (sql.includes("GROUP BY COALESCE(s.operationalDate"))
           return [
             { date: "2026-10-20", present: 8, absent: 1, late: 1, excused: 0 },
           ];
         if (sql.includes("GROUP BY s.contextId"))
-          return [{ id: "class-a", name: "پایه اول", marked: 10, onTime: 9 }];
+          return [{ id: "class-a", name: "پایه اول", marked: 9, expected: 10 }];
         if (sql.includes("COUNT(t.id) total"))
           return [{ total: 4, complete: 3 }];
-        if (sql.includes("COUNT(ss.id) sessions")) return [{ sessions: 5 }];
-        if (sql.includes("AVG(ea.score)")) return [{ average: 78 }];
+        if (sql.includes("COUNT(DISTINCT ss.studentId) participants"))
+          return [{ participants: 4 }];
+        if (sql.includes("COUNT(DISTINCT ea.studentId) participants"))
+          return [{ participants: 3 }];
         if (sql.includes("COUNT(DISTINCT s.id)")) return [{ count: 5 }];
         if (sql.includes("HAVING absent"))
           return [
@@ -53,8 +55,15 @@ describe("PrincipalDashboardService", () => {
     expect(dashboard.organizationId).toBe("school-a");
     expect(dashboard.attendance).toMatchObject({
       rate: 90,
-      classes: [{ id: "class-a", rate: 90 }],
+      today: { rate: 90 },
+      classes: [{ id: "class-a", rate: 90, expected: 10, marked: 9 }],
     });
+    expect(dashboard.behaviour?.dimensions).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ key: "study", value: 80 }),
+        expect.objectContaining({ key: "assessmentParticipation", value: 60 }),
+      ]),
+    );
     expect(dashboard.behaviour?.risks).toEqual([
       expect.objectContaining({ id: "student-a", attention: "high" }),
     ]);
@@ -84,5 +93,49 @@ describe("PrincipalDashboardService", () => {
       scheduleEntries: 0,
       staff: 0,
     });
+  });
+
+  it("requires an explicit active organization and rejects unbounded or invalid date ranges", async () => {
+    const query = jest.fn().mockResolvedValue([]);
+    const service = new PrincipalDashboardService({ query } as never);
+    await expect(
+      service.get(
+        { ...principal, activeOrganizationId: undefined },
+        "2026-10-14",
+        "2026-10-20",
+      ),
+    ).rejects.toMatchObject({
+      response: { error: { code: "ORGANIZATION_REQUIRED" } },
+    });
+    await expect(
+      service.get(principal, "2026-01-01", "2026-03-01"),
+    ).rejects.toMatchObject({
+      response: { error: { code: "DATE_RANGE_TOO_LARGE" } },
+    });
+    await expect(
+      service.get(principal, "2026-02-30", "2026-03-01"),
+    ).rejects.toMatchObject({
+      response: { error: { code: "DATE_RANGE_INVALID" } },
+    });
+    expect(query).not.toHaveBeenCalled();
+  });
+
+  it("rejects a class filter that is not active in the selected organization", async () => {
+    const query = jest.fn().mockResolvedValue([{ count: 0 }]);
+    const service = new PrincipalDashboardService({ query } as never);
+    await expect(
+      service.get(
+        principal,
+        "2026-10-14",
+        "2026-10-20",
+        "class-from-another-school",
+      ),
+    ).rejects.toMatchObject({
+      response: { error: { code: "CLASS_NOT_FOUND" } },
+    });
+    expect(query).toHaveBeenCalledWith(
+      expect.stringContaining("education_classes"),
+      ["class-from-another-school", "school-a"],
+    );
   });
 });

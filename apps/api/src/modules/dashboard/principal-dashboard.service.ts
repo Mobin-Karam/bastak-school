@@ -10,6 +10,13 @@ type PrincipalDashboardContract = {
   from: string;
   to: string;
   attendance?: {
+    today: {
+      present: number;
+      absent: number;
+      late: number;
+      excused: number;
+      rate: number | null;
+    };
     present: number;
     absent: number;
     late: number;
@@ -67,9 +74,9 @@ export class PrincipalDashboardService {
     user: AuthenticatedUser,
     from?: string,
     to?: string,
+    classId?: string,
   ): Promise<PrincipalDashboardContract> {
-    const organizationId =
-      user.activeOrganizationId ?? user.organizationIds?.[0];
+    const organizationId = user.activeOrganizationId;
     if (!organizationId)
       throw new ApiException(
         403,
@@ -77,17 +84,44 @@ export class PrincipalDashboardService {
         "مدرسه فعال مشخص نیست.",
       );
 
-    const end = this.isoDate(to) ?? this.today();
-    const start = this.isoDate(from) ?? this.daysBefore(end, 6);
+    const end = to === undefined ? this.today() : this.isoDate(to);
+    const start =
+      from === undefined
+        ? this.daysBefore(end ?? this.today(), 6)
+        : this.isoDate(from);
+    if (!start || !end)
+      throw new ApiException(
+        400,
+        "DATE_RANGE_INVALID",
+        "تاریخ گزارش معتبر نیست.",
+      );
     if (start > end)
       throw new ApiException(
         400,
         "DATE_RANGE_INVALID",
         "بازهٔ گزارش معتبر نیست.",
       );
+    if (this.dateDistance(start, end) > 30)
+      throw new ApiException(
+        400,
+        "DATE_RANGE_TOO_LARGE",
+        "بازهٔ گزارش نمی‌تواند بیشتر از ۳۱ روز باشد.",
+      );
 
     const can = (capability: string) =>
       user.capabilities?.includes(capability) ?? false;
+    if (classId) {
+      const ownsClass = await this.scalar(
+        "SELECT COUNT(id) count FROM education_classes WHERE id=? AND organizationId=? AND status='ACTIVE'",
+        [classId, organizationId],
+      );
+      if (!ownsClass)
+        throw new ApiException(
+          404,
+          "CLASS_NOT_FOUND",
+          "کلاس در مدرسهٔ فعال پیدا نشد.",
+        );
+    }
     const response: PrincipalDashboardContract = {
       organizationId,
       generatedAt: new Date().toISOString(),
@@ -100,9 +134,19 @@ export class PrincipalDashboardService {
       can("attendance.reports.read") ||
       can("attendance.review")
     )
-      response.attendance = await this.attendance(organizationId, start, end);
+      response.attendance = await this.attendance(
+        organizationId,
+        start,
+        end,
+        classId,
+      );
     if (can("analytics.read") && can("students.read"))
-      response.behaviour = await this.behaviour(organizationId, start, end);
+      response.behaviour = await this.behaviour(
+        organizationId,
+        start,
+        end,
+        classId,
+      );
     if (
       can("attendance.review") ||
       can("leave.read") ||
@@ -113,13 +157,23 @@ export class PrincipalDashboardService {
     if (
       can("students.read") ||
       can("dormitory.read") ||
-      can("schedule.read.all")
+      can("schedule.read.all") ||
+      can("exit.read")
     )
       response.operations = await this.operations(organizationId, can);
     return response;
   }
 
-  private async attendance(organizationId: string, from: string, to: string) {
+  private async attendance(
+    organizationId: string,
+    from: string,
+    to: string,
+    classId?: string,
+  ) {
+    const filterByClass = classId ? " AND s.contextId=?" : "";
+    const rangeParams = classId
+      ? [organizationId, from, to, classId]
+      : [organizationId, from, to];
     const totals = await this.one(
       `SELECT
         SUM(CASE WHEN r.status='present' THEN 1 ELSE 0 END) present,
@@ -129,35 +183,56 @@ export class PrincipalDashboardService {
         COUNT(r.id) total
        FROM attendance_records r
        JOIN attendance_sessions s ON s.id=r.sessionId
-       WHERE s.organizationId=? AND date(s.sessionDate) BETWEEN ? AND ?`,
-      [organizationId, from, to],
+       WHERE s.organizationId=? AND COALESCE(s.operationalDate,date(s.sessionDate)) BETWEEN ? AND ?${filterByClass}`,
+      rangeParams,
     );
     const count = (key: string) => Number(totals[key] ?? 0);
     const total = count("total");
     const present = count("present");
     const late = count("late");
     const trendRows = await this.db.query(
-      `SELECT date(s.sessionDate) date,
+      `SELECT COALESCE(s.operationalDate,date(s.sessionDate)) date,
         SUM(CASE WHEN r.status='present' THEN 1 ELSE 0 END) present,
         SUM(CASE WHEN r.status='absent' THEN 1 ELSE 0 END) absent,
         SUM(CASE WHEN r.status='late' THEN 1 ELSE 0 END) late,
         SUM(CASE WHEN r.status='excused' THEN 1 ELSE 0 END) excused
        FROM attendance_records r JOIN attendance_sessions s ON s.id=r.sessionId
-       WHERE s.organizationId=? AND date(s.sessionDate) BETWEEN ? AND ?
-       GROUP BY date(s.sessionDate) ORDER BY date(s.sessionDate) ASC`,
-      [organizationId, from, to],
+       WHERE s.organizationId=? AND COALESCE(s.operationalDate,date(s.sessionDate)) BETWEEN ? AND ?${filterByClass}
+       GROUP BY COALESCE(s.operationalDate,date(s.sessionDate)) ORDER BY COALESCE(s.operationalDate,date(s.sessionDate)) ASC`,
+      rangeParams,
     );
     const classRows = await this.db.query(
-      `SELECT s.contextId id, COALESCE(NULLIF(s.titleSnapshot,''),'بدون عنوان') name,
-        COUNT(r.id) marked,
-        SUM(CASE WHEN r.status IN ('present','late') THEN 1 ELSE 0 END) onTime
+      `SELECT s.contextId id, COALESCE(ec.name,NULLIF(MAX(s.titleSnapshot),''),'بدون عنوان') name,
+        SUM(COALESCE(json_array_length(s.rosterSnapshot),0)) expected, COUNT(r.id) marked
        FROM attendance_records r JOIN attendance_sessions s ON s.id=r.sessionId
-       WHERE s.organizationId=? AND s.contextType IN ('class','class_group')
-         AND date(s.sessionDate) BETWEEN ? AND ?
-       GROUP BY s.contextId, s.titleSnapshot ORDER BY marked DESC LIMIT 8`,
-      [organizationId, from, to],
+       LEFT JOIN education_classes ec ON ec.id=s.contextId AND ec.organizationId=s.organizationId
+       WHERE s.organizationId=? AND s.contextType='class'
+         AND COALESCE(s.operationalDate,date(s.sessionDate)) BETWEEN ? AND ?${filterByClass}
+       GROUP BY s.contextId ORDER BY marked DESC LIMIT 8`,
+      rangeParams,
     );
+    const daily = await this.one(
+      `SELECT SUM(CASE WHEN r.status='present' THEN 1 ELSE 0 END) present,
+        SUM(CASE WHEN r.status='absent' THEN 1 ELSE 0 END) absent,
+        SUM(CASE WHEN r.status='late' THEN 1 ELSE 0 END) late,
+        SUM(CASE WHEN r.status='excused' THEN 1 ELSE 0 END) excused,
+        COUNT(r.id) total FROM attendance_records r JOIN attendance_sessions s ON s.id=r.sessionId
+       WHERE s.organizationId=? AND COALESCE(s.operationalDate,date(s.sessionDate))=?${classId ? " AND s.contextId=?" : ""}`,
+      classId ? [organizationId, to, classId] : [organizationId, to],
+    );
+    const dailyTotal = Number(daily.total ?? 0);
+    const dailyPresent = Number(daily.present ?? 0);
+    const dailyLate = Number(daily.late ?? 0);
     return {
+      today: {
+        present: dailyPresent,
+        absent: Number(daily.absent ?? 0),
+        late: dailyLate,
+        excused: Number(daily.excused ?? 0),
+        rate: dailyTotal
+          ? Math.round(((dailyPresent + dailyLate) / dailyTotal) * 100)
+          : null,
+      },
       present,
       absent: count("absent"),
       late,
@@ -172,47 +247,59 @@ export class PrincipalDashboardService {
       })),
       classes: classRows.map((row: Record<string, unknown>) => {
         const marked = Number(row.marked ?? 0);
+        const expected = Number(row.expected ?? 0);
         return {
           id: String(row.id),
           name: String(row.name),
-          expected: marked,
+          expected,
           marked,
-          rate: marked
-            ? Math.round((Number(row.onTime ?? 0) / marked) * 100)
+          rate: expected
+            ? Math.min(100, Math.round((marked / expected) * 100))
             : null,
         };
       }),
     };
   }
 
-  private async behaviour(organizationId: string, from: string, to: string) {
-    const attendance = await this.attendance(organizationId, from, to);
+  private async behaviour(
+    organizationId: string,
+    from: string,
+    to: string,
+    classId?: string,
+  ) {
+    const attendance = await this.attendance(organizationId, from, to, classId);
+    const classScope = classId
+      ? " AND EXISTS (SELECT 1 FROM education_class_enrollments e WHERE e.studentId=s.id AND e.classroomId=?)"
+      : "";
+    const scopedRangeParams = classId
+      ? [organizationId, from, to, classId]
+      : [organizationId, from, to];
     const task = await this.one(
       `SELECT COUNT(t.id) total, SUM(CASE WHEN t.completedAt IS NOT NULL OR t.status='DONE' THEN 1 ELSE 0 END) complete
        FROM tasks t JOIN plans p ON p.id=t.planId JOIN students s ON s.id=p.studentId
        JOIN organization_memberships m ON m.userId=s.userId
-       WHERE m.organizationId=? AND m.status='ACTIVE' AND date(p.date) BETWEEN ? AND ?`,
-      [organizationId, from, to],
+       WHERE m.organizationId=? AND m.status='ACTIVE' AND date(p.date) BETWEEN ? AND ?${classScope}`,
+      scopedRangeParams,
     );
     const study = await this.one(
-      `SELECT COUNT(ss.id) sessions FROM study_sessions ss JOIN students s ON s.id=ss.studentId
+      `SELECT COUNT(DISTINCT ss.studentId) participants FROM study_sessions ss JOIN students s ON s.id=ss.studentId
        JOIN organization_memberships m ON m.userId=s.userId
        WHERE m.organizationId=? AND m.status='ACTIVE' AND ss.status='FINISHED'
-         AND date(ss.createdAt) BETWEEN ? AND ?`,
-      [organizationId, from, to],
+         AND date(ss.createdAt) BETWEEN ? AND ?${classScope}`,
+      scopedRangeParams,
     );
     const exams = await this.one(
-      `SELECT AVG(ea.score) average FROM exam_attempts ea JOIN students s ON s.id=ea.studentId
+      `SELECT COUNT(DISTINCT ea.studentId) participants FROM exam_attempts ea JOIN students s ON s.id=ea.studentId
        JOIN organization_memberships m ON m.userId=s.userId
        WHERE m.organizationId=? AND m.status='ACTIVE' AND ea.finishedAt IS NOT NULL
-         AND date(ea.finishedAt) BETWEEN ? AND ?`,
-      [organizationId, from, to],
+         AND date(ea.finishedAt) BETWEEN ? AND ?${classScope}`,
+      scopedRangeParams,
     );
     const taskTotal = Number(task.total ?? 0);
     const activeStudents = await this.scalar(
       `SELECT COUNT(DISTINCT s.id) count FROM students s JOIN organization_memberships m ON m.userId=s.userId
-       WHERE m.organizationId=? AND m.status='ACTIVE'`,
-      [organizationId],
+       WHERE m.organizationId=? AND m.status='ACTIVE'${classId ? " AND EXISTS (SELECT 1 FROM education_class_enrollments e WHERE e.studentId=s.id AND e.classroomId=?)" : ""}`,
+      classId ? [organizationId, classId] : [organizationId],
     );
     const riskRows = await this.db.query(
       `SELECT s.id id, TRIM(COALESCE(u.firstName,'') || ' ' || COALESCE(u.lastName,'')) name,
@@ -220,10 +307,12 @@ export class PrincipalDashboardService {
         SUM(CASE WHEN r.status='late' THEN 1 ELSE 0 END) late
        FROM attendance_records r JOIN attendance_sessions a ON a.id=r.sessionId
        JOIN students s ON s.id=r.studentId JOIN users u ON u.id=s.userId
-       WHERE a.organizationId=? AND date(a.sessionDate) BETWEEN ? AND ?
+       WHERE a.organizationId=? AND COALESCE(a.operationalDate,date(a.sessionDate)) BETWEEN ? AND ?${classId ? " AND a.contextId=?" : ""}
        GROUP BY s.id, u.firstName, u.lastName HAVING absent > 0 OR late > 0
        ORDER BY absent DESC, late DESC LIMIT 8`,
-      [organizationId, from, to],
+      classId
+        ? [organizationId, from, to, classId]
+        : [organizationId, from, to],
     );
     const dimensions = [
       { key: "attendance", label: "حضور", value: attendance.rate },
@@ -240,14 +329,23 @@ export class PrincipalDashboardService {
         value: activeStudents
           ? Math.min(
               100,
-              Math.round((Number(study.sessions ?? 0) / activeStudents) * 20),
+              Math.round(
+                (Number(study.participants ?? 0) / activeStudents) * 100,
+              ),
             )
           : null,
       },
       {
-        key: "exams",
-        label: "آزمون",
-        value: exams.average == null ? null : Math.round(Number(exams.average)),
+        key: "assessmentParticipation",
+        label: "مشارکت آزمون",
+        value: activeStudents
+          ? Math.min(
+              100,
+              Math.round(
+                (Number(exams.participants ?? 0) / activeStudents) * 100,
+              ),
+            )
+          : null,
       },
       {
         key: "punctuality",
@@ -256,6 +354,18 @@ export class PrincipalDashboardService {
           attendance.present + attendance.late
             ? Math.round(
                 (attendance.present / (attendance.present + attendance.late)) *
+                  100,
+              )
+            : null,
+      },
+      {
+        key: "absenceFree",
+        label: "بدون غیبت",
+        value:
+          attendance.present + attendance.absent + attendance.late
+            ? Math.round(
+                (attendance.present /
+                  (attendance.present + attendance.absent + attendance.late)) *
                   100,
               )
             : null,
@@ -320,7 +430,7 @@ export class PrincipalDashboardService {
       : 0;
     return {
       activeStudents,
-      currentlyOut: can("dormitory.read")
+      currentlyOut: can("exit.read")
         ? await this.scalar(
             "SELECT COUNT(id) count FROM exit_permissions WHERE organizationId=? AND status='APPROVED' AND actualDepartureAt IS NOT NULL AND actualReturnAt IS NULL",
             [organizationId],
@@ -366,6 +476,18 @@ export class PrincipalDashboardService {
     return value.toISOString().slice(0, 10);
   }
   private isoDate(value?: string) {
-    return value && /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : null;
+    if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
+    const date = new Date(`${value}T00:00:00.000Z`);
+    return Number.isNaN(date.getTime()) ||
+      date.toISOString().slice(0, 10) !== value
+      ? null
+      : value;
+  }
+  private dateDistance(from: string, to: string) {
+    return Math.round(
+      (Date.parse(`${to}T00:00:00.000Z`) -
+        Date.parse(`${from}T00:00:00.000Z`)) /
+        86_400_000,
+    );
   }
 }

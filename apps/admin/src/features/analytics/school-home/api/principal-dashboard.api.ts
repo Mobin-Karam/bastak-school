@@ -7,6 +7,7 @@ export type PrincipalDashboardContract = {
   from: string;
   to: string;
   attendance?: {
+    today: { present: number; absent: number; late: number; excused: number; rate: number | null };
     present: number;
     absent: number;
     late: number;
@@ -45,10 +46,10 @@ export type PrincipalDashboardContract = {
   };
 };
 
-export const getPrincipalDashboard = (range: "7d" | "30d") => {
+export const getPrincipalDashboard = (range: "7d" | "30d", classId?: string) => {
   const to = todayIso();
-  const from = addDays(to, range === "30d" ? -29 : -6);
-  return api.get<PrincipalDashboardContract>(
-    `/dashboard/principal?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`,
-  );
+  const from = addDays(to, range === "30d" ? -30 : -6);
+  const query = new URLSearchParams({ from, to });
+  if (classId) query.set("classId", classId);
+  return api.get<PrincipalDashboardContract>(`/dashboard/principal?${query.toString()}`);
 };
