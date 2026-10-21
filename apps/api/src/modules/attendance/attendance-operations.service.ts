@@ -20,13 +20,16 @@ import {
   AttendanceReviewStatus,
   AttendanceStatus,
 } from "../../database/entities/attendance-record.entity";
+import { StudentPointLedger } from "../../database/entities/student-point-ledger.entity";
 import { AttendancePool } from "../../database/entities/attendance-pool.entity";
 import { DormAttendanceDelegate } from "../../database/entities/dorm-attendance-delegate.entity";
 import { DormRoom } from "../../database/entities/dorm-room.entity";
 import { DormRoomAssignment } from "../../database/entities/dorm-room-assignment.entity";
 import { AttendanceWriteReceipt } from "../../database/entities/attendance-write-receipt.entity";
+import { AttendancePolicy } from "../../database/entities/attendance-policy.entity";
 import { AuditLog } from "../../database/entities/audit-log.entity";
 import { Student } from "../../database/entities/student.entity";
+import { EducationClassEnrollment } from "../../database/entities/education-class-enrollment.entity";
 import { User, UserStatus } from "../../database/entities/user.entity";
 import { AuthenticatedUser } from "../auth";
 import { SchoolAccessService } from "../school-access";
@@ -42,6 +45,7 @@ import {
   CreateAttendancePoolDto,
   DelegatedDormAttendanceDto,
   SetDormAttendanceDelegateDto,
+  AttendanceHistoryQueryDto,
 } from "./attendance.dto";
 
 const zone = "Asia/Tehran";
@@ -71,10 +75,16 @@ export class AttendanceOperationsService {
     if (!user.capabilities?.includes(capability))
       throw new ApiException(403, "FORBIDDEN", "دسترسی کافی ندارید.");
   }
-  private staff(user: AuthenticatedUser, capability = "attendance.review") {
-    this.requireCapability(user, capability);
+  private staff(
+    user: AuthenticatedUser,
+    capabilities: string | readonly string[] = ["attendance.review"],
+  ) {
+    const allowed = typeof capabilities === "string" ? [capabilities] : capabilities;
+    if (!allowed.some((capability) => user.capabilities?.includes(capability)))
+      throw new ApiException(403, "FORBIDDEN", "دسترسی کافی ندارید.");
     if (
       ![
+        "TEACHER",
         "PRINCIPAL",
         "SCHOOL_SUPERVISOR",
         "ORGANIZATION_ADMIN",
@@ -84,7 +94,7 @@ export class AttendanceOperationsService {
       throw new ApiException(
         403,
         "FORBIDDEN",
-        "این بخش فقط برای مدیر و ناظر مدرسه است.",
+        "این بخش فقط برای معلم، مدیر و ناظر مدرسه است.",
       );
   }
   private async orgIds(user: AuthenticatedUser) {
@@ -256,60 +266,176 @@ export class AttendanceOperationsService {
     const ids = await this.orgIds(user);
     if (!ids.length) return [];
     const rows = await this.repo(DormRoomAssignment).find({
-      where: { room: { organization: { id: In(ids) }, status: "ACTIVE" }, student: { organization: { id: In(ids) }, accountStatus: "active", user: { status: UserStatus.ACTIVE } } },
-      relations: { student: { user: true, organization: true }, room: { organization: true } },
+      where: {
+        room: { organization: { id: In(ids) }, status: "ACTIVE" },
+        student: {
+          organization: { id: In(ids) },
+          accountStatus: "active",
+          user: { status: UserStatus.ACTIVE },
+        },
+      },
+      relations: {
+        student: { user: true, organization: true },
+        room: { organization: true },
+      },
     });
     const eligible = [];
     for (const row of rows) {
-      if (row.student.organization?.id !== row.room.organization.id || !row.student.user) continue;
-      if (await this.access.activeMembershipForUser(row.student.user.id, row.room.organization.id)) eligible.push({ id: row.student.id, name: row.student.name, organizationId: row.room.organization.id, userId: row.student.user.id });
+      if (
+        row.student.organization?.id !== row.room.organization.id ||
+        !row.student.user
+      )
+        continue;
+      if (
+        await this.access.activeMembershipForUser(
+          row.student.user.id,
+          row.room.organization.id,
+        )
+      )
+        eligible.push({
+          id: row.student.id,
+          name: row.student.name,
+          organizationId: row.room.organization.id,
+          userId: row.student.user.id,
+        });
     }
-    return [...new Map(eligible.map(row => [row.id, row])).values()];
+    return [...new Map(eligible.map((row) => [row.id, row])).values()];
   }
   /** Explicitly grants each currently active room, atomically; future rooms need a new grant. */
-  async setDormWideDelegate(user: AuthenticatedUser, dto: SetDormAttendanceDelegateDto) {
+  async setDormWideDelegate(
+    user: AuthenticatedUser,
+    dto: SetDormAttendanceDelegateDto,
+  ) {
     this.staff(user, "attendance.delegate");
-    try { shiftSchoolDate(dto.startsOn, 0); shiftSchoolDate(dto.endsOn, 0); }
-    catch { throw new ApiException(422, "ATTENDANCE_DATE_INVALID", "تاریخ معتبر نیست."); }
-    if (dto.startsOn > dto.endsOn || dto.endsOn > shiftSchoolDate(dto.startsOn, 365)) throw new ApiException(422, "ATTENDANCE_DELEGATE_RANGE", "بازه باید بین یک شب و یک سال باشد.");
-    const selected = (await this.dormResidents(user)).find(row => row.id === dto.studentId);
-    if (!selected) throw new ApiException(422, "ATTENDANCE_DELEGATE_NOT_RESIDENT", "یک طلبه ساکن خوابگاه با حساب فعال انتخاب کنید.");
+    try {
+      shiftSchoolDate(dto.startsOn, 0);
+      shiftSchoolDate(dto.endsOn, 0);
+    } catch {
+      throw new ApiException(
+        422,
+        "ATTENDANCE_DATE_INVALID",
+        "تاریخ معتبر نیست.",
+      );
+    }
+    if (
+      dto.startsOn > dto.endsOn ||
+      dto.endsOn > shiftSchoolDate(dto.startsOn, 365)
+    )
+      throw new ApiException(
+        422,
+        "ATTENDANCE_DELEGATE_RANGE",
+        "بازه باید بین یک شب و یک سال باشد.",
+      );
+    const selected = (await this.dormResidents(user)).find(
+      (row) => row.id === dto.studentId,
+    );
+    if (!selected)
+      throw new ApiException(
+        422,
+        "ATTENDANCE_DELEGATE_NOT_RESIDENT",
+        "یک طلبه ساکن خوابگاه با حساب فعال انتخاب کنید.",
+      );
     await this.attendance.authorizeOrganization(user, selected.organizationId);
-    const rooms = await this.repo(DormRoom).find({ where: { organization: { id: selected.organizationId }, status: "ACTIVE" } });
-    if (!rooms.length || rooms.length > 500) throw new ApiException(422, "ATTENDANCE_DELEGATE_ROOMS", "تعداد اتاق‌ها معتبر نیست.");
-    const result = await attendanceTransaction(this.sessions.manager, async manager => {
-      const repo = manager.getRepository(DormAttendanceDelegate);
-      const views = [];
-      for (const room of rooms) {
-        const previous = await repo.findOne({ where: { room: { id: room.id } }, relations: { student: true, room: true } });
-        const student = await manager.getRepository(Student).findOneByOrFail({ id: selected.id });
-        const row = await repo.save(repo.create({ id: previous?.id, organization: { id: selected.organizationId }, room, student, grantedBy: { id: user.id }, startsOn: dto.startsOn, endsOn: dto.endsOn, revoked: false, dormWide: true }));
-        const view = this.delegateView(row);
-        await this.audit(manager, user, selected.organizationId, "attendance.delegate.assigned", { before: previous ? this.delegateView(previous) : null, after: view });
-        views.push(view);
-      }
-      return views;
+    const rooms = await this.repo(DormRoom).find({
+      where: {
+        organization: { id: selected.organizationId },
+        status: "ACTIVE",
+      },
     });
-    this.realtime.emitToUsers([user.id, selected.userId], "attendance.updated", { organizationId: selected.organizationId, contextType: "dorm" });
+    if (!rooms.length || rooms.length > 500)
+      throw new ApiException(
+        422,
+        "ATTENDANCE_DELEGATE_ROOMS",
+        "تعداد اتاق‌ها معتبر نیست.",
+      );
+    const result = await attendanceTransaction(
+      this.sessions.manager,
+      async (manager) => {
+        const repo = manager.getRepository(DormAttendanceDelegate);
+        const views = [];
+        for (const room of rooms) {
+          const previous = await repo.findOne({
+            where: { room: { id: room.id } },
+            relations: { student: true, room: true },
+          });
+          const student = await manager
+            .getRepository(Student)
+            .findOneByOrFail({ id: selected.id });
+          const row = await repo.save(
+            repo.create({
+              id: previous?.id,
+              organization: { id: selected.organizationId },
+              room,
+              student,
+              grantedBy: { id: user.id },
+              startsOn: dto.startsOn,
+              endsOn: dto.endsOn,
+              revoked: false,
+              dormWide: true,
+            }),
+          );
+          const view = this.delegateView(row);
+          await this.audit(
+            manager,
+            user,
+            selected.organizationId,
+            "attendance.delegate.assigned",
+            {
+              before: previous ? this.delegateView(previous) : null,
+              after: view,
+            },
+          );
+          views.push(view);
+        }
+        return views;
+      },
+    );
+    this.realtime.emitToUsers(
+      [user.id, selected.userId],
+      "attendance.updated",
+      { organizationId: selected.organizationId, contextType: "dorm" },
+    );
     return result;
   }
   async revokeDormWideDelegate(user: AuthenticatedUser) {
     this.staff(user, "attendance.delegate");
     const ids = await this.orgIds(user);
     if (!ids.length) return { revoked: true };
-    return attendanceTransaction(this.sessions.manager, async manager => {
+    return attendanceTransaction(this.sessions.manager, async (manager) => {
       const repo = manager.getRepository(DormAttendanceDelegate);
-      const rows = await repo.find({ where: { organization: { id: In(ids) }, dormWide: true, revoked: false }, relations: { organization: true, student: { user: true }, room: true } });
+      const rows = await repo.find({
+        where: {
+          organization: { id: In(ids) },
+          dormWide: true,
+          revoked: false,
+        },
+        relations: { organization: true, student: { user: true }, room: true },
+      });
       for (const row of rows) {
         row.revoked = true;
         await repo.save(row);
-        await this.audit(manager, user, row.organization.id, "attendance.delegate.revoked", { roomId: row.room?.id, delegateId: row.id });
+        await this.audit(
+          manager,
+          user,
+          row.organization.id,
+          "attendance.delegate.revoked",
+          { roomId: row.room?.id, delegateId: row.id },
+        );
       }
       return { revoked: true };
     });
   }
-  private async isDormResident(manager: EntityManager, studentId: string, organizationId: string) {
-    return !!(await manager.getRepository(DormRoomAssignment).findOne({ where: { student: { id: studentId, organization: { id: organizationId } }, room: { organization: { id: organizationId }, status: "ACTIVE" } } }));
+  private async isDormResident(
+    manager: EntityManager,
+    studentId: string,
+    organizationId: string,
+  ) {
+    return !!(await manager.getRepository(DormRoomAssignment).findOne({
+      where: {
+        student: { id: studentId, organization: { id: organizationId } },
+        room: { organization: { id: organizationId }, status: "ACTIVE" },
+      },
+    }));
   }
   async revokeDelegate(user: AuthenticatedUser, roomId: string) {
     this.staff(user, "attendance.delegate");
@@ -379,7 +505,16 @@ export class AttendanceOperationsService {
         row.room.id,
         student.organization!.id,
       );
-      if (!(row.dormWide ? await this.isDormResident(this.sessions.manager, student.id, student.organization!.id) : roster.some((member) => member.id === student.id))) continue;
+      if (
+        !(row.dormWide
+          ? await this.isDormResident(
+              this.sessions.manager,
+              student.id,
+              student.organization!.id,
+            )
+          : roster.some((member) => member.id === student.id))
+      )
+        continue;
       const session = await this.sessions.findOne({
         where: {
           organization: { id: student.organization!.id },
@@ -473,7 +608,13 @@ export class AttendanceOperationsService {
           student.organization!.id,
         );
         if (
-          !(delegate.dormWide ? await this.isDormResident(manager, student.id, student.organization!.id) : roster.some((member) => member.id === student.id)) ||
+          !(delegate.dormWide
+            ? await this.isDormResident(
+                manager,
+                student.id,
+                student.organization!.id,
+              )
+            : roster.some((member) => member.id === student.id)) ||
           dto.entries.some(
             (entry) => !roster.some((member) => member.id === entry.studentId),
           )
@@ -483,6 +624,16 @@ export class AttendanceOperationsService {
             "ATTENDANCE_DELEGATE_SCOPE",
             "ثبت فقط برای ساکنان اتاق شما مجاز است.",
           );
+        // Dorm marking is absence-first too.  The authenticated delegate may send
+        // exceptional statuses only; every omitted member is materialized as present
+        // in this one transaction, so a room never has a silently partial session.
+        const entriesByStudent = new Map(
+          dto.entries.map((entry) => [entry.studentId, entry]),
+        );
+        const entries = roster.map((member) => ({
+          studentId: member.id,
+          status: entriesByStudent.get(member.id)?.status ?? "present",
+        }));
         const receipts = manager.getRepository(AttendanceWriteReceipt);
         const receipt = await receipts.findOne({
           where: {
@@ -532,7 +683,7 @@ export class AttendanceOperationsService {
             }),
           );
         const records = manager.getRepository(AttendanceRecord);
-        for (const entry of dto.entries) {
+        for (const entry of entries) {
           if (
             !session.rosterSnapshot?.some(
               (member) => member.id === entry.studentId,
@@ -570,7 +721,7 @@ export class AttendanceOperationsService {
         }
         session.revision++;
         await sessions.save(session);
-        const saved = { sessionId: session.id, count: dto.entries.length };
+        const saved = { sessionId: session.id, count: entries.length };
         await receipts.save(
           receipts.create({
             organization: student.organization!,
@@ -586,7 +737,7 @@ export class AttendanceOperationsService {
           user,
           student.organization!.id,
           "attendance.dorm.delegated-mark",
-          { sessionId: session.id, delegateId: id, entries: dto.entries },
+          { sessionId: session.id, delegateId: id, entries },
         );
         return saved;
       },
@@ -869,18 +1020,38 @@ export class AttendanceOperationsService {
   }
   async staffSessions(
     user: AuthenticatedUser,
-  ): Promise<StaffAttendanceSession[]> {
-    this.staff(user);
+    query: AttendanceHistoryQueryDto = {},
+  ): Promise<{
+    items: StaffAttendanceSession[];
+    page: number;
+    limit: number;
+    total: number;
+    hasNext: boolean;
+  }> {
+    this.staff(user, ["attendance.review", "attendance.class.read"]);
     const ids = await this.orgIds(user);
-    const rows = ids.length
-      ? await this.sessions.find({
+    const page = query.page ?? 1;
+    const limit = query.limit ?? 25;
+    const schoolWide = this.attendance.hasSchoolWideScope(user);
+    const sessionQuery = {
           where: { organization: { id: In(ids) } },
-          relations: { records: true },
+          relations: { records: true, organization: true },
           order: { sessionDate: "DESC" },
-          take: 200,
-        })
-      : [];
-    return rows.map((session) => {
+        } as const;
+    const [rows, total] = !ids.length
+      ? [[], 0]
+      : schoolWide
+        ? await this.sessions.findAndCount({
+            ...sessionQuery,
+            skip: (page - 1) * limit,
+            take: limit,
+          })
+        : [await this.sessions.find(sessionQuery), 0];
+    const visibleRows = await this.visibleSessions(user, rows);
+    const pageRows = schoolWide
+      ? visibleRows
+      : visibleRows.slice((page - 1) * limit, page * limit);
+    const items = pageRows.map((session) => {
       const counts = this.counts(session.records ?? []);
       return {
         id: session.id,
@@ -903,17 +1074,25 @@ export class AttendanceOperationsService {
               ),
       };
     });
+    return {
+      items,
+      page,
+      limit,
+      total: schoolWide ? total : visibleRows.length,
+      hasNext: schoolWide ? page * limit < total : page * limit < visibleRows.length,
+    };
   }
   async dailyOverview(
     user: AuthenticatedUser,
   ): Promise<AttendanceDailyOverview> {
-    this.staff(user);
+    this.staff(user, ["attendance.review", "attendance.class.read"]);
     const ids = await this.orgIds(user);
     const window = attendanceSummaryWindow();
     const rows = ids.length
       ? await this.sessions
           .createQueryBuilder("session")
           .leftJoinAndSelect("session.records", "record")
+          .leftJoinAndSelect("session.organization", "organization")
           .where("session.organizationId IN (:...ids)", { ids })
           .andWhere(
             "session.sessionDate >= :start AND session.sessionDate < :end",
@@ -921,17 +1100,18 @@ export class AttendanceOperationsService {
           )
           .getMany()
       : [];
+    const visibleRows = await this.visibleSessions(user, rows);
     return {
       day: window.day,
       startsAt: window.startsAt.toISOString(),
       resetsAt: window.resetsAt.toISOString(),
       timeZone: zone,
-      sessions: rows.length,
-      present: rows.reduce((n, s) => n + this.counts(s.records).present, 0),
-      absent: rows.reduce((n, s) => n + this.counts(s.records).absent, 0),
-      late: rows.reduce((n, s) => n + this.counts(s.records).late, 0),
-      excused: rows.reduce((n, s) => n + this.counts(s.records).excused, 0),
-      unmarked: rows.reduce(
+      sessions: visibleRows.length,
+      present: visibleRows.reduce((n, s) => n + this.counts(s.records).present, 0),
+      absent: visibleRows.reduce((n, s) => n + this.counts(s.records).absent, 0),
+      late: visibleRows.reduce((n, s) => n + this.counts(s.records).late, 0),
+      excused: visibleRows.reduce((n, s) => n + this.counts(s.records).excused, 0),
+      unmarked: visibleRows.reduce(
         (n, s) =>
           n +
           Math.max(
@@ -942,16 +1122,109 @@ export class AttendanceOperationsService {
       ),
     };
   }
+  /** Finalized facts only: cancelled and unmarked sessions never enter the percentage denominator. */
+  async reportSummary(
+    user: AuthenticatedUser,
+    from?: string,
+    to?: string,
+    filters: { academicYearId?: string; termId?: string } = {},
+  ) {
+    this.staff(user, "attendance.reports.read");
+    const ids = await this.orgIds(user);
+    const fromDate = from ? new Date(from) : null;
+    const toDate = to ? new Date(to) : null;
+    if (fromDate && Number.isNaN(fromDate.getTime()))
+      throw new ApiException(
+        422,
+        "ATTENDANCE_REPORT_DATE_INVALID",
+        "تاریخ شروع معتبر نیست.",
+      );
+    if (toDate && Number.isNaN(toDate.getTime()))
+      throw new ApiException(
+        422,
+        "ATTENDANCE_REPORT_DATE_INVALID",
+        "تاریخ پایان معتبر نیست.",
+      );
+    if (fromDate && toDate && fromDate > toDate)
+      throw new ApiException(
+        422,
+        "ATTENDANCE_REPORT_DATE_RANGE",
+        "تاریخ شروع نمی‌تواند بعد از تاریخ پایان باشد.",
+      );
+    const query = this.sessions
+      .createQueryBuilder("session")
+      .leftJoinAndSelect("session.records", "record")
+      .leftJoinAndSelect("session.organization", "organization")
+      .where("session.organizationId IN (:...ids)", { ids })
+      .andWhere("session.status = :status", { status: "finalized" });
+    if (fromDate) query.andWhere("session.sessionDate >= :from", { from: fromDate });
+    if (toDate) query.andWhere("session.sessionDate <= :to", { to: toDate });
+    if (filters.academicYearId)
+      query.andWhere("session.academicYearIdSnapshot = :academicYearId", {
+        academicYearId: filters.academicYearId,
+      });
+    if (filters.termId)
+      query.andWhere("session.termIdSnapshot = :termId", { termId: filters.termId });
+    const sessions = ids.length ? await query.getMany() : [];
+    const policies = ids.length
+      ? await this.repo(AttendancePolicy).find({
+          where: { organization: { id: In(ids) } },
+          relations: { organization: true },
+        })
+      : [];
+    const lateCountsAsPresent = new Map(
+      policies.map((policy) => [
+        policy.organization.id,
+        policy.lateCountsAsPresent,
+      ]),
+    );
+    const counts = sessions.reduce(
+      (total, session) => {
+        const current = this.counts(session.records ?? []);
+        total.present += current.present;
+        total.absent += current.absent;
+        total.late += current.late;
+        total.excused += current.excused;
+        return total;
+      },
+      { present: 0, absent: 0, late: 0, excused: 0 },
+    );
+    const denominator =
+      counts.present + counts.absent + counts.late + counts.excused;
+    const attendanceNumerator = sessions.reduce((total, session) => {
+      const current = this.counts(session.records ?? []);
+      return (
+        total +
+        current.present +
+        ((lateCountsAsPresent.get(session.organization.id) ?? true)
+          ? current.late
+          : 0)
+      );
+    }, 0);
+    return {
+      from: from ?? null,
+      to: to ?? null,
+      academicYearId: filters.academicYearId ?? null,
+      termId: filters.termId ?? null,
+      finalizedSessions: sessions.length,
+      denominator,
+      ...counts,
+      attendanceRate:
+        denominator === 0
+          ? null
+          : Math.round((attendanceNumerator / denominator) * 100),
+    };
+  }
   async staffProfile(
     user: AuthenticatedUser,
     id: string,
   ): Promise<StaffAttendanceProfile> {
-    this.staff(user);
+    this.staff(user, ["attendance.review", "attendance.class.read"]);
     const ids = await this.orgIds(user);
     const student = ids.length
       ? await this.repo(Student).findOne({
           where: { id, organization: { id: In(ids) } },
-          relations: { user: true },
+          relations: { user: true, organization: true },
         })
       : null;
     if (!student || student.user?.id === user.id)
@@ -960,16 +1233,86 @@ export class AttendanceOperationsService {
         "STUDENT_NOT_FOUND",
         "پرونده مجاز طلبه پیدا نشد.",
       );
+    const enrollments = await this.repo(EducationClassEnrollment).find({
+      where: { student: { id } },
+      relations: { classroom: { organization: true } },
+    });
+    const schoolWide = this.attendance.hasSchoolWideScope(user);
+    const organizationEnrollments = enrollments.filter(({ classroom }) =>
+      ids.includes(classroom.organization.id),
+    );
+    const visibleEnrollments = schoolWide
+      ? organizationEnrollments
+      : (
+          await Promise.all(
+            organizationEnrollments.map(async (enrollment) => {
+              try {
+                await this.attendance.authorizeContext(
+                  user,
+                  "class",
+                  enrollment.classroom.id,
+                  enrollment.classroom.organization.id,
+                  false,
+                );
+                return enrollment;
+              } catch (error) {
+                if (error instanceof ApiException && error.getStatus() === 403)
+                  return null;
+                throw error;
+              }
+            }),
+          )
+        ).filter((enrollment): enrollment is EducationClassEnrollment => Boolean(enrollment));
+    if (!schoolWide && !visibleEnrollments.length)
+      throw new ApiException(404, "STUDENT_NOT_FOUND", "پرونده مجاز دانش‌آموز پیدا نشد.");
+
     const rows = await this.repo(AttendanceRecord).find({
       where: { student: { id }, session: { organization: { id: In(ids) } } },
       relations: { session: true },
       order: { createdAt: "DESC" },
     });
+    const visibleClassIds = new Set(visibleEnrollments.map(({ classroom }) => classroom.id));
+    const visibleRows = schoolWide
+      ? rows
+      : rows.filter(
+          (row) =>
+            row.session.contextType === "class" && visibleClassIds.has(row.session.contextId),
+        );
+    const points = await this.repo(StudentPointLedger).find({
+      where: { student: { id }, organization: { id: student.organization!.id } },
+    });
+    const counts = this.counts(visibleRows);
+    const totalSessions = visibleRows.length;
+    const attendanceRate = totalSessions
+      ? Math.round(((counts.present + counts.late) / totalSessions) * 100)
+      : null;
+    const eligibleSessions = await this.sessions.find({
+      where: { organization: { id: student.organization!.id } },
+      select: { id: true, rosterSnapshot: true, contextType: true, contextId: true },
+    });
+    const visibleSessions = schoolWide
+      ? eligibleSessions
+      : eligibleSessions.filter(
+          (session) =>
+            session.contextType === "class" && visibleClassIds.has(session.contextId),
+        );
+    const eligibleSessionCount = visibleSessions.filter((session) =>
+      (session.rosterSnapshot ?? []).some((member) => member.id === id),
+    ).length;
     return {
       studentId: id,
       name: student.name,
-      counts: this.counts(rows),
-      records: rows.slice(0, 200).map((row) => ({
+      schoolName: student.organization?.name ?? "—",
+      classNames: visibleEnrollments.map(({ classroom }) => classroom.name),
+      points: points.reduce((total, row) => total + row.points, 0),
+      attendanceRate,
+      attendanceCoverage: eligibleSessionCount
+        ? Math.round((totalSessions / eligibleSessionCount) * 100)
+        : null,
+      totalSessions,
+      scopedToTeacherClasses: !schoolWide,
+      counts,
+      records: visibleRows.slice(0, 200).map((row) => ({
         id: row.id,
         sessionId: row.session.id,
         title: row.session.titleSnapshot || "جلسه ثبت‌شده",
@@ -994,6 +1337,10 @@ export class AttendanceOperationsService {
       },
     });
     const counts = this.counts(rows);
+    const pointRows = await this.repo(StudentPointLedger).find({
+      where: { student: { id: student.id } },
+    });
+    const points = pointRows.reduce((total, row) => total + row.points, 0);
     const rate = rows.length
       ? Math.round(((counts.present + counts.late) / rows.length) * 100)
       : null;
@@ -1001,6 +1348,7 @@ export class AttendanceOperationsService {
       totalSessions: rows.length,
       ...counts,
       attendanceRate: rate,
+      points,
       message: !rows.length
         ? "با حضور منظم، شروع خوبی بسازید."
         : counts.absent > 0
@@ -1008,12 +1356,40 @@ export class AttendanceOperationsService {
           : counts.late > 0
             ? "حضور شما خوب است؛ با رسیدن به‌موقع آن را بهتر کنید."
             : "حضور منظم شما قابل تقدیر است؛ همین مسیر را ادامه دهید.",
-    };
+    } as AttendanceEncouragement;
   }
   private counts(rows: AttendanceRecord[]) {
     const counts = { present: 0, absent: 0, late: 0, excused: 0 };
     for (const row of rows) counts[row.status]++;
     return counts;
+  }
+  /** Teachers see only sessions whose context is assigned to them; school-wide roles keep their full scope. */
+  private async visibleSessions(user: AuthenticatedUser, sessions: AttendanceSession[]) {
+    if (this.attendance.hasSchoolWideScope(user)) return sessions;
+    return (
+      await Promise.all(
+        sessions.map(async (session) => {
+          if (
+            !session.organization ||
+            !["class", "class_group", "study_group"].includes(session.contextType)
+          )
+            return null;
+          try {
+            await this.attendance.authorizeContext(
+              user,
+              session.contextType,
+              session.contextId,
+              session.organization.id,
+              false,
+            );
+            return session;
+          } catch (error) {
+            if (error instanceof ApiException && error.getStatus() === 403) return null;
+            throw error;
+          }
+        }),
+      )
+    ).filter((session): session is AttendanceSession => Boolean(session));
   }
   private async audit(
     manager: EntityManager,

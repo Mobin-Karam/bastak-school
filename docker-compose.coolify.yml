@@ -18,39 +18,34 @@ services:
       ACCESS_TOKEN_TTL_MINUTES: ${ACCESS_TOKEN_TTL_MINUTES:-15}
       REFRESH_TOKEN_TTL_DAYS: ${REFRESH_TOKEN_TTL_DAYS:-30}
       SQLITE_BUSY_TIMEOUT_MS: ${SQLITE_BUSY_TIMEOUT_MS:-5000}
+      # Configure these as protected Coolify environment variables. The
+      # private key must never be baked into an image or committed.
+      VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY:-}
+      VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY:-}
+      VAPID_SUBJECT: ${VAPID_SUBJECT:-}
     volumes:
       - moshaver_v2_sqlite:/data
     healthcheck:
-      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:4000/ready').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:4000/ready').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))",
+        ]
       interval: 10s
       timeout: 5s
       retries: 6
       start_period: 20s
-
-  student-v2:
-    build:
-      context: .
-      dockerfile: apps/student/Dockerfile
-      args:
-        VITE_API_URL: /api/v2
-    restart: unless-stopped
-    environment:
-      API_PROXY_TARGET: http://backend-v2:4000
-    depends_on:
-      backend-v2:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1/"]
-      interval: 10s
-      timeout: 5s
-      retries: 3
 
   admin-v2:
     build:
       context: .
       dockerfile: apps/admin/Dockerfile
       args:
-        VITE_API_URL: /api/v2
+        # Attach both app.sultano.ir and stud.sultano.ir to this one service.
+        # The shared Vite bundle selects the portal at runtime by hostname.
+        VITE_API_URL: https://api.sultano.ir
     restart: unless-stopped
     environment:
       API_PROXY_TARGET: http://backend-v2:4000

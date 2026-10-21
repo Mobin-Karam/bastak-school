@@ -1,0 +1,39 @@
+import { useQuery } from "@tanstack/react-query";
+import { UserRound } from "lucide-react";
+import { useAuth } from "../../../identity/auth";
+import { getAccountProfile } from "../../../platform/settings/api/settings.api";
+import { ManagementPageHeader } from "../../../../shared/ui/management-workspace";
+import { MobileCard } from "../../../../shared/ui/mobile/layout";
+
+export function TeacherProfilePage() {
+  const auth = useAuth();
+  const profile = useQuery({ queryKey: ["account", "profile"], queryFn: getAccountProfile });
+  const fullName = [auth.user?.firstName, auth.user?.lastName]
+    .map((part) => part?.trim())
+    .filter(Boolean)
+    .join(" ");
+  const name =
+    fullName || auth.user?.displayName || auth.user?.display_name || auth.user?.username || "استاد";
+  return (
+    <section className="mx-auto grid w-full max-w-2xl gap-4">
+      <ManagementPageHeader
+        eyebrow="حساب من"
+        title="پروفایل من"
+        description="اطلاعات حساب استاد را مرور کنید."
+      />
+      <MobileCard className="flex items-center gap-3 p-4">
+        <span className="grid size-12 shrink-0 place-items-center rounded-2xl bg-brand/10 text-brand">
+          <UserRound size={24} aria-hidden="true" />
+        </span>
+        <div className="min-w-0">
+          <h2 className="truncate text-base font-black text-ink">{name}</h2>
+          <p className="mt-1 text-xs text-slate-500">
+            {profile.isLoading
+              ? "در حال دریافت شماره همراه…"
+              : profile.data?.phoneNumber || "شماره همراه ثبت نشده"}
+          </p>
+        </div>
+      </MobileCard>
+    </section>
+  );
+}

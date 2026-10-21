@@ -7,7 +7,10 @@ import {
   Post,
   Query,
 } from "@nestjs/common";
-import { RequireCapabilities } from "../../common/decorators/capabilities.decorator";
+import {
+  RequireAnyCapabilities,
+  RequireCapabilities,
+} from "../../common/decorators/capabilities.decorator";
 import { CurrentUser } from "../../common/decorators/current-user.decorator";
 import { ok } from "../../common/utils/envelope";
 import { AuthenticatedUser } from "../auth";
@@ -16,6 +19,14 @@ import {
   BulkMarkAttendanceDto,
   CreateAttendanceSessionDto,
   ReviewAttendanceAbsenceDto,
+  AwardAttendancePointsDto,
+  SubmitAttendanceAbsencesDto,
+  FinalizeAttendanceSessionDto,
+  CancelAttendanceSessionDto,
+  CorrectAttendanceRecordDto,
+  ReviewAttendanceCorrectionDto,
+  UpdateAttendancePolicyDto,
+  AttendanceHistoryQueryDto,
 } from "./attendance.dto";
 
 @Controller()
@@ -70,6 +81,15 @@ export class AttendanceController {
     return this.attendance.listSessions(user, organizationId).then(ok);
   }
 
+  @Get("attendance/history/sessions")
+  @RequireCapabilities("attendance.read")
+  historySessions(
+    @CurrentUser() user: AuthenticatedUser,
+    @Query() query: AttendanceHistoryQueryDto,
+  ) {
+    return this.attendance.paginatedSessions(user, query).then(ok);
+  }
+
   @Post("student/attendance/sessions")
   @RequireCapabilities("attendance.manage")
   create(
@@ -86,6 +106,83 @@ export class AttendanceController {
     @Body() dto: BulkMarkAttendanceDto,
   ) {
     return this.attendance.bulkMark(user, dto).then(ok);
+  }
+
+  @Post("attendance/sessions/:id/submit-absences")
+  @RequireAnyCapabilities("attendance.manage", "attendance.class.manage")
+  submitAbsences(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param("id") id: string,
+    @Body() dto: SubmitAttendanceAbsencesDto,
+  ) {
+    return this.attendance.submitAbsences(user, id, dto).then(ok);
+  }
+
+  @Post("attendance/sessions/:id/finalize")
+  @RequireCapabilities("attendance.review")
+  finalize(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param("id") id: string,
+    @Body() dto: FinalizeAttendanceSessionDto,
+  ) {
+    return this.attendance.finalizeSession(user, id, dto).then(ok);
+  }
+
+  @Post("attendance/sessions/:id/cancel")
+  @RequireCapabilities("attendance.review")
+  cancel(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param("id") id: string,
+    @Body() dto: CancelAttendanceSessionDto,
+  ) {
+    return this.attendance.cancelSession(user, id, dto).then(ok);
+  }
+
+  @Patch("attendance/records/:id/correction")
+  @RequireCapabilities("attendance.correct")
+  correct(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param("id") id: string,
+    @Body() dto: CorrectAttendanceRecordDto,
+  ) {
+    return this.attendance.correctRecord(user, id, dto).then(ok);
+  }
+
+  @Get("attendance/corrections/pending")
+  @RequireCapabilities("attendance.review")
+  pendingCorrections(
+    @CurrentUser() user: AuthenticatedUser,
+    @Query("organizationId") organizationId?: string,
+  ) {
+    return this.attendance.listPendingCorrections(user, organizationId).then(ok);
+  }
+
+  @Post("attendance/corrections/:id/review")
+  @RequireCapabilities("attendance.review")
+  reviewCorrection(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param("id") id: string,
+    @Body() dto: ReviewAttendanceCorrectionDto,
+  ) {
+    return this.attendance.reviewCorrection(user, id, dto).then(ok);
+  }
+
+  @Get("attendance/policy")
+  @RequireCapabilities("attendance.settings.manage")
+  policy(
+    @CurrentUser() user: AuthenticatedUser,
+    @Query("organizationId") organizationId?: string,
+  ) {
+    return this.attendance.policy(user, organizationId).then(ok);
+  }
+
+  @Patch("attendance/policy")
+  @RequireCapabilities("attendance.settings.manage")
+  updatePolicy(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() dto: UpdateAttendancePolicyDto,
+  ) {
+    return this.attendance.updatePolicy(user, dto).then(ok);
   }
 
   @Get("attendance/absence-reviews")
@@ -114,6 +211,15 @@ export class AttendanceController {
     @Body() dto: ReviewAttendanceAbsenceDto,
   ) {
     return this.attendance.reviewAbsence(user, id, dto).then(ok);
+  }
+
+  @Post("attendance/points")
+  @RequireAnyCapabilities("attendance.points.adjust", "attendance.class.manage")
+  awardPoints(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() dto: AwardAttendancePointsDto,
+  ) {
+    return this.attendance.awardPoints(user, dto).then(ok);
   }
 
   @Get("attendance/my-absence-reviews")

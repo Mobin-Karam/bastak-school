@@ -12,8 +12,6 @@ on:
       - apps/admin/package-lock.json
       - student-core/package.json
       - student-core/package-lock.json
-      - apps/student/package.json
-      - apps/student/package-lock.json
       - packages/api-contract/package.json
       - packages/cmb/**
       - .github/workflows/workspace-foundation.yml
@@ -28,8 +26,6 @@ on:
       - apps/admin/package-lock.json
       - student-core/package.json
       - student-core/package-lock.json
-      - apps/student/package.json
-      - apps/student/package-lock.json
       - packages/api-contract/package.json
       - packages/cmb/**
       - .github/workflows/workspace-foundation.yml

@@ -6,14 +6,19 @@ import {
   Param,
   Post,
   Put,
+  Query,
 } from "@nestjs/common";
-import { RequireCapabilities } from "../../common/decorators/capabilities.decorator";
+import {
+  RequireAnyCapabilities,
+  RequireCapabilities,
+} from "../../common/decorators/capabilities.decorator";
 import { CurrentUser } from "../../common/decorators/current-user.decorator";
 import { ok } from "../../common/utils/envelope";
 import { AuthenticatedUser } from "../auth";
 import { AttendanceOperationsService } from "./attendance-operations.service";
 import {
   AttendancePoolCheckInDto,
+  AttendanceHistoryQueryDto,
   CreateAttendancePoolDto,
   DelegatedDormAttendanceDto,
   SetDormAttendanceDelegateDto,
@@ -29,13 +34,22 @@ export class AttendanceOperationsController {
   }
   @Get("attendance/dorm-residents")
   @RequireCapabilities("attendance.delegate")
-  residents(@CurrentUser() user: AuthenticatedUser) { return this.operations.dormResidents(user).then(ok); }
+  residents(@CurrentUser() user: AuthenticatedUser) {
+    return this.operations.dormResidents(user).then(ok);
+  }
   @Put("attendance/dorm/delegate-all")
   @RequireCapabilities("attendance.delegate")
-  delegateAll(@CurrentUser() user: AuthenticatedUser, @Body() dto: SetDormAttendanceDelegateDto) { return this.operations.setDormWideDelegate(user, dto).then(ok); }
+  delegateAll(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() dto: SetDormAttendanceDelegateDto,
+  ) {
+    return this.operations.setDormWideDelegate(user, dto).then(ok);
+  }
   @Delete("attendance/dorm/delegate-all")
   @RequireCapabilities("attendance.delegate")
-  revokeAll(@CurrentUser() user: AuthenticatedUser) { return this.operations.revokeDormWideDelegate(user).then(ok); }
+  revokeAll(@CurrentUser() user: AuthenticatedUser) {
+    return this.operations.revokeDormWideDelegate(user).then(ok);
+  }
   @Put("attendance/dorm/:roomId/delegate")
   @RequireCapabilities("attendance.delegate")
   delegate(
@@ -69,18 +83,37 @@ export class AttendanceOperationsController {
     return this.operations.closePool(user, id).then(ok);
   }
   @Get("attendance/overview")
-  @RequireCapabilities("attendance.review")
+  @RequireAnyCapabilities("attendance.review", "attendance.class.read")
   overview(@CurrentUser() user: AuthenticatedUser) {
     return this.operations.dailyOverview(user).then(ok);
   }
+  @Get("attendance/reports/summary")
+  @RequireCapabilities("attendance.reports.read")
+  reportSummary(
+    @CurrentUser() user: AuthenticatedUser,
+    @Query("from") from?: string,
+    @Query("to") to?: string,
+    @Query("academicYearId") academicYearId?: string,
+    @Query("termId") termId?: string,
+  ) {
+    return this.operations
+      .reportSummary(user, from, to, { academicYearId, termId })
+      .then(ok);
+  }
   @Get("attendance/staff-sessions")
-  @RequireCapabilities("attendance.review")
-  sessions(@CurrentUser() user: AuthenticatedUser) {
-    return this.operations.staffSessions(user).then(ok);
+  @RequireAnyCapabilities("attendance.review", "attendance.class.read")
+  sessions(
+    @CurrentUser() user: AuthenticatedUser,
+    @Query() query: AttendanceHistoryQueryDto,
+  ) {
+    return this.operations.staffSessions(user, query).then(ok);
   }
   @Get("attendance/students/:id/profile")
-  @RequireCapabilities("attendance.review")
-  profile(@CurrentUser() user: AuthenticatedUser, @Param("id") id: string) {
+  @RequireAnyCapabilities("attendance.review", "attendance.class.read")
+  profile(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param("id") id: string,
+  ) {
     return this.operations.staffProfile(user, id).then(ok);
   }
   @Get("student/attendance/encouragement")

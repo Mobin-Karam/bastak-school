@@ -24,4 +24,23 @@ describe("SegmentedControl", () => {
     await user.click(screen.getByRole("button", { name: "شبکه" }));
     expect(onValueChange).toHaveBeenCalledWith("grid");
   });
+
+  it("keeps numeric mobile tabs type-safe and emits the selected day", async () => {
+    const user = userEvent.setup();
+    const onValueChange = vi.fn();
+    render(
+      <SegmentedControl
+        ariaLabel="انتخاب روز"
+        value={0}
+        onValueChange={onValueChange}
+        options={[
+          { value: 0, label: "شنبه" },
+          { value: 1, label: "یکشنبه" },
+        ]}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "یکشنبه" }));
+    expect(onValueChange).toHaveBeenCalledWith(1);
+  });
 });

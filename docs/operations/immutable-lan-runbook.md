@@ -1,6 +1,6 @@
 # Immutable LAN releases and incident recovery
 
-Status: staged implementation, automatic activation **disabled by default**. This audit does not change the private deployment repository, environment settings, Tailscale policy, host firewall, Nginx service, production containers or database. Current architecture and verified findings are in [deployment-audit.md](deployment-audit.md).
+Status: staged implementation, automatic activation **disabled by default**. This audit does not change the private deployment repository, environment settings, Tailscale policy, host firewall, Nginx service, production containers or database. Current architecture and verified findings are in the [archived deployment audit](../archive/operations/deployment-audit.md).
 
 ## Migration and activation sequence
 

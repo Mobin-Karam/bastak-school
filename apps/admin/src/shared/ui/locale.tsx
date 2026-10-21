@@ -46,8 +46,8 @@ export type AdminShellCopy = {
 
 export const adminShellCopy: Record<AdminLanguage, AdminShellCopy> = {
   fa: {
-    appTitle: "Zanin / زانین",
-    adminPortal: "مدیریت زانین",
+    appTitle: "مدرسه دینی سلطان العلماء بستک",
+    adminPortal: "مدیریت مدرسه دینی سلطان العلماء بستک",
     openNavigation: "بازکردن منوی مدیریت",
     closeNavigation: "بستن منوی مدیریت",
     primaryNavigation: "ناوبری اصلی مدیریت",
@@ -87,8 +87,8 @@ export const adminShellCopy: Record<AdminLanguage, AdminShellCopy> = {
     returnToWorkspace: "بازگشت به میز کار",
   },
   en: {
-    appTitle: "Zanin / زانین",
-    adminPortal: "Zanin Administration",
+    appTitle: "Sultan al-Olama Bastak Islamic School",
+    adminPortal: "Sultan al-Olama Bastak Islamic School Administration",
     openNavigation: "Open administration menu",
     closeNavigation: "Close administration menu",
     primaryNavigation: "Primary administration navigation",

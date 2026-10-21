@@ -12,6 +12,8 @@ import helmet from "@fastify/helmet";
 import { AppModule } from "./app.module";
 import { DocumentBuilder, SwaggerModule } from "@nestjs/swagger";
 import { registerHttpTelemetry } from "./common/observability/http-telemetry";
+import { isApprovedBrowserOrigin } from "./config/app.config";
+import { resolveTrustedProxy } from "./config/trusted-proxy";
 
 async function bootstrap() {
   const app = await NestFactory.create<NestFastifyApplication>(
@@ -20,16 +22,29 @@ async function bootstrap() {
       logger: false,
       // bodyLimit: Number(process.env.MAX_RESTORE_BODY || 64 * 1024 * 1024),
       bodyLimit: Number(process.env.MAX_BODY_SIZE || 2 * 1024 * 1024),
-      trustProxy: process.env.TRUST_PROXY === "1",
+      trustProxy: resolveTrustedProxy(
+        process.env.TRUST_PROXY,
+        process.env.TRUST_PROXY_CIDRS,
+      ),
     }),
   );
   const config = app.get(ConfigService);
-  registerHttpTelemetry(app.getHttpAdapter().getInstance(), (entry) => console.log(JSON.stringify(entry)));
+  registerHttpTelemetry(app.getHttpAdapter().getInstance(), (entry) =>
+    console.log(JSON.stringify(entry)),
+  );
   const corsOrigins = config.get<string[]>("corsOrigins") || [];
 
   await app.register(helmet);
   await app.register(cookie);
-  await app.register(cors, { origin: corsOrigins, credentials: true });
+  await app.register(cors, {
+    // Do not turn CORS into an API access control. A missing/disallowed Origin
+    // simply receives no browser CORS grant; authentication remains available
+    // to native, CLI, server-to-server, and future authorized clients.
+    origin: (origin, callback) =>
+      callback(null, isApprovedBrowserOrigin(origin, corsOrigins)),
+    credentials: true,
+    maxAge: 600,
+  });
   // app
   //   .getHttpAdapter()
   //   .getInstance()

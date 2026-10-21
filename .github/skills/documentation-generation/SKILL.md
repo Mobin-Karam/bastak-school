@@ -5,6 +5,8 @@ description: Create accurate developer/user/architecture documentation from veri
 
 # Documentation Generation Skill
 
+Use source and executed commands as authority. State that `apps/student` is historical/absent when relevant; do not convert architecture targets into current facts.
+
 ## Workflow
 1. Identify audience and task they need to accomplish.
 2. Verify implementation, commands, configuration keys, and paths.
