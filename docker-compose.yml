@@ -1,9 +1,14 @@
+name: bastak-school
+
 services:
   backend-v2:
     build:
       context: .
       dockerfile: apps/api/Dockerfile
-    container_name: moshaver-backend-v2
+    container_name: bastak-school-api
+    labels:
+      org.opencontainers.image.title: Bastak School API
+      org.opencontainers.image.description: Bastak School private API service
     restart: unless-stopped
     environment:
       NODE_ENV: production
@@ -33,7 +38,10 @@ services:
       dockerfile: apps/admin/Dockerfile
       args:
         VITE_API_URL: /api/v2
-    container_name: moshaver-admin-v2
+    container_name: bastak-school-web
+    labels:
+      org.opencontainers.image.title: Bastak School Web
+      org.opencontainers.image.description: Bastak School Admin and Student portal
     restart: unless-stopped
     environment:
       API_PROXY_TARGET: http://backend-v2:4000

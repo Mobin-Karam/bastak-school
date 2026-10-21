@@ -1,6 +1,6 @@
 # Development to production guide
 
-This is the practical, current guide for developing, testing, releasing, and verifying Moshaver/Bastak School. It is based on the executable workspace, CI workflows, and LAN deployment scripts in this repository. It does not authorize direct production changes. The source repository contains the immutable-receiver template; whether the separately maintained private receiver has published and enabled it remains an operator verification, not a repository fact.
+This is the practical, current guide for developing, testing, releasing, and verifying Bastak School. It is based on the executable workspace, CI workflows, and LAN deployment scripts in this repository. It does not authorize direct production changes. The source repository contains the immutable-receiver template; whether the separately maintained private receiver has published and enabled it remains an operator verification, not a repository fact.
 
 Use it with the [developer handbook](./developer-handbook.md), [repository runbook](./repository-runbook.md), and [GitHub CI/CD operations](./github-cicd.md). The latter is the authoritative guide for credentials, runner installation, and recovery.
 
@@ -62,7 +62,7 @@ cp apps/api/.env.example apps/api/.env
 cp apps/admin/.env.example apps/admin/.env
 ```
 
-The API defaults to SQLite at `apps/api/data/moshaver-v2.sqlite`, port `4000`, and insecure development cookies. The Admin defaults to `/api/v2` and its dev server uses port `8081`. Development seed and reset scripts are for disposable local data only; never run reset/seed commands against production.
+The API defaults to the compatibility-preserved SQLite path `apps/api/data/moshaver-v2.sqlite`, port `4000`, and insecure development cookies. The Admin defaults to `/api/v2` and its dev server uses port `8081`. Development seed and reset scripts are for disposable local data only; never run reset/seed commands against production.
 
 ## 3. Run the application locally
 

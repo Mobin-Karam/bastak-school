@@ -1,4 +1,5 @@
 import { useAdminShellCopy } from "@/shared/ui/locale";
+import { brand } from "@/app/config/brand";
 import { ResponsiveDrawer } from "@/shared/ui/responsive-drawer";
 import { ArrowUpLeft, GraduationCap, School } from "lucide-react";
 import { useState } from "react";
@@ -16,7 +17,7 @@ export function StudentWelcomeCard({
   firstName,
   lastName,
   grade,
-  schoolName = "مدرسه دینی سلطان العلماء بستک",
+  schoolName = brand.name.fa,
   profileUrl = "/admin/profile",
 }: StudentWelcomeCardProps) {
   const [sheetOpen, setSheetOpen] = useState(false);

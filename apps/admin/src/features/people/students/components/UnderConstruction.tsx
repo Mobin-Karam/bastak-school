@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { LogOut } from "lucide-react";
 import { useAuth } from "../../../identity/auth";
 import { Button } from "../../../../shared/ui/ui";
+import { brand } from "../../../../app/config/brand";
 import ConstructionScene from "./ConstructionScene";
 import RollingNumber from "./RollingNumber";
 
@@ -162,7 +163,7 @@ export default function UnderConstruction({ endTime }: { endTime: number }) {
             </Button>
 
             <p className="mt-5 text-center text-[10px] leading-6 text-slate-400 dark:text-slate-500 sm:text-xs">
-              مدرسه دینی سلطان العلماء بستک
+              {brand.name.fa}
             </p>
           </div>
         </section>
