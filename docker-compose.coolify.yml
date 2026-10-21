@@ -1,9 +1,14 @@
+name: bastak-school
+
 services:
   backend-v2:
     build:
       context: .
       dockerfile: apps/api/Dockerfile
     restart: unless-stopped
+    labels:
+      org.opencontainers.image.title: Bastak School API
+      org.opencontainers.image.description: Bastak School private API service
     environment:
       NODE_ENV: production
       PORT: 4000
@@ -47,6 +52,9 @@ services:
         # The shared Vite bundle selects the portal at runtime by hostname.
         VITE_API_URL: https://api.sultano.ir
     restart: unless-stopped
+    labels:
+      org.opencontainers.image.title: Bastak School Web
+      org.opencontainers.image.description: Bastak School Admin and Student portal
     environment:
       API_PROXY_TARGET: http://backend-v2:4000
     depends_on:

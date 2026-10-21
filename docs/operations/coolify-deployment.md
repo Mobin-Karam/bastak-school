@@ -1,6 +1,6 @@
-# Coolify production deployment
+# Bastak School on Coolify
 
-Coolify is the deployment dashboard for this repository. It builds the three-service topology from `docker-compose.coolify.yml` and owns domains, TLS, environment variables, logs, rollbacks, and deploy history. Do not publish the API service: only Student and Admin receive public domains, and both proxy `/api/v2` to the private API service.
+Coolify is the deployment dashboard for Bastak School. It builds the three-service topology from `docker-compose.coolify.yml` and owns domains, TLS, environment variables, logs, rollbacks, and deploy history. Do not publish the API service: only Student and Admin receive public domains, and both proxy `/api/v2` to the private API service. The Compose project and OCI labels use the Bastak School identity; the existing `moshaver_v2_sqlite` volume remains intentionally unchanged so an in-place deployment preserves data.
 
 ## Create the application
 

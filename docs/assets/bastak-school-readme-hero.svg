@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="360" viewBox="0 0 1400 360" role="img" aria-labelledby="title description">
+  <title id="title">Bastak School</title>
+  <desc id="description">Bastak School role-aware learning and operations workspace.</desc>
+  <defs>
+    <linearGradient id="bastak-background" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#073b36"/>
+      <stop offset="1" stop-color="#0f766e"/>
+    </linearGradient>
+  </defs>
+  <rect width="1400" height="360" rx="32" fill="url(#bastak-background)"/>
+  <circle cx="1260" cy="55" r="220" fill="#fbbf24" opacity=".12"/>
+  <circle cx="1130" cy="320" r="260" fill="#5eead4" opacity=".12"/>
+  <g transform="translate(90 76)">
+    <rect width="98" height="98" rx="28" fill="#ecfdf5"/>
+    <path d="M25 68V34c0-8 9-12 15-7l9 7 9-7c6-5 15-1 15 7v34" fill="none" stroke="#0f766e" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M31 70h36" stroke="#d97706" stroke-width="8" stroke-linecap="round"/>
+  </g>
+  <g fill="#fff" font-family="Tahoma, Arial, sans-serif">
+    <text x="220" y="125" font-size="50" font-weight="700">Bastak School</text>
+    <text x="222" y="164" font-size="20" fill="#ccfbf1">ROLE-AWARE LEARNING · SCHOOL OPERATIONS</text>
+    <text x="220" y="235" font-size="29">مدرسه دینی سلطان العلماء بستک</text>
+    <text x="220" y="278" font-size="19" fill="#d1fae5">آموزش، حضور و غیاب، ارتباط و پیگیری در یک فضای کاری امن</text>
+  </g>
+  <g transform="translate(990 112)" fill="none" stroke="#ecfdf5" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" opacity=".92">
+    <rect width="250" height="150" rx="24"/>
+    <path d="M38 48h174M38 79h130M38 110h90"/>
+    <circle cx="202" cy="107" r="20" fill="#fbbf24" stroke="none"/>
+  </g>
+</svg>
