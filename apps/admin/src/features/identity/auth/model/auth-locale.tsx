@@ -1,4 +1,5 @@
 import { createContext, type ReactNode, useContext, useMemo } from "react";
+import { brandText } from "../../../../app/config/brand";
 
 export type AuthLanguage = "fa" | "en";
 
@@ -84,8 +85,8 @@ export type DemoRole =
 
 const copy: Record<AuthLanguage, AuthCopy> = {
   fa: {
-    brandName: "مدرسه دینی سلطان العلماء بستک",
-    productName: "مدرسه دینی سلطان العلماء بستک",
+    brandName: brandText("shortName", "fa"),
+    productName: brandText("name", "fa"),
     workspaceLogin: "ورود به میز کار",
     setupPlatform: "راه‌اندازی سامانه",
     welcome: "خوش آمدید",
@@ -169,8 +170,8 @@ const copy: Record<AuthLanguage, AuthCopy> = {
     localLogoutPending: "خروج محلی انجام شد؛ خروج سرور پس از اتصال تکمیل می‌شود.",
   },
   en: {
-    brandName: "Sultan al-Olama Bastak Islamic School",
-    productName: "Sultan al-Olama Bastak Islamic School",
+    brandName: brandText("shortName", "en"),
+    productName: brandText("name", "en"),
     workspaceLogin: "Workspace sign in",
     setupPlatform: "Set up platform",
     welcome: "Welcome back",

@@ -1,4 +1,5 @@
 import { createContext, ReactNode, useContext, useEffect, useMemo, useState } from "react";
+import { brandText } from "../../app/config/brand";
 
 export type LocationId = "iran" | "afghanistan" | "international";
 export type AdminLanguage = "fa" | "en";
@@ -46,8 +47,8 @@ export type AdminShellCopy = {
 
 export const adminShellCopy: Record<AdminLanguage, AdminShellCopy> = {
   fa: {
-    appTitle: "مدرسه دینی سلطان العلماء بستک",
-    adminPortal: "مدیریت مدرسه دینی سلطان العلماء بستک",
+    appTitle: brandText("name", "fa"),
+    adminPortal: `مدیریت ${brandText("name", "fa")}`,
     openNavigation: "بازکردن منوی مدیریت",
     closeNavigation: "بستن منوی مدیریت",
     primaryNavigation: "ناوبری اصلی مدیریت",
@@ -87,8 +88,8 @@ export const adminShellCopy: Record<AdminLanguage, AdminShellCopy> = {
     returnToWorkspace: "بازگشت به میز کار",
   },
   en: {
-    appTitle: "Sultan al-Olama Bastak Islamic School",
-    adminPortal: "Sultan al-Olama Bastak Islamic School Administration",
+    appTitle: brandText("name", "en"),
+    adminPortal: `${brandText("name", "en")} Administration`,
     openNavigation: "Open administration menu",
     closeNavigation: "Close administration menu",
     primaryNavigation: "Primary administration navigation",
@@ -304,6 +305,7 @@ export function LocaleProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     document.documentElement.lang = profile.locale;
     document.documentElement.dir = profile.direction;
+    document.title = brandText("name", profile.locale.startsWith("en") ? "en" : "fa");
   }, [profile]);
   const value = useMemo(
     () => ({

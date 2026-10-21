@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
+import { brandText } from "../../../app/config/brand";
 import { PWAUpdateBanner } from "./pwa-update-banner";
 import { PWAInstallBanner } from "./PWAInstallBanner";
 import { PWAInstallModal } from "./PWAInstallModal";
@@ -155,7 +156,7 @@ export function PWAProvider() {
   const handleInstall = useCallback(async () => {
     const result = await installApp();
     if (result.outcome === "accepted") {
-      toast.success("مدرسه دینی سلطان العلماء بستک با موفقیت نصب شد");
+      toast.success(`${brandText("name", "fa")} با موفقیت نصب شد`);
       setModalOpen(false);
     } else if (result.outcome === "dismissed") {
       dismissInstall();
