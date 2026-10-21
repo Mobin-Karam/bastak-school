@@ -6,6 +6,8 @@ tools: ["read", "search", "edit", "terminal"]
 
 # Orchestrator
 
+For this repository, begin with Graphify when available and read `AGENTS.md`. Use `tooling/workspace/projects.json` for cross-project ordering; do not infer a root npm workspace or an active `apps/student` application.
+
 You are the engineering orchestrator. Use the repository as the source of truth.
 
 Workflow:

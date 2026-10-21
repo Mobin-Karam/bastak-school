@@ -1219,7 +1219,9 @@ export class TimetableService {
     const recordedSessions = new Set(records.map((row) => row.session.id));
     const summary = (rows: typeof occurrences) => {
       const planned = rows.filter((row) => !row.cancelled);
-      const attendanceOpened = planned.filter((row) => !!row.attendanceSessionId);
+      const attendanceOpened = planned.filter(
+        (row) => !!row.attendanceSessionId,
+      );
       const attendanceRecorded = attendanceOpened.filter((row) =>
         recordedSessions.has(row.attendanceSessionId!),
       );
@@ -1231,14 +1233,29 @@ export class TimetableService {
         awaitingAttendance: planned.length - attendanceOpened.length,
       };
     };
-    const classes = [...new Map(occurrences.map((row) => [row.classroomId, row])).values()]
+    const classes = [
+      ...new Map(occurrences.map((row) => [row.classroomId, row])).values(),
+    ]
       .map((sample) => ({
         classroomId: sample.classroomId,
         classroomName: sample.classroomName,
-        ...summary(occurrences.filter((row) => row.classroomId === sample.classroomId)),
+        ...summary(
+          occurrences.filter((row) => row.classroomId === sample.classroomId),
+        ),
       }))
       .sort((a, b) => a.classroomName.localeCompare(b.classroomName, "fa"));
-    return { startsOn, endsOn, ...summary(occurrences), classes };
+    const subjects = [
+      ...new Map(occurrences.map((row) => [row.classBookId, row])).values(),
+    ]
+      .map((sample) => ({
+        subjectId: sample.classBookId,
+        subjectName: sample.title,
+        ...summary(
+          occurrences.filter((row) => row.classBookId === sample.classBookId),
+        ),
+      }))
+      .sort((a, b) => a.subjectName.localeCompare(b.subjectName, "fa"));
+    return { startsOn, endsOn, ...summary(occurrences), classes, subjects };
   }
   async versions(
     user: AuthenticatedUser,
@@ -2413,7 +2430,9 @@ export class TimetableService {
         endsOn: lesson.endsOn,
         notes: lesson.notes ?? "",
       }))
-      .sort((left, right) => JSON.stringify(left).localeCompare(JSON.stringify(right)));
+      .sort((left, right) =>
+        JSON.stringify(left).localeCompare(JSON.stringify(right)),
+      );
     return createHash("sha256")
       .update(JSON.stringify({ sheetName: dto.sheetName, rows }))
       .digest("hex");
@@ -2464,7 +2483,10 @@ export class TimetableService {
           filename: dto.filename,
           sheetName: dto.sheetName,
           fingerprint,
-          sourceRows: dto.rows.map(({ source, provenance }) => ({ source, provenance })),
+          sourceRows: dto.rows.map(({ source, provenance }) => ({
+            source,
+            provenance,
+          })),
           rowCount: dto.rows.length,
           revision: version.revision,
         }),
@@ -2478,7 +2500,11 @@ export class TimetableService {
         `${dto.rows.length} ردیف`,
         `${dto.filename} / ${dto.sheetName}`,
       );
-      return { imported: dto.rows.length, revision: version.revision, duplicate: false };
+      return {
+        imported: dto.rows.length,
+        revision: version.revision,
+        duplicate: false,
+      };
     });
   }
   async openAttendance(user: AuthenticatedUser, id: string, date: string) {
@@ -2486,7 +2512,7 @@ export class TimetableService {
     return attendanceTransaction(this.database.manager, async (manager) => {
       const row = await manager.findOne(SchoolScheduleEntry, {
         where: { id, status: "ACTIVE" },
-        relations: { classroom: true },
+        relations: { classroom: true, classBook: { book: true } },
       });
       if (!row?.versionId)
         this.fail("TIMETABLE_NOT_FOUND", "درس منتشرشده پیدا نشد.", 404);
@@ -2573,6 +2599,12 @@ export class TimetableService {
         lessonId: id,
         date,
         title: `${row.classroomNameSnapshot} · ${row.title}`,
+        subjectId: row.classBook?.book?.id ?? null,
+        subjectName: row.classBook?.book?.titleFa ?? null,
+        academicYearId: year.id,
+        academicYearName: year.name,
+        termId: term.id,
+        termName: term.name,
         startsAt: occurrence.startsAt,
         endsAt: occurrence.endsAt,
         timeZone: year.timeZone,

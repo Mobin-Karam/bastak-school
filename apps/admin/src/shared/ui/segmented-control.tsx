@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { cn } from "../lib/utils";
 
-export type SegmentedControlOption<T extends string> = {
+export type SegmentedControlOption<T extends string | number> = {
   value: T;
   label: ReactNode;
   /** Use sparingly for prominent page-level segmented navigation. */
@@ -12,7 +12,7 @@ export type SegmentedControlOption<T extends string> = {
 };
 
 /** A compact, keyboard-native switch for mutually exclusive record views or filters. */
-export function SegmentedControl<T extends string>({
+export function SegmentedControl<T extends string | number>({
   value,
   options,
   onValueChange,

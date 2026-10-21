@@ -1,4 +1,12 @@
-import { useCallback, useEffect, useRef, useState, type ElementType, type ReactNode } from "react";
+import {
+  useCallback,
+  useEffect,
+  useId,
+  useRef,
+  useState,
+  type ElementType,
+  type ReactNode,
+} from "react";
 import { CalendarDays, type LucideProps } from "lucide-react";
 import { addDays, cn, todayIso } from "../lib/utils";
 import { useLocale } from "./locale";
@@ -76,7 +84,9 @@ export function DateNavigator({
   const dayRail = useRef<HTMLDivElement>(null);
   const settleTimer = useRef<number | null>(null);
   const [centeredDate, setCenteredDate] = useState(value);
+  const navigatorId = useId();
   const label = ariaLabel ?? (language === "fa" ? "ناوبری تاریخ" : "Date navigation");
+  const todayLabel = language === "fa" ? "امروز" : "Today";
 
   const nearestDay = useCallback(
     (commit = false) => {
@@ -204,6 +214,7 @@ export function DateNavigator({
         ref={dayRail}
         role="listbox"
         aria-label={label}
+        aria-activedescendant={`${navigatorId}-${centeredDate}`}
         tabIndex={0}
         onKeyDown={moveByKeyboard}
         onScroll={scheduleCenterCheck}
@@ -227,17 +238,11 @@ export function DateNavigator({
           return (
             <div
               key={day.date}
+              id={`${navigatorId}-${day.date}`}
               data-date-card
               data-date={day.date}
               aria-disabled={day.disabled}
               role="option"
-              tabIndex={selected ? 0 : -1}
-              onKeyDown={(event) => {
-                if (event.key === "Enter" || event.key === " ") {
-                  event.preventDefault();
-                  if (!day.disabled) selectDate(day.date);
-                }
-              }}
               aria-selected={selected}
               aria-current={selected ? "date" : undefined}
               aria-label={context.label}
@@ -254,13 +259,12 @@ export function DateNavigator({
               style={{
                 scrollSnapAlign: "center",
                 scrollSnapStop: "always",
-                // Do not rely on a percentage flex basis here: a few Android
-                // WebViews resolve it against the rail's scroll width and
-                // squeeze every buffered day onto the screen. This viewport
-                // width consistently leaves room for only three mobile cards.
-                width: "calc((100vw - 3rem) / 3)",
-                minWidth: "calc((100vw - 3rem) / 3)",
-                maxWidth: "calc((100vw - 3rem) / 3)",
+                // Size against the rail, not the browser viewport: the
+                // dashboard can be narrower than the viewport in split-pane
+                // and tablet layouts.
+                width: "calc((100% - 1rem) / 3)",
+                minWidth: "calc((100% - 1rem) / 3)",
+                maxWidth: "calc((100% - 1rem) / 3)",
                 transform: `translateY(${selected ? -6 : -Math.round((1 - distanceFromCenter) * 3)}px) scale(${selected ? 1.1 : 0.9 + (1 - distanceFromCenter) * 0.05})`,
                 opacity: selected ? 1 : 0.65 + (1 - distanceFromCenter) * 0.15,
               }}
@@ -344,7 +348,7 @@ export function DateNavigator({
           onClick={selectToday}
           className="inline-flex min-h-9 items-center gap-1.5 rounded-full border border-teal-200 bg-white/90 px-3.5 text-xs font-black text-teal-800 shadow-[0_8px_16px_-12px_rgba(13,118,111,.55),inset_0_1px_0_rgba(255,255,255,.96)] transition hover:-translate-y-0.5 hover:bg-teal-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 motion-reduce:transition-none dark:border-teal-400/20 dark:bg-teal-950/60 dark:text-teal-100 dark:hover:bg-teal-900/70"
         >
-          <CalendarDays size={15} aria-hidden="true" /> امروز
+          <CalendarDays size={15} aria-hidden="true" /> {todayLabel}
         </button>
       </div>
     </section>

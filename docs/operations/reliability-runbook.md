@@ -1,6 +1,6 @@
 # Reliability, test plan and production incidents
 
-2026-10-13. Small-server profile: one API writer on persistent SQLite, Nginx TLS, rotating Docker logs, no new public metrics port or external observability service. Baselines below are measured, not promised capacity. [Security audit](../security/application-security-audit.md), [database plan](../architecture/database-migration-plan.md) and [deployment audit](deployment-audit.md) explain existing risks.
+2026-10-13. Small-server profile: one API writer on persistent SQLite, Nginx TLS, rotating Docker logs, no new public metrics port or external observability service. Baselines below are measured, not promised capacity. [Security audit](../security/application-security-audit.md), [database plan](../architecture/database-migration-plan.md) and the [archived deployment audit](../archive/operations/deployment-audit.md) explain existing risks.
 
 ## Executable validation and fixture ownership
 

@@ -12,4 +12,4 @@ This guide turns the platform engineering priorities into decisions and checks f
 
 The accepted architecture is a grouped monorepo with a modular-monolith API. `apps/api` and `apps/admin` are the active applications; student views currently run in Admin. `student-core` remains a runtime-neutral package. See the [repository architecture](../architecture/repository-architecture.md) and [workspace graph](../../tooling/workspace/projects.json) before making cross-project changes.
 
-These pages are guidance for implementing and reviewing work. Executable source, migrations, workflow files and tests remain authoritative. Dated audits in [`docs/evidence`](../evidence/README.md) and [`docs/archive`](../archive/README.md) record evidence from their dates, not a standing claim about production.
+These pages are guidance for implementing and reviewing work. Executable source, migrations, workflow files and tests remain authoritative. Dated audits in [`docs/archive`](../archive/README.md) record evidence from their dates, not a standing claim about production.

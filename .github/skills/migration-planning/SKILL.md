@@ -5,6 +5,8 @@ description: Plan safe schema, data, API, dependency, or architecture migrations
 
 # Migration Planning Skill
 
+For TypeORM/API migrations, include entity and migration order, scope/authorization invariants, contract consumers, fresh-database coverage, and a forward-repair path; never reset production data to force rollout.
+
 ## Plan template
 - current state and target state
 - compatibility constraints

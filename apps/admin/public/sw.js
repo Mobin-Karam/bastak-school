@@ -1,18 +1,20 @@
 "use strict";
 
 const APP_NAME = "zanin";
-const CACHE_VERSION = "0.1.2";
+// Replaced with an immutable build id by vite.config.ts for every production build.
+const CACHE_VERSION = "development";
 const CACHE_PREFIX = `${APP_NAME}-pwa`;
 const SHELL_CACHE = `${CACHE_PREFIX}-shell-${CACHE_VERSION}`;
 const RUNTIME_CACHE = `${CACHE_PREFIX}-runtime-${CACHE_VERSION}`;
 const OFFLINE_URL = "/offline";
-const DEFAULT_NOTIFICATION_URL = "/notifications";
+const DEFAULT_NOTIFICATION_URL = "/admin/communication/notifications";
 
 const APP_SHELL = [
   "/",
   OFFLINE_URL,
   "/manifest.webmanifest",
   "/version.json",
+  "/pwa-precache.json",
   "/icons/icon-192.png",
   "/icons/icon-512.png",
   "/app-logo.png",
@@ -22,7 +24,7 @@ const APP_SHELL = [
 ];
 
 self.addEventListener("install", (event) => {
-  event.waitUntil(warmCache(APP_SHELL));
+  event.waitUntil(precacheApplication());
   // Development servers must never leave an old worker in control of Vite's
   // changing module graph. Production keeps the explicit update confirmation.
   if (isLocalDevelopmentHost()) void self.skipWaiting();
@@ -142,6 +144,26 @@ async function warmCache(urls) {
   }));
 }
 
+async function precacheApplication() {
+  let assets = [];
+  try {
+    const response = await fetch("/pwa-precache.json", { cache: "no-store" });
+    const manifest = response.ok ? await response.json() : null;
+    if (Array.isArray(manifest?.assets)) {
+      assets = manifest.assets.filter(
+        (asset) =>
+          typeof asset === "string" &&
+          asset.startsWith("/") &&
+          !asset.startsWith("//") &&
+          !asset.includes(".."),
+      );
+    }
+  } catch {
+    // A shell-only cache still gives users an offline recovery page.
+  }
+  await warmCache([...APP_SHELL, ...assets]);
+}
+
 self.addEventListener("message", (event) => {
   const message = event.data;
   if (!message || typeof message !== "object") return;
@@ -159,7 +181,7 @@ self.addEventListener("push", (event) => {
     const payload = readPushPayload(event);
     const id = String(payload.notificationId || payload.id || `zanin-${Date.now()}`);
     const url = safeAppUrl(payload.url || payload.link || DEFAULT_NOTIFICATION_URL);
-    const title = String(payload.title || payload.notification?.title || "زانین");
+    const title = String(payload.title || payload.notification?.title || "مدرسه دینی سلطان العلماء بستک");
     const body = String(payload.body || payload.message || payload.notification?.body || "اعلان جدیدی دارید.");
 
     const windows = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
@@ -212,7 +234,14 @@ function safeAppUrl(value) {
   try {
     const url = new URL(typeof value === "string" ? value : DEFAULT_NOTIFICATION_URL, self.location.origin);
     if (url.origin !== self.location.origin || url.pathname.startsWith("/api/")) return DEFAULT_NOTIFICATION_URL;
-    return `${url.pathname}${url.search}${url.hash}`;
+    if (url.pathname.startsWith("/admin/")) return `${url.pathname}${url.search}${url.hash}`;
+    if (url.pathname.startsWith("/attendance")) return `/admin/attendance${url.search}${url.hash}`;
+    if (url.pathname.startsWith("/communication/chat") || url.pathname.startsWith("/chat") || url.pathname.startsWith("/messages")) {
+      return `/admin/communication/chat${url.search}${url.hash}`;
+    }
+    if (url.pathname.startsWith("/exams")) return `/admin/exams${url.search}${url.hash}`;
+    if (url.pathname.startsWith("/schedule") || url.pathname.startsWith("/plans")) return `/admin/planner${url.search}${url.hash}`;
+    return DEFAULT_NOTIFICATION_URL;
   } catch { return DEFAULT_NOTIFICATION_URL; }
 }
 

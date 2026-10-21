@@ -98,6 +98,7 @@ export interface Student {
   advisors?: Array<{ id: string; name: string; organizationId?: string | null }>;
   organization?: { id: string; name: string } | null;
   advisor?: { id: string; name: string; organizationId?: string | null } | null;
+  guardians?: Array<{ id: string; name: string; phoneNumber: string | null }>;
 }
 
 export interface PlanTask {

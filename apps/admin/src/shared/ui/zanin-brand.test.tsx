@@ -6,11 +6,10 @@ describe("ZaninBrand", () => {
   it("uses the compact optimized logo with reserved dimensions", () => {
     render(<ZaninBrand priority />);
 
-    const logo = screen.getByRole("img", { name: "Zanin / زانین" });
+    const logo = screen.getByRole("img", { name: "مدرسه دینی سلطان العلماء بستک" });
     expect(logo).toHaveAttribute("src", "/logo-bastak.webp");
     expect(logo).toHaveAttribute("width", "120");
     expect(logo).toHaveAttribute("height", "40");
-    expect(screen.getByText("Zanin")).toBeInTheDocument();
-    expect(screen.getByText("زانین")).toBeInTheDocument();
+    expect(screen.getByText("مدرسه دینی سلطان العلماء بستک")).toBeInTheDocument();
   });
 });

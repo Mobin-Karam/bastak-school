@@ -14,15 +14,26 @@ const localCorsOrigins = [
   "https://tauri.localhost",
 ];
 
-const productionCorsOrigins = ["https://st.mahakaram.ir", "https://admin.mahakaram.ir"];
+const productionCorsOrigins = [
+  "https://app.sultano.ir",
+  "https://stud.sultano.ir",
+];
 
 export default () => ({
   nodeEnv: process.env.NODE_ENV || "development",
   port: Number(process.env.PORT || 4000),
-  corsOrigins: parseCorsOrigins(process.env.CORS_ORIGINS, process.env.NODE_ENV === "production" ? productionCorsOrigins : localCorsOrigins),
+  corsOrigins: parseCorsOrigins(
+    process.env.CORS_ORIGINS,
+    process.env.NODE_ENV === "production"
+      ? productionCorsOrigins
+      : localCorsOrigins,
+  ),
 });
 
-function parseCorsOrigins(value: string | undefined, fallback: string[]) {
+export function parseCorsOrigins(
+  value: string | undefined,
+  fallback: string[],
+) {
   return Array.from(
     new Set(
       (value ? value.split(",") : fallback)
@@ -31,4 +42,17 @@ function parseCorsOrigins(value: string | undefined, fallback: string[]) {
         .map((origin) => origin.replace(/\/+$/, "")),
     ),
   );
+}
+
+/**
+ * CORS is only a browser response-header policy. A false result deliberately
+ * does not reject the request: non-browser clients commonly have no Origin
+ * header and remain subject to normal authentication and authorization.
+ */
+export function isApprovedBrowserOrigin(
+  origin: string | undefined,
+  approvedOrigins: readonly string[],
+) {
+  if (!origin) return false;
+  return approvedOrigins.includes(origin.replace(/\/+$/, ""));
 }

@@ -1,0 +1,67 @@
+import { api } from "../../../../shared/api/api";
+import type { EducationBook, StudentSubject, Subject } from "../model/subject.types";
+
+export const getSubjects = (includeArchived = false) => {
+  if (includeArchived) return api.get<Subject[]>("/subjects?includeArchived=true");
+  return api.get<Subject[]>("/subjects");
+};
+export const getStudentSubjects = (studentId: string) =>
+  api.get<StudentSubject[]>(`/students/${studentId}/subjects`);
+export type SubjectDraft = {
+  name: string;
+  code: string;
+  category?: string;
+  organizationId?: string;
+};
+export type SubjectImportPreview = {
+  valid: boolean;
+  accepted: number;
+  rejected: number;
+  rows: Array<{ row: number; code: string | null; valid: boolean; errors: string[] }>;
+};
+export const createSubject = (draft: SubjectDraft) => api.post("/subjects", draft);
+export const updateSubject = (id: string, draft: Pick<SubjectDraft, "name" | "category">) =>
+  api.patch(`/subjects/${id}`, draft);
+export const exportSubjects = () =>
+  api.get<{ schemaVersion: string; subjects: Array<SubjectDraft & { active: boolean }> }>(
+    "/subjects/export",
+  );
+export const getSubjectImportSample = () =>
+  api.get<{ schemaVersion: string; subjects: SubjectDraft[] }>("/subjects/import-sample");
+export const previewSubjectImport = (subjects: SubjectDraft[]) =>
+  api.post<SubjectImportPreview>("/subjects/import-preview", { subjects });
+export const commitSubjectImport = (subjects: SubjectDraft[]) =>
+  api.post<{ imported: number }>("/subjects/import-commit", { subjects });
+export const setSubjectActive = (id: string, active: boolean) =>
+  api.patch(`/subjects/${id}/archive`, { active });
+export const updateStudentSubject = (studentId: string, setting: StudentSubject) =>
+  api.patch(`/students/${studentId}/subjects/${setting.subject.id}`, {
+    enabled: setting.enabled,
+    displayName: setting.displayName,
+    weeklyTargetMinutes: setting.weeklyTargetMinutes,
+  });
+export const getEducationBooks = () => api.get<EducationBook[]>("/education-catalog/books");
+export const getEducationDatasets = () =>
+  api.get<Record<string, unknown>>("/education-catalog/datasets");
+export type TeacherAssignment = {
+  id: string;
+  teacher: { id: string; username: string; firstName?: string; lastName?: string };
+  createdAt: string;
+};
+export const getSubjectTeachers = (subjectId: string, organizationId: string) =>
+  api.get<TeacherAssignment[]>(
+    `/subjects/${subjectId}/teachers?organizationId=${encodeURIComponent(organizationId)}`,
+  );
+export const assignSubjectTeacher = (
+  subjectId: string,
+  teacherId: string,
+  organizationId: string,
+) => api.post<TeacherAssignment>(`/subjects/${subjectId}/teachers`, { teacherId, organizationId });
+export const unassignSubjectTeacher = (
+  subjectId: string,
+  teacherId: string,
+  organizationId: string,
+) =>
+  api.delete(
+    `/subjects/${subjectId}/teachers/${teacherId}?organizationId=${encodeURIComponent(organizationId)}`,
+  );

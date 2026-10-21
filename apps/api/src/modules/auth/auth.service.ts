@@ -36,6 +36,8 @@ export type AuthenticatedUser = {
   activeOrganizationId?: string;
 };
 
+export type LoginPortal = "student" | "admin";
+
 @Injectable()
 export class AuthService {
   private readonly credentials: SessionCredentialService;
@@ -82,7 +84,12 @@ export class AuthService {
     return { exists };
   }
 
-  async login(phoneNumber: string, password: string, ip = "unknown") {
+  async login(
+    phoneNumber: string,
+    password: string,
+    ip = "unknown",
+    portal?: LoginPortal,
+  ) {
     const normalizedPhoneNumber = normalizeIranianMobile(phoneNumber);
     if (!isIranianMobile(normalizedPhoneNumber))
       throw new ApiException(
@@ -93,7 +100,14 @@ export class AuthService {
     await this.throttle?.assertAllowed(ip, normalizedPhoneNumber);
     const user = await this.users.findOne({
       where: { phoneNumber: normalizedPhoneNumber },
-      select: { id: true, username: true, phoneNumber: true, role: true, status: true, passwordHash: true },
+      select: {
+        id: true,
+        username: true,
+        phoneNumber: true,
+        role: true,
+        status: true,
+        passwordHash: true,
+      },
     });
     if (!user || !(await bcrypt.compare(password, user.passwordHash))) {
       await this.throttle?.failure(ip, normalizedPhoneNumber);
@@ -101,6 +115,19 @@ export class AuthService {
         401,
         "UNAUTHORIZED",
         "نام کاربری یا رمز عبور نادرست است.",
+      );
+    }
+    const expectedPortal = portal ? await this.loginPortalFor(user) : undefined;
+    if (portal && expectedPortal !== portal) {
+      const destination =
+        expectedPortal === "student"
+          ? "https://stud.sultano.ir"
+          : "https://app.sultano.ir";
+      throw new ApiException(
+        403,
+        "PORTAL_DOMAIN_MISMATCH",
+        `این حساب باید از طریق ${destination} وارد شود.`,
+        { portalUrl: destination },
       );
     }
     if (user.status && user.status !== UserStatus.ACTIVE)
@@ -134,6 +161,23 @@ export class AuthService {
       { refreshExpiresAt: IsNull(), expiresAt: LessThan(now) },
     ]);
     return { ...credentials, session, user };
+  }
+
+  private async loginPortalFor(
+    user: Pick<User, "id" | "username" | "role">,
+  ): Promise<LoginPortal> {
+    const context = this.authorization
+      ? await this.authorization.enrich({
+          id: user.id,
+          username: user.username,
+          role: user.role,
+          sessionId: "login-portal-check",
+        })
+      : null;
+    const roles = context?.roles.length ? context.roles : [user.role];
+    return roles.some((role) => role !== "STUDENT" && role !== "GUARDIAN")
+      ? "admin"
+      : "student";
   }
 
   async refresh(refreshToken?: string, csrfToken?: string) {
@@ -187,11 +231,20 @@ export class AuthService {
     // concurrent callers that loaded it before the first rotation completed.
     const rotation = await this.sessions.update(
       { id: session.id, refreshTokenHash: oldRefreshTokenHash! },
-      { tokenHash: session.tokenHash, refreshTokenHash: session.refreshTokenHash,
-        csrfToken: session.csrfToken, expiresAt: session.expiresAt, refreshExpiresAt: session.refreshExpiresAt },
+      {
+        tokenHash: session.tokenHash,
+        refreshTokenHash: session.refreshTokenHash,
+        csrfToken: session.csrfToken,
+        expiresAt: session.expiresAt,
+        refreshExpiresAt: session.refreshExpiresAt,
+      },
     );
     if (rotation.affected !== 1)
-      throw new ApiException(401, "REFRESH_EXPIRED", "نشست شما منقضی شده است. دوباره وارد شوید.");
+      throw new ApiException(
+        401,
+        "REFRESH_EXPIRED",
+        "نشست شما منقضی شده است. دوباره وارد شوید.",
+      );
     return { ...credentials, session, user: session.user };
   }
 
@@ -238,12 +291,21 @@ export class AuthService {
     ];
     if (!where.length) return;
     const sessions = await this.sessions.find({ where });
-    if (sessions.some((session) => !csrfToken || !this.credentials.safeEqual(session.csrfToken, csrfToken)))
+    if (
+      sessions.some(
+        (session) =>
+          !csrfToken ||
+          !this.credentials.safeEqual(session.csrfToken, csrfToken),
+      )
+    )
       throw new ApiException(403, "CSRF", "نشست امنیتی نامعتبر است.");
     // Delete the verified rows only; a concurrent refresh must not make a new
     // credential eligible for deletion without its corresponding CSRF token.
     for (const session of sessions)
-      await this.sessions.delete({ id: session.id, tokenHash: session.tokenHash });
+      await this.sessions.delete({
+        id: session.id,
+        tokenHash: session.tokenHash,
+      });
   }
 
   async me(user: AuthenticatedUser) {
@@ -391,7 +453,10 @@ export class AuthService {
     currentPassword: string,
     newPassword: string,
   ) {
-    const account = await this.users.findOne({ where: { id: user.id }, select: { id: true, passwordHash: true } });
+    const account = await this.users.findOne({
+      where: { id: user.id },
+      select: { id: true, passwordHash: true },
+    });
     if (
       !account ||
       !(await bcrypt.compare(currentPassword, account.passwordHash))
@@ -567,11 +632,25 @@ export class AuthService {
       order: { createdAt: "DESC" },
     });
     return requests.map((request) => ({
-      id: request.id, kind: request.kind, status: request.status,
-      requestedValue: request.requestedValue, reason: request.reason, reviewNote: request.reviewNote,
-      createdAt: request.createdAt, updatedAt: request.updatedAt, reviewedAt: request.reviewedAt,
-      organization: { id: request.organization.id, name: request.organization.name },
-      user: { id: request.user.id, username: request.user.username, firstName: request.user.firstName, lastName: request.user.lastName },
+      id: request.id,
+      kind: request.kind,
+      status: request.status,
+      requestedValue: request.requestedValue,
+      reason: request.reason,
+      reviewNote: request.reviewNote,
+      createdAt: request.createdAt,
+      updatedAt: request.updatedAt,
+      reviewedAt: request.reviewedAt,
+      organization: {
+        id: request.organization.id,
+        name: request.organization.name,
+      },
+      user: {
+        id: request.user.id,
+        username: request.user.username,
+        firstName: request.user.firstName,
+        lastName: request.user.lastName,
+      },
     }));
   }
 

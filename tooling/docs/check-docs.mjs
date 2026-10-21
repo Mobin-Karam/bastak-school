@@ -8,7 +8,14 @@ const configPath = path.join(root, "docs/current-documentation.json");
 const config = JSON.parse(fs.readFileSync(configPath, "utf8"));
 const markdownFiles = [];
 const errors = [];
-const skippedRoots = new Set([".git", "node_modules", "dist", "coverage", "graphify-out"]);
+const skippedRoots = new Set([
+  ".git",
+  "node_modules",
+  "dist",
+  "coverage",
+  "graphify-out",
+  "storybook-static",
+]);
 
 function posix(value) {
   return value.split(path.sep).join("/");
