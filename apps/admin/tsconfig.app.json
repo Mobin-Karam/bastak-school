@@ -25,16 +25,5 @@
   },
 
   "include": ["src"],
-  "exclude": [
-    "src/features/registration/pages/RegistrationDashboardPage.tsx",
-    "src/features/registration/pages/RegistrationPage.tsx",
-    "src/features/registration/RegistrationDashboardPage.tsx",
-    "src/features/registration/api/**",
-    "src/features/registration/registration.context.tsx",
-    "src/features/registration/registration.hooks.ts",
-    "src/features/registration/registration.provider.tsx",
-    "src/features/registration/registration.stories.tsx",
-    "src/features/registration/registration.test.tsx",
-    "src/features/registration/sections/**"
-  ]
+  "exclude": ["src/features/identity/registration/**"]
 }

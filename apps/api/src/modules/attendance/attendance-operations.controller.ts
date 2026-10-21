@@ -8,7 +8,10 @@ import {
   Put,
   Query,
 } from "@nestjs/common";
-import { RequireCapabilities } from "../../common/decorators/capabilities.decorator";
+import {
+  RequireAnyCapabilities,
+  RequireCapabilities,
+} from "../../common/decorators/capabilities.decorator";
 import { CurrentUser } from "../../common/decorators/current-user.decorator";
 import { ok } from "../../common/utils/envelope";
 import { AuthenticatedUser } from "../auth";
@@ -80,7 +83,7 @@ export class AttendanceOperationsController {
     return this.operations.closePool(user, id).then(ok);
   }
   @Get("attendance/overview")
-  @RequireCapabilities("attendance.review")
+  @RequireAnyCapabilities("attendance.review", "attendance.class.read")
   overview(@CurrentUser() user: AuthenticatedUser) {
     return this.operations.dailyOverview(user).then(ok);
   }
@@ -98,7 +101,7 @@ export class AttendanceOperationsController {
       .then(ok);
   }
   @Get("attendance/staff-sessions")
-  @RequireCapabilities("attendance.review")
+  @RequireAnyCapabilities("attendance.review", "attendance.class.read")
   sessions(
     @CurrentUser() user: AuthenticatedUser,
     @Query() query: AttendanceHistoryQueryDto,
@@ -106,8 +109,11 @@ export class AttendanceOperationsController {
     return this.operations.staffSessions(user, query).then(ok);
   }
   @Get("attendance/students/:id/profile")
-  @RequireCapabilities("attendance.review")
-  profile(@CurrentUser() user: AuthenticatedUser, @Param("id") id: string) {
+  @RequireAnyCapabilities("attendance.review", "attendance.class.read")
+  profile(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param("id") id: string,
+  ) {
     return this.operations.staffProfile(user, id).then(ok);
   }
   @Get("student/attendance/encouragement")
