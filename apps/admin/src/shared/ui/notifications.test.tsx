@@ -33,6 +33,8 @@ describe("Sonner notification adapter", () => {
     expect(toaster).toHaveAttribute("dir", "rtl");
     expect(toaster).toHaveAttribute("data-y-position", "bottom");
     expect(toaster).toHaveAttribute("data-x-position", "left");
+    expect(toaster).toHaveStyle({ fontFamily: "Vazirmatn, Tahoma, Arial, sans-serif" });
+    expect(screen.getByRole("button", { name: "بستن اعلان" })).toBeInTheDocument();
   });
 
   it("uses an LTR notification surface for the international workspace", async () => {
@@ -63,6 +65,19 @@ describe("Sonner notification adapter", () => {
     act(() => {
       notifications.dismiss(id);
     });
+  });
+
+  it("keeps a secondary cancel action visually distinct from the primary action", async () => {
+    renderToaster();
+    act(() => {
+      toast("Review changes", {
+        action: { label: "Save", onClick: () => undefined },
+        cancel: { label: "Cancel", onClick: () => undefined },
+      });
+    });
+
+    expect(await screen.findByRole("button", { name: "Save" })).toHaveClass("admin-sonner-action");
+    expect(screen.getByRole("button", { name: "Cancel" })).toHaveClass("admin-sonner-cancel");
   });
 
   it("deduplicates repeated typed feedback by stable id", () => {
