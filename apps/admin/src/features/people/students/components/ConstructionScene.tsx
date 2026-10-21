@@ -1,4 +1,5 @@
 import { useEffect, useId, useState } from "react";
+import { brand } from "../../../../app/config/brand";
 
 /**
  * Real-time Bastak school construction scene.
@@ -288,7 +289,7 @@ export default function ConstructionScene({
       xmlns="http://www.w3.org/2000/svg"
       viewBox="0 0 760 390"
       role="img"
-      aria-label="نمای متحرک ساخت مدرسه دینی سلطان العلماء بستک با معماری گرم کویری ایرانی، نخل، بادگیر، جرثقیل و کارگران"
+      aria-label={`نمای متحرک ساخت ${brand.name.fa} با معماری گرم کویری ایرانی، نخل، بادگیر، جرثقیل و کارگران`}
       className="construction-scene mx-auto block h-auto w-full max-w-[760px]"
     >
       <defs>
@@ -508,7 +509,7 @@ export default function ConstructionScene({
               unicodeBidi="plaintext"
               style={{ fontFamily: 'Vazirmatn, "Noto Naskh Arabic", Tahoma, sans-serif' }}
             >
-              مدرسه دینی سلطان العلماء بستک
+              {brand.name.fa}
             </text>
           </g>
 
