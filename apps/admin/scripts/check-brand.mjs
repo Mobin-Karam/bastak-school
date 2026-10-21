@@ -4,7 +4,9 @@ import { fileURLToPath } from "node:url";
 
 const appRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const brand = JSON.parse(await readFile(path.join(appRoot, "brand.config.json"), "utf8"));
-const manifest = JSON.parse(await readFile(path.join(appRoot, "public/manifest.webmanifest"), "utf8"));
+const manifest = JSON.parse(
+  await readFile(path.join(appRoot, "public/manifest.webmanifest"), "utf8"),
+);
 const index = await readFile(path.join(appRoot, "index.html"), "utf8");
 
 const expected = {
