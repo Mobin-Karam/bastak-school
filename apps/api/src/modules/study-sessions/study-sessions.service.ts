@@ -104,7 +104,7 @@ export class StudySessionsService {
   }
 
   private async sessionForUser(userId: string, sessionId: string) {
-    const session = await this.sessions.findOne({ where: { id: sessionId, student: { user: { id: userId } } }, relations: { task: true, student: true } });
+    const session = await this.sessions.findOne({ where: { id: sessionId, student: { user: { id: userId } } }, relations: { task: true, student: { organization: true } } });
     if (!session) throw this.notFound();
     return session;
   }
@@ -151,6 +151,7 @@ export class StudySessionsService {
         url: `/admin/planner?studentId=${encodeURIComponent(session.student.id)}`,
         data: { studentId: session.student.id, taskId: session.task.id, sessionId: session.id, level, elapsedSeconds: session.elapsedSeconds, limitSeconds },
         dedupeKey: `study-overtime:${session.id}:${level}`,
+        organizationId: session.student.organization?.id,
       });
     await notify("limit");
     if (session.elapsedSeconds >= excessiveAt) await notify("excessive");

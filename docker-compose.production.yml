@@ -11,6 +11,9 @@ services:
     image: ${BACKEND_IMAGE:-bastak-school/backend-v2:latest}
     restart: unless-stopped
     init: true
+    labels:
+      org.opencontainers.image.title: Bastak School API
+      org.opencontainers.image.description: Bastak School private API service
 
     environment:
       NODE_ENV: production
@@ -23,11 +26,20 @@ services:
 
       COOKIE_SECURE: ${COOKIE_SECURE:-1}
       COOKIE_SAMESITE: ${COOKIE_SAMESITE:-lax}
+      # Omit COOKIE_DOMAIN for host-only api.sultano.ir session cookies.
+      COOKIE_DOMAIN: ${COOKIE_DOMAIN:-}
       TRUST_PROXY: "1"
+      TRUST_PROXY_CIDRS: ${TRUST_PROXY_CIDRS:-loopback,linklocal,uniquelocal}
 
       ACCESS_TOKEN_TTL_MINUTES: ${ACCESS_TOKEN_TTL_MINUTES:-15}
       REFRESH_TOKEN_TTL_DAYS: ${REFRESH_TOKEN_TTL_DAYS:-30}
       SQLITE_BUSY_TIMEOUT_MS: ${SQLITE_BUSY_TIMEOUT_MS:-5000}
+
+      # Web Push is deliberately opt-in: keep VAPID private material only in
+      # the host's protected production.env, never in the image or repository.
+      VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY:-}
+      VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY:-}
+      VAPID_SUBJECT: ${VAPID_SUBJECT:-}
 
     volumes:
       - moshaver_v2_sqlite:/data
@@ -60,12 +72,15 @@ services:
       context: .
       dockerfile: apps/admin/Dockerfile
       args:
-        VITE_API_URL: /api/v2
+        VITE_API_URL: ${VITE_API_URL:-https://api.sultano.ir}
         RELEASE_SHA: ${RELEASE_SHA:-development}
 
     image: ${ADMIN_IMAGE:-bastak-school/admin-v2:latest}
     restart: unless-stopped
     init: true
+    labels:
+      org.opencontainers.image.title: Bastak School Web
+      org.opencontainers.image.description: Bastak School Admin and Student portal
 
     environment:
       API_PROXY_TARGET: http://backend-v2:4000

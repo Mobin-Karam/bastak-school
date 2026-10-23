@@ -213,7 +213,8 @@ describe("AuthService", () => {
       ],
     }).compile();
 
-    const result = await module.get(AuthService).login("09123456789", "secret");
+    const auth = module.get(AuthService);
+    const result = await auth.login("09123456789", "secret", "test", "admin");
     expect(result.user.phoneNumber).toBe("09123456789");
     expect(result.csrfToken).toBeTruthy();
     expect(result.accessToken).toBeTruthy();
@@ -221,6 +222,16 @@ describe("AuthService", () => {
     expect(result.refreshExpiresAt.getTime()).toBeGreaterThan(
       result.expiresAt.getTime(),
     );
+    await expect(
+      auth.login("09123456789", "secret", "test", "student"),
+    ).rejects.toMatchObject({
+      response: {
+        error: {
+          code: "PORTAL_DOMAIN_MISMATCH",
+          details: { portalUrl: "https://app.sultano.ir" },
+        },
+      },
+    });
   });
 
   it("rotates access, refresh, and CSRF credentials together", async () => {
@@ -257,7 +268,10 @@ describe("AuthService", () => {
     expect(rotated.refreshToken).not.toBe(original.refreshToken);
     expect(rotated.csrfToken).not.toBe(original.csrfToken);
     expect(sessions.update).toHaveBeenLastCalledWith(
-      { id: original.session.id, refreshTokenHash: original.session.refreshTokenHash },
+      {
+        id: original.session.id,
+        refreshTokenHash: original.session.refreshTokenHash,
+      },
       expect.objectContaining({
         tokenHash: expect.any(String),
         refreshTokenHash: expect.any(String),

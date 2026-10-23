@@ -2,7 +2,7 @@
 
 For the end-to-end job map, exact checks, trust boundaries and current limitations, start with the [CI/CD pipeline guide](./ci-cd-pipeline.md). This page owns configuration, credentials, daily commands and recovery.
 
-The [deployment audit](./deployment-audit.md) and [immutable LAN runbook](./immutable-lan-runbook.md) document the staged image-promotion replacement. The installed private runner workflow remains the legacy build-on-server path until explicitly published and enabled; this page describes that existing path.
+The [archived deployment audit](../archive/operations/deployment-audit.md) and [immutable LAN runbook](./immutable-lan-runbook.md) document immutable image promotion. The source template is [server-deploy.yml](../../.github/deployment/server-deploy.yml), but the private receiver is maintained separately: confirm its published revision, protected `production` environment, artifact-read credential, and explicit `IMMUTABLE_DEPLOY_ENABLED=true` before assuming immutable deployment is active. This repository cannot establish that external state.
 
 Source repository: `Mobin-Karam/bastak-school` (public). Deployment control repository: `Mobin-Karam/bastak-school-deploy` (private). Production currently uses the two-service LAN Docker Compose deployment on this server, with the Admin app also hosting student views. This pipeline changes deployment operations, not application screens.
 
@@ -28,7 +28,7 @@ The helper pushes your branch, creates a PR to `develop`, waits for CI, and merg
 
 After a successful **push** run on `develop`, the `Release promotion` workflow creates or updates one release PR from `develop` to `main`. Inspect its changes and CI results, then merge using **Create a merge commit**. Keep the persistent develop branch; do not squash or delete it. The release PR is the production review boundary; it is not automatically merged. After main passes CI, automation also opens a `chore/sync-main-<sha>` PR back to develop and enables merge-commit auto-merge behind required CI. This preserves main ancestry for the next strict release PR. Empty application diffs do not open another release PR.
 
-After a successful **push** run on `main`, `LAN Production Deployment` checks the tested SHA is still the current main head and sends a `verified-main` repository dispatch to the private deployment repository. Its `Server production deployment` workflow independently verifies the source CI run, repository, workflow path, event, conclusion, branch, and SHA before checking out that exact commit on the server runner, building images, creating a consistent SQLite backup, recreating containers, and checking readiness over HTTPS. Failed builds leave existing containers running. Backups, certificates, environment values, deployment lock, and successful-release receipt are stored outside runner checkout cleanup.
+After a successful **push** run on `main`, `LAN Production Deployment` checks the tested SHA is still the current main head and sends a `verified-main` repository dispatch to the private deployment repository. The source receiver template independently verifies the source CI run, repository, workflow path, event, conclusion, branch, and SHA before checking out that exact commit. When explicitly enabled in the private repository, it downloads the matching CI image artifact, verifies its digest/provenance, rehearses migrations against a restored copy, recreates health-gated services without a build or pull, and checks readiness over HTTPS. Failed preflight leaves existing containers running; failure after a candidate may have migrated the live database requires recovery assessment. Backups, certificates, environment values, deployment lock, and successful-release receipt are stored outside runner checkout cleanup.
 
 ## Initial GitHub configuration
 
@@ -71,7 +71,7 @@ Confirm these server files exist, without placing them in Git:
 - `/home/bastak-server/.config/bastak-production/production.env`
 - `/home/bastak-server/.config/bastak-production/tls/{server.crt,server.key,ca.crt}`
 
-The existing production Compose project name and named database volume are retained. Keep a single API replica with SQLite. Keep deployment backup storage writable and monitor disk usage; copy backups off the server under an explicit retention policy. `release.txt` records the last successful deployed SHA. An Actions run is successful only after deployment readiness succeeds.
+The existing production Compose project name and named database volume are retained. Keep a single API replica with SQLite. Keep deployment backup storage writable and monitor disk usage; copy backups off the server under an explicit retention policy. The immutable receiver writes an atomic `release.json` receipt only after deployment readiness succeeds.
 
 The old Coolify workflow is manual-only and requires `PRODUCTION_DEPLOY_TARGET=coolify`. Do not enable Coolify Git auto-deploy alongside this pipeline. Switching production platforms requires a separate deployment review; the automatic target implemented here is LAN.
 

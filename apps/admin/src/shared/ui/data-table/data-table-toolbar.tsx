@@ -1,3 +1,4 @@
+import { AdaptiveSelect } from "@/shared/ui/adaptive-select";
 import { Menu } from "@base-ui/react/menu";
 import type { Table } from "@tanstack/react-table";
 import { Columns3, Filter, RefreshCw, Search, X } from "lucide-react";
@@ -106,7 +107,7 @@ export function DataTableToolbar<TData>({
             </Menu.Positioner>
           </Menu.Portal>
         </Menu.Root>
-        <select
+        <AdaptiveSelect
           aria-label={copy.sort}
           className="h-11 max-w-full rounded-lg border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card))] px-2 text-sm"
           value={table.getState().sorting[0]?.id ?? ""}
@@ -122,7 +123,7 @@ export function DataTableToolbar<TData>({
                 {column.label}
               </option>
             ))}
-        </select>
+        </AdaptiveSelect>
         {table.getState().sorting.length ? (
           <Button
             variant="soft"
@@ -135,7 +136,7 @@ export function DataTableToolbar<TData>({
             {table.getState().sorting[0].desc ? copy.descending : copy.ascending}
           </Button>
         ) : null}
-        <select
+        <AdaptiveSelect
           aria-label={copy.auto}
           className="h-11 max-w-full rounded-lg border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card))] px-2 text-sm"
           value={mode}
@@ -144,8 +145,8 @@ export function DataTableToolbar<TData>({
           <option value="auto">{copy.auto}</option>
           <option value="table">{copy.table}</option>
           <option value="cards">{copy.cards}</option>
-        </select>
-        <select
+        </AdaptiveSelect>
+        <AdaptiveSelect
           aria-label={copy.density}
           className="h-11 rounded-lg border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card))] px-2 text-sm"
           value={density}
@@ -153,7 +154,7 @@ export function DataTableToolbar<TData>({
         >
           <option value="comfortable">{copy.comfortable}</option>
           <option value="compact">{copy.compact}</option>
-        </select>
+        </AdaptiveSelect>
         {onRefresh ? (
           <Button
             variant="ghost"

@@ -1,5 +1,5 @@
-export { AdminMainSidebar } from "./AdminMainSidebar";
-export { AdminContextSidebar } from "./AdminContextSidebar";
-export { AdminMobileBottomNav } from "./AdminMobileNavigation";
+export { AdminMainSidebar } from "./desktop/AdminMainSidebar";
+export { AdminContextSidebar } from "./desktop/AdminContextSidebar";
+export { AdminMobileBottomNav } from "./mobile/AdminMobileNavigation";
 
-export * from "./admin-navigation";
+export * from "./config/admin-navigation";

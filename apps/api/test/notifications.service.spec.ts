@@ -4,6 +4,9 @@ import { NotificationsService } from "../src/modules/notifications/notifications
 
 function repository<T>(items: T[] = []) {
   const queryBuilder: any = {
+    leftJoinAndSelect: jest.fn(function () {
+      return this;
+    }),
     where: jest.fn(function () {
       return this;
     }),
@@ -57,11 +60,13 @@ function repository<T>(items: T[] = []) {
 describe("NotificationsService", () => {
   it("emits the canonical notification event after persistence", async () => {
     const realtime = { emitToUser: jest.fn() };
+    const push = { sendToUser: jest.fn().mockResolvedValue({ sent: 1, removed: 0 }) };
     const service = new NotificationsService(
       repository() as any,
       repository() as any,
       realtime as any,
       repository([{ id: "user-1" }]) as any,
+      push as any,
     );
     await service.createForUser("user-1", {
       type: NotificationType.MESSAGE,
@@ -72,6 +77,32 @@ describe("NotificationsService", () => {
       "user-1",
       "notification.created",
       expect.objectContaining({ title: "پیام تازه", body: "متن اعلان" }),
+    );
+    expect(push.sendToUser).toHaveBeenCalledWith(
+      "user-1",
+      expect.objectContaining({ title: "پیام تازه", body: "متن اعلان" }),
+    );
+  });
+
+  it("persists school scope on each recipient notification", async () => {
+    const notifications = repository() as any;
+    const service = new NotificationsService(
+      notifications,
+      repository() as any,
+      { emitToUser: jest.fn() } as any,
+      repository([{ id: "user-1" }]) as any,
+    );
+    await service.createForUsers(["user-1", "user-1", "user-2"], {
+      type: "ANNOUNCEMENT",
+      category: "announcement",
+      title: "اطلاعیه مدرسه",
+      body: "متن",
+      organizationId: "school-1",
+    });
+
+    expect(notifications.save).toHaveBeenCalledTimes(2);
+    expect(notifications.save).toHaveBeenCalledWith(
+      expect.objectContaining({ organization: { id: "school-1" } }),
     );
   });
 
@@ -99,6 +130,59 @@ describe("NotificationsService", () => {
     ).resolves.toMatchObject({
       unreadCount: 1,
       items: [{ id: "n1", isRead: false }],
+    });
+  });
+
+  it("limits the inbox and unread count to the active school plus global notices", async () => {
+    const notifications = repository([]) as any;
+    const service = new NotificationsService(
+      notifications,
+      repository() as any,
+      {} as any,
+    );
+
+    await service.findForUser("staff-1", { organizationId: "school-1" });
+
+    const queryBuilder = notifications.createQueryBuilder.mock.results[0].value;
+    expect(queryBuilder.where).toHaveBeenCalledWith("n.userId = :userId", {
+      userId: "staff-1",
+    });
+    expect(queryBuilder.andWhere).toHaveBeenCalledWith(
+      "(n.organizationId IS NULL OR n.organizationId = :organizationId)",
+      { organizationId: "school-1" },
+    );
+  });
+
+  it("does not allow marking a notification from another school as read", async () => {
+    const notifications = repository([]) as any;
+    const service = new NotificationsService(
+      notifications,
+      repository() as any,
+      {} as any,
+    );
+
+    await expect(
+      service.markRead(
+        { id: "staff-1", role: UserRole.ADMIN, activeOrganizationId: "school-1" } as any,
+        "other-school-notification",
+      ),
+    ).rejects.toMatchObject({
+      response: { error: { code: "NOTIFICATION_NOT_FOUND" } },
+    });
+    expect(notifications.findOne).toHaveBeenCalledWith({
+      where: [
+        {
+          id: "other-school-notification",
+          user: { id: "staff-1" },
+          organization: { id: "school-1" },
+        },
+        {
+          id: "other-school-notification",
+          user: { id: "staff-1" },
+          organization: expect.anything(),
+        },
+      ],
+      relations: { organization: true },
     });
   });
 

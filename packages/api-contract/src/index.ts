@@ -31,6 +31,7 @@ export const CAPABILITIES = [
   "attendance.linked.read",
   "attendance.night.manage",
   "attendance.correct",
+  "attendance.points.adjust",
   "attendance.reports.read",
   "attendance.settings.manage",
   "relationships.read",
@@ -193,6 +194,7 @@ export const CAPABILITIES = [
 export type Capability = (typeof CAPABILITIES)[number];
 
 export * from "./sms";
+export * from "./principal-dashboard";
 
 export type ApiErrorContract = {
   ok: false;
@@ -208,6 +210,7 @@ export type CursorPage<T> = {
 };
 export type NotificationContract = {
   id: string;
+  organizationId?: string | null;
   type: string;
   category: string;
   title: string;

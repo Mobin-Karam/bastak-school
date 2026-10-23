@@ -201,7 +201,7 @@ flowchart LR
 
 Profiles are: local in-memory reference; local Moshaver SQLite; PaaS SQLite with one
 replica/persistent disk; and a future PostgreSQL adapter only after compatibility
-evidence. See `docs/operations/paas-deployment.md` for operator steps.
+evidence. See the archived `docs/archive/operations/paas-deployment.md` for the historical provider-neutral topology.
 
 ## Forbidden patterns
 

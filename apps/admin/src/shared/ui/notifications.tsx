@@ -45,7 +45,12 @@ export function AppToaster() {
       gap={10}
       offset={16}
       mobileOffset={{ bottom: "calc(5.5rem + env(safe-area-inset-bottom))", left: 12, right: 12 }}
-      style={{ "--width": "min(26rem, calc(100vw - 1.5rem))" } as CSSProperties}
+      style={
+        {
+          "--width": "min(26rem, calc(100vw - 1.5rem))",
+          fontFamily: "Vazirmatn, Tahoma, Arial, sans-serif",
+        } as CSSProperties
+      }
       icons={{
         success: <CircleCheck size={20} aria-hidden="true" />,
         error: <CircleX size={20} aria-hidden="true" />,
@@ -64,7 +69,7 @@ export function AppToaster() {
           description: "admin-sonner-description",
           icon: "admin-sonner-icon",
           actionButton: "admin-sonner-action",
-          cancelButton: "admin-sonner-action",
+          cancelButton: "admin-sonner-cancel",
           closeButton: "admin-sonner-close",
         },
       }}

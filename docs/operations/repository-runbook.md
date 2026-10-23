@@ -1,4 +1,4 @@
-# Moshaver v2 repository runbook
+# Bastak School repository runbook
 
 This runbook describes the active checkout as verified on 2026-10-12. The runnable applications are `apps/api` and `apps/admin`; student accounts use the Admin application. `student-core` remains separately validated. The old standalone `apps/student` directory is absent. The root `docker-compose.yml` still refers to that missing directory, so it is not a reliable local-start command in this checkout. The release topology is described in the [CI/CD pipeline](./ci-cd-pipeline.md).
 
@@ -51,7 +51,7 @@ git fetch origin archive/v1.4
 git worktree add ../moshaver-v1.4 origin/archive/v1.4
 ```
 
-Run legacy instructions in that worktree. Do not mix its API clients or SQLite data into the active v2 deployment.
+Run legacy instructions in that worktree. Do not mix its API clients or SQLite data into the active Bastak School deployment.
 
 ## Data and deployment safety
 

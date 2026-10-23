@@ -67,7 +67,39 @@ describe("supervisor student access", () => {
         where: { organization: { id: In(["school-a"]) } },
       }),
     );
-    expect(relationships.find).not.toHaveBeenCalled();
+    expect(relationships.find).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          type: "GUARDIAN_OF",
+          status: "ACTIVE",
+        }),
+      }),
+    );
+  });
+
+  it("projects active linked guardians without exposing credentials", async () => {
+    relationships.find.mockResolvedValueOnce([
+      {
+        toStudent: { id: student.id },
+        fromUser: {
+          id: "guardian-a",
+          firstName: "مریم",
+          lastName: "نمونه",
+          phoneNumber: "09120000000",
+        },
+      },
+    ]);
+
+    const [projected] = await service.list(context);
+
+    expect(projected).toEqual(
+      expect.objectContaining({
+        guardians: [
+          { id: "guardian-a", name: "مریم نمونه", phoneNumber: "09120000000" },
+        ],
+      }),
+    );
+    expect(projected).not.toHaveProperty("password");
   });
 
   it("returns student details within the supervisor's school", async () => {

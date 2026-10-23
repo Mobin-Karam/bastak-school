@@ -1,22 +1,36 @@
 import { describe, expect, it } from "vitest";
-import { navigationForCapabilities, resolveAdminNavigation } from "./admin-navigation";
+import { navigationForCapabilities, resolveAdminNavigation } from "./config/admin-navigation";
 
 describe("student navigation", () => {
   it("adds registration only when the student has registration access", () => {
     const paths = navigationForCapabilities(
-      ["schedule.read", "attendance.self.read", "registration.read"] as const,
+      [
+        "schedule.read",
+        "attendance.self.read",
+        "leave.read",
+        "leave.manage",
+        "registration.read",
+      ] as const,
       "STUDENT",
     ).flatMap((group) => group.items.map((item) => item.path));
 
     expect(paths).toEqual([
-      "",
       "schedule",
       "books",
       "my-attendance",
+      "student-leave",
+      "communication/notifications",
       "registration",
       "profile",
       "settings",
     ]);
+  });
+
+  it("hides leave requests unless both route capabilities are granted", () => {
+    const paths = navigationForCapabilities(["leave.manage"], "STUDENT").flatMap((group) =>
+      group.items.map((item) => item.path),
+    );
+    expect(paths).not.toContain("student-leave");
   });
 
   it("resolves personal routes so the mobile dock retains the active destination", () => {
@@ -32,19 +46,34 @@ describe("student navigation", () => {
       section: "برنامه من",
       path: "schedule",
     });
+    expect(resolveAdminNavigation("/admin/student-leave", "STUDENT")).toMatchObject({
+      section: "درخواست‌های من",
+      path: "student-leave",
+    });
+    expect(resolveAdminNavigation("/admin/communication/notifications", "STUDENT")).toMatchObject({
+      section: "اعلان‌ها",
+      path: "communication/notifications",
+    });
   });
 });
 
 describe("teacher navigation", () => {
   it("adds registration only when the teacher has registration access", () => {
     const paths = navigationForCapabilities(
-      ["schedule.read", "attendance.manage", "registration.read"] as const,
+      [
+        "schedule.read",
+        "classes.read",
+        "attendance.read",
+        "attendance.manage",
+        "registration.read",
+      ] as const,
       "TEACHER",
     ).flatMap((group) => group.items.map((item) => item.path));
 
     expect(paths).toEqual([
-      "",
       "schedule",
+      "classes",
+      "attendance",
       "teacher-chat",
       "teacher-profile",
       "settings",
@@ -78,7 +107,7 @@ describe("supervisor navigation", () => {
     ).flatMap((group) => group.items.map((item) => item.path));
 
     expect(paths).toEqual(
-      expect.arrayContaining(["", "schedule", "classes", "attendance", "students", "registration"]),
+      expect.arrayContaining(["schedule", "classes", "attendance", "students", "registration"]),
     );
   });
 });

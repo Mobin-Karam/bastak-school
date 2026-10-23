@@ -15,6 +15,8 @@ import { Permission } from "../src/database/entities/permission.entity";
 import { RolePermission } from "../src/database/entities/role-permission.entity";
 import { UserRoleAssignment } from "../src/database/entities/user-role-assignment.entity";
 import { AttendanceWriteReceipt } from "../src/database/entities/attendance-write-receipt.entity";
+import { Notification } from "../src/database/entities/notification.entity";
+import { StudentPointLedger } from "../src/database/entities/student-point-ledger.entity";
 import { AttendanceWriteReceipts1730100000000 } from "../src/database/migrations/1730100000000-AttendanceWriteReceipts";
 import { AttendanceController } from "../src/modules/attendance/attendance.controller";
 import { plainToInstance } from "class-transformer";
@@ -412,24 +414,30 @@ describe("AttendanceService organization boundaries (real SQLite)", () => {
   });
 
   it("keeps a marker's absence-review history inside the active organization", async () => {
-    const account = await db.getRepository(User).findOneByOrFail({ id: actor.id });
-    await db.getRepository(OrganizationMembership).save({ organization: orgB, user: account });
-    const [localSession, foreignSession] = await db.getRepository(AttendanceSession).save([
-      {
-        organization: orgA,
-        contextType: "class",
-        contextId: assignedClass.id,
-        sessionDate: new Date(),
-        status: "submitted",
-      },
-      {
-        organization: orgB,
-        contextType: "class",
-        contextId: foreignClass.id,
-        sessionDate: new Date(),
-        status: "submitted",
-      },
-    ]);
+    const account = await db
+      .getRepository(User)
+      .findOneByOrFail({ id: actor.id });
+    await db
+      .getRepository(OrganizationMembership)
+      .save({ organization: orgB, user: account });
+    const [localSession, foreignSession] = await db
+      .getRepository(AttendanceSession)
+      .save([
+        {
+          organization: orgA,
+          contextType: "class",
+          contextId: assignedClass.id,
+          sessionDate: new Date(),
+          status: "submitted",
+        },
+        {
+          organization: orgB,
+          contextType: "class",
+          contextId: foreignClass.id,
+          sessionDate: new Date(),
+          status: "submitted",
+        },
+      ]);
     const [local, foreign] = await db.getRepository(AttendanceRecord).save([
       {
         session: localSession,
@@ -816,6 +824,48 @@ describe("AttendanceService organization boundaries (real SQLite)", () => {
     );
   });
 
+  it("records daily principal reviews against the exact attendance revision", async () => {
+    const marked = await service.bulkMark(actor, {
+      organizationId: orgA.id,
+      contextType: "class",
+      contextId: assignedClass.id,
+      entries: [{ studentId: studentA.id, status: "present" }],
+    });
+    const reviewer = {
+      ...actor,
+      capabilities: [...(actor.capabilities ?? []), "attendance.review"],
+    };
+
+    const first = await service.reviewSessionEvery24Hours(
+      reviewer,
+      marked.sessionId,
+    );
+    expect(first.sessionId).toBe(marked.sessionId);
+    expect(
+      await db.query(
+        "SELECT sessionId,reviewedRevision FROM attendance_session_reviews",
+      ),
+    ).toEqual([{ sessionId: marked.sessionId, reviewedRevision: 1 }]);
+
+    const session = await db
+      .getRepository(AttendanceSession)
+      .findOneByOrFail({ id: marked.sessionId });
+    session.revision++;
+    await db.getRepository(AttendanceSession).save(session);
+    await service.reviewSessionEvery24Hours(reviewer, marked.sessionId);
+    expect(
+      await db.query(
+        "SELECT reviewedRevision FROM attendance_session_reviews ORDER BY reviewedRevision",
+      ),
+    ).toEqual([{ reviewedRevision: 1 }, { reviewedRevision: 2 }]);
+    await expect(
+      service.reviewSessionEvery24Hours(
+        { ...reviewer, capabilities: [] },
+        marked.sessionId,
+      ),
+    ).rejects.toMatchObject({ response: { error: { code: "FORBIDDEN" } } });
+  });
+
   it("cancels an unmarked session with an audit trail and prevents absence-first submission", async () => {
     const session = await service.createSession(actor, {
       organizationId: orgA.id,
@@ -865,7 +915,10 @@ describe("AttendanceService organization boundaries (real SQLite)", () => {
       correctionRequiresReview: true,
     });
     const requested = await service.correctRecord(
-      { ...actor, capabilities: [...(actor.capabilities ?? []), "attendance.correct"] },
+      {
+        ...actor,
+        capabilities: [...(actor.capabilities ?? []), "attendance.correct"],
+      },
       marked.records[0].id,
       {
         requestId: randomUUID(),
@@ -876,22 +929,33 @@ describe("AttendanceService organization boundaries (real SQLite)", () => {
       },
     );
     expect(requested).toMatchObject({ pendingReview: true, revision: 1 });
-    const beforeReview = await db.getRepository(AttendanceRecord).findOneByOrFail({
-      id: marked.records[0].id,
-    });
+    const beforeReview = await db
+      .getRepository(AttendanceRecord)
+      .findOneByOrFail({
+        id: marked.records[0].id,
+      });
     expect(beforeReview.status).toBe(AttendanceStatus.ABSENT);
-    const correction = await db.getRepository(AttendanceCorrection).findOneByOrFail({
-      id: requested.correctionId,
-    });
+    const correction = await db
+      .getRepository(AttendanceCorrection)
+      .findOneByOrFail({
+        id: requested.correctionId,
+      });
     expect(correction.status).toBe("pending");
     await expect(
       service.listPendingCorrections(
-        { ...actor, capabilities: [...(actor.capabilities ?? []), "attendance.review"] },
+        {
+          ...actor,
+          capabilities: [...(actor.capabilities ?? []), "attendance.review"],
+        },
         orgA.id,
       ),
     ).resolves.toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ id: correction.id, studentId: studentA.id, title: expect.any(String) }),
+        expect.objectContaining({
+          id: correction.id,
+          studentId: studentA.id,
+          title: expect.any(String),
+        }),
       ]),
     );
     const unassigned = await db.getRepository(EducationClass).save({
@@ -936,17 +1000,31 @@ describe("AttendanceService organization boundaries (real SQLite)", () => {
       },
       orgA.id,
     );
-    expect(teacherQueue.map((row) => row.contextId)).toEqual([assignedClass.id]);
+    expect(teacherQueue.map((row) => row.contextId)).toEqual([
+      assignedClass.id,
+    ]);
     const reviewed = await service.reviewCorrection(
-      { ...actor, capabilities: [...(actor.capabilities ?? []), "attendance.review"] },
+      {
+        ...actor,
+        capabilities: [...(actor.capabilities ?? []), "attendance.review"],
+      },
       correction.id,
-      { requestId: randomUUID(), decision: "approved", note: "مدرک ورود بررسی شد" },
+      {
+        requestId: randomUUID(),
+        decision: "approved",
+        note: "مدرک ورود بررسی شد",
+      },
     );
     expect(reviewed).toMatchObject({ status: "approved", revision: 2 });
-    const afterReview = await db.getRepository(AttendanceRecord).findOneByOrFail({
-      id: marked.records[0].id,
+    const afterReview = await db
+      .getRepository(AttendanceRecord)
+      .findOneByOrFail({
+        id: marked.records[0].id,
+      });
+    expect(afterReview).toMatchObject({
+      status: AttendanceStatus.LATE,
+      minutesLate: 7,
     });
-    expect(afterReview).toMatchObject({ status: AttendanceStatus.LATE, minutesLate: 7 });
   });
 
   it("denies foreign, stale-organization and unassigned saved-session/history reads", async () => {
@@ -1276,6 +1354,40 @@ describe("AttendanceService organization boundaries (real SQLite)", () => {
       contextId: assignedClass.id,
       contextType: "class",
       organizationId: orgA.id,
+    });
+  });
+
+  it("allows attendance changes only while a scheduled session is active", async () => {
+    const created = await service.createSession(actor, {
+      organizationId: orgA.id,
+      contextType: "class",
+      contextId: assignedClass.id,
+      sessionDate: new Date().toISOString(),
+    });
+    await db.getRepository(AttendanceSession).update(created.id, {
+      scheduledStartAt: new Date(Date.now() - 60_000),
+      scheduledEndAt: new Date(Date.now() + 60_000),
+    });
+
+    await expect(
+      service.bulkMark(actor, {
+        organizationId: orgA.id,
+        sessionId: created.id,
+        entries: [{ studentId: studentA.id, status: "present" }],
+      }),
+    ).resolves.toMatchObject({ sessionId: created.id, count: 1 });
+
+    await db.getRepository(AttendanceSession).update(created.id, {
+      scheduledEndAt: new Date(Date.now() - 1),
+    });
+    await expect(
+      service.bulkMark(actor, {
+        organizationId: orgA.id,
+        sessionId: created.id,
+        entries: [{ studentId: studentA.id, status: "late" }],
+      }),
+    ).rejects.toMatchObject({
+      response: { error: { code: "ATTENDANCE_SESSION_NOT_ACTIVE" } },
     });
   });
 
@@ -1739,6 +1851,121 @@ describe("AttendanceService organization boundaries (real SQLite)", () => {
       expect.arrayContaining([actor.id, reviewer.id]),
     );
     expect(emit.mock.calls[0][0]).not.toContain(unrelated.id);
+  });
+
+  it("links principal and supervisor absence-review notifications to the targeted review", async () => {
+    const users = db.getRepository(User);
+    const principal = await users.findOneByOrFail({
+      username: "attendance-test-staff",
+    });
+    const supervisor = await users.save({
+      username: "attendance-notification-supervisor",
+      passwordHash: "not-a-login-hash",
+      role: UserRole.TEACHER,
+    });
+    const principalMembership = await db
+      .getRepository(OrganizationMembership)
+      .findOneByOrFail({
+        organization: { id: orgA.id },
+        user: { id: principal.id },
+      });
+    const supervisorMembership = await db
+      .getRepository(OrganizationMembership)
+      .save({ organization: orgA, user: supervisor });
+    const [principalRole, supervisorRole] = await db.getRepository(Role).save([
+      { code: "PRINCIPAL", name: "Principal", organizationScoped: true },
+      {
+        code: "SCHOOL_SUPERVISOR",
+        name: "Supervisor",
+        organizationScoped: true,
+      },
+    ]);
+    await db.getRepository(UserRoleAssignment).save([
+      { user: principal, membership: principalMembership, role: principalRole },
+      {
+        user: supervisor,
+        membership: supervisorMembership,
+        role: supervisorRole,
+      },
+    ]);
+
+    const mark = await service.bulkMark(actor, {
+      organizationId: orgA.id,
+      contextType: "class",
+      contextId: assignedClass.id,
+      entries: [{ studentId: studentA.id, status: "absent" }],
+    });
+    const notifications = await db.getRepository(Notification).find({
+      where: { category: "attendance_review" },
+      relations: { user: true },
+    });
+    const expectedUrl = `/admin/attendance?section=sessions&reviewRecordId=${mark.records[0].id}`;
+
+    expect(notifications).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          user: expect.objectContaining({ id: principal.id }),
+          url: expectedUrl,
+        }),
+        expect.objectContaining({
+          user: expect.objectContaining({ id: supervisor.id }),
+          url: expectedUrl,
+        }),
+      ]),
+    );
+  });
+
+  it("scopes attendance-point request idempotency to its actor and organization", async () => {
+    const requestId = randomUUID();
+    const first = await service.awardPoints(actor, {
+      requestId,
+      organizationId: orgA.id,
+      contextType: "class",
+      contextId: assignedClass.id,
+      studentId: studentA.id,
+      points: 1,
+      reason: "رفتار سازنده",
+    });
+    expect(
+      await service.awardPoints(actor, {
+        requestId,
+        organizationId: orgA.id,
+        contextType: "class",
+        contextId: assignedClass.id,
+        studentId: studentA.id,
+        points: 1,
+        reason: "رفتار سازنده",
+      }),
+    ).toEqual(first);
+
+    const secondUser = await db.getRepository(User).save({
+      username: "attendance-second-points-actor",
+      passwordHash: "not-a-login-hash",
+      role: UserRole.TEACHER,
+    });
+    await db
+      .getRepository(OrganizationMembership)
+      .save({ organization: orgA, user: secondUser });
+    const second = await service.awardPoints(
+      {
+        ...actor,
+        id: secondUser.id,
+        username: secondUser.username,
+        sessionId: "second-points-session",
+      },
+      {
+        requestId,
+        organizationId: orgA.id,
+        contextType: "class",
+        contextId: assignedClass.id,
+        studentId: studentA.id,
+        points: -1,
+        reason: "تاخیر تکراری",
+      },
+    );
+
+    expect(second.id).not.toBe(first.id);
+    expect(await db.getRepository(StudentPointLedger).count()).toBe(2);
   });
 });
 

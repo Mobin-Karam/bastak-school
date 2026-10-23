@@ -12,6 +12,7 @@ import {
   HTMLAttributes,
 } from "react";
 import { cn } from "../lib/utils";
+import { AdaptiveSelect, type AdaptiveSelectProps } from "./adaptive-select";
 import { useOptionalAdminLanguage, useSharedUiCopy } from "./locale";
 
 type ButtonProps = ComponentProps<"button"> & {
@@ -477,72 +478,14 @@ export function CheckboxGroup<T extends string>({
   );
 }
 
-export const Select = forwardRef<HTMLSelectElement, ComponentProps<"select">>(
-  function Select(props, ref) {
-    return (
-      <select
-        ref={ref}
-        {...props}
-        className={cn(
-          `
-
-h-11
-
-
-w-full
-
-
-rounded-xl
-
-
-border
-
-
-border-[rgb(var(--border-subtle))]
-
-
-bg-[rgb(var(--surface-card))]
-
-
-px-4
-
-
-text-sm
-
-
-text-[rgb(var(--color-ink))]
-
-
-outline-none
-
-
-transition-all
-
-
-hover:border-brand/40
-
-disabled:cursor-not-allowed disabled:opacity-60
-
-aria-[invalid=true]:border-rosewood aria-[invalid=true]:ring-rosewood/10
-
-
-focus:border-brand
-
-
-focus:ring-4
-
-
-focus:ring-brand/10
-
-
-`,
-
-          props.className,
-        )}
-      />
-    );
-  },
-);
+export const Select = forwardRef<HTMLSelectElement, AdaptiveSelectProps>(function Select(
+  { className, ...props },
+  ref,
+) {
+  return (
+    <AdaptiveSelect {...props} ref={ref} className={cn("h-11 w-full rounded-xl px-4", className)} />
+  );
+});
 
 type BadgeTone = "neutral" | "green" | "amber" | "red" | "blue";
 
@@ -725,7 +668,7 @@ export function Field({
   required = false,
   id,
 }: {
-  label: string;
+  label: ReactNode;
   children: ReactNode;
   description?: ReactNode;
   error?: string;
@@ -734,6 +677,7 @@ export function Field({
 }) {
   const generatedId = useId();
   const fieldId = id || `field-${generatedId}`;
+  const labelId = `${fieldId}-label`;
   const descriptionId = `${fieldId}-description`;
   const errorId = `${fieldId}-error`;
   const describedBy =
@@ -743,6 +687,7 @@ export function Field({
     required?: boolean;
     "aria-describedby"?: string;
     "aria-invalid"?: boolean;
+    "aria-labelledby"?: string;
   };
   const target = findFieldControl(children);
   const element = target as ReactElement<ControlProps> | null;
@@ -753,6 +698,9 @@ export function Field({
         required: element.props.required ?? required,
         "aria-describedby": element.props["aria-describedby"] || describedBy,
         "aria-invalid": element.props["aria-invalid"] ?? (error ? true : undefined),
+        ...(element.type === AdaptiveSelect && !element.props["aria-labelledby"]
+          ? { "aria-labelledby": labelId }
+          : {}),
       })
     : children;
   const labelContent = (
@@ -784,7 +732,13 @@ text-[rgb(var(--color-ink))]
 
 "
     >
-      {controlId ? <label htmlFor={controlId}>{labelContent}</label> : <span>{labelContent}</span>}
+      {controlId ? (
+        <label id={labelId} htmlFor={controlId}>
+          {labelContent}
+        </label>
+      ) : (
+        <span>{labelContent}</span>
+      )}
 
       {control}
 
@@ -822,7 +776,8 @@ function isFieldControl(element: ReactElement) {
     element.type === Input ||
     element.type === PasswordInput ||
     element.type === Textarea ||
-    element.type === Select
+    element.type === Select ||
+    element.type === AdaptiveSelect
   );
 }
 

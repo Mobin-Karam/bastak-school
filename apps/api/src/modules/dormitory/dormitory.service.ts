@@ -138,6 +138,7 @@ export class DormitoryService {
       title: dto.title.trim(),
       body: dto.body.trim(),
       data: { source: "dormitory", target: dto.target, targetLabel },
+      organizationId: organization.id,
     });
     return { delivered: userIds.length, target: dto.target, targetLabel };
   }

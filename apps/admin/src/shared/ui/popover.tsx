@@ -212,7 +212,7 @@ export function ViewportPopover({
             }}
             className={cn(
               `
-              z-[110]
+              z-[130]
               overflow-y-auto
               overscroll-contain
               rounded-2xl

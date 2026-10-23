@@ -49,7 +49,9 @@ export class SchoolHomeController {
     @Param("organizationId") organizationId: string,
     @Query("date") date?: string,
   ) {
-    return this.schoolHome.deletePrayerTimes(user, organizationId, date).then(ok);
+    return this.schoolHome
+      .deletePrayerTimes(user, organizationId, date)
+      .then(ok);
   }
 
   @Get("announcements")
@@ -59,6 +61,27 @@ export class SchoolHomeController {
     @Query("organizationId") organizationId?: string,
   ) {
     return this.schoolHome.announcements(user, organizationId).then(ok);
+  }
+
+  @Get("organizations/:organizationId/announcement-recipients")
+  @RequireCapabilities("announcements.manage")
+  recipients(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param("organizationId") organizationId: string,
+    @Query("q") query?: string,
+  ) {
+    return this.schoolHome
+      .announcementRecipients(user, organizationId, query)
+      .then(ok);
+  }
+
+  @Get("organizations/:organizationId/announcement-media")
+  @RequireCapabilities("announcements.manage")
+  announcementMedia(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param("organizationId") organizationId: string,
+  ) {
+    return this.schoolHome.announcementMedia(user, organizationId).then(ok);
   }
 
   @Post("organizations/:organizationId/announcements")

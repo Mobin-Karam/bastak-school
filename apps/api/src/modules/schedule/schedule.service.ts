@@ -173,7 +173,7 @@ export class ScheduleService {
         .leftJoin(
           UserRelationship,
           "relationship",
-          "relationship.toStudentId = enrollment.studentId AND relationship.fromUserId = :userId AND relationship.status = 'ACTIVE' AND relationship.type = 'GUARDIAN_OF'",
+          "relationship.toStudentId = enrollment.studentId AND relationship.fromUserId = :userId AND relationship.organizationId = entry.organizationId AND relationship.status = 'ACTIVE' AND relationship.type = 'GUARDIAN_OF'",
           { userId: user.id },
         )
         .where("entry.status = 'ACTIVE'")

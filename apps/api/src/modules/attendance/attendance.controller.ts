@@ -19,6 +19,7 @@ import {
   BulkMarkAttendanceDto,
   CreateAttendanceSessionDto,
   ReviewAttendanceAbsenceDto,
+  AwardAttendancePointsDto,
   SubmitAttendanceAbsencesDto,
   FinalizeAttendanceSessionDto,
   CancelAttendanceSessionDto,
@@ -127,6 +128,12 @@ export class AttendanceController {
     return this.attendance.finalizeSession(user, id, dto).then(ok);
   }
 
+  @Post("attendance/sessions/:id/daily-review")
+  @RequireCapabilities("attendance.review")
+  dailyReview(@CurrentUser() user: AuthenticatedUser, @Param("id") id: string) {
+    return this.attendance.reviewSessionEvery24Hours(user, id).then(ok);
+  }
+
   @Post("attendance/sessions/:id/cancel")
   @RequireCapabilities("attendance.review")
   cancel(
@@ -153,7 +160,9 @@ export class AttendanceController {
     @CurrentUser() user: AuthenticatedUser,
     @Query("organizationId") organizationId?: string,
   ) {
-    return this.attendance.listPendingCorrections(user, organizationId).then(ok);
+    return this.attendance
+      .listPendingCorrections(user, organizationId)
+      .then(ok);
   }
 
   @Post("attendance/corrections/:id/review")
@@ -210,6 +219,15 @@ export class AttendanceController {
     @Body() dto: ReviewAttendanceAbsenceDto,
   ) {
     return this.attendance.reviewAbsence(user, id, dto).then(ok);
+  }
+
+  @Post("attendance/points")
+  @RequireAnyCapabilities("attendance.points.adjust", "attendance.class.manage")
+  awardPoints(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() dto: AwardAttendancePointsDto,
+  ) {
+    return this.attendance.awardPoints(user, dto).then(ok);
   }
 
   @Get("attendance/my-absence-reviews")

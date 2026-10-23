@@ -1,10 +1,10 @@
 import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { ReactElement } from "react";
-import { RetryRequestsPanel } from "./exams/components/RetryRequestsPanel";
-import { LearningHeader } from "./learning/components/LearningHeader";
-import { LearningRow } from "./learning/components/LearningRow";
-import { QuestionsSelector } from "./questions/components/QuestionsSelector";
+import { RetryRequestsPanel } from "./academics/exams/components/RetryRequestsPanel";
+import { LearningHeader } from "./academics/learning/components/LearningHeader";
+import { LearningRow } from "./academics/learning/components/LearningRow";
+import { QuestionsSelector } from "./academics/questions/components/QuestionsSelector";
 import { LocaleProvider } from "../shared/ui/locale";
 
 function renderWithLocale(node: ReactElement) {

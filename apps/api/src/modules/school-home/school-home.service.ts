@@ -6,14 +6,25 @@ import { EducationClass } from "../../database/entities/education-class.entity";
 import { EducationClassEnrollment } from "../../database/entities/education-class-enrollment.entity";
 import { Organization } from "../../database/entities/organization.entity";
 import { SchoolAnnouncement } from "../../database/entities/school-announcement.entity";
+import { SchoolAnnouncementRecipient } from "../../database/entities/school-announcement-recipient.entity";
+import {
+  OrganizationMembership,
+  MembershipStatus,
+} from "../../database/entities/organization-membership.entity";
+import { User } from "../../database/entities/user.entity";
 import { SchoolPrayerTime } from "../../database/entities/school-prayer-time.entity";
 import { UserRelationship } from "../../database/entities/user-relationship.entity";
 import { AuthenticatedUser } from "../auth";
 import { AuthorizationService, UserContext } from "../authorization";
+import { NotificationsService } from "../notifications";
 import {
   SavePrayerTimeDto,
   SaveSchoolAnnouncementDto,
 } from "./school-home.dto";
+
+type SchoolAnnouncementWithRecipients = SchoolAnnouncement & {
+  recipients?: SchoolAnnouncementRecipient[];
+};
 
 @Injectable()
 export class SchoolHomeService {
@@ -24,6 +35,10 @@ export class SchoolHomeService {
     private readonly prayers: Repository<SchoolPrayerTime>,
     @InjectRepository(SchoolAnnouncement)
     private readonly announcementsRepo: Repository<SchoolAnnouncement>,
+    @InjectRepository(SchoolAnnouncementRecipient)
+    private readonly recipients: Repository<SchoolAnnouncementRecipient>,
+    @InjectRepository(OrganizationMembership)
+    private readonly memberships: Repository<OrganizationMembership>,
     @InjectRepository(EducationClass)
     private readonly classes: Repository<EducationClass>,
     @InjectRepository(EducationClassEnrollment)
@@ -31,6 +46,7 @@ export class SchoolHomeService {
     @InjectRepository(UserRelationship)
     private readonly relationships: Repository<UserRelationship>,
     private readonly authorization: AuthorizationService,
+    private readonly notifications: NotificationsService,
   ) {}
 
   async prayerTimes(
@@ -122,6 +138,13 @@ export class SchoolHomeService {
     const query = this.announcementsRepo
       .createQueryBuilder("announcement")
       .leftJoinAndSelect("announcement.classroom", "classroom")
+      .leftJoinAndMapMany(
+        "announcement.recipients",
+        SchoolAnnouncementRecipient,
+        "recipient",
+        "recipient.announcementId = announcement.id",
+      )
+      .leftJoinAndSelect("recipient.user", "recipientUser")
       .where("announcement.organizationId = :organizationId", {
         organizationId: organization.id,
       })
@@ -138,7 +161,13 @@ export class SchoolHomeService {
       query.andWhere(
         new Brackets((qb) => {
           if (this.isStudentAudience(context)) {
-            qb.where("announcement.audience = 'STUDENTS'");
+            qb.where("announcement.audience IN ('ALL', 'STUDENTS')");
+            qb.orWhere(
+              "announcement.audience = 'USERS' AND recipient.userId = :userId",
+              {
+                userId: user.id,
+              },
+            );
             if (classIds.length)
               qb.orWhere(
                 "announcement.audience = 'CLASS' AND announcement.classroomId IN (:...classIds)",
@@ -146,8 +175,23 @@ export class SchoolHomeService {
               );
             return;
           }
-          qb.where("announcement.audience = 'STAFF'");
+          qb.where("announcement.audience IN ('ALL', 'STAFF')").orWhere(
+            "announcement.audience = 'USERS' AND recipient.userId = :userId",
+            {
+              userId: user.id,
+            },
+          );
         }),
+      );
+    } else {
+      query.andWhere(
+        new Brackets((qb) =>
+          qb
+            .where("announcement.audience != 'USERS'")
+            .orWhere("recipient.userId = :userId", {
+              userId: user.id,
+            }),
+        ),
       );
     }
     const rows = await query
@@ -155,6 +199,83 @@ export class SchoolHomeService {
       .addOrderBy("announcement.createdAt", "DESC")
       .getMany();
     return rows.map((row) => this.announcementView(row));
+  }
+
+  async announcementRecipients(
+    user: AuthenticatedUser,
+    organizationId: string,
+    query?: string,
+  ) {
+    await this.scopedOrganization(user, organizationId, "announcements.manage");
+    const needle = query?.trim().toLowerCase();
+    const [rows, roleRows] = await Promise.all([
+      this.memberships.find({
+        where: {
+          organization: { id: organizationId },
+          status: MembershipStatus.ACTIVE,
+        },
+        relations: { user: true, roleAssignments: { role: true } },
+        take: 100,
+      }),
+      this.memberships
+        .createQueryBuilder("membership")
+        .innerJoin("membership.roleAssignments", "assignment")
+        .innerJoin("assignment.role", "role")
+        .select("role.code", "code")
+        .where("membership.organizationId = :organizationId", {
+          organizationId,
+        })
+        .andWhere("membership.status = :status", {
+          status: MembershipStatus.ACTIVE,
+        })
+        .distinct(true)
+        .getRawMany<{ code: string }>(),
+    ]);
+    const roleCodesByUser = new Map(
+      rows.map((membership) => [
+        membership.user.id,
+        membership.roleAssignments.map((assignment) => assignment.role.code),
+      ]),
+    );
+    const members = rows
+      .map(({ user: member }) => ({
+        id: member.id,
+        name:
+          `${member.firstName} ${member.lastName}`.trim() || member.username,
+        username: member.username,
+        roleCodes: roleCodesByUser.get(member.id) ?? [],
+      }))
+      .filter(
+        (member) =>
+          !needle ||
+          `${member.name} ${member.username}`.toLowerCase().includes(needle),
+      );
+    return {
+      members,
+      roles: roleRows.map((role) => role.code).sort(),
+    };
+  }
+
+  async announcementMedia(user: AuthenticatedUser, organizationId: string) {
+    await this.scopedOrganization(user, organizationId, "announcements.manage");
+    const rows = await this.announcementsRepo.find({
+      where: { organization: { id: organizationId } },
+      order: { updatedAt: "DESC" },
+      take: 100,
+    });
+    const seen = new Set<string>();
+    return rows.flatMap((row) => {
+      if (!row.mediaUrl || !row.mediaType || seen.has(row.mediaUrl)) return [];
+      seen.add(row.mediaUrl);
+      return [{
+        id: row.id,
+        title: row.title,
+        category: row.category,
+        mediaUrl: row.mediaUrl,
+        mediaType: row.mediaType,
+        updatedAt: row.updatedAt,
+      }];
+    });
   }
 
   async saveAnnouncement(
@@ -174,12 +295,17 @@ export class SchoolHomeService {
     );
     const status = dto.status ?? "ACTIVE";
     const publishedAt = status === "ACTIVE" ? new Date() : null;
+    const recipientIds = await this.recipientIds(organization.id, dto);
+    const media = this.media(dto);
     const row = this.announcementsRepo.create({
       organization,
       classroom,
       audience: dto.audience,
       title: dto.title.trim(),
       body: dto.body.trim(),
+      category: dto.category?.trim() || "general",
+      linkUrl: this.optionalUrl(dto.linkUrl),
+      ...media,
       status,
       publishedAt,
       // School notices are intentionally short-lived. Client-supplied expiry
@@ -189,7 +315,30 @@ export class SchoolHomeService {
         : null,
       createdBy: { id: user.id } as any,
     });
-    return this.announcementView(await this.announcementsRepo.save(row));
+    const saved = await this.announcementsRepo.save(row);
+    await this.setRecipients(saved, recipientIds);
+    if (status === "ACTIVE" && recipientIds.length) {
+      await this.notifications.createForUsers(recipientIds, {
+        type: "ANNOUNCEMENT",
+        title: saved.title,
+        body: saved.body,
+        category: "announcement",
+        url: `/admin/communication/notifications?type=announcement&announcementId=${encodeURIComponent(saved.id)}`,
+        organizationId: organization.id,
+        data: {
+          announcementId: saved.id,
+          category: saved.category,
+          linkUrl: saved.linkUrl ?? null,
+          mediaUrl: saved.mediaUrl ?? null,
+          mediaType: saved.mediaType ?? null,
+          expiresAt: saved.expiresAt?.toISOString() ?? null,
+        },
+        dedupeKey: `announcement:${saved.id}:${saved.publishedAt?.getTime() ?? "draft"}`,
+      });
+    }
+    return this.announcementView(
+      await this.announcementWithRecipients(saved.id),
+    );
   }
 
   async updateAnnouncement(
@@ -214,6 +363,8 @@ export class SchoolHomeService {
       dto.classroomId,
     );
     const status = dto.status ?? row.status;
+    const recipientIds = await this.recipientIds(row.organization.id, dto);
+    const media = this.media(dto);
     const publishedAt =
       status === "ACTIVE" ? (row.publishedAt ?? new Date()) : null;
     Object.assign(row, {
@@ -221,6 +372,14 @@ export class SchoolHomeService {
       audience: dto.audience,
       title: dto.title.trim(),
       body: dto.body.trim(),
+      category: dto.category?.trim() || row.category,
+      linkUrl:
+        dto.linkUrl === undefined
+          ? (row.linkUrl ?? null)
+          : this.optionalUrl(dto.linkUrl),
+      ...(dto.mediaUrl === undefined
+        ? { mediaUrl: row.mediaUrl ?? null, mediaType: row.mediaType ?? null }
+        : media),
       status,
       publishedAt,
       expiresAt: publishedAt
@@ -228,7 +387,30 @@ export class SchoolHomeService {
           new Date(publishedAt.getTime() + 24 * 60 * 60 * 1000))
         : null,
     });
-    return this.announcementView(await this.announcementsRepo.save(row));
+    const saved = await this.announcementsRepo.save(row);
+    await this.setRecipients(saved, recipientIds);
+    if (status === "ACTIVE" && recipientIds.length) {
+      await this.notifications.createForUsers(recipientIds, {
+        type: "ANNOUNCEMENT",
+        title: saved.title,
+        body: saved.body,
+        category: "announcement",
+        url: `/admin/communication/notifications?type=announcement&announcementId=${encodeURIComponent(saved.id)}`,
+        organizationId: row.organization.id,
+        data: {
+          announcementId: saved.id,
+          category: saved.category,
+          linkUrl: saved.linkUrl ?? null,
+          mediaUrl: saved.mediaUrl ?? null,
+          mediaType: saved.mediaType ?? null,
+          expiresAt: saved.expiresAt?.toISOString() ?? null,
+        },
+        dedupeKey: `announcement:${saved.id}:${saved.publishedAt?.getTime() ?? "draft"}`,
+      });
+    }
+    return this.announcementView(
+      await this.announcementWithRecipients(saved.id),
+    );
   }
 
   private async scopedOrganization(
@@ -350,7 +532,7 @@ export class SchoolHomeService {
       updatedAt: row.updatedAt,
     };
   }
-  private announcementView(row: SchoolAnnouncement) {
+  private announcementView(row: SchoolAnnouncementWithRecipients) {
     return {
       id: row.id,
       organizationId: row.organization?.id,
@@ -358,10 +540,157 @@ export class SchoolHomeService {
       classroomId: row.classroom?.id ?? null,
       title: row.title,
       body: row.body,
+      category: row.category,
+      linkUrl: row.linkUrl ?? null,
+      mediaUrl: row.mediaUrl ?? null,
+      mediaType: row.mediaType ?? null,
+      recipientIds: row.recipients?.map((recipient) => recipient.user.id) ?? [],
       status: row.status,
       publishedAt: row.publishedAt,
       expiresAt: row.expiresAt,
       createdAt: row.createdAt,
     };
+  }
+
+  private async announcementWithRecipients(
+    id: string,
+  ): Promise<SchoolAnnouncementWithRecipients> {
+    const [announcement, recipients] = await Promise.all([
+      this.announcementsRepo.findOneOrFail({ where: { id } }),
+      this.recipients.find({
+        where: { announcement: { id } },
+        relations: { user: true },
+      }),
+    ]);
+    return Object.assign(announcement, { recipients });
+  }
+
+  private optionalUrl(value?: string) {
+    if (!value?.trim()) return null;
+    try {
+      const url = new URL(value);
+      if (url.protocol !== "https:") throw new Error();
+      return url.toString();
+    } catch {
+      throw new ApiException(
+        400,
+        "INVALID_LINK",
+        "نشانی پیوند باید HTTPS معتبر باشد.",
+      );
+    }
+  }
+
+  private media(dto: SaveSchoolAnnouncementDto) {
+    const mediaUrl = this.optionalUrl(dto.mediaUrl);
+    if (!mediaUrl) return { mediaUrl: null, mediaType: null };
+    if (!dto.mediaType)
+      throw new ApiException(
+        400,
+        "MEDIA_TYPE_REQUIRED",
+        "نوع رسانه مشخص نیست.",
+      );
+    const host = new URL(mediaUrl).hostname.toLowerCase();
+    if (
+      dto.mediaType === "VIDEO" &&
+      ![
+        "youtube.com",
+        "www.youtube.com",
+        "youtu.be",
+        "aparat.com",
+        "www.aparat.com",
+      ].includes(host)
+    ) {
+      throw new ApiException(
+        400,
+        "MEDIA_HOST_FORBIDDEN",
+        "فقط ویدئوی YouTube یا Aparat پشتیبانی می‌شود.",
+      );
+    }
+    return { mediaUrl, mediaType: dto.mediaType };
+  }
+
+  private async recipientIds(
+    organizationId: string,
+    dto: SaveSchoolAnnouncementDto,
+  ) {
+    if (dto.audience !== "USERS" && dto.audience !== "ALL") return [];
+    const explicitIds = [...new Set(dto.recipientIds ?? [])];
+    const roleCodes = [...new Set(dto.recipientRoleCodes ?? [])];
+    if (dto.audience === "ALL")
+      return this.activeOrganizationUserIds(organizationId);
+    if ((!explicitIds.length && !roleCodes.length) || explicitIds.length > 100)
+      throw new ApiException(
+        400,
+        "INVALID_RECIPIENTS",
+        "حداقل یک دریافت‌کننده یا نقش دریافت‌کننده انتخاب کنید.",
+      );
+    const rows = await this.memberships
+      .createQueryBuilder("membership")
+      .innerJoin("membership.user", "user")
+      .leftJoin("membership.roleAssignments", "assignment")
+      .leftJoin("assignment.role", "role")
+      .select("user.id", "id")
+      .where("membership.organizationId = :organizationId", { organizationId })
+      .andWhere("membership.status = :status", {
+        status: MembershipStatus.ACTIVE,
+      })
+      .andWhere(
+        new Brackets((qb) => {
+          if (explicitIds.length)
+            qb.where("user.id IN (:...explicitIds)", { explicitIds });
+          if (roleCodes.length) {
+            if (explicitIds.length)
+              qb.orWhere("role.code IN (:...roleCodes)", { roleCodes });
+            else qb.where("role.code IN (:...roleCodes)", { roleCodes });
+          }
+        }),
+      )
+      .distinct(true)
+      .getRawMany<{ id: string }>();
+    const ids = rows.map((row) => row.id);
+    if (explicitIds.some((id) => !ids.includes(id)))
+      throw new ApiException(
+        403,
+        "RECIPIENT_OUT_OF_SCOPE",
+        "دریافت‌کننده خارج از مدرسه فعال است.",
+      );
+    if (!ids.length)
+      throw new ApiException(
+        422,
+        "RECIPIENT_ROLE_EMPTY",
+        "برای نقش‌های انتخاب‌شده عضو فعالی پیدا نشد.",
+      );
+    return ids;
+  }
+
+  private async activeOrganizationUserIds(organizationId: string) {
+    const rows = await this.memberships.find({
+      where: {
+        organization: { id: organizationId },
+        status: MembershipStatus.ACTIVE,
+      },
+      relations: { user: true },
+    });
+    const ids = [...new Set(rows.map((membership) => membership.user.id))];
+    if (!ids.length)
+      throw new ApiException(
+        422,
+        "RECIPIENTS_EMPTY",
+        "عضو فعالی در مدرسه وجود ندارد.",
+      );
+    return ids;
+  }
+
+  private async setRecipients(
+    announcement: SchoolAnnouncement,
+    userIds: string[],
+  ) {
+    await this.recipients.delete({ announcement: { id: announcement.id } });
+    if (userIds.length)
+      await this.recipients.save(
+        userIds.map((id) =>
+          this.recipients.create({ announcement, user: { id } as User }),
+        ),
+      );
   }
 }

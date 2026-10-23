@@ -1,3 +1,4 @@
+import { AdaptiveSelect } from "@/shared/ui/adaptive-select";
 import { AlertTriangle, Check, ChevronDown, Search, UserRound, UsersRound, X } from "lucide-react";
 import { useMemo, useState } from "react";
 import type { Student } from "../types/domain";
@@ -198,7 +199,7 @@ export function StudentPicker({
           ))}
         </div>
         <div className="mt-2 grid grid-cols-2 gap-1 sm:grid-cols-4">
-          <select
+          <AdaptiveSelect
             aria-label={copy.gradeFilter}
             value={grade}
             onChange={(event) => setGrade(event.target.value)}
@@ -208,8 +209,8 @@ export function StudentPicker({
             {grades.map((item) => (
               <option key={item}>{item}</option>
             ))}
-          </select>
-          <select
+          </AdaptiveSelect>
+          <AdaptiveSelect
             aria-label={copy.educationFilter}
             value={educationType}
             onChange={(event) => setEducationType(event.target.value)}
@@ -221,8 +222,8 @@ export function StudentPicker({
                 {educationLabel(item)}
               </option>
             ))}
-          </select>
-          <select
+          </AdaptiveSelect>
+          <AdaptiveSelect
             aria-label={copy.trackFilter}
             value={track}
             onChange={(event) => setTrack(event.target.value)}
@@ -234,8 +235,8 @@ export function StudentPicker({
                 {educationLabel(item)}
               </option>
             ))}
-          </select>
-          <select
+          </AdaptiveSelect>
+          <AdaptiveSelect
             aria-label={copy.learnerType}
             value={learnerProfile}
             onChange={(event) =>
@@ -246,7 +247,7 @@ export function StudentPicker({
             <option value="">{copy.allLearners}</option>
             <option value="school">{copy.school}</option>
             <option value="independent">{copy.independent}</option>
-          </select>
+          </AdaptiveSelect>
         </div>
       </div>
       {!query && filter === "all" && recent.length ? (

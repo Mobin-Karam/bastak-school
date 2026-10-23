@@ -24,6 +24,8 @@
     "contracts:check": "node tooling/contracts/check-api-contract.mjs",
     "docs:check": "node tooling/docs/check-docs.mjs",
     "graphify:check": "node tooling/graphify/fingerprint.mjs --check=graphify-out/code-fingerprint.json",
+    "graphify:generate": "graphify update . && node tooling/graphify/fingerprint.mjs --write=graphify-out/code-fingerprint.json",
+    "preflight:release": "./scripts/cicd/pre-commit-release-check.sh",
     "bootstrap": "node tooling/workspace/run.mjs bootstrap",
     "build": "node tooling/workspace/run.mjs run build",
     "test": "node tooling/workspace/run.mjs run test",
