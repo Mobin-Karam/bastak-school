@@ -12,6 +12,7 @@ class PipelineTests(unittest.TestCase):
         workflow = self.workflow("continuous-integration.yml")
         runs = "\n".join(step.get("run", "") for step in workflow["jobs"]["quality"]["steps"])
         self.assertIn("test:coverage", runs)
+        self.assertIn("verify -- --skip=admin-v2:test", runs)
         self.assertIn("test:cmb-publish", runs)
         self.assertIn("playwright install --with-deps chromium", runs)
         self.assertIn("test:e2e -- --grep 'desktop panels remain reachable'", runs)
@@ -21,6 +22,8 @@ class PipelineTests(unittest.TestCase):
         self.assertIn('DATABASE_PATH="$security_directory/$suite.sqlite"', script)
         self.assertIn('node "apps/api/scripts/$suite-e2e.mjs"', script)
         self.assertIn("for attempt in {1..600}; do", (ROOT / "scripts/cicd/finish-work.sh").read_text())
+        workspace_runner = (ROOT / "tooling/workspace/run.mjs").read_text()
+        self.assertIn("Unknown or unselected verify task in --skip", workspace_runner)
     def test_required_gate_covers_every_change_and_failure(self):
         ci = self.workflow("continuous-integration.yml")
         events = ci.get("on", ci.get(True))
@@ -28,9 +31,52 @@ class PipelineTests(unittest.TestCase):
         self.assertNotIn("paths", events["push"])
         gate = ci["jobs"]["gate"]
         self.assertEqual(gate["if"], "always()")
-        self.assertEqual(set(gate["needs"]), {"quality", "containers"})
+        self.assertEqual(set(gate["needs"]), {"quality", "containers", "promotion-evidence"})
         self.assertIn('test "$QUALITY" = success', gate["steps"][0]["run"])
         self.assertIn('test "$CONTAINERS" = success', gate["steps"][0]["run"])
+        self.assertIn('[[ "$PROMOTION" == success ]]', gate["steps"][0]["run"])
+
+    def test_release_pr_reuses_only_exact_develop_push_evidence(self):
+        ci = self.workflow("continuous-integration.yml")
+        self.assertIn("github.base_ref != 'main'", ci["jobs"]["quality"]["if"])
+        self.assertIn("github.base_ref != 'main'", ci["jobs"]["containers"]["if"])
+        promotion = ci["jobs"]["promotion-evidence"]
+        self.assertEqual(promotion["if"], "github.event_name == 'pull_request' && github.base_ref == 'main'")
+        checkout = promotion["steps"][0]["with"]
+        self.assertEqual(checkout["ref"], "${{ github.event.pull_request.head.sha }}")
+        self.assertEqual(checkout["fetch-depth"], 0)
+        self.assertIn("verify-promotion-evidence.sh", promotion["steps"][1]["run"])
+        script = (ROOT / "scripts/cicd/verify-promotion-evidence.sh").read_text()
+        for evidence in (
+            'HEAD_BRANCH:-}" == develop',
+            'HEAD_REPOSITORY:-}" == "$GH_REPO"',
+            'git merge-base --is-ancestor "$BASE_SHA" "$HEAD_SHA"',
+            'current_develop" == "$HEAD_SHA"',
+            'event == "push" and .head_branch == "develop"',
+            'production-images-$HEAD_SHA',
+            'artifact_digest" =~ ^sha256:',
+        ):
+            self.assertIn(evidence, script)
+
+    def test_image_archives_are_retained_only_for_branch_pushes(self):
+        readiness = self.workflow("deployment-readiness.yml")
+        steps = readiness["jobs"]["containers"]["steps"]
+        self.assertIn('if [[ "$EVENT_NAME" == push ]]', steps[2]["run"])
+        self.assertEqual(steps[3]["if"], "github.event_name == 'push'")
+
+    def test_advisory_component_workflows_do_not_repeat_on_release_pr_or_main(self):
+        for name in (
+            "admin-v2-quality.yml",
+            "ai-toolkit-check.yml",
+            "backend-v2-quality.yml",
+            "cmb-packages-quality.yml",
+            "repository-safety.yml",
+            "student-core-quality.yml",
+            "student-v2-quality.yml",
+        ):
+            events = self.workflow(name).get("on", self.workflow(name).get(True))
+            self.assertEqual(events["pull_request"]["branches"], ["develop"], name)
+            self.assertEqual(events["push"]["branches"], ["develop"], name)
     def test_main_only_deployment_checks_the_tested_commit(self):
         deploy = self.workflow("lan-production.yml")
         events = deploy.get("on", deploy.get(True))

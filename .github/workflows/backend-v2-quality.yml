@@ -2,6 +2,7 @@ name: Backend v2 Quality
 
 on:
   pull_request:
+    branches: [develop]
     paths:
       - 'apps/api/**'
       - 'scripts/deploy/verify-security.sh'
@@ -9,7 +10,7 @@ on:
       - 'packages/cmb/**'
       - '.github/workflows/backend-v2-quality.yml'
   push:
-    branches: [develop, main]
+    branches: [develop]
     paths:
       - 'apps/api/**'
       - 'scripts/deploy/verify-security.sh'

@@ -18,6 +18,11 @@ const projectId = projectArg ? projectArg.slice("--project=".length) : null;
 const affected = args.includes("--affected");
 const baseArg = args.find((arg) => arg.startsWith("--base="));
 const headArg = args.find((arg) => arg.startsWith("--head="));
+const skippedVerifyTasks = new Set(
+  args
+    .filter((arg) => arg.startsWith("--skip="))
+    .map((arg) => arg.slice("--skip=".length)),
+);
 const npmCommand = process.platform === "win32" ? "npm.cmd" : "npm";
 
 if (projectId && affected) throw new Error("Use either --project or --affected, not both.");
@@ -84,14 +89,25 @@ async function runTask(task) {
 }
 
 async function verify() {
+  const matchedSkips = new Set();
   for (const project of selected) {
     const manifest = await loadManifest(project);
     for (const task of project.verifyTasks || []) {
       if (!manifest.scripts?.[task]) {
         throw new Error(`${project.id}: missing verify task ${task}`);
       }
+      const taskId = `${project.id}:${task}`;
+      if (skippedVerifyTasks.has(taskId)) {
+        matchedSkips.add(taskId);
+        console.log(`\n[workspace] ${taskId}: covered by a later equivalent gate`);
+        continue;
+      }
       exec(project, ["run", task]);
     }
+  }
+  for (const taskId of skippedVerifyTasks) {
+    if (!matchedSkips.has(taskId))
+      throw new Error(`Unknown or unselected verify task in --skip: ${taskId}`);
   }
 }
 
@@ -140,7 +156,7 @@ try {
   node tooling/workspace/run.mjs plan [task] [--project=<id>]
   node tooling/workspace/run.mjs bootstrap [--project=<id>] [--dry-run]
   node tooling/workspace/run.mjs run <task> [--project=<id>] [--dry-run]
-  node tooling/workspace/run.mjs verify [--project=<id>|--affected] [--base=<ref>] [--head=<ref>] [--dry-run]`);
+  node tooling/workspace/run.mjs verify [--project=<id>|--affected] [--base=<ref>] [--head=<ref>] [--skip=<project:task>] [--dry-run]`);
     if (command !== "help") process.exitCode = 1;
   }
 } catch (error) {

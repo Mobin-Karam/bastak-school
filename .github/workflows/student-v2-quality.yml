@@ -1,6 +1,7 @@
 name: Student experience quality
 on:
   pull_request:
+    branches: [develop]
     paths:
       - 'apps/admin/**'
       - 'student-core/**'
@@ -9,7 +10,7 @@ on:
       - 'tooling/workspace/**'
       - '.github/workflows/student-v2-quality.yml'
   push:
-    branches: [develop, main]
+    branches: [develop]
     paths:
       - 'apps/admin/**'
       - 'student-core/**'

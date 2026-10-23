@@ -2,10 +2,12 @@ name: AI Toolkit Check
 
 on:
   pull_request:
+    branches: [develop]
     paths:
       - '.github/**'
       - 'AGENTS.md'
   push:
+    branches: [develop]
     paths:
       - '.github/**'
       - 'AGENTS.md'
