@@ -2891,6 +2891,21 @@ html.is-scrolling :is(body, .scroll-reveal)::-webkit-scrollbar-thumb,
   color: rgb(var(--ink));
   font-weight: 800;
 }
+.principal-dashboard__radar-notes {
+  display: grid;
+  gap: 0.45rem;
+}
+.principal-dashboard__radar-notes div {
+  display: flex;
+  justify-content: space-between;
+  padding-bottom: 0.35rem;
+  border-bottom: 1px dashed rgb(var(--border-subtle));
+  color: rgb(var(--muted));
+  font-size: 0.78rem;
+}
+.principal-dashboard__radar-notes strong {
+  color: rgb(var(--ink));
+}
 .principal-dashboard__chart-note {
   margin: 1rem 0 0;
   color: rgb(var(--muted));
