@@ -21,12 +21,12 @@ describe("AttendanceSelect", () => {
         ]}
       />,
     );
-    await user.click(screen.getByRole("button", { name: "فیلتر اعضای جلسه" }));
-    const menu = screen.getByRole("menu", { name: "فیلتر اعضای جلسه" });
-    expect(menu.parentElement).toHaveClass("z-[140]");
-    expect(menu).toHaveTextContent("غایب یا حضور تأییدنشده");
-    await user.click(screen.getByRole("menuitemradio", { name: "همه اعضا" }));
+    await user.click(screen.getByRole("combobox", { name: "فیلتر اعضای جلسه" }));
+    const listbox = screen.getByRole("listbox");
+    expect(listbox.parentElement?.parentElement).toHaveClass("z-[140]");
+    expect(listbox).toHaveTextContent("غایب یا حضور تأییدنشده");
+    await user.click(screen.getByRole("option", { name: "همه اعضا" }));
     expect(onChange).toHaveBeenCalledWith("all");
-    expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+    expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
   });
 });

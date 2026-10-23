@@ -242,7 +242,7 @@ describe("student collection scroll flow", () => {
     ).toHaveTextContent("حاضر");
     expect(await screen.findByText("۴۲")).toBeInTheDocument();
     expect(
-      container.querySelector('img[src="/images/mascots/zanin-coin.svg"]'),
+      container.querySelector('img[src="/images/coin/Ornate%20Gold%20Kaaba%20Medallion.png"]'),
     ).toBeInTheDocument();
   });
 
