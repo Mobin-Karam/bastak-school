@@ -31,17 +31,21 @@ ADMIN_IMAGE=$(docker image inspect --format '{{.Id}}' "$ADMIN_IMAGE")
 # compose volume would apply every migration and hide old-to-new failures.
 # A named volume inherits /data ownership (image UID 1000), which differs
 # from hosted runner UIDs. A private bind directory belongs to the invoking UID.
+# Keep the root filesystem read-only while giving SQLite bounded temp storage.
 mkdir "$test_directory/upgrade-data"
 docker run --rm -i --network none --read-only --cap-drop ALL --security-opt no-new-privileges \
+  --tmpfs /tmp:rw,noexec,nosuid,size=64m \
   --user "$(id -u):$(id -g)" --mount "type=bind,src=$test_directory/upgrade-data,dst=/data" \
   -e DATABASE_PATH=/data/moshaver-v2.sqlite -e NODE_ENV=test \
   "$BACKEND_IMAGE" node - < scripts/deploy/prepare-upgrade-rehearsal.cjs
 mkdir "$test_directory/upgrade-backup"
 docker run --rm -i --network none --read-only --cap-drop ALL --security-opt no-new-privileges \
+  --tmpfs /tmp:rw,noexec,nosuid,size=64m \
   --user "$(id -u):$(id -g)" --mount "type=bind,src=$test_directory/upgrade-data,dst=/data,readonly" \
   --mount "type=bind,src=$test_directory/upgrade-backup,dst=/backup" \
   "$BACKEND_IMAGE" node - backup /data/moshaver-v2.sqlite /backup/snapshot.sqlite < scripts/deploy/database-recovery.cjs
 docker run --rm -i --network none --read-only --cap-drop ALL --security-opt no-new-privileges \
+  --tmpfs /tmp:rw,noexec,nosuid,size=64m \
   --user "$(id -u):$(id -g)" --mount "type=bind,src=$test_directory/upgrade-backup,dst=/backup" \
   -e DATABASE_PATH=/backup/snapshot.sqlite.restored -e NODE_ENV=test \
   "$BACKEND_IMAGE" node - rehearse /backup/snapshot.sqlite /backup/snapshot.sqlite.restored < scripts/deploy/database-recovery.cjs
@@ -56,10 +60,12 @@ data_volume=$(docker volume ls --filter "label=com.docker.compose.project=bastak
 [[ "$data_volume" == "bastak-ci-$$"* ]]
 mkdir "$test_directory/backup"
 docker run --rm -i --network none --read-only --cap-drop ALL --security-opt no-new-privileges \
+  --tmpfs /tmp:rw,noexec,nosuid,size=64m \
   --user "$(id -u):$(id -g)" --mount "type=volume,src=$data_volume,dst=/data,readonly" \
   --mount "type=bind,src=$test_directory/backup,dst=/backup" \
   "$BACKEND_IMAGE" node - backup /data/moshaver-v2.sqlite /backup/snapshot.sqlite < scripts/deploy/database-recovery.cjs
 docker run --rm -i --network none --read-only --cap-drop ALL --security-opt no-new-privileges \
+  --tmpfs /tmp:rw,noexec,nosuid,size=64m \
   --user "$(id -u):$(id -g)" --mount "type=bind,src=$test_directory/backup,dst=/backup" \
   -e DATABASE_PATH=/backup/snapshot.sqlite.restored -e NODE_ENV=test \
   "$BACKEND_IMAGE" node - rehearse /backup/snapshot.sqlite /backup/snapshot.sqlite.restored < scripts/deploy/database-recovery.cjs

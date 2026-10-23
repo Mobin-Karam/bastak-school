@@ -146,6 +146,29 @@ test("permits only null subject and academic snapshots for existing attendance s
   db.close();
 });
 
+test("permits only declared announcement defaults for existing records", () => {
+  const db = new Database(":memory:");
+  db.exec(`
+    CREATE TABLE school_announcements (id TEXT PRIMARY KEY, title TEXT NOT NULL);
+    INSERT INTO school_announcements VALUES ('announcement-1', 'Retained');
+    CREATE TABLE migrations (name TEXT);
+  `);
+  const before = inventory(db);
+  db.exec(`
+    ALTER TABLE school_announcements ADD COLUMN category TEXT NOT NULL DEFAULT 'general';
+    ALTER TABLE school_announcements ADD COLUMN linkUrl TEXT;
+    ALTER TABLE school_announcements ADD COLUMN mediaUrl TEXT;
+    ALTER TABLE school_announcements ADD COLUMN mediaType TEXT;
+    INSERT INTO migrations(name) VALUES ('TargetedAnnouncementMedia1731500000000');
+  `);
+  assert.doesNotThrow(() => preserved(before, inventory(db), db));
+  db.prepare(
+    "UPDATE school_announcements SET mediaUrl='https://invalid.example/media' WHERE id='announcement-1'",
+  ).run();
+  assert.throws(() => preserved(before, inventory(db), db), /non-null value/);
+  db.close();
+});
+
 test("permits only the correction-review repair for a missing reviewer", () => {
   const db = new Database(":memory:");
   db.exec(`
