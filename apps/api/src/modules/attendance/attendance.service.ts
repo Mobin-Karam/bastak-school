@@ -1,7 +1,7 @@
 import type { AttendanceSessionDetail } from "@moshaver/api-contract";
 import { attendanceTransaction } from "./attendance-transaction";
 import { AuditLog } from "../../database/entities/audit-log.entity";
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { AttendanceWriteReceipt } from "../../database/entities/attendance-write-receipt.entity";
 import { AttendancePolicy } from "../../database/entities/attendance-policy.entity";
 import { StudentPointLedger } from "../../database/entities/student-point-ledger.entity";
@@ -996,6 +996,63 @@ export class AttendanceService {
     });
   }
 
+  async reviewSessionEvery24Hours(user: AuthenticatedUser, sessionId: string) {
+    if (!user.capabilities?.includes("attendance.review"))
+      throw new ApiException(
+        403,
+        "FORBIDDEN",
+        "برای بازبینی روزانهٔ حضور دسترسی attendance.review لازم است.",
+      );
+    return this.attendanceTransaction(async (manager) => {
+      const session = await manager.getRepository(AttendanceSession).findOne({
+        where: { id: sessionId },
+        relations: { organization: true },
+      });
+      if (!session)
+        throw new ApiException(
+          404,
+          "ATTENDANCE_SESSION_NOT_FOUND",
+          "جلسه حضور و غیاب پیدا نشد.",
+        );
+      await this.authorizeContext(
+        user,
+        session.contextType,
+        session.contextId,
+        session.organization.id,
+        true,
+      );
+      if (session.status !== "submitted" && session.status !== "finalized")
+        throw new ApiException(
+          409,
+          "ATTENDANCE_SESSION_NOT_REVIEWABLE",
+          "فقط جلسه ثبت‌شده قابل بازبینی است.",
+        );
+
+      const reviewedAt = new Date();
+      await manager.query(
+        "INSERT INTO attendance_session_reviews(id,sessionId,reviewerId,reviewedRevision,reviewedAt) VALUES(?,?,?,?,?)",
+        [
+          randomUUID(),
+          session.id,
+          user.id,
+          session.revision,
+          reviewedAt.toISOString(),
+        ],
+      );
+      await manager.save(
+        AuditLog,
+        manager.create(AuditLog, {
+          user: { id: user.id },
+          action: "attendance.session.daily-reviewed",
+          entity: "attendance",
+          organizationId: session.organization.id,
+          metadata: { sessionId: session.id, status: session.status },
+        }),
+      );
+      return { sessionId: session.id, reviewedAt: reviewedAt.toISOString() };
+    });
+  }
+
   /**
    * Cancellation is a terminal, revisioned lifecycle transition for sessions
    * without observations.  It deliberately retains the session and audit
@@ -1194,6 +1251,7 @@ export class AttendanceService {
           body: string;
           category: string;
           url: string;
+          organizationId: string;
         }>;
         for (const reviewer of reviewers) {
           if (
@@ -1222,6 +1280,7 @@ export class AttendanceService {
             body: item.body,
             category: item.category,
             url: item.url ?? "/admin/attendance?section=sessions",
+            organizationId: session.organization.id,
           });
         }
         return {
@@ -1818,6 +1877,7 @@ export class AttendanceService {
         body: string;
         category: string;
         url: string;
+        organizationId: string;
       }> = [];
       for (const record of saved.filter(
         (row) => row.physicalStatus === "absent",
@@ -1847,6 +1907,7 @@ export class AttendanceService {
             body: item.body,
             category: item.category,
             url: item.url ?? "/admin/my-attendance",
+            organizationId: organization.id,
           });
         }
         for (const reviewerId of reviewRecipients) {
@@ -1871,6 +1932,7 @@ export class AttendanceService {
             body: item.body,
             category: item.category,
             url: item.url ?? "/admin/attendance?section=sessions",
+            organizationId: organization.id,
           });
         }
       }
@@ -2303,6 +2365,7 @@ export class AttendanceService {
           category: notification.category,
           url: notification.url,
           type: notification.type,
+          organizationId: saved.session.organization.id,
         },
       );
     }

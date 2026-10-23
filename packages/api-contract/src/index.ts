@@ -210,6 +210,7 @@ export type CursorPage<T> = {
 };
 export type NotificationContract = {
   id: string;
+  organizationId?: string | null;
   type: string;
   category: string;
   title: string;

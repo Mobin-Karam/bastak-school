@@ -17,6 +17,19 @@ vi.mock("../../../identity/auth", () => ({
   }),
 }));
 vi.mock("../../../../shared/api/api", () => ({ api: { openEvents: () => ({ close: vi.fn() }) } }));
+vi.mock("../../../../shared/ui/responsive-drawer", () => ({
+  ResponsiveDrawer: ({ open, title, description, children, onOpenChange }: any) =>
+    open ? (
+      <div role="dialog" aria-label={String(title)}>
+        <h2>{title}</h2>
+        <p>{description}</p>
+        <button type="button" aria-label="بستن" onClick={() => onOpenChange(false)}>
+          بستن
+        </button>
+        {children}
+      </div>
+    ) : null,
+}));
 const record = {
   id: "record",
   studentName: "علی",
@@ -85,7 +98,7 @@ describe("guided absence decisions", () => {
     mount("record");
     const dialog = await screen.findByRole("dialog");
     expect(within(dialog).getByText("بیماری")).toBeInTheDocument();
-    await userEvent.setup().click(within(dialog).getByRole("button", { name: "بستن پنجره" }));
+    await userEvent.setup().click(within(dialog).getByRole("button", { name: "بستن" }));
     await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
   });
 });

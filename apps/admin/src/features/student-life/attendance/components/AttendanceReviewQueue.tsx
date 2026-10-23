@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 import { useAuth } from "../../../identity/auth";
 import { api } from "../../../../shared/api/api";
-import { Modal } from "../../../../shared/ui/modal";
+import { ResponsiveDrawer } from "../../../../shared/ui/responsive-drawer";
 import { Button, Card, EmptyState, LoadingState } from "../../../../shared/ui/ui";
 import {
   listAttendanceAbsenceReviews,
@@ -135,7 +135,7 @@ export function AttendanceReviewQueue({ initialRecordId }: { initialRecordId?: s
       ) : (
         <EmptyState title="موردی در انتظار بررسی نیست." />
       )}
-      <Modal
+      <ResponsiveDrawer
         open={Boolean(selected)}
         dismissible={!mutation.isPending}
         onOpenChange={(open) => {
@@ -143,6 +143,7 @@ export function AttendanceReviewQueue({ initialRecordId }: { initialRecordId?: s
         }}
         title={decision ? "مرحله ۲: تأیید تصمیم" : "مرحله ۱: بررسی دلیل غیبت"}
         description={selected?.studentName ?? "بررسی غیبت"}
+        desktopSide="left"
       >
         <div className="space-y-4">
           <div className="rounded-xl bg-[rgb(var(--surface-muted))] p-3">
@@ -208,7 +209,7 @@ export function AttendanceReviewQueue({ initialRecordId }: { initialRecordId?: s
             </>
           )}
         </div>
-      </Modal>
+      </ResponsiveDrawer>
     </Card>
   );
 }

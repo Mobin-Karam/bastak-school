@@ -1,7 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useMemo, useRef } from "react";
 import { getAdminDashboard } from "../../../features/analytics/dashboard/api/dashboard.api";
-import { notificationAdminUrl } from "../../../features/communications/notifications/model/notification-model";
 import { FloatingIslandViewport, useFloatingIsland } from "../../../shared/ui/floating-island";
 import type { AdminShellModel } from "../hooks/use-admin-shell-model";
 
@@ -16,8 +15,7 @@ export function AdminFloatingIsland({ model }: { model: AdminShellModel }) {
   const scopeKey = `${model.auth.user?.id ?? "anonymous"}:${model.auth.context?.activeOrganization?.id ?? "none"}:${model.auth.activeRole ?? "none"}`;
   const previousScopeKey = useRef(scopeKey);
   const shownNotificationId = useRef<string | null>(null);
-  const shownAnnouncementId = useRef<string | null>(null);
-  const shownAnnouncementSignature = useRef<string | null>(null);
+  const shownAnnouncementSignatures = useRef(new Map<string, string>());
   const dashboard = useQuery({
     queryKey: [
       "role-dashboard",
@@ -33,8 +31,8 @@ export function AdminFloatingIsland({ model }: { model: AdminShellModel }) {
       canViewNotifications ? model.notificationState.items.find((item) => !item.isRead) : undefined,
     [canViewNotifications, model.notificationState.items],
   );
-  const latestAnnouncement = useMemo(() => {
-    if (!canReadAnnouncements) return undefined;
+  const activeAnnouncements = useMemo(() => {
+    if (!canReadAnnouncements) return [];
     const now = Date.now();
     return (dashboard.data?.home?.announcements ?? [])
       .filter(
@@ -47,7 +45,7 @@ export function AdminFloatingIsland({ model }: { model: AdminShellModel }) {
         (left, right) =>
           new Date(right.publishedAt ?? right.createdAt).getTime() -
           new Date(left.publishedAt ?? left.createdAt).getTime(),
-      )[0];
+      );
   }, [canReadAnnouncements, dashboard.data?.home?.announcements]);
 
   useEffect(() => {
@@ -55,8 +53,7 @@ export function AdminFloatingIsland({ model }: { model: AdminShellModel }) {
     previousScopeKey.current = scopeKey;
     reset();
     shownNotificationId.current = null;
-    shownAnnouncementId.current = null;
-    shownAnnouncementSignature.current = null;
+    shownAnnouncementSignatures.current.clear();
   }, [reset, scopeKey]);
 
   useEffect(() => {
@@ -98,37 +95,43 @@ export function AdminFloatingIsland({ model }: { model: AdminShellModel }) {
       title: newestUnread.title || "اعلان جدید",
       description: newestUnread.body || undefined,
       dismissible: true,
-      action: { label: "مشاهده", to: notificationAdminUrl(newestUnread.url ?? undefined) },
+      action: {
+        label: "مشاهده",
+        to: `/admin/communication/notifications?notificationId=${encodeURIComponent(newestUnread.id)}`,
+      },
     });
   }, [dismiss, newestUnread, show]);
 
   useEffect(() => {
-    if (!latestAnnouncement) {
-      if (shownAnnouncementId.current) {
-        dismiss(`announcement:${shownAnnouncementId.current}`);
-        shownAnnouncementId.current = null;
-        shownAnnouncementSignature.current = null;
-      }
-      return;
+    const signatures = shownAnnouncementSignatures.current;
+    const activeIds = new Set(activeAnnouncements.map((item) => item.id));
+    for (const id of signatures.keys()) {
+      if (activeIds.has(id)) continue;
+      dismiss(`announcement:${id}`);
+      signatures.delete(id);
     }
-    const signature = `${latestAnnouncement.id}:${latestAnnouncement.publishedAt ?? ""}`;
-    if (signature === shownAnnouncementSignature.current) return;
-    shownAnnouncementSignature.current = signature;
-    shownAnnouncementId.current = latestAnnouncement.id;
-    const expiresAt = latestAnnouncement.expiresAt
-      ? new Date(latestAnnouncement.expiresAt).getTime()
-      : null;
-    show({
-      id: `announcement:${latestAnnouncement.id}`,
-      kind: "notification",
-      priority: 75,
-      title: latestAnnouncement.title,
-      description: latestAnnouncement.body,
-      duration: expiresAt ? expiresAt - Date.now() : undefined,
-      dismissible: true,
-      action: { label: "مشاهده اطلاعیه‌ها", to: "/admin" },
+
+    // Students receive the full authorized announcement queue. The provider keeps
+    // the highest-priority activity visible and exposes the rest after dismissal.
+    const announcements =
+      model.auth.activeRole === "STUDENT" ? activeAnnouncements : activeAnnouncements.slice(0, 1);
+    announcements.forEach((announcement, index) => {
+      const signature = `${announcement.publishedAt ?? ""}:${announcement.expiresAt ?? ""}:${announcement.title}:${announcement.body}`;
+      if (signatures.get(announcement.id) === signature) return;
+      signatures.set(announcement.id, signature);
+      const expiresAt = announcement.expiresAt ? new Date(announcement.expiresAt).getTime() : null;
+      show({
+        id: `announcement:${announcement.id}`,
+        kind: "notification",
+        priority: 80 - index,
+        title: announcement.title,
+        description: announcement.body,
+        duration: expiresAt ? expiresAt - Date.now() : undefined,
+        dismissible: true,
+        action: { label: "مشاهده اطلاعیه‌ها", to: "/admin/announcements" },
+      });
     });
-  }, [dismiss, latestAnnouncement, show]);
+  }, [activeAnnouncements, dismiss, model.auth.activeRole, show]);
 
   return <FloatingIslandViewport direction={model.direction} performance={model.performance} />;
 }

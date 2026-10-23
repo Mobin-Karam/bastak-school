@@ -446,6 +446,7 @@ export class RelationshipsService {
         body: `${student.name} درخواست انتخاب سرپرست ثبت کرد.`,
         url: "/admin/access",
         data: { studentId: student.id, relationshipId: saved.id },
+        organizationId: organization?.id,
       },
     );
     return this.project(

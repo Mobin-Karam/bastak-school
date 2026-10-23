@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { LogOut, ShieldCheck, UserRound } from "lucide-react";
+import { KeyRound, LogOut, MapPin, Plug, ShieldCheck, UserRound } from "lucide-react";
 import { useAdminShellCopy, useLocale } from "../../../../shared/ui/locale";
 import { useModal } from "../../../../shared/ui/modal";
 import { notify } from "../../../../shared/ui/notifications";
@@ -57,27 +57,28 @@ function WorkspaceSettingsPage() {
       notify(error instanceof Error ? error.message : copy.passwordFailed, "error"),
   });
   return (
-    <div className="grid gap-4">
+    <div className="settings-workspace grid gap-6">
       <ManagementPageHeader
         eyebrow={copy.eyebrow}
         title={copy.title}
         description={copy.description}
       />
+      <SettingsNavigation showSchool={auth.can("prayer_times.manage")} />
       <MobileAccountActions />
-      <section className="grid gap-4 lg:grid-cols-2">
-        <LocationSettings locale={locale} onChange={() => notify(copy.locationChanged)} />
-        <ApiConnectionCard />
-      </section>
-      <PWAInstallSettingsCard />
-      <PhoneNumberSettings />
-      {auth.can("account_change_requests.read") ? <PhoneChangeRequests /> : null}
-      <PrayerTimeSettings />
-      <section aria-labelledby="account-security-title">
-        <h2 id="account-security-title" className="mb-3 flex items-center gap-2 text-sm font-bold">
-          <ShieldCheck size={17} />
-          {copy.accountSecurity}
-        </h2>
-        <div className="grid gap-4 lg:grid-cols-2">
+      <section id="account" className="settings-section" aria-labelledby="settings-account-title">
+        <SettingsSectionHeading
+          icon={KeyRound}
+          id="settings-account-title"
+          title={locale.language === "en" ? "Account and security" : "حساب و امنیت"}
+          description={
+            locale.language === "en"
+              ? "Control sign-in details and connected devices."
+              : "اطلاعات ورود و دستگاه‌های متصل را مدیریت کنید."
+          }
+        />
+        <div className="settings-section-grid">
+          <PhoneNumberSettings />
+          {auth.can("account_change_requests.read") ? <PhoneChangeRequests /> : null}
           <AccountSecurityPanel
             passwords={passwords}
             setPasswords={setPasswords}
@@ -109,62 +110,138 @@ function WorkspaceSettingsPage() {
           />
         </div>
       </section>
-      <ChatProfileSettings />
+      <section id="display" className="settings-section" aria-labelledby="settings-display-title">
+        <SettingsSectionHeading
+          icon={MapPin}
+          id="settings-display-title"
+          title={locale.language === "en" ? "Display and profile" : "نمایش و پروفایل"}
+          description={
+            locale.language === "en"
+              ? "Choose your local date display and conversation identity."
+              : "نمایش محلی تاریخ و هویت گفت‌وگوی خود را انتخاب کنید."
+          }
+        />
+        <div className="settings-section-grid">
+          <LocationSettings locale={locale} onChange={() => notify(copy.locationChanged)} />
+          <ChatProfileSettings />
+        </div>
+      </section>
+      {auth.can("prayer_times.manage") ? (
+        <section id="school" className="settings-section" aria-labelledby="settings-school-title">
+          <SettingsSectionHeading
+            icon={ShieldCheck}
+            id="settings-school-title"
+            title={locale.language === "en" ? "School defaults" : "پیش‌فرض‌های مدرسه"}
+            description={
+              locale.language === "en"
+                ? "Manage shared daily defaults for your school."
+                : "پیش‌فرض‌های روزانه مشترک مدرسه را مدیریت کنید."
+            }
+          />
+          <PrayerTimeSettings />
+        </section>
+      ) : null}
+      <section
+        id="integration"
+        className="settings-section"
+        aria-labelledby="settings-integration-title"
+      >
+        <SettingsSectionHeading
+          icon={Plug}
+          id="settings-integration-title"
+          title={locale.language === "en" ? "Application and connection" : "برنامه و اتصال"}
+          description={
+            locale.language === "en"
+              ? "Review how this workspace is connected and installed."
+              : "اتصال و نصب این محیط کار را بررسی کنید."
+          }
+        />
+        <div className="settings-section-grid">
+          <ApiConnectionCard />
+          <PWAInstallSettingsCard />
+        </div>
+      </section>
     </div>
   );
 }
 
 /** Personal accounts deliberately omit operational integrations and organization settings. */
 function PersonalSettingsPage() {
+  const { language } = useLocale();
   return (
-    <div className="mx-auto grid w-full max-w-2xl gap-4">
+    <div className="settings-workspace mx-auto grid w-full max-w-4xl gap-6">
       <ManagementPageHeader
-        eyebrow="حساب من"
-        title="تنظیمات"
-        description="شماره همراه، گذرواژه و نشست‌های فعال حساب شما."
+        eyebrow={language === "en" ? "My account" : "حساب من"}
+        title={language === "en" ? "Settings" : "تنظیمات"}
+        description={
+          language === "en"
+            ? "Manage sign-in details and active sessions."
+            : "شماره ورود و نشست‌های فعال حساب خود را مدیریت کنید."
+        }
       />
-      <PhoneNumberSettings />
+      <SettingsNavigation personal />
+      <section
+        id="account"
+        className="settings-section"
+        aria-label={language === "en" ? "Account" : "حساب"}
+      >
+        <PhoneNumberSettings />
+      </section>
       <MobileAccountActions />
-      {/* <section aria-labelledby="personal-account-security-title">
-        <h2
-          id="personal-account-security-title"
-          className="mb-3 flex items-center gap-2 text-sm font-bold"
-        >
-          <ShieldCheck size={17} />
-          {copy.accountSecurity}
-        </h2>
-        <div className="grid gap-4">
-          <AccountSecurityPanel
-            passwords={passwords}
-            setPasswords={setPasswords}
-            busy={password.isPending}
-            onSubmit={() =>
-              void modal
-                .confirm({
-                  title: copy.changePasswordTitle,
-                  description: copy.changePasswordDescription,
-                  confirmLabel: copy.changePassword,
-                })
-                .then((confirmed) => confirmed && password.mutate())
-            }
-          />
-          <SessionsSettings
-            sessions={sessions}
-            revoke={revoke}
-            formatDateTime={locale.formatDateTime}
-            confirm={(id) =>
-              void modal
-                .confirm({
-                  title: copy.revokeTitle,
-                  description: copy.revokeDescription,
-                  tone: "danger",
-                  confirmLabel: copy.revoke,
-                })
-                .then((confirmed) => confirmed && revoke.mutate(id))
-            }
-          />
-        </div>
-      </section> */}
+    </div>
+  );
+}
+
+function SettingsNavigation({
+  personal = false,
+  showSchool = false,
+}: {
+  personal?: boolean;
+  showSchool?: boolean;
+}) {
+  const { language } = useLocale();
+  const items = personal
+    ? [{ href: "#account", label: language === "en" ? "Account" : "حساب" }]
+    : [
+        { href: "#account", label: language === "en" ? "Account" : "حساب" },
+        { href: "#display", label: language === "en" ? "Display" : "نمایش" },
+        ...(showSchool ? [{ href: "#school", label: language === "en" ? "School" : "مدرسه" }] : []),
+        { href: "#integration", label: language === "en" ? "Application" : "برنامه" },
+      ];
+  return (
+    <nav
+      className="settings-nav"
+      aria-label={language === "en" ? "Settings sections" : "بخش‌های تنظیمات"}
+    >
+      {items.map((item) => (
+        <a key={item.href} href={item.href} className="settings-nav__item">
+          {item.label}
+        </a>
+      ))}
+    </nav>
+  );
+}
+
+function SettingsSectionHeading({
+  icon: Icon,
+  id,
+  title,
+  description,
+}: {
+  icon: typeof KeyRound;
+  id: string;
+  title: string;
+  description: string;
+}) {
+  return (
+    <div className="settings-section__heading">
+      <span className="settings-section__icon">
+        <Icon size={19} aria-hidden="true" />
+      </span>
+      <div>
+        <h2 id={id}>{title}</h2>
+        <p>{description}</p>
+      </div>
     </div>
   );
 }

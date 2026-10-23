@@ -5,6 +5,17 @@ import dataSource from "../data-source";
 import {
   AttendanceRecord,
   AttendanceSession,
+  Exam,
+  ExamAttempt,
+  ExitPermission,
+  LeaveRequest,
+  PermissionRequest,
+  Plan,
+  SchoolScheduleEntry,
+  SchoolAnnouncement,
+  SchoolPrayerTime,
+  StudySession,
+  Task,
   DormRoom,
   DormRoomAssignment,
   EducationClass,
@@ -24,6 +35,14 @@ import {
   UserRoleAssignment,
 } from "../entities";
 import { AttendanceStatus } from "../entities/attendance-record.entity";
+import {
+  LeaveRequestReviewerRole,
+  LeaveRequestStatus,
+} from "../entities/leave-request.entity";
+import { PermissionRequestStatus } from "../entities/permission-request.entity";
+import { PlanStatus } from "../entities/plan.entity";
+import { TaskType } from "../entities/task.entity";
+import { StudySessionStatus } from "../entities/study-session.entity";
 import {
   OrganizationStatus,
   OrganizationType,
@@ -374,6 +393,13 @@ async function seed(manager: EntityManager) {
     rooms,
     students,
   });
+  await seedPrincipalDashboardData(manager, {
+    school,
+    principal,
+    students,
+    classes: [diniClass, governmentClass],
+    teachers: [diniTeacher, governmentTeacher, secondTeacher],
+  });
 
   return {
     organizations: 1,
@@ -385,6 +411,16 @@ async function seed(manager: EntityManager) {
     classGroups: diniGroups.length + governmentGroups.length,
     dormRooms: rooms.length,
     attendanceContexts: ["class", "class_group", "dorm"],
+    principalDashboard: {
+      attendanceReviewSessions: 10,
+      pendingLeaveRequests: 2,
+      pendingExitRequests: 2,
+      pendingPermissionRequests: 2,
+      schedules: 4,
+      announcements: 1,
+      prayerTimes: 1,
+      learningSignals: ["tasks", "study", "exams"],
+    },
     registrationSections: REGISTRATION_SECTIONS.length,
     demoAccounts: {
       platformAdmin: account(STAFF.platform.identity),
@@ -1146,6 +1182,41 @@ async function seedAttendance(
       index === 5 ? AttendanceStatus.EXCUSED : AttendanceStatus.PRESENT,
   );
 
+  for (const [dayOffset, classroom, teacher, baseStatus] of [
+    [
+      -5,
+      input.governmentClass,
+      input.governmentTeacher,
+      AttendanceStatus.ABSENT,
+    ],
+    [-3, input.diniClass, input.diniTeacher, AttendanceStatus.LATE],
+  ] as const) {
+    const session = await ensureAttendanceSession(manager, {
+      organization: input.school,
+      contextType: "class",
+      contextId: classroom.id,
+      sessionDate: localDayAt(
+        dayOffset,
+        classroom.id === input.diniClass.id ? 10 : 8,
+        0,
+      ),
+      note: "حضور نمایشی برای روند هفتگی مدیر مدرسه",
+      createdBy: teacher,
+    });
+    await seedAttendanceRecords(
+      manager,
+      session,
+      input.students,
+      teacher,
+      (index) =>
+        index % 8 === 0
+          ? baseStatus
+          : index % 11 === 0
+            ? AttendanceStatus.EXCUSED
+            : AttendanceStatus.PRESENT,
+    );
+  }
+
   for (
     let groupIndex = 0;
     groupIndex < input.governmentGroups.length;
@@ -1203,6 +1274,278 @@ async function seedAttendance(
 
   // Touch principal in the seed so the role is represented in operational data too.
   void input.principal;
+}
+
+/**
+ * Idempotent, synthetic records for every principal-dashboard section. This
+ * makes `seed:full` useful for chart, queue, schedule, and behaviour QA rather
+ * than only creating identities and a few open attendance sheets.
+ */
+async function seedPrincipalDashboardData(
+  manager: EntityManager,
+  input: {
+    school: Organization;
+    principal: User;
+    students: Student[];
+    classes: EducationClass[];
+    teachers: User[];
+  },
+) {
+  const now = new Date();
+  const pendingStudents = input.students.slice(0, 2);
+  const leaveRepo = manager.getRepository(LeaveRequest);
+  const exitRepo = manager.getRepository(ExitPermission);
+  const permissionRepo = manager.getRepository(PermissionRequest);
+
+  for (const [index, student] of pendingStudents.entries()) {
+    const reason = `Principal dashboard demo request ${index + 1}`;
+    let leave = await leaveRepo.findOne({
+      where: {
+        organization: { id: input.school.id },
+        student: { id: student.id },
+        reason,
+      },
+    });
+    const leaveValue = {
+      organization: input.school,
+      student,
+      leaveType: "LEAVE",
+      reviewerRole: LeaveRequestReviewerRole.PRINCIPAL,
+      startDate: localDayAt(0, 12 + index, 0),
+      endDate: localDayAt(0, 14 + index, 0),
+      reason,
+      note: "درخواست نمایشی برای بررسی صف مدیر مدرسه",
+      attachments: [],
+      status: LeaveRequestStatus.PENDING,
+    };
+    if (!leave) leave = leaveRepo.create(leaveValue);
+    else Object.assign(leave, leaveValue);
+    await leaveRepo.save(leave);
+
+    let exit = await exitRepo.findOne({
+      where: {
+        organization: { id: input.school.id },
+        student: { id: student.id },
+        reason,
+      },
+    });
+    const exitValue = {
+      organization: input.school,
+      student,
+      requestedDepartureAt: localDayAt(0, 13 + index, 0),
+      expectedReturnAt: localDayAt(0, 16 + index, 0),
+      destination: "بستک",
+      reason,
+      note: "درخواست نمایشی برای بررسی صف مدیر مدرسه",
+      status: "PENDING" as ExitPermission["status"],
+    };
+    if (!exit) exit = exitRepo.create(exitValue);
+    else Object.assign(exit, exitValue);
+    await exitRepo.save(exit);
+
+    let permission = await permissionRepo.findOne({
+      where: {
+        organization: { id: input.school.id },
+        student: { id: student.id },
+        title: reason,
+      },
+    });
+    const permissionValue = {
+      organization: input.school,
+      student,
+      kind: "schedule-change",
+      title: reason,
+      details: "درخواست نمایشی برای بررسی صف مدیر مدرسه",
+      requestedFor: localDayAt(0, 15 + index, 0),
+      status: PermissionRequestStatus.PENDING,
+    };
+    if (!permission) permission = permissionRepo.create(permissionValue);
+    else Object.assign(permission, permissionValue);
+    await permissionRepo.save(permission);
+  }
+
+  const scheduleRepo = manager.getRepository(SchoolScheduleEntry);
+  for (const [index, classroom] of input.classes.entries()) {
+    const teacher = input.teachers[index % input.teachers.length];
+    for (const [period, startTime] of ["08:00", "10:00"].entries()) {
+      const title = `برنامه نمایشی ${classroom.name} ${period + 1}`;
+      let entry = await scheduleRepo.findOne({
+        where: {
+          organization: { id: input.school.id },
+          classroom: { id: classroom.id },
+          title,
+        },
+      });
+      const value = {
+        organization: input.school,
+        classroom,
+        teacher,
+        title,
+        weekday: now.getDay(),
+        startTime,
+        endTime: period === 0 ? "09:30" : "11:30",
+        room: `کلاس ${index + 1}`,
+        status: "ACTIVE" as const,
+        versionId: null,
+        periodId: null,
+        locationId: null,
+        startsOn: null,
+        endsOn: null,
+        notes: "داده نمایشی",
+        classroomNameSnapshot: classroom.name,
+        teacherNameSnapshot:
+          `${teacher.firstName ?? ""} ${teacher.lastName ?? ""}`.trim(),
+      };
+      if (!entry) entry = scheduleRepo.create(value);
+      else Object.assign(entry, value);
+      await scheduleRepo.save(entry);
+    }
+  }
+
+  const announcementRepo = manager.getRepository(SchoolAnnouncement);
+  const announcementTitle = "اطلاعیه نمایشی مدرسه";
+  let announcement = await announcementRepo.findOne({
+    where: { organization: { id: input.school.id }, title: announcementTitle },
+  });
+  const announcementValue = {
+    organization: input.school,
+    audience: "ALL" as const,
+    title: announcementTitle,
+    body: "این پیام نمونه برای نمایش اطلاعیه‌های مدرسه در داشبورد مدیر است.",
+    category: "general",
+    status: "ACTIVE" as const,
+    publishedAt: now,
+    createdBy: input.principal,
+  };
+  if (!announcement) announcement = announcementRepo.create(announcementValue);
+  else Object.assign(announcement, announcementValue);
+  await announcementRepo.save(announcement);
+
+  const prayerRepo = manager.getRepository(SchoolPrayerTime);
+  const date = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Tehran",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(now);
+  let prayerTimes = await prayerRepo.findOne({
+    where: { organization: { id: input.school.id }, date },
+  });
+  const prayerValue = {
+    organization: input.school,
+    date,
+    fajr: "04:45",
+    sunrise: "06:10",
+    dhuhr: "11:45",
+    asr: "15:10",
+    maghrib: "17:20",
+    isha: "18:35",
+    source: "داده نمایشی",
+  };
+  if (!prayerTimes) prayerTimes = prayerRepo.create(prayerValue);
+  else Object.assign(prayerTimes, prayerValue);
+  await prayerRepo.save(prayerTimes);
+
+  const planRepo = manager.getRepository(Plan);
+  const taskRepo = manager.getRepository(Task);
+  const studyRepo = manager.getRepository(StudySession);
+  const examRepo = manager.getRepository(Exam);
+  const attemptRepo = manager.getRepository(ExamAttempt);
+  let exam = await examRepo.findOne({
+    where: { externalRef: "principal-dashboard-demo" },
+  });
+  const examValue = {
+    title: "آزمون نمایشی پیشرفت",
+    description: "آزمون ساختگی برای نمایش مشارکت در داشبورد مدیر مدرسه",
+    subject: "آموزشی",
+    externalRef: "principal-dashboard-demo",
+    duration: 30,
+    attemptLimit: 1,
+    published: true,
+    organization: input.school,
+    createdBy: input.principal,
+    mode: "diagnostic" as const,
+    lifecycleStatus: "scheduled" as const,
+    startTime: localDayAt(-3, 8, 0),
+    endTime: localDayAt(1, 20, 0),
+  };
+  if (!exam) exam = examRepo.create(examValue);
+  else Object.assign(exam, examValue);
+  await examRepo.save(exam);
+
+  for (const [index, student] of input.students.slice(0, 8).entries()) {
+    let plan = await planRepo.findOne({
+      where: { student: { id: student.id }, date },
+    });
+    const planValue = {
+      student,
+      date,
+      status: PlanStatus.PUBLISHED,
+      title: "برنامه نمایشی داشبورد",
+    };
+    if (!plan) plan = planRepo.create(planValue);
+    else Object.assign(plan, planValue);
+    plan = await planRepo.save(plan);
+
+    const title = "مطالعهٔ روزانهٔ نمایشی";
+    let task = await taskRepo.findOne({
+      where: { plan: { id: plan.id }, title },
+    });
+    const completed = index % 3 !== 0;
+    const taskValue = {
+      plan,
+      type: TaskType.STUDY,
+      title,
+      subject: "مطالعه",
+      description: "وظیفه نمایشی برای تحلیل رفتار تحصیلی",
+      duration: 30,
+      status: completed ? "DONE" : "PLANNED",
+      completedAt: completed ? now : null,
+      actualMinutes: completed ? 28 : 0,
+    };
+    if (!task) task = taskRepo.create(taskValue);
+    else Object.assign(task, taskValue);
+    task = await taskRepo.save(task);
+
+    if (index < 5) {
+      let session = await studyRepo.findOne({
+        where: { student: { id: student.id }, task: { id: task.id } },
+      });
+      const value = {
+        student,
+        task,
+        status: StudySessionStatus.FINISHED,
+        startedAt: localDayAt(-index % 4, 8, 0),
+        finishedAt: now,
+        elapsedSeconds: 1680,
+        actualTests: 4,
+      };
+      if (!session) session = studyRepo.create(value);
+      else Object.assign(session, value);
+      await studyRepo.save(session);
+    }
+
+    if (index < 4) {
+      let attempt = await attemptRepo.findOne({
+        where: { exam: { id: exam.id }, student: { id: student.id } },
+      });
+      const value = {
+        exam,
+        student,
+        score: 75 + index,
+        status: "submitted" as const,
+        startedAt: localDayAt(-index % 4, 9, 0),
+        finishedAt: now,
+        submittedAt: now,
+        percentage: 75 + index,
+        correctCount: 15 + index,
+        incorrectCount: 5 - Math.min(index, 4),
+      };
+      if (!attempt) attempt = attemptRepo.create(value);
+      else Object.assign(attempt, value);
+      await attemptRepo.save(attempt);
+    }
+  }
 }
 
 async function ensureAttendanceSession(
@@ -1263,6 +1606,21 @@ async function seedAttendanceRecords(
     else Object.assign(row, value);
     await repo.save(row);
   }
+  session.status = "submitted";
+  session.revision = Math.max(1, session.revision);
+  session.submittedBy = recordedBy;
+  session.submittedAt = session.submittedAt ?? new Date();
+  session.assignedStaff = recordedBy;
+  session.rosterSnapshot = students.map((student) => ({
+    id: student.id,
+    name: student.name,
+    nationalCode: student.nationalCode ?? null,
+    userId: student.user?.id ?? null,
+  }));
+  session.rosterCapturedAt = session.rosterCapturedAt ?? new Date();
+  session.assignedStaffNameSnapshot =
+    `${recordedBy.firstName ?? ""} ${recordedBy.lastName ?? ""}`.trim();
+  await manager.getRepository(AttendanceSession).save(session);
 }
 
 function localDayAt(offset: number, hour: number, minute: number) {

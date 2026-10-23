@@ -1,3 +1,4 @@
+import { AdaptiveSelect } from "@/shared/ui/adaptive-select";
 import { Search } from "lucide-react";
 import { useMemo, useState } from "react";
 import { educationLabel } from "../lib/utils";
@@ -90,7 +91,7 @@ export function StudentAllocationControl({
         />
       </label>
       <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-5">
-        <select
+        <AdaptiveSelect
           className="h-9 rounded-lg border border-slate-200 bg-white px-2 text-xs dark:border-slate-700 dark:bg-slate-950"
           aria-label={copy.gradeFilter}
           value={grade}
@@ -110,8 +111,8 @@ export function StudentAllocationControl({
                 {gradeLabel(value, language, numberLocale)}
               </option>
             ))}
-        </select>
-        <select
+        </AdaptiveSelect>
+        <AdaptiveSelect
           className="h-9 rounded-lg border border-slate-200 bg-white px-2 text-xs dark:border-slate-700 dark:bg-slate-950"
           aria-label={copy.learnerType}
           value={learnerProfile}
@@ -124,8 +125,8 @@ export function StudentAllocationControl({
           <option value="">{copy.allLearners}</option>
           <option value="school">{copy.schoolStudent}</option>
           <option value="independent">{copy.independentLearner}</option>
-        </select>
-        <select
+        </AdaptiveSelect>
+        <AdaptiveSelect
           className="h-9 rounded-lg border border-slate-200 bg-white px-2 text-xs dark:border-slate-700 dark:bg-slate-950"
           aria-label={copy.independentType}
           value={independentType}
@@ -149,9 +150,9 @@ export function StudentAllocationControl({
               {label}
             </option>
           ))}
-        </select>
+        </AdaptiveSelect>
         {classes.length ? (
-          <select
+          <AdaptiveSelect
             className="h-9 rounded-lg border border-slate-200 bg-white px-2 text-xs dark:border-slate-700 dark:bg-slate-950"
             aria-label={copy.classFilter}
             value={classId}
@@ -166,9 +167,9 @@ export function StudentAllocationControl({
                   {item.name}
                 </option>
               ))}
-          </select>
+          </AdaptiveSelect>
         ) : null}
-        <select
+        <AdaptiveSelect
           className="h-9 rounded-lg border border-slate-200 bg-white px-2 text-xs dark:border-slate-700 dark:bg-slate-950"
           aria-label={copy.educationFilter}
           value={educationType}
@@ -185,8 +186,8 @@ export function StudentAllocationControl({
                 {educationLabel(value!, language)}
               </option>
             ))}
-        </select>
-        <select
+        </AdaptiveSelect>
+        <AdaptiveSelect
           className="h-9 rounded-lg border border-slate-200 bg-white px-2 text-xs dark:border-slate-700 dark:bg-slate-950"
           aria-label={copy.trackFilter}
           value={track}
@@ -207,7 +208,7 @@ export function StudentAllocationControl({
                 {educationLabel(value!, language)}
               </option>
             ))}
-        </select>
+        </AdaptiveSelect>
       </div>
       <div className="flex gap-2">
         <Button

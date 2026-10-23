@@ -1,9 +1,5 @@
-import { Check, Clock3, Minus, UserRound } from "lucide-react";
-import {
-  attendanceStatusMeta,
-  type AttendanceFilter,
-  type AttendanceStatus,
-} from "../model/attendance-workflow";
+import { Check, Clock3, Minus, UserRound, ShieldCheck } from "lucide-react";
+import { type AttendanceFilter, type AttendanceStatus } from "../model/attendance-workflow";
 
 const tiles = [
   {
@@ -34,6 +30,13 @@ const tiles = [
     color:
       "border-amber-200 bg-amber-50/70 text-amber-700 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-300",
   },
+  {
+    status: "excused",
+    icon: ShieldCheck,
+    label: "موجه",
+    color:
+      "border-sky-200 bg-sky-50/70 text-sky-700 dark:border-sky-800 dark:bg-sky-950/30 dark:text-sky-300",
+  },
 ] as const;
 export function AttendanceStatusTiles({
   counts,
@@ -45,26 +48,23 @@ export function AttendanceStatusTiles({
   onFilter: (filter: AttendanceFilter) => void;
 }) {
   return (
-    <div className="grid grid-cols-4 gap-2 sm:gap-3">
+    <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5 sm:gap-3">
       {tiles.map(({ status, icon: Icon, label, color }) => (
         <button
           key={status}
           type="button"
           aria-pressed={filter === status}
           onClick={() => onFilter(filter === status ? "all" : status)}
-          className={`flex min-h-20 flex-col items-center justify-center gap-1.5 rounded-2xl border p-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500 sm:min-h-24 ${color} ${filter === status ? "ring-2 ring-current" : ""}`}
+          className={`flex min-h-[4.5rem] items-center gap-2 rounded-xl border px-3 py-2 text-start focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand sm:min-h-20 sm:flex-col sm:justify-center sm:gap-1.5 sm:p-2 ${color} ${filter === status ? "ring-2 ring-current ring-offset-1" : ""}`}
         >
-          <span className="grid size-9 place-items-center rounded-full bg-current/10">
-            <Icon size={21} aria-hidden="true" />
+          <span className="grid size-8 shrink-0 place-items-center rounded-full bg-current/10 sm:size-9">
+            <Icon size={18} aria-hidden="true" />
           </span>
-          <span className="text-2xl font-black tabular-nums">
-            {counts[status].toLocaleString("fa-IR")}
-          </span>
-          <span className="flex items-center gap-1 text-xs font-bold">
-            <span
-              className={`size-1.5 rounded-full ${status === "unmarked" ? "bg-slate-400" : attendanceStatusMeta[status].dot}`}
-            />
-            {label}
+          <span className="flex min-w-0 flex-1 items-center justify-between gap-2 sm:flex-col sm:justify-center">
+            <span className="text-xs font-bold">{label}</span>
+            <span className="text-lg font-black tabular-nums sm:text-2xl">
+              {counts[status].toLocaleString("fa-IR")}
+            </span>
           </span>
         </button>
       ))}

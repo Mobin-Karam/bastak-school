@@ -1,3 +1,4 @@
+import { AdaptiveSelect } from "@/shared/ui/adaptive-select";
 import { ClassBooksModal } from "../components/ClassBooksModal";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -532,7 +533,7 @@ function ClassEditorModal({
     >
       <div className="grid gap-3 sm:grid-cols-2">
         <Field label={copy.organization}>
-          <select
+          <AdaptiveSelect
             required
             disabled={!!editingId}
             value={draft.organizationId}
@@ -546,7 +547,7 @@ function ClassEditorModal({
                 {organization.name}
               </option>
             ))}
-          </select>
+          </AdaptiveSelect>
         </Field>
         <Field label={copy.schoolYear}>
           <ClassYearPicker

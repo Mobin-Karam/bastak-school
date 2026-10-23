@@ -1,12 +1,15 @@
+import { AdaptiveSelect } from "@/shared/ui/adaptive-select";
 import { attendanceRequestId } from "../model/attendance-request-id";
 import { useEffect, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { PolarAngleAxis, PolarGrid, Radar, RadarChart, ResponsiveContainer } from "recharts";
 import { CalendarCheck2, CircleUserRound, MapPin, UsersRound } from "lucide-react";
 import { useAuth } from "../../../identity/auth";
 import { Card } from "../../../../shared/ui/ui";
 import { AttendanceCoin } from "../../../../shared/ui/attendance-coin";
 import { DatePicker } from "../../../../shared/ui/date-picker";
-import { Modal } from "../../../../shared/ui/modal";
+import { ResponsiveDrawer } from "../../../../shared/ui/responsive-drawer";
+import { AttendanceSelect } from "./AttendanceSelect";
 import { notify } from "../../../../shared/ui/notifications";
 import { api } from "../../../../shared/api/api";
 import type { AttendanceContextOption } from "../api/attendance.api";
@@ -61,13 +64,15 @@ export function AttendanceProfileDialog({
     queryFn: () => getAttendanceProfile(studentId),
   });
   return (
-    <Modal
+    <ResponsiveDrawer
       open
       onOpenChange={(open) => {
         if (!open) onClose();
       }}
       title={query.data?.name || "پرونده حضور طلبه"}
       description="خلاصه حضور بر پایه جلسات مجازِ همین کاربر نمایش داده می‌شود."
+      desktopSide="left"
+      className="md:w-[min(44rem,94vw)]"
     >
       {query.isLoading ? (
         <p role="status">در حال دریافت پرونده…</p>
@@ -137,6 +142,103 @@ export function AttendanceProfileDialog({
               </div>
             ))}
           </dl>
+          {query.data.totalSessions ? (
+            <section className="grid gap-3 sm:grid-cols-2" aria-label="تحلیل رفتار حضور دانش‌آموز">
+              <article className="min-w-0 rounded-2xl border border-[rgb(var(--border-subtle))] p-3">
+                <h3 className="text-xs font-bold text-slate-700 dark:text-slate-200">
+                  تحلیل شاخص‌های حضور
+                </h3>
+                <div className="mt-2 h-48 w-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <RadarChart
+                      data={[
+                        { metric: "حضور", value: query.data.attendanceRate ?? 0 },
+                        { metric: "تکمیل ثبت", value: query.data.attendanceCoverage ?? 0 },
+                        {
+                          metric: "بدون غیبت",
+                          value: Math.round(
+                            ((query.data.totalSessions - query.data.counts.absent) /
+                              query.data.totalSessions) *
+                              100,
+                          ),
+                        },
+                        {
+                          metric: "به‌موقع",
+                          value: Math.round(
+                            (query.data.counts.present / query.data.totalSessions) * 100,
+                          ),
+                        },
+                      ]}
+                      outerRadius="72%"
+                    >
+                      <PolarGrid stroke="#cbd5e1" />
+                      <PolarAngleAxis dataKey="metric" tick={{ fill: "#475569", fontSize: 11 }} />
+                      <Radar
+                        dataKey="value"
+                        name="درصد"
+                        stroke="#0f766e"
+                        fill="#14b8a6"
+                        fillOpacity={0.28}
+                      />
+                    </RadarChart>
+                  </ResponsiveContainer>
+                </div>
+              </article>
+              <article className="min-w-0 rounded-2xl border border-[rgb(var(--border-subtle))] p-3">
+                <h3 className="text-xs font-bold text-slate-700 dark:text-slate-200">
+                  گیج حضور مؤثر
+                </h3>
+                <div className="mx-auto mt-2 h-48 w-full max-w-xs">
+                  <svg
+                    viewBox="0 0 240 150"
+                    className="h-full w-full"
+                    role="img"
+                    aria-label={`درصد حضور: ${query.data.attendanceRate ?? 0}٪`}
+                  >
+                    <path
+                      d="M 30 125 A 90 90 0 0 1 210 125"
+                      fill="none"
+                      stroke="#e2e8f0"
+                      strokeWidth="18"
+                      strokeLinecap="round"
+                      pathLength="100"
+                    />
+                    <path
+                      d="M 30 125 A 90 90 0 0 1 210 125"
+                      fill="none"
+                      stroke={
+                        (query.data.attendanceRate ?? 0) >= 85
+                          ? "#0f766e"
+                          : (query.data.attendanceRate ?? 0) >= 65
+                            ? "#d97706"
+                            : "#e11d48"
+                      }
+                      strokeWidth="18"
+                      strokeLinecap="round"
+                      pathLength="100"
+                      strokeDasharray={`${query.data.attendanceRate ?? 0} 100`}
+                    />
+                    <text
+                      x="120"
+                      y="105"
+                      textAnchor="middle"
+                      className="fill-slate-900 text-[28px] font-black dark:fill-slate-100"
+                    >
+                      {percent(query.data.attendanceRate)}
+                    </text>
+                    <text
+                      x="120"
+                      y="129"
+                      textAnchor="middle"
+                      className="fill-slate-600 text-[11px] dark:fill-slate-300"
+                    >
+                      حاضر یا با تأخیر
+                    </text>
+                  </svg>
+                </div>
+              </article>
+            </section>
+          ) : null}
           <ul className="space-y-2">
             {query.data.records.map((record) => (
               <li
@@ -161,7 +263,7 @@ export function AttendanceProfileDialog({
           ) : null}
         </div>
       ) : null}
-    </Modal>
+    </ResponsiveDrawer>
   );
 }
 
@@ -283,13 +385,15 @@ function SavedSessionDialog({
   }
   return (
     <>
-      <Modal
+      <ResponsiveDrawer
         open
         onOpenChange={(open) => {
           if (!open) onClose();
         }}
         title={data?.title || "جزئیات جلسه"}
         description="غایبان و افرادی که حضورشان تأیید نشده جدا از حاضران نمایش داده می‌شوند."
+        desktopSide="left"
+        className="md:w-[min(56rem,96vw)]"
       >
         {query.isLoading ? (
           <p role="status">در حال دریافت جلسه…</p>
@@ -415,7 +519,7 @@ function SavedSessionDialog({
             {correction ? (
               <div className="space-y-3 rounded-xl border border-amber-300 bg-amber-50 p-3 dark:bg-amber-950/20">
                 <p className="text-sm font-bold">اصلاح ثبت حضور</p>
-                <select
+                <AdaptiveSelect
                   aria-label="وضعیت جدید حضور"
                   className={field}
                   value={correction.status}
@@ -434,7 +538,7 @@ function SavedSessionDialog({
                   <option value="present">حاضر</option>
                   <option value="absent">غایب</option>
                   <option value="late">تأخیر</option>
-                </select>
+                </AdaptiveSelect>
                 <textarea
                   aria-label="دلیل اصلاح حضور"
                   className="min-h-20 w-full rounded-xl border border-[rgb(var(--border-subtle))] bg-card p-3 text-sm"
@@ -467,19 +571,19 @@ function SavedSessionDialog({
                 </div>
               </div>
             ) : null}
-            <select
-              aria-label="فیلتر اعضای جلسه"
-              className={field}
+            <AttendanceSelect
+              label="فیلتر اعضای جلسه"
               value={filter}
-              onChange={(event) => setFilter(event.target.value)}
-            >
-              <option value="missing">غایب یا حضور تأییدنشده</option>
-              <option value="all">همه اعضا</option>
-              <option value="absent">غایب</option>
-              <option value="unmarked">حضور تأییدنشده</option>
-              <option value="present">حاضر</option>
-              <option value="late">تأخیر</option>
-            </select>
+              onChange={setFilter}
+              options={[
+                { value: "missing", label: "غایب یا حضور تأییدنشده" },
+                { value: "all", label: "همه اعضا" },
+                { value: "absent", label: "غایب" },
+                { value: "unmarked", label: "حضور تأییدنشده" },
+                { value: "present", label: "حاضر" },
+                { value: "late", label: "تأخیر" },
+              ]}
+            />
             {!data.rosterComplete ? (
               <p
                 role="status"
@@ -586,7 +690,7 @@ function SavedSessionDialog({
             ) : null}
           </div>
         ) : null}
-      </Modal>
+      </ResponsiveDrawer>
       {profileId ? (
         <AttendanceProfileDialog
           studentId={profileId}
@@ -1018,7 +1122,7 @@ export function AttendanceStaffWorkspace({
           <div className="grid gap-2 sm:grid-cols-2">
             <label className="grid gap-1 text-xs font-bold text-slate-600 dark:text-slate-300">
               نوع زمینه
-              <select
+              <AdaptiveSelect
                 aria-label="نوع جلسات حضور"
                 value={category}
                 onChange={(event) => {
@@ -1033,11 +1137,11 @@ export function AttendanceStaffWorkspace({
                     {label}
                   </option>
                 ))}
-              </select>
+              </AdaptiveSelect>
             </label>
             <label className="grid gap-1 text-xs font-bold text-slate-600 dark:text-slate-300">
               کلاس یا اتاق
-              <select
+              <AdaptiveSelect
                 aria-label="کلاس یا اتاق جلسات"
                 className={field}
                 value={contextFilter}
@@ -1059,7 +1163,7 @@ export function AttendanceStaffWorkspace({
                     {name}
                   </option>
                 ))}
-              </select>
+              </AdaptiveSelect>
             </label>
           </div>
           {sessions.isLoading ? (
@@ -1190,7 +1294,7 @@ export function AttendanceStaffWorkspace({
             >
               <label className="text-xs font-bold">
                 اعضای فراخوان
-                <select
+                <AdaptiveSelect
                   className={`${field} mt-1`}
                   required
                   value={target}
@@ -1206,7 +1310,7 @@ export function AttendanceStaffWorkspace({
                       {contextLabelMap[context.contextType]} · {context.name}
                     </option>
                   ))}
-                </select>
+                </AdaptiveSelect>
               </label>
               <label className="text-xs font-bold">
                 عنوان
@@ -1254,7 +1358,7 @@ export function AttendanceStaffWorkspace({
               </button>
             </form>
           ) : null}
-          <select
+          <AdaptiveSelect
             aria-label="کلاس یا اتاق فراخوان‌ها"
             className={field}
             value={poolContextFilter}
@@ -1266,7 +1370,7 @@ export function AttendanceStaffWorkspace({
                 {contextLabelMap[context.contextType]} · {context.name}
               </option>
             ))}
-          </select>
+          </AdaptiveSelect>
           {pools.isLoading ? (
             <p role="status">در حال دریافت فراخوان‌ها…</p>
           ) : pools.isError ? (

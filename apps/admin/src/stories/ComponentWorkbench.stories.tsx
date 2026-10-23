@@ -11,6 +11,7 @@ import {
 
 import { StorybookApiFixture } from "../../.storybook/fixtures/api";
 import { StorybookAuthProvider } from "../../.storybook/fixtures/auth";
+import { AdaptiveSelect } from "../shared/ui/adaptive-select";
 import type { RoleCode } from "../shared/types/domain";
 import { componentCatalog, type ComponentCatalogEntry } from "./component-catalog.generated";
 
@@ -111,7 +112,7 @@ export function ComponentWorkbench({
       <aside className="border-s border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card))] p-4">
         <h1 className="text-lg font-black">{title}</h1>
         <p className="mt-2 text-xs leading-5 text-slate-500">{description}</p>
-        <select
+        <AdaptiveSelect
           value={selectedPath}
           onChange={(event) => setSelectedPath(event.target.value)}
           className="mt-4 w-full rounded border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-muted))] p-2 text-xs"
@@ -123,8 +124,8 @@ export function ComponentWorkbench({
               {entry.sourcePath}
             </option>
           ))}
-        </select>
-        <select
+        </AdaptiveSelect>
+        <AdaptiveSelect
           value={selectedExport}
           onChange={(event) => setSelectedExport(event.target.value)}
           className="mt-2 w-full rounded border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-muted))] p-2 text-xs"
@@ -135,7 +136,7 @@ export function ComponentWorkbench({
               {entry}
             </option>
           ))}
-        </select>
+        </AdaptiveSelect>
       </aside>
       <main className="min-w-0 p-6">
         <p className="text-xs font-bold text-brand" dir="ltr">

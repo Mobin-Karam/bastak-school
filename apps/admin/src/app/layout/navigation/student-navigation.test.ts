@@ -4,7 +4,13 @@ import { navigationForCapabilities, resolveAdminNavigation } from "./config/admi
 describe("student navigation", () => {
   it("adds registration only when the student has registration access", () => {
     const paths = navigationForCapabilities(
-      ["schedule.read", "attendance.self.read", "leave.manage", "registration.read"] as const,
+      [
+        "schedule.read",
+        "attendance.self.read",
+        "leave.read",
+        "leave.manage",
+        "registration.read",
+      ] as const,
       "STUDENT",
     ).flatMap((group) => group.items.map((item) => item.path));
 
@@ -18,6 +24,13 @@ describe("student navigation", () => {
       "profile",
       "settings",
     ]);
+  });
+
+  it("hides leave requests unless both route capabilities are granted", () => {
+    const paths = navigationForCapabilities(["leave.manage"], "STUDENT").flatMap((group) =>
+      group.items.map((item) => item.path),
+    );
+    expect(paths).not.toContain("student-leave");
   });
 
   it("resolves personal routes so the mobile dock retains the active destination", () => {

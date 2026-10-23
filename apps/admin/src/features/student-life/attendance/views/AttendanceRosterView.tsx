@@ -8,8 +8,11 @@ import {
   Plus,
   Trophy,
   UserRound,
+  Search,
+  BadgeCheck,
 } from "lucide-react";
 import { Card } from "../../../../shared/ui/ui";
+import { AttendanceSelect } from "../components/AttendanceSelect";
 import {
   attendanceStatusMeta,
   attendanceStatuses,
@@ -21,7 +24,7 @@ import {
 const shell = "border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card))]";
 const muted = "text-slate-500 dark:text-slate-400";
 const buttonBase =
-  "inline-flex min-h-12 items-center justify-center gap-2 rounded-xl px-4 text-sm font-bold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 disabled:cursor-not-allowed disabled:opacity-50";
+  "inline-flex min-h-11 items-center justify-center gap-2 rounded-xl px-4 text-sm font-bold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand disabled:cursor-not-allowed disabled:opacity-50";
 
 /**
  * One roster presentation for every shell. CSS adapts the same controls from
@@ -69,16 +72,21 @@ export function AttendanceRosterView({
   onAdjustPoints?: (student: AttendanceParticipant, points: 1 | -1) => void;
 }) {
   return (
-    <Card className="overflow-hidden rounded-3xl border border-sky-100 p-0 dark:border-slate-700">
-      <div className="space-y-3 border-b border-[rgb(var(--border-subtle))] p-3 sm:p-5">
-        <div className="flex flex-wrap items-center justify-between gap-2">
+    <Card className="overflow-hidden rounded-2xl p-0">
+      <div className="space-y-4 border-b border-[rgb(var(--border-subtle))] p-4 sm:p-5">
+        <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <h2 className="font-black">فهرست طلبه‌ها</h2>
-            <p className={`text-xs ${muted}`}>
+            <div className="flex flex-wrap items-center gap-2">
+              <h2 className="text-base font-black">فهرست دانش‌آموزان</h2>
+              <span className="rounded-full bg-[rgb(var(--surface-muted))] px-2.5 py-1 text-xs font-bold tabular-nums text-[rgb(var(--color-ink))]">
+                {participants.length.toLocaleString("fa-IR")} نفر
+              </span>
+            </div>
+            <p className={`mt-1 max-w-2xl text-xs leading-5 ${muted}`}>
               {canManage
                 ? absenceFirst
-                  ? "فقط غایب یا دیرآمده را انتخاب کنید؛ بقیه پس از تأیید حاضر می‌شوند."
-                  : "برای هر نفر یک وضعیت انتخاب کنید"
+                  ? "برای ثبت سریع، فقط غایبان و افراد دیررس را مشخص کنید؛ سایر اعضا با تأیید نهایی حاضر ثبت می‌شوند."
+                  : "وضعیت هر دانش‌آموز را مشخص کنید؛ پیش از ثبت، خلاصه و موارد نامشخص را بررسی خواهید کرد."
                 : "فهرست اعضا؛ دسترسی شما فقط برای مشاهده است."}
             </p>
           </div>
@@ -87,96 +95,163 @@ export function AttendanceRosterView({
               type="button"
               onClick={onMarkAllPresent}
               disabled={saving || conflict || loading || unmarkedCount === 0}
-              className={`${buttonBase} border border-emerald-300 text-emerald-700 hover:bg-emerald-50 dark:text-emerald-300`}
+              className={`${buttonBase} shrink-0 border border-emerald-300 bg-emerald-50/70 text-emerald-800 hover:bg-emerald-100 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-200`}
             >
               <CheckCheck size={17} /> {absenceFirst ? "تأیید حضور همه" : "ثبت‌نشده‌ها حاضر"}
             </button>
           ) : null}
         </div>
-        <div className="flex flex-col gap-2 sm:flex-row">
-          <input
-            type="search"
-            inputMode="search"
-            autoComplete="off"
-            maxLength={120}
-            value={search}
-            onChange={(event) => onSearchChange(event.target.value)}
-            aria-label="جستجوی طلبه"
-            placeholder="جستجو با نام یا شماره طلبه"
-            className={`min-h-12 w-full rounded-2xl ${shell} px-4 text-sm font-semibold sm:flex-1`}
-          />
-          <select
-            value={filter}
-            onChange={(event) => onFilterChange(event.target.value as AttendanceFilter)}
-            aria-label="فیلتر وضعیت"
-            className={`min-h-12 w-full rounded-2xl ${shell} px-4 font-semibold`}
+        <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_14rem]">
+          <label
+            className={`flex min-h-11 items-center gap-2 rounded-xl ${shell} px-3 focus-within:ring-2 focus-within:ring-brand`}
           >
-            <option value="all">همه وضعیت‌ها</option>
-            <option value="unmarked">نامشخص</option>
-            {participants.some((person) => person.status === "excused") ? (
-              <option value="excused">موجه</option>
-            ) : null}
-            {attendanceStatuses.map((status) => (
-              <option key={status} value={status}>
-                {attendanceStatusMeta[status].label}
-              </option>
-            ))}
-          </select>
+            <Search size={17} className="shrink-0 text-slate-400" aria-hidden="true" />
+            <input
+              type="search"
+              inputMode="search"
+              autoComplete="off"
+              maxLength={120}
+              value={search}
+              onChange={(event) => onSearchChange(event.target.value)}
+              aria-label="جستجوی طلبه"
+              placeholder="جستجو با نام یا شماره طلبه…"
+              className="min-h-10 min-w-0 flex-1 bg-transparent text-sm font-medium outline-none placeholder:text-slate-400"
+            />
+          </label>
+          <AttendanceSelect
+            value={filter}
+            onChange={(value) => onFilterChange(value as AttendanceFilter)}
+            label="فیلتر وضعیت"
+            className="rounded-xl font-semibold"
+            options={[
+              { value: "all", label: "همه وضعیت‌ها" },
+              { value: "unmarked", label: "ثبت‌نشده" },
+              ...(participants.some((person) => person.status === "excused")
+                ? [{ value: "excused", label: "موجه" }]
+                : []),
+              ...attendanceStatuses.map((status) => ({
+                value: status,
+                label: attendanceStatusMeta[status].label,
+              })),
+            ]}
+          />
         </div>
-        {filter !== "all" ? (
+        {filter !== "all" || search ? (
           <button
             type="button"
-            className="text-xs font-bold text-blue-600"
-            onClick={() => onFilterChange("all")}
+            className="text-xs font-bold text-brand hover:underline"
+            onClick={onClearFilters}
           >
-            نمایش همه
+            پاک‌کردن جستجو و فیلتر
           </button>
         ) : null}
       </div>
 
       {loading ? (
-        <div className={`flex items-center justify-center gap-2 p-12 text-sm ${muted}`}>
-          <LoaderCircle className="animate-spin" size={19} /> در حال دریافت فهرست…
+        <div
+          className={`flex min-h-40 flex-col items-center justify-center gap-3 p-8 text-sm ${muted}`}
+        >
+          <LoaderCircle className="animate-spin text-brand motion-reduce:animate-none" size={24} />
+          <span>در حال دریافت فهرست دانش‌آموزان…</span>
         </div>
       ) : filtered.length === 0 ? (
-        <div className={`flex flex-col items-center gap-3 p-10 text-center text-sm ${muted}`}>
-          <UsersRound size={30} />
+        <div
+          className={`flex min-h-44 flex-col items-center justify-center gap-3 p-8 text-center text-sm ${muted}`}
+        >
+          <span className="grid size-12 place-items-center rounded-2xl bg-[rgb(var(--surface-muted))] text-brand">
+            <UsersRound size={23} />
+          </span>
           <p>
             {participants.length
-              ? "طلبه‌ای با این وضعیت پیدا نشد."
+              ? "دانش‌آموزی با این جستجو و وضعیت پیدا نشد."
               : selected
-                ? "برای این گروه طلبه‌ای یافت نشد."
+                ? "برای این گروه دانش‌آموزی یافت نشد."
                 : "ابتدا کلاس، گروه یا اتاق را انتخاب کنید."}
           </p>
           {participants.length > 0 ? (
-            <button className="font-bold text-blue-600" type="button" onClick={onClearFilters}>
-              پاک‌کردن فیلترها
+            <button
+              className="font-bold text-brand hover:underline"
+              type="button"
+              onClick={onClearFilters}
+            >
+              پاک‌کردن جستجو و فیلتر
             </button>
           ) : null}
         </div>
       ) : (
-        <div className="space-y-3 p-3 sm:p-4">
+        <div className="divide-y divide-[rgb(var(--border-subtle))]">
           {filtered.map((student, index) => (
             <div
               key={student.id}
-              className="space-y-3 md:flex md:items-center md:gap-4 md:space-y-0 rounded-2xl border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card))] p-4"
+              className="grid gap-3 px-4 py-4 sm:px-5 lg:grid-cols-[minmax(12rem,1fr)_minmax(15rem,auto)] lg:items-center"
             >
               <div className="flex min-w-0 flex-1 items-center gap-3">
-                <span className="flex size-12 shrink-0 items-center justify-center rounded-full bg-blue-50 text-lg font-black text-blue-700 dark:bg-blue-950/40 dark:text-blue-200">
+                <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-brand/10 text-base font-black text-brand">
                   {student.name.trim().slice(0, 1) || index + 1}
                 </span>
                 <div className="min-w-0">
-                  <p className="truncate text-sm font-bold">{student.name}</p>
-                  <p className={`text-xs ${muted}`}>{student.studentNumber}</p>
+                  <p className="truncate text-sm font-bold text-[rgb(var(--color-ink))]">
+                    {student.name}
+                  </p>
+                  <p className={`mt-0.5 text-xs ${muted}`} dir="ltr">
+                    {student.studentNumber}
+                  </p>
                 </div>
+              </div>
+              <div className="flex min-w-0 flex-wrap items-center gap-2">
+                {canManage ? (
+                  <div
+                    role="group"
+                    aria-label={`وضعیت ${student.name}`}
+                    className="grid min-w-0 flex-1 grid-cols-3 gap-2 sm:flex-none"
+                  >
+                    {(absenceFirst
+                      ? attendanceStatuses.filter((status) => status !== "present")
+                      : attendanceStatuses
+                    ).map((status) => (
+                      <button
+                        key={status}
+                        type="button"
+                        aria-pressed={student.status === status}
+                        disabled={saving || conflict}
+                        onClick={() =>
+                          onMark(student.id, student.status === status ? "unmarked" : status)
+                        }
+                        className={`mobile-attendance-status min-h-11 rounded-xl border px-3 py-2 text-xs font-bold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand sm:min-w-24 sm:text-sm ${student.status === status ? `${attendanceStatusMeta[status].active} ring-2 ring-current ring-offset-1` : "border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card))] text-[rgb(var(--color-ink))] hover:bg-[rgb(var(--surface-muted))]"}`}
+                      >
+                        {status === "present" ? (
+                          <Check size={15} aria-hidden="true" />
+                        ) : status === "absent" ? (
+                          <Minus size={15} aria-hidden="true" />
+                        ) : (
+                          <Clock3 size={15} aria-hidden="true" />
+                        )}
+                        {attendanceStatusMeta[status].label}
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <span
+                    className={`inline-flex min-h-10 items-center gap-1.5 rounded-xl px-3 text-xs font-bold ${student.status === "unmarked" ? "bg-[rgb(var(--surface-muted))] text-slate-600 dark:text-slate-300" : `${attendanceStatusMeta[student.status].active}`}`}
+                  >
+                    {student.status === "unmarked" ? (
+                      <UserRound size={14} />
+                    ) : (
+                      <BadgeCheck size={14} />
+                    )}
+                    {student.status === "unmarked"
+                      ? "ثبت‌نشده"
+                      : attendanceStatusMeta[student.status].label}
+                  </span>
+                )}
                 {onViewProfile ? (
                   <button
                     type="button"
-                    className="ms-auto min-h-11 rounded-xl border border-[rgb(var(--border-subtle))] px-3 text-xs font-bold"
+                    className={`${buttonBase} min-h-10 border border-[rgb(var(--border-subtle))] px-3 text-xs hover:bg-[rgb(var(--surface-muted))]`}
                     aria-label={`پرونده حضور ${student.name}`}
                     onClick={() => onViewProfile(student.id)}
                   >
-                    پرونده حضور
+                    پرونده
                   </button>
                 ) : null}
                 {onAdjustPoints ? (
@@ -206,63 +281,7 @@ export function AttendanceRosterView({
                     </button>
                   </div>
                 ) : null}
-                {student.status !== "unmarked" ? (
-                  <Check size={15} className="shrink-0 text-emerald-600" aria-label="تعیین شده" />
-                ) : null}
               </div>
-              {!canManage || student.status === "excused" ? (
-                <span
-                  className={`text-sm font-bold ${student.status === "unmarked" ? muted : attendanceStatusMeta[student.status].active} rounded-lg px-3 py-2`}
-                >
-                  {student.status === "unmarked"
-                    ? "نامشخص"
-                    : attendanceStatusMeta[student.status].label}
-                </span>
-              ) : null}
-              {canManage ? (
-                <div
-                  role="group"
-                  aria-label={`وضعیت ${student.name}`}
-                  className="grid grid-cols-3 gap-2 md:w-80 md:shrink-0"
-                >
-                  {(absenceFirst
-                    ? attendanceStatuses.filter((status) => status !== "present")
-                    : attendanceStatuses
-                  ).map((status) => (
-                    <button
-                      key={status}
-                      type="button"
-                      aria-pressed={student.status === status}
-                      disabled={saving || conflict}
-                      onClick={() =>
-                        onMark(student.id, student.status === status ? "unmarked" : status)
-                      }
-                      className={`mobile-attendance-status min-h-14 md:min-h-11 rounded-xl border px-2 py-2 text-sm font-bold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500 ${student.status === status ? `${attendanceStatusMeta[status].active} ring-2 ring-current` : `${attendanceStatusMeta[status].active} opacity-75 hover:opacity-100`}`}
-                    >
-                      {status === "present" ? (
-                        <UserRound
-                          className="mx-auto mb-1 text-emerald-600"
-                          size={20}
-                          aria-hidden="true"
-                        />
-                      ) : status === "absent" ? (
-                        <Minus
-                          className="mx-auto mb-1 text-rose-600"
-                          size={20}
-                          aria-hidden="true"
-                        />
-                      ) : (
-                        <Clock3
-                          className="mx-auto mb-1 text-amber-600"
-                          size={20}
-                          aria-hidden="true"
-                        />
-                      )}
-                      {attendanceStatusMeta[status].label}
-                    </button>
-                  ))}
-                </div>
-              ) : null}
             </div>
           ))}
         </div>

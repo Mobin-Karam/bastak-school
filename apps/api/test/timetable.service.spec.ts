@@ -677,7 +677,7 @@ describe("versioned timetable integration (migration-built SQLite)", () => {
       OrganizationMembership,
       db.manager.create(OrganizationMembership, { user: guardian, organization: org }),
     );
-    await db.manager.save(
+    const guardianRelationship = await db.manager.save(
       UserRelationship,
       db.manager.create(UserRelationship, {
         fromUser: guardian,
@@ -708,6 +708,24 @@ describe("versioned timetable integration (migration-built SQLite)", () => {
         })
       ).items,
     ).toHaveLength(1);
+    const formerOrganization = await db.manager.save(
+      Organization,
+      db.manager.create(Organization, { name: "Former school", type: OrganizationType.SCHOOL }),
+    );
+    guardianRelationship.organization = formerOrganization;
+    await db.manager.save(UserRelationship, guardianRelationship);
+    expect(
+      (await service.workspace(guardianActor, org.id, undefined, "2026-01-04")).lessons,
+    ).toHaveLength(0);
+    await expect(
+      service.occurrences(guardianActor, org.id, {
+        studentId: studentRecord.id,
+        startsOn: "2026-01-04",
+        endsOn: "2026-01-04",
+        offset: 0,
+        limit: 50,
+      }),
+    ).rejects.toMatchObject({ response: { error: { code: "FORBIDDEN" } } });
     await expect(
       service.writeLesson(staff, draftId, { expectedRevision: 2, lesson }),
     ).rejects.toMatchObject({

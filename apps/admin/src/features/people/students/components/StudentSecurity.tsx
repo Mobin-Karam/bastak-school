@@ -22,6 +22,7 @@ export function StudentSecurity({
   onPassword,
   onArchive,
   onLifecycle,
+  canArchive,
   busy,
 }: {
   student: Student;
@@ -30,6 +31,7 @@ export function StudentSecurity({
   onPassword: () => void;
   onArchive: () => void;
   onLifecycle: (action: "activate" | "deactivate" | "restore" | "force-logout") => void;
+  canArchive: boolean;
   busy: { remove: boolean; password: boolean; lifecycle: boolean };
 }) {
   const [showPassword, setShowPassword] = useState(false);
@@ -69,7 +71,7 @@ export function StudentSecurity({
           </div>
           <Field
             label={copy.newPassword}
-            error={password && password.length < 8 ? copy.passwordMinimum : undefined}
+            error={password && password.length < 12 ? copy.passwordMinimum : undefined}
           >
             <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-2">
               <Input
@@ -93,7 +95,7 @@ export function StudentSecurity({
           <Button
             loading={busy.password}
             variant="soft"
-            disabled={password.length < 8 || busy.password}
+            disabled={password.length < 12 || busy.password}
             onClick={onPassword}
           >
             <KeyRound size={16} />
@@ -146,7 +148,7 @@ export function StudentSecurity({
         </div>
       </div>
 
-      {status !== "archived" ? (
+      {status !== "archived" && canArchive ? (
         <div className="grid gap-3 rounded-xl border border-rose-200 bg-rose-50/60 p-3 dark:border-rose-900 dark:bg-rose-950/20">
           <div>
             <h4 className="text-sm font-bold text-rose-800 dark:text-rose-200">

@@ -1,3 +1,4 @@
+import { AdaptiveSelect } from "@/shared/ui/adaptive-select";
 import { ChevronDown, LogOut, ShieldCheck, UserRound } from "lucide-react";
 import { useState } from "react";
 import { useAuth } from "../../../features/identity/auth";
@@ -104,7 +105,7 @@ export function AdminAccountMenu() {
         {(auth.context?.roles.length ?? 0) > 1 ? (
           <label className="grid gap-1 text-xs font-semibold text-slate-600">
             {copy.workContextLabel}
-            <select
+            <AdaptiveSelect
               className="h-10 rounded-lg border border-slate-200 bg-white px-2 dark:border-slate-700 dark:bg-slate-900"
               value={auth.activeRole ?? ""}
               onChange={(event) =>
@@ -120,13 +121,13 @@ export function AdminAccountMenu() {
                   {roleLabel(role, language)}
                 </option>
               ))}
-            </select>
+            </AdaptiveSelect>
           </label>
         ) : null}
         {(auth.context?.availableOrganizations.length ?? 0) > 1 ? (
           <label className="grid gap-1 text-xs font-semibold text-slate-600">
             {copy.activeOrganization}
-            <select
+            <AdaptiveSelect
               className="h-10 rounded-lg border border-slate-200 bg-white px-2 dark:border-slate-700 dark:bg-slate-900"
               value={auth.context?.activeOrganization?.id ?? ""}
               onChange={(event) =>
@@ -147,7 +148,7 @@ export function AdminAccountMenu() {
                   {organization.name}
                 </option>
               ))}
-            </select>
+            </AdaptiveSelect>
           </label>
         ) : null}
         <div className="flex items-center justify-between gap-3 rounded-lg bg-slate-50 p-2 dark:bg-slate-900 xl:hidden">

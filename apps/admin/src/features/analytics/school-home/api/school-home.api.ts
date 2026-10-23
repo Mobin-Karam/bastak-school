@@ -95,6 +95,18 @@ export const listAnnouncementRecipients = (organizationId: string, query = "") =
     `/organizations/${encodeURIComponent(organizationId)}/announcement-recipients${query ? `?q=${encodeURIComponent(query)}` : ""}`,
   );
 
+export type AnnouncementMediaAsset = Pick<
+  SchoolAnnouncement,
+  "id" | "title" | "category" | "mediaUrl" | "mediaType"
+> & {
+  updatedAt: string;
+};
+
+export const listAnnouncementMedia = (organizationId: string) =>
+  api.get<AnnouncementMediaAsset[]>(
+    `/organizations/${encodeURIComponent(organizationId)}/announcement-media`,
+  );
+
 export const createAnnouncement = (organizationId: string, body: SaveAnnouncementInput) =>
   api.post<SchoolAnnouncement>(
     `/organizations/${encodeURIComponent(organizationId)}/announcements`,

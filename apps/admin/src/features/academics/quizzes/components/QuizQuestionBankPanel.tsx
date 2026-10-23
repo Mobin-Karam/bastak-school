@@ -1,3 +1,4 @@
+import { AdaptiveSelect } from "@/shared/ui/adaptive-select";
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Archive, ClipboardCopy, Link2, Pencil, Plus, Search } from "lucide-react";
@@ -364,7 +365,7 @@ function QuizBankEditor({
     draft.options.includes(draft.correctAnswer);
   return (
     <div className="grid gap-3">
-      <select
+      <AdaptiveSelect
         className="h-10 rounded-lg border px-3 text-sm"
         value={draft.organizationId}
         onChange={(event) => set("organizationId", event.target.value)}
@@ -375,7 +376,7 @@ function QuizBankEditor({
             {organization.name}
           </option>
         ))}
-      </select>
+      </AdaptiveSelect>
       <textarea
         className="min-h-24 rounded-lg border p-3 text-sm"
         value={draft.text}
@@ -416,7 +417,7 @@ function QuizBankEditor({
           onChange={(event) => set("topic", event.target.value)}
           placeholder={copy.topic}
         />
-        <select
+        <AdaptiveSelect
           className="h-10 rounded-lg border px-3 text-sm"
           value={draft.difficulty}
           onChange={(event) => set("difficulty", event.target.value)}
@@ -424,7 +425,7 @@ function QuizBankEditor({
           <option value="easy">{copy.difficulty.easy}</option>
           <option value="medium">{copy.difficulty.medium}</option>
           <option value="hard">{copy.difficulty.hard}</option>
-        </select>
+        </AdaptiveSelect>
       </div>
       <Input
         value={draft.tags.join(", ")}

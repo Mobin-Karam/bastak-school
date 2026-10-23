@@ -541,6 +541,7 @@ export class ChatService {
         url: `/communication/chat?conversationId=${encodeURIComponent(id)}`,
         data: { conversationId: id, messageId: saved.id },
         dedupeKey: `chat:${saved.id}`,
+        organizationId: conversation.organization?.id,
       });
     return message;
   }

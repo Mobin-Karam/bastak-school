@@ -117,4 +117,27 @@ describe("NotificationCenterPanel", () => {
     expect(within(container).queryByRole("button", { name: /خواندن همه/ })).not.toBeInTheDocument();
     expect(within(container).getByText("پیام جدید")).toBeInTheDocument();
   });
+
+  it("marks the notification targeted by the floating-island URL", () => {
+    render(
+      <MemoryRouter>
+        <NotificationCenterPanel
+          compact
+          filter="all"
+          setFilter={vi.fn()}
+          typeFilter="all"
+          setTypeFilter={vi.fn()}
+          search=""
+          setSearch={vi.fn()}
+          items={mocks.notifications.items}
+          focusedNotificationId="notice-1"
+        />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByRole("button", { name: /پیام جدید/ })).toHaveAttribute(
+      "aria-current",
+      "true",
+    );
+  });
 });

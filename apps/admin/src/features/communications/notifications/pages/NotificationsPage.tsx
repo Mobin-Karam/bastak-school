@@ -1,5 +1,6 @@
+import { AdaptiveSelect } from "@/shared/ui/adaptive-select";
 import { useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useStudentSelection } from "../../../../shared/hooks/useStudentSelection";
 import { useModal } from "../../../../shared/ui/modal";
 import { AdvisorInboxPanel } from "../components/AdvisorInboxPanel";
@@ -36,6 +37,7 @@ export function notificationAccess(capabilities: readonly string[]) {
 
 export function NotificationsPage() {
   const auth = useAuth();
+  const navigate = useNavigate();
   const access = notificationAccess(auth.capabilities);
   const students = useStudentSelection({ enabled: access.advisorInbox });
   const notifications = useAdminNotifications();
@@ -47,6 +49,7 @@ export function NotificationsPage() {
   const filter = params.get("filter") === "unread" ? "unread" : "all";
   const typeFilter = notificationTypeFilter(params.get("type"));
   const search = params.get("q") || "";
+  const focusedNotificationId = params.get("notificationId") || undefined;
   const [mobilePanel, setMobilePanel] = useState<"notifications" | "inbox">("notifications");
   const isMobileShell = useViewportShell() === "mobile";
   const isStudentMobile = isMobileShell && auth.activeRole === "STUDENT";
@@ -110,11 +113,27 @@ export function NotificationsPage() {
 
   return (
     <div className="flex h-[calc(100dvh-132px)] min-h-0 flex-col gap-3 overflow-hidden lg:h-[calc(100dvh-96px)]">
-      <NotificationsToolbar
-        onOpenSettings={openSettings}
-        studentMobile={isStudentMobile}
-        onOpenStudentControls={openStudentControls}
-      />
+      <div className="grid shrink-0 gap-2 sm:flex sm:items-start">
+        <div className="min-w-0 flex-1">
+          <NotificationsToolbar
+            onOpenSettings={openSettings}
+            studentMobile={isStudentMobile}
+            onOpenStudentControls={openStudentControls}
+          />
+        </div>
+        {auth.can("announcements.read") ? (
+          <div className="flex flex-wrap gap-2">
+            <Button variant="soft" onClick={() => navigate("/admin/announcements")}>
+              {copy.announcementInbox}
+            </Button>
+            {auth.can("announcements.manage") ? (
+              <Button variant="ghost" onClick={() => navigate("/admin/announcements/manage")}>
+                {copy.manageAnnouncements}
+              </Button>
+            ) : null}
+          </div>
+        ) : null}
+      </div>
 
       {access.advisorInbox && isMobileShell ? (
         <MobileNotificationTabs
@@ -147,6 +166,7 @@ export function NotificationsPage() {
             }
             items={items}
             compact={isStudentMobile}
+            focusedNotificationId={focusedNotificationId}
           />
         ) : null}
 
@@ -228,7 +248,7 @@ function StudentNotificationControls({
       </label>
       <label className="grid gap-1.5 text-sm font-bold text-ink">
         {copy.type}
-        <select
+        <AdaptiveSelect
           className="h-11 rounded-lg border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card))] px-3 text-sm text-ink outline-none focus-visible:ring-2 focus-visible:ring-brand"
           value={typeFilter}
           onChange={(event) => onTypeFilterChange(event.target.value)}
@@ -238,7 +258,7 @@ function StudentNotificationControls({
           <option value="exam">{copy.exam}</option>
           <option value="lesson">{copy.lesson}</option>
           <option value="announcement">{copy.announcement}</option>
-        </select>
+        </AdaptiveSelect>
       </label>
       <div className="grid gap-2 sm:grid-cols-2">
         <Button variant="soft" loading={refreshing} onClick={onRefresh}>

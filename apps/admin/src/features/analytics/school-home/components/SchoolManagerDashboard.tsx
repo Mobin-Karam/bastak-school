@@ -47,7 +47,6 @@ export function SchoolManagerDashboard() {
     <SchoolOperationsDashboard />
   );
 }
-
 function SchoolOperationsDashboard({ principalMode = false }: { principalMode?: boolean }) {
   const auth = useAuth();
   const client = useQueryClient();
@@ -87,12 +86,7 @@ function SchoolOperationsDashboard({ principalMode = false }: { principalMode?: 
     body: string;
     audience: "STAFF" | "STUDENTS";
     status: "ACTIVE";
-  }>({
-    title: "",
-    body: "",
-    audience: "STUDENTS" as const,
-    status: "ACTIVE" as const,
-  });
+  }>({ title: "", body: "", audience: "STUDENTS", status: "ACTIVE" });
   const prayerValues = prayer.data?.times;
   const publish = useMutation({
     mutationFn: () => {

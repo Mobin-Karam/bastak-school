@@ -54,6 +54,24 @@ export type PrincipalDashboardContract = {
     exitRequests: number;
     permissionRequests: number;
   };
+  sessionReviews?: {
+    pendingCount: number;
+    items: Array<{
+      id: string;
+      contextType: string;
+      contextId: string;
+      title: string;
+      sessionDate: string;
+      status: string;
+      expected: number | null;
+      marked: number;
+      present: number;
+      absent: number;
+      late: number;
+      excused: number;
+      lastReviewedAt: string | null;
+    }>;
+  };
   operations?: {
     activeStudents: number;
     currentlyOut: number;

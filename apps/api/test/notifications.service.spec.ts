@@ -4,6 +4,9 @@ import { NotificationsService } from "../src/modules/notifications/notifications
 
 function repository<T>(items: T[] = []) {
   const queryBuilder: any = {
+    leftJoinAndSelect: jest.fn(function () {
+      return this;
+    }),
     where: jest.fn(function () {
       return this;
     }),
@@ -81,6 +84,28 @@ describe("NotificationsService", () => {
     );
   });
 
+  it("persists school scope on each recipient notification", async () => {
+    const notifications = repository() as any;
+    const service = new NotificationsService(
+      notifications,
+      repository() as any,
+      { emitToUser: jest.fn() } as any,
+      repository([{ id: "user-1" }]) as any,
+    );
+    await service.createForUsers(["user-1", "user-1", "user-2"], {
+      type: "ANNOUNCEMENT",
+      category: "announcement",
+      title: "اطلاعیه مدرسه",
+      body: "متن",
+      organizationId: "school-1",
+    });
+
+    expect(notifications.save).toHaveBeenCalledTimes(2);
+    expect(notifications.save).toHaveBeenCalledWith(
+      expect.objectContaining({ organization: { id: "school-1" } }),
+    );
+  });
+
   it("lists notifications belonging to the authenticated user", async () => {
     const student = { id: "student-1", user: { id: "student-user" } } as any;
     const notification = {
@@ -105,6 +130,59 @@ describe("NotificationsService", () => {
     ).resolves.toMatchObject({
       unreadCount: 1,
       items: [{ id: "n1", isRead: false }],
+    });
+  });
+
+  it("limits the inbox and unread count to the active school plus global notices", async () => {
+    const notifications = repository([]) as any;
+    const service = new NotificationsService(
+      notifications,
+      repository() as any,
+      {} as any,
+    );
+
+    await service.findForUser("staff-1", { organizationId: "school-1" });
+
+    const queryBuilder = notifications.createQueryBuilder.mock.results[0].value;
+    expect(queryBuilder.where).toHaveBeenCalledWith("n.userId = :userId", {
+      userId: "staff-1",
+    });
+    expect(queryBuilder.andWhere).toHaveBeenCalledWith(
+      "(n.organizationId IS NULL OR n.organizationId = :organizationId)",
+      { organizationId: "school-1" },
+    );
+  });
+
+  it("does not allow marking a notification from another school as read", async () => {
+    const notifications = repository([]) as any;
+    const service = new NotificationsService(
+      notifications,
+      repository() as any,
+      {} as any,
+    );
+
+    await expect(
+      service.markRead(
+        { id: "staff-1", role: UserRole.ADMIN, activeOrganizationId: "school-1" } as any,
+        "other-school-notification",
+      ),
+    ).rejects.toMatchObject({
+      response: { error: { code: "NOTIFICATION_NOT_FOUND" } },
+    });
+    expect(notifications.findOne).toHaveBeenCalledWith({
+      where: [
+        {
+          id: "other-school-notification",
+          user: { id: "staff-1" },
+          organization: { id: "school-1" },
+        },
+        {
+          id: "other-school-notification",
+          user: { id: "staff-1" },
+          organization: expect.anything(),
+        },
+      ],
+      relations: { organization: true },
     });
   });
 

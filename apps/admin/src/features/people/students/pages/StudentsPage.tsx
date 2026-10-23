@@ -10,13 +10,15 @@ import { useOptionalAdminLanguage } from "../../../../shared/ui/locale";
 import { useAuth } from "../../../identity/auth";
 import { getApiWorkContextKey } from "../../../../shared/api/api";
 import { Button, EmptyState, ErrorState, LoadingState } from "../../../../shared/ui/ui";
-import { ResponsiveModal } from "../../../../shared/ui/responsive-modal";
+import { ResponsiveDrawer } from "../../../../shared/ui/responsive-drawer";
+import { notify } from "../../../../shared/ui/notifications";
 import {
   archiveStudent,
   createStudent,
   getStudentAttempts,
   getStudentLearning,
   getStudentOverview,
+  getStudentProfile,
   getStudentTopics,
   getStudentWeekly,
   resetStudentPassword,
@@ -43,6 +45,7 @@ import {
   getStudentProfileCompleteness,
   getStudentStatus,
   getStudentUsername,
+  parseStudentPageNumber,
   type StudentDetailTab,
   type StudentProfileFilter,
   type StudentSort,
@@ -84,12 +87,6 @@ function dateValue(value?: string) {
   return Number.isNaN(time) ? 0 : time;
 }
 
-function numberParam(value: string | null, fallback: number, allowed?: number[]) {
-  const parsed = Number(value);
-  if (!Number.isFinite(parsed) || parsed < 1) return fallback;
-  return allowed && !allowed.includes(parsed) ? fallback : parsed;
-}
-
 function FeedbackBanner({
   feedback,
   onDismiss,
@@ -123,14 +120,23 @@ export function StudentsPage() {
   const copy = studentCopy[language];
   const locale = language === "en" ? "en-US" : "fa-IR";
   const auth = useAuth();
-  const visibleDetailTabs: StudentDetailTab[] = [
-    "overview",
-    "activity",
-    "access",
-    ...(auth.can("students.update") ? ["profile" as const, "security" as const] : []),
-  ];
+  const visibleDetailTabs = useMemo<StudentDetailTab[]>(
+    () => [
+      "overview",
+      "activity",
+      "access",
+      ...(auth.can("students.update") ? ["security" as const] : []),
+    ],
+    [auth],
+  );
   const [searchParams, setSearchParams] = useSearchParams();
   const studentStore = useStudents();
+  const {
+    isError: studentsError,
+    isLoading: studentsLoading,
+    setStudentId,
+    studentId: storedStudentId,
+  } = studentStore;
   const [search, setSearch] = useState(() => searchParams.get("q") || "");
   const [status, setStatus] = useState<StudentStatusFilter>(() => {
     const value = searchParams.get("status") as StudentStatusFilter | null;
@@ -146,11 +152,14 @@ export function StudentsPage() {
   const [sortDirection, setSortDirection] = useState<StudentSortDirection>(() =>
     searchParams.get("direction") === "desc" ? "desc" : "asc",
   );
-  const [page, setPage] = useState(() => numberParam(searchParams.get("page"), 1));
+  const [page, setPage] = useState(() => parseStudentPageNumber(searchParams.get("page"), 1));
   const [pageSize, setPageSize] = useState(() =>
-    numberParam(searchParams.get("pageSize"), 25, [25, 50, 100]),
+    parseStudentPageNumber(searchParams.get("pageSize"), 25, [25, 50, 100]),
   );
   const [creating, setCreating] = useState(() => searchParams.get("create") === "1");
+  const [editing, setEditing] = useState(
+    () => searchParams.get("edit") === "1" && Boolean(searchParams.get("studentId")),
+  );
   const [selectedId, setSelectedId] = useState(() => searchParams.get("studentId") || "");
   const [detailOpen, setDetailOpen] = useState(() => Boolean(searchParams.get("studentId")));
   const [detailTab, setDetailTab] = useState<StudentDetailTab>(() => {
@@ -172,7 +181,7 @@ export function StudentsPage() {
     () => (selectedId ? (students.find((student) => student.id === selectedId) ?? null) : null),
     [selectedId, students],
   );
-  const mode: StudentEditorMode = creating ? "create" : selected ? "edit" : "empty";
+  const mode: StudentEditorMode = creating ? "create" : editing && selected ? "edit" : "empty";
   const baseline = useMemo(
     () => (mode === "edit" && selected ? studentToForm(selected) : emptyStudentForm()),
     [mode, selected],
@@ -268,6 +277,14 @@ export function StudentsPage() {
     () => filtered.slice((activePage - 1) * pageSize, activePage * pageSize),
     [activePage, filtered, pageSize],
   );
+  const detailIndex = filtered.findIndex((student) => student.id === selectedId);
+  const hasPreviousDetail = detailIndex > 0;
+  const hasNextDetail = detailIndex >= 0 && detailIndex < filtered.length - 1;
+
+  function moveDetail(offset: -1 | 1) {
+    const nextStudent = filtered[detailIndex + offset];
+    if (nextStudent) requestSelection(nextStudent);
+  }
 
   function updateStudentContext(id: string) {
     setSearchParams(
@@ -284,6 +301,7 @@ export function StudentsPage() {
 
   function commitSelection(student: Student) {
     setCreating(false);
+    setEditing(false);
     setSelectedId(student.id);
     setDetailOpen(true);
     studentStore.setStudentId(student.id);
@@ -296,7 +314,7 @@ export function StudentsPage() {
   }
 
   function requestSelection(student: Student) {
-    if (mode === "edit" && student.id === selectedId) {
+    if (!creating && !editing && student.id === selectedId) {
       setDetailOpen(true);
       setMobileDirectory(false);
       return;
@@ -316,6 +334,7 @@ export function StudentsPage() {
   function startCreate() {
     const run = () => {
       setCreating(true);
+      setEditing(false);
       setDetailOpen(false);
       setSelectedId("");
       setSearchParams(
@@ -323,11 +342,12 @@ export function StudentsPage() {
           const next = new URLSearchParams(current);
           next.set("create", "1");
           next.delete("studentId");
+          next.delete("edit");
           return next;
         },
         { replace: true },
       );
-      setDetailTab("profile");
+      setDetailTab("overview");
       setMobileDirectory(false);
       setForm(emptyStudentForm());
       setSecurityPassword("");
@@ -353,6 +373,7 @@ export function StudentsPage() {
     const run = () => {
       const previous = students.find((student) => student.id === studentStore.studentId) ?? null;
       setCreating(false);
+      setEditing(false);
       setDetailOpen(false);
       setMobileDirectory(true);
       setFeedback(null);
@@ -378,9 +399,79 @@ export function StudentsPage() {
       });
   }
 
+  function startEdit() {
+    if (!selected) return;
+    setEditing(true);
+    setDetailOpen(false);
+    setForm(studentToForm(selected));
+    setFeedback(null);
+    setSearchParams(
+      (current) => {
+        const next = new URLSearchParams(current);
+        next.set("studentId", selected.id);
+        next.set("edit", "1");
+        next.delete("tab");
+        return next;
+      },
+      { replace: true },
+    );
+  }
+
+  function cancelEdit() {
+    const run = () => {
+      setEditing(false);
+      setDetailOpen(true);
+      setForm(selected ? studentToForm(selected) : emptyStudentForm());
+      setFeedback(null);
+      setSearchParams(
+        (current) => {
+          const next = new URLSearchParams(current);
+          next.delete("edit");
+          return next;
+        },
+        { replace: true },
+      );
+    };
+    if (!dirty) return run();
+    void modal
+      .confirm({
+        title: copy.discardChangesTitle,
+        description: copy.discardChangesDescription,
+        confirmLabel: copy.continue,
+      })
+      .then((ok) => {
+        if (ok) run();
+      });
+  }
+
+  function finishCreate() {
+    setCreating(false);
+    setEditing(false);
+    setDetailOpen(false);
+    setSelectedId("");
+    setDetailTab("overview");
+    setMobileDirectory(true);
+    setForm(emptyStudentForm());
+    setSecurityPassword("");
+    setFeedback(null);
+    studentStore.setStudentId("");
+    setSearchParams(
+      (current) => {
+        const next = new URLSearchParams(current);
+        next.delete("create");
+        next.delete("studentId");
+        next.delete("tab");
+        next.delete("edit");
+        return next;
+      },
+      { replace: true },
+    );
+  }
+
   function dismissDetail() {
     const run = () => {
       setDetailOpen(false);
+      setEditing(false);
       setSelectedId("");
       setForm(emptyStudentForm());
       setFeedback(null);
@@ -391,6 +482,7 @@ export function StudentsPage() {
           const next = new URLSearchParams(current);
           next.delete("studentId");
           next.delete("tab");
+          next.delete("edit");
           return next;
         },
         { replace: true },
@@ -430,12 +522,8 @@ export function StudentsPage() {
     mutationFn: (draft: StudentForm) => createStudent(draft, auth.context?.activeOrganization?.id),
     onSuccess: (student) => {
       replaceCachedStudent(student);
-      commitSelection(student);
-      setDetailTab("overview");
-      setFeedback({
-        tone: "success",
-        message: copy.studentCreated,
-      });
+      finishCreate();
+      notify(copy.studentCreated);
       void qc.invalidateQueries({ queryKey: ["students"] });
     },
     onError: (error) =>
@@ -450,6 +538,16 @@ export function StudentsPage() {
     onSuccess: (student) => {
       replaceCachedStudent(student);
       setForm(studentToForm(student));
+      setEditing(false);
+      setDetailOpen(true);
+      setSearchParams(
+        (current) => {
+          const next = new URLSearchParams(current);
+          next.delete("edit");
+          return next;
+        },
+        { replace: true },
+      );
       setFeedback({ tone: "success", message: copy.profileSaved });
       void qc.invalidateQueries({ queryKey: ["students"] });
     },
@@ -549,10 +647,15 @@ export function StudentsPage() {
 
   const overview = useQuery({
     queryKey: ["student-overview", selectedId],
-    enabled: mode === "edit" && !!selectedId && detailTab === "overview",
+    enabled: detailOpen && !editing && !!selectedId && detailTab === "overview",
     queryFn: () => getStudentOverview(selectedId),
   });
-  const activityEnabled = mode === "edit" && !!selectedId && detailTab === "activity";
+  const profile = useQuery({
+    queryKey: ["student-profile", getApiWorkContextKey(), selectedId],
+    enabled: detailOpen && !editing && !!selectedId && detailTab === "overview",
+    queryFn: () => getStudentProfile(selectedId),
+  });
+  const activityEnabled = detailOpen && !editing && !!selectedId && detailTab === "activity";
   const learning = useQuery({
     queryKey: ["student-learning", selectedId],
     enabled: activityEnabled && auth.can("learning.read"),
@@ -580,7 +683,7 @@ export function StudentsPage() {
   });
 
   useEffect(() => {
-    if (creating || studentStore.isLoading || !students.length) return;
+    if (creating || studentsLoading) return;
     const fromUrl = searchParams.get("studentId") || "";
     const fromUrlStudent = fromUrl ? students.find((student) => student.id === fromUrl) : null;
     if (fromUrlStudent) {
@@ -589,19 +692,54 @@ export function StudentsPage() {
         setForm(studentToForm(fromUrlStudent));
         setFeedback(null);
       }
-      if (studentStore.studentId !== fromUrlStudent.id)
-        studentStore.setStudentId(fromUrlStudent.id);
-      setDetailOpen(true);
+      if (storedStudentId !== fromUrlStudent.id) setStudentId(fromUrlStudent.id);
+      setDetailOpen(!editing);
       return;
     }
-  }, [creating, searchParams, studentStore.isLoading, students, selectedId]);
+    if (studentsError) {
+      setDetailOpen(false);
+      setEditing(false);
+      setMobileDirectory(true);
+      return;
+    }
+    if (fromUrl) {
+      setSelectedId("");
+      setEditing(false);
+      setDetailOpen(false);
+      setMobileDirectory(true);
+      setForm(emptyStudentForm());
+      setFeedback(null);
+      if (storedStudentId) setStudentId("");
+      setSearchParams(
+        (current) => {
+          const next = new URLSearchParams(current);
+          next.delete("studentId");
+          next.delete("tab");
+          next.delete("edit");
+          return next;
+        },
+        { replace: true },
+      );
+    }
+  }, [
+    creating,
+    editing,
+    searchParams,
+    setSearchParams,
+    setStudentId,
+    storedStudentId,
+    studentsError,
+    studentsLoading,
+    students,
+    selectedId,
+  ]);
 
   useEffect(() => {
     setPage(1);
   }, [profileFilter, deferredSearch, sort, sortDirection, status, pageSize]);
   useEffect(() => {
     if (!visibleDetailTabs.includes(detailTab)) setDetailTab("overview");
-  }, [detailTab, auth.activeRole]);
+  }, [detailTab, visibleDetailTabs]);
   useEffect(() => {
     if (page > pageCount) setPage(pageCount);
   }, [page, pageCount]);
@@ -789,10 +927,11 @@ export function StudentsPage() {
           <StudentOverview
             student={selected}
             overview={overview.data}
+            profile={profile.data}
             loading={overview.isLoading}
-            error={overview.isError}
-            onRetry={() => void overview.refetch()}
-            onEdit={auth.can("students.update") ? () => setDetailTab("profile") : undefined}
+            error={overview.isError || profile.isError}
+            onRetry={() => void Promise.all([overview.refetch(), profile.refetch()])}
+            onEdit={auth.can("students.update") ? startEdit : undefined}
           />
         ) : null}
         {detailTab === "activity" ? (
@@ -813,23 +952,6 @@ export function StudentsPage() {
             ) : null}
             <StudentSupportWorkspace studentId={selectedId} />
           </>
-        ) : null}
-        {detailTab === "profile" && auth.can("students.update") ? (
-          <StudentEditor
-            mode="edit"
-            student={selected}
-            form={form}
-            setField={setField}
-            dirty={dirty}
-            saveDirty={saveDirty}
-            usernameError={usernameError}
-            busy={update.isPending}
-            onReset={() => {
-              setFeedback(null);
-              setForm(baseline);
-            }}
-            onSave={() => update.mutate()}
-          />
         ) : null}
         {detailTab === "access" ? <StudentAdminAccess selectedId={selectedId} /> : null}
         {detailTab === "security" && auth.can("students.update") ? (
@@ -861,6 +983,7 @@ export function StudentsPage() {
                 .then((ok) => ok && resetPassword.mutate())
             }
             onLifecycle={confirmLifecycle}
+            canArchive={auth.can("students.archive")}
             busy={{
               remove: remove.isPending,
               password: resetPassword.isPending,
@@ -941,53 +1064,77 @@ export function StudentsPage() {
         }
         detail={
           <div>
-            {mode === "create" ? (
-              <ResponsiveModal
-                open={creating}
-                onOpenChange={(open) => !open && cancelCreate()}
-                title={copy.createStudent}
-                description={copy.createDescription}
-                size="wide"
-              >
-                <section className="overflow-hidden">
-                  <div className="border-b border-slate-200 p-3 min-[1200px]:hidden dark:border-slate-800">
-                    <button
-                      type="button"
-                      onClick={cancelCreate}
-                      className="inline-flex items-center gap-1 rounded-lg px-2 py-1.5 text-xs font-bold text-slate-600 hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand dark:text-slate-300 dark:hover:bg-slate-800"
-                    >
-                      <ArrowRight size={15} className="ltr:rotate-180" />
-                      {copy.backToDirectory}
-                    </button>
-                  </div>
-                  <div className="min-h-0 p-3 sm:p-4 min-[1200px]:flex-1 min-[1200px]:overflow-y-auto min-[1200px]:overscroll-contain">
-                    <FeedbackBanner
-                      feedback={feedback}
-                      onDismiss={() => setFeedback(null)}
-                      closeLabel={copy.closeMessage}
+            <ResponsiveDrawer
+              open={creating}
+              onOpenChange={(open) => !open && cancelCreate()}
+              title={copy.createStudent}
+              description={copy.createDescription}
+              className="border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card))] text-[rgb(var(--color-ink))]"
+            >
+              <section className="overflow-hidden">
+                <div className="border-b border-border p-3 min-[1200px]:hidden">
+                  <button
+                    type="button"
+                    onClick={cancelCreate}
+                    className="inline-flex items-center gap-1 rounded-lg px-2 py-1.5 text-xs font-bold text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  >
+                    <ArrowRight size={15} className="ltr:rotate-180" />
+                    {copy.backToDirectory}
+                  </button>
+                </div>
+                <div className="min-h-0 p-3 sm:p-4 min-[1200px]:flex-1 min-[1200px]:overflow-y-auto min-[1200px]:overscroll-contain">
+                  <FeedbackBanner
+                    feedback={feedback}
+                    onDismiss={() => setFeedback(null)}
+                    closeLabel={copy.closeMessage}
+                  />
+                  <div className={feedback ? "mt-4" : ""}>
+                    <StudentEditor
+                      mode="create"
+                      form={form}
+                      setField={setField}
+                      dirty={dirty}
+                      saveDirty={saveDirty}
+                      usernameError={usernameError}
+                      busy={create.isPending}
+                      onCancelCreate={cancelCreate}
+                      onReset={() => {
+                        setFeedback(null);
+                        setForm(emptyStudentForm());
+                      }}
+                      onSave={() => create.mutate(form)}
                     />
-                    <div className={feedback ? "mt-4" : ""}>
-                      <StudentEditor
-                        mode="create"
-                        form={form}
-                        setField={setField}
-                        dirty={dirty}
-                        saveDirty={saveDirty}
-                        usernameError={usernameError}
-                        busy={create.isPending}
-                        onCancelCreate={cancelCreate}
-                        onReset={() => {
-                          setFeedback(null);
-                          setForm(emptyStudentForm());
-                        }}
-                        onSave={() => create.mutate(form)}
-                      />
-                    </div>
                   </div>
-                </section>
-              </ResponsiveModal>
-            ) : selected ? (
-              <ResponsiveModal
+                </div>
+              </section>
+            </ResponsiveDrawer>
+            {selected ? (
+              <ResponsiveDrawer
+                open={editing}
+                onOpenChange={(open) => !open && cancelEdit()}
+                title={copy.editProfile}
+                description={copy.editDescription}
+              >
+                <StudentEditor
+                  mode="edit"
+                  student={selected}
+                  form={form}
+                  setField={setField}
+                  dirty={dirty}
+                  saveDirty={saveDirty}
+                  usernameError={usernameError}
+                  busy={update.isPending}
+                  onCancelCreate={cancelEdit}
+                  onReset={() => {
+                    setFeedback(null);
+                    setForm(baseline);
+                  }}
+                  onSave={() => update.mutate()}
+                />
+              </ResponsiveDrawer>
+            ) : null}
+            {selected ? (
+              <ResponsiveDrawer
                 open={detailOpen && !creating}
                 onOpenChange={(open) => {
                   if (open) setDetailOpen(true);
@@ -995,7 +1142,6 @@ export function StudentsPage() {
                 }}
                 title={selected.name}
                 description={copy.detailSections}
-                size="wide"
               >
                 <StudentDetail
                   student={selected}
@@ -1005,11 +1151,14 @@ export function StudentsPage() {
                   dirty={dirty}
                   visibleTabs={visibleDetailTabs}
                   capabilities={auth.capabilities}
+                  onEdit={auth.can("students.update") ? startEdit : undefined}
+                  onPrevious={hasPreviousDetail ? () => moveDetail(-1) : undefined}
+                  onNext={hasNextDetail ? () => moveDetail(1) : undefined}
                 >
                   {detailContent}
                 </StudentDetail>
-              </ResponsiveModal>
-            ) : (
+              </ResponsiveDrawer>
+            ) : !creating ? (
               <section className="hidden min-[1200px]:block">
                 <div className="grid min-h-64 place-items-center text-center">
                   {studentStore.isLoading ? (
@@ -1055,7 +1204,7 @@ export function StudentsPage() {
                   )}
                 </div>
               </section>
-            )}
+            ) : null}
           </div>
         }
       />

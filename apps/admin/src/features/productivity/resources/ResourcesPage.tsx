@@ -1,3 +1,4 @@
+import { AdaptiveSelect } from "@/shared/ui/adaptive-select";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   CheckSquare2,
@@ -332,7 +333,7 @@ export function ResourcesPage() {
               }
               filters={
                 <>
-                  <select
+                  <AdaptiveSelect
                     className="h-8 min-w-28 border-0 bg-transparent px-2 text-xs outline-none"
                     aria-label={copy.statusFilter}
                     value={status}
@@ -342,8 +343,8 @@ export function ResourcesPage() {
                     <option value="PUBLISHED">{copy.published}</option>
                     <option value="DRAFT">{copy.draft}</option>
                     <option value="ARCHIVED">{copy.archived}</option>
-                  </select>
-                  <select
+                  </AdaptiveSelect>
+                  <AdaptiveSelect
                     className="h-8 max-w-32 border-0 bg-transparent px-2 text-xs outline-none"
                     aria-label={copy.categoryFilter}
                     value={category}
@@ -361,7 +362,7 @@ export function ResourcesPage() {
                           {item}
                         </option>
                       ))}
-                  </select>
+                  </AdaptiveSelect>
                 </>
               }
               actions={
@@ -447,7 +448,7 @@ export function ResourcesPage() {
           />
         </label>
         <div className="grid grid-cols-2 gap-1.5">
-          <select
+          <AdaptiveSelect
             className="h-9 rounded-lg border border-slate-200 bg-white px-2 text-xs dark:border-slate-700 dark:bg-slate-950"
             value={gradeFilter}
             onChange={(event) => setGradeFilter(event.target.value)}
@@ -466,8 +467,8 @@ export function ResourcesPage() {
                   {gradeLabel(item)}
                 </option>
               ))}
-          </select>
-          <select
+          </AdaptiveSelect>
+          <AdaptiveSelect
             className="h-9 rounded-lg border border-slate-200 bg-white px-2 text-xs dark:border-slate-700 dark:bg-slate-950"
             value={educationTypeFilter}
             onChange={(event) => {
@@ -483,8 +484,8 @@ export function ResourcesPage() {
                   {educationLabel(item!)}
                 </option>
               ))}
-          </select>
-          <select
+          </AdaptiveSelect>
+          <AdaptiveSelect
             className="h-9 rounded-lg border border-slate-200 bg-white px-2 text-xs dark:border-slate-700 dark:bg-slate-950"
             value={trackFilter}
             onChange={(event) => setTrackFilter(event.target.value)}
@@ -506,8 +507,8 @@ export function ResourcesPage() {
                   {educationLabel(item!)}
                 </option>
               ))}
-          </select>
-          <select
+          </AdaptiveSelect>
+          <AdaptiveSelect
             className="h-9 rounded-lg border border-slate-200 bg-white px-2 text-xs dark:border-slate-700 dark:bg-slate-950"
             value={assignmentFilter}
             onChange={(event) => setAssignmentFilter(event.target.value as typeof assignmentFilter)}
@@ -515,7 +516,7 @@ export function ResourcesPage() {
             <option value="all">همه دانش‌آموزان</option>
             <option value="unassigned">فقط تخصیص‌نداده</option>
             <option value="assigned">فقط انتخاب‌شده</option>
-          </select>
+          </AdaptiveSelect>
         </div>
         {gradeFilter || educationTypeFilter || trackFilter || assignmentFilter !== "all" ? (
           <Button
@@ -623,7 +624,7 @@ export function ResourcesPage() {
                   اشتراک سریع با نتیجه جست‌وجوی دانش‌آموزان
                 </p>
                 <div className="flex gap-1">
-                  <select
+                  <AdaptiveSelect
                     className="h-9 min-w-0 flex-1 rounded-lg border border-slate-200 bg-white px-2 text-xs dark:border-slate-700 dark:bg-slate-950"
                     aria-label="دانش‌آموز مقصد برای اشتراک"
                     value={shareTarget}
@@ -642,7 +643,7 @@ export function ResourcesPage() {
                           {student.name} · {student.grade || student.major || "بدون پایه"}
                         </option>
                       ))}
-                  </select>
+                  </AdaptiveSelect>
                   <Button
                     size="sm"
                     variant="soft"
@@ -832,13 +833,13 @@ function Select({
   children: React.ReactNode;
 }) {
   return (
-    <select
+    <AdaptiveSelect
       className="h-10 w-full rounded-lg border border-slate-200 bg-white px-2 text-sm dark:border-slate-700 dark:bg-slate-950"
       value={value}
       onChange={(event) => onChange(event.target.value)}
     >
       {children}
-    </select>
+    </AdaptiveSelect>
   );
 }
 function ResourceListItem({

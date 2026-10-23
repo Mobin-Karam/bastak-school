@@ -1,3 +1,4 @@
+import { AdaptiveSelect } from "@/shared/ui/adaptive-select";
 import {
   PublicSchoolProfileProvider,
   usePublicSchoolProfile,
@@ -105,7 +106,7 @@ function LoginPageContent() {
             {schools.length > 1 ? (
               <label className="mb-4 grid gap-1 text-xs font-bold">
                 {direction === "rtl" ? "مدرسه" : "School"}
-                <select
+                <AdaptiveSelect
                   value={selectedId}
                   onChange={(event) => selectSchool(event.target.value)}
                   className="h-10 rounded-lg border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card))] px-3"
@@ -116,7 +117,7 @@ function LoginPageContent() {
                       {item.profile.displayName || item.name}
                     </option>
                   ))}
-                </select>
+                </AdaptiveSelect>
               </label>
             ) : null}
             {/* {school ? (

@@ -32,8 +32,34 @@ describe("PrincipalDashboardService", () => {
           return [
             { date: "2026-10-20", present: 8, absent: 1, late: 1, excused: 0 },
           ];
-        if (sql.includes("GROUP BY s.contextId"))
+        if (sql.includes("GROUP BY s.contextId")) {
+          expect(sql).toContain("GROUP BY sessionId");
+          expect(sql).toContain("SUM(COALESCE(records.marked,0)) marked");
           return [{ id: "class-a", name: "پایه اول", marked: 9, expected: 10 }];
+        }
+        if (
+          sql.includes("attendance_session_reviews") &&
+          sql.includes("COUNT(DISTINCT s.id)")
+        )
+          return [{ count: 2 }];
+        if (sql.includes("attendance_session_reviews"))
+          return [
+            {
+              id: "session-a",
+              contextType: "class",
+              contextId: "class-a",
+              title: "پایه اول",
+              sessionDate: "2026-10-20 08:00:00",
+              status: "submitted",
+              expected: 10,
+              marked: 9,
+              present: 8,
+              absent: 1,
+              late: 0,
+              excused: 0,
+              lastReviewedAt: null,
+            },
+          ];
         if (sql.includes("COUNT(t.id) total"))
           return [{ total: 4, complete: 3 }];
         if (sql.includes("COUNT(DISTINCT ss.studentId) participants"))
@@ -73,6 +99,12 @@ describe("PrincipalDashboardService", () => {
       exitRequests: 2,
       permissionRequests: 2,
     });
+    expect(dashboard.sessionReviews).toEqual({
+      pendingCount: 2,
+      items: [
+        expect.objectContaining({ id: "session-a", marked: 9, absent: 1 }),
+      ],
+    });
   });
 
   it("does not return attendance, behaviour, queues, or operations without their source capabilities", async () => {
@@ -87,6 +119,7 @@ describe("PrincipalDashboardService", () => {
     expect(dashboard).not.toHaveProperty("attendance");
     expect(dashboard).not.toHaveProperty("behaviour");
     expect(dashboard).not.toHaveProperty("queues");
+    expect(dashboard).not.toHaveProperty("sessionReviews");
     expect(dashboard.operations).toEqual({
       activeStudents: 0,
       currentlyOut: 0,

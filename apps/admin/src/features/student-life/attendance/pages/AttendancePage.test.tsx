@@ -49,6 +49,19 @@ vi.mock("../../../identity/auth", () => ({
     context: { activeOrganization: { id: "org-1" } },
   }),
 }));
+vi.mock("../../../../shared/ui/responsive-drawer", () => ({
+  ResponsiveDrawer: ({ open, title, description, children, onOpenChange }: any) =>
+    open ? (
+      <div role="dialog" aria-label={String(title)}>
+        <h2>{title}</h2>
+        <p>{description}</p>
+        <button type="button" aria-label="بستن" onClick={() => onOpenChange(false)}>
+          بستن
+        </button>
+        {children}
+      </div>
+    ) : null,
+}));
 
 vi.mock("../components/AttendanceStaffWorkspace", () => ({
   AttendanceStaffWorkspace: () => <div>فضای کار جلسات</div>,
@@ -561,6 +574,9 @@ describe("AttendancePage", () => {
       </MemoryRouter>,
     );
     const ali = await screen.findByRole("group", { name: "وضعیت علی" });
+    const drawer = screen.getByRole("dialog");
+    expect(drawer.querySelector('[class*="overflow-y-auto"]')).toBeInTheDocument();
+    expect(drawer.querySelector('[class*="shrink-0"][class*="border-t"]')).toBeInTheDocument();
     await user.click(within(ali).getByRole("button", { name: "غایب" }));
     const search = screen.getByRole("searchbox", { name: "جستجوی طلبه" });
     await user.type(search, "102");

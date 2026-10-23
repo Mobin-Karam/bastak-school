@@ -1,3 +1,4 @@
+import { AdaptiveSelect } from "@/shared/ui/adaptive-select";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Archive, Pencil, Plus, Save, Search, WandSparkles } from "lucide-react";
 import { useState } from "react";
@@ -229,7 +230,7 @@ function QuestionBankEditor({
     draft.options.includes(draft.correctAnswer);
   return (
     <div className="grid gap-3">
-      <select
+      <AdaptiveSelect
         className="h-10 rounded-lg border px-3 text-sm"
         value={draft.organizationId}
         onChange={(e) => set("organizationId", e.target.value)}
@@ -240,7 +241,7 @@ function QuestionBankEditor({
             {organization.name}
           </option>
         ))}
-      </select>
+      </AdaptiveSelect>
       <textarea
         className="min-h-24 rounded-lg border p-3 text-sm"
         value={draft.text}
@@ -281,7 +282,7 @@ function QuestionBankEditor({
           onChange={(e) => set("topic", e.target.value)}
           placeholder={copy.topic}
         />
-        <select
+        <AdaptiveSelect
           className="h-10 rounded-lg border px-3 text-sm"
           value={draft.difficulty}
           onChange={(e) => set("difficulty", e.target.value)}
@@ -289,7 +290,7 @@ function QuestionBankEditor({
           <option value="easy">{copy.easy}</option>
           <option value="medium">{copy.medium}</option>
           <option value="hard">{copy.hard}</option>
-        </select>
+        </AdaptiveSelect>
         <Input
           value={draft.grade}
           onChange={(e) => set("grade", e.target.value)}
@@ -370,7 +371,7 @@ function BankGenerator({
   const total = easy + medium + hard;
   return (
     <div className="grid gap-3">
-      <select
+      <AdaptiveSelect
         className="h-10 rounded-lg border px-3 text-sm"
         value={examId}
         onChange={(event) => setExamId(event.target.value)}
@@ -381,7 +382,7 @@ function BankGenerator({
             {exam.title}
           </option>
         ))}
-      </select>
+      </AdaptiveSelect>
       <div className="grid grid-cols-3 gap-2">
         <label className="grid gap-1 text-xs">
           {copy.easy}

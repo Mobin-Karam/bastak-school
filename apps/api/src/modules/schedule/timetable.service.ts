@@ -963,6 +963,7 @@ export class TimetableService {
       const relationships = await manager.find(UserRelationship, {
         where: {
           fromUser: { id: user.id },
+          organization: { id: organizationId },
           type: RelationshipType.GUARDIAN_OF,
           status: RelationshipStatus.ACTIVE,
         },
@@ -1125,6 +1126,7 @@ export class TimetableService {
         where: {
           fromUser: { id: user.id },
           toStudent: { id: student.id },
+          organization: { id: organizationId },
           type: RelationshipType.GUARDIAN_OF,
           status: RelationshipStatus.ACTIVE,
         },
@@ -1810,6 +1812,7 @@ export class TimetableService {
         body,
         url: "/admin/schedule",
         dedupeKey: key,
+        organizationId,
       })
       .catch(() => undefined);
   }

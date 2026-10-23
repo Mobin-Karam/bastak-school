@@ -1,3 +1,4 @@
+import { AdaptiveSelect } from "@/shared/ui/adaptive-select";
 import { useRef, useState } from "react";
 import { z } from "zod";
 import { useForm } from "react-hook-form";
@@ -123,7 +124,7 @@ export function BookEditor({
               : "Required to place the book on this class shelf."
           }
         >
-          <select
+          <AdaptiveSelect
             className="h-11 w-full rounded-lg border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card))] px-3 text-sm"
             disabled={saving || options.isPending || options.isError}
             {...register("teacherId")}
@@ -134,7 +135,7 @@ export function BookEditor({
                 {teacher.name}
               </option>
             ))}
-          </select>
+          </AdaptiveSelect>
         </Field>
       ) : null}
       {!initial && options.isPending ? (

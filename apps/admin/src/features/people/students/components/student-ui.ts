@@ -8,6 +8,12 @@ export type StudentSortDirection = "asc" | "desc";
 export type StudentProfileFilter = "all" | "incomplete";
 export type StudentDetailTab = "overview" | "activity" | "profile" | "access" | "security";
 
+export function parseStudentPageNumber(value: string | null, fallback: number, allowed?: number[]) {
+  const parsed = Number(value);
+  if (!Number.isSafeInteger(parsed) || parsed < 1) return fallback;
+  return allowed && !allowed.includes(parsed) ? fallback : parsed;
+}
+
 export function getStudentStatus(student: Student): Exclude<StudentStatusFilter, "all"> {
   const status = student.accountStatus ?? student.account_status;
   if (status === "archived") return "archived";

@@ -239,6 +239,7 @@ export class GuardianService {
         title: "پیام دلگرم‌کننده",
         body: message,
         url: "/more",
+        organizationId: student.organization?.id,
       });
     await this.audit.save(
       this.audit.create({
@@ -258,7 +259,7 @@ export class GuardianService {
         type: RelationshipType.GUARDIAN_OF,
         status: RelationshipStatus.ACTIVE,
       },
-      relations: { toStudent: { user: true } },
+      relations: { toStudent: { user: true, organization: true } },
     });
     if (
       !relation ||

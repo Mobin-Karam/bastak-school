@@ -43,10 +43,10 @@
 
   --border-subtle: 205 227 222;
 
-  --radius-control: 8px;
-  --radius-surface: 8px;
+  --radius-control: 10px;
+  --radius-surface: 14px;
 
-  --shadow-surface: 0 1px 2px rgb(0 64 72 / 6%);
+  --shadow-surface: 0 1px 2px rgb(14 50 77 / 5%), 0 8px 24px rgb(14 50 77 / 4%);
 
   /* Liquid-glass surfaces inherit the product theme instead of introducing a
    * second palette. Effects are deliberately limited to navigation chrome. */
@@ -339,6 +339,69 @@
 @media (prefers-reduced-motion: reduce) {
   .glass-active-indicator {
     transition: none;
+  }
+}
+
+@layer components {
+  .responsive-drawer-popup {
+    position: fixed;
+    inset-inline: 0;
+    bottom: 0;
+    height: min(88dvh, 56rem);
+    max-height: 88dvh;
+    border-radius: 10px 10px 0 0;
+    transform: translateY(
+      calc(var(--drawer-snap-point-offset, 0px) + var(--drawer-swipe-movement-y, 0px))
+    );
+    transition: transform 280ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .responsive-drawer-popup[data-swipe-direction="down"][data-starting-style],
+  .responsive-drawer-popup[data-swipe-direction="down"][data-ending-style] {
+    transform: translateY(100%);
+  }
+
+  @media (min-width: 768px) {
+    .responsive-drawer-popup[data-swipe-direction="right"],
+    .responsive-drawer-popup[data-swipe-direction="left"] {
+      top: 0;
+      bottom: 0;
+      inset-block: 0;
+      margin: 0;
+      width: min(40rem, 100vw);
+      height: 100dvh;
+      max-height: none;
+      border-radius: 0;
+      transform: translateX(var(--drawer-swipe-movement-x, 0px));
+    }
+
+    .responsive-drawer-popup[data-swipe-direction="right"] {
+      right: auto;
+      left: 0;
+      border-right-width: 1px;
+    }
+
+    .responsive-drawer-popup[data-swipe-direction="left"] {
+      right: 0;
+      left: auto;
+      border-left-width: 1px;
+    }
+
+    .responsive-drawer-popup[data-swipe-direction="right"][data-starting-style],
+    .responsive-drawer-popup[data-swipe-direction="right"][data-ending-style] {
+      transform: translateX(-100%);
+    }
+
+    .responsive-drawer-popup[data-swipe-direction="left"][data-starting-style],
+    .responsive-drawer-popup[data-swipe-direction="left"][data-ending-style] {
+      transform: translateX(100%);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .responsive-drawer-popup {
+      transition: none;
+    }
   }
 }
 
@@ -686,6 +749,7 @@
   }
 
   body {
+    position: relative;
     margin: 0;
     min-width: 320px;
     min-height: 100dvh;
@@ -779,6 +843,25 @@
   animation: admin-page-enter 180ms ease-out;
 }
 
+/* Desktop is a focused Persian workspace: broad working canvas, restrained
+ * elevation, and navigation that reads as product structure instead of a
+ * stack of unrelated cards. Feature routes keep their existing semantics. */
+@media screen and (min-width: 1200px) {
+  .admin-role-shell[data-shell="desktop"] {
+    background:
+      radial-gradient(circle at 92% -12%, rgb(var(--color-brand) / 7%), transparent 26rem),
+      rgb(var(--color-paper));
+  }
+
+  .admin-role-shell[data-shell="desktop"] .admin-page-scroll {
+    background-image: linear-gradient(rgb(255 255 255 / 22%), transparent 14rem);
+  }
+
+  .admin-role-shell[data-shell="desktop"] .admin-page-main {
+    padding: 1.25rem 1.5rem;
+  }
+}
+
 /*
  * The shell applies this profile from user preferences and optional browser
  * device hints. It changes presentation only: all routes and controls remain
@@ -826,17 +909,28 @@
 
 /* Shell chrome is deliberately layered, while route content stays quiet. */
 .admin-header-surface {
+  position: relative;
   box-shadow:
-    0 10px 28px rgb(14 50 77 / 7%),
+    0 8px 24px rgb(14 50 77 / 6%),
     inset 0 1px 0 rgb(255 255 255 / 72%);
+}
+
+.admin-header-surface::after {
+  position: absolute;
+  inset-inline: 1.25rem;
+  inset-block-end: -1px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgb(var(--color-brand) / 28%), transparent);
+  content: "";
+  pointer-events: none;
 }
 
 .admin-main-rail {
   background-image: linear-gradient(
-    155deg,
+    160deg,
     rgb(var(--surface-card)) 0%,
-    rgb(var(--surface-raised)) 58%,
-    rgb(var(--surface-muted)) 160%
+    rgb(var(--surface-raised)) 64%,
+    rgb(var(--surface-muted)) 180%
   );
   box-shadow:
     10px 0 28px rgb(14 50 77 / 6%),
@@ -846,7 +940,7 @@
 
 .admin-context-rail {
   background-image: linear-gradient(
-    180deg,
+    160deg,
     rgb(var(--surface-muted)) 0%,
     rgb(var(--surface-raised)) 100%
   );
@@ -870,6 +964,166 @@
     inset 0 1px 0 rgb(255 255 255 / 42%);
 }
 
+.admin-rail-brand {
+  border-bottom: 1px solid rgb(var(--border-subtle) / 72%);
+}
+
+.admin-main-nav {
+  scrollbar-width: thin;
+  scrollbar-color: rgb(var(--color-brand) / 26%) transparent;
+}
+
+/* FarsiUI-inspired settings workspace: sections have a clear job, a stable
+ * in-page map, and compact operational panels rather than one undifferentiated
+ * column of cards. Individual setting components retain their API behavior. */
+.settings-workspace {
+  scroll-margin-top: 1rem;
+}
+
+.settings-nav {
+  display: flex;
+  gap: 0.45rem;
+  overflow-x: auto;
+  padding: 0.35rem;
+  border: 1px solid rgb(var(--border-subtle));
+  border-radius: 1rem;
+  background: rgb(var(--surface-raised));
+  scrollbar-width: none;
+}
+
+.settings-nav::-webkit-scrollbar {
+  display: none;
+}
+
+.settings-nav__item {
+  flex: 0 0 auto;
+  border-radius: 0.7rem;
+  padding: 0.55rem 0.8rem;
+  color: rgb(71 85 105);
+  font-size: 0.78rem;
+  font-weight: 750;
+  line-height: 1.25;
+  text-decoration: none;
+  transition:
+    color 160ms ease,
+    background 160ms ease;
+}
+
+.settings-nav__item:hover,
+.settings-nav__item:focus-visible {
+  background: rgb(var(--color-brand-soft));
+  color: rgb(var(--color-brand-strong));
+}
+
+.settings-section {
+  display: grid;
+  gap: 1rem;
+  scroll-margin-top: 1.25rem;
+}
+
+.settings-section__heading {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  max-width: 44rem;
+}
+
+.settings-section__heading h2 {
+  margin: 0;
+  color: rgb(var(--color-ink));
+  font-size: 1rem;
+  font-weight: 900;
+}
+
+.settings-section__heading p {
+  margin: 0.2rem 0 0;
+  color: rgb(100 116 139);
+  font-size: 0.78rem;
+  line-height: 1.75;
+}
+
+.settings-section__icon {
+  display: grid;
+  width: 2.4rem;
+  height: 2.4rem;
+  flex: none;
+  place-items: center;
+  border: 1px solid rgb(var(--color-brand) / 16%);
+  border-radius: 0.8rem;
+  background: rgb(var(--color-brand-soft));
+  color: rgb(var(--color-brand-strong));
+}
+
+.settings-section-grid,
+.settings-security-grid {
+  display: grid;
+  gap: 1rem;
+}
+
+@media screen and (min-width: 1024px) {
+  .settings-nav {
+    position: sticky;
+    top: 0.75rem;
+    z-index: 5;
+    width: fit-content;
+    max-width: 100%;
+    box-shadow: 0 0.5rem 1.5rem rgb(14 50 77 / 6%);
+  }
+
+  .settings-section-grid,
+  .settings-security-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .settings-section-grid > :only-child {
+    max-width: 52rem;
+  }
+}
+
+.dark .settings-nav {
+  background: rgb(var(--surface-muted));
+}
+
+/* Student operations keep the directory as the decision surface. Record
+ * review, creation, and editing use ResponsiveDrawer so a wide desktop and a
+ * narrow touch device share the same focus-managed workflow. */
+.students-workspace .data-table-workspace {
+  background-image: linear-gradient(180deg, rgb(var(--surface-raised) / 35%), transparent 7rem);
+}
+
+.students-workspace :is(input, select, textarea):focus-visible {
+  box-shadow: 0 0 0 3px rgb(var(--color-brand) / 16%);
+}
+
+@media screen and (min-width: 1200px) {
+  .students-workspace > div:first-child {
+    max-width: none;
+  }
+}
+
+.admin-context-heading {
+  border-bottom: 1px solid rgb(var(--border-subtle) / 68%);
+}
+
+@media screen and (min-width: 1200px) {
+  .admin-main-rail,
+  .admin-context-rail {
+    border-color: rgb(var(--border-subtle) / 85%);
+  }
+
+  .admin-main-rail:has(.admin-rail-brand) {
+    padding-block-start: 1rem;
+  }
+
+  .admin-context-rail {
+    padding-block-start: 0.75rem;
+  }
+
+  .admin-role-shell[data-shell="desktop"] .admin-page-shell > * {
+    animation-duration: 160ms;
+  }
+}
+
 .dark .admin-header-surface {
   box-shadow:
     0 10px 28px rgb(0 0 0 / 24%),
@@ -882,6 +1136,10 @@
     10px 0 28px rgb(0 0 0 / 18%),
     inset -1px 0 rgb(255 255 255 / 5%),
     inset 0 1px 0 rgb(255 255 255 / 5%);
+}
+
+.dark .admin-header-surface::after {
+  background: linear-gradient(90deg, transparent, rgb(var(--color-brand) / 38%), transparent);
 }
 
 .dark [dir="rtl"] .admin-main-rail,
@@ -1506,7 +1764,7 @@ html.is-scrolling :is(body, .scroll-reveal)::-webkit-scrollbar-thumb,
 
 .admin-sonner-toaster [data-sonner-toast].admin-sonner-toast .admin-sonner-title {
   font-size: 0.9375rem;
-  font-weight: 650;
+  font-weight: 700;
   line-height: 1.5;
 }
 
@@ -1526,8 +1784,9 @@ html.is-scrolling :is(body, .scroll-reveal)::-webkit-scrollbar-thumb,
   width: 2.25rem;
   height: 2.25rem;
   margin: 0.25rem 0 0;
-  border-radius: 50%;
-  background: rgb(var(--surface-muted));
+  border: 1px solid var(--toast-border);
+  border-radius: 0.75rem;
+  background: rgb(var(--popover));
   color: var(--toast-accent);
 }
 
@@ -1573,10 +1832,10 @@ html.is-scrolling :is(body, .scroll-reveal)::-webkit-scrollbar-thumb,
   height: auto;
   margin: 0;
   padding: 0.5rem 0.875rem;
-  border: 1px solid rgb(var(--border-subtle));
+  border: 1px solid var(--toast-accent);
   border-radius: 0.625rem;
-  background: rgb(var(--surface-muted));
-  color: rgb(var(--color-ink));
+  background: var(--toast-accent);
+  color: var(--toast-action-text);
   font-size: 0.8125rem;
   font-weight: 600;
 }
@@ -1586,29 +1845,76 @@ html.is-scrolling :is(body, .scroll-reveal)::-webkit-scrollbar-thumb,
   outline-offset: 2px;
 }
 
+.admin-sonner-toaster [data-sonner-toast].admin-sonner-toast .admin-sonner-action:hover {
+  filter: brightness(0.94);
+}
+
+.admin-sonner-toaster [data-sonner-toast].admin-sonner-toast .admin-sonner-cancel {
+  grid-column: 2 / -1;
+  justify-self: start;
+  min-height: 2.75rem;
+  height: auto;
+  margin: 0;
+  padding: 0.5rem 0.875rem;
+  border: 1px solid var(--toast-border);
+  border-radius: 0.625rem;
+  background: transparent;
+  color: var(--toast-accent);
+  font-size: 0.8125rem;
+  font-weight: 700;
+}
+
+.admin-sonner-toaster [data-sonner-toast].admin-sonner-toast .admin-sonner-cancel:hover {
+  background: var(--toast-tint);
+}
+
 .admin-sonner-toaster [data-sonner-toast].admin-sonner-toast[data-type="success"] {
-  --toast-accent: #15803d;
+  --toast-accent: #087f5b;
+  --toast-tint: #e8f8f1;
+  --toast-border: #a7e7ce;
+  --toast-action-text: #ffffff;
 }
 .admin-sonner-toaster [data-sonner-toast].admin-sonner-toast[data-type="info"] {
-  --toast-accent: #0369a1;
+  --toast-accent: #087a9b;
+  --toast-tint: #e7f7fb;
+  --toast-border: #a8dfee;
+  --toast-action-text: #ffffff;
 }
 .admin-sonner-toaster [data-sonner-toast].admin-sonner-toast[data-type="warning"] {
-  --toast-accent: #a16207;
+  --toast-accent: #9a6700;
+  --toast-tint: #fff7df;
+  --toast-border: #f3d48a;
+  --toast-action-text: #ffffff;
 }
 .admin-sonner-toaster [data-sonner-toast].admin-sonner-toast[data-type="error"] {
-  --toast-accent: #be123c;
+  --toast-accent: #bd3455;
+  --toast-tint: #fff0f2;
+  --toast-border: #ffc1cc;
+  --toast-action-text: #ffffff;
 }
 .dark .admin-sonner-toaster [data-sonner-toast].admin-sonner-toast[data-type="success"] {
-  --toast-accent: #86efac;
+  --toast-accent: #55d6a5;
+  --toast-tint: #123c33;
+  --toast-border: #287b62;
+  --toast-action-text: #092632;
 }
 .dark .admin-sonner-toaster [data-sonner-toast].admin-sonner-toast[data-type="info"] {
-  --toast-accent: #7dd3fc;
+  --toast-accent: #6bd2ec;
+  --toast-tint: #123744;
+  --toast-border: #28748a;
+  --toast-action-text: #092632;
 }
 .dark .admin-sonner-toaster [data-sonner-toast].admin-sonner-toast[data-type="warning"] {
-  --toast-accent: #fde047;
+  --toast-accent: #f2c45f;
+  --toast-tint: #443617;
+  --toast-border: #866525;
+  --toast-action-text: #092632;
 }
 .dark .admin-sonner-toaster [data-sonner-toast].admin-sonner-toast[data-type="error"] {
-  --toast-accent: #fda4af;
+  --toast-accent: #ff9daf;
+  --toast-tint: #451f2a;
+  --toast-border: #864051;
+  --toast-action-text: #092632;
 }
 
 @media (max-width: 1023px) {
@@ -1636,7 +1942,7 @@ html.is-scrolling :is(body, .scroll-reveal)::-webkit-scrollbar-thumb,
 @media screen and (min-width: 1200px) {
   .admin-role-shell[data-shell="desktop"] .admin-page-main {
     height: 100%;
-    padding: 0.75rem 1rem;
+    padding: 1.25rem 1.5rem;
   }
 
   .admin-role-shell[data-shell="desktop"] .admin-page-shell {
@@ -2031,6 +2337,7 @@ html.is-scrolling :is(body, .scroll-reveal)::-webkit-scrollbar-thumb,
     transition: none;
   }
 }
+
 @keyframes floating-audio-level {
   0%,
   100% {
@@ -2409,6 +2716,15 @@ html.is-scrolling :is(body, .scroll-reveal)::-webkit-scrollbar-thumb,
   color: white;
   border-color: rgb(var(--brand));
 }
+.principal-dashboard__controls select {
+  min-height: 2.4rem;
+  border: 1px solid rgb(var(--border-subtle));
+  border-radius: 0.65rem;
+  background: rgb(var(--surface-card));
+  color: rgb(var(--ink));
+  padding: 0.4rem 0.6rem;
+  font-size: 0.75rem;
+}
 .principal-dashboard__controls span {
   flex-basis: 100%;
   color: rgb(var(--muted));
@@ -2550,6 +2866,30 @@ html.is-scrolling :is(body, .scroll-reveal)::-webkit-scrollbar-thumb,
   fill: color-mix(in srgb, rgb(var(--brand)) 25%, transparent);
   stroke: rgb(var(--brand));
   stroke-width: 1.4;
+}
+.principal-dashboard__radar-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.78rem;
+}
+.principal-dashboard__radar-table caption {
+  padding-bottom: 0.5rem;
+  color: rgb(var(--muted));
+  text-align: start;
+}
+.principal-dashboard__radar-table th,
+.principal-dashboard__radar-table td {
+  padding: 0.4rem 0;
+  border-bottom: 1px dashed rgb(var(--border-subtle));
+  text-align: start;
+}
+.principal-dashboard__radar-table th {
+  color: rgb(var(--muted));
+  font-weight: 500;
+}
+.principal-dashboard__radar-table td {
+  color: rgb(var(--ink));
+  font-weight: 800;
 }
 .principal-dashboard__radar-notes {
   display: grid;

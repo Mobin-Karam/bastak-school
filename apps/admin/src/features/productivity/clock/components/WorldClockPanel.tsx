@@ -1,3 +1,4 @@
+import { AdaptiveSelect } from "@/shared/ui/adaptive-select";
 import { Globe2, Plus, Trash2 } from "lucide-react";
 import { useState } from "react";
 import type { ChangeEvent } from "react";
@@ -17,7 +18,7 @@ export function WorldClockPanel({ now }: { now: Date }) {
   return (
     <div className="space-y-3">
       <div className="flex gap-2 rounded-xl border border-slate-200 bg-slate-50 p-2 dark:border-slate-700 dark:bg-slate-800/70">
-        <select
+        <AdaptiveSelect
           value={zone}
           onChange={(event: ChangeEvent<HTMLSelectElement>) => setZone(event.target.value)}
           className="h-10 min-w-0 flex-1 rounded-lg border border-slate-200 bg-white px-2 text-xs font-semibold outline-none focus:border-brand dark:border-slate-700 dark:bg-slate-900"
@@ -27,7 +28,7 @@ export function WorldClockPanel({ now }: { now: Date }) {
               {label} — {timeZone}
             </option>
           ))}
-        </select>
+        </AdaptiveSelect>
         <button
           type="button"
           onClick={() => selected && add(selected[0], selected[1])}
