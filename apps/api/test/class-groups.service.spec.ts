@@ -22,6 +22,10 @@ import { EducationBook } from "../src/database/entities/education-book.entity";
 import { UserRoleAssignment } from "../src/database/entities/user-role-assignment.entity";
 import { StudyGroup } from "../src/database/entities/study-group.entity";
 import { StudyGroupMembership } from "../src/database/entities/study-group-membership.entity";
+import { Exam } from "../src/database/entities/exam.entity";
+import { ExamClassAssignment } from "../src/database/entities/exam-class-assignment.entity";
+import { Quiz } from "../src/database/entities/quiz.entity";
+import { QuizClassAssignment } from "../src/database/entities/quiz-class-assignment.entity";
 import { ClassGroupsService } from "../src/modules/class-groups/class-groups.service";
 import { ClassGroupsController } from "../src/modules/class-groups/class-groups.controller";
 import { ClassesService } from "../src/modules/classes/classes.service";
@@ -70,6 +74,7 @@ describe("Class groups (real SQLite)", () => {
       capabilities: [
         "class_groups.read",
         "class_groups.manage",
+        "classes.manage",
         "classes.roster.manage",
       ],
       organizationIds: [org.id],
@@ -306,6 +311,51 @@ describe("Class groups (real SQLite)", () => {
     expect(await db.getRepository(StudyGroupMembership).count()).toBe(0);
     expect(await db.getRepository(Student).count()).toBe(3);
     expect(await db.getRepository(EducationClass).count()).toBe(2);
+  });
+  it("deletes only the class-owned cascade graph", async () => {
+    await service.setMembers(actor, group.id, [alice.id]);
+    const book = await db.getRepository(EducationBook).save({
+      id: "class-delete-book",
+      country: "IR",
+      schoolYear: "1405-1406",
+      grade: 7,
+      level: "school",
+      branch: "general",
+      track: "general",
+      category: "test",
+      titleFa: "کتاب حذف کلاس",
+      titleEn: "Class deletion book",
+      appliesTo: [],
+    });
+    await db.getRepository(EducationClassBook).save({
+      classroom,
+      book,
+      teacher: { id: actor.id },
+    });
+    const exam = await db.getRepository(Exam).save({
+      title: "Class deletion exam",
+      organization: org,
+    });
+    const quiz = await db.getRepository(Quiz).save({
+      title: "Class deletion quiz",
+      organization: org,
+    });
+    await db.getRepository(ExamClassAssignment).save({ exam, classroom });
+    await db.getRepository(QuizClassAssignment).save({ quiz, classroom });
+
+    await expect(classService().remove(actor, classroom.id)).resolves.toEqual({
+      deleted: true,
+    });
+
+    expect(await db.getRepository(EducationClass).count()).toBe(1);
+    expect(await db.getRepository(EducationClassEnrollment).count()).toBe(0);
+    expect(await db.getRepository(EducationClassBook).count()).toBe(0);
+    expect(await db.getRepository(StudyGroup).count()).toBe(0);
+    expect(await db.getRepository(StudyGroupMembership).count()).toBe(0);
+    expect(await db.getRepository(ExamClassAssignment).count()).toBe(0);
+    expect(await db.getRepository(QuizClassAssignment).count()).toBe(0);
+    expect(await db.getRepository(Student).count()).toBe(3);
+    expect(await db.query("PRAGMA foreign_key_check")).toEqual([]);
   });
   it("validates DTOs and capabilities through the real HTTP routes", async () => {
     const module = await Test.createTestingModule({

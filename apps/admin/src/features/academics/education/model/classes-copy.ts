@@ -43,7 +43,7 @@ const copy = {
     deleteClass: "حذف کلاس",
     deleteTitle: "حذف کلاس؟",
     deleteDescription: (name: string) =>
-      `کلاس «${name}» و فهرست کتاب‌ها و دانش‌آموزان آن حذف می‌شود.`,
+      `کلاس «${name}»، فهرست کتاب‌ها و دانش‌آموزان، گروه‌ها و عضویت‌های آن، و تخصیص‌های کلاسی آزمون و آزمونک حذف می‌شوند. اگر کلاس در سابقهٔ برنامه درسی استفاده شده باشد، حذف مسدود است و باید آن را بایگانی کنید.`,
     bookTeachersTitle: "کتاب‌ها و دبیران کلاس",
     bookTeachersDescription: "هر کتاب را انتخاب کنید و دبیر مسئول همان کتاب را تعیین کنید.",
     rosterTitle: "فهرست دانش‌آموزان کلاس",
@@ -132,7 +132,7 @@ const copy = {
     deleteClass: "Delete class",
     deleteTitle: "Delete class?",
     deleteDescription: (name: string) =>
-      `The class “${name}” and its book and student roster will be deleted.`,
+      `The class “${name}”, its book and student roster, class groups and memberships, and class-based exam and quiz assignments will be deleted. If the class is used in timetable history, deletion is blocked and you must archive it instead.`,
     bookTeachersTitle: "Class books and teachers",
     bookTeachersDescription: "Select each book and assign its responsible teacher.",
     rosterTitle: "Class student roster",
