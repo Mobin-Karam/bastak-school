@@ -12,7 +12,10 @@ import helmet from "@fastify/helmet";
 import { AppModule } from "./app.module";
 import { DocumentBuilder, SwaggerModule } from "@nestjs/swagger";
 import { registerHttpTelemetry } from "./common/observability/http-telemetry";
-import { isApprovedBrowserOrigin } from "./config/app.config";
+import {
+  browserCorsMethods,
+  isApprovedBrowserOrigin,
+} from "./config/app.config";
 import { resolveTrustedProxy } from "./config/trusted-proxy";
 
 async function bootstrap() {
@@ -43,6 +46,7 @@ async function bootstrap() {
     origin: (origin, callback) =>
       callback(null, isApprovedBrowserOrigin(origin, corsOrigins)),
     credentials: true,
+    methods: browserCorsMethods,
     maxAge: 600,
   });
   // app

@@ -19,6 +19,16 @@ const productionCorsOrigins = [
   "https://stud.sultano.ir",
 ];
 
+export const browserCorsMethods = [
+  "GET",
+  "HEAD",
+  "POST",
+  "PUT",
+  "PATCH",
+  "DELETE",
+  "OPTIONS",
+];
+
 export default () => ({
   nodeEnv: process.env.NODE_ENV || "development",
   port: Number(process.env.PORT || 4000),

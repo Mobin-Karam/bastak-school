@@ -1,6 +1,7 @@
 import Fastify from "fastify";
 import cors from "@fastify/cors";
 import {
+  browserCorsMethods,
   isApprovedBrowserOrigin,
   parseCorsOrigins,
 } from "../src/config/app.config";
@@ -30,23 +31,33 @@ describe("browser CORS policy", () => {
       origin: (origin, callback) =>
         callback(null, isApprovedBrowserOrigin(origin, browserOrigins)),
       credentials: true,
+      methods: browserCorsMethods,
     });
     app.get("/protected", async () => ({ ok: true }));
     await app.ready();
 
     for (const origin of browserOrigins) {
-      const response = await app.inject({
-        method: "OPTIONS",
-        url: "/protected",
-        headers: {
-          origin,
-          "access-control-request-method": "POST",
-          "access-control-request-headers": "content-type,x-csrf-token",
-        },
-      });
-      expect(response.statusCode).toBe(204);
-      expect(response.headers["access-control-allow-origin"]).toBe(origin);
-      expect(response.headers["access-control-allow-credentials"]).toBe("true");
+      for (const method of ["POST", "PUT", "PATCH", "DELETE"]) {
+        const response = await app.inject({
+          method: "OPTIONS",
+          url: "/protected",
+          headers: {
+            origin,
+            "access-control-request-method": method,
+            "access-control-request-headers": "content-type,x-csrf-token",
+          },
+        });
+        expect(response.statusCode).toBe(204);
+        expect(response.headers["access-control-allow-origin"]).toBe(origin);
+        expect(response.headers["access-control-allow-credentials"]).toBe(
+          "true",
+        );
+        expect(
+          response.headers["access-control-allow-methods"]
+            ?.split(",")
+            .map((value) => value.trim()),
+        ).toContain(method);
+      }
     }
 
     const denied = await app.inject({
@@ -67,6 +78,7 @@ describe("browser CORS policy", () => {
       origin: (origin, callback) =>
         callback(null, isApprovedBrowserOrigin(origin, browserOrigins)),
       credentials: true,
+      methods: browserCorsMethods,
     });
     app.get("/native-client", async () => ({ ok: true }));
     await app.ready();
