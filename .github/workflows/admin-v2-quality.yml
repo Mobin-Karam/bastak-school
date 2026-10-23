@@ -2,12 +2,14 @@ name: Admin v2 Quality
 
 on:
   pull_request:
+    branches: [develop]
     paths:
       - "apps/admin/**"
       - "packages/api-contract/**"
       - "packages/admin-workspace-ui/**"
       - ".github/workflows/admin-v2-quality.yml"
   push:
+    branches: [develop]
     paths:
       - "apps/admin/**"
       - "packages/api-contract/**"

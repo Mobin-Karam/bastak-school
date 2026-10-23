@@ -2,9 +2,10 @@ name: CMB Packages Quality
 
 on:
   pull_request:
+    branches: [develop]
     paths: ['packages/cmb/**', 'apps/cmb-reference/**', 'apps/api/**', 'tooling/architecture/**', 'tooling/cmb/**', 'tooling/generators/**', 'tooling/workspace/**', 'docs/architecture/cmb-reference-and-release.md', 'package.json', '.github/workflows/cmb-packages-quality.yml']
   push:
-    branches: [develop, main]
+    branches: [develop]
     paths: ['packages/cmb/**', 'apps/cmb-reference/**', 'apps/api/**', 'tooling/architecture/**', 'tooling/cmb/**', 'tooling/generators/**', 'tooling/workspace/**', 'docs/architecture/cmb-reference-and-release.md', 'package.json', '.github/workflows/cmb-packages-quality.yml']
 
 permissions:
