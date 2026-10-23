@@ -1,3 +1,4 @@
+import { AdaptiveSelect } from "@/shared/ui/adaptive-select";
 import { useMemo, useState, type ChangeEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Archive, CheckCircle2, Pencil, Search, Upload, Users } from "lucide-react";
@@ -161,7 +162,7 @@ export function EducationCatalogPanel({
               placeholder={copy.search}
             />
           </label>
-          <select
+          <AdaptiveSelect
             className="h-10 rounded-lg border border-slate-200 bg-white px-2 text-xs dark:border-slate-700 dark:bg-slate-950"
             value={state}
             onChange={(event) => setState(event.target.value as typeof state)}
@@ -170,7 +171,7 @@ export function EducationCatalogPanel({
             <option value="DRAFT">{copy.draft}</option>
             <option value="PUBLISHED">{copy.published}</option>
             <option value="ARCHIVED">{copy.archived}</option>
-          </select>
+          </AdaptiveSelect>
           <span className="text-xs text-slate-500">
             {rows.length.toLocaleString(copy.locale)} {copy.books}
           </span>

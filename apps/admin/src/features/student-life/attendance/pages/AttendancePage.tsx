@@ -30,7 +30,7 @@ import { useLocale } from "../../../../shared/ui/locale";
 import { Card } from "../../../../shared/ui/ui";
 import { api, ApiError } from "../../../../shared/api/api";
 import { notify } from "../../../../shared/ui/notifications";
-import { Modal } from "../../../../shared/ui/modal";
+import { ResponsiveDrawer } from "../../../../shared/ui/responsive-drawer";
 import { useAuth } from "../../../identity/auth";
 import { useAttendanceDiscard } from "../components/useAttendanceDiscard";
 import { AttendanceRosterView } from "../views/AttendanceRosterView";
@@ -663,7 +663,7 @@ export function AttendancePage() {
         aria-label="مرحله اول: نوع حضور و غیاب"
       >
         <div
-          className="grid min-w-[360px] gap-1"
+          className="grid min-w-0 gap-1"
           style={{ gridTemplateColumns: `repeat(${sections.length}, minmax(0, 1fr))` }}
         >
           {sections.map((type) => {
@@ -678,10 +678,10 @@ export function AttendancePage() {
                 aria-label={`${sectionLabels[type]} ${type === "pool" ? "فراخوان زنده" : type === "sessions" ? "سوابق حضور" : `${total} مورد`}`}
                 disabled={saving || loadingContexts}
                 onClick={() => chooseAttendanceType(type)}
-                className={`flex min-h-[5rem] flex-col items-center justify-center gap-1 rounded-2xl text-center transition-colors motion-reduce:transition-none sm:flex-row sm:justify-center ${active ? "bg-gradient-to-br from-blue-500 to-blue-700 text-white shadow-sm" : "text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"}`}
+                className={`flex min-h-[5rem] min-w-0 flex-col items-center justify-center gap-1 rounded-2xl text-center transition-colors motion-reduce:transition-none sm:flex-row sm:justify-center ${active ? "bg-brand text-white shadow-sm" : "text-ink hover:bg-[rgb(var(--surface-muted))]"}`}
               >
                 <span
-                  className={`flex size-9 shrink-0 items-center justify-center rounded-lg ${active ? "bg-white/15" : "bg-slate-100 dark:bg-slate-800"}`}
+                  className={`flex size-9 shrink-0 items-center justify-center rounded-lg ${active ? "bg-white/15" : "bg-[rgb(var(--surface-muted))]"}`}
                 >
                   <Icon size={17} />
                 </span>
@@ -863,140 +863,153 @@ export function AttendancePage() {
         </Card>
       ) : null}
 
-      <Modal
+      <ResponsiveDrawer
         open={Boolean(selected)}
         dismissible={!saving}
         onOpenChange={(open) => {
           if (!open) closeRoster();
         }}
-        title={reviewOpen ? "مرحله ۳: بررسی و ثبت حضور" : selected?.name || "حضور و غیاب"}
-        size="xl"
-        description="وضعیت اعضا را انتخاب کنید، سپس حضور جلسه را بررسی و ثبت کنید."
+        title={reviewOpen ? "مرور نهایی حضور و غیاب" : selected?.name || "ثبت حضور و غیاب"}
+        description={
+          reviewOpen
+            ? "خلاصه وضعیت‌ها و دانش‌آموزان ثبت‌نشده را بررسی کنید و سپس ذخیره را تأیید کنید."
+            : selected
+              ? `${contextTargetLabel(selected.contextType)}${linkedSession ? ` · ${linkedSession.title}` : " · ثبت برای امروز"} · ${participants.length.toLocaleString("fa-IR")} نفر`
+              : "وضعیت اعضا را ثبت کنید؛ پیش از ذخیره، خلاصه تغییرات را مرور خواهید کرد."
+        }
+        desktopSide="left"
+        className="md:w-[min(64rem,96vw)]"
       >
-        <div dir={profile.direction} className="space-y-4">
-          <div hidden={reviewOpen} className="space-y-4">
-            <p className="rounded-xl bg-blue-50 px-4 py-3 text-xs text-blue-800 dark:bg-blue-950/30 dark:text-blue-200">
-              {linkedSession
-                ? `${linkedSession.title} · ${linkedSession.status === "cancelled" ? "لغو شده؛ فقط مشاهده تاریخچه" : "حضور همین وقوع درس ثبت می‌شود."}`
-                : "این جلسه با زمان فعلی ثبت می‌شود."}
-            </p>
-            {linkedSession && sessionWindow?.message ? (
-              <p
-                role="status"
-                className="rounded-xl bg-amber-50 px-4 py-3 text-xs text-amber-900 dark:bg-amber-950/30 dark:text-amber-100"
-              >
-                {sessionWindow.message}
+        <div
+          dir={profile.direction}
+          className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden"
+        >
+          <div hidden={reviewOpen} className="flex min-h-0 flex-1 flex-col overflow-hidden">
+            <div className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain px-4 py-4 sm:px-5">
+              <p className="rounded-xl bg-blue-50 px-4 py-3 text-xs text-blue-800 dark:bg-blue-950/30 dark:text-blue-200">
+                {linkedSession
+                  ? `${linkedSession.title} · ${linkedSession.status === "cancelled" ? "لغو شده؛ فقط مشاهده تاریخچه" : "حضور همین وقوع درس ثبت می‌شود."}`
+                  : "این جلسه با زمان فعلی ثبت می‌شود."}
               </p>
-            ) : null}
-            {notice && !reviewOpen ? (
-              <p role={notice.kind === "error" ? "alert" : "status"} className="text-sm">
-                {notice.text}
-              </p>
-            ) : null}
-            {peopleError ? (
-              <button
-                type="button"
-                className={`${buttonBase} ${shell}`}
-                onClick={() => setRosterVersion((v) => v + 1)}
-              >
-                تلاش مجدد
-              </button>
-            ) : null}
-            {selected ? (
-              <>
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <div>
-                    <p className="text-sm font-bold">پیشرفت ثبت حضور</p>
-                    <p className={`text-xs ${muted}`}>
-                      {marked} از {participants.length} نفر تعیین وضعیت شده‌اند
-                    </p>
-                  </div>
-                  <span className="text-xl font-black tabular-nums">{progress}٪</span>
-                </div>
-                <div
-                  role="progressbar"
-                  aria-label="پیشرفت تعیین وضعیت"
-                  aria-valuenow={progress}
-                  aria-valuemin={0}
-                  aria-valuemax={100}
-                  className="h-2.5 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800"
+              {linkedSession && sessionWindow?.message ? (
+                <p
+                  role="status"
+                  className="rounded-xl bg-amber-50 px-4 py-3 text-xs text-amber-900 dark:bg-amber-950/30 dark:text-amber-100"
                 >
-                  <div
-                    className="h-full rounded-full bg-blue-600 transition-all"
-                    style={{ width: `${progress}%` }}
-                  />
-                </div>
-                <AttendanceStatusTiles counts={counts} filter={filter} onFilter={setFilter} />
-              </>
-            ) : null}
-            {selected?.contextType === "dorm" && auth.can("attendance.delegate") ? (
-              <DormDelegateEditor roomId={selected.id} members={participants} scope={scopeKey} />
-            ) : null}
-            <AttendanceRosterView
-              canManage={canManage}
-              absenceFirst={Boolean(linkedSession)}
-              participants={participants}
-              filtered={filtered}
-              selected={Boolean(selected)}
-              filter={filter}
-              search={search}
-              loading={loadingPeople}
-              saving={saving}
-              conflict={conflict}
-              unmarkedCount={counts.unmarked}
-              onFilterChange={setFilter}
-              onSearchChange={setSearch}
-              onViewProfile={canViewStaffSessions ? setProfileId : undefined}
-              onAdjustPoints={
-                auth.can("attendance.points.adjust")
-                  ? (student, points) => {
-                      setPointTarget({ id: student.id, name: student.name, points });
-                      setPointReason("");
-                    }
-                  : undefined
-              }
-              onMark={mark}
-              onMarkAllPresent={markAllPresent}
-              onClearFilters={() => {
-                setFilter("all");
-                setSearch("");
-              }}
-            />
-
-            {conflict && (
-              <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-400 bg-amber-50 p-4 text-sm text-amber-950 dark:bg-amber-950/30 dark:text-amber-100">
-                <span className="flex items-center gap-2">
-                  <ShieldAlert size={18} /> به‌روزرسانی هم‌زمان شناسایی شد. ذخیره تا بررسی مجدد
-                  متوقف است.
-                </span>
+                  {sessionWindow.message}
+                </p>
+              ) : null}
+              {notice && !reviewOpen ? (
+                <p role={notice.kind === "error" ? "alert" : "status"} className="text-sm">
+                  {notice.text}
+                </p>
+              ) : null}
+              {peopleError ? (
                 <button
                   type="button"
-                  className={`${buttonBase} border border-amber-400`}
-                  onClick={() => {
-                    discard.request(() => {
-                      setRosterVersion((value) => value + 1);
-                      setReviewOpen(false);
-                      setNotice({
-                        kind: "info",
-                        text: "در حال دریافت آخرین وضعیت ذخیره‌شده…",
-                      });
-                    });
-                  }}
+                  className={`${buttonBase} ${shell}`}
+                  onClick={() => setRosterVersion((v) => v + 1)}
                 >
-                  دریافت آخرین وضعیت
+                  تلاش مجدد
                 </button>
-              </div>
-            )}
+              ) : null}
+              {selected ? (
+                <>
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div>
+                      <p className="text-sm font-bold">پیشرفت ثبت حضور</p>
+                      <p className={`text-xs ${muted}`}>
+                        {marked} از {participants.length} نفر تعیین وضعیت شده‌اند
+                      </p>
+                    </div>
+                    <span className="text-xl font-black tabular-nums">{progress}٪</span>
+                  </div>
+                  <div
+                    role="progressbar"
+                    aria-label="پیشرفت تعیین وضعیت"
+                    aria-valuenow={progress}
+                    aria-valuemin={0}
+                    aria-valuemax={100}
+                    className="h-2.5 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800"
+                  >
+                    <div
+                      className="h-full rounded-full bg-blue-600 transition-all"
+                      style={{ width: `${progress}%` }}
+                    />
+                  </div>
+                  <AttendanceStatusTiles counts={counts} filter={filter} onFilter={setFilter} />
+                </>
+              ) : null}
+              {selected?.contextType === "dorm" && auth.can("attendance.delegate") ? (
+                <DormDelegateEditor roomId={selected.id} members={participants} scope={scopeKey} />
+              ) : null}
+              <AttendanceRosterView
+                canManage={canManage}
+                absenceFirst={Boolean(linkedSession)}
+                participants={participants}
+                filtered={filtered}
+                selected={Boolean(selected)}
+                filter={filter}
+                search={search}
+                loading={loadingPeople}
+                saving={saving}
+                conflict={conflict}
+                unmarkedCount={counts.unmarked}
+                onFilterChange={setFilter}
+                onSearchChange={setSearch}
+                onViewProfile={canViewStaffSessions ? setProfileId : undefined}
+                onAdjustPoints={
+                  auth.can("attendance.points.adjust")
+                    ? (student, points) => {
+                        setPointTarget({ id: student.id, name: student.name, points });
+                        setPointReason("");
+                      }
+                    : undefined
+                }
+                onMark={mark}
+                onMarkAllPresent={markAllPresent}
+                onClearFilters={() => {
+                  setFilter("all");
+                  setSearch("");
+                }}
+              />
+
+              {conflict && (
+                <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-400 bg-amber-50 p-4 text-sm text-amber-950 dark:bg-amber-950/30 dark:text-amber-100">
+                  <span className="flex items-center gap-2">
+                    <ShieldAlert size={18} /> به‌روزرسانی هم‌زمان شناسایی شد. ذخیره تا بررسی مجدد
+                    متوقف است.
+                  </span>
+                  <button
+                    type="button"
+                    className={`${buttonBase} border border-amber-400`}
+                    onClick={() => {
+                      discard.request(() => {
+                        setRosterVersion((value) => value + 1);
+                        setReviewOpen(false);
+                        setNotice({
+                          kind: "info",
+                          text: "در حال دریافت آخرین وضعیت ذخیره‌شده…",
+                        });
+                      });
+                    }}
+                  >
+                    دریافت آخرین وضعیت
+                  </button>
+                </div>
+              )}
+            </div>
 
             {canManage ? (
-              <div className={`sticky bottom-0 z-10 rounded-2xl ${shell} p-3`}>
+              <div className="z-10 shrink-0 border-t border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card))] px-4 py-3 pb-[calc(.75rem+env(safe-area-inset-bottom))] sm:px-5">
                 <div className="mx-auto flex max-w-7xl items-center gap-2">
                   <div className="hidden min-w-0 flex-1 sm:block">
                     <p className="text-sm font-bold">
-                      {marked} از {participants.length} نفر
+                      {marked.toLocaleString("fa-IR")} از{" "}
+                      {participants.length.toLocaleString("fa-IR")} تعیین وضعیت
                     </p>
                     <p className={`text-xs ${muted}`}>
-                      {dirty ? "پیش‌نویس ذخیره نشده" : "وضعیتی برای ثبت انتخاب نشده"}
+                      {dirty ? "تغییرات آمادهٔ مرور" : "هنوز تغییری ثبت نشده"}
                     </p>
                   </div>
                   <button
@@ -1013,7 +1026,7 @@ export function AttendancePage() {
                     type="button"
                     onClick={() => setReviewOpen(true)}
                     disabled={saving || loadingPeople || !selected || !dirty || conflict}
-                    className={`${buttonBase} flex-1 bg-blue-600 text-white hover:bg-blue-700 sm:flex-none sm:min-w-48`}
+                    className={`${buttonBase} flex-1 bg-brand text-white hover:brightness-95 sm:flex-none sm:min-w-52`}
                   >
                     {saving ? (
                       <LoaderCircle className="animate-spin" size={18} />
@@ -1027,41 +1040,44 @@ export function AttendancePage() {
             ) : null}
           </div>
           {reviewOpen ? (
-            <div className="space-y-4">
-              <div className={`${shell} rounded-xl p-3`}>
-                <p className="font-bold">{selected?.name}</p>
-                <p className={`mt-1 text-sm ${muted}`}>
-                  زمان ثبت: اکنون · {marked} از {participants.length} نفر
-                </p>
+            <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+              <div className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain px-4 py-4 sm:px-5">
+                <div className={`${shell} rounded-xl p-3`}>
+                  <p className="font-bold">{selected?.name}</p>
+                  <p className={`mt-1 text-sm ${muted}`}>
+                    زمان ثبت: اکنون · {marked.toLocaleString("fa-IR")} از{" "}
+                    {participants.length.toLocaleString("fa-IR")} نفر
+                  </p>
+                </div>
+                <dl className="grid grid-cols-3 gap-2 text-center">
+                  {statuses.map((status) => (
+                    <div key={status} className="rounded-xl bg-[rgb(var(--surface-muted))] p-3">
+                      <dt className={`text-xs ${muted}`}>{statusMeta[status].label}</dt>
+                      <dd className="mt-1 text-xl font-black">{counts[status]}</dd>
+                    </div>
+                  ))}
+                </dl>
+                {counts.unmarked > 0 ? (
+                  <p
+                    role="status"
+                    className="rounded-xl bg-amber-50 p-3 text-sm leading-6 text-amber-900 dark:bg-amber-950 dark:text-amber-100"
+                  >
+                    وضعیت {counts.unmarked} نفر مشخص نشده است. فقط {marked} وضعیت انتخاب‌شده ثبت
+                    می‌شود؛ سایر افراد غایب محسوب نمی‌شوند.
+                  </p>
+                ) : null}
+                {notice?.kind === "error" ? (
+                  <p role="alert" className="text-sm text-rose-700 dark:text-rose-300">
+                    {notice.text}
+                  </p>
+                ) : null}
               </div>
-              <dl className="grid grid-cols-3 gap-2 text-center">
-                {statuses.map((status) => (
-                  <div key={status} className="rounded-xl bg-[rgb(var(--surface-muted))] p-3">
-                    <dt className={`text-xs ${muted}`}>{statusMeta[status].label}</dt>
-                    <dd className="mt-1 text-xl font-black">{counts[status]}</dd>
-                  </div>
-                ))}
-              </dl>
-              {counts.unmarked > 0 ? (
-                <p
-                  role="status"
-                  className="rounded-xl bg-amber-50 p-3 text-sm leading-6 text-amber-900 dark:bg-amber-950 dark:text-amber-100"
-                >
-                  وضعیت {counts.unmarked} نفر مشخص نشده است. فقط {marked} وضعیت انتخاب‌شده ثبت
-                  می‌شود؛ سایر افراد غایب محسوب نمی‌شوند.
-                </p>
-              ) : null}
-              {notice?.kind === "error" ? (
-                <p role="alert" className="text-sm text-rose-700 dark:text-rose-300">
-                  {notice.text}
-                </p>
-              ) : null}
-              <div className="flex gap-2">
+              <div className="flex shrink-0 flex-col-reverse gap-2 border-t border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card))] px-4 py-3 pb-[calc(.75rem+env(safe-area-inset-bottom))] sm:flex-row sm:justify-end sm:px-5">
                 <button
                   type="button"
                   disabled={saving}
                   onClick={() => setReviewOpen(false)}
-                  className={`${buttonBase} ${shell} flex-1`}
+                  className={`${buttonBase} ${shell} w-full sm:w-auto`}
                 >
                   بازگشت به فهرست
                 </button>
@@ -1069,7 +1085,7 @@ export function AttendancePage() {
                   type="button"
                   disabled={saving || conflict || !marked}
                   onClick={() => void save()}
-                  className={`${buttonBase} flex-1 bg-blue-600 text-white`}
+                  className={`${buttonBase} w-full bg-brand text-white sm:w-auto sm:min-w-44`}
                 >
                   {saving ? "در حال ثبت…" : "تأیید و ثبت"}
                 </button>
@@ -1077,7 +1093,7 @@ export function AttendancePage() {
             </div>
           ) : null}
         </div>
-      </Modal>
+      </ResponsiveDrawer>
       {(chosenType === "sessions" && canViewStaffSessions) ||
       (chosenType === "pool" && auth.can("attendance.review")) ? (
         <>
@@ -1113,7 +1129,7 @@ export function AttendancePage() {
           onClose={() => setProfileId(null)}
         />
       ) : null}
-      <Modal
+      <ResponsiveDrawer
         open={Boolean(pointTarget)}
         dismissible={!savingPoints}
         onOpenChange={(open) => {
@@ -1124,6 +1140,7 @@ export function AttendancePage() {
         }}
         title={pointTarget?.points === 1 ? "افزودن امتیاز" : "کسر امتیاز"}
         description={pointTarget ? `${pointTarget.name} · ${selected?.name ?? ""}` : ""}
+        desktopSide="left"
       >
         <div className="space-y-4" dir="rtl">
           <p className="flex items-center gap-2 text-sm leading-6 text-slate-700 dark:text-slate-200">
@@ -1150,7 +1167,7 @@ export function AttendancePage() {
             {savingPoints ? "در حال ثبت…" : "ثبت امتیاز"}
           </button>
         </div>
-      </Modal>
+      </ResponsiveDrawer>
       {discard.confirmation}
     </section>
   );

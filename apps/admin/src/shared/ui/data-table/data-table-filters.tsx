@@ -1,3 +1,4 @@
+import { AdaptiveSelect } from "@/shared/ui/adaptive-select";
 import type { Table } from "@tanstack/react-table";
 import { Button, Field, Input } from "../ui";
 import type { DataTableColumn } from "./data-table-types";
@@ -24,7 +25,8 @@ export function DataTableFilters<TData>({
           return (
             <Field key={column.id} label={column.label}>
               {filter.type === "select" ? (
-                <select
+                <AdaptiveSelect
+                  aria-label={column.label}
                   className="h-11 rounded-lg border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card))] px-3"
                   value={String(current?.getFilterValue() ?? "")}
                   onChange={(event) => current?.setFilterValue(event.target.value || undefined)}
@@ -35,7 +37,7 @@ export function DataTableFilters<TData>({
                       {option.label}
                     </option>
                   ))}
-                </select>
+                </AdaptiveSelect>
               ) : (
                 <Input
                   value={String(current?.getFilterValue() ?? "")}

@@ -1,3 +1,4 @@
+import { AdaptiveSelect } from "@/shared/ui/adaptive-select";
 import { useState, useRef } from "react";
 import { Card, Badge, Alert } from "../../../../shared/ui/ui";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -108,7 +109,7 @@ export function DocumentsSection() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
           <div>
             <label className="block text-sm font-medium text-ink mb-1">نوع مدرک</label>
-            <select
+            <AdaptiveSelect
               value={selectedType}
               onChange={(e) => setSelectedType(e.target.value)}
               className="w-full h-10 rounded-lg border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card))] px-3"
@@ -119,7 +120,7 @@ export function DocumentsSection() {
                   {docType.name}
                 </option>
               ))}
-            </select>
+            </AdaptiveSelect>
           </div>
 
           <div>

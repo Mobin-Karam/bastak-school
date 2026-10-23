@@ -1,5 +1,6 @@
+import { AdaptiveSelect } from "@/shared/ui/adaptive-select";
 import { RotateCcw, Save, UserPlus, X } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Button, Field, Input } from "../../../../shared/ui/ui";
 import { api } from "../../../../shared/api/api";
@@ -8,6 +9,25 @@ import { DatePicker } from "../../../../shared/ui/date-picker";
 import type { Student } from "../../../../shared/types/domain";
 import type { StudentForm } from "../model/student-form";
 import { studentCopy } from "../model/student-locale";
+
+function normalizedDigits(value: string) {
+  return value
+    .trim()
+    .replace(/[۰-۹]/g, (digit) => String("۰۱۲۳۴۵۶۷۸۹".indexOf(digit)))
+    .replace(/[٠-٩]/g, (digit) => String("٠١٢٣٤٥٦٧٨٩".indexOf(digit)));
+}
+
+function isValidIranianNationalCode(value: string) {
+  const code = normalizedDigits(value);
+  if (!/^\d{10}$/.test(code) || /^(\d)\1{9}$/.test(code)) return false;
+  const check = Number(code[9]);
+  const sum = code
+    .slice(0, 9)
+    .split("")
+    .reduce((total, digit, index) => total + Number(digit) * (10 - index), 0);
+  const remainder = sum % 11;
+  return check === (remainder < 2 ? remainder : 11 - remainder);
+}
 
 export type StudentEditorMode = "empty" | "create" | "edit";
 export type StudentEditorFeedback = { tone: "success" | "error" | "info"; message: string } | null;
@@ -100,6 +120,9 @@ export function StudentEditor({
   student?: Student;
 }) {
   const [activeStep, setActiveStep] = useState<1 | 2 | 3 | 4 | 5>(1);
+  useEffect(() => {
+    setActiveStep(1);
+  }, [mode, student?.id]);
   const language = useOptionalAdminLanguage() ?? "fa";
   const copy = studentCopy[language];
   const catalog = useQuery({
@@ -126,6 +149,16 @@ export function StudentEditor({
         ? catalog.data?.vocationalFields || []
         : [];
   const passwordValid = mode !== "create" || form.password.length >= 12;
+  const nationalCodeValid =
+    !form.nationalCode.trim() || isValidIranianNationalCode(form.nationalCode);
+  const guardianPairs = [
+    [form.motherPhoneNumber, form.motherPassword],
+    [form.fatherPhoneNumber, form.fatherPassword],
+  ];
+  const guardiansValid = guardianPairs.every(([phone, password]) => {
+    if (!phone.trim() && !password) return true;
+    return /^09\d{9}$/.test(normalizedDigits(phone)) && password.length >= 12;
+  });
   const educationValid =
     form.learnerProfile === "independent"
       ? !!form.independentType
@@ -138,7 +171,14 @@ export function StudentEditor({
     !usernameError;
   const baseValid =
     !!form.firstName.trim() && !!form.lastName.trim() && !!form.username.trim() && educationValid;
-  const saveDisabled = !baseValid || busy || !saveDirty || !passwordValid || !!usernameError;
+  const saveDisabled =
+    !baseValid ||
+    busy ||
+    !saveDirty ||
+    !passwordValid ||
+    !nationalCodeValid ||
+    !guardiansValid ||
+    !!usernameError;
   const completion = useMemo(() => formCompleteness(form, mode === "create"), [form, mode]);
   const steps = [
     language === "fa" ? "هویت و حساب" : "Identity & account",
@@ -276,7 +316,16 @@ export function StudentEditor({
           </p>
         </div>
         <div className="grid gap-3 sm:grid-cols-2">
-          <Field label={language === "fa" ? "کد ملی" : "National ID"}>
+          <Field
+            label={language === "fa" ? "کد ملی" : "National ID"}
+            error={
+              form.nationalCode.trim() && !nationalCodeValid
+                ? language === "fa"
+                  ? "کد ملی معتبر نیست."
+                  : "Enter a valid national ID."
+                : undefined
+            }
+          >
             <Input
               dir="ltr"
               value={form.nationalCode}
@@ -299,7 +348,7 @@ export function StudentEditor({
             />
           </Field>
           <Field label={language === "fa" ? "کلاس این مدرسه" : "School class"}>
-            <select
+            <AdaptiveSelect
               className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm dark:border-slate-700 dark:bg-slate-900"
               value={form.classId}
               onChange={(event) => setField("classId", event.target.value)}
@@ -315,7 +364,7 @@ export function StudentEditor({
                     {item.name} ({item.code})
                   </option>
                 ))}
-            </select>
+            </AdaptiveSelect>
           </Field>
         </div>
       </section>
@@ -362,14 +411,31 @@ export function StudentEditor({
           </div>
         ) : null}
         <div className="grid gap-3 sm:grid-cols-2">
-          <Field label={language === "fa" ? "شماره مادر" : "Mother phone"}>
+          <Field
+            label={language === "fa" ? "شماره مادر" : "Mother phone"}
+            error={
+              form.motherPhoneNumber.trim() &&
+              !/^09\d{9}$/.test(normalizedDigits(form.motherPhoneNumber))
+                ? language === "fa"
+                  ? "شماره همراه معتبر نیست."
+                  : "Enter a valid mobile number."
+                : undefined
+            }
+          >
             <Input
               dir="ltr"
               value={form.motherPhoneNumber}
               onChange={(event) => setField("motherPhoneNumber", event.target.value)}
             />
           </Field>
-          <Field label={language === "fa" ? "گذرواژه مادر" : "Mother password"}>
+          <Field
+            label={language === "fa" ? "گذرواژه مادر" : "Mother password"}
+            error={
+              form.motherPassword && form.motherPassword.length < 12
+                ? copy.passwordMinimumCreate
+                : undefined
+            }
+          >
             <Input
               dir="ltr"
               type="password"
@@ -378,14 +444,31 @@ export function StudentEditor({
               onChange={(event) => setField("motherPassword", event.target.value)}
             />
           </Field>
-          <Field label={language === "fa" ? "شماره پدر" : "Father phone"}>
+          <Field
+            label={language === "fa" ? "شماره پدر" : "Father phone"}
+            error={
+              form.fatherPhoneNumber.trim() &&
+              !/^09\d{9}$/.test(normalizedDigits(form.fatherPhoneNumber))
+                ? language === "fa"
+                  ? "شماره همراه معتبر نیست."
+                  : "Enter a valid mobile number."
+                : undefined
+            }
+          >
             <Input
               dir="ltr"
               value={form.fatherPhoneNumber}
               onChange={(event) => setField("fatherPhoneNumber", event.target.value)}
             />
           </Field>
-          <Field label={language === "fa" ? "گذرواژه پدر" : "Father password"}>
+          <Field
+            label={language === "fa" ? "گذرواژه پدر" : "Father password"}
+            error={
+              form.fatherPassword && form.fatherPassword.length < 12
+                ? copy.passwordMinimumCreate
+                : undefined
+            }
+          >
             <Input
               dir="ltr"
               type="password"
@@ -428,7 +511,7 @@ export function StudentEditor({
         {form.learnerProfile === "independent" ? (
           <div className="grid gap-3 sm:grid-cols-2">
             <Field label={copy.learnerType}>
-              <select
+              <AdaptiveSelect
                 className="h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm dark:border-slate-700 dark:bg-slate-900"
                 value={form.independentType}
                 onChange={(event) => setField("independentType", event.target.value)}
@@ -438,7 +521,7 @@ export function StudentEditor({
                 <option value="gap_year">{copy.gapYear}</option>
                 <option value="homeschool">{copy.homeschool}</option>
                 <option value="other">{copy.other}</option>
-              </select>
+              </AdaptiveSelect>
             </Field>
             <Field label={copy.learningLevel}>
               <Input
@@ -452,7 +535,7 @@ export function StudentEditor({
         {form.learnerProfile === "school" ? (
           <div className="grid gap-3 sm:grid-cols-2">
             <Field label={copy.grade}>
-              <select
+              <AdaptiveSelect
                 className="h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm dark:border-slate-700 dark:bg-slate-900"
                 value={form.gradeId}
                 onChange={(event) => {
@@ -475,10 +558,10 @@ export function StudentEditor({
                     {grade.fa}
                   </option>
                 ))}
-              </select>
+              </AdaptiveSelect>
             </Field>
             <Field label={copy.educationType}>
-              <select
+              <AdaptiveSelect
                 className="h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm dark:border-slate-700 dark:bg-slate-900"
                 value={form.educationTypeId}
                 disabled={!form.gradeId || catalog.isLoading}
@@ -493,11 +576,11 @@ export function StudentEditor({
                     {item.fa}
                   </option>
                 ))}
-              </select>
+              </AdaptiveSelect>
             </Field>
             {structure?.track_required ? (
               <Field label={copy.track}>
-                <select
+                <AdaptiveSelect
                   className="h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm dark:border-slate-700 dark:bg-slate-900"
                   value={form.trackId}
                   disabled={!form.educationTypeId || catalog.isLoading}
@@ -509,7 +592,7 @@ export function StudentEditor({
                       {item.fa}
                     </option>
                   ))}
-                </select>
+                </AdaptiveSelect>
               </Field>
             ) : null}
           </div>

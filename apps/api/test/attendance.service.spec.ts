@@ -824,6 +824,48 @@ describe("AttendanceService organization boundaries (real SQLite)", () => {
     );
   });
 
+  it("records daily principal reviews against the exact attendance revision", async () => {
+    const marked = await service.bulkMark(actor, {
+      organizationId: orgA.id,
+      contextType: "class",
+      contextId: assignedClass.id,
+      entries: [{ studentId: studentA.id, status: "present" }],
+    });
+    const reviewer = {
+      ...actor,
+      capabilities: [...(actor.capabilities ?? []), "attendance.review"],
+    };
+
+    const first = await service.reviewSessionEvery24Hours(
+      reviewer,
+      marked.sessionId,
+    );
+    expect(first.sessionId).toBe(marked.sessionId);
+    expect(
+      await db.query(
+        "SELECT sessionId,reviewedRevision FROM attendance_session_reviews",
+      ),
+    ).toEqual([{ sessionId: marked.sessionId, reviewedRevision: 1 }]);
+
+    const session = await db
+      .getRepository(AttendanceSession)
+      .findOneByOrFail({ id: marked.sessionId });
+    session.revision++;
+    await db.getRepository(AttendanceSession).save(session);
+    await service.reviewSessionEvery24Hours(reviewer, marked.sessionId);
+    expect(
+      await db.query(
+        "SELECT reviewedRevision FROM attendance_session_reviews ORDER BY reviewedRevision",
+      ),
+    ).toEqual([{ reviewedRevision: 1 }, { reviewedRevision: 2 }]);
+    await expect(
+      service.reviewSessionEvery24Hours(
+        { ...reviewer, capabilities: [] },
+        marked.sessionId,
+      ),
+    ).rejects.toMatchObject({ response: { error: { code: "FORBIDDEN" } } });
+  });
+
   it("cancels an unmarked session with an audit trail and prevents absence-first submission", async () => {
     const session = await service.createSession(actor, {
       organizationId: orgA.id,

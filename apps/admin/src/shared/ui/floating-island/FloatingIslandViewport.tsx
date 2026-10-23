@@ -48,6 +48,7 @@ export function FloatingIslandViewport({
   const audio = useRef<HTMLAudioElement>(null);
   const [playing, setPlaying] = useState(false);
   const [progress, setProgress] = useState(0);
+  const [duration, setDuration] = useState(0);
 
   useEffect(() => {
     if (!expanded) return;
@@ -86,14 +87,14 @@ export function FloatingIslandViewport({
         ref={ref}
         aria-label="وضعیت برنامه"
         className={cn(
-          "floating-island pointer-events-auto overflow-hidden rounded-[1.35rem] border border-[rgb(var(--glass-border))] bg-[rgb(var(--glass-bg-strong))] text-ink shadow-[var(--glass-shadow)] transition-[width,max-height,transform,background-color] duration-300 ease-out motion-reduce:transition-none",
+          "floating-island pointer-events-auto overflow-hidden border border-white/10 bg-[#050506] text-white shadow-[0_16px_42px_rgba(0,0,0,0.4),inset_0_1px_rgba(255,255,255,0.12)] transition-[width,max-height,border-radius,transform] duration-500 ease-[cubic-bezier(.2,.8,.17,1)] motion-reduce:transition-none",
           performance === "enhanced" && "backdrop-blur-xl",
           performance === "standard" && "backdrop-blur-md",
           expanded
-            ? "w-[min(24rem,calc(100vw-1.5rem))] max-h-64"
+            ? "w-[min(25rem,calc(100vw-1.5rem))] max-h-72 rounded-[1.8rem]"
             : isAudio
-              ? "w-[min(13rem,calc(100vw-1.5rem))] max-h-12"
-              : "w-fit max-w-[min(18rem,calc(100vw-1.5rem))] max-h-12",
+              ? "w-[min(13.75rem,calc(100vw-1.5rem))] max-h-12 rounded-[1.45rem]"
+              : "w-[min(13.75rem,calc(100vw-1.5rem))] max-h-12 rounded-[1.45rem]",
         )}
       >
         <button
@@ -101,17 +102,22 @@ export function FloatingIslandViewport({
           aria-expanded={expanded}
           aria-controls={`floating-island-${activity.id}`}
           onClick={() => (expanded ? island.collapse() : island.expand(activity.id))}
-          className="flex min-h-11 w-full items-center gap-2 px-3 text-start outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-inset"
+          className="flex min-h-12 w-full items-center gap-2.5 px-3 text-start outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-white"
         >
-          <span className="grid size-7 shrink-0 place-items-center rounded-full bg-brand/12 text-brand">
+          <span
+            className={cn(
+              "grid size-7 shrink-0 place-items-center rounded-[0.6rem] shadow-inner",
+              isAudio ? "bg-violet-400/25 text-violet-100" : "bg-white/12 text-white",
+            )}
+          >
             <Icon size={16} aria-hidden="true" />
           </span>
-          <span className="min-w-0 flex-1 truncate text-xs font-black">
+          <span className="min-w-0 flex-1 truncate text-xs font-bold tracking-[-0.01em]">
             {isAudio ? activity.title : compactLabel}
           </span>
           {isAudio ? (
             <span
-              aria-hidden="true"
+              aria-label={playing ? "در حال پخش" : "آماده پخش"}
               className={cn("flex h-4 items-center gap-0.5", playing && "floating-audio-bars")}
             >
               <i />
@@ -119,10 +125,12 @@ export function FloatingIslandViewport({
               <i />
               <i />
             </span>
-          ) : null}
+          ) : (
+            <span className="size-1.5 shrink-0 rounded-full bg-brand shadow-[0_0_10px_rgb(var(--brand))]" />
+          )}
           <ChevronDown
             className={cn(
-              "shrink-0 transition-transform duration-300 motion-reduce:transition-none",
+              "shrink-0 text-white/60 transition-transform duration-500 motion-reduce:transition-none",
               expanded && "rotate-180",
             )}
             size={16}
@@ -132,18 +140,24 @@ export function FloatingIslandViewport({
         <div
           id={`floating-island-${activity.id}`}
           hidden={!expanded}
-          className="grid gap-3 border-t border-[rgb(var(--glass-border))] px-3 pb-3 pt-3"
+          className="grid gap-4 border-t border-white/10 px-4 pb-4 pt-3"
         >
           <div className="flex gap-3">
-            <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-brand/12 text-brand">
+            <span
+              className={cn(
+                "grid size-11 shrink-0 place-items-center rounded-[0.9rem]",
+                isAudio ? "bg-violet-400/20 text-violet-100" : "bg-white/10 text-white",
+              )}
+            >
               <Icon size={19} aria-hidden="true" />
             </span>
             <div className="min-w-0 flex-1">
-              <h2 className="text-sm font-black">{activity.title}</h2>
+              <p className="text-[10px] font-bold tracking-[0.08em] text-white/45">
+                {isAudio ? "در حال پخش" : "فعالیت جدید"}
+              </p>
+              <h2 className="mt-1 text-sm font-black tracking-[-0.02em]">{activity.title}</h2>
               {activity.description ? (
-                <p className="mt-1 text-xs leading-5 text-slate-600 dark:text-slate-300">
-                  {activity.description}
-                </p>
+                <p className="mt-1 text-xs leading-5 text-white/65">{activity.description}</p>
               ) : null}
             </div>
           </div>
@@ -153,30 +167,46 @@ export function FloatingIslandViewport({
                 ref={audio}
                 src={activity.audioSrc}
                 preload="metadata"
+                onLoadedMetadata={(event) => setDuration(event.currentTarget.duration)}
                 onPlay={() => setPlaying(true)}
                 onPause={() => setPlaying(false)}
                 onEnded={() => {
                   setPlaying(false);
                   setProgress(0);
                 }}
-                onTimeUpdate={(event) =>
-                  setProgress(
-                    event.currentTarget.duration
-                      ? event.currentTarget.currentTime / event.currentTarget.duration
-                      : 0,
-                  )
-                }
+                onTimeUpdate={(event) => {
+                  const nextDuration = event.currentTarget.duration;
+                  setDuration(nextDuration || 0);
+                  setProgress(nextDuration ? event.currentTarget.currentTime / nextDuration : 0);
+                }}
               />
-              <div className="h-1 overflow-hidden rounded-full bg-brand/15">
-                <div className="h-full bg-brand" style={{ width: `${progress * 100}%` }} />
+              <input
+                type="range"
+                min="0"
+                max="1"
+                step="0.001"
+                value={progress}
+                aria-label="موقعیت پخش"
+                onChange={(event) => {
+                  if (audio.current && duration)
+                    audio.current.currentTime = Number(event.target.value) * duration;
+                }}
+                className="h-1 w-full cursor-pointer accent-white"
+              />
+              <div
+                className="flex justify-between text-[10px] font-semibold tabular-nums text-white/45"
+                dir="ltr"
+              >
+                <span>{formatAudioTime(progress * duration)}</span>
+                <span>{formatAudioTime(duration)}</span>
               </div>
               <button
                 type="button"
                 onClick={toggleAudio}
-                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-brand px-3 text-xs font-black text-white outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"
+                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-white px-3 text-xs font-black text-black outline-none transition hover:bg-white/85 focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-black"
               >
                 {playing ? <Pause size={16} /> : <Play size={16} />}
-                {playing ? "توقف" : "پخش"}
+                {playing ? "توقف پخش" : "پخش صوت"}
               </button>
             </div>
           ) : null}
@@ -185,8 +215,8 @@ export function FloatingIslandViewport({
               <button
                 type="button"
                 onClick={() => island.dismiss(activity.id)}
-                className="grid size-9 place-items-center rounded-lg text-slate-500 outline-none hover:bg-black/5 focus-visible:ring-2 focus-visible:ring-brand dark:hover:bg-white/10"
-                aria-label="بستن اعلان"
+                className="grid size-10 place-items-center rounded-xl text-white/55 outline-none transition hover:bg-white/10 hover:text-white focus-visible:ring-2 focus-visible:ring-white"
+                aria-label="بستن فعالیت"
               >
                 <X size={16} aria-hidden="true" />
               </button>
@@ -195,7 +225,7 @@ export function FloatingIslandViewport({
               <Link
                 to={activity.action.to}
                 onClick={island.collapse}
-                className="rounded-lg bg-brand px-3 py-2 text-xs font-black text-white outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"
+                className="rounded-xl bg-brand px-3.5 py-2.5 text-xs font-black text-white outline-none transition hover:bg-brand-strong focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-black"
               >
                 {activity.action.label}
               </Link>
@@ -205,4 +235,11 @@ export function FloatingIslandViewport({
       </section>
     </div>
   );
+}
+
+function formatAudioTime(value: number) {
+  if (!Number.isFinite(value) || value < 0) return "۰:۰۰";
+  const minutes = Math.floor(value / 60).toLocaleString("fa-IR");
+  const seconds = Math.floor(value % 60).toLocaleString("fa-IR", { minimumIntegerDigits: 2 });
+  return `${minutes}:${seconds}`;
 }

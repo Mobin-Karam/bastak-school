@@ -75,6 +75,15 @@ export class SchoolHomeController {
       .then(ok);
   }
 
+  @Get("organizations/:organizationId/announcement-media")
+  @RequireCapabilities("announcements.manage")
+  announcementMedia(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param("organizationId") organizationId: string,
+  ) {
+    return this.schoolHome.announcementMedia(user, organizationId).then(ok);
+  }
+
   @Post("organizations/:organizationId/announcements")
   @RequireCapabilities("announcements.manage")
   createAnnouncement(

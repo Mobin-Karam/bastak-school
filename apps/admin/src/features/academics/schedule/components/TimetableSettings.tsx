@@ -1,3 +1,4 @@
+import { AdaptiveSelect } from "@/shared/ui/adaptive-select";
 import { assertTimetableRange, normalizeTimetableClock } from "../lib/timetable-input";
 import { TimetableTimeInput } from "./TimetableTimeInput";
 import { TimetableDateInput } from "./TimetableDateInput";
@@ -155,7 +156,7 @@ export function TimetableSettings({
           </p>
         ) : (
           <Field label="بخش تنظیمات">
-            <select
+            <AdaptiveSelect
               className={timetableSelectClass}
               value={kind}
               onChange={(event) => {
@@ -169,7 +170,7 @@ export function TimetableSettings({
                   {x.name}
                 </option>
               ))}
-            </select>
+            </AdaptiveSelect>
           </Field>
         )}
         {!["availability", "allocation", "classSection"].includes(kind) ? (
@@ -193,7 +194,7 @@ export function TimetableSettings({
                     : "نیم‌سال"
             }
           >
-            <select
+            <AdaptiveSelect
               required
               className={timetableSelectClass}
               value={values.parentId ?? ""}
@@ -219,7 +220,7 @@ export function TimetableSettings({
                   {x.name}
                 </option>
               ))}
-            </select>
+            </AdaptiveSelect>
           </Field>
         ) : null}
         {dates ? (
@@ -299,7 +300,7 @@ export function TimetableSettings({
         ) : null}
         {kind === "bell" || kind === "classSection" ? (
           <Field label="بخش مدرسه">
-            <select
+            <AdaptiveSelect
               className={timetableSelectClass}
               required={kind === "classSection"}
               value={values.sectionId ?? ""}
@@ -311,12 +312,12 @@ export function TimetableSettings({
                   {x.name}
                 </option>
               ))}
-            </select>
+            </AdaptiveSelect>
           </Field>
         ) : null}
         {kind === "session" ? (
           <Field label="نوع نوبت">
-            <select
+            <AdaptiveSelect
               className={timetableSelectClass}
               value={values.sessionKind ?? "MORNING"}
               onChange={(event) => set("sessionKind", event.target.value)}
@@ -324,7 +325,7 @@ export function TimetableSettings({
               <option value="MORNING">صبح</option>
               <option value="AFTERNOON">عصر</option>
               <option value="OTHER">سایر</option>
-            </select>
+            </AdaptiveSelect>
           </Field>
         ) : null}
         {kind === "period" && parentSession ? (
@@ -388,7 +389,7 @@ export function TimetableSettings({
         ) : null}
         {kind === "allocation" || kind === "classSection" ? (
           <Field label="کلاس">
-            <select
+            <AdaptiveSelect
               required
               className={timetableSelectClass}
               value={values.classroomId ?? ""}
@@ -400,12 +401,12 @@ export function TimetableSettings({
                   {x.name}
                 </option>
               ))}
-            </select>
+            </AdaptiveSelect>
           </Field>
         ) : null}
         {kind === "allocation" ? (
           <Field label="کتاب کلاس">
-            <select
+            <AdaptiveSelect
               required
               className={timetableSelectClass}
               value={values.classBookId ?? ""}
@@ -417,7 +418,7 @@ export function TimetableSettings({
                   {x.name}
                 </option>
               ))}
-            </select>
+            </AdaptiveSelect>
             <p className="mt-1 text-xs text-slate-500">
               برای نسخه پیش‌نویس انتخاب‌شده؛ عدم تکمیل سهم هفتگی مانع انتشار است.
             </p>
@@ -426,7 +427,7 @@ export function TimetableSettings({
         {kind === "availability" ? (
           <>
             <Field label="استاد">
-              <select
+              <AdaptiveSelect
                 required
                 className={timetableSelectClass}
                 value={values.teacherId ?? ""}
@@ -438,10 +439,10 @@ export function TimetableSettings({
                     {x.name}
                   </option>
                 ))}
-              </select>
+              </AdaptiveSelect>
             </Field>
             <Field label="روز">
-              <select
+              <AdaptiveSelect
                 className={timetableSelectClass}
                 value={values.weekday ?? "6"}
                 onChange={(event) => set("weekday", event.target.value)}
@@ -451,7 +452,7 @@ export function TimetableSettings({
                     {x.name}
                   </option>
                 ))}
-              </select>
+              </AdaptiveSelect>
             </Field>
             <Field label="دلیل">
               <Input

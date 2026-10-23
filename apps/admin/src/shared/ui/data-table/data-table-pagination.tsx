@@ -1,3 +1,4 @@
+import { AdaptiveSelect } from "@/shared/ui/adaptive-select";
 import type { Table } from "@tanstack/react-table";
 import { Button } from "../ui";
 import type { DataTableCopy } from "./data-table-copy";
@@ -25,7 +26,7 @@ export function DataTablePagination<TData>({
       </span>
       <label className="flex items-center gap-2">
         {copy.pageSize}
-        <select
+        <AdaptiveSelect
           className="h-11 rounded-lg border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card))] px-2"
           value={pageSize}
           disabled={disabled}
@@ -36,7 +37,7 @@ export function DataTablePagination<TData>({
               {number(size)}
             </option>
           ))}
-        </select>
+        </AdaptiveSelect>
       </label>
       <nav
         aria-label={`${copy.page} ${copy.records}`}

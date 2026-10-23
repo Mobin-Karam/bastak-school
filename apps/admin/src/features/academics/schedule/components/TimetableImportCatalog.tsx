@@ -1,3 +1,4 @@
+import { AdaptiveSelect } from "@/shared/ui/adaptive-select";
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import type { TimetableWorkspace } from "@moshaver/api-contract";
@@ -115,7 +116,7 @@ export function TimetableImportCatalog({
       </p>
       <div className="mt-3 grid gap-3 sm:grid-cols-2">
         <Field label="نوع آماده‌سازی">
-          <select
+          <AdaptiveSelect
             className={timetableSelectClass}
             value={kind}
             disabled={save.isPending}
@@ -132,10 +133,10 @@ export function TimetableImportCatalog({
             {auth.can("education.catalog.manage") ? (
               <option value="book">افزودن کتاب و اتصال به کلاس و استاد</option>
             ) : null}
-          </select>
+          </AdaptiveSelect>
         </Field>
         <Field label="مورد منبع">
-          <select
+          <AdaptiveSelect
             className={timetableSelectClass}
             value={source}
             disabled={save.isPending || !!newBookId}
@@ -152,7 +153,7 @@ export function TimetableImportCatalog({
                 {x.replace("|", " · ")}
               </option>
             ))}
-          </select>
+          </AdaptiveSelect>
         </Field>
         <Field label="نام در سیستم">
           <Input
@@ -184,7 +185,7 @@ export function TimetableImportCatalog({
         ) : (
           <>
             <Field label="کلاس برای اتصال کتاب">
-              <select
+              <AdaptiveSelect
                 className={timetableSelectClass}
                 value={classId}
                 disabled={save.isPending || !!newBookId}
@@ -199,10 +200,10 @@ export function TimetableImportCatalog({
                     {x.name} · {x.schoolYear}
                   </option>
                 ))}
-              </select>
+              </AdaptiveSelect>
             </Field>
             <Field label="حساب استاد برای کتاب">
-              <select
+              <AdaptiveSelect
                 className={timetableSelectClass}
                 value={teacherId}
                 disabled={save.isPending}
@@ -214,10 +215,10 @@ export function TimetableImportCatalog({
                     {x.name}
                   </option>
                 ))}
-              </select>
+              </AdaptiveSelect>
             </Field>
             <Field label="کتاب موجود یا کتاب جدید">
-              <select
+              <AdaptiveSelect
                 className={timetableSelectClass}
                 value={bookId}
                 disabled={save.isPending || !!newBookId || options.isFetching}
@@ -231,7 +232,7 @@ export function TimetableImportCatalog({
                       {x.title}
                     </option>
                   ))}
-              </select>
+              </AdaptiveSelect>
             </Field>
             {options.isError ? (
               <p role="alert">

@@ -5,7 +5,7 @@ import { LocaleProvider } from "./locale";
 import { ResponsiveDrawer } from "./responsive-drawer";
 
 describe("ResponsiveDrawer", () => {
-  it("closes when its mobile handle is dragged down past the close threshold", () => {
+  it("closes through the accessible close control", () => {
     const onOpenChange = vi.fn();
 
     render(
@@ -16,13 +16,30 @@ describe("ResponsiveDrawer", () => {
       </LocaleProvider>,
     );
 
-    const handle = screen.getByRole("button", {
-      name: "کشیدن برای بستن پنل",
-    });
-    fireEvent.pointerDown(handle, { pointerId: 1, clientY: 12 });
-    fireEvent.pointerMove(handle, { pointerId: 1, clientY: 96 });
-    fireEvent.pointerUp(handle, { pointerId: 1, clientY: 96 });
+    fireEvent.click(screen.getByRole("button", { name: "بستن" }));
 
     expect(onOpenChange).toHaveBeenCalledWith(false);
+  });
+
+  it("uses a readable opaque surface and keeps the drawer body as the scroll owner", () => {
+    const { container } = render(
+      <LocaleProvider>
+        <ResponsiveDrawer open onOpenChange={vi.fn()} title="پرونده حضور">
+          محتوای پنل
+        </ResponsiveDrawer>
+      </LocaleProvider>,
+    );
+    const panel = container.ownerDocument.querySelector("[role=dialog]");
+    const scrollBody = container.ownerDocument.querySelector(
+      "[dir=rtl].flex.min-h-0.flex-1.flex-col.overflow-y-auto",
+    );
+    expect(panel).toHaveClass(
+      "responsive-drawer-popup",
+      "z-[121]",
+      "bg-[rgb(var(--surface-card))]",
+    );
+    expect(panel).toHaveAttribute("data-swipe-direction", "right");
+    expect(scrollBody).toHaveTextContent("محتوای پنل");
+    expect(scrollBody).toHaveClass("flex-col", "min-h-0", "overflow-y-auto");
   });
 });

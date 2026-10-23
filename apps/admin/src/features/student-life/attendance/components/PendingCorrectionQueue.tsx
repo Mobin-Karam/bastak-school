@@ -2,7 +2,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { useAuth } from "../../../identity/auth";
 import { Button, Card, EmptyState, LoadingState } from "../../../../shared/ui/ui";
-import { Modal } from "../../../../shared/ui/modal";
+import { ResponsiveDrawer } from "../../../../shared/ui/responsive-drawer";
 import { notify } from "../../../../shared/ui/notifications";
 import { attendanceRequestId } from "../model/attendance-request-id";
 import {
@@ -116,7 +116,7 @@ export function PendingCorrectionQueue({
           </li>
         ))}
       </ul>
-      <Modal
+      <ResponsiveDrawer
         open={Boolean(selected)}
         dismissible={!saving}
         onOpenChange={(open) => {
@@ -124,6 +124,7 @@ export function PendingCorrectionQueue({
         }}
         title={decision ? "تأیید نهایی اصلاح" : "بررسی درخواست اصلاح"}
         description={selected ? `${selected.studentName} · ${selected.title}` : ""}
+        desktopSide="left"
       >
         <div className="space-y-4">
           <p className="rounded-xl bg-[rgb(var(--surface-muted))] p-3 text-sm leading-6">
@@ -164,7 +165,7 @@ export function PendingCorrectionQueue({
             </>
           )}
         </div>
-      </Modal>
+      </ResponsiveDrawer>
     </Card>
   );
 }

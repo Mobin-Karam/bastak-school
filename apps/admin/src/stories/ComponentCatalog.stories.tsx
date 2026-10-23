@@ -1,6 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { useMemo, useState } from "react";
 
+import { AdaptiveSelect } from "../shared/ui/adaptive-select";
 import { componentCatalog } from "./component-catalog.generated";
 
 const meta = {
@@ -57,7 +58,7 @@ function Catalog() {
         </label>
         <label className="flex items-center gap-2 text-sm font-semibold">
           دسته
-          <select
+          <AdaptiveSelect
             value={scope}
             onChange={(event) => setScope(event.target.value as typeof scope)}
             className="rounded border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-muted))] px-2 py-1 text-xs"
@@ -65,7 +66,7 @@ function Catalog() {
             <option value="all">همه</option>
             <option value="page">صفحه‌ها</option>
             <option value="component">اجزا</option>
-          </select>
+          </AdaptiveSelect>
         </label>
         <span className="text-xs text-slate-500">
           {entries.length.toLocaleString("fa-IR")} ماژول

@@ -1,3 +1,4 @@
+import { AdaptiveSelect } from "@/shared/ui/adaptive-select";
 import { assertTimetableRange } from "../lib/timetable-input";
 import { TimetableTimeInput } from "../components/TimetableTimeInput";
 import { TimetableDateInput } from "../components/TimetableDateInput";
@@ -333,7 +334,7 @@ export function TimetablePage() {
       <Card className="p-4">
         <h2 className="sr-only">برنامه درسی</h2>
         <Field label="مدرسه">
-          <select
+          <AdaptiveSelect
             className={timetableSelectClass}
             value=""
             onChange={(event) => {
@@ -351,7 +352,7 @@ export function TimetablePage() {
                 {x.name}
               </option>
             ))}
-          </select>
+          </AdaptiveSelect>
         </Field>
       </Card>
     );
@@ -443,7 +444,7 @@ export function TimetablePage() {
         <div className="timetable-controls flex flex-wrap items-center gap-2">
           <label className="text-xs">
             سال تحصیلی
-            <select
+            <AdaptiveSelect
               className={timetableSelectClass}
               value={yearId}
               onChange={(event) => {
@@ -458,12 +459,12 @@ export function TimetablePage() {
                   {x.active ? " · فعال" : ""}
                 </option>
               ))}
-            </select>
+            </AdaptiveSelect>
           </label>
           {full ? (
             <label className="text-xs">
               نسخه برنامه
-              <select
+              <AdaptiveSelect
                 className={timetableSelectClass}
                 value={versionId}
                 onChange={(event) => {
@@ -486,7 +487,7 @@ export function TimetablePage() {
                           : "بایگانی"}
                     </option>
                   ))}
-              </select>
+              </AdaptiveSelect>
             </label>
           ) : null}
           <div className="flex items-center gap-2">
@@ -569,7 +570,7 @@ export function TimetablePage() {
               ].map((filter) => (
                 <label key={filter.label} className="text-xs">
                   {filter.label}
-                  <select
+                  <AdaptiveSelect
                     className={timetableSelectClass}
                     value={filter.value}
                     onChange={(event) => filter.set(event.target.value)}
@@ -580,7 +581,7 @@ export function TimetablePage() {
                         {x.name}
                       </option>
                     ))}
-                  </select>
+                  </AdaptiveSelect>
                 </label>
               ))}
             </div>
@@ -1125,7 +1126,7 @@ export function TimetablePage() {
           {!cancelled ? (
             <>
               <Field label="استاد جایگزین">
-                <select
+                <AdaptiveSelect
                   className={timetableSelectClass}
                   value={subTeacher}
                   onChange={(event) => setSubTeacher(event.target.value)}
@@ -1136,10 +1137,10 @@ export function TimetablePage() {
                       {x.name}
                     </option>
                   ))}
-                </select>
+                </AdaptiveSelect>
               </Field>
               <Field label="اتاق جایگزین">
-                <select
+                <AdaptiveSelect
                   className={timetableSelectClass}
                   value={subRoom}
                   onChange={(event) => setSubRoom(event.target.value)}
@@ -1150,7 +1151,7 @@ export function TimetablePage() {
                       {x.name}
                     </option>
                   ))}
-                </select>
+                </AdaptiveSelect>
               </Field>
               <div className="grid grid-cols-2 gap-2">
                 <Field label="شروع جایگزین">
@@ -1339,7 +1340,7 @@ function NewVersionModal({
         }}
       >
         <Field label="نیم‌سال">
-          <select
+          <AdaptiveSelect
             required
             className={timetableSelectClass}
             value={termId}
@@ -1356,7 +1357,7 @@ function NewVersionModal({
                 {workspace.years.find((y) => y.id === x.yearId)?.name} · {x.name}
               </option>
             ))}
-          </select>
+          </AdaptiveSelect>
         </Field>
         <Field label="نام نسخه">
           <Input

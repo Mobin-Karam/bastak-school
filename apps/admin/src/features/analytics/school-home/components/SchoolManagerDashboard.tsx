@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   BedDouble,
   BellRing,
@@ -16,19 +16,11 @@ import { getAttendanceOverview } from "../../../student-life/attendance/public";
 import { listSchedule } from "../../../academics/schedule/api/schedule.api";
 import { DashboardCalendar } from "../../dashboard/components/DashboardCalendar";
 import { todayIso } from "../../../../shared/lib/utils";
-import { notify } from "../../../../shared/ui/notifications";
 import { api } from "../../../../shared/api/api";
-import { Button, Card, Input, LoadingState, Textarea } from "../../../../shared/ui/ui";
-import {
-  createAnnouncement,
-  getPrayerTimes,
-  listAnnouncements,
-  type SchoolAnnouncement,
-  updateAnnouncement,
-} from "../api/school-home.api";
+import { Card, LoadingState } from "../../../../shared/ui/ui";
+import { getPrayerTimes, listAnnouncements } from "../api/school-home.api";
 import { CurrentPrayerCard } from "./CurrentPrayerCard";
 import { SchoolOccupancyBanner } from "./SchoolOccupancyBanner";
-import { ResponsiveDrawer } from "../../../../shared/ui/responsive-drawer";
 import { useAdminNotifications } from "../../../communications/notifications/hooks/useAdminNotifications";
 import { notificationAdminUrl } from "../../../communications/notifications/model/notification-model";
 import { useDevicePerformance } from "../../../../app/layout/hooks/use-device-performance";
@@ -47,13 +39,10 @@ export function SchoolManagerDashboard() {
     <SchoolOperationsDashboard />
   );
 }
-
 function SchoolOperationsDashboard({ principalMode = false }: { principalMode?: boolean }) {
   const auth = useAuth();
   const client = useQueryClient();
   const [date, setDate] = useState(todayIso);
-  const [announcementsOpen, setAnnouncementsOpen] = useState(false);
-  const [now, setNow] = useState(() => Date.now());
   const organizationId =
     auth.context?.activeOrganization?.id ?? auth.context?.availableOrganizations[0]?.id;
   const schedule = useQuery({ queryKey: ["schedule", "manager"], queryFn: listSchedule });
@@ -82,47 +71,7 @@ function SchoolOperationsDashboard({ principalMode = false }: { principalMode?: 
         ),
       ),
   });
-  const [announcement, setAnnouncement] = useState<{
-    title: string;
-    body: string;
-    audience: "STAFF" | "STUDENTS";
-    status: "ACTIVE";
-  }>({
-    title: "",
-    body: "",
-    audience: "STUDENTS" as const,
-    status: "ACTIVE" as const,
-  });
   const prayerValues = prayer.data?.times;
-  const publish = useMutation({
-    mutationFn: () => {
-      if (!organizationId) throw new Error("مدرسه فعال مشخص نیست.");
-      return createAnnouncement(organizationId, announcement);
-    },
-    onSuccess: () => {
-      setAnnouncement({ title: "", body: "", audience: "STUDENTS", status: "ACTIVE" });
-      void client.invalidateQueries({ queryKey: ["announcements"] });
-      notify("اعلان منتشر شد.", "success");
-    },
-    onError: (error) =>
-      notify(error instanceof Error ? error.message : "انتشار اعلان انجام نشد.", "error"),
-  });
-  const archiveAnnouncement = useMutation({
-    mutationFn: (item: SchoolAnnouncement) =>
-      updateAnnouncement(item.id, {
-        title: item.title,
-        body: item.body,
-        audience: item.audience,
-        classroomId: item.classroomId,
-        status: "ARCHIVED",
-      }),
-    onSuccess: () => {
-      void client.invalidateQueries({ queryKey: ["announcements", organizationId] });
-      notify("اعلان بایگانی شد.", "success");
-    },
-    onError: (error) =>
-      notify(error instanceof Error ? error.message : "بایگانی اعلان انجام نشد.", "error"),
-  });
   const totals = attendance.data ?? { present: 0, absent: 0, late: 0, excused: 0 };
 
   useEffect(() => {
@@ -132,10 +81,6 @@ function SchoolOperationsDashboard({ principalMode = false }: { principalMode?: 
     });
     return () => events.close();
   }, [client, organizationId]);
-  useEffect(() => {
-    const timer = window.setInterval(() => setNow(Date.now()), 60_000);
-    return () => window.clearInterval(timer);
-  }, []);
   const activeAnnouncements = useMemo(
     () => (announcements.data ?? []).filter((item) => item.status === "ACTIVE"),
     [announcements.data],
@@ -209,106 +154,19 @@ function SchoolOperationsDashboard({ principalMode = false }: { principalMode?: 
                 {activeAnnouncements.length.toLocaleString("fa-IR")} اعلان فعال
               </p>
             </div>
-            <Button onClick={() => setAnnouncementsOpen(true)}>
+            <Link
+              to={
+                auth.can("announcements.manage")
+                  ? "/admin/announcements/manage"
+                  : "/admin/communication/notifications?type=announcement"
+              }
+              className="inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-brand px-[1.125rem] text-sm font-semibold text-[rgb(var(--primary-foreground))] transition hover:brightness-95 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand/20"
+            >
               <BellRing size={16} /> مدیریت اعلان‌ها
-            </Button>
+            </Link>
           </div>
         </Card>
         {canReviewIncomingWork || auth.can("chat.read") ? <SchoolIncomingPanel /> : null}
-        <ResponsiveDrawer
-          open={announcementsOpen}
-          onOpenChange={setAnnouncementsOpen}
-          title="اعلان‌های مدرسه"
-          description="اعلان‌ها حداکثر ۲۴ ساعت پس از انتشار فعال هستند."
-        >
-          <div className="grid gap-4">
-            {auth.can("announcements.manage") ? (
-              <Card className="p-4">
-                <div className="flex items-center gap-2">
-                  <BellRing className="text-brand" size={19} />
-                  <h2 className="font-black text-ink">اعلان جدید</h2>
-                </div>
-                <div className="mt-3 grid gap-2 sm:grid-cols-[1fr_auto]">
-                  <Input
-                    placeholder="عنوان اعلان"
-                    value={announcement.title}
-                    onChange={(event) =>
-                      setAnnouncement((current) => ({ ...current, title: event.target.value }))
-                    }
-                  />
-                  <select
-                    className="h-10 rounded-lg border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card))] px-3 text-sm"
-                    value={announcement.audience}
-                    onChange={(event) =>
-                      setAnnouncement((current) => ({
-                        ...current,
-                        audience: event.target.value as "STAFF" | "STUDENTS",
-                      }))
-                    }
-                  >
-                    <option value="STUDENTS">دانش‌آموزان</option>
-                    <option value="STAFF">کارکنان</option>
-                  </select>
-                </div>
-                <Textarea
-                  className="mt-2"
-                  placeholder="متن اعلان"
-                  value={announcement.body}
-                  onChange={(event) =>
-                    setAnnouncement((current) => ({ ...current, body: event.target.value }))
-                  }
-                />
-                <Button
-                  className="mt-2"
-                  disabled={!announcement.title.trim() || !announcement.body.trim()}
-                  loading={publish.isPending}
-                  onClick={() => publish.mutate()}
-                >
-                  انتشار اعلان
-                </Button>
-              </Card>
-            ) : null}
-            {activeAnnouncements.length ? (
-              <Card className="p-4" aria-label="اعلان‌های فعال مدرسه">
-                <h2 className="font-black text-ink">اعلان‌های فعال</h2>
-                <div className="mt-3 grid gap-2">
-                  {activeAnnouncements.map((item) => (
-                    <article
-                      key={item.id}
-                      className="rounded-xl bg-[rgb(var(--surface-muted))] p-3"
-                    >
-                      <div className="flex items-start justify-between gap-2">
-                        <h3 className="text-sm font-bold text-ink">{item.title}</h3>
-                        {auth.can("announcements.manage") && item.status !== "ARCHIVED" ? (
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            loading={archiveAnnouncement.isPending}
-                            aria-label={`بایگانی اعلان ${item.title}`}
-                            onClick={() => archiveAnnouncement.mutate(item)}
-                          >
-                            بایگانی
-                          </Button>
-                        ) : null}
-                      </div>
-                      <p className="mt-1 text-xs leading-5 text-slate-500">{item.body}</p>
-                      {item.expiresAt ? (
-                        <p className="mt-2 text-[11px] font-bold text-amber-700 dark:text-amber-300">
-                          {remainingAnnouncementTime(item.expiresAt, now)}
-                        </p>
-                      ) : null}
-                    </article>
-                  ))}
-                </div>
-              </Card>
-            ) : (
-              <p className="py-6 text-center text-sm text-slate-500">اعلان فعالی وجود ندارد.</p>
-            )}
-            <p className="text-xs text-slate-500">
-              بایگانی‌ها پس از پایان زمان در تاریخچه سرور قابل فیلتر خواهند بود.
-            </p>
-          </div>
-        </ResponsiveDrawer>
       </div>
     </section>
   );
@@ -455,13 +313,4 @@ export function SchoolIncomingPanel() {
       )}
     </Card>
   );
-}
-
-function remainingAnnouncementTime(expiresAt: string, now: number) {
-  const remaining = Math.max(0, new Date(expiresAt).getTime() - now);
-  const hours = Math.floor(remaining / 3_600_000);
-  const minutes = Math.floor((remaining % 3_600_000) / 60_000);
-  return remaining
-    ? `باقی‌مانده: ${hours.toLocaleString("fa-IR")}:${minutes.toLocaleString("fa-IR")} ساعت`
-    : "زمان اعلان به پایان رسیده است";
 }

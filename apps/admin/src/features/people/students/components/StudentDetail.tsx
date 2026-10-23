@@ -2,6 +2,8 @@ import {
   Activity,
   ArrowLeft,
   Check,
+  ChevronLeft,
+  ChevronRight,
   Copy,
   LayoutGrid,
   Pencil,
@@ -40,6 +42,9 @@ export function StudentDetail({
   dirty = false,
   visibleTabs,
   capabilities = [],
+  onEdit,
+  onPrevious,
+  onNext,
 }: {
   student: Student;
   tab: StudentDetailTab;
@@ -49,6 +54,9 @@ export function StudentDetail({
   dirty?: boolean;
   visibleTabs?: readonly StudentDetailTab[];
   capabilities?: readonly string[];
+  onEdit?: () => void;
+  onPrevious?: () => void;
+  onNext?: () => void;
 }) {
   const [copied, setCopied] = useState<"id" | "username" | "">("");
   const language = useOptionalAdminLanguage();
@@ -69,14 +77,39 @@ export function StudentDetail({
   return (
     <article className="min-w-0 text-ink" aria-labelledby="student-record-title">
       <header className="border-b border-[rgb(var(--border-subtle))] pb-4">
-        <button
-          type="button"
-          onClick={onBack}
-          className="mb-4 inline-flex min-h-11 items-center gap-1 rounded-lg px-2 text-xs font-bold text-slate-600 hover:bg-[rgb(var(--surface-muted))] focus-visible:ring-2 focus-visible:ring-brand"
-        >
-          <ArrowLeft size={15} className="rtl:rotate-180" />
-          {copy.backToList}
-        </button>
+        <div className="mb-4 flex items-center justify-between gap-2">
+          <button
+            type="button"
+            onClick={onBack}
+            className="inline-flex min-h-11 items-center gap-1 rounded-lg px-2 text-xs font-bold text-slate-600 hover:bg-[rgb(var(--surface-muted))] focus-visible:ring-2 focus-visible:ring-brand"
+          >
+            <ArrowLeft size={15} className="rtl:rotate-180" />
+            {copy.backToList}
+          </button>
+          <div
+            className="flex items-center gap-1"
+            aria-label={language === "fa" ? "پیمایش دانش‌آموزان" : "Student navigation"}
+          >
+            <button
+              type="button"
+              onClick={onPrevious}
+              disabled={!onPrevious}
+              aria-label={language === "fa" ? "دانش‌آموز قبلی" : "Previous student"}
+              className="grid size-11 place-items-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground disabled:cursor-not-allowed disabled:opacity-40 focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              <ChevronRight size={18} className="ltr:rotate-180" aria-hidden="true" />
+            </button>
+            <button
+              type="button"
+              onClick={onNext}
+              disabled={!onNext}
+              aria-label={language === "fa" ? "دانش‌آموز بعدی" : "Next student"}
+              className="grid size-11 place-items-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground disabled:cursor-not-allowed disabled:opacity-40 focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              <ChevronLeft size={18} className="ltr:rotate-180" aria-hidden="true" />
+            </button>
+          </div>
+        </div>
         <div className="flex flex-wrap items-start gap-3">
           <span className="grid size-12 place-items-center rounded-2xl bg-brand text-white">
             <UserRound size={22} />
@@ -132,6 +165,16 @@ export function StudentDetail({
           ))}
         </div>
         <StudentWorkflowActions studentId={student.id} capabilities={capabilities} />
+        {onEdit ? (
+          <button
+            type="button"
+            onClick={onEdit}
+            className="mt-4 inline-flex min-h-11 items-center gap-1.5 rounded-lg bg-primary px-3 text-xs font-bold text-primary-foreground hover:bg-primary/90 focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            <Pencil size={15} aria-hidden="true" />
+            {copy.editProfile}
+          </button>
+        ) : null}
       </header>
       <nav
         className="mt-4 flex shrink-0 gap-1 overflow-x-auto border-b border-[rgb(var(--border-subtle))]"

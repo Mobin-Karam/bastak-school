@@ -1,3 +1,4 @@
+import { AdaptiveSelect } from "@/shared/ui/adaptive-select";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Archive,
@@ -70,9 +71,7 @@ export function LegacySchedulePage() {
   const auth = useAuth();
   const modal = useModal();
   const client = useQueryClient();
-  const [activeWeekday, setActiveWeekday] = useState(() =>
-    new Date(`${todayIso()}T12:00:00`).getDay(),
-  );
+  const [activeWeekday, setActiveWeekday] = useState(() => legacyWeekdayForIso(todayIso()));
   const selectedOrganizationId = auth.context?.activeOrganization?.id;
   const entries = useQuery({
     queryKey: ["schedule", selectedOrganizationId ?? "all"],
@@ -87,8 +86,11 @@ export function LegacySchedulePage() {
   const organizationOptions = canReadOrganizations
     ? (organizations.data ?? [])
     : (auth.context?.availableOrganizations ?? []);
-  const canWrite = auth.canAny(["schedule.create", "schedule.update"]);
-  const isStudent = auth.activeRole === "STUDENT";
+  const canCreate = auth.can("schedule.create");
+  const canEdit = auth.can("schedule.update");
+  const canArchive = auth.can("schedule.archive");
+  const canDelete = auth.can("schedule.delete");
+  const canWrite = canCreate || canEdit;
   const isTeacher = auth.activeRole === "TEACHER";
   const classes = useQuery({
     queryKey: ["classes", "schedule"],
@@ -186,7 +188,6 @@ export function LegacySchedulePage() {
     (canWrite && classes.isError)
   )
     return <EmptyState title="دریافت برنامه انجام نشد." />;
-  if (isStudent) return <StudentWeeklySchedule entries={entries.data ?? []} />;
   if (isTeacher) return <TeacherSchedulePage entries={entries.data ?? []} />;
   const editEntry = (entry?: ScheduleEntry) => {
     modal.open({
@@ -231,8 +232,9 @@ export function LegacySchedulePage() {
         <SchedulePlanModal
           entry={entry}
           showOrganization={auth.hasRole("PLATFORM_ADMIN")}
-          canWrite={canWrite}
-          canDelete={auth.can("schedule.delete")}
+          canEdit={canEdit}
+          canArchive={canArchive}
+          canDelete={canDelete}
           onClose={modal.close}
           onEdit={() => {
             modal.close();
@@ -263,9 +265,10 @@ export function LegacySchedulePage() {
           entries={entries.data ?? []}
           activeWeekday={activeWeekday}
           onWeekdayChange={setActiveWeekday}
-          canWrite={canWrite}
+          canEdit={canEdit}
+          canArchive={canArchive}
           showOrganization={auth.hasRole("PLATFORM_ADMIN")}
-          canDelete={auth.can("schedule.delete")}
+          canDelete={canDelete}
           onEdit={editEntry}
           onArchive={(entry) =>
             archive.mutate({
@@ -299,7 +302,7 @@ export function LegacySchedulePage() {
           }
         />
       </div>
-      {canWrite ? (
+      {canCreate ? (
         <Card className="order-1 border-brand/15 bg-[rgb(var(--surface-card))] p-4 min-[960px]:order-2 min-[960px]:sticky min-[960px]:top-3 min-[960px]:self-start">
           <span className="grid size-10 place-items-center rounded-xl bg-brand/10 text-brand">
             <Plus size={20} />
@@ -317,13 +320,14 @@ export function LegacySchedulePage() {
   );
 }
 
-const displayWeekdays = [6, 0, 1, 2, 3, 4, 5] as const;
+const displayWeekdays = [0, 1, 2, 3, 4, 5, 6] as const;
 
 type ScheduleWorkspaceProps = {
   entries: ScheduleEntry[];
   activeWeekday: number;
   onWeekdayChange: (weekday: number) => void;
-  canWrite: boolean;
+  canEdit: boolean;
+  canArchive: boolean;
   canDelete: boolean;
   showOrganization: boolean;
   onEdit: (entry: ScheduleEntry) => void;
@@ -337,7 +341,8 @@ function ScheduleWorkspace({
   entries,
   activeWeekday,
   onWeekdayChange,
-  canWrite,
+  canEdit,
+  canArchive,
   canDelete,
   showOrganization,
   onEdit,
@@ -367,7 +372,7 @@ function ScheduleWorkspace({
       ),
     [activeScheduleEntries],
   );
-  const today = new Date(`${todayIso()}T12:00:00`).getDay();
+  const today = legacyWeekdayForIso(todayIso());
   const activeEntries = entriesByWeekday.get(activeWeekday) ?? [];
   const classLanes = useMemo(() => {
     const lanes = new Map<string, ScheduleEntry[]>();
@@ -447,7 +452,8 @@ function ScheduleWorkspace({
                 entry={entry}
                 showOrganization={showOrganization}
                 compact={false}
-                canWrite={canWrite}
+                canEdit={canEdit}
+                canArchive={canArchive}
                 canDelete={canDelete}
                 onEdit={onEdit}
                 onArchive={onArchive}
@@ -524,7 +530,8 @@ function ScheduleWorkspace({
                                   <ScheduleMatrixCell
                                     key={entry.id}
                                     entry={entry}
-                                    canWrite={canWrite}
+                                    canEdit={canEdit}
+                                    canArchive={canArchive}
                                     canDelete={canDelete}
                                     showOrganization={showOrganization}
                                     onEdit={onEdit}
@@ -551,7 +558,7 @@ function ScheduleWorkspace({
         )}
       </Card>
 
-      {canWrite && archivedEntries.length ? (
+      {(canEdit || canArchive || canDelete) && archivedEntries.length ? (
         <Card className="p-3">
           <div className="flex items-center gap-2">
             <Archive size={17} className="text-slate-500" aria-hidden="true" />
@@ -564,7 +571,8 @@ function ScheduleWorkspace({
                 entry={entry}
                 showOrganization={showOrganization}
                 compact={false}
-                canWrite={canWrite}
+                canEdit={canEdit}
+                canArchive={canArchive}
                 canDelete={canDelete}
                 onEdit={onEdit}
                 onArchive={onArchive}
@@ -603,7 +611,8 @@ function ScheduleMetric({
 
 function ScheduleMatrixCell({
   entry,
-  canWrite,
+  canEdit,
+  canArchive,
   canDelete,
   showOrganization,
   onEdit,
@@ -613,7 +622,8 @@ function ScheduleMatrixCell({
 }: {
   entry: ScheduleEntry;
   showOrganization: boolean;
-  canWrite: boolean;
+  canEdit: boolean;
+  canArchive: boolean;
   canDelete: boolean;
   onEdit: (entry: ScheduleEntry) => void;
   onArchive: (entry: ScheduleEntry) => void;
@@ -646,24 +656,28 @@ function ScheduleMatrixCell({
           </span>
         ) : null}
       </button>
-      {canWrite ? (
+      {canEdit || canArchive || canDelete ? (
         <div className="mt-1 flex gap-0.5">
-          <button
-            type="button"
-            aria-label={`ویرایش ${entry.title}`}
-            onClick={() => onEdit(entry)}
-            className="rounded p-1 text-brand hover:bg-brand/10 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-brand"
-          >
-            <Pencil size={12} />
-          </button>
-          <button
-            type="button"
-            aria-label={`${entry.status === "ARCHIVED" ? "بازیابی" : "بایگانی"} ${entry.title}`}
-            onClick={() => onArchive(entry)}
-            className="rounded p-1 text-slate-500 hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-brand dark:hover:bg-white/10"
-          >
-            <Archive size={12} />
-          </button>
+          {canEdit ? (
+            <button
+              type="button"
+              aria-label={`ویرایش ${entry.title}`}
+              onClick={() => onEdit(entry)}
+              className="rounded p-1 text-brand hover:bg-brand/10 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-brand"
+            >
+              <Pencil size={12} />
+            </button>
+          ) : null}
+          {canArchive ? (
+            <button
+              type="button"
+              aria-label={`${entry.status === "ARCHIVED" ? "بازیابی" : "بایگانی"} ${entry.title}`}
+              onClick={() => onArchive(entry)}
+              className="rounded p-1 text-slate-500 hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-brand dark:hover:bg-white/10"
+            >
+              <Archive size={12} />
+            </button>
+          ) : null}
           {canDelete ? (
             <button
               type="button"
@@ -684,7 +698,8 @@ function ScheduleEntryCard({
   entry,
   showOrganization,
   compact,
-  canWrite,
+  canEdit,
+  canArchive,
   canDelete,
   onEdit,
   onArchive,
@@ -694,7 +709,8 @@ function ScheduleEntryCard({
   entry: ScheduleEntry;
   showOrganization: boolean;
   compact: boolean;
-  canWrite: boolean;
+  canEdit: boolean;
+  canArchive: boolean;
   canDelete: boolean;
   onEdit: (entry: ScheduleEntry) => void;
   onArchive: (entry: ScheduleEntry) => void;
@@ -733,24 +749,28 @@ function ScheduleEntryCard({
           ) : null}
         </div>
       </button>
-      {canWrite ? (
+      {canEdit || canArchive || canDelete ? (
         <div className="mt-2 flex gap-1">
-          <Button
-            size="sm"
-            variant="soft"
-            aria-label={`ویرایش ${entry.title}`}
-            onClick={() => onEdit(entry)}
-          >
-            <Pencil size={13} />
-          </Button>
-          <Button
-            size="sm"
-            variant="ghost"
-            aria-label={`${entry.status === "ARCHIVED" ? "بازیابی" : "بایگانی"} ${entry.title}`}
-            onClick={() => onArchive(entry)}
-          >
-            <Archive size={13} />
-          </Button>
+          {canEdit ? (
+            <Button
+              size="sm"
+              variant="soft"
+              aria-label={`ویرایش ${entry.title}`}
+              onClick={() => onEdit(entry)}
+            >
+              <Pencil size={13} />
+            </Button>
+          ) : null}
+          {canArchive ? (
+            <Button
+              size="sm"
+              variant="ghost"
+              aria-label={`${entry.status === "ARCHIVED" ? "بازیابی" : "بایگانی"} ${entry.title}`}
+              onClick={() => onArchive(entry)}
+            >
+              <Archive size={13} />
+            </Button>
+          ) : null}
           {canDelete ? (
             <Button
               size="sm"
@@ -770,7 +790,8 @@ function ScheduleEntryCard({
 function SchedulePlanModal({
   entry,
   showOrganization,
-  canWrite,
+  canEdit,
+  canArchive,
   canDelete,
   onEdit,
   onArchive,
@@ -779,7 +800,8 @@ function SchedulePlanModal({
 }: {
   entry: ScheduleEntry;
   showOrganization: boolean;
-  canWrite: boolean;
+  canEdit: boolean;
+  canArchive: boolean;
   canDelete: boolean;
   onEdit: () => void;
   onArchive: () => void;
@@ -830,15 +852,19 @@ function SchedulePlanModal({
         </section>
       ) : null}
 
-      {canWrite ? (
+      {canEdit || canArchive || canDelete ? (
         <div className="grid gap-2 border-t border-[rgb(var(--border-subtle))] pt-4 sm:grid-cols-2">
-          <Button variant="soft" onClick={onEdit}>
-            <Pencil size={16} /> ویرایش برنامه
-          </Button>
-          <Button variant="ghost" onClick={onArchive}>
-            <Archive size={16} />
-            {entry.status === "ARCHIVED" ? "بازیابی برنامه" : "بایگانی برنامه"}
-          </Button>
+          {canEdit ? (
+            <Button variant="soft" onClick={onEdit}>
+              <Pencil size={16} /> ویرایش برنامه
+            </Button>
+          ) : null}
+          {canArchive ? (
+            <Button variant="ghost" onClick={onArchive}>
+              <Archive size={16} />
+              {entry.status === "ARCHIVED" ? "بازیابی برنامه" : "بایگانی برنامه"}
+            </Button>
+          ) : null}
           {canDelete ? (
             <Button className="sm:col-span-2" variant="ghost" onClick={onDelete}>
               <Trash2 size={16} className="text-rose-600" /> حذف برنامه
@@ -900,7 +926,7 @@ function ScheduleEditorForm({
         <legend className="px-1 text-sm font-black text-ink">۱. محل برگزاری</legend>
         <label className="grid gap-1.5 text-sm font-bold">
           مدرسه
-          <select
+          <AdaptiveSelect
             value={draft.organizationId}
             onChange={(event) =>
               update({
@@ -918,14 +944,14 @@ function ScheduleEditorForm({
                 {organization.name}
               </option>
             ))}
-          </select>
+          </AdaptiveSelect>
         </label>
         {attempted && !draft.organizationId ? (
           <p className="text-xs font-bold text-rose-600">انتخاب مدرسه ضروری است.</p>
         ) : null}
         <label className="grid gap-1.5 text-sm font-bold">
           کلاس <span className="font-normal text-slate-500">(اختیاری)</span>
-          <select
+          <AdaptiveSelect
             value={draft.classroomId || ""}
             onChange={(event) =>
               update({
@@ -946,12 +972,12 @@ function ScheduleEditorForm({
                   {item.name}
                 </option>
               ))}
-          </select>
+          </AdaptiveSelect>
         </label>
         {selectedClass ? (
           <label className="grid gap-1.5 text-sm font-bold">
             کتاب و استاد مسئول
-            <select
+            <AdaptiveSelect
               value={draft.classBookId || ""}
               onChange={(event) => {
                 const book = selectedClass.books.find((item) => item.id === event.target.value);
@@ -965,7 +991,7 @@ function ScheduleEditorForm({
                   {book.title} — {book.teacher.name}
                 </option>
               ))}
-            </select>
+            </AdaptiveSelect>
           </label>
         ) : null}
       </fieldset>
@@ -985,7 +1011,7 @@ function ScheduleEditorForm({
         ) : null}
         <label className="grid gap-1.5 text-sm font-bold">
           روز هفته
-          <select
+          <AdaptiveSelect
             value={draft.weekday}
             onChange={(event) => update({ weekday: Number(event.target.value) })}
             className="h-11 rounded-xl border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card))] px-3 text-sm text-ink focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20"
@@ -995,7 +1021,7 @@ function ScheduleEditorForm({
                 {label}
               </option>
             ))}
-          </select>
+          </AdaptiveSelect>
         </label>
         <div className="grid grid-cols-2 gap-3">
           <label className="grid gap-1.5 text-sm font-bold">
@@ -1077,101 +1103,8 @@ function PlanDetail({
   );
 }
 
-function StudentWeeklySchedule({ entries }: { entries: ScheduleEntry[] }) {
-  const today = new Date(`${todayIso()}T12:00:00`).getDay();
-  const [activeWeekday, setActiveWeekday] = useState(today);
-  const isMobileShell = useViewportShell() === "mobile";
-  const activeEntries = entries
-    .filter((entry) => entry.status === "ACTIVE" && entry.weekday === activeWeekday)
-    .sort((a, b) => a.startTime.localeCompare(b.startTime));
-
-  return (
-    <section
-      className="mx-auto grid w-full max-w-5xl gap-3 pb-[calc(6rem+env(safe-area-inset-bottom))] md:pb-4"
-      dir="rtl"
-      aria-label="برنامه هفتگی من"
-    >
-      <div
-        className="flex gap-1.5 overflow-x-auto px-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-        aria-label="انتخاب روز برنامه"
-      >
-        {displayWeekdays.map((weekday) => (
-          <button
-            key={weekday}
-            type="button"
-            aria-pressed={weekday === activeWeekday}
-            onClick={() => setActiveWeekday(weekday)}
-            className={`min-h-10 shrink-0 rounded-xl px-3 text-xs font-bold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand ${weekday === activeWeekday ? "bg-brand text-white shadow-[0_7px_12px_-8px_rgba(13,118,111,.85)]" : "bg-[rgb(var(--surface-muted))] text-slate-600 dark:text-slate-300"}`}
-          >
-            {weekdays[weekday]}
-          </button>
-        ))}
-      </div>
-      {isMobileShell ? (
-        <div className="grid gap-2">
-          {activeEntries.map((entry) => (
-            <StudentScheduleCard key={entry.id} entry={entry} />
-          ))}
-          {!activeEntries.length ? (
-            <EmptyState title={`برای ${weekdays[activeWeekday]} کلاسی ثبت نشده است.`} />
-          ) : null}
-        </div>
-      ) : (
-        <div className="grid grid-cols-2 gap-3 min-[1200px]:grid-cols-3">
-          {weekdays.map((day, weekday) => {
-            const dailyEntries = entries
-              .filter((entry) => entry.status === "ACTIVE" && entry.weekday === weekday)
-              .sort((a, b) => a.startTime.localeCompare(b.startTime));
-            return (
-              <Card key={day} className="min-w-0 p-3">
-                <h2 className="text-sm font-black text-ink">{day}</h2>
-                <div className="mt-3 grid gap-2">
-                  {dailyEntries.map((entry) => (
-                    <StudentScheduleCard key={entry.id} entry={entry} />
-                  ))}
-                  {!dailyEntries.length ? (
-                    <p className="rounded-xl bg-[rgb(var(--surface-muted))] p-3 text-xs text-slate-500">
-                      کلاسی برای این روز ثبت نشده است.
-                    </p>
-                  ) : null}
-                </div>
-              </Card>
-            );
-          })}
-        </div>
-      )}
-    </section>
-  );
-}
-
-function StudentScheduleCard({ entry }: { entry: ScheduleEntry }) {
-  return (
-    <article className="rounded-xl border border-sky-100 bg-[linear-gradient(145deg,#fff,#f3f9ff)] p-3 shadow-[0_9px_16px_-14px_rgba(20,81,138,.55)] dark:border-white/10 dark:bg-white/[.03]">
-      <div className="flex items-start gap-2">
-        <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-brand/10 text-brand">
-          <CalendarClock size={17} aria-hidden="true" />
-        </span>
-        <div className="min-w-0 flex-1">
-          <h3 className="truncate text-sm font-black text-ink">{entry.title}</h3>
-          <p className="mt-1 text-xs font-bold text-brand" dir="ltr">
-            {entry.startTime} — {entry.endTime}
-          </p>
-          <p className="mt-2 text-xs text-slate-500">
-            {entry.classroom?.name || entry.room || entry.organization.name}
-          </p>
-          {entry.classBook?.book?.titleFa ? (
-            <p className="mt-1 truncate text-xs font-bold text-brand">
-              {entry.classBook.book.titleFa}
-            </p>
-          ) : null}
-          <p className="mt-1 flex items-center gap-1 text-xs text-slate-600 dark:text-slate-300">
-            <GraduationCap size={14} aria-hidden="true" />
-            {teacherName(entry) || "استاد این کلاس هنوز ثبت نشده است."}
-          </p>
-        </div>
-      </div>
-    </article>
-  );
+function legacyWeekdayForIso(iso: string) {
+  return (new Date(`${iso}T12:00:00`).getDay() + 1) % 7;
 }
 
 function teacherName(entry: ScheduleEntry) {

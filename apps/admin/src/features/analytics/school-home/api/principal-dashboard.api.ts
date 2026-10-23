@@ -1,5 +1,6 @@
 import { api } from "../../../../shared/api/api";
 import { addDays, todayIso } from "../../../../shared/lib/utils";
+import type { AttendanceSessionDetail } from "@moshaver/api-contract";
 
 export type PrincipalDashboardContract = {
   organizationId: string;
@@ -38,6 +39,24 @@ export type PrincipalDashboardContract = {
     exitRequests: number;
     permissionRequests: number;
   };
+  sessionReviews?: {
+    pendingCount: number;
+    items: Array<{
+      id: string;
+      contextType: string;
+      contextId: string;
+      title: string;
+      sessionDate: string;
+      status: string;
+      expected: number | null;
+      marked: number;
+      present: number;
+      absent: number;
+      late: number;
+      excused: number;
+      lastReviewedAt: string | null;
+    }>;
+  };
   operations?: {
     activeStudents: number;
     currentlyOut: number;
@@ -53,3 +72,12 @@ export const getPrincipalDashboard = (range: "7d" | "30d", classId?: string) => 
   if (classId) query.set("classId", classId);
   return api.get<PrincipalDashboardContract>(`/dashboard/principal?${query.toString()}`);
 };
+
+export const reviewAttendanceSession = (sessionId: string) =>
+  api.post<{ sessionId: string; reviewedAt: string }>(
+    `/attendance/sessions/${encodeURIComponent(sessionId)}/daily-review`,
+    {},
+  );
+
+export const getAttendanceSessionForReview = (sessionId: string) =>
+  api.get<AttendanceSessionDetail>(`/attendance/sessions/${encodeURIComponent(sessionId)}`);

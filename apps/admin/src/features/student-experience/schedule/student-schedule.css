@@ -1,0 +1,206 @@
+/* Student schedule: a lightweight, RTL-first glass surface that uses the
+ * existing schedule data, mobile dock, and DatePicker rather than a separate
+ * student application or calendar implementation. */
+.student-schedule {
+  --student-schedule-blue: #2563eb;
+  --student-schedule-ink: #14254b;
+  position: relative;
+  isolation: isolate;
+}
+.student-schedule::before {
+  position: absolute;
+  z-index: -1;
+  inset: -1rem -0.5rem auto;
+  height: 15rem;
+  border-radius: 2rem;
+  background:
+    radial-gradient(circle at 90% 0%, rgba(147, 197, 253, 0.58), transparent 40%),
+    radial-gradient(circle at 8% 25%, rgba(186, 230, 253, 0.5), transparent 42%),
+    linear-gradient(150deg, #f5f9ff, rgba(239, 248, 255, 0.28));
+  content: "";
+}
+.student-schedule__header,
+.student-schedule__desktop-day,
+.student-schedule__lesson,
+.student-schedule__weekday,
+.student-schedule__empty {
+  border: 1px solid rgba(255, 255, 255, 0.86);
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.91), rgba(226, 240, 255, 0.72));
+  box-shadow:
+    0 12px 25px -19px rgba(24, 64, 138, 0.5),
+    inset 0 1px 1px rgba(255, 255, 255, 0.96),
+    inset 0 -2px 5px rgba(66, 122, 185, 0.08);
+}
+.student-schedule__header {
+  display: grid;
+  grid-template-columns: 2.75rem minmax(0, 1fr) 2.75rem 2.75rem;
+  align-items: center;
+  gap: 0.25rem;
+  min-height: 5.25rem;
+  padding: 0.5rem;
+  border-radius: 1.65rem;
+}
+.student-schedule__header-action,
+.student-schedule__picker button {
+  display: grid;
+  width: 2.75rem;
+  height: 2.75rem;
+  place-items: center;
+  border: 1px solid rgba(255, 255, 255, 0.9);
+  border-radius: 1rem;
+  color: var(--student-schedule-blue);
+  background: linear-gradient(145deg, #fff, #dbeafe);
+  box-shadow:
+    0 6px 12px -9px rgba(37, 99, 235, 0.55),
+    inset 0 1px 2px #fff;
+  transition:
+    transform 180ms ease,
+    box-shadow 180ms ease;
+}
+.student-schedule__header-action:hover,
+.student-schedule__picker button:hover {
+  box-shadow:
+    0 9px 15px -10px rgba(37, 99, 235, 0.65),
+    inset 0 1px 2px #fff;
+}
+.student-schedule__header-action:active,
+.student-schedule__picker button:active {
+  transform: scale(0.97);
+}
+.student-schedule__header-action:focus-visible,
+.student-schedule__picker button:focus-visible,
+.student-schedule__weekday:focus-visible,
+.student-schedule__lesson button:focus-visible {
+  outline: 2px solid var(--student-schedule-blue);
+  outline-offset: 3px;
+}
+.student-schedule__picker {
+  width: 2.75rem;
+}
+.student-schedule__picker button {
+  padding: 0;
+}
+.student-schedule__picker button > span:first-child {
+  display: none;
+}
+.student-schedule__weekday-rail {
+  display: grid;
+  gap: 0.45rem;
+}
+.student-schedule__weekday {
+  min-height: 2.9rem;
+  padding: 0.25rem;
+  border-radius: 1rem;
+  color: #42526d;
+  font-size: 0.7rem;
+  font-weight: 800;
+  transition:
+    transform 180ms ease,
+    background 180ms ease,
+    box-shadow 180ms ease;
+}
+.student-schedule__weekday--active {
+  border-color: rgba(219, 234, 254, 0.96);
+  color: #fff;
+  background: radial-gradient(circle at 70% 10%, #67d8ff, #2563eb 58%, #123bb8);
+  box-shadow:
+    0 7px 15px -8px rgba(29, 78, 216, 0.85),
+    inset 0 2px 3px rgba(255, 255, 255, 0.52),
+    inset 0 -5px 8px rgba(12, 40, 136, 0.22);
+}
+.student-schedule__lesson-list {
+  display: grid;
+  gap: 0.65rem;
+  min-width: 0;
+}
+.student-schedule__lesson {
+  border-radius: 1.5rem;
+  padding: 0.85rem;
+  transition:
+    transform 180ms ease,
+    box-shadow 180ms ease,
+    border-color 180ms ease;
+}
+.student-schedule__lesson:hover {
+  transform: translateY(-2px);
+  box-shadow:
+    0 16px 28px -20px rgba(24, 64, 138, 0.62),
+    inset 0 1px 1px rgba(255, 255, 255, 0.96);
+}
+.student-schedule__lesson--current {
+  border-color: rgba(37, 99, 235, 0.75);
+  box-shadow:
+    0 0 0 3px rgba(147, 197, 253, 0.34),
+    0 16px 28px -20px rgba(37, 99, 235, 0.7),
+    inset 0 1px 1px rgba(255, 255, 255, 0.96);
+}
+.student-schedule__lesson-icon {
+  display: grid;
+  width: 2.7rem;
+  height: 2.7rem;
+  flex: none;
+  place-items: center;
+  border: 1px solid rgba(255, 255, 255, 0.86);
+  border-radius: 1rem;
+  color: var(--student-schedule-blue);
+  background: linear-gradient(145deg, #fff, #dbeafe);
+  box-shadow:
+    inset 0 1px 2px #fff,
+    0 5px 10px -8px rgba(37, 99, 235, 0.38);
+}
+.student-schedule__live {
+  flex: none;
+  border-radius: 999px;
+  padding: 0.2rem 0.45rem;
+  color: #047857;
+  background: rgba(209, 250, 229, 0.82);
+  font-size: 0.62rem;
+  font-weight: 800;
+}
+.student-schedule__empty {
+  display: grid;
+  min-height: 11rem;
+  place-content: center;
+  gap: 0.6rem;
+  border-radius: 1.5rem;
+  padding: 1rem;
+  color: #64748b;
+  text-align: center;
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+.student-schedule__empty svg {
+  margin-inline: auto;
+  color: var(--student-schedule-blue);
+}
+.student-schedule__desktop-day {
+  min-height: 11rem;
+  border-radius: 1.5rem;
+  padding: 1rem;
+}
+.dark .student-schedule__header,
+.dark .student-schedule__desktop-day,
+.dark .student-schedule__lesson,
+.dark .student-schedule__weekday,
+.dark .student-schedule__empty {
+  border-color: rgba(147, 197, 253, 0.18);
+  background: linear-gradient(145deg, rgba(27, 54, 94, 0.92), rgba(20, 38, 71, 0.88));
+}
+.dark .student-schedule__header-action,
+.dark .student-schedule__picker button,
+.dark .student-schedule__lesson-icon {
+  border-color: rgba(147, 197, 253, 0.24);
+  color: #bfdbfe;
+  background: linear-gradient(145deg, rgba(54, 90, 145, 0.94), rgba(28, 56, 99, 0.95));
+}
+@media (prefers-reduced-motion: reduce) {
+  .student-schedule__header-action,
+  .student-schedule__picker button,
+  .student-schedule__weekday,
+  .student-schedule__lesson {
+    transition: none;
+  }
+  .student-schedule__lesson:hover {
+    transform: none;
+  }
+}

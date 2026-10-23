@@ -41,8 +41,10 @@ export const studentLifecycle = (
 ) => api.post(`/students/${id}/${action}`, {});
 export const resetStudentPassword = (id: string, password: string) =>
   api.post(`/students/${id}/reset-password`, { password });
-export const getStudentOverview = (id: string) =>
-  api.get<Record<string, unknown>>(`/students/${id}/overview`);
+export const getStudentOverview = (id: string) => api.get<Student>(`/students/${id}/overview`);
+/** Detailed, server-authorized profile projection; do not synthesize this from list data. */
+export const getStudentProfile = (id: string) =>
+  api.get<StudentProfile>(`/students/${encodeURIComponent(id)}/profile`);
 export const getStudentLearning = (id: string) =>
   api.get<LearningResponse>(`/students/${id}/learning`);
 export const getStudentAttempts = (id: string) =>
@@ -63,6 +65,49 @@ export type StudentAnalytics = {
   reviewConsistency: number;
   averageMastery: number | null;
   subjectPerformance: Array<{ subject: string; items: number; mastery: number | null }>;
+};
+export type StudentProfile = Student & {
+  identity: {
+    firstName: string;
+    lastName: string;
+    fullName: string;
+    nationalCode: string | null;
+    phoneNumber: string | null;
+    email: string | null;
+    profilePhoto: string;
+  };
+  contact: { phoneNumber: string | null; email: string | null };
+  education: {
+    learnerProfile: string;
+    independentType: string | null;
+    learningLevel: string;
+    gradeId: number | null;
+    educationTypeId: string;
+    trackId: string;
+    grade: string;
+    major: string;
+    targetUniversity: string;
+    targetField: string;
+    targetRank: string;
+    dailyCapacity: string;
+  };
+  attendanceSummary: {
+    totalSessions: number;
+    present: number;
+    absent: number;
+    late: number;
+    excused: number;
+  };
+  recentAttendance: Array<{
+    id: string;
+    sessionId: string;
+    status: string;
+    sessionDate: string;
+    contextType: string;
+    contextId: string;
+    organizationId: string;
+    recordedAt: string;
+  }>;
 };
 export type StudentRecommendation = {
   id: string;

@@ -1,3 +1,4 @@
+import { AdaptiveSelect } from "@/shared/ui/adaptive-select";
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -1186,7 +1187,7 @@ function SharePlanForm({
               className="grid gap-1 text-xs text-slate-600 dark:text-slate-300"
             >
               {String(label)}
-              <select
+              <AdaptiveSelect
                 value={String(value)}
                 onChange={(event) => (setValue as (value: string) => void)(event.target.value)}
                 className="h-9 rounded-lg border border-slate-200 bg-white px-2 text-sm dark:border-slate-700 dark:bg-slate-900"
@@ -1199,7 +1200,7 @@ function SharePlanForm({
                     </option>
                   ),
                 )}
-              </select>
+              </AdaptiveSelect>
             </label>
           ))}
         </div>

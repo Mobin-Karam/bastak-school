@@ -1,3 +1,4 @@
+import { AdaptiveSelect } from "@/shared/ui/adaptive-select";
 import { type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import {
@@ -101,7 +102,7 @@ export function StudentLoginPage() {
             {schools.length > 1 && (
               <label className="mb-5 grid gap-2 text-xs font-extrabold text-slate-700 dark:text-slate-100">
                 {direction === "rtl" ? "مدرسه خودت را انتخاب کن" : "Choose your school"}
-                <select
+                <AdaptiveSelect
                   value={selectedId}
                   onChange={(event) => selectSchool(event.target.value)}
                   className="student-glass-input min-h-12 w-full rounded-2xl px-4 text-sm font-semibold text-slate-800 outline-none focus-visible:ring-2 focus-visible:ring-blue-500 dark:text-white"
@@ -112,7 +113,7 @@ export function StudentLoginPage() {
                       {item.profile.displayName || item.name}
                     </option>
                   ))}
-                </select>
+                </AdaptiveSelect>
               </label>
             )}
 

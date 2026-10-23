@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Modal } from "../../../../shared/ui/modal";
+import { ResponsiveDrawer } from "../../../../shared/ui/responsive-drawer";
 import { Button } from "../../../../shared/ui/ui";
 
 /** Keep a mounted draft until the user explicitly confirms a destructive navigation. */
@@ -12,7 +12,7 @@ export function useAttendanceDiscard(dirty: boolean, busy: boolean, scope: strin
     else next();
   }
   const confirmation = (
-    <Modal
+    <ResponsiveDrawer
       open={Boolean(action)}
       dismissible={!busy}
       onOpenChange={(open) => {
@@ -20,6 +20,7 @@ export function useAttendanceDiscard(dirty: boolean, busy: boolean, scope: strin
       }}
       title="تغییرات ذخیره نشده‌اند"
       description="با ادامه، انتخاب‌های ثبت‌نشده پاک می‌شوند. می‌خواهید ادامه دهید؟"
+      desktopSide="left"
     >
       <div className="flex gap-2">
         <Button variant="soft" className="flex-1" disabled={busy} onClick={() => setAction(null)}>
@@ -39,7 +40,7 @@ export function useAttendanceDiscard(dirty: boolean, busy: boolean, scope: strin
           ادامه و پاک‌کردن
         </Button>
       </div>
-    </Modal>
+    </ResponsiveDrawer>
   );
   return { request, confirmation };
 }

@@ -1,3 +1,4 @@
+import { AdaptiveSelect } from "@/shared/ui/adaptive-select";
 import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { DatePicker } from "../../../../shared/ui/date-picker";
@@ -86,7 +87,7 @@ export function DormDelegateEditor({
       ) : null}
       <label className="block text-sm font-semibold">
         حساب طلبه
-        <select
+        <AdaptiveSelect
           aria-label="مسئول حضور اتاق"
           value={studentId}
           onChange={(event) => setStudentId(event.target.value)}
@@ -106,7 +107,7 @@ export function DormDelegateEditor({
                 {member.name}
               </option>
             ))}
-        </select>
+        </AdaptiveSelect>
       </label>
       <div className="mt-3 grid grid-cols-2 gap-3">
         <label className="text-xs font-bold">

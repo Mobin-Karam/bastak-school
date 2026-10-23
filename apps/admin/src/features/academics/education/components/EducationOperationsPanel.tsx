@@ -1,3 +1,4 @@
+import { AdaptiveSelect } from "@/shared/ui/adaptive-select";
 import type { UseQueryResult } from "@tanstack/react-query";
 import { Download, RefreshCw } from "lucide-react";
 import { Link } from "react-router-dom";
@@ -70,7 +71,7 @@ export function EducationOperationsPanel({
         </label>
         <label className="grid w-32 gap-1 text-xs text-slate-600 dark:text-slate-300">
           <span>{copy.grade}</span>
-          <select
+          <AdaptiveSelect
             aria-label={copy.grade}
             className="h-11 rounded-lg border border-slate-200 bg-white px-2 text-sm dark:border-slate-700 dark:bg-slate-950"
             value={filters.cohortGrade}
@@ -82,7 +83,7 @@ export function EducationOperationsPanel({
                 {copy.gradePrefix} {grade.toLocaleString(locale.profile.locale)}
               </option>
             ))}
-          </select>
+          </AdaptiveSelect>
         </label>
         <Button variant="ghost" size="sm" disabled={!hasFilters} onClick={clearFilters}>
           {copy.clearFilters}

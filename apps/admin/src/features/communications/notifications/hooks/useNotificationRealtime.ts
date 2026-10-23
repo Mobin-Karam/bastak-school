@@ -11,17 +11,24 @@ import {
 
 export function useNotificationRealtime({
   authenticated,
+  scopeKey,
+  organizationId,
   queryClient,
   soundEnabled,
   chatSoundEnabled,
   playSound,
+  showToast,
   onStudentRequest,
 }: {
   authenticated: boolean;
+  scopeKey: string;
+  organizationId?: string;
   queryClient: QueryClient;
   soundEnabled: boolean;
   chatSoundEnabled: boolean;
   playSound: (chat?: boolean) => void;
+  /** Students use the floating island so the bottom-corner toast is not duplicated. */
+  showToast: boolean;
   onStudentRequest: (item: AdminNotification) => void;
 }) {
   useEffect(() => {
@@ -35,42 +42,50 @@ export function useNotificationRealtime({
       source = api.openEvents((type, data) => {
         if (type === "notification.created") {
           const item = normalizeAdminNotification(data as AdminNotification);
+          if (item.organizationId && organizationId && item.organizationId !== organizationId)
+            return;
           if (item.category === "student_request") onStudentRequest(item);
 
-          queryClient.setQueryData<InfiniteData<NotificationPage>>(["notifications"], (current) => {
-            if (
-              !current?.pages.length ||
-              current.pages.some((page) => page.items.some((existing) => existing.id === item.id))
-            ) {
-              return current;
-            }
+          const notificationQueryKey = ["notifications", scopeKey] as const;
+          queryClient.setQueryData<InfiniteData<NotificationPage>>(
+            notificationQueryKey,
+            (current) => {
+              if (
+                !current?.pages.length ||
+                current.pages.some((page) => page.items.some((existing) => existing.id === item.id))
+              ) {
+                return current;
+              }
 
-            const pages = [...current.pages];
-            const first = pages[0];
+              const pages = [...current.pages];
+              const first = pages[0];
 
-            pages[0] = {
-              ...first,
-              unreadCount: Number(first.unreadCount || 0) + 1,
-              items: [{ ...item, isRead: false }, ...first.items].slice(0, 20),
-            };
+              pages[0] = {
+                ...first,
+                unreadCount: Number(first.unreadCount || 0) + 1,
+                items: [{ ...item, isRead: false }, ...first.items].slice(0, 20),
+              };
 
-            return { ...current, pages };
-          });
-
-          notifications.info(item.title || "اعلان جدید", {
-            id: item.id,
-            description: item.body,
-            duration: 6500,
-            action: {
-              label: "مشاهده",
-              onClick: () => window.location.assign(notificationAdminUrl(item.url ?? undefined)),
+              return { ...current, pages };
             },
-          });
+          );
+
+          if (showToast) {
+            notifications.info(item.title || "اعلان جدید", {
+              id: item.id,
+              description: item.body,
+              duration: 6500,
+              action: {
+                label: "مشاهده",
+                onClick: () => window.location.assign(notificationAdminUrl(item.url ?? undefined)),
+              },
+            });
+          }
 
           window.setTimeout(
             () =>
               void queryClient.invalidateQueries({
-                queryKey: ["notifications"],
+                queryKey: notificationQueryKey,
               }),
             500,
           );
@@ -141,5 +156,15 @@ export function useNotificationRealtime({
     }
 
     return () => source?.close();
-  }, [authenticated, soundEnabled, chatSoundEnabled, queryClient, playSound, onStudentRequest]);
+  }, [
+    authenticated,
+    scopeKey,
+    organizationId,
+    soundEnabled,
+    chatSoundEnabled,
+    queryClient,
+    playSound,
+    showToast,
+    onStudentRequest,
+  ]);
 }

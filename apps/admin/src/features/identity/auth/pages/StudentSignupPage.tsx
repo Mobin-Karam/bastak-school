@@ -1,3 +1,4 @@
+import { AdaptiveSelect } from "@/shared/ui/adaptive-select";
 import {
   PublicSchoolProfileProvider,
   usePublicSchoolProfile,
@@ -167,7 +168,7 @@ function StudentSignupPageContent() {
                 <>
                   <label className="grid gap-1 text-sm font-bold">
                     مدرسه
-                    <select
+                    <AdaptiveSelect
                       value={organizationId}
                       onChange={(e) => setOrganizationId(e.target.value)}
                       required
@@ -181,7 +182,7 @@ function StudentSignupPageContent() {
                           {org.name}
                         </option>
                       ))}
-                    </select>
+                    </AdaptiveSelect>
                   </label>
                   <div className="grid gap-3 sm:grid-cols-2">
                     <label className="grid gap-1 text-sm font-bold">

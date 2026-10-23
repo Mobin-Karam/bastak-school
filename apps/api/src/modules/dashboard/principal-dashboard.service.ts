@@ -53,6 +53,24 @@ type PrincipalDashboardContract = {
     exitRequests: number;
     permissionRequests: number;
   };
+  sessionReviews?: {
+    pendingCount: number;
+    items: Array<{
+      id: string;
+      contextType: string;
+      contextId: string;
+      title: string;
+      sessionDate: string;
+      status: string;
+      expected: number | null;
+      marked: number;
+      present: number;
+      absent: number;
+      late: number;
+      excused: number;
+      lastReviewedAt: string | null;
+    }>;
+  };
   operations?: {
     activeStudents: number;
     currentlyOut: number;
@@ -154,6 +172,11 @@ export class PrincipalDashboardService {
       can("permission_requests.read")
     )
       response.queues = await this.queues(organizationId, can);
+    if (can("attendance.review"))
+      response.sessionReviews = await this.sessionReviews(
+        organizationId,
+        classId,
+      );
     if (
       can("students.read") ||
       can("dormitory.read") ||
@@ -203,8 +226,9 @@ export class PrincipalDashboardService {
     );
     const classRows = await this.db.query(
       `SELECT s.contextId id, COALESCE(ec.name,NULLIF(MAX(s.titleSnapshot),''),'بدون عنوان') name,
-        SUM(COALESCE(json_array_length(s.rosterSnapshot),0)) expected, COUNT(r.id) marked
-       FROM attendance_records r JOIN attendance_sessions s ON s.id=r.sessionId
+        SUM(COALESCE(json_array_length(s.rosterSnapshot),0)) expected, SUM(COALESCE(records.marked,0)) marked
+       FROM attendance_sessions s
+       LEFT JOIN (SELECT sessionId,COUNT(id) marked FROM attendance_records GROUP BY sessionId) records ON records.sessionId=s.id
        LEFT JOIN education_classes ec ON ec.id=s.contextId AND ec.organizationId=s.organizationId
        WHERE s.organizationId=? AND s.contextType='class'
          AND COALESCE(s.operationalDate,date(s.sessionDate)) BETWEEN ? AND ?${filterByClass}
@@ -415,6 +439,55 @@ export class PrincipalDashboardService {
             [organizationId],
           )
         : 0,
+    };
+  }
+
+  private async sessionReviews(organizationId: string, classId?: string) {
+    const dueBefore = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+    const classFilter = classId
+      ? " AND s.contextType='class' AND s.contextId=?"
+      : "";
+    const parameters = classId
+      ? [organizationId, dueBefore, classId]
+      : [organizationId, dueBefore];
+    const base = `FROM attendance_sessions s
+      LEFT JOIN attendance_records r ON r.sessionId=s.id
+      LEFT JOIN (SELECT sessionId, reviewedRevision, MAX(reviewedAt) reviewedAt FROM attendance_session_reviews GROUP BY sessionId, reviewedRevision) latest ON latest.sessionId=s.id AND latest.reviewedRevision=s.revision
+      WHERE s.organizationId=? AND s.status IN ('submitted','finalized')
+        AND (latest.reviewedAt IS NULL OR latest.reviewedAt<=?)${classFilter}`;
+    const pendingCount = await this.scalar(
+      `SELECT COUNT(DISTINCT s.id) count ${base}`,
+      parameters,
+    );
+    const rows = await this.db.query(
+      `SELECT s.id, s.contextType, s.contextId, COALESCE(NULLIF(s.titleSnapshot,''),'جلسه ثبت‌شده') title,
+        s.sessionDate, s.status, json_array_length(s.rosterSnapshot) expected, latest.reviewedAt lastReviewedAt,
+        COUNT(r.id) marked,
+        SUM(CASE WHEN r.status='present' THEN 1 ELSE 0 END) present,
+        SUM(CASE WHEN r.status='absent' THEN 1 ELSE 0 END) absent,
+        SUM(CASE WHEN r.status='late' THEN 1 ELSE 0 END) late,
+        SUM(CASE WHEN r.status='excused' THEN 1 ELSE 0 END) excused
+       ${base} GROUP BY s.id ORDER BY s.sessionDate DESC LIMIT 10`,
+      parameters,
+    );
+    return {
+      pendingCount,
+      items: rows.map((row: Record<string, unknown>) => ({
+        id: String(row.id),
+        contextType: String(row.contextType),
+        contextId: String(row.contextId),
+        title: String(row.title),
+        sessionDate: String(row.sessionDate),
+        status: String(row.status),
+        expected: row.expected == null ? null : Number(row.expected),
+        marked: Number(row.marked ?? 0),
+        present: Number(row.present ?? 0),
+        absent: Number(row.absent ?? 0),
+        late: Number(row.late ?? 0),
+        excused: Number(row.excused ?? 0),
+        lastReviewedAt:
+          row.lastReviewedAt == null ? null : String(row.lastReviewedAt),
+      })),
     };
   }
 

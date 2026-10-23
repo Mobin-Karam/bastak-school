@@ -256,6 +256,28 @@ export class SchoolHomeService {
     };
   }
 
+  async announcementMedia(user: AuthenticatedUser, organizationId: string) {
+    await this.scopedOrganization(user, organizationId, "announcements.manage");
+    const rows = await this.announcementsRepo.find({
+      where: { organization: { id: organizationId } },
+      order: { updatedAt: "DESC" },
+      take: 100,
+    });
+    const seen = new Set<string>();
+    return rows.flatMap((row) => {
+      if (!row.mediaUrl || !row.mediaType || seen.has(row.mediaUrl)) return [];
+      seen.add(row.mediaUrl);
+      return [{
+        id: row.id,
+        title: row.title,
+        category: row.category,
+        mediaUrl: row.mediaUrl,
+        mediaType: row.mediaType,
+        updatedAt: row.updatedAt,
+      }];
+    });
+  }
+
   async saveAnnouncement(
     user: AuthenticatedUser,
     organizationId: string,
@@ -301,7 +323,17 @@ export class SchoolHomeService {
         title: saved.title,
         body: saved.body,
         category: "announcement",
-        url: "/admin/announcements",
+        url: `/admin/communication/notifications?type=announcement&announcementId=${encodeURIComponent(saved.id)}`,
+        organizationId: organization.id,
+        data: {
+          announcementId: saved.id,
+          category: saved.category,
+          linkUrl: saved.linkUrl ?? null,
+          mediaUrl: saved.mediaUrl ?? null,
+          mediaType: saved.mediaType ?? null,
+          expiresAt: saved.expiresAt?.toISOString() ?? null,
+        },
+        dedupeKey: `announcement:${saved.id}:${saved.publishedAt?.getTime() ?? "draft"}`,
       });
     }
     return this.announcementView(
@@ -357,6 +389,25 @@ export class SchoolHomeService {
     });
     const saved = await this.announcementsRepo.save(row);
     await this.setRecipients(saved, recipientIds);
+    if (status === "ACTIVE" && recipientIds.length) {
+      await this.notifications.createForUsers(recipientIds, {
+        type: "ANNOUNCEMENT",
+        title: saved.title,
+        body: saved.body,
+        category: "announcement",
+        url: `/admin/communication/notifications?type=announcement&announcementId=${encodeURIComponent(saved.id)}`,
+        organizationId: row.organization.id,
+        data: {
+          announcementId: saved.id,
+          category: saved.category,
+          linkUrl: saved.linkUrl ?? null,
+          mediaUrl: saved.mediaUrl ?? null,
+          mediaType: saved.mediaType ?? null,
+          expiresAt: saved.expiresAt?.toISOString() ?? null,
+        },
+        dedupeKey: `announcement:${saved.id}:${saved.publishedAt?.getTime() ?? "draft"}`,
+      });
+    }
     return this.announcementView(
       await this.announcementWithRecipients(saved.id),
     );

@@ -1,3 +1,4 @@
+import { AdaptiveSelect } from "@/shared/ui/adaptive-select";
 import { TimetableDateInput } from "./TimetableDateInput";
 import { useMemo, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
@@ -287,7 +288,7 @@ export function TimetableImportWizard({
         {busy ? <p role="status">در حال بررسی کاربرگ‌ها…</p> : null}
         {sheets.length ? (
           <Field label="کاربرگ">
-            <select
+            <AdaptiveSelect
               className={timetableSelectClass}
               value={sheetName}
               onChange={(event) => chooseSheet(event.target.value)}
@@ -300,7 +301,7 @@ export function TimetableImportWizard({
                   {x.name} · {x.rows} ردیف
                 </option>
               ))}
-            </select>
+            </AdaptiveSelect>
           </Field>
         ) : null}
         {sheet && step === 1 ? (
@@ -404,7 +405,7 @@ export function TimetableImportWizard({
             </p>
             {raw.some((x) => x.weekday === null) ? (
               <Field label="روز برای ردیف‌های فاقد روز">
-                <select
+                <AdaptiveSelect
                   className={timetableSelectClass}
                   value={mapping.weekday ?? ""}
                   onChange={(event) => set("weekday", event.target.value)}
@@ -415,7 +416,7 @@ export function TimetableImportWizard({
                       {x.name}
                     </option>
                   ))}
-                </select>
+                </AdaptiveSelect>
               </Field>
             ) : null}
             <Button
@@ -448,7 +449,7 @@ export function TimetableImportWizard({
               <div className="mt-3 grid gap-3">
                 {classes.map((label) => (
                   <Field key={label} label={`کلاس منبع: ${label}`}>
-                    <select
+                    <AdaptiveSelect
                       className={timetableSelectClass}
                       value={mapping[`class:${label}`] ?? ""}
                       onChange={(event) => set(`class:${label}`, event.target.value)}
@@ -459,7 +460,7 @@ export function TimetableImportWizard({
                           {x.name} · {x.schoolYear}
                         </option>
                       ))}
-                    </select>
+                    </AdaptiveSelect>
                   </Field>
                 ))}
                 {subjectKeys.map((key) => {
@@ -469,7 +470,7 @@ export function TimetableImportWizard({
                   );
                   return (
                     <Field key={key} label={`کتاب ${classLabel}: ${subject}`}>
-                      <select
+                      <AdaptiveSelect
                         className={timetableSelectClass}
                         value={mapping[`book:${key}`] ?? ""}
                         onChange={(event) => set(`book:${key}`, event.target.value)}
@@ -480,13 +481,13 @@ export function TimetableImportWizard({
                             {x.name}
                           </option>
                         ))}
-                      </select>
+                      </AdaptiveSelect>
                     </Field>
                   );
                 })}
                 {teachers.map((label) => (
                   <Field key={label} label={`استاد منبع: ${label || "ثبت نشده"}`}>
-                    <select
+                    <AdaptiveSelect
                       className={timetableSelectClass}
                       value={mapping[`teacher:${label}`] ?? ""}
                       onChange={(event) => set(`teacher:${label}`, event.target.value)}
@@ -497,7 +498,7 @@ export function TimetableImportWizard({
                           {x.name}
                         </option>
                       ))}
-                    </select>
+                    </AdaptiveSelect>
                   </Field>
                 ))}
               </div>
@@ -510,7 +511,7 @@ export function TimetableImportWizard({
                   return (
                     <div key={key} className="grid gap-2 rounded-lg border p-2">
                       <Field label={`${label} · منبع ${time || "بدون زمان"}`}>
-                        <select
+                        <AdaptiveSelect
                           className={timetableSelectClass}
                           value={mapping[`period:${key}`] ?? ""}
                           onChange={(event) => set(`period:${key}`, event.target.value)}
@@ -522,7 +523,7 @@ export function TimetableImportWizard({
                               {x.name} {x.startTime}–{x.endTime}
                             </option>
                           ))}
-                        </select>
+                        </AdaptiveSelect>
                       </Field>
                       <label className="flex items-center gap-2 text-xs">
                         <input
@@ -608,7 +609,7 @@ export function TimetableImportWizard({
                       </summary>
                       <div className="mt-2 grid gap-2 sm:grid-cols-2">
                         <Field label={`استاد ردیف ${row.source}`}>
-                          <select
+                          <AdaptiveSelect
                             className={timetableSelectClass}
                             value={mapping[`rowTeacher:${row.source}`] ?? ""}
                             onChange={(e) => set(`rowTeacher:${row.source}`, e.target.value)}
@@ -619,10 +620,10 @@ export function TimetableImportWizard({
                                 {x.name}
                               </option>
                             ))}
-                          </select>
+                          </AdaptiveSelect>
                         </Field>
                         <Field label={`روز ردیف ${row.source}`}>
-                          <select
+                          <AdaptiveSelect
                             className={timetableSelectClass}
                             value={mapping[`day:${row.source}`] ?? ""}
                             onChange={(e) => {
@@ -642,7 +643,7 @@ export function TimetableImportWizard({
                                 {x.name}
                               </option>
                             ))}
-                          </select>
+                          </AdaptiveSelect>
                         </Field>
                       </div>
                     </details>

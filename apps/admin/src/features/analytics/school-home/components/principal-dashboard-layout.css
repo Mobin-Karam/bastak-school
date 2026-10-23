@@ -1,0 +1,246 @@
+.principal-dashboard {
+  --dashboard-heading: rgb(var(--color-ink));
+  --dashboard-body: rgb(var(--color-ink) / 82%);
+  --dashboard-muted: rgb(var(--muted-foreground));
+  --dashboard-brand: rgb(var(--color-brand));
+  --dashboard-border: rgb(var(--border-subtle));
+  color: var(--dashboard-body);
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  align-items: start;
+  grid-auto-flow: row dense;
+  font-family: Vazirmatn, Tahoma, Arial, sans-serif;
+}
+
+.principal-dashboard :is(h1, h2, h3, strong, b, dt, dd) {
+  color: var(--dashboard-heading);
+}
+.principal-dashboard h1 {
+  font-size: clamp(1.45rem, 2vw, 2rem);
+  line-height: 1.5;
+  font-weight: 900;
+}
+.principal-dashboard h2 {
+  font-size: 1rem;
+  line-height: 1.6;
+  font-weight: 850;
+}
+.principal-dashboard h3 {
+  font-size: 0.92rem;
+  line-height: 1.6;
+  font-weight: 800;
+}
+.principal-dashboard :is(p, span, small, dt, dd, button, a, label, select) {
+  color: var(--dashboard-body);
+  font-size: 0.84rem;
+  line-height: 1.75;
+}
+.principal-dashboard
+  :is(
+    .principal-dashboard__metric span,
+    .principal-radials small,
+    .principal-gauge > span,
+    .principal-dashboard__controls > span,
+    .principal-dashboard__chart-note,
+    .principal-dashboard__legend
+  ) {
+  color: var(--dashboard-muted);
+}
+.principal-dashboard
+  :is(.principal-dashboard__eyebrow, .principal-dashboard__section-heading > div > p) {
+  color: var(--dashboard-brand);
+  font-weight: 800;
+}
+.principal-dashboard
+  :is(
+    .principal-dashboard__section-heading > a,
+    .principal-dashboard__controls > span,
+    .principal-dashboard__chart-note
+  ) {
+  color: var(--dashboard-muted);
+}
+
+.principal-dashboard__hero,
+.principal-dashboard > section,
+.principal-dashboard__session-reviews {
+  grid-column: 1 / -1;
+  min-width: 0;
+}
+
+.principal-dashboard__status-grid,
+.principal-dashboard__behaviour-layout,
+.principal-dashboard__metrics {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  align-items: stretch;
+}
+
+.principal-dashboard__attendance,
+.principal-dashboard__behaviour-card {
+  grid-column: span 4;
+  min-width: 0;
+}
+
+.principal-dashboard__queues,
+.principal-dashboard__risk-card {
+  grid-column: span 2;
+  min-width: 0;
+}
+
+.principal-dashboard__status-grid:not(:has(.principal-dashboard__attendance))
+  .principal-dashboard__queues {
+  grid-column: 1 / -1;
+}
+
+.principal-dashboard__session-reviews ul {
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+}
+
+.principal-dashboard__session-reviews li {
+  grid-column: span 2;
+  min-width: 0;
+}
+
+.principal-dashboard__coverage {
+  grid-column: span 2;
+  min-width: 0;
+}
+
+.principal-dashboard__trend-card {
+  grid-column: span 4;
+  min-width: 0;
+}
+
+.principal-dashboard__metrics > * {
+  grid-column: span 3;
+  min-width: 0;
+}
+
+/* The dashboard previously used hand-drawn SVG charts. These scoped rules
+   neutralize their global sizing/strokes for the FarsiUI-style Recharts. */
+.principal-dashboard
+  :is(
+    .principal-gauge__chart,
+    .principal-pie__chart,
+    .principal-radar,
+    .principal-radials__chart,
+    .principal-trend__chart
+  ) {
+  min-width: 0;
+  overflow: visible;
+}
+.principal-dashboard :is(.principal-gauge__chart, .principal-pie__chart) {
+  width: 100%;
+}
+.principal-dashboard
+  :is(
+    .principal-gauge__chart,
+    .principal-pie__chart,
+    .principal-radar,
+    .principal-radials__chart,
+    .principal-trend__chart
+  )
+  svg {
+  width: 100% !important;
+  overflow: visible;
+  font-family: Vazirmatn, Tahoma, Arial, sans-serif;
+}
+.principal-dashboard .principal-gauge__chart svg path,
+.principal-dashboard .principal-pie__chart svg path,
+.principal-dashboard .principal-radials__chart svg path {
+  vector-effect: non-scaling-stroke;
+}
+.principal-dashboard .principal-radar text,
+.principal-dashboard .principal-trend__chart text {
+  fill: var(--dashboard-muted);
+  font-size: 0.7rem;
+}
+.principal-dashboard .principal-pie__chart svg {
+  transform: none !important;
+}
+.principal-dashboard .principal-trend > .principal-trend__chart {
+  display: block;
+  flex: none;
+  width: 100%;
+  min-width: 0;
+}
+.principal-dashboard .principal-gauge__chart .recharts-pie-sector path {
+  fill: var(--color-attendance);
+  stroke: none;
+}
+.principal-dashboard .principal-gauge__chart .recharts-pie-sector:nth-of-type(2) path {
+  fill: var(--color-remainder);
+}
+.principal-dashboard .principal-radar .recharts-polar-grid-angle line,
+.principal-dashboard .principal-radar .recharts-polar-grid-concentric path,
+.principal-dashboard .principal-trend__chart .recharts-cartesian-grid line {
+  stroke: var(--dashboard-border);
+}
+.principal-dashboard .principal-gauge__chart .recharts-pie-sector:first-of-type path {
+  fill: var(--dashboard-brand);
+}
+.principal-dashboard .principal-pie__chart .recharts-pie-sector path {
+  stroke: rgb(var(--surface-card));
+}
+.principal-dashboard .principal-radials__chart .recharts-radial-bar-background-sector {
+  fill: rgb(var(--surface-muted));
+}
+.principal-dashboard .principal-radials__chart .recharts-radial-bar-sector {
+  fill: var(--dashboard-brand);
+}
+
+@media (max-width: 1279px) {
+  .principal-dashboard {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .principal-dashboard__status-grid,
+  .principal-dashboard__behaviour-layout,
+  .principal-dashboard__metrics {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .principal-dashboard__attendance,
+  .principal-dashboard__behaviour-card,
+  .principal-dashboard__trend-card {
+    grid-column: span 2;
+  }
+
+  .principal-dashboard__queues,
+  .principal-dashboard__risk-card,
+  .principal-dashboard__coverage {
+    grid-column: span 1;
+  }
+
+  .principal-dashboard__session-reviews ul {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .principal-dashboard__session-reviews li {
+    grid-column: span 1;
+  }
+
+  .principal-dashboard__metrics > * {
+    grid-column: span 1;
+  }
+}
+
+@media (max-width: 640px) {
+  .principal-dashboard,
+  .principal-dashboard__status-grid,
+  .principal-dashboard__behaviour-layout,
+  .principal-dashboard__metrics,
+  .principal-dashboard__session-reviews ul {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .principal-dashboard__attendance,
+  .principal-dashboard__queues,
+  .principal-dashboard__behaviour-card,
+  .principal-dashboard__risk-card,
+  .principal-dashboard__coverage,
+  .principal-dashboard__trend-card,
+  .principal-dashboard__metrics > *,
+  .principal-dashboard__session-reviews li {
+    grid-column: 1 / -1;
+  }
+}

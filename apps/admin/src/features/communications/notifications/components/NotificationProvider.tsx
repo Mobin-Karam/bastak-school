@@ -17,13 +17,18 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient();
   const notificationScopeKey = `${auth.user?.id ?? "anonymous"}:${auth.context?.activeOrganization?.id ?? "none"}:${auth.activeRole ?? "none"}`;
   const notifications = useNotificationInbox(auth.status === "authenticated", notificationScopeKey);
+  const { items: notificationItems, markRead: markNotificationRead } = notifications;
   const sound = useNotificationSound();
   const push = usePushNotifications(notifications.refresh);
   const shownAbsences = useRef(new Set<string>());
 
   useEffect(() => {
+    shownAbsences.current.clear();
+  }, [notificationScopeKey]);
+
+  useEffect(() => {
     if (!auth.hasRole("STUDENT")) return;
-    const absence = notifications.items.find(
+    const absence = notificationItems.find(
       (item) =>
         item.category === "attendance_absence" &&
         !item.isRead &&
@@ -48,7 +53,7 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
           <div className="flex justify-center gap-2">
             <Button
               onClick={() => {
-                notifications.markRead(absence.id);
+                markNotificationRead(absence.id);
                 window.location.assign("/admin/my-attendance");
               }}
             >
@@ -57,7 +62,7 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
             <Button
               variant="ghost"
               onClick={() => {
-                notifications.markRead(absence.id);
+                markNotificationRead(absence.id);
                 modal.close();
               }}
             >
@@ -67,14 +72,17 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
         </section>
       ),
     });
-  }, [auth, modal, notifications.items, notifications.markRead]);
+  }, [auth, modal, notificationItems, markNotificationRead]);
 
   useNotificationRealtime({
     authenticated: auth.status === "authenticated",
+    scopeKey: notificationScopeKey,
+    organizationId: auth.context?.activeOrganization?.id,
     queryClient,
     soundEnabled: sound.soundEnabled,
     chatSoundEnabled: sound.chatSoundEnabled,
     playSound: sound.playSound,
+    showToast: auth.activeRole !== "STUDENT",
     onStudentRequest: (item) => {
       if (!auth.hasRole("PRINCIPAL") && !auth.hasRole("SCHOOL_SUPERVISOR")) return;
       modal.open({

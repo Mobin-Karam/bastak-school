@@ -1,3 +1,4 @@
+import { AdaptiveSelect } from "@/shared/ui/adaptive-select";
 import { ArrowDownAZ, Clock3, Star, Wifi } from "lucide-react";
 import type { ConversationSort } from "../../model/chat.types";
 import { useLocale } from "../../../../../shared/ui/locale";
@@ -30,7 +31,7 @@ export function ConversationToolbar({
         <Star size={13} />
       )}
       <span>{copy.sort}</span>
-      <select
+      <AdaptiveSelect
         value={sort}
         onChange={(event) => onSort(event.target.value as ConversationSort)}
         className="ms-auto max-w-[150px] bg-transparent font-medium text-slate-700 outline-none dark:text-slate-200"
@@ -40,7 +41,7 @@ export function ConversationToolbar({
             {label}
           </option>
         ))}
-      </select>
+      </AdaptiveSelect>
     </label>
   );
 }

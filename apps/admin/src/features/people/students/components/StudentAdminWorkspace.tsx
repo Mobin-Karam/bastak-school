@@ -18,7 +18,7 @@ export function StudentAdminWorkspace({
   return (
     <section
       aria-label="Student administration workspace"
-      className="grid min-w-0 gap-4 xl:h-[calc(100dvh-7rem)] xl:min-h-0 xl:grid-cols-1"
+      className="students-workspace grid min-w-0 gap-4 xl:h-[calc(100dvh-7rem)] xl:min-h-0 xl:grid-cols-1"
     >
       <div className={`min-w-0 xl:min-h-0 ${directoryVisible ? "block" : "hidden xl:block"}`}>
         {directory}

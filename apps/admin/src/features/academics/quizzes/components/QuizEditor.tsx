@@ -1,3 +1,4 @@
+import { AdaptiveSelect } from "@/shared/ui/adaptive-select";
 import { Power, Save, Trash2 } from "lucide-react";
 import { Button, Card, Field, Input } from "../../../../shared/ui/ui";
 import type { Quiz, QuizDraft } from "../model/quiz.types";
@@ -72,7 +73,7 @@ export function QuizEditor({
           />
         </Field>
         <Field label={copy.resultPolicy}>
-          <select
+          <AdaptiveSelect
             className="h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm dark:border-slate-700 dark:bg-slate-950"
             value={quiz.resultPolicy || "immediate"}
             onChange={(e) =>
@@ -81,7 +82,7 @@ export function QuizEditor({
           >
             <option value="immediate">{copy.immediate}</option>
             <option value="manual">{copy.manual}</option>
-          </select>
+          </AdaptiveSelect>
         </Field>
       </div>
       <div className="mt-3 flex gap-2">

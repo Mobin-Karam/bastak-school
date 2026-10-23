@@ -128,6 +128,12 @@ export class AttendanceController {
     return this.attendance.finalizeSession(user, id, dto).then(ok);
   }
 
+  @Post("attendance/sessions/:id/daily-review")
+  @RequireCapabilities("attendance.review")
+  dailyReview(@CurrentUser() user: AuthenticatedUser, @Param("id") id: string) {
+    return this.attendance.reviewSessionEvery24Hours(user, id).then(ok);
+  }
+
   @Post("attendance/sessions/:id/cancel")
   @RequireCapabilities("attendance.review")
   cancel(
@@ -154,7 +160,9 @@ export class AttendanceController {
     @CurrentUser() user: AuthenticatedUser,
     @Query("organizationId") organizationId?: string,
   ) {
-    return this.attendance.listPendingCorrections(user, organizationId).then(ok);
+    return this.attendance
+      .listPendingCorrections(user, organizationId)
+      .then(ok);
   }
 
   @Post("attendance/corrections/:id/review")

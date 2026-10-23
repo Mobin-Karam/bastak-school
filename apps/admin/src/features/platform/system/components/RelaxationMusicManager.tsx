@@ -1,3 +1,4 @@
+import { AdaptiveSelect } from "@/shared/ui/adaptive-select";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Music2, PauseCircle, PlayCircle, Plus, Power, Users } from "lucide-react";
 import { useRef, useState } from "react";
@@ -137,7 +138,7 @@ export function RelaxationMusicManager() {
           />
         </Field>
         <Field label={copy.targetOrganization}>
-          <select
+          <AdaptiveSelect
             className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm dark:border-slate-700 dark:bg-slate-950"
             value={draft.organizationId || ""}
             onChange={(event) =>
@@ -153,7 +154,7 @@ export function RelaxationMusicManager() {
                   {organization.name}
                 </option>
               ))}
-          </select>
+          </AdaptiveSelect>
         </Field>
         <div className="grid grid-cols-2 gap-2">
           <Field label={copy.publishingStart}>

@@ -10,7 +10,7 @@ export class NotificationsController {
 
   @Get()
   list(@CurrentUser() user: AuthenticatedUser, @Query("limit") limit?: string, @Query("cursor") cursor?: string, @Query("unreadOnly") unreadOnly?: string, @Query("category") category?: string) {
-    return this.notifications.findForUser(user.id, { limit: Number(limit), cursor, unreadOnly: unreadOnly === "true", category }).then(ok);
+    return this.notifications.findForUser(user.id, { limit: Number(limit), cursor, unreadOnly: unreadOnly === "true", category, organizationId: user.activeOrganizationId }).then(ok);
   }
 
   @Put(":id/read")

@@ -1,3 +1,4 @@
+import { AdaptiveSelect } from "@/shared/ui/adaptive-select";
 import { normalizeTimetableClock } from "../lib/timetable-input";
 import { TimetableTimeInput } from "./TimetableTimeInput";
 import { TimetableDateInput } from "./TimetableDateInput";
@@ -198,7 +199,7 @@ export function TimetableLessonEditor({
       <form onSubmit={form.handleSubmit(() => save.mutate())} className="grid gap-3">
         <div className="grid gap-3 sm:grid-cols-2">
           <Field label="کلاس" error={form.formState.errors.classroomId?.message}>
-            <select
+            <AdaptiveSelect
               className={timetableSelectClass}
               {...form.register("classroomId")}
               onChange={(event) => {
@@ -212,10 +213,10 @@ export function TimetableLessonEditor({
                   {x.name}
                 </option>
               ))}
-            </select>
+            </AdaptiveSelect>
           </Field>
           <Field label="کتاب / درس" error={form.formState.errors.classBookId?.message}>
-            <select
+            <AdaptiveSelect
               className={timetableSelectClass}
               {...form.register("classBookId")}
               onChange={(event) => {
@@ -232,10 +233,10 @@ export function TimetableLessonEditor({
                   {x.name}
                 </option>
               ))}
-            </select>
+            </AdaptiveSelect>
           </Field>
           <Field label="استاد">
-            <select className={timetableSelectClass} {...form.register("teacherId")}>
+            <AdaptiveSelect className={timetableSelectClass} {...form.register("teacherId")}>
               <option value="">تعیین نشده (فقط پیش‌نویس)</option>
               {[...workspace.teachers]
                 .sort((a, b) => Number(unavailable.has(a.id)) - Number(unavailable.has(b.id)))
@@ -245,10 +246,10 @@ export function TimetableLessonEditor({
                     {unavailable.has(x.id) ? " · احتمال تداخل" : " · آزاد"}
                   </option>
                 ))}
-            </select>
+            </AdaptiveSelect>
           </Field>
           <Field label="اتاق">
-            <select className={timetableSelectClass} {...form.register("locationId")}>
+            <AdaptiveSelect className={timetableSelectClass} {...form.register("locationId")}>
               <option value="">بدون اتاق اختصاصی</option>
               {[...workspace.locations]
                 .sort((a, b) => Number(occupied.has(a.id)) - Number(occupied.has(b.id)))
@@ -258,19 +259,19 @@ export function TimetableLessonEditor({
                     {occupied.has(x.id) ? " · اشغال" : " · آزاد"}
                   </option>
                 ))}
-            </select>
+            </AdaptiveSelect>
           </Field>
           <Field label="روز">
-            <select className={timetableSelectClass} {...form.register("weekday")}>
+            <AdaptiveSelect className={timetableSelectClass} {...form.register("weekday")}>
               {persianWeekdays.map((x) => (
                 <option key={x.id} value={x.id}>
                   {x.name}
                 </option>
               ))}
-            </select>
+            </AdaptiveSelect>
           </Field>
           <Field label="زنگ / نوبت" error={form.formState.errors.periodId?.message}>
-            <select
+            <AdaptiveSelect
               className={timetableSelectClass}
               value={periodId}
               onChange={(event) => {
@@ -289,7 +290,7 @@ export function TimetableLessonEditor({
                   {x.startTime}–{x.endTime})
                 </option>
               ))}
-            </select>
+            </AdaptiveSelect>
           </Field>
           <Field label="شروع" error={form.formState.errors.startTime?.message}>
             <TimetableTimeInput data-field-control dir="ltr" {...form.register("startTime")} />

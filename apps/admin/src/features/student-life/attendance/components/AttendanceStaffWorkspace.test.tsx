@@ -34,6 +34,19 @@ vi.mock("../api/attendance-operations.api.ts", () => ({
 }));
 vi.mock("../../../identity/auth", () => ({ useAuth: () => ({ can: () => true }) }));
 vi.mock("../../../../shared/api/api", () => ({ api: { openEvents: () => ({ close: vi.fn() }) } }));
+vi.mock("../../../../shared/ui/responsive-drawer", () => ({
+  ResponsiveDrawer: ({ open, title, description, children, onOpenChange }: any) =>
+    open ? (
+      <div role="dialog" aria-label={String(title)}>
+        <h2>{title}</h2>
+        <p>{description}</p>
+        <button type="button" aria-label="بستن" onClick={() => onOpenChange(false)}>
+          بستن
+        </button>
+        {children}
+      </div>
+    ) : null,
+}));
 function Providers({ children }: PropsWithChildren) {
   return (
     <QueryClientProvider
@@ -139,6 +152,16 @@ beforeEach(() => {
       { studentId: "a", legacyStatus: "present" },
       { studentId: "b", legacyStatus: "absent" },
     ],
+    studentId: "student-a",
+    name: "علی",
+    schoolName: "مدرسه نمونه",
+    classNames: ["کلاس الف"],
+    points: 12,
+    attendanceRate: 75,
+    attendanceCoverage: 90,
+    totalSessions: 4,
+    scopedToTeacherClasses: false,
+    counts: { present: 2, absent: 1, late: 1, excused: 0 },
   });
 });
 describe("staff session and pool creation", () => {
@@ -272,10 +295,8 @@ describe("staff session and pool creation", () => {
       />,
       { wrapper: Providers },
     );
-    await user.selectOptions(
-      screen.getByRole("combobox", { name: "اعضای فراخوان" }),
-      "class:class",
-    );
+    await user.click(screen.getByRole("button", { name: "اعضای فراخوان" }));
+    await user.click(screen.getByRole("menuitemradio", { name: "کلاس · کلاس الف" }));
     await user.type(screen.getByRole("textbox", { name: "عنوان" }), "گردهمایی");
     await user.type(screen.getByRole("textbox", { name: "محل گردهمایی" }), "سالن");
     await user.click(screen.getByRole("button", { name: "فعال‌کردن فراخوان اکنون" }));
@@ -307,7 +328,8 @@ describe("staff session and pool creation", () => {
     await screen.findByText("احمد");
     expect(screen.getByText("حسن")).toBeInTheDocument();
     expect(screen.queryByText("علی")).not.toBeInTheDocument();
-    await user.selectOptions(screen.getByRole("combobox", { name: "فیلتر اعضای جلسه" }), "all");
+    await user.click(screen.getByRole("button", { name: "فیلتر اعضای جلسه" }));
+    await user.click(screen.getByRole("menuitemradio", { name: "همه اعضا" }));
     expect(screen.getByText("علی")).toBeInTheDocument();
     expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
   });
@@ -343,6 +365,8 @@ describe("staff session and pool creation", () => {
     expect(screen.getByText("سکه‌ها")).toBeInTheDocument();
     expect(screen.getByText("درصد حضور")).toBeInTheDocument();
     expect(screen.getByText("تکمیل ثبت همه جلسه‌ها")).toBeInTheDocument();
+    expect(screen.getByText("تحلیل شاخص‌های حضور")).toBeInTheDocument();
+    expect(screen.getByText("گیج حضور مؤثر")).toBeInTheDocument();
     expect(mocks.profile).toHaveBeenCalledWith("b");
   });
   it("requires a reason before a reviewer can cancel an unmarked session", async () => {

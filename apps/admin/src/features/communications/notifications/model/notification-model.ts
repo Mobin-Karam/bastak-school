@@ -3,7 +3,7 @@ import type { AdminLanguage } from "../../../../shared/ui/locale";
 import { notificationCopy } from "./notification-copy";
 
 export type AdminNotification = Partial<NotificationContract> &
-  Pick<NotificationContract, "id" | "title">;
+  Pick<NotificationContract, "id" | "title"> & { organizationId?: string | null };
 
 export type NotificationPage = {
   items: AdminNotification[];

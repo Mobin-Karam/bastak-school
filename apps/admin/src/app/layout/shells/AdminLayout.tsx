@@ -107,9 +107,11 @@ export function AdminLayout() {
         contentOffsetClassName={
           shell === "desktop"
             ? adminContentOffsetClass({
-                showContextRail: model.showContextRail,
-                mainCollapsed: model.mainCollapsed,
-                contextCollapsed: model.contextCollapsed,
+                // Desktop navigation is a single collapsible sidebar. The contextual
+                // destinations are presented as expandable groups within that rail.
+                showContextRail: false,
+                mainCollapsed: false,
+                contextCollapsed: false,
                 direction: model.direction,
               })
             : shell === "tablet"

@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -180,6 +180,7 @@ describe("StudentDashboard", () => {
     expect(drawer).toHaveTextContent("فقه کاربردی · کلاس دهم");
     expect(drawer).toHaveTextContent("اخلاق · کلاس دهم");
     expect(drawer).toHaveTextContent("غایب");
-    expect(screen.getByRole("button", { name: "کشیدن برای بستن پنل" })).toBeVisible();
+    expect(drawer).toHaveAccessibleName("پرونده کامل حضور من");
+    expect(within(drawer).getByRole("button", { name: "بستن" })).toBeVisible();
   });
 });

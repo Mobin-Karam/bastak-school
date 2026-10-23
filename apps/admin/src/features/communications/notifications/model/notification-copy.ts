@@ -4,6 +4,8 @@ export const notificationCopy: Record<AdminLanguage, Record<string, string>> = {
   fa: {
     center: "اعلان‌های من",
     centerDescription: "پیام‌ها، آزمون‌ها و اطلاعیه‌های خود را در همین‌جا پیگیری کنید.",
+    announcementInbox: "اطلاعیه‌های مدرسه",
+    manageAnnouncements: "مدیریت اطلاعیه‌ها",
     inbox: "صندوق پیگیری",
     inboxDescription: "مشکلات و ریکاوری‌ها از همین صفحه قابل پاسخ و بستن هستند.",
     loadFailed: "دریافت اعلان‌ها ناموفق بود.",
@@ -103,6 +105,8 @@ export const notificationCopy: Record<AdminLanguage, Record<string, string>> = {
   en: {
     center: "My notifications",
     centerDescription: "Follow your messages, exams, and announcements here.",
+    announcementInbox: "School announcements",
+    manageAnnouncements: "Manage announcements",
     inbox: "Follow-up inbox",
     inboxDescription: "Respond to and resolve issues and recovery requests from this workspace.",
     loadFailed: "Couldn’t load notifications.",

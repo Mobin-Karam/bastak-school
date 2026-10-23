@@ -363,8 +363,9 @@ describe("responsive timetable workflows", () => {
       );
       const sheets = await screen.findByLabelText("کاربرگ", {}, { timeout: 15000 });
       expect(fetchSpy).toHaveBeenCalledWith(expect.stringContaining("timetable-example.xlsx"));
-      expect(within(sheets).getAllByRole("option")).toHaveLength(6);
-      await userEvent.selectOptions(sheets, "اصلی ");
+      await userEvent.click(sheets);
+      expect(screen.getAllByRole("menuitemradio")).toHaveLength(6);
+      await userEvent.click(screen.getByRole("menuitemradio", { name: /اصلی/ }));
       const dialog = within(screen.getByRole("dialog"));
       const blocks = dialog.getAllByRole("checkbox");
       expect(blocks.length).toBeGreaterThanOrEqual(2);
@@ -375,11 +376,7 @@ describe("responsive timetable workflows", () => {
       expect(next).toBeEnabled();
       await userEvent.click(next);
       expect(dialog.getByText("نگاشت کلاس‌ها، کتاب‌ها و استادان")).toBeVisible();
-      expect(
-        dialog
-          .getAllByRole("combobox")
-          .some((x) => within(x).queryByRole("option", { name: /انتخاب صریح کلاس/ })),
-      ).toBe(true);
+      expect(dialog.getAllByRole("button", { name: /کلاس/ }).length).toBeGreaterThan(0);
     } finally {
       fetchSpy.mockRestore();
     }

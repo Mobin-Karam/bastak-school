@@ -1,3 +1,4 @@
+import { AdaptiveSelect } from "@/shared/ui/adaptive-select";
 import { useState, useId } from "react";
 import { Save } from "lucide-react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -131,7 +132,7 @@ export function ClassBooksModal({
                 {row ? (
                   <label className="grid gap-1 text-xs font-bold text-slate-600 dark:text-slate-300">
                     <span>{copy.responsibleTeacher}</span>
-                    <select
+                    <AdaptiveSelect
                       className="h-9 w-full min-w-0 rounded-lg border border-slate-200 bg-white px-2 text-xs dark:border-slate-700 dark:bg-slate-950"
                       value={row.teacherId}
                       onChange={(event) =>
@@ -150,7 +151,7 @@ export function ClassBooksModal({
                           {teacher.name}
                         </option>
                       ))}
-                    </select>
+                    </AdaptiveSelect>
                   </label>
                 ) : (
                   <small className="text-xs text-slate-400">{copy.inactiveBook}</small>

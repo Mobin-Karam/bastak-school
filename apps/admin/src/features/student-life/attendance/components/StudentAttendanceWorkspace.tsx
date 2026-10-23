@@ -10,7 +10,7 @@ import type {
 import { useAuth } from "../../../identity/auth";
 import { api } from "../../../../shared/api/api";
 import { Card } from "../../../../shared/ui/ui";
-import { Modal } from "../../../../shared/ui/modal";
+import { ResponsiveDrawer } from "../../../../shared/ui/responsive-drawer";
 import { notify } from "../../../../shared/ui/notifications";
 import { AttendanceRosterView } from "../views/AttendanceRosterView";
 import { AttendanceStatusTiles } from "./AttendanceStatusTiles";
@@ -53,7 +53,7 @@ function PoolConfirmation({
     }
   }
   return (
-    <Modal
+    <ResponsiveDrawer
       open
       dismissible={!busy}
       onOpenChange={(open) => {
@@ -61,6 +61,7 @@ function PoolConfirmation({
       }}
       title={pool.title}
       description="فراخوان حضور مدرسه"
+      desktopSide="left"
     >
       <div className="space-y-4 text-center">
         <span className="mx-auto grid size-16 place-items-center rounded-full bg-blue-50 text-blue-600 dark:bg-blue-950/30">
@@ -99,7 +100,7 @@ function PoolConfirmation({
           هنوز در محل نیستم
         </button>
       </div>
-    </Modal>
+    </ResponsiveDrawer>
   );
 }
 
@@ -237,7 +238,7 @@ function DormAttendanceEditor({
   }
   return (
     <>
-      <Modal
+      <ResponsiveDrawer
         open
         dismissible={!busy}
         onOpenChange={(open) => {
@@ -328,7 +329,7 @@ function DormAttendanceEditor({
             </>
           )}
         </div>
-      </Modal>
+      </ResponsiveDrawer>
       {discard.confirmation}
     </>
   );

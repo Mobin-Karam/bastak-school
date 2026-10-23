@@ -1,3 +1,4 @@
+import { AdaptiveSelect } from "@/shared/ui/adaptive-select";
 import { Building2, UsersRound, WandSparkles } from "lucide-react";
 import type { ReactNode } from "react";
 import type { PortalOrganization } from "../../access/api/access.api";
@@ -74,7 +75,7 @@ export function OnboardingQueueItem({
           ) : (
             <div className="grid gap-3 sm:grid-cols-2">
               <OnboardingField icon={<Building2 />} label={copy.organization}>
-                <select
+                <AdaptiveSelect
                   value={choice.organizationId}
                   onChange={(event) =>
                     onChoiceChange({ organizationId: event.target.value, advisorUserId: "" })
@@ -86,10 +87,10 @@ export function OnboardingQueueItem({
                       {organization.name}
                     </option>
                   ))}
-                </select>
+                </AdaptiveSelect>
               </OnboardingField>
               <OnboardingField icon={<UsersRound />} label={copy.advisor}>
-                <select
+                <AdaptiveSelect
                   value={choice.advisorUserId}
                   onChange={(event) => onChoiceChange({ advisorUserId: event.target.value })}
                   disabled={!choice.organizationId}
@@ -104,7 +105,7 @@ export function OnboardingQueueItem({
                       {displayAdvisor(advisor)}
                     </option>
                   ))}
-                </select>
+                </AdaptiveSelect>
               </OnboardingField>
             </div>
           )}

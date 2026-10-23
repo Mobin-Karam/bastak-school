@@ -24,6 +24,7 @@ type NavigationItem = {
   description: string;
   icon: LucideIcon;
   capability?: string;
+  allOf?: readonly string[];
 };
 type NavigationGroup = { section: string; items: readonly NavigationItem[] };
 
@@ -320,6 +321,7 @@ const studentNavigation: readonly NavigationGroup[] = [
         description: "ثبت و پیگیری درخواست خروج موقت یا مرخصی",
         icon: DoorOpen,
         capability: "leave.manage",
+        allOf: ["leave.read", "leave.manage"],
       },
     ],
   },
@@ -444,7 +446,11 @@ export function navigationForCapabilities(capabilities: readonly string[], role?
     .map((group) => ({
       ...group,
       items: group.items
-        .filter((item) => !item.capability || capabilities.includes(item.capability))
+        .filter(
+          (item) =>
+            (!item.capability || capabilities.includes(item.capability)) &&
+            (!item.allOf || item.allOf.every((capability) => capabilities.includes(capability))),
+        )
         .map((item) => (titles?.[item.path] ? { ...item, title: titles[item.path] } : item)),
     }))
     .filter((group) => group.items.length);
@@ -455,7 +461,9 @@ function visibleNavigation(groups: readonly NavigationGroup[], capabilities: rea
     .map((group) => ({
       ...group,
       items: group.items.filter(
-        (item) => !item.capability || capabilities.includes(item.capability),
+        (item) =>
+          (!item.capability || capabilities.includes(item.capability)) &&
+          (!item.allOf || item.allOf.every((capability) => capabilities.includes(capability))),
       ),
     }))
     .filter((group) => group.items.length);

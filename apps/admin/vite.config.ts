@@ -20,6 +20,13 @@ const backendTargets = {
 
 const localPortalHosts = ["localhost", "127.0.0.1", "::1", "app.localhost", "stud.localhost"];
 
+function getDevCachePort() {
+  const inlinePort = process.argv.find((argument) => argument.startsWith("--port="))?.slice(7);
+  const portIndex = process.argv.indexOf("--port");
+  const port = inlinePort ?? (portIndex >= 0 ? process.argv[portIndex + 1] : undefined);
+  return port && /^\d{1,5}$/.test(port) && Number(port) <= 65535 ? port : "5173";
+}
+
 function selectedBackend(cookieHeader = "") {
   const match = cookieHeader.match(/(?:^|;\s*)moshaver_admin_backend=(local|remote)(?:;|$)/);
   return match?.[1] === "remote" ? "remote" : "local";
@@ -137,9 +144,15 @@ function pwaPrecacheManifest(): Plugin {
 }
 
 export default defineConfig({
-  // A dedicated cache namespace makes configuration/runtime upgrades start
-  // from a coherent dependency graph instead of serving stale React chunks.
-  cacheDir: "node_modules/.vite-zanin",
+  // Each dev port gets an isolated dependency cache. Running the app on two
+  // ports at once must not let one optimizer invalidate the other's URLs.
+  cacheDir: `node_modules/.vite-zanin-${process.env.VITE_CACHE_NAMESPACE ?? getDevCachePort()}`,
+  // The Base UI drawer is first reached through lazy attendance routes. Keep it
+  // in the initial dependency graph so opening that route cannot invalidate
+  // the browser's current optimized-dependency hash mid-session.
+  optimizeDeps: {
+    include: ["@base-ui/react/drawer"],
+  },
   plugins: [devBackendProxy(), react(), pwaPrecacheManifest()],
   build: {
     rollupOptions: {
@@ -157,6 +170,9 @@ export default defineConfig({
             return "spreadsheet";
           if (/node_modules\/(lucide-react|react-multi-date-picker|@persian-tools)\//.test(id))
             return "ui";
+          if (/node_modules\/(recharts|d3-|victory-vendor|react-smooth)\//.test(id))
+            return "charts";
+          if (id.includes("node_modules/@base-ui/")) return "base-ui";
           return "vendor";
         },
       },
