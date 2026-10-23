@@ -7,8 +7,8 @@ services:
       context: .
       dockerfile: apps/api/Dockerfile
       args:
-        RELEASE_SHA: ${RELEASE_SHA:-development}
-    image: ${BACKEND_IMAGE:-bastak-school/backend-v2:latest}
+        RELEASE_SHA: ${RELEASE_SHA:?Set the verified release SHA}
+    image: ${BACKEND_IMAGE:?Set the immutable backend image reference}
     restart: unless-stopped
     init: true
     labels:
@@ -73,9 +73,9 @@ services:
       dockerfile: apps/admin/Dockerfile
       args:
         VITE_API_URL: ${VITE_API_URL:-https://api.sultano.ir}
-        RELEASE_SHA: ${RELEASE_SHA:-development}
+        RELEASE_SHA: ${RELEASE_SHA:?Set the verified release SHA}
 
-    image: ${ADMIN_IMAGE:-bastak-school/admin-v2:latest}
+    image: ${ADMIN_IMAGE:?Set the immutable admin image reference}
     restart: unless-stopped
     init: true
     labels:

@@ -24,6 +24,14 @@ def manifest(data=b'image fixture'):
 
 
 class ReleaseTests(unittest.TestCase):
+    def test_production_compose_requires_verified_release_inputs(self):
+        compose = (ROOT / 'docker-compose.production.yml').read_text()
+        self.assertIn('${RELEASE_SHA:?Set the verified release SHA}', compose)
+        self.assertIn('${BACKEND_IMAGE:?Set the immutable backend image reference}', compose)
+        self.assertIn('${ADMIN_IMAGE:?Set the immutable admin image reference}', compose)
+        self.assertNotIn(':latest}', compose)
+        self.assertNotIn('RELEASE_SHA:-development', compose)
+
     def test_checksums_and_provenance_fail_before_docker_load(self):
         with tempfile.TemporaryDirectory() as d:
             p=pathlib.Path(d); (p/'images.tar').write_bytes(b'tampered'); (p/'manifest.json').write_text(json.dumps(manifest()))

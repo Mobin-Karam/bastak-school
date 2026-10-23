@@ -5,6 +5,22 @@ if (process.env.SMOKE_ALLOW_DISPOSABLE_WRITES !== 'true' || !base || !['localhos
   throw new Error('Critical smoke requires an explicitly disposable loopback stack');
 }
 let session;
+async function browserPreflight(path, method) {
+  const origin = 'https://app.sultano.ir';
+  const response = await fetch(base + path, {
+    method: 'OPTIONS',
+    headers: {
+      origin,
+      'access-control-request-method': method,
+      'access-control-request-headers': 'content-type,x-csrf-token,x-work-role,x-organization-id',
+    },
+    signal: AbortSignal.timeout(15000),
+  });
+  const allowedMethods = (response.headers.get('access-control-allow-methods') || '').split(',').map(value => value.trim());
+  if (response.status !== 204 || response.headers.get('access-control-allow-origin') !== origin || response.headers.get('access-control-allow-credentials') !== 'true' || !allowedMethods.includes(method)) {
+    throw new Error(`Browser preflight failed: ${method} ${path} (${response.status}; allow-methods=${allowedMethods.join(',')})`);
+  }
+}
 async function call(path, { method = 'GET', body, role = 'PLATFORM_ADMIN', organizationId, expected } = {}) {
   const headers = { 'x-work-role': role };
   if (organizationId) headers['x-organization-id'] = organizationId;
@@ -16,6 +32,7 @@ async function call(path, { method = 'GET', body, role = 'PLATFORM_ADMIN', organ
   return { response, data: payload.data };
 }
 let phone = 0;
+for (const method of ['POST', 'PUT', 'PATCH', 'DELETE']) await browserPreflight('/auth/login', method);
 for (const char of 'e2e.platform') phone = (phone * 31 + char.charCodeAt(0)) >>> 0;
 const login = await call('/auth/login', { method: 'POST', body: { phoneNumber: `091${String(phone % 100000000).padStart(8,'0')}`, password: process.env.E2E_PASSWORD || 'Moshaver-e2e-2026!' } });
 const cookies = login.response.headers.getSetCookie();
@@ -48,4 +65,4 @@ const studentLogin = await call('/auth/login', { method:'POST', body:{ phoneNumb
 session = { cookie:studentLogin.response.headers.getSetCookie().map(cookie => cookie.split(';')[0]).join('; '), csrf:studentLogin.data.csrfToken };
 await call('/me/context', { role:'STUDENT', organizationId });
 await call('/classes', { method:'POST', role:'STUDENT', organizationId, expected:403, body:{ organizationId, code:'denied', name:'Denied', schoolYear:'1405-1406' } });
-console.log('Critical HTTPS smoke passed: login, context, student, classes, attendance retry, dorm, schedules and denied role');
+console.log('Critical HTTPS smoke passed: browser preflight, login, context, student, classes, attendance retry, dorm, schedules and denied role');

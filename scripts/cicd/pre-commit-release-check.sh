@@ -156,7 +156,7 @@ print_remediation() {
 
   if grep -q 'docker compose\|Docker\|verify-security' "$log_file"; then
     printf 'A container or deployment-security check failed. Re-run the exact configuration check below and fix the referenced Compose, environment, or security rule.\n' >&2
-    print_command 'docker compose --env-file deployment/lan/production.env.example -f docker-compose.production.yml -f deployment/lan/compose.yml config --quiet'
+    print_command 'RELEASE_SHA=$(git rev-parse HEAD) BACKEND_IMAGE=bastak-school/backend-v2:preflight ADMIN_IMAGE=bastak-school/admin-v2:preflight docker compose --env-file deployment/lan/production.env.example -f docker-compose.production.yml -f deployment/lan/compose.yml config --quiet'
     print_command './scripts/deploy/verify-security.sh'
     return
   fi
@@ -407,7 +407,11 @@ start_parallel_phase "CI-compatible Admin clean install" bash -euo pipefail -c '
     npm ci --dry-run --ignore-scripts --no-audit --no-fund
 '
 start_parallel_phase "Compose and deployment security configuration" bash -euo pipefail -c '
-  docker compose --env-file deployment/lan/production.env.example -f docker-compose.production.yml -f deployment/lan/compose.yml config --quiet
+  export RELEASE_SHA
+  RELEASE_SHA=$(git rev-parse HEAD)
+  BACKEND_IMAGE=bastak-school/backend-v2:preflight \
+  ADMIN_IMAGE=bastak-school/admin-v2:preflight \
+    docker compose --env-file deployment/lan/production.env.example -f docker-compose.production.yml -f deployment/lan/compose.yml config --quiet
   ./scripts/deploy/verify-security.sh
 '
 wait_for_parallel_phases
