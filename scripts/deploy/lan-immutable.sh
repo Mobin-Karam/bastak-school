@@ -59,13 +59,16 @@ trap cleanup EXIT
 stopped=true
 "${compose[@]}" stop -t 30 admin-v2 backend-v2
 # Only the OLD runtime reads live storage; candidate migrations get a restored COPY.
+# SQLite migration work gets bounded temp storage without making the image writable.
 docker run --rm -i --network none --read-only --cap-drop ALL --security-opt no-new-privileges \
+  --tmpfs /tmp:rw,noexec,nosuid,size=64m \
   --user "$(id -u):$(id -g)" \
   --mount "type=volume,src=$PRODUCTION_DATA_VOLUME,dst=/data,readonly" \
   --mount "type=bind,src=$PRODUCTION_BACKUP_DIR,dst=/backup" \
   "$current_image" node - backup /data/moshaver-v2.sqlite "/backup/$backup_name" < scripts/deploy/database-recovery.cjs
 chmod 600 "$backup_path" "$backup_path.restored" "$backup_path.verification.json"
 docker run --rm -i --network none --read-only --cap-drop ALL --security-opt no-new-privileges \
+  --tmpfs /tmp:rw,noexec,nosuid,size=64m \
   --user "$(id -u):$(id -g)" \
   --mount "type=bind,src=$PRODUCTION_BACKUP_DIR,dst=/backup" \
   -e "DATABASE_PATH=/backup/$backup_name.restored" -e NODE_ENV=test \

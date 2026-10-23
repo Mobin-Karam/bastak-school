@@ -90,6 +90,17 @@ const expectations = {
     "attendance_sessions.termIdSnapshot": { nullable: true, value: "null" },
     "attendance_sessions.termNameSnapshot": { nullable: true, value: "null" },
   },
+
+  TargetedAnnouncementMedia1731500000000: {
+    "school_announcements.category": {
+      nullable: false,
+      default: "general",
+      value: "default",
+    },
+    "school_announcements.linkUrl": { nullable: true, value: "null" },
+    "school_announcements.mediaUrl": { nullable: true, value: "null" },
+    "school_announcements.mediaType": { nullable: true, value: "null" },
+  },
 };
 
 // A migration may be allowed to change an existing value only when the
