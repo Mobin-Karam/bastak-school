@@ -82,7 +82,7 @@ describe("student room responsibility and gathering prompts", () => {
     const user = userEvent.setup();
     render(<StudentAttendanceWorkspace scope="student-scope" />, { wrapper: Providers });
     await user.click(await screen.findByRole("button", { name: "ثبت حضور شب جاری" }));
-    expect(screen.getByRole("button", { name: "فیلتر وضعیت" })).toBeInTheDocument();
+    expect(screen.getByRole("combobox", { name: "فیلتر وضعیت" })).toBeInTheDocument();
     expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
     expect(screen.queryByText("تاریخ جلسه")).not.toBeInTheDocument();
     await user.click(

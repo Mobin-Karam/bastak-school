@@ -1,4 +1,4 @@
-import { Menu } from "@base-ui/react/menu";
+import { Select } from "@base-ui/react/select";
 import { Check, ChevronDown } from "lucide-react";
 import * as React from "react";
 import {
@@ -6,12 +6,14 @@ import {
   forwardRef,
   isValidElement,
   useCallback,
+  useEffect,
   useMemo,
   useRef,
   useState,
   useSyncExternalStore,
-  type ChangeEvent,
   type ComponentProps,
+  type CSSProperties,
+  type FocusEvent as ReactFocusEvent,
   type ReactNode,
 } from "react";
 
@@ -47,11 +49,27 @@ type SelectEntry =
 const triggerBaseClassName =
   "inline-flex min-h-11 w-full items-center justify-between gap-3 rounded-xl border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card))] px-3 text-start text-sm text-[rgb(var(--color-ink))] shadow-sm outline-none transition-colors hover:border-brand/50 focus-visible:ring-2 focus-visible:ring-brand disabled:cursor-not-allowed disabled:opacity-60 aria-[invalid=true]:border-rosewood";
 
+const visuallyHiddenSelectStyle: CSSProperties = {
+  clipPath: "inset(50%)",
+  overflow: "hidden",
+  whiteSpace: "nowrap",
+  border: 0,
+  padding: 0,
+  width: 1,
+  height: 1,
+  margin: -1,
+  position: "absolute",
+};
+
 function subscribeToViewport(onChange: () => void) {
   if (typeof window === "undefined" || typeof window.matchMedia !== "function") return () => {};
   const query = window.matchMedia("(max-width: 767px)");
-  query.addEventListener("change", onChange);
-  return () => query.removeEventListener("change", onChange);
+  if (typeof query.addEventListener === "function") {
+    query.addEventListener("change", onChange);
+    return () => query.removeEventListener("change", onChange);
+  }
+  query.addListener(onChange);
+  return () => query.removeListener(onChange);
 }
 
 function getIsMobileSnapshot() {
@@ -114,23 +132,9 @@ function parseEntries(children: ReactNode): SelectEntry[] {
   return entries;
 }
 
-function dispatchChange(onChange: AdaptiveSelectProps["onChange"], button: HTMLButtonElement) {
-  if (!onChange) return;
-  const event = {
-    currentTarget: button,
-    target: button,
-    type: "change",
-    bubbles: true,
-    defaultPrevented: false,
-    preventDefault() {},
-    stopPropagation() {},
-  } as unknown as ChangeEvent<HTMLSelectElement>;
-  onChange(event);
-}
-
 /**
- * Shared value dropdown: native OS picker on mobile, accessible portaled menu on desktop.
- * Keeps the familiar HTMLSelectElement props/children contract for existing form consumers.
+ * Shared value dropdown: native OS picker on mobile and an accessible portaled select on desktop.
+ * A visually hidden native select remains the canonical form, ref, validation, and event control.
  */
 export const AdaptiveSelect = forwardRef<HTMLSelectElement, AdaptiveSelectProps>(
   function AdaptiveSelect(
@@ -154,7 +158,8 @@ export const AdaptiveSelect = forwardRef<HTMLSelectElement, AdaptiveSelectProps>
       menuMaxHeight = 288,
       dir,
       name,
-      ...buttonProps
+      style,
+      ...selectProps
     },
     forwardedRef,
   ) {
@@ -168,38 +173,84 @@ export const AdaptiveSelect = forwardRef<HTMLSelectElement, AdaptiveSelectProps>
       [entries],
     );
     const firstValue = options.find((option) => !option.hidden)?.value ?? "";
+    const initialValue = Array.isArray(defaultValue)
+      ? String(defaultValue[0] ?? firstValue)
+      : defaultValue == null
+        ? firstValue
+        : String(defaultValue);
     const [uncontrolledValue, setUncontrolledValue] = useState(() => {
-      if (Array.isArray(defaultValue)) return defaultValue[0] ?? firstValue;
-      return defaultValue == null ? firstValue : String(defaultValue);
+      return initialValue;
     });
-    const selectedValue = value === undefined ? uncontrolledValue : String(value ?? "");
+    const validUncontrolledValue = options.some((option) => option.value === uncontrolledValue)
+      ? uncontrolledValue
+      : firstValue;
+    const selectedValue = value === undefined ? validUncontrolledValue : String(value ?? "");
     const selectedOption = options.find((option) => option.value === selectedValue);
     const [open, setOpen] = useState(false);
     const [portalContainer, setPortalContainer] = useState<HTMLElement | null>(null);
+    const [implicitLabel, setImplicitLabel] = useState<string>();
     const triggerRef = useRef<HTMLButtonElement | null>(null);
-    const setTriggerRef = useCallback(
-      (element: HTMLButtonElement | null) => {
-        triggerRef.current = element;
-        setPortalContainer(element?.closest<HTMLElement>('[role="dialog"]') ?? null);
+    const nativeSelectRef = useRef<HTMLSelectElement | null>(null);
+    const setNativeSelectRef = useCallback(
+      (element: HTMLSelectElement | null) => {
+        nativeSelectRef.current = element;
         if (typeof forwardedRef === "function") {
-          forwardedRef(element as unknown as HTMLSelectElement);
+          forwardedRef(element);
         } else if (forwardedRef) {
-          forwardedRef.current = element as unknown as HTMLSelectElement;
+          forwardedRef.current = element;
         }
       },
       [forwardedRef],
     );
+    const setTriggerRef = useCallback((element: HTMLButtonElement | null) => {
+      triggerRef.current = element;
+      setPortalContainer(element?.closest<HTMLElement>('[role="dialog"]') ?? null);
+      if (!element) return;
+      const wrappingLabel = element?.closest("label");
+      if (!wrappingLabel) {
+        setImplicitLabel(undefined);
+        return;
+      }
+      const labelParts: string[] = [];
+      for (const node of wrappingLabel.childNodes) {
+        if (node === nativeSelectRef.current || node === element) break;
+        const text = node.textContent?.trim();
+        if (text) labelParts.push(text);
+      }
+      setImplicitLabel(labelParts.join(" ") || undefined);
+    }, []);
     const resolvedDir = dir ?? (language ? (language === "fa" ? "rtl" : "ltr") : undefined);
 
+    useEffect(() => {
+      const form = nativeSelectRef.current?.form;
+      if (!form || multiple || (size ?? 0) > 1) return;
+      const handleReset = () => {
+        queueMicrotask(() => {
+          if (value === undefined) {
+            setUncontrolledValue(initialValue);
+          } else if (nativeSelectRef.current) {
+            nativeSelectRef.current.value = selectedValue;
+          }
+        });
+      };
+      form.addEventListener("reset", handleReset);
+      return () => form.removeEventListener("reset", handleReset);
+    }, [initialValue, multiple, selectedValue, size, value]);
+
+    const handleNativeChange: NonNullable<AdaptiveSelectProps["onChange"]> = (event) => {
+      if (value === undefined) setUncontrolledValue(event.currentTarget.value);
+      onChange?.(event);
+    };
+
     if (nativeMode) {
+      const nativeListbox = multiple || (size ?? 0) > 1;
       return (
         <select
-          ref={forwardedRef}
-          value={selectedValue}
-          onChange={(event) => {
-            if (value === undefined) setUncontrolledValue(event.target.value);
-            onChange?.(event);
-          }}
+          ref={setNativeSelectRef}
+          {...selectProps}
+          value={nativeListbox ? value : selectedValue}
+          defaultValue={nativeListbox && value === undefined ? defaultValue : undefined}
+          onChange={nativeListbox ? onChange : handleNativeChange}
           onBlur={onBlur}
           onFocus={onFocus}
           onInvalid={onInvalid}
@@ -209,7 +260,7 @@ export const AdaptiveSelect = forwardRef<HTMLSelectElement, AdaptiveSelectProps>
           size={size}
           name={name}
           dir={resolvedDir}
-          {...buttonProps}
+          style={style}
           className={cn(triggerBaseClassName, "cursor-pointer", className)}
         >
           {children}
@@ -217,109 +268,168 @@ export const AdaptiveSelect = forwardRef<HTMLSelectElement, AdaptiveSelectProps>
       );
     }
 
-    const handleValueChange = (nextValue: string) => {
-      if (value === undefined) setUncontrolledValue(nextValue);
-      if (triggerRef.current) {
-        triggerRef.current.value = nextValue;
-        dispatchChange(onChange, triggerRef.current);
+    const handleValueChange = (nextValue: string | null) => {
+      if (nextValue == null || disabled) return;
+      const select = nativeSelectRef.current;
+      if (!select || select.value === nextValue) {
+        setOpen(false);
+        return;
       }
-      setOpen(false);
+      select.value = nextValue;
+      select.dispatchEvent(new Event("change", { bubbles: true }));
     };
 
+    const dispatchFocusEvent = (
+      type: "focusin" | "focusout",
+      event: ReactFocusEvent<HTMLButtonElement>,
+    ) => {
+      nativeSelectRef.current?.dispatchEvent(
+        new FocusEvent(type, { bubbles: true, relatedTarget: event.relatedTarget }),
+      );
+    };
+
+    const {
+      id: controlId,
+      form,
+      autoComplete,
+      title,
+      "aria-label": ariaLabel,
+      "aria-labelledby": ariaLabelledBy,
+      "aria-describedby": ariaDescribedBy,
+      "aria-invalid": ariaInvalid,
+      ...contractSelectProps
+    } = selectProps;
+
     return (
-      <Menu.Root open={open} onOpenChange={setOpen}>
-        <Menu.Trigger
-          {...(buttonProps as unknown as ComponentProps<typeof Menu.Trigger>)}
+      <>
+        <select
+          ref={setNativeSelectRef}
+          {...contractSelectProps}
+          id={controlId ? `${controlId}--native` : undefined}
           name={name}
+          form={form}
+          autoComplete={autoComplete}
+          value={selectedValue}
+          required={required}
+          disabled={disabled}
+          dir={resolvedDir}
+          tabIndex={-1}
+          aria-hidden="true"
+          style={visuallyHiddenSelectStyle}
+          onChange={handleNativeChange}
+          onBlur={onBlur}
+          onFocus={(event) => {
+            onFocus?.(event);
+            if (event.currentTarget === document.activeElement) triggerRef.current?.focus();
+          }}
+          onInvalid={(event) => {
+            onInvalid?.(event);
+            queueMicrotask(() => triggerRef.current?.focus());
+          }}
+        >
+          {children}
+        </select>
+        <Select.Root
           value={selectedValue}
           disabled={disabled}
-          aria-required={required || undefined}
-          dir={resolvedDir}
-          ref={setTriggerRef}
-          onBlur={onBlur as React.FocusEventHandler<HTMLButtonElement> | undefined}
-          onFocus={onFocus as React.FocusEventHandler<HTMLButtonElement> | undefined}
-          onInvalid={onInvalid as React.FormEventHandler<HTMLButtonElement> | undefined}
-          render={
-            <button
-              type="button"
-              className={cn(
-                triggerBaseClassName,
-                "cursor-pointer disabled:cursor-not-allowed",
-                className,
-              )}
-            />
-          }
+          open={open}
+          onOpenChange={setOpen}
+          onValueChange={handleValueChange}
         >
-          <span className="min-w-0 flex-1 truncate">
-            {selectedOption?.label ?? (selectedValue ? selectedValue : "—")}
-          </span>
-          <ChevronDown size={16} className="shrink-0 text-slate-500" aria-hidden="true" />
-        </Menu.Trigger>
-        {name ? (
-          <input type="hidden" name={name} value={selectedValue} disabled={disabled} />
-        ) : null}
-        <Menu.Portal container={portalContainer ?? undefined}>
-          <Menu.Positioner
-            side={menuSide}
-            sideOffset={5}
-            align={menuAlign}
-            className="z-[140] w-[var(--anchor-width)] max-w-[min(92vw,32rem)]"
+          <Select.Trigger
+            ref={setTriggerRef}
+            id={controlId}
+            disabled={disabled}
+            dir={resolvedDir}
+            aria-label={ariaLabel ?? (ariaLabelledBy ? undefined : implicitLabel)}
+            aria-labelledby={ariaLabelledBy}
+            aria-describedby={ariaDescribedBy}
+            aria-invalid={ariaInvalid}
+            aria-required={required || undefined}
+            title={title}
+            style={style}
+            onFocus={(event) => dispatchFocusEvent("focusin", event)}
+            onBlur={(event) => dispatchFocusEvent("focusout", event)}
+            render={
+              <button
+                type="button"
+                className={cn(
+                  triggerBaseClassName,
+                  "cursor-pointer disabled:cursor-not-allowed",
+                  className,
+                )}
+              />
+            }
           >
-            <Menu.Popup
-              dir={resolvedDir}
-              aria-label={buttonProps["aria-label"]}
-              className={cn(
-                "overflow-y-auto rounded-xl border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card))] p-1.5 text-sm text-[rgb(var(--color-ink))] shadow-xl outline-none",
-                menuClassName,
-              )}
-              style={{ maxHeight: menuMaxHeight }}
+            <span className="min-w-0 flex-1 truncate">
+              {selectedOption?.label ?? (selectedValue ? selectedValue : "—")}
+            </span>
+            <ChevronDown size={16} className="shrink-0 text-slate-500" aria-hidden="true" />
+          </Select.Trigger>
+          <Select.Portal container={portalContainer ?? undefined}>
+            <Select.Positioner
+              side={menuSide}
+              sideOffset={5}
+              align={menuAlign}
+              alignItemWithTrigger={false}
+              className="z-[140] w-[var(--anchor-width)] max-w-[min(92vw,32rem)]"
             >
-              <Menu.RadioGroup value={selectedValue} onValueChange={handleValueChange}>
-                <div className="grid gap-0.5">
-                  {entries.map((entry) => {
-                    if (entry.type === "group") {
-                      return (
-                        <Menu.Group key={entry.key}>
-                          {entry.label ? (
-                            <Menu.GroupLabel className="px-3 py-2 text-xs font-semibold text-slate-500">
-                              {entry.label}
-                            </Menu.GroupLabel>
-                          ) : null}
-                          {entry.options
-                            .filter((option) => !option.hidden)
-                            .map((option, optionIndex) => (
-                              <MenuOption
-                                key={`${entry.key}-${option.value}-${optionIndex}`}
-                                option={option}
-                              />
-                            ))}
-                        </Menu.Group>
-                      );
-                    }
-                    if (entry.option.hidden) return null;
-                    return <MenuOption key={entry.key} option={entry.option} />;
-                  })}
-                </div>
-              </Menu.RadioGroup>
-            </Menu.Popup>
-          </Menu.Positioner>
-        </Menu.Portal>
-      </Menu.Root>
+              <Select.Popup
+                dir={resolvedDir}
+                className={cn(
+                  "overflow-y-auto rounded-xl border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card))] p-1.5 text-sm text-[rgb(var(--color-ink))] shadow-xl outline-none",
+                  menuClassName,
+                )}
+                style={{ maxHeight: menuMaxHeight }}
+              >
+                <Select.List>
+                  <div className="grid gap-0.5">
+                    {entries.map((entry) => {
+                      if (entry.type === "group") {
+                        return (
+                          <Select.Group key={entry.key}>
+                            {entry.label ? (
+                              <Select.GroupLabel className="px-3 py-2 text-xs font-semibold text-slate-500">
+                                {entry.label}
+                              </Select.GroupLabel>
+                            ) : null}
+                            {entry.options
+                              .filter((option) => !option.hidden)
+                              .map((option, optionIndex) => (
+                                <MenuOption
+                                  key={`${entry.key}-${option.value}-${optionIndex}`}
+                                  option={option}
+                                />
+                              ))}
+                          </Select.Group>
+                        );
+                      }
+                      if (entry.option.hidden) return null;
+                      return <MenuOption key={entry.key} option={entry.option} />;
+                    })}
+                  </div>
+                </Select.List>
+              </Select.Popup>
+            </Select.Positioner>
+          </Select.Portal>
+        </Select.Root>
+      </>
     );
   },
 );
 
 function MenuOption({ option }: { option: SelectOption }) {
   return (
-    <Menu.RadioItem
+    <Select.Item
       value={option.value}
       disabled={option.disabled}
-      className="flex min-h-11 w-full cursor-pointer items-center justify-between gap-3 rounded-lg px-3 text-start outline-none data-[highlighted]:bg-[rgb(var(--surface-muted))] data-[checked]:font-semibold data-[disabled]:cursor-not-allowed data-[disabled]:opacity-50"
+      label={flattenText(option.label)}
+      className="flex min-h-11 w-full cursor-pointer items-center justify-between gap-3 rounded-lg px-3 text-start outline-none data-[highlighted]:bg-[rgb(var(--surface-muted))] data-[selected]:font-semibold data-[disabled]:cursor-not-allowed data-[disabled]:opacity-50"
     >
-      <span className="min-w-0 flex-1">{option.label}</span>
-      <Menu.RadioItemIndicator>
+      <Select.ItemText className="min-w-0 flex-1">{option.label}</Select.ItemText>
+      <Select.ItemIndicator>
         <Check size={16} className="shrink-0 text-brand" aria-hidden="true" />
-      </Menu.RadioItemIndicator>
-    </Menu.RadioItem>
+      </Select.ItemIndicator>
+    </Select.Item>
   );
 }
