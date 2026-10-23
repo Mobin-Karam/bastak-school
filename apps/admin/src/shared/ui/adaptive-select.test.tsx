@@ -1,10 +1,11 @@
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { createRef } from "react";
+import { createRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { AdaptiveSelect } from "./adaptive-select";
+import { ResponsiveDrawer } from "./responsive-drawer";
 
 afterEach(() => {
   cleanup();
@@ -177,5 +178,36 @@ describe("AdaptiveSelect", () => {
     );
     expect(screen.getByRole("combobox", { name: "مورد" })).toBeInTheDocument();
     expect(screen.getByRole("combobox", { name: "مورد" }).tagName).toBe("SELECT");
+  });
+
+  it("selects an option when rendered inside the student editor drawer", async () => {
+    const user = userEvent.setup();
+    const onValueChange = vi.fn();
+    function Harness() {
+      const [grade, setGrade] = useState("");
+      return (
+        <ResponsiveDrawer open onOpenChange={vi.fn()} title="ایجاد دانش‌آموز">
+          <AdaptiveSelect
+            mode="menu"
+            aria-label="پایه"
+            value={grade}
+            onValueChange={onValueChange}
+            onChange={(event) => setGrade(event.target.value)}
+          >
+            <option value="">انتخاب پایه</option>
+            <option value="7">هفتم</option>
+          </AdaptiveSelect>
+        </ResponsiveDrawer>
+      );
+    }
+    render(<Harness />);
+
+    await user.click(screen.getByRole("combobox", { name: "پایه" }));
+    await user.click(screen.getByRole("option", { name: "هفتم" }));
+
+    expect(screen.getByRole("combobox", { name: "پایه" })).toHaveTextContent("هفتم");
+    expect(screen.getByRole("dialog", { name: "ایجاد دانش‌آموز" })).toBeInTheDocument();
+    expect(onValueChange).toHaveBeenCalledOnce();
+    expect(onValueChange).toHaveBeenCalledWith("7");
   });
 });

@@ -33,6 +33,8 @@ export type AdaptiveSelectProps = Omit<ComponentProps<"select">, "size"> & {
   menuMaxHeight?: number;
   /** HTML listboxes remain native because they are not popup dropdowns. */
   size?: number;
+  /** Preferred value-only contract for controlled app state and form controllers. */
+  onValueChange?: (value: string) => void;
 };
 
 type SelectOption = {
@@ -132,6 +134,32 @@ function parseEntries(children: ReactNode): SelectEntry[] {
   return entries;
 }
 
+function createSelectChangeEvent(select: HTMLSelectElement): React.ChangeEvent<HTMLSelectElement> {
+  const nativeEvent = new Event("change", { bubbles: true });
+  let propagationStopped = false;
+
+  return {
+    nativeEvent,
+    currentTarget: select,
+    target: select,
+    bubbles: nativeEvent.bubbles,
+    cancelable: nativeEvent.cancelable,
+    defaultPrevented: nativeEvent.defaultPrevented,
+    eventPhase: nativeEvent.eventPhase,
+    isTrusted: nativeEvent.isTrusted,
+    timeStamp: nativeEvent.timeStamp,
+    type: nativeEvent.type,
+    preventDefault: () => nativeEvent.preventDefault(),
+    isDefaultPrevented: () => nativeEvent.defaultPrevented,
+    stopPropagation: () => {
+      propagationStopped = true;
+      nativeEvent.stopPropagation();
+    },
+    isPropagationStopped: () => propagationStopped,
+    persist: () => undefined,
+  };
+}
+
 /**
  * Shared value dropdown: native OS picker on mobile and an accessible portaled select on desktop.
  * A visually hidden native select remains the canonical form, ref, validation, and event control.
@@ -143,6 +171,7 @@ export const AdaptiveSelect = forwardRef<HTMLSelectElement, AdaptiveSelectProps>
       value,
       defaultValue,
       onChange,
+      onValueChange,
       onBlur,
       onFocus,
       onInvalid,
@@ -239,6 +268,7 @@ export const AdaptiveSelect = forwardRef<HTMLSelectElement, AdaptiveSelectProps>
 
     const handleNativeChange: NonNullable<AdaptiveSelectProps["onChange"]> = (event) => {
       if (value === undefined) setUncontrolledValue(event.currentTarget.value);
+      onValueChange?.(event.currentTarget.value);
       onChange?.(event);
     };
 
@@ -275,8 +305,14 @@ export const AdaptiveSelect = forwardRef<HTMLSelectElement, AdaptiveSelectProps>
         setOpen(false);
         return;
       }
+      // Base UI already gives us the committed value. Notify React consumers
+      // directly instead of redispatching a DOM event through nested portals;
+      // React may suppress such programmatic changes on controlled form fields.
       select.value = nextValue;
-      select.dispatchEvent(new Event("change", { bubbles: true }));
+      if (value === undefined) setUncontrolledValue(nextValue);
+      onValueChange?.(nextValue);
+      onChange?.(createSelectChangeEvent(select));
+      setOpen(false);
     };
 
     const dispatchFocusEvent = (
@@ -368,6 +404,7 @@ export const AdaptiveSelect = forwardRef<HTMLSelectElement, AdaptiveSelectProps>
           </Select.Trigger>
           <Select.Portal container={portalContainer ?? undefined}>
             <Select.Positioner
+              data-base-ui-swipe-ignore=""
               side={menuSide}
               sideOffset={5}
               align={menuAlign}

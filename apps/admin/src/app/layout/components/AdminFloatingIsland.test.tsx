@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { FloatingIslandProvider } from "../../../shared/ui/floating-island";
@@ -77,6 +77,29 @@ describe("AdminFloatingIsland", () => {
     renderIsland(model({ authenticated: false, unread: 1 }));
 
     expect(screen.queryByRole("button", { name: /اعلان خصوصی/ })).not.toBeInTheDocument();
+  });
+
+  it("removes every queued notification activity after all notifications are read", async () => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const view = (shellModel: AdminShellModel) => (
+      <MemoryRouter>
+        <QueryClientProvider client={client}>
+          <FloatingIslandProvider>
+            <AdminFloatingIsland model={shellModel} />
+          </FloatingIslandProvider>
+        </QueryClientProvider>
+      </MemoryRouter>
+    );
+    const rendered = render(view(model({ unread: 1 })));
+
+    expect(await screen.findByRole("button", { name: /اعلان خصوصی/ })).toBeVisible();
+
+    rendered.rerender(view(model({ unread: 0 })));
+
+    await waitFor(() => {
+      expect(screen.queryByRole("button", { name: /اعلان خصوصی/ })).not.toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: /خوانده‌نشده/ })).not.toBeInTheDocument();
+    });
   });
 
   it("shows an active announcement only to a user with its read capability", async () => {

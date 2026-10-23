@@ -31,6 +31,15 @@ export function AdminFloatingIsland({ model }: { model: AdminShellModel }) {
       canViewNotifications ? model.notificationState.items.find((item) => !item.isRead) : undefined,
     [canViewNotifications, model.notificationState.items],
   );
+  const unreadNotificationIds = useMemo(
+    () =>
+      new Set(
+        canViewNotifications
+          ? model.notificationState.items.filter((item) => !item.isRead).map((item) => item.id)
+          : [],
+      ),
+    [canViewNotifications, model.notificationState.items],
+  );
   const activeAnnouncements = useMemo(() => {
     if (!canReadAnnouncements) return [];
     const now = Date.now();
@@ -74,6 +83,16 @@ export function AdminFloatingIsland({ model }: { model: AdminShellModel }) {
       action: { label: "مشاهده اعلان‌ها", to: "/admin/communication/notifications" },
     });
   }, [dismiss, scopeKey, show, unread]);
+
+  useEffect(() => {
+    island.activities.forEach((activity) => {
+      if (!activity.id.startsWith("notification:") || activity.id === "notifications:unread") {
+        return;
+      }
+      const notificationId = activity.id.slice("notification:".length);
+      if (!unreadNotificationIds.has(notificationId)) dismiss(activity.id);
+    });
+  }, [dismiss, island.activities, unreadNotificationIds]);
 
   useEffect(() => {
     if (!newestUnread) {

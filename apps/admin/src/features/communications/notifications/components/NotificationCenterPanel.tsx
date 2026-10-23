@@ -57,14 +57,16 @@ export function NotificationCenterPanel({
   return (
     <AdminList
       label={copy.center}
-      description={copy.centerDescription}
+      description={compact ? undefined : copy.centerDescription}
       items={items}
       loading={notifications.loading}
       error={notifications.error}
       errorTitle={notifications.errorMessage || copy.loadFailed}
       onRetry={notifications.refresh}
       className="flex min-h-0 flex-col dark:border-slate-800 dark:bg-slate-900"
-      contentClassName="min-h-0 flex-1 overflow-hidden"
+      contentClassName={
+        compact ? "min-h-0 flex-1 overflow-hidden p-2" : "min-h-0 flex-1 overflow-hidden"
+      }
       stickyHeader
       emptyTitle={
         filter === "unread"
@@ -163,7 +165,9 @@ export function NotificationCenterPanel({
         ) : null
       }
     >
-      <div className="grid h-full min-h-0 gap-1 overflow-y-auto overscroll-contain [padding-inline-start:0.25rem] [scrollbar-gutter:stable]">
+      <div
+        className={`grid h-full min-h-0 overflow-y-auto overscroll-contain [padding-inline-start:0.25rem] [scrollbar-gutter:stable] ${compact ? "gap-2" : "gap-1"}`}
+      >
         {items.map((item) => {
           const announcement = item.type === "announcement";
           const data = item.data as
@@ -177,31 +181,36 @@ export function NotificationCenterPanel({
             announcement && data?.announcementId === focusedAnnouncementId;
           const itemContent = (
             <>
-              <span className="flex items-center gap-2">
+              <span className="flex items-start gap-2">
                 <strong className="min-w-0 flex-1 truncate text-sm text-slate-900 dark:text-white">
                   {item.title}
                 </strong>
-                <Badge tone={notificationTone(item.type)}>
-                  {notificationTypeLabel(item.type, language)}
-                </Badge>
-                {!item.isRead ? (
-                  <span className="size-2 rounded-full bg-rose-600" aria-label={copy.unreadDot} />
-                ) : null}
+                <span className="flex shrink-0 items-center gap-2">
+                  <Badge tone={notificationTone(item.type)}>
+                    {notificationTypeLabel(item.type, language)}
+                  </Badge>
+                  {!item.isRead ? (
+                    <span className="size-2 rounded-full bg-rose-600" aria-label={copy.unreadDot} />
+                  ) : null}
+                </span>
               </span>
               {item.body ? (
-                <p className="mt-1 line-clamp-2 text-xs leading-5 text-slate-600 dark:text-slate-300">
+                <p
+                  className={`mt-1 text-xs leading-5 text-slate-600 dark:text-slate-300 ${compact ? "line-clamp-3" : "line-clamp-2"}`}
+                >
                   {item.body}
                 </p>
               ) : null}
               {item.createdAt ? (
-                <small className="text-[10px] text-slate-400">
+                <small className="mt-1 block text-[10px] text-slate-400">
                   {formatDateTime(item.createdAt)}
                 </small>
               ) : null}
             </>
           );
           const itemClassName = [
-            "rounded-lg border px-3 py-2 text-start shadow-[var(--shadow-surface)] transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/30",
+            "border text-start shadow-[var(--shadow-surface)] transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/30",
+            compact ? "min-h-20 rounded-xl px-3 py-3" : "rounded-lg px-3 py-2",
             (item.id === focusedNotificationId || selectedAnnouncement) &&
               "ring-2 ring-brand ring-offset-2 dark:ring-offset-slate-950",
             item.isRead
