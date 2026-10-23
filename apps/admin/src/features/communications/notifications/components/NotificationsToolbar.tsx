@@ -1,5 +1,6 @@
 import {
   BellRing,
+  CheckCheck,
   MessageSquare,
   Settings2,
   SlidersHorizontal,
@@ -14,20 +15,20 @@ import { notificationCopy } from "../model/notification-copy";
 
 export function NotificationsToolbar({
   onOpenSettings,
-  studentMobile = false,
-  onOpenStudentControls,
+  compactMobile = false,
+  onOpenMobileControls,
 }: {
   onOpenSettings: () => void;
-  studentMobile?: boolean;
-  onOpenStudentControls?: () => void;
+  compactMobile?: boolean;
+  onOpenMobileControls?: () => void;
 }) {
   const notifications = useAdminNotifications();
   const { language } = useLocale();
   const copy = notificationCopy[language];
 
-  if (studentMobile) {
+  if (compactMobile) {
     return (
-      <Card className="flex shrink-0 items-center gap-3 p-3 dark:border-slate-800 dark:bg-slate-900">
+      <Card className="flex shrink-0 items-center gap-2.5 p-2.5 dark:border-slate-800 dark:bg-slate-900">
         <span className="grid size-10 shrink-0 place-items-center rounded-2xl bg-brand/10 text-brand">
           <BellRing size={19} aria-hidden="true" />
         </span>
@@ -38,10 +39,31 @@ export function NotificationsToolbar({
             {copy.unreadCount}
           </p>
         </div>
-        <Button variant="soft" size="sm" onClick={onOpenStudentControls}>
-          <SlidersHorizontal size={16} aria-hidden="true" />
-          {copy.options}
-        </Button>
+        <div className="flex shrink-0 items-center gap-1.5">
+          {notifications.unread ? (
+            <Button
+              className="px-2 min-[390px]:px-3"
+              variant="soft"
+              size="sm"
+              loading={notifications.markingAllRead}
+              onClick={notifications.markAllRead}
+              aria-label={copy.markAll}
+              title={copy.markAll}
+            >
+              <CheckCheck size={16} aria-hidden="true" />
+              <span className="hidden min-[390px]:inline">{copy.markAll}</span>
+            </Button>
+          ) : null}
+          <Button
+            className="px-2 min-[390px]:px-3"
+            variant="soft"
+            size="sm"
+            onClick={onOpenMobileControls}
+          >
+            <SlidersHorizontal size={16} aria-hidden="true" />
+            <span className="hidden min-[390px]:inline">{copy.options}</span>
+          </Button>
+        </div>
       </Card>
     );
   }

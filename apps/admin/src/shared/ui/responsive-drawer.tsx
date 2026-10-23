@@ -11,6 +11,7 @@ import {
   DrawerHeader,
   DrawerNested,
   DrawerTitle,
+  DrawerVirtualKeyboardProvider,
 } from "./drawer";
 
 type ResponsiveDrawerProps = {
@@ -67,27 +68,30 @@ export function ResponsiveDrawer({
       modal={modal ?? true}
       disablePointerDismissal={dismissible === false}
     >
-      <DrawerContent className={className}>
-        <DrawerHeader
-          className="relative text-start sm:text-start"
-          dir={language === "fa" ? "rtl" : "ltr"}
-        >
-          <DrawerTitle>{title}</DrawerTitle>
-          {description ? <DrawerDescription>{description}</DrawerDescription> : null}
-          <DrawerClose
-            aria-label={language === "fa" ? "بستن" : "Close"}
-            className="absolute end-3 top-3 grid size-11 place-items-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
+      <DrawerVirtualKeyboardProvider>
+        <DrawerContent className={className}>
+          <DrawerHeader
+            className="relative text-start sm:text-start"
+            dir={language === "fa" ? "rtl" : "ltr"}
           >
-            <X size={16} aria-hidden="true" />
-          </DrawerClose>
-        </DrawerHeader>
-        <div
-          dir={language === "fa" ? "rtl" : "ltr"}
-          className="flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain p-4 pb-[calc(1.25rem+env(safe-area-inset-bottom))] pt-0 sm:p-5 sm:pt-0"
-        >
-          {children}
-        </div>
-      </DrawerContent>
+            <DrawerTitle>{title}</DrawerTitle>
+            {description ? <DrawerDescription>{description}</DrawerDescription> : null}
+            <DrawerClose
+              aria-label={language === "fa" ? "بستن" : "Close"}
+              className="absolute end-3 top-3 grid size-11 place-items-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              <X size={16} aria-hidden="true" />
+            </DrawerClose>
+          </DrawerHeader>
+          <div
+            data-drawer-scroll-body=""
+            dir={language === "fa" ? "rtl" : "ltr"}
+            className="flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain p-4 pb-[calc(1.25rem+env(safe-area-inset-bottom))] pt-0 sm:p-5 sm:pt-0"
+          >
+            {children}
+          </div>
+        </DrawerContent>
+      </DrawerVirtualKeyboardProvider>
     </DrawerRoot>
   );
 }

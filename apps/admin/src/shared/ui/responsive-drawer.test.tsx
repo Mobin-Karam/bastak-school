@@ -30,9 +30,11 @@ describe("ResponsiveDrawer", () => {
       </LocaleProvider>,
     );
     const panel = container.ownerDocument.querySelector("[role=dialog]");
-    const scrollBody = container.ownerDocument.querySelector(
+    const scrollBody = container.ownerDocument.querySelector<HTMLElement>(
       "[dir=rtl].flex.min-h-0.flex-1.flex-col.overflow-y-auto",
     );
+    const interactionBody =
+      container.ownerDocument.querySelector<HTMLElement>("[data-drawer-content]");
     expect(panel).toHaveClass(
       "responsive-drawer-popup",
       "z-[121]",
@@ -41,5 +43,7 @@ describe("ResponsiveDrawer", () => {
     expect(panel).toHaveAttribute("data-swipe-direction", "right");
     expect(scrollBody).toHaveTextContent("محتوای پنل");
     expect(scrollBody).toHaveClass("flex-col", "min-h-0", "overflow-y-auto");
+    expect(scrollBody).toHaveAttribute("data-drawer-scroll-body");
+    expect(interactionBody).toContainElement(scrollBody);
   });
 });

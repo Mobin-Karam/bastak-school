@@ -8,6 +8,7 @@ const DrawerNested = DrawerPrimitive.Root;
 const DrawerTrigger = DrawerPrimitive.Trigger;
 const DrawerPortal = DrawerPrimitive.Portal;
 const DrawerClose = DrawerPrimitive.Close;
+const DrawerVirtualKeyboardProvider = DrawerPrimitive.VirtualKeyboardProvider;
 const DrawerHandle = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) => (
   <div
     className={cn(
@@ -49,7 +50,9 @@ const DrawerContent = React.forwardRef<
         {...props}
       >
         <DrawerHandle />
-        {children}
+        <DrawerPrimitive.Content className="flex min-h-0 flex-1 flex-col">
+          {children}
+        </DrawerPrimitive.Content>
       </DrawerPrimitive.Popup>
     </DrawerPrimitive.Viewport>
   </DrawerPrimitive.Portal>
@@ -112,4 +115,5 @@ export {
   DrawerFooter,
   DrawerTitle,
   DrawerDescription,
+  DrawerVirtualKeyboardProvider,
 };
