@@ -98,6 +98,7 @@ class PipelineTests(unittest.TestCase):
         self.assertLess(release_check.index('prepare-upgrade-rehearsal.cjs'),release_check.index('up -d --no-build'))
         self.assertIn('mkdir "$test_directory/upgrade-data"',release_check)
         self.assertIn('type=bind,src=$test_directory/upgrade-data,dst=/data',release_check)
+        self.assertEqual(release_check.count('--tmpfs /tmp:rw,noexec,nosuid,size=64m'),5)
         self.assertIn('github.sha',steps[3]['with']['name'])
         self.assertEqual(steps[3]['with']['if-no-files-found'],'error')
         server=yaml.safe_load((ROOT/'.github/deployment/server-deploy.yml').read_text())
@@ -113,9 +114,23 @@ class PipelineTests(unittest.TestCase):
         immutable=(ROOT/'scripts/deploy/lan-immutable.sh').read_text()
         self.assertIn('--no-build --pull never',immutable)
         self.assertNotIn(' down ',immutable)
+        self.assertEqual(immutable.count('--tmpfs /tmp:rw,noexec,nosuid,size=64m'),2)
         self.assertLess(immutable.index(' node - rehearse'),immutable.index('up -d --no-build'))
         configure=(ROOT/'scripts/cicd/configure-github.py').read_text()
         self.assertNotIn('"variable", "set", "PRODUCTION_DEPLOY_TARGET"',configure)
+
+    def test_upgrade_fixture_defers_every_guarded_migration(self):
+        fixture=(ROOT/'scripts/deploy/prepare-upgrade-rehearsal.cjs').read_text()
+        candidate_migrations=(
+            'StudentAttendancePoints1731400000000',
+            'StudentPointLedgerIdempotencyScope1731400100000',
+            'PrincipalDashboardAnalytics1731500000000',
+            'TargetedAnnouncementMedia1731500000000',
+            'DailyAttendanceSessionReview1731600000000',
+            'RepairAttendanceSessionReviewRevision1731700000000',
+        )
+        for migration in candidate_migrations:
+            self.assertIn(f'"{migration}"',fixture)
     def test_sync_retry_recovers_a_pushed_branch_and_existing_pr(self):
         script = self.workflow("continuous-integration.yml")["jobs"]["sync-main"]["steps"][1]["run"]
         with tempfile.TemporaryDirectory() as directory:

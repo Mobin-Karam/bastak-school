@@ -8,6 +8,12 @@ const pending = new Set([
   "AttendanceCorrectionReview1731300000000",
   "AttendanceAcademicSnapshots1731300100000",
   "AttendanceCorrectionReviewIntegrity1731300300000",
+  "StudentAttendancePoints1731400000000",
+  "StudentPointLedgerIdempotencyScope1731400100000",
+  "PrincipalDashboardAnalytics1731500000000",
+  "TargetedAnnouncementMedia1731500000000",
+  "DailyAttendanceSessionReview1731600000000",
+  "RepairAttendanceSessionReviewRevision1731700000000",
 ]);
 
 async function main() {
