@@ -318,17 +318,18 @@ export class ScheduleService {
         "TIME_BLOCK_NAME_REQUIRED",
         "نام بازه زمانی لازم است.",
       );
+    const partOfDay = dto.startTime < "12:00" ? "AM" : "PM";
     const existing = await this.timeBlocks.findOne({
-      where: { organization: { id: organization.id }, name },
+      where: { organization: { id: organization.id }, name, partOfDay },
     });
     if (existing)
       throw new ApiException(
         409,
         "TIME_BLOCK_NAME_EXISTS",
-        "این نام بازه زمانی قبلاً ثبت شده است.",
+        "این نام بازه زمانی برای همین نیم‌روز قبلاً ثبت شده است.",
       );
     return this.timeBlocks.save(
-      this.timeBlocks.create({ ...dto, name, organization }),
+      this.timeBlocks.create({ ...dto, name, partOfDay, organization }),
     );
   }
   async removeTimeBlock(user: AuthenticatedUser, id: string) {

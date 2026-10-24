@@ -33,6 +33,7 @@ export type ScheduleTimeBlock = {
   name: string;
   startTime: string;
   endTime: string;
+  partOfDay: "AM" | "PM";
   organization: { id: string; name: string };
 };
 export const listSchedule = () => api.get<ScheduleEntry[]>("/schedule");
