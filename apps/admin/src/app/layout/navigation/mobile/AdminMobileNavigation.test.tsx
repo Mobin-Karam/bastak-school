@@ -138,9 +138,13 @@ describe("AdminMobileBottomNav", () => {
       "href",
       "/admin/schedule",
     );
-    expect(screen.getByRole("link", { name: /دستاوردها/ })).toHaveAttribute(
+    expect(screen.getAllByRole("link", { name: /دستاوردها/ })[0]).toHaveAttribute(
       "href",
       "/admin/achievements",
+    );
+    expect(screen.getByRole("link", { name: /بازار سکه/ })).toHaveAttribute(
+      "href",
+      "/admin/coin-shop",
     );
   });
 });

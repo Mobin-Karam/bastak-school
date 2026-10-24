@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 
-const ACHIEVEMENT_RELEASE_AT = new Date("2026-11-08T23:59:59+03:30").getTime();
+/** Both Student future-feature pages launch together after their 90-day preview window. */
+export const STUDENT_FUTURE_FEATURE_RELEASE_AT = new Date("2027-01-23T00:00:00+03:30").getTime();
 
 function remainingTime(releaseAt: number) {
   const seconds = Math.max(0, Math.floor((releaseAt - Date.now()) / 1_000));
@@ -17,7 +18,7 @@ const twoDigits = (value: number) => value.toLocaleString("fa-IR", { minimumInte
 /** Release clock rendered in the intentional left-to-right day/hour/minute/second order. */
 export function AchievementCountdown({
   compact = false,
-  releaseAt = ACHIEVEMENT_RELEASE_AT,
+  releaseAt = STUDENT_FUTURE_FEATURE_RELEASE_AT,
   ariaLabel = "زمان باقی‌مانده تا انتشار دستاوردها؛ روز، ساعت، دقیقه، ثانیه",
 }: {
   compact?: boolean;

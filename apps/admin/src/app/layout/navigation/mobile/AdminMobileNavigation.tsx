@@ -5,6 +5,7 @@ import {
   Landmark,
   Medal,
   MoreHorizontal,
+  Store,
   X,
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
@@ -25,6 +26,7 @@ import {
 import { ThemeSwitcher } from "@/shared/theme/theme";
 import { getAttendanceEncouragement } from "../../../../features/student-life/attendance/public";
 import { AchievementCountdown } from "../../../../features/achievements";
+import { COIN_SHOP_RELEASE_AT } from "../../../../features/coin-shop";
 // import "./admin-mobile-bottom-nav-3d.css";
 
 const MAX_PRIMARY_DESTINATIONS = 4;
@@ -54,7 +56,7 @@ export function AdminMobileBottomNav({
     auth.capabilities,
     auth.activeRole,
     language,
-  );
+  ).filter((group) => !isStudentNavigation || group.sectionKey !== "پیشرفت و سکه");
 
   useEffect(() => setSheetOpen(false), [location.pathname]);
 
@@ -137,6 +139,30 @@ export function AdminMobileBottomNav({
                 </span>
               </span>
               <AchievementCountdown compact />
+            </NavLink>
+          ) : null}
+          {isStudentNavigation ? (
+            <NavLink
+              to="/admin/coin-shop"
+              onClick={() => setSheetOpen(false)}
+              className="grid gap-3 rounded-2xl border border-amber-200/20 bg-slate-950 p-3 text-white outline-none transition hover:bg-slate-800 focus-visible:ring-2 focus-visible:ring-amber-200"
+            >
+              <span className="flex items-center gap-3">
+                <span className="grid size-10 place-items-center rounded-xl bg-amber-300/10 text-amber-200">
+                  <Store size={20} aria-hidden="true" />
+                </span>
+                <span className="min-w-0 flex-1 text-start">
+                  <strong className="block text-sm">بازار سکه</strong>
+                  <span className="mt-1 block text-xs text-slate-300">
+                    آیتم‌های مدرسه با سکه‌های شما
+                  </span>
+                </span>
+              </span>
+              <AchievementCountdown
+                compact
+                releaseAt={COIN_SHOP_RELEASE_AT}
+                ariaLabel="زمان باقی‌مانده تا باز شدن بازار سکه؛ روز، ساعت، دقیقه، ثانیه"
+              />
             </NavLink>
           ) : null}
           {auth.activeRole === "PRINCIPAL" ? (

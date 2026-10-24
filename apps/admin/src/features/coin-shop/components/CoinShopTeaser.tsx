@@ -1,9 +1,10 @@
 import { LockKeyhole, Store } from "lucide-react";
 import { Link } from "react-router-dom";
-import { AchievementCountdown } from "../../achievements";
+import { AchievementCountdown, STUDENT_FUTURE_FEATURE_RELEASE_AT } from "../../achievements";
 import { AttendanceCoin } from "../../../shared/ui/attendance-coin";
 
-export const COIN_SHOP_RELEASE_AT = new Date("2026-11-28T00:00:00+03:30").getTime();
+/** Kept as a public alias for existing Coin Shop consumers. */
+export const COIN_SHOP_RELEASE_AT = STUDENT_FUTURE_FEATURE_RELEASE_AT;
 
 type CoinShopTeaserProps = {
   audience: "student" | "school";

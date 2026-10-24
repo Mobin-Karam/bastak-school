@@ -9,8 +9,10 @@ import {
   LayoutDashboard,
   MessageCircle,
   MessageSquareText,
+  Medal,
   School,
   Settings,
+  Store,
   UserRound,
   UserRoundCheck,
   UsersRound,
@@ -336,6 +338,23 @@ const studentNavigation: readonly NavigationGroup[] = [
       },
     ],
   },
+  {
+    section: "پیشرفت و سکه",
+    items: [
+      {
+        path: "achievements",
+        title: "دستاوردهای من",
+        description: "نشان‌ها و مسیر پیشرفت شما؛ به‌زودی",
+        icon: Medal,
+      },
+      {
+        path: "coin-shop",
+        title: "بازار سکه",
+        description: "آیتم‌های قابل دریافت با سکه‌های مدرسه؛ به‌زودی",
+        icon: Store,
+      },
+    ],
+  },
   ...registrationNavigation,
   {
     section: "پروفایل",
@@ -585,6 +604,11 @@ const en: Record<string, string> = {
   "تنظیمات حساب": "Account settings",
   اعلان‌ها: "Notifications",
   "پیام‌ها و اطلاعیه‌های شخصی مدرسه": "Your school messages and announcements",
+  "پیشرفت و سکه": "Progress & coins",
+  "دستاوردهای من": "My achievements",
+  "نشان‌ها و مسیر پیشرفت شما؛ به‌زودی": "Your badges and progress path; coming soon",
+  "بازار سکه": "Coin shop",
+  "آیتم‌های قابل دریافت با سکه‌های مدرسه؛ به‌زودی": "School-coin items; coming soon",
 };
 
 function localizeText(value: string, language: AdminLanguage) {
