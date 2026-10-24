@@ -1,4 +1,4 @@
-import { ChevronLeft, ChevronRight, Home } from "lucide-react";
+import { ChevronLeft, ChevronRight, Home, PanelLeftOpen, PanelRightOpen } from "lucide-react";
 import { NavLink } from "react-router-dom";
 // import { HeaderNotifications } from "../../../features/communications/notifications";
 import { ThemeSwitcher } from "../../../shared/theme/theme";
@@ -20,6 +20,8 @@ export function AdminHeader({
   multipleRoles,
   showStudent,
   performance,
+  mainSidebarHidden,
+  onShowMainSidebar,
 }: {
   current: AdminCurrentNavigation;
   breadcrumbs: AdminBreadcrumb[];
@@ -30,16 +32,30 @@ export function AdminHeader({
   multipleRoles?: boolean;
   showStudent?: boolean;
   performance: AdminPerformanceProfile;
+  mainSidebarHidden?: boolean;
+  onShowMainSidebar?: () => void;
 }) {
   const { profile } = useLocale();
   const copy = useAdminShellCopy();
   const BreadcrumbChevron = profile.direction === "rtl" ? ChevronLeft : ChevronRight;
+  const ShowMainSidebarIcon = profile.direction === "rtl" ? PanelRightOpen : PanelLeftOpen;
   return (
     <header
       className={`${sticky ? "sticky top-0" : "relative"} admin-header-surface admin-expensive-surface z-30 border-b border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card)_/_94%)] text-slate-900 ${performance === "reduced" ? "" : "backdrop-blur-md"} dark:text-slate-100`}
     >
       <div className="flex min-h-[4.5rem] items-center justify-between gap-3 px-4 py-2 sm:px-5 lg:px-6">
         <div className="flex min-w-0 flex-1 items-center gap-2">
+          {mainSidebarHidden && onShowMainSidebar ? (
+            <button
+              type="button"
+              className="grid size-10 shrink-0 place-items-center rounded-xl text-slate-500 outline-none transition hover:bg-[rgb(var(--surface-muted))] hover:text-brand focus-visible:ring-2 focus-visible:ring-brand"
+              onClick={onShowMainSidebar}
+              title={copy.openMainRail}
+              aria-label={copy.openMainRail}
+            >
+              <ShowMainSidebarIcon size={19} aria-hidden="true" />
+            </button>
+          ) : null}
           <div className="flex min-w-0 flex-1 items-center gap-3 sm:gap-4">
             <div className="min-w-0 flex-1">
               {breadcrumbs.length > 1 ? (

@@ -6,7 +6,8 @@ import { listSchedule, type ScheduleEntry } from "../../../academics/schedule/ap
 import { Card, EmptyState, LoadingState } from "../../../../shared/ui/ui";
 import { TeacherClassAttendanceSheet } from "../components/TeacherClassAttendanceSheet";
 
-const weekdays = ["یکشنبه", "دوشنبه", "سه‌شنبه", "چهارشنبه", "پنجشنبه", "جمعه", "شنبه"];
+// Schedule API weekday 0 is Saturday. Keep every schedule audience in the same school-week order.
+const weekdays = ["شنبه", "یکشنبه", "دوشنبه", "سه‌شنبه", "چهارشنبه", "پنجشنبه", "جمعه"];
 
 /** A read-only, server-scoped weekly timetable for teachers. */
 export function TeacherSchedulePage({ entries: suppliedEntries }: { entries?: ScheduleEntry[] }) {

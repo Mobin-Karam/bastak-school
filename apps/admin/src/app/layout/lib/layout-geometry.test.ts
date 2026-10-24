@@ -38,6 +38,17 @@ describe("admin layout geometry", () => {
     ).toBe("min-[1200px]:ml-[8.5rem] min-[1280px]:ml-[17.5rem]");
   });
 
+  it("uses the full desktop workspace when the primary rail is hidden", () => {
+    expect(
+      adminContentOffsetClass({
+        showContextRail: false,
+        mainCollapsed: false,
+        contextCollapsed: false,
+        mainHidden: true,
+      }),
+    ).toBe("");
+  });
+
   it("keeps the contextual rail compact at desktop entry and respects its saved state at 1280px", () => {
     expect(
       adminContentOffsetClass({

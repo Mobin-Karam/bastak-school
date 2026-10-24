@@ -98,22 +98,26 @@ export function AdminMainSidebar({
             Z
           </div>
         )}
-        {viewport === "tablet" ? (
-          <button
-            type="button"
-            className="grid size-9 shrink-0 place-items-center rounded-lg text-slate-500 outline-none transition hover:bg-white/70 hover:text-brand focus-visible:ring-2 focus-visible:ring-brand dark:hover:bg-white/10"
-            title={collapsed ? copy.openMainRail : copy.closeMainRail}
-            aria-label={collapsed ? copy.openMainRail : copy.closeMainRail}
-            aria-expanded={!collapsed}
-            onClick={onToggle}
-          >
-            {collapsed === (direction === "rtl") ? (
+        <button
+          type="button"
+          className="grid size-9 shrink-0 place-items-center rounded-lg text-slate-500 outline-none transition hover:bg-white/70 hover:text-brand focus-visible:ring-2 focus-visible:ring-brand dark:hover:bg-white/10"
+          title={collapsed ? copy.openMainRail : copy.closeMainRail}
+          aria-label={collapsed ? copy.openMainRail : copy.closeMainRail}
+          aria-expanded={!collapsed}
+          onClick={onToggle}
+        >
+          {collapsed ? (
+            direction === "rtl" ? (
               <ChevronLeft size={18} />
             ) : (
               <ChevronRight size={18} />
-            )}
-          </button>
-        ) : null}
+            )
+          ) : direction === "rtl" ? (
+            <ChevronRight size={18} />
+          ) : (
+            <ChevronLeft size={18} />
+          )}
+        </button>
       </div>
 
       {dashboard ? (

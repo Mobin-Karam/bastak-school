@@ -9,6 +9,18 @@ exec 9>"$lock_file"
 flock -n 9 || { echo 'Another deployment is running.' >&2; exit 1; }
 ./scripts/deploy/create-lan-tls.sh
 [[ -f .run/production/production.env ]] || { echo 'Create .run/production/production.env from deployment/lan/production.env.example.' >&2; exit 1; }
+
+# Local/LAN production configuration is host-owned and must survive releases
+# byte-for-byte. Detect accidental writes before declaring the new stack healthy.
+environment_fingerprint() {
+  find -L "$1" -type f \( -name ".env" -o -name ".env.*" -o -name "*.env" \) -print0 |
+    LC_ALL=C sort -z |
+    xargs -0r sha256sum |
+    sha256sum |
+    awk '{ print $1 }'
+}
+protected_environment_fingerprint=$(environment_fingerprint .run/production)
+
 backup_dir=${PRODUCTION_BACKUP_DIR:-.run/production/backups}
 compose=(docker compose --env-file .run/production/production.env -f docker-compose.production.yml -f deployment/lan/compose.yml)
 release_sha=${RELEASE_SHA:-$(git rev-parse HEAD)}
@@ -84,6 +96,10 @@ for service in backend-v2 admin-v2; do
   [[ "$(docker image inspect "$expected_tag" --format '{{index .Config.Labels "org.opencontainers.image.revision"}}')" == "$RELEASE_SHA" ]] || { echo 'Running revision mismatch.' >&2; exit 1; }
 done
 curl --fail --silent --show-error --cacert .run/production/tls/ca.crt https://localhost/ready
+[[ "$protected_environment_fingerprint" == "$(environment_fingerprint .run/production)" ]] || {
+  echo 'Protected production environment files changed during deployment; refusing completion.' >&2
+  exit 1
+}
 
 if [[ -w /var/www/bastak-admin ]]; then
   mkdir -p "$backup_dir"

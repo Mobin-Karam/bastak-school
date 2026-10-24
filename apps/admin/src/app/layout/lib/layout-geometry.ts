@@ -2,11 +2,13 @@ export function adminContentOffsetClass({
   showContextRail,
   mainCollapsed,
   contextCollapsed,
+  mainHidden = false,
   direction = "rtl",
 }: {
   showContextRail: boolean;
   mainCollapsed: boolean;
   contextCollapsed: boolean;
+  mainHidden?: boolean;
   direction?: "rtl" | "ltr";
 }) {
   const offsets =
@@ -27,6 +29,7 @@ export function adminContentOffsetClass({
           contextCompact: "min-[1200px]:ml-80",
           contextExpanded: "min-[1200px]:ml-80 min-[1280px]:ml-[29rem]",
         };
+  if (mainHidden) return "";
   if (!showContextRail) return mainCollapsed ? offsets.small : offsets.main;
 
   // Between lg and xl the contextual rail is intentionally forced into its
