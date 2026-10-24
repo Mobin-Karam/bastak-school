@@ -32,6 +32,9 @@ export function useAdminShellModel() {
   const notificationState = useAdminNotifications();
   const location = useLocation();
   const [mainCollapsed, setMainCollapsed] = usePersistentCollapse("admin-main-sidebar-collapsed");
+  const [desktopSidebarHidden, setDesktopSidebarHidden] = usePersistentCollapse(
+    "admin-desktop-sidebar-hidden",
+  );
   const [contextCollapsed, setContextCollapsed] = usePersistentCollapse(
     "admin-context-sidebar-collapsed",
   );
@@ -59,6 +62,7 @@ export function useAdminShellModel() {
     auth,
     breadcrumbs,
     contextCollapsed,
+    desktopSidebarHidden,
     contextual,
     current,
     direction: profile.direction,
@@ -70,6 +74,7 @@ export function useAdminShellModel() {
     role: roleLabel(auth.activeRole, language),
     selectedStudentId,
     setContextCollapsed,
+    setDesktopSidebarHidden,
     setMainCollapsed,
     showContextRail,
     showStudent: sourceCurrent.section === "آموزش",

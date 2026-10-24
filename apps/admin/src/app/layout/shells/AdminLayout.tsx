@@ -112,6 +112,7 @@ export function AdminLayout() {
                 showContextRail: false,
                 mainCollapsed: false,
                 contextCollapsed: false,
+                mainHidden: model.desktopSidebarHidden,
                 direction: model.direction,
               })
             : shell === "tablet"

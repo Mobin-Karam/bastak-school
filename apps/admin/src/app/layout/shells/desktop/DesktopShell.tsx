@@ -12,18 +12,20 @@ export function DesktopShell({
 }) {
   return (
     <>
-      <AdminMainSidebar
-        viewport="desktop"
-        collapsed={false}
-        currentSection={model.current.section}
-        currentPath={model.current.path}
-        selectedStudentId={model.selectedStudentId}
-        onToggle={() => undefined}
-        onOpenSearch={onOpenCommandPalette}
-        direction={model.direction}
-      />
+      {!model.desktopSidebarHidden ? (
+        <AdminMainSidebar
+          viewport="desktop"
+          collapsed={false}
+          currentSection={model.current.section}
+          currentPath={model.current.path}
+          selectedStudentId={model.selectedStudentId}
+          onToggle={() => model.setDesktopSidebarHidden(true)}
+          onOpenSearch={onOpenCommandPalette}
+          direction={model.direction}
+        />
+      ) : null}
       <div
-        className={`${adminContentOffsetClass({ showContextRail: false, mainCollapsed: false, contextCollapsed: false, direction: model.direction })} hidden shrink-0 min-[1200px]:block transition-[margin] duration-200 motion-reduce:transition-none`}
+        className={`${adminContentOffsetClass({ showContextRail: false, mainCollapsed: false, contextCollapsed: false, mainHidden: model.desktopSidebarHidden, direction: model.direction })} hidden shrink-0 min-[1200px]:block transition-[margin] duration-200 motion-reduce:transition-none`}
       >
         <AdminHeader
           current={model.current}
@@ -35,6 +37,8 @@ export function DesktopShell({
           multipleRoles={model.multipleRoles}
           showStudent={model.showStudent}
           performance={model.performance}
+          mainSidebarHidden={model.desktopSidebarHidden}
+          onShowMainSidebar={() => model.setDesktopSidebarHidden(false)}
         />
       </div>
     </>
