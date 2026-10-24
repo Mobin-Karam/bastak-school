@@ -2,8 +2,9 @@ name: Repository Safety
 
 on:
   pull_request:
+    branches: [develop]
   push:
-    branches: [develop, main]
+    branches: [develop]
 
 permissions:
   contents: read

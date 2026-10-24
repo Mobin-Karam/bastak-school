@@ -295,8 +295,8 @@ describe("staff session and pool creation", () => {
       />,
       { wrapper: Providers },
     );
-    await user.click(screen.getByRole("button", { name: "اعضای فراخوان" }));
-    await user.click(screen.getByRole("menuitemradio", { name: "کلاس · کلاس الف" }));
+    await user.click(screen.getByRole("combobox", { name: "اعضای فراخوان" }));
+    await user.click(screen.getByRole("option", { name: "کلاس · کلاس الف" }));
     await user.type(screen.getByRole("textbox", { name: "عنوان" }), "گردهمایی");
     await user.type(screen.getByRole("textbox", { name: "محل گردهمایی" }), "سالن");
     await user.click(screen.getByRole("button", { name: "فعال‌کردن فراخوان اکنون" }));
@@ -328,8 +328,8 @@ describe("staff session and pool creation", () => {
     await screen.findByText("احمد");
     expect(screen.getByText("حسن")).toBeInTheDocument();
     expect(screen.queryByText("علی")).not.toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "فیلتر اعضای جلسه" }));
-    await user.click(screen.getByRole("menuitemradio", { name: "همه اعضا" }));
+    await user.click(screen.getByRole("combobox", { name: "فیلتر اعضای جلسه" }));
+    await user.click(screen.getByRole("option", { name: "همه اعضا" }));
     expect(screen.getByText("علی")).toBeInTheDocument();
     expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
   });

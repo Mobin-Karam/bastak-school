@@ -12,6 +12,7 @@ class PipelineTests(unittest.TestCase):
         workflow = self.workflow("continuous-integration.yml")
         runs = "\n".join(step.get("run", "") for step in workflow["jobs"]["quality"]["steps"])
         self.assertIn("test:coverage", runs)
+        self.assertIn("verify -- --skip=admin-v2:test", runs)
         self.assertIn("test:cmb-publish", runs)
         self.assertIn("playwright install --with-deps chromium", runs)
         self.assertIn("test:e2e -- --grep 'desktop panels remain reachable'", runs)
@@ -21,6 +22,8 @@ class PipelineTests(unittest.TestCase):
         self.assertIn('DATABASE_PATH="$security_directory/$suite.sqlite"', script)
         self.assertIn('node "apps/api/scripts/$suite-e2e.mjs"', script)
         self.assertIn("for attempt in {1..600}; do", (ROOT / "scripts/cicd/finish-work.sh").read_text())
+        workspace_runner = (ROOT / "tooling/workspace/run.mjs").read_text()
+        self.assertIn("Unknown or unselected verify task in --skip", workspace_runner)
     def test_required_gate_covers_every_change_and_failure(self):
         ci = self.workflow("continuous-integration.yml")
         events = ci.get("on", ci.get(True))
@@ -28,9 +31,115 @@ class PipelineTests(unittest.TestCase):
         self.assertNotIn("paths", events["push"])
         gate = ci["jobs"]["gate"]
         self.assertEqual(gate["if"], "always()")
-        self.assertEqual(set(gate["needs"]), {"quality", "containers"})
+        self.assertEqual(set(gate["needs"]), {"quality", "containers", "promotion-evidence"})
         self.assertIn('test "$QUALITY" = success', gate["steps"][0]["run"])
         self.assertIn('test "$CONTAINERS" = success', gate["steps"][0]["run"])
+        self.assertIn('[[ "$PROMOTION" == success ]]', gate["steps"][0]["run"])
+
+    def test_release_pr_reuses_only_exact_develop_push_evidence(self):
+        ci = self.workflow("continuous-integration.yml")
+        self.assertIn("github.base_ref != 'main'", ci["jobs"]["quality"]["if"])
+        self.assertIn("github.base_ref != 'main'", ci["jobs"]["containers"]["if"])
+        promotion = ci["jobs"]["promotion-evidence"]
+        self.assertEqual(promotion["if"], "github.event_name == 'pull_request' && github.base_ref == 'main'")
+        checkout = promotion["steps"][0]["with"]
+        self.assertEqual(checkout["ref"], "${{ github.event.pull_request.head.sha }}")
+        self.assertEqual(checkout["fetch-depth"], 0)
+        self.assertIn("verify-promotion-evidence.sh", promotion["steps"][1]["run"])
+        script = (ROOT / "scripts/cicd/verify-promotion-evidence.sh").read_text()
+        for evidence in (
+            'HEAD_BRANCH:-}" == develop',
+            'HEAD_REPOSITORY:-}" == "$GH_REPO"',
+            'git merge-base --is-ancestor "$BASE_SHA" "$HEAD_SHA"',
+            'current_develop" == "$HEAD_SHA"',
+            'event == "push" and .head_branch == "develop"',
+            'run_status" == completed',
+            'run_conclusion" == success',
+            'Timed out waiting for the exact develop-push qualification.',
+            'production-images-$HEAD_SHA',
+            'artifact_digest" =~ ^sha256:',
+        ):
+            self.assertIn(evidence, script)
+        self.assertEqual(promotion["timeout-minutes"], 45)
+
+    def test_release_evidence_waits_for_the_matching_develop_run(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            fake = root / "bin"
+            fake.mkdir()
+            calls = root / "calls"
+            gh = fake / "gh"
+            gh.write_text("""#!/bin/bash
+set -euo pipefail
+endpoint="$2"
+if [[ "$endpoint" == */git/ref/heads/develop ]]; then
+  printf '%s\\n' "$HEAD_SHA"
+elif [[ "$endpoint" == *'/runs?'* ]]; then
+  count=0
+  [[ ! -f "$CALLS" ]] || count=$(cat "$CALLS")
+  count=$((count + 1))
+  printf '%s' "$count" > "$CALLS"
+  status=in_progress
+  conclusion=null
+  (( count < 2 )) || { status=completed; conclusion='"success"'; }
+  printf '{"workflow_runs":[{"id":42,"head_sha":"%s","event":"push","head_branch":"develop","status":"%s","conclusion":%s,"path":".github/workflows/continuous-integration.yml","head_repository":{"full_name":"%s"},"created_at":"2026-10-24T00:00:00Z"}]}\\n' "$HEAD_SHA" "$status" "$conclusion" "$GH_REPO"
+elif [[ "$endpoint" == */actions/runs/42/artifacts* ]]; then
+  printf '{"artifacts":[{"name":"production-images-%s","expired":false,"digest":"sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}]}\\n' "$HEAD_SHA"
+else
+  echo "Unexpected gh call: $*" >&2
+  exit 1
+fi
+""")
+            gh.chmod(0o700)
+            head = subprocess.run(
+                ["git", "rev-parse", "HEAD"], cwd=ROOT, text=True, capture_output=True, check=True
+            ).stdout.strip()
+            base = subprocess.run(
+                ["git", "rev-parse", "HEAD~1"], cwd=ROOT, text=True, capture_output=True, check=True
+            ).stdout.strip()
+            env = dict(
+                os.environ,
+                PATH=str(fake) + os.pathsep + os.environ["PATH"],
+                GH_TOKEN="fixture",
+                GH_REPO="fixture/repo",
+                HEAD_BRANCH="develop",
+                HEAD_REPOSITORY="fixture/repo",
+                HEAD_SHA=head,
+                BASE_SHA=base,
+                CALLS=str(calls),
+                PROMOTION_EVIDENCE_ATTEMPTS="3",
+                PROMOTION_EVIDENCE_INTERVAL_SECONDS="0",
+            )
+            result = subprocess.run(
+                ["bash", "scripts/cicd/verify-promotion-evidence.sh"],
+                cwd=ROOT,
+                env=env,
+                text=True,
+                capture_output=True,
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(calls.read_text(), "2")
+            self.assertIn("Promotion evidence verified", result.stdout)
+
+    def test_image_archives_are_retained_only_for_branch_pushes(self):
+        readiness = self.workflow("deployment-readiness.yml")
+        steps = readiness["jobs"]["containers"]["steps"]
+        self.assertIn('if [[ "$EVENT_NAME" == push ]]', steps[2]["run"])
+        self.assertEqual(steps[3]["if"], "github.event_name == 'push'")
+
+    def test_advisory_component_workflows_do_not_repeat_on_release_pr_or_main(self):
+        for name in (
+            "admin-v2-quality.yml",
+            "ai-toolkit-check.yml",
+            "backend-v2-quality.yml",
+            "cmb-packages-quality.yml",
+            "repository-safety.yml",
+            "student-core-quality.yml",
+            "student-v2-quality.yml",
+        ):
+            events = self.workflow(name).get("on", self.workflow(name).get(True))
+            self.assertEqual(events["pull_request"]["branches"], ["develop"], name)
+            self.assertEqual(events["push"]["branches"], ["develop"], name)
     def test_main_only_deployment_checks_the_tested_commit(self):
         deploy = self.workflow("lan-production.yml")
         events = deploy.get("on", deploy.get(True))

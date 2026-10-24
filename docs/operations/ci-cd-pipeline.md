@@ -10,7 +10,7 @@ Continuous Integration ── quality + containers ──► CI Gate
        │ successful merge to develop
        ▼
 Develop push CI ──► Release promotion opens/updates develop → main PR
-       │ release review + PR CI + merge commit
+       │ release review + exact develop evidence gate + merge commit
        ▼
 Main push CI ──► LAN Production Deployment verifies current tested SHA
        │ verified-main dispatch
@@ -31,7 +31,7 @@ Use [`start-work.sh`](../../scripts/cicd/start-work.sh) to fetch `origin/develop
 
 ## Required source CI gate
 
-[Continuous Integration](../../.github/workflows/continuous-integration.yml) runs on every PR to `develop` or `main`, every push to those branches, and manual dispatch. It has no path filter. `CI Gate` uses `always()` and succeeds only when both `quality` and `containers` succeed; a skipped, cancelled or failed prerequisite fails the gate.
+[Continuous Integration](../../.github/workflows/continuous-integration.yml) runs on every PR to `develop` or `main`, every push to those branches, and manual dispatch. It has no path filter. Feature PRs, branch pushes, and manual runs require both `quality` and `containers`. A `develop` → `main` release PR instead uses `promotion-evidence`: it requires the exact current develop SHA, main ancestry, a successful completed develop-push CI run for that SHA, and exactly one unexpired image bundle with a GitHub artifact digest. `CI Gate` uses `always()` and accepts exactly one of those two paths; skipped, cancelled, ambiguous, expired, or failed evidence fails the gate.
 
 | Job or stage | Actual checks | Scope |
 | --- | --- | --- |
@@ -41,11 +41,12 @@ Use [`start-work.sh`](../../scripts/cicd/start-work.sh) to fetch `origin/develop
 | API journey | Security matrix, student exam and onboarding journeys, each with disposable SQLite | Auth, scope and selected workflows |
 | Admin quality | Parity audit, Vitest coverage, Playwright discovery and desktop layout Chromium run | UI behavior and layout |
 | Supply chain and pipeline | Production-dependency audit for Admin and API; Python pipeline tests | Dependencies and workflow invariants |
-| Containers | Build commit-tagged topology, authenticate critical workflows on disposable HTTPS, verify proxy/cookies/restore/migrations and retain image manifest/archive | Deployment shape |
+| Containers | Build commit-tagged topology, authenticate critical workflows on disposable HTTPS, and verify proxy/cookies/restore/migrations | Deployment shape |
+| Promotion evidence | On release PRs only, verify exact successful develop-push CI and its immutable image artifact instead of repeating the same source and container work | Release provenance |
 
-`npm run verify` delegates to [`tooling/workspace/projects.json`](../../tooling/workspace/projects.json); project scripts remain authoritative. The API unit/integration tests and Admin unit/accessibility/build checks run there. The standalone [backend quality](../../.github/workflows/backend-v2-quality.yml) workflow also applies every migration to a fresh database. Path-filtered component workflows provide extra feedback; they do not replace the unfiltered `CI Gate`.
+`npm run verify` delegates to [`tooling/workspace/projects.json`](../../tooling/workspace/projects.json); project scripts remain authoritative. CI skips only `admin-v2:test` inside that pass because the subsequent `admin-v2 test:coverage` command executes the same complete Vitest suite with coverage enabled. The Admin typecheck, format, lint, accessibility and build tasks, plus every other project's tasks, remain in workspace verification. The standalone [backend quality](../../.github/workflows/backend-v2-quality.yml) workflow also applies every migration to a fresh database. Path-filtered component workflows provide extra feedback on develop PRs and the integrated develop push; they do not repeat on the release PR or main push and do not replace the unfiltered `CI Gate`.
 
-The CI browser run exercises shipped desktop layout in RTL and LTR. Authenticated school workflows now run through the actual HTTPS container stack; account-based browser login and planner drag still need a separate seeded browser fixture and are not part of the required gate. A browser layout pass is not proof of all roles or mobile flows. The [testing strategy](../engineering/testing-strategy.md) records priority gaps.
+Image archives are created and uploaded only for successful `develop` or `main` push qualification. PR container rehearsals still build and test the exact PR images, but skip the roughly 512 MB Docker archive because no deployment consumes it. The CI browser run exercises shipped desktop layout in RTL and LTR. Authenticated school workflows now run through the actual HTTPS container stack; account-based browser login and planner drag still need a separate seeded browser fixture and are not part of the required gate. A browser layout pass is not proof of all roles or mobile flows. The [testing strategy](../engineering/testing-strategy.md) records priority gaps.
 
 ## Local reproduction
 

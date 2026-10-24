@@ -170,6 +170,7 @@ export function StudentsPage() {
   const [form, setForm] = useState<StudentForm>(emptyStudentForm());
   const [securityPassword, setSecurityPassword] = useState("");
   const [feedback, setFeedback] = useState<StudentEditorFeedback>(null);
+  const [createDiscardOpen, setCreateDiscardOpen] = useState(false);
   const deferredSearch = useDeferredValue(search);
   const { students } = studentStore;
   const qc = useQueryClient();
@@ -333,6 +334,7 @@ export function StudentsPage() {
 
   function startCreate() {
     const run = () => {
+      setCreateDiscardOpen(false);
       setCreating(true);
       setEditing(false);
       setDetailOpen(false);
@@ -369,34 +371,28 @@ export function StudentsPage() {
       });
   }
 
+  function discardCreate() {
+    const previous = students.find((student) => student.id === studentStore.studentId) ?? null;
+    setCreateDiscardOpen(false);
+    setCreating(false);
+    setEditing(false);
+    setDetailOpen(false);
+    setMobileDirectory(true);
+    setFeedback(null);
+    if (previous) {
+      setSelectedId(previous.id);
+      setForm(studentToForm(previous));
+      updateStudentContext(previous.id);
+    } else {
+      setSelectedId("");
+      setForm(emptyStudentForm());
+      updateStudentContext("");
+    }
+  }
+
   function cancelCreate() {
-    const run = () => {
-      const previous = students.find((student) => student.id === studentStore.studentId) ?? null;
-      setCreating(false);
-      setEditing(false);
-      setDetailOpen(false);
-      setMobileDirectory(true);
-      setFeedback(null);
-      if (previous) {
-        setSelectedId(previous.id);
-        setForm(studentToForm(previous));
-        updateStudentContext(previous.id);
-      } else {
-        setSelectedId("");
-        setForm(emptyStudentForm());
-        updateStudentContext("");
-      }
-    };
-    if (!dirty) return run();
-    void modal
-      .confirm({
-        title: copy.cancelCreateTitle,
-        description: copy.cancelCreateDescription,
-        confirmLabel: copy.cancelCreation,
-      })
-      .then((ok) => {
-        if (ok) run();
-      });
+    if (!dirty) return discardCreate();
+    setCreateDiscardOpen(true);
   }
 
   function startEdit() {
@@ -445,6 +441,7 @@ export function StudentsPage() {
   }
 
   function finishCreate() {
+    setCreateDiscardOpen(false);
     setCreating(false);
     setEditing(false);
     setDetailOpen(false);
@@ -1107,6 +1104,23 @@ export function StudentsPage() {
                   </div>
                 </div>
               </section>
+              <ResponsiveDrawer
+                nested
+                open={createDiscardOpen}
+                onOpenChange={setCreateDiscardOpen}
+                title={copy.cancelCreateTitle}
+                description={copy.cancelCreateDescription}
+                className="max-h-[min(26rem,72dvh)]"
+              >
+                <div className="grid gap-3 pt-2 sm:grid-cols-2">
+                  <Button variant="soft" onClick={() => setCreateDiscardOpen(false)}>
+                    {language === "fa" ? "ادامه ویرایش" : "Continue editing"}
+                  </Button>
+                  <Button variant="danger" onClick={discardCreate}>
+                    {copy.cancelCreation}
+                  </Button>
+                </div>
+              </ResponsiveDrawer>
             </ResponsiveDrawer>
             {selected ? (
               <ResponsiveDrawer

@@ -338,7 +338,9 @@ describe("responsive timetable workflows", () => {
     fixtures.get.mockResolvedValue({ ...empty, years: data().years });
     await userEvent.click(dialog.getByRole("button", { name: "ذخیره و ادامه" }));
     expect(await screen.findByText(/مرحله راه‌اندازی: نیم‌سال/)).toBeVisible();
-    expect(within(screen.getByRole("dialog")).getByLabelText("سال تحصیلی")).toHaveValue("year");
+    expect(
+      within(screen.getByRole("dialog")).getByRole("combobox", { name: "سال تحصیلی" }),
+    ).toHaveTextContent("۱۴۰۵");
   });
   it("opens the responsive lesson form with the selected class and period context", async () => {
     fixtures.get.mockResolvedValue(data("DRAFT"));
@@ -364,8 +366,8 @@ describe("responsive timetable workflows", () => {
       const sheets = await screen.findByLabelText("کاربرگ", {}, { timeout: 15000 });
       expect(fetchSpy).toHaveBeenCalledWith(expect.stringContaining("timetable-example.xlsx"));
       await userEvent.click(sheets);
-      expect(screen.getAllByRole("menuitemradio")).toHaveLength(6);
-      await userEvent.click(screen.getByRole("menuitemradio", { name: /اصلی/ }));
+      expect(screen.getAllByRole("option")).toHaveLength(6);
+      await userEvent.click(screen.getByRole("option", { name: /اصلی/ }));
       const dialog = within(screen.getByRole("dialog"));
       const blocks = dialog.getAllByRole("checkbox");
       expect(blocks.length).toBeGreaterThanOrEqual(2);
@@ -376,7 +378,7 @@ describe("responsive timetable workflows", () => {
       expect(next).toBeEnabled();
       await userEvent.click(next);
       expect(dialog.getByText("نگاشت کلاس‌ها، کتاب‌ها و استادان")).toBeVisible();
-      expect(dialog.getAllByRole("button", { name: /کلاس/ }).length).toBeGreaterThan(0);
+      expect(dialog.getAllByRole("combobox", { name: /کلاس/ }).length).toBeGreaterThan(0);
     } finally {
       fetchSpy.mockRestore();
     }

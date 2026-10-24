@@ -4,6 +4,7 @@ import { PolarAngleAxis, PolarGrid, Radar, RadarChart, ResponsiveContainer } fro
 import type { Student } from "../../../../shared/types/domain";
 import { useAuth } from "../../../identity/auth";
 import { getAttendanceProfile } from "../../../student-life/attendance/api/attendance-operations.api";
+import { AttendanceCoin } from "../../../../shared/ui/attendance-coin";
 import { Button } from "../../../../shared/ui/ui";
 import { useOptionalAdminLanguage } from "../../../../shared/ui/locale";
 import { studentCopy } from "../model/student-locale";
@@ -598,11 +599,7 @@ function StudentAttendanceInsights({
             aria-hidden="true"
           >
             <span className="absolute inset-x-3 bottom-2 h-5 rounded-[50%] bg-amber-900/25 blur-md" />
-            <img
-              src="/images/mascots/zanin-coin.svg"
-              alt=""
-              className="relative size-28 object-contain drop-shadow-[0_12px_10px_rgba(90,52,4,0.38)] transition-transform duration-300 motion-safe:hover:[transform:perspective(700px)_rotateY(-14deg)_rotateX(9deg)_translateY(-2px)] motion-reduce:transition-none sm:size-32"
-            />
+            <AttendanceCoin className="relative size-28 object-contain drop-shadow-[0_12px_10px_rgba(90,52,4,0.38)] transition-transform duration-300 motion-safe:hover:[transform:perspective(700px)_rotateY(-14deg)_rotateX(9deg)_translateY(-2px)] motion-reduce:transition-none sm:size-32" />
           </div>
         </div>
       ) : null}

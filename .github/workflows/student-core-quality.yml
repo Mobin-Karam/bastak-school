@@ -2,12 +2,13 @@ name: Student Core Quality
 
 on:
   pull_request:
+    branches: [develop]
     paths:
       - 'student-core/**'
       - 'packages/api-contract/**'
       - '.github/workflows/student-core-quality.yml'
   push:
-    branches: [develop, main]
+    branches: [develop]
     paths:
       - 'student-core/**'
       - 'packages/api-contract/**'

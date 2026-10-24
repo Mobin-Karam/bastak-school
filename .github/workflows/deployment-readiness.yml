@@ -17,9 +17,15 @@ jobs:
       - name: Test exact release images on a disposable HTTPS stack
         env:
           RELEASE_SHA: ${{ github.sha }}
-          CI_RELEASE_BUNDLE: ${{ runner.temp }}/production-images
-        run: ./scripts/deploy/verify-release.sh
+          EVENT_NAME: ${{ github.event_name }}
+          RELEASE_BUNDLE_PATH: ${{ runner.temp }}/production-images
+        run: |
+          if [[ "$EVENT_NAME" == push ]]; then
+            export CI_RELEASE_BUNDLE="$RELEASE_BUNDLE_PATH"
+          fi
+          ./scripts/deploy/verify-release.sh
       - name: Retain tested image archive and identity manifest
+        if: github.event_name == 'push'
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: production-images-${{ github.sha }}

@@ -3,7 +3,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { MemoryRouter, useLocation } from "react-router-dom";
 import { LocaleProvider } from "../../../shared/ui/locale";
-import { AnnouncementInboxPage } from "./AnnouncementPages";
+import { AnnouncementInboxPage, AnnouncementManagementPage } from "./AnnouncementPages";
 
 const mocks = vi.hoisted(() => ({
   announcement: {
@@ -103,5 +103,22 @@ describe("AnnouncementInboxPage", () => {
         ),
       ).toBeInTheDocument(),
     );
+  });
+});
+
+describe("AnnouncementManagementPage", () => {
+  afterEach(cleanup);
+
+  it("keeps announcement management disabled for future use", () => {
+    render(
+      <MemoryRouter>
+        <AnnouncementManagementPage />
+      </MemoryRouter>,
+    );
+
+    expect(
+      screen.getByRole("heading", { name: "مدیریت اطلاعیه‌ها فعلاً غیرفعال است" }),
+    ).toBeInTheDocument();
+    expect(screen.getByText("در آینده به این بخش برمی‌گردیم.")).toBeInTheDocument();
   });
 });

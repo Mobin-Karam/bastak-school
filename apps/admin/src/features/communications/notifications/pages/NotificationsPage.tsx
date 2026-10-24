@@ -17,6 +17,7 @@ import { notificationCopy } from "../model/notification-copy";
 import { useViewportShell } from "../../../../app/layout/lib/viewport-shell";
 import { Button, Input } from "../../../../shared/ui/ui";
 import { SegmentedControl } from "../../../../shared/ui/segmented-control";
+import { CommunicationFuturePage } from "../../components/CommunicationFuturePage";
 
 const notificationTypes = ["all", "message", "exam", "lesson", "announcement"] as const;
 
@@ -36,6 +37,22 @@ export function notificationAccess(capabilities: readonly string[]) {
 }
 
 export function NotificationsPage() {
+  const [params] = useSearchParams();
+  const typeFilter = notificationTypeFilter(params.get("type"));
+
+  if (typeFilter === "announcement") {
+    return (
+      <CommunicationFuturePage
+        title="اعلان‌های اطلاعیه‌ای فعلاً غیرفعال است"
+        description="نمایش و مدیریت اطلاعیه‌های مدرسه در مرکز اعلان‌ها برای استفاده آینده نگه داشته شده است. سایر اعلان‌های شما همچنان در دسترس هستند."
+      />
+    );
+  }
+
+  return <ActiveNotificationsPage />;
+}
+
+function ActiveNotificationsPage() {
   const auth = useAuth();
   const navigate = useNavigate();
   const access = notificationAccess(auth.capabilities);
@@ -52,7 +69,6 @@ export function NotificationsPage() {
   const focusedNotificationId = params.get("notificationId") || undefined;
   const [mobilePanel, setMobilePanel] = useState<"notifications" | "inbox">("notifications");
   const isMobileShell = useViewportShell() === "mobile";
-  const isStudentMobile = isMobileShell && auth.activeRole === "STUDENT";
 
   function setNotificationView(nextView: { filter?: "all" | "unread"; type?: string; q?: string }) {
     setParams(
@@ -87,7 +103,7 @@ export function NotificationsPage() {
       content: <NotificationSettings notifications={notifications} language={language} />,
     });
 
-  const openStudentControls = () =>
+  const openMobileControls = () =>
     modal.open({
       title: copy.notificationOptions,
       description: copy.filterNotifications,
@@ -112,22 +128,30 @@ export function NotificationsPage() {
     });
 
   return (
-    <div className="flex h-[calc(100dvh-132px)] min-h-0 flex-col gap-3 overflow-hidden lg:h-[calc(100dvh-96px)]">
+    <div className="flex h-[calc(100dvh-132px)] min-h-0 flex-col gap-2 overflow-hidden pb-[env(safe-area-inset-bottom)] sm:gap-3 lg:h-[calc(100dvh-96px)] lg:pb-0">
       <div className="grid shrink-0 gap-2 sm:flex sm:items-start">
         <div className="min-w-0 flex-1">
           <NotificationsToolbar
             onOpenSettings={openSettings}
-            studentMobile={isStudentMobile}
-            onOpenStudentControls={openStudentControls}
+            compactMobile={isMobileShell}
+            onOpenMobileControls={openMobileControls}
           />
         </div>
         {auth.can("announcements.read") ? (
-          <div className="flex flex-wrap gap-2">
-            <Button variant="soft" onClick={() => navigate("/admin/announcements")}>
+          <div className="flex max-w-full gap-2 overflow-x-auto pb-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:flex-wrap sm:overflow-visible sm:pb-0">
+            <Button
+              className="shrink-0"
+              variant="soft"
+              onClick={() => navigate("/admin/announcements")}
+            >
               {copy.announcementInbox}
             </Button>
             {auth.can("announcements.manage") ? (
-              <Button variant="ghost" onClick={() => navigate("/admin/announcements/manage")}>
+              <Button
+                className="shrink-0"
+                variant="ghost"
+                onClick={() => navigate("/admin/announcements/manage")}
+              >
                 {copy.manageAnnouncements}
               </Button>
             ) : null}
@@ -165,7 +189,7 @@ export function NotificationsPage() {
               setNotificationView({ q: typeof next === "function" ? next(search) : next })
             }
             items={items}
-            compact={isStudentMobile}
+            compact={isMobileShell}
             focusedNotificationId={focusedNotificationId}
           />
         ) : null}
