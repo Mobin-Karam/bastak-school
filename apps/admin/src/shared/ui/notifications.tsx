@@ -1,6 +1,7 @@
 import { CircleCheck, CircleX, Info, LoaderCircle, TriangleAlert, Undo2 } from "lucide-react";
 import type { CSSProperties, ReactNode } from "react";
 import { Toaster, toast, type ExternalToast } from "sonner";
+import { useEffect, useState } from "react";
 import { useTheme } from "../theme/theme";
 import { useLocale } from "./locale";
 
@@ -21,8 +22,8 @@ export type PromiseNotificationData<T> = Omit<NotificationOptions, "description"
     | ((error: unknown) => ExtendedNotificationResult);
   description?: ReactNode | ((data: T) => ReactNode);
 };
-const duration = 5000;
-const toneDuration = { success: duration, info: duration, warning: 6500, error: 8000 };
+const duration = 3500;
+const toneDuration = { success: duration, info: duration, warning: 5000, error: 6500 };
 const loadingIcon = (
   <LoaderCircle size={18} className="motion-safe:animate-spin" aria-hidden="true" />
 );
@@ -31,20 +32,33 @@ function notificationId(tone: Exclude<NotificationTone, "loading">, message: str
   return `admin:${tone}:${message}`;
 }
 
+function useMobileNotificationPosition() {
+  const [isMobile, setIsMobile] = useState(() =>
+    typeof window !== "undefined" ? window.innerWidth < 768 : false,
+  );
+  useEffect(() => {
+    const update = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener("resize", update);
+    return () => window.removeEventListener("resize", update);
+  }, []);
+  return isMobile;
+}
+
 export function AppToaster() {
   const { language, profile } = useLocale();
   const { resolvedTheme } = useTheme();
+  const isMobile = useMobileNotificationPosition();
   return (
     <Toaster
       theme={resolvedTheme}
       dir={profile.direction}
-      position={profile.direction === "rtl" ? "bottom-left" : "bottom-right"}
+      position={isMobile ? "top-right" : "bottom-right"}
       closeButton
       expand={false}
       visibleToasts={3}
       gap={10}
       offset={16}
-      mobileOffset={{ bottom: "calc(5.5rem + env(safe-area-inset-bottom))", left: 12, right: 12 }}
+      mobileOffset={{ top: "calc(1rem + env(safe-area-inset-top))", left: 12, right: 12 }}
       style={
         {
           "--width": "min(26rem, calc(100vw - 1.5rem))",

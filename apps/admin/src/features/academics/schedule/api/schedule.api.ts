@@ -7,7 +7,7 @@ export type ScheduleEntry = {
   startTime: string;
   endTime: string;
   room: string;
-  status: "ACTIVE" | "ARCHIVED";
+  status: "ACTIVE" | "ARCHIVED" | "REPLACED";
   organization: { id: string; name: string; type?: string; status?: string };
   classroom?: { id: string; name: string } | null;
   classBook?: {
@@ -28,6 +28,22 @@ export type ScheduleDraft = {
   endTime: string;
   room?: string;
 };
+export type ScheduleTimeBlock = {
+  id: string;
+  name: string;
+  startTime: string;
+  endTime: string;
+  partOfDay: "AM" | "PM";
+  organization: { id: string; name: string };
+};
+export type ScheduleTemplateEntry = Omit<ScheduleDraft, "organizationId">;
+export type ScheduleTemplate = {
+  id: string;
+  name: string;
+  state: "ACTIVE" | "ARCHIVED";
+  entries: ScheduleTemplateEntry[];
+  updatedAt: string;
+};
 export const listSchedule = () => api.get<ScheduleEntry[]>("/schedule");
 export const createScheduleEntry = (draft: ScheduleDraft) =>
   api.post<ScheduleEntry>("/schedule", draft);
@@ -37,6 +53,29 @@ export const archiveScheduleEntry = (id: string, status: "ACTIVE" | "ARCHIVED") 
   api.patch<ScheduleEntry>(`/schedule/${encodeURIComponent(id)}/archive`, { status });
 export const deleteScheduleEntry = (id: string) =>
   api.delete(`/schedule/${encodeURIComponent(id)}`);
+export const listScheduleTimeBlocks = () => api.get<ScheduleTimeBlock[]>("/schedule/time-blocks");
+export const createScheduleTimeBlock = (draft: {
+  organizationId: string;
+  name: string;
+  startTime: string;
+  endTime: string;
+}) => api.post<ScheduleTimeBlock>("/schedule/time-blocks", draft);
+export const deleteScheduleTimeBlock = (id: string) =>
+  api.delete(`/schedule/time-blocks/${encodeURIComponent(id)}`);
+export const listScheduleTemplates = () => api.get<ScheduleTemplate[]>("/schedule/templates");
+export const createScheduleTemplate = (draft: {
+  organizationId: string;
+  name: string;
+  sourceTemplateId?: string;
+}) => api.post<ScheduleTemplate>("/schedule/templates", draft);
+export const applyScheduleTemplate = (id: string) =>
+  api.post<{ applied: number }>(`/schedule/templates/${encodeURIComponent(id)}/apply`, {});
+export const archiveScheduleTemplate = (id: string) =>
+  api.patch<ScheduleTemplate>(`/schedule/templates/${encodeURIComponent(id)}/archive`, {});
+export const restoreScheduleTemplate = (id: string) =>
+  api.patch<ScheduleTemplate>(`/schedule/templates/${encodeURIComponent(id)}/restore`, {});
+export const deleteScheduleTemplate = (id: string) =>
+  api.delete(`/schedule/templates/${encodeURIComponent(id)}`);
 export const previewScheduleImport = (entries: ScheduleDraft[]) =>
   api.post<{ valid: boolean; errors: Array<{ row: number; message: string }> }>(
     "/schedule/import/preview",

@@ -89,7 +89,7 @@ class ReleaseTests(unittest.TestCase):
                         self.assertFalse((p/'loaded-images.json').exists())
 
     def test_deploy_failure_boundaries_and_lock(self):
-        for mode in ['preflight','replacement','healthy','locked']:
+        for mode in ['preflight','replacement','healthy','locked','environment-mutated']:
             with self.subTest(mode=mode), tempfile.TemporaryDirectory() as d:
                 p=pathlib.Path(d); deploy=p/'scripts/deploy';deploy.mkdir(parents=True)
                 (deploy/'lan-immutable.sh').write_text((ROOT/'scripts/deploy/lan-immutable.sh').read_text())
@@ -113,6 +113,9 @@ fi
 if [[ "$1" == compose ]]; then
  for arg in "$@"; do
   if [[ "$arg" == ps ]]; then echo "${@: -1}"; exit 0; fi
+  if [[ "$arg" == up && "$MODE" == environment-mutated ]]; then
+   printf 'unexpected=change\n' > "$PRODUCTION_CONFIG_DIR/production.env"
+  fi
   if [[ "$arg" == up && "$MODE" == replacement ]]; then exit 1; fi
  done
 fi

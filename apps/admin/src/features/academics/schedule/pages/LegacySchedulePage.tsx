@@ -5,17 +5,22 @@ import {
   CalendarClock,
   BookOpenCheck,
   Clock3,
+  Copy,
+  Eye,
   GraduationCap,
   MapPin,
   Pencil,
+  PanelRightClose,
+  PanelRightOpen,
   Plus,
+  RotateCcw,
   Trash2,
   UserRound,
 } from "lucide-react";
 import { useMemo, useState, type ReactNode } from "react";
 import { listOrganizations } from "../../../identity/access/api/access.api";
 import { useAuth } from "../../../identity/auth";
-import { listClasses } from "../../education/api/classes.api";
+import { listClasses, type EducationClass } from "../../education/api/classes.api";
 import { Button, Card, EmptyState, Input, LoadingState } from "../../../../shared/ui/ui";
 import { notify } from "../../../../shared/ui/notifications";
 import {
@@ -25,16 +30,25 @@ import {
 } from "../../../../shared/lib/spreadsheet-transfer";
 import {
   archiveScheduleEntry,
+  archiveScheduleTemplate,
+  applyScheduleTemplate,
   commitScheduleImport,
   createScheduleEntry,
+  createScheduleTemplate,
+  createScheduleTimeBlock,
   deleteScheduleEntry,
+  deleteScheduleTemplate,
+  deleteScheduleTimeBlock,
   exportSchedule,
   listSchedule,
+  listScheduleTemplates,
+  listScheduleTimeBlocks,
   previewScheduleImport,
+  restoreScheduleTemplate,
   type ScheduleDraft,
   updateScheduleEntry,
 } from "../api/schedule.api";
-import type { ScheduleEntry } from "../api/schedule.api";
+import type { ScheduleEntry, ScheduleTemplate, ScheduleTimeBlock } from "../api/schedule.api";
 import { TeacherSchedulePage } from "../../../people/teacher-portal";
 import { OrganizationTag } from "../../../../shared/ui/organization-tag";
 import { todayIso } from "../../../../shared/lib/utils";
@@ -72,6 +86,8 @@ export function LegacySchedulePage() {
   const modal = useModal();
   const client = useQueryClient();
   const [activeWeekday, setActiveWeekday] = useState(() => legacyWeekdayForIso(todayIso()));
+  const [templatePreview, setTemplatePreview] = useState<ScheduleTemplate | null>(null);
+  const [toolsSidebarHidden, setToolsSidebarHidden] = useState(false);
   const selectedOrganizationId = auth.context?.activeOrganization?.id;
   const entries = useQuery({
     queryKey: ["schedule", selectedOrganizationId ?? "all"],
@@ -91,6 +107,17 @@ export function LegacySchedulePage() {
   const canArchive = auth.can("schedule.archive");
   const canDelete = auth.can("schedule.delete");
   const canWrite = canCreate || canEdit;
+  const canManageTemplates = canCreate && canEdit && canArchive && canDelete;
+  const timeBlocks = useQuery({
+    queryKey: ["schedule", "time-blocks", selectedOrganizationId ?? "all"],
+    queryFn: listScheduleTimeBlocks,
+    enabled: canWrite,
+  });
+  const templates = useQuery({
+    queryKey: ["schedule", "templates", selectedOrganizationId ?? "all"],
+    queryFn: listScheduleTemplates,
+    enabled: canManageTemplates,
+  });
   const isTeacher = auth.activeRole === "TEACHER";
   const classes = useQuery({
     queryKey: ["classes", "schedule"],
@@ -110,7 +137,12 @@ export function LegacySchedulePage() {
   const archive = useMutation({
     mutationFn: ({ id, status }: { id: string; status: "ACTIVE" | "ARCHIVED" }) =>
       archiveScheduleEntry(id, status),
-    onSuccess: reload,
+    onSuccess: () => {
+      reload();
+      notify("وضعیت جلسه به‌روزرسانی شد.", "success");
+    },
+    onError: (error) =>
+      notify(error instanceof Error ? error.message : "بایگانی جلسه انجام نشد.", "error"),
   });
   const remove = useMutation({
     mutationFn: deleteScheduleEntry,
@@ -120,6 +152,76 @@ export function LegacySchedulePage() {
     },
     onError: (error) =>
       notify(error instanceof Error ? error.message : "حذف برنامه انجام نشد.", "error"),
+  });
+  const move = useMutation({
+    mutationFn: ({ entry, weekday }: { entry: ScheduleEntry; weekday: number }) =>
+      updateScheduleEntry(entry.id, { ...draftFromEntry(entry), weekday }),
+    onSuccess: () => {
+      reload();
+      notify("جلسه به روز جدید منتقل شد.", "success");
+    },
+    onError: (error) =>
+      notify(error instanceof Error ? error.message : "جابجایی جلسه انجام نشد.", "error"),
+  });
+  const saveTimeBlock = useMutation({
+    mutationFn: createScheduleTimeBlock,
+    onSuccess: () => {
+      void client.invalidateQueries({ queryKey: ["schedule", "time-blocks"] });
+      notify("بازه زمانی ذخیره شد.", "success");
+    },
+    onError: (error) =>
+      notify(error instanceof Error ? error.message : "ذخیره بازه زمانی انجام نشد.", "error"),
+  });
+  const removeTimeBlock = useMutation({
+    mutationFn: deleteScheduleTimeBlock,
+    onSuccess: () => {
+      void client.invalidateQueries({ queryKey: ["schedule", "time-blocks"] });
+      notify("بازه زمانی حذف شد.", "success");
+    },
+    onError: (error) =>
+      notify(error instanceof Error ? error.message : "حذف بازه زمانی انجام نشد.", "error"),
+  });
+  const templateReload = () => void client.invalidateQueries({ queryKey: ["schedule"] });
+  const createTemplate = useMutation({
+    mutationFn: createScheduleTemplate,
+    onSuccess: () => {
+      templateReload();
+      notify("الگوی برنامه ذخیره شد.", "success");
+    },
+    onError: (e) => notify(e instanceof Error ? e.message : "ذخیره الگو انجام نشد.", "error"),
+  });
+  const applyTemplate = useMutation({
+    mutationFn: applyScheduleTemplate,
+    onSuccess: (result) => {
+      setTemplatePreview(null);
+      templateReload();
+      notify(`${result.applied} جلسه از الگو اجرا شد.`, "success");
+    },
+    onError: (e) => notify(e instanceof Error ? e.message : "اجرای الگو انجام نشد.", "error"),
+  });
+  const archiveTemplate = useMutation({
+    mutationFn: archiveScheduleTemplate,
+    onSuccess: () => {
+      templateReload();
+      notify("الگو بایگانی شد.", "success");
+    },
+    onError: (e) => notify(e instanceof Error ? e.message : "بایگانی الگو انجام نشد.", "error"),
+  });
+  const restoreTemplate = useMutation({
+    mutationFn: restoreScheduleTemplate,
+    onSuccess: () => {
+      templateReload();
+      notify("الگو از بایگانی خارج شد.", "success");
+    },
+    onError: (e) => notify(e instanceof Error ? e.message : "بازیابی الگو انجام نشد.", "error"),
+  });
+  const removeTemplate = useMutation({
+    mutationFn: deleteScheduleTemplate,
+    onSuccess: () => {
+      templateReload();
+      notify("الگو حذف شد.", "success");
+    },
+    onError: (e) => notify(e instanceof Error ? e.message : "حذف الگو انجام نشد.", "error"),
   });
   async function download() {
     try {
@@ -179,32 +281,36 @@ export function LegacySchedulePage() {
   if (
     entries.isLoading ||
     (canReadOrganizations && organizations.isLoading) ||
-    (canWrite && classes.isLoading)
+    (canWrite && (classes.isLoading || timeBlocks.isLoading)) ||
+    (canManageTemplates && templates.isLoading)
   )
     return <LoadingState label="در حال دریافت برنامه…" />;
   if (
     entries.isError ||
     (canReadOrganizations && organizations.isError) ||
-    (canWrite && classes.isError)
+    (canWrite && (classes.isError || timeBlocks.isError)) ||
+    (canManageTemplates && templates.isError)
   )
     return <EmptyState title="دریافت برنامه انجام نشد." />;
   if (isTeacher) return <TeacherSchedulePage entries={entries.data ?? []} />;
-  const editEntry = (entry?: ScheduleEntry) => {
+  const editEntry = (entry?: ScheduleEntry, copy = false) => {
     modal.open({
-      title: entry ? "ویرایش جلسه" : "افزودن جلسه به برنامه",
-      description: entry
-        ? "جزئیات جلسه را اصلاح کنید؛ تغییرات فقط پس از ذخیره اعمال می‌شود."
-        : "گام ۱: مدرسه و کلاس را مشخص کنید. گام ۲: زمان و فضای جلسه را وارد کنید.",
+      title: entry ? (copy ? "کپی جلسه در برنامه" : "ویرایش جلسه") : "افزودن جلسه به برنامه",
+      description:
+        entry && !copy
+          ? "جزئیات جلسه را اصلاح کنید؛ تغییرات فقط پس از ذخیره اعمال می‌شود."
+          : "روز و زمان مقصد را انتخاب کنید؛ جلسه اصلی بدون تغییر باقی می‌ماند.",
       size: "lg",
       content: (
         <ScheduleEditorForm
           initial={entry ? draftFromEntry(entry) : blank()}
+          timeBlocks={timeBlocks.data ?? []}
           organizations={organizationOptions}
           classes={classes.data ?? []}
           isSaving={save.isPending}
           onCancel={modal.close}
           onSubmit={async (draft) => {
-            await save.mutateAsync({ id: entry?.id, draft });
+            await save.mutateAsync({ id: copy ? undefined : entry?.id, draft });
             modal.close();
           }}
         />
@@ -223,6 +329,28 @@ export function LegacySchedulePage() {
       })
       .then((confirmed) => confirmed && remove.mutate(entry.id));
   };
+  const confirmArchive = (entry: ScheduleEntry) => {
+    const archiving = entry.status === "ACTIVE";
+    void modal
+      .confirm({
+        title: archiving ? "بایگانی جلسه؟" : "بازیابی جلسه؟",
+        description: archiving
+          ? `«${entry.title}» از برنامه فعال خارج می‌شود و در بخش بایگانی می‌ماند.`
+          : `«${entry.title}» دوباره در برنامه فعال نمایش داده می‌شود.`,
+        tone: archiving ? "danger" : "default",
+        confirmLabel: archiving ? "بایگانی جلسه" : "بازیابی جلسه",
+        cancelLabel: "انصراف",
+        softConfirm: archiving,
+      })
+      .then(
+        (confirmed) =>
+          confirmed &&
+          archive.mutate({
+            id: entry.id,
+            status: archiving ? "ARCHIVED" : "ACTIVE",
+          }),
+      );
+  };
   const openDetails = (entry: ScheduleEntry) => {
     modal.open({
       title: "جزئیات جلسه",
@@ -233,6 +361,7 @@ export function LegacySchedulePage() {
           entry={entry}
           showOrganization={auth.hasRole("PLATFORM_ADMIN")}
           canEdit={canEdit}
+          canCreate={canCreate}
           canArchive={canArchive}
           canDelete={canDelete}
           onClose={modal.close}
@@ -240,12 +369,13 @@ export function LegacySchedulePage() {
             modal.close();
             editEntry(entry);
           }}
+          onCopy={() => {
+            modal.close();
+            editEntry(entry, true);
+          }}
           onArchive={() => {
             modal.close();
-            archive.mutate({
-              id: entry.id,
-              status: entry.status === "ACTIVE" ? "ARCHIVED" : "ACTIVE",
-            });
+            confirmArchive(entry);
           }}
           onDelete={() => {
             modal.close();
@@ -255,14 +385,70 @@ export function LegacySchedulePage() {
       ),
     });
   };
+  const scheduleEntries = entries.data ?? [];
+  const scheduleToolbar = auth.canAny(["schedule.import", "schedule.export"]) ? (
+    <SpreadsheetTransferLauncher
+      title="ورود و خروجی برنامه"
+      description="نمونه را دریافت کنید، فایل را وارد کنید یا خروجی فعلی را بگیرید. خطاها با شماره ردیف و ستون نمایش داده می‌شوند."
+      trigger="Excel"
+    >
+      <div className="grid gap-3">
+        <p className="text-sm leading-6 text-slate-500">
+          فایل باید ستون‌های برنامه هفتگی را داشته باشد.
+        </p>
+        <SpreadsheetTransferActions
+          canImport={auth.can("schedule.import")}
+          canExport={auth.can("schedule.export")}
+          onImport={(file) => void importFile(file)}
+          onTemplate={() => void downloadTemplate()}
+          onExport={() => void download()}
+        />
+      </div>
+    </SpreadsheetTransferLauncher>
+  ) : null;
   return (
     <section
-      className="grid w-full max-w-none gap-4 pb-[calc(6rem+env(safe-area-inset-bottom))] min-[960px]:grid-cols-[minmax(0,1fr)_22rem] min-[960px]:pb-6"
+      className={`relative grid w-full max-w-none gap-4 pb-[calc(6rem+env(safe-area-inset-bottom))] min-[960px]:pb-6 min-[960px]:transition-[grid-template-columns] min-[960px]:duration-300 min-[960px]:ease-out motion-reduce:transition-none ${toolsSidebarHidden ? "min-[960px]:grid-cols-[minmax(0,1fr)_0rem]" : "min-[960px]:grid-cols-[minmax(0,1fr)_22rem]"}`}
       dir="rtl"
     >
+      <button
+        type="button"
+        className="absolute -left-3 top-4 z-20 hidden size-11 place-items-center rounded-r-full border border-slate-200 bg-[rgb(var(--surface-card))] text-slate-500 shadow-[0_8px_20px_rgb(15_23_42_/_14%)] outline-none transition hover:bg-brand hover:text-white focus-visible:ring-2 focus-visible:ring-brand motion-reduce:transition-none min-[960px]:grid"
+        onClick={() => setToolsSidebarHidden((hidden) => !hidden)}
+        title={toolsSidebarHidden ? "نمایش ابزارهای برنامه" : "پنهان کردن ابزارهای برنامه"}
+        aria-label={toolsSidebarHidden ? "نمایش ابزارهای برنامه" : "پنهان کردن ابزارهای برنامه"}
+        aria-expanded={!toolsSidebarHidden}
+        aria-controls="legacy-schedule-tools"
+      >
+        {toolsSidebarHidden ? (
+          <PanelRightOpen size={18} aria-hidden="true" />
+        ) : (
+          <PanelRightClose size={18} aria-hidden="true" />
+        )}
+      </button>
       <div className="order-2 grid gap-3 min-[960px]:order-1">
+        {templatePreview ? (
+          <ScheduleTemplatePreview
+            template={templatePreview}
+            activeEntries={scheduleEntries.filter((entry) => entry.status === "ACTIVE")}
+            onCancel={() => setTemplatePreview(null)}
+            onApply={() =>
+              void modal
+                .confirm({
+                  title: "اجرای الگوی برنامه؟",
+                  description: `جلسه‌های فعال فعلی با جلسه‌های «${templatePreview.name}» جایگزین می‌شوند. جلسه‌ای به بایگانی برنامه اضافه نمی‌شود.`,
+                  tone: "danger",
+                  confirmLabel: "اجرای الگو",
+                  cancelLabel: "انصراف",
+                  softConfirm: true,
+                })
+                .then((ok) => ok && applyTemplate.mutate(templatePreview.id))
+            }
+          />
+        ) : null}
         <ScheduleWorkspace
-          entries={entries.data ?? []}
+          entries={scheduleEntries}
+          classes={classes.data ?? []}
           activeWeekday={activeWeekday}
           onWeekdayChange={setActiveWeekday}
           canEdit={canEdit}
@@ -270,52 +456,125 @@ export function LegacySchedulePage() {
           showOrganization={auth.hasRole("PLATFORM_ADMIN")}
           canDelete={canDelete}
           onEdit={editEntry}
-          onArchive={(entry) =>
-            archive.mutate({
-              id: entry.id,
-              status: entry.status === "ACTIVE" ? "ARCHIVED" : "ACTIVE",
-            })
-          }
+          onArchive={confirmArchive}
           onDelete={confirmDelete}
           onOpenDetails={openDetails}
-          toolbar={
-            auth.canAny(["schedule.import", "schedule.export"]) ? (
-              <SpreadsheetTransferLauncher
-                title="ورود و خروجی برنامه"
-                description="نمونه را دریافت کنید، فایل را وارد کنید یا خروجی فعلی را بگیرید. خطاها با شماره ردیف و ستون نمایش داده می‌شوند."
-                trigger="Excel"
-              >
-                <div className="grid gap-3">
-                  <p className="text-sm leading-6 text-slate-500">
-                    فایل باید ستون‌های برنامه هفتگی را داشته باشد.
-                  </p>
-                  <SpreadsheetTransferActions
-                    canImport={auth.can("schedule.import")}
-                    canExport={auth.can("schedule.export")}
-                    onImport={(file) => void importFile(file)}
-                    onTemplate={() => void downloadTemplate()}
-                    onExport={() => void download()}
-                  />
-                </div>
-              </SpreadsheetTransferLauncher>
-            ) : null
-          }
+          onMove={(entry, weekday) => move.mutate({ entry, weekday })}
         />
       </div>
-      {canCreate ? (
-        <Card className="order-1 border-brand/15 bg-[rgb(var(--surface-card))] p-4 min-[960px]:order-2 min-[960px]:sticky min-[960px]:top-3 min-[960px]:self-start">
-          <span className="grid size-10 place-items-center rounded-xl bg-brand/10 text-brand">
-            <Plus size={20} />
-          </span>
-          <h2 className="mt-3 font-black text-ink">ساخت جلسه، بدون ترک جدول</h2>
-          <p className="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-300">
-            در یک فرم کوتاه، مدرسه، زمان و فضای جلسه را مشخص کنید.
-          </p>
-          <Button className="mt-4 w-full" onClick={() => editEntry()}>
-            <Plus size={16} /> افزودن جلسه
-          </Button>
-        </Card>
-      ) : null}
+      <aside
+        id="legacy-schedule-tools"
+        aria-label="ابزارهای برنامه هفتگی"
+        aria-hidden={toolsSidebarHidden}
+        inert={toolsSidebarHidden}
+        className={`order-1 grid min-w-0 gap-3 overflow-hidden transition-[opacity,transform] duration-300 ease-out motion-reduce:transition-none min-[960px]:order-2 min-[960px]:sticky min-[960px]:top-3 min-[960px]:self-start ${toolsSidebarHidden ? "min-[960px]:pointer-events-none min-[960px]:translate-x-3 min-[960px]:opacity-0" : "min-[960px]:translate-x-0 min-[960px]:opacity-100"}`}
+      >
+        <div className="grid gap-3 min-[960px]:max-h-[calc(100dvh-7rem)] min-[960px]:overflow-y-auto min-[960px]:pe-1 [scrollbar-color:rgb(var(--border-subtle))_transparent] [scrollbar-width:thin]">
+          <header className="flex items-center gap-2 px-1">
+            <span
+              className="grid size-9 place-items-center rounded-xl bg-brand/10 text-brand"
+              aria-hidden="true"
+            >
+              <CalendarClock size={18} />
+            </span>
+            <div>
+              <h2 className="text-sm font-black text-ink">ابزارهای برنامه</h2>
+              <p className="text-[11px] text-slate-500 dark:text-slate-300">
+                جلسه‌ها، زمان‌ها و الگوها را از همین‌جا مدیریت کنید.
+              </p>
+            </div>
+          </header>
+          <ScheduleSidebarSummary entries={scheduleEntries} toolbar={scheduleToolbar} />
+          {canCreate ? (
+            <Card className="border-brand/15 bg-[rgb(var(--surface-card))] p-4">
+              <span className="grid size-10 place-items-center rounded-xl bg-brand/10 text-brand">
+                <Plus size={20} />
+              </span>
+              <h3 className="mt-3 font-black text-ink">ساخت جلسه، بدون ترک جدول</h3>
+              <p className="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-300">
+                در یک فرم کوتاه، مدرسه، زمان و فضای جلسه را مشخص کنید.
+              </p>
+              <Button className="mt-4 w-full" onClick={() => editEntry()}>
+                <Plus size={16} /> افزودن جلسه
+              </Button>
+            </Card>
+          ) : null}
+          {canEdit ? (
+            <ScheduleTimeBlocks
+              blocks={timeBlocks.data ?? []}
+              organizationId={selectedOrganizationId}
+              saving={saveTimeBlock.isPending}
+              removing={removeTimeBlock.isPending}
+              onCreate={(draft) => saveTimeBlock.mutate(draft)}
+              onRemove={(block) =>
+                void modal
+                  .confirm({
+                    title: "حذف بازه زمانی؟",
+                    description: `«${block.name}» از فهرست بازه‌های قابل‌استفاده حذف می‌شود؛ جلسه‌های قبلی تغییری نمی‌کنند.`,
+                    tone: "danger",
+                    confirmLabel: "حذف بازه",
+                    cancelLabel: "انصراف",
+                    softConfirm: true,
+                  })
+                  .then((confirmed) => confirmed && removeTimeBlock.mutate(block.id))
+              }
+            />
+          ) : null}
+          {canManageTemplates ? (
+            <ScheduleTemplates
+              templates={templates.data ?? []}
+              organizationId={selectedOrganizationId}
+              onCreate={(name) =>
+                selectedOrganizationId &&
+                createTemplate.mutate({ organizationId: selectedOrganizationId, name })
+              }
+              onCopy={(template) =>
+                selectedOrganizationId &&
+                createTemplate.mutate({
+                  organizationId: selectedOrganizationId,
+                  name: `${template.name} (کپی)`,
+                  sourceTemplateId: template.id,
+                })
+              }
+              onPreview={setTemplatePreview}
+              onArchive={(template) =>
+                void modal
+                  .confirm({
+                    title: "بایگانی الگو؟",
+                    description: `«${template.name}» دیگر قابل اجرا نخواهد بود.`,
+                    tone: "danger",
+                    confirmLabel: "بایگانی الگو",
+                    cancelLabel: "انصراف",
+                    softConfirm: true,
+                  })
+                  .then((ok) => ok && archiveTemplate.mutate(template.id))
+              }
+              onRestore={(template) =>
+                void modal
+                  .confirm({
+                    title: "بازیابی الگوی برنامه؟",
+                    description: `«${template.name}» دوباره در فهرست الگوهای قابل اجرا قرار می‌گیرد.`,
+                    confirmLabel: "بازیابی الگو",
+                    cancelLabel: "انصراف",
+                  })
+                  .then((ok) => ok && restoreTemplate.mutate(template.id))
+              }
+              onRemove={(template) =>
+                void modal
+                  .confirm({
+                    title: "حذف الگوی برنامه؟",
+                    description: `«${template.name}» برای همیشه حذف می‌شود؛ جلسه‌های ساخته‌شده از آن تغییری نمی‌کنند.`,
+                    tone: "danger",
+                    confirmLabel: "حذف الگو",
+                    cancelLabel: "انصراف",
+                    softConfirm: true,
+                  })
+                  .then((ok) => ok && removeTemplate.mutate(template.id))
+              }
+            />
+          ) : null}
+        </div>
+      </aside>
     </section>
   );
 }
@@ -324,6 +583,7 @@ const displayWeekdays = [0, 1, 2, 3, 4, 5, 6] as const;
 
 type ScheduleWorkspaceProps = {
   entries: ScheduleEntry[];
+  classes: EducationClass[];
   activeWeekday: number;
   onWeekdayChange: (weekday: number) => void;
   canEdit: boolean;
@@ -334,11 +594,47 @@ type ScheduleWorkspaceProps = {
   onArchive: (entry: ScheduleEntry) => void;
   onDelete: (entry: ScheduleEntry) => void;
   onOpenDetails: (entry: ScheduleEntry) => void;
-  toolbar?: ReactNode;
+  onMove: (entry: ScheduleEntry, weekday: number) => void;
 };
+
+function ScheduleSidebarSummary({
+  entries,
+  toolbar,
+}: {
+  entries: ScheduleEntry[];
+  toolbar?: ReactNode;
+}) {
+  const activeEntries = entries.filter((entry) => entry.status === "ACTIVE");
+  const today = legacyWeekdayForIso(todayIso());
+  const daysWithSessions = new Set(activeEntries.map((entry) => entry.weekday)).size;
+  return (
+    <Card className="grid gap-3 p-4">
+      <div className="flex items-center justify-between gap-2">
+        <div>
+          <h3 className="text-sm font-black text-ink">نمای کلی برنامه</h3>
+          <p className="mt-0.5 text-[11px] text-slate-500">وضعیت برنامه فعال مدرسه</p>
+        </div>
+        <span className="rounded-full bg-emerald-500/10 px-2 py-1 text-[10px] font-black text-emerald-700 dark:text-emerald-300">
+          فعال
+        </span>
+      </div>
+      {toolbar ? <div className="flex min-w-0 flex-wrap justify-end gap-2">{toolbar}</div> : null}
+      <div className="grid grid-cols-3 gap-2" aria-label="خلاصه برنامه هفتگی">
+        <ScheduleMetric label="جلسه فعال" value={activeEntries.length} tone="blue" />
+        <ScheduleMetric
+          label="امروز"
+          value={activeEntries.filter((entry) => entry.weekday === today).length}
+          tone="teal"
+        />
+        <ScheduleMetric label="روزهای دارای کلاس" value={daysWithSessions} tone="violet" />
+      </div>
+    </Card>
+  );
+}
 
 function ScheduleWorkspace({
   entries,
+  classes,
   activeWeekday,
   onWeekdayChange,
   canEdit,
@@ -349,7 +645,7 @@ function ScheduleWorkspace({
   onArchive,
   onDelete,
   onOpenDetails,
-  toolbar,
+  onMove,
 }: ScheduleWorkspaceProps) {
   const isMobileShell = useViewportShell() === "mobile";
   const activeScheduleEntries = useMemo(
@@ -374,42 +670,54 @@ function ScheduleWorkspace({
   );
   const today = legacyWeekdayForIso(todayIso());
   const activeEntries = entriesByWeekday.get(activeWeekday) ?? [];
+  const [draggedEntry, setDraggedEntry] = useState<ScheduleEntry | null>(null);
   const classLanes = useMemo(() => {
-    const lanes = new Map<string, ScheduleEntry[]>();
+    const lanesByClassId = new Map(
+      classes
+        .filter((classroom) => classroom.status === "ACTIVE")
+        .map((classroom) => [
+          classroom.id,
+          {
+            id: `class:${classroom.id}`,
+            label: classroom.name,
+            entries: [] as ScheduleEntry[],
+          },
+        ]),
+    );
+    const additionalLanes = new Map<
+      string,
+      { id: string; label: string; entries: ScheduleEntry[] }
+    >();
 
     activeScheduleEntries.forEach((entry) => {
+      const classroomLane = entry.classroom?.id
+        ? lanesByClassId.get(entry.classroom.id)
+        : undefined;
+      if (classroomLane) {
+        classroomLane.entries.push(entry);
+        return;
+      }
+
       const label = entry.classroom?.name || entry.room || "برنامه عمومی مدرسه";
-      lanes.set(label, [...(lanes.get(label) ?? []), entry]);
+      const id = `other:${entry.classroom?.id ?? label}`;
+      const lane = additionalLanes.get(id) ?? { id, label, entries: [] };
+      lane.entries.push(entry);
+      additionalLanes.set(id, lane);
     });
 
-    return Array.from(lanes, ([label, laneEntries]) => ({
-      label,
-      entries: laneEntries.sort((left, right) => {
-        const weekdayOrder = left.weekday - right.weekday;
-        return weekdayOrder || left.startTime.localeCompare(right.startTime);
-      }),
-    })).sort((left, right) => left.label.localeCompare(right.label, "fa"));
-  }, [activeScheduleEntries]);
+    return [...lanesByClassId.values(), ...additionalLanes.values()]
+      .map((lane) => ({
+        ...lane,
+        entries: lane.entries.sort((left, right) => {
+          const weekdayOrder = left.weekday - right.weekday;
+          return weekdayOrder || left.startTime.localeCompare(right.startTime);
+        }),
+      }))
+      .sort((left, right) => left.label.localeCompare(right.label, "fa"));
+  }, [activeScheduleEntries, classes]);
 
   return (
     <section className="grid gap-3" aria-label="برنامه هفتگی مدرسه">
-      <section className="grid gap-3">
-        <div className="flex min-w-0 flex-wrap justify-end gap-2">{toolbar}</div>
-        <div className="relative mt-4 grid grid-cols-3 gap-2 sm:max-w-lg">
-          <ScheduleMetric label="جلسه فعال" value={activeScheduleEntries.length} tone="blue" />
-          <ScheduleMetric
-            label="امروز"
-            value={(entriesByWeekday.get(today) ?? []).length}
-            tone="teal"
-          />
-          <ScheduleMetric
-            label="روزهای دارای کلاس"
-            value={Array.from(entriesByWeekday.values()).filter((rows) => rows.length).length}
-            tone="violet"
-          />
-        </div>
-      </section>
-
       <Card className="overflow-hidden p-0 shadow-[0_16px_28px_-26px_rgba(18,52,86,.45)]">
         <div className="flex items-center justify-between gap-3 border-b border-[rgb(var(--border-subtle))] px-3 py-3 sm:px-4">
           <div className="flex min-w-0 items-center gap-2">
@@ -503,7 +811,7 @@ function ScheduleWorkspace({
                 <tbody>
                   {classLanes.map((lane, rowIndex) => (
                     <tr
-                      key={lane.label}
+                      key={lane.id}
                       className={rowIndex % 2 ? "bg-slate-50/70 dark:bg-white/[.025]" : ""}
                     >
                       <th
@@ -512,7 +820,9 @@ function ScheduleWorkspace({
                       >
                         <span className="block leading-5">{lane.label}</span>
                         <span className="mt-1 block text-[10px] font-bold text-slate-400">
-                          {lane.entries.length.toLocaleString("fa-IR")} جلسه
+                          {lane.entries.length
+                            ? `${lane.entries.length.toLocaleString("fa-IR")} جلسه`
+                            : "هنوز جلسه‌ای ندارد"}
                         </span>
                       </th>
                       {displayWeekdays.map((weekday) => {
@@ -522,6 +832,14 @@ function ScheduleWorkspace({
                         return (
                           <td
                             key={weekday}
+                            onDragOver={(event) => {
+                              if (canEdit) event.preventDefault();
+                            }}
+                            onDrop={() => {
+                              if (draggedEntry && draggedEntry.weekday !== weekday)
+                                onMove(draggedEntry, weekday);
+                              setDraggedEntry(null);
+                            }}
                             className={`align-top border-s border-t border-slate-200 p-1.5 dark:border-white/10 ${weekday === today ? "bg-brand/[.045]" : ""}`}
                           >
                             {cellEntries.length ? (
@@ -538,6 +856,8 @@ function ScheduleWorkspace({
                                     onArchive={onArchive}
                                     onDelete={onDelete}
                                     onOpenPlan={onOpenDetails}
+                                    onDragStart={() => setDraggedEntry(entry)}
+                                    onDragEnd={() => setDraggedEntry(null)}
                                   />
                                 ))}
                               </div>
@@ -619,6 +939,8 @@ function ScheduleMatrixCell({
   onArchive,
   onDelete,
   onOpenPlan,
+  onDragStart,
+  onDragEnd,
 }: {
   entry: ScheduleEntry;
   showOrganization: boolean;
@@ -629,10 +951,20 @@ function ScheduleMatrixCell({
   onArchive: (entry: ScheduleEntry) => void;
   onDelete: (entry: ScheduleEntry) => void;
   onOpenPlan: (entry: ScheduleEntry) => void;
+  onDragStart: () => void;
+  onDragEnd: () => void;
 }) {
   return (
     <article
-      className={`rounded-md border px-1.5 py-1 shadow-[0_5px_9px_-9px_rgba(20,81,138,.7)] dark:border-white/10 ${
+      draggable={canEdit}
+      onDragStart={onDragStart}
+      onDragEnd={onDragEnd}
+      title={
+        canEdit
+          ? "برای انتقال به روز دیگر بکشید؛ برای تغییر ساعت، ویرایش را انتخاب کنید."
+          : undefined
+      }
+      className={`rounded-md border px-1.5 py-1 shadow-[0_5px_9px_-9px_rgba(20,81,138,.7)] dark:border-white/10 ${canEdit ? "cursor-grab active:cursor-grabbing" : ""} ${
         isSchoolWidePlan(entry)
           ? "border-amber-300 bg-[#fff7cc] dark:border-amber-400/30 dark:bg-amber-500/15"
           : "border-slate-200 bg-white/90 dark:bg-white/[.04]"
@@ -791,9 +1123,11 @@ function SchedulePlanModal({
   entry,
   showOrganization,
   canEdit,
+  canCreate,
   canArchive,
   canDelete,
   onEdit,
+  onCopy,
   onArchive,
   onDelete,
   onClose,
@@ -801,9 +1135,11 @@ function SchedulePlanModal({
   entry: ScheduleEntry;
   showOrganization: boolean;
   canEdit: boolean;
+  canCreate: boolean;
   canArchive: boolean;
   canDelete: boolean;
   onEdit: () => void;
+  onCopy: () => void;
   onArchive: () => void;
   onDelete: () => void;
   onClose: () => void;
@@ -852,8 +1188,13 @@ function SchedulePlanModal({
         </section>
       ) : null}
 
-      {canEdit || canArchive || canDelete ? (
+      {canCreate || canEdit || canArchive || canDelete ? (
         <div className="grid gap-2 border-t border-[rgb(var(--border-subtle))] pt-4 sm:grid-cols-2">
+          {canCreate ? (
+            <Button variant="soft" onClick={onCopy}>
+              <Copy size={16} /> کپی در روز یا ساعت دیگر
+            </Button>
+          ) : null}
           {canEdit ? (
             <Button variant="soft" onClick={onEdit}>
               <Pencil size={16} /> ویرایش برنامه
@@ -881,6 +1222,7 @@ function SchedulePlanModal({
 
 function ScheduleEditorForm({
   initial,
+  timeBlocks,
   organizations,
   classes,
   isSaving,
@@ -888,6 +1230,7 @@ function ScheduleEditorForm({
   onSubmit,
 }: {
   initial: ScheduleDraft;
+  timeBlocks: ScheduleTimeBlock[];
   organizations: Array<{ id: string; name: string }>;
   classes: Array<{
     id: string;
@@ -1041,6 +1384,27 @@ function ScheduleEditorForm({
             />
           </label>
         </div>
+        {timeBlocks.length ? (
+          <label className="grid gap-1.5 text-sm font-bold">
+            بازه زمانی آماده
+            <AdaptiveSelect
+              defaultValue=""
+              onChange={(event) => {
+                const block = timeBlocks.find((item) => item.id === event.target.value);
+                if (block) update({ startTime: block.startTime, endTime: block.endTime });
+              }}
+              className="h-11 rounded-xl border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card))] px-3 text-sm text-ink focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20"
+            >
+              <option value="">یک بازه را برای اعمال زمان انتخاب کنید</option>
+              {timeBlocks.map((block) => (
+                <option key={block.id} value={block.id}>
+                  {block.name} · {block.startTime} تا {block.endTime}
+                  {timeBlockPartOfDay(block.startTime)}
+                </option>
+              ))}
+            </AdaptiveSelect>
+          </label>
+        ) : null}
         {attempted && invalidTime ? (
           <p className="text-xs font-bold text-rose-600">زمان پایان باید پس از زمان شروع باشد.</p>
         ) : null}
@@ -1063,6 +1427,316 @@ function ScheduleEditorForm({
       </div>
     </form>
   );
+}
+
+function ScheduleTemplatePreview({
+  template,
+  activeEntries,
+  onCancel,
+  onApply,
+}: {
+  template: ScheduleTemplate;
+  activeEntries: ScheduleEntry[];
+  onCancel: () => void;
+  onApply: () => void;
+}) {
+  const orderedTemplateEntries = [...template.entries].sort(
+    (left, right) => left.weekday - right.weekday || left.startTime.localeCompare(right.startTime),
+  );
+  const orderedActiveEntries = [...activeEntries].sort(
+    (left, right) => left.weekday - right.weekday || left.startTime.localeCompare(right.startTime),
+  );
+  return (
+    <Card className="border-brand/25 bg-brand/5 p-4" aria-live="polite">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <p className="text-xs font-bold text-brand">پیش‌نمایش تغییر برنامه</p>
+          <h2 className="mt-1 text-base font-black text-ink">اجرای «{template.name}»</h2>
+          <p className="mt-1 text-xs leading-5 text-slate-600 dark:text-slate-300">
+            جلسه‌های فعال فعلی جایگزین می‌شوند و به بایگانی برنامه منتقل نخواهند شد.
+          </p>
+        </div>
+        <span className="rounded-full bg-[rgb(var(--surface-card))] px-3 py-1 text-xs font-bold text-brand">
+          {template.entries.length.toLocaleString("fa-IR")} جلسه جدید
+        </span>
+      </div>
+      <div className="mt-4 grid gap-3 lg:grid-cols-2">
+        <ScheduleTemplatePreviewColumn
+          title={`جلسه‌های فعلی (${activeEntries.length.toLocaleString("fa-IR")})`}
+          entries={orderedActiveEntries.map((entry) => ({
+            key: entry.id,
+            label: entry.title,
+            meta: `${weekdays[entry.weekday]} · ${entry.startTime} تا ${entry.endTime}${entry.room ? ` · ${entry.room}` : ""}`,
+          }))}
+          empty="جلسه فعالی وجود ندارد."
+        />
+        <ScheduleTemplatePreviewColumn
+          title={`جلسه‌های الگو (${template.entries.length.toLocaleString("fa-IR")})`}
+          entries={orderedTemplateEntries.map((entry, index) => ({
+            key: `${entry.weekday}-${entry.startTime}-${entry.title}-${index}`,
+            label: entry.title,
+            meta: `${weekdays[entry.weekday]} · ${entry.startTime} تا ${entry.endTime}${entry.room ? ` · ${entry.room}` : ""}`,
+          }))}
+          empty="این الگو جلسه‌ای ندارد."
+        />
+      </div>
+      <div className="mt-4 flex flex-wrap justify-end gap-2">
+        <Button variant="ghost" onClick={onCancel}>
+          انصراف
+        </Button>
+        <Button onClick={onApply}>تأیید و اجرای الگو</Button>
+      </div>
+    </Card>
+  );
+}
+
+function ScheduleTemplatePreviewColumn({
+  title,
+  entries,
+  empty,
+}: {
+  title: string;
+  entries: Array<{ key: string; label: string; meta: string }>;
+  empty: string;
+}) {
+  return (
+    <section className="rounded-xl border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card))] p-3">
+      <h3 className="text-xs font-black text-ink">{title}</h3>
+      {entries.length ? (
+        <ul className="mt-2 grid max-h-44 gap-1 overflow-y-auto pe-1">
+          {entries.map((entry) => (
+            <li key={entry.key} className="rounded-lg bg-[rgb(var(--surface-muted))] px-2.5 py-2">
+              <p className="truncate text-xs font-bold text-ink">{entry.label}</p>
+              <p className="mt-0.5 truncate text-[11px] text-slate-500">{entry.meta}</p>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="mt-2 text-xs text-slate-500">{empty}</p>
+      )}
+    </section>
+  );
+}
+
+function ScheduleTemplates({
+  templates,
+  organizationId,
+  onCreate,
+  onCopy,
+  onPreview,
+  onArchive,
+  onRestore,
+  onRemove,
+}: {
+  templates: ScheduleTemplate[];
+  organizationId?: string;
+  onCreate: (name: string) => void;
+  onCopy: (template: ScheduleTemplate) => void;
+  onPreview: (template: ScheduleTemplate) => void;
+  onArchive: (template: ScheduleTemplate) => void;
+  onRestore: (template: ScheduleTemplate) => void;
+  onRemove: (template: ScheduleTemplate) => void;
+}) {
+  const [name, setName] = useState("");
+  return (
+    <Card className="p-4" dir="rtl">
+      <h3 className="text-sm font-black text-ink">الگوهای برنامه</h3>
+      <p className="mt-1 text-[11px] text-slate-500">
+        از برنامه فعال نسخه بسازید و هر زمان اجرا کنید.
+      </p>
+      <form
+        className="mt-3 flex gap-2"
+        onSubmit={(event) => {
+          event.preventDefault();
+          if (organizationId && name.trim()) {
+            onCreate(name.trim());
+            setName("");
+          }
+        }}
+      >
+        <Input
+          aria-label="نام الگوی برنامه"
+          value={name}
+          onChange={(event) => setName(event.target.value)}
+          placeholder="مثلاً برنامه ماه رمضان"
+        />
+        <Button type="submit" variant="soft" disabled={!organizationId || !name.trim()}>
+          ساخت الگو
+        </Button>
+      </form>
+      {templates.length ? (
+        <ul className="mt-3 grid max-h-72 gap-1.5 overflow-y-auto pe-1 [scrollbar-width:thin]">
+          {templates.map((template) => (
+            <li
+              key={template.id}
+              className="grid gap-2 rounded-lg bg-[rgb(var(--surface-muted))] p-2.5 text-xs"
+            >
+              <div className="flex min-w-0 items-center justify-between gap-2">
+                <span className="min-w-0 truncate font-bold">{template.name}</span>
+                <span
+                  className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold ${template.state === "ACTIVE" ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300" : "bg-slate-500/10 text-slate-600 dark:text-slate-300"}`}
+                >
+                  {template.state === "ACTIVE" ? "فعال" : "بایگانی"}
+                </span>
+              </div>
+              <p className="text-[11px] text-slate-500 dark:text-slate-300">
+                {template.entries.length.toLocaleString("fa-IR")} جلسه در الگو
+              </p>
+              <div className="flex flex-wrap gap-1">
+                {template.state === "ACTIVE" ? (
+                  <Button size="sm" variant="soft" onClick={() => onPreview(template)}>
+                    <Eye size={13} /> بررسی
+                  </Button>
+                ) : (
+                  <Button size="sm" variant="soft" onClick={() => onRestore(template)}>
+                    <RotateCcw size={13} /> بازیابی
+                  </Button>
+                )}
+                <Button size="sm" variant="ghost" onClick={() => onCopy(template)}>
+                  <Copy size={13} /> کپی
+                </Button>
+                {template.state === "ACTIVE" ? (
+                  <Button size="sm" variant="ghost" onClick={() => onArchive(template)}>
+                    <Archive size={13} /> بایگانی
+                  </Button>
+                ) : null}
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="text-rose-700 hover:bg-rose-50 hover:text-rose-800 dark:text-rose-300 dark:hover:bg-rose-950/30"
+                  onClick={() => onRemove(template)}
+                >
+                  <Trash2 size={13} /> حذف
+                </Button>
+              </div>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="mt-3 text-xs text-slate-500">هنوز الگویی ثبت نشده است.</p>
+      )}
+    </Card>
+  );
+}
+
+function ScheduleTimeBlocks({
+  blocks,
+  organizationId,
+  saving,
+  removing,
+  onCreate,
+  onRemove,
+}: {
+  blocks: ScheduleTimeBlock[];
+  organizationId?: string;
+  saving: boolean;
+  removing: boolean;
+  onCreate: (draft: {
+    organizationId: string;
+    name: string;
+    startTime: string;
+    endTime: string;
+  }) => void;
+  onRemove: (block: ScheduleTimeBlock) => void;
+}) {
+  const [name, setName] = useState("");
+  const [startTime, setStartTime] = useState("08:00");
+  const [endTime, setEndTime] = useState("09:00");
+  const valid = Boolean(organizationId && name.trim() && startTime < endTime);
+  return (
+    <Card className="p-4" dir="rtl">
+      <div className="flex items-center gap-2">
+        <span className="grid size-9 place-items-center rounded-xl bg-brand/10 text-brand">
+          <Clock3 size={17} />
+        </span>
+        <div>
+          <h3 className="text-sm font-black text-ink">بازه‌های زمانی آماده</h3>
+          <p className="text-[11px] text-slate-500">یک‌بار بسازید، در هر جلسه استفاده کنید.</p>
+        </div>
+      </div>
+      <form
+        className="mt-3 grid gap-2"
+        onSubmit={(event) => {
+          event.preventDefault();
+          if (!organizationId || !valid) return;
+          onCreate({ organizationId, name: name.trim(), startTime, endTime });
+          setName("");
+        }}
+      >
+        <label className="grid gap-1 text-xs font-bold text-slate-700 dark:text-slate-200">
+          نام بازه
+          <Input
+            value={name}
+            onChange={(event) => setName(event.target.value)}
+            placeholder="مثلاً زنگ اول"
+            aria-label="نام بازه زمانی"
+          />
+        </label>
+        <div className="grid grid-cols-2 gap-2">
+          <label className="grid gap-1 text-xs font-bold text-slate-700 dark:text-slate-200">
+            شروع
+            <Input
+              type="time"
+              value={startTime}
+              onChange={(event) => setStartTime(event.target.value)}
+              aria-label="شروع بازه زمانی"
+            />
+          </label>
+          <label className="grid gap-1 text-xs font-bold text-slate-700 dark:text-slate-200">
+            پایان
+            <Input
+              type="time"
+              value={endTime}
+              onChange={(event) => setEndTime(event.target.value)}
+              aria-label="پایان بازه زمانی"
+            />
+          </label>
+        </div>
+        <Button type="submit" variant="soft" disabled={!valid || saving}>
+          افزودن بازه
+        </Button>
+      </form>
+      {blocks.length ? (
+        <ul
+          className="mt-3 grid max-h-56 gap-1.5 overflow-y-auto pe-1 [scrollbar-width:thin]"
+          aria-label="بازه‌های زمانی ذخیره‌شده"
+        >
+          {blocks.map((block) => (
+            <li
+              key={block.id}
+              className="flex items-center justify-between gap-2 rounded-lg bg-[rgb(var(--surface-muted))] px-2 py-1.5 text-xs"
+            >
+              <span className="min-w-0 truncate font-bold text-ink">
+                {block.name}{" "}
+                <b className="font-normal text-slate-500" dir="ltr">
+                  {block.startTime}–{block.endTime}
+                </b>
+                <em className="ms-1 not-italic text-slate-500">
+                  {timeBlockPartOfDay(block.startTime)}
+                </em>
+              </span>
+              <Button
+                size="sm"
+                variant="ghost"
+                className="text-rose-700 hover:bg-rose-50 hover:text-rose-800 dark:text-rose-300 dark:hover:bg-rose-950/30"
+                disabled={removing}
+                aria-label={`حذف بازه ${block.name}`}
+                onClick={() => onRemove(block)}
+              >
+                <Trash2 size={13} />
+              </Button>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="mt-3 text-xs leading-5 text-slate-500">هنوز بازه‌ای ثبت نشده است.</p>
+      )}
+    </Card>
+  );
+}
+
+function timeBlockPartOfDay(startTime: string) {
+  return startTime < "12:00" ? "پیش از ظهر" : "پس از ظهر";
 }
 
 function draftFromEntry(entry: ScheduleEntry): ScheduleDraft {

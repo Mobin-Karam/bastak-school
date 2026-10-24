@@ -16,14 +16,14 @@ export function SchedulePage() {
   if (auth.activeRole === "STUDENT") return <StudentSchedulePage />;
   return (
     <div className="schedule-page grid w-full gap-3">
-      <div className="timetable-controls flex gap-2" aria-label="نوع برنامه">
+      {/* <div className="timetable-controls flex gap-2" aria-label="نوع برنامه">
         <Button variant="soft" onClick={() => setShowComingSoon(true)}>
           برنامه درسی نسخه‌بندی‌شده
         </Button>
         <Button variant="primary" aria-current="page">
           برنامه قبلی
         </Button>
-      </div>
+      </div> */}
       <LegacySchedulePage />
       <ResponsiveModal
         open={showComingSoon}
