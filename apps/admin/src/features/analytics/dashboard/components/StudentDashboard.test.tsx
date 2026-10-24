@@ -136,19 +136,8 @@ describe("StudentDashboard", () => {
     expect(screen.queryByRole("region", { name: "زمان کلاس‌های امروز" })).not.toBeInTheDocument();
     expect(screen.getByRole("region", { name: "خلاصه حضور و غیاب" })).toHaveTextContent("حاضر");
     expect(screen.getByRole("region", { name: "خلاصه حضور و غیاب" })).toHaveTextContent("۸");
-    expect(screen.getByRole("heading", { name: "دستاوردهای من" })).toBeVisible();
-    expect(screen.getByRole("heading", { name: "بازار سکه‌های من" })).toBeVisible();
-    expect(screen.getByRole("link", { name: /دیدن بازار آینده/ })).toHaveAttribute(
-      "href",
-      "/admin/coin-shop",
-    );
-    expect(screen.getByRole("link", { name: /دیدن دستاوردها/ })).toHaveAttribute(
-      "href",
-      "/admin/achievements",
-    );
-    expect(
-      document.querySelector('img[src="/images/coin/Ornate%20Gold%20Kaaba%20Medallion.png"]'),
-    ).toBeVisible();
+    expect(screen.queryByRole("heading", { name: "دستاوردهای من" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "بازار سکه‌های من" })).not.toBeInTheDocument();
     expect(screen.getByRole("link", { name: "برنامه" })).toHaveAttribute("href", "/admin/schedule");
     fireEvent.click(screen.getByRole("button", { name: /باز کردن ۱ پیام مدرسه/ }));
     expect(screen.getByRole("dialog")).toHaveTextContent("برنامه مراسم صبحگاه");

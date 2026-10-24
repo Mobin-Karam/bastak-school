@@ -46,6 +46,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const retryTimer = useRef<number | undefined>(undefined);
   const restoreAttempts = useRef(0);
   const lastCheck = useRef(0);
+  const activeUser = useRef<User | null>(null);
+
+  useEffect(() => {
+    activeUser.current = user;
+  }, [user]);
 
   const finishLocalLogout = useCallback((text: string, broadcast = true) => {
     operation.current += 1;
@@ -161,7 +166,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // refresh-token path. The refresh cookie remains HttpOnly and CSRF-protected;
     // an expired refresh session still requires a new login.
     const refreshActiveSession = () => {
-      if (!document.hidden && navigator.onLine && user) void refreshSession();
+      if (!document.hidden && navigator.onLine && activeUser.current) void refreshSession();
     };
     const refreshTimer = window.setInterval(refreshActiveSession, ACTIVE_SESSION_REFRESH_MS);
 
@@ -199,7 +204,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       window.removeEventListener("online", online);
       window.removeEventListener("storage", storage);
     };
-  }, [copy, finishLocalLogout, restore, user]);
+  }, [copy, finishLocalLogout, restore]);
 
   const value = useMemo<AuthState>(
     () => ({

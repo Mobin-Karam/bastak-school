@@ -121,50 +121,6 @@ export function AdminMobileBottomNav({
           <ThemeSwitcher />
         </div>
         <aside id="admin-mobile-navigation-sheet" dir={profile.direction} className="grid gap-5">
-          {isStudentNavigation ? (
-            <NavLink
-              to="/admin/achievements"
-              onClick={() => setSheetOpen(false)}
-              className="grid gap-3 rounded-2xl border border-slate-800 bg-slate-950 p-3 text-white outline-none transition hover:bg-slate-800 focus-visible:ring-2 focus-visible:ring-brand"
-            >
-              <span className="flex items-center gap-3">
-                <span className="grid size-10 place-items-center rounded-xl bg-white/10">
-                  <Medal size={20} aria-hidden="true" />
-                </span>
-                <span className="min-w-0 flex-1 text-start">
-                  <strong className="block text-sm">دستاوردها</strong>
-                  <span className="mt-1 block text-xs text-slate-300">
-                    نشان‌ها به‌زودی فعال می‌شوند
-                  </span>
-                </span>
-              </span>
-              <AchievementCountdown compact />
-            </NavLink>
-          ) : null}
-          {isStudentNavigation ? (
-            <NavLink
-              to="/admin/coin-shop"
-              onClick={() => setSheetOpen(false)}
-              className="grid gap-3 rounded-2xl border border-amber-200/20 bg-slate-950 p-3 text-white outline-none transition hover:bg-slate-800 focus-visible:ring-2 focus-visible:ring-amber-200"
-            >
-              <span className="flex items-center gap-3">
-                <span className="grid size-10 place-items-center rounded-xl bg-amber-300/10 text-amber-200">
-                  <Store size={20} aria-hidden="true" />
-                </span>
-                <span className="min-w-0 flex-1 text-start">
-                  <strong className="block text-sm">بازار سکه</strong>
-                  <span className="mt-1 block text-xs text-slate-300">
-                    آیتم‌های مدرسه با سکه‌های شما
-                  </span>
-                </span>
-              </span>
-              <AchievementCountdown
-                compact
-                releaseAt={COIN_SHOP_RELEASE_AT}
-                ariaLabel="زمان باقی‌مانده تا باز شدن بازار سکه؛ روز، ساعت، دقیقه، ثانیه"
-              />
-            </NavLink>
-          ) : null}
           {auth.activeRole === "PRINCIPAL" ? (
             <NavLink
               to="/admin/management"
@@ -290,6 +246,53 @@ function StudentMoreDrawerHeader({
         </span>
         <span className="text-xs font-bold text-amber-800 dark:text-amber-300">جزئیات</span>
       </NavLink>
+
+      <section aria-labelledby="student-more-future-features">
+        <h2
+          id="student-more-future-features"
+          className="mb-2 text-xs font-black text-slate-500 dark:text-slate-300"
+        >
+          پیشرفت و سکه
+        </h2>
+        <div className="grid gap-2 sm:grid-cols-2">
+          <NavLink
+            to="/admin/achievements"
+            onClick={onNavigate}
+            className="grid gap-2 rounded-2xl border border-slate-800 bg-slate-950 p-3 text-white outline-none transition hover:bg-slate-800 focus-visible:ring-2 focus-visible:ring-brand"
+          >
+            <span className="flex items-center gap-2">
+              <span className="grid size-9 place-items-center rounded-xl bg-white/10">
+                <Medal size={18} aria-hidden="true" />
+              </span>
+              <span className="min-w-0 text-start">
+                <strong className="block text-xs">دستاوردها</strong>
+                <span className="block text-[10px] text-slate-300">نشان‌ها و رشد من</span>
+              </span>
+            </span>
+            <AchievementCountdown compact />
+          </NavLink>
+          <NavLink
+            to="/admin/coin-shop"
+            onClick={onNavigate}
+            className="grid gap-2 rounded-2xl border border-amber-200/20 bg-slate-950 p-3 text-white outline-none transition hover:bg-slate-800 focus-visible:ring-2 focus-visible:ring-amber-200"
+          >
+            <span className="flex items-center gap-2">
+              <span className="grid size-9 place-items-center rounded-xl bg-amber-300/10 text-amber-200">
+                <Store size={18} aria-hidden="true" />
+              </span>
+              <span className="min-w-0 text-start">
+                <strong className="block text-xs">بازار سکه</strong>
+                <span className="block text-[10px] text-slate-300">آیتم‌های مدرسه</span>
+              </span>
+            </span>
+            <AchievementCountdown
+              compact
+              releaseAt={COIN_SHOP_RELEASE_AT}
+              ariaLabel="زمان باقی‌مانده تا باز شدن بازار سکه؛ روز، ساعت، دقیقه، ثانیه"
+            />
+          </NavLink>
+        </div>
+      </section>
 
       <section aria-labelledby="student-fast-actions">
         <h2
