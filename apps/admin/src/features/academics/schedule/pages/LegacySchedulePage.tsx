@@ -20,7 +20,7 @@ import {
 import { useMemo, useState, type ReactNode } from "react";
 import { listOrganizations } from "../../../identity/access/api/access.api";
 import { useAuth } from "../../../identity/auth";
-import { listClasses } from "../../education/api/classes.api";
+import { listClasses, type EducationClass } from "../../education/api/classes.api";
 import { Button, Card, EmptyState, Input, LoadingState } from "../../../../shared/ui/ui";
 import { notify } from "../../../../shared/ui/notifications";
 import {
@@ -448,6 +448,7 @@ export function LegacySchedulePage() {
         ) : null}
         <ScheduleWorkspace
           entries={scheduleEntries}
+          classes={classes.data ?? []}
           activeWeekday={activeWeekday}
           onWeekdayChange={setActiveWeekday}
           canEdit={canEdit}
@@ -582,6 +583,7 @@ const displayWeekdays = [0, 1, 2, 3, 4, 5, 6] as const;
 
 type ScheduleWorkspaceProps = {
   entries: ScheduleEntry[];
+  classes: EducationClass[];
   activeWeekday: number;
   onWeekdayChange: (weekday: number) => void;
   canEdit: boolean;
@@ -632,6 +634,7 @@ function ScheduleSidebarSummary({
 
 function ScheduleWorkspace({
   entries,
+  classes,
   activeWeekday,
   onWeekdayChange,
   canEdit,
@@ -669,21 +672,49 @@ function ScheduleWorkspace({
   const activeEntries = entriesByWeekday.get(activeWeekday) ?? [];
   const [draggedEntry, setDraggedEntry] = useState<ScheduleEntry | null>(null);
   const classLanes = useMemo(() => {
-    const lanes = new Map<string, ScheduleEntry[]>();
+    const lanesByClassId = new Map(
+      classes
+        .filter((classroom) => classroom.status === "ACTIVE")
+        .map((classroom) => [
+          classroom.id,
+          {
+            id: `class:${classroom.id}`,
+            label: classroom.name,
+            entries: [] as ScheduleEntry[],
+          },
+        ]),
+    );
+    const additionalLanes = new Map<
+      string,
+      { id: string; label: string; entries: ScheduleEntry[] }
+    >();
 
     activeScheduleEntries.forEach((entry) => {
+      const classroomLane = entry.classroom?.id
+        ? lanesByClassId.get(entry.classroom.id)
+        : undefined;
+      if (classroomLane) {
+        classroomLane.entries.push(entry);
+        return;
+      }
+
       const label = entry.classroom?.name || entry.room || "برنامه عمومی مدرسه";
-      lanes.set(label, [...(lanes.get(label) ?? []), entry]);
+      const id = `other:${entry.classroom?.id ?? label}`;
+      const lane = additionalLanes.get(id) ?? { id, label, entries: [] };
+      lane.entries.push(entry);
+      additionalLanes.set(id, lane);
     });
 
-    return Array.from(lanes, ([label, laneEntries]) => ({
-      label,
-      entries: laneEntries.sort((left, right) => {
-        const weekdayOrder = left.weekday - right.weekday;
-        return weekdayOrder || left.startTime.localeCompare(right.startTime);
-      }),
-    })).sort((left, right) => left.label.localeCompare(right.label, "fa"));
-  }, [activeScheduleEntries]);
+    return [...lanesByClassId.values(), ...additionalLanes.values()]
+      .map((lane) => ({
+        ...lane,
+        entries: lane.entries.sort((left, right) => {
+          const weekdayOrder = left.weekday - right.weekday;
+          return weekdayOrder || left.startTime.localeCompare(right.startTime);
+        }),
+      }))
+      .sort((left, right) => left.label.localeCompare(right.label, "fa"));
+  }, [activeScheduleEntries, classes]);
 
   return (
     <section className="grid gap-3" aria-label="برنامه هفتگی مدرسه">
@@ -780,7 +811,7 @@ function ScheduleWorkspace({
                 <tbody>
                   {classLanes.map((lane, rowIndex) => (
                     <tr
-                      key={lane.label}
+                      key={lane.id}
                       className={rowIndex % 2 ? "bg-slate-50/70 dark:bg-white/[.025]" : ""}
                     >
                       <th
@@ -789,7 +820,9 @@ function ScheduleWorkspace({
                       >
                         <span className="block leading-5">{lane.label}</span>
                         <span className="mt-1 block text-[10px] font-bold text-slate-400">
-                          {lane.entries.length.toLocaleString("fa-IR")} جلسه
+                          {lane.entries.length
+                            ? `${lane.entries.length.toLocaleString("fa-IR")} جلسه`
+                            : "هنوز جلسه‌ای ندارد"}
                         </span>
                       </th>
                       {displayWeekdays.map((weekday) => {
