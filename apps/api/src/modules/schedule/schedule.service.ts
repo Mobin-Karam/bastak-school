@@ -428,7 +428,7 @@ export class ScheduleService {
           versionId: IsNull(),
           status: "ACTIVE",
         },
-        { status: "ARCHIVED" },
+        { status: "REPLACED" },
       );
       const rows = template.entries.map((entry) =>
         manager.create(SchoolScheduleEntry, {

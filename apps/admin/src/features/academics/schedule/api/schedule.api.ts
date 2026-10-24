@@ -7,7 +7,7 @@ export type ScheduleEntry = {
   startTime: string;
   endTime: string;
   room: string;
-  status: "ACTIVE" | "ARCHIVED";
+  status: "ACTIVE" | "ARCHIVED" | "REPLACED";
   organization: { id: string; name: string; type?: string; status?: string };
   classroom?: { id: string; name: string } | null;
   classBook?: {
@@ -36,11 +36,12 @@ export type ScheduleTimeBlock = {
   partOfDay: "AM" | "PM";
   organization: { id: string; name: string };
 };
+export type ScheduleTemplateEntry = Omit<ScheduleDraft, "organizationId">;
 export type ScheduleTemplate = {
   id: string;
   name: string;
   state: "ACTIVE" | "ARCHIVED";
-  entries: unknown[];
+  entries: ScheduleTemplateEntry[];
   updatedAt: string;
 };
 export const listSchedule = () => api.get<ScheduleEntry[]>("/schedule");

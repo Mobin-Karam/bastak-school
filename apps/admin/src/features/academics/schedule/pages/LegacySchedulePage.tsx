@@ -6,6 +6,7 @@ import {
   BookOpenCheck,
   Clock3,
   Copy,
+  Eye,
   GraduationCap,
   MapPin,
   Pencil,
@@ -83,6 +84,7 @@ export function LegacySchedulePage() {
   const modal = useModal();
   const client = useQueryClient();
   const [activeWeekday, setActiveWeekday] = useState(() => legacyWeekdayForIso(todayIso()));
+  const [templatePreview, setTemplatePreview] = useState<ScheduleTemplate | null>(null);
   const selectedOrganizationId = auth.context?.activeOrganization?.id;
   const entries = useQuery({
     queryKey: ["schedule", selectedOrganizationId ?? "all"],
@@ -188,6 +190,7 @@ export function LegacySchedulePage() {
   const applyTemplate = useMutation({
     mutationFn: applyScheduleTemplate,
     onSuccess: (result) => {
+      setTemplatePreview(null);
       templateReload();
       notify(`${result.applied} جلسه از الگو اجرا شد.`, "success");
     },
@@ -406,6 +409,25 @@ export function LegacySchedulePage() {
       dir="rtl"
     >
       <div className="order-2 grid gap-3 min-[960px]:order-1">
+        {templatePreview ? (
+          <ScheduleTemplatePreview
+            template={templatePreview}
+            activeEntries={scheduleEntries.filter((entry) => entry.status === "ACTIVE")}
+            onCancel={() => setTemplatePreview(null)}
+            onApply={() =>
+              void modal
+                .confirm({
+                  title: "اجرای الگوی برنامه؟",
+                  description: `جلسه‌های فعال فعلی با جلسه‌های «${templatePreview.name}» جایگزین می‌شوند. جلسه‌ای به بایگانی برنامه اضافه نمی‌شود.`,
+                  tone: "danger",
+                  confirmLabel: "اجرای الگو",
+                  cancelLabel: "انصراف",
+                  softConfirm: true,
+                })
+                .then((ok) => ok && applyTemplate.mutate(templatePreview.id))
+            }
+          />
+        ) : null}
         <ScheduleWorkspace
           entries={scheduleEntries}
           activeWeekday={activeWeekday}
@@ -474,18 +496,7 @@ export function LegacySchedulePage() {
                 sourceTemplateId: template.id,
               })
             }
-            onApply={(template) =>
-              void modal
-                .confirm({
-                  title: "اجرای الگوی برنامه؟",
-                  description: `جلسه‌های فعال فعلی بایگانی و «${template.name}» اجرا می‌شود.`,
-                  tone: "danger",
-                  confirmLabel: "اجرای الگو",
-                  cancelLabel: "انصراف",
-                  softConfirm: true,
-                })
-                .then((ok) => ok && applyTemplate.mutate(template.id))
-            }
+            onPreview={setTemplatePreview}
             onArchive={(template) =>
               void modal
                 .confirm({
@@ -1336,12 +1347,101 @@ function ScheduleEditorForm({
   );
 }
 
+function ScheduleTemplatePreview({
+  template,
+  activeEntries,
+  onCancel,
+  onApply,
+}: {
+  template: ScheduleTemplate;
+  activeEntries: ScheduleEntry[];
+  onCancel: () => void;
+  onApply: () => void;
+}) {
+  const orderedTemplateEntries = [...template.entries].sort(
+    (left, right) => left.weekday - right.weekday || left.startTime.localeCompare(right.startTime),
+  );
+  const orderedActiveEntries = [...activeEntries].sort(
+    (left, right) => left.weekday - right.weekday || left.startTime.localeCompare(right.startTime),
+  );
+  return (
+    <Card className="border-brand/25 bg-brand/5 p-4" aria-live="polite">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <p className="text-xs font-bold text-brand">پیش‌نمایش تغییر برنامه</p>
+          <h2 className="mt-1 text-base font-black text-ink">اجرای «{template.name}»</h2>
+          <p className="mt-1 text-xs leading-5 text-slate-600 dark:text-slate-300">
+            جلسه‌های فعال فعلی جایگزین می‌شوند و به بایگانی برنامه منتقل نخواهند شد.
+          </p>
+        </div>
+        <span className="rounded-full bg-[rgb(var(--surface-card))] px-3 py-1 text-xs font-bold text-brand">
+          {template.entries.length.toLocaleString("fa-IR")} جلسه جدید
+        </span>
+      </div>
+      <div className="mt-4 grid gap-3 lg:grid-cols-2">
+        <ScheduleTemplatePreviewColumn
+          title={`جلسه‌های فعلی (${activeEntries.length.toLocaleString("fa-IR")})`}
+          entries={orderedActiveEntries.map((entry) => ({
+            key: entry.id,
+            label: entry.title,
+            meta: `${weekdays[entry.weekday]} · ${entry.startTime} تا ${entry.endTime}${entry.room ? ` · ${entry.room}` : ""}`,
+          }))}
+          empty="جلسه فعالی وجود ندارد."
+        />
+        <ScheduleTemplatePreviewColumn
+          title={`جلسه‌های الگو (${template.entries.length.toLocaleString("fa-IR")})`}
+          entries={orderedTemplateEntries.map((entry, index) => ({
+            key: `${entry.weekday}-${entry.startTime}-${entry.title}-${index}`,
+            label: entry.title,
+            meta: `${weekdays[entry.weekday]} · ${entry.startTime} تا ${entry.endTime}${entry.room ? ` · ${entry.room}` : ""}`,
+          }))}
+          empty="این الگو جلسه‌ای ندارد."
+        />
+      </div>
+      <div className="mt-4 flex flex-wrap justify-end gap-2">
+        <Button variant="ghost" onClick={onCancel}>
+          انصراف
+        </Button>
+        <Button onClick={onApply}>تأیید و اجرای الگو</Button>
+      </div>
+    </Card>
+  );
+}
+
+function ScheduleTemplatePreviewColumn({
+  title,
+  entries,
+  empty,
+}: {
+  title: string;
+  entries: Array<{ key: string; label: string; meta: string }>;
+  empty: string;
+}) {
+  return (
+    <section className="rounded-xl border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card))] p-3">
+      <h3 className="text-xs font-black text-ink">{title}</h3>
+      {entries.length ? (
+        <ul className="mt-2 grid max-h-44 gap-1 overflow-y-auto pe-1">
+          {entries.map((entry) => (
+            <li key={entry.key} className="rounded-lg bg-[rgb(var(--surface-muted))] px-2.5 py-2">
+              <p className="truncate text-xs font-bold text-ink">{entry.label}</p>
+              <p className="mt-0.5 truncate text-[11px] text-slate-500">{entry.meta}</p>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="mt-2 text-xs text-slate-500">{empty}</p>
+      )}
+    </section>
+  );
+}
+
 function ScheduleTemplates({
   templates,
   organizationId,
   onCreate,
   onCopy,
-  onApply,
+  onPreview,
   onArchive,
   onRestore,
   onRemove,
@@ -1350,7 +1450,7 @@ function ScheduleTemplates({
   organizationId?: string;
   onCreate: (name: string) => void;
   onCopy: (template: ScheduleTemplate) => void;
-  onApply: (template: ScheduleTemplate) => void;
+  onPreview: (template: ScheduleTemplate) => void;
   onArchive: (template: ScheduleTemplate) => void;
   onRestore: (template: ScheduleTemplate) => void;
   onRemove: (template: ScheduleTemplate) => void;
@@ -1402,8 +1502,8 @@ function ScheduleTemplates({
               </p>
               <span className="flex flex-wrap gap-1">
                 {template.state === "ACTIVE" ? (
-                  <Button size="sm" variant="soft" onClick={() => onApply(template)}>
-                    اجرا
+                  <Button size="sm" variant="soft" onClick={() => onPreview(template)}>
+                    <Eye size={13} /> بررسی
                   </Button>
                 ) : (
                   <Button size="sm" variant="soft" onClick={() => onRestore(template)}>
