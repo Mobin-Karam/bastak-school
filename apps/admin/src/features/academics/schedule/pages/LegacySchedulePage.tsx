@@ -369,6 +369,27 @@ export function LegacySchedulePage() {
       ),
     });
   };
+  const scheduleEntries = entries.data ?? [];
+  const scheduleToolbar = auth.canAny(["schedule.import", "schedule.export"]) ? (
+    <SpreadsheetTransferLauncher
+      title="ورود و خروجی برنامه"
+      description="نمونه را دریافت کنید، فایل را وارد کنید یا خروجی فعلی را بگیرید. خطاها با شماره ردیف و ستون نمایش داده می‌شوند."
+      trigger="Excel"
+    >
+      <div className="grid gap-3">
+        <p className="text-sm leading-6 text-slate-500">
+          فایل باید ستون‌های برنامه هفتگی را داشته باشد.
+        </p>
+        <SpreadsheetTransferActions
+          canImport={auth.can("schedule.import")}
+          canExport={auth.can("schedule.export")}
+          onImport={(file) => void importFile(file)}
+          onTemplate={() => void downloadTemplate()}
+          onExport={() => void download()}
+        />
+      </div>
+    </SpreadsheetTransferLauncher>
+  ) : null;
   return (
     <section
       className="grid w-full max-w-none gap-4 pb-[calc(6rem+env(safe-area-inset-bottom))] min-[960px]:grid-cols-[minmax(0,1fr)_22rem] min-[960px]:pb-6"
@@ -376,7 +397,7 @@ export function LegacySchedulePage() {
     >
       <div className="order-2 grid gap-3 min-[960px]:order-1">
         <ScheduleWorkspace
-          entries={entries.data ?? []}
+          entries={scheduleEntries}
           activeWeekday={activeWeekday}
           onWeekdayChange={setActiveWeekday}
           canEdit={canEdit}
@@ -388,31 +409,10 @@ export function LegacySchedulePage() {
           onDelete={confirmDelete}
           onOpenDetails={openDetails}
           onMove={(entry, weekday) => move.mutate({ entry, weekday })}
-          toolbar={
-            auth.canAny(["schedule.import", "schedule.export"]) ? (
-              <SpreadsheetTransferLauncher
-                title="ورود و خروجی برنامه"
-                description="نمونه را دریافت کنید، فایل را وارد کنید یا خروجی فعلی را بگیرید. خطاها با شماره ردیف و ستون نمایش داده می‌شوند."
-                trigger="Excel"
-              >
-                <div className="grid gap-3">
-                  <p className="text-sm leading-6 text-slate-500">
-                    فایل باید ستون‌های برنامه هفتگی را داشته باشد.
-                  </p>
-                  <SpreadsheetTransferActions
-                    canImport={auth.can("schedule.import")}
-                    canExport={auth.can("schedule.export")}
-                    onImport={(file) => void importFile(file)}
-                    onTemplate={() => void downloadTemplate()}
-                    onExport={() => void download()}
-                  />
-                </div>
-              </SpreadsheetTransferLauncher>
-            ) : null
-          }
         />
       </div>
       <aside className="order-1 grid gap-3 min-[960px]:order-2 min-[960px]:sticky min-[960px]:top-3 min-[960px]:self-start">
+        <ScheduleSidebarSummary entries={scheduleEntries} toolbar={scheduleToolbar} />
         {canCreate ? (
           <Card className="border-brand/15 bg-[rgb(var(--surface-card))] p-4">
             <span className="grid size-10 place-items-center rounded-xl bg-brand/10 text-brand">
@@ -522,8 +522,33 @@ type ScheduleWorkspaceProps = {
   onDelete: (entry: ScheduleEntry) => void;
   onOpenDetails: (entry: ScheduleEntry) => void;
   onMove: (entry: ScheduleEntry, weekday: number) => void;
-  toolbar?: ReactNode;
 };
+
+function ScheduleSidebarSummary({
+  entries,
+  toolbar,
+}: {
+  entries: ScheduleEntry[];
+  toolbar?: ReactNode;
+}) {
+  const activeEntries = entries.filter((entry) => entry.status === "ACTIVE");
+  const today = legacyWeekdayForIso(todayIso());
+  const daysWithSessions = new Set(activeEntries.map((entry) => entry.weekday)).size;
+  return (
+    <Card className="grid gap-3 p-4">
+      {toolbar ? <div className="flex min-w-0 flex-wrap justify-end gap-2">{toolbar}</div> : null}
+      <div className="grid grid-cols-3 gap-2" aria-label="خلاصه برنامه هفتگی">
+        <ScheduleMetric label="جلسه فعال" value={activeEntries.length} tone="blue" />
+        <ScheduleMetric
+          label="امروز"
+          value={activeEntries.filter((entry) => entry.weekday === today).length}
+          tone="teal"
+        />
+        <ScheduleMetric label="روزهای دارای کلاس" value={daysWithSessions} tone="violet" />
+      </div>
+    </Card>
+  );
+}
 
 function ScheduleWorkspace({
   entries,
@@ -538,7 +563,6 @@ function ScheduleWorkspace({
   onDelete,
   onOpenDetails,
   onMove,
-  toolbar,
 }: ScheduleWorkspaceProps) {
   const isMobileShell = useViewportShell() === "mobile";
   const activeScheduleEntries = useMemo(
@@ -583,23 +607,6 @@ function ScheduleWorkspace({
 
   return (
     <section className="grid gap-3" aria-label="برنامه هفتگی مدرسه">
-      <section className="grid gap-3">
-        <div className="flex min-w-0 flex-wrap justify-end gap-2">{toolbar}</div>
-        <div className="relative mt-4 grid grid-cols-3 gap-2 sm:max-w-lg">
-          <ScheduleMetric label="جلسه فعال" value={activeScheduleEntries.length} tone="blue" />
-          <ScheduleMetric
-            label="امروز"
-            value={(entriesByWeekday.get(today) ?? []).length}
-            tone="teal"
-          />
-          <ScheduleMetric
-            label="روزهای دارای کلاس"
-            value={Array.from(entriesByWeekday.values()).filter((rows) => rows.length).length}
-            tone="violet"
-          />
-        </div>
-      </section>
-
       <Card className="overflow-hidden p-0 shadow-[0_16px_28px_-26px_rgba(18,52,86,.45)]">
         <div className="flex items-center justify-between gap-3 border-b border-[rgb(var(--border-subtle))] px-3 py-3 sm:px-4">
           <div className="flex min-w-0 items-center gap-2">
