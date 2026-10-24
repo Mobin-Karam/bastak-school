@@ -19,7 +19,7 @@ export const learningFormSchema = z.object({
 
   dueDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "تاریخ مرور را انتخاب کنید."),
 
-  mastery: z.coerce.number().min(0).max(5),
+  mastery: z.number().min(0).max(5),
 
   status: z.enum(["pending", "done", "archived"]),
 });

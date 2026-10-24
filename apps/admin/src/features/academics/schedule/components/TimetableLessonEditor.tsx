@@ -26,15 +26,15 @@ const schema = z
     teacherId: z.string().optional(),
     periodId: z.string().uuid("زنگ را انتخاب کنید"),
     locationId: z.string().optional(),
-    weekday: z.coerce.number().min(0).max(6),
-    startTime: z.preprocess(
-      (value) => normalizeTimetableClock(String(value ?? "")),
-      z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "ساعت معتبر لازم است"),
-    ),
-    endTime: z.preprocess(
-      (value) => normalizeTimetableClock(String(value ?? "")),
-      z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "ساعت معتبر لازم است"),
-    ),
+    weekday: z.number().min(0).max(6),
+    startTime: z
+      .string()
+      .transform(normalizeTimetableClock)
+      .pipe(z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "ساعت معتبر لازم است")),
+    endTime: z
+      .string()
+      .transform(normalizeTimetableClock)
+      .pipe(z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "ساعت معتبر لازم است")),
     startsOn: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
     endsOn: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
     notes: z.string().max(1000),
@@ -262,7 +262,10 @@ export function TimetableLessonEditor({
             </AdaptiveSelect>
           </Field>
           <Field label="روز">
-            <AdaptiveSelect className={timetableSelectClass} {...form.register("weekday")}>
+            <AdaptiveSelect
+              className={timetableSelectClass}
+              {...form.register("weekday", { valueAsNumber: true })}
+            >
               {persianWeekdays.map((x) => (
                 <option key={x.id} value={x.id}>
                   {x.name}

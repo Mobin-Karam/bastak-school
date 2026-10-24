@@ -54,7 +54,7 @@ export function useOnlineStatus() {
 }
 
 const preferencesSchema = z.object({
-  visibility: z.record(z.boolean()),
+  visibility: z.record(z.string(), z.boolean()),
   mode: z.enum(["auto", "table", "cards"]),
   density: z.enum(["comfortable", "compact"]),
 });
