@@ -2,6 +2,7 @@ import {
   BookOpen,
   CalendarCheck2,
   CalendarDays,
+  ChevronLeft,
   Landmark,
   Medal,
   MoreHorizontal,
@@ -226,17 +227,17 @@ function StudentMoreDrawerHeader({
   ].filter((action): action is NonNullable<typeof action> => action !== null);
 
   return (
-    <div className="grid gap-3">
+    <div className="grid gap-4">
       <NavLink
         to="/admin/my-attendance"
         onClick={onNavigate}
         aria-label="سکه‌های من"
-        className="flex min-h-20 items-center gap-3 rounded-2xl border border-amber-300/70 bg-amber-50 p-3 text-amber-950 outline-none transition hover:border-amber-400 hover:bg-amber-100/70 focus-visible:ring-2 focus-visible:ring-brand dark:border-amber-700/70 dark:bg-amber-950/30 dark:text-amber-100 dark:hover:bg-amber-950/50"
+        className="flex min-h-16 items-center gap-3 rounded-xl border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card))] px-3 py-2 text-ink outline-none transition-colors hover:bg-[rgb(var(--surface-muted))] focus-visible:ring-2 focus-visible:ring-brand"
       >
-        <AttendanceCoin className="size-14 shrink-0 object-contain" />
+        <AttendanceCoin className="size-10 shrink-0 object-contain" />
         <span className="min-w-0 flex-1">
           <span className="block text-xs font-bold">سکه‌های من</span>
-          <strong className="mt-1 block text-2xl font-black tabular-nums">
+          <strong className="block text-lg font-black tabular-nums">
             {points.isLoading
               ? "…"
               : ((points.data as { points?: number } | undefined)?.points ?? 0).toLocaleString(
@@ -244,7 +245,7 @@ function StudentMoreDrawerHeader({
                 )}
           </strong>
         </span>
-        <span className="text-xs font-bold text-amber-800 dark:text-amber-300">جزئیات</span>
+        <ChevronLeft size={18} className="text-slate-400" aria-hidden="true" />
       </NavLink>
 
       <section aria-labelledby="student-more-future-features">
@@ -254,39 +255,36 @@ function StudentMoreDrawerHeader({
         >
           پیشرفت و سکه
         </h2>
-        <div className="grid gap-2 sm:grid-cols-2">
+        <div className="grid gap-px overflow-hidden rounded-xl border border-[rgb(var(--border-subtle))] bg-[rgb(var(--border-subtle))]">
           <NavLink
             to="/admin/achievements"
             onClick={onNavigate}
-            className="grid gap-2 rounded-2xl border border-slate-800 bg-slate-950 p-3 text-white outline-none transition hover:bg-slate-800 focus-visible:ring-2 focus-visible:ring-brand"
+            className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-2 gap-y-1 bg-[rgb(var(--surface-card))] p-2.5 text-ink outline-none transition-colors hover:bg-[rgb(var(--surface-muted))] focus-visible:ring-2 focus-visible:ring-brand"
           >
-            <span className="flex items-center gap-2">
-              <span className="grid size-9 place-items-center rounded-xl bg-white/10">
-                <Medal size={18} aria-hidden="true" />
-              </span>
-              <span className="min-w-0 text-start">
-                <strong className="block text-xs">دستاوردها</strong>
-                <span className="block text-[10px] text-slate-300">نشان‌ها و رشد من</span>
-              </span>
+            <span className="row-span-2 grid size-9 place-items-center rounded-lg bg-[rgb(var(--surface-muted))] text-slate-600 dark:text-slate-200">
+              <Medal size={18} aria-hidden="true" />
             </span>
-            <AchievementCountdown compact />
+            <span className="flex min-w-0 items-center justify-between gap-2 text-start">
+              <strong className="text-xs">دستاوردها</strong>
+              <ChevronLeft size={16} className="shrink-0 text-slate-400" aria-hidden="true" />
+            </span>
+            <AchievementCountdown compact neutral />
           </NavLink>
           <NavLink
             to="/admin/coin-shop"
             onClick={onNavigate}
-            className="grid gap-2 rounded-2xl border border-amber-200/20 bg-slate-950 p-3 text-white outline-none transition hover:bg-slate-800 focus-visible:ring-2 focus-visible:ring-amber-200"
+            className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-2 gap-y-1 bg-[rgb(var(--surface-card))] p-2.5 text-ink outline-none transition-colors hover:bg-[rgb(var(--surface-muted))] focus-visible:ring-2 focus-visible:ring-brand"
           >
-            <span className="flex items-center gap-2">
-              <span className="grid size-9 place-items-center rounded-xl bg-amber-300/10 text-amber-200">
-                <Store size={18} aria-hidden="true" />
-              </span>
-              <span className="min-w-0 text-start">
-                <strong className="block text-xs">بازار سکه</strong>
-                <span className="block text-[10px] text-slate-300">آیتم‌های مدرسه</span>
-              </span>
+            <span className="row-span-2 grid size-9 place-items-center rounded-lg bg-[rgb(var(--surface-muted))] text-slate-600 dark:text-slate-200">
+              <Store size={18} aria-hidden="true" />
+            </span>
+            <span className="flex min-w-0 items-center justify-between gap-2 text-start">
+              <strong className="text-xs">بازار سکه</strong>
+              <ChevronLeft size={16} className="shrink-0 text-slate-400" aria-hidden="true" />
             </span>
             <AchievementCountdown
               compact
+              neutral
               releaseAt={COIN_SHOP_RELEASE_AT}
               ariaLabel="زمان باقی‌مانده تا باز شدن بازار سکه؛ روز، ساعت، دقیقه، ثانیه"
             />
@@ -307,9 +305,9 @@ function StudentMoreDrawerHeader({
               key={path}
               to={`/admin/${path}`}
               onClick={onNavigate}
-              className="grid min-h-24 place-items-center gap-1 rounded-xl border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card))] px-2 py-3 text-center text-[11px] font-bold text-ink outline-none transition hover:border-brand/35 hover:bg-brand/5 focus-visible:ring-2 focus-visible:ring-brand active:scale-[0.98]"
+              className="grid min-h-[4.5rem] place-items-center gap-1 rounded-xl border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card))] px-2 py-2 text-center text-[11px] font-bold text-ink outline-none transition-colors hover:bg-[rgb(var(--surface-muted))] focus-visible:ring-2 focus-visible:ring-brand"
             >
-              <Icon size={20} className="text-brand" aria-hidden="true" />
+              <Icon size={19} className="text-slate-600 dark:text-slate-200" aria-hidden="true" />
               <span className="leading-4">{label}</span>
             </NavLink>
           ))}

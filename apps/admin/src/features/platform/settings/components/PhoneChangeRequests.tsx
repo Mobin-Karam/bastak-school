@@ -26,7 +26,7 @@ export function PhoneChangeRequests() {
     <Card className="p-4">
       <div className="flex items-center gap-2">
         <ClipboardList size={18} className="text-brand" />
-        <h2 className="font-black">درخواست‌های تغییر شماره</h2>
+        <h2 className="font-black">درخواست‌های تغییر حساب</h2>
       </div>
       {requests.data?.length ? (
         <ul className="mt-3 grid gap-2">
@@ -39,8 +39,13 @@ export function PhoneChangeRequests() {
                 <p className="text-sm font-bold">
                   {request.user?.firstName || request.user?.username || "کاربر"}
                 </p>
-                <p dir="ltr" className="mt-1 text-xs text-slate-500">
-                  {request.requestedValue}
+                <p
+                  dir={request.kind === "PHONE_NUMBER" ? "ltr" : undefined}
+                  className="mt-1 text-xs text-slate-500"
+                >
+                  {request.kind === "PHONE_NUMBER"
+                    ? request.requestedValue
+                    : "درخواست تغییر رمز (رمز جدید نمایش داده نمی‌شود)"}
                 </p>
               </div>
               <div className="flex items-center gap-2">
@@ -63,7 +68,9 @@ export function PhoneChangeRequests() {
                   <>
                     <Button
                       size="sm"
-                      aria-label="تأیید تغییر شماره"
+                      aria-label={
+                        request.kind === "PHONE_NUMBER" ? "تأیید تغییر شماره" : "تأیید تغییر رمز"
+                      }
                       onClick={() => review.mutate({ id: request.id, approved: true })}
                     >
                       <Check size={15} />
@@ -71,7 +78,9 @@ export function PhoneChangeRequests() {
                     <Button
                       size="sm"
                       variant="ghost"
-                      aria-label="رد تغییر شماره"
+                      aria-label={
+                        request.kind === "PHONE_NUMBER" ? "رد تغییر شماره" : "رد تغییر رمز"
+                      }
                       onClick={() => review.mutate({ id: request.id, approved: false })}
                     >
                       <X size={15} />

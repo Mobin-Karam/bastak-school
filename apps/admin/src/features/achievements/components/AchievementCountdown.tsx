@@ -18,10 +18,13 @@ const twoDigits = (value: number) => value.toLocaleString("fa-IR", { minimumInte
 /** Release clock rendered in the intentional left-to-right day/hour/minute/second order. */
 export function AchievementCountdown({
   compact = false,
+  neutral = false,
   releaseAt = STUDENT_FUTURE_FEATURE_RELEASE_AT,
   ariaLabel = "زمان باقی‌مانده تا انتشار دستاوردها؛ روز، ساعت، دقیقه، ثانیه",
 }: {
   compact?: boolean;
+  /** Use the surrounding surface instead of the dark promotional countdown treatment. */
+  neutral?: boolean;
   releaseAt?: number;
   ariaLabel?: string;
 }) {
@@ -51,14 +54,24 @@ export function AchievementCountdown({
         <div
           key={label}
           dir="rtl"
-          className={`rounded-2xl border border-white/15 bg-white/10 px-1 text-center ${compact ? "py-2" : "py-3"}`}
+          className={`rounded-lg border px-1 text-center ${
+            neutral
+              ? "border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-muted))] text-ink"
+              : "border-white/15 bg-white/10"
+          } ${compact ? "py-1" : "py-3"}`}
         >
           <strong
             className={`block font-black tabular-nums ${compact ? "text-sm" : "text-xl sm:text-2xl"}`}
           >
             {twoDigits(value)}
           </strong>
-          <span className="mt-1 block text-[10px] font-bold text-slate-300">{label}</span>
+          <span
+            className={`mt-0.5 block text-[9px] font-bold ${
+              neutral ? "text-slate-500 dark:text-slate-300" : "text-slate-300"
+            }`}
+          >
+            {label}
+          </span>
         </div>
       ))}
     </div>

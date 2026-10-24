@@ -447,6 +447,83 @@ describe("AuthService", () => {
     expect(sessions.delete).not.toHaveBeenCalled();
   });
 
+  it("requires a reviewed request after three student password changes", async () => {
+    const user = {
+      id: "u1",
+      passwordHash: await bcrypt.hash("current-password", 4),
+      passwordChangeCount: 3,
+    } as User;
+    const users = repo([user]);
+    const sessions = repo();
+    const module = await Test.createTestingModule({
+      providers: [
+        AuthService,
+        { provide: getRepositoryToken(User), useValue: users },
+        { provide: getRepositoryToken(Session), useValue: sessions },
+        { provide: getRepositoryToken(Student), useValue: repo() },
+        {
+          provide: ConfigService,
+          useValue: { get: (_key: string, fallback: unknown) => fallback },
+        },
+      ],
+    }).compile();
+
+    await expect(
+      module.get(AuthService).changePassword(
+        {
+          id: "u1",
+          username: "student",
+          role: UserRole.STUDENT,
+          sessionId: "current",
+        },
+        "current-password",
+        "a-new-password-long-enough",
+      ),
+    ).rejects.toMatchObject({
+      response: { error: { code: "PASSWORD_CHANGE_REQUEST_REQUIRED" } },
+    });
+    expect(users.save).not.toHaveBeenCalled();
+    expect(sessions.delete).not.toHaveBeenCalled();
+  });
+
+  it("rejects a new password containing non-English characters", async () => {
+    const user = {
+      id: "u1",
+      passwordHash: await bcrypt.hash("current-password", 4),
+      passwordChangeCount: 0,
+    } as User;
+    const users = repo([user]);
+    const sessions = repo();
+    const module = await Test.createTestingModule({
+      providers: [
+        AuthService,
+        { provide: getRepositoryToken(User), useValue: users },
+        { provide: getRepositoryToken(Session), useValue: sessions },
+        { provide: getRepositoryToken(Student), useValue: repo() },
+        {
+          provide: ConfigService,
+          useValue: { get: (_key: string, fallback: unknown) => fallback },
+        },
+      ],
+    }).compile();
+
+    await expect(
+      module.get(AuthService).changePassword(
+        {
+          id: "u1",
+          username: "student",
+          role: UserRole.STUDENT,
+          sessionId: "current",
+        },
+        "current-password",
+        "رمزعبور-طولانی",
+      ),
+    ).rejects.toMatchObject({
+      response: { error: { code: "PASSWORD_ENGLISH_CHARACTERS_REQUIRED" } },
+    });
+    expect(users.save).not.toHaveBeenCalled();
+  });
+
   it("does not allow revoking the current session", async () => {
     const sessions = repo();
     const module = await Test.createTestingModule({

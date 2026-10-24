@@ -1,13 +1,12 @@
 import { api } from "../../../../shared/api/api";
 import type { Session } from "../model/settings.types";
-import type { PasswordDraft } from "../../system/model/system.types";
 export function getSessions() {
   return api.get<Session[]>("/auth/sessions");
 }
 export function revokeSession(id: string) {
   return api.delete(`/auth/sessions/${id}`);
 }
-export function changePassword(body: PasswordDraft) {
+export function changePassword(body: { currentPassword: string; newPassword: string }) {
   return api.post("/auth/change-password", {
     currentPassword: body.currentPassword,
     newPassword: body.newPassword,
@@ -17,11 +16,15 @@ export type AccountProfile = {
   phoneNumber: string | null;
   phoneNumberChangeAvailable: boolean;
   phoneNumberChangeUnlimited: boolean;
+  phoneNumberChangeCount: number;
+  passwordChangeAvailable: boolean;
+  passwordChangeCount: number;
 };
 export type PhoneChangeRequest = {
   id: string;
+  kind: "PHONE_NUMBER" | "PASSWORD";
   status: "PENDING" | "APPROVED" | "REJECTED";
-  requestedValue: string;
+  requestedValue?: string;
   reason?: string;
   reviewNote?: string;
   createdAt: string;
@@ -38,6 +41,12 @@ export const requestPhoneNumberChange = (body: {
   phoneNumber: string;
   reason?: string;
 }) => api.post<PhoneChangeRequest>("/auth/profile/phone-requests", body);
+export const requestPasswordChange = (body: {
+  organizationId: string;
+  currentPassword: string;
+  newPassword: string;
+  reason?: string;
+}) => api.post<PhoneChangeRequest>("/auth/profile/password-requests", body);
 export const listPhoneChangeRequests = () =>
   api.get<PhoneChangeRequest[]>("/auth/phone-change-requests");
 export const reviewPhoneChangeRequest = (id: string, approved: boolean, reviewNote?: string) =>
