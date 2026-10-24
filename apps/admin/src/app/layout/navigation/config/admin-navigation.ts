@@ -303,14 +303,13 @@ const studentNavigation: readonly NavigationGroup[] = [
     ],
   },
   {
-    section: "حضور من",
+    section: "پروفایل",
     items: [
       {
-        path: "my-attendance",
-        title: "حضور و مسئولیت خوابگاه",
-        description: "خلاصه حضور و ثبت حضور اتاق‌های واگذار شده",
-        icon: ClipboardCheck,
-        capability: "attendance.self.read",
+        path: "profile",
+        title: "پروفایل من",
+        description: "نمای شخصی و وضعیت پیشرفت",
+        icon: UserRound,
       },
     ],
   },
@@ -346,13 +345,14 @@ const studentNavigation: readonly NavigationGroup[] = [
   },
   ...registrationNavigation,
   {
-    section: "پروفایل",
+    section: "حضور من",
     items: [
       {
-        path: "profile",
-        title: "پروفایل من",
-        description: "نام نمایشی و اطلاعات پروفایل",
-        icon: UserRound,
+        path: "my-attendance",
+        title: "حضور و مسئولیت خوابگاه",
+        description: "خلاصه حضور و ثبت حضور اتاق‌های واگذار شده",
+        icon: ClipboardCheck,
+        capability: "attendance.self.read",
       },
     ],
   },

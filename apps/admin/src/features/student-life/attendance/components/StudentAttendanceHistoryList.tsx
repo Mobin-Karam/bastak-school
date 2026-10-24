@@ -1,10 +1,11 @@
-import { useQuery } from "@tanstack/react-query";
+import { useInfiniteQuery } from "@tanstack/react-query";
 import { Check, CircleSlash2, Clock3, Filter, X } from "lucide-react";
 import { useState } from "react";
+import { DatePicker } from "../../../../shared/ui/date-picker";
 import { EmptyState, LoadingState } from "../../../../shared/ui/ui";
 import {
   contextLabelMap,
-  listSelfAttendance,
+  getSelfAttendanceHistory,
   type SelfAttendanceRecord,
 } from "../api/attendance.api";
 
@@ -47,13 +48,22 @@ function faDateTime(value: string) {
 /** Mobile-first, student-scoped attendance timeline used on the page and the home drawer. */
 export function StudentAttendanceHistoryList({ scope }: { scope: string }) {
   const [status, setStatus] = useState<HistoryStatus>("all");
-  const history = useQuery({
-    queryKey: ["student-attendance-profile", scope],
-    queryFn: listSelfAttendance,
+  const [from, setFrom] = useState("");
+  const [to, setTo] = useState("");
+  const history = useInfiniteQuery({
+    queryKey: ["student-attendance-profile", scope, status, from, to],
+    initialPageParam: 1,
+    queryFn: ({ pageParam }) =>
+      getSelfAttendanceHistory({
+        page: pageParam,
+        limit: 10,
+        ...(status === "all" ? {} : { status }),
+        ...(from ? { from } : {}),
+        ...(to ? { to } : {}),
+      }),
+    getNextPageParam: (last) => (last.hasNext ? last.page + 1 : undefined),
   });
-  const records = (history.data ?? []).filter(
-    (record) => status === "all" || record.status === status,
-  );
+  const records = history.data?.pages.flatMap((page) => page.items) ?? [];
 
   return (
     <section className="space-y-3" aria-label="ریز سابقه حضور" dir="rtl">
@@ -86,6 +96,28 @@ export function StudentAttendanceHistoryList({ scope }: { scope: string }) {
           );
         })}
       </div>
+      <div className="grid grid-cols-2 gap-2">
+        <label className="grid gap-1 text-[11px] font-bold text-slate-500">
+          از تاریخ
+          <DatePicker
+            calendar="persian"
+            value={from}
+            max={to || undefined}
+            onChange={setFrom}
+            ariaLabel="انتخاب تاریخ شروع سابقه حضور"
+          />
+        </label>
+        <label className="grid gap-1 text-[11px] font-bold text-slate-500">
+          تا تاریخ
+          <DatePicker
+            calendar="persian"
+            value={to}
+            min={from || undefined}
+            onChange={setTo}
+            ariaLabel="انتخاب تاریخ پایان سابقه حضور"
+          />
+        </label>
+      </div>
 
       {history.isLoading ? (
         <LoadingState label="در حال دریافت سابقه حضور…" />
@@ -104,11 +136,23 @@ export function StudentAttendanceHistoryList({ scope }: { scope: string }) {
           </button>
         </p>
       ) : records.length ? (
-        <ul className="grid gap-2" aria-label="فهرست سابقه حضور">
-          {records.map((record) => (
-            <AttendanceHistoryRow key={record.id} record={record} />
-          ))}
-        </ul>
+        <>
+          <ul className="grid gap-2" aria-label="فهرست سابقه حضور">
+            {records.map((record) => (
+              <AttendanceHistoryRow key={record.id} record={record} />
+            ))}
+          </ul>
+          {history.hasNextPage ? (
+            <button
+              type="button"
+              disabled={history.isFetchingNextPage}
+              onClick={() => void history.fetchNextPage()}
+              className="min-h-12 w-full rounded-xl border border-brand/30 text-sm font-black text-brand disabled:opacity-60"
+            >
+              {history.isFetchingNextPage ? "در حال دریافت…" : "نمایش ۱۰ جلسه بعدی"}
+            </button>
+          ) : null}
+        </>
       ) : (
         <EmptyState
           title={

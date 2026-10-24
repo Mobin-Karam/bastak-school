@@ -146,7 +146,9 @@ export function StudentDashboard() {
       </div>
 
       <div className="mt-3">
-        <Card
+        <button
+          type="button"
+          onClick={() => setAttendanceProfileOpen(true)}
           className="student-dashboard__surface min-h-0 overflow-hidden p-4"
           aria-label="خلاصه حضور و غیاب"
         >
@@ -155,13 +157,7 @@ export function StudentDashboard() {
               <CalendarCheck2 size={17} className="text-brand" aria-hidden="true" />
               <h2 className="text-xs font-black text-ink">حضور من</h2>
             </div>
-            <button
-              type="button"
-              onClick={() => setAttendanceProfileOpen(true)}
-              className="text-[11px] font-bold text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
-            >
-              جزئیات
-            </button>
+            <span className="text-[11px] font-bold text-brand">دیدن تاریخچه</span>
           </div>
           <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
             {Object.entries(attendanceMeta).map(([status, meta]) => (
@@ -190,7 +186,7 @@ export function StudentDashboard() {
               {attendanceSummary.data.message}
             </p>
           ) : null}
-        </Card>
+        </button>
       </div>
 
       <div className="mt-3">

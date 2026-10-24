@@ -2510,6 +2510,16 @@ export class AttendanceService {
 
   /** A student may read only records tied to their own active school profile. */
   async listSelfRecords(user: AuthenticatedUser) {
+    return (await this.listSelfRecordsPage(user, { page: 1, limit: 200 }))
+      .items;
+  }
+
+  async listSelfRecordsPage(
+    user: AuthenticatedUser,
+    query: Pick<AttendanceHistoryQueryDto, "page" | "limit" | "from" | "to"> & {
+      status?: "present" | "absent" | "late" | "excused";
+    },
+  ) {
     const student = await this.students.findOne({
       where: {
         user: { id: user.id },
@@ -2524,16 +2534,30 @@ export class AttendanceService {
         "پرونده فعال طلبه پیدا نشد.",
       );
     await this.authorizeOrganization(user, student.organization.id);
-    const records = await this.records.find({
+    const page = query.page ?? 1;
+    const limit = Math.min(query.limit ?? 10, 50);
+    const sessionDate = query.from
+      ? query.to
+        ? Between(new Date(query.from), new Date(query.to))
+        : MoreThanOrEqual(new Date(query.from))
+      : query.to
+        ? LessThanOrEqual(new Date(query.to))
+        : undefined;
+    const [records, total] = await this.records.findAndCount({
       where: {
         student: { id: student.id },
-        session: { organization: { id: student.organization.id } },
+        session: {
+          organization: { id: student.organization.id },
+          ...(sessionDate ? { sessionDate } : {}),
+        },
+        ...(query.status ? { status: query.status as AttendanceStatus } : {}),
       },
       relations: { session: { organization: true } },
       order: { createdAt: "DESC", id: "DESC" },
-      take: 200,
+      skip: (page - 1) * limit,
+      take: limit,
     });
-    return records
+    const items = records
       .filter((record) => record.session.status !== "cancelled")
       .map((record) => ({
         id: record.id,
@@ -2556,6 +2580,7 @@ export class AttendanceService {
         organizationId: record.session.organization.id,
         recordedAt: record.updatedAt.toISOString(),
       }));
+    return { items, page, limit, total, hasNext: page * limit < total };
   }
 
   private async participantIds(

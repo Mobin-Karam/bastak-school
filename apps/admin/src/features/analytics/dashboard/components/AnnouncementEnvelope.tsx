@@ -37,7 +37,7 @@ function AnnouncementChatBubble({
   const [isTyping, setIsTyping] = useState(true);
 
   useEffect(() => {
-    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const reduceMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
 
     if (reduceMotion) {
       setVisibleText(PREVIEW_MESSAGE);

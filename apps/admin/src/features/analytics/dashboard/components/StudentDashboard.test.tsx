@@ -26,32 +26,45 @@ vi.mock("../../../student-life/attendance/api/attendance-operations.api.ts", () 
   }),
 }));
 vi.mock("../../../student-life/attendance/api/attendance.api.ts", () => ({
-  listSelfAttendance: async () => [
-    {
-      id: "attendance-1",
-      sessionId: "session-1",
-      status: "present",
-      note: "",
-      title: "فقه کاربردی · کلاس دهم",
-      sessionDate: "2026-10-08T08:00:00.000Z",
-      contextType: "class",
-      contextId: "class-1",
-      organizationId: "org-1",
-      recordedAt: "2026-10-08T09:00:00.000Z",
-    },
-    {
-      id: "attendance-2",
-      sessionId: "session-2",
-      status: "absent",
-      note: "غیبت ثبت‌شده",
-      title: "اخلاق · کلاس دهم",
-      sessionDate: "2026-10-07T08:00:00.000Z",
-      contextType: "class",
-      contextId: "class-1",
-      organizationId: "org-1",
-      recordedAt: "2026-10-07T09:00:00.000Z",
-    },
-  ],
+  contextLabelMap: {
+    class: "کلاس",
+    class_group: "گروه کلاس",
+    dorm: "خوابگاه",
+    pool: "حوضچه / فراخوان",
+    night: "حضور شب",
+  },
+  getSelfAttendanceHistory: async () => ({
+    page: 1,
+    limit: 10,
+    total: 2,
+    hasNext: false,
+    items: [
+      {
+        id: "attendance-1",
+        sessionId: "session-1",
+        status: "present",
+        note: "",
+        title: "فقه کاربردی · کلاس دهم",
+        sessionDate: "2026-10-08T08:00:00.000Z",
+        contextType: "class",
+        contextId: "class-1",
+        organizationId: "org-1",
+        recordedAt: "2026-10-08T09:00:00.000Z",
+      },
+      {
+        id: "attendance-2",
+        sessionId: "session-2",
+        status: "absent",
+        note: "غیبت ثبت‌شده",
+        title: "اخلاق · کلاس دهم",
+        sessionDate: "2026-10-07T08:00:00.000Z",
+        contextType: "class",
+        contextId: "class-1",
+        organizationId: "org-1",
+        recordedAt: "2026-10-07T09:00:00.000Z",
+      },
+    ],
+  }),
 }));
 vi.mock("../api/dashboard.api.ts", () => ({
   getAdminDashboard: async () => ({
@@ -134,8 +147,8 @@ describe("StudentDashboard", () => {
       screen.getByRole("region", { name: "وقت شرعی پیش رو" }).querySelector("time"),
     ).toBeVisible();
     expect(screen.queryByRole("region", { name: "زمان کلاس‌های امروز" })).not.toBeInTheDocument();
-    expect(screen.getByRole("region", { name: "خلاصه حضور و غیاب" })).toHaveTextContent("حاضر");
-    expect(screen.getByRole("region", { name: "خلاصه حضور و غیاب" })).toHaveTextContent("۸");
+    expect(screen.getByRole("button", { name: "خلاصه حضور و غیاب" })).toHaveTextContent("حاضر");
+    expect(screen.getByRole("button", { name: "خلاصه حضور و غیاب" })).toHaveTextContent("۸");
     expect(screen.queryByRole("heading", { name: "دستاوردهای من" })).not.toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "بازار سکه‌های من" })).not.toBeInTheDocument();
     expect(screen.getByRole("link", { name: "برنامه" })).toHaveAttribute("href", "/admin/schedule");
@@ -157,7 +170,7 @@ describe("StudentDashboard", () => {
       </MemoryRouter>,
     );
 
-    await user.click(await screen.findByRole("button", { name: "جزئیات" }));
+    await user.click(await screen.findByRole("button", { name: "خلاصه حضور و غیاب" }));
     const drawer = await screen.findByRole("dialog");
     expect(drawer).toHaveTextContent("پرونده کامل حضور من");
     expect(drawer).toHaveTextContent("۸");
