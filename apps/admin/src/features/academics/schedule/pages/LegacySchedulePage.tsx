@@ -5,6 +5,7 @@ import {
   CalendarClock,
   BookOpenCheck,
   Clock3,
+  Copy,
   GraduationCap,
   MapPin,
   Pencil,
@@ -27,14 +28,17 @@ import {
   archiveScheduleEntry,
   commitScheduleImport,
   createScheduleEntry,
+  createScheduleTimeBlock,
   deleteScheduleEntry,
+  deleteScheduleTimeBlock,
   exportSchedule,
   listSchedule,
+  listScheduleTimeBlocks,
   previewScheduleImport,
   type ScheduleDraft,
   updateScheduleEntry,
 } from "../api/schedule.api";
-import type { ScheduleEntry } from "../api/schedule.api";
+import type { ScheduleEntry, ScheduleTimeBlock } from "../api/schedule.api";
 import { TeacherSchedulePage } from "../../../people/teacher-portal";
 import { OrganizationTag } from "../../../../shared/ui/organization-tag";
 import { todayIso } from "../../../../shared/lib/utils";
@@ -91,6 +95,11 @@ export function LegacySchedulePage() {
   const canArchive = auth.can("schedule.archive");
   const canDelete = auth.can("schedule.delete");
   const canWrite = canCreate || canEdit;
+  const timeBlocks = useQuery({
+    queryKey: ["schedule", "time-blocks", selectedOrganizationId ?? "all"],
+    queryFn: listScheduleTimeBlocks,
+    enabled: canWrite,
+  });
   const isTeacher = auth.activeRole === "TEACHER";
   const classes = useQuery({
     queryKey: ["classes", "schedule"],
@@ -125,6 +134,34 @@ export function LegacySchedulePage() {
     },
     onError: (error) =>
       notify(error instanceof Error ? error.message : "حذف برنامه انجام نشد.", "error"),
+  });
+  const move = useMutation({
+    mutationFn: ({ entry, weekday }: { entry: ScheduleEntry; weekday: number }) =>
+      updateScheduleEntry(entry.id, { ...draftFromEntry(entry), weekday }),
+    onSuccess: () => {
+      reload();
+      notify("جلسه به روز جدید منتقل شد.", "success");
+    },
+    onError: (error) =>
+      notify(error instanceof Error ? error.message : "جابجایی جلسه انجام نشد.", "error"),
+  });
+  const saveTimeBlock = useMutation({
+    mutationFn: createScheduleTimeBlock,
+    onSuccess: () => {
+      void client.invalidateQueries({ queryKey: ["schedule", "time-blocks"] });
+      notify("بازه زمانی ذخیره شد.", "success");
+    },
+    onError: (error) =>
+      notify(error instanceof Error ? error.message : "ذخیره بازه زمانی انجام نشد.", "error"),
+  });
+  const removeTimeBlock = useMutation({
+    mutationFn: deleteScheduleTimeBlock,
+    onSuccess: () => {
+      void client.invalidateQueries({ queryKey: ["schedule", "time-blocks"] });
+      notify("بازه زمانی حذف شد.", "success");
+    },
+    onError: (error) =>
+      notify(error instanceof Error ? error.message : "حذف بازه زمانی انجام نشد.", "error"),
   });
   async function download() {
     try {
@@ -184,32 +221,34 @@ export function LegacySchedulePage() {
   if (
     entries.isLoading ||
     (canReadOrganizations && organizations.isLoading) ||
-    (canWrite && classes.isLoading)
+    (canWrite && (classes.isLoading || timeBlocks.isLoading))
   )
     return <LoadingState label="در حال دریافت برنامه…" />;
   if (
     entries.isError ||
     (canReadOrganizations && organizations.isError) ||
-    (canWrite && classes.isError)
+    (canWrite && (classes.isError || timeBlocks.isError))
   )
     return <EmptyState title="دریافت برنامه انجام نشد." />;
   if (isTeacher) return <TeacherSchedulePage entries={entries.data ?? []} />;
-  const editEntry = (entry?: ScheduleEntry) => {
+  const editEntry = (entry?: ScheduleEntry, copy = false) => {
     modal.open({
-      title: entry ? "ویرایش جلسه" : "افزودن جلسه به برنامه",
-      description: entry
-        ? "جزئیات جلسه را اصلاح کنید؛ تغییرات فقط پس از ذخیره اعمال می‌شود."
-        : "گام ۱: مدرسه و کلاس را مشخص کنید. گام ۲: زمان و فضای جلسه را وارد کنید.",
+      title: entry ? (copy ? "کپی جلسه در برنامه" : "ویرایش جلسه") : "افزودن جلسه به برنامه",
+      description:
+        entry && !copy
+          ? "جزئیات جلسه را اصلاح کنید؛ تغییرات فقط پس از ذخیره اعمال می‌شود."
+          : "روز و زمان مقصد را انتخاب کنید؛ جلسه اصلی بدون تغییر باقی می‌ماند.",
       size: "lg",
       content: (
         <ScheduleEditorForm
           initial={entry ? draftFromEntry(entry) : blank()}
+          timeBlocks={timeBlocks.data ?? []}
           organizations={organizationOptions}
           classes={classes.data ?? []}
           isSaving={save.isPending}
           onCancel={modal.close}
           onSubmit={async (draft) => {
-            await save.mutateAsync({ id: entry?.id, draft });
+            await save.mutateAsync({ id: copy ? undefined : entry?.id, draft });
             modal.close();
           }}
         />
@@ -260,12 +299,17 @@ export function LegacySchedulePage() {
           entry={entry}
           showOrganization={auth.hasRole("PLATFORM_ADMIN")}
           canEdit={canEdit}
+          canCreate={canCreate}
           canArchive={canArchive}
           canDelete={canDelete}
           onClose={modal.close}
           onEdit={() => {
             modal.close();
             editEntry(entry);
+          }}
+          onCopy={() => {
+            modal.close();
+            editEntry(entry, true);
           }}
           onArchive={() => {
             modal.close();
@@ -297,6 +341,7 @@ export function LegacySchedulePage() {
           onArchive={confirmArchive}
           onDelete={confirmDelete}
           onOpenDetails={openDetails}
+          onMove={(entry, weekday) => move.mutate({ entry, weekday })}
           toolbar={
             auth.canAny(["schedule.import", "schedule.export"]) ? (
               <SpreadsheetTransferLauncher
@@ -321,20 +366,43 @@ export function LegacySchedulePage() {
           }
         />
       </div>
-      {canCreate ? (
-        <Card className="order-1 border-brand/15 bg-[rgb(var(--surface-card))] p-4 min-[960px]:order-2 min-[960px]:sticky min-[960px]:top-3 min-[960px]:self-start">
-          <span className="grid size-10 place-items-center rounded-xl bg-brand/10 text-brand">
-            <Plus size={20} />
-          </span>
-          <h2 className="mt-3 font-black text-ink">ساخت جلسه، بدون ترک جدول</h2>
-          <p className="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-300">
-            در یک فرم کوتاه، مدرسه، زمان و فضای جلسه را مشخص کنید.
-          </p>
-          <Button className="mt-4 w-full" onClick={() => editEntry()}>
-            <Plus size={16} /> افزودن جلسه
-          </Button>
-        </Card>
-      ) : null}
+      <aside className="order-1 grid gap-3 min-[960px]:order-2 min-[960px]:sticky min-[960px]:top-3 min-[960px]:self-start">
+        {canCreate ? (
+          <Card className="border-brand/15 bg-[rgb(var(--surface-card))] p-4">
+            <span className="grid size-10 place-items-center rounded-xl bg-brand/10 text-brand">
+              <Plus size={20} />
+            </span>
+            <h2 className="mt-3 font-black text-ink">ساخت جلسه، بدون ترک جدول</h2>
+            <p className="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-300">
+              در یک فرم کوتاه، مدرسه، زمان و فضای جلسه را مشخص کنید.
+            </p>
+            <Button className="mt-4 w-full" onClick={() => editEntry()}>
+              <Plus size={16} /> افزودن جلسه
+            </Button>
+          </Card>
+        ) : null}
+        {canEdit ? (
+          <ScheduleTimeBlocks
+            blocks={timeBlocks.data ?? []}
+            organizationId={selectedOrganizationId}
+            saving={saveTimeBlock.isPending}
+            removing={removeTimeBlock.isPending}
+            onCreate={(draft) => saveTimeBlock.mutate(draft)}
+            onRemove={(block) =>
+              void modal
+                .confirm({
+                  title: "حذف بازه زمانی؟",
+                  description: `«${block.name}» از فهرست بازه‌های قابل‌استفاده حذف می‌شود؛ جلسه‌های قبلی تغییری نمی‌کنند.`,
+                  tone: "danger",
+                  confirmLabel: "حذف بازه",
+                  cancelLabel: "انصراف",
+                  softConfirm: true,
+                })
+                .then((confirmed) => confirmed && removeTimeBlock.mutate(block.id))
+            }
+          />
+        ) : null}
+      </aside>
     </section>
   );
 }
@@ -353,6 +421,7 @@ type ScheduleWorkspaceProps = {
   onArchive: (entry: ScheduleEntry) => void;
   onDelete: (entry: ScheduleEntry) => void;
   onOpenDetails: (entry: ScheduleEntry) => void;
+  onMove: (entry: ScheduleEntry, weekday: number) => void;
   toolbar?: ReactNode;
 };
 
@@ -368,6 +437,7 @@ function ScheduleWorkspace({
   onArchive,
   onDelete,
   onOpenDetails,
+  onMove,
   toolbar,
 }: ScheduleWorkspaceProps) {
   const isMobileShell = useViewportShell() === "mobile";
@@ -393,6 +463,7 @@ function ScheduleWorkspace({
   );
   const today = legacyWeekdayForIso(todayIso());
   const activeEntries = entriesByWeekday.get(activeWeekday) ?? [];
+  const [draggedEntry, setDraggedEntry] = useState<ScheduleEntry | null>(null);
   const classLanes = useMemo(() => {
     const lanes = new Map<string, ScheduleEntry[]>();
 
@@ -541,6 +612,14 @@ function ScheduleWorkspace({
                         return (
                           <td
                             key={weekday}
+                            onDragOver={(event) => {
+                              if (canEdit) event.preventDefault();
+                            }}
+                            onDrop={() => {
+                              if (draggedEntry && draggedEntry.weekday !== weekday)
+                                onMove(draggedEntry, weekday);
+                              setDraggedEntry(null);
+                            }}
                             className={`align-top border-s border-t border-slate-200 p-1.5 dark:border-white/10 ${weekday === today ? "bg-brand/[.045]" : ""}`}
                           >
                             {cellEntries.length ? (
@@ -557,6 +636,8 @@ function ScheduleWorkspace({
                                     onArchive={onArchive}
                                     onDelete={onDelete}
                                     onOpenPlan={onOpenDetails}
+                                    onDragStart={() => setDraggedEntry(entry)}
+                                    onDragEnd={() => setDraggedEntry(null)}
                                   />
                                 ))}
                               </div>
@@ -638,6 +719,8 @@ function ScheduleMatrixCell({
   onArchive,
   onDelete,
   onOpenPlan,
+  onDragStart,
+  onDragEnd,
 }: {
   entry: ScheduleEntry;
   showOrganization: boolean;
@@ -648,10 +731,20 @@ function ScheduleMatrixCell({
   onArchive: (entry: ScheduleEntry) => void;
   onDelete: (entry: ScheduleEntry) => void;
   onOpenPlan: (entry: ScheduleEntry) => void;
+  onDragStart: () => void;
+  onDragEnd: () => void;
 }) {
   return (
     <article
-      className={`rounded-md border px-1.5 py-1 shadow-[0_5px_9px_-9px_rgba(20,81,138,.7)] dark:border-white/10 ${
+      draggable={canEdit}
+      onDragStart={onDragStart}
+      onDragEnd={onDragEnd}
+      title={
+        canEdit
+          ? "برای انتقال به روز دیگر بکشید؛ برای تغییر ساعت، ویرایش را انتخاب کنید."
+          : undefined
+      }
+      className={`rounded-md border px-1.5 py-1 shadow-[0_5px_9px_-9px_rgba(20,81,138,.7)] dark:border-white/10 ${canEdit ? "cursor-grab active:cursor-grabbing" : ""} ${
         isSchoolWidePlan(entry)
           ? "border-amber-300 bg-[#fff7cc] dark:border-amber-400/30 dark:bg-amber-500/15"
           : "border-slate-200 bg-white/90 dark:bg-white/[.04]"
@@ -810,9 +903,11 @@ function SchedulePlanModal({
   entry,
   showOrganization,
   canEdit,
+  canCreate,
   canArchive,
   canDelete,
   onEdit,
+  onCopy,
   onArchive,
   onDelete,
   onClose,
@@ -820,9 +915,11 @@ function SchedulePlanModal({
   entry: ScheduleEntry;
   showOrganization: boolean;
   canEdit: boolean;
+  canCreate: boolean;
   canArchive: boolean;
   canDelete: boolean;
   onEdit: () => void;
+  onCopy: () => void;
   onArchive: () => void;
   onDelete: () => void;
   onClose: () => void;
@@ -871,8 +968,13 @@ function SchedulePlanModal({
         </section>
       ) : null}
 
-      {canEdit || canArchive || canDelete ? (
+      {canCreate || canEdit || canArchive || canDelete ? (
         <div className="grid gap-2 border-t border-[rgb(var(--border-subtle))] pt-4 sm:grid-cols-2">
+          {canCreate ? (
+            <Button variant="soft" onClick={onCopy}>
+              <Copy size={16} /> کپی در روز یا ساعت دیگر
+            </Button>
+          ) : null}
           {canEdit ? (
             <Button variant="soft" onClick={onEdit}>
               <Pencil size={16} /> ویرایش برنامه
@@ -900,6 +1002,7 @@ function SchedulePlanModal({
 
 function ScheduleEditorForm({
   initial,
+  timeBlocks,
   organizations,
   classes,
   isSaving,
@@ -907,6 +1010,7 @@ function ScheduleEditorForm({
   onSubmit,
 }: {
   initial: ScheduleDraft;
+  timeBlocks: ScheduleTimeBlock[];
   organizations: Array<{ id: string; name: string }>;
   classes: Array<{
     id: string;
@@ -1060,6 +1164,27 @@ function ScheduleEditorForm({
             />
           </label>
         </div>
+        {timeBlocks.length ? (
+          <label className="grid gap-1.5 text-sm font-bold">
+            بازه زمانی آماده
+            <AdaptiveSelect
+              defaultValue=""
+              onChange={(event) => {
+                const block = timeBlocks.find((item) => item.id === event.target.value);
+                if (block) update({ startTime: block.startTime, endTime: block.endTime });
+              }}
+              className="h-11 rounded-xl border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card))] px-3 text-sm text-ink focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20"
+            >
+              <option value="">یک بازه را برای اعمال زمان انتخاب کنید</option>
+              {timeBlocks.map((block) => (
+                <option key={block.id} value={block.id}>
+                  {block.name} · {block.startTime} تا {block.endTime}
+                  {timeBlockPartOfDay(block.startTime)}
+                </option>
+              ))}
+            </AdaptiveSelect>
+          </label>
+        ) : null}
         {attempted && invalidTime ? (
           <p className="text-xs font-bold text-rose-600">زمان پایان باید پس از زمان شروع باشد.</p>
         ) : null}
@@ -1082,6 +1207,113 @@ function ScheduleEditorForm({
       </div>
     </form>
   );
+}
+
+function ScheduleTimeBlocks({
+  blocks,
+  organizationId,
+  saving,
+  removing,
+  onCreate,
+  onRemove,
+}: {
+  blocks: ScheduleTimeBlock[];
+  organizationId?: string;
+  saving: boolean;
+  removing: boolean;
+  onCreate: (draft: {
+    organizationId: string;
+    name: string;
+    startTime: string;
+    endTime: string;
+  }) => void;
+  onRemove: (block: ScheduleTimeBlock) => void;
+}) {
+  const [name, setName] = useState("");
+  const [startTime, setStartTime] = useState("08:00");
+  const [endTime, setEndTime] = useState("09:00");
+  const valid = Boolean(organizationId && name.trim() && startTime < endTime);
+  return (
+    <Card className="p-4" dir="rtl">
+      <div className="flex items-center gap-2">
+        <span className="grid size-9 place-items-center rounded-xl bg-brand/10 text-brand">
+          <Clock3 size={17} />
+        </span>
+        <div>
+          <h2 className="text-sm font-black text-ink">بازه‌های زمانی آماده</h2>
+          <p className="text-[11px] text-slate-500">یک‌بار بسازید، در هر جلسه استفاده کنید.</p>
+        </div>
+      </div>
+      <form
+        className="mt-3 grid gap-2"
+        onSubmit={(event) => {
+          event.preventDefault();
+          if (!organizationId || !valid) return;
+          onCreate({ organizationId, name: name.trim(), startTime, endTime });
+          setName("");
+        }}
+      >
+        <Input
+          value={name}
+          onChange={(event) => setName(event.target.value)}
+          placeholder="مثلاً زنگ اول"
+          aria-label="نام بازه زمانی"
+        />
+        <div className="grid grid-cols-2 gap-2">
+          <Input
+            type="time"
+            value={startTime}
+            onChange={(event) => setStartTime(event.target.value)}
+            aria-label="شروع بازه زمانی"
+          />
+          <Input
+            type="time"
+            value={endTime}
+            onChange={(event) => setEndTime(event.target.value)}
+            aria-label="پایان بازه زمانی"
+          />
+        </div>
+        <Button type="submit" variant="soft" disabled={!valid || saving}>
+          افزودن بازه
+        </Button>
+      </form>
+      {blocks.length ? (
+        <ul className="mt-3 grid gap-1.5" aria-label="بازه‌های زمانی ذخیره‌شده">
+          {blocks.map((block) => (
+            <li
+              key={block.id}
+              className="flex items-center justify-between gap-2 rounded-lg bg-[rgb(var(--surface-muted))] px-2 py-1.5 text-xs"
+            >
+              <span className="min-w-0 truncate font-bold text-ink">
+                {block.name}{" "}
+                <b className="font-normal text-slate-500" dir="ltr">
+                  {block.startTime}–{block.endTime}
+                </b>
+                <em className="ms-1 not-italic text-slate-500">
+                  {timeBlockPartOfDay(block.startTime)}
+                </em>
+              </span>
+              <Button
+                size="sm"
+                variant="ghost"
+                disabled={removing}
+                aria-label={`حذف بازه ${block.name}`}
+                onClick={() => onRemove(block)}
+              >
+                <Trash2 size={13} />
+              </Button>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="mt-3 text-xs leading-5 text-slate-500">هنوز بازه‌ای ثبت نشده است.</p>
+      )}
+    </Card>
+  );
+}
+
+function timeBlockPartOfDay(startTime: string) {
+  return startTime < "12:00" ? "پیش از ظهر" : "پس از ظهر";
 }
 
 function draftFromEntry(entry: ScheduleEntry): ScheduleDraft {

@@ -1,4 +1,13 @@
-import { IsIn, IsInt, IsOptional, IsString, IsUUID, Matches, Max, Min } from "class-validator";
+import {
+  IsIn,
+  IsInt,
+  IsOptional,
+  IsString,
+  IsUUID,
+  Matches,
+  Max,
+  Min,
+} from "class-validator";
 
 export class SaveScheduleEntryDto {
   @IsUUID() organizationId!: string;
@@ -12,4 +21,13 @@ export class SaveScheduleEntryDto {
   @IsOptional() @IsString() room?: string;
 }
 
-export class ArchiveScheduleEntryDto { @IsIn(["ACTIVE", "ARCHIVED"]) status!: "ACTIVE" | "ARCHIVED"; }
+export class ArchiveScheduleEntryDto {
+  @IsIn(["ACTIVE", "ARCHIVED"]) status!: "ACTIVE" | "ARCHIVED";
+}
+
+export class CreateScheduleTimeBlockDto {
+  @IsUUID() organizationId!: string;
+  @IsString() name!: string;
+  @Matches(/^([01]\d|2[0-3]):[0-5]\d$/) startTime!: string;
+  @Matches(/^([01]\d|2[0-3]):[0-5]\d$/) endTime!: string;
+}

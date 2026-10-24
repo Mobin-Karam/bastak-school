@@ -67,6 +67,7 @@ export { EducationClass } from "./education-class.entity";
 export { EducationClassBook } from "./education-class-book.entity";
 export { EducationClassEnrollment } from "./education-class-enrollment.entity";
 export { SchoolScheduleEntry } from "./school-schedule-entry.entity";
+export { SchoolScheduleTimeBlock } from "./school-schedule-time-block.entity";
 export { SchoolPrayerTime } from "./school-prayer-time.entity";
 export { SchoolAnnouncement } from "./school-announcement.entity";
 export { SchoolAnnouncementRecipient } from "./school-announcement-recipient.entity";

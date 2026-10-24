@@ -14,17 +14,24 @@ import {
 } from "../../database/entities/organization-membership.entity";
 import { Organization } from "../../database/entities/organization.entity";
 import { SchoolScheduleEntry } from "../../database/entities/school-schedule-entry.entity";
+import { SchoolScheduleTimeBlock } from "../../database/entities/school-schedule-time-block.entity";
 import { User } from "../../database/entities/user.entity";
 import { UserRelationship } from "../../database/entities/user-relationship.entity";
 import { AuthenticatedUser } from "../auth";
 import { AuthorizationService, UserContext } from "../authorization";
-import { ArchiveScheduleEntryDto, SaveScheduleEntryDto } from "./schedule.dto";
+import {
+  ArchiveScheduleEntryDto,
+  CreateScheduleTimeBlockDto,
+  SaveScheduleEntryDto,
+} from "./schedule.dto";
 
 @Injectable()
 export class ScheduleService {
   constructor(
     @InjectRepository(SchoolScheduleEntry)
     private readonly entries: Repository<SchoolScheduleEntry>,
+    @InjectRepository(SchoolScheduleTimeBlock)
+    private readonly timeBlocks: Repository<SchoolScheduleTimeBlock>,
     @InjectRepository(Organization)
     private readonly organizations: Repository<Organization>,
     @InjectRepository(OrganizationMembership)
@@ -247,6 +254,104 @@ export class ScheduleService {
       },
       organizationId,
     );
+  }
+  async listTimeBlocks(user: AuthenticatedUser, organizationId?: string) {
+    const context = this.context(user);
+    this.authorization.requireCapability(context, "schedule.read");
+    const requestedOrganizationId = organizationId ?? user.activeOrganizationId;
+    if (
+      requestedOrganizationId &&
+      !context.roles.includes("PLATFORM_ADMIN") &&
+      !context.organizationIds.includes(requestedOrganizationId)
+    )
+      throw new ApiException(403, "FORBIDDEN", "دسترسی کافی ندارید.");
+    if (context.roles.includes("PLATFORM_ADMIN"))
+      return this.timeBlocks.find({
+        where: requestedOrganizationId
+          ? { organization: { id: requestedOrganizationId } }
+          : {},
+        relations: { organization: true },
+        order: { name: "ASC" },
+      });
+    if (!this.isOperator(context) || !context.organizationIds.length) return [];
+    return this.timeBlocks.find({
+      where: {
+        organization: {
+          id: In(
+            requestedOrganizationId
+              ? [requestedOrganizationId]
+              : context.organizationIds,
+          ),
+        },
+      },
+      relations: { organization: true },
+      order: { name: "ASC" },
+    });
+  }
+  async createTimeBlock(
+    user: AuthenticatedUser,
+    dto: CreateScheduleTimeBlockDto,
+  ) {
+    const context = this.context(user);
+    this.authorization.requireCapability(context, "schedule.update");
+    if (
+      !this.isOperator(context) ||
+      (!context.roles.includes("PLATFORM_ADMIN") &&
+        !context.organizationIds.includes(dto.organizationId))
+    )
+      throw new ApiException(403, "FORBIDDEN", "دسترسی کافی ندارید.");
+    if (dto.endTime <= dto.startTime)
+      throw new ApiException(
+        422,
+        "INVALID_TIME_RANGE",
+        "زمان پایان باید بعد از شروع باشد.",
+      );
+    const organization = await this.organizations.findOneBy({
+      id: dto.organizationId,
+    });
+    if (!organization)
+      throw new ApiException(404, "ORGANIZATION_NOT_FOUND", "مدرسه پیدا نشد.");
+    const name = dto.name.trim();
+    if (!name)
+      throw new ApiException(
+        422,
+        "TIME_BLOCK_NAME_REQUIRED",
+        "نام بازه زمانی لازم است.",
+      );
+    const existing = await this.timeBlocks.findOne({
+      where: { organization: { id: organization.id }, name },
+    });
+    if (existing)
+      throw new ApiException(
+        409,
+        "TIME_BLOCK_NAME_EXISTS",
+        "این نام بازه زمانی قبلاً ثبت شده است.",
+      );
+    return this.timeBlocks.save(
+      this.timeBlocks.create({ ...dto, name, organization }),
+    );
+  }
+  async removeTimeBlock(user: AuthenticatedUser, id: string) {
+    const context = this.context(user);
+    this.authorization.requireCapability(context, "schedule.update");
+    const block = await this.timeBlocks.findOne({
+      where: { id },
+      relations: { organization: true },
+    });
+    if (!block)
+      throw new ApiException(
+        404,
+        "TIME_BLOCK_NOT_FOUND",
+        "بازه زمانی پیدا نشد.",
+      );
+    if (
+      !this.isOperator(context) ||
+      (!context.roles.includes("PLATFORM_ADMIN") &&
+        !context.organizationIds.includes(block.organization.id))
+    )
+      throw new ApiException(403, "FORBIDDEN", "دسترسی کافی ندارید.");
+    await this.timeBlocks.remove(block);
+    return { deleted: true };
   }
   async create(
     user: AuthenticatedUser,
