@@ -5,6 +5,7 @@ import { Card, ErrorState, LoadingState } from "../../../../shared/ui/ui";
 import { ManagementPageHeader } from "../../../../shared/ui/management-workspace";
 import { getAttendanceEncouragement } from "../api/attendance-operations.api";
 import { StudentAttendanceWorkspace } from "../components/StudentAttendanceWorkspace";
+import { StudentAttendanceHistoryList } from "../components/StudentAttendanceHistoryList";
 
 /** Student accounts see encouragement and scoped tasks; detailed profiles belong to staff. */
 export function MyAttendancePage() {
@@ -61,6 +62,7 @@ export function MyAttendancePage() {
           </dl>
         </Card>
       ) : null}
+      <StudentAttendanceHistoryList scope={scope} />
       <StudentAttendanceWorkspace key={scope} scope={scope} />
     </section>
   );

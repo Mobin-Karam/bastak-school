@@ -155,7 +155,6 @@ export function AdminMobileBottomNav({
               capabilities={auth.capabilities}
               activeRole={auth.activeRole}
               userId={auth.user?.id}
-              userName={auth.user?.username}
               organizationId={auth.context?.activeOrganization?.id}
               primaryPaths={primaryPaths}
               onNavigate={() => setSheetOpen(false)}
@@ -214,7 +213,6 @@ function StudentMoreDrawerHeader({
   capabilities,
   activeRole,
   userId,
-  userName,
   organizationId,
   primaryPaths,
   onNavigate,
@@ -222,7 +220,6 @@ function StudentMoreDrawerHeader({
   capabilities: readonly string[];
   activeRole: string | null | undefined;
   userId?: string;
-  userName?: string;
   organizationId?: string;
   primaryPaths: ReadonlySet<string>;
   onNavigate: () => void;
@@ -249,23 +246,7 @@ function StudentMoreDrawerHeader({
   ];
 
   return (
-    <div className="grid gap-3">
-      <div className="relative overflow-hidden rounded-3xl bg-[#0B1020] px-4 py-3 text-white shadow-xl shadow-indigo-950/25">
-        <span
-          className="absolute -end-8 -top-8 size-28 rounded-full bg-cyan-400/30 blur-2xl"
-          aria-hidden="true"
-        />
-        <span
-          className="absolute -bottom-8 start-1/3 size-24 rounded-full bg-violet-500/35 blur-2xl"
-          aria-hidden="true"
-        />
-        <p className="relative text-[11px] font-black tracking-[0.16em] text-cyan-200">
-          STUDENT SPACE
-        </p>
-        <p className="relative mt-1 text-base font-black">
-          {userName ? `سلام، ${userName}` : "مسیر پیشرفت من"}
-        </p>
-      </div>
+    <div className="grid gap-4">
       <NavLink
         to="/admin/my-attendance"
         onClick={onNavigate}
@@ -295,10 +276,10 @@ function StudentMoreDrawerHeader({
           <NavLink
             to="/admin/achievements"
             onClick={onNavigate}
-            className="relative grid min-h-28 grid-cols-[auto_minmax(0,1fr)] gap-x-2 gap-y-1 overflow-hidden rounded-3xl border border-cyan-200/30 bg-gradient-to-br from-cyan-500 via-blue-600 to-indigo-700 p-3 text-white shadow-lg shadow-blue-500/20 outline-none transition hover:-translate-y-0.5 hover:shadow-xl focus-visible:ring-2 focus-visible:ring-cyan-200 motion-reduce:transition-none"
+            className="grid min-h-24 grid-cols-[auto_minmax(0,1fr)] gap-x-2 gap-y-1 rounded-2xl border border-slate-800 bg-slate-950 p-3 text-white outline-none transition hover:bg-slate-800 focus-visible:ring-2 focus-visible:ring-brand"
           >
-            <span className="row-span-2 grid size-10 place-items-center rounded-2xl bg-white/15 text-white">
-              <Medal size={20} aria-hidden="true" />
+            <span className="row-span-2 grid size-9 place-items-center rounded-xl bg-white/10">
+              <Medal size={18} aria-hidden="true" />
             </span>
             <span className="flex min-w-0 items-center justify-between gap-2 text-start">
               <strong className="text-xs">دستاوردها</strong>
@@ -309,10 +290,10 @@ function StudentMoreDrawerHeader({
           <NavLink
             to="/admin/coin-shop"
             onClick={onNavigate}
-            className="relative grid min-h-28 grid-cols-[auto_minmax(0,1fr)] gap-x-2 gap-y-1 overflow-hidden rounded-3xl border border-violet-200/30 bg-gradient-to-br from-violet-500 via-fuchsia-600 to-pink-600 p-3 text-white shadow-lg shadow-fuchsia-500/20 outline-none transition hover:-translate-y-0.5 hover:shadow-xl focus-visible:ring-2 focus-visible:ring-cyan-200 motion-reduce:transition-none"
+            className="grid min-h-24 grid-cols-[auto_minmax(0,1fr)] gap-x-2 gap-y-1 rounded-2xl border border-slate-800 bg-slate-950 p-3 text-white outline-none transition hover:bg-slate-800 focus-visible:ring-2 focus-visible:ring-amber-200"
           >
-            <span className="row-span-2 grid size-10 place-items-center rounded-2xl bg-white/15 text-white">
-              <Store size={20} aria-hidden="true" />
+            <span className="row-span-2 grid size-9 place-items-center rounded-xl bg-amber-300/10 text-amber-200">
+              <Store size={18} aria-hidden="true" />
             </span>
             <span className="flex min-w-0 items-center justify-between gap-2 text-start">
               <strong className="text-xs">بازار سکه</strong>

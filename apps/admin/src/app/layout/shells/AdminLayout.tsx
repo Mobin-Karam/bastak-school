@@ -102,7 +102,9 @@ export function AdminLayout() {
         </Suspense>
       ) : null}
       <AdminShellChrome shell={shell} model={model} onOpenCommandPalette={openCommandPalette} />
-      {shell === "mobile" ? <AdminFloatingIsland model={model} /> : null}
+      {shell === "mobile" && model.auth.activeRole !== "STUDENT" ? (
+        <AdminFloatingIsland model={model} />
+      ) : null}
       <SharedPageViewport
         contentOffsetClassName={
           shell === "desktop"

@@ -328,17 +328,6 @@ const studentNavigation: readonly NavigationGroup[] = [
     ],
   },
   {
-    section: "اعلان‌ها",
-    items: [
-      {
-        path: "communication/notifications",
-        title: "اعلان‌ها",
-        description: "پیام‌ها و اطلاعیه‌های شخصی مدرسه",
-        icon: Bell,
-      },
-    ],
-  },
-  {
     section: "پیشرفت و سکه",
     items: [
       {
