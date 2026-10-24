@@ -408,17 +408,24 @@ export function LegacySchedulePage() {
   ) : null;
   return (
     <section
-      className={`grid w-full max-w-none gap-4 pb-[calc(6rem+env(safe-area-inset-bottom))] min-[960px]:pb-6 min-[960px]:transition-[grid-template-columns] min-[960px]:duration-300 min-[960px]:ease-out motion-reduce:transition-none ${toolsSidebarHidden ? "min-[960px]:grid-cols-[minmax(0,1fr)_0rem]" : "min-[960px]:grid-cols-[minmax(0,1fr)_22rem]"}`}
+      className={`relative grid w-full max-w-none gap-4 pb-[calc(6rem+env(safe-area-inset-bottom))] min-[960px]:pb-6 min-[960px]:transition-[grid-template-columns] min-[960px]:duration-300 min-[960px]:ease-out motion-reduce:transition-none ${toolsSidebarHidden ? "min-[960px]:grid-cols-[minmax(0,1fr)_0rem]" : "min-[960px]:grid-cols-[minmax(0,1fr)_22rem]"}`}
       dir="rtl"
     >
-      <div className="order-2 grid gap-3 min-[960px]:order-1">
+      <button
+        type="button"
+        className="absolute -left-3 top-4 z-20 hidden size-11 place-items-center rounded-r-full border border-slate-200 bg-[rgb(var(--surface-card))] text-slate-500 shadow-[0_8px_20px_rgb(15_23_42_/_14%)] outline-none transition hover:bg-brand hover:text-white focus-visible:ring-2 focus-visible:ring-brand motion-reduce:transition-none min-[960px]:grid"
+        onClick={() => setToolsSidebarHidden((hidden) => !hidden)}
+        title={toolsSidebarHidden ? "نمایش ابزارهای برنامه" : "پنهان کردن ابزارهای برنامه"}
+        aria-label={toolsSidebarHidden ? "نمایش ابزارهای برنامه" : "پنهان کردن ابزارهای برنامه"}
+        aria-pressed={!toolsSidebarHidden}
+      >
         {toolsSidebarHidden ? (
-          <div className="hidden min-[960px]:flex justify-end">
-            <Button variant="soft" onClick={() => setToolsSidebarHidden(false)}>
-              <PanelRightOpen size={16} /> نمایش ابزارهای برنامه
-            </Button>
-          </div>
-        ) : null}
+          <PanelRightOpen size={18} aria-hidden="true" />
+        ) : (
+          <PanelRightClose size={18} aria-hidden="true" />
+        )}
+      </button>
+      <div className="order-2 grid gap-3 min-[960px]:order-1">
         {templatePreview ? (
           <ScheduleTemplatePreview
             template={templatePreview}
@@ -456,11 +463,6 @@ export function LegacySchedulePage() {
       <aside
         className={`order-1 grid min-w-0 gap-3 overflow-hidden transition-[opacity,transform] duration-300 ease-out motion-reduce:transition-none min-[960px]:order-2 min-[960px]:sticky min-[960px]:top-3 min-[960px]:self-start ${toolsSidebarHidden ? "min-[960px]:pointer-events-none min-[960px]:translate-x-3 min-[960px]:opacity-0" : "min-[960px]:translate-x-0 min-[960px]:opacity-100"}`}
       >
-        <div className="hidden min-[960px]:flex justify-end">
-          <Button variant="ghost" size="sm" onClick={() => setToolsSidebarHidden(true)}>
-            <PanelRightClose size={15} /> پنهان کردن ابزارها
-          </Button>
-        </div>
         <ScheduleSidebarSummary entries={scheduleEntries} toolbar={scheduleToolbar} />
         {canCreate ? (
           <Card className="border-brand/15 bg-[rgb(var(--surface-card))] p-4">
