@@ -417,7 +417,8 @@ export function LegacySchedulePage() {
         onClick={() => setToolsSidebarHidden((hidden) => !hidden)}
         title={toolsSidebarHidden ? "نمایش ابزارهای برنامه" : "پنهان کردن ابزارهای برنامه"}
         aria-label={toolsSidebarHidden ? "نمایش ابزارهای برنامه" : "پنهان کردن ابزارهای برنامه"}
-        aria-pressed={!toolsSidebarHidden}
+        aria-expanded={!toolsSidebarHidden}
+        aria-controls="legacy-schedule-tools"
       >
         {toolsSidebarHidden ? (
           <PanelRightOpen size={18} aria-hidden="true" />
@@ -461,97 +462,117 @@ export function LegacySchedulePage() {
         />
       </div>
       <aside
+        id="legacy-schedule-tools"
+        aria-label="ابزارهای برنامه هفتگی"
+        aria-hidden={toolsSidebarHidden}
+        inert={toolsSidebarHidden}
         className={`order-1 grid min-w-0 gap-3 overflow-hidden transition-[opacity,transform] duration-300 ease-out motion-reduce:transition-none min-[960px]:order-2 min-[960px]:sticky min-[960px]:top-3 min-[960px]:self-start ${toolsSidebarHidden ? "min-[960px]:pointer-events-none min-[960px]:translate-x-3 min-[960px]:opacity-0" : "min-[960px]:translate-x-0 min-[960px]:opacity-100"}`}
       >
-        <ScheduleSidebarSummary entries={scheduleEntries} toolbar={scheduleToolbar} />
-        {canCreate ? (
-          <Card className="border-brand/15 bg-[rgb(var(--surface-card))] p-4">
-            <span className="grid size-10 place-items-center rounded-xl bg-brand/10 text-brand">
-              <Plus size={20} />
+        <div className="grid gap-3 min-[960px]:max-h-[calc(100dvh-7rem)] min-[960px]:overflow-y-auto min-[960px]:pe-1 [scrollbar-color:rgb(var(--border-subtle))_transparent] [scrollbar-width:thin]">
+          <header className="flex items-center gap-2 px-1">
+            <span
+              className="grid size-9 place-items-center rounded-xl bg-brand/10 text-brand"
+              aria-hidden="true"
+            >
+              <CalendarClock size={18} />
             </span>
-            <h2 className="mt-3 font-black text-ink">ساخت جلسه، بدون ترک جدول</h2>
-            <p className="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-300">
-              در یک فرم کوتاه، مدرسه، زمان و فضای جلسه را مشخص کنید.
-            </p>
-            <Button className="mt-4 w-full" onClick={() => editEntry()}>
-              <Plus size={16} /> افزودن جلسه
-            </Button>
-          </Card>
-        ) : null}
-        {canEdit ? (
-          <ScheduleTimeBlocks
-            blocks={timeBlocks.data ?? []}
-            organizationId={selectedOrganizationId}
-            saving={saveTimeBlock.isPending}
-            removing={removeTimeBlock.isPending}
-            onCreate={(draft) => saveTimeBlock.mutate(draft)}
-            onRemove={(block) =>
-              void modal
-                .confirm({
-                  title: "حذف بازه زمانی؟",
-                  description: `«${block.name}» از فهرست بازه‌های قابل‌استفاده حذف می‌شود؛ جلسه‌های قبلی تغییری نمی‌کنند.`,
-                  tone: "danger",
-                  confirmLabel: "حذف بازه",
-                  cancelLabel: "انصراف",
-                  softConfirm: true,
+            <div>
+              <h2 className="text-sm font-black text-ink">ابزارهای برنامه</h2>
+              <p className="text-[11px] text-slate-500 dark:text-slate-300">
+                جلسه‌ها، زمان‌ها و الگوها را از همین‌جا مدیریت کنید.
+              </p>
+            </div>
+          </header>
+          <ScheduleSidebarSummary entries={scheduleEntries} toolbar={scheduleToolbar} />
+          {canCreate ? (
+            <Card className="border-brand/15 bg-[rgb(var(--surface-card))] p-4">
+              <span className="grid size-10 place-items-center rounded-xl bg-brand/10 text-brand">
+                <Plus size={20} />
+              </span>
+              <h3 className="mt-3 font-black text-ink">ساخت جلسه، بدون ترک جدول</h3>
+              <p className="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-300">
+                در یک فرم کوتاه، مدرسه، زمان و فضای جلسه را مشخص کنید.
+              </p>
+              <Button className="mt-4 w-full" onClick={() => editEntry()}>
+                <Plus size={16} /> افزودن جلسه
+              </Button>
+            </Card>
+          ) : null}
+          {canEdit ? (
+            <ScheduleTimeBlocks
+              blocks={timeBlocks.data ?? []}
+              organizationId={selectedOrganizationId}
+              saving={saveTimeBlock.isPending}
+              removing={removeTimeBlock.isPending}
+              onCreate={(draft) => saveTimeBlock.mutate(draft)}
+              onRemove={(block) =>
+                void modal
+                  .confirm({
+                    title: "حذف بازه زمانی؟",
+                    description: `«${block.name}» از فهرست بازه‌های قابل‌استفاده حذف می‌شود؛ جلسه‌های قبلی تغییری نمی‌کنند.`,
+                    tone: "danger",
+                    confirmLabel: "حذف بازه",
+                    cancelLabel: "انصراف",
+                    softConfirm: true,
+                  })
+                  .then((confirmed) => confirmed && removeTimeBlock.mutate(block.id))
+              }
+            />
+          ) : null}
+          {canManageTemplates ? (
+            <ScheduleTemplates
+              templates={templates.data ?? []}
+              organizationId={selectedOrganizationId}
+              onCreate={(name) =>
+                selectedOrganizationId &&
+                createTemplate.mutate({ organizationId: selectedOrganizationId, name })
+              }
+              onCopy={(template) =>
+                selectedOrganizationId &&
+                createTemplate.mutate({
+                  organizationId: selectedOrganizationId,
+                  name: `${template.name} (کپی)`,
+                  sourceTemplateId: template.id,
                 })
-                .then((confirmed) => confirmed && removeTimeBlock.mutate(block.id))
-            }
-          />
-        ) : null}
-        {canManageTemplates ? (
-          <ScheduleTemplates
-            templates={templates.data ?? []}
-            organizationId={selectedOrganizationId}
-            onCreate={(name) =>
-              selectedOrganizationId &&
-              createTemplate.mutate({ organizationId: selectedOrganizationId, name })
-            }
-            onCopy={(template) =>
-              selectedOrganizationId &&
-              createTemplate.mutate({
-                organizationId: selectedOrganizationId,
-                name: `${template.name} (کپی)`,
-                sourceTemplateId: template.id,
-              })
-            }
-            onPreview={setTemplatePreview}
-            onArchive={(template) =>
-              void modal
-                .confirm({
-                  title: "بایگانی الگو؟",
-                  description: `«${template.name}» دیگر قابل اجرا نخواهد بود.`,
-                  tone: "danger",
-                  confirmLabel: "بایگانی الگو",
-                  cancelLabel: "انصراف",
-                  softConfirm: true,
-                })
-                .then((ok) => ok && archiveTemplate.mutate(template.id))
-            }
-            onRestore={(template) =>
-              void modal
-                .confirm({
-                  title: "بازیابی الگوی برنامه؟",
-                  description: `«${template.name}» دوباره در فهرست الگوهای قابل اجرا قرار می‌گیرد.`,
-                  confirmLabel: "بازیابی الگو",
-                  cancelLabel: "انصراف",
-                })
-                .then((ok) => ok && restoreTemplate.mutate(template.id))
-            }
-            onRemove={(template) =>
-              void modal
-                .confirm({
-                  title: "حذف الگوی برنامه؟",
-                  description: `«${template.name}» برای همیشه حذف می‌شود؛ جلسه‌های ساخته‌شده از آن تغییری نمی‌کنند.`,
-                  tone: "danger",
-                  confirmLabel: "حذف الگو",
-                  cancelLabel: "انصراف",
-                  softConfirm: true,
-                })
-                .then((ok) => ok && removeTemplate.mutate(template.id))
-            }
-          />
-        ) : null}
+              }
+              onPreview={setTemplatePreview}
+              onArchive={(template) =>
+                void modal
+                  .confirm({
+                    title: "بایگانی الگو؟",
+                    description: `«${template.name}» دیگر قابل اجرا نخواهد بود.`,
+                    tone: "danger",
+                    confirmLabel: "بایگانی الگو",
+                    cancelLabel: "انصراف",
+                    softConfirm: true,
+                  })
+                  .then((ok) => ok && archiveTemplate.mutate(template.id))
+              }
+              onRestore={(template) =>
+                void modal
+                  .confirm({
+                    title: "بازیابی الگوی برنامه؟",
+                    description: `«${template.name}» دوباره در فهرست الگوهای قابل اجرا قرار می‌گیرد.`,
+                    confirmLabel: "بازیابی الگو",
+                    cancelLabel: "انصراف",
+                  })
+                  .then((ok) => ok && restoreTemplate.mutate(template.id))
+              }
+              onRemove={(template) =>
+                void modal
+                  .confirm({
+                    title: "حذف الگوی برنامه؟",
+                    description: `«${template.name}» برای همیشه حذف می‌شود؛ جلسه‌های ساخته‌شده از آن تغییری نمی‌کنند.`,
+                    tone: "danger",
+                    confirmLabel: "حذف الگو",
+                    cancelLabel: "انصراف",
+                    softConfirm: true,
+                  })
+                  .then((ok) => ok && removeTemplate.mutate(template.id))
+              }
+            />
+          ) : null}
+        </div>
       </aside>
     </section>
   );
@@ -586,6 +607,15 @@ function ScheduleSidebarSummary({
   const daysWithSessions = new Set(activeEntries.map((entry) => entry.weekday)).size;
   return (
     <Card className="grid gap-3 p-4">
+      <div className="flex items-center justify-between gap-2">
+        <div>
+          <h3 className="text-sm font-black text-ink">نمای کلی برنامه</h3>
+          <p className="mt-0.5 text-[11px] text-slate-500">وضعیت برنامه فعال مدرسه</p>
+        </div>
+        <span className="rounded-full bg-emerald-500/10 px-2 py-1 text-[10px] font-black text-emerald-700 dark:text-emerald-300">
+          فعال
+        </span>
+      </div>
       {toolbar ? <div className="flex min-w-0 flex-wrap justify-end gap-2">{toolbar}</div> : null}
       <div className="grid grid-cols-3 gap-2" aria-label="خلاصه برنامه هفتگی">
         <ScheduleMetric label="جلسه فعال" value={activeEntries.length} tone="blue" />
@@ -1477,7 +1507,7 @@ function ScheduleTemplates({
   const [name, setName] = useState("");
   return (
     <Card className="p-4" dir="rtl">
-      <h2 className="text-sm font-black text-ink">الگوهای برنامه</h2>
+      <h3 className="text-sm font-black text-ink">الگوهای برنامه</h3>
       <p className="mt-1 text-[11px] text-slate-500">
         از برنامه فعال نسخه بسازید و هر زمان اجرا کنید.
       </p>
@@ -1502,7 +1532,7 @@ function ScheduleTemplates({
         </Button>
       </form>
       {templates.length ? (
-        <ul className="mt-3 grid gap-1.5">
+        <ul className="mt-3 grid max-h-72 gap-1.5 overflow-y-auto pe-1 [scrollbar-width:thin]">
           {templates.map((template) => (
             <li
               key={template.id}
@@ -1519,7 +1549,7 @@ function ScheduleTemplates({
               <p className="text-[11px] text-slate-500 dark:text-slate-300">
                 {template.entries.length.toLocaleString("fa-IR")} جلسه در الگو
               </p>
-              <span className="flex flex-wrap gap-1">
+              <div className="flex flex-wrap gap-1">
                 {template.state === "ACTIVE" ? (
                   <Button size="sm" variant="soft" onClick={() => onPreview(template)}>
                     <Eye size={13} /> بررسی
@@ -1537,10 +1567,15 @@ function ScheduleTemplates({
                     <Archive size={13} /> بایگانی
                   </Button>
                 ) : null}
-                <Button size="sm" variant="ghost" onClick={() => onRemove(template)}>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="text-rose-700 hover:bg-rose-50 hover:text-rose-800 dark:text-rose-300 dark:hover:bg-rose-950/30"
+                  onClick={() => onRemove(template)}
+                >
                   <Trash2 size={13} /> حذف
                 </Button>
-              </span>
+              </div>
             </li>
           ))}
         </ul>
@@ -1582,7 +1617,7 @@ function ScheduleTimeBlocks({
           <Clock3 size={17} />
         </span>
         <div>
-          <h2 className="text-sm font-black text-ink">بازه‌های زمانی آماده</h2>
+          <h3 className="text-sm font-black text-ink">بازه‌های زمانی آماده</h3>
           <p className="text-[11px] text-slate-500">یک‌بار بسازید، در هر جلسه استفاده کنید.</p>
         </div>
       </div>
@@ -1595,32 +1630,44 @@ function ScheduleTimeBlocks({
           setName("");
         }}
       >
-        <Input
-          value={name}
-          onChange={(event) => setName(event.target.value)}
-          placeholder="مثلاً زنگ اول"
-          aria-label="نام بازه زمانی"
-        />
+        <label className="grid gap-1 text-xs font-bold text-slate-700 dark:text-slate-200">
+          نام بازه
+          <Input
+            value={name}
+            onChange={(event) => setName(event.target.value)}
+            placeholder="مثلاً زنگ اول"
+            aria-label="نام بازه زمانی"
+          />
+        </label>
         <div className="grid grid-cols-2 gap-2">
-          <Input
-            type="time"
-            value={startTime}
-            onChange={(event) => setStartTime(event.target.value)}
-            aria-label="شروع بازه زمانی"
-          />
-          <Input
-            type="time"
-            value={endTime}
-            onChange={(event) => setEndTime(event.target.value)}
-            aria-label="پایان بازه زمانی"
-          />
+          <label className="grid gap-1 text-xs font-bold text-slate-700 dark:text-slate-200">
+            شروع
+            <Input
+              type="time"
+              value={startTime}
+              onChange={(event) => setStartTime(event.target.value)}
+              aria-label="شروع بازه زمانی"
+            />
+          </label>
+          <label className="grid gap-1 text-xs font-bold text-slate-700 dark:text-slate-200">
+            پایان
+            <Input
+              type="time"
+              value={endTime}
+              onChange={(event) => setEndTime(event.target.value)}
+              aria-label="پایان بازه زمانی"
+            />
+          </label>
         </div>
         <Button type="submit" variant="soft" disabled={!valid || saving}>
           افزودن بازه
         </Button>
       </form>
       {blocks.length ? (
-        <ul className="mt-3 grid gap-1.5" aria-label="بازه‌های زمانی ذخیره‌شده">
+        <ul
+          className="mt-3 grid max-h-56 gap-1.5 overflow-y-auto pe-1 [scrollbar-width:thin]"
+          aria-label="بازه‌های زمانی ذخیره‌شده"
+        >
           {blocks.map((block) => (
             <li
               key={block.id}
@@ -1638,6 +1685,7 @@ function ScheduleTimeBlocks({
               <Button
                 size="sm"
                 variant="ghost"
+                className="text-rose-700 hover:bg-rose-50 hover:text-rose-800 dark:text-rose-300 dark:hover:bg-rose-950/30"
                 disabled={removing}
                 aria-label={`حذف بازه ${block.name}`}
                 onClick={() => onRemove(block)}
