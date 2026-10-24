@@ -110,7 +110,12 @@ export function LegacySchedulePage() {
   const archive = useMutation({
     mutationFn: ({ id, status }: { id: string; status: "ACTIVE" | "ARCHIVED" }) =>
       archiveScheduleEntry(id, status),
-    onSuccess: reload,
+    onSuccess: () => {
+      reload();
+      notify("وضعیت جلسه به‌روزرسانی شد.", "success");
+    },
+    onError: (error) =>
+      notify(error instanceof Error ? error.message : "بایگانی جلسه انجام نشد.", "error"),
   });
   const remove = useMutation({
     mutationFn: deleteScheduleEntry,
@@ -223,6 +228,28 @@ export function LegacySchedulePage() {
       })
       .then((confirmed) => confirmed && remove.mutate(entry.id));
   };
+  const confirmArchive = (entry: ScheduleEntry) => {
+    const archiving = entry.status === "ACTIVE";
+    void modal
+      .confirm({
+        title: archiving ? "بایگانی جلسه؟" : "بازیابی جلسه؟",
+        description: archiving
+          ? `«${entry.title}» از برنامه فعال خارج می‌شود و در بخش بایگانی می‌ماند.`
+          : `«${entry.title}» دوباره در برنامه فعال نمایش داده می‌شود.`,
+        tone: archiving ? "danger" : "default",
+        confirmLabel: archiving ? "بایگانی جلسه" : "بازیابی جلسه",
+        cancelLabel: "انصراف",
+        softConfirm: archiving,
+      })
+      .then(
+        (confirmed) =>
+          confirmed &&
+          archive.mutate({
+            id: entry.id,
+            status: archiving ? "ARCHIVED" : "ACTIVE",
+          }),
+      );
+  };
   const openDetails = (entry: ScheduleEntry) => {
     modal.open({
       title: "جزئیات جلسه",
@@ -242,10 +269,7 @@ export function LegacySchedulePage() {
           }}
           onArchive={() => {
             modal.close();
-            archive.mutate({
-              id: entry.id,
-              status: entry.status === "ACTIVE" ? "ARCHIVED" : "ACTIVE",
-            });
+            confirmArchive(entry);
           }}
           onDelete={() => {
             modal.close();
@@ -270,12 +294,7 @@ export function LegacySchedulePage() {
           showOrganization={auth.hasRole("PLATFORM_ADMIN")}
           canDelete={canDelete}
           onEdit={editEntry}
-          onArchive={(entry) =>
-            archive.mutate({
-              id: entry.id,
-              status: entry.status === "ACTIVE" ? "ARCHIVED" : "ACTIVE",
-            })
-          }
+          onArchive={confirmArchive}
           onDelete={confirmDelete}
           onOpenDetails={openDetails}
           toolbar={
