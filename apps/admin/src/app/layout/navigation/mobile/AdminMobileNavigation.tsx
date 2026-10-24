@@ -53,11 +53,20 @@ export function AdminMobileBottomNav({
     auth.activeRole,
     language,
   ).slice(0, MAX_PRIMARY_DESTINATIONS);
+  const primaryPaths = new Set(primaryItems.map((item) => item.path));
   const navigationGroups = localizedNavigationForCapabilities(
     auth.capabilities,
     auth.activeRole,
     language,
-  ).filter((group) => !isStudentNavigation || group.sectionKey !== "پیشرفت و سکه");
+  )
+    .filter((group) => !isStudentNavigation || group.sectionKey !== "پیشرفت و سکه")
+    .map((group) => ({
+      ...group,
+      items: isStudentNavigation
+        ? group.items.filter((item) => !primaryPaths.has(item.path))
+        : group.items,
+    }))
+    .filter((group) => group.items.length > 0);
 
   useEffect(() => setSheetOpen(false), [location.pathname]);
 
@@ -147,6 +156,7 @@ export function AdminMobileBottomNav({
               activeRole={auth.activeRole}
               userId={auth.user?.id}
               organizationId={auth.context?.activeOrganization?.id}
+              primaryPaths={primaryPaths}
               onNavigate={() => setSheetOpen(false)}
             />
           ) : null}
@@ -204,12 +214,14 @@ function StudentMoreDrawerHeader({
   activeRole,
   userId,
   organizationId,
+  primaryPaths,
   onNavigate,
 }: {
   capabilities: readonly string[];
   activeRole: string | null | undefined;
   userId?: string;
   organizationId?: string;
+  primaryPaths: ReadonlySet<string>;
   onNavigate: () => void;
 }) {
   const canReadAttendance = capabilities.includes("attendance.self.read");
@@ -224,7 +236,14 @@ function StudentMoreDrawerHeader({
       ? { path: "schedule", label: "برنامه هفتگی", icon: CalendarDays }
       : null,
     { path: "books", label: "کتاب‌ها", icon: BookOpen },
-  ].filter((action): action is NonNullable<typeof action> => action !== null);
+  ]
+    .filter((action): action is NonNullable<typeof action> => action !== null)
+    .filter((action) => !primaryPaths.has(action.path));
+  const actionTones = [
+    "from-violet-500 to-fuchsia-500 text-white shadow-violet-500/25",
+    "from-cyan-500 to-blue-600 text-white shadow-cyan-500/25",
+    "from-amber-400 to-orange-500 text-slate-950 shadow-orange-500/25",
+  ];
 
   return (
     <div className="grid gap-4">
@@ -232,11 +251,15 @@ function StudentMoreDrawerHeader({
         to="/admin/my-attendance"
         onClick={onNavigate}
         aria-label="سکه‌های من"
-        className="flex min-h-16 items-center gap-3 rounded-xl border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card))] px-3 py-2 text-ink outline-none transition-colors hover:bg-[rgb(var(--surface-muted))] focus-visible:ring-2 focus-visible:ring-brand"
+        className="relative flex min-h-16 items-center gap-3 overflow-hidden rounded-2xl border border-amber-200/35 bg-gradient-to-l from-amber-400 via-orange-400 to-rose-500 px-3 py-2 text-white shadow-lg shadow-orange-500/20 outline-none transition hover:-translate-y-0.5 hover:shadow-xl focus-visible:ring-2 focus-visible:ring-brand motion-reduce:transition-none"
       >
+        <span
+          className="absolute -start-8 top-0 size-24 rounded-full bg-white/20 blur-2xl"
+          aria-hidden="true"
+        />
         <AttendanceCoin className="size-10 shrink-0 object-contain" />
         <span className="min-w-0 flex-1">
-          <span className="block text-xs font-bold">سکه‌های من</span>
+          <span className="block text-xs font-bold text-white/90">سکه‌های من</span>
           <strong className="block text-lg font-black tabular-nums">
             {points.isLoading
               ? "…"
@@ -245,46 +268,39 @@ function StudentMoreDrawerHeader({
                 )}
           </strong>
         </span>
-        <ChevronLeft size={18} className="text-slate-400" aria-hidden="true" />
+        <ChevronLeft size={18} className="text-white/80" aria-hidden="true" />
       </NavLink>
 
-      <section aria-labelledby="student-more-future-features">
-        <h2
-          id="student-more-future-features"
-          className="mb-2 text-xs font-black text-slate-500 dark:text-slate-300"
-        >
-          پیشرفت و سکه
-        </h2>
-        <div className="grid gap-px overflow-hidden rounded-xl border border-[rgb(var(--border-subtle))] bg-[rgb(var(--border-subtle))]">
+      <section aria-label="دستاوردها و بازار سکه">
+        <div className="grid gap-2 sm:grid-cols-2">
           <NavLink
             to="/admin/achievements"
             onClick={onNavigate}
-            className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-2 gap-y-1 bg-[rgb(var(--surface-card))] p-2.5 text-ink outline-none transition-colors hover:bg-[rgb(var(--surface-muted))] focus-visible:ring-2 focus-visible:ring-brand"
+            className="relative grid min-h-24 grid-cols-[auto_minmax(0,1fr)] gap-x-2 gap-y-1 overflow-hidden rounded-2xl border border-cyan-200/30 bg-gradient-to-br from-cyan-500 via-blue-600 to-indigo-700 p-3 text-white shadow-lg shadow-blue-500/15 outline-none transition hover:-translate-y-0.5 hover:shadow-xl focus-visible:ring-2 focus-visible:ring-brand motion-reduce:transition-none"
           >
-            <span className="row-span-2 grid size-9 place-items-center rounded-lg bg-[rgb(var(--surface-muted))] text-slate-600 dark:text-slate-200">
+            <span className="row-span-2 grid size-9 place-items-center rounded-xl bg-white/15 text-white">
               <Medal size={18} aria-hidden="true" />
             </span>
             <span className="flex min-w-0 items-center justify-between gap-2 text-start">
               <strong className="text-xs">دستاوردها</strong>
-              <ChevronLeft size={16} className="shrink-0 text-slate-400" aria-hidden="true" />
+              <ChevronLeft size={16} className="shrink-0 text-white/80" aria-hidden="true" />
             </span>
-            <AchievementCountdown compact neutral />
+            <AchievementCountdown compact />
           </NavLink>
           <NavLink
             to="/admin/coin-shop"
             onClick={onNavigate}
-            className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-2 gap-y-1 bg-[rgb(var(--surface-card))] p-2.5 text-ink outline-none transition-colors hover:bg-[rgb(var(--surface-muted))] focus-visible:ring-2 focus-visible:ring-brand"
+            className="relative grid min-h-24 grid-cols-[auto_minmax(0,1fr)] gap-x-2 gap-y-1 overflow-hidden rounded-2xl border border-violet-200/30 bg-gradient-to-br from-violet-500 via-fuchsia-600 to-pink-600 p-3 text-white shadow-lg shadow-fuchsia-500/15 outline-none transition hover:-translate-y-0.5 hover:shadow-xl focus-visible:ring-2 focus-visible:ring-brand motion-reduce:transition-none"
           >
-            <span className="row-span-2 grid size-9 place-items-center rounded-lg bg-[rgb(var(--surface-muted))] text-slate-600 dark:text-slate-200">
+            <span className="row-span-2 grid size-9 place-items-center rounded-xl bg-white/15 text-white">
               <Store size={18} aria-hidden="true" />
             </span>
             <span className="flex min-w-0 items-center justify-between gap-2 text-start">
               <strong className="text-xs">بازار سکه</strong>
-              <ChevronLeft size={16} className="shrink-0 text-slate-400" aria-hidden="true" />
+              <ChevronLeft size={16} className="shrink-0 text-white/80" aria-hidden="true" />
             </span>
             <AchievementCountdown
               compact
-              neutral
               releaseAt={COIN_SHOP_RELEASE_AT}
               ariaLabel="زمان باقی‌مانده تا باز شدن بازار سکه؛ روز، ساعت، دقیقه، ثانیه"
             />
@@ -292,27 +308,23 @@ function StudentMoreDrawerHeader({
         </div>
       </section>
 
-      <section aria-labelledby="student-fast-actions">
-        <h2
-          id="student-fast-actions"
-          className="mb-2 text-xs font-black text-slate-500 dark:text-slate-300"
-        >
-          دسترسی سریع
-        </h2>
-        <div className="grid grid-cols-3 gap-2">
-          {actions.map(({ path, label, icon: Icon }) => (
-            <NavLink
-              key={path}
-              to={`/admin/${path}`}
-              onClick={onNavigate}
-              className="grid min-h-[4.5rem] place-items-center gap-1 rounded-xl border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card))] px-2 py-2 text-center text-[11px] font-bold text-ink outline-none transition-colors hover:bg-[rgb(var(--surface-muted))] focus-visible:ring-2 focus-visible:ring-brand"
-            >
-              <Icon size={19} className="text-slate-600 dark:text-slate-200" aria-hidden="true" />
-              <span className="leading-4">{label}</span>
-            </NavLink>
-          ))}
-        </div>
-      </section>
+      {actions.length ? (
+        <section aria-label="دسترسی‌های بیشتر">
+          <div className="grid grid-cols-3 gap-2">
+            {actions.map(({ path, label, icon: Icon }, index) => (
+              <NavLink
+                key={path}
+                to={`/admin/${path}`}
+                onClick={onNavigate}
+                className={`grid min-h-[4.5rem] place-items-center gap-1 rounded-2xl bg-gradient-to-br px-2 py-2 text-center text-[11px] font-bold shadow-lg outline-none transition hover:-translate-y-0.5 hover:shadow-xl focus-visible:ring-2 focus-visible:ring-brand motion-reduce:transition-none ${actionTones[index % actionTones.length]}`}
+              >
+                <Icon size={19} aria-hidden="true" />
+                <span className="leading-4">{label}</span>
+              </NavLink>
+            ))}
+          </div>
+        </section>
+      ) : null}
     </div>
   );
 }

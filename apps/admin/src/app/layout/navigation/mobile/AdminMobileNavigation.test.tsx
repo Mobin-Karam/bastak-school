@@ -129,15 +129,9 @@ describe("AdminMobileBottomNav", () => {
     await user.click(screen.getByRole("button", { name: "همه مسیرهای مدیریت" }));
     expect(screen.queryByRole("link", { name: "دستاوردها" })).not.toBeInTheDocument();
     expect(await screen.findByRole("link", { name: "سکه‌های من" })).toHaveTextContent("۱۲");
-    expect(screen.getByRole("heading", { name: "دسترسی سریع" })).toBeVisible();
-    expect(screen.getByRole("link", { name: "حضور من" })).toHaveAttribute(
-      "href",
-      "/admin/my-attendance",
-    );
-    expect(screen.getByRole("link", { name: "برنامه هفتگی" })).toHaveAttribute(
-      "href",
-      "/admin/schedule",
-    );
+    expect(screen.queryByRole("link", { name: "حضور من" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "برنامه هفتگی" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "کتاب‌ها" })).not.toBeInTheDocument();
     expect(screen.getAllByRole("link", { name: /دستاوردها/ })[0]).toHaveAttribute(
       "href",
       "/admin/achievements",
