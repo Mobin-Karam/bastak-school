@@ -32,7 +32,7 @@ describe("Sonner notification adapter", () => {
     const toaster = document.querySelector("[data-sonner-toaster]");
     expect(toaster).toHaveAttribute("dir", "rtl");
     expect(toaster).toHaveAttribute("data-y-position", "bottom");
-    expect(toaster).toHaveAttribute("data-x-position", "left");
+    expect(toaster).toHaveAttribute("data-x-position", "right");
     expect(toaster).toHaveStyle({ fontFamily: "Vazirmatn, Tahoma, Arial, sans-serif" });
     expect(screen.getByRole("button", { name: "بستن اعلان" })).toBeInTheDocument();
   });
@@ -94,9 +94,9 @@ describe("Sonner notification adapter", () => {
     const success = notifications.success("Completed");
     const errorToast = toast.getToasts().find((item) => item.id === error);
     const successToast = toast.getToasts().find((item) => item.id === success);
-    expect(errorToast && "duration" in errorToast ? errorToast.duration : undefined).toBe(8000);
+    expect(errorToast && "duration" in errorToast ? errorToast.duration : undefined).toBe(6500);
     expect(successToast && "duration" in successToast ? successToast.duration : undefined).toBe(
-      5000,
+      3500,
     );
   });
 

@@ -15,6 +15,10 @@ import {
 import { Organization } from "../../database/entities/organization.entity";
 import { SchoolScheduleEntry } from "../../database/entities/school-schedule-entry.entity";
 import { SchoolScheduleTimeBlock } from "../../database/entities/school-schedule-time-block.entity";
+import {
+  SchoolScheduleTemplate,
+  type ScheduleTemplateEntry,
+} from "../../database/entities/school-schedule-template.entity";
 import { User } from "../../database/entities/user.entity";
 import { UserRelationship } from "../../database/entities/user-relationship.entity";
 import { AuthenticatedUser } from "../auth";
@@ -22,6 +26,7 @@ import { AuthorizationService, UserContext } from "../authorization";
 import {
   ArchiveScheduleEntryDto,
   CreateScheduleTimeBlockDto,
+  CreateScheduleTemplateDto,
   SaveScheduleEntryDto,
 } from "./schedule.dto";
 
@@ -32,6 +37,8 @@ export class ScheduleService {
     private readonly entries: Repository<SchoolScheduleEntry>,
     @InjectRepository(SchoolScheduleTimeBlock)
     private readonly timeBlocks: Repository<SchoolScheduleTimeBlock>,
+    @InjectRepository(SchoolScheduleTemplate)
+    private readonly templates: Repository<SchoolScheduleTemplate>,
     @InjectRepository(Organization)
     private readonly organizations: Repository<Organization>,
     @InjectRepository(OrganizationMembership)
@@ -287,6 +294,196 @@ export class ScheduleService {
       relations: { organization: true },
       order: { name: "ASC" },
     });
+  }
+  async listTemplates(
+    user: AuthenticatedUser,
+    requestedOrganizationId?: string,
+  ) {
+    const context = this.context(user);
+    this.authorization.requireCapability(context, "schedule.read");
+    const organizationId = requestedOrganizationId ?? user.activeOrganizationId;
+    if (
+      !organizationId ||
+      (!context.roles.includes("PLATFORM_ADMIN") &&
+        !context.organizationIds.includes(organizationId))
+    )
+      throw new ApiException(403, "FORBIDDEN", "دسترسی کافی ندارید.");
+    return this.templates.find({
+      where: { organization: { id: organizationId } },
+      order: { updatedAt: "DESC" },
+    });
+  }
+  private async templateScope(
+    user: AuthenticatedUser,
+    organizationId: string,
+    capability: string,
+  ) {
+    const context = this.context(user);
+    this.authorization.requireCapability(context, capability);
+    if (
+      !this.isOperator(context) ||
+      (!context.roles.includes("PLATFORM_ADMIN") &&
+        !context.organizationIds.includes(organizationId))
+    )
+      throw new ApiException(403, "FORBIDDEN", "دسترسی کافی ندارید.");
+    const organization = await this.organizations.findOneBy({
+      id: organizationId,
+    });
+    if (!organization)
+      throw new ApiException(404, "ORGANIZATION_NOT_FOUND", "مدرسه پیدا نشد.");
+    return organization;
+  }
+  private async templateSnapshot(
+    organizationId: string,
+  ): Promise<ScheduleTemplateEntry[]> {
+    const rows = await this.entries.find({
+      where: {
+        organization: { id: organizationId },
+        versionId: IsNull(),
+        status: "ACTIVE",
+      },
+      relations: { classroom: true, classBook: true, teacher: true },
+    });
+    return rows.map((row) => ({
+      classroomId: row.classroom?.id,
+      classBookId: row.classBook?.id,
+      teacherId: row.teacher?.id,
+      title: row.title,
+      weekday: row.weekday,
+      startTime: row.startTime,
+      endTime: row.endTime,
+      room: row.room,
+    }));
+  }
+  async createTemplate(
+    user: AuthenticatedUser,
+    dto: CreateScheduleTemplateDto,
+  ) {
+    const organization = await this.templateScope(
+      user,
+      dto.organizationId,
+      "schedule.create",
+    );
+    const name = dto.name.trim();
+    if (!name)
+      throw new ApiException(
+        422,
+        "SCHEDULE_TEMPLATE_NAME_REQUIRED",
+        "نام الگو لازم است.",
+      );
+    const entries = dto.sourceTemplateId
+      ? (
+          await this.templateForOrganization(
+            dto.sourceTemplateId,
+            organization.id,
+          )
+        ).entries
+      : await this.templateSnapshot(organization.id);
+    if (!entries.length)
+      throw new ApiException(
+        422,
+        "SCHEDULE_TEMPLATE_EMPTY",
+        "برنامه فعالی برای ساخت الگو وجود ندارد.",
+      );
+    return this.templates.save(
+      this.templates.create({ organization, name, entries }),
+    );
+  }
+  private async templateForOrganization(id: string, organizationId: string) {
+    const template = await this.templates.findOne({
+      where: { id, organization: { id: organizationId } },
+      relations: { organization: true },
+    });
+    if (!template)
+      throw new ApiException(
+        404,
+        "SCHEDULE_TEMPLATE_NOT_FOUND",
+        "الگوی برنامه پیدا نشد.",
+      );
+    return template;
+  }
+  async applyTemplate(user: AuthenticatedUser, id: string) {
+    const template = await this.templates.findOne({
+      where: { id },
+      relations: { organization: true },
+    });
+    if (!template)
+      throw new ApiException(
+        404,
+        "SCHEDULE_TEMPLATE_NOT_FOUND",
+        "الگوی برنامه پیدا نشد.",
+      );
+    await this.templateScope(user, template.organization.id, "schedule.update");
+    if (template.state === "ARCHIVED")
+      throw new ApiException(
+        409,
+        "SCHEDULE_TEMPLATE_ARCHIVED",
+        "الگوی بایگانی‌شده قابل اجرا نیست.",
+      );
+    return attendanceTransaction(this.entries.manager, async (manager) => {
+      await manager.update(
+        SchoolScheduleEntry,
+        {
+          organization: { id: template.organization.id },
+          versionId: IsNull(),
+          status: "ACTIVE",
+        },
+        { status: "ARCHIVED" },
+      );
+      const rows = template.entries.map((entry) =>
+        manager.create(SchoolScheduleEntry, {
+          ...entry,
+          organization: template.organization,
+          classroom: entry.classroomId
+            ? ({ id: entry.classroomId } as EducationClass)
+            : null,
+          classBook: entry.classBookId
+            ? ({ id: entry.classBookId } as EducationClassBook)
+            : null,
+          teacher: entry.teacherId ? ({ id: entry.teacherId } as User) : null,
+          status: "ACTIVE",
+        }),
+      );
+      await manager.save(rows);
+      return {
+        applied: rows.length,
+        template: { id: template.id, name: template.name },
+      };
+    });
+  }
+  async archiveTemplate(user: AuthenticatedUser, id: string) {
+    const template = await this.templates.findOne({
+      where: { id },
+      relations: { organization: true },
+    });
+    if (!template)
+      throw new ApiException(
+        404,
+        "SCHEDULE_TEMPLATE_NOT_FOUND",
+        "الگوی برنامه پیدا نشد.",
+      );
+    await this.templateScope(
+      user,
+      template.organization.id,
+      "schedule.archive",
+    );
+    template.state = "ARCHIVED";
+    return this.templates.save(template);
+  }
+  async removeTemplate(user: AuthenticatedUser, id: string) {
+    const template = await this.templates.findOne({
+      where: { id },
+      relations: { organization: true },
+    });
+    if (!template)
+      throw new ApiException(
+        404,
+        "SCHEDULE_TEMPLATE_NOT_FOUND",
+        "الگوی برنامه پیدا نشد.",
+      );
+    await this.templateScope(user, template.organization.id, "schedule.delete");
+    await this.templates.remove(template);
+    return { deleted: true };
   }
   async createTimeBlock(
     user: AuthenticatedUser,

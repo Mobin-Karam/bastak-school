@@ -26,19 +26,24 @@ import {
 } from "../../../../shared/lib/spreadsheet-transfer";
 import {
   archiveScheduleEntry,
+  archiveScheduleTemplate,
+  applyScheduleTemplate,
   commitScheduleImport,
   createScheduleEntry,
+  createScheduleTemplate,
   createScheduleTimeBlock,
   deleteScheduleEntry,
+  deleteScheduleTemplate,
   deleteScheduleTimeBlock,
   exportSchedule,
   listSchedule,
+  listScheduleTemplates,
   listScheduleTimeBlocks,
   previewScheduleImport,
   type ScheduleDraft,
   updateScheduleEntry,
 } from "../api/schedule.api";
-import type { ScheduleEntry, ScheduleTimeBlock } from "../api/schedule.api";
+import type { ScheduleEntry, ScheduleTemplate, ScheduleTimeBlock } from "../api/schedule.api";
 import { TeacherSchedulePage } from "../../../people/teacher-portal";
 import { OrganizationTag } from "../../../../shared/ui/organization-tag";
 import { todayIso } from "../../../../shared/lib/utils";
@@ -95,10 +100,16 @@ export function LegacySchedulePage() {
   const canArchive = auth.can("schedule.archive");
   const canDelete = auth.can("schedule.delete");
   const canWrite = canCreate || canEdit;
+  const canManageTemplates = canCreate && canEdit && canArchive && canDelete;
   const timeBlocks = useQuery({
     queryKey: ["schedule", "time-blocks", selectedOrganizationId ?? "all"],
     queryFn: listScheduleTimeBlocks,
     enabled: canWrite,
+  });
+  const templates = useQuery({
+    queryKey: ["schedule", "templates", selectedOrganizationId ?? "all"],
+    queryFn: listScheduleTemplates,
+    enabled: canManageTemplates,
   });
   const isTeacher = auth.activeRole === "TEACHER";
   const classes = useQuery({
@@ -163,6 +174,39 @@ export function LegacySchedulePage() {
     onError: (error) =>
       notify(error instanceof Error ? error.message : "حذف بازه زمانی انجام نشد.", "error"),
   });
+  const templateReload = () => void client.invalidateQueries({ queryKey: ["schedule"] });
+  const createTemplate = useMutation({
+    mutationFn: createScheduleTemplate,
+    onSuccess: () => {
+      templateReload();
+      notify("الگوی برنامه ذخیره شد.", "success");
+    },
+    onError: (e) => notify(e instanceof Error ? e.message : "ذخیره الگو انجام نشد.", "error"),
+  });
+  const applyTemplate = useMutation({
+    mutationFn: applyScheduleTemplate,
+    onSuccess: (result) => {
+      templateReload();
+      notify(`${result.applied} جلسه از الگو اجرا شد.`, "success");
+    },
+    onError: (e) => notify(e instanceof Error ? e.message : "اجرای الگو انجام نشد.", "error"),
+  });
+  const archiveTemplate = useMutation({
+    mutationFn: archiveScheduleTemplate,
+    onSuccess: () => {
+      templateReload();
+      notify("الگو بایگانی شد.", "success");
+    },
+    onError: (e) => notify(e instanceof Error ? e.message : "بایگانی الگو انجام نشد.", "error"),
+  });
+  const removeTemplate = useMutation({
+    mutationFn: deleteScheduleTemplate,
+    onSuccess: () => {
+      templateReload();
+      notify("الگو حذف شد.", "success");
+    },
+    onError: (e) => notify(e instanceof Error ? e.message : "حذف الگو انجام نشد.", "error"),
+  });
   async function download() {
     try {
       const rows = await exportSchedule();
@@ -221,13 +265,15 @@ export function LegacySchedulePage() {
   if (
     entries.isLoading ||
     (canReadOrganizations && organizations.isLoading) ||
-    (canWrite && (classes.isLoading || timeBlocks.isLoading))
+    (canWrite && (classes.isLoading || timeBlocks.isLoading)) ||
+    (canManageTemplates && templates.isLoading)
   )
     return <LoadingState label="در حال دریافت برنامه…" />;
   if (
     entries.isError ||
     (canReadOrganizations && organizations.isError) ||
-    (canWrite && (classes.isError || timeBlocks.isError))
+    (canWrite && (classes.isError || timeBlocks.isError)) ||
+    (canManageTemplates && templates.isError)
   )
     return <EmptyState title="دریافت برنامه انجام نشد." />;
   if (isTeacher) return <TeacherSchedulePage entries={entries.data ?? []} />;
@@ -399,6 +445,60 @@ export function LegacySchedulePage() {
                   softConfirm: true,
                 })
                 .then((confirmed) => confirmed && removeTimeBlock.mutate(block.id))
+            }
+          />
+        ) : null}
+        {canManageTemplates ? (
+          <ScheduleTemplates
+            templates={templates.data ?? []}
+            organizationId={selectedOrganizationId}
+            onCreate={(name) =>
+              selectedOrganizationId &&
+              createTemplate.mutate({ organizationId: selectedOrganizationId, name })
+            }
+            onCopy={(template) =>
+              selectedOrganizationId &&
+              createTemplate.mutate({
+                organizationId: selectedOrganizationId,
+                name: `${template.name} (کپی)`,
+                sourceTemplateId: template.id,
+              })
+            }
+            onApply={(template) =>
+              void modal
+                .confirm({
+                  title: "اجرای الگوی برنامه؟",
+                  description: `جلسه‌های فعال فعلی بایگانی و «${template.name}» اجرا می‌شود.`,
+                  tone: "danger",
+                  confirmLabel: "اجرای الگو",
+                  cancelLabel: "انصراف",
+                  softConfirm: true,
+                })
+                .then((ok) => ok && applyTemplate.mutate(template.id))
+            }
+            onArchive={(template) =>
+              void modal
+                .confirm({
+                  title: "بایگانی الگو؟",
+                  description: `«${template.name}» دیگر قابل اجرا نخواهد بود.`,
+                  tone: "danger",
+                  confirmLabel: "بایگانی الگو",
+                  cancelLabel: "انصراف",
+                  softConfirm: true,
+                })
+                .then((ok) => ok && archiveTemplate.mutate(template.id))
+            }
+            onRemove={(template) =>
+              void modal
+                .confirm({
+                  title: "حذف الگوی برنامه؟",
+                  description: `«${template.name}» برای همیشه حذف می‌شود؛ جلسه‌های ساخته‌شده از آن تغییری نمی‌کنند.`,
+                  tone: "danger",
+                  confirmLabel: "حذف الگو",
+                  cancelLabel: "انصراف",
+                  softConfirm: true,
+                })
+                .then((ok) => ok && removeTemplate.mutate(template.id))
             }
           />
         ) : null}
@@ -1206,6 +1306,94 @@ function ScheduleEditorForm({
         </Button>
       </div>
     </form>
+  );
+}
+
+function ScheduleTemplates({
+  templates,
+  organizationId,
+  onCreate,
+  onCopy,
+  onApply,
+  onArchive,
+  onRemove,
+}: {
+  templates: ScheduleTemplate[];
+  organizationId?: string;
+  onCreate: (name: string) => void;
+  onCopy: (template: ScheduleTemplate) => void;
+  onApply: (template: ScheduleTemplate) => void;
+  onArchive: (template: ScheduleTemplate) => void;
+  onRemove: (template: ScheduleTemplate) => void;
+}) {
+  const [name, setName] = useState("");
+  return (
+    <Card className="p-4" dir="rtl">
+      <h2 className="text-sm font-black text-ink">الگوهای برنامه</h2>
+      <p className="mt-1 text-[11px] text-slate-500">
+        از برنامه فعال نسخه بسازید و هر زمان اجرا کنید.
+      </p>
+      <form
+        className="mt-3 flex gap-2"
+        onSubmit={(event) => {
+          event.preventDefault();
+          if (organizationId && name.trim()) {
+            onCreate(name.trim());
+            setName("");
+          }
+        }}
+      >
+        <Input
+          aria-label="نام الگوی برنامه"
+          value={name}
+          onChange={(event) => setName(event.target.value)}
+          placeholder="مثلاً برنامه ماه رمضان"
+        />
+        <Button type="submit" variant="soft" disabled={!organizationId || !name.trim()}>
+          ساخت الگو
+        </Button>
+      </form>
+      {templates.length ? (
+        <ul className="mt-3 grid gap-1.5">
+          {templates.map((template) => (
+            <li
+              key={template.id}
+              className="flex items-center justify-between gap-2 rounded-lg bg-[rgb(var(--surface-muted))] p-2 text-xs"
+            >
+              <span className="min-w-0 truncate font-bold">
+                {template.name}
+                {template.state === "ARCHIVED" ? " · بایگانی" : ""}
+              </span>
+              <span className="flex gap-1">
+                {template.state === "ACTIVE" ? (
+                  <Button size="sm" variant="soft" onClick={() => onApply(template)}>
+                    اجرا
+                  </Button>
+                ) : null}
+                <Button size="sm" variant="ghost" onClick={() => onCopy(template)}>
+                  <Copy size={13} />
+                  <span className="sr-only">کپی الگو</span>
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  disabled={template.state === "ARCHIVED"}
+                  onClick={() => onArchive(template)}
+                >
+                  <Archive size={13} />
+                </Button>
+                <Button size="sm" variant="ghost" onClick={() => onRemove(template)}>
+                  <Trash2 size={13} />
+                  <span className="sr-only">حذف الگو</span>
+                </Button>
+              </span>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="mt-3 text-xs text-slate-500">هنوز الگویی ثبت نشده است.</p>
+      )}
+    </Card>
   );
 }
 

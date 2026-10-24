@@ -11,6 +11,7 @@ import { OrganizationMembership } from "../../database/entities/organization-mem
 import { Organization } from "../../database/entities/organization.entity";
 import { SchoolScheduleEntry } from "../../database/entities/school-schedule-entry.entity";
 import { SchoolScheduleTimeBlock } from "../../database/entities/school-schedule-time-block.entity";
+import { SchoolScheduleTemplate } from "../../database/entities/school-schedule-template.entity";
 import { EducationClassBook } from "../../database/entities/education-class-book.entity";
 import { UserRelationship } from "../../database/entities/user-relationship.entity";
 import { ScheduleController } from "./schedule.controller";
@@ -23,6 +24,7 @@ import { ScheduleService } from "./schedule.service";
     TypeOrmModule.forFeature([
       SchoolScheduleEntry,
       SchoolScheduleTimeBlock,
+      SchoolScheduleTemplate,
       EducationClassBook,
       Organization,
       OrganizationMembership,

@@ -15,6 +15,7 @@ import { AuthenticatedUser } from "../auth";
 import {
   ArchiveScheduleEntryDto,
   CreateScheduleTimeBlockDto,
+  CreateScheduleTemplateDto,
   SaveScheduleEntryDto,
 } from "./schedule.dto";
 import { ScheduleService } from "./schedule.service";
@@ -27,6 +28,42 @@ export class ScheduleController {
     @Query("organizationId") organizationId?: string,
   ) {
     return this.schedule.list(user, organizationId).then(ok);
+  }
+  @Get("templates") @RequireCapabilities("schedule.read") templates(
+    @CurrentUser() user: AuthenticatedUser,
+    @Query("organizationId") organizationId?: string,
+  ) {
+    return this.schedule.listTemplates(user, organizationId).then(ok);
+  }
+  @Post("templates") @RequireCapabilities("schedule.create") createTemplate(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() dto: CreateScheduleTemplateDto,
+  ) {
+    return this.schedule.createTemplate(user, dto).then(ok);
+  }
+  @Post("templates/:id/apply")
+  @RequireCapabilities("schedule.update")
+  applyTemplate(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param("id") id: string,
+  ) {
+    return this.schedule.applyTemplate(user, id).then(ok);
+  }
+  @Patch("templates/:id/archive")
+  @RequireCapabilities("schedule.archive")
+  archiveTemplate(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param("id") id: string,
+  ) {
+    return this.schedule.archiveTemplate(user, id).then(ok);
+  }
+  @Delete("templates/:id")
+  @RequireCapabilities("schedule.delete")
+  removeTemplate(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param("id") id: string,
+  ) {
+    return this.schedule.removeTemplate(user, id).then(ok);
   }
   @Get("export") @RequireCapabilities("schedule.export") export(
     @CurrentUser() user: AuthenticatedUser,

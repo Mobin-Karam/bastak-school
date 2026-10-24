@@ -36,6 +36,13 @@ export type ScheduleTimeBlock = {
   partOfDay: "AM" | "PM";
   organization: { id: string; name: string };
 };
+export type ScheduleTemplate = {
+  id: string;
+  name: string;
+  state: "ACTIVE" | "ARCHIVED";
+  entries: unknown[];
+  updatedAt: string;
+};
 export const listSchedule = () => api.get<ScheduleEntry[]>("/schedule");
 export const createScheduleEntry = (draft: ScheduleDraft) =>
   api.post<ScheduleEntry>("/schedule", draft);
@@ -54,6 +61,18 @@ export const createScheduleTimeBlock = (draft: {
 }) => api.post<ScheduleTimeBlock>("/schedule/time-blocks", draft);
 export const deleteScheduleTimeBlock = (id: string) =>
   api.delete(`/schedule/time-blocks/${encodeURIComponent(id)}`);
+export const listScheduleTemplates = () => api.get<ScheduleTemplate[]>("/schedule/templates");
+export const createScheduleTemplate = (draft: {
+  organizationId: string;
+  name: string;
+  sourceTemplateId?: string;
+}) => api.post<ScheduleTemplate>("/schedule/templates", draft);
+export const applyScheduleTemplate = (id: string) =>
+  api.post<{ applied: number }>(`/schedule/templates/${encodeURIComponent(id)}/apply`, {});
+export const archiveScheduleTemplate = (id: string) =>
+  api.patch<ScheduleTemplate>(`/schedule/templates/${encodeURIComponent(id)}/archive`, {});
+export const deleteScheduleTemplate = (id: string) =>
+  api.delete(`/schedule/templates/${encodeURIComponent(id)}`);
 export const previewScheduleImport = (entries: ScheduleDraft[]) =>
   api.post<{ valid: boolean; errors: Array<{ row: number; message: string }> }>(
     "/schedule/import/preview",
