@@ -12,20 +12,6 @@ vi.mock("../../../identity/auth", () => ({
     capabilities: ["schedule.read", "prayer_times.read", "attendance.self.read"],
   }),
 }));
-vi.mock("../../../academics/schedule/api/schedule.api.ts", () => ({
-  listSchedule: async () => [
-    {
-      id: "schedule-1",
-      title: "فقه کاربردی",
-      weekday: new Date(`${new Date().toISOString().slice(0, 10)}T12:00:00`).getDay(),
-      startTime: "08:00",
-      endTime: "09:00",
-      room: "کلاس ۱",
-      status: "ACTIVE",
-      organization: { id: "org-1", name: "مدرسه" },
-    },
-  ],
-}));
 vi.mock("../../../student-life/attendance/api/attendance-operations.api.ts", () => ({
   getAttendanceEncouragement: async () => ({
     studentId: "student-1",
@@ -104,7 +90,16 @@ vi.mock("../api/dashboard.api.ts", () => ({
           createdAt: "2026-10-08T08:00:00.000Z",
         },
       ],
-      currentClass: null,
+      currentClass: {
+        id: "schedule-1",
+        title: "فقه کاربردی",
+        weekday: 3,
+        startTime: "08:00",
+        endTime: "09:00",
+        room: "کلاس ۱",
+        className: "دهم",
+        classId: "class-1",
+      },
     },
   }),
 }));
@@ -119,7 +114,7 @@ afterEach(() => {
 });
 
 describe("StudentDashboard", () => {
-  it("shows the student’s scoped class, prayer, class times, and attendance", async () => {
+  it("shows today and only the live current class, not the timetable", async () => {
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     render(
       <MemoryRouter>
@@ -138,7 +133,7 @@ describe("StudentDashboard", () => {
     expect(
       screen.getByRole("region", { name: "وقت شرعی پیش رو" }).querySelector("time"),
     ).toBeVisible();
-    expect(screen.getByRole("region", { name: "زمان کلاس‌های امروز" })).toHaveTextContent("۰۸:۰۰");
+    expect(screen.queryByRole("region", { name: "زمان کلاس‌های امروز" })).not.toBeInTheDocument();
     expect(screen.getByRole("region", { name: "خلاصه حضور و غیاب" })).toHaveTextContent("حاضر");
     expect(screen.getByRole("region", { name: "خلاصه حضور و غیاب" })).toHaveTextContent("۸");
     expect(screen.getByRole("heading", { name: "دستاوردهای من" })).toBeVisible();
@@ -154,7 +149,7 @@ describe("StudentDashboard", () => {
     expect(
       document.querySelector('img[src="/images/coin/Ornate%20Gold%20Kaaba%20Medallion.png"]'),
     ).toBeVisible();
-    expect(screen.getByRole("link", { name: "همه" })).toHaveAttribute("href", "/admin/schedule");
+    expect(screen.getByRole("link", { name: "برنامه" })).toHaveAttribute("href", "/admin/schedule");
     fireEvent.click(screen.getByRole("button", { name: /باز کردن ۱ پیام مدرسه/ }));
     expect(screen.getByRole("dialog")).toHaveTextContent("برنامه مراسم صبحگاه");
     expect(screen.queryByRole("link", { name: /مشاهده همه/ })).not.toBeInTheDocument();

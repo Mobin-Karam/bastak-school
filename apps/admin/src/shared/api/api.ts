@@ -245,7 +245,7 @@ export async function request<T>(
   }
 }
 
-async function refreshSession() {
+export async function refreshSession() {
   if (!refreshPromise) {
     refreshPromise = (async () => {
       const token = csrf();

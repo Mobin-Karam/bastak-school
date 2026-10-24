@@ -1,5 +1,11 @@
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { api, ApiError, onAuthFailure, setApiWorkContext } from "../../../../shared/api/api";
+import {
+  api,
+  ApiError,
+  onAuthFailure,
+  refreshSession,
+  setApiWorkContext,
+} from "../../../../shared/api/api";
 import type { AccountContext, OrganizationSummary, User } from "../../../../shared/types/domain";
 import { getCurrentUser, getAccountContext, loginRequest, logoutRequest } from "../api/auth.api";
 import {
@@ -19,6 +25,7 @@ import { currentAppDomain, preferredRoleForDomain } from "../../../../app/routin
 
 const MAX_RESTORE_ATTEMPTS = 3;
 const RESTORE_RETRY_DELAY_MS = 1_800;
+const ACTIVE_SESSION_REFRESH_MS = 10 * 60_000;
 
 function portalRole(roles: AccountContext["roles"]) {
   const domain = currentAppDomain();
@@ -150,6 +157,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     };
 
+    // Keep an active, online browser session alive through the normal rotating
+    // refresh-token path. The refresh cookie remains HttpOnly and CSRF-protected;
+    // an expired refresh session still requires a new login.
+    const refreshActiveSession = () => {
+      if (!document.hidden && navigator.onLine && user) void refreshSession();
+    };
+    const refreshTimer = window.setInterval(refreshActiveSession, ACTIVE_SESSION_REFRESH_MS);
+
     const storage = (event: StorageEvent) => {
       if (event.key !== AUTH_SIGNAL_KEY || !event.newValue) {
         return;
@@ -178,12 +193,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => {
       stopAuthFailure();
       window.clearTimeout(retryTimer.current);
+      window.clearInterval(refreshTimer);
       document.removeEventListener("visibilitychange", sync);
       window.removeEventListener("pageshow", sync);
       window.removeEventListener("online", online);
       window.removeEventListener("storage", storage);
     };
-  }, [copy, finishLocalLogout, restore]);
+  }, [copy, finishLocalLogout, restore, user]);
 
   const value = useMemo<AuthState>(
     () => ({
