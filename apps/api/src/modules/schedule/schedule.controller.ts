@@ -57,6 +57,14 @@ export class ScheduleController {
   ) {
     return this.schedule.archiveTemplate(user, id).then(ok);
   }
+  @Patch("templates/:id/restore")
+  @RequireCapabilities("schedule.archive")
+  restoreTemplate(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param("id") id: string,
+  ) {
+    return this.schedule.restoreTemplate(user, id).then(ok);
+  }
   @Delete("templates/:id")
   @RequireCapabilities("schedule.delete")
   removeTemplate(

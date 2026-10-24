@@ -10,6 +10,7 @@ import {
   MapPin,
   Pencil,
   Plus,
+  RotateCcw,
   Trash2,
   UserRound,
 } from "lucide-react";
@@ -40,6 +41,7 @@ import {
   listScheduleTemplates,
   listScheduleTimeBlocks,
   previewScheduleImport,
+  restoreScheduleTemplate,
   type ScheduleDraft,
   updateScheduleEntry,
 } from "../api/schedule.api";
@@ -198,6 +200,14 @@ export function LegacySchedulePage() {
       notify("الگو بایگانی شد.", "success");
     },
     onError: (e) => notify(e instanceof Error ? e.message : "بایگانی الگو انجام نشد.", "error"),
+  });
+  const restoreTemplate = useMutation({
+    mutationFn: restoreScheduleTemplate,
+    onSuccess: () => {
+      templateReload();
+      notify("الگو از بایگانی خارج شد.", "success");
+    },
+    onError: (e) => notify(e instanceof Error ? e.message : "بازیابی الگو انجام نشد.", "error"),
   });
   const removeTemplate = useMutation({
     mutationFn: deleteScheduleTemplate,
@@ -487,6 +497,16 @@ export function LegacySchedulePage() {
                   softConfirm: true,
                 })
                 .then((ok) => ok && archiveTemplate.mutate(template.id))
+            }
+            onRestore={(template) =>
+              void modal
+                .confirm({
+                  title: "بازیابی الگوی برنامه؟",
+                  description: `«${template.name}» دوباره در فهرست الگوهای قابل اجرا قرار می‌گیرد.`,
+                  confirmLabel: "بازیابی الگو",
+                  cancelLabel: "انصراف",
+                })
+                .then((ok) => ok && restoreTemplate.mutate(template.id))
             }
             onRemove={(template) =>
               void modal
@@ -1323,6 +1343,7 @@ function ScheduleTemplates({
   onCopy,
   onApply,
   onArchive,
+  onRestore,
   onRemove,
 }: {
   templates: ScheduleTemplate[];
@@ -1331,6 +1352,7 @@ function ScheduleTemplates({
   onCopy: (template: ScheduleTemplate) => void;
   onApply: (template: ScheduleTemplate) => void;
   onArchive: (template: ScheduleTemplate) => void;
+  onRestore: (template: ScheduleTemplate) => void;
   onRemove: (template: ScheduleTemplate) => void;
 }) {
   const [name, setName] = useState("");
@@ -1365,33 +1387,39 @@ function ScheduleTemplates({
           {templates.map((template) => (
             <li
               key={template.id}
-              className="flex items-center justify-between gap-2 rounded-lg bg-[rgb(var(--surface-muted))] p-2 text-xs"
+              className="grid gap-2 rounded-lg bg-[rgb(var(--surface-muted))] p-2.5 text-xs"
             >
-              <span className="min-w-0 truncate font-bold">
-                {template.name}
-                {template.state === "ARCHIVED" ? " · بایگانی" : ""}
-              </span>
-              <span className="flex gap-1">
+              <div className="flex min-w-0 items-center justify-between gap-2">
+                <span className="min-w-0 truncate font-bold">{template.name}</span>
+                <span
+                  className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold ${template.state === "ACTIVE" ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300" : "bg-slate-500/10 text-slate-600 dark:text-slate-300"}`}
+                >
+                  {template.state === "ACTIVE" ? "فعال" : "بایگانی"}
+                </span>
+              </div>
+              <p className="text-[11px] text-slate-500 dark:text-slate-300">
+                {template.entries.length.toLocaleString("fa-IR")} جلسه در الگو
+              </p>
+              <span className="flex flex-wrap gap-1">
                 {template.state === "ACTIVE" ? (
                   <Button size="sm" variant="soft" onClick={() => onApply(template)}>
                     اجرا
                   </Button>
-                ) : null}
+                ) : (
+                  <Button size="sm" variant="soft" onClick={() => onRestore(template)}>
+                    <RotateCcw size={13} /> بازیابی
+                  </Button>
+                )}
                 <Button size="sm" variant="ghost" onClick={() => onCopy(template)}>
-                  <Copy size={13} />
-                  <span className="sr-only">کپی الگو</span>
+                  <Copy size={13} /> کپی
                 </Button>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  disabled={template.state === "ARCHIVED"}
-                  onClick={() => onArchive(template)}
-                >
-                  <Archive size={13} />
-                </Button>
+                {template.state === "ACTIVE" ? (
+                  <Button size="sm" variant="ghost" onClick={() => onArchive(template)}>
+                    <Archive size={13} /> بایگانی
+                  </Button>
+                ) : null}
                 <Button size="sm" variant="ghost" onClick={() => onRemove(template)}>
-                  <Trash2 size={13} />
-                  <span className="sr-only">حذف الگو</span>
+                  <Trash2 size={13} /> حذف
                 </Button>
               </span>
             </li>

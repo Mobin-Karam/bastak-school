@@ -71,6 +71,8 @@ export const applyScheduleTemplate = (id: string) =>
   api.post<{ applied: number }>(`/schedule/templates/${encodeURIComponent(id)}/apply`, {});
 export const archiveScheduleTemplate = (id: string) =>
   api.patch<ScheduleTemplate>(`/schedule/templates/${encodeURIComponent(id)}/archive`, {});
+export const restoreScheduleTemplate = (id: string) =>
+  api.patch<ScheduleTemplate>(`/schedule/templates/${encodeURIComponent(id)}/restore`, {});
 export const deleteScheduleTemplate = (id: string) =>
   api.delete(`/schedule/templates/${encodeURIComponent(id)}`);
 export const previewScheduleImport = (entries: ScheduleDraft[]) =>

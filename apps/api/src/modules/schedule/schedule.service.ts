@@ -470,6 +470,25 @@ export class ScheduleService {
     template.state = "ARCHIVED";
     return this.templates.save(template);
   }
+  async restoreTemplate(user: AuthenticatedUser, id: string) {
+    const template = await this.templates.findOne({
+      where: { id },
+      relations: { organization: true },
+    });
+    if (!template)
+      throw new ApiException(
+        404,
+        "SCHEDULE_TEMPLATE_NOT_FOUND",
+        "الگوی برنامه پیدا نشد.",
+      );
+    await this.templateScope(
+      user,
+      template.organization.id,
+      "schedule.archive",
+    );
+    template.state = "ACTIVE";
+    return this.templates.save(template);
+  }
   async removeTemplate(user: AuthenticatedUser, id: string) {
     const template = await this.templates.findOne({
       where: { id },
