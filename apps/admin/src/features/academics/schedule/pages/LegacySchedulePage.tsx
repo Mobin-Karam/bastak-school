@@ -10,6 +10,8 @@ import {
   GraduationCap,
   MapPin,
   Pencil,
+  PanelRightClose,
+  PanelRightOpen,
   Plus,
   RotateCcw,
   Trash2,
@@ -85,6 +87,7 @@ export function LegacySchedulePage() {
   const client = useQueryClient();
   const [activeWeekday, setActiveWeekday] = useState(() => legacyWeekdayForIso(todayIso()));
   const [templatePreview, setTemplatePreview] = useState<ScheduleTemplate | null>(null);
+  const [toolsSidebarHidden, setToolsSidebarHidden] = useState(false);
   const selectedOrganizationId = auth.context?.activeOrganization?.id;
   const entries = useQuery({
     queryKey: ["schedule", selectedOrganizationId ?? "all"],
@@ -405,10 +408,17 @@ export function LegacySchedulePage() {
   ) : null;
   return (
     <section
-      className="grid w-full max-w-none gap-4 pb-[calc(6rem+env(safe-area-inset-bottom))] min-[960px]:grid-cols-[minmax(0,1fr)_22rem] min-[960px]:pb-6"
+      className={`grid w-full max-w-none gap-4 pb-[calc(6rem+env(safe-area-inset-bottom))] min-[960px]:pb-6 min-[960px]:transition-[grid-template-columns] min-[960px]:duration-300 min-[960px]:ease-out motion-reduce:transition-none ${toolsSidebarHidden ? "min-[960px]:grid-cols-[minmax(0,1fr)_0rem]" : "min-[960px]:grid-cols-[minmax(0,1fr)_22rem]"}`}
       dir="rtl"
     >
       <div className="order-2 grid gap-3 min-[960px]:order-1">
+        {toolsSidebarHidden ? (
+          <div className="hidden min-[960px]:flex justify-end">
+            <Button variant="soft" onClick={() => setToolsSidebarHidden(false)}>
+              <PanelRightOpen size={16} /> نمایش ابزارهای برنامه
+            </Button>
+          </div>
+        ) : null}
         {templatePreview ? (
           <ScheduleTemplatePreview
             template={templatePreview}
@@ -443,7 +453,14 @@ export function LegacySchedulePage() {
           onMove={(entry, weekday) => move.mutate({ entry, weekday })}
         />
       </div>
-      <aside className="order-1 grid gap-3 min-[960px]:order-2 min-[960px]:sticky min-[960px]:top-3 min-[960px]:self-start">
+      <aside
+        className={`order-1 grid min-w-0 gap-3 overflow-hidden transition-[opacity,transform] duration-300 ease-out motion-reduce:transition-none min-[960px]:order-2 min-[960px]:sticky min-[960px]:top-3 min-[960px]:self-start ${toolsSidebarHidden ? "min-[960px]:pointer-events-none min-[960px]:translate-x-3 min-[960px]:opacity-0" : "min-[960px]:translate-x-0 min-[960px]:opacity-100"}`}
+      >
+        <div className="hidden min-[960px]:flex justify-end">
+          <Button variant="ghost" size="sm" onClick={() => setToolsSidebarHidden(true)}>
+            <PanelRightClose size={15} /> پنهان کردن ابزارها
+          </Button>
+        </div>
         <ScheduleSidebarSummary entries={scheduleEntries} toolbar={scheduleToolbar} />
         {canCreate ? (
           <Card className="border-brand/15 bg-[rgb(var(--surface-card))] p-4">
