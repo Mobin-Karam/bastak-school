@@ -18,6 +18,18 @@ test -f "$PRODUCTION_CONFIG_DIR/production.env"
 test -f "$PRODUCTION_CONFIG_DIR/nginx.conf.template"
 test -f "$PRODUCTION_CONFIG_DIR/tls/server.key"
 openssl x509 -checkend 604800 -noout -in "$PRODUCTION_CONFIG_DIR/tls/server.crt"
+
+# Runtime configuration is host-owned. Deployments may read it, but must never
+# create, remove, or rewrite any environment file in the protected directory.
+environment_fingerprint() {
+  find -L "$1" -type f \( -name ".env" -o -name ".env.*" -o -name "*.env" \) -print0 |
+    LC_ALL=C sort -z |
+    xargs -0r sha256sum |
+    sha256sum |
+    awk '{ print $1 }'
+}
+protected_environment_fingerprint=$(environment_fingerprint "$PRODUCTION_CONFIG_DIR")
+
 exec 9>"$PRODUCTION_LOCK_FILE"
 flock -n 9 || { echo 'Another deployment or recovery is running.' >&2; exit 1; }
 python3 tooling/cicd/release_bundle.py load "$RELEASE_BUNDLE" "$RELEASE_SHA"
@@ -83,6 +95,10 @@ for service in backend-v2 admin-v2; do
 done
 "${compose[@]}" exec -T admin-v2 nginx -t
 ./scripts/deploy/probe-release.sh "$PRODUCTION_CONFIG_DIR/tls/ca.crt"
+[[ "$protected_environment_fingerprint" == "$(environment_fingerprint "$PRODUCTION_CONFIG_DIR")" ]] || {
+  echo 'Protected production environment files changed during deployment; refusing release receipt.' >&2
+  exit 1
+}
 python3 - "$RELEASE_BUNDLE/loaded-images.json" "$PRODUCTION_RECEIPT" "$backup_path" <<'PY'
 import json,sys,os,datetime
 manifest=json.load(open(sys.argv[1]))

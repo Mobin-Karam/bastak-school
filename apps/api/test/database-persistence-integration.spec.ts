@@ -43,6 +43,8 @@ import { AuthorizationService } from "../src/modules/authorization";
 import { UserRoleAssignment } from "../src/database/entities/user-role-assignment.entity";
 import { UserRelationship } from "../src/database/entities/user-relationship.entity";
 import { SchoolScheduleEntry } from "../src/database/entities/school-schedule-entry.entity";
+import { SchoolScheduleTimeBlock } from "../src/database/entities/school-schedule-time-block.entity";
+import { SchoolScheduleTemplate } from "../src/database/entities/school-schedule-template.entity";
 import { EducationClassBook } from "../src/database/entities/education-class-book.entity";
 import { EducationBook } from "../src/database/entities/education-book.entity";
 import { StudentPresence } from "../src/database/entities/student-presence.entity";
@@ -737,6 +739,8 @@ describe("migration-backed persistence and verified recovery (disposable SQLite 
     );
     const schedule = new ScheduleService(
       db.getRepository(SchoolScheduleEntry),
+      db.getRepository(SchoolScheduleTimeBlock),
+      db.getRepository(SchoolScheduleTemplate),
       db.getRepository(Organization),
       db.getRepository(OrganizationMembership),
       db.getRepository(EducationClass),
