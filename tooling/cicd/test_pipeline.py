@@ -53,10 +53,73 @@ class PipelineTests(unittest.TestCase):
             'git merge-base --is-ancestor "$BASE_SHA" "$HEAD_SHA"',
             'current_develop" == "$HEAD_SHA"',
             'event == "push" and .head_branch == "develop"',
+            'run_status" == completed',
+            'run_conclusion" == success',
+            'Timed out waiting for the exact develop-push qualification.',
             'production-images-$HEAD_SHA',
             'artifact_digest" =~ ^sha256:',
         ):
             self.assertIn(evidence, script)
+        self.assertEqual(promotion["timeout-minutes"], 45)
+
+    def test_release_evidence_waits_for_the_matching_develop_run(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            fake = root / "bin"
+            fake.mkdir()
+            calls = root / "calls"
+            gh = fake / "gh"
+            gh.write_text("""#!/bin/bash
+set -euo pipefail
+endpoint="$2"
+if [[ "$endpoint" == */git/ref/heads/develop ]]; then
+  printf '%s\\n' "$HEAD_SHA"
+elif [[ "$endpoint" == *'/runs?'* ]]; then
+  count=0
+  [[ ! -f "$CALLS" ]] || count=$(cat "$CALLS")
+  count=$((count + 1))
+  printf '%s' "$count" > "$CALLS"
+  status=in_progress
+  conclusion=null
+  (( count < 2 )) || { status=completed; conclusion='"success"'; }
+  printf '{"workflow_runs":[{"id":42,"head_sha":"%s","event":"push","head_branch":"develop","status":"%s","conclusion":%s,"path":".github/workflows/continuous-integration.yml","head_repository":{"full_name":"%s"},"created_at":"2026-10-24T00:00:00Z"}]}\\n' "$HEAD_SHA" "$status" "$conclusion" "$GH_REPO"
+elif [[ "$endpoint" == */actions/runs/42/artifacts* ]]; then
+  printf '{"artifacts":[{"name":"production-images-%s","expired":false,"digest":"sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}]}\\n' "$HEAD_SHA"
+else
+  echo "Unexpected gh call: $*" >&2
+  exit 1
+fi
+""")
+            gh.chmod(0o700)
+            head = subprocess.run(
+                ["git", "rev-parse", "HEAD"], cwd=ROOT, text=True, capture_output=True, check=True
+            ).stdout.strip()
+            base = subprocess.run(
+                ["git", "rev-parse", "HEAD~1"], cwd=ROOT, text=True, capture_output=True, check=True
+            ).stdout.strip()
+            env = dict(
+                os.environ,
+                PATH=str(fake) + os.pathsep + os.environ["PATH"],
+                GH_TOKEN="fixture",
+                GH_REPO="fixture/repo",
+                HEAD_BRANCH="develop",
+                HEAD_REPOSITORY="fixture/repo",
+                HEAD_SHA=head,
+                BASE_SHA=base,
+                CALLS=str(calls),
+                PROMOTION_EVIDENCE_ATTEMPTS="3",
+                PROMOTION_EVIDENCE_INTERVAL_SECONDS="0",
+            )
+            result = subprocess.run(
+                ["bash", "scripts/cicd/verify-promotion-evidence.sh"],
+                cwd=ROOT,
+                env=env,
+                text=True,
+                capture_output=True,
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(calls.read_text(), "2")
+            self.assertIn("Promotion evidence verified", result.stdout)
 
     def test_image_archives_are_retained_only_for_branch_pushes(self):
         readiness = self.workflow("deployment-readiness.yml")

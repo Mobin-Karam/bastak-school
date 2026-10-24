@@ -22,18 +22,47 @@ current_develop=$(gh api "repos/$GH_REPO/git/ref/heads/develop" --jq .object.sha
   exit 1
 }
 
-runs=$(gh api "repos/$GH_REPO/actions/workflows/continuous-integration.yml/runs?branch=develop&event=push&status=success&per_page=100")
-run_id=$(jq -r --arg sha "$HEAD_SHA" --arg repo "$GH_REPO" '
-  [.workflow_runs[]
-   | select(.head_sha == $sha)
-   | select(.event == "push" and .head_branch == "develop")
-   | select(.status == "completed" and .conclusion == "success")
-   | select(.path == ".github/workflows/continuous-integration.yml")
-   | select(.head_repository.full_name == $repo)]
-  | first | .id // empty
-' <<<"$runs")
+attempts=${PROMOTION_EVIDENCE_ATTEMPTS:-180}
+interval=${PROMOTION_EVIDENCE_INTERVAL_SECONDS:-10}
+[[ "$attempts" =~ ^[1-9][0-9]*$ && "$interval" =~ ^[0-9]+$ ]]
+
+run_id=''
+for ((attempt = 1; attempt <= attempts; attempt++)); do
+  runs=$(gh api "repos/$GH_REPO/actions/workflows/continuous-integration.yml/runs?branch=develop&event=push&per_page=100")
+  read -r run_id run_status run_conclusion < <(jq -r --arg sha "$HEAD_SHA" --arg repo "$GH_REPO" '
+    [.workflow_runs[]
+     | select(.head_sha == $sha)
+     | select(.event == "push" and .head_branch == "develop")
+     | select(.path == ".github/workflows/continuous-integration.yml")
+     | select(.head_repository.full_name == $repo)]
+    | sort_by(.created_at) | reverse | first
+    | if . == null then "  " else [.id, .status, (.conclusion // "pending")] | @tsv end
+  ' <<<"$runs")
+
+  if [[ "$run_id" =~ ^[0-9]+$ && "$run_status" == completed ]]; then
+    [[ "$run_conclusion" == success ]] || {
+      echo "Develop-push qualification $run_id completed with $run_conclusion." >&2
+      exit 1
+    }
+    break
+  fi
+
+  if (( attempt == attempts )); then
+    echo 'Timed out waiting for the exact develop-push qualification.' >&2
+    exit 1
+  fi
+  echo "Waiting for develop-push qualification of $HEAD_SHA ($attempt/$attempts)."
+  sleep "$interval"
+done
+
 [[ "$run_id" =~ ^[0-9]+$ ]] || {
-  echo 'No successful develop-push qualification exists for this exact SHA.' >&2
+  echo 'No develop-push qualification exists for this exact SHA.' >&2
+  exit 1
+}
+
+current_develop=$(gh api "repos/$GH_REPO/git/ref/heads/develop" --jq .object.sha)
+[[ "$current_develop" == "$HEAD_SHA" ]] || {
+  echo 'Develop advanced while promotion evidence was being verified.' >&2
   exit 1
 }
 
