@@ -177,6 +177,7 @@ export function AttendancePage() {
     () => contexts.find((c) => c.id === contextId && c.contextType === contextType) ?? null,
     [contexts, contextId, contextType],
   );
+  const dormAbsenceOnly = selected?.contextType === "dorm";
   useEffect(() => {
     setChosenType(requestedSection);
     if (contextOrder.includes(requestedSection as AttendanceContextType)) {
@@ -559,12 +560,17 @@ export function AttendancePage() {
       setNotice({ kind: "error", text: "مدرسه این گروه مشخص نیست." });
       return;
     }
-    const entries = participants
-      .filter(
-        (p): p is Participant & { status: MarkedStatus } =>
-          p.status !== "unmarked" && p.status !== baseline.current.get(p.id),
-      )
-      .map((p) => ({ studentId: p.id, status: p.status }));
+    const entries = dormAbsenceOnly
+      ? participants.map((p) => ({
+          studentId: p.id,
+          status: (p.status === "absent" ? "absent" : "present") as MarkedStatus,
+        }))
+      : participants
+          .filter(
+            (p): p is Participant & { status: MarkedStatus } =>
+              p.status !== "unmarked" && p.status !== baseline.current.get(p.id),
+          )
+          .map((p) => ({ studentId: p.id, status: p.status }));
     // A saved session is absence-first: an empty draft explicitly means
     // everyone in its immutable roster is present.
     if (!entries.length && !linkedSession) {
@@ -946,6 +952,7 @@ export function AttendancePage() {
               <AttendanceRosterView
                 canManage={canManage}
                 absenceFirst={Boolean(linkedSession)}
+                absenceOnly={dormAbsenceOnly}
                 participants={participants}
                 filtered={filtered}
                 selected={Boolean(selected)}
@@ -1005,8 +1012,9 @@ export function AttendancePage() {
                 <div className="mx-auto flex max-w-7xl items-center gap-2">
                   <div className="hidden min-w-0 flex-1 sm:block">
                     <p className="text-sm font-bold">
-                      {marked.toLocaleString("fa-IR")} از{" "}
-                      {participants.length.toLocaleString("fa-IR")} تعیین وضعیت
+                      {dormAbsenceOnly
+                        ? `${counts.absent.toLocaleString("fa-IR")} غایب از ${participants.length.toLocaleString("fa-IR")} نفر`
+                        : `${marked.toLocaleString("fa-IR")} از ${participants.length.toLocaleString("fa-IR")} تعیین وضعیت`}
                     </p>
                     <p className={`text-xs ${muted}`}>
                       {dirty ? "تغییرات آمادهٔ مرور" : "هنوز تغییری ثبت نشده"}
@@ -1033,7 +1041,11 @@ export function AttendancePage() {
                     ) : (
                       <Check size={18} />
                     )}
-                    {saving ? "در حال ثبت…" : `بررسی و ثبت حضور ${marked ? `(${marked})` : ""}`}
+                    {saving
+                      ? "در حال ثبت…"
+                      : dormAbsenceOnly
+                        ? `بررسی و ثبت اتاق ${counts.absent ? `(${counts.absent} غایب)` : ""}`
+                        : `بررسی و ثبت حضور ${marked ? `(${marked})` : ""}`}
                   </button>
                 </div>
               </div>
@@ -1045,8 +1057,10 @@ export function AttendancePage() {
                 <div className={`${shell} rounded-xl p-3`}>
                   <p className="font-bold">{selected?.name}</p>
                   <p className={`mt-1 text-sm ${muted}`}>
-                    زمان ثبت: اکنون · {marked.toLocaleString("fa-IR")} از{" "}
-                    {participants.length.toLocaleString("fa-IR")} نفر
+                    زمان ثبت: اکنون ·{" "}
+                    {dormAbsenceOnly
+                      ? `${counts.absent.toLocaleString("fa-IR")} غایب و ${(participants.length - counts.absent).toLocaleString("fa-IR")} حاضر`
+                      : `${marked.toLocaleString("fa-IR")} از ${participants.length.toLocaleString("fa-IR")} نفر`}
                   </p>
                 </div>
                 <dl className="grid grid-cols-3 gap-2 text-center">
@@ -1057,7 +1071,16 @@ export function AttendancePage() {
                     </div>
                   ))}
                 </dl>
-                {counts.unmarked > 0 ? (
+                {dormAbsenceOnly ? (
+                  <p
+                    role="status"
+                    className="rounded-xl bg-emerald-50 p-3 text-sm leading-6 text-emerald-900 dark:bg-emerald-950 dark:text-emerald-100"
+                  >
+                    فقط غایبان انتخاب شده‌اند.{" "}
+                    {(participants.length - counts.absent).toLocaleString("fa-IR")} ساکن دیگر خودکار
+                    حاضر ثبت می‌شوند.
+                  </p>
+                ) : counts.unmarked > 0 ? (
                   <p
                     role="status"
                     className="rounded-xl bg-amber-50 p-3 text-sm leading-6 text-amber-900 dark:bg-amber-950 dark:text-amber-100"

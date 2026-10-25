@@ -34,6 +34,7 @@ const buttonBase =
 export function AttendanceRosterView({
   canManage,
   absenceFirst = false,
+  absenceOnly = false,
   participants,
   filtered,
   selected,
@@ -54,6 +55,8 @@ export function AttendanceRosterView({
   canManage: boolean;
   /** Saved timetable sessions are committed absence-first; ad-hoc marking remains explicit. */
   absenceFirst?: boolean;
+  /** Dorm supervisors record only exceptions; untouched residents are saved as present. */
+  absenceOnly?: boolean;
   participants: AttendanceParticipant[];
   filtered: AttendanceParticipant[];
   selected: boolean;
@@ -84,13 +87,15 @@ export function AttendanceRosterView({
             </div>
             <p className={`mt-1 max-w-2xl text-xs leading-5 ${muted}`}>
               {canManage
-                ? absenceFirst
-                  ? "برای ثبت سریع، فقط غایبان و افراد دیررس را مشخص کنید؛ سایر اعضا با تأیید نهایی حاضر ثبت می‌شوند."
-                  : "وضعیت هر دانش‌آموز را مشخص کنید؛ پیش از ثبت، خلاصه و موارد نامشخص را بررسی خواهید کرد."
+                ? absenceOnly
+                  ? "فقط غایبان این اتاق را انتخاب کنید؛ هنگام ثبت، سایر ساکنان خودکار حاضر ثبت می‌شوند."
+                  : absenceFirst
+                    ? "برای ثبت سریع، فقط غایبان و افراد دیررس را مشخص کنید؛ سایر اعضا با تأیید نهایی حاضر ثبت می‌شوند."
+                    : "وضعیت هر دانش‌آموز را مشخص کنید؛ پیش از ثبت، خلاصه و موارد نامشخص را بررسی خواهید کرد."
                 : "فهرست اعضا؛ دسترسی شما فقط برای مشاهده است."}
             </p>
           </div>
-          {canManage ? (
+          {canManage && !absenceOnly ? (
             <button
               type="button"
               onClick={onMarkAllPresent}
@@ -126,10 +131,10 @@ export function AttendanceRosterView({
             options={[
               { value: "all", label: "همه وضعیت‌ها" },
               { value: "unmarked", label: "ثبت‌نشده" },
-              ...(participants.some((person) => person.status === "excused")
+              ...(!absenceOnly && participants.some((person) => person.status === "excused")
                 ? [{ value: "excused", label: "موجه" }]
                 : []),
-              ...attendanceStatuses.map((status) => ({
+              ...(absenceOnly ? (["absent"] as const) : attendanceStatuses).map((status) => ({
                 value: status,
                 label: attendanceStatusMeta[status].label,
               })),
@@ -205,9 +210,11 @@ export function AttendanceRosterView({
                     aria-label={`وضعیت ${student.name}`}
                     className="grid min-w-0 flex-1 grid-cols-3 gap-2 sm:flex-none"
                   >
-                    {(absenceFirst
-                      ? attendanceStatuses.filter((status) => status !== "present")
-                      : attendanceStatuses
+                    {(absenceOnly
+                      ? (["absent"] as const)
+                      : absenceFirst
+                        ? attendanceStatuses.filter((status) => status !== "present")
+                        : attendanceStatuses
                     ).map((status) => (
                       <button
                         key={status}
