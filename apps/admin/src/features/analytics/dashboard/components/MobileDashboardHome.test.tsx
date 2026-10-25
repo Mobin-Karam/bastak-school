@@ -1,8 +1,20 @@
 import { render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { LocaleProvider } from "../../../../shared/ui/locale";
 import { MobileDashboardHome } from "./MobileDashboardHome";
+
+vi.mock("./DashboardCalendar", () => ({
+  DashboardCalendar: () => <section aria-label="تقویم و برنامه‌های در دسترس" />,
+}));
+
+vi.mock("../../school-home/components/CurrentPrayerCard", () => ({
+  CurrentPrayerCard: () => (
+    <section aria-label="وقت شرعی پیش رو">
+      <time dateTime="11:54">۱۱:۵۴</time>
+    </section>
+  ),
+}));
 
 describe("MobileDashboardHome", () => {
   it("keeps the role-aware home sequence compact and exposes exactly six safe shortcuts", () => {
