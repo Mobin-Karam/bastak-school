@@ -82,6 +82,7 @@ describe("TeacherClassAttendanceSheet", () => {
     expect(screen.getByText("08:00 تا 09:30 · ۱۰۱")).toBeInTheDocument();
     expect(await screen.findByText("علی رضایی")).toBeInTheDocument();
     expect(dialog).toHaveClass("max-w-xl");
+    expect(within(screen.getByRole("group", { name: "وضعیت حضور علی رضایی" })).getByRole("button", { name: "حاضر" })).toHaveAttribute("aria-pressed", "true");
   });
   it("preserves the selected mark and exact request when retrying a failed save", async () => {
     bulkMarkAttendanceMock.mockClear();
@@ -109,5 +110,37 @@ describe("TeacherClassAttendanceSheet", () => {
     expect(bulkMarkAttendanceMock.mock.calls[1][0]).toEqual(
       bulkMarkAttendanceMock.mock.calls[0][0],
     );
+  });
+
+  it("keeps the roster open when returning, then closes it after confirmed clearing", async () => {
+    getAttendanceParticipantsMock.mockResolvedValue([{ id: "student-1", name: "علی رضایی" }]);
+    listMyAttendanceAbsenceReviewsMock.mockResolvedValue([]);
+    const onOpenChange = vi.fn();
+    renderSheet(onOpenChange);
+    const user = userEvent.setup();
+
+    await screen.findByRole("group", { name: "وضعیت حضور علی رضایی" });
+    await user.click(screen.getByRole("button", { name: "بررسی و ثبت حضور و غیاب" }));
+    await user.click(screen.getByRole("button", { name: "بازگشت" }));
+
+    expect(screen.getByRole("dialog", { name: "ریاضی دهم" })).toBeInTheDocument();
+
+    const group = screen.getByRole("group", { name: "وضعیت حضور علی رضایی" });
+    await user.click(within(group).getByRole("button", { name: "غایب" }));
+    await user.click(screen.getByRole("button", { name: "پاک کردن" }));
+
+    expect(screen.getByRole("dialog", { name: "ریاضی دهم" })).toBeInTheDocument();
+    expect(screen.getByText("تغییرات حضور و غیاب پاک می‌شوند")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "بازگشت و حفظ تغییرات" }));
+    expect(screen.getByRole("dialog", { name: "ریاضی دهم" })).toBeInTheDocument();
+    expect(within(group).getByRole("button", { name: "غایب" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+
+    await user.click(screen.getByRole("button", { name: "پاک کردن" }));
+    await user.click(screen.getByRole("button", { name: "ادامه و پاک‌کردن" }));
+
+    expect(onOpenChange).toHaveBeenCalledWith(false);
   });
 });
