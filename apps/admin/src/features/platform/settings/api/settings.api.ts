@@ -14,6 +14,7 @@ export function changePassword(body: { currentPassword: string; newPassword: str
 }
 export type AccountProfile = {
   phoneNumber: string | null;
+  phoneNumberSelfServiceAvailable: boolean;
   phoneNumberChangeAvailable: boolean;
   phoneNumberChangeUnlimited: boolean;
   phoneNumberChangeCount: number;

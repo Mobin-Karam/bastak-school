@@ -23,6 +23,13 @@ function repo<T>(items: T[] = []) {
           ),
         ) || null,
     ),
+    findOneBy: jest.fn(async (where: Partial<T>) =>
+      items.find((item) =>
+        Object.entries(where).every(
+          ([key, value]) => (item as Record<string, unknown>)[key] === value,
+        ),
+      ) || null,
+    ),
     find: jest.fn(async () => items),
     save: jest.fn(async (item: T) => ({ id: "session-1", ...item })),
     create: jest.fn((item: T) => item),
@@ -409,6 +416,57 @@ describe("AuthService", () => {
       expect.objectContaining({ id: "u1", passwordHash: expect.any(String) }),
     );
     expect(sessions.delete).toHaveBeenCalled();
+  });
+
+  it("lets a teacher change their phone number and password through self-service", async () => {
+    const user = {
+      id: "teacher-1",
+      username: "09123456789",
+      phoneNumber: "09123456789",
+      passwordHash: await bcrypt.hash("current-password", 4),
+      phoneNumberChangeCount: 0,
+      passwordChangeCount: 0,
+    } as User;
+    const users = repo([user]);
+    const sessions = repo();
+    const module = await Test.createTestingModule({
+      providers: [
+        AuthService,
+        { provide: getRepositoryToken(User), useValue: users },
+        { provide: getRepositoryToken(Session), useValue: sessions },
+        { provide: getRepositoryToken(Student), useValue: repo() },
+        {
+          provide: ConfigService,
+          useValue: { get: (_key: string, fallback: unknown) => fallback },
+        },
+      ],
+    }).compile();
+    const teacher = {
+      id: user.id,
+      username: user.username,
+      role: UserRole.TEACHER,
+      sessionId: "current",
+      roles: [UserRole.TEACHER],
+    };
+    const auth = module.get(AuthService);
+
+    await expect(auth.changeOwnPhoneNumber(teacher, "09129876543")).resolves.toMatchObject({
+      changed: true,
+      phoneNumber: "09129876543",
+    });
+    await expect(
+      auth.changePassword(teacher, "current-password", "a-new-password-long-enough"),
+    ).resolves.toEqual({ changed: true, otherSessionsRevoked: true });
+    await expect(auth.me(teacher)).resolves.toMatchObject({
+      phoneNumberSelfServiceAvailable: true,
+    });
+    expect(users.save).toHaveBeenCalledWith(
+      expect.objectContaining({
+        phoneNumber: "09129876543",
+        phoneNumberChangeCount: 1,
+        passwordChangeCount: 1,
+      }),
+    );
   });
 
   it("rejects an incorrect current password", async () => {
