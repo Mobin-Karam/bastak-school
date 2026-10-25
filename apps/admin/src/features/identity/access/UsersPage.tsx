@@ -672,8 +672,7 @@ export function UsersPage() {
                       id: "archive",
                       label: copy.archive,
                       tone: "danger",
-                      visible: (user) =>
-                        !isProtected(user) && user.status !== "ARCHIVED",
+                      visible: (user) => !isProtected(user) && user.status !== "ARCHIVED",
                       onClick: (user) =>
                         void modal
                           .confirm({

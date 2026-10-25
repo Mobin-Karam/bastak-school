@@ -115,9 +115,7 @@ it("lets a principal archive a staff account in their active school", async () =
   );
   await userEvent.click(within(dialog).getByRole("button", { name: copy.archive }));
 
-  await waitFor(() =>
-    expect(state.archiveUser).toHaveBeenCalledWith("staff", expect.anything()),
-  );
+  await waitFor(() => expect(state.archiveUser).toHaveBeenCalledWith("staff", expect.anything()));
 });
 it("keeps read-only users out of account mutations and selection", async () => {
   state.manage = false;
