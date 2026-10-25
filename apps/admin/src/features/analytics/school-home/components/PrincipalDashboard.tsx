@@ -1,4 +1,3 @@
-import { AdaptiveSelect } from "@/shared/ui/adaptive-select";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   AlertTriangle,
@@ -10,12 +9,8 @@ import {
   GraduationCap,
   UsersRound,
 } from "lucide-react";
-import { useState } from "react";
 import { Link } from "react-router-dom";
 import {
-  Area,
-  AreaChart,
-  CartesianGrid,
   Pie as RechartsPie,
   PieChart,
   PolarAngleAxis,
@@ -23,15 +18,12 @@ import {
   PolarRadiusAxis,
   Radar as RechartsRadar,
   RadarChart,
-  RadialBar,
-  RadialBarChart,
   Tooltip,
-  XAxis,
-  YAxis,
 } from "recharts";
 import { useAuth } from "../../../identity/auth";
 import { Card, LoadingState } from "../../../../shared/ui/ui";
-import { ResponsiveModal } from "../../../../shared/ui/responsive-modal";
+import { DataTable, type DataTableColumn } from "../../../../shared/ui/data-table";
+import { useModal } from "../../../../shared/ui/modal";
 import { ChartContainer, ChartTooltipContent } from "../../../../shared/ui/chart-container";
 import "./principal-dashboard-layout.css";
 import {
@@ -43,15 +35,21 @@ import {
 
 type Point = { label: string; value: number; color: string };
 type AttendanceData = NonNullable<PrincipalDashboardContract["attendance"]>;
+type SessionReview = NonNullable<PrincipalDashboardContract["sessionReviews"]>["items"][number];
+
+function formatDay(value: string) {
+  const date = new Date(value);
+  return Number.isNaN(date.getTime())
+    ? "تاریخ نامشخص"
+    : date.toLocaleDateString("fa-IR", { month: "short", day: "numeric" });
+}
 
 export function PrincipalDashboard() {
   const auth = useAuth();
   const queryClient = useQueryClient();
-  const [range, setRange] = useState<"7d" | "30d">("7d");
-  const [classId, setClassId] = useState("");
-  const [reviewingItem, setReviewingItem] = useState<
-    NonNullable<PrincipalDashboardContract["sessionReviews"]>["items"][number] | null
-  >(null);
+  const modal = useModal();
+  const range = "7d" as const;
+  const classId = "";
   const dashboard = useQuery({
     queryKey: ["principal-dashboard", range, classId, auth.context?.activeOrganization?.id],
     queryFn: () => getPrincipalDashboard(range, classId || undefined),
@@ -60,15 +58,88 @@ export function PrincipalDashboard() {
     mutationFn: reviewAttendanceSession,
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["principal-dashboard"] }),
   });
-  const sessionDetail = useQuery({
-    queryKey: ["principal-attendance-review-detail", reviewingItem?.id],
-    queryFn: () => getAttendanceSessionForReview(reviewingItem!.id),
-    enabled: Boolean(reviewingItem),
-  });
   if (dashboard.isLoading) return <LoadingState label="در حال آماده‌سازی داشبورد مدیریت…" />;
   if (dashboard.isError || !dashboard.data)
     return <DashboardError onRetry={() => void dashboard.refetch()} />;
   const data = dashboard.data;
+  const sessionReviewItems = data.sessionReviews?.items ?? [];
+  const openAttendanceReviewDetails = (item: SessionReview) => {
+    modal.open({
+      title: "جزئیات غیبت‌های جلسه",
+      description: item.title,
+      size: "xl",
+      content: <AttendanceReviewDetails item={item} onClose={modal.close} />,
+    });
+  };
+  const sessionReviewColumns: DataTableColumn<SessionReview>[] = [
+    {
+      id: "title",
+      label: "جلسه",
+      primary: true,
+      value: (item) => item.title,
+      cell: (item) => (
+        <div className="grid gap-1">
+          <strong>{item.title}</strong>
+          <span className="text-xs text-slate-500">
+            {new Date(item.sessionDate).toLocaleString("fa-IR", { timeZone: "Asia/Tehran" })}
+            {item.lastReviewedAt
+              ? ` · آخرین بازبینی ${new Date(item.lastReviewedAt).toLocaleString("fa-IR", { timeZone: "Asia/Tehran" })}`
+              : " · هنوز بازبینی نشده"}
+          </span>
+        </div>
+      ),
+    },
+    {
+      id: "status",
+      label: "وضعیت",
+      value: (item) => item.status,
+      cell: (item) => (
+        <span className="inline-flex rounded-full bg-amber-100 px-3 py-1 text-xs font-bold text-amber-900 dark:bg-amber-950/40 dark:text-amber-100">
+          {item.status === "submitted" ? "ثبت‌شده" : "نهایی‌شده"}
+        </span>
+      ),
+      filter: {
+        type: "select",
+        options: [
+          { value: "submitted", label: "ثبت‌شده" },
+          { value: "finalized", label: "نهایی‌شده" },
+        ],
+      },
+    },
+    { id: "present", label: "حاضر", value: (item) => item.present },
+    { id: "absent", label: "غایب", value: (item) => item.absent },
+    { id: "late", label: "تأخیر", value: (item) => item.late },
+    {
+      id: "marked",
+      label: "ثبت وضعیت",
+      value: (item) => (item.expected == null ? item.marked : `${item.marked} از ${item.expected}`),
+    },
+    {
+      id: "review",
+      label: "بازبینی",
+      sortable: false,
+      hideable: false,
+      value: () => "",
+      cell: (item) => (
+        <button
+          type="button"
+          className="min-h-11 rounded-xl bg-brand px-4 text-sm font-bold text-white disabled:opacity-50"
+          disabled={reviewSession.isPending}
+          onClick={(event) => {
+            event.stopPropagation();
+            if (item.absent === 0) reviewSession.mutate(item.id);
+            else openAttendanceReviewDetails(item);
+          }}
+        >
+          {reviewSession.isPending && reviewSession.variables === item.id
+            ? "در حال ثبت بازبینی…"
+            : item.absent === 0
+              ? "تأیید بازبینی و ثبت"
+              : `مشاهدهٔ جزئیات ${item.absent.toLocaleString("fa-IR")} غایب`}
+        </button>
+      ),
+    },
+  ];
   const attendance = data.attendance;
   const queues = data.queues;
   const operations = data.operations;
@@ -107,53 +178,138 @@ export function PrincipalDashboard() {
   ].filter((item) => auth.can(item.capability));
   return (
     <main className="principal-dashboard mx-auto grid w-full max-w-7xl gap-4" dir="rtl">
-      <header className="principal-dashboard__hero">
-        <div>
-          <p className="principal-dashboard__eyebrow">میز مدیریت مدرسه</p>
-          <h1>تصمیم‌های امروز، با تصویر روشن از مدرسه</h1>
-          <p>
-            شاخص‌ها فقط برای مدرسهٔ فعال شما محاسبه شده‌اند و هر بخش بر اساس سطح دسترسی نمایش داده
-            می‌شود.
-          </p>
-        </div>
-        <div className="principal-dashboard__controls" aria-label="بازه گزارش">
-          <button
-            type="button"
-            className={range === "7d" ? "is-active" : ""}
-            onClick={() => setRange("7d")}
-          >
-            ۷ روز
-          </button>
-          <button
-            type="button"
-            className={range === "30d" ? "is-active" : ""}
-            onClick={() => setRange("30d")}
-          >
-            ۳۰ روز
-          </button>
-          {attendance?.classes.length ? (
-            <AdaptiveSelect
-              aria-label="فیلتر کلاس"
-              value={classId}
-              onChange={(event) => setClassId(event.target.value)}
-            >
-              <option value="">همهٔ کلاس‌ها</option>
-              {attendance.classes.map((item) => (
-                <option key={item.id} value={item.id}>
-                  {item.name}
-                </option>
+      <section className="principal-dashboard__daily-grid" aria-label="پیگیری‌های امروز">
+        <Card className="principal-dashboard__daily-card p-5">
+          <div className="principal-dashboard__section-heading">
+            <div>
+              <p>حضور امروز</p>
+              <h2>دانش‌آموزان غایب</h2>
+            </div>
+            <UsersRound aria-hidden="true" />
+          </div>
+          {auth.can("students.read") && data.todayAbsences?.length ? (
+            <ul className="principal-dashboard__daily-list">
+              {data.todayAbsences.map((student) => (
+                <li key={student.id}>
+                  <Link to={`/admin/students?studentId=${encodeURIComponent(student.id)}`}>
+                    <span>
+                      <strong>{student.name}</strong>
+                      <small>{student.context}</small>
+                    </span>
+                    <b>{student.sessions.toLocaleString("fa-IR")} جلسه</b>
+                  </Link>
+                </li>
               ))}
-            </AdaptiveSelect>
-          ) : null}
-          <span>
-            به‌روزرسانی:{" "}
-            {new Date(data.generatedAt).toLocaleTimeString("fa-IR", {
-              hour: "2-digit",
-              minute: "2-digit",
-            })}
-          </span>
-        </div>
-      </header>
+            </ul>
+          ) : (
+            <Empty text="برای امروز غیبت ثبت‌شده‌ای وجود ندارد." />
+          )}
+          {(auth.can("attendance.read") || auth.can("attendance.review")) && (
+            <Link className="principal-dashboard__daily-action" to="/admin/attendance">
+              مشاهده و مدیریت حضور <ArrowLeft size={15} />
+            </Link>
+          )}
+        </Card>
+        <Card className="principal-dashboard__daily-card p-5">
+          <div className="principal-dashboard__section-heading">
+            <div>
+              <p>در انتظار تصمیم</p>
+              <h2>درخواست‌های مرخصی</h2>
+            </div>
+            <CalendarDays aria-hidden="true" />
+          </div>
+          {auth.can("leave.read") && data.pendingLeaveRequests?.length ? (
+            <ul className="principal-dashboard__daily-list">
+              {data.pendingLeaveRequests.map((request) => (
+                <li key={request.id}>
+                  <Link to={`/admin/leave-requests?requestId=${encodeURIComponent(request.id)}`}>
+                    <span>
+                      <strong>{request.studentName}</strong>
+                      <small>
+                        {request.leaveType === "SCHOOL_EXIT" ? "خروج از مدرسه" : "مرخصی"}
+                      </small>
+                    </span>
+                    <b>{formatDay(request.startDate)}</b>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <Empty text="درخواست مرخصیِ منتظر تصمیمی وجود ندارد." />
+          )}
+          {auth.can("leave.read") && (
+            <Link className="principal-dashboard__daily-action" to="/admin/leave-requests">
+              بررسی درخواست‌ها <ArrowLeft size={15} />
+            </Link>
+          )}
+        </Card>
+        <Card className="principal-dashboard__daily-card p-5">
+          <div className="principal-dashboard__section-heading">
+            <div>
+              <p>وضعیت امروز</p>
+              <h2>خلاصهٔ حضور مدرسه</h2>
+            </div>
+            <CheckCircle2 aria-hidden="true" />
+          </div>
+          {attendance ? (
+            <dl className="principal-dashboard__daily-metrics">
+              <div>
+                <dt>حاضر</dt>
+                <dd>{(todayAttendance?.present ?? 0).toLocaleString("fa-IR")}</dd>
+              </div>
+              <div>
+                <dt>غایب</dt>
+                <dd>{(todayAttendance?.absent ?? 0).toLocaleString("fa-IR")}</dd>
+              </div>
+              <div>
+                <dt>تأخیر</dt>
+                <dd>{(todayAttendance?.late ?? 0).toLocaleString("fa-IR")}</dd>
+              </div>
+              <div>
+                <dt>نرخ حضور</dt>
+                <dd>
+                  {todayAttendance?.rate == null
+                    ? "—"
+                    : `${todayAttendance.rate.toLocaleString("fa-IR")}٪`}
+                </dd>
+              </div>
+            </dl>
+          ) : (
+            <Empty text="دادهٔ حضور برای سطح دسترسی فعلی در دسترس نیست." />
+          )}
+        </Card>
+        <Card className="principal-dashboard__daily-card p-5">
+          <div className="principal-dashboard__section-heading">
+            <div>
+              <p>وضعیت مدرسه</p>
+              <h2>عملیات فعال</h2>
+            </div>
+            <DoorOpen aria-hidden="true" />
+          </div>
+          {operations ? (
+            <dl className="principal-dashboard__daily-metrics">
+              <div>
+                <dt>دانش‌آموز فعال</dt>
+                <dd>{operations.activeStudents.toLocaleString("fa-IR")}</dd>
+              </div>
+              <div>
+                <dt>خارج از مدرسه</dt>
+                <dd>{operations.currentlyOut.toLocaleString("fa-IR")}</dd>
+              </div>
+              <div>
+                <dt>برنامهٔ امروز</dt>
+                <dd>{operations.scheduleEntries.toLocaleString("fa-IR")}</dd>
+              </div>
+              <div>
+                <dt>کارکنان</dt>
+                <dd>{operations.staff.toLocaleString("fa-IR")}</dd>
+              </div>
+            </dl>
+          ) : (
+            <Empty text="وضعیت عملیات برای سطح دسترسی فعلی در دسترس نیست." />
+          )}
+        </Card>
+      </section>
 
       <section className="principal-dashboard__status-grid grid gap-4" aria-label="وضعیت حضور">
         {attendance ? (
@@ -295,65 +451,15 @@ export function PrincipalDashboard() {
             {data.sessionReviews.pendingCount.toLocaleString("fa-IR")} جلسه در چرخهٔ بازبینی هر ۲۴
             ساعت قرار دارد. خلاصه را بررسی و بازبینی را ثبت کنید.
           </p>
-          {data.sessionReviews.items.length ? (
-            <ul className="grid gap-3 lg:grid-cols-2">
-              {data.sessionReviews.items.map((item) => (
-                <li
-                  key={item.id}
-                  className="rounded-2xl border border-[rgb(var(--border-subtle))] p-4"
-                >
-                  <div className="flex flex-wrap items-start justify-between gap-3">
-                    <div>
-                      <h3 className="font-black">{item.title}</h3>
-                      <p className="mt-1 text-xs text-slate-500">
-                        {new Date(item.sessionDate).toLocaleString("fa-IR", {
-                          timeZone: "Asia/Tehran",
-                        })}
-                        {item.lastReviewedAt
-                          ? ` · آخرین بازبینی ${new Date(item.lastReviewedAt).toLocaleString("fa-IR", { timeZone: "Asia/Tehran" })}`
-                          : " · هنوز بازبینی نشده"}
-                      </p>
-                    </div>
-                    <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-bold text-amber-900 dark:bg-amber-950/40 dark:text-amber-100">
-                      {item.status === "submitted" ? "ثبت‌شده" : "نهایی‌شده"}
-                    </span>
-                  </div>
-                  <dl className="mt-3 grid grid-cols-2 gap-2 text-xs sm:grid-cols-4">
-                    {[
-                      ["حاضر", item.present],
-                      ["غایب", item.absent],
-                      ["تأخیر", item.late],
-                      [
-                        "ثبت وضعیت",
-                        item.expected == null ? item.marked : `${item.marked} از ${item.expected}`,
-                      ],
-                    ].map(([label, value]) => (
-                      <div key={label} className="rounded-xl bg-[rgb(var(--surface-muted))] p-2">
-                        <dt className="text-slate-500">{label}</dt>
-                        <dd className="mt-1 font-black">
-                          {typeof value === "number" ? value.toLocaleString("fa-IR") : value}
-                        </dd>
-                      </div>
-                    ))}
-                  </dl>
-                  <button
-                    type="button"
-                    className="mt-3 min-h-11 w-full rounded-xl bg-brand px-4 text-sm font-bold text-white disabled:opacity-50"
-                    disabled={reviewSession.isPending || Boolean(reviewingItem)}
-                    onClick={() => {
-                      if (item.absent === 0) reviewSession.mutate(item.id);
-                      else setReviewingItem(item);
-                    }}
-                  >
-                    {reviewSession.isPending && reviewSession.variables === item.id
-                      ? "در حال ثبت بازبینی…"
-                      : item.absent === 0
-                        ? "تأیید بازبینی و ثبت"
-                        : `مشاهدهٔ جزئیات ${item.absent.toLocaleString("fa-IR")} غایب`}
-                  </button>
-                </li>
-              ))}
-            </ul>
+          {sessionReviewItems.length ? (
+            <DataTable
+              data={sessionReviewItems}
+              columns={sessionReviewColumns}
+              getRowId={(item) => item.id}
+              label="جلسه‌های حضور نیازمند بررسی"
+              busy={reviewSession.isPending}
+              preferenceKey={`principal-session-reviews:${auth.context?.activeOrganization?.id ?? "all"}`}
+            />
           ) : (
             <Empty text="همهٔ جلسه‌های ثبت‌شده در ۲۴ ساعت گذشته بازبینی شده‌اند." />
           )}
@@ -365,103 +471,7 @@ export function PrincipalDashboard() {
         </Card>
       ) : null}
 
-      <ResponsiveModal
-        open={Boolean(reviewingItem)}
-        onOpenChange={(open) => {
-          if (!open && !reviewSession.isPending) setReviewingItem(null);
-        }}
-        title="جزئیات غیبت‌های جلسه"
-        description={reviewingItem?.title ?? "جلسه حضور"}
-        size="wide"
-      >
-        {reviewingItem ? (
-          <div className="grid gap-4">
-            {sessionDetail.isLoading ? (
-              <LoadingState label="در حال دریافت فهرست دانش‌آموزان غایب…" />
-            ) : sessionDetail.isError || !sessionDetail.data ? (
-              <div role="alert" className="rounded-xl bg-rose-50 p-4 text-sm text-rose-800">
-                دریافت جزئیات جلسه ممکن نشد. دسترسی و اتصال را بررسی کنید و دوباره تلاش کنید.
-                <button
-                  type="button"
-                  className="ms-3 font-bold underline"
-                  onClick={() => void sessionDetail.refetch()}
-                >
-                  تلاش دوباره
-                </button>
-              </div>
-            ) : (
-              <>
-                <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-                  <ReviewCount label="غایب" value={reviewingItem.absent} />
-                  <ReviewCount label="حاضر" value={reviewingItem.present} />
-                  <ReviewCount label="تأخیر" value={reviewingItem.late} />
-                  <ReviewCount label="ثبت‌نشده" value={sessionDetail.data.unmarked ?? 0} />
-                </div>
-                <div className="grid gap-2">
-                  <h3 className="font-bold">دانش‌آموزان ثبت‌شده به‌عنوان غایب</h3>
-                  {sessionDetail.data.records.filter((record) => record.physicalStatus === "absent")
-                    .length ? (
-                    <ul className="grid max-h-[45dvh] gap-2 overflow-y-auto">
-                      {sessionDetail.data.records
-                        .filter((record) => record.physicalStatus === "absent")
-                        .map((record) => {
-                          const student = sessionDetail.data.roster.find(
-                            (member) => member.id === record.studentId,
-                          );
-                          return (
-                            <li
-                              key={record.id}
-                              className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-[rgb(var(--border-subtle))] p-3"
-                            >
-                              <span className="font-semibold">{student?.name ?? "دانش‌آموز"}</span>
-                              {record.note ? (
-                                <span className="text-sm text-slate-600">{record.note}</span>
-                              ) : null}
-                            </li>
-                          );
-                        })}
-                    </ul>
-                  ) : (
-                    <p className="rounded-xl bg-amber-50 p-3 text-sm text-amber-900">
-                      در خلاصهٔ جلسه غیبت ثبت شده، اما جزئیات فعلی غایبی نشان نمی‌دهد. لطفاً صفحه را
-                      تازه‌سازی کنید؛ بازبینی تا تطبیق اطلاعات ثبت نمی‌شود.
-                    </p>
-                  )}
-                </div>
-                {sessionDetail.data.records.some((record) => record.physicalStatus === "absent") ? (
-                  <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-                    <button
-                      type="button"
-                      className="min-h-11 rounded-xl border border-[rgb(var(--border-subtle))] px-4 font-semibold"
-                      disabled={reviewSession.isPending}
-                      onClick={() => setReviewingItem(null)}
-                    >
-                      بازگشت
-                    </button>
-                    <button
-                      type="button"
-                      className="min-h-11 rounded-xl bg-brand px-4 font-bold text-white disabled:opacity-50"
-                      disabled={reviewSession.isPending}
-                      onClick={() => reviewSession.mutate(reviewingItem.id)}
-                    >
-                      {reviewSession.isPending
-                        ? "در حال ثبت بازبینی…"
-                        : "جزئیات را بررسی و تأیید می‌کنم"}
-                    </button>
-                  </div>
-                ) : null}
-              </>
-            )}
-            {reviewSession.isError ? (
-              <p role="alert" className="text-sm text-rose-700">
-                ثبت بازبینی انجام نشد؛ دوباره تلاش کنید.
-              </p>
-            ) : null}
-          </div>
-        ) : null}
-      </ResponsiveModal>
-
-      {attendance ? (
+      {/* {attendance ? (
         <section
           className="grid gap-4 xl:grid-cols-[.85fr_1.15fr]"
           aria-label="پوشش کلاس و روند حضور"
@@ -487,9 +497,9 @@ export function PrincipalDashboard() {
             <Trend rows={attendance.trend} />
           </Card>
         </section>
-      ) : null}
+      ) : null} */}
 
-      <section className="principal-dashboard__metrics grid gap-3" aria-label="عملیات مدرسه">
+      {/* <section className="principal-dashboard__metrics grid gap-3" aria-label="عملیات مدرسه">
         <Metric
           icon={UsersRound}
           label="دانش‌آموز فعال"
@@ -514,8 +524,107 @@ export function PrincipalDashboard() {
           value={operations?.staff}
           visible={auth.can("students.read")}
         />
-      </section>
+      </section> */}
     </main>
+  );
+}
+
+function AttendanceReviewDetails({ item, onClose }: { item: SessionReview; onClose: () => void }) {
+  const queryClient = useQueryClient();
+  const sessionDetail = useQuery({
+    queryKey: ["principal-attendance-review-detail", item.id],
+    queryFn: () => getAttendanceSessionForReview(item.id),
+  });
+  const reviewSession = useMutation({
+    mutationFn: reviewAttendanceSession,
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["principal-dashboard"] });
+      onClose();
+    },
+  });
+  const absentRecords = sessionDetail.data?.records.filter(
+    (record) => record.physicalStatus === "absent",
+  );
+
+  return (
+    <div className="grid gap-4">
+      {sessionDetail.isLoading ? (
+        <LoadingState label="در حال دریافت فهرست دانش‌آموزان غایب…" />
+      ) : sessionDetail.isError || !sessionDetail.data ? (
+        <div role="alert" className="rounded-xl bg-rose-50 p-4 text-sm text-rose-800">
+          دریافت جزئیات جلسه ممکن نشد. دسترسی و اتصال را بررسی کنید و دوباره تلاش کنید.
+          <button
+            type="button"
+            className="ms-3 font-bold underline"
+            onClick={() => void sessionDetail.refetch()}
+          >
+            تلاش دوباره
+          </button>
+        </div>
+      ) : (
+        <>
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+            <ReviewCount label="غایب" value={item.absent} />
+            <ReviewCount label="حاضر" value={item.present} />
+            <ReviewCount label="تأخیر" value={item.late} />
+            <ReviewCount label="ثبت‌نشده" value={sessionDetail.data.unmarked ?? 0} />
+          </div>
+          <div className="grid gap-2">
+            <h3 className="font-bold">دانش‌آموزان ثبت‌شده به‌عنوان غایب</h3>
+            {absentRecords?.length ? (
+              <ul className="grid max-h-[45dvh] gap-2 overflow-y-auto">
+                {absentRecords.map((record) => {
+                  const student = sessionDetail.data.roster.find(
+                    (member) => member.id === record.studentId,
+                  );
+                  return (
+                    <li
+                      key={record.id}
+                      className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-[rgb(var(--border-subtle))] p-3"
+                    >
+                      <span className="font-semibold">{student?.name ?? "دانش‌آموز"}</span>
+                      {record.note ? (
+                        <span className="text-sm text-slate-600">{record.note}</span>
+                      ) : null}
+                    </li>
+                  );
+                })}
+              </ul>
+            ) : (
+              <p className="rounded-xl bg-amber-50 p-3 text-sm text-amber-900">
+                در خلاصهٔ جلسه غیبت ثبت شده، اما جزئیات فعلی غایبی نشان نمی‌دهد. لطفاً صفحه را
+                تازه‌سازی کنید؛ بازبینی تا تطبیق اطلاعات ثبت نمی‌شود.
+              </p>
+            )}
+          </div>
+          {absentRecords?.length ? (
+            <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+              <button
+                type="button"
+                className="min-h-11 rounded-xl border border-[rgb(var(--border-subtle))] px-4 font-semibold"
+                disabled={reviewSession.isPending}
+                onClick={onClose}
+              >
+                بازگشت
+              </button>
+              <button
+                type="button"
+                className="min-h-11 rounded-xl bg-brand px-4 font-bold text-white disabled:opacity-50"
+                disabled={reviewSession.isPending}
+                onClick={() => reviewSession.mutate(item.id)}
+              >
+                {reviewSession.isPending ? "در حال ثبت بازبینی…" : "جزئیات را بررسی و تأیید می‌کنم"}
+              </button>
+            </div>
+          ) : null}
+        </>
+      )}
+      {reviewSession.isError ? (
+        <p role="alert" className="text-sm text-rose-700">
+          ثبت بازبینی انجام نشد؛ دوباره تلاش کنید.
+        </p>
+      ) : null}
+    </div>
   );
 }
 
@@ -668,127 +777,6 @@ function Radar({
         />
       </RadarChart>
     </ChartContainer>
-  );
-}
-function RadialBars({ classes }: { classes: AttendanceData["classes"] }) {
-  return (
-    <div className="principal-radials">
-      {classes.length ? (
-        classes.map((item) => (
-          <div key={item.id}>
-            <ChartContainer
-              config={{ completion: { label: "تکمیل ثبت", color: "#0f766e" } }}
-              className="principal-radials__chart"
-              style={{ height: 64, width: 64 }}
-              role="img"
-              aria-label={`${item.name}: ${item.rate == null ? "بدون داده" : `${item.rate} درصد تکمیل`}`}
-            >
-              <RadialBarChart
-                data={[{ name: item.name, value: item.rate ?? 0 }]}
-                innerRadius="72%"
-                outerRadius="100%"
-                startAngle={90}
-                endAngle={-270}
-                barSize={9}
-              >
-                <RadialBar
-                  dataKey="value"
-                  background
-                  cornerRadius={8}
-                  fill="var(--color-completion)"
-                  isAnimationActive={false}
-                />
-              </RadialBarChart>
-            </ChartContainer>
-            <span>
-              <strong>{item.rate == null ? "—" : `${item.rate.toLocaleString("fa-IR")}٪`}</strong>
-              <small>{item.name}</small>
-              <small>
-                {item.marked.toLocaleString("fa-IR")} / {item.expected.toLocaleString("fa-IR")}{" "}
-                ثبت‌شده
-              </small>
-            </span>
-          </div>
-        ))
-      ) : (
-        <Empty text="در این بازه کلاسی ثبت نشده است." />
-      )}
-    </div>
-  );
-}
-function Trend({ rows }: { rows: AttendanceData["trend"] }) {
-  const config = {
-    present: { label: "حاضر", color: "#0f766e" },
-    absent: { label: "غایب", color: "#e11d48" },
-  };
-  return (
-    <div className="principal-trend">
-      {rows.length ? (
-        <ChartContainer
-          config={config}
-          className="principal-trend__chart"
-          style={{ height: 210 }}
-          role="img"
-          aria-label="روند روزانهٔ تعداد افراد حاضر و غایب"
-        >
-          <AreaChart
-            accessibilityLayer
-            data={rows}
-            margin={{ top: 10, right: 8, left: 0, bottom: 0 }}
-          >
-            <CartesianGrid vertical={false} strokeDasharray="3 3" />
-            <XAxis
-              dataKey="date"
-              tickFormatter={(date: string) => date.slice(5).replace("-", "/")}
-              tickLine={false}
-              axisLine={false}
-            />
-            <YAxis hide />
-            <Tooltip cursor={false} content={(props) => <ChartTooltipContent {...props} />} />
-            <Area
-              type="monotone"
-              dataKey="present"
-              name="حاضر"
-              stroke="var(--color-present)"
-              fill="var(--color-present)"
-              fillOpacity={0.16}
-              isAnimationActive={false}
-            />
-            <Area
-              type="monotone"
-              dataKey="absent"
-              name="غایب"
-              stroke="var(--color-absent)"
-              fill="var(--color-absent)"
-              fillOpacity={0.08}
-              isAnimationActive={false}
-            />
-          </AreaChart>
-        </ChartContainer>
-      ) : (
-        <Empty text="داده‌ای برای روند حضور نیست." />
-      )}
-    </div>
-  );
-}
-function Metric({
-  icon: Icon,
-  label,
-  value,
-  visible,
-}: {
-  icon: typeof UsersRound;
-  label: string;
-  value: number | undefined;
-  visible: boolean;
-}) {
-  if (!visible) return null;
-  return (
-    <Card className="principal-dashboard__metric p-4">
-      <Icon aria-hidden="true" />
-      <span>{label}</span>
-      <strong>{(value ?? 0).toLocaleString("fa-IR")}</strong>
-    </Card>
   );
 }
 function Empty({ text }: { text: string }) {

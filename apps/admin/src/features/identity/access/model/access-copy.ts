@@ -109,6 +109,9 @@ export const accessCopy = {
     username: "شناسه قدیمی",
     phoneNumber: "شماره همراه",
     password: "رمز اولیه (حداقل ۱۲ نویسه)",
+    resetPassword: "رمز عبور جدید",
+    resetPasswordHint:
+      "خالی بگذارید تا رمز عبور فعلی تغییر نکند. با ذخیره‌سازی، نشست‌های این کاربر بسته می‌شوند.",
     firstName: "نام",
     lastName: "نام خانوادگی",
     role: "نقش",
@@ -324,6 +327,9 @@ export const accessCopy = {
     username: "Legacy identifier",
     phoneNumber: "Mobile number",
     password: "Initial password (at least 12 characters)",
+    resetPassword: "New password",
+    resetPasswordHint:
+      "Leave blank to keep the existing password. Saving a new password signs this user out everywhere.",
     firstName: "First name",
     lastName: "Last name",
     role: "Role",

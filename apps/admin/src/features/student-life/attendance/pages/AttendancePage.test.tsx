@@ -356,6 +356,60 @@ describe("AttendancePage", () => {
     );
     expect(screen.getByText("ساختمان اصلی")).toBeVisible();
   });
+  it("lets a supervisor record only dorm absences and saves every other resident as present", async () => {
+    listAttendanceContextsMock.mockResolvedValue([
+      {
+        id: "dorm-1",
+        contextType: "dorm",
+        code: "101",
+        name: "اتاق ۱۰۱",
+        label: "اتاق ۱۰۱",
+        total: 3,
+        building: "ساختمان اصلی",
+        floor: 1,
+        activeOrganizationId: "org-1",
+      },
+    ]);
+    getAttendanceParticipantsMock.mockResolvedValue([
+      { id: "student-1", name: "علی" },
+      { id: "student-2", name: "رضا" },
+      { id: "student-3", name: "حسن" },
+    ]);
+    const user = userEvent.setup();
+    render(
+      <MemoryRouter
+        initialEntries={["/admin/attendance?section=dorm&contextType=dorm&contextId=dorm-1"]}
+      >
+        <LocaleProvider>
+          <AttendancePage />
+        </LocaleProvider>
+      </MemoryRouter>,
+    );
+
+    const ali = await screen.findByRole("group", { name: "وضعیت علی" });
+    expect(within(ali).getByRole("button", { name: "غایب" })).toBeVisible();
+    expect(within(ali).queryByRole("button", { name: "حاضر" })).not.toBeInTheDocument();
+    expect(within(ali).queryByRole("button", { name: "تأخیر" })).not.toBeInTheDocument();
+    await user.click(within(ali).getByRole("button", { name: "غایب" }));
+    await user.click(screen.getByRole("button", { name: /بررسی و ثبت اتاق/ }));
+    expect(
+      screen.getByText("فقط غایبان انتخاب شده‌اند. ۲ ساکن دیگر خودکار حاضر ثبت می‌شوند."),
+    ).toBeVisible();
+    await user.click(screen.getByRole("button", { name: "تأیید و ثبت" }));
+    await waitFor(() =>
+      expect(bulkMarkAttendanceMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          contextType: "dorm",
+          contextId: "dorm-1",
+          entries: [
+            { studentId: "student-1", status: "absent" },
+            { studentId: "student-2", status: "present" },
+            { studentId: "student-3", status: "present" },
+          ],
+        }),
+      ),
+    );
+  });
   it("keeps a retry's original timestamp and request ID after a timeout", async () => {
     listAttendanceContextsMock.mockResolvedValue([
       {

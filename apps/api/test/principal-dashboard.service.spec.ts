@@ -71,6 +71,25 @@ describe("PrincipalDashboardService", () => {
           return [
             { id: "student-a", name: "دانش‌آموز الف", absent: 2, late: 1 },
           ];
+        if (sql.includes("r.status='absent'"))
+          return [
+            {
+              id: "student-a",
+              name: "دانش‌آموز الف",
+              context: "پایه اول",
+              sessions: 1,
+            },
+          ];
+        if (sql.includes("FROM leave_requests l"))
+          return [
+            {
+              id: "leave-a",
+              studentName: "دانش‌آموز الف",
+              leaveType: "LEAVE",
+              startDate: "2026-10-20",
+              endDate: "2026-10-21",
+            },
+          ];
         return [{ count: 2 }];
       }),
     };
@@ -105,6 +124,17 @@ describe("PrincipalDashboardService", () => {
         expect.objectContaining({ id: "session-a", marked: 9, absent: 1 }),
       ],
     });
+    expect(dashboard.todayAbsences).toEqual([
+      {
+        id: "student-a",
+        name: "دانش‌آموز الف",
+        context: "پایه اول",
+        sessions: 1,
+      },
+    ]);
+    expect(dashboard.pendingLeaveRequests).toEqual([
+      expect.objectContaining({ id: "leave-a", studentName: "دانش‌آموز الف" }),
+    ]);
   });
 
   it("does not return attendance, behaviour, queues, or operations without their source capabilities", async () => {

@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post, Put, Query } from "@nestjs/common";
+import { Body, Controller, Delete, Get, Param, Patch, Post, Put, Query } from "@nestjs/common";
 import {
   RequireAnyCapabilities,
   RequireCapabilities,
@@ -6,7 +6,7 @@ import {
 import { CurrentUser } from "../../common/decorators/current-user.decorator";
 import { ok } from "../../common/utils/envelope";
 import { AuthenticatedUser } from "../auth";
-import { CreateDormRoomDto, SendDormAnnouncementDto, SetDormRoomAssignmentsDto } from "./dormitory.dto";
+import { CreateDormRoomDto, SendDormAnnouncementDto, SetDormRoomAssignmentsDto, UpdateDormRoomDto } from "./dormitory.dto";
 import { DormitoryService } from "./dormitory.service";
 
 @Controller("dormitory")
@@ -15,14 +15,32 @@ export class DormitoryController {
 
   @Get("rooms")
   @RequireCapabilities("dormitory.read")
-  rooms(@CurrentUser() user: AuthenticatedUser, @Query("organizationId") organizationId?: string) {
-    return this.dormitory.listRooms(user, organizationId).then(ok);
+  rooms(@CurrentUser() user: AuthenticatedUser, @Query("organizationId") organizationId?: string, @Query("includeArchived") includeArchived?: string) {
+    return this.dormitory.listRooms(user, organizationId, includeArchived === "true").then(ok);
   }
 
   @Post("rooms")
   @RequireCapabilities("dormitory.manage")
   create(@CurrentUser() user: AuthenticatedUser, @Body() dto: CreateDormRoomDto) {
     return this.dormitory.createRoom(user, dto).then(ok);
+  }
+
+  @Patch("rooms/:id")
+  @RequireCapabilities("dormitory.manage")
+  update(@CurrentUser() user: AuthenticatedUser, @Param("id") id: string, @Body() dto: UpdateDormRoomDto) {
+    return this.dormitory.updateRoom(user, id, dto).then(ok);
+  }
+
+  @Delete("rooms/:id")
+  @RequireCapabilities("dormitory.manage")
+  archive(@CurrentUser() user: AuthenticatedUser, @Param("id") id: string) {
+    return this.dormitory.archiveRoom(user, id).then(ok);
+  }
+
+  @Post("rooms/:id/restore")
+  @RequireCapabilities("dormitory.manage")
+  restore(@CurrentUser() user: AuthenticatedUser, @Param("id") id: string) {
+    return this.dormitory.restoreRoom(user, id).then(ok);
   }
 
   @Get("rooms/:id/assignments")

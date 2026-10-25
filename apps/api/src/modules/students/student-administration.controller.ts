@@ -14,6 +14,7 @@ import { ok } from "../../common/utils/envelope";
 import { AuthenticatedUser } from "../auth";
 import {
   CreateStudentDto,
+  BulkResetStudentPasswordDto,
   ResetStudentPasswordDto,
   UpdateStudentDto,
 } from "./dto/student-admin.dto";
@@ -107,6 +108,14 @@ export class StudentAdministrationController {
     @Body() d: ResetStudentPasswordDto,
   ) {
     return this.service.resetPassword(u, id, d.password).then(ok);
+  }
+  @Post("bulk-reset-password")
+  @RequireCapabilities("students.update")
+  bulkResetPassword(
+    @CurrentUser() u: AuthenticatedUser,
+    @Body() d: BulkResetStudentPasswordDto,
+  ) {
+    return this.service.bulkResetPassword(u, d.studentIds, d.password).then(ok);
   }
   @Get(":id/learning") @RequireCapabilities("learning.read") learning(
     @CurrentUser() u: AuthenticatedUser,

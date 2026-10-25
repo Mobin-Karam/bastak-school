@@ -131,6 +131,27 @@ export type SelfAttendanceSummary = {
   recent: SelfAttendanceRecord[];
 };
 
+export type SelfAttendanceHistoryPage = {
+  items: SelfAttendanceRecord[];
+  page: number;
+  limit: number;
+  total: number;
+  hasNext: boolean;
+};
+
 export const listSelfAttendance = () => api.get<SelfAttendanceRecord[]>("/student/attendance");
+export const getSelfAttendanceHistory = (query: {
+  page: number;
+  limit: number;
+  status?: SelfAttendanceRecord["status"];
+  from?: string;
+  to?: string;
+}) => {
+  const params = new URLSearchParams({ page: String(query.page), limit: String(query.limit) });
+  if (query.status) params.set("status", query.status);
+  if (query.from) params.set("from", query.from);
+  if (query.to) params.set("to", query.to);
+  return api.get<SelfAttendanceHistoryPage>(`/student/attendance/history?${params.toString()}`);
+};
 export const getSelfAttendanceSummary = () =>
   api.get<SelfAttendanceSummary>("/student/attendance-summary");

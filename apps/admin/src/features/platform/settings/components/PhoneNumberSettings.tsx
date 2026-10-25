@@ -16,11 +16,7 @@ export function PhoneNumberSettings() {
   const profile = useQuery({ queryKey: ["account", "profile"], queryFn: getAccountProfile });
   const [phoneNumber, setPhoneNumber] = useState("");
   const [reason, setReason] = useState("");
-  const canSelfManage = auth.canAny([
-    "attendance.self.read",
-    "guardian.students.read",
-    "platform.phone.self.manage",
-  ]);
+  const canSelfManage = profile.data?.phoneNumberSelfServiceAvailable === true;
   const submit = useMutation<unknown, Error, void>({
     mutationFn: () => {
       if (profile.data?.phoneNumberChangeAvailable) return changeOwnPhoneNumber(phoneNumber);
@@ -44,7 +40,8 @@ export function PhoneNumberSettings() {
   });
   if (!canSelfManage) return null;
   const unlimited = profile.data?.phoneNumberChangeUnlimited === true;
-  const firstChange = profile.data?.phoneNumberChangeAvailable !== false;
+  const canDirectChange = profile.data?.phoneNumberChangeAvailable !== false;
+  const remainingChanges = Math.max(0, 3 - (profile.data?.phoneNumberChangeCount ?? 0));
   return (
     <Card className="p-4">
       <div className="flex items-start gap-3">
@@ -56,9 +53,9 @@ export function PhoneNumberSettings() {
           <p className="mt-1 text-xs leading-5 text-slate-500">
             {unlimited
               ? "مدیر پلتفرم می‌تواند شماره ورود خود را هر زمان تغییر دهد. نشست‌های دیگر پس از تغییر بسته می‌شوند."
-              : firstChange
-                ? "یک‌بار می‌توانید شماره ورود خود را بدون بررسی تغییر دهید."
-                : "تغییر بعدی پس از بررسی مدیر مدرسه اعمال می‌شود."}
+              : canDirectChange
+                ? `${remainingChanges} تغییر مستقیم شماره باقی مانده است. پس از سه تغییر، درخواست شما باید توسط مسئول یا مدیر مدرسه تأیید شود.`
+                : "سقف سه تغییر مستقیم تکمیل شده است؛ تغییر بعدی پس از تأیید مسئول یا مدیر مدرسه اعمال می‌شود."}
           </p>
         </div>
       </div>
@@ -75,7 +72,7 @@ export function PhoneNumberSettings() {
             onChange={(event) => setPhoneNumber(event.target.value)}
           />
         </Field>
-        {!firstChange && !unlimited ? (
+        {!canDirectChange && !unlimited ? (
           <Field label="دلیل درخواست">
             <Textarea
               maxLength={500}
@@ -89,7 +86,8 @@ export function PhoneNumberSettings() {
           disabled={!/^09\d{9}$/.test(phoneNumber)}
           onClick={() => submit.mutate()}
         >
-          <ShieldCheck size={16} /> {unlimited || firstChange ? "تغییر شماره" : "ثبت درخواست بررسی"}
+          <ShieldCheck size={16} />{" "}
+          {unlimited || canDirectChange ? "تغییر شماره" : "ثبت درخواست بررسی"}
         </Button>
       </div>
     </Card>

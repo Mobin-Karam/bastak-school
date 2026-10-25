@@ -64,9 +64,7 @@ export class AwardAttendancePointsDto {
   @IsUUID() requestId!: string;
   @IsUUID() organizationId!: string;
   @IsIn(["class", "class_group", "dorm"]) contextType!:
-    | "class"
-    | "class_group"
-    | "dorm";
+    "class" | "class_group" | "dorm";
   @IsUUID() contextId!: string;
   @IsUUID() studentId!: string;
   @IsInt() @Min(-50) @Max(50) points!: number;
@@ -183,6 +181,15 @@ export class AttendanceHistoryQueryDto {
     "class" | "class_group" | "dorm";
   @IsOptional() @IsUUID() contextId?: string;
   @IsOptional() @IsString() @MaxLength(120) subjectId?: string;
+  @IsOptional() @IsDateString({ strict: true }) from?: string;
+  @IsOptional() @IsDateString({ strict: true }) to?: string;
+}
+
+export class SelfAttendanceHistoryQueryDto {
+  @IsOptional() @Type(() => Number) @IsInt() @Min(1) page?: number;
+  @IsOptional() @Type(() => Number) @IsInt() @Min(1) @Max(50) limit?: number;
+  @IsOptional() @IsIn(["present", "absent", "late", "excused"]) status?:
+    "present" | "absent" | "late" | "excused";
   @IsOptional() @IsDateString({ strict: true }) from?: string;
   @IsOptional() @IsDateString({ strict: true }) to?: string;
 }

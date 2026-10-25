@@ -15,6 +15,7 @@ import { settingsCopy } from "../settings-locale";
 import { PWAInstallSettingsCard } from "../../pwa";
 import { useAuth } from "../../../identity/auth";
 import { PhoneNumberSettings } from "../components/PhoneNumberSettings";
+import { PasswordSettings } from "../components/PasswordSettings";
 import { PhoneChangeRequests } from "../components/PhoneChangeRequests";
 import { Button, Card } from "../../../../shared/ui/ui";
 import { MobileSelect } from "../../../../shared/ui/mobile/forms";
@@ -168,6 +169,12 @@ function WorkspaceSettingsPage() {
 /** Personal accounts deliberately omit operational integrations and organization settings. */
 function PersonalSettingsPage() {
   const { language } = useLocale();
+  const [tab, setTab] = useState<"main" | "password" | "phone">("main");
+  const tabs = [
+    { id: "main" as const, label: language === "en" ? "Main" : "اصلی" },
+    { id: "password" as const, label: language === "en" ? "Password" : "رمز عبور" },
+    { id: "phone" as const, label: language === "en" ? "Phone" : "شماره همراه" },
+  ];
   return (
     <div className="settings-workspace mx-auto grid w-full max-w-4xl gap-6">
       <ManagementPageHeader
@@ -176,18 +183,52 @@ function PersonalSettingsPage() {
         description={
           language === "en"
             ? "Manage sign-in details and active sessions."
-            : "شماره ورود و نشست‌های فعال حساب خود را مدیریت کنید."
+            : "شماره ورود، رمز عبور و نشست‌های فعال حساب خود را مدیریت کنید."
         }
       />
-      <SettingsNavigation personal />
-      <section
-        id="account"
-        className="settings-section"
-        aria-label={language === "en" ? "Account" : "حساب"}
+      <div
+        className="settings-nav"
+        role="tablist"
+        aria-label={language === "en" ? "Account settings" : "تنظیمات حساب"}
       >
-        <PhoneNumberSettings />
+        {tabs.map((item) => (
+          <button
+            key={item.id}
+            type="button"
+            role="tab"
+            aria-selected={tab === item.id}
+            aria-controls={`personal-settings-${item.id}`}
+            className="settings-nav__item"
+            onClick={() => setTab(item.id)}
+          >
+            {item.label}
+          </button>
+        ))}
+      </div>
+      <section
+        id={`personal-settings-${tab}`}
+        className="settings-section"
+        role="tabpanel"
+        aria-label={tabs.find((item) => item.id === tab)?.label}
+      >
+        {tab === "main" ? (
+          <Card className="p-4">
+            <h2 className="font-black">{language === "en" ? "Account" : "حساب من"}</h2>
+            <p className="mt-1 text-sm leading-6 text-slate-500">
+              {language === "en"
+                ? "Use the Password and Phone tabs to update your sign-in details."
+                : "برای به‌روزرسانی اطلاعات ورود، از زبانه‌های رمز عبور و شماره همراه استفاده کنید."}
+            </p>
+            <div className="mt-4">
+              <MobileAccountActions />
+            </div>
+          </Card>
+        ) : tab === "password" ? (
+          <PasswordSettings />
+        ) : (
+          <PhoneNumberSettings />
+        )}
       </section>
-      <MobileAccountActions />
     </div>
   );
 }

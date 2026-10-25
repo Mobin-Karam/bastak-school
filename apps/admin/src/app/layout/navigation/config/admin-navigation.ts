@@ -9,8 +9,10 @@ import {
   LayoutDashboard,
   MessageCircle,
   MessageSquareText,
+  Medal,
   School,
   Settings,
+  Store,
   UserRound,
   UserRoundCheck,
   UsersRound,
@@ -301,14 +303,13 @@ const studentNavigation: readonly NavigationGroup[] = [
     ],
   },
   {
-    section: "حضور من",
+    section: "پروفایل",
     items: [
       {
-        path: "my-attendance",
-        title: "حضور و مسئولیت خوابگاه",
-        description: "خلاصه حضور و ثبت حضور اتاق‌های واگذار شده",
-        icon: ClipboardCheck,
-        capability: "attendance.self.read",
+        path: "profile",
+        title: "پروفایل من",
+        description: "نمای شخصی و وضعیت پیشرفت",
+        icon: UserRound,
       },
     ],
   },
@@ -326,25 +327,32 @@ const studentNavigation: readonly NavigationGroup[] = [
     ],
   },
   {
-    section: "اعلان‌ها",
+    section: "پیشرفت و سکه",
     items: [
       {
-        path: "communication/notifications",
-        title: "اعلان‌ها",
-        description: "پیام‌ها و اطلاعیه‌های شخصی مدرسه",
-        icon: Bell,
+        path: "achievements",
+        title: "دستاوردهای من",
+        description: "نشان‌ها و مسیر پیشرفت شما؛ به‌زودی",
+        icon: Medal,
+      },
+      {
+        path: "coin-shop",
+        title: "بازار سکه",
+        description: "آیتم‌های قابل دریافت با سکه‌های مدرسه؛ به‌زودی",
+        icon: Store,
       },
     ],
   },
   ...registrationNavigation,
   {
-    section: "پروفایل",
+    section: "حضور من",
     items: [
       {
-        path: "profile",
-        title: "پروفایل من",
-        description: "نام نمایشی و اطلاعات پروفایل",
-        icon: UserRound,
+        path: "my-attendance",
+        title: "حضور و مسئولیت خوابگاه",
+        description: "خلاصه حضور و ثبت حضور اتاق‌های واگذار شده",
+        icon: ClipboardCheck,
+        capability: "attendance.self.read",
       },
     ],
   },
@@ -585,6 +593,11 @@ const en: Record<string, string> = {
   "تنظیمات حساب": "Account settings",
   اعلان‌ها: "Notifications",
   "پیام‌ها و اطلاعیه‌های شخصی مدرسه": "Your school messages and announcements",
+  "پیشرفت و سکه": "Progress & coins",
+  "دستاوردهای من": "My achievements",
+  "نشان‌ها و مسیر پیشرفت شما؛ به‌زودی": "Your badges and progress path; coming soon",
+  "بازار سکه": "Coin shop",
+  "آیتم‌های قابل دریافت با سکه‌های مدرسه؛ به‌زودی": "School-coin items; coming soon",
 };
 
 function localizeText(value: string, language: AdminLanguage) {

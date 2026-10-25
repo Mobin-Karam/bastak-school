@@ -23,7 +23,6 @@ const STUDENT_PORTAL_ROUTES = new Set([
   "registration",
   "settings",
   "more",
-  "communication/notifications",
 ]);
 
 export function resolveAppDomain(hostname: string | null | undefined): AppDomain {

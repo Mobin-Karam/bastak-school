@@ -21,4 +21,6 @@ Workflow:
 8. Review the final diff for correctness, security, tests, compatibility, and unnecessary scope.
 9. Report changed files, validation, risks, and follow-ups.
 
+For CI/CD work, trace the full trusted flow before editing: feature PR to `develop`, validated `develop` push, reviewed `develop` to `main` release PR, validated `main` push, then private deployment evidence. Keep strict branch protection, but automate same-repository PR base updates after a successful base-branch CI run. Never update fork heads, mutate `develop` directly, or treat a dispatch as deployment success. If `main` is ahead of `develop`, require the checked synchronization PR before release evidence; do not create a release PR that is guaranteed to fail ancestry verification.
+
 Do not turn a small task into a large architecture rewrite.

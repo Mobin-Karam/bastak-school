@@ -71,8 +71,10 @@ export class User {
   @Column({ length: 1200, default: "" }) chatAvatarUrl!: string;
   @Column({ default: 0 }) usernameChangeCount!: number;
   @Column({ type: "datetime", nullable: true }) usernameChangedAt?: Date | null;
-  /** A student or guardian can correct the login phone once without review. */
+  /** A student or guardian can correct their login phone three times without review. */
   @Column({ default: 0 }) phoneNumberChangeCount!: number;
+  /** A student or guardian can change their password three times without review. */
+  @Column({ default: 0 }) passwordChangeCount!: number;
 
   @CreateDateColumn()
   createdAt!: Date;

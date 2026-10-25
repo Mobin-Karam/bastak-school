@@ -171,6 +171,7 @@ export class UsersService {
     organizationId?: string,
     roleCode?: string,
     status?: UserStatus,
+    staffOnly = false,
   ) {
     const scopedOrganizationId =
       organizationId ??
@@ -200,19 +201,24 @@ export class UsersService {
         membership: { organization: true },
       },
     });
-    const users = [
-      ...new Map(
-        rows
-          .filter((row) => !status || row.user.status === status)
-          .map((row) => [row.user.id, row.user]),
-      ).values(),
-    ];
-    return users.map((user) =>
-      this.project(
-        user,
-        rows.filter((row) => row.user.id === user.id),
-      ),
-    );
+    const rowsByUser = new Map<string, UserRoleAssignment[]>();
+    for (const row of rows) {
+      if (status && row.user.status !== status) continue;
+      rowsByUser.set(row.user.id, [
+        ...(rowsByUser.get(row.user.id) ?? []),
+        row,
+      ]);
+    }
+    return [...rowsByUser.values()]
+      .filter((userRows) => {
+        const user = userRows[0].user;
+        return (
+          !staffOnly ||
+          (user.role !== UserRole.STUDENT &&
+            !userRows.some((row) => row.role.code === "STUDENT"))
+        );
+      })
+      .map((userRows) => this.project(userRows[0].user, userRows));
   }
   async get(actor: AuthenticatedUser, id: string) {
     const rows = await this.assignments.find({
@@ -327,7 +333,13 @@ export class UsersService {
   async update(actor: AuthenticatedUser, id: string, dto: UpdateUserDto) {
     await this.get(actor, id);
     await this.assertAccountMutationScope(actor, id);
-    const patch = { ...dto };
+    const { password, ...patch } = dto;
+    if (password && id === actor.id)
+      throw new ApiException(
+        400,
+        "SELF_PASSWORD_RESET_FORBIDDEN",
+        "برای تغییر رمز عبور خودتان از تنظیمات حساب استفاده کنید.",
+      );
     if (patch.phoneNumber) {
       patch.phoneNumber = normalizeIranianMobile(patch.phoneNumber);
       const duplicate = await this.users.findOne({
@@ -340,7 +352,13 @@ export class UsersService {
           "شماره همراه تکراری است.",
         );
     }
-    await this.users.update(id, patch);
+    await this.users.update(id, {
+      ...patch,
+      ...(password ? { passwordHash: await bcrypt.hash(password, 12) } : {}),
+    });
+    // A credential reset invalidates every existing target session. The actor's
+    // current session is unaffected unless they explicitly use self-service.
+    if (password) await this.sessions.delete({ user: { id } });
     return this.get(actor, id);
   }
   async setActive(actor: AuthenticatedUser, id: string, active: boolean) {
@@ -425,12 +443,6 @@ export class UsersService {
     });
   }
   async archive(actor: AuthenticatedUser, id: string) {
-    if (!this.platform(actor))
-      throw new ApiException(
-        403,
-        "FORBIDDEN",
-        "فقط مدیر پلتفرم می‌تواند حساب را بایگانی کند.",
-      );
     const target = await this.get(actor, id);
     this.assertProtectedAccount(actor, target);
     await this.assertAccountMutationScope(actor, id);

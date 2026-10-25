@@ -27,6 +27,7 @@ import {
   ReviewAttendanceCorrectionDto,
   UpdateAttendancePolicyDto,
   AttendanceHistoryQueryDto,
+  SelfAttendanceHistoryQueryDto,
 } from "./attendance.dto";
 
 @Controller()
@@ -240,6 +241,15 @@ export class AttendanceController {
   @RequireCapabilities("attendance.self.read")
   selfSummary(@CurrentUser() user: AuthenticatedUser) {
     return this.attendance.summary(user).then(ok);
+  }
+
+  @Get("student/attendance/history")
+  @RequireCapabilities("attendance.self.read")
+  selfHistory(
+    @CurrentUser() user: AuthenticatedUser,
+    @Query() query: SelfAttendanceHistoryQueryDto,
+  ) {
+    return this.attendance.listSelfRecordsPage(user, query).then(ok);
   }
 
   @Get("student/attendance")

@@ -1,6 +1,6 @@
 import axe from "axe-core";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { cleanup, render, screen, within } from "@testing-library/react";
+import { cleanup, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
@@ -16,6 +16,7 @@ const state = vi.hoisted(() => ({
   updateUser: vi.fn(),
   setUserRoles: vi.fn(),
   createUser: vi.fn(),
+  archiveUser: vi.fn(),
 }));
 vi.mock("../auth", () => ({
   useAuth: () => ({
@@ -30,7 +31,7 @@ vi.mock("./api/access.api.ts", () => ({
   listOrganizations: vi.fn(),
   setUserActive: state.setUserActive,
   createUser: state.createUser,
-  archiveUser: vi.fn(),
+  archiveUser: state.archiveUser,
   transferPlatformOwnership: vi.fn(),
   updateUser: state.updateUser,
   setUserRoles: state.setUserRoles,
@@ -85,6 +86,7 @@ afterEach(() => {
 it("opens account editing in a dialog from the shared action menu", async () => {
   mount();
   await screen.findByRole("table");
+  expect(state.listUsers).toHaveBeenCalledWith("school", true);
   const row = within(screen.getByRole("table")).getByText("Employee").closest("tr")!;
   await userEvent.click(within(row).getByRole("button", { name: /actions/i }));
   await userEvent.click(screen.getByRole("menuitem", { name: copy.edit }));
@@ -99,6 +101,22 @@ it("hides destructive actions for the current account", async () => {
   expect(screen.queryByRole("menuitem", { name: copy.disable })).not.toBeInTheDocument();
   expect(screen.queryByRole("menuitem", { name: copy.archive })).not.toBeInTheDocument();
 });
+it("lets a principal archive a staff account in their active school", async () => {
+  mount();
+  await screen.findByRole("table");
+  const row = within(screen.getByRole("table")).getByText("Employee").closest("tr")!;
+
+  await userEvent.click(within(row).getByRole("button", { name: /actions/i }));
+  await userEvent.click(screen.getByRole("menuitem", { name: copy.archive }));
+  const dialog = screen.getByRole("dialog", { name: copy.archiveAccountTitle });
+  await userEvent.type(
+    within(dialog).getByLabelText(`Confirmation phrase ${copy.archive}`),
+    copy.archive,
+  );
+  await userEvent.click(within(dialog).getByRole("button", { name: copy.archive }));
+
+  await waitFor(() => expect(state.archiveUser).toHaveBeenCalledWith("staff", expect.anything()));
+});
 it("keeps read-only users out of account mutations and selection", async () => {
   state.manage = false;
   mount();
@@ -108,14 +126,11 @@ it("keeps read-only users out of account mutations and selection", async () => {
   expect(screen.queryByRole("button", { name: /actions/i })).not.toBeInTheDocument();
 });
 
-it("keeps desktop details beside the table without opening a dialog", async () => {
+it("opens selected staff details in a drawer on desktop", async () => {
   mount();
   await screen.findByRole("table");
   await userEvent.click(within(screen.getByRole("table")).getByText("Employee"));
-  expect(
-    within(screen.getByRole("complementary")).getByRole("heading", { name: "Employee" }),
-  ).toBeInTheDocument();
-  expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  expect(screen.getByRole("dialog", { name: "Employee" })).toBeInTheDocument();
 });
 it("shows user details in a drawer on mobile", async () => {
   vi.stubGlobal(
@@ -128,12 +143,11 @@ it("shows user details in a drawer on mobile", async () => {
   expect(screen.getByRole("dialog", { name: "Employee" })).toBeInTheDocument();
   expect(screen.queryByRole("complementary")).not.toBeInTheDocument();
 });
-it("validates account details before the access step and retains them when going back", async () => {
+it("shows every account field in the single-step staff creation drawer", async () => {
   mount();
   await screen.findByRole("table");
   await userEvent.click(screen.getByRole("button", { name: copy.newUser }));
   const dialog = within(screen.getByRole("dialog", { name: copy.newUser }));
-  await userEvent.click(dialog.getByRole("button", { name: "Continue" }));
   expect(dialog.getByLabelText(copy.phoneNumber)).toBeInTheDocument();
   await userEvent.type(dialog.getByLabelText(copy.phoneNumber), "09333333333");
   await userEvent.type(dialog.getByLabelText(copy.password), "ValidPassword123");
@@ -142,12 +156,10 @@ it("validates account details before the access step and retains them when going
   expect(dialog.getByLabelText(copy.password)).toHaveAttribute("type", "text");
   await userEvent.click(dialog.getByRole("button", { name: "Hide password" }));
   expect(dialog.getByLabelText(copy.password)).toHaveAttribute("type", "password");
-  await userEvent.click(dialog.getByRole("button", { name: "Continue" }));
   expect(dialog.getByLabelText(copy.role)).toBeInTheDocument();
-  expect(dialog.queryByLabelText(copy.password)).not.toBeInTheDocument();
-  await userEvent.click(dialog.getByRole("button", { name: "Back" }));
   expect(dialog.getByLabelText(copy.phoneNumber)).toHaveValue("09333333333");
   expect(dialog.getByLabelText(copy.password)).toHaveValue("ValidPassword123");
+  expect(dialog.queryByRole("checkbox", { name: "Student" })).not.toBeInTheDocument();
 });
 
 it("preserves all roles when saving only profile details", async () => {
@@ -181,6 +193,23 @@ it("preserves all roles when saving only profile details", async () => {
     expect.objectContaining({ firstName: "Updated" }),
   );
   expect(state.setUserRoles).not.toHaveBeenCalled();
+});
+it("submits a principal password reset without a current-password field", async () => {
+  mount();
+  const row = within(await screen.findByRole("table"))
+    .getByText("Employee")
+    .closest("tr")!;
+  await userEvent.click(within(row).getByRole("button", { name: /actions/i }));
+  await userEvent.click(screen.getByRole("menuitem", { name: copy.edit }));
+  const drawer = within(screen.getByRole("dialog", { name: copy.editAccount("Employee") }));
+  await userEvent.type(drawer.getByLabelText(copy.resetPassword), "ReplacementPassword123");
+  await userEvent.click(drawer.getByRole("button", { name: copy.saveChanges }));
+  await waitFor(() =>
+    expect(state.updateUser).toHaveBeenCalledWith(
+      "staff",
+      expect.objectContaining({ password: "ReplacementPassword123" }),
+    ),
+  );
 });
 it("lets a principal update every operational school role", async () => {
   state.listUsers.mockResolvedValue([
@@ -219,8 +248,6 @@ it("shows the full operational school role catalog when a principal creates an a
   const dialog = within(screen.getByRole("dialog"));
   await userEvent.type(dialog.getByLabelText(copy.phoneNumber), "09333333333");
   await userEvent.type(dialog.getByLabelText(copy.password), "ValidPassword123");
-  await userEvent.click(dialog.getByRole("button", { name: "Continue" }));
-
   expect(dialog.getByRole("checkbox", { name: "Guardian" })).toBeEnabled();
   expect(dialog.getByRole("checkbox", { name: "Counselor" })).toBeEnabled();
   expect(dialog.getByRole("checkbox", { name: "Content manager" })).toBeEnabled();
@@ -234,8 +261,6 @@ it("creates one account with supervisor and teacher roles", async () => {
   const dialog = within(screen.getByRole("dialog"));
   await userEvent.type(dialog.getByLabelText(copy.phoneNumber), "09333333333");
   await userEvent.type(dialog.getByLabelText(copy.password), "ValidPassword123");
-  await userEvent.click(dialog.getByRole("button", { name: "Continue" }));
-  await userEvent.click(dialog.getByRole("checkbox", { name: "Student" }));
   await userEvent.click(dialog.getByRole("checkbox", { name: "Teacher" }));
   await userEvent.click(dialog.getByRole("checkbox", { name: "School supervisor" }));
   await userEvent.click(dialog.getByRole("button", { name: copy.createAccount }));
@@ -261,7 +286,6 @@ it.each([false, true])(
     const dialog = within(element);
     await userEvent.type(dialog.getByLabelText(copy.phoneNumber), "09333333333");
     await userEvent.type(dialog.getByLabelText(copy.password), "ValidPassword123");
-    await userEvent.click(dialog.getByRole("button", { name: "Continue" }));
     const teacher = dialog.getByRole("checkbox", { name: "Teacher" });
     teacher.focus();
     await userEvent.keyboard("[Space]");

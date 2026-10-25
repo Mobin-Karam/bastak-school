@@ -564,6 +564,48 @@ export class StudentAdministrationService {
     await this.get(actor, id, "students.update");
     return this.legacy.resetPassword(id, password);
   }
+  async bulkResetPassword(
+    actor: AuthenticatedUser,
+    ids: string[],
+    password: string,
+  ) {
+    const uniqueIds = [...new Set(ids)];
+    if (!uniqueIds.length || uniqueIds.length > 500)
+      throw new ApiException(
+        422,
+        "INVALID_BATCH",
+        "تعداد دانش‌آموزان انتخاب‌شده معتبر نیست.",
+      );
+    // Authorize each target before changing any credential. This preserves
+    // organization and relationship scope even when client list data is stale.
+    await Promise.all(
+      uniqueIds.map((id) => this.get(actor, id, "students.update")),
+    );
+    const targets = await this.students.find({
+      where: { id: In(uniqueIds) },
+      relations: { user: true },
+    });
+    if (targets.length !== uniqueIds.length)
+      throw new ApiException(
+        404,
+        "STUDENT_NOT_FOUND",
+        "یکی از دانش‌آموزان انتخاب‌شده پیدا نشد.",
+      );
+    const accountStudentIds = targets
+      .filter((student) => student.user)
+      .map((student) => student.id);
+    const skippedStudentIds = uniqueIds.filter(
+      (id) => !accountStudentIds.includes(id),
+    );
+    const results = await Promise.all(
+      accountStudentIds.map((id) => this.legacy.resetPassword(id, password)),
+    );
+    return {
+      updated: results.length,
+      studentIds: accountStudentIds,
+      skippedStudentIds,
+    };
+  }
   async learning(actor: AuthenticatedUser, id: string) {
     await this.get(actor, id, "learning.read");
     return this.legacy.learningForStudent(id);

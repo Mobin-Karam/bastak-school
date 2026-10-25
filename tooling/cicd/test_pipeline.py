@@ -15,6 +15,8 @@ class PipelineTests(unittest.TestCase):
         self.assertIn("verify -- --skip=admin-v2:test", runs)
         self.assertIn("test:cmb-publish", runs)
         self.assertIn("playwright install --with-deps chromium", runs)
+        self.assertIn("actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830",
+                      "\n".join(step.get("uses", "") for step in workflow["jobs"]["quality"]["steps"]))
         self.assertIn("test:e2e -- --grep 'desktop panels remain reachable'", runs)
         self.assertIn("./scripts/deploy/verify-security.sh", runs)
         script = (ROOT / "scripts/deploy/verify-security.sh").read_text()
@@ -61,6 +63,20 @@ class PipelineTests(unittest.TestCase):
         ):
             self.assertIn(evidence, script)
         self.assertEqual(promotion["timeout-minutes"], 45)
+
+    def test_successful_develop_push_refreshes_only_safe_pr_heads(self):
+        workflow = self.workflow("branch-synchronization.yml")
+        events = workflow.get("on", workflow.get(True))
+        self.assertEqual(events["workflow_run"]["workflows"], ["Continuous Integration"])
+        self.assertEqual(events["workflow_run"]["branches"], ["develop", "main"])
+        job = workflow["jobs"]["refresh-open-prs"]
+        self.assertIn("conclusion == 'success'", job["if"])
+        self.assertEqual(workflow["permissions"], {"contents": "read", "pull-requests": "write"})
+        self.assertIn("default_branch", job["steps"][0]["with"]["ref"])
+        script = (ROOT / "scripts/cicd/sync-open-pr-branches.sh").read_text()
+        for expected in ('Only protected develop or main branches', 'select(.head.repo.full_name == $repo)',
+                         'if [[ "$head_ref" == develop ]]', 'pulls/$number/update-branch'):
+            self.assertIn(expected, script)
 
     def test_release_evidence_waits_for_the_matching_develop_run(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -161,6 +177,8 @@ fi
         self.assertIn("head_branch == 'develop'", release["if"])
         self.assertEqual(release["environment"], "lan-production")
         self.assertIn("secrets.RELEASE_PR_TOKEN", release["steps"][0]["env"]["GH_TOKEN"])
+        self.assertIn("compare/main...develop", release["steps"][0]["run"])
+        self.assertIn("behind", release["steps"][0]["run"])
     def test_only_one_automatic_production_path(self):
         coolify = self.workflow("coolify-deploy.yml")
         self.assertNotIn("workflow_run", coolify.get("on", coolify.get(True)))
@@ -175,11 +193,12 @@ fi
                          'r["path"]==".github/workflows/continuous-integration.yml"'):
             self.assertIn(expected, verify)
     def test_release_history_is_synchronized_without_empty_releases(self):
-        workflow = self.workflow("continuous-integration.yml")
-        sync = workflow["jobs"]["sync-main"]
-        self.assertEqual(sync["needs"], "gate")
-        self.assertIn("refs/heads/main", sync["if"])
-        self.assertIn('--auto --merge', sync["steps"][1]["run"])
+        workflow = self.workflow("branch-synchronization.yml")
+        sync = workflow["jobs"]["synchronize-main-into-develop"]
+        self.assertIn("head_branch == 'main'", sync["if"])
+        self.assertEqual(sync["environment"], "lan-production")
+        self.assertIn("sync-main-into-develop.sh", sync["steps"][1]["run"])
+        self.assertIn('--auto --merge', (ROOT / "scripts/cicd/sync-main-into-develop.sh").read_text())
         self.assertIn("No application changes to release", self.workflow("release-promotion.yml")["jobs"]["release-pr"]["steps"][0]["run"])
     def test_student_checks_follow_the_current_workspace(self):
         workflow = self.workflow("student-v2-quality.yml")
@@ -241,7 +260,7 @@ fi
         for migration in candidate_migrations:
             self.assertIn(f'"{migration}"',fixture)
     def test_sync_retry_recovers_a_pushed_branch_and_existing_pr(self):
-        script = self.workflow("continuous-integration.yml")["jobs"]["sync-main"]["steps"][1]["run"]
+        script = (ROOT / "scripts/cicd/sync-main-into-develop.sh").read_text()
         with tempfile.TemporaryDirectory() as directory:
             root = pathlib.Path(directory)
             def run(*args, cwd=root, env=None):

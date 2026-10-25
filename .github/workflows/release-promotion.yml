@@ -36,6 +36,11 @@ jobs:
           fi
           current=$(gh api "repos/$GH_REPO/git/ref/heads/develop" --jq .object.sha)
           [[ "$current" == "$TESTED_SHA" ]] || { echo 'Newer develop commit will create the release PR.'; exit 0; }
+          behind=$(gh api "repos/$GH_REPO/compare/main...develop" --jq .behind_by)
+          [[ "$behind" == 0 ]] || {
+            echo 'Develop is behind main; wait for the checked main-to-develop synchronization PR before opening release promotion.'
+            exit 0
+          }
           changed=$(gh api "repos/$GH_REPO/compare/main...develop" --jq '.files | length')
           [[ "$changed" != 0 ]] || { echo 'No application changes to release.'; exit 0; }
           existing=$(gh pr list --repo "$GH_REPO" --base main --head develop --state open --json number --jq '.[0].number // empty')

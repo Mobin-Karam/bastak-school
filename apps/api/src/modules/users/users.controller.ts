@@ -31,8 +31,9 @@ export class UsersController {
     @Query("organizationId") o?: string,
     @Query("role") r?: string,
     @Query("status") s?: UserStatus,
+    @Query("staffOnly") staffOnly?: string,
   ) {
-    return this.service.list(u, o, r, s).then(ok);
+    return this.service.list(u, o, r, s, staffOnly === "true").then(ok);
   }
   @Post() @RequireCapabilities("users.manage") create(
     @CurrentUser() u: AuthenticatedUser,
