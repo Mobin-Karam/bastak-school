@@ -11,9 +11,6 @@ import {
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import {
-  Area,
-  AreaChart,
-  CartesianGrid,
   Pie as RechartsPie,
   PieChart,
   PolarAngleAxis,
@@ -21,11 +18,7 @@ import {
   PolarRadiusAxis,
   Radar as RechartsRadar,
   RadarChart,
-  RadialBar,
-  RadialBarChart,
   Tooltip,
-  XAxis,
-  YAxis,
 } from "recharts";
 import { useAuth } from "../../../identity/auth";
 import { Card, LoadingState } from "../../../../shared/ui/ui";
@@ -784,127 +777,6 @@ function Radar({
         />
       </RadarChart>
     </ChartContainer>
-  );
-}
-function RadialBars({ classes }: { classes: AttendanceData["classes"] }) {
-  return (
-    <div className="principal-radials">
-      {classes.length ? (
-        classes.map((item) => (
-          <div key={item.id}>
-            <ChartContainer
-              config={{ completion: { label: "تکمیل ثبت", color: "#0f766e" } }}
-              className="principal-radials__chart"
-              style={{ height: 64, width: 64 }}
-              role="img"
-              aria-label={`${item.name}: ${item.rate == null ? "بدون داده" : `${item.rate} درصد تکمیل`}`}
-            >
-              <RadialBarChart
-                data={[{ name: item.name, value: item.rate ?? 0 }]}
-                innerRadius="72%"
-                outerRadius="100%"
-                startAngle={90}
-                endAngle={-270}
-                barSize={9}
-              >
-                <RadialBar
-                  dataKey="value"
-                  background
-                  cornerRadius={8}
-                  fill="var(--color-completion)"
-                  isAnimationActive={false}
-                />
-              </RadialBarChart>
-            </ChartContainer>
-            <span>
-              <strong>{item.rate == null ? "—" : `${item.rate.toLocaleString("fa-IR")}٪`}</strong>
-              <small>{item.name}</small>
-              <small>
-                {item.marked.toLocaleString("fa-IR")} / {item.expected.toLocaleString("fa-IR")}{" "}
-                ثبت‌شده
-              </small>
-            </span>
-          </div>
-        ))
-      ) : (
-        <Empty text="در این بازه کلاسی ثبت نشده است." />
-      )}
-    </div>
-  );
-}
-function Trend({ rows }: { rows: AttendanceData["trend"] }) {
-  const config = {
-    present: { label: "حاضر", color: "#0f766e" },
-    absent: { label: "غایب", color: "#e11d48" },
-  };
-  return (
-    <div className="principal-trend">
-      {rows.length ? (
-        <ChartContainer
-          config={config}
-          className="principal-trend__chart"
-          style={{ height: 210 }}
-          role="img"
-          aria-label="روند روزانهٔ تعداد افراد حاضر و غایب"
-        >
-          <AreaChart
-            accessibilityLayer
-            data={rows}
-            margin={{ top: 10, right: 8, left: 0, bottom: 0 }}
-          >
-            <CartesianGrid vertical={false} strokeDasharray="3 3" />
-            <XAxis
-              dataKey="date"
-              tickFormatter={(date: string) => date.slice(5).replace("-", "/")}
-              tickLine={false}
-              axisLine={false}
-            />
-            <YAxis hide />
-            <Tooltip cursor={false} content={(props) => <ChartTooltipContent {...props} />} />
-            <Area
-              type="monotone"
-              dataKey="present"
-              name="حاضر"
-              stroke="var(--color-present)"
-              fill="var(--color-present)"
-              fillOpacity={0.16}
-              isAnimationActive={false}
-            />
-            <Area
-              type="monotone"
-              dataKey="absent"
-              name="غایب"
-              stroke="var(--color-absent)"
-              fill="var(--color-absent)"
-              fillOpacity={0.08}
-              isAnimationActive={false}
-            />
-          </AreaChart>
-        </ChartContainer>
-      ) : (
-        <Empty text="داده‌ای برای روند حضور نیست." />
-      )}
-    </div>
-  );
-}
-function Metric({
-  icon: Icon,
-  label,
-  value,
-  visible,
-}: {
-  icon: typeof UsersRound;
-  label: string;
-  value: number | undefined;
-  visible: boolean;
-}) {
-  if (!visible) return null;
-  return (
-    <Card className="principal-dashboard__metric p-4">
-      <Icon aria-hidden="true" />
-      <span>{label}</span>
-      <strong>{(value ?? 0).toLocaleString("fa-IR")}</strong>
-    </Card>
   );
 }
 function Empty({ text }: { text: string }) {
