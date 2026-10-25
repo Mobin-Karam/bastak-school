@@ -58,6 +58,7 @@ export function TeacherClassAttendanceSheet({
   scopeRef.current = scopeKey;
   const pendingWrite = useRef<PendingAttendanceWrite | null>(null);
   const [reviewing, setReviewing] = useState(false);
+  const [clearConfirmationOpen, setClearConfirmationOpen] = useState(false);
   const [marks, setMarks] = useState<Record<string, AttendanceStatus>>({});
   const [reasons, setReasons] = useState<Record<string, string>>({});
   const [pointTarget, setPointTarget] = useState<{
@@ -82,6 +83,7 @@ export function TeacherClassAttendanceSheet({
 
   useEffect(() => {
     setReviewing(false);
+    setClearConfirmationOpen(false);
     setMarks({});
     setReasons({});
     pendingWrite.current = null;
@@ -153,11 +155,26 @@ export function TeacherClassAttendanceSheet({
     },
   });
 
+  // A complete "present" register is the starting state, not an unsaved edit.
+  // This keeps the leave guard for actual exceptions while allowing a teacher to
+  // clear exceptions or return from review without a second drawer competing
+  // with the roster drawer.
+  const hasUnsavedChanges =
+    (participants.data ?? []).some((student) => marks[student.id] !== "present") ||
+    Object.values(reasons).some((reason) => Boolean(reason.trim()));
   const discard = useAttendanceDiscard(
-    Boolean(Object.keys(marks).length),
+    hasUnsavedChanges,
     save.isPending,
     `${scopeKey}:${entry?.id}:${open}`,
   );
+  const resetToPresent = () => {
+    setMarks(
+      Object.fromEntries(
+        (participants.data ?? []).map((student) => [student.id, "present"]),
+      ),
+    );
+    setReasons({});
+  };
   const points = useMutation({
     mutationFn: () => {
       if (!entry?.classroom?.id || !pointTarget)
@@ -377,7 +394,40 @@ export function TeacherClassAttendanceSheet({
                 </div>
               ) : null}
               {canManage ? (
-                <div className="sticky bottom-0 mt-4 flex gap-2 bg-card pt-3">
+                <div className="sticky bottom-0 mt-4 bg-card pt-3">
+                  {clearConfirmationOpen ? (
+                    <div
+                      role="alert"
+                      className="mb-3 rounded-2xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-100"
+                    >
+                      <p className="font-black">تغییرات حضور و غیاب پاک می‌شوند</p>
+                      <p className="mt-1 text-xs leading-5">
+                        همه دانش‌آموزان دوباره حاضر می‌شوند و دلیل‌های غیبت پاک خواهد شد.
+                      </p>
+                      <div className="mt-3 flex gap-2">
+                        <Button
+                          variant="soft"
+                          className="flex-1"
+                          disabled={save.isPending}
+                          onClick={() => setClearConfirmationOpen(false)}
+                        >
+                          بازگشت و حفظ تغییرات
+                        </Button>
+                        <Button
+                          variant="danger"
+                          className="flex-1"
+                          disabled={save.isPending}
+                          onClick={() => {
+                            resetToPresent();
+                            setClearConfirmationOpen(false);
+                          }}
+                        >
+                          ادامه و پاک‌کردن
+                        </Button>
+                      </div>
+                    </div>
+                  ) : null}
+                  <div className="flex gap-2">
                   <Button
                     variant="soft"
                     className="flex-1"
@@ -387,14 +437,9 @@ export function TeacherClassAttendanceSheet({
                         setReviewing(false);
                         return;
                       }
-                      discard.request(() => {
-                        setMarks(
-                          Object.fromEntries(
-                            (participants.data ?? []).map((student) => [student.id, "present"]),
-                          ),
-                        );
-                        setReasons({});
-                      });
+                      // Keep the confirmation in this drawer. A nested drawer
+                      // could propagate its back action to the roster itself.
+                      setClearConfirmationOpen(true);
                     }}
                   >
                     {reviewing ? "بازگشت" : "پاک کردن"}
@@ -411,6 +456,7 @@ export function TeacherClassAttendanceSheet({
                         ? "تأیید و ثبت"
                         : "بررسی و ثبت حضور و غیاب"}
                   </Button>
+                  </div>
                 </div>
               ) : null}
             </>

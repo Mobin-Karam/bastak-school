@@ -111,4 +111,38 @@ describe("TeacherClassAttendanceSheet", () => {
       bulkMarkAttendanceMock.mock.calls[0][0],
     );
   });
+
+  it("keeps the roster drawer open when returning from review or clearing exceptions", async () => {
+    getAttendanceParticipantsMock.mockResolvedValue([{ id: "student-1", name: "علی رضایی" }]);
+    listMyAttendanceAbsenceReviewsMock.mockResolvedValue([]);
+    renderSheet();
+    const user = userEvent.setup();
+
+    await screen.findByRole("group", { name: "وضعیت حضور علی رضایی" });
+    await user.click(screen.getByRole("button", { name: "بررسی و ثبت حضور و غیاب" }));
+    await user.click(screen.getByRole("button", { name: "بازگشت" }));
+
+    expect(screen.getByRole("dialog", { name: "ریاضی دهم" })).toBeInTheDocument();
+
+    const group = screen.getByRole("group", { name: "وضعیت حضور علی رضایی" });
+    await user.click(within(group).getByRole("button", { name: "غایب" }));
+    await user.click(screen.getByRole("button", { name: "پاک کردن" }));
+
+    expect(screen.getByRole("dialog", { name: "ریاضی دهم" })).toBeInTheDocument();
+    expect(screen.getByText("تغییرات حضور و غیاب پاک می‌شوند")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "بازگشت و حفظ تغییرات" }));
+    expect(screen.getByRole("dialog", { name: "ریاضی دهم" })).toBeInTheDocument();
+    expect(within(group).getByRole("button", { name: "غایب" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+
+    await user.click(screen.getByRole("button", { name: "پاک کردن" }));
+    await user.click(screen.getByRole("button", { name: "ادامه و پاک‌کردن" }));
+
+    expect(within(group).getByRole("button", { name: "حاضر" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+  });
 });
