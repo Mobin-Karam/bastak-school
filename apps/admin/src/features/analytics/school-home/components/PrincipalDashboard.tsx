@@ -1,4 +1,3 @@
-import { AdaptiveSelect } from "@/shared/ui/adaptive-select";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   AlertTriangle,
@@ -54,8 +53,8 @@ function formatDay(value: string) {
 export function PrincipalDashboard() {
   const auth = useAuth();
   const queryClient = useQueryClient();
-  const [range, setRange] = useState<"7d" | "30d">("7d");
-  const [classId, setClassId] = useState("");
+  const range = "7d" as const;
+  const classId = "";
   const [reviewingItem, setReviewingItem] = useState<
     NonNullable<PrincipalDashboardContract["sessionReviews"]>["items"][number] | null
   >(null);
@@ -246,45 +245,6 @@ export function PrincipalDashboard() {
           )}
         </Card>
       </section>
-      <div className="principal-dashboard__controls" aria-label="بازه گزارش">
-        <div className="principal-dashboard__controls" aria-label="بازه گزارش">
-          <button
-            type="button"
-            className={range === "7d" ? "is-active" : ""}
-            onClick={() => setRange("7d")}
-          >
-            ۷ روز
-          </button>
-          <button
-            type="button"
-            className={range === "30d" ? "is-active" : ""}
-            onClick={() => setRange("30d")}
-          >
-            ۳۰ روز
-          </button>
-          {attendance?.classes.length ? (
-            <AdaptiveSelect
-              aria-label="فیلتر کلاس"
-              value={classId}
-              onChange={(event) => setClassId(event.target.value)}
-            >
-              <option value="">همهٔ کلاس‌ها</option>
-              {attendance.classes.map((item) => (
-                <option key={item.id} value={item.id}>
-                  {item.name}
-                </option>
-              ))}
-            </AdaptiveSelect>
-          ) : null}
-          <span>
-            به‌روزرسانی:{" "}
-            {new Date(data.generatedAt).toLocaleTimeString("fa-IR", {
-              hour: "2-digit",
-              minute: "2-digit",
-            })}
-          </span>
-        </div>
-      </div>
 
       <section className="principal-dashboard__status-grid grid gap-4" aria-label="وضعیت حضور">
         {attendance ? (
