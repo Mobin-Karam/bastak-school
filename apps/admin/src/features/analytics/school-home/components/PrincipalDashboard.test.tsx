@@ -116,6 +116,16 @@ const dashboardData = {
     ],
   },
   operations: { activeStudents: 10, currentlyOut: 0, scheduleEntries: 4, staff: 2 },
+  todayAbsences: [{ id: "student-a", name: "علی رضایی", context: "پایه اول", sessions: 1 }],
+  pendingLeaveRequests: [
+    {
+      id: "leave-a",
+      studentName: "رضا احمدی",
+      leaveType: "LEAVE",
+      startDate: "2026-10-21T00:00:00.000Z",
+      endDate: "2026-10-22T00:00:00.000Z",
+    },
+  ],
 };
 
 function renderDashboard() {
@@ -193,5 +203,25 @@ describe("PrincipalDashboard", () => {
 
     expect(await screen.findByRole("heading", { name: "نبض مدرسه" })).toBeVisible();
     expect(screen.queryByRole("heading", { name: "جلسه‌های حضورِ نیازمند بررسی" })).toBeNull();
+  });
+
+  it("puts today’s four operational sections first", async () => {
+    authCan.mockImplementation((capability) =>
+      ["students.read", "attendance.read", "leave.read"].includes(capability),
+    );
+    renderDashboard();
+
+    expect(await screen.findByRole("heading", { name: "دانش‌آموزان غایب" })).toBeVisible();
+    expect(screen.getByRole("heading", { name: "درخواست‌های مرخصی" })).toBeVisible();
+    expect(screen.getByRole("heading", { name: "خلاصهٔ حضور مدرسه" })).toBeVisible();
+    expect(screen.getByRole("heading", { name: "عملیات فعال" })).toBeVisible();
+    expect(screen.getByRole("link", { name: /علی رضایی/ })).toHaveAttribute(
+      "href",
+      "/admin/students?studentId=student-a",
+    );
+    expect(screen.getByRole("link", { name: /رضا احمدی/ })).toHaveAttribute(
+      "href",
+      "/admin/leave-requests?requestId=leave-a",
+    );
   });
 });

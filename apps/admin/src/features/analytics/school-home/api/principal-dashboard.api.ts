@@ -63,6 +63,19 @@ export type PrincipalDashboardContract = {
     scheduleEntries: number;
     staff: number;
   };
+  todayAbsences?: Array<{
+    id: string;
+    name: string;
+    context: string;
+    sessions: number;
+  }>;
+  pendingLeaveRequests?: Array<{
+    id: string;
+    studentName: string;
+    leaveType: string;
+    startDate: string;
+    endDate: string;
+  }>;
 };
 
 export const getPrincipalDashboard = (range: "7d" | "30d", classId?: string) => {
