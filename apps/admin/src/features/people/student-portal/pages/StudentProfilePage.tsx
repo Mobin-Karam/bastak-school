@@ -1,16 +1,53 @@
-import { useQuery } from "@tanstack/react-query";
-import { Gamepad2, HelpCircle, UserRound } from "lucide-react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Gamepad2, HelpCircle, Pencil, UserRound } from "lucide-react";
+import { useEffect, useState } from "react";
 import { useAuth } from "../../../identity/auth";
 import { getAttendanceEncouragement } from "../../../student-life/attendance/public";
 import { getAccountProfile } from "../../../platform/settings/api/settings.api";
 import { AttendanceCoin } from "../../../../shared/ui/attendance-coin";
 import { Card } from "../../../../shared/ui/ui";
+import { Button, Field, Input } from "../../../../shared/ui/ui";
+import { notify } from "../../../../shared/ui/notifications";
 import { PolarAngleAxis, PolarGrid, Radar, RadarChart, ResponsiveContainer } from "recharts";
+import {
+  getStudentSelfProfile,
+  updateStudentSelfProfile,
+  type UpdateStudentSelfProfile,
+} from "../api/student-profile.api";
 
 /** Student-only profile hub; uses scoped account and attendance data, never placeholder progress. */
 export function StudentProfilePage() {
   const auth = useAuth();
+  const queryClient = useQueryClient();
   const profile = useQuery({ queryKey: ["account", "profile"], queryFn: getAccountProfile });
+  const student = useQuery({
+    queryKey: ["student", "self-profile"],
+    queryFn: getStudentSelfProfile,
+  });
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState<UpdateStudentSelfProfile>({});
+  useEffect(() => {
+    if (!student.data) return;
+    setDraft({
+      firstName: student.data.identity.firstName,
+      lastName: student.data.identity.lastName,
+      email: student.data.identity.email ?? "",
+      targetUniversity: student.data.targetUniversity ?? "",
+      targetField: student.data.targetField ?? "",
+      targetRank: student.data.targetRank ?? "",
+      dailyCapacity: student.data.dailyCapacity ?? "",
+    });
+  }, [student.data]);
+  const saveProfile = useMutation({
+    mutationFn: () => updateStudentSelfProfile(draft),
+    onSuccess: () => {
+      setEditing(false);
+      void queryClient.invalidateQueries({ queryKey: ["student", "self-profile"] });
+      notify("اطلاعات پروفایل به‌روزرسانی شد.", "success");
+    },
+    onError: (error) =>
+      notify(error instanceof Error ? error.message : "به‌روزرسانی اطلاعات انجام نشد.", "error"),
+  });
   const attendance = useQuery({
     queryKey: ["attendance-encouragement", auth.user?.id, auth.activeRole],
     queryFn: getAttendanceEncouragement,
@@ -64,6 +101,99 @@ export function StudentProfilePage() {
       </Card>
 
       <Card className="p-4">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <h2 className="font-black text-ink">اطلاعات من</h2>
+            <p className="mt-1 text-xs leading-5 text-slate-500">
+              شماره همراه و کد ملی فقط از بخش تنظیمات یا مدرسه تغییر می‌کنند.
+            </p>
+          </div>
+          <Button variant="soft" size="sm" onClick={() => setEditing((value) => !value)}>
+            <Pencil size={15} aria-hidden="true" /> {editing ? "انصراف" : "ویرایش"}
+          </Button>
+        </div>
+        {editing ? (
+          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+            <Field label="نام">
+              <Input
+                value={draft.firstName ?? ""}
+                onChange={(event) =>
+                  setDraft((value) => ({ ...value, firstName: event.target.value }))
+                }
+              />
+            </Field>
+            <Field label="نام خانوادگی">
+              <Input
+                value={draft.lastName ?? ""}
+                onChange={(event) =>
+                  setDraft((value) => ({ ...value, lastName: event.target.value }))
+                }
+              />
+            </Field>
+            <Field label="رایانامه">
+              <Input
+                dir="ltr"
+                type="email"
+                value={draft.email ?? ""}
+                onChange={(event) => setDraft((value) => ({ ...value, email: event.target.value }))}
+              />
+            </Field>
+            <Field label="دانشگاه هدف">
+              <Input
+                value={draft.targetUniversity ?? ""}
+                onChange={(event) =>
+                  setDraft((value) => ({ ...value, targetUniversity: event.target.value }))
+                }
+              />
+            </Field>
+            <Field label="رشته هدف">
+              <Input
+                value={draft.targetField ?? ""}
+                onChange={(event) =>
+                  setDraft((value) => ({ ...value, targetField: event.target.value }))
+                }
+              />
+            </Field>
+            <Field label="رتبه هدف">
+              <Input
+                value={draft.targetRank ?? ""}
+                onChange={(event) =>
+                  setDraft((value) => ({ ...value, targetRank: event.target.value }))
+                }
+              />
+            </Field>
+            <Field label="زمان مطالعه روزانه">
+              <Input
+                value={draft.dailyCapacity ?? ""}
+                onChange={(event) =>
+                  setDraft((value) => ({ ...value, dailyCapacity: event.target.value }))
+                }
+              />
+            </Field>
+            <div className="flex items-end">
+              <Button
+                className="w-full"
+                loading={saveProfile.isPending}
+                onClick={() => saveProfile.mutate()}
+              >
+                ذخیره اطلاعات
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <dl className="mt-4 grid grid-cols-2 gap-2 text-sm">
+            <ProfileDetail label="رایانامه" value={student.data?.identity.email || "ثبت نشده"} />
+            <ProfileDetail
+              label="دانشگاه هدف"
+              value={student.data?.targetUniversity || "ثبت نشده"}
+            />
+            <ProfileDetail label="رشته هدف" value={student.data?.targetField || "ثبت نشده"} />
+            <ProfileDetail label="رتبه هدف" value={student.data?.targetRank || "ثبت نشده"} />
+          </dl>
+        )}
+      </Card>
+
+      <Card className="p-4">
         <div className="min-w-0">
           <h2 className="font-black text-ink">وضعیت حضور فعلی</h2>
           <p className="mt-1 text-sm text-slate-500">
@@ -86,6 +216,15 @@ export function StudentProfilePage() {
         <DisabledFuture label="آزمونک‌ها" icon={HelpCircle} />
       </div>
     </section>
+  );
+}
+
+function ProfileDetail({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-xl bg-[rgb(var(--surface-muted))] p-3">
+      <dt className="text-[11px] text-slate-500">{label}</dt>
+      <dd className="mt-1 truncate font-bold text-ink">{value}</dd>
+    </div>
   );
 }
 

@@ -14,6 +14,7 @@ import {
 } from "../../database/entities/learning-item.entity";
 import { LearningReview } from "../../database/entities/learning-review.entity";
 import { Session } from "../../database/entities/session.entity";
+import { UpdateOwnStudentProfileDto } from "./dto/update-own-student-profile.dto";
 
 @Injectable()
 export class StudentsService {
@@ -119,6 +120,61 @@ export class StudentsService {
     student.guardianChatReadOnly = enabled;
     await this.students.save(student);
     return { guardianReadOnly: enabled };
+  }
+
+  async updateOwnProfile(userId: string, dto: UpdateOwnStudentProfileDto) {
+    const student = await this.findByUserId(userId);
+    if (!student?.user)
+      throw new ApiException(
+        404,
+        "STUDENT_NOT_FOUND",
+        "پرونده دانش‌آموز پیدا نشد.",
+      );
+
+    const firstName = dto.firstName?.trim();
+    const lastName = dto.lastName?.trim();
+    const email = dto.email?.trim().toLowerCase();
+    if (email) {
+      const existing = await this.users.findOne({ where: { email } });
+      if (existing && existing.id !== student.user.id)
+        throw new ApiException(
+          409,
+          "EMAIL_EXISTS",
+          "این رایانامه قبلاً ثبت شده است.",
+        );
+    }
+
+    await this.users.update(student.user.id, {
+      ...(firstName === undefined ? {} : { firstName }),
+      ...(lastName === undefined ? {} : { lastName }),
+      ...(email === undefined ? {} : { email: email || null }),
+    });
+    await this.students.update(student.id, {
+      ...(firstName === undefined && lastName === undefined
+        ? {}
+        : {
+            name:
+              [
+                firstName ?? student.user.firstName,
+                lastName ?? student.user.lastName,
+              ]
+                .filter(Boolean)
+                .join(" ") || student.name,
+          }),
+      ...(dto.targetUniversity === undefined
+        ? {}
+        : { targetUniversity: dto.targetUniversity.trim() }),
+      ...(dto.targetField === undefined
+        ? {}
+        : { targetField: dto.targetField.trim() }),
+      ...(dto.targetRank === undefined
+        ? {}
+        : { targetRank: dto.targetRank.trim() }),
+      ...(dto.dailyCapacity === undefined
+        ? {}
+        : { dailyCapacity: dto.dailyCapacity.trim() }),
+    });
+    return this.findByUserId(userId);
   }
 
   findStudent(id: string) {
