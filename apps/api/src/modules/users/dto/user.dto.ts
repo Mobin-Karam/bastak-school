@@ -28,6 +28,8 @@ export class UpdateUserDto {
   @IsOptional() @IsString() @Length(0, 100) lastName?: string;
   @IsOptional() @IsString() @Length(2, 12) locale?: string;
   @IsOptional() @IsString() @Length(2, 64) timezone?: string;
+  /** A manager reset never requires the target's current password. */
+  @IsOptional() @IsString() @MinLength(12) password?: string;
 }
 export class SetRolesDto {
   @IsArray()

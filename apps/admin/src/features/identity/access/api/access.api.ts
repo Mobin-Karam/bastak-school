@@ -61,9 +61,12 @@ export type UserRelationship = {
 };
 export type RelationshipStudent = { id: string; name: string; grade?: string; major?: string };
 
-export const listUsers = (organizationId?: string) =>
+export const listUsers = (organizationId?: string, staffOnly = false) =>
   api.get<PortalUser[]>(
-    `/users${organizationId ? `?organizationId=${encodeURIComponent(organizationId)}` : ""}`,
+    `/users?${new URLSearchParams({
+      ...(organizationId ? { organizationId } : {}),
+      ...(staffOnly ? { staffOnly: "true" } : {}),
+    }).toString()}`,
   );
 export const createUser = (body: {
   phoneNumber: string;
@@ -77,7 +80,7 @@ export const setUserActive = (id: string, active: boolean) =>
   api.post(`/users/${id}/${active ? "activate" : "deactivate"}`, {});
 export const updateUser = (
   id: string,
-  body: { phoneNumber?: string; firstName?: string; lastName?: string },
+  body: { phoneNumber?: string; firstName?: string; lastName?: string; password?: string },
 ) => api.patch<PortalUser>(`/users/${id}`, body);
 export const setUserRoles = (
   id: string,

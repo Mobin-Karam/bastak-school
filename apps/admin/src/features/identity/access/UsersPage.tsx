@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Crown, Pencil, Plus, X } from "lucide-react";
+import { Crown, Pencil, Plus } from "lucide-react";
 import { useAuth } from "../auth";
 import type { RoleCode } from "../../../shared/types/domain";
 import { roleLabel, roleLabels } from "../../../shared/lib/role-ui";
@@ -18,7 +18,6 @@ import {
   Select,
 } from "../../../shared/ui/ui";
 import { DataTable, defaultTableQuery, type DataTableQuery } from "../../../shared/ui/data-table";
-import { ResponsiveModal, useMobileDialog } from "../../../shared/ui/responsive-modal";
 import { ResponsiveDrawer } from "../../../shared/ui/responsive-drawer";
 
 import {
@@ -79,9 +78,8 @@ export function UsersPage() {
     [selectedUserId, setSelectedUserId] = useState(() => searchParams.get("userId") ?? "");
   const users = useQuery({
     queryKey: ["users", organizationId || "platform"],
-    queryFn: () => listUsers(organizationId || undefined),
+    queryFn: () => listUsers(organizationId || undefined, true),
   });
-  const mobile = useMobileDialog();
   const [creating, setCreating] = useState(false);
   const [editing, setEditing] = useState<PortalUser | null>(null);
   const [editDraft, setEditDraft] = useState({
@@ -90,6 +88,7 @@ export function UsersPage() {
     lastName: "",
     roles: ["COUNSELOR"] as RoleCode[],
     organizationId: "",
+    password: "",
   });
   const refresh = () => qc.invalidateQueries({ queryKey: ["users"] });
   const create = useMutation({
@@ -154,12 +153,14 @@ export function UsersPage() {
       const profileChanged =
         editDraft.phoneNumber !== (editing.phoneNumber ?? editing.username) ||
         editDraft.firstName !== (editing.firstName ?? "") ||
-        editDraft.lastName !== (editing.lastName ?? "");
+        editDraft.lastName !== (editing.lastName ?? "") ||
+        Boolean(editDraft.password);
       if (profileChanged)
         await updateUser(editing.id, {
           phoneNumber: editDraft.phoneNumber,
           firstName: editDraft.firstName,
           lastName: editDraft.lastName,
+          ...(editDraft.password ? { password: editDraft.password } : {}),
         });
       if (
         !sameRoles(
@@ -242,6 +243,7 @@ export function UsersPage() {
         .filter((item) => item.organizationId === (assignment?.organizationId ?? null))
         .map((item) => item.role),
       organizationId: assignment?.organizationId ?? organizationId,
+      password: "",
     });
   };
 
@@ -311,7 +313,7 @@ export function UsersPage() {
           <Button
             variant="soft"
             onClick={() => {
-              if (mobile) setSelectedUserId("");
+              setSelectedUserId("");
               startEdit(selectedUser);
             }}
           >
@@ -374,13 +376,14 @@ export function UsersPage() {
           ) : null}
         </div>
       </section>
-      <ResponsiveModal
+      <ResponsiveDrawer
         open={creating}
         onOpenChange={(open) => {
           if (!create.isPending) setCreating(open);
         }}
         title={copy.newUser}
         description={copy.newUserDescription}
+        desktopSide="left"
       >
         <UserCreateForm
           organizations={organizations.data ?? []}
@@ -390,18 +393,19 @@ export function UsersPage() {
           allowedRoles={principalProvisioningOnly ? principalAssignableRoles : undefined}
           onSubmit={(body) => create.mutateAsync(body)}
         />
-      </ResponsiveModal>
+      </ResponsiveDrawer>
       {editing ? (
-        <ResponsiveModal
+        <ResponsiveDrawer
           open={Boolean(editing)}
           onOpenChange={(open) => {
             if (!open && !save.isPending) setEditing(null);
           }}
           title={copy.editAccount(nameOf(editing))}
           description={copy.editAccountDescription}
+          desktopSide="left"
         >
           <form
-            className="grid gap-3 sm:grid-cols-2"
+            className="grid gap-3"
             onSubmit={(e) => {
               e.preventDefault();
               if (!save.isPending) save.mutate();
@@ -427,6 +431,15 @@ export function UsersPage() {
               <Input
                 value={editDraft.lastName}
                 onChange={(e) => setEditDraft({ ...editDraft, lastName: e.target.value })}
+              />
+            </Field>
+            <Field label={copy.resetPassword} description={copy.resetPasswordHint}>
+              <PasswordInput
+                minLength={12}
+                autoComplete="new-password"
+                dir="ltr"
+                value={editDraft.password}
+                onChange={(e) => setEditDraft({ ...editDraft, password: e.target.value })}
               />
             </Field>
             {!isProtected(editing) ? (
@@ -486,12 +499,9 @@ export function UsersPage() {
               </p>
             ) : null}
           </form>
-        </ResponsiveModal>
+        </ResponsiveDrawer>
       ) : null}
-      <section
-        dir="rtl"
-        className="grid items-start gap-3 md:grid-cols-[minmax(0,1fr)_260px] lg:grid-cols-[minmax(0,1fr)_280px]"
-      >
+      <section dir="rtl">
         <Card
           dir={language === "fa" ? "rtl" : "ltr"}
           className="min-w-0 overflow-hidden"
@@ -682,37 +692,18 @@ export function UsersPage() {
             }
           />
         </Card>
-        {mobile ? (
-          <ResponsiveDrawer
-            open={Boolean(selectedUser)}
-            onOpenChange={(open) => {
-              if (!open) setSelectedUserId("");
-            }}
-            title={selectedUser ? nameOf(selectedUser) : copy.userList}
-            description={copy.usersDescription}
-          >
-            {details}
-          </ResponsiveDrawer>
-        ) : (
-          <aside
-            className="sticky top-3 md:col-start-2 md:row-start-1"
-            style={{ direction: language === "fa" ? "rtl" : "ltr" }}
-            aria-label={copy.rolesAndScopes}
-          >
-            {selectedUser ? (
-              <Button
-                variant="ghost"
-                className="mb-1 h-8 w-full justify-end text-xs"
-                onClick={() => setSelectedUserId("")}
-              >
-                <X size={14} />
-                {copy.close}
-              </Button>
-            ) : null}
-            {details}
-          </aside>
-        )}
       </section>
+      <ResponsiveDrawer
+        open={Boolean(selectedUser)}
+        onOpenChange={(open) => {
+          if (!open) setSelectedUserId("");
+        }}
+        title={selectedUser ? nameOf(selectedUser) : copy.userList}
+        description={copy.usersDescription}
+        desktopSide="left"
+      >
+        {details}
+      </ResponsiveDrawer>
     </div>
   );
 }
@@ -739,22 +730,9 @@ function UserCreateForm({
     password: "",
     firstName: "",
     lastName: "",
-    roles: [
-      allowedRoles?.find((role) =>
-        rolesForOrganizationType(
-          organizations.find((org) => org.id === defaultOrganizationId)?.type,
-        ).includes(role),
-      ) ??
-        allowedRoles?.[0] ??
-        "COUNSELOR",
-    ] as RoleCode[],
+    roles: [] as RoleCode[],
     organizationId: defaultOrganizationId,
   });
-  const [step, setStep] = useState(0);
-  const stepFocus = useRef<HTMLFormElement>(null);
-  useEffect(() => {
-    stepFocus.current?.querySelector<HTMLElement>("input, select")?.focus();
-  }, [step]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
   const requiresOrganization = !draft.roles.includes("PLATFORM_ADMIN");
@@ -762,15 +740,10 @@ function UserCreateForm({
 
   return (
     <form
-      ref={stepFocus}
-      className="grid gap-3 md:grid-cols-2"
+      className="grid gap-3"
       onSubmit={async (event) => {
         event.preventDefault();
         if (isSubmitting) return;
-        if (step === 0) {
-          setStep(1);
-          return;
-        }
         setIsSubmitting(true);
         setError("");
         try {
@@ -789,111 +762,73 @@ function UserCreateForm({
         }
       }}
     >
-      <ol
-        aria-label={language === "fa" ? "مراحل ساخت حساب" : "Account setup steps"}
-        className="flex gap-4 text-xs md:col-span-2"
-      >
-        {[language === "fa" ? "اطلاعات حساب" : "Account details", copy.rolesAndScopes].map(
-          (label, index) => (
-            <li
-              key={label}
-              aria-current={step === index ? "step" : undefined}
-              className={step === index ? "font-bold text-brand" : "text-slate-500"}
-            >
-              {(index + 1).toLocaleString(language === "fa" ? "fa-IR" : "en-US")} · {label}
-            </li>
-          ),
-        )}
-      </ol>
-      {step === 0 ? (
-        <>
-          <Field label={copy.phoneNumber}>
-            <Input
-              required
-              autoComplete="tel"
-              inputMode="tel"
-              pattern="09[0-9]{9}"
-              dir="ltr"
-              value={draft.phoneNumber}
-              onChange={(event) => setDraft({ ...draft, phoneNumber: event.target.value })}
-            />
-          </Field>
-          <Field label={copy.password}>
-            <PasswordInput
-              required
-              minLength={12}
-              autoComplete="new-password"
-              dir="ltr"
-              value={draft.password}
-              onChange={(event) => setDraft({ ...draft, password: event.target.value })}
-            />
-          </Field>
-          <Field label={copy.firstName}>
-            <Input
-              value={draft.firstName}
-              onChange={(event) => setDraft({ ...draft, firstName: event.target.value })}
-            />
-          </Field>
-          <Field label={copy.lastName}>
-            <Input
-              value={draft.lastName}
-              onChange={(event) => setDraft({ ...draft, lastName: event.target.value })}
-            />
-          </Field>
-        </>
-      ) : (
-        <>
-          <p className="md:col-span-2 rounded-lg bg-brand/5 p-2 text-xs">
-            <strong>
-              {[draft.firstName, draft.lastName].filter(Boolean).join(" ") || draft.phoneNumber}
-            </strong>
-            <span className="ms-2" dir="ltr">
-              {draft.phoneNumber}
-            </span>
-          </p>
-          <RoleField
-            value={draft.roles}
-            onChange={(roles) => setDraft({ ...draft, roles })}
-            allowPlatform={allowPlatform}
-            organizationType={selectedOrganization?.type}
-            allowedRoles={allowedRoles}
-          />
-          {isPlatform && requiresOrganization ? (
-            <OrganizationField
-              organizations={organizations}
-              value={draft.organizationId}
-              onChange={(organizationId) => {
-                const roles = rolesForOrganizationType(
-                  organizations.find((item) => item.id === organizationId)?.type,
-                );
-                setDraft({
-                  ...draft,
-                  organizationId,
-                  roles: draft.roles.filter((role) => roles.includes(role)),
-                });
-              }}
-            />
-          ) : null}
-        </>
-      )}
+      <Field label={copy.phoneNumber}>
+        <Input
+          required
+          autoComplete="tel"
+          inputMode="tel"
+          pattern="09[0-9]{9}"
+          dir="ltr"
+          value={draft.phoneNumber}
+          onChange={(event) => setDraft({ ...draft, phoneNumber: event.target.value })}
+        />
+      </Field>
+      <Field label={copy.password}>
+        <PasswordInput
+          required
+          minLength={12}
+          autoComplete="new-password"
+          dir="ltr"
+          value={draft.password}
+          onChange={(event) => setDraft({ ...draft, password: event.target.value })}
+        />
+      </Field>
+      <Field label={copy.firstName}>
+        <Input
+          value={draft.firstName}
+          onChange={(event) => setDraft({ ...draft, firstName: event.target.value })}
+        />
+      </Field>
+      <Field label={copy.lastName}>
+        <Input
+          value={draft.lastName}
+          onChange={(event) => setDraft({ ...draft, lastName: event.target.value })}
+        />
+      </Field>
+      <RoleField
+        value={draft.roles}
+        onChange={(roles) => setDraft({ ...draft, roles })}
+        allowPlatform={allowPlatform}
+        organizationType={selectedOrganization?.type}
+        allowedRoles={allowedRoles}
+      />
+      {isPlatform && requiresOrganization ? (
+        <OrganizationField
+          organizations={organizations}
+          value={draft.organizationId}
+          onChange={(organizationId) => {
+            const roles = rolesForOrganizationType(
+              organizations.find((item) => item.id === organizationId)?.type,
+            );
+            setDraft({
+              ...draft,
+              organizationId,
+              roles: draft.roles.filter((role) => roles.includes(role)),
+            });
+          }}
+        />
+      ) : null}
       {error ? (
-        <p role="alert" className="md:col-span-2 text-sm text-rose-700">
+        <p role="alert" className="text-sm text-rose-700">
           {error}
         </p>
       ) : null}
-      <div className="md:col-span-2 flex justify-end gap-2">
-        {step === 1 ? (
-          <Button type="button" variant="ghost" disabled={isSubmitting} onClick={() => setStep(0)}>
-            {language === "fa" ? "قبلی" : "Back"}
-          </Button>
-        ) : null}
+      <div className="flex justify-end gap-2">
         <Button
           loading={isSubmitting}
-          disabled={
-            step === 1 && (!draft.roles.length || (requiresOrganization && !draft.organizationId))
-          }
+          disabled={!draft.roles.length || (requiresOrganization && !draft.organizationId)}
         >
-          {step === 0 ? (language === "fa" ? "ادامه" : "Continue") : copy.createAccount}
+          {copy.createAccount}
         </Button>
       </div>
     </form>
@@ -923,12 +858,13 @@ function RoleField({
     organizationType ? rolesForOrganizationType(organizationType) : allRoles
   ).filter(
     (role) =>
+      role !== "STUDENT" &&
       (!allowedRoles || allowedRoles.includes(role)) &&
       (allowPlatform || role !== "PLATFORM_ADMIN"),
   );
-  const roles = [...new Set([...value, ...available])];
+  const roles = [...new Set([...value.filter((role) => role !== "STUDENT"), ...available])];
   return (
-    <fieldset className="grid gap-2 sm:col-span-2" aria-label={copy.role}>
+    <fieldset className="grid gap-2" aria-label={copy.role}>
       <legend className="text-sm font-medium">{copy.role}</legend>
       <p className="text-xs text-slate-500">
         {language === "fa"
