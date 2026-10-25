@@ -44,6 +44,13 @@ import {
 type Point = { label: string; value: number; color: string };
 type AttendanceData = NonNullable<PrincipalDashboardContract["attendance"]>;
 
+function formatDay(value: string) {
+  const date = new Date(value);
+  return Number.isNaN(date.getTime())
+    ? "تاریخ نامشخص"
+    : date.toLocaleDateString("fa-IR", { month: "short", day: "numeric" });
+}
+
 export function PrincipalDashboard() {
   const auth = useAuth();
   const queryClient = useQueryClient();
@@ -107,15 +114,139 @@ export function PrincipalDashboard() {
   ].filter((item) => auth.can(item.capability));
   return (
     <main className="principal-dashboard mx-auto grid w-full max-w-7xl gap-4" dir="rtl">
-      <header className="principal-dashboard__hero">
-        <div>
-          <p className="principal-dashboard__eyebrow">میز مدیریت مدرسه</p>
-          <h1>تصمیم‌های امروز، با تصویر روشن از مدرسه</h1>
-          <p>
-            شاخص‌ها فقط برای مدرسهٔ فعال شما محاسبه شده‌اند و هر بخش بر اساس سطح دسترسی نمایش داده
-            می‌شود.
-          </p>
-        </div>
+      <section className="principal-dashboard__daily-grid" aria-label="پیگیری‌های امروز">
+        <Card className="principal-dashboard__daily-card p-5">
+          <div className="principal-dashboard__section-heading">
+            <div>
+              <p>حضور امروز</p>
+              <h2>دانش‌آموزان غایب</h2>
+            </div>
+            <UsersRound aria-hidden="true" />
+          </div>
+          {auth.can("students.read") && data.todayAbsences?.length ? (
+            <ul className="principal-dashboard__daily-list">
+              {data.todayAbsences.map((student) => (
+                <li key={student.id}>
+                  <Link to={`/admin/students?studentId=${encodeURIComponent(student.id)}`}>
+                    <span>
+                      <strong>{student.name}</strong>
+                      <small>{student.context}</small>
+                    </span>
+                    <b>{student.sessions.toLocaleString("fa-IR")} جلسه</b>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <Empty text="برای امروز غیبت ثبت‌شده‌ای وجود ندارد." />
+          )}
+          {(auth.can("attendance.read") || auth.can("attendance.review")) && (
+            <Link className="principal-dashboard__daily-action" to="/admin/attendance">
+              مشاهده و مدیریت حضور <ArrowLeft size={15} />
+            </Link>
+          )}
+        </Card>
+        <Card className="principal-dashboard__daily-card p-5">
+          <div className="principal-dashboard__section-heading">
+            <div>
+              <p>در انتظار تصمیم</p>
+              <h2>درخواست‌های مرخصی</h2>
+            </div>
+            <CalendarDays aria-hidden="true" />
+          </div>
+          {auth.can("leave.read") && data.pendingLeaveRequests?.length ? (
+            <ul className="principal-dashboard__daily-list">
+              {data.pendingLeaveRequests.map((request) => (
+                <li key={request.id}>
+                  <Link to={`/admin/leave-requests?requestId=${encodeURIComponent(request.id)}`}>
+                    <span>
+                      <strong>{request.studentName}</strong>
+                      <small>
+                        {request.leaveType === "SCHOOL_EXIT" ? "خروج از مدرسه" : "مرخصی"}
+                      </small>
+                    </span>
+                    <b>{formatDay(request.startDate)}</b>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <Empty text="درخواست مرخصیِ منتظر تصمیمی وجود ندارد." />
+          )}
+          {auth.can("leave.read") && (
+            <Link className="principal-dashboard__daily-action" to="/admin/leave-requests">
+              بررسی درخواست‌ها <ArrowLeft size={15} />
+            </Link>
+          )}
+        </Card>
+        <Card className="principal-dashboard__daily-card p-5">
+          <div className="principal-dashboard__section-heading">
+            <div>
+              <p>وضعیت امروز</p>
+              <h2>خلاصهٔ حضور مدرسه</h2>
+            </div>
+            <CheckCircle2 aria-hidden="true" />
+          </div>
+          {attendance ? (
+            <dl className="principal-dashboard__daily-metrics">
+              <div>
+                <dt>حاضر</dt>
+                <dd>{(todayAttendance?.present ?? 0).toLocaleString("fa-IR")}</dd>
+              </div>
+              <div>
+                <dt>غایب</dt>
+                <dd>{(todayAttendance?.absent ?? 0).toLocaleString("fa-IR")}</dd>
+              </div>
+              <div>
+                <dt>تأخیر</dt>
+                <dd>{(todayAttendance?.late ?? 0).toLocaleString("fa-IR")}</dd>
+              </div>
+              <div>
+                <dt>نرخ حضور</dt>
+                <dd>
+                  {todayAttendance?.rate == null
+                    ? "—"
+                    : `${todayAttendance.rate.toLocaleString("fa-IR")}٪`}
+                </dd>
+              </div>
+            </dl>
+          ) : (
+            <Empty text="دادهٔ حضور برای سطح دسترسی فعلی در دسترس نیست." />
+          )}
+        </Card>
+        <Card className="principal-dashboard__daily-card p-5">
+          <div className="principal-dashboard__section-heading">
+            <div>
+              <p>وضعیت مدرسه</p>
+              <h2>عملیات فعال</h2>
+            </div>
+            <DoorOpen aria-hidden="true" />
+          </div>
+          {operations ? (
+            <dl className="principal-dashboard__daily-metrics">
+              <div>
+                <dt>دانش‌آموز فعال</dt>
+                <dd>{operations.activeStudents.toLocaleString("fa-IR")}</dd>
+              </div>
+              <div>
+                <dt>خارج از مدرسه</dt>
+                <dd>{operations.currentlyOut.toLocaleString("fa-IR")}</dd>
+              </div>
+              <div>
+                <dt>برنامهٔ امروز</dt>
+                <dd>{operations.scheduleEntries.toLocaleString("fa-IR")}</dd>
+              </div>
+              <div>
+                <dt>کارکنان</dt>
+                <dd>{operations.staff.toLocaleString("fa-IR")}</dd>
+              </div>
+            </dl>
+          ) : (
+            <Empty text="وضعیت عملیات برای سطح دسترسی فعلی در دسترس نیست." />
+          )}
+        </Card>
+      </section>
+      <div className="principal-dashboard__controls" aria-label="بازه گزارش">
         <div className="principal-dashboard__controls" aria-label="بازه گزارش">
           <button
             type="button"
@@ -153,7 +284,7 @@ export function PrincipalDashboard() {
             })}
           </span>
         </div>
-      </header>
+      </div>
 
       <section className="principal-dashboard__status-grid grid gap-4" aria-label="وضعیت حضور">
         {attendance ? (

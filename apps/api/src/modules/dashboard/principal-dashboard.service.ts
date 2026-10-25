@@ -77,6 +77,19 @@ type PrincipalDashboardContract = {
     scheduleEntries: number;
     staff: number;
   };
+  todayAbsences?: Array<{
+    id: string;
+    name: string;
+    context: string;
+    sessions: number;
+  }>;
+  pendingLeaveRequests?: Array<{
+    id: string;
+    studentName: string;
+    leaveType: string;
+    startDate: string;
+    endDate: string;
+  }>;
 };
 
 /**
@@ -184,7 +197,66 @@ export class PrincipalDashboardService {
       can("exit.read")
     )
       response.operations = await this.operations(organizationId, can);
+    if (
+      can("students.read") &&
+      (can("attendance.read") ||
+        can("attendance.reports.read") ||
+        can("attendance.review"))
+    )
+      response.todayAbsences = await this.todayAbsences(organizationId, end);
+    if (can("leave.read"))
+      response.pendingLeaveRequests =
+        await this.pendingLeaveRequests(organizationId);
     return response;
+  }
+
+  private async todayAbsences(organizationId: string, day: string) {
+    const rows = await this.db.query(
+      `SELECT r.studentId id,
+        TRIM(COALESCE(u.firstName,'') || ' ' || COALESCE(u.lastName,'')) name,
+        COALESCE(ec.name, NULLIF(MAX(s.titleSnapshot), ''), 'بدون عنوان') context,
+        COUNT(r.id) sessions
+       FROM attendance_records r
+       JOIN attendance_sessions s ON s.id=r.sessionId
+       JOIN students student ON student.id=r.studentId
+       LEFT JOIN users u ON u.id=student.userId
+       LEFT JOIN education_classes ec ON ec.id=s.contextId AND ec.organizationId=s.organizationId
+       WHERE s.organizationId=?
+         AND COALESCE(s.operationalDate,date(s.sessionDate))=?
+         AND r.status='absent'
+       GROUP BY r.studentId, u.firstName, u.lastName, ec.name
+       ORDER BY sessions DESC, name ASC
+       LIMIT 12`,
+      [organizationId, day],
+    );
+    return rows.map((row: Record<string, unknown>) => ({
+      id: String(row.id),
+      name: String(row.name || "دانش آموز"),
+      context: String(row.context),
+      sessions: Number(row.sessions ?? 0),
+    }));
+  }
+
+  private async pendingLeaveRequests(organizationId: string) {
+    const rows = await this.db.query(
+      `SELECT l.id,
+        TRIM(COALESCE(u.firstName,'') || ' ' || COALESCE(u.lastName,'')) studentName,
+        l.leaveType, l.startDate, l.endDate
+       FROM leave_requests l
+       JOIN students student ON student.id=l.studentId
+       LEFT JOIN users u ON u.id=student.userId
+       WHERE l.organizationId=? AND l.status='PENDING'
+       ORDER BY l.createdAt ASC
+       LIMIT 12`,
+      [organizationId],
+    );
+    return rows.map((row: Record<string, unknown>) => ({
+      id: String(row.id),
+      studentName: String(row.studentName || "دانش آموز"),
+      leaveType: String(row.leaveType),
+      startDate: String(row.startDate),
+      endDate: String(row.endDate),
+    }));
   }
 
   private async attendance(
