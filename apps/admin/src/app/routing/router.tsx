@@ -337,6 +337,11 @@ function StudentOnlyRoute({ children }: { children: ReactNode }) {
   return auth.activeRole === "STUDENT" ? <>{children}</> : <Navigate to="/admin" replace />;
 }
 
+function NonStudentRoute({ children }: { children: ReactNode }) {
+  const auth = useAuth();
+  return auth.activeRole === "STUDENT" ? <Navigate to="/admin" replace /> : <>{children}</>;
+}
+
 function PrincipalOnlyRoute({ children }: { children: ReactNode }) {
   const auth = useAuth();
   return auth.activeRole === "PRINCIPAL" ? <>{children}</> : <Navigate to="/admin" replace />;
@@ -564,9 +569,11 @@ export const adminRouteObjects = [
           {
             path: "communication/notifications",
             element: (
-              <RouteScreen>
-                <NotificationsPage />
-              </RouteScreen>
+              <NonStudentRoute>
+                <RouteScreen>
+                  <NotificationsPage />
+                </RouteScreen>
+              </NonStudentRoute>
             ),
           },
           {

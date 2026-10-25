@@ -34,7 +34,7 @@ describe("portal-domain", () => {
     expect(isRouteAvailableOnDomain("/admin/students", "student")).toBe(false);
     expect(isRouteAvailableOnDomain("/admin/students", "admin")).toBe(true);
     expect(isRouteAvailableOnDomain("/admin/schedule", "student")).toBe(true);
-    expect(isRouteAvailableOnDomain("/admin/communication/notifications", "student")).toBe(true);
+    expect(isRouteAvailableOnDomain("/admin/communication/notifications", "student")).toBe(false);
     expect(isRouteAvailableOnDomain("/admin/communication/sms", "student")).toBe(false);
     expect(isRouteAvailableOnDomain("/admin//students", "student")).toBe(false);
     expect(isRouteAvailableOnDomain("/admin/schedule", "admin")).toBe(true);

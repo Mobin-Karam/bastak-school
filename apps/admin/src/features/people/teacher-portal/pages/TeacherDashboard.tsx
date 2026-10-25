@@ -1,7 +1,7 @@
 import { TimetableToday } from "../../../academics/schedule";
 import { useQuery } from "@tanstack/react-query";
 import { BookOpenCheck, CalendarClock, ChevronLeft, Clock3, UsersRound } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../../../identity/auth";
 import { listSchedule, type ScheduleEntry } from "../../../academics/schedule/api/schedule.api";
@@ -15,11 +15,29 @@ import { AnnouncementEnvelope } from "../../../analytics/dashboard/components/An
 import { CurrentPrayerCard } from "../../../analytics/school-home/components/CurrentPrayerCard";
 import { TeacherClassAttendanceSheet } from "../components/TeacherClassAttendanceSheet";
 
+function tehranClockMinutes(date: Date) {
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Asia/Tehran",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(date);
+  const value = (type: Intl.DateTimeFormatPartTypes) =>
+    Number(parts.find((part) => part.type === type)?.value ?? 0);
+  return value("hour") * 60 + value("minute");
+}
+
+function clockMinutes(time: string) {
+  const [hour = "0", minute = "0"] = time.split(":");
+  return Number(hour) * 60 + Number(minute);
+}
+
 /** The teacher's class-first home; schedule and roster data remain server-scoped. */
 export function TeacherDashboard() {
   const auth = useAuth();
   const { formatDate } = useLocale();
   const [calendarDate, setCalendarDate] = useState(todayIso);
+  const [now, setNow] = useState(() => new Date());
   const [selectedClass, setSelectedClass] = useState<ScheduleEntry | null>(null);
   const home = useQuery({
     queryKey: ["dashboard", "teacher-home"],
@@ -34,26 +52,31 @@ export function TeacherDashboard() {
     queryFn: () => listClasses(auth.context?.activeOrganization?.id),
     enabled: auth.can("classes.read"),
   });
-  const weekday = new Date(`${calendarDate}T12:00:00`).getDay();
-  const classesToday = useMemo(
-    () =>
-      (schedule.data ?? []).filter(
-        (entry) => entry.status === "ACTIVE" && entry.weekday === weekday,
-      ),
-    [schedule.data, weekday],
-  );
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(new Date()), 60_000);
+    return () => window.clearInterval(timer);
+  }, []);
   const prayer = home.data?.home?.prayer;
   const prayerTimes = prayer && "times" in prayer ? prayer.times : null;
   // The home payload intentionally contains a lean calendar record. Resolve it
   // against the schedule query before opening attendance so organization and
   // classroom identifiers never come from an untrusted UI value.
-  const homeCurrentClass = home.data?.home?.currentClass;
+  const todayEntries = useMemo(
+    () =>
+      (schedule.data ?? []).filter(
+        (entry) =>
+          entry.status === "ACTIVE" &&
+          entry.weekday === new Date(`${todayIso()}T12:00:00`).getDay(),
+      ),
+    [schedule.data],
+  );
+  const currentMinute = tehranClockMinutes(now);
   const currentClass =
-    (homeCurrentClass
-      ? (schedule.data ?? []).find((entry) => entry.id === homeCurrentClass.id)
-      : undefined) ??
-    classesToday[0] ??
-    null;
+    todayEntries.find(
+      (entry) =>
+        currentMinute >= clockMinutes(entry.startTime) &&
+        currentMinute < clockMinutes(entry.endTime),
+    ) ?? null;
 
   if (schedule.isLoading && home.isLoading)
     return <LoadingState label="در حال آماده‌سازی میز استاد…" />;
@@ -88,8 +111,8 @@ export function TeacherDashboard() {
                 <CalendarClock size={18} aria-hidden="true" />
               </span>
               <div>
-                <h2 className="text-sm font-black text-ink">کلاس جاری</h2>
-                <p className="mt-0.5 text-[11px] text-slate-500">فهرست و حضور دانش‌آموزان</p>
+                <h2 className="text-sm font-black text-ink">کلاس همین حالا</h2>
+                <p className="mt-0.5 text-[11px] text-slate-500">بر اساس ساعت جاری تهران</p>
               </div>
             </div>
             <Link
@@ -116,7 +139,7 @@ export function TeacherDashboard() {
               </div>
             </button>
           ) : (
-            <EmptyState title="امروز کلاسی ندارید." />
+            <EmptyState title="در این ساعت کلاسی ندارید." />
           )}
         </Card>
 

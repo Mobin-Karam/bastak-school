@@ -40,6 +40,7 @@ export type LoginPortal = "student" | "admin";
 
 @Injectable()
 export class AuthService {
+  private static readonly SELF_ACCOUNT_CHANGE_LIMIT = 3;
   private readonly credentials: SessionCredentialService;
   constructor(
     @InjectRepository(User) private readonly users: Repository<User>,
@@ -323,10 +324,16 @@ export class AuthService {
       phoneNumber: account?.phoneNumber ?? null,
       phoneNumberChangeAvailable:
         user.capabilities?.includes("platform.phone.self.manage") ||
-        (account?.phoneNumberChangeCount ?? 0) === 0,
+        (account?.phoneNumberChangeCount ?? 0) < 3,
       phoneNumberChangeUnlimited: Boolean(
         user.capabilities?.includes("platform.phone.self.manage"),
       ),
+      phoneNumberChangeCount: account?.phoneNumberChangeCount ?? 0,
+      passwordChangeAvailable:
+        user.capabilities?.includes("platform.phone.self.manage") ||
+        !this.isStudentOrGuardian(user) ||
+        (account?.passwordChangeCount ?? 0) < 3,
+      passwordChangeCount: account?.passwordChangeCount ?? 0,
     };
   }
 
@@ -453,9 +460,10 @@ export class AuthService {
     currentPassword: string,
     newPassword: string,
   ) {
+    this.assertEnglishPassword(newPassword);
     const account = await this.users.findOne({
       where: { id: user.id },
-      select: { id: true, passwordHash: true },
+      select: { id: true, passwordHash: true, passwordChangeCount: true },
     });
     if (
       !account ||
@@ -463,8 +471,20 @@ export class AuthService {
     ) {
       throw new ApiException(401, "INVALID_CREDENTIALS", "رمز فعلی درست نیست.");
     }
+    const passwordChangeCount = account.passwordChangeCount ?? 0;
+    if (
+      this.isStudentOrGuardian(user) &&
+      passwordChangeCount >= AuthService.SELF_ACCOUNT_CHANGE_LIMIT
+    )
+      throw new ApiException(
+        409,
+        "PASSWORD_CHANGE_REQUEST_REQUIRED",
+        "سقف تغییر مستقیم رمز تکمیل شده است؛ درخواست بررسی ثبت کنید.",
+      );
 
     account.passwordHash = await bcrypt.hash(newPassword, 12);
+    if (this.isStudentOrGuardian(user))
+      account.passwordChangeCount = passwordChangeCount + 1;
     await this.users.save(account);
     await this.sessions.delete({
       user: { id: user.id },
@@ -486,7 +506,11 @@ export class AuthService {
         "PHONE_CHANGE_REVIEW_REQUIRED",
         "تغییر شماره این حساب باید توسط مدرسه بررسی شود.",
       );
-    if (!canChangeAnyTime && account.phoneNumberChangeCount > 0)
+    if (
+      !canChangeAnyTime &&
+      (account.phoneNumberChangeCount ?? 0) >=
+        AuthService.SELF_ACCOUNT_CHANGE_LIMIT
+    )
       throw new ApiException(
         409,
         "PHONE_CHANGE_REQUEST_REQUIRED",
@@ -510,7 +534,9 @@ export class AuthService {
       );
     account.phoneNumber = normalized;
     account.username = normalized;
-    if (!canChangeAnyTime) account.phoneNumberChangeCount += 1;
+    if (!canChangeAnyTime)
+      account.phoneNumberChangeCount =
+        (account.phoneNumberChangeCount ?? 0) + 1;
     await this.users.save(account);
     await this.sessions.delete({
       user: { id: user.id },
@@ -520,7 +546,10 @@ export class AuthService {
       phoneNumber: account.phoneNumber,
       changed: true,
       otherSessionsRevoked: true,
-      requiresReviewForNextChange: !canChangeAnyTime,
+      requiresReviewForNextChange:
+        !canChangeAnyTime &&
+        (account.phoneNumberChangeCount ?? 0) >=
+          AuthService.SELF_ACCOUNT_CHANGE_LIMIT,
     };
   }
 
@@ -547,6 +576,18 @@ export class AuthService {
         403,
         "ORGANIZATION_FORBIDDEN",
         "به این مدرسه دسترسی ندارید.",
+      );
+    const account = await this.users.findOneBy({ id: user.id });
+    if (!account)
+      throw new ApiException(404, "USER_NOT_FOUND", "حساب کاربری پیدا نشد.");
+    if (
+      (account.phoneNumberChangeCount ?? 0) <
+      AuthService.SELF_ACCOUNT_CHANGE_LIMIT
+    )
+      throw new ApiException(
+        409,
+        "PHONE_CHANGE_DIRECT_AVAILABLE",
+        "تا پیش از رسیدن به سقف تغییر مستقیم، شماره را مستقیماً تغییر دهید.",
       );
     const normalized = normalizeIranianMobile(phoneNumber);
     if (!isIranianMobile(normalized))
@@ -600,6 +641,85 @@ export class AuthService {
     };
   }
 
+  async createPasswordChangeRequest(
+    user: AuthenticatedUser,
+    organizationId: string,
+    currentPassword: string,
+    newPassword: string,
+    reason?: string,
+  ) {
+    this.assertEnglishPassword(newPassword);
+    if (!this.accountChangeRequests || !this.organizations)
+      throw new ApiException(
+        503,
+        "ACCOUNT_CHANGE_UNAVAILABLE",
+        "سامانه درخواست تغییر در دسترس نیست.",
+      );
+    if (!this.isStudentOrGuardian(user))
+      throw new ApiException(
+        403,
+        "FORBIDDEN",
+        "این درخواست فقط برای دانش‌آموز و سرپرست است.",
+      );
+    if (!(user.organizationIds ?? []).includes(organizationId))
+      throw new ApiException(
+        403,
+        "ORGANIZATION_FORBIDDEN",
+        "به این مدرسه دسترسی ندارید.",
+      );
+    const account = await this.users.findOne({
+      where: { id: user.id },
+      select: { id: true, passwordHash: true, passwordChangeCount: true },
+    });
+    if (
+      !account ||
+      !(await bcrypt.compare(currentPassword, account.passwordHash))
+    )
+      throw new ApiException(401, "INVALID_CREDENTIALS", "رمز فعلی درست نیست.");
+    if (
+      (account.passwordChangeCount ?? 0) < AuthService.SELF_ACCOUNT_CHANGE_LIMIT
+    )
+      throw new ApiException(
+        409,
+        "PASSWORD_CHANGE_DIRECT_AVAILABLE",
+        "تا پیش از رسیدن به سقف تغییر مستقیم، رمز را مستقیماً تغییر دهید.",
+      );
+    const pending = await this.accountChangeRequests.findOne({
+      where: {
+        organization: { id: organizationId },
+        user: { id: user.id },
+        kind: "PASSWORD",
+        status: "PENDING",
+      },
+    });
+    if (pending)
+      throw new ApiException(
+        409,
+        "PASSWORD_CHANGE_REQUEST_PENDING",
+        "یک درخواست تغییر رمز در انتظار بررسی دارید.",
+      );
+    const organization = await this.organizations.findOneBy({
+      id: organizationId,
+    });
+    if (!organization)
+      throw new ApiException(404, "ORGANIZATION_NOT_FOUND", "مدرسه پیدا نشد.");
+    const request = await this.accountChangeRequests.save(
+      this.accountChangeRequests.create({
+        organization,
+        user: { id: user.id } as User,
+        kind: "PASSWORD",
+        requestedValue: "",
+        requestedSecretHash: await bcrypt.hash(newPassword, 12),
+        reason: reason?.trim() || "",
+      }),
+    );
+    return {
+      id: request.id,
+      status: request.status,
+      createdAt: request.createdAt,
+    };
+  }
+
   async listPhoneNumberChangeRequests(
     user: AuthenticatedUser,
     organizationId?: string,
@@ -627,7 +747,7 @@ export class AuthService {
         "مدرسه فعال را انتخاب کنید.",
       );
     const requests = await this.accountChangeRequests.find({
-      where: { organization: { id: scope }, kind: "PHONE_NUMBER" },
+      where: { organization: { id: scope } },
       relations: { user: true, organization: true },
       order: { createdAt: "DESC" },
     });
@@ -654,6 +774,15 @@ export class AuthService {
     }));
   }
 
+  private assertEnglishPassword(password: string) {
+    if (!/^[\x21-\x7E]+$/.test(password))
+      throw new ApiException(
+        422,
+        "PASSWORD_ENGLISH_CHARACTERS_REQUIRED",
+        "رمز جدید فقط باید از نویسه‌های انگلیسی تشکیل شود.",
+      );
+  }
+
   async reviewPhoneNumberChangeRequest(
     user: AuthenticatedUser,
     id: string,
@@ -667,13 +796,32 @@ export class AuthService {
         "سامانه درخواست تغییر در دسترس نیست.",
       );
     const request = await this.accountChangeRequests.findOne({
-      where: { id, kind: "PHONE_NUMBER" },
+      where: { id },
       relations: { organization: true, user: true },
+      select: {
+        id: true,
+        kind: true,
+        requestedValue: true,
+        requestedSecretHash: true,
+        status: true,
+        reason: true,
+        reviewNote: true,
+        organization: { id: true, name: true },
+        user: {
+          id: true,
+          username: true,
+          firstName: true,
+          lastName: true,
+          phoneNumber: true,
+          phoneNumberChangeCount: true,
+          passwordChangeCount: true,
+        },
+      },
     });
     if (!request)
       throw new ApiException(
         404,
-        "PHONE_CHANGE_REQUEST_NOT_FOUND",
+        "ACCOUNT_CHANGE_REQUEST_NOT_FOUND",
         "درخواست پیدا نشد.",
       );
     const context = await this.authorization.enrich(
@@ -688,10 +836,10 @@ export class AuthService {
     if (request.status !== "PENDING")
       throw new ApiException(
         409,
-        "PHONE_CHANGE_REQUEST_REVIEWED",
+        "ACCOUNT_CHANGE_REQUEST_REVIEWED",
         "این درخواست قبلاً بررسی شده است.",
       );
-    if (approved) {
+    if (approved && request.kind === "PHONE_NUMBER") {
       const existing = await this.users.findOne({
         where: { phoneNumber: request.requestedValue },
       });
@@ -703,7 +851,21 @@ export class AuthService {
         );
       request.user.phoneNumber = request.requestedValue;
       request.user.username = request.requestedValue;
-      request.user.phoneNumberChangeCount += 1;
+      request.user.phoneNumberChangeCount =
+        (request.user.phoneNumberChangeCount ?? 0) + 1;
+      await this.users.save(request.user);
+      await this.sessions.delete({ user: { id: request.user.id } });
+    }
+    if (approved && request.kind === "PASSWORD") {
+      if (!request.requestedSecretHash)
+        throw new ApiException(
+          422,
+          "PASSWORD_CHANGE_REQUEST_INVALID",
+          "رمز درخواست‌شده معتبر نیست.",
+        );
+      request.user.passwordHash = request.requestedSecretHash;
+      request.user.passwordChangeCount =
+        (request.user.passwordChangeCount ?? 0) + 1;
       await this.users.save(request.user);
       await this.sessions.delete({ user: { id: request.user.id } });
     }

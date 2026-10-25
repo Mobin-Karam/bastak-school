@@ -17,11 +17,12 @@ describe("student navigation", () => {
     expect(paths).toEqual([
       "schedule",
       "books",
-      "my-attendance",
-      "student-leave",
-      "communication/notifications",
-      "registration",
       "profile",
+      "student-leave",
+      "achievements",
+      "coin-shop",
+      "registration",
+      "my-attendance",
       "settings",
     ]);
   });
@@ -50,9 +51,9 @@ describe("student navigation", () => {
       section: "درخواست‌های من",
       path: "student-leave",
     });
-    expect(resolveAdminNavigation("/admin/communication/notifications", "STUDENT")).toMatchObject({
-      section: "اعلان‌ها",
-      path: "communication/notifications",
+    expect(resolveAdminNavigation("/admin/achievements", "STUDENT")).toMatchObject({
+      section: "پیشرفت و سکه",
+      path: "achievements",
     });
   });
 });

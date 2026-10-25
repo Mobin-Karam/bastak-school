@@ -15,6 +15,7 @@ import { ApiException } from "../../common/exceptions/api.exception";
 import { ok } from "../../common/utils/envelope";
 import { AuthenticatedUser, AuthService } from "./auth.service";
 import { ChangePasswordDto } from "./dto/change-password.dto";
+import { CreatePasswordChangeRequestDto } from "./dto/password-change-request.dto";
 import { CheckPhoneDto } from "./dto/check-phone.dto";
 import { LoginDto } from "./dto/login.dto";
 import {
@@ -118,6 +119,24 @@ export class AuthController {
       throw new ApiException(401, "UNAUTHORIZED", "لطفاً وارد حساب شوید.");
     return this.auth
       .changePassword(user, dto.currentPassword, dto.newPassword)
+      .then(ok);
+  }
+
+  @Post("profile/password-requests")
+  async requestPasswordChange(
+    @CurrentUser() user: AuthenticatedUser | null,
+    @Body() dto: CreatePasswordChangeRequestDto,
+  ) {
+    if (!user)
+      throw new ApiException(401, "UNAUTHORIZED", "لطفاً وارد حساب شوید.");
+    return this.auth
+      .createPasswordChangeRequest(
+        user,
+        dto.organizationId,
+        dto.currentPassword,
+        dto.newPassword,
+        dto.reason,
+      )
       .then(ok);
   }
 

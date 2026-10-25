@@ -1,19 +1,28 @@
 import { useDeferredValue, useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowRight, UserPlus, X } from "lucide-react";
+import { ArrowRight, KeyRound, UserPlus, X } from "lucide-react";
 import { useSearchParams } from "react-router-dom";
 import type { Student } from "../../../../shared/types/domain";
 import { useStudents } from "../../../../shared/hooks/useStudents";
 import { normalizePersianText } from "../../../../shared/lib/utils";
-import { useModal } from "../../../../shared/ui/modal";
+import { Modal, useModal } from "../../../../shared/ui/modal";
 import { useOptionalAdminLanguage } from "../../../../shared/ui/locale";
 import { useAuth } from "../../../identity/auth";
 import { getApiWorkContextKey } from "../../../../shared/api/api";
-import { Button, EmptyState, ErrorState, LoadingState } from "../../../../shared/ui/ui";
+import {
+  Button,
+  EmptyState,
+  ErrorState,
+  Field,
+  Input,
+  LoadingState,
+  Select,
+} from "../../../../shared/ui/ui";
 import { ResponsiveDrawer } from "../../../../shared/ui/responsive-drawer";
 import { notify } from "../../../../shared/ui/notifications";
 import {
   archiveStudent,
+  bulkResetStudentPasswords,
   createStudent,
   getStudentAttempts,
   getStudentLearning,
@@ -169,6 +178,9 @@ export function StudentsPage() {
   const [mobileDirectory, setMobileDirectory] = useState(() => !searchParams.get("studentId"));
   const [form, setForm] = useState<StudentForm>(emptyStudentForm());
   const [securityPassword, setSecurityPassword] = useState("");
+  const [bulkPasswordOpen, setBulkPasswordOpen] = useState(false);
+  const [bulkPassword, setBulkPassword] = useState("");
+  const [bulkScope, setBulkScope] = useState<"selected" | "filtered">("filtered");
   const [feedback, setFeedback] = useState<StudentEditorFeedback>(null);
   const [createDiscardOpen, setCreateDiscardOpen] = useState(false);
   const deferredSearch = useDeferredValue(search);
@@ -628,6 +640,25 @@ export function StudentsPage() {
         message: readableError(error, copy.passwordChangeFailed),
       }),
   });
+  const bulkResetPassword = useMutation({
+    mutationFn: () =>
+      bulkResetStudentPasswords(
+        bulkScope === "selected" && selectedId
+          ? [selectedId]
+          : filtered.map((student) => student.id),
+        bulkPassword,
+      ),
+    onSuccess: (result) => {
+      setBulkPassword("");
+      setBulkPasswordOpen(false);
+      setFeedback({
+        tone: "success",
+        message: `${result.updated.toLocaleString(locale)} حساب با رمز جدید به‌روزرسانی شد و نشست‌های قبلی بسته شدند.`,
+      });
+    },
+    onError: (error) =>
+      setFeedback({ tone: "error", message: readableError(error, copy.passwordChangeFailed) }),
+  });
 
   const reviewSyncHealth = useMutation({
     mutationFn: () => reviewStudentSyncHealth(selectedId),
@@ -1050,6 +1081,18 @@ export function StudentsPage() {
                       {copy.createStudent}
                     </Button>
                   ) : null}
+                  {auth.can("students.update") && filtered.length ? (
+                    <Button
+                      variant="soft"
+                      onClick={() => {
+                        setBulkScope(selectedId ? "selected" : "filtered");
+                        setBulkPasswordOpen(true);
+                      }}
+                    >
+                      <KeyRound size={16} />
+                      {language === "fa" ? "تغییر گروهی رمز" : "Bulk password change"}
+                    </Button>
+                  ) : null}
                 </div>
               ) : undefined
             }
@@ -1222,6 +1265,57 @@ export function StudentsPage() {
           </div>
         }
       />
+      <Modal
+        open={bulkPasswordOpen}
+        onOpenChange={setBulkPasswordOpen}
+        title={language === "fa" ? "تغییر گروهی رمز عبور" : "Bulk password change"}
+        description={
+          language === "fa"
+            ? "برای هر حساب انتخاب‌شده همان رمز ثبت می‌شود و همه نشست‌های قبلی آن‌ها پایان می‌یابد."
+            : "The same password is set for every selected account and all their active sessions end."
+        }
+      >
+        <div className="grid gap-4" dir={language === "fa" ? "rtl" : "ltr"}>
+          <Field label={language === "fa" ? "دامنه تغییر" : "Change scope"}>
+            <Select
+              value={bulkScope}
+              onChange={(event) => setBulkScope(event.target.value as "selected" | "filtered")}
+            >
+              {selectedId ? (
+                <option value="selected">
+                  {language === "fa" ? "فقط دانش‌آموز انتخاب‌شده" : "Selected student only"}
+                </option>
+              ) : null}
+              <option value="filtered">
+                {language === "fa"
+                  ? `همه ${filtered.length.toLocaleString(locale)} دانش‌آموزِ فهرست فعلی`
+                  : `All ${filtered.length.toLocaleString(locale)} students in this filtered list`}
+              </option>
+            </Select>
+          </Field>
+          <Field
+            label={copy.newPassword}
+            error={bulkPassword && bulkPassword.length < 12 ? copy.passwordMinimum : undefined}
+          >
+            <Input
+              dir="ltr"
+              autoComplete="new-password"
+              type="password"
+              value={bulkPassword}
+              onChange={(event) => setBulkPassword(event.target.value)}
+            />
+          </Field>
+          <Button
+            variant="danger"
+            loading={bulkResetPassword.isPending}
+            disabled={bulkPassword.length < 12 || bulkResetPassword.isPending}
+            onClick={() => bulkResetPassword.mutate()}
+          >
+            <KeyRound size={16} />
+            {language === "fa" ? "ثبت رمز و پایان نشست‌ها" : "Set password and end sessions"}
+          </Button>
+        </div>
+      </Modal>
     </div>
   );
 }

@@ -1,27 +1,16 @@
 import { useQuery } from "@tanstack/react-query";
-import {
-  BookOpen,
-  CalendarCheck2,
-  ChevronLeft,
-  Clock3,
-  LockKeyhole,
-  Medal,
-  Sparkles,
-} from "lucide-react";
-import { useMemo, useState } from "react";
+import { BookOpen, CalendarCheck2, Clock3, Sparkles } from "lucide-react";
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import {
   getAttendanceEncouragement,
   type SelfAttendanceRecord,
 } from "../../../student-life/attendance/public";
-import { listSchedule } from "../../../academics/schedule/api/schedule.api";
 import { useAuth } from "../../../identity/auth";
 import { fa, todayIso } from "../../../../shared/lib/utils";
 import { useLocale } from "../../../../shared/ui/locale";
-import { Card, EmptyState, LoadingState } from "../../../../shared/ui/ui";
+import { Card, LoadingState } from "../../../../shared/ui/ui";
 import { AttendanceCoin } from "../../../../shared/ui/attendance-coin";
-import { AchievementCountdown } from "../../../achievements";
-import { CoinShopTeaser } from "../../../coin-shop";
 import { CurrentPrayerCard } from "../../school-home/components/CurrentPrayerCard";
 import { getAdminDashboard } from "../api/dashboard.api";
 import { AnnouncementEnvelope } from "./AnnouncementEnvelope";
@@ -42,7 +31,6 @@ export function StudentDashboard() {
     queryKey: ["dashboard", "student-home"],
     queryFn: () => getAdminDashboard("STUDENT"),
   });
-  const schedule = useQuery({ queryKey: ["schedule", "student"], queryFn: listSchedule });
   const attendanceSummary = useQuery({
     queryKey: [
       "attendance-encouragement",
@@ -55,19 +43,13 @@ export function StudentDashboard() {
   });
 
   const currentDate = todayIso();
-  const weekday = new Date(`${currentDate}T12:00:00`).getDay();
-  const selectedClasses = useMemo(
-    () =>
-      (schedule.data ?? []).filter(
-        (entry) => entry.status === "ACTIVE" && entry.weekday === weekday,
-      ),
-    [schedule.data, weekday],
-  );
   const attendanceCounts = attendanceSummary.data ?? { present: 0, absent: 0, late: 0, excused: 0 };
   const attendancePoints = (attendanceSummary.data as { points?: number } | undefined)?.points ?? 0;
   const prayer = home.data?.home?.prayer;
   const prayerTimes = prayer && "times" in prayer ? prayer.times : null;
-  const currentClass = home.data?.home?.currentClass ?? selectedClasses[0] ?? null;
+  // The dashboard is a live "now" view. The complete timetable remains on
+  // its dedicated route, so never substitute the first scheduled class here.
+  const currentClass = home.data?.home?.currentClass ?? null;
   const firstName = auth.user?.firstName || auth.user?.displayName || "دانش‌آموز";
   const [attendanceProfileOpen, setAttendanceProfileOpen] = useState(false);
   const attendanceScope = JSON.stringify([
@@ -76,7 +58,7 @@ export function StudentDashboard() {
     auth.context?.activeOrganization?.id,
   ]);
 
-  if (schedule.isLoading && attendanceSummary.isLoading) {
+  if (home.isLoading && attendanceSummary.isLoading) {
     return <LoadingState label="در حال آماده‌سازی خانه دانش‌آموز…" />;
   }
 
@@ -117,7 +99,7 @@ export function StudentDashboard() {
 
       <div className="mt-3 grid gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(10rem,.72fr)]">
         <Card
-          className="student-dashboard__surface min-w-0 overflow-hidden p-4"
+          className="student-dashboard__surface min-w-0 overflow-hidden border-brand/15 bg-gradient-to-bl from-brand/[0.07] to-transparent p-4"
           aria-label="کلاس جاری"
         >
           <div className="flex items-center justify-between gap-2">
@@ -126,8 +108,8 @@ export function StudentDashboard() {
                 <Clock3 size={16} aria-hidden="true" />
               </span>
               <div className="min-w-0">
-                <h2 className="truncate text-sm font-black text-ink">کلاس بعدی</h2>
-                <p className="truncate text-[11px] text-slate-500">بر اساس برنامه امروز شما</p>
+                <h2 className="truncate text-sm font-black text-ink">کلاس همین حالا</h2>
+                <p className="truncate text-[11px] text-slate-500">بر اساس ساعت جاری تهران</p>
               </div>
             </div>
             <Link
@@ -138,20 +120,23 @@ export function StudentDashboard() {
             </Link>
           </div>
           {currentClass ? (
-            <div className="mt-3 flex min-w-0 items-center gap-2 rounded-2xl bg-[rgb(var(--surface-muted))] px-3 py-3">
-              <span className="min-w-0 flex-1 truncate text-xs font-bold text-ink">
+            <div className="mt-3 flex min-w-0 items-center gap-3 rounded-2xl bg-[rgb(var(--surface-muted))] px-3 py-3">
+              <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-brand text-xs font-black text-white">
+                اکنون
+              </span>
+              <span className="min-w-0 flex-1 truncate text-sm font-black text-ink">
                 {currentClass.title}
               </span>
               <time
                 dateTime={currentClass.startTime}
                 dir="ltr"
-                className="shrink-0 text-xs font-black text-brand"
+                className="shrink-0 text-sm font-black text-brand"
               >
                 {fa(currentClass.startTime)}
               </time>
             </div>
           ) : (
-            <p className="mt-4 text-xs text-slate-500">امروز کلاسی ندارید.</p>
+            <p className="mt-4 text-xs text-slate-500">در این ساعت کلاسی ندارید.</p>
           )}
         </Card>
         <CurrentPrayerCard
@@ -160,53 +145,10 @@ export function StudentDashboard() {
         />
       </div>
 
-      <div className="mt-3 grid grid-cols-1 gap-3 lg:grid-cols-[minmax(0,1.2fr)_minmax(16rem,.8fr)]">
-        <Card
-          className="student-dashboard__surface min-h-0 overflow-hidden p-4"
-          aria-label="زمان کلاس‌های امروز"
-        >
-          <div className="flex items-center justify-between gap-2">
-            <div className="flex items-center gap-2">
-              <span className="grid size-10 place-items-center rounded-2xl bg-brand/10 text-brand">
-                <Clock3 size={16} aria-hidden="true" />
-              </span>
-              <h2 className="text-xs font-black text-ink">برنامه امروز</h2>
-            </div>
-            <Link
-              className="inline-flex items-center gap-0.5 text-[11px] font-bold text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
-              to="/admin/schedule"
-            >
-              همه <ChevronLeft size={14} aria-hidden="true" />
-            </Link>
-          </div>
-          {selectedClasses.length ? (
-            <ul className="mt-3 grid gap-2">
-              {selectedClasses.slice(0, 4).map((entry, index) => (
-                <li
-                  key={entry.id}
-                  className={`flex min-w-0 items-center justify-between gap-2 rounded-2xl px-3 py-2.5 ${
-                    index === 0
-                      ? "border border-brand/20 bg-brand/[0.07]"
-                      : "bg-[rgb(var(--surface-muted))]"
-                  }`}
-                >
-                  <span className="min-w-0 truncate text-xs font-bold text-ink">{entry.title}</span>
-                  <time
-                    dateTime={entry.startTime}
-                    dir="ltr"
-                    className="shrink-0 text-[11px] font-black text-brand"
-                  >
-                    {fa(entry.startTime)}
-                  </time>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <EmptyState title="امروز کلاسی در برنامه شما نیست." />
-          )}
-        </Card>
-
-        <Card
+      <div className="mt-3">
+        <button
+          type="button"
+          onClick={() => setAttendanceProfileOpen(true)}
           className="student-dashboard__surface min-h-0 overflow-hidden p-4"
           aria-label="خلاصه حضور و غیاب"
         >
@@ -215,15 +157,9 @@ export function StudentDashboard() {
               <CalendarCheck2 size={17} className="text-brand" aria-hidden="true" />
               <h2 className="text-xs font-black text-ink">حضور من</h2>
             </div>
-            <button
-              type="button"
-              onClick={() => setAttendanceProfileOpen(true)}
-              className="text-[11px] font-bold text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
-            >
-              جزئیات
-            </button>
+            <span className="text-[11px] font-bold text-brand">دیدن تاریخچه</span>
           </div>
-          <div className="mt-3 grid grid-cols-4 gap-2">
+          <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
             {Object.entries(attendanceMeta).map(([status, meta]) => (
               <div
                 key={status}
@@ -250,53 +186,8 @@ export function StudentDashboard() {
               {attendanceSummary.data.message}
             </p>
           ) : null}
-        </Card>
+        </button>
       </div>
-
-      <section
-        className="mt-3 overflow-hidden rounded-3xl border border-slate-800 bg-slate-950 p-4 text-white shadow-sm sm:p-5"
-        aria-labelledby="student-achievements-title"
-      >
-        <div className="grid items-center gap-4 sm:grid-cols-[minmax(0,1fr)_minmax(15rem,.72fr)]">
-          <div className="min-w-0">
-            <div className="flex items-center gap-2">
-              <span className="grid size-10 shrink-0 place-items-center rounded-2xl border border-white/15 bg-white/10 text-amber-300">
-                <Medal size={19} aria-hidden="true" />
-              </span>
-              <div className="min-w-0">
-                <p className="text-[10px] font-black tracking-[0.16em] text-slate-400">
-                  ویژگی آینده
-                </p>
-                <h2
-                  id="student-achievements-title"
-                  className="mt-0.5 text-sm font-black sm:text-base"
-                >
-                  دستاوردهای من
-                </h2>
-              </div>
-            </div>
-            <p className="mt-3 max-w-xl text-xs leading-6 text-slate-300">
-              نشان‌ها و مسیر پیشرفت شما به‌زودی فعال می‌شوند. از همین‌جا می‌توانید نشان‌های در راه
-              را ببینید.
-            </p>
-            <Link
-              to="/admin/achievements"
-              className="mt-3 inline-flex min-h-10 items-center gap-1 rounded-xl bg-white px-3 text-xs font-black text-slate-950 transition hover:bg-slate-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
-            >
-              دیدن دستاوردها <ChevronLeft size={15} aria-hidden="true" />
-            </Link>
-          </div>
-          <div className="grid gap-3 rounded-2xl border border-white/10 bg-white/[0.06] p-3">
-            <div className="flex items-center gap-2 text-xs font-bold text-slate-200">
-              <LockKeyhole size={15} className="text-slate-400" aria-hidden="true" />
-              تا باز شدن دستاوردها
-            </div>
-            <AchievementCountdown compact />
-          </div>
-        </div>
-      </section>
-
-      <CoinShopTeaser audience="student" className="mt-3" />
 
       <div className="mt-3">
         <AnnouncementEnvelope announcements={home.data?.home?.announcements} />

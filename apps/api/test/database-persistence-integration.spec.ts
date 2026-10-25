@@ -72,7 +72,8 @@ function database(filename: string, baseline = false, runMigrations = true) {
             file === "1731300000000-AttendanceCorrectionReview.ts" ||
             file === "1731300100000-AttendanceAcademicSnapshots.ts" ||
             file === "1731400000000-StudentAttendancePoints.ts" ||
-            file === "1731400100000-StudentPointLedgerIdempotencyScope.ts"),
+            file === "1731400100000-StudentPointLedgerIdempotencyScope.ts" ||
+            file === "1731800300000-StudentAccountChangeLimits.ts"),
       )
       .map((file) => path.join(directory, file)),
     synchronize: false,
@@ -628,9 +629,9 @@ describe("migration-backed persistence and verified recovery (disposable SQLite 
       .save({ name: "Available", organization: a });
     await residence().setAssignments(actor, room.id, [student.id]);
 
-    await expect(residence().listAvailableStudents(actor, otherRoom.id)).resolves.toEqual([
-      { id: available.id, name: "Available" },
-    ]);
+    await expect(
+      residence().listAvailableStudents(actor, otherRoom.id),
+    ).resolves.toEqual([{ id: available.id, name: "Available" }]);
   });
 
   it("checks capacity and school before changing placements, and returns counts in one projection query", async () => {

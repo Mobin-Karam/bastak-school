@@ -1,5 +1,5 @@
 import { memo } from "react";
-import { Clock3 } from "lucide-react";
+import { Clock3, MoonStar } from "lucide-react";
 
 import { fa } from "../../../../shared/lib/utils";
 import { useCurrentPrayer } from "../hooks/use-current-prayer";
@@ -96,26 +96,18 @@ export const CurrentPrayerCard = memo(function CurrentPrayerCard({
       {/* Prayer details */}
       <div className="relative z-10 min-w-0 flex-1">
         <div className="flex items-center gap-1.5">
-          <span
-            className="
-              size-1.5 shrink-0 rounded-full
-              bg-emerald-500
-            "
+          <MoonStar
+            size={14}
+            className="shrink-0 text-emerald-600 dark:text-emerald-300"
             aria-hidden="true"
           />
-
-          <p
-            className="
-              truncate
-              text-[10px] font-semibold
-              text-teal-800/70
-              dark:text-teal-200/70
-              sm:text-xs
-            "
-          >
-            {active.tomorrow ? "وقت شرعی فردا" : "وقت شرعی پیش رو"}
+          <p className="truncate text-[10px] font-semibold text-teal-800/70 dark:text-teal-200/70 sm:text-xs">
+            {active.tomorrow ? "نخستین وقت شرعی فردا" : "وقت شرعی پیش رو"}
           </p>
         </div>
+        <p className="mt-1 text-sm font-black text-teal-950 dark:text-teal-50 sm:text-base">
+          نماز {active.label}
+        </p>
 
         <p
           className="
@@ -126,7 +118,7 @@ export const CurrentPrayerCard = memo(function CurrentPrayerCard({
             sm:block
           "
         >
-          بر اساس ساعت مدرسه
+          زمان‌بندی مدرسه · تهران
         </p>
       </div>
 

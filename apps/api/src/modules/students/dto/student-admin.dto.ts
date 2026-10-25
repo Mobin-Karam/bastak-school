@@ -1,4 +1,6 @@
 import {
+  ArrayMaxSize,
+  ArrayNotEmpty,
   IsInt,
   IsOptional,
   IsString,
@@ -42,8 +44,14 @@ export class CreateStudentDto {
   @IsOptional() @IsString() @Length(10, 10) birthDateJalali?: string;
   @IsOptional() @IsString() @Length(0, 240) governmentSchool?: string;
   @IsOptional() @IsUUID() classId?: string;
-  @IsOptional() @ValidateNested() @Type(() => GuardianAccountDto) mother?: GuardianAccountDto;
-  @IsOptional() @ValidateNested() @Type(() => GuardianAccountDto) father?: GuardianAccountDto;
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => GuardianAccountDto)
+  mother?: GuardianAccountDto;
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => GuardianAccountDto)
+  father?: GuardianAccountDto;
 }
 export class UpdateStudentDto {
   @IsOptional() @IsIn(["school", "independent"]) learnerProfile?:
@@ -69,9 +77,23 @@ export class UpdateStudentDto {
   @IsOptional() @IsString() @Length(0, 240) governmentSchool?: string;
   @IsOptional() @IsUUID() classId?: string;
   @IsOptional() @IsBoolean() clearClass?: boolean;
-  @IsOptional() @ValidateNested() @Type(() => GuardianAccountDto) mother?: GuardianAccountDto;
-  @IsOptional() @ValidateNested() @Type(() => GuardianAccountDto) father?: GuardianAccountDto;
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => GuardianAccountDto)
+  mother?: GuardianAccountDto;
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => GuardianAccountDto)
+  father?: GuardianAccountDto;
 }
 export class ResetStudentPasswordDto {
   @IsString() @MinLength(12) password!: string;
+}
+
+/** Password rotation for a deliberate, bounded set of authorized students. */
+export class BulkResetStudentPasswordDto extends ResetStudentPasswordDto {
+  @ArrayNotEmpty()
+  @ArrayMaxSize(500)
+  @IsUUID("4", { each: true })
+  studentIds!: string[];
 }

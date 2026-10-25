@@ -74,6 +74,44 @@ describe("AuthProvider", () => {
     expect(sessionStorage.getItem("moshaver_admin_csrf")).toBe("csrf");
   });
 
+  it("restores the session once instead of looping after authentication", async () => {
+    globalThis.fetch = vi.fn(async (input) => {
+      if (String(input).endsWith("/auth/me")) {
+        return new Response(
+          JSON.stringify({ ok: true, data: { id: "student-1", role: "STUDENT" } }),
+          { status: 200 },
+        );
+      }
+      if (String(input).endsWith("/me/context")) {
+        return new Response(
+          JSON.stringify({
+            ok: true,
+            data: {
+              user: { id: "student-1", role: "STUDENT" },
+              roles: ["STUDENT"],
+              capabilities: [],
+              memberships: [],
+              activeOrganization: null,
+              availableOrganizations: [],
+            },
+          }),
+          { status: 200 },
+        );
+      }
+      return new Response(JSON.stringify({ ok: true, data: {} }), { status: 200 });
+    }) as typeof fetch;
+
+    render(
+      <AuthProvider>
+        <Probe />
+      </AuthProvider>,
+    );
+
+    expect(await screen.findByText("authenticated")).toBeInTheDocument();
+    await new Promise((resolve) => window.setTimeout(resolve, 30));
+    expect(globalThis.fetch).toHaveBeenCalledTimes(2);
+  });
+
   it("does not erase a possible session when the server is temporarily unreachable", async () => {
     globalThis.fetch = vi.fn(async () => {
       throw new TypeError("offline");
