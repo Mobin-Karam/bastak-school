@@ -9,7 +9,7 @@ feat/fix/chore/ci branch from origin/develop
 Continuous Integration ── quality + containers ──► CI Gate
        │ successful merge to develop
        ▼
-Develop push CI ──► Release promotion opens/updates develop → main PR
+Develop push CI ──► refreshes same-repository PR bases; opens/updates develop → main PR
        │ release review + exact develop evidence gate + merge commit
        ▼
 Main push CI ──► LAN Production Deployment verifies current tested SHA
@@ -27,7 +27,7 @@ A source workflow accepting a dispatch means the request was sent. Production su
 
 Use [`start-work.sh`](../../scripts/cicd/start-work.sh) to fetch `origin/develop` and create an isolated `feat/`, `fix/`, `chore/` or `ci/` branch. If the checkout is dirty, pass a separate worktree path. Commit only task files. [`finish-work.sh`](../../scripts/cicd/finish-work.sh) pushes, opens the develop PR, waits for `CI Gate` and attempts a protected squash merge of the exact head commit. GitHub branch protection and configured reviews still decide whether it may merge. It never force-pushes or bypasses a failed gate.
 
-`develop` is the integration branch; `main` is the reviewed release branch. After a successful develop **push** CI run, [Release promotion](../../.github/workflows/release-promotion.yml) creates or updates a `develop` → `main` PR only when the tested SHA is still current and the application diff is nonempty. A release reviewer inspects the entire diff and merges with a merge commit after required checks. The release PR is not auto-merged. Main CI then opens a checked merge-commit synchronization PR back to develop when needed, preserving ancestry.
+`develop` is the integration branch; `main` is the reviewed release branch. After a successful develop **push** CI run, [Branch synchronization](../../.github/workflows/branch-synchronization.yml) requests GitHub's base update for each eligible same-repository PR targeting `develop`; fork heads, drafts, and the protected `develop` release head are never mutated. This removes routine **Update branch** clicks while strict `CI Gate` protection remains in effect. [Release promotion](../../.github/workflows/release-promotion.yml) creates or updates a `develop` → `main` PR only when the tested SHA is current, `main` is already an ancestor of `develop`, and the application diff is nonempty. A release reviewer inspects the entire diff and merges with a merge commit after required checks. The release PR is not auto-merged. Main CI opens a checked merge-commit synchronization PR back to develop when needed, preserving ancestry; release promotion waits for that PR instead of producing a misleading ancestry-gate failure.
 
 ## Required source CI gate
 
@@ -80,7 +80,7 @@ The immutable receiver is enabled only when the private repository has published
 | --- | --- | --- |
 | PR check | First failed job and exact command | Fix on branch, rerun tests, let new commit recheck |
 | Missing CI Gate | Workflow trigger, job prerequisites and Actions permissions | Confirm unfiltered CI ran; do not bypass protection |
-| Develop release PR | Tested SHA vs current develop, empty diff, `RELEASE_PR_TOKEN` | Rerun failed workflow after correcting scope or token |
+| Develop release PR | Tested SHA vs current develop, `main` ancestry, empty diff, `RELEASE_PR_TOKEN` | Wait for or repair the checked main-to-develop synchronization PR; do not bypass ancestry |
 | Main dispatch | Main head vs tested SHA, `PRODUCTION_DEPLOY_TARGET`, `DEPLOY_DISPATCH_TOKEN` | Verify source run and private dispatch status |
 | Private authorization | Source run ID, SHA, branch, repo and workflow path | Reject mismatch; do not manually substitute another commit |
 | Server deployment | Bundle provenance/identity, migration state, backup and HTTPS readiness | Stop further changes, preserve backup, diagnose before recovery |
@@ -95,6 +95,7 @@ A failed build should leave existing containers running. A failed replacement ca
 | Required PR/push gate | [Continuous Integration](../../.github/workflows/continuous-integration.yml) |
 | Disposable container smoke | [Deployment readiness](../../.github/workflows/deployment-readiness.yml) |
 | Develop-to-main PR | [Release promotion](../../.github/workflows/release-promotion.yml) |
+| Automatic same-repository PR base refresh | [Branch synchronization](../../.github/workflows/branch-synchronization.yml) |
 | Main authorization and dispatch | [LAN Production Deployment](../../.github/workflows/lan-production.yml) |
 | Private server workflow template | [Server deployment](../../.github/deployment/server-deploy.yml) |
 | Immutable production compose/backup/readiness | [`lan-immutable.sh`](../../scripts/deploy/lan-immutable.sh) |
