@@ -420,6 +420,7 @@ export function TeacherClassAttendanceSheet({
                           onClick={() => {
                             resetToPresent();
                             setClearConfirmationOpen(false);
+                            onOpenChange(false);
                           }}
                         >
                           ادامه و پاک‌کردن
@@ -428,34 +429,34 @@ export function TeacherClassAttendanceSheet({
                     </div>
                   ) : null}
                   <div className="flex gap-2">
-                  <Button
-                    variant="soft"
-                    className="flex-1"
-                    disabled={!Object.keys(marks).length || save.isPending}
-                    onClick={() => {
-                      if (reviewing) {
-                        setReviewing(false);
-                        return;
-                      }
-                      // Keep the confirmation in this drawer. A nested drawer
-                      // could propagate its back action to the roster itself.
-                      setClearConfirmationOpen(true);
-                    }}
-                  >
-                    {reviewing ? "بازگشت" : "پاک کردن"}
-                  </Button>
-                  <Button
-                    className="flex-[1.4]"
-                    disabled={!Object.keys(marks).length || save.isPending}
-                    onClick={() => (reviewing ? save.mutate() : setReviewing(true))}
-                  >
-                    <Check size={16} aria-hidden="true" />{" "}
-                    {save.isPending
-                      ? "در حال ثبت…"
-                      : reviewing
-                        ? "تأیید و ثبت"
-                        : "بررسی و ثبت حضور و غیاب"}
-                  </Button>
+                    <Button
+                      variant="soft"
+                      className="flex-1"
+                      disabled={!Object.keys(marks).length || save.isPending}
+                      onClick={() => {
+                        if (reviewing) {
+                          setReviewing(false);
+                          return;
+                        }
+                        // Keep the confirmation in this drawer. A nested drawer
+                        // could propagate its back action to the roster itself.
+                        setClearConfirmationOpen(true);
+                      }}
+                    >
+                      {reviewing ? "بازگشت" : "پاک کردن"}
+                    </Button>
+                    <Button
+                      className="flex-[1.4]"
+                      disabled={!Object.keys(marks).length || save.isPending}
+                      onClick={() => (reviewing ? save.mutate() : setReviewing(true))}
+                    >
+                      <Check size={16} aria-hidden="true" />{" "}
+                      {save.isPending
+                        ? "در حال ثبت…"
+                        : reviewing
+                          ? "تأیید و ثبت"
+                          : "بررسی و ثبت حضور و غیاب"}
+                    </Button>
                   </div>
                 </div>
               ) : null}

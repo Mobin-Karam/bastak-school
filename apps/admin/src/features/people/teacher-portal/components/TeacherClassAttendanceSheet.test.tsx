@@ -112,10 +112,11 @@ describe("TeacherClassAttendanceSheet", () => {
     );
   });
 
-  it("keeps the roster drawer open when returning from review or clearing exceptions", async () => {
+  it("keeps the roster open when returning, then closes it after confirmed clearing", async () => {
     getAttendanceParticipantsMock.mockResolvedValue([{ id: "student-1", name: "علی رضایی" }]);
     listMyAttendanceAbsenceReviewsMock.mockResolvedValue([]);
-    renderSheet();
+    const onOpenChange = vi.fn();
+    renderSheet(onOpenChange);
     const user = userEvent.setup();
 
     await screen.findByRole("group", { name: "وضعیت حضور علی رضایی" });
@@ -140,9 +141,6 @@ describe("TeacherClassAttendanceSheet", () => {
     await user.click(screen.getByRole("button", { name: "پاک کردن" }));
     await user.click(screen.getByRole("button", { name: "ادامه و پاک‌کردن" }));
 
-    expect(within(group).getByRole("button", { name: "حاضر" })).toHaveAttribute(
-      "aria-pressed",
-      "true",
-    );
+    expect(onOpenChange).toHaveBeenCalledWith(false);
   });
 });
