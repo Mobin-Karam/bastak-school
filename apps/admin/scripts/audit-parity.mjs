@@ -136,7 +136,14 @@ for (const file of adminFiles) {
   };
   visit(source);
 }
-for (const endpoint of ["POST /auth/refresh", "GET /auth/me", "GET /me/context"])
+// These authenticated requests use dedicated fetch flows to avoid recursive
+// refresh/bootstrap handling, so they are not discoverable as `api.*` calls.
+for (const endpoint of [
+  "POST /auth/refresh",
+  "POST /auth/bootstrap-session",
+  "GET /auth/me",
+  "GET /me/context",
+])
   if (adminSource.includes(endpoint.split(" ")[1])) requests.add(endpoint);
 
 const dynamicConsumers = {

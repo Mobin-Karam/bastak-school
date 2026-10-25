@@ -189,14 +189,16 @@ function ProtectedRoute() {
     return () => window.clearTimeout(timer);
   }, [auth.status, showLoginSplash]);
 
-  if (auth.status === "checking") {
+  if (auth.status === "checking" || auth.status === "unavailable") {
     return (
       <div className="grid min-h-screen place-items-center bg-paper p-4">
         <div className="grid max-w-md gap-4 rounded-lg border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card))] p-4 text-center shadow-[var(--shadow-surface)]">
-          <div
-            className="mx-auto size-9 animate-spin rounded-full border-4 border-slate-200 border-t-brand"
-            aria-hidden="true"
-          />
+          {auth.status === "checking" ? (
+            <div
+              className="mx-auto size-9 animate-spin rounded-full border-4 border-slate-200 border-t-brand"
+              aria-hidden="true"
+            />
+          ) : null}
           <div>
             <p className="font-bold text-slate-800">{copy.restoringSession}</p>
             <p className="mt-2 text-sm text-slate-500">{auth.message}</p>

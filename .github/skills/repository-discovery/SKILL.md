@@ -18,3 +18,7 @@ Read `AGENTS.md`, query Graphify when available, and use `tooling/workspace/proj
 8. Report verified facts and `UNKNOWN` items separately.
 
 Do not edit product source during discovery unless the user explicitly asks for discovery metadata changes.
+
+## Release discovery
+
+For deployment or production questions, locate the complete evidence chain described in `docs/operations/ci-cd-pipeline.md`: branch policy, CI workflow, artifact, dispatch, private receiver template, host configuration boundary, migration/recovery scripts, receipt, and smoke checks. Report source facts separately from unavailable private repository or host facts, which are `UNKNOWN` until verified.

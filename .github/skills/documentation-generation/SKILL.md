@@ -15,3 +15,7 @@ Use source and executed commands as authority. State that `apps/student` is hist
 5. Document prerequisites, failure modes, and migration notes where relevant.
 6. Link to deeper references instead of duplicating large blocks.
 7. Review docs against current code before completion.
+
+## Release and operations documentation
+
+Use `docs/operations/ci-cd-pipeline.md`, `docs/operations/release-evidence.md`, and `docs/operations/development-to-production.md` as canonical release references. Keep local validation, CI, disposable rehearsal, source dispatch, private receiver, and live production evidence distinct. Mark unverified private/host state as `UNKNOWN`; never copy secrets or expanded production configuration, or document a bypass for protected promotion, backups, or migration recovery.
