@@ -258,6 +258,8 @@ Release-quality fallback:
 
 Never claim a validation command passed unless it actually ran successfully.
 
+When a PR check fails, inspect the exact failed job log for the current head SHA, reproduce its narrowest project-defined command, and fix the demonstrated root cause with regression coverage where practical. Re-run that command before pushing; then let the new head receive a fresh full CI result. Do not silence a parity, security, migration, or release check without source evidence that its scope is inapplicable, and do not rely on an earlier green run after pushing another commit.
+
 ## Branch and release lifecycle
 
 For new work, start from current `origin/develop` and use a normal local branch in the existing checkout. Codex must apply the branch-first and task-completion rules above before and after repository-affecting work. Follow the branch names in Codex Workspace and Git Rules above; repository lifecycle scripts currently accept `feat/`, `fix/`, `chore/`, or `ci/`. Use `scripts/cicd/start-work.sh` only for supported branch names and without a worktree path. If the checkout is dirty, preserve existing edits before switching branches; never create a separate worktree. When explicitly asked to switch to `develop`, fast-forward it to `origin/develop` without overwriting existing work. Commit only the task's changes. Use `scripts/cicd/finish-work.sh` to push, create the develop PR, wait for CI, and merge only when GitHub checks and configured reviews permit it. Do not bypass protection or force push.

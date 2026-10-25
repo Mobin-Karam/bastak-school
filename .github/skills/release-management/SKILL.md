@@ -20,6 +20,10 @@ Validate with the workspace DAG and distinguish source checks, CI, deployment di
 
 Do not tag, publish, push, or deploy unless explicitly requested.
 
+## Failed-release loop
+
+When a PR, promotion, or release gate fails, identify the exact failed job and current SHA, repair the first demonstrated root cause through the normal branch path, reproduce the focused command, and require fresh qualification after pushing. Never retry/push a release based on stale success, bypass a required check, or convert a failed preflight into an optional warning without source-backed scope evidence.
+
 ## Production evidence
 
 Use `docs/operations/release-evidence.md` and `docs/operations/ci-cd-pipeline.md` for every release. Require reviewed merge-commit `develop` to `main` promotion, exact-SHA CI/artifact evidence, source dispatch, independent private receiver success, receipt/backup, trusted HTTPS readiness, and an authorized production workflow. Record each layer separately; a local check, CI run, artifact upload, or dispatch is not a deployment result. Every migration also needs populated upgrade and backup/restore rehearsal with a deliberate recovery path.
