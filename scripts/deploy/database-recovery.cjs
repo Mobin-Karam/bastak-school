@@ -101,6 +101,21 @@ const expectations = {
     "school_announcements.mediaUrl": { nullable: true, value: "null" },
     "school_announcements.mediaType": { nullable: true, value: "null" },
   },
+    // Student account-change limits.
+  // Existing users begin with zero password changes.
+  // Existing account-change requests have no pending password hash.
+  StudentAccountChangeLimits1731800300000: {
+    "users.passwordChangeCount": {
+      nullable: false,
+      default: 0,
+      value: "default",
+    },
+    "account_change_requests.requestedSecretHash": {
+      nullable: true,
+      default: null,
+      value: "null",
+    },
+  },
 };
 
 // A migration may be allowed to change an existing value only when the
