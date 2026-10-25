@@ -82,6 +82,7 @@ describe("TeacherClassAttendanceSheet", () => {
     expect(screen.getByText("08:00 تا 09:30 · ۱۰۱")).toBeInTheDocument();
     expect(await screen.findByText("علی رضایی")).toBeInTheDocument();
     expect(dialog).toHaveClass("max-w-xl");
+    expect(within(screen.getByRole("group", { name: "وضعیت حضور علی رضایی" })).getByRole("button", { name: "حاضر" })).toHaveAttribute("aria-pressed", "true");
   });
   it("preserves the selected mark and exact request when retrying a failed save", async () => {
     bulkMarkAttendanceMock.mockClear();

@@ -89,6 +89,18 @@ export function TeacherClassAttendanceSheet({
     setPointReason("");
   }, [entry?.id, open, scopeKey]);
 
+  // The roster is an attendance-taking surface: a teacher starts from a full
+  // present register and records only exceptions. The API still receives an
+  // explicit status for every authorized participant on save.
+  useEffect(() => {
+    if (!open || !participants.data?.length) return;
+    setMarks((current) =>
+      Object.keys(current).length
+        ? current
+        : Object.fromEntries(participants.data.map((student) => [student.id, "present"])),
+    );
+  }, [open, participants.data]);
+
   useEffect(() => {
     if (!open) return;
     const stream = api.openEvents((type) => {
@@ -208,7 +220,7 @@ export function TeacherClassAttendanceSheet({
                 {canManage
                   ? reviewing
                     ? "انتخاب‌های خود را بررسی کنید و سپس ثبت را تأیید کنید."
-                    : "مرحله ۱: برای هر دانش‌آموز یک وضعیت انتخاب کنید؛ سپس به بررسی بروید."
+                    : "همه دانش‌آموزان حاضر هستند؛ فقط وضعیت استثناها را تغییر دهید و سپس به بررسی بروید."
                   : "فهرست دانش‌آموزان این کلاس در اختیار شماست."}
               </p>
               {classReviews.length && !reviewing ? (
@@ -376,7 +388,11 @@ export function TeacherClassAttendanceSheet({
                         return;
                       }
                       discard.request(() => {
-                        setMarks({});
+                        setMarks(
+                          Object.fromEntries(
+                            (participants.data ?? []).map((student) => [student.id, "present"]),
+                          ),
+                        );
                         setReasons({});
                       });
                     }}

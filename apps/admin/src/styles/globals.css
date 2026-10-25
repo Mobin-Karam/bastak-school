@@ -347,8 +347,10 @@
     position: fixed;
     inset-inline: 0;
     bottom: 0;
-    height: min(88dvh, 56rem);
-    max-height: 88dvh;
+    /* Short sheets fit their content; long sheets cap to the visual viewport
+       so the body can scroll without hiding the header or actions. */
+    height: auto;
+    max-height: calc(100dvh - env(safe-area-inset-top) - 0.5rem);
     border-radius: 10px 10px 0 0;
     transform: translateY(
       calc(var(--drawer-snap-point-offset, 0px) + var(--drawer-swipe-movement-y, 0px))
