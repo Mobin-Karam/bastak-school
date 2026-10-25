@@ -149,7 +149,7 @@ function SchoolOperationsDashboard({ principalMode = false }: { principalMode?: 
           schedule={schedule.data ?? []}
         />
       </div> */}
-      {principalMode ? null : <CoinShopTeaser audience="school" />}
+      {/* {principalMode ? null : <CoinShopTeaser audience="school" />} */}
       <div className="grid col-end-2">
         {!principalMode && isSupervisorAttendanceWorkspace ? (
           <SupervisorAttendanceLaunchpad />

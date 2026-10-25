@@ -14,6 +14,15 @@ const actor = {
   roles: ["PLATFORM_ADMIN"],
   capabilities: ["users.manage"],
 };
+const principal = {
+  id: "principal-1",
+  username: "principal",
+  role: UserRole.ADMIN,
+  sessionId: "principal-session",
+  roles: ["PRINCIPAL"],
+  capabilities: ["users.manage"],
+  organizationIds: ["school-1"],
+};
 
 function serviceFor(target: Partial<User>) {
   const user = {
