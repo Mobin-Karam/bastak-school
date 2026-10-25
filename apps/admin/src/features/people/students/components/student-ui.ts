@@ -7,11 +7,32 @@ export type StudentSort = "name" | "username" | "grade" | "lastSeen" | "complete
 export type StudentSortDirection = "asc" | "desc";
 export type StudentProfileFilter = "all" | "incomplete";
 export type StudentDetailTab = "overview" | "activity" | "profile" | "access" | "security";
+export type StudentClassOption = { id: string; name: string };
 
 export function parseStudentPageNumber(value: string | null, fallback: number, allowed?: number[]) {
   const parsed = Number(value);
   if (!Number.isSafeInteger(parsed) || parsed < 1) return fallback;
   return allowed && !allowed.includes(parsed) ? fallback : parsed;
+}
+
+/**
+ * Directory class filtering must use current school enrollment, not the
+ * student's previous/government-school profile field.
+ */
+export function studentClassOptions(students: readonly Student[]): StudentClassOption[] {
+  const classes = new Map<string, string>();
+  for (const student of students) {
+    const id = student.classId?.trim();
+    const name = student.className?.trim();
+    if (id && name) classes.set(id, name);
+  }
+  return [...classes]
+    .map(([id, name]) => ({ id, name }))
+    .sort((a, b) => a.name.localeCompare(b.name, "fa", { numeric: true, sensitivity: "base" }));
+}
+
+export function matchesStudentClass(student: Student, classId: string) {
+  return !classId || student.classId === classId;
 }
 
 export function getStudentStatus(student: Student): Exclude<StudentStatusFilter, "all"> {

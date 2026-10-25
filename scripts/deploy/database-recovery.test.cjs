@@ -26,6 +26,34 @@ test("permits only the migration's orphaned scoped-role deletion", () => {
   db.close();
 });
 
+test("preserves existing authorization rows while adding the school-admin lifecycle grants", () => {
+  const db = new Database(":memory:");
+  db.exec(`
+    CREATE TABLE permissions (id TEXT PRIMARY KEY, code TEXT NOT NULL, description TEXT NOT NULL);
+    CREATE TABLE role_permissions (id TEXT PRIMARY KEY, roleId TEXT NOT NULL, permissionId TEXT NOT NULL);
+    CREATE TABLE migrations (name TEXT);
+    INSERT INTO permissions VALUES ('existing-permission', 'attendance.read', 'Retained');
+    INSERT INTO role_permissions VALUES ('existing-grant', 'teacher', 'existing-permission');
+  `);
+  const before = inventory(db);
+  db.exec(`
+    INSERT INTO permissions VALUES ('student-read', 'students.read', 'Read student records');
+    INSERT INTO permissions VALUES ('student-archive', 'students.archive', 'Archive a student account while retaining its history');
+    INSERT INTO role_permissions VALUES ('school-admin-read', 'school-admin', 'student-read');
+    INSERT INTO role_permissions VALUES ('school-admin-archive', 'school-admin', 'student-archive');
+    INSERT INTO migrations VALUES ('StudentAccountLifecycleCapabilityAlignment1731800400000');
+  `);
+  assert.doesNotThrow(() => preserved(before, inventory(db), db));
+  db.prepare(
+    "UPDATE permissions SET description='changed' WHERE id='existing-permission'",
+  ).run();
+  assert.throws(
+    () => preserved(before, inventory(db), db),
+    /existing logical records changed/,
+  );
+  db.close();
+});
+
 test("rejects an unrelated role-assignment removal or change", () => {
   const db = fixture();
   const before = inventory(db);

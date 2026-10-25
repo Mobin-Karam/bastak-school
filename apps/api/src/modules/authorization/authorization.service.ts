@@ -271,6 +271,7 @@ export class AuthorizationService {
     if (
       [
         "ORGANIZATION_ADMIN",
+        "SCHOOL_ADMIN",
         "PRINCIPAL",
         "SCHOOL_SUPERVISOR",
         "DISCIPLINARIAN",
