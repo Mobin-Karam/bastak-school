@@ -182,7 +182,24 @@ export class AuthService {
   }
 
   async refresh(refreshToken?: string, csrfToken?: string) {
-    if (!refreshToken || !csrfToken)
+    return this.rotateRefreshSession(refreshToken, csrfToken, true);
+  }
+
+  /**
+   * Restores a browser session after its short-lived access cookie has expired.
+   * The controller limits this path to trusted browser origins and a preflighted
+   * custom header; ordinary refreshes remain protected by the per-session CSRF token.
+   */
+  async bootstrapSession(refreshToken?: string) {
+    return this.rotateRefreshSession(refreshToken, undefined, false);
+  }
+
+  private async rotateRefreshSession(
+    refreshToken: string | undefined,
+    csrfToken: string | undefined,
+    requireCsrf: boolean,
+  ) {
+    if (!refreshToken || (requireCsrf && !csrfToken))
       throw new ApiException(
         401,
         "REFRESH_REQUIRED",
@@ -203,7 +220,10 @@ export class AuthService {
         "نشست شما منقضی شده است. دوباره وارد شوید.",
       );
     }
-    if (!this.credentials.safeEqual(session.csrfToken, csrfToken))
+    if (
+      requireCsrf &&
+      !this.credentials.safeEqual(session.csrfToken, csrfToken!)
+    )
       throw new ApiException(403, "CSRF", "نشست امنیتی نامعتبر است.");
     if (session.user.status && session.user.status !== UserStatus.ACTIVE) {
       await this.sessions.delete({ id: session.id });

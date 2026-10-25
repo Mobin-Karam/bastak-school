@@ -287,6 +287,44 @@ describe("AuthService", () => {
     );
   });
 
+  it("bootstraps a fresh browser session without requiring the lost CSRF value", async () => {
+    const user = {
+      id: "u1",
+      username: "09123456789",
+      phoneNumber: "09123456789",
+      role: UserRole.ADMIN,
+      passwordHash: await bcrypt.hash("secret", 4),
+    } as User;
+    const sessions = repo<Session>();
+    const module = await Test.createTestingModule({
+      providers: [
+        AuthService,
+        { provide: getRepositoryToken(User), useValue: repo([user]) },
+        { provide: getRepositoryToken(Session), useValue: sessions },
+        { provide: getRepositoryToken(Student), useValue: repo() },
+        {
+          provide: ConfigService,
+          useValue: { get: (_key: string, fallback: unknown) => fallback },
+        },
+      ],
+    }).compile();
+    const auth = module.get(AuthService);
+    const original = await auth.login("09123456789", "secret");
+    sessions.findOne.mockResolvedValueOnce({ ...original.session, user });
+
+    const restored = await auth.bootstrapSession(original.refreshToken);
+
+    expect(restored.accessToken).not.toBe(original.accessToken);
+    expect(restored.csrfToken).not.toBe(original.csrfToken);
+    expect(sessions.update).toHaveBeenCalledWith(
+      {
+        id: original.session.id,
+        refreshTokenHash: original.session.refreshTokenHash,
+      },
+      expect.objectContaining({ refreshTokenHash: expect.any(String) }),
+    );
+  });
+
   it("rejects refresh for a student account deactivated after login", async () => {
     const user = {
       id: "u1",

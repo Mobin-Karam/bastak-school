@@ -10,6 +10,7 @@ import {
   setApiWorkContext,
   setCsrf,
   request,
+  bootstrapSession,
 } from "./api";
 
 const originalFetch = globalThis.fetch;
@@ -117,6 +118,26 @@ describe("api client", () => {
       }),
     );
     expect(sessionStorage.getItem("moshaver_admin_csrf")).toBe("new-csrf");
+  });
+
+  it("bootstraps a fresh browser session without a stored CSRF token", async () => {
+    globalThis.fetch = vi.fn(
+      async () =>
+        new Response(JSON.stringify({ ok: true, data: { csrfToken: "restored-csrf" } }), {
+          status: 200,
+        }),
+    ) as typeof fetch;
+
+    await expect(bootstrapSession()).resolves.toBe(true);
+    expect(globalThis.fetch).toHaveBeenCalledWith(
+      expect.stringMatching(/\/api\/v2\/auth\/bootstrap-session$/),
+      expect.objectContaining({
+        method: "POST",
+        credentials: "include",
+        headers: expect.objectContaining({ "X-Auth-Session-Bootstrap": "1" }),
+      }),
+    );
+    expect(sessionStorage.getItem("moshaver_admin_csrf")).toBe("restored-csrf");
   });
 
   it("keeps binary backup operations inside the selected work context", async () => {

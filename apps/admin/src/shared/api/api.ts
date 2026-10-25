@@ -26,6 +26,7 @@ const authFailureListeners = new Set<AuthFailureListener>();
 let activeOrganizationId = "";
 let activeWorkRole = "";
 let refreshPromise: Promise<boolean> | null = null;
+let bootstrapPromise: Promise<boolean> | null = null;
 export const API_WORK_CONTEXT_EVENT = "admin-api-work-context-change";
 
 export function setApiWorkContext(role?: string, organizationId?: string) {
@@ -273,6 +274,42 @@ export async function refreshSession() {
     });
   }
   return refreshPromise;
+}
+
+/**
+ * Restores a session in a fresh browser tab where the HttpOnly refresh cookie
+ * survives but sessionStorage no longer has the current CSRF value. The API
+ * accepts this only from an approved browser origin with a custom header.
+ */
+export async function bootstrapSession() {
+  if (!bootstrapPromise) {
+    bootstrapPromise = (async () => {
+      try {
+        const response = await fetch(`${getBackendTargetUrl()}/auth/bootstrap-session`, {
+          method: "POST",
+          credentials: "include",
+          headers: {
+            Accept: "application/json",
+            "X-Auth-Session-Bootstrap": "1",
+          },
+        });
+        const payload = (await response.json().catch(() => null)) as ApiEnvelope<{
+          csrfToken?: string;
+        }> | null;
+        if (!response.ok || !payload?.ok || !payload.data.csrfToken) {
+          setCsrf();
+          return false;
+        }
+        setCsrf(payload.data.csrfToken);
+        return true;
+      } catch (error) {
+        throw new ApiError(0, "اینترنت یا سرور در دسترس نیست.", "NETWORK", error);
+      }
+    })().finally(() => {
+      bootstrapPromise = null;
+    });
+  }
+  return bootstrapPromise;
 }
 
 async function authenticatedBinaryFetch(
