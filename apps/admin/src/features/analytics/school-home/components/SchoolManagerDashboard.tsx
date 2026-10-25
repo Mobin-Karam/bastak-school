@@ -14,8 +14,6 @@ import { Link } from "react-router-dom";
 import { useAuth } from "../../../identity/auth";
 import { getAttendanceOverview } from "../../../student-life/attendance/public";
 import { listSchedule } from "../../../academics/schedule/api/schedule.api";
-import { DashboardCalendar } from "../../dashboard/components/DashboardCalendar";
-import { todayIso } from "../../../../shared/lib/utils";
 import { notify } from "../../../../shared/ui/notifications";
 import { api } from "../../../../shared/api/api";
 import { Button, Card, Input, LoadingState, Textarea } from "../../../../shared/ui/ui";
@@ -32,7 +30,6 @@ import { ResponsiveDrawer } from "../../../../shared/ui/responsive-drawer";
 import { useAdminNotifications } from "../../../communications/notifications/hooks/useAdminNotifications";
 import { notificationAdminUrl } from "../../../communications/notifications/model/notification-model";
 import { useDevicePerformance } from "../../../../app/layout/hooks/use-device-performance";
-import { CoinShopTeaser } from "../../../coin-shop";
 import { PrincipalDashboard } from "./PrincipalDashboard";
 
 /** Principal and supervisor home: school calendar, live prayer time, announcements and attendance totals. */
@@ -40,8 +37,8 @@ export function SchoolManagerDashboard() {
   const auth = useAuth();
   return auth.activeRole === "PRINCIPAL" ? (
     <>
-      <PrincipalDashboard />
       <SchoolOperationsDashboard principalMode />
+      <PrincipalDashboard />
     </>
   ) : (
     <SchoolOperationsDashboard />
@@ -50,7 +47,6 @@ export function SchoolManagerDashboard() {
 function SchoolOperationsDashboard({ principalMode = false }: { principalMode?: boolean }) {
   const auth = useAuth();
   const client = useQueryClient();
-  const [date, setDate] = useState(todayIso);
   const [announcementsOpen, setAnnouncementsOpen] = useState(false);
   const [now, setNow] = useState(() => Date.now());
   const organizationId =
@@ -134,23 +130,13 @@ function SchoolOperationsDashboard({ principalMode = false }: { principalMode?: 
     () => (announcements.data ?? []).filter((item) => item.status === "ACTIVE"),
     [announcements.data],
   );
-  const canReviewIncomingWork = auth.canAny(["permission_requests.read", "leave.read"]);
   const isSupervisorAttendanceWorkspace =
     auth.activeRole === "SCHOOL_SUPERVISOR" && auth.can("attendance.read");
 
   if (schedule.isLoading) return <LoadingState label="در حال آماده‌سازی میز مدرسه…" />;
   return (
     <section className="home-workspace mx-auto grid w-full max-w-6xl gap-3" dir="rtl">
-      <div className="w-full">
-        <DashboardCalendar
-          value={date}
-          onChange={setDate}
-          capabilities={auth.capabilities}
-          schedule={schedule.data ?? []}
-        />
-      </div>
-      {principalMode ? null : <CoinShopTeaser audience="school" />}
-      <div className="">
+      <div className="grid col-end-2">
         {!principalMode && isSupervisorAttendanceWorkspace ? (
           <SupervisorAttendanceLaunchpad />
         ) : null}
@@ -195,7 +181,7 @@ function SchoolOperationsDashboard({ principalMode = false }: { principalMode?: 
             </Card>
           </div>
         ) : null}
-        <Card className="p-4">
+        {/* <Card className="p-4">
           <div className="flex items-center justify-between gap-3">
             <div>
               <h2 className="font-black text-ink">اعلان‌های مدرسه</h2>
@@ -207,8 +193,7 @@ function SchoolOperationsDashboard({ principalMode = false }: { principalMode?: 
               <BellRing size={16} /> مدیریت اعلان‌ها
             </Button>
           </div>
-        </Card>
-        {canReviewIncomingWork || auth.can("chat.read") ? <SchoolIncomingPanel /> : null}
+        </Card> */}
         <ResponsiveDrawer
           open={announcementsOpen}
           onOpenChange={setAnnouncementsOpen}

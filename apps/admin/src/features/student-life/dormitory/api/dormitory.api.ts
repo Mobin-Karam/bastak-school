@@ -21,9 +21,12 @@ export type DormAssignment = {
   userId?: string | null;
 };
 
-export const listDormRooms = (organizationId?: string) =>
+export const listDormRooms = (organizationId?: string, includeArchived = false) =>
   api.get<DormRoom[]>(
-    `/dormitory/rooms${organizationId ? `?organizationId=${encodeURIComponent(organizationId)}` : ""}`,
+    `/dormitory/rooms?${new URLSearchParams({
+      ...(organizationId ? { organizationId } : {}),
+      ...(includeArchived ? { includeArchived: "true" } : {}),
+    }).toString()}`,
   );
 
 export const createDormRoom = (body: {
@@ -34,6 +37,22 @@ export const createDormRoom = (body: {
   floor?: number;
   capacity?: number;
 }) => api.post<DormRoom>("/dormitory/rooms", body);
+
+export const updateDormRoom = (
+  roomId: string,
+  body: Partial<Pick<DormRoom, "code" | "name" | "building" | "floor" | "capacity">>,
+) => api.patch<DormRoom>(`/dormitory/rooms/${encodeURIComponent(roomId)}`, body);
+
+export const archiveDormRoom = (roomId: string) =>
+  api.delete<{ roomId: string; status: "ARCHIVED" }>(
+    `/dormitory/rooms/${encodeURIComponent(roomId)}`,
+  );
+
+export const restoreDormRoom = (roomId: string) =>
+  api.post<{ roomId: string; status: "ACTIVE" }>(
+    `/dormitory/rooms/${encodeURIComponent(roomId)}/restore`,
+    {},
+  );
 
 export const listDormAssignments = (roomId: string) =>
   api.get<DormAssignment[]>(`/dormitory/rooms/${encodeURIComponent(roomId)}/assignments`);

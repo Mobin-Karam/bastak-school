@@ -3,6 +3,7 @@ import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { ModalProvider } from "../../../../shared/ui/modal";
 import {
   getPrincipalDashboard,
   getAttendanceSessionForReview,
@@ -132,9 +133,11 @@ function renderDashboard() {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <QueryClientProvider client={client}>
-      <MemoryRouter>
-        <PrincipalDashboard />
-      </MemoryRouter>
+      <ModalProvider>
+        <MemoryRouter>
+          <PrincipalDashboard />
+        </MemoryRouter>
+      </ModalProvider>
     </QueryClientProvider>,
   );
 }
@@ -164,8 +167,8 @@ describe("PrincipalDashboard", () => {
       await screen.findByRole("heading", { name: "جلسه‌های حضورِ نیازمند بررسی" }),
     ).toBeVisible();
     expect(screen.getByText(/۱ جلسه در چرخهٔ بازبینی هر ۲۴ ساعت/)).toBeVisible();
-    expect(screen.getByText("پایه اول")).toBeVisible();
-    await user.click(screen.getByRole("button", { name: /مشاهدهٔ جزئیات/ }));
+    expect(screen.getAllByText("پایه اول")[0]).toBeVisible();
+    await user.click(screen.getAllByRole("button", { name: /مشاهدهٔ جزئیات/ })[0]);
 
     expect(await screen.findByText("علی رضایی")).toBeVisible();
     expect(reviewAttendanceSession).not.toHaveBeenCalled();
@@ -189,12 +192,38 @@ describe("PrincipalDashboard", () => {
     vi.mocked(getAttendanceSessionForReview).mockClear();
     renderDashboard();
 
-    await user.click(await screen.findByRole("button", { name: "تأیید بازبینی و ثبت" }));
+    await user.click((await screen.findAllByRole("button", { name: "تأیید بازبینی و ثبت" }))[0]);
 
     await waitFor(() =>
       expect(reviewAttendanceSession).toHaveBeenCalledWith("session-a", expect.anything()),
     );
     expect(getAttendanceSessionForReview).not.toHaveBeenCalled();
+  });
+
+  it("paginates attendance-review rows without changing their review actions", async () => {
+    const user = userEvent.setup();
+    vi.mocked(getPrincipalDashboard).mockResolvedValue({
+      ...dashboardData,
+      sessionReviews: {
+        pendingCount: 11,
+        items: Array.from({ length: 11 }, (_, index) => ({
+          ...dashboardData.sessionReviews.items[0],
+          id: `session-${index + 1}`,
+          title: `کلاس ${index + 1}`,
+        })),
+      },
+    });
+    renderDashboard();
+
+    expect((await screen.findAllByText("کلاس 1"))[0]).toBeVisible();
+    expect(screen.queryAllByText("کلاس 11")).toHaveLength(0);
+    expect(screen.getByText("صفحه ۱ از ۲")).toBeVisible();
+    await user.click(screen.getByRole("button", { name: "بعدی" }));
+
+    expect((await screen.findAllByText("کلاس 11"))[0]).toBeVisible();
+    expect(screen.queryAllByText("کلاس 1")).toHaveLength(0);
+    expect(screen.getByText("صفحه ۲ از ۲")).toBeVisible();
+    expect(screen.getByRole("button", { name: "بعدی" })).toBeDisabled();
   });
 
   it("hides the leadership review section when the active context lacks attendance.review", async () => {

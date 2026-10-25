@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { toast } from "sonner";
 import { ThemeProvider } from "../../../../shared/theme/theme";
 import { LocaleProvider } from "../../../../shared/ui/locale";
+import { ModalProvider } from "../../../../shared/ui/modal";
 import { AppToaster } from "../../../../shared/ui/notifications";
 import { DormitoryPage } from "./DormitoryPage";
 
@@ -14,6 +15,9 @@ const {
   setDormAssignmentsMock,
   findDormitoryStudentsMock,
   sendDormitoryAnnouncementMock,
+  updateDormRoomMock,
+  archiveDormRoomMock,
+  restoreDormRoomMock,
 } = vi.hoisted(() => ({
   listDormRoomsMock: vi.fn(),
   createDormRoomMock: vi.fn(),
@@ -22,6 +26,9 @@ const {
   setDormAssignmentsMock: vi.fn(),
   findDormitoryStudentsMock: vi.fn(),
   sendDormitoryAnnouncementMock: vi.fn(),
+  updateDormRoomMock: vi.fn(),
+  archiveDormRoomMock: vi.fn(),
+  restoreDormRoomMock: vi.fn(),
 }));
 
 vi.mock("../api/dormitory.api.ts", () => ({
@@ -32,6 +39,9 @@ vi.mock("../api/dormitory.api.ts", () => ({
   setDormAssignments: setDormAssignmentsMock,
   findDormitoryStudents: findDormitoryStudentsMock,
   sendDormitoryAnnouncement: sendDormitoryAnnouncementMock,
+  updateDormRoom: updateDormRoomMock,
+  archiveDormRoom: archiveDormRoomMock,
+  restoreDormRoom: restoreDormRoomMock,
 }));
 
 vi.mock("../../../identity/auth", () => ({
@@ -46,8 +56,10 @@ function renderPage() {
   return render(
     <ThemeProvider>
       <LocaleProvider>
-        <DormitoryPage />
-        <AppToaster />
+        <ModalProvider>
+          <DormitoryPage />
+          <AppToaster />
+        </ModalProvider>
       </LocaleProvider>
     </ThemeProvider>,
   );
@@ -81,11 +93,16 @@ describe("DormitoryPage", () => {
       organizationId: "org-1",
       code: "A1",
       name: "اتاق A1",
+      building: "ساختمان اصلی",
+      floor: 1,
       capacity: 12,
       status: "ACTIVE",
       studentCount: 0,
     });
     setDormAssignmentsMock.mockResolvedValue({ roomId: "room-1", count: 0 });
+    updateDormRoomMock.mockResolvedValue(room);
+    archiveDormRoomMock.mockResolvedValue({ roomId: "room-1", status: "ARCHIVED" });
+    restoreDormRoomMock.mockResolvedValue({ roomId: "room-1", status: "ACTIVE" });
   });
 
   it("renders the dormitory management layout", async () => {
@@ -203,6 +220,39 @@ describe("DormitoryPage", () => {
       }),
     );
     expect((await screen.findAllByText("اتاق A1")).length).toBeGreaterThan(0);
+  });
+
+  it("edits a room from its detail panel", async () => {
+    listDormRoomsMock.mockResolvedValue([room]);
+    renderPage();
+
+    fireEvent.click(await screen.findByRole("button", { name: "ویرایش اتاق" }));
+    const dialog = within(screen.getByRole("dialog"));
+    fireEvent.change(dialog.getByLabelText(/نام اتاق/), { target: { value: "اتاق بازطراحی‌شده" } });
+    fireEvent.click(dialog.getByRole("button", { name: "ذخیره تغییرات اتاق" }));
+
+    await waitFor(() =>
+      expect(updateDormRoomMock).toHaveBeenCalledWith("room-1", {
+        building: "اصلی",
+        floor: 1,
+        code: "A1",
+        name: "اتاق بازطراحی‌شده",
+        capacity: 1,
+      }),
+    );
+  });
+
+  it("archives an empty room only after confirmation", async () => {
+    listDormRoomsMock.mockResolvedValue([room]);
+    renderPage();
+
+    fireEvent.click(await screen.findByRole("button", { name: "بایگانی اتاق" }));
+    const confirmation = await screen.findByRole("dialog");
+    expect(within(confirmation).getByText("بایگانی اتاق؟")).toBeInTheDocument();
+    fireEvent.click(within(confirmation).getByRole("button", { name: "بایگانی" }));
+
+    await waitFor(() => expect(archiveDormRoomMock).toHaveBeenCalledWith("room-1"));
+    expect(screen.queryByText("اتاق A1")).not.toBeInTheDocument();
   });
 
   it("explains why a room announcement cannot be sent without a resident account", async () => {

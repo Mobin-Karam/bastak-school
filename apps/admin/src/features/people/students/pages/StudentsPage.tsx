@@ -652,8 +652,10 @@ export function StudentsPage() {
       setBulkPassword("");
       setBulkPasswordOpen(false);
       setFeedback({
-        tone: "success",
-        message: `${result.updated.toLocaleString(locale)} حساب با رمز جدید به‌روزرسانی شد و نشست‌های قبلی بسته شدند.`,
+        tone: result.skippedStudentIds.length ? "info" : "success",
+        message: result.skippedStudentIds.length
+          ? `${result.updated.toLocaleString(locale)} حساب با رمز جدید به‌روزرسانی شد. ${result.skippedStudentIds.length.toLocaleString(locale)} پرونده بدون حساب ورود بود و تغییری نکرد.`
+          : `${result.updated.toLocaleString(locale)} حساب با رمز جدید به‌روزرسانی شد و نشست‌های قبلی بسته شدند.`,
       });
     },
     onError: (error) =>

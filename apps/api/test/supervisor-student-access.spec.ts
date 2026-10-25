@@ -10,6 +10,7 @@ import {
   UserContext,
 } from "../src/modules/authorization";
 import { StudentAdministrationService } from "../src/modules/students/student-administration.service";
+import { StudentsService } from "../src/modules/students/students.service";
 
 describe("supervisor student access", () => {
   const context: UserContext = {
@@ -32,6 +33,7 @@ describe("supervisor student access", () => {
   let relationships: { find: jest.Mock; findOne: jest.Mock };
   let service: StudentAdministrationService;
   let authorization: AuthorizationService;
+  let legacy: { resetPassword: jest.Mock };
 
   beforeEach(async () => {
     students = {
@@ -42,6 +44,9 @@ describe("supervisor student access", () => {
       find: jest.fn().mockResolvedValue([]),
       findOne: jest.fn().mockResolvedValue(null),
     };
+    legacy = {
+      resetPassword: jest.fn().mockResolvedValue({ passwordReset: true }),
+    };
     const module = await Test.createTestingModule({
       providers: [StudentAdministrationService, AuthorizationService],
     })
@@ -51,6 +56,7 @@ describe("supervisor student access", () => {
           return relationships;
         if (token === getRepositoryToken(OrganizationMembership))
           return { findOne: jest.fn().mockResolvedValue(null) };
+        if (token === StudentsService) return legacy;
         return {};
       })
       .compile();
@@ -137,5 +143,57 @@ describe("supervisor student access", () => {
       ),
     ).toBe(false);
     expect(students.findOne).not.toHaveBeenCalled();
+  });
+
+  it("allows a principal with students.archive to archive a student in their school", async () => {
+    const principal: UserContext = {
+      ...context,
+      id: "principal",
+      role: "PRINCIPAL",
+      roles: ["PRINCIPAL"],
+      capabilities: ["students.archive"],
+    };
+
+    await expect(
+      authorization.canAccessStudent(principal, student.id, "students.archive"),
+    ).resolves.toBe(true);
+  });
+
+  it("resets every authorized student account and skips legacy profiles without one", async () => {
+    const accountStudent = { ...student, user: { id: "student-user" } };
+    const legacyStudent = {
+      id: "student-b",
+      name: "Student B",
+      organization: student.organization,
+      user: null,
+    };
+    students.findOne.mockImplementation(
+      async ({ where }: { where: { id: string } }) =>
+        where.id === legacyStudent.id ? legacyStudent : accountStudent,
+    );
+    students.find.mockResolvedValue([accountStudent, legacyStudent]);
+    const principal: UserContext = {
+      ...context,
+      id: "principal",
+      role: "PRINCIPAL",
+      roles: ["PRINCIPAL"],
+      capabilities: ["students.update"],
+    };
+
+    await expect(
+      service.bulkResetPassword(
+        principal,
+        [accountStudent.id, legacyStudent.id],
+        "ReplacementPassword123",
+      ),
+    ).resolves.toEqual({
+      updated: 1,
+      studentIds: [accountStudent.id],
+      skippedStudentIds: [legacyStudent.id],
+    });
+    expect(legacy.resetPassword).toHaveBeenCalledWith(
+      accountStudent.id,
+      "ReplacementPassword123",
+    );
   });
 });

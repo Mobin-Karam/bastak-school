@@ -673,6 +673,50 @@ describe("migration-backed persistence and verified recovery (disposable SQLite 
     expect(String(log.mock.calls[0][0])).not.toContain('JOIN "students"');
   });
 
+  it("edits room details safely and archives only empty rooms", async () => {
+    await apply();
+    const service = residence();
+    await service.setAssignments(actor, room.id, [student.id]);
+
+    await expect(service.updateRoom(actor, room.id, { capacity: 0 })).rejects.toMatchObject({
+      response: { error: { code: "DORM_ROOM_CAPACITY" } },
+    });
+    await expect(service.archiveRoom(actor, room.id)).rejects.toMatchObject({
+      response: { error: { code: "DORM_ROOM_OCCUPIED" } },
+    });
+
+    const updated = await service.updateRoom(actor, room.id, {
+      name: "Updated room",
+      building: "North wing",
+      floor: 3,
+      capacity: 2,
+    });
+    expect(updated).toEqual(
+      expect.objectContaining({
+        id: room.id,
+        name: "Updated room",
+        building: "North wing",
+        floor: 3,
+        capacity: 2,
+        studentCount: 1,
+      }),
+    );
+
+    await service.setAssignments(actor, room.id, []);
+    await expect(service.archiveRoom(actor, room.id)).resolves.toEqual({
+      roomId: room.id,
+      status: "ARCHIVED",
+    });
+    expect((await service.listRooms(actor)).map((entry) => entry.id)).not.toContain(room.id);
+    expect((await service.listRooms(actor, undefined, true)).find((entry) => entry.id === room.id)).toEqual(
+      expect.objectContaining({ status: "ARCHIVED" }),
+    );
+    await expect(service.restoreRoom(actor, room.id)).resolves.toEqual({
+      roomId: room.id,
+      status: "ACTIVE",
+    });
+  });
+
   it("does not promote a second membership into authority or reactivate empty/inactive scope", async () => {
     await expect(access.organizationForUser(actor, b.id)).rejects.toThrow();
     expect(

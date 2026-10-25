@@ -1,4 +1,4 @@
-import { Building2, Megaphone, Plus, Users } from "lucide-react";
+import { Archive, Building2, Megaphone, Pencil, Plus, RotateCcw, Users } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Button, Card, ErrorState, Field, Input, Textarea } from "../../../../shared/ui/ui";
 import { ManagementPageHeader } from "../../../../shared/ui/management-workspace";
@@ -7,14 +7,18 @@ import { ResponsiveDrawer } from "../../../../shared/ui/responsive-drawer";
 import { useAuth } from "../../../identity/auth";
 import { notifications, type PromiseNotificationData } from "../../../../shared/ui/notifications";
 import { useOptionalAdminLanguage } from "../../../../shared/ui/locale";
+import { useModal } from "../../../../shared/ui/modal";
 import {
+  archiveDormRoom,
   createDormRoom,
   findDormitoryStudents,
   listAvailableDormStudents,
   listDormAssignments,
   listDormRooms,
+  restoreDormRoom,
   sendDormitoryAnnouncement,
   setDormAssignments,
+  updateDormRoom,
   type DormAssignment,
   type DormitoryStudent,
   type DormRoom,
@@ -30,6 +34,7 @@ export function DormitoryPage() {
 
 function DormitoryWorkspace() {
   const auth = useAuth();
+  const modal = useModal();
   const language = useOptionalAdminLanguage();
   const t = useCallback((fa: string, en: string) => (language === "fa" ? fa : en), [language]);
   const canRead = auth.can("dormitory.read");
@@ -43,6 +48,8 @@ function DormitoryWorkspace() {
   const [students, setStudents] = useState<Array<{ id: string; name: string }>>([]);
   const [residentSearch, setResidentSearch] = useState("");
   const [roomDraft, setRoomDraft] = useState(emptyRoom);
+  const [editingRoomId, setEditingRoomId] = useState<string | null>(null);
+  const [showArchived, setShowArchived] = useState(false);
   const [drawer, setDrawer] = useState<"room" | "announcement" | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -97,6 +104,7 @@ function DormitoryWorkspace() {
   const totalResidents = rooms.reduce((sum, room) => sum + room.studentCount, 0);
   const remainingBeds = selected ? Math.max(0, selected.capacity - assigned.length) : 0;
   const roomRecipientCount = assigned.filter((item) => item.userId).length;
+  const canManageSelected = canManage && selected?.status === "ACTIVE";
 
   useEffect(() => {
     if (!canRead) {
@@ -107,7 +115,7 @@ function DormitoryWorkspace() {
     const toastId = `dormitory:rooms-load:${organizationId}`;
     setLoading(true);
     setError("");
-    void listDormRooms(organizationId)
+    void listDormRooms(organizationId, showArchived)
       .then((next) => {
         if (!alive) return;
         setRooms(next);
@@ -134,7 +142,7 @@ function DormitoryWorkspace() {
     return () => {
       alive = false;
     };
-  }, [canRead, organizationId, roomsVersion, t]);
+  }, [canRead, organizationId, roomsVersion, showArchived, t]);
 
   const selectedRoomId = selected?.id;
   useEffect(() => {
@@ -254,7 +262,7 @@ function DormitoryWorkspace() {
   }
 
   const toggle = (studentId: string) => {
-    if (!canManage || saving || assignmentsLoading || assignmentsError) return;
+    if (!canManageSelected || saving || assignmentsLoading || assignmentsError) return;
     if (assignedIds.has(studentId)) {
       setAssigned((current) => current.filter((item) => item.studentId !== studentId));
       return;
@@ -303,27 +311,35 @@ function DormitoryWorkspace() {
       return;
     }
     const draft = {
-      organizationId,
       ...roomDraft,
       building: roomDraft.building.trim(),
       code: roomDraft.code.trim(),
       name: roomDraft.name.trim(),
     };
     await runOperation(
-      () => createDormRoom(draft),
+      () =>
+        editingRoomId
+          ? updateDormRoom(editingRoomId, draft)
+          : createDormRoom({ organizationId, ...draft }),
       {
         id: `dormitory:room-create:${organizationId}`,
-        loading: t("در حال ایجاد اتاق…", "Creating room…"),
+        loading: editingRoomId
+          ? t("در حال ذخیره اتاق…", "Saving room…")
+          : t("در حال ایجاد اتاق…", "Creating room…"),
         description: t("اطلاعات اتاق در حال ذخیره است.", "Saving the room details."),
         success: (room) => ({
-          message: t("اتاق ایجاد شد.", "Room created."),
+          message: editingRoomId
+            ? t("اتاق به‌روزرسانی شد.", "Room updated.")
+            : t("اتاق ایجاد شد.", "Room created."),
           description: t(
             `«${room.name}» آماده تخصیص ساکنان است.`,
             `${room.name} is ready for residents.`,
           ),
         }),
         error: () => ({
-          message: t("ایجاد اتاق انجام نشد.", "Could not create the room."),
+          message: editingRoomId
+            ? t("ویرایش اتاق انجام نشد.", "Could not update the room.")
+            : t("ایجاد اتاق انجام نشد.", "Could not create the room."),
           description: t(
             "اطلاعات واردشده حفظ شده است. کد اتاق باید یکتا باشد؛ اتصال را بررسی کنید و دوباره تلاش کنید.",
             "Your details were kept. Check the room code is unique and try again.",
@@ -332,17 +348,71 @@ function DormitoryWorkspace() {
         }),
       },
       (room) => {
-        setRooms((current) => [...current, room]);
+        setRooms((current) =>
+          editingRoomId
+            ? current.map((item) => (item.id === room.id ? room : item))
+            : [...current, room],
+        );
         setSelectedId(room.id);
         setRoomDraft(emptyRoom);
+        setEditingRoomId(null);
         setDrawer(null);
+      },
+    );
+  };
+  const openRoomEditor = (room?: DormRoom) => {
+    setEditingRoomId(room?.id ?? null);
+    setRoomDraft(
+      room
+        ? {
+            building: room.building,
+            floor: room.floor,
+            code: room.code,
+            name: room.name,
+            capacity: room.capacity,
+          }
+        : emptyRoom,
+    );
+    setDrawer("room");
+  };
+  const archiveRoom = async (room: DormRoom) => {
+    await runOperation<{ roomId: string; status: "ACTIVE" | "ARCHIVED" }>(
+      () => (room.status === "ARCHIVED" ? restoreDormRoom(room.id) : archiveDormRoom(room.id)),
+      {
+        id: `dormitory:room-status:${room.id}`,
+        loading:
+          room.status === "ARCHIVED"
+            ? t("در حال بازیابی اتاق…", "Restoring room…")
+            : t("در حال بایگانی اتاق…", "Archiving room…"),
+        success: () => ({
+          message:
+            room.status === "ARCHIVED"
+              ? t("اتاق بازیابی شد.", "Room restored.")
+              : t("اتاق بایگانی شد.", "Room archived."),
+        }),
+        error: () => ({
+          message: t("تغییر وضعیت اتاق انجام نشد.", "Could not change the room status."),
+          duration: 8000,
+        }),
+      },
+      (result) => {
+        if (room.status === "ARCHIVED")
+          setRooms((current) =>
+            current.map((item) =>
+              item.id === room.id ? { ...item, status: result.status } : item,
+            ),
+          );
+        else {
+          setRooms((current) => current.filter((item) => item.id !== room.id));
+          setSelectedId((current) => (current === room.id ? "" : current));
+        }
       },
     );
   };
   const save = async () => {
     if (
       !selected ||
-      !canManage ||
+      !canManageSelected ||
       assignmentsLoading ||
       assignmentsError ||
       operationInFlight.current
@@ -538,11 +608,21 @@ function DormitoryWorkspace() {
             <Button
               className="mt-5"
               disabled={!canManage || saving}
-              onClick={() => setDrawer("room")}
+              onClick={() => openRoomEditor()}
             >
               <Plus size={17} aria-hidden="true" />
               ایجاد اولین اتاق
             </Button>
+            {!showArchived ? (
+              <Button
+                className="mt-3"
+                variant="ghost"
+                disabled={saving}
+                onClick={() => setShowArchived(true)}
+              >
+                نمایش اتاق‌های بایگانی‌شده
+              </Button>
+            ) : null}
           </div>
         </Card>
       ) : null}
@@ -567,7 +647,7 @@ function DormitoryWorkspace() {
                             type="button"
                             disabled={saving}
                             onClick={() => setSelectedId(room.id)}
-                            className={`min-h-24 rounded-xl border p-3 text-start focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand ${room.id === selected?.id ? "border-brand bg-brand/10" : "border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-muted))]"}`}
+                            className={`min-h-24 rounded-xl border p-3 text-start focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand ${room.status === "ARCHIVED" ? "border-dashed opacity-70" : ""} ${room.id === selected?.id ? "border-brand bg-brand/10" : "border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-muted))]"}`}
                           >
                             <span className="text-xs text-slate-500">{room.code}</span>
                             <strong className="mt-1 block text-sm text-ink">{room.name}</strong>
@@ -599,15 +679,58 @@ function DormitoryWorkspace() {
                   {hasResidentChanges ? " · تغییرات ذخیره نشده" : " · وضعیت ذخیره شده"}
                 </p>
               </div>
-              <Button
-                size="icon"
-                variant="soft"
-                disabled={!canAnnounce || saving}
-                aria-label="ارسال اعلان"
-                onClick={() => setDrawer("announcement")}
-              >
-                <Megaphone size={18} aria-hidden="true" />
-              </Button>
+              <div className="flex items-center gap-1">
+                {canManage && selected ? (
+                  <>
+                    <Button
+                      size="icon"
+                      variant="soft"
+                      disabled={saving}
+                      aria-label="ویرایش اتاق"
+                      onClick={() => openRoomEditor(selected)}
+                    >
+                      <Pencil size={17} aria-hidden="true" />
+                    </Button>
+                    <Button
+                      size="icon"
+                      variant="soft"
+                      disabled={saving || (selected.status === "ACTIVE" && assigned.length > 0)}
+                      aria-label={selected.status === "ARCHIVED" ? "بازیابی اتاق" : "بایگانی اتاق"}
+                      onClick={() => {
+                        const action = selected.status === "ARCHIVED" ? "بازیابی" : "بایگانی";
+                        void modal
+                          .confirm({
+                            title: `${action} اتاق؟`,
+                            description:
+                              selected.status === "ARCHIVED"
+                                ? `«${selected.name}» دوباره برای تخصیص ساکنان فعال می‌شود.`
+                                : `«${selected.name}» فقط وقتی بدون ساکن باشد بایگانی می‌شود.`,
+                            confirmLabel: action,
+                            cancelLabel: "انصراف",
+                            showCancel: true,
+                            tone: selected.status === "ARCHIVED" ? "default" : "danger",
+                          })
+                          .then((confirmed) => confirmed && void archiveRoom(selected));
+                      }}
+                    >
+                      {selected.status === "ARCHIVED" ? (
+                        <RotateCcw size={17} aria-hidden="true" />
+                      ) : (
+                        <Archive size={17} aria-hidden="true" />
+                      )}
+                    </Button>
+                  </>
+                ) : null}
+                <Button
+                  size="icon"
+                  variant="soft"
+                  disabled={!canAnnounce || saving || selected?.status !== "ACTIVE"}
+                  aria-label="ارسال اعلان"
+                  onClick={() => setDrawer("announcement")}
+                >
+                  <Megaphone size={18} aria-hidden="true" />
+                </Button>
+              </div>
             </div>
             {assignmentsLoading ? (
               <p role="status" className="mt-4 text-sm text-slate-500">
@@ -652,7 +775,10 @@ function DormitoryWorkspace() {
                     aria-label={`تخصیص ${student.name}`}
                     type="checkbox"
                     disabled={
-                      !canManage || saving || assignmentsLoading || Boolean(assignmentsError)
+                      !canManageSelected ||
+                      saving ||
+                      assignmentsLoading ||
+                      Boolean(assignmentsError)
                     }
                     checked={assignedIds.has(student.id)}
                     onChange={() => toggle(student.id)}
@@ -669,7 +795,7 @@ function DormitoryWorkspace() {
               <Button
                 className="w-full"
                 disabled={
-                  !canManage ||
+                  !canManageSelected ||
                   assignmentsLoading ||
                   Boolean(assignmentsError) ||
                   !hasResidentChanges
@@ -695,16 +821,29 @@ function DormitoryWorkspace() {
         </div>
       ) : null}
       {!loading && !error && rooms.length > 0 ? (
-        <Button variant="soft" disabled={!canManage || saving} onClick={() => setDrawer("room")}>
-          <Plus size={17} aria-hidden="true" />
-          ایجاد اتاق
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button variant="soft" disabled={!canManage || saving} onClick={() => openRoomEditor()}>
+            <Plus size={17} aria-hidden="true" />
+            ایجاد اتاق
+          </Button>
+          <Button
+            variant="ghost"
+            disabled={saving}
+            onClick={() => setShowArchived((value) => !value)}
+          >
+            {showArchived ? "پنهان‌کردن بایگانی" : "نمایش بایگانی"}
+          </Button>
+        </div>
       ) : null}
       <ResponsiveDrawer
         open={drawer === "room"}
         onOpenChange={(open) => !open && !saving && setDrawer(null)}
-        title="ایجاد اتاق جدید"
-        description="ساختمان، طبقه و ظرفیت اتاق را مشخص کنید."
+        title={editingRoomId ? "ویرایش اتاق" : "ایجاد اتاق جدید"}
+        description={
+          editingRoomId
+            ? "مشخصات اتاق را به‌روزرسانی کنید."
+            : "ساختمان، طبقه و ظرفیت اتاق را مشخص کنید."
+        }
       >
         <div className="space-y-4">
           <Field label="ساختمان" required>
@@ -769,7 +908,7 @@ function DormitoryWorkspace() {
             />
           </Field>
           <Button className="w-full" loading={saving} onClick={createRoom}>
-            ایجاد اتاق
+            {editingRoomId ? "ذخیره تغییرات اتاق" : "ایجاد اتاق"}
           </Button>
         </div>
       </ResponsiveDrawer>

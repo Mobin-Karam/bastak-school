@@ -16,6 +16,7 @@ const state = vi.hoisted(() => ({
   updateUser: vi.fn(),
   setUserRoles: vi.fn(),
   createUser: vi.fn(),
+  archiveUser: vi.fn(),
 }));
 vi.mock("../auth", () => ({
   useAuth: () => ({
@@ -30,7 +31,7 @@ vi.mock("./api/access.api.ts", () => ({
   listOrganizations: vi.fn(),
   setUserActive: state.setUserActive,
   createUser: state.createUser,
-  archiveUser: vi.fn(),
+  archiveUser: state.archiveUser,
   transferPlatformOwnership: vi.fn(),
   updateUser: state.updateUser,
   setUserRoles: state.setUserRoles,
@@ -99,6 +100,22 @@ it("hides destructive actions for the current account", async () => {
   await userEvent.click(within(row).getByRole("button", { name: /actions/i }));
   expect(screen.queryByRole("menuitem", { name: copy.disable })).not.toBeInTheDocument();
   expect(screen.queryByRole("menuitem", { name: copy.archive })).not.toBeInTheDocument();
+});
+it("lets a principal archive a staff account in their active school", async () => {
+  mount();
+  await screen.findByRole("table");
+  const row = within(screen.getByRole("table")).getByText("Employee").closest("tr")!;
+
+  await userEvent.click(within(row).getByRole("button", { name: /actions/i }));
+  await userEvent.click(screen.getByRole("menuitem", { name: copy.archive }));
+  const dialog = screen.getByRole("dialog", { name: copy.archiveAccountTitle });
+  await userEvent.type(
+    within(dialog).getByLabelText(`Confirmation phrase ${copy.archive}`),
+    copy.archive,
+  );
+  await userEvent.click(within(dialog).getByRole("button", { name: copy.archive }));
+
+  await waitFor(() => expect(state.archiveUser).toHaveBeenCalledWith("staff", expect.anything()));
 });
 it("keeps read-only users out of account mutations and selection", async () => {
   state.manage = false;
