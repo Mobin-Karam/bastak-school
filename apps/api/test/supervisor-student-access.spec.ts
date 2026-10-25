@@ -33,7 +33,11 @@ describe("supervisor student access", () => {
   let relationships: { find: jest.Mock; findOne: jest.Mock };
   let service: StudentAdministrationService;
   let authorization: AuthorizationService;
-  let legacy: { resetPassword: jest.Mock };
+  let legacy: {
+    resetPassword: jest.Mock;
+    remove: jest.Mock;
+    lifecycle: jest.Mock;
+  };
 
   beforeEach(async () => {
     students = {
@@ -46,6 +50,8 @@ describe("supervisor student access", () => {
     };
     legacy = {
       resetPassword: jest.fn().mockResolvedValue({ passwordReset: true }),
+      remove: jest.fn().mockResolvedValue({ archived: true }),
+      lifecycle: jest.fn().mockResolvedValue({ accountStatus: "inactive" }),
     };
     const module = await Test.createTestingModule({
       providers: [StudentAdministrationService, AuthorizationService],
@@ -157,6 +163,30 @@ describe("supervisor student access", () => {
     await expect(
       authorization.canAccessStudent(principal, student.id, "students.archive"),
     ).resolves.toBe(true);
+  });
+
+  it("lets a school admin manage lifecycle actions in their own school", async () => {
+    const schoolAdmin: UserContext = {
+      ...context,
+      id: "school-admin",
+      role: "SCHOOL_ADMIN",
+      roles: ["SCHOOL_ADMIN"],
+      capabilities: ["students.read", "students.update", "students.archive"],
+    };
+
+    await expect(service.list(schoolAdmin)).resolves.toEqual([
+      expect.objectContaining({ id: student.id }),
+    ]);
+    await expect(
+      service.lifecycle(schoolAdmin, student.id, "deactivate"),
+    ).resolves.toEqual({
+      accountStatus: "inactive",
+    });
+    await expect(service.remove(schoolAdmin, student.id)).resolves.toEqual({
+      archived: true,
+    });
+    expect(legacy.lifecycle).toHaveBeenCalledWith(student.id, "deactivate");
+    expect(legacy.remove).toHaveBeenCalledWith(student.id);
   });
 
   it("resets every authorized student account and skips legacy profiles without one", async () => {

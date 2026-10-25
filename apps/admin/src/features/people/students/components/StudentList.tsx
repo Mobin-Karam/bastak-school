@@ -13,6 +13,7 @@ import {
   getStudentUsername,
   studentStatusCopy,
   type StudentProfileFilter,
+  type StudentClassOption,
   type StudentSort,
   type StudentSortDirection,
   type StudentStatusFilter,
@@ -82,6 +83,8 @@ export function StudentList({
   search,
   setSearch,
   status,
+  classId = "",
+  classOptions = [],
   counts,
   incomplete,
   profileFilter,
@@ -89,6 +92,7 @@ export function StudentList({
   sortDirection,
   onSort,
   onStatusChange,
+  onClassChange = () => undefined,
   onIncompleteToggle,
   onClearFilters,
   onSelect,
@@ -110,6 +114,8 @@ export function StudentList({
   search: string;
   setSearch: (value: string) => void;
   status: StudentStatusFilter;
+  classId?: string;
+  classOptions?: StudentClassOption[];
   counts: Record<StudentStatusFilter, number>;
   incomplete: number;
   profileFilter: StudentProfileFilter;
@@ -117,6 +123,7 @@ export function StudentList({
   sortDirection: StudentSortDirection;
   onSort: (value: StudentSort) => void;
   onStatusChange: (value: StudentStatusFilter) => void;
+  onClassChange?: (value: string) => void;
   onIncompleteToggle: () => void;
   onClearFilters: () => void;
   onSelect: (student: Student) => void;
@@ -129,7 +136,8 @@ export function StudentList({
   const language = useOptionalAdminLanguage();
   const copy = studentCopy[language];
   const locale = language === "en" ? "en-US" : "fa-IR";
-  const hasFilters = !!search.trim() || status !== "all" || profileFilter !== "all";
+  const hasFilters = !!search.trim() || status !== "all" || profileFilter !== "all" || !!classId;
+  const selectedClassName = classOptions.find((item) => item.id === classId)?.name;
   const startItem = filteredTotal ? (page - 1) * pageSize + 1 : 0;
   const endItem = Math.min(page * pageSize, filteredTotal);
   const statusLabel = status === "all" ? "" : copy[status];
@@ -166,7 +174,7 @@ export function StudentList({
           }
           onClear={hasFilters ? onClearFilters : undefined}
           filters={
-            status !== "all" || profileFilter === "incomplete" ? (
+            status !== "all" || profileFilter === "incomplete" || selectedClassName ? (
               <>
                 {status !== "all" ? (
                   <span className="whitespace-nowrap px-1.5 text-[11px] font-semibold text-slate-600 dark:text-slate-300">
@@ -176,6 +184,11 @@ export function StudentList({
                 {profileFilter === "incomplete" ? (
                   <span className="whitespace-nowrap px-1.5 text-[11px] font-semibold text-amber-700 dark:text-amber-300">
                     {copy.profileIncomplete}
+                  </span>
+                ) : null}
+                {selectedClassName ? (
+                  <span className="whitespace-nowrap px-1.5 text-[11px] font-semibold text-slate-600 dark:text-slate-300">
+                    {copy.classFilter}: {selectedClassName}
                   </span>
                 ) : null}
               </>
@@ -192,6 +205,24 @@ export function StudentList({
           onIncompleteToggle={onIncompleteToggle}
         />
         <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 pt-3 dark:border-slate-800">
+          {classOptions.length ? (
+            <label className="flex min-w-0 items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
+              <span className="shrink-0">{copy.classFilter}</span>
+              <Select
+                aria-label={copy.classFilter}
+                className="h-9 min-w-36 max-w-56 text-xs"
+                value={classId}
+                onChange={(event) => onClassChange(event.target.value)}
+              >
+                <option value="">{copy.allClasses}</option>
+                {classOptions.map((item) => (
+                  <option key={item.id} value={item.id}>
+                    {item.name}
+                  </option>
+                ))}
+              </Select>
+            </label>
+          ) : null}
           <label className="flex min-w-0 items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
             <span className="shrink-0">{language === "fa" ? "مرتب‌سازی" : "Sort"}</span>
             <Select

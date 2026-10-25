@@ -54,7 +54,9 @@ import {
   getStudentProfileCompleteness,
   getStudentStatus,
   getStudentUsername,
+  matchesStudentClass,
   parseStudentPageNumber,
+  studentClassOptions,
   type StudentDetailTab,
   type StudentProfileFilter,
   type StudentSort,
@@ -154,6 +156,7 @@ export function StudentsPage() {
   const [profileFilter, setProfileFilter] = useState<StudentProfileFilter>(() =>
     searchParams.get("profile") === "incomplete" ? "incomplete" : "all",
   );
+  const [classId, setClassId] = useState(() => searchParams.get("classId") || "");
   const [sort, setSortState] = useState<StudentSort>(() => {
     const value = searchParams.get("sort") as StudentSort | null;
     return value && sortValues.includes(value) ? value : "name";
@@ -241,6 +244,7 @@ export function StudentsPage() {
     () => students.filter((student) => getStudentProfileCompleteness(student) < 100).length,
     [students],
   );
+  const classOptions = useMemo(() => studentClassOptions(students), [students]);
 
   const filtered = useMemo(() => {
     const needle = normalizePersianText(deferredSearch).trim();
@@ -257,6 +261,7 @@ export function StudentsPage() {
       )
       .filter((student) => status === "all" || getStudentStatus(student) === status)
       .filter((student) => profileFilter === "all" || getStudentProfileCompleteness(student) < 100)
+      .filter((student) => matchesStudentClass(student, classId))
       .slice()
       .sort((a, b) => {
         if (sort === "lastSeen")
@@ -282,7 +287,7 @@ export function StudentsPage() {
           }) * direction
         );
       });
-  }, [deferredSearch, language, profileFilter, sort, sortDirection, status, students]);
+  }, [classId, deferredSearch, language, profileFilter, sort, sortDirection, status, students]);
 
   const pageCount = Math.max(1, Math.ceil(filtered.length / pageSize));
   const activePage = Math.min(page, pageCount);
@@ -766,7 +771,7 @@ export function StudentsPage() {
 
   useEffect(() => {
     setPage(1);
-  }, [profileFilter, deferredSearch, sort, sortDirection, status, pageSize]);
+  }, [classId, profileFilter, deferredSearch, sort, sortDirection, status, pageSize]);
   useEffect(() => {
     if (!visibleDetailTabs.includes(detailTab)) setDetailTab("overview");
   }, [detailTab, visibleDetailTabs]);
@@ -794,6 +799,7 @@ export function StudentsPage() {
         setOrDelete("q", search);
         setOrDelete("status", status, "all");
         setOrDelete("profile", profileFilter, "all");
+        setOrDelete("classId", classId);
         setOrDelete("sort", sort, "name");
         setOrDelete(
           "direction",
@@ -809,6 +815,7 @@ export function StudentsPage() {
     );
   }, [
     detailTab,
+    classId,
     page,
     pageSize,
     profileFilter,
@@ -838,6 +845,7 @@ export function StudentsPage() {
     setSearch("");
     setStatus("all");
     setProfileFilter("all");
+    setClassId("");
     setPage(1);
   }
 
@@ -849,6 +857,11 @@ export function StudentsPage() {
   function setDirectoryStatus(next: StudentStatusFilter) {
     setStatus(next);
     setProfileFilter("all");
+    setPage(1);
+  }
+
+  function setDirectoryClass(next: string) {
+    setClassId(next);
     setPage(1);
   }
 
@@ -1044,6 +1057,8 @@ export function StudentsPage() {
             search={search}
             setSearch={setDirectorySearch}
             status={status}
+            classId={classId}
+            classOptions={classOptions}
             counts={counts}
             incomplete={incompleteCount}
             profileFilter={profileFilter}
@@ -1051,6 +1066,7 @@ export function StudentsPage() {
             sortDirection={sortDirection}
             onSort={setSort}
             onStatusChange={setDirectoryStatus}
+            onClassChange={setDirectoryClass}
             onIncompleteToggle={toggleDirectoryIncomplete}
             onClearFilters={clearFilters}
             onSelect={requestSelection}
