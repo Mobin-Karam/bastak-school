@@ -44,7 +44,18 @@ jobs:
       - run: npm --prefix apps/admin run audit:parity
       - run: npm --prefix apps/admin run test:coverage
       - run: npm --prefix apps/admin run test:e2e -- --list
-      - run: npm --prefix apps/admin exec -- playwright install --with-deps chromium
+      - name: Restore Playwright Chromium
+        id: playwright-cache
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('apps/admin/package-lock.json') }}
+      - name: Install Playwright Chromium and host dependencies
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        run: npm --prefix apps/admin exec -- playwright install --with-deps chromium
+      - name: Confirm cached Playwright Chromium
+        if: steps.playwright-cache.outputs.cache-hit == 'true'
+        run: npm --prefix apps/admin exec -- playwright install chromium
       - run: npm --prefix apps/admin run test:e2e -- --grep 'desktop panels remain reachable'
       - run: npm --prefix apps/admin audit --omit=dev --audit-level=high
       - run: npm --prefix apps/api audit --omit=dev --audit-level=high
@@ -95,45 +106,3 @@ jobs:
             test "$PROMOTION" = skipped
             test "$QUALITY" = success && test "$CONTAINERS" = success
           fi
-  sync-main:
-    needs: gate
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
-    environment: lan-production
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-        with:
-          ref: develop
-          fetch-depth: 0
-          token: ${{ secrets.RELEASE_PR_TOKEN }}
-      - name: Keep develop synchronized with release history
-        env:
-          GH_TOKEN: ${{ secrets.RELEASE_PR_TOKEN }}
-          GH_REPO: ${{ github.repository }}
-          RELEASE_SHA: ${{ github.sha }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          [[ -n "$GH_TOKEN" ]] || { echo 'Configure RELEASE_PR_TOKEN.'; exit 1; }
-          git fetch origin main develop
-          git merge-base --is-ancestor "$RELEASE_SHA" origin/develop && exit 0
-          branch="chore/sync-main-$RELEASE_SHA"
-          existing=$(gh pr list --repo "$GH_REPO" --base develop --head "$branch" --state open --json number --jq '.[0].number // empty')
-          if [[ -n "$existing" ]]; then
-            gh pr merge "$existing" --repo "$GH_REPO" --auto --merge
-            exit 0
-          fi
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          if git ls-remote --exit-code --heads origin "$branch" >/dev/null; then
-            git fetch origin "$branch"
-            git switch -c "$branch" "origin/$branch"
-            git merge --no-ff --no-edit origin/develop
-          else
-            git switch -c "$branch" origin/develop
-          fi
-          git merge --no-ff --no-edit "$RELEASE_SHA"
-          git push origin "$branch"
-          gh pr create --repo "$GH_REPO" --base develop --head "$branch" --title 'chore: synchronize released main into develop' --body "Preserve release ancestry after main CI passed for $RELEASE_SHA. Merge with a merge commit after CI; do not squash this synchronization."
-          pr=$(gh pr list --repo "$GH_REPO" --base develop --head "$branch" --state open --json number --jq '.[0].number')
-          gh pr merge "$pr" --repo "$GH_REPO" --auto --merge
