@@ -10,7 +10,16 @@ import {
   useAttendanceDiscard,
 } from "../../../student-life/attendance/public";
 import { useAuth } from "../../../identity/auth";
-import { BadgeCheck, Check, CircleCheck, CircleX, Clock3, MessageSquareText, Minus, Plus } from "lucide-react";
+import {
+  BadgeCheck,
+  Check,
+  CircleCheck,
+  CircleX,
+  Clock3,
+  MessageSquareText,
+  Minus,
+  Plus,
+} from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import type { ScheduleEntry } from "../../../academics/schedule/api/schedule.api";
 import { notify } from "../../../../shared/ui/notifications";
@@ -170,9 +179,7 @@ export function TeacherClassAttendanceSheet({
   );
   const resetToPresent = () => {
     setMarks(
-      Object.fromEntries(
-        (participants.data ?? []).map((student) => [student.id, "present"]),
-      ),
+      Object.fromEntries((participants.data ?? []).map((student) => [student.id, "present"])),
     );
     setReasons({});
   };
@@ -297,7 +304,15 @@ export function TeacherClassAttendanceSheet({
                               title={action.label}
                               className={`grid min-h-11 place-items-center rounded-xl border transition-colors motion-reduce:transition-none ${selected ? action.activeClassName : "border-[rgb(var(--border-subtle))] bg-card text-slate-600 hover:border-brand/40 dark:text-slate-300"}`}
                             >
-                              {action.status === "present" ? <CircleCheck size={19} aria-hidden="true" /> : action.status === "absent" ? <CircleX size={19} aria-hidden="true" /> : action.status === "late" ? <Clock3 size={19} aria-hidden="true" /> : <BadgeCheck size={19} aria-hidden="true" />}
+                              {action.status === "present" ? (
+                                <CircleCheck size={19} aria-hidden="true" />
+                              ) : action.status === "absent" ? (
+                                <CircleX size={19} aria-hidden="true" />
+                              ) : action.status === "late" ? (
+                                <Clock3 size={19} aria-hidden="true" />
+                              ) : (
+                                <BadgeCheck size={19} aria-hidden="true" />
+                              )}
                             </button>
                           );
                         })}

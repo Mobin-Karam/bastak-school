@@ -92,7 +92,10 @@ export function TeacherDashboard() {
       <AnnouncementEnvelope announcements={home.data?.home?.announcements} />
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-        <Card className={`col-span-2 min-w-0 p-3 sm:col-span-1 ${currentClass ? "border-2 border-brand bg-brand/5 shadow-lg shadow-brand/10" : ""}`} aria-label="کلاس جاری">
+        <Card
+          className={`col-span-2 min-w-0 p-3 sm:col-span-1 ${currentClass ? "border-2 border-brand bg-brand/5 shadow-lg shadow-brand/10" : ""}`}
+          aria-label="کلاس جاری"
+        >
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-2">
               <span className="grid size-9 place-items-center rounded-xl bg-brand/10 text-brand">
@@ -155,34 +158,44 @@ export function TeacherDashboard() {
           <LoadingState label="در حال دریافت کلاس‌ها و کتاب‌های شما…" />
         ) : classes.isError ? (
           <EmptyState title="کلاس‌ها و کتاب‌های شما دریافت نشد." />
-        ) : classes.data?.filter((classroom) => todayEntries.some((entry) => entry.classroom?.id === classroom.id)).length ? (
+        ) : classes.data?.filter((classroom) =>
+            todayEntries.some((entry) => entry.classroom?.id === classroom.id),
+          ).length ? (
           <div className="grid gap-3 sm:grid-cols-2 min-[1200px]:grid-cols-3">
-            {classes.data.filter((classroom) => todayEntries.some((entry) => entry.classroom?.id === classroom.id)).map((classroom) => (
-              <Card key={classroom.id} className="min-w-0 p-3">
-                <div className="flex items-start gap-2">
-                  <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-brand/10 text-brand">
-                    <UsersRound size={17} aria-hidden="true" />
-                  </span>
-                  <div className="min-w-0">
-                    <h3 className="truncate text-sm font-black text-ink">{classroom.name}</h3>
-                    <p className="mt-0.5 text-[11px] text-slate-500">
-                      {classroom.enrollmentCount.toLocaleString("fa-IR")} دانش‌آموز
-                    </p>
+            {classes.data
+              .filter((classroom) =>
+                todayEntries.some((entry) => entry.classroom?.id === classroom.id),
+              )
+              .map((classroom) => (
+                <Card key={classroom.id} className="min-w-0 p-3">
+                  <div className="flex items-start gap-2">
+                    <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-brand/10 text-brand">
+                      <UsersRound size={17} aria-hidden="true" />
+                    </span>
+                    <div className="min-w-0">
+                      <h3 className="truncate text-sm font-black text-ink">{classroom.name}</h3>
+                      <p className="mt-0.5 text-[11px] text-slate-500">
+                        {classroom.enrollmentCount.toLocaleString("fa-IR")} دانش‌آموز
+                      </p>
+                    </div>
                   </div>
-                </div>
-                <ul className="mt-3 grid gap-1.5" aria-label={`کتاب‌های ${classroom.name}`}>
-                  {classroom.books.map((book) => (
-                    <li
-                      key={book.id}
-                      className="flex min-w-0 items-center gap-1.5 rounded-lg bg-[rgb(var(--surface-muted))] px-2.5 py-2 text-xs text-slate-700 dark:text-slate-200"
-                    >
-                      <BookOpenCheck size={14} className="shrink-0 text-brand" aria-hidden="true" />
-                      <span className="truncate font-bold">{book.title}</span>
-                    </li>
-                  ))}
-                </ul>
-              </Card>
-            ))}
+                  <ul className="mt-3 grid gap-1.5" aria-label={`کتاب‌های ${classroom.name}`}>
+                    {classroom.books.map((book) => (
+                      <li
+                        key={book.id}
+                        className="flex min-w-0 items-center gap-1.5 rounded-lg bg-[rgb(var(--surface-muted))] px-2.5 py-2 text-xs text-slate-700 dark:text-slate-200"
+                      >
+                        <BookOpenCheck
+                          size={14}
+                          className="shrink-0 text-brand"
+                          aria-hidden="true"
+                        />
+                        <span className="truncate font-bold">{book.title}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </Card>
+              ))}
           </div>
         ) : (
           <EmptyState title="امروز کلاس واگذارشده‌ای ندارید." />
