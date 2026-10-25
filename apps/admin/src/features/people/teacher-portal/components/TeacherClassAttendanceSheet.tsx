@@ -10,7 +10,7 @@ import {
   useAttendanceDiscard,
 } from "../../../student-life/attendance/public";
 import { useAuth } from "../../../identity/auth";
-import { Check, MessageSquareText, Minus, Plus } from "lucide-react";
+import { BadgeCheck, Check, CircleCheck, CircleX, Clock3, MessageSquareText, Minus, Plus } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import type { ScheduleEntry } from "../../../academics/schedule/api/schedule.api";
 import { notify } from "../../../../shared/ui/notifications";
@@ -33,6 +33,7 @@ const attendanceActions: Array<{
     label: "تأخیر",
     activeClassName: "bg-amber-100 text-amber-950 dark:bg-amber-950 dark:text-amber-100",
   },
+  { status: "excused", label: "موجه", activeClassName: "bg-sky-600 text-white" },
 ];
 
 /** Class roster and physical attendance management for a teacher's own scheduled class. */
@@ -248,7 +249,7 @@ export function TeacherClassAttendanceSheet({
                     </div>
                     {canManage ? (
                       <div
-                        className="mt-3 grid grid-cols-3 gap-1.5"
+                        className="mt-3 grid grid-cols-4 gap-1.5"
                         role="group"
                         aria-label={`وضعیت حضور ${student.name}`}
                       >
@@ -258,14 +259,16 @@ export function TeacherClassAttendanceSheet({
                             <button
                               key={action.status}
                               type="button"
+                              aria-label={action.label}
                               aria-pressed={selected}
                               disabled={save.isPending}
                               onClick={() =>
                                 setMarks((current) => ({ ...current, [student.id]: action.status }))
                               }
-                              className={`min-h-11 rounded-xl border px-1 text-[11px] font-bold transition-colors motion-reduce:transition-none ${selected ? action.activeClassName : "border-[rgb(var(--border-subtle))] bg-card text-slate-600 hover:border-brand/40 dark:text-slate-300"}`}
+                              title={action.label}
+                              className={`grid min-h-11 place-items-center rounded-xl border transition-colors motion-reduce:transition-none ${selected ? action.activeClassName : "border-[rgb(var(--border-subtle))] bg-card text-slate-600 hover:border-brand/40 dark:text-slate-300"}`}
                             >
-                              {action.label}
+                              {action.status === "present" ? <CircleCheck size={19} aria-hidden="true" /> : action.status === "absent" ? <CircleX size={19} aria-hidden="true" /> : action.status === "late" ? <Clock3 size={19} aria-hidden="true" /> : <BadgeCheck size={19} aria-hidden="true" />}
                             </button>
                           );
                         })}
@@ -301,9 +304,11 @@ export function TeacherClassAttendanceSheet({
                             setPointTarget({ id: student.id, name: student.name, points: 1 });
                             setPointReason("");
                           }}
-                          className="inline-flex min-h-8 items-center gap-1 rounded-lg bg-emerald-50 px-2 text-[11px] font-bold text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-200"
+                          aria-label={`افزودن یک سکه برای ${student.name}`}
+                          title="افزودن یک سکه"
+                          className="grid min-h-9 min-w-9 place-items-center rounded-lg bg-emerald-50 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-200"
                         >
-                          <Plus size={13} aria-hidden="true" />۱
+                          <Plus size={16} aria-hidden="true" />
                         </button>
                         <button
                           type="button"
@@ -312,9 +317,11 @@ export function TeacherClassAttendanceSheet({
                             setPointTarget({ id: student.id, name: student.name, points: -1 });
                             setPointReason("");
                           }}
-                          className="inline-flex min-h-8 items-center gap-1 rounded-lg bg-rose-50 px-2 text-[11px] font-bold text-rose-800 dark:bg-rose-950/40 dark:text-rose-200"
+                          aria-label={`کسر یک سکه از ${student.name}`}
+                          title="کسر یک سکه"
+                          className="grid min-h-9 min-w-9 place-items-center rounded-lg bg-rose-50 text-rose-800 dark:bg-rose-950/40 dark:text-rose-200"
                         >
-                          <Minus size={13} aria-hidden="true" />۱
+                          <Minus size={16} aria-hidden="true" />
                         </button>
                       </div>
                     ) : null}
