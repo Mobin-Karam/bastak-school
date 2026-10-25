@@ -40,8 +40,8 @@ export function SchoolManagerDashboard() {
   const auth = useAuth();
   return auth.activeRole === "PRINCIPAL" ? (
     <>
-      <PrincipalDashboard />
       <SchoolOperationsDashboard principalMode />
+      <PrincipalDashboard />
     </>
   ) : (
     <SchoolOperationsDashboard />
@@ -141,16 +141,16 @@ function SchoolOperationsDashboard({ principalMode = false }: { principalMode?: 
   if (schedule.isLoading) return <LoadingState label="در حال آماده‌سازی میز مدرسه…" />;
   return (
     <section className="home-workspace mx-auto grid w-full max-w-6xl gap-3" dir="rtl">
-      <div className="w-full">
+      {/* <div className="w-full">
         <DashboardCalendar
           value={date}
           onChange={setDate}
           capabilities={auth.capabilities}
           schedule={schedule.data ?? []}
         />
-      </div>
+      </div> */}
       {principalMode ? null : <CoinShopTeaser audience="school" />}
-      <div className="">
+      <div className="grid col-end-2">
         {!principalMode && isSupervisorAttendanceWorkspace ? (
           <SupervisorAttendanceLaunchpad />
         ) : null}
@@ -195,7 +195,7 @@ function SchoolOperationsDashboard({ principalMode = false }: { principalMode?: 
             </Card>
           </div>
         ) : null}
-        <Card className="p-4">
+        {/* <Card className="p-4">
           <div className="flex items-center justify-between gap-3">
             <div>
               <h2 className="font-black text-ink">اعلان‌های مدرسه</h2>
@@ -207,8 +207,8 @@ function SchoolOperationsDashboard({ principalMode = false }: { principalMode?: 
               <BellRing size={16} /> مدیریت اعلان‌ها
             </Button>
           </div>
-        </Card>
-        {canReviewIncomingWork || auth.can("chat.read") ? <SchoolIncomingPanel /> : null}
+        </Card> */}
+        {/* {canReviewIncomingWork || auth.can("chat.read") ? <SchoolIncomingPanel /> : null} */}
         <ResponsiveDrawer
           open={announcementsOpen}
           onOpenChange={setAnnouncementsOpen}

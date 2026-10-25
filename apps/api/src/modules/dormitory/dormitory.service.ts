@@ -9,7 +9,7 @@ import { AuthenticatedUser } from "../auth";
 import { SchoolAccessService } from "../school-access";
 import { NotificationsService } from "../notifications";
 import { NotificationType } from "../../database/entities/notification.entity";
-import { CreateDormRoomDto, SendDormAnnouncementDto } from "./dormitory.dto";
+import { CreateDormRoomDto, SendDormAnnouncementDto, UpdateDormRoomDto } from "./dormitory.dto";
 import { attendanceTransaction } from "../attendance";
 
 @Injectable()
@@ -22,10 +22,10 @@ export class DormitoryService {
     private readonly notifications: NotificationsService,
   ) {}
 
-  async listRooms(user: AuthenticatedUser, organizationId?: string) {
+  async listRooms(user: AuthenticatedUser, organizationId?: string, includeArchived = false) {
     const ids = await this.access.scopedOrganizationIds(user, organizationId);
     if (!ids.length) return [];
-    const rows = await this.rooms.createQueryBuilder("room")
+    const query = this.rooms.createQueryBuilder("room")
       .innerJoin("room.organization", "organization")
       .select("room.id", "id")
       .addSelect("organization.id", "organizationId")
@@ -35,7 +35,9 @@ export class DormitoryService {
       .addSelect("room.capacity", "capacity").addSelect("room.status", "status")
       .addSelect((query) => query.select("COUNT(*)").from(DormRoomAssignment, "assignment")
         .where("assignment.roomId = room.id"), "studentCount")
-      .where("room.organizationId IN (:...ids)", { ids })
+      .where("room.organizationId IN (:...ids)", { ids });
+    if (!includeArchived) query.andWhere("room.status = :status", { status: "ACTIVE" });
+    const rows = await query
       .orderBy("room.name", "ASC").addOrderBy("room.id", "ASC")
       .getRawMany<{ id: string; organizationId: string; organizationName: string; code: string; name: string; building: string; floor: number; capacity: number; status: string; studentCount: number | string }>();
     return rows.map((room) => ({ ...room, studentCount: Number(room.studentCount) }));
@@ -50,6 +52,47 @@ export class DormitoryService {
       organization, code, name: dto.name.trim(), building: dto.building?.trim() || "ساختمان اصلی", floor: dto.floor ?? 1, capacity: Math.min(14, dto.capacity ?? 14), status: "ACTIVE",
     }));
     return { id: room.id, organizationId: organization.id, code: room.code, name: room.name, building: room.building, floor: room.floor, capacity: room.capacity, status: room.status, studentCount: 0 };
+  }
+
+  async updateRoom(user: AuthenticatedUser, id: string, dto: UpdateDormRoomDto) {
+    const room = await this.requireRoom(user, id);
+    const code = dto.code?.trim().toLowerCase();
+    if (code && code !== room.code) {
+      const duplicate = await this.rooms.findOne({ where: { organization: { id: room.organization.id }, code } });
+      if (duplicate) throw new ApiException(409, "DORM_ROOM_EXISTS", "این کد اتاق در مدرسه تکراری است.");
+    }
+    if (dto.capacity !== undefined) {
+      const residentCount = await this.assignments.count({ where: { room: { id: room.id } } });
+      if (dto.capacity < residentCount)
+        throw new ApiException(422, "DORM_ROOM_CAPACITY", "ظرفیت جدید نمی‌تواند کمتر از تعداد ساکنان باشد.");
+    }
+    Object.assign(room, {
+      ...(code ? { code } : {}),
+      ...(dto.name !== undefined ? { name: dto.name.trim() } : {}),
+      ...(dto.building !== undefined ? { building: dto.building.trim() } : {}),
+      ...(dto.floor !== undefined ? { floor: dto.floor } : {}),
+      ...(dto.capacity !== undefined ? { capacity: dto.capacity } : {}),
+    });
+    const saved = await this.rooms.save(room);
+    const studentCount = await this.assignments.count({ where: { room: { id: saved.id } } });
+    return { id: saved.id, organizationId: saved.organization.id, code: saved.code, name: saved.name, building: saved.building, floor: saved.floor, capacity: saved.capacity, status: saved.status, studentCount };
+  }
+
+  async archiveRoom(user: AuthenticatedUser, id: string) {
+    const room = await this.requireRoom(user, id);
+    const residentCount = await this.assignments.count({ where: { room: { id: room.id } } });
+    if (residentCount)
+      throw new ApiException(422, "DORM_ROOM_OCCUPIED", "ابتدا همه ساکنان اتاق را جابه‌جا یا حذف کنید.");
+    room.status = "ARCHIVED";
+    await this.rooms.save(room);
+    return { roomId: room.id, status: room.status };
+  }
+
+  async restoreRoom(user: AuthenticatedUser, id: string) {
+    const room = await this.requireRoom(user, id);
+    room.status = "ACTIVE";
+    await this.rooms.save(room);
+    return { roomId: room.id, status: room.status };
   }
 
   async listAssignments(user: AuthenticatedUser, roomId: string) {

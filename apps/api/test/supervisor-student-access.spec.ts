@@ -138,4 +138,18 @@ describe("supervisor student access", () => {
     ).toBe(false);
     expect(students.findOne).not.toHaveBeenCalled();
   });
+
+  it("allows a principal with students.archive to archive a student in their school", async () => {
+    const principal: UserContext = {
+      ...context,
+      id: "principal",
+      role: "PRINCIPAL",
+      roles: ["PRINCIPAL"],
+      capabilities: ["students.archive"],
+    };
+
+    await expect(
+      authorization.canAccessStudent(principal, student.id, "students.archive"),
+    ).resolves.toBe(true);
+  });
 });

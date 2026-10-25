@@ -673,7 +673,7 @@ export function UsersPage() {
                       label: copy.archive,
                       tone: "danger",
                       visible: (user) =>
-                        isPlatform && !isProtected(user) && user.status !== "ARCHIVED",
+                        !isProtected(user) && user.status !== "ARCHIVED",
                       onClick: (user) =>
                         void modal
                           .confirm({

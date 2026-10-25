@@ -204,7 +204,10 @@ export class UsersService {
     const rowsByUser = new Map<string, UserRoleAssignment[]>();
     for (const row of rows) {
       if (status && row.user.status !== status) continue;
-      rowsByUser.set(row.user.id, [...(rowsByUser.get(row.user.id) ?? []), row]);
+      rowsByUser.set(row.user.id, [
+        ...(rowsByUser.get(row.user.id) ?? []),
+        row,
+      ]);
     }
     return [...rowsByUser.values()]
       .filter((userRows) => {
@@ -440,12 +443,6 @@ export class UsersService {
     });
   }
   async archive(actor: AuthenticatedUser, id: string) {
-    if (!this.platform(actor))
-      throw new ApiException(
-        403,
-        "FORBIDDEN",
-        "فقط مدیر پلتفرم می‌تواند حساب را بایگانی کند.",
-      );
     const target = await this.get(actor, id);
     this.assertProtectedAccount(actor, target);
     await this.assertAccountMutationScope(actor, id);

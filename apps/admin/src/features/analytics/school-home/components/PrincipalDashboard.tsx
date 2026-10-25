@@ -9,7 +9,6 @@ import {
   GraduationCap,
   UsersRound,
 } from "lucide-react";
-import { useState } from "react";
 import { Link } from "react-router-dom";
 import {
   Area,
@@ -30,7 +29,8 @@ import {
 } from "recharts";
 import { useAuth } from "../../../identity/auth";
 import { Card, LoadingState } from "../../../../shared/ui/ui";
-import { ResponsiveModal } from "../../../../shared/ui/responsive-modal";
+import { DataTable, type DataTableColumn } from "../../../../shared/ui/data-table";
+import { useModal } from "../../../../shared/ui/modal";
 import { ChartContainer, ChartTooltipContent } from "../../../../shared/ui/chart-container";
 import "./principal-dashboard-layout.css";
 import {
@@ -42,6 +42,7 @@ import {
 
 type Point = { label: string; value: number; color: string };
 type AttendanceData = NonNullable<PrincipalDashboardContract["attendance"]>;
+type SessionReview = NonNullable<PrincipalDashboardContract["sessionReviews"]>["items"][number];
 
 function formatDay(value: string) {
   const date = new Date(value);
@@ -53,11 +54,9 @@ function formatDay(value: string) {
 export function PrincipalDashboard() {
   const auth = useAuth();
   const queryClient = useQueryClient();
+  const modal = useModal();
   const range = "7d" as const;
   const classId = "";
-  const [reviewingItem, setReviewingItem] = useState<
-    NonNullable<PrincipalDashboardContract["sessionReviews"]>["items"][number] | null
-  >(null);
   const dashboard = useQuery({
     queryKey: ["principal-dashboard", range, classId, auth.context?.activeOrganization?.id],
     queryFn: () => getPrincipalDashboard(range, classId || undefined),
@@ -66,15 +65,88 @@ export function PrincipalDashboard() {
     mutationFn: reviewAttendanceSession,
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["principal-dashboard"] }),
   });
-  const sessionDetail = useQuery({
-    queryKey: ["principal-attendance-review-detail", reviewingItem?.id],
-    queryFn: () => getAttendanceSessionForReview(reviewingItem!.id),
-    enabled: Boolean(reviewingItem),
-  });
   if (dashboard.isLoading) return <LoadingState label="در حال آماده‌سازی داشبورد مدیریت…" />;
   if (dashboard.isError || !dashboard.data)
     return <DashboardError onRetry={() => void dashboard.refetch()} />;
   const data = dashboard.data;
+  const sessionReviewItems = data.sessionReviews?.items ?? [];
+  const openAttendanceReviewDetails = (item: SessionReview) => {
+    modal.open({
+      title: "جزئیات غیبت‌های جلسه",
+      description: item.title,
+      size: "xl",
+      content: <AttendanceReviewDetails item={item} onClose={modal.close} />,
+    });
+  };
+  const sessionReviewColumns: DataTableColumn<SessionReview>[] = [
+    {
+      id: "title",
+      label: "جلسه",
+      primary: true,
+      value: (item) => item.title,
+      cell: (item) => (
+        <div className="grid gap-1">
+          <strong>{item.title}</strong>
+          <span className="text-xs text-slate-500">
+            {new Date(item.sessionDate).toLocaleString("fa-IR", { timeZone: "Asia/Tehran" })}
+            {item.lastReviewedAt
+              ? ` · آخرین بازبینی ${new Date(item.lastReviewedAt).toLocaleString("fa-IR", { timeZone: "Asia/Tehran" })}`
+              : " · هنوز بازبینی نشده"}
+          </span>
+        </div>
+      ),
+    },
+    {
+      id: "status",
+      label: "وضعیت",
+      value: (item) => item.status,
+      cell: (item) => (
+        <span className="inline-flex rounded-full bg-amber-100 px-3 py-1 text-xs font-bold text-amber-900 dark:bg-amber-950/40 dark:text-amber-100">
+          {item.status === "submitted" ? "ثبت‌شده" : "نهایی‌شده"}
+        </span>
+      ),
+      filter: {
+        type: "select",
+        options: [
+          { value: "submitted", label: "ثبت‌شده" },
+          { value: "finalized", label: "نهایی‌شده" },
+        ],
+      },
+    },
+    { id: "present", label: "حاضر", value: (item) => item.present },
+    { id: "absent", label: "غایب", value: (item) => item.absent },
+    { id: "late", label: "تأخیر", value: (item) => item.late },
+    {
+      id: "marked",
+      label: "ثبت وضعیت",
+      value: (item) => (item.expected == null ? item.marked : `${item.marked} از ${item.expected}`),
+    },
+    {
+      id: "review",
+      label: "بازبینی",
+      sortable: false,
+      hideable: false,
+      value: () => "",
+      cell: (item) => (
+        <button
+          type="button"
+          className="min-h-11 rounded-xl bg-brand px-4 text-sm font-bold text-white disabled:opacity-50"
+          disabled={reviewSession.isPending}
+          onClick={(event) => {
+            event.stopPropagation();
+            if (item.absent === 0) reviewSession.mutate(item.id);
+            else openAttendanceReviewDetails(item);
+          }}
+        >
+          {reviewSession.isPending && reviewSession.variables === item.id
+            ? "در حال ثبت بازبینی…"
+            : item.absent === 0
+              ? "تأیید بازبینی و ثبت"
+              : `مشاهدهٔ جزئیات ${item.absent.toLocaleString("fa-IR")} غایب`}
+        </button>
+      ),
+    },
+  ];
   const attendance = data.attendance;
   const queues = data.queues;
   const operations = data.operations;
@@ -386,65 +458,15 @@ export function PrincipalDashboard() {
             {data.sessionReviews.pendingCount.toLocaleString("fa-IR")} جلسه در چرخهٔ بازبینی هر ۲۴
             ساعت قرار دارد. خلاصه را بررسی و بازبینی را ثبت کنید.
           </p>
-          {data.sessionReviews.items.length ? (
-            <ul className="grid gap-3 lg:grid-cols-2">
-              {data.sessionReviews.items.map((item) => (
-                <li
-                  key={item.id}
-                  className="rounded-2xl border border-[rgb(var(--border-subtle))] p-4"
-                >
-                  <div className="flex flex-wrap items-start justify-between gap-3">
-                    <div>
-                      <h3 className="font-black">{item.title}</h3>
-                      <p className="mt-1 text-xs text-slate-500">
-                        {new Date(item.sessionDate).toLocaleString("fa-IR", {
-                          timeZone: "Asia/Tehran",
-                        })}
-                        {item.lastReviewedAt
-                          ? ` · آخرین بازبینی ${new Date(item.lastReviewedAt).toLocaleString("fa-IR", { timeZone: "Asia/Tehran" })}`
-                          : " · هنوز بازبینی نشده"}
-                      </p>
-                    </div>
-                    <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-bold text-amber-900 dark:bg-amber-950/40 dark:text-amber-100">
-                      {item.status === "submitted" ? "ثبت‌شده" : "نهایی‌شده"}
-                    </span>
-                  </div>
-                  <dl className="mt-3 grid grid-cols-2 gap-2 text-xs sm:grid-cols-4">
-                    {[
-                      ["حاضر", item.present],
-                      ["غایب", item.absent],
-                      ["تأخیر", item.late],
-                      [
-                        "ثبت وضعیت",
-                        item.expected == null ? item.marked : `${item.marked} از ${item.expected}`,
-                      ],
-                    ].map(([label, value]) => (
-                      <div key={label} className="rounded-xl bg-[rgb(var(--surface-muted))] p-2">
-                        <dt className="text-slate-500">{label}</dt>
-                        <dd className="mt-1 font-black">
-                          {typeof value === "number" ? value.toLocaleString("fa-IR") : value}
-                        </dd>
-                      </div>
-                    ))}
-                  </dl>
-                  <button
-                    type="button"
-                    className="mt-3 min-h-11 w-full rounded-xl bg-brand px-4 text-sm font-bold text-white disabled:opacity-50"
-                    disabled={reviewSession.isPending || Boolean(reviewingItem)}
-                    onClick={() => {
-                      if (item.absent === 0) reviewSession.mutate(item.id);
-                      else setReviewingItem(item);
-                    }}
-                  >
-                    {reviewSession.isPending && reviewSession.variables === item.id
-                      ? "در حال ثبت بازبینی…"
-                      : item.absent === 0
-                        ? "تأیید بازبینی و ثبت"
-                        : `مشاهدهٔ جزئیات ${item.absent.toLocaleString("fa-IR")} غایب`}
-                  </button>
-                </li>
-              ))}
-            </ul>
+          {sessionReviewItems.length ? (
+            <DataTable
+              data={sessionReviewItems}
+              columns={sessionReviewColumns}
+              getRowId={(item) => item.id}
+              label="جلسه‌های حضور نیازمند بررسی"
+              busy={reviewSession.isPending}
+              preferenceKey={`principal-session-reviews:${auth.context?.activeOrganization?.id ?? "all"}`}
+            />
           ) : (
             <Empty text="همهٔ جلسه‌های ثبت‌شده در ۲۴ ساعت گذشته بازبینی شده‌اند." />
           )}
@@ -456,103 +478,7 @@ export function PrincipalDashboard() {
         </Card>
       ) : null}
 
-      <ResponsiveModal
-        open={Boolean(reviewingItem)}
-        onOpenChange={(open) => {
-          if (!open && !reviewSession.isPending) setReviewingItem(null);
-        }}
-        title="جزئیات غیبت‌های جلسه"
-        description={reviewingItem?.title ?? "جلسه حضور"}
-        size="wide"
-      >
-        {reviewingItem ? (
-          <div className="grid gap-4">
-            {sessionDetail.isLoading ? (
-              <LoadingState label="در حال دریافت فهرست دانش‌آموزان غایب…" />
-            ) : sessionDetail.isError || !sessionDetail.data ? (
-              <div role="alert" className="rounded-xl bg-rose-50 p-4 text-sm text-rose-800">
-                دریافت جزئیات جلسه ممکن نشد. دسترسی و اتصال را بررسی کنید و دوباره تلاش کنید.
-                <button
-                  type="button"
-                  className="ms-3 font-bold underline"
-                  onClick={() => void sessionDetail.refetch()}
-                >
-                  تلاش دوباره
-                </button>
-              </div>
-            ) : (
-              <>
-                <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-                  <ReviewCount label="غایب" value={reviewingItem.absent} />
-                  <ReviewCount label="حاضر" value={reviewingItem.present} />
-                  <ReviewCount label="تأخیر" value={reviewingItem.late} />
-                  <ReviewCount label="ثبت‌نشده" value={sessionDetail.data.unmarked ?? 0} />
-                </div>
-                <div className="grid gap-2">
-                  <h3 className="font-bold">دانش‌آموزان ثبت‌شده به‌عنوان غایب</h3>
-                  {sessionDetail.data.records.filter((record) => record.physicalStatus === "absent")
-                    .length ? (
-                    <ul className="grid max-h-[45dvh] gap-2 overflow-y-auto">
-                      {sessionDetail.data.records
-                        .filter((record) => record.physicalStatus === "absent")
-                        .map((record) => {
-                          const student = sessionDetail.data.roster.find(
-                            (member) => member.id === record.studentId,
-                          );
-                          return (
-                            <li
-                              key={record.id}
-                              className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-[rgb(var(--border-subtle))] p-3"
-                            >
-                              <span className="font-semibold">{student?.name ?? "دانش‌آموز"}</span>
-                              {record.note ? (
-                                <span className="text-sm text-slate-600">{record.note}</span>
-                              ) : null}
-                            </li>
-                          );
-                        })}
-                    </ul>
-                  ) : (
-                    <p className="rounded-xl bg-amber-50 p-3 text-sm text-amber-900">
-                      در خلاصهٔ جلسه غیبت ثبت شده، اما جزئیات فعلی غایبی نشان نمی‌دهد. لطفاً صفحه را
-                      تازه‌سازی کنید؛ بازبینی تا تطبیق اطلاعات ثبت نمی‌شود.
-                    </p>
-                  )}
-                </div>
-                {sessionDetail.data.records.some((record) => record.physicalStatus === "absent") ? (
-                  <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-                    <button
-                      type="button"
-                      className="min-h-11 rounded-xl border border-[rgb(var(--border-subtle))] px-4 font-semibold"
-                      disabled={reviewSession.isPending}
-                      onClick={() => setReviewingItem(null)}
-                    >
-                      بازگشت
-                    </button>
-                    <button
-                      type="button"
-                      className="min-h-11 rounded-xl bg-brand px-4 font-bold text-white disabled:opacity-50"
-                      disabled={reviewSession.isPending}
-                      onClick={() => reviewSession.mutate(reviewingItem.id)}
-                    >
-                      {reviewSession.isPending
-                        ? "در حال ثبت بازبینی…"
-                        : "جزئیات را بررسی و تأیید می‌کنم"}
-                    </button>
-                  </div>
-                ) : null}
-              </>
-            )}
-            {reviewSession.isError ? (
-              <p role="alert" className="text-sm text-rose-700">
-                ثبت بازبینی انجام نشد؛ دوباره تلاش کنید.
-              </p>
-            ) : null}
-          </div>
-        ) : null}
-      </ResponsiveModal>
-
-      {attendance ? (
+      {/* {attendance ? (
         <section
           className="grid gap-4 xl:grid-cols-[.85fr_1.15fr]"
           aria-label="پوشش کلاس و روند حضور"
@@ -578,9 +504,9 @@ export function PrincipalDashboard() {
             <Trend rows={attendance.trend} />
           </Card>
         </section>
-      ) : null}
+      ) : null} */}
 
-      <section className="principal-dashboard__metrics grid gap-3" aria-label="عملیات مدرسه">
+      {/* <section className="principal-dashboard__metrics grid gap-3" aria-label="عملیات مدرسه">
         <Metric
           icon={UsersRound}
           label="دانش‌آموز فعال"
@@ -605,8 +531,107 @@ export function PrincipalDashboard() {
           value={operations?.staff}
           visible={auth.can("students.read")}
         />
-      </section>
+      </section> */}
     </main>
+  );
+}
+
+function AttendanceReviewDetails({ item, onClose }: { item: SessionReview; onClose: () => void }) {
+  const queryClient = useQueryClient();
+  const sessionDetail = useQuery({
+    queryKey: ["principal-attendance-review-detail", item.id],
+    queryFn: () => getAttendanceSessionForReview(item.id),
+  });
+  const reviewSession = useMutation({
+    mutationFn: reviewAttendanceSession,
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["principal-dashboard"] });
+      onClose();
+    },
+  });
+  const absentRecords = sessionDetail.data?.records.filter(
+    (record) => record.physicalStatus === "absent",
+  );
+
+  return (
+    <div className="grid gap-4">
+      {sessionDetail.isLoading ? (
+        <LoadingState label="در حال دریافت فهرست دانش‌آموزان غایب…" />
+      ) : sessionDetail.isError || !sessionDetail.data ? (
+        <div role="alert" className="rounded-xl bg-rose-50 p-4 text-sm text-rose-800">
+          دریافت جزئیات جلسه ممکن نشد. دسترسی و اتصال را بررسی کنید و دوباره تلاش کنید.
+          <button
+            type="button"
+            className="ms-3 font-bold underline"
+            onClick={() => void sessionDetail.refetch()}
+          >
+            تلاش دوباره
+          </button>
+        </div>
+      ) : (
+        <>
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+            <ReviewCount label="غایب" value={item.absent} />
+            <ReviewCount label="حاضر" value={item.present} />
+            <ReviewCount label="تأخیر" value={item.late} />
+            <ReviewCount label="ثبت‌نشده" value={sessionDetail.data.unmarked ?? 0} />
+          </div>
+          <div className="grid gap-2">
+            <h3 className="font-bold">دانش‌آموزان ثبت‌شده به‌عنوان غایب</h3>
+            {absentRecords?.length ? (
+              <ul className="grid max-h-[45dvh] gap-2 overflow-y-auto">
+                {absentRecords.map((record) => {
+                  const student = sessionDetail.data.roster.find(
+                    (member) => member.id === record.studentId,
+                  );
+                  return (
+                    <li
+                      key={record.id}
+                      className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-[rgb(var(--border-subtle))] p-3"
+                    >
+                      <span className="font-semibold">{student?.name ?? "دانش‌آموز"}</span>
+                      {record.note ? (
+                        <span className="text-sm text-slate-600">{record.note}</span>
+                      ) : null}
+                    </li>
+                  );
+                })}
+              </ul>
+            ) : (
+              <p className="rounded-xl bg-amber-50 p-3 text-sm text-amber-900">
+                در خلاصهٔ جلسه غیبت ثبت شده، اما جزئیات فعلی غایبی نشان نمی‌دهد. لطفاً صفحه را
+                تازه‌سازی کنید؛ بازبینی تا تطبیق اطلاعات ثبت نمی‌شود.
+              </p>
+            )}
+          </div>
+          {absentRecords?.length ? (
+            <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+              <button
+                type="button"
+                className="min-h-11 rounded-xl border border-[rgb(var(--border-subtle))] px-4 font-semibold"
+                disabled={reviewSession.isPending}
+                onClick={onClose}
+              >
+                بازگشت
+              </button>
+              <button
+                type="button"
+                className="min-h-11 rounded-xl bg-brand px-4 font-bold text-white disabled:opacity-50"
+                disabled={reviewSession.isPending}
+                onClick={() => reviewSession.mutate(item.id)}
+              >
+                {reviewSession.isPending ? "در حال ثبت بازبینی…" : "جزئیات را بررسی و تأیید می‌کنم"}
+              </button>
+            </div>
+          ) : null}
+        </>
+      )}
+      {reviewSession.isError ? (
+        <p role="alert" className="text-sm text-rose-700">
+          ثبت بازبینی انجام نشد؛ دوباره تلاش کنید.
+        </p>
+      ) : null}
+    </div>
   );
 }
 
