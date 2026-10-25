@@ -168,6 +168,17 @@ When changing backend architecture:
 
 ## Validation
 
+## Deployment migration rehearsal
+
+Production migration safety is fail-closed. Before a release that includes an API database migration, inspect the migration against `scripts/deploy/database-recovery.cjs` and its test suite:
+
+- Determine how the migration affects a database that already contains production rows; do not validate only an empty or freshly seeded database.
+- For every new column or legacy-row transformation, add the smallest exact entry under the migration's name in `expectations` or `legacyValueTransforms`. Permit only values the migration is designed to create (for example, a declared default or `NULL`), never a broad table/column exception.
+- Add or update a regression in `scripts/deploy/database-recovery.test.cjs` that proves the intended migration effect passes and an unrelated data change remains rejected. This prevents the production recovery/rehearsal gate from rejecting a valid migration while preserving its protection against silent data changes.
+- Run `NODE_PATH=apps/api/node_modules node --test scripts/deploy/database-recovery.test.cjs` (or `python3 tooling/cicd/test_recovery.py`) and the applicable release checks before merging. A local pass, CI pass, dispatch, or release receipt is not evidence that the private deployment completed; report those states separately.
+
+The `StudentAccountChangeLimits1731800300000` incident is the standing example: existing users need `passwordChangeCount = 0` and existing account-change requests need `requestedSecretHash = NULL`. Those two migration-specific values must remain explicitly represented in the recovery contract whenever the migration is present.
+
 ## Admin role and capability UX
 
 - Treat `/me/context` as the Admin authority for active roles, organization scope, and capabilities. On any role or organization switch, refresh that context before rendering new capability-gated UI or issuing feature requests.
