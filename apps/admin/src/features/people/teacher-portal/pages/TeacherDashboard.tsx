@@ -1,4 +1,3 @@
-import { TimetableToday } from "../../../academics/schedule";
 import { useQuery } from "@tanstack/react-query";
 import { BookOpenCheck, CalendarClock, ChevronLeft, Clock3, UsersRound } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
@@ -10,7 +9,6 @@ import { todayIso } from "../../../../shared/lib/utils";
 import { useLocale } from "../../../../shared/ui/locale";
 import { Card, EmptyState, LoadingState } from "../../../../shared/ui/ui";
 import { getAdminDashboard } from "../../../analytics/dashboard/api/dashboard.api";
-import { DashboardCalendar } from "../../../analytics/dashboard/components/DashboardCalendar";
 import { AnnouncementEnvelope } from "../../../analytics/dashboard/components/AnnouncementEnvelope";
 import { CurrentPrayerCard } from "../../../analytics/school-home/components/CurrentPrayerCard";
 import { TeacherClassAttendanceSheet } from "../components/TeacherClassAttendanceSheet";
@@ -36,7 +34,6 @@ function clockMinutes(time: string) {
 export function TeacherDashboard() {
   const auth = useAuth();
   const { formatDate } = useLocale();
-  const [calendarDate, setCalendarDate] = useState(todayIso);
   const [now, setNow] = useState(() => new Date());
   const [selectedClass, setSelectedClass] = useState<ScheduleEntry | null>(null);
   const home = useQuery({
@@ -89,22 +86,16 @@ export function TeacherDashboard() {
       <section className="workspace-actions flex items-baseline justify-between gap-3 px-1 pt-1">
         <h2 className="sr-only">امروز در مدرسه</h2>
         <span className="text-xs text-slate-500">
-          {formatDate(calendarDate, { dateStyle: "medium" })}
+          امروز · {formatDate(todayIso(), { dateStyle: "full" })}
         </span>
       </section>
-      <TimetableToday />
-
-      <DashboardCalendar
-        value={calendarDate}
-        onChange={setCalendarDate}
-        capabilities={auth.capabilities}
-        schedule={schedule.data ?? []}
-      />
-
       <AnnouncementEnvelope announcements={home.data?.home?.announcements} />
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-        <Card className="col-span-2 min-w-0 p-3 sm:col-span-1" aria-label="کلاس جاری">
+        <Card
+          className={`col-span-2 min-w-0 p-3 sm:col-span-1 ${currentClass ? "border-2 border-brand bg-brand/5 shadow-lg shadow-brand/10" : ""}`}
+          aria-label="کلاس جاری"
+        >
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-2">
               <span className="grid size-9 place-items-center rounded-xl bg-brand/10 text-brand">
@@ -126,13 +117,13 @@ export function TeacherDashboard() {
             <button
               type="button"
               onClick={() => setSelectedClass(currentClass)}
-              className="mt-3 flex w-full items-center gap-2 rounded-xl bg-[rgb(var(--surface-muted))] p-3 text-right outline-none transition hover:bg-brand/10 focus-visible:ring-2 focus-visible:ring-brand motion-reduce:transition-none"
+              className="mt-3 flex w-full items-center gap-2 rounded-xl bg-brand p-3 text-right text-white outline-none transition hover:bg-brand/90 focus-visible:ring-2 focus-visible:ring-brand motion-reduce:transition-none"
               aria-label={`باز کردن فهرست ${currentClass.title}`}
             >
-              <Clock3 size={17} className="shrink-0 text-brand" aria-hidden="true" />
+              <Clock3 size={17} className="shrink-0 text-white" aria-hidden="true" />
               <div className="min-w-0">
-                <p className="truncate text-sm font-bold text-ink">{currentClass.title}</p>
-                <p className="mt-0.5 text-xs text-slate-500">
+                <p className="truncate text-sm font-bold text-white">{currentClass.title}</p>
+                <p className="mt-0.5 text-xs text-white/80">
                   {currentClass.startTime} تا {currentClass.endTime}
                   {currentClass.room ? ` · ${currentClass.room}` : ""}
                 </p>
@@ -150,10 +141,10 @@ export function TeacherDashboard() {
         <div className="flex items-center justify-between gap-3 px-1">
           <div>
             <h2 id="teacher-classes-title" className="text-sm font-black text-ink">
-              کلاس‌ها و کتاب‌های من
+              کلاس‌های امروز من
             </h2>
             <p className="mt-0.5 text-[11px] text-slate-500">
-              فقط کلاس‌ها و کتاب‌هایی که به شما واگذار شده‌اند.
+              فقط کلاس‌های واگذارشده‌ای که امروز در برنامه شما هستند.
             </p>
           </div>
           <Link
@@ -167,37 +158,47 @@ export function TeacherDashboard() {
           <LoadingState label="در حال دریافت کلاس‌ها و کتاب‌های شما…" />
         ) : classes.isError ? (
           <EmptyState title="کلاس‌ها و کتاب‌های شما دریافت نشد." />
-        ) : classes.data?.length ? (
+        ) : classes.data?.filter((classroom) =>
+            todayEntries.some((entry) => entry.classroom?.id === classroom.id),
+          ).length ? (
           <div className="grid gap-3 sm:grid-cols-2 min-[1200px]:grid-cols-3">
-            {classes.data.map((classroom) => (
-              <Card key={classroom.id} className="min-w-0 p-3">
-                <div className="flex items-start gap-2">
-                  <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-brand/10 text-brand">
-                    <UsersRound size={17} aria-hidden="true" />
-                  </span>
-                  <div className="min-w-0">
-                    <h3 className="truncate text-sm font-black text-ink">{classroom.name}</h3>
-                    <p className="mt-0.5 text-[11px] text-slate-500">
-                      {classroom.enrollmentCount.toLocaleString("fa-IR")} دانش‌آموز
-                    </p>
+            {classes.data
+              .filter((classroom) =>
+                todayEntries.some((entry) => entry.classroom?.id === classroom.id),
+              )
+              .map((classroom) => (
+                <Card key={classroom.id} className="min-w-0 p-3">
+                  <div className="flex items-start gap-2">
+                    <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-brand/10 text-brand">
+                      <UsersRound size={17} aria-hidden="true" />
+                    </span>
+                    <div className="min-w-0">
+                      <h3 className="truncate text-sm font-black text-ink">{classroom.name}</h3>
+                      <p className="mt-0.5 text-[11px] text-slate-500">
+                        {classroom.enrollmentCount.toLocaleString("fa-IR")} دانش‌آموز
+                      </p>
+                    </div>
                   </div>
-                </div>
-                <ul className="mt-3 grid gap-1.5" aria-label={`کتاب‌های ${classroom.name}`}>
-                  {classroom.books.map((book) => (
-                    <li
-                      key={book.id}
-                      className="flex min-w-0 items-center gap-1.5 rounded-lg bg-[rgb(var(--surface-muted))] px-2.5 py-2 text-xs text-slate-700 dark:text-slate-200"
-                    >
-                      <BookOpenCheck size={14} className="shrink-0 text-brand" aria-hidden="true" />
-                      <span className="truncate font-bold">{book.title}</span>
-                    </li>
-                  ))}
-                </ul>
-              </Card>
-            ))}
+                  <ul className="mt-3 grid gap-1.5" aria-label={`کتاب‌های ${classroom.name}`}>
+                    {classroom.books.map((book) => (
+                      <li
+                        key={book.id}
+                        className="flex min-w-0 items-center gap-1.5 rounded-lg bg-[rgb(var(--surface-muted))] px-2.5 py-2 text-xs text-slate-700 dark:text-slate-200"
+                      >
+                        <BookOpenCheck
+                          size={14}
+                          className="shrink-0 text-brand"
+                          aria-hidden="true"
+                        />
+                        <span className="truncate font-bold">{book.title}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </Card>
+              ))}
           </div>
         ) : (
-          <EmptyState title="هنوز کلاس یا کتابی به شما واگذار نشده است." />
+          <EmptyState title="امروز کلاس واگذارشده‌ای ندارید." />
         )}
       </section>
 

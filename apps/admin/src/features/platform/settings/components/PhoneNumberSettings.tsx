@@ -16,11 +16,7 @@ export function PhoneNumberSettings() {
   const profile = useQuery({ queryKey: ["account", "profile"], queryFn: getAccountProfile });
   const [phoneNumber, setPhoneNumber] = useState("");
   const [reason, setReason] = useState("");
-  const canSelfManage = auth.canAny([
-    "attendance.self.read",
-    "guardian.students.read",
-    "platform.phone.self.manage",
-  ]);
+  const canSelfManage = profile.data?.phoneNumberSelfServiceAvailable === true;
   const submit = useMutation<unknown, Error, void>({
     mutationFn: () => {
       if (profile.data?.phoneNumberChangeAvailable) return changeOwnPhoneNumber(phoneNumber);

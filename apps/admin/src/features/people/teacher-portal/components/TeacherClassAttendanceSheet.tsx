@@ -10,7 +10,16 @@ import {
   useAttendanceDiscard,
 } from "../../../student-life/attendance/public";
 import { useAuth } from "../../../identity/auth";
-import { Check, MessageSquareText, Minus, Plus } from "lucide-react";
+import {
+  BadgeCheck,
+  Check,
+  CircleCheck,
+  CircleX,
+  Clock3,
+  MessageSquareText,
+  Minus,
+  Plus,
+} from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import type { ScheduleEntry } from "../../../academics/schedule/api/schedule.api";
 import { notify } from "../../../../shared/ui/notifications";
@@ -33,6 +42,7 @@ const attendanceActions: Array<{
     label: "تأخیر",
     activeClassName: "bg-amber-100 text-amber-950 dark:bg-amber-950 dark:text-amber-100",
   },
+  { status: "excused", label: "موجه", activeClassName: "bg-sky-600 text-white" },
 ];
 
 /** Class roster and physical attendance management for a teacher's own scheduled class. */
@@ -58,6 +68,7 @@ export function TeacherClassAttendanceSheet({
   scopeRef.current = scopeKey;
   const pendingWrite = useRef<PendingAttendanceWrite | null>(null);
   const [reviewing, setReviewing] = useState(false);
+  const [clearConfirmationOpen, setClearConfirmationOpen] = useState(false);
   const [marks, setMarks] = useState<Record<string, AttendanceStatus>>({});
   const [reasons, setReasons] = useState<Record<string, string>>({});
   const [pointTarget, setPointTarget] = useState<{
@@ -82,12 +93,25 @@ export function TeacherClassAttendanceSheet({
 
   useEffect(() => {
     setReviewing(false);
+    setClearConfirmationOpen(false);
     setMarks({});
     setReasons({});
     pendingWrite.current = null;
     setPointTarget(null);
     setPointReason("");
   }, [entry?.id, open, scopeKey]);
+
+  // The roster is an attendance-taking surface: a teacher starts from a full
+  // present register and records only exceptions. The API still receives an
+  // explicit status for every authorized participant on save.
+  useEffect(() => {
+    if (!open || !participants.data?.length) return;
+    setMarks((current) =>
+      Object.keys(current).length
+        ? current
+        : Object.fromEntries(participants.data.map((student) => [student.id, "present"])),
+    );
+  }, [open, participants.data]);
 
   useEffect(() => {
     if (!open) return;
@@ -141,11 +165,24 @@ export function TeacherClassAttendanceSheet({
     },
   });
 
+  // A complete "present" register is the starting state, not an unsaved edit.
+  // This keeps the leave guard for actual exceptions while allowing a teacher to
+  // clear exceptions or return from review without a second drawer competing
+  // with the roster drawer.
+  const hasUnsavedChanges =
+    (participants.data ?? []).some((student) => marks[student.id] !== "present") ||
+    Object.values(reasons).some((reason) => Boolean(reason.trim()));
   const discard = useAttendanceDiscard(
-    Boolean(Object.keys(marks).length),
+    hasUnsavedChanges,
     save.isPending,
     `${scopeKey}:${entry?.id}:${open}`,
   );
+  const resetToPresent = () => {
+    setMarks(
+      Object.fromEntries((participants.data ?? []).map((student) => [student.id, "present"])),
+    );
+    setReasons({});
+  };
   const points = useMutation({
     mutationFn: () => {
       if (!entry?.classroom?.id || !pointTarget)
@@ -208,7 +245,7 @@ export function TeacherClassAttendanceSheet({
                 {canManage
                   ? reviewing
                     ? "انتخاب‌های خود را بررسی کنید و سپس ثبت را تأیید کنید."
-                    : "مرحله ۱: برای هر دانش‌آموز یک وضعیت انتخاب کنید؛ سپس به بررسی بروید."
+                    : "همه دانش‌آموزان حاضر هستند؛ فقط وضعیت استثناها را تغییر دهید و سپس به بررسی بروید."
                   : "فهرست دانش‌آموزان این کلاس در اختیار شماست."}
               </p>
               {classReviews.length && !reviewing ? (
@@ -248,7 +285,7 @@ export function TeacherClassAttendanceSheet({
                     </div>
                     {canManage ? (
                       <div
-                        className="mt-3 grid grid-cols-3 gap-1.5"
+                        className="mt-3 grid grid-cols-4 gap-1.5"
                         role="group"
                         aria-label={`وضعیت حضور ${student.name}`}
                       >
@@ -258,14 +295,24 @@ export function TeacherClassAttendanceSheet({
                             <button
                               key={action.status}
                               type="button"
+                              aria-label={action.label}
                               aria-pressed={selected}
                               disabled={save.isPending}
                               onClick={() =>
                                 setMarks((current) => ({ ...current, [student.id]: action.status }))
                               }
-                              className={`min-h-11 rounded-xl border px-1 text-[11px] font-bold transition-colors motion-reduce:transition-none ${selected ? action.activeClassName : "border-[rgb(var(--border-subtle))] bg-card text-slate-600 hover:border-brand/40 dark:text-slate-300"}`}
+                              title={action.label}
+                              className={`grid min-h-11 place-items-center rounded-xl border transition-colors motion-reduce:transition-none ${selected ? action.activeClassName : "border-[rgb(var(--border-subtle))] bg-card text-slate-600 hover:border-brand/40 dark:text-slate-300"}`}
                             >
-                              {action.label}
+                              {action.status === "present" ? (
+                                <CircleCheck size={19} aria-hidden="true" />
+                              ) : action.status === "absent" ? (
+                                <CircleX size={19} aria-hidden="true" />
+                              ) : action.status === "late" ? (
+                                <Clock3 size={19} aria-hidden="true" />
+                              ) : (
+                                <BadgeCheck size={19} aria-hidden="true" />
+                              )}
                             </button>
                           );
                         })}
@@ -301,9 +348,11 @@ export function TeacherClassAttendanceSheet({
                             setPointTarget({ id: student.id, name: student.name, points: 1 });
                             setPointReason("");
                           }}
-                          className="inline-flex min-h-8 items-center gap-1 rounded-lg bg-emerald-50 px-2 text-[11px] font-bold text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-200"
+                          aria-label={`افزودن یک سکه برای ${student.name}`}
+                          title="افزودن یک سکه"
+                          className="grid min-h-9 min-w-9 place-items-center rounded-lg bg-emerald-50 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-200"
                         >
-                          <Plus size={13} aria-hidden="true" />۱
+                          <Plus size={16} aria-hidden="true" />
                         </button>
                         <button
                           type="button"
@@ -312,9 +361,11 @@ export function TeacherClassAttendanceSheet({
                             setPointTarget({ id: student.id, name: student.name, points: -1 });
                             setPointReason("");
                           }}
-                          className="inline-flex min-h-8 items-center gap-1 rounded-lg bg-rose-50 px-2 text-[11px] font-bold text-rose-800 dark:bg-rose-950/40 dark:text-rose-200"
+                          aria-label={`کسر یک سکه از ${student.name}`}
+                          title="کسر یک سکه"
+                          className="grid min-h-9 min-w-9 place-items-center rounded-lg bg-rose-50 text-rose-800 dark:bg-rose-950/40 dark:text-rose-200"
                         >
-                          <Minus size={13} aria-hidden="true" />۱
+                          <Minus size={16} aria-hidden="true" />
                         </button>
                       </div>
                     ) : null}
@@ -365,36 +416,70 @@ export function TeacherClassAttendanceSheet({
                 </div>
               ) : null}
               {canManage ? (
-                <div className="sticky bottom-0 mt-4 flex gap-2 bg-card pt-3">
-                  <Button
-                    variant="soft"
-                    className="flex-1"
-                    disabled={!Object.keys(marks).length || save.isPending}
-                    onClick={() => {
-                      if (reviewing) {
-                        setReviewing(false);
-                        return;
-                      }
-                      discard.request(() => {
-                        setMarks({});
-                        setReasons({});
-                      });
-                    }}
-                  >
-                    {reviewing ? "بازگشت" : "پاک کردن"}
-                  </Button>
-                  <Button
-                    className="flex-[1.4]"
-                    disabled={!Object.keys(marks).length || save.isPending}
-                    onClick={() => (reviewing ? save.mutate() : setReviewing(true))}
-                  >
-                    <Check size={16} aria-hidden="true" />{" "}
-                    {save.isPending
-                      ? "در حال ثبت…"
-                      : reviewing
-                        ? "تأیید و ثبت"
-                        : "بررسی و ثبت حضور و غیاب"}
-                  </Button>
+                <div className="sticky bottom-0 mt-4 bg-card pt-3">
+                  {clearConfirmationOpen ? (
+                    <div
+                      role="alert"
+                      className="mb-3 rounded-2xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-100"
+                    >
+                      <p className="font-black">تغییرات حضور و غیاب پاک می‌شوند</p>
+                      <p className="mt-1 text-xs leading-5">
+                        همه دانش‌آموزان دوباره حاضر می‌شوند و دلیل‌های غیبت پاک خواهد شد.
+                      </p>
+                      <div className="mt-3 flex gap-2">
+                        <Button
+                          variant="soft"
+                          className="flex-1"
+                          disabled={save.isPending}
+                          onClick={() => setClearConfirmationOpen(false)}
+                        >
+                          بازگشت و حفظ تغییرات
+                        </Button>
+                        <Button
+                          variant="danger"
+                          className="flex-1"
+                          disabled={save.isPending}
+                          onClick={() => {
+                            resetToPresent();
+                            setClearConfirmationOpen(false);
+                            onOpenChange(false);
+                          }}
+                        >
+                          ادامه و پاک‌کردن
+                        </Button>
+                      </div>
+                    </div>
+                  ) : null}
+                  <div className="flex gap-2">
+                    <Button
+                      variant="soft"
+                      className="flex-1"
+                      disabled={!Object.keys(marks).length || save.isPending}
+                      onClick={() => {
+                        if (reviewing) {
+                          setReviewing(false);
+                          return;
+                        }
+                        // Keep the confirmation in this drawer. A nested drawer
+                        // could propagate its back action to the roster itself.
+                        setClearConfirmationOpen(true);
+                      }}
+                    >
+                      {reviewing ? "بازگشت" : "پاک کردن"}
+                    </Button>
+                    <Button
+                      className="flex-[1.4]"
+                      disabled={!Object.keys(marks).length || save.isPending}
+                      onClick={() => (reviewing ? save.mutate() : setReviewing(true))}
+                    >
+                      <Check size={16} aria-hidden="true" />{" "}
+                      {save.isPending
+                        ? "در حال ثبت…"
+                        : reviewing
+                          ? "تأیید و ثبت"
+                          : "بررسی و ثبت حضور و غیاب"}
+                    </Button>
+                  </div>
                 </div>
               ) : null}
             </>

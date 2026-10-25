@@ -322,6 +322,9 @@ export class AuthService {
       capabilities: user.capabilities,
       csrfToken: session?.csrfToken,
       phoneNumber: account?.phoneNumber ?? null,
+      phoneNumberSelfServiceAvailable:
+        user.capabilities?.includes("platform.phone.self.manage") ||
+        this.isSelfServiceAccount(user),
       phoneNumberChangeAvailable:
         user.capabilities?.includes("platform.phone.self.manage") ||
         (account?.phoneNumberChangeCount ?? 0) < 3,
@@ -331,7 +334,7 @@ export class AuthService {
       phoneNumberChangeCount: account?.phoneNumberChangeCount ?? 0,
       passwordChangeAvailable:
         user.capabilities?.includes("platform.phone.self.manage") ||
-        !this.isStudentOrGuardian(user) ||
+        !this.isSelfServiceAccount(user) ||
         (account?.passwordChangeCount ?? 0) < 3,
       passwordChangeCount: account?.passwordChangeCount ?? 0,
     };
@@ -473,7 +476,7 @@ export class AuthService {
     }
     const passwordChangeCount = account.passwordChangeCount ?? 0;
     if (
-      this.isStudentOrGuardian(user) &&
+      this.isSelfServiceAccount(user) &&
       passwordChangeCount >= AuthService.SELF_ACCOUNT_CHANGE_LIMIT
     )
       throw new ApiException(
@@ -483,7 +486,7 @@ export class AuthService {
       );
 
     account.passwordHash = await bcrypt.hash(newPassword, 12);
-    if (this.isStudentOrGuardian(user))
+    if (this.isSelfServiceAccount(user))
       account.passwordChangeCount = passwordChangeCount + 1;
     await this.users.save(account);
     await this.sessions.delete({
@@ -500,7 +503,7 @@ export class AuthService {
     const canChangeAnyTime = user.capabilities?.includes(
       "platform.phone.self.manage",
     );
-    if (!canChangeAnyTime && !this.isStudentOrGuardian(user))
+    if (!canChangeAnyTime && !this.isSelfServiceAccount(user))
       throw new ApiException(
         403,
         "PHONE_CHANGE_REVIEW_REQUIRED",
@@ -565,11 +568,11 @@ export class AuthService {
         "ACCOUNT_CHANGE_UNAVAILABLE",
         "سامانه درخواست تغییر در دسترس نیست.",
       );
-    if (!this.isStudentOrGuardian(user))
+    if (!this.isSelfServiceAccount(user))
       throw new ApiException(
         403,
         "FORBIDDEN",
-        "این درخواست فقط برای دانش‌آموز و سرپرست است.",
+        "این درخواست فقط برای دانش‌آموز، سرپرست و استاد است.",
       );
     if (!(user.organizationIds ?? []).includes(organizationId))
       throw new ApiException(
@@ -655,11 +658,11 @@ export class AuthService {
         "ACCOUNT_CHANGE_UNAVAILABLE",
         "سامانه درخواست تغییر در دسترس نیست.",
       );
-    if (!this.isStudentOrGuardian(user))
+    if (!this.isSelfServiceAccount(user))
       throw new ApiException(
         403,
         "FORBIDDEN",
-        "این درخواست فقط برای دانش‌آموز و سرپرست است.",
+        "این درخواست فقط برای دانش‌آموز، سرپرست و استاد است.",
       );
     if (!(user.organizationIds ?? []).includes(organizationId))
       throw new ApiException(
@@ -933,9 +936,10 @@ export class AuthService {
     return student?.accountStatus === "active";
   }
 
-  private isStudentOrGuardian(user: AuthenticatedUser) {
+  /** Student, guardian, and teacher accounts can maintain their own sign-in details. */
+  private isSelfServiceAccount(user: AuthenticatedUser) {
     return (user.roles ?? [user.role]).some(
-      (role) => role === "STUDENT" || role === "GUARDIAN",
+      (role) => role === "STUDENT" || role === "GUARDIAN" || role === "TEACHER",
     );
   }
 }
