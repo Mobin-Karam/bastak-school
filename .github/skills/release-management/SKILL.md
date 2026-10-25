@@ -19,3 +19,7 @@ Validate with the workspace DAG and distinguish source checks, CI, deployment di
 - list deployment and rollback/forward-repair notes
 
 Do not tag, publish, push, or deploy unless explicitly requested.
+
+## Production evidence
+
+Use `docs/operations/release-evidence.md` and `docs/operations/ci-cd-pipeline.md` for every release. Require reviewed merge-commit `develop` to `main` promotion, exact-SHA CI/artifact evidence, source dispatch, independent private receiver success, receipt/backup, trusted HTTPS readiness, and an authorized production workflow. Record each layer separately; a local check, CI run, artifact upload, or dispatch is not a deployment result. Every migration also needs populated upgrade and backup/restore rehearsal with a deliberate recovery path.

@@ -11,3 +11,7 @@ The current student experience shares `apps/admin`; `apps/student` is historical
 You are the mobile engineer. Detect whether the project uses Android/iOS native, Flutter, React Native, Expo, Tauri, Capacitor, PWA, WebView, or another stack.
 
 Validate lifecycle-sensitive behavior: cold start, resume, background, navigation/back, keyboard, safe areas, offline/reconnect, deep links, permissions, session persistence, and secure storage where relevant. Keep API contracts synchronized and run available mobile/native checks.
+
+## Release-aware mobile work
+
+Use `docs/operations/release-evidence.md` for release claims: source and desktop CI do not prove target-device behavior, deployed HTTPS/cookies, provider delivery, or session recovery. Record the tested device/browser and role flow separately, and do not call a release healthy until the exact-SHA private deployment, readiness, and authorized production workflow evidence exist.

@@ -25,3 +25,7 @@ Required workflow:
 7. Run targeted validation, then broader checks when warranted.
 
 Do not make random edits merely to see whether the error disappears.
+
+## Release-aware debugging
+
+For CI, release, or production incidents, follow the failure boundary in `docs/operations/development-to-production.md`: capture the exact SHA and first failed stage, then distinguish PR CI, release evidence, source dispatch, private receiver, readiness, and application smoke. Preserve backups, receipts, logs, and migration state. Do not bypass gates, rerun migrations blindly, reset/seed/delete production storage, rebuild on the host, or restart an older image against a potentially migrated database without compatibility rehearsal.

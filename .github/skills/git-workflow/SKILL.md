@@ -14,3 +14,7 @@ Normal work targets `develop`; preserve unrelated dirty changes. Do not merge a 
 - Keep commits focused when the user requests commits.
 - Before merge/rebase, identify conflicts and branch relationship.
 - Before PR/release work, validate the intended base/head and repository policy.
+
+## Production promotion
+
+Follow `docs/operations/ci-cd-pipeline.md` for a release: normal work reaches `develop` by protected PR, then a separately reviewed `develop` to `main` PR uses a merge commit after exact-SHA evidence. If `main` is not an ancestor of `develop`, wait for the checked synchronization PR. Never merge stale heads, bypass required checks, force a release branch, or treat the main dispatch as production completion; private receiver, receipt/backup, HTTPS, and authorized smoke evidence remain required.

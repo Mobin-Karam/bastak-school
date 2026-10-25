@@ -21,3 +21,7 @@ Prioritize findings by severity. Look for:
 - unnecessary complexity.
 
 For each finding provide evidence, impact, and a concrete remediation. Do not invent issues without repository evidence.
+
+## Release-aware review
+
+For a change that can affect release or deployment, review against `docs/operations/development-to-production.md`: protected promotion, exact artifact/SHA provenance, external configuration and private-receiver publication, migration rehearsal/backup safety, and evidence boundaries. Flag a migration that lacks populated-data compatibility or narrow recovery coverage, a deploy change that rebuilds/pulls mutable images or exposes secrets, and any claim that confuses CI/dispatch with private deployment and authorized production proof.

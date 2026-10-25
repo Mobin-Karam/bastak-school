@@ -17,3 +17,7 @@ For protected API/UI work, deliver a vertical slice: server authorization and or
 7. Run targeted validation, then broader checks if shared code changed.
 8. Update docs/config examples when behavior or setup changed.
 9. Review the diff for unrelated edits and compatibility risks.
+
+## Release-aware implementation
+
+For changes to persistence, containers, proxy/cookies, Compose, workflows, configuration, or production dependencies, follow `docs/operations/development-to-production.md`. Include migration impact on populated data, recovery/rehearsal coverage, exact affected CI checks, external/private deployment-template publication when relevant, and evidence boundaries. Do not put production config/secrets in Git or report local/CI/dispatch success as production deployment.

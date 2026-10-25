@@ -15,3 +15,7 @@ The API uses TypeORM. Treat entity, migration, service/DTO, ownership scope, and
 5. Evaluate indexes using real filters/joins/sorts and query plans when available.
 6. Review migration rollout/backfill/rollback or forward-repair safety.
 7. Consider backup/restore and retention only when operationally relevant.
+
+## Production migration boundary
+
+Database changes are operationally relevant when they can ship. For every migration, inspect the populated-data and recovery contract in `docs/operations/development-to-production.md` and `scripts/deploy/database-recovery.cjs`. Verify pre-existing records survive a restored-copy rehearsal; allow only the migration's explicit default/null/repair values and test that unrelated changes fail closed. Do not infer production safety from a fresh database, and never recommend reset/seed, direct production schema edits, automatic rollback, or blind migration retry.
