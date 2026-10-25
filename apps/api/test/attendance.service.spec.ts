@@ -16,7 +16,7 @@ import { RolePermission } from "../src/database/entities/role-permission.entity"
 import { UserRoleAssignment } from "../src/database/entities/user-role-assignment.entity";
 import { AttendanceWriteReceipt } from "../src/database/entities/attendance-write-receipt.entity";
 import { Notification } from "../src/database/entities/notification.entity";
-import { StudentPointLedger } from "../src/database/entities/student-point-ledger.entity";
+import { StudentRewardLedger } from "../src/database/entities/student-reward-ledger.entity";
 import { AttendanceWriteReceipts1730100000000 } from "../src/database/migrations/1730100000000-AttendanceWriteReceipts";
 import { AttendanceController } from "../src/modules/attendance/attendance.controller";
 import { plainToInstance } from "class-transformer";
@@ -1965,7 +1965,7 @@ describe("AttendanceService organization boundaries (real SQLite)", () => {
     );
 
     expect(second.id).not.toBe(first.id);
-    expect(await db.getRepository(StudentPointLedger).count()).toBe(2);
+    expect(await db.getRepository(StudentRewardLedger).count()).toBe(2);
   });
 });
 

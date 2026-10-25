@@ -4,7 +4,7 @@ import { AuditLog } from "../../database/entities/audit-log.entity";
 import { createHash, randomUUID } from "node:crypto";
 import { AttendanceWriteReceipt } from "../../database/entities/attendance-write-receipt.entity";
 import { AttendancePolicy } from "../../database/entities/attendance-policy.entity";
-import { StudentPointLedger } from "../../database/entities/student-point-ledger.entity";
+import { StudentRewardLedger } from "../../database/entities/student-reward-ledger.entity";
 import {
   Notification,
   NotificationType,
@@ -1770,7 +1770,7 @@ export class AttendanceService {
           },
         });
       }
-      const ledger = manager.getRepository(StudentPointLedger);
+      const ledger = manager.getRepository(StudentRewardLedger);
       for (const record of saved) {
         const points =
           record.physicalStatus === "present"
@@ -1784,24 +1784,28 @@ export class AttendanceService {
             : points < 0
               ? "کسر یک امتیاز برای غیبت در کلاس"
               : "وضعیت حضور بدون تغییر امتیاز";
-        const existing = await ledger.findOne({
-          where: { attendanceRecord: { id: record.id } },
-        });
-        if (existing) {
-          existing.points = points;
-          existing.reason = reason;
-          await ledger.save(existing);
-        } else {
+        const existing = await ledger.findOne({ where: { sourceType: "attendance", sourceId: record.id } });
+        if (!existing) {
           await ledger.save(
             ledger.create({
               student: record.student,
               organization,
-              attendanceRecord: record,
               points,
               reason,
-              source: "attendance",
+              sourceType: "attendance",
+              sourceId: record.id,
+              contextType: session.contextType,
+              contextId: session.contextId,
+              contextName: session.titleSnapshot || null,
             }),
           );
+        } else if (existing.points !== points) {
+          await ledger.save(ledger.create({
+            student: record.student, organization, points: points - existing.points,
+            reason: `اصلاح امتیاز حضور: ${reason}`, sourceType: "attendance_reconciliation",
+            sourceId: `${record.id}:${record.revision}`, contextType: session.contextType,
+            contextId: session.contextId, contextName: session.titleSnapshot || null,
+          }));
         }
       }
       if (options.submit) {
@@ -1990,7 +1994,7 @@ export class AttendanceService {
         "دانش‌آموز عضو این کلاس نیست.",
       );
     return this.attendanceTransaction(async (manager) => {
-      const ledger = manager.getRepository(StudentPointLedger);
+      const ledger = manager.getRepository(StudentRewardLedger);
       const existing = await ledger.findOne({
         where: {
           requestId: dto.requestId,
@@ -2017,7 +2021,9 @@ export class AttendanceService {
           organization,
           awardedBy: { id: user.id } as User,
           points: dto.points,
-          source: "teacher_adjustment",
+          sourceType: "manual",
+          contextType: dto.contextType,
+          contextId: dto.contextId,
           requestId: dto.requestId,
           reason: dto.reason.trim(),
         }),
@@ -2025,7 +2031,7 @@ export class AttendanceService {
       await manager.getRepository(AuditLog).save({
         user: { id: user.id },
         organizationId: organization.id,
-        entity: "student_point_ledger",
+        entity: "student_reward_ledger",
         action: "attendance.points.adjusted",
         metadata: {
           studentId: student.id,

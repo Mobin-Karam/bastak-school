@@ -4,7 +4,7 @@ import { DormAttendanceDelegate } from "../../database/entities/dorm-attendance-
 import { AttendancePool } from "../../database/entities/attendance-pool.entity";
 import { AttendanceWriteReceipt } from "../../database/entities/attendance-write-receipt.entity";
 import { AttendancePolicy } from "../../database/entities/attendance-policy.entity";
-import { StudentPointLedger } from "../../database/entities/student-point-ledger.entity";
+import { StudentRewardLedger } from "../../database/entities/student-reward-ledger.entity";
 import { AttendanceCorrection } from "../../database/entities/attendance-correction.entity";
 import { AuditLog } from "../../database/entities/audit-log.entity";
 import { Module } from "@nestjs/common";
@@ -34,7 +34,7 @@ import { AttendanceService } from "./attendance.service";
       AttendanceRecord,
       AttendanceWriteReceipt,
       AttendancePolicy,
-      StudentPointLedger,
+      StudentRewardLedger,
       AttendanceCorrection,
       AuditLog,
       Student,

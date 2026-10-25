@@ -146,6 +146,12 @@ const AchievementsComingSoonPage = lazy(() =>
 const CoinShopComingSoonPage = lazy(() =>
   import("../../features/coin-shop").then((m) => ({ default: m.CoinShopComingSoonPage })),
 );
+const RewardsPage = lazy(() =>
+  import("../../features/rewards").then((m) => ({ default: m.RewardsPage })),
+);
+const MyRewardsPage = lazy(() =>
+  import("../../features/rewards").then((m) => ({ default: m.MyRewardsPage })),
+);
 const ManagementComingSoonPage = lazy(() =>
   import("../../features/management").then((m) => ({ default: m.ManagementComingSoonPage })),
 );
@@ -622,6 +628,22 @@ export const adminRouteObjects = [
                   <StudentProfilePage />
                 </RouteScreen>
               </StudentOnlyRoute>
+            ),
+          },
+          {
+            path: "my-rewards",
+            element: (
+              <CapabilityRoute capability="rewards.self.read">
+                <StudentOnlyRoute><RouteScreen><MyRewardsPage /></RouteScreen></StudentOnlyRoute>
+              </CapabilityRoute>
+            ),
+          },
+          {
+            path: "rewards",
+            element: (
+              <CapabilityRoute capability="rewards.read">
+                <NonStudentRoute><RouteScreen><RewardsPage /></RouteScreen></NonStudentRoute>
+              </CapabilityRoute>
             ),
           },
           {

@@ -20,7 +20,7 @@ import {
   AttendanceReviewStatus,
   AttendanceStatus,
 } from "../../database/entities/attendance-record.entity";
-import { StudentPointLedger } from "../../database/entities/student-point-ledger.entity";
+import { StudentRewardLedger } from "../../database/entities/student-reward-ledger.entity";
 import { AttendancePool } from "../../database/entities/attendance-pool.entity";
 import { DormAttendanceDelegate } from "../../database/entities/dorm-attendance-delegate.entity";
 import { DormRoom } from "../../database/entities/dorm-room.entity";
@@ -1278,7 +1278,7 @@ export class AttendanceOperationsService {
           (row) =>
             row.session.contextType === "class" && visibleClassIds.has(row.session.contextId),
         );
-    const points = await this.repo(StudentPointLedger).find({
+    const points = await this.repo(StudentRewardLedger).find({
       where: { student: { id }, organization: { id: student.organization!.id } },
     });
     const counts = this.counts(visibleRows);
@@ -1337,7 +1337,7 @@ export class AttendanceOperationsService {
       },
     });
     const counts = this.counts(rows);
-    const pointRows = await this.repo(StudentPointLedger).find({
+    const pointRows = await this.repo(StudentRewardLedger).find({
       where: { student: { id: student.id } },
     });
     const points = pointRows.reduce((total, row) => total + row.points, 0);
