@@ -585,19 +585,26 @@ export class StudentAdministrationService {
       where: { id: In(uniqueIds) },
       relations: { user: true },
     });
-    if (
-      targets.length !== uniqueIds.length ||
-      targets.some((student) => !student.user)
-    )
+    if (targets.length !== uniqueIds.length)
       throw new ApiException(
         404,
-        "STUDENT_USER_NOT_FOUND",
-        "یکی از حساب‌های دانش‌آموزان انتخاب‌شده پیدا نشد.",
+        "STUDENT_NOT_FOUND",
+        "یکی از دانش‌آموزان انتخاب‌شده پیدا نشد.",
       );
-    const results = await Promise.all(
-      uniqueIds.map((id) => this.legacy.resetPassword(id, password)),
+    const accountStudentIds = targets
+      .filter((student) => student.user)
+      .map((student) => student.id);
+    const skippedStudentIds = uniqueIds.filter(
+      (id) => !accountStudentIds.includes(id),
     );
-    return { updated: results.length, studentIds: uniqueIds };
+    const results = await Promise.all(
+      accountStudentIds.map((id) => this.legacy.resetPassword(id, password)),
+    );
+    return {
+      updated: results.length,
+      studentIds: accountStudentIds,
+      skippedStudentIds,
+    };
   }
   async learning(actor: AuthenticatedUser, id: string) {
     await this.get(actor, id, "learning.read");

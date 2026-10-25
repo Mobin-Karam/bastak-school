@@ -42,10 +42,13 @@ export const studentLifecycle = (
 export const resetStudentPassword = (id: string, password: string) =>
   api.post(`/students/${id}/reset-password`, { password });
 export const bulkResetStudentPasswords = (studentIds: string[], password: string) =>
-  api.post<{ updated: number; studentIds: string[] }>("/students/bulk-reset-password", {
-    studentIds,
-    password,
-  });
+  api.post<{ updated: number; studentIds: string[]; skippedStudentIds: string[] }>(
+    "/students/bulk-reset-password",
+    {
+      studentIds,
+      password,
+    },
+  );
 export const getStudentOverview = (id: string) => api.get<Student>(`/students/${id}/overview`);
 /** Detailed, server-authorized profile projection; do not synthesize this from list data. */
 export const getStudentProfile = (id: string) =>
