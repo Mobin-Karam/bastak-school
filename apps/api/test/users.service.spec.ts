@@ -40,6 +40,12 @@ function serviceFor(target: Partial<User>) {
 }
 
 describe("UsersService account safety", () => {
+  it("excludes student accounts from a staff-only listing", async () => {
+    const { service } = serviceFor({ role: UserRole.STUDENT });
+
+    await expect(service.list(actor, undefined, undefined, undefined, true)).resolves.toEqual([]);
+  });
+
   it("rejects deactivating the currently logged-in account", async () => {
     const { service, users, sessions } = serviceFor({ id: actor.id });
 
@@ -75,5 +81,27 @@ describe("UsersService account safety", () => {
       response: { error: { code: "PLATFORM_OWNER_PROTECTED" } },
     });
     expect(users.update).not.toHaveBeenCalled();
+  });
+
+  it("lets an authorized manager reset a user password and revokes target sessions", async () => {
+    const { service, users, sessions } = serviceFor({ id: "staff-1" });
+
+    await service.update(actor, "staff-1", { password: "ReplacementPassword123" });
+
+    expect(users.update).toHaveBeenCalledWith(
+      "staff-1",
+      expect.objectContaining({ passwordHash: expect.any(String) }),
+    );
+    expect(sessions.delete).toHaveBeenCalledWith({ user: { id: "staff-1" } });
+  });
+
+  it("keeps self-service password changes on the account settings flow", async () => {
+    const { service, users, sessions } = serviceFor({ id: actor.id });
+
+    await expect(service.update(actor, actor.id, { password: "ReplacementPassword123" })).rejects.toMatchObject({
+      response: { error: { code: "SELF_PASSWORD_RESET_FORBIDDEN" } },
+    });
+    expect(users.update).not.toHaveBeenCalled();
+    expect(sessions.delete).not.toHaveBeenCalled();
   });
 });
