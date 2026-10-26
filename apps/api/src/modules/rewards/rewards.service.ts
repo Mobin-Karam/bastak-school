@@ -30,6 +30,8 @@ export type TrustedRewardSourceInput = {
   contextId?: string | null;
   contextName?: string | null;
   requestId?: string | null;
+  /** Only source domains may retain a zero-value fact for a recorded outcome. */
+  allowZero?: boolean;
 };
 
 @Injectable()
@@ -52,7 +54,8 @@ export class RewardsService {
   /** Public source-domain API: record one immutable, idempotent ledger fact. */
   async recordTrustedSource(input: TrustedRewardSourceInput, manager?: EntityManager) {
     const ledger = this.ledgerRepository(manager);
-    if (!input.points) throw new ApiException(422, "REWARD_ZERO", "مقدار سکه باید مثبت یا منفی باشد.");
+    if (!input.points && !input.allowZero)
+      throw new ApiException(422, "REWARD_ZERO", "مقدار سکه باید مثبت یا منفی باشد.");
     if (input.requestId && input.awardedById) {
       const existing = await ledger.findOne({
         where: { requestId: input.requestId, organization: { id: input.organization.id }, awardedBy: { id: input.awardedById } },
@@ -82,7 +85,13 @@ export class RewardsService {
   async recordAttendanceOutcome(input: Omit<TrustedRewardSourceInput, "sourceType" | "sourceId" | "reason"> & { recordId: string; revision: number; reason: string }, manager: EntityManager) {
     const ledger = this.ledgerRepository(manager);
     const original = await ledger.findOne({ where: { sourceType: "attendance", sourceId: input.recordId } });
-    if (!original) return this.recordTrustedSource({ ...input, sourceType: "attendance", sourceId: input.recordId }, manager);
+    if (!original)
+      return this.recordTrustedSource({
+        ...input,
+        sourceType: "attendance",
+        sourceId: input.recordId,
+        allowZero: true,
+      }, manager);
     const compensations = await ledger.createQueryBuilder("reward")
       .where("reward.sourceType = :sourceType", { sourceType: "attendance_reconciliation" })
       .andWhere("reward.sourceId LIKE :prefix", { prefix: `${input.recordId}:%` })
