@@ -30,17 +30,22 @@ export class RewardsLedgerExtraction1731900000000 implements MigrationInterface 
         CONSTRAINT FK_student_reward_ledger_awarded_by FOREIGN KEY(awardedById) REFERENCES users(id) ON DELETE SET NULL,
         CONSTRAINT FK_student_reward_ledger_reversal FOREIGN KEY(reversalOfId) REFERENCES student_reward_ledger(id) ON DELETE RESTRICT
       )`);
-      await q.query(`INSERT INTO student_reward_ledger(id,points,sourceType,sourceId,contextType,contextId,contextName,requestId,reason,createdAt,studentId,organizationId,awardedById)
-        SELECT ledger.id,ledger.points,
-          CASE ledger.source WHEN 'teacher_adjustment' THEN 'manual' ELSE ledger.source END,
-          ledger.attendanceRecordId,NULL,NULL,NULL,ledger.requestId,ledger.reason,ledger.createdAt,ledger.studentId,ledger.organizationId,ledger.awardedById
-        FROM student_point_ledger ledger`);
-      await q.query(`UPDATE student_reward_ledger
-        SET contextType=(SELECT session.contextType FROM attendance_records record JOIN attendance_sessions session ON session.id=record.sessionId WHERE record.id=student_reward_ledger.sourceId),
-            contextId=(SELECT session.contextId FROM attendance_records record JOIN attendance_sessions session ON session.id=record.sessionId WHERE record.id=student_reward_ledger.sourceId),
-            contextName=(SELECT session.titleSnapshot FROM attendance_records record JOIN attendance_sessions session ON session.id=record.sessionId WHERE record.id=student_reward_ledger.sourceId)
-        WHERE sourceType='attendance' AND sourceId IS NOT NULL`);
-      await q.query("DROP TABLE student_point_ledger");
+      // Some production-style databases were created after the legacy ledger
+      // was retired but before this migration was recorded. They still need the
+      // Rewards schema and permissions, but there are no historic rows to copy.
+      if (await q.hasTable("student_point_ledger")) {
+        await q.query(`INSERT INTO student_reward_ledger(id,points,sourceType,sourceId,contextType,contextId,contextName,requestId,reason,createdAt,studentId,organizationId,awardedById)
+          SELECT ledger.id,ledger.points,
+            CASE ledger.source WHEN 'teacher_adjustment' THEN 'manual' ELSE ledger.source END,
+            ledger.attendanceRecordId,NULL,NULL,NULL,ledger.requestId,ledger.reason,ledger.createdAt,ledger.studentId,ledger.organizationId,ledger.awardedById
+          FROM student_point_ledger ledger`);
+        await q.query(`UPDATE student_reward_ledger
+          SET contextType=(SELECT session.contextType FROM attendance_records record JOIN attendance_sessions session ON session.id=record.sessionId WHERE record.id=student_reward_ledger.sourceId),
+              contextId=(SELECT session.contextId FROM attendance_records record JOIN attendance_sessions session ON session.id=record.sessionId WHERE record.id=student_reward_ledger.sourceId),
+              contextName=(SELECT session.titleSnapshot FROM attendance_records record JOIN attendance_sessions session ON session.id=record.sessionId WHERE record.id=student_reward_ledger.sourceId)
+          WHERE sourceType='attendance' AND sourceId IS NOT NULL`);
+        await q.query("DROP TABLE student_point_ledger");
+      }
       await q.query("CREATE INDEX IDX_student_reward_ledger_student_created ON student_reward_ledger(studentId,createdAt,id)");
       await q.query("CREATE INDEX IDX_student_reward_ledger_organization_created ON student_reward_ledger(organizationId,createdAt,id)");
       await q.query("CREATE UNIQUE INDEX UQ_student_reward_ledger_request_scope ON student_reward_ledger(organizationId,awardedById,requestId) WHERE requestId IS NOT NULL AND awardedById IS NOT NULL");
