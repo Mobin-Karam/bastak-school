@@ -4,7 +4,6 @@ import { AuditLog } from "../../database/entities/audit-log.entity";
 import { createHash, randomUUID } from "node:crypto";
 import { AttendanceWriteReceipt } from "../../database/entities/attendance-write-receipt.entity";
 import { AttendancePolicy } from "../../database/entities/attendance-policy.entity";
-import { StudentRewardLedger } from "../../database/entities/student-reward-ledger.entity";
 import {
   Notification,
   NotificationType,
@@ -46,6 +45,7 @@ import { AuthenticatedUser } from "../auth";
 import { AuthorizationService, UserContext } from "../authorization";
 import { SchoolAccessService } from "../school-access";
 import { RealtimeService } from "../realtime";
+import { RewardsService } from "../rewards";
 import {
   BulkMarkAttendanceDto,
   CreateAttendanceSessionDto,
@@ -86,6 +86,7 @@ export class AttendanceService {
     private readonly access: SchoolAccessService,
     private readonly authorization: AuthorizationService,
     private readonly realtime: RealtimeService,
+    private readonly rewards: RewardsService,
   ) {}
 
   async authorizeOrganization(user: AuthenticatedUser, organizationId: string) {
@@ -1770,7 +1771,6 @@ export class AttendanceService {
           },
         });
       }
-      const ledger = manager.getRepository(StudentRewardLedger);
       for (const record of saved) {
         const points =
           record.physicalStatus === "present"
@@ -1784,29 +1784,17 @@ export class AttendanceService {
             : points < 0
               ? "کسر یک امتیاز برای غیبت در کلاس"
               : "وضعیت حضور بدون تغییر امتیاز";
-        const existing = await ledger.findOne({ where: { sourceType: "attendance", sourceId: record.id } });
-        if (!existing) {
-          await ledger.save(
-            ledger.create({
-              student: record.student,
-              organization,
-              points,
-              reason,
-              sourceType: "attendance",
-              sourceId: record.id,
-              contextType: session.contextType,
-              contextId: session.contextId,
-              contextName: session.titleSnapshot || null,
-            }),
-          );
-        } else if (existing.points !== points) {
-          await ledger.save(ledger.create({
-            student: record.student, organization, points: points - existing.points,
-            reason: `اصلاح امتیاز حضور: ${reason}`, sourceType: "attendance_reconciliation",
-            sourceId: `${record.id}:${record.revision}`, contextType: session.contextType,
-            contextId: session.contextId, contextName: session.titleSnapshot || null,
-          }));
-        }
+        await this.rewards.recordAttendanceOutcome({
+          recordId: record.id,
+          revision: record.revision,
+          student: record.student,
+          organization,
+          points,
+          reason,
+          contextType: session.contextType,
+          contextId: session.contextId,
+          contextName: session.titleSnapshot || null,
+        }, manager);
       }
       if (options.submit) {
         if (session.status !== "open" && session.status !== "scheduled")
@@ -1994,40 +1982,18 @@ export class AttendanceService {
         "دانش‌آموز عضو این کلاس نیست.",
       );
     return this.attendanceTransaction(async (manager) => {
-      const ledger = manager.getRepository(StudentRewardLedger);
-      const existing = await ledger.findOne({
-        where: {
-          requestId: dto.requestId,
-          organization: { id: organization.id },
-          awardedBy: { id: user.id },
-        },
-        relations: { student: true },
-      });
-      if (existing)
-        return {
-          id: existing.id,
-          studentId: existing.student.id,
-          points: existing.points,
-          reason: existing.reason,
-        };
       const student = await manager
         .getRepository(Student)
-        .findOneBy({ id: dto.studentId });
+        .findOne({ where: { id: dto.studentId, organization: { id: organization.id } } });
       if (!student)
         throw new ApiException(404, "STUDENT_NOT_FOUND", "دانش‌آموز پیدا نشد.");
-      const row = await ledger.save(
-        ledger.create({
-          student,
-          organization,
-          awardedBy: { id: user.id } as User,
-          points: dto.points,
-          sourceType: "manual",
-          contextType: dto.contextType,
-          contextId: dto.contextId,
-          requestId: dto.requestId,
-          reason: dto.reason.trim(),
-        }),
-      );
+      const context = await this.contextDescriptor(dto.contextType, dto.contextId);
+      const row = await this.rewards.recordTrustedSource({
+        student, organization, awardedById: user.id, points: dto.points,
+        reason: dto.reason, sourceType: "attendance_manual",
+        contextType: dto.contextType, contextId: dto.contextId, contextName: context.title,
+        requestId: dto.requestId,
+      }, manager);
       await manager.getRepository(AuditLog).save({
         user: { id: user.id },
         organizationId: organization.id,

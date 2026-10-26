@@ -4,7 +4,7 @@ import { useAuth } from "../../identity/auth";
 import { ErrorState, LoadingState } from "../../../shared/ui/ui";
 import { useModal } from "../../../shared/ui/modal";
 import { notify } from "../../../shared/ui/notifications";
-import { attendanceRequestId } from "../../student-life/attendance/model/attendance-request-id";
+import { createRequestId } from "../../../shared/lib/request-id";
 import {
   getRewardTransaction,
   getStudentRewardLedger,
@@ -43,7 +43,7 @@ export function RewardTransactionDetails({
   });
   const reverse = useMutation({
     mutationFn: () =>
-      reverseRewardTransaction(transactionId, { requestId: attendanceRequestId(), reason }),
+      reverseRewardTransaction(transactionId, { requestId: createRequestId(), reason }),
     onSuccess: () => {
       notify("تراکنش معکوس شد.", "success");
       modal.close();

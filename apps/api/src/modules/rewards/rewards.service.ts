@@ -1,17 +1,36 @@
 import { Injectable } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { In, Repository } from "typeorm";
+import { EntityManager, In, Repository } from "typeorm";
 import { ApiException } from "../../common/exceptions/api.exception";
 import { AuditLog } from "../../database/entities/audit-log.entity";
 import { StudentRewardLedger } from "../../database/entities/student-reward-ledger.entity";
 import { Student } from "../../database/entities/student.entity";
 import { User } from "../../database/entities/user.entity";
+import { Organization } from "../../database/entities/organization.entity";
 import { AuthenticatedUser } from "../auth";
 import { AuthorizationService, type UserContext } from "../authorization";
 import { SchoolAccessService } from "../school-access";
 import { AdjustRewardDto, ReverseRewardDto } from "./rewards.dto";
 
 const PAGE_LIMIT = 100;
+
+/**
+ * Input accepted from a source domain after it has enforced its own roster and
+ * context rules. Rewards remains the only owner of ledger persistence.
+ */
+export type TrustedRewardSourceInput = {
+  student: Student;
+  organization: Organization;
+  awardedById?: string;
+  points: number;
+  reason: string;
+  sourceType: string;
+  sourceId?: string | null;
+  contextType?: string | null;
+  contextId?: string | null;
+  contextName?: string | null;
+  requestId?: string | null;
+};
 
 @Injectable()
 export class RewardsService {
@@ -25,6 +44,65 @@ export class RewardsService {
 
   private has(user: AuthenticatedUser, capability: string) {
     return user.capabilities?.includes(capability) ?? false;
+  }
+  private ledgerRepository(manager?: EntityManager) {
+    return manager ? manager.getRepository(StudentRewardLedger) : this.ledger;
+  }
+
+  /** Public source-domain API: record one immutable, idempotent ledger fact. */
+  async recordTrustedSource(input: TrustedRewardSourceInput, manager?: EntityManager) {
+    const ledger = this.ledgerRepository(manager);
+    if (!input.points) throw new ApiException(422, "REWARD_ZERO", "مقدار سکه باید مثبت یا منفی باشد.");
+    if (input.requestId && input.awardedById) {
+      const existing = await ledger.findOne({
+        where: { requestId: input.requestId, organization: { id: input.organization.id }, awardedBy: { id: input.awardedById } },
+        relations: { student: true, organization: true, awardedBy: true, reversalOf: true },
+      });
+      if (existing) return existing;
+    }
+    return ledger.save(ledger.create({
+      student: input.student,
+      organization: input.organization,
+      awardedBy: input.awardedById ? ({ id: input.awardedById } as User) : null,
+      points: input.points,
+      reason: input.reason.trim(),
+      sourceType: input.sourceType,
+      sourceId: input.sourceId ?? null,
+      contextType: input.contextType ?? null,
+      contextId: input.contextId ?? null,
+      contextName: input.contextName?.trim() || null,
+      requestId: input.requestId ?? null,
+    }));
+  }
+
+  /**
+   * Attendance submits the current outcome, not a mutable balance. This method
+   * writes an append-only compensation whenever that outcome changes.
+   */
+  async recordAttendanceOutcome(input: Omit<TrustedRewardSourceInput, "sourceType" | "sourceId" | "reason"> & { recordId: string; revision: number; reason: string }, manager: EntityManager) {
+    const ledger = this.ledgerRepository(manager);
+    const original = await ledger.findOne({ where: { sourceType: "attendance", sourceId: input.recordId } });
+    if (!original) return this.recordTrustedSource({ ...input, sourceType: "attendance", sourceId: input.recordId }, manager);
+    const compensations = await ledger.createQueryBuilder("reward")
+      .where("reward.sourceType = :sourceType", { sourceType: "attendance_reconciliation" })
+      .andWhere("reward.sourceId LIKE :prefix", { prefix: `${input.recordId}:%` })
+      .getMany();
+    const current = original.points + compensations.reduce((total, row) => total + row.points, 0);
+    const delta = input.points - current;
+    if (!delta) return original;
+    return this.recordTrustedSource({
+      ...input,
+      points: delta,
+      reason: `اصلاح امتیاز حضور: ${input.reason}`,
+      sourceType: "attendance_reconciliation",
+      sourceId: `${input.recordId}:${input.revision}`,
+    }, manager);
+  }
+
+  /** Public read model for source domains that need to display a derived balance. */
+  async balanceForStudent(studentId: string, organizationId: string) {
+    const rows = await this.ledger.find({ where: { student: { id: studentId }, organization: { id: organizationId } } });
+    return rows.reduce((total, row) => total + row.points, 0);
   }
   private async organizations(user: AuthenticatedUser) {
     return this.access.scopedOrganizationIds(user, user.activeOrganizationId || undefined);

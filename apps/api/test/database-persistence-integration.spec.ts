@@ -40,6 +40,8 @@ import { ExitPermission } from "../src/database/entities/exit-permission.entity"
 import { RequestLetter } from "../src/database/entities/request-letter.entity";
 import { ScheduleService } from "../src/modules/schedule/schedule.service";
 import { AuthorizationService } from "../src/modules/authorization";
+import { RewardsService } from "../src/modules/rewards";
+import { StudentRewardLedger } from "../src/database/entities/student-reward-ledger.entity";
 import { UserRoleAssignment } from "../src/database/entities/user-role-assignment.entity";
 import { UserRelationship } from "../src/database/entities/user-relationship.entity";
 import { SchoolScheduleEntry } from "../src/database/entities/school-schedule-entry.entity";
@@ -563,8 +565,9 @@ describe("migration-backed persistence and verified recovery (disposable SQLite 
       db.getRepository(DormRoomAssignment),
       db.getRepository(OrganizationMembership),
       access,
-      {} as never,
+      {} as AuthorizationService,
       new RealtimeService(),
+      new RewardsService(db.getRepository(StudentRewardLedger), db.getRepository(Student), db.getRepository(AuditLog), access, {} as AuthorizationService),
     );
     const command = {
       organizationId: a.id,

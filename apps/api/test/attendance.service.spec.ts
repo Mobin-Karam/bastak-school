@@ -28,6 +28,7 @@ import { AttendanceService } from "../src/modules/attendance/attendance.service"
 import { SchoolAccessService } from "../src/modules/school-access/school-access.service";
 import { AuthorizationService } from "../src/modules/authorization";
 import { RealtimeService } from "../src/modules/realtime/realtime.service";
+import { RewardsService } from "../src/modules/rewards";
 import type { AuthenticatedUser } from "../src/modules/auth";
 import {
   AttendanceRecord,
@@ -162,6 +163,10 @@ describe("AttendanceService organization boundaries (real SQLite)", () => {
       ),
       {} as AuthorizationService,
       realtime,
+      new RewardsService(
+        db.getRepository(StudentRewardLedger), db.getRepository(Student), db.getRepository(AuditLog),
+        new SchoolAccessService(organizations, db.getRepository(OrganizationMembership)), {} as AuthorizationService,
+      ),
     );
   });
   afterEach(async () => {
