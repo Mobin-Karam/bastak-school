@@ -872,6 +872,7 @@ export class AttendanceService {
       allowPartialSubmission: policy?.allowPartialSubmission ?? true,
       lateCountsAsPresent: policy?.lateCountsAsPresent ?? true,
       correctionRequiresReview: policy?.correctionRequiresReview ?? false,
+      principalReviewMode: policy?.principalReviewMode ?? "absences_only",
     };
   }
 
@@ -906,6 +907,7 @@ export class AttendanceService {
             dto.correctionRequiresReview ??
             existing?.correctionRequiresReview ??
             false,
+          principalReviewMode: dto.principalReviewMode ?? existing?.principalReviewMode ?? "absences_only",
         }),
       );
       await manager.save(
@@ -927,6 +929,7 @@ export class AttendanceService {
       allowPartialSubmission: result.allowPartialSubmission,
       lateCountsAsPresent: result.lateCountsAsPresent,
       correctionRequiresReview: result.correctionRequiresReview,
+      principalReviewMode: result.principalReviewMode,
     };
   }
 

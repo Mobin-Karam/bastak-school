@@ -509,8 +509,9 @@ export function PrincipalDashboard() {
             <ClipboardCheck aria-hidden="true" />
           </div>
           <p className="text-sm text-slate-600 dark:text-slate-300">
-            {data.sessionReviews.pendingCount.toLocaleString("fa-IR")} جلسه در چرخهٔ بازبینی هر ۲۴
-            ساعت قرار دارد. خلاصه را بررسی و بازبینی را ثبت کنید.
+            {data.sessionReviews.mode === "automatic"
+              ? "مدرسه تکمیل خودکار جلسه‌های حضور را انتخاب کرده است."
+              : `${data.sessionReviews.pendingCount.toLocaleString("fa-IR")} جلسه در چرخهٔ بازبینی هر ۲۴ ساعت قرار دارد؛ فقط جلسه‌های دارای غیبت نمایش داده می‌شوند.`}
           </p>
           {sessionReviewItems.length ? (
             <DataTable
@@ -530,6 +531,17 @@ export function PrincipalDashboard() {
             </p>
           ) : null}
         </Card>
+      ) : null}
+
+      {auth.can("attendance.review") && (data.sessionReviews?.pendingCount ?? 0) > 0 ? (
+        <Link
+          to="/admin/attendance?section=sessions"
+          aria-label="بررسی جلسه‌های حضور خوانده‌نشده"
+          className="fixed bottom-5 start-5 z-40 inline-flex animate-pulse items-center gap-2 rounded-full bg-orange-500 px-4 py-3 text-sm font-black text-white shadow-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-600 motion-reduce:animate-none"
+        >
+          <ClipboardCheck size={18} aria-hidden="true" />
+          بررسی جلسه‌های حضور
+        </Link>
       ) : null}
 
       {/* {attendance ? (

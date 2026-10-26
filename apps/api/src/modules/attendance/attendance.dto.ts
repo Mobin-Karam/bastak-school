@@ -165,6 +165,8 @@ export class UpdateAttendancePolicyDto {
   @IsBoolean() allowPartialSubmission!: boolean;
   @IsBoolean() lateCountsAsPresent!: boolean;
   @IsOptional() @IsBoolean() correctionRequiresReview?: boolean;
+  @IsOptional() @IsIn(["automatic", "absences_only"])
+  principalReviewMode?: "automatic" | "absences_only";
 }
 
 export class ReviewAttendanceCorrectionDto {

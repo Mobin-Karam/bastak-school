@@ -40,6 +40,7 @@ export type PrincipalDashboardContract = {
     permissionRequests: number;
   };
   sessionReviews?: {
+    mode: "automatic" | "absences_only";
     pendingCount: number;
     items: Array<{
       id: string;
