@@ -17,7 +17,7 @@ export function DataTableDesktop<TData>({
 }) {
   return (
     <div
-      className="w-full min-w-0 max-w-full overflow-x-auto overflow-y-hidden"
+      className="w-full min-w-0 max-w-full overflow-x-auto overflow-y-visible"
       role="region"
       aria-label={`${label} — ${copy.table}`}
       tabIndex={0}

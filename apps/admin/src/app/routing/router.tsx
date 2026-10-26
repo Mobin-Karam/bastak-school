@@ -634,7 +634,11 @@ export const adminRouteObjects = [
             path: "my-rewards",
             element: (
               <CapabilityRoute capability="rewards.self.read">
-                <StudentOnlyRoute><RouteScreen><MyRewardsPage /></RouteScreen></StudentOnlyRoute>
+                <StudentOnlyRoute>
+                  <RouteScreen>
+                    <MyRewardsPage />
+                  </RouteScreen>
+                </StudentOnlyRoute>
               </CapabilityRoute>
             ),
           },
@@ -642,7 +646,11 @@ export const adminRouteObjects = [
             path: "rewards",
             element: (
               <CapabilityRoute capability="rewards.read">
-                <NonStudentRoute><RouteScreen><RewardsPage /></RouteScreen></NonStudentRoute>
+                <NonStudentRoute>
+                  <RouteScreen>
+                    <RewardsPage />
+                  </RouteScreen>
+                </NonStudentRoute>
               </CapabilityRoute>
             ),
           },

@@ -73,6 +73,15 @@ afterEach(() => {
 });
 
 describe("shared DataTable", () => {
+  it("keeps controls and column headings fixed while a bounded results viewport scrolls", () => {
+    mount({ scrollRows: true, className: "h-96" });
+    expect(screen.getByRole("toolbar", { name: "Search records…" })).not.toHaveClass(
+      "overflow-x-auto",
+    );
+    expect(screen.getByRole("table").querySelector("thead")).toHaveClass("sticky", "top-0");
+    expect(screen.getByRole("region", { name: "Books" })).toHaveClass("overflow-hidden");
+  });
+
   it("shares pagination, locale sorting and debounced search between table and cards", async () => {
     mount();
     expect(table().getAllByRole("row")).toHaveLength(11);
@@ -129,16 +138,23 @@ describe("shared DataTable", () => {
   it("persists visibility and card mode without hiding the primary column", async () => {
     const view = mount({ preferenceKey: "test-table" });
     await userEvent.click(screen.getByRole("button", { name: "Columns" }));
-    await userEvent.click(screen.getByRole("menuitemcheckbox", { name: "Code" }));
-    await userEvent.keyboard("{Escape}");
-    expect(table().queryByRole("columnheader", { name: /Code/ })).not.toBeInTheDocument();
+    const settings = within(screen.getByRole("dialog", { name: "Columns" }));
+    await userEvent.click(settings.getByRole("checkbox", { name: "Code" }));
     await userEvent.selectOptions(
-      screen.getByRole("combobox", { name: "Responsive view" }),
+      settings.getByRole("combobox", { name: "Responsive view" }),
       "cards",
     );
+    await userEvent.keyboard("{Escape}");
+    expect(table().queryByRole("columnheader", { name: /Code/ })).not.toBeInTheDocument();
     view.unmount();
     mount({ preferenceKey: "test-table" });
-    expect(screen.getByRole("combobox", { name: "Responsive view" })).toHaveValue("cards");
+    await userEvent.click(screen.getByRole("button", { name: "Columns" }));
+    expect(
+      within(screen.getByRole("dialog", { name: "Columns" })).getByRole("combobox", {
+        name: "Responsive view",
+      }),
+    ).toHaveValue("cards");
+    await userEvent.keyboard("{Escape}");
     expect(screen.getByRole("list", { name: "Books — Card view" })).toHaveTextContent("Book 01");
   });
 
@@ -317,8 +333,11 @@ describe("shared DataTable", () => {
       "aria-sort",
       "ascending",
     );
-    await userEvent.selectOptions(screen.getByRole("combobox", { name: "Sort by" }), "title");
-    await userEvent.click(screen.getByRole("button", { name: "Ascending" }));
+    await userEvent.click(screen.getByRole("button", { name: "Columns" }));
+    const settings = within(screen.getByRole("dialog", { name: "Columns" }));
+    await userEvent.selectOptions(settings.getByRole("combobox", { name: "Sort by" }), "title");
+    await userEvent.click(settings.getByRole("button", { name: "Ascending" }));
+    await userEvent.keyboard("{Escape}");
     expect(table().getAllByRole("row")[1]).toHaveTextContent("Book 28");
   });
   it("keeps newer search text when a controlled consumer acknowledges an older query", async () => {

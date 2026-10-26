@@ -33,7 +33,10 @@ import {
   reviewAttendanceSession,
   type PrincipalDashboardContract,
 } from "../api/principal-dashboard.api";
-import { getRecentRewardTransactions, type RewardTransaction } from "../../../rewards/api/rewards.api";
+import {
+  getRecentRewardTransactions,
+  type RewardTransaction,
+} from "../../../rewards/api/rewards.api";
 
 type Point = { label: string; value: number; color: string };
 type AttendanceData = NonNullable<PrincipalDashboardContract["attendance"]>;
@@ -83,15 +86,34 @@ export function PrincipalDashboard() {
       title: "جزئیات تراکنش سکه",
       description: item.studentName,
       size: "md",
-      content: <div className="space-y-3" dir="rtl">
-        <p className="rounded-xl bg-[rgb(var(--surface-muted))] p-3 text-sm">{item.reason}</p>
-        <dl className="grid grid-cols-2 gap-3 text-sm">
-          <div><dt className="text-slate-500">مبلغ</dt><dd className="font-black">{item.points > 0 ? "+" : ""}{item.points.toLocaleString("fa-IR")}</dd></div>
-          <div><dt className="text-slate-500">ثبت‌کننده</dt><dd>{item.awardedBy?.name ?? "سامانه"}</dd></div>
-          <div><dt className="text-slate-500">کلاس/محل</dt><dd>{item.contextName ?? "نامشخص"}</dd></div>
-          <div><dt className="text-slate-500">زمان</dt><dd>{new Date(item.createdAt).toLocaleString("fa-IR", { timeZone: "Asia/Tehran" })}</dd></div>
-        </dl>
-      </div>,
+      content: (
+        <div className="space-y-3" dir="rtl">
+          <p className="rounded-xl bg-[rgb(var(--surface-muted))] p-3 text-sm">{item.reason}</p>
+          <dl className="grid grid-cols-2 gap-3 text-sm">
+            <div>
+              <dt className="text-slate-500">مبلغ</dt>
+              <dd className="font-black">
+                {item.points > 0 ? "+" : ""}
+                {item.points.toLocaleString("fa-IR")}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-slate-500">ثبت‌کننده</dt>
+              <dd>{item.awardedBy?.name ?? "سامانه"}</dd>
+            </div>
+            <div>
+              <dt className="text-slate-500">کلاس/محل</dt>
+              <dd>{item.contextName ?? "نامشخص"}</dd>
+            </div>
+            <div>
+              <dt className="text-slate-500">زمان</dt>
+              <dd>
+                {new Date(item.createdAt).toLocaleString("fa-IR", { timeZone: "Asia/Tehran" })}
+              </dd>
+            </div>
+          </dl>
+        </div>
+      ),
     });
   };
   const sessionReviewColumns: DataTableColumn<SessionReview>[] = [
@@ -336,15 +358,43 @@ export function PrincipalDashboard() {
       {auth.can("rewards.read") ? (
         <Card className="principal-dashboard__daily-card p-5">
           <div className="principal-dashboard__section-heading">
-            <div><p>۲۴ ساعت گذشته</p><h2>تراکنش‌های سکه</h2></div>
+            <div>
+              <p>۲۴ ساعت گذشته</p>
+              <h2>تراکنش‌های سکه</h2>
+            </div>
             <Coins aria-hidden="true" />
           </div>
-          {recentRewards.isLoading ? <p className="text-sm text-slate-500">در حال دریافت تراکنش‌ها…</p> : recentRewards.data?.length ? (
+          {recentRewards.isLoading ? (
+            <p className="text-sm text-slate-500">در حال دریافت تراکنش‌ها…</p>
+          ) : recentRewards.data?.length ? (
             <ul className="principal-dashboard__daily-list">
-              {recentRewards.data.map((item) => <li key={item.id}><button type="button" className="w-full text-start" onClick={() => openRewardDetails(item)}><span><strong>{item.studentName}</strong><small>{item.reason} · {item.contextName ?? "محل نامشخص"}</small></span><b className={item.points >= 0 ? "text-emerald-600" : "text-rose-600"}>{item.points > 0 ? "+" : ""}{item.points.toLocaleString("fa-IR")}</b></button></li>)}
+              {recentRewards.data.map((item) => (
+                <li key={item.id}>
+                  <button
+                    type="button"
+                    className="w-full text-start"
+                    onClick={() => openRewardDetails(item)}
+                  >
+                    <span>
+                      <strong>{item.studentName}</strong>
+                      <small>
+                        {item.reason} · {item.contextName ?? "محل نامشخص"}
+                      </small>
+                    </span>
+                    <b className={item.points >= 0 ? "text-emerald-600" : "text-rose-600"}>
+                      {item.points > 0 ? "+" : ""}
+                      {item.points.toLocaleString("fa-IR")}
+                    </b>
+                  </button>
+                </li>
+              ))}
             </ul>
-          ) : <Empty text="در ۲۴ ساعت گذشته تراکنش سکه‌ای ثبت نشده است." />}
-          <Link className="principal-dashboard__daily-action" to="/admin/rewards">مشاهدهٔ همهٔ تراکنش‌ها <ArrowLeft size={15} /></Link>
+          ) : (
+            <Empty text="در ۲۴ ساعت گذشته تراکنش سکه‌ای ثبت نشده است." />
+          )}
+          <Link className="principal-dashboard__daily-action" to="/admin/rewards">
+            مشاهدهٔ همهٔ تراکنش‌ها <ArrowLeft size={15} />
+          </Link>
         </Card>
       ) : null}
 

@@ -7,7 +7,7 @@ import { StudentRewardLedger } from "../../database/entities/student-reward-ledg
 import { Student } from "../../database/entities/student.entity";
 import { User } from "../../database/entities/user.entity";
 import { AuthenticatedUser } from "../auth";
-import { AuthorizationService, type UserContext } from "../authorization/authorization.service";
+import { AuthorizationService, type UserContext } from "../authorization";
 import { SchoolAccessService } from "../school-access";
 import { AdjustRewardDto, ReverseRewardDto } from "./rewards.dto";
 
