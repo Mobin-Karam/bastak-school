@@ -260,6 +260,16 @@ Never claim a validation command passed unless it actually ran successfully.
 
 When a PR check fails, inspect the exact failed job log for the current head SHA, reproduce its narrowest project-defined command, and fix the demonstrated root cause with regression coverage where practical. Re-run that command before pushing; then let the new head receive a fresh full CI result. Do not silence a parity, security, migration, or release check without source evidence that its scope is inapplicable, and do not rely on an earlier green run after pushing another commit.
 
+### PR failure and merge evidence
+
+PR failure handling is head-SHA-specific and fail-closed:
+
+- Start by reading the PR head SHA and check rollup, then fetch the failed log for that exact SHA. Separate a root job failure from dependent failures such as `CI Gate`, containers, promotion, or required-check aggregators.
+- Reproduce the narrowest failed project command locally. Preserve the complete failure context—exception, component stack, test name, migration, or container step—before editing. Fix the demonstrated cause; never weaken, skip, hide, or blindly rerun an applicable check to obtain green status.
+- For React errors such as `useX must be used inside XProvider`, inspect the full composition tree, including global modal/drawer/toast providers and portal-mounted content. A global surface that may render authenticated or capability-gated content must be nested beneath its required context provider. Add a regression around the real provider composition when practical. React DevTools download messages are informational and are not the failure.
+- After pushing, re-query the PR. A local pass or a green run for an older SHA is not merge evidence. Do not report the PR fixed, ready, or merged until the replacement SHA has its own successful required checks and no dependent gate remains failed.
+- If a user requests manual merge, leave auto-merge disabled. If checks are pending, unavailable, or failed, report the exact job and state and leave the PR open; never bypass branch protection.
+
 ## Branch and release lifecycle
 
 For new work, start from current `origin/develop` and use a normal local branch in the existing checkout. Codex must apply the branch-first and task-completion rules above before and after repository-affecting work. Follow the branch names in Codex Workspace and Git Rules above; repository lifecycle scripts currently accept `feat/`, `fix/`, `chore/`, or `ci/`. Use `scripts/cicd/start-work.sh` only for supported branch names and without a worktree path. If the checkout is dirty, preserve existing edits before switching branches; never create a separate worktree. When explicitly asked to switch to `develop`, fast-forward it to `origin/develop` without overwriting existing work. Commit only the task's changes. Use `scripts/cicd/finish-work.sh` to push, create the develop PR, wait for CI, and merge only when GitHub checks and configured reviews permit it. Do not bypass protection or force push.
