@@ -8,13 +8,8 @@ import {
   getPrincipalDashboard,
   getAttendanceSessionForReview,
   reviewAttendanceSession,
+  type PrincipalDashboardContract,
 } from "../api/principal-dashboard.api";
-import {
-  getRecentRewardTransactions,
-  getRewardTransaction,
-  getStudentRewardLedger,
-  getStudentRewardSummary,
-} from "../../../rewards/api/rewards.api";
 import { PrincipalDashboard } from "./PrincipalDashboard";
 
 const authCan = vi.hoisted(() => vi.fn((capability: string) => capability === "attendance.review"));
@@ -25,14 +20,6 @@ vi.mock("../api/principal-dashboard.api", () => ({
   getAttendanceSessionForReview: vi.fn(),
   reviewAttendanceSession: vi.fn(),
 }));
-vi.mock("../../../rewards/api/rewards.api", () => ({
-  getRecentRewardTransactions: vi.fn(),
-  getRewardTransaction: vi.fn(),
-  getStudentRewardLedger: vi.fn(),
-  getStudentRewardSummary: vi.fn(),
-  reverseRewardTransaction: vi.fn(),
-}));
-
 const sessionDetail = {
   id: "session-a",
   organizationId: "school-a",
@@ -110,6 +97,7 @@ const dashboardData = {
     permissionRequests: 0,
   },
   sessionReviews: {
+    mode: "absences_only",
     pendingCount: 1,
     items: [
       {
@@ -140,26 +128,7 @@ const dashboardData = {
       endDate: "2026-10-22T00:00:00.000Z",
     },
   ],
-};
-
-const reward = {
-  id: "reward-a",
-  studentId: "student-a",
-  studentName: "علی رضایی",
-  organizationId: "school-a",
-  points: 5,
-  reason: "حضور منظم",
-  sourceType: "attendance",
-  sourceId: "record-a",
-  contextType: "class",
-  contextId: "class-a",
-  contextName: "پایه اول",
-  requestId: null,
-  awardedBy: { id: "teacher-a", name: "خانم احمدی" },
-  reversalOfId: null,
-  reversedById: null,
-  createdAt: "2026-10-21T08:00:00.000Z",
-};
+} satisfies PrincipalDashboardContract;
 
 function renderDashboard() {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -189,20 +158,6 @@ describe("PrincipalDashboard", () => {
       reviewedAt: "2026-10-21T09:00:00.000Z",
     });
     vi.mocked(getAttendanceSessionForReview).mockResolvedValue(sessionDetail);
-    vi.mocked(getRecentRewardTransactions).mockResolvedValue([]);
-    vi.mocked(getRewardTransaction).mockResolvedValue(reward);
-    vi.mocked(getStudentRewardSummary).mockResolvedValue({
-      studentId: "student-a",
-      organizationId: "school-a",
-      points: 21,
-    });
-    vi.mocked(getStudentRewardLedger).mockResolvedValue({
-      items: [reward],
-      page: 1,
-      limit: 25,
-      total: 1,
-      hasNext: false,
-    });
   });
 
   it("shows absent-student details before the principal confirms review", async () => {
@@ -210,9 +165,9 @@ describe("PrincipalDashboard", () => {
     renderDashboard();
 
     expect(
-      await screen.findByRole("heading", { name: "جلسه‌های حضورِ نیازمند بررسی" }),
+      await screen.findByRole("heading", { name: "فهرست جلسه‌های حضورِ نیازمند بررسی" }),
     ).toBeVisible();
-    expect(screen.getByText(/۱ جلسه در چرخهٔ بازبینی هر ۲۴ ساعت/)).toBeVisible();
+    expect(screen.getByText(/۱ جلسهٔ خوانده‌نشده در چرخهٔ ۲۴ ساعته/)).toBeVisible();
     expect(screen.getAllByText("پایه اول")[0]).toBeVisible();
     await user.click(screen.getAllByRole("button", { name: /مشاهدهٔ جزئیات/ })[0]);
 
@@ -231,6 +186,7 @@ describe("PrincipalDashboard", () => {
     vi.mocked(getPrincipalDashboard).mockResolvedValue({
       ...dashboardData,
       sessionReviews: {
+        mode: "absences_only",
         pendingCount: 1,
         items: [{ ...dashboardData.sessionReviews.items[0], absent: 0 }],
       },
@@ -251,6 +207,7 @@ describe("PrincipalDashboard", () => {
     vi.mocked(getPrincipalDashboard).mockResolvedValue({
       ...dashboardData,
       sessionReviews: {
+        mode: "absences_only",
         pendingCount: 11,
         items: Array.from({ length: 11 }, (_, index) => ({
           ...dashboardData.sessionReviews.items[0],
@@ -272,48 +229,32 @@ describe("PrincipalDashboard", () => {
     expect(screen.getByRole("button", { name: "بعدی" })).toBeDisabled();
   });
 
-  it("hides the leadership review section when the active context lacks attendance.review", async () => {
+  it("keeps attendance out of the dashboard when the active context lacks review access", async () => {
     authCan.mockImplementation(() => false);
     renderDashboard();
 
-    expect(await screen.findByRole("heading", { name: "نبض مدرسه" })).toBeVisible();
-    expect(screen.queryByRole("heading", { name: "جلسه‌های حضورِ نیازمند بررسی" })).toBeNull();
+    expect(await screen.findByRole("heading", { name: "عملیات فعال" })).toBeVisible();
+    expect(
+      screen.queryByRole("heading", { name: "فهرست جلسه‌های حضورِ نیازمند بررسی" }),
+    ).toBeNull();
+    expect(screen.queryByRole("heading", { name: "خلاصهٔ حضور مدرسه" })).toBeNull();
+    expect(screen.queryByRole("heading", { name: "دانش‌آموزان غایب" })).toBeNull();
   });
 
-  it("puts today’s four operational sections first", async () => {
+  it("keeps the attendance list as the only attendance surface", async () => {
     authCan.mockImplementation((capability) =>
       ["students.read", "attendance.read", "leave.read"].includes(capability),
     );
     renderDashboard();
 
-    expect(await screen.findByRole("heading", { name: "دانش‌آموزان غایب" })).toBeVisible();
-    expect(screen.getByRole("heading", { name: "درخواست‌های مرخصی" })).toBeVisible();
-    expect(screen.getByRole("heading", { name: "خلاصهٔ حضور مدرسه" })).toBeVisible();
+    expect(await screen.findByRole("heading", { name: "درخواست‌های مرخصی" })).toBeVisible();
     expect(screen.getByRole("heading", { name: "عملیات فعال" })).toBeVisible();
-    expect(screen.getByRole("link", { name: /علی رضایی/ })).toHaveAttribute(
-      "href",
-      "/admin/students?studentId=student-a",
-    );
     expect(screen.getByRole("link", { name: /رضا احمدی/ })).toHaveAttribute(
       "href",
       "/admin/leave-requests?requestId=leave-a",
     );
-  });
-
-  it("opens the same live Rewards detail modal from the principal activity list", async () => {
-    const user = userEvent.setup();
-    authCan.mockImplementation((capability) =>
-      ["rewards.read", "rewards.reverse"].includes(capability),
-    );
-    vi.mocked(getRecentRewardTransactions).mockResolvedValue([reward]);
-    renderDashboard();
-
-    await user.click(await screen.findByRole("button", { name: /علی رضایی/ }));
-
-    expect(await screen.findByRole("heading", { name: "جزئیات تراکنش سکه" })).toBeVisible();
-    await waitFor(() => expect(getRewardTransaction).toHaveBeenCalledWith("reward-a"));
-    expect(await screen.findByText("موجودی دانش‌آموز")).toBeVisible();
-    expect(screen.getByText("۲۱ سکه")).toBeVisible();
-    expect(screen.getByRole("button", { name: "معکوس‌سازی تراکنش نامعتبر" })).toBeDisabled();
+    expect(screen.queryByRole("heading", { name: "دانش‌آموزان غایب" })).toBeNull();
+    expect(screen.queryByRole("heading", { name: "خلاصهٔ حضور مدرسه" })).toBeNull();
+    expect(screen.queryByRole("heading", { name: "تراکنش‌های سکه" })).toBeNull();
   });
 });

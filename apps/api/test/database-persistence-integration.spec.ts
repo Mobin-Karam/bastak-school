@@ -76,6 +76,7 @@ function database(filename: string, baseline = false, runMigrations = true) {
             file === "1731400000000-StudentAttendancePoints.ts" ||
             file === "1731400100000-StudentPointLedgerIdempotencyScope.ts" ||
             file === "1731900000000-RewardsLedgerExtraction.ts" ||
+            file === "1731910000000-PrincipalAttendanceReviewPolicy.ts" ||
             file === "1731800300000-StudentAccountChangeLimits.ts"),
       )
       .map((file) => path.join(directory, file)),
