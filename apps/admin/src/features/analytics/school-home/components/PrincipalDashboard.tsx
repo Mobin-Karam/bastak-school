@@ -37,6 +37,7 @@ import {
   getRecentRewardTransactions,
   type RewardTransaction,
 } from "../../../rewards/api/rewards.api";
+import { RewardTransactionDetails } from "../../../rewards/components/RewardTransactionDetails";
 
 type Point = { label: string; value: number; color: string };
 type AttendanceData = NonNullable<PrincipalDashboardContract["attendance"]>;
@@ -86,34 +87,7 @@ export function PrincipalDashboard() {
       title: "جزئیات تراکنش سکه",
       description: item.studentName,
       size: "md",
-      content: (
-        <div className="space-y-3" dir="rtl">
-          <p className="rounded-xl bg-[rgb(var(--surface-muted))] p-3 text-sm">{item.reason}</p>
-          <dl className="grid grid-cols-2 gap-3 text-sm">
-            <div>
-              <dt className="text-slate-500">مبلغ</dt>
-              <dd className="font-black">
-                {item.points > 0 ? "+" : ""}
-                {item.points.toLocaleString("fa-IR")}
-              </dd>
-            </div>
-            <div>
-              <dt className="text-slate-500">ثبت‌کننده</dt>
-              <dd>{item.awardedBy?.name ?? "سامانه"}</dd>
-            </div>
-            <div>
-              <dt className="text-slate-500">کلاس/محل</dt>
-              <dd>{item.contextName ?? "نامشخص"}</dd>
-            </div>
-            <div>
-              <dt className="text-slate-500">زمان</dt>
-              <dd>
-                {new Date(item.createdAt).toLocaleString("fa-IR", { timeZone: "Asia/Tehran" })}
-              </dd>
-            </div>
-          </dl>
-        </div>
-      ),
+      content: <RewardTransactionDetails transactionId={item.id} initialTransaction={item} />,
     });
   };
   const sessionReviewColumns: DataTableColumn<SessionReview>[] = [

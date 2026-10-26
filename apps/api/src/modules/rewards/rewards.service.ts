@@ -135,7 +135,10 @@ export class RewardsService {
     if (!row) throw new ApiException(404, "REWARD_NOT_FOUND", "تراکنش سکه پیدا نشد.");
     await this.access.organizationForUser(user, row.organization.id);
     await this.assertStudentRead(user, row.student.id);
-    return this.view(row);
+    const reversal = row.reversalOf
+      ? null
+      : await this.ledger.findOne({ where: { reversalOf: { id: row.id } }, select: { id: true } });
+    return { ...this.view(row), reversedById: reversal?.id ?? null };
   }
   async recent(user: AuthenticatedUser) {
     if (!this.has(user, "rewards.read")) throw new ApiException(403, "FORBIDDEN", "دسترسی کافی ندارید.");

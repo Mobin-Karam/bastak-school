@@ -15,6 +15,7 @@ export type RewardTransaction = {
   requestId: string | null;
   awardedBy: { id: string; name: string } | null;
   reversalOfId: string | null;
+  reversedById?: string | null;
   createdAt: string;
 };
 export type RewardPage = {

@@ -1,17 +1,10 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { useAuth } from "../../identity/auth";
 import { DataTable, type DataTableColumn } from "../../../shared/ui/data-table";
 import { useModal } from "../../../shared/ui/modal";
-import { notify } from "../../../shared/ui/notifications";
-import { attendanceRequestId } from "../../student-life/attendance/model/attendance-request-id";
-import {
-  getRewardTransactions,
-  getStudentRewardLedger,
-  getStudentRewardSummary,
-  reverseRewardTransaction,
-  type RewardTransaction,
-} from "../api/rewards.api";
+import { getRewardTransactions, type RewardTransaction } from "../api/rewards.api";
+import { RewardTransactionDetails } from "../components/RewardTransactionDetails";
 
 export function RewardsPage() {
   const auth = useAuth();
@@ -26,7 +19,7 @@ export function RewardsPage() {
       title: "جزئیات تراکنش سکه",
       description: row.studentName,
       size: "md",
-      content: <RewardTransactionDetails row={row} />,
+      content: <RewardTransactionDetails transactionId={row.id} initialTransaction={row} />,
     });
   };
   const columns: DataTableColumn<RewardTransaction>[] = [
@@ -84,86 +77,5 @@ export function RewardsPage() {
         }
       />
     </section>
-  );
-}
-
-function RewardTransactionDetails({ row }: { row: RewardTransaction }) {
-  const auth = useAuth();
-  const modal = useModal();
-  const client = useQueryClient();
-  const [reason, setReason] = useState("");
-  const summary = useQuery({
-    queryKey: ["rewards", "students", row.studentId, "summary"],
-    queryFn: () => getStudentRewardSummary(row.studentId),
-  });
-  const ledger = useQuery({
-    queryKey: ["rewards", "students", row.studentId, "ledger"],
-    queryFn: () => getStudentRewardLedger(row.studentId),
-  });
-  const reverse = useMutation({
-    mutationFn: () =>
-      reverseRewardTransaction(row.id, { requestId: attendanceRequestId(), reason }),
-    onSuccess: () => {
-      notify("تراکنش معکوس شد.", "success");
-      modal.close();
-      void client.invalidateQueries({ queryKey: ["rewards"] });
-    },
-  });
-  return (
-    <div className="space-y-4" dir="rtl">
-      <dl className="grid grid-cols-2 gap-3 text-sm">
-        <div>
-          <dt className="text-slate-500">مبلغ</dt>
-          <dd className="font-black">{row.points.toLocaleString("fa-IR")}</dd>
-        </div>
-        <div>
-          <dt className="text-slate-500">ثبت‌کننده</dt>
-          <dd>{row.awardedBy?.name ?? "سامانه"}</dd>
-        </div>
-        <div>
-          <dt className="text-slate-500">کلاس/محل</dt>
-          <dd>{row.contextName ?? "نامشخص"}</dd>
-        </div>
-        <div>
-          <dt className="text-slate-500">زمان</dt>
-          <dd>{new Date(row.createdAt).toLocaleString("fa-IR", { timeZone: "Asia/Tehran" })}</dd>
-        </div>
-        <div>
-          <dt className="text-slate-500">موجودی دانش‌آموز</dt>
-          <dd>
-            {summary.isLoading
-              ? "در حال دریافت…"
-              : `${(summary.data?.points ?? 0).toLocaleString("fa-IR")} سکه`}
-          </dd>
-        </div>
-        <div>
-          <dt className="text-slate-500">تاریخچهٔ دانش‌آموز</dt>
-          <dd>
-            {ledger.isLoading
-              ? "در حال دریافت…"
-              : `${(ledger.data?.total ?? 0).toLocaleString("fa-IR")} تراکنش`}
-          </dd>
-        </div>
-      </dl>
-      <p className="rounded-xl bg-[rgb(var(--surface-muted))] p-3 text-sm">{row.reason}</p>
-      {auth.can("rewards.reverse") && !row.reversalOfId ? (
-        <>
-          <textarea
-            value={reason}
-            onChange={(event) => setReason(event.target.value)}
-            className="min-h-24 w-full rounded-xl border p-3"
-            placeholder="دلیل حذف/معکوس‌سازی سکه"
-          />
-          <button
-            type="button"
-            disabled={reason.trim().length < 3 || reverse.isPending}
-            onClick={() => reverse.mutate()}
-            className="min-h-11 w-full rounded-xl bg-rose-600 font-bold text-white disabled:opacity-50"
-          >
-            {reverse.isPending ? "در حال ثبت…" : "معکوس‌سازی تراکنش نامعتبر"}
-          </button>
-        </>
-      ) : null}
-    </div>
   );
 }

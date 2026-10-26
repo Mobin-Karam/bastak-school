@@ -9,6 +9,12 @@ import {
   getAttendanceSessionForReview,
   reviewAttendanceSession,
 } from "../api/principal-dashboard.api";
+import {
+  getRecentRewardTransactions,
+  getRewardTransaction,
+  getStudentRewardLedger,
+  getStudentRewardSummary,
+} from "../../../rewards/api/rewards.api";
 import { PrincipalDashboard } from "./PrincipalDashboard";
 
 const authCan = vi.hoisted(() => vi.fn((capability: string) => capability === "attendance.review"));
@@ -18,6 +24,13 @@ vi.mock("../api/principal-dashboard.api", () => ({
   getPrincipalDashboard: vi.fn(),
   getAttendanceSessionForReview: vi.fn(),
   reviewAttendanceSession: vi.fn(),
+}));
+vi.mock("../../../rewards/api/rewards.api", () => ({
+  getRecentRewardTransactions: vi.fn(),
+  getRewardTransaction: vi.fn(),
+  getStudentRewardLedger: vi.fn(),
+  getStudentRewardSummary: vi.fn(),
+  reverseRewardTransaction: vi.fn(),
 }));
 
 const sessionDetail = {
@@ -129,6 +142,25 @@ const dashboardData = {
   ],
 };
 
+const reward = {
+  id: "reward-a",
+  studentId: "student-a",
+  studentName: "علی رضایی",
+  organizationId: "school-a",
+  points: 5,
+  reason: "حضور منظم",
+  sourceType: "attendance",
+  sourceId: "record-a",
+  contextType: "class",
+  contextId: "class-a",
+  contextName: "پایه اول",
+  requestId: null,
+  awardedBy: { id: "teacher-a", name: "خانم احمدی" },
+  reversalOfId: null,
+  reversedById: null,
+  createdAt: "2026-10-21T08:00:00.000Z",
+};
+
 function renderDashboard() {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
@@ -157,6 +189,20 @@ describe("PrincipalDashboard", () => {
       reviewedAt: "2026-10-21T09:00:00.000Z",
     });
     vi.mocked(getAttendanceSessionForReview).mockResolvedValue(sessionDetail);
+    vi.mocked(getRecentRewardTransactions).mockResolvedValue([]);
+    vi.mocked(getRewardTransaction).mockResolvedValue(reward);
+    vi.mocked(getStudentRewardSummary).mockResolvedValue({
+      studentId: "student-a",
+      organizationId: "school-a",
+      points: 21,
+    });
+    vi.mocked(getStudentRewardLedger).mockResolvedValue({
+      items: [reward],
+      page: 1,
+      limit: 25,
+      total: 1,
+      hasNext: false,
+    });
   });
 
   it("shows absent-student details before the principal confirms review", async () => {
@@ -252,5 +298,22 @@ describe("PrincipalDashboard", () => {
       "href",
       "/admin/leave-requests?requestId=leave-a",
     );
+  });
+
+  it("opens the same live Rewards detail modal from the principal activity list", async () => {
+    const user = userEvent.setup();
+    authCan.mockImplementation((capability) =>
+      ["rewards.read", "rewards.reverse"].includes(capability),
+    );
+    vi.mocked(getRecentRewardTransactions).mockResolvedValue([reward]);
+    renderDashboard();
+
+    await user.click(await screen.findByRole("button", { name: /علی رضایی/ }));
+
+    expect(await screen.findByRole("heading", { name: "جزئیات تراکنش سکه" })).toBeVisible();
+    await waitFor(() => expect(getRewardTransaction).toHaveBeenCalledWith("reward-a"));
+    expect(await screen.findByText("موجودی دانش‌آموز")).toBeVisible();
+    expect(screen.getByText("۲۱ سکه")).toBeVisible();
+    expect(screen.getByRole("button", { name: "معکوس‌سازی تراکنش نامعتبر" })).toBeDisabled();
   });
 });
