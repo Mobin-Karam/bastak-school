@@ -80,7 +80,7 @@
     "@types/node": "^22.10.2",
     "babel-jest": "^30.5.2",
     "jest": "^30.5.2",
-    "ts-jest": "^29.4.14",
+    "ts-jest": "^29.4.15",
     "ts-node": "^10.9.2",
     "tsx": "^4.19.2",
     "typeorm-ts-node-commonjs": "^0.3.20",
