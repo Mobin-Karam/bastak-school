@@ -12,6 +12,7 @@ import {
 import { Button, Card, EmptyState, Field, Input, LoadingState } from "../../../../shared/ui/ui";
 import { AdaptiveSelect } from "../../../../shared/ui/adaptive-select";
 import { ResponsiveDrawer } from "../../../../shared/ui/responsive-drawer";
+import { DatePicker } from "../../../../shared/ui/date-picker";
 import { notify } from "../../../../shared/ui/notifications";
 import { TeacherClassAttendanceSheet } from "../components/TeacherClassAttendanceSheet";
 
@@ -98,11 +99,7 @@ export function TeacherSchedulePage({ entries: suppliedEntries }: { entries?: Sc
         </div>
         <label className="ms-auto grid gap-1 text-xs font-bold text-slate-600">
           تاریخ مشاهده جلسه جایگزین
-          <Input
-            type="date"
-            value={viewDate}
-            onChange={(event) => setViewDate(event.target.value)}
-          />
+          <DatePicker calendar="persian" value={viewDate} onChange={setViewDate} />
         </label>
       </section>
       {suppliedEntries === undefined && schedule.isLoading ? (
@@ -237,19 +234,14 @@ export function TeacherSchedulePage({ entries: suppliedEntries }: { entries?: Sc
               />
             </Field>
             <Field label="تاریخ جلسه اصلی">
-              <Input
-                required
-                type="date"
-                value={freezeDate}
-                onChange={(event) => setFreezeDate(event.target.value)}
-              />
+              <DatePicker required calendar="persian" value={freezeDate} onChange={setFreezeDate} />
             </Field>
             <Field label="تاریخ جلسه جایگزین">
-              <Input
+              <DatePicker
                 required
-                type="date"
+                calendar="persian"
                 value={replacementDate}
-                onChange={(event) => setReplacementDate(event.target.value)}
+                onChange={setReplacementDate}
               />
             </Field>
             <Field label="بازه زمانی جایگزین">

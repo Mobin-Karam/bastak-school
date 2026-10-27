@@ -5,6 +5,7 @@ import { getAccountProfile } from "../../../platform/settings/api/settings.api";
 import { ManagementPageHeader } from "../../../../shared/ui/management-workspace";
 import { MobileCard } from "../../../../shared/ui/mobile/layout";
 import { Badge, Button, Input } from "../../../../shared/ui/ui";
+import { DatePicker } from "../../../../shared/ui/date-picker";
 import { notify } from "../../../../shared/ui/notifications";
 import {
   createTeacherLeaveRequest,
@@ -78,19 +79,11 @@ export function TeacherProfilePage() {
         <div className="grid grid-cols-2 gap-2">
           <label className="grid gap-1 text-xs font-bold">
             از تاریخ
-            <Input
-              type="date"
-              value={startDate}
-              onChange={(event) => setStartDate(event.target.value)}
-            />
+            <DatePicker calendar="persian" value={startDate} onChange={setStartDate} />
           </label>
           <label className="grid gap-1 text-xs font-bold">
             تا تاریخ
-            <Input
-              type="date"
-              value={endDate}
-              onChange={(event) => setEndDate(event.target.value)}
-            />
+            <DatePicker calendar="persian" value={endDate} min={startDate} onChange={setEndDate} />
           </label>
         </div>
         <textarea
