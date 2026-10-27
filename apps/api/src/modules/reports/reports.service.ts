@@ -110,12 +110,13 @@ export class ReportsService {
     this.authorization.requireCapability(context, "attendance.class.manage");
     const session = await this.sessions.findOne({
       where: { id: sessionId },
-      relations: { organization: true, assignedStaff: true },
+      relations: { organization: true, assignedStaff: true, createdBy: true },
     });
     if (
       !session ||
-      session.sourceKind !== "class_schedule" ||
-      session.assignedStaff?.id !== context.id
+      (session.sourceKind === "class_schedule"
+        ? session.assignedStaff?.id !== context.id
+        : session.createdBy?.id !== context.id)
     )
       throw new ApiException(
         403,

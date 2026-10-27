@@ -77,6 +77,8 @@ export function TeacherClassAttendanceSheet({
     points: number;
   } | null>(null);
   const [pointReason, setPointReason] = useState("");
+  const [savedSessionId, setSavedSessionId] = useState<string | null>(null);
+  const [reportText, setReportText] = useState<Record<string, string>>({});
   const participants = useQuery({
     queryKey: ["attendance", "participants", scopeKey, "class", entry?.classroom?.id],
     queryFn: () => getAttendanceParticipants("class", entry!.classroom!.id),
@@ -99,6 +101,8 @@ export function TeacherClassAttendanceSheet({
     pendingWrite.current = null;
     setPointTarget(null);
     setPointReason("");
+    setSavedSessionId(null);
+    setReportText({});
   }, [entry?.id, open, scopeKey]);
 
   // The roster is an attendance-taking surface: a teacher starts from a full
@@ -152,17 +156,33 @@ export function TeacherClassAttendanceSheet({
       pendingWrite.current = write;
       return bulkMarkAttendance(write.body);
     },
-    onSuccess: (_, __, context) => {
+    onSuccess: (result, __, context) => {
       if (context?.scopeKey !== scopeRef.current) return;
       pendingWrite.current = null;
       void client.invalidateQueries({ queryKey: ["attendance"] });
       notify("حضور و غیاب کلاس ثبت شد.", "success");
-      onOpenChange(false);
+      setSavedSessionId(result.sessionId);
+      setReviewing(false);
     },
     onError: (error, _, context) => {
       if (context?.scopeKey !== scopeRef.current) return;
       notify(error instanceof Error ? error.message : "ثبت حضور و غیاب انجام نشد.", "error");
     },
+  });
+  const report = useMutation({
+    mutationFn: ({ studentId, message }: { studentId: string; message: string }) => {
+      if (!savedSessionId) throw new Error("ابتدا حضور این جلسه را ثبت کنید.");
+      return api.post(
+        `/attendance/sessions/${encodeURIComponent(savedSessionId)}/students/${encodeURIComponent(studentId)}/reports`,
+        { message },
+      );
+    },
+    onSuccess: (_, values) => {
+      setReportText((current) => ({ ...current, [values.studentId]: "" }));
+      notify("گزارش برای مدیر ارسال شد.", "success");
+    },
+    onError: (error) =>
+      notify(error instanceof Error ? error.message : "ارسال گزارش انجام نشد.", "error"),
   });
 
   // A complete "present" register is the starting state, not an unsaved edit.
@@ -367,6 +387,40 @@ export function TeacherClassAttendanceSheet({
                         >
                           <Minus size={16} aria-hidden="true" />
                         </button>
+                      </div>
+                    ) : null}
+                    {canManage && savedSessionId ? (
+                      <div className="mt-3 border-t border-[rgb(var(--border-subtle))] pt-3">
+                        <label className="block text-xs font-bold text-slate-600 dark:text-slate-300">
+                          گزارش خصوصی برای مدیر
+                          <textarea
+                            value={reportText[student.id] ?? ""}
+                            onChange={(event) =>
+                              setReportText((current) => ({
+                                ...current,
+                                [student.id]: event.target.value,
+                              }))
+                            }
+                            maxLength={2000}
+                            placeholder="مشاهده، نگرانی یا پیگیری مربوط به این دانش‌آموز"
+                            className="mt-1 min-h-20 w-full rounded-lg border border-[rgb(var(--border-subtle))] bg-card p-2 text-xs font-normal text-ink"
+                          />
+                        </label>
+                        <Button
+                          size="sm"
+                          className="mt-2"
+                          disabled={
+                            report.isPending || (reportText[student.id] ?? "").trim().length < 2
+                          }
+                          onClick={() =>
+                            report.mutate({
+                              studentId: student.id,
+                              message: reportText[student.id].trim(),
+                            })
+                          }
+                        >
+                          ارسال برای مدیر
+                        </Button>
                       </div>
                     ) : null}
                   </li>
