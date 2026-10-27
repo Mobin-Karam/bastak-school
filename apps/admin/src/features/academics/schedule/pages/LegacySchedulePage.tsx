@@ -1133,55 +1133,83 @@ function ClassScheduleBoard({
   const teachers = new Set(entries.map(teacherName).filter(Boolean));
 
   return (
-    <section className="grid gap-4" aria-label={`برنامه کلاس ${classroom.name}`} dir="rtl">
-      <header className="overflow-hidden rounded-2xl border border-brand/20 bg-[linear-gradient(135deg,rgba(13,148,136,.16),rgba(255,255,255,.98)_50%,rgba(224,242,254,.8))] p-5 dark:bg-[linear-gradient(135deg,rgba(13,148,136,.3),rgba(15,23,42,.96))]">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div>
-            <p className="text-xs font-black text-brand">برنامه اختصاصی کلاس</p>
-            <h2 className="mt-1 text-2xl font-black tracking-tight text-ink">{classroom.name}</h2>
-            <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">
-              همه درس‌ها و دبیران این کلاس، با چینش هفتگی خوانا.
-            </p>
-          </div>
-          <div className="flex gap-2 text-center">
-            <ClassScheduleMetric label="جلسه" value={entries.length} />
-            <ClassScheduleMetric label="درس" value={classroom.books.length} />
-            <ClassScheduleMetric label="دبیر" value={teachers.size} />
-          </div>
-        </div>
-        {classroom.books.length ? (
-          <div className="mt-5 flex flex-wrap gap-2 border-t border-brand/15 pt-4">
-            {classroom.books.map((book) => (
-              <span
-                key={book.id}
-                className="rounded-full border border-sky-200 bg-white/80 px-3 py-1.5 text-xs font-black text-slate-700 dark:border-sky-400/20 dark:bg-slate-950/50 dark:text-slate-100"
-              >
-                {book.title} <span className="text-slate-400">·</span> {book.teacher.name}
-              </span>
-            ))}
-          </div>
-        ) : null}
-      </header>
+    <section
+      className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_20rem]"
+      aria-label={`برنامه کلاس ${classroom.name}`}
+      dir="rtl"
+    >
+      <aside className="rounded-2xl border border-brand/20 bg-[linear-gradient(160deg,rgba(13,148,136,.16),rgba(255,255,255,.98)_52%,rgba(224,242,254,.8))] p-5 dark:bg-[linear-gradient(160deg,rgba(13,148,136,.3),rgba(15,23,42,.96))] lg:col-start-2 lg:row-start-1 lg:self-start">
+        <p className="text-xs font-black text-brand">جزئیات کلاس</p>
+        <h2 className="mt-1 text-2xl font-black tracking-tight text-ink">{classroom.name}</h2>
+        <p className="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-300">
+          درس‌ها و دبیران متصل به این کلاس.
+        </p>
 
-      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+        <div className="mt-5 grid grid-cols-3 gap-2 text-center">
+          <ClassScheduleMetric label="جلسه" value={entries.length} />
+          <ClassScheduleMetric label="درس" value={classroom.books.length} />
+          <ClassScheduleMetric label="دبیر" value={teachers.size} />
+        </div>
+
+        <section
+          className="mt-5 border-t border-brand/15 pt-4"
+          aria-labelledby={`class-books-${classroom.id}`}
+        >
+          <h3
+            id={`class-books-${classroom.id}`}
+            className="text-xs font-black text-slate-700 dark:text-slate-100"
+          >
+            کتاب‌ها و دبیران
+          </h3>
+          <div className="mt-3 grid gap-2">
+            {classroom.books.map((book) => (
+              <article
+                key={book.id}
+                className="rounded-xl border border-sky-200 bg-white/80 px-3 py-2.5 dark:border-sky-400/20 dark:bg-slate-950/50"
+              >
+                <p className="text-sm font-black text-ink">{book.title}</p>
+                <p className="mt-1 text-xs font-bold text-slate-500 dark:text-slate-300">
+                  {book.teacher.name}
+                </p>
+              </article>
+            ))}
+            {!classroom.books.length ? (
+              <p className="rounded-xl border border-dashed border-slate-300 px-3 py-4 text-center text-xs font-bold text-slate-500 dark:border-white/15 dark:text-slate-300">
+                کتابی برای این کلاس ثبت نشده است.
+              </p>
+            ) : null}
+          </div>
+        </section>
+      </aside>
+
+      <div className="grid gap-3 lg:col-start-1 lg:row-start-1">
+        <header className="flex flex-wrap items-end justify-between gap-3 rounded-2xl border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card))] px-4 py-3">
+          <div>
+            <p className="text-xs font-black text-brand">برنامه هفتگی</p>
+            <h3 className="mt-1 text-lg font-black text-ink">جلسه‌ها به ترتیب روز</h3>
+          </div>
+          <p className="text-xs font-bold text-slate-500 dark:text-slate-300">
+            برای دیدن جزئیات، هر جلسه را انتخاب کنید.
+          </p>
+        </header>
         {displayWeekdays.map((weekday) => {
           const dayEntries = sessionsByDay.get(weekday) ?? [];
           return (
             <section
               key={weekday}
-              className={`min-h-48 rounded-2xl border p-3 ${
+              className={`rounded-2xl border p-3 ${
                 weekday === today
                   ? "border-brand/35 bg-brand/[.055]"
                   : "border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card))]"
               }`}
             >
-              <header className="mb-3 flex items-center justify-between gap-2">
-                <h3 className="text-sm font-black text-ink">{weekdays[weekday]}</h3>
+              <header className="mb-3 flex items-center justify-between gap-2 border-b border-[rgb(var(--border-subtle))] pb-2">
+                <h4 className="text-sm font-black text-ink">{weekdays[weekday]}</h4>
                 <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-black text-slate-600 dark:bg-white/10 dark:text-slate-200">
                   {dayEntries.length.toLocaleString("fa-IR")} جلسه
                 </span>
               </header>
-              <div className="grid gap-2">
+              <div className="grid gap-2 sm:grid-cols-2">
                 {dayEntries.map((entry) => {
                   const leave = leaveForEntry(entry);
                   return (
@@ -1213,7 +1241,7 @@ function ClassScheduleBoard({
                   );
                 })}
                 {!dayEntries.length ? (
-                  <p className="rounded-xl border border-dashed border-slate-200 px-3 py-5 text-center text-xs font-bold text-slate-400 dark:border-white/10">
+                  <p className="rounded-xl border border-dashed border-slate-200 px-3 py-4 text-center text-xs font-bold text-slate-400 dark:border-white/10 sm:col-span-2">
                     جلسه‌ای ندارد
                   </p>
                 ) : null}
