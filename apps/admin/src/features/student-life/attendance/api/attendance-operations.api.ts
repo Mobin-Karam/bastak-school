@@ -48,6 +48,7 @@ export type AttendancePolicy = {
   allowPartialSubmission: boolean;
   lateCountsAsPresent: boolean;
   correctionRequiresReview: boolean;
+  principalReviewMode: "automatic" | "absences_only";
 };
 export const getAttendancePolicy = () => api.get<AttendancePolicy>("/attendance/policy");
 export const updateAttendancePolicy = (body: AttendancePolicy) =>

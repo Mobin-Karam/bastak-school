@@ -4,6 +4,7 @@ import {
   BookOpen,
   CalendarDays,
   ClipboardCheck,
+  Coins,
   CalendarClock,
   DoorOpen,
   LayoutDashboard,
@@ -57,6 +58,14 @@ export const educationNavigation = [
     description: "کلاس‌ها، دبیرها و فهرست طلبه‌های هر کلاس",
     icon: School,
     capability: "classes.read",
+  },
+  {
+    path: "teachers",
+    title: "دبیران",
+    description: "فهرست دبیران فعال مدرسه و نقش‌های هم‌زمان آن‌ها",
+    icon: UserRoundCheck,
+    capability: "classes.manage",
+    allOf: ["classes.read"],
   },
   {
     path: "books",
@@ -164,6 +173,13 @@ export const adminNavigation = [
         description: "اتاق‌ها، تخصیص طلبه‌ها و حضور شبانه",
         icon: Building2,
         capability: "dormitory.read",
+      },
+      {
+        path: "rewards",
+        title: "سکه‌ها",
+        description: "تراکنش‌ها و موجودی سکه‌های مدرسه",
+        icon: Coins,
+        capability: "rewards.read",
       },
       {
         path: "permission-requests",
@@ -329,6 +345,13 @@ const studentNavigation: readonly NavigationGroup[] = [
   {
     section: "پیشرفت و سکه",
     items: [
+      {
+        path: "my-rewards",
+        title: "سکه‌های من",
+        description: "موجودی و تاریخچهٔ سکه‌های مدرسه",
+        icon: Coins,
+        capability: "rewards.self.read",
+      },
       {
         path: "achievements",
         title: "دستاوردهای من",

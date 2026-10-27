@@ -66,6 +66,42 @@
   min-width: 0;
 }
 
+.principal-dashboard__principal-layout {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-areas: "side reviews";
+  grid-template-columns: minmax(18rem, 0.85fr) minmax(0, 1.4fr);
+  gap: 1rem;
+  align-items: start;
+  direction: ltr;
+}
+
+.principal-dashboard__principal-layout > .principal-dashboard__session-reviews {
+  grid-area: reviews;
+  direction: rtl;
+}
+
+.principal-dashboard__principal-side {
+  grid-area: side;
+  display: grid;
+  gap: 1rem;
+  direction: rtl;
+}
+
+.principal-dashboard__principal-layout:not(:has(.principal-dashboard__session-reviews))
+  .principal-dashboard__principal-side {
+  grid-column: 1 / -1;
+}
+
+.principal-dashboard__principal-side .principal-dashboard__daily-grid,
+.principal-dashboard__principal-side .principal-dashboard__status-grid {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.principal-dashboard__principal-side .principal-dashboard__queues {
+  grid-column: 1 / -1;
+}
+
 .principal-dashboard__status-grid,
 .principal-dashboard__behaviour-layout,
 .principal-dashboard__metrics,
@@ -317,5 +353,12 @@
   .principal-dashboard__metrics > *,
   .principal-dashboard__session-reviews li {
     grid-column: 1 / -1;
+  }
+
+  .principal-dashboard__principal-layout {
+    grid-template-areas:
+      "reviews"
+      "side";
+    grid-template-columns: minmax(0, 1fr);
   }
 }

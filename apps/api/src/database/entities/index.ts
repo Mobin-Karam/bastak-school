@@ -15,6 +15,7 @@ export { RecoveryRequest } from "./recovery-request.entity";
 export { Session } from "./session.entity";
 export { StudySession } from "./study-session.entity";
 export { Student } from "./student.entity";
+export { StudentRewardLedger } from "./student-reward-ledger.entity";
 export { SyncMutation } from "./sync-mutation.entity";
 export { Task } from "./task.entity";
 export { TaskComment } from "./task-comment.entity";
@@ -111,7 +112,6 @@ export {
 export { SmsProviderConfiguration } from "./sms-provider-configuration.entity";
 
 export { AttendancePolicy } from "./attendance-policy.entity";
-export { StudentPointLedger } from "./student-point-ledger.entity";
 export { AttendanceSchedule } from "./attendance-schedule.entity";
 export { DormAttendanceDelegate } from "./dorm-attendance-delegate.entity";
 export { AttendancePool } from "./attendance-pool.entity";

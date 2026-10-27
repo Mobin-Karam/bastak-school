@@ -39,11 +39,19 @@ const StudentSignupPage = lazy(() =>
 const DashboardPage = lazy(() =>
   import("../../features/analytics/dashboard").then((m) => ({ default: m.DashboardPage })),
 );
+const PrincipalWorkspaceDashboard = lazy(() =>
+  import("../../features/analytics/school-home").then((m) => ({
+    default: m.PrincipalWorkspaceDashboard,
+  })),
+);
 const StudentsPage = lazy(() =>
   import("../../features/people/students").then((m) => ({ default: m.StudentsPage })),
 );
 const ClassesPage = lazy(() =>
   import("../../features/academics/education/classes").then((m) => ({ default: m.ClassesPage })),
+);
+const TeachersPage = lazy(() =>
+  import("../../features/academics/education").then((m) => ({ default: m.TeachersPage })),
 );
 const BookShelfPage = lazy(() =>
   import("../../features/academics/education/books").then((m) => ({ default: m.BookShelfPage })),
@@ -146,6 +154,12 @@ const AchievementsComingSoonPage = lazy(() =>
 const CoinShopComingSoonPage = lazy(() =>
   import("../../features/coin-shop").then((m) => ({ default: m.CoinShopComingSoonPage })),
 );
+const RewardsPage = lazy(() =>
+  import("../../features/rewards").then((m) => ({ default: m.RewardsPage })),
+);
+const MyRewardsPage = lazy(() =>
+  import("../../features/rewards").then((m) => ({ default: m.MyRewardsPage })),
+);
 const ManagementComingSoonPage = lazy(() =>
   import("../../features/management").then((m) => ({ default: m.ManagementComingSoonPage })),
 );
@@ -189,14 +203,16 @@ function ProtectedRoute() {
     return () => window.clearTimeout(timer);
   }, [auth.status, showLoginSplash]);
 
-  if (auth.status === "checking") {
+  if (auth.status === "checking" || auth.status === "unavailable") {
     return (
       <div className="grid min-h-screen place-items-center bg-paper p-4">
         <div className="grid max-w-md gap-4 rounded-lg border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card))] p-4 text-center shadow-[var(--shadow-surface)]">
-          <div
-            className="mx-auto size-9 animate-spin rounded-full border-4 border-slate-200 border-t-brand"
-            aria-hidden="true"
-          />
+          {auth.status === "checking" ? (
+            <div
+              className="mx-auto size-9 animate-spin rounded-full border-4 border-slate-200 border-t-brand"
+              aria-hidden="true"
+            />
+          ) : null}
           <div>
             <p className="font-bold text-slate-800">{copy.restoringSession}</p>
             <p className="mt-2 text-sm text-slate-500">{auth.message}</p>
@@ -389,6 +405,16 @@ export const adminRouteObjects = [
             ),
           },
           {
+            path: "dashboard/principal",
+            element: (
+              <PrincipalOnlyRoute>
+                <RouteScreen>
+                  <PrincipalWorkspaceDashboard />
+                </RouteScreen>
+              </PrincipalOnlyRoute>
+            ),
+          },
+          {
             path: "students",
             element: (
               <CapabilityRoute capability="students.read">
@@ -444,6 +470,16 @@ export const adminRouteObjects = [
               <CapabilityRoute capability="classes.read">
                 <RouteScreen>
                   <ClassesPage />
+                </RouteScreen>
+              </CapabilityRoute>
+            ),
+          },
+          {
+            path: "teachers",
+            element: (
+              <CapabilityRoute capability="classes.manage" allOf={["classes.read"]}>
+                <RouteScreen>
+                  <TeachersPage />
                 </RouteScreen>
               </CapabilityRoute>
             ),
@@ -620,6 +656,30 @@ export const adminRouteObjects = [
                   <StudentProfilePage />
                 </RouteScreen>
               </StudentOnlyRoute>
+            ),
+          },
+          {
+            path: "my-rewards",
+            element: (
+              <CapabilityRoute capability="rewards.self.read">
+                <StudentOnlyRoute>
+                  <RouteScreen>
+                    <MyRewardsPage />
+                  </RouteScreen>
+                </StudentOnlyRoute>
+              </CapabilityRoute>
+            ),
+          },
+          {
+            path: "rewards",
+            element: (
+              <CapabilityRoute capability="rewards.read">
+                <NonStudentRoute>
+                  <RouteScreen>
+                    <RewardsPage />
+                  </RouteScreen>
+                </NonStudentRoute>
+              </CapabilityRoute>
             ),
           },
           {

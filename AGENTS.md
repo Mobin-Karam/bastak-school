@@ -168,6 +168,18 @@ When changing backend architecture:
 
 ## Validation
 
+## Deployment migration rehearsal
+
+Production migration safety is fail-closed. For every API database migration, inspect the migration against `scripts/deploy/database-recovery.cjs` and its test suite before merging or releasing:
+
+- Determine how the migration affects a database that already contains production rows; do not validate only an empty or freshly seeded database.
+- Classify whether it adds columns, supplies defaults, transforms/backfills rows, changes constraints, or is schema-only. Record the conclusion in the PR or release evidence; a schema-only migration needs no invented allowlist entry.
+- For every effect on pre-existing rows, add the smallest exact entry under the migration's name in `expectations` or `legacyValueTransforms`. Permit only values the migration is designed to create (for example, a declared default or `NULL`), never a broad table/column exception.
+- Add or update a regression in `scripts/deploy/database-recovery.test.cjs` that proves the intended migration effect passes and an unrelated data change remains rejected. This prevents the production recovery/rehearsal gate from rejecting a valid migration while preserving its protection against silent data changes.
+- Run `NODE_PATH=apps/api/node_modules node --test scripts/deploy/database-recovery.test.cjs` (or `python3 tooling/cicd/test_recovery.py`) and the applicable release checks before merging. A local pass, CI pass, dispatch, or release receipt is not evidence that the private deployment completed; report those states separately.
+
+Do not promote a migration just because it passes against an empty or newly seeded database. The recovery rehearsal must be able to validate its behavior against retained production-style data, and any missing or over-broad migration allowance is a release blocker.
+
 ## Admin role and capability UX
 
 - Treat `/me/context` as the Admin authority for active roles, organization scope, and capabilities. On any role or organization switch, refresh that context before rendering new capability-gated UI or issuing feature requests.
@@ -245,6 +257,18 @@ Release-quality fallback:
 ```
 
 Never claim a validation command passed unless it actually ran successfully.
+
+When a PR check fails, inspect the exact failed job log for the current head SHA, reproduce its narrowest project-defined command, and fix the demonstrated root cause with regression coverage where practical. Re-run that command before pushing; then let the new head receive a fresh full CI result. Do not silence a parity, security, migration, or release check without source evidence that its scope is inapplicable, and do not rely on an earlier green run after pushing another commit.
+
+### PR failure and merge evidence
+
+PR failure handling is head-SHA-specific and fail-closed:
+
+- Start by reading the PR head SHA and check rollup, then fetch the failed log for that exact SHA. Separate a root job failure from dependent failures such as `CI Gate`, containers, promotion, or required-check aggregators.
+- Reproduce the narrowest failed project command locally. Preserve the complete failure context—exception, component stack, test name, migration, or container step—before editing. Fix the demonstrated cause; never weaken, skip, hide, or blindly rerun an applicable check to obtain green status.
+- For React errors such as `useX must be used inside XProvider`, inspect the full composition tree, including global modal/drawer/toast providers and portal-mounted content. A global surface that may render authenticated or capability-gated content must be nested beneath its required context provider. Add a regression around the real provider composition when practical. React DevTools download messages are informational and are not the failure.
+- After pushing, re-query the PR. A local pass or a green run for an older SHA is not merge evidence. Do not report the PR fixed, ready, or merged until the replacement SHA has its own successful required checks and no dependent gate remains failed.
+- If a user requests manual merge, leave auto-merge disabled. If checks are pending, unavailable, or failed, report the exact job and state and leave the PR open; never bypass branch protection.
 
 ## Branch and release lifecycle
 

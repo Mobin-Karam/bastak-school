@@ -54,6 +54,7 @@ type PrincipalDashboardContract = {
     permissionRequests: number;
   };
   sessionReviews?: {
+    mode: "automatic" | "absences_only";
     pendingCount: number;
     items: Array<{
       id: string;
@@ -515,6 +516,13 @@ export class PrincipalDashboardService {
   }
 
   private async sessionReviews(organizationId: string, classId?: string) {
+    const policies = await this.db.query(
+      "SELECT principalReviewMode FROM attendance_policies WHERE organizationId=? LIMIT 1",
+      [organizationId],
+    );
+    const mode: "automatic" | "absences_only" =
+      policies[0]?.principalReviewMode === "automatic" ? "automatic" : "absences_only";
+    if (mode === "automatic") return { mode, pendingCount: 0, items: [] };
     const dueBefore = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
     const classFilter = classId
       ? " AND s.contextType='class' AND s.contextId=?"
@@ -526,6 +534,7 @@ export class PrincipalDashboardService {
       LEFT JOIN attendance_records r ON r.sessionId=s.id
       LEFT JOIN (SELECT sessionId, reviewedRevision, MAX(reviewedAt) reviewedAt FROM attendance_session_reviews GROUP BY sessionId, reviewedRevision) latest ON latest.sessionId=s.id AND latest.reviewedRevision=s.revision
       WHERE s.organizationId=? AND s.status IN ('submitted','finalized')
+        AND EXISTS (SELECT 1 FROM attendance_records absent_record WHERE absent_record.sessionId=s.id AND absent_record.physicalStatus='absent')
         AND (latest.reviewedAt IS NULL OR latest.reviewedAt<=?)${classFilter}`;
     const pendingCount = await this.scalar(
       `SELECT COUNT(DISTINCT s.id) count ${base}`,
@@ -543,6 +552,7 @@ export class PrincipalDashboardService {
       parameters,
     );
     return {
+      mode,
       pendingCount,
       items: rows.map((row: Record<string, unknown>) => ({
         id: String(row.id),

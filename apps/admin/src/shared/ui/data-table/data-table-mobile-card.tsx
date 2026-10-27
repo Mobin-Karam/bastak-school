@@ -60,17 +60,13 @@ export function DataTableMobileCards<TData>({
               busy={busy}
             />
           </div>
-          <dl className={`grid ${density === "compact" ? "gap-2" : "gap-3"}`}>
+          <dl className="grid divide-y divide-[rgb(var(--border-subtle))]">
             {columns
               .filter((column) => table.getColumn(column.id)?.getIsVisible())
               .map((column) => (
                 <div
                   key={column.id}
-                  className={
-                    column.primary
-                      ? "grid gap-1"
-                      : "flex flex-wrap items-baseline justify-between gap-2"
-                  }
+                  className={`${column.primary ? "grid gap-1" : "flex flex-wrap items-baseline justify-between gap-2"} ${density === "compact" ? "py-2 first:pt-0 last:pb-0" : "py-3 first:pt-0 last:pb-0"}`}
                 >
                   <dt className="text-xs text-slate-500 dark:text-slate-400">{column.label}</dt>
                   <dd

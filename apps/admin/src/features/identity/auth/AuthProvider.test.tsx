@@ -112,6 +112,62 @@ describe("AuthProvider", () => {
     expect(globalThis.fetch).toHaveBeenCalledTimes(2);
   });
 
+  it("bootstraps a fresh browser tab after its access session expires", async () => {
+    let meCalls = 0;
+    globalThis.fetch = vi.fn(async (input) => {
+      const url = String(input);
+      if (url.endsWith("/auth/me")) {
+        meCalls += 1;
+        if (meCalls === 1) {
+          return new Response(JSON.stringify({ ok: false, error: { code: "UNAUTHORIZED" } }), {
+            status: 401,
+          });
+        }
+        return new Response(
+          JSON.stringify({ ok: true, data: { id: "admin-1", role: "PLATFORM_ADMIN" } }),
+          { status: 200 },
+        );
+      }
+      if (url.endsWith("/auth/bootstrap-session")) {
+        return new Response(JSON.stringify({ ok: true, data: { csrfToken: "restored-csrf" } }), {
+          status: 200,
+        });
+      }
+      if (url.endsWith("/me/context")) {
+        return new Response(
+          JSON.stringify({
+            ok: true,
+            data: {
+              user: { id: "admin-1", role: "PLATFORM_ADMIN" },
+              roles: ["PLATFORM_ADMIN"],
+              capabilities: ["system.manage"],
+              memberships: [],
+              activeOrganization: null,
+              availableOrganizations: [],
+            },
+          }),
+          { status: 200 },
+        );
+      }
+      return new Response(JSON.stringify({ ok: true, data: {} }), { status: 200 });
+    }) as typeof fetch;
+
+    render(
+      <AuthProvider>
+        <Probe />
+      </AuthProvider>,
+    );
+
+    expect(await screen.findByText("authenticated")).toBeInTheDocument();
+    expect(globalThis.fetch).toHaveBeenCalledWith(
+      expect.stringMatching(/\/auth\/bootstrap-session$/),
+      expect.objectContaining({
+        headers: expect.objectContaining({ "X-Auth-Session-Bootstrap": "1" }),
+      }),
+    );
+    expect(sessionStorage.getItem("moshaver_admin_csrf")).toBe("restored-csrf");
+  });
+
   it("does not erase a possible session when the server is temporarily unreachable", async () => {
     globalThis.fetch = vi.fn(async () => {
       throw new TypeError("offline");

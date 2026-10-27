@@ -80,6 +80,8 @@ export function DataTable<TData>({
   server,
   preferenceKey,
   exportFilename,
+  scrollRows = false,
+  className,
 }: DataTableProps<TData>) {
   const activeLanguage = useOptionalAdminLanguage();
   const language = suppliedLanguage ?? activeLanguage;
@@ -305,14 +307,25 @@ export function DataTable<TData>({
         </Menu.Portal>
       </Menu.Root>
     ) : null;
+  const pagination =
+    !loading && !error ? (
+      <DataTablePagination
+        table={table}
+        total={total}
+        copy={copy}
+        locale={locale}
+        disabled={loading || refreshing}
+      />
+    ) : null;
   return (
     <section
       aria-label={label}
       aria-busy={loading || refreshing || busy || exporting || undefined}
       dir={language === "fa" ? "rtl" : "ltr"}
-      className={`data-table-workspace w-full max-w-full max-h-[100dvh] min-w-0 overflow-auto rounded-xl border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card))] text-ink shadow-[var(--shadow-surface)] ${
-        selectedRows.length ? "pb-28 md:pb-0" : ""
-      }`}
+      data-scroll-rows={scrollRows || undefined}
+      className={`data-table-workspace w-full max-w-full min-w-0 rounded-xl border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card))] text-ink shadow-[var(--shadow-surface)] ${
+        scrollRows ? "flex flex-col overflow-hidden" : ""
+      } ${className ?? ""} ${selectedRows.length ? "pb-28 md:pb-0" : ""}`}
     >
       <DataTableToolbar
         table={table}
@@ -331,142 +344,141 @@ export function DataTable<TData>({
         onModeChange={(mode) => setPreferences((current) => ({ ...current, mode }))}
         onDensityChange={(density) => setPreferences((current) => ({ ...current, density }))}
       />
-      {!online ? (
-        <p role="status" className="px-3 py-2 text-sm text-amber-700 dark:text-amber-300">
-          {copy.offline}
-        </p>
-      ) : null}
-      {exportError ? (
-        <p role="alert" className="px-3 py-2 text-sm text-rosewood">
-          {language === "fa" ? "خروجی دریافت نشد. دوباره تلاش کنید." : "Export failed. Try again."}
-        </p>
-      ) : null}
-      {loading ? (
-        <div
-          role="status"
-          aria-label={copy.loading}
-          className="grid gap-3 border-t border-[rgb(var(--border-subtle))] p-4"
-        >
-          <span className="sr-only">{copy.loading}</span>
-          {[0, 1, 2, 3, 4].map((index) => (
-            <div
-              key={index}
-              className="h-11 rounded-md bg-[rgb(var(--surface-muted))] motion-safe:animate-pulse"
-            />
-          ))}
-        </div>
-      ) : error ? (
-        <div className="p-5">
-          <ErrorState
-            title={copy.error}
-            description={errorMessage}
-            action={
-              onRefresh ? (
-                <Button variant="soft" onClick={onRefresh}>
-                  {copy.retry}
-                </Button>
-              ) : undefined
-            }
-          />
-        </div>
-      ) : (
-        <>
-          {selectable && total > 0 ? (
-            <div
-              className={`z-20 flex flex-wrap items-center gap-2 border-t border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card))] px-3 py-2 ${selectedRows.length ? "fixed inset-x-0 bottom-0 pb-[max(0.5rem,env(safe-area-inset-bottom))] shadow-lg md:static md:shadow-none" : ""}`}
-            >
-              <SelectionBox
-                checked={table.getIsAllPageRowsSelected()}
-                mixed={table.getIsSomePageRowsSelected()}
-                label={`${copy.selectAll} (${copy.cards})`}
-                disabled={disabled}
-                onChange={() => table.toggleAllPageRowsSelected()}
+      <div className={scrollRows ? "min-h-0 flex-1 overflow-auto" : undefined}>
+        {!online ? (
+          <p role="status" className="px-3 py-2 text-sm text-amber-700 dark:text-amber-300">
+            {copy.offline}
+          </p>
+        ) : null}
+        {exportError ? (
+          <p role="alert" className="px-3 py-2 text-sm text-rosewood">
+            {language === "fa"
+              ? "خروجی دریافت نشد. دوباره تلاش کنید."
+              : "Export failed. Try again."}
+          </p>
+        ) : null}
+        {loading ? (
+          <div
+            role="status"
+            aria-label={copy.loading}
+            className="grid gap-3 border-t border-[rgb(var(--border-subtle))] p-4"
+          >
+            <span className="sr-only">{copy.loading}</span>
+            {[0, 1, 2, 3, 4].map((index) => (
+              <div
+                key={index}
+                className="h-11 rounded-md bg-[rgb(var(--surface-muted))] motion-safe:animate-pulse"
               />
-              <span role="status" className="text-sm">
-                {selectedRows.length.toLocaleString(locale)} {copy.selected}
-              </span>
-              {selectedRows.length ? (
-                <>
-                  {bulkActions?.(selectedRows, () => setSelection({}))}
-                  <Button variant="ghost" onClick={() => setSelection({})}>
-                    {copy.clear}
+            ))}
+          </div>
+        ) : error ? (
+          <div className="p-5">
+            <ErrorState
+              title={copy.error}
+              description={errorMessage}
+              action={
+                onRefresh ? (
+                  <Button variant="soft" onClick={onRefresh}>
+                    {copy.retry}
                   </Button>
-                </>
-              ) : null}
-            </div>
-          ) : null}
-          {!table.getRowModel().rows.length ? (
-            <div className="p-5">
-              <EmptyState
-                title={filtered ? copy.noResults : (emptyTitle ?? copy.empty)}
-                action={
-                  filtered ? (
-                    <Button
-                      variant="soft"
-                      onClick={() => {
-                        table.resetColumnFilters();
-                        table.setGlobalFilter("");
-                      }}
-                    >
-                      {copy.reset}
+                ) : undefined
+              }
+            />
+          </div>
+        ) : (
+          <>
+            {selectable && total > 0 ? (
+              <div
+                className={`z-20 flex flex-wrap items-center gap-2 border-t border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card))] px-3 py-2 ${selectedRows.length ? "fixed inset-x-0 bottom-0 pb-[max(0.5rem,env(safe-area-inset-bottom))] shadow-lg md:static md:shadow-none" : ""}`}
+              >
+                <SelectionBox
+                  checked={table.getIsAllPageRowsSelected()}
+                  mixed={table.getIsSomePageRowsSelected()}
+                  label={`${copy.selectAll} (${copy.cards})`}
+                  disabled={disabled}
+                  onChange={() => table.toggleAllPageRowsSelected()}
+                />
+                <span role="status" className="text-sm">
+                  {selectedRows.length.toLocaleString(locale)} {copy.selected}
+                </span>
+                {selectedRows.length ? (
+                  <>
+                    {bulkActions?.(selectedRows, () => setSelection({}))}
+                    <Button variant="ghost" onClick={() => setSelection({})}>
+                      {copy.clear}
                     </Button>
-                  ) : (
-                    emptyAction
-                  )
-                }
-              />
-            </div>
-          ) : (
-            <>
-              <div
-                className={
-                  preferences.mode === "cards"
-                    ? "data-table-workspace__rows hidden"
-                    : preferences.mode === "auto"
-                      ? "data-table-workspace__rows hidden md:block"
-                      : "data-table-workspace__rows block"
-                }
-              >
-                <DataTableDesktop
-                  table={table}
-                  label={label}
-                  copy={copy}
-                  density={preferences.density}
-                  onRowClick={rowClick}
+                  </>
+                ) : null}
+              </div>
+            ) : null}
+            {!table.getRowModel().rows.length ? (
+              <div className="p-5">
+                <EmptyState
+                  title={filtered ? copy.noResults : (emptyTitle ?? copy.empty)}
+                  action={
+                    filtered ? (
+                      <Button
+                        variant="soft"
+                        onClick={() => {
+                          table.resetColumnFilters();
+                          table.setGlobalFilter("");
+                        }}
+                      >
+                        {copy.reset}
+                      </Button>
+                    ) : (
+                      emptyAction
+                    )
+                  }
                 />
               </div>
-              <div
-                className={
-                  preferences.mode === "table"
-                    ? "data-table-workspace__rows hidden"
-                    : preferences.mode === "auto"
-                      ? "data-table-workspace__rows md:hidden"
-                      : "data-table-workspace__rows block"
-                }
-              >
-                <DataTableMobileCards
-                  density={preferences.density}
-                  table={table}
-                  columns={columns}
-                  actions={rowActions}
-                  label={label}
-                  copy={copy}
-                  selectable={selectable}
-                  busy={disabled}
-                  onRowClick={rowClick}
-                />
-              </div>
-            </>
-          )}
-          <DataTablePagination
-            table={table}
-            total={total}
-            copy={copy}
-            locale={locale}
-            disabled={loading || refreshing}
-          />
-        </>
-      )}
+            ) : (
+              <>
+                <div
+                  className={
+                    preferences.mode === "cards"
+                      ? "data-table-workspace__rows hidden"
+                      : preferences.mode === "auto"
+                        ? "data-table-workspace__rows hidden md:block"
+                        : "data-table-workspace__rows block"
+                  }
+                >
+                  <DataTableDesktop
+                    table={table}
+                    label={label}
+                    copy={copy}
+                    density={preferences.density}
+                    onRowClick={rowClick}
+                  />
+                </div>
+                <div
+                  className={
+                    preferences.mode === "table"
+                      ? "data-table-workspace__rows hidden"
+                      : preferences.mode === "auto"
+                        ? "data-table-workspace__rows md:hidden"
+                        : "data-table-workspace__rows block"
+                  }
+                >
+                  <DataTableMobileCards
+                    density={preferences.density}
+                    table={table}
+                    columns={columns}
+                    actions={rowActions}
+                    label={label}
+                    copy={copy}
+                    selectable={selectable}
+                    busy={disabled}
+                    onRowClick={rowClick}
+                  />
+                </div>
+              </>
+            )}
+            {!scrollRows ? pagination : null}
+          </>
+        )}
+      </div>
+      {scrollRows ? pagination : null}
       <ResponsiveDrawer
         open={detailId !== null && Boolean(detail)}
         onOpenChange={(open) => {

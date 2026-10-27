@@ -3,9 +3,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Student } from "../../../../shared/types/domain";
 import { LocaleProvider } from "../../../../shared/ui/locale";
 import { StudentDetail } from "./StudentDetail";
+import { StudentEditor } from "./StudentEditor";
 import { StudentList } from "./StudentList";
 import { StudentOverview } from "./StudentOverview";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { emptyStudentForm } from "../model/student-form";
 
 vi.mock("../../../identity/auth", () => ({
   useAuth: () => ({
@@ -74,49 +76,60 @@ describe("student collection scroll flow", () => {
     const { container } = render(
       <StudentList
         students={[student]}
-        total={1}
         filteredTotal={1}
         page={1}
-        pageCount={1}
         pageSize={25}
-        setPage={vi.fn()}
-        setPageSize={vi.fn()}
-        selectedId=""
         search=""
-        setSearch={vi.fn()}
         status="all"
-        counts={{ all: 1, active: 1, inactive: 0, archived: 0 }}
-        incomplete={0}
         profileFilter="all"
         sort="name"
         sortDirection="asc"
-        onSort={vi.fn()}
+        onSearchChange={vi.fn()}
+        onSortChange={vi.fn()}
         onStatusChange={onStatusChange}
-        onIncompleteToggle={vi.fn()}
+        onProfileFilterChange={vi.fn()}
+        onPageChange={vi.fn()}
+        onPageSizeChange={vi.fn()}
         onClearFilters={vi.fn()}
         onSelect={onSelect}
       />,
     );
 
-    expect(container.querySelector(".collection-toolbar")?.parentElement).toHaveClass("shrink-0");
-    const directory = screen.getByRole("region", {
-      name: "فهرست دانش‌آموزان، جدول قابل پیمایش افقی",
-    });
-    expect(directory).toHaveClass(
-      "overflow-y-auto",
-      "overscroll-y-contain",
-      "[scrollbar-width:none]",
-      "[&::-webkit-scrollbar]:hidden",
-    );
+    const directory = screen.getByRole("region", { name: "فهرست دانش‌آموزان" });
+    expect(directory).toHaveAttribute("data-scroll-rows", "true");
+    expect(container.querySelector(".data-table-workspace__rows")).toBeInTheDocument();
     expect(screen.getByRole("table")).toBeInTheDocument();
-    expect(screen.getByText("تعداد در صفحه")).toBeInTheDocument();
-    expect(screen.getByLabelText("فیلتر سریع دانش‌آموزان")).toHaveTextContent("فعال");
     const studentRow = screen.getByRole("row", { name: /دانش‌آموز نمونه/ });
     expect(studentRow).toBeInTheDocument();
     fireEvent.click(studentRow);
     expect(onSelect).toHaveBeenCalledWith(student);
-    fireEvent.click(screen.getByRole("button", { name: "فعال ۱" }));
-    expect(onStatusChange).toHaveBeenCalledWith("active");
+    expect(onStatusChange).not.toHaveBeenCalled();
+  });
+
+  it("shows the complete student form in one drawer flow without step navigation", () => {
+    render(
+      withQueryClient(
+        <LocaleProvider>
+          <StudentEditor
+            mode="create"
+            form={emptyStudentForm()}
+            setField={vi.fn()}
+            onSave={vi.fn()}
+            onReset={vi.fn()}
+            busy={false}
+            dirty={false}
+            saveDirty={false}
+          />
+        </LocaleProvider>,
+      ),
+    );
+
+    expect(screen.getByText("مشخصات ثبت‌نام")).toBeVisible();
+    expect(screen.getByText("حساب سرپرست‌ها")).toBeVisible();
+    expect(screen.getByText("وضعیت تحصیلی")).toBeVisible();
+    expect(screen.queryByLabelText("مراحل پرونده دانش‌آموز")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "ساخت دانش‌آموز" })).toBeDisabled();
+    expect(screen.getByText(/بررسی اولیه هم‌زمان با ورود اطلاعات/)).toBeVisible();
   });
 
   it("keeps the selected student's identity, navigation, and workflow actions visible above tab content", () => {
@@ -290,38 +303,31 @@ describe("student collection scroll flow", () => {
       <LocaleProvider>
         <StudentList
           students={[student]}
-          total={1250}
           filteredTotal={1250}
           page={2}
-          pageCount={50}
           pageSize={25}
-          setPage={vi.fn()}
-          setPageSize={vi.fn()}
-          selectedId=""
           search=""
-          setSearch={vi.fn()}
           status="all"
-          counts={{ all: 1250, active: 1200, inactive: 30, archived: 20 }}
-          incomplete={3}
           profileFilter="all"
           sort="name"
           sortDirection="asc"
-          onSort={vi.fn()}
+          onSearchChange={vi.fn()}
+          onSortChange={vi.fn()}
           onStatusChange={vi.fn()}
-          onIncompleteToggle={vi.fn()}
+          onProfileFilterChange={vi.fn()}
+          onPageChange={vi.fn()}
+          onPageSizeChange={vi.fn()}
           onClearFilters={vi.fn()}
           onSelect={vi.fn()}
         />
       </LocaleProvider>,
     );
 
-    expect(screen.getByPlaceholderText("Name, ID, username, grade, or track…")).toBeVisible();
-    expect(
-      screen.getByRole("region", { name: "Student directory, horizontally scrollable table" }),
-    ).toBeVisible();
+    expect(screen.getByPlaceholderText("Search records…")).toBeVisible();
+    expect(screen.getByRole("region", { name: "Student directory" })).toBeVisible();
     expect(screen.getAllByText(student.name)).not.toHaveLength(0);
-    expect(screen.getByText("Showing 26–50 of 1,250")).toBeVisible();
-    expect(screen.getByText("Items per page")).toBeVisible();
+    expect(screen.getByText("1,250 records")).toBeVisible();
+    expect(screen.getByText("Rows per page")).toBeVisible();
     expect(screen.getByRole("button", { name: /Previous/ })).toBeVisible();
     expect(document.documentElement).toHaveAttribute("dir", "ltr");
   });

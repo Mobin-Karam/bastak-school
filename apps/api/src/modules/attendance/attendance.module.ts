@@ -4,7 +4,6 @@ import { DormAttendanceDelegate } from "../../database/entities/dorm-attendance-
 import { AttendancePool } from "../../database/entities/attendance-pool.entity";
 import { AttendanceWriteReceipt } from "../../database/entities/attendance-write-receipt.entity";
 import { AttendancePolicy } from "../../database/entities/attendance-policy.entity";
-import { StudentPointLedger } from "../../database/entities/student-point-ledger.entity";
 import { AttendanceCorrection } from "../../database/entities/attendance-correction.entity";
 import { AuditLog } from "../../database/entities/audit-log.entity";
 import { Module } from "@nestjs/common";
@@ -22,6 +21,7 @@ import { StudyGroup } from "../../database/entities/study-group.entity";
 import { AuthorizationModule } from "../authorization/authorization.module";
 import { SchoolAccessModule } from "../school-access";
 import { RealtimeModule } from "../realtime";
+import { RewardsModule } from "../rewards";
 import { AttendanceController } from "./attendance.controller";
 import { AttendanceService } from "./attendance.service";
 
@@ -34,7 +34,6 @@ import { AttendanceService } from "./attendance.service";
       AttendanceRecord,
       AttendanceWriteReceipt,
       AttendancePolicy,
-      StudentPointLedger,
       AttendanceCorrection,
       AuditLog,
       Student,
@@ -49,6 +48,7 @@ import { AttendanceService } from "./attendance.service";
     SchoolAccessModule,
     AuthorizationModule,
     RealtimeModule,
+    RewardsModule,
   ],
   controllers: [AttendanceController, AttendanceOperationsController],
   providers: [AttendanceService, AttendanceOperationsService],

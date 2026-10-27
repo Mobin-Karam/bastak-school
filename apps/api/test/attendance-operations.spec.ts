@@ -40,6 +40,8 @@ import { AttendanceService } from "../src/modules/attendance/attendance.service"
 import { SchoolAccessService } from "../src/modules/school-access";
 import { AuthorizationService } from "../src/modules/authorization";
 import { RealtimeService } from "../src/modules/realtime";
+import { RewardsService } from "../src/modules/rewards";
+import { StudentRewardLedger } from "../src/database/entities/student-reward-ledger.entity";
 import type { AuthenticatedUser } from "../src/modules/auth";
 import type { CreateAttendancePoolDto } from "../src/modules/attendance/attendance.dto";
 import { shiftSchoolDate } from "../src/modules/attendance/attendance-time";
@@ -155,12 +157,14 @@ describe("attendance delegation, live pools and staff privacy (SQLite)", () => {
       access,
       {} as AuthorizationService,
       realtime,
+      new RewardsService(db.getRepository(StudentRewardLedger), db.getRepository(Student), db.getRepository(AuditLog), access, {} as AuthorizationService),
     );
     operations = new AttendanceOperationsService(
       db.getRepository(AttendanceSession),
       service,
       access,
       realtime,
+      new RewardsService(db.getRepository(StudentRewardLedger), db.getRepository(Student), db.getRepository(AuditLog), access, {} as AuthorizationService),
     );
     day = attendanceSummaryWindow().day;
   });

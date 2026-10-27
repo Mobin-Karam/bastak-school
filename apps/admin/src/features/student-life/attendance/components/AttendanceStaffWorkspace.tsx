@@ -855,6 +855,8 @@ export function AttendanceStaffWorkspace({
         allowPartialSubmission: form.get("allowPartialSubmission") === "on",
         lateCountsAsPresent: form.get("lateCountsAsPresent") === "on",
         correctionRequiresReview: form.get("correctionRequiresReview") === "on",
+        principalReviewMode: String(form.get("principalReviewMode") ?? "absences_only") as
+          "automatic" | "absences_only",
       });
       await policy.refetch();
       notify("قانون حضور و غیاب مدرسه ذخیره شد.", "success");
@@ -1066,6 +1068,18 @@ export function AttendanceStaffWorkspace({
                   disabled={policySaving}
                 />
                 اصلاح حضور نیازمند تأیید ناظر باشد
+              </label>
+              <label className="grid gap-1">
+                بازبینی روزانهٔ مدیر
+                <select
+                  name="principalReviewMode"
+                  className={field}
+                  defaultValue={policy.data.principalReviewMode}
+                  disabled={policySaving}
+                >
+                  <option value="automatic">تکمیل خودکار همهٔ جلسه‌ها</option>
+                  <option value="absences_only">فقط جلسه‌های دارای غیبت برای بررسی بیاید</option>
+                </select>
               </label>
             </div>
             <button

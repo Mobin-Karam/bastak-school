@@ -16,7 +16,7 @@ import { RolePermission } from "../src/database/entities/role-permission.entity"
 import { UserRoleAssignment } from "../src/database/entities/user-role-assignment.entity";
 import { AttendanceWriteReceipt } from "../src/database/entities/attendance-write-receipt.entity";
 import { Notification } from "../src/database/entities/notification.entity";
-import { StudentPointLedger } from "../src/database/entities/student-point-ledger.entity";
+import { StudentRewardLedger } from "../src/database/entities/student-reward-ledger.entity";
 import { AttendanceWriteReceipts1730100000000 } from "../src/database/migrations/1730100000000-AttendanceWriteReceipts";
 import { AttendanceController } from "../src/modules/attendance/attendance.controller";
 import { plainToInstance } from "class-transformer";
@@ -28,6 +28,7 @@ import { AttendanceService } from "../src/modules/attendance/attendance.service"
 import { SchoolAccessService } from "../src/modules/school-access/school-access.service";
 import { AuthorizationService } from "../src/modules/authorization";
 import { RealtimeService } from "../src/modules/realtime/realtime.service";
+import { RewardsService } from "../src/modules/rewards";
 import type { AuthenticatedUser } from "../src/modules/auth";
 import {
   AttendanceRecord,
@@ -162,6 +163,10 @@ describe("AttendanceService organization boundaries (real SQLite)", () => {
       ),
       {} as AuthorizationService,
       realtime,
+      new RewardsService(
+        db.getRepository(StudentRewardLedger), db.getRepository(Student), db.getRepository(AuditLog),
+        new SchoolAccessService(organizations, db.getRepository(OrganizationMembership)), {} as AuthorizationService,
+      ),
     );
   });
   afterEach(async () => {
@@ -1965,7 +1970,7 @@ describe("AttendanceService organization boundaries (real SQLite)", () => {
     );
 
     expect(second.id).not.toBe(first.id);
-    expect(await db.getRepository(StudentPointLedger).count()).toBe(2);
+    expect(await db.getRepository(StudentRewardLedger).count()).toBe(2);
   });
 });
 

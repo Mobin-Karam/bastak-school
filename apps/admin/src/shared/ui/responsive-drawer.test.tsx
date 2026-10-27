@@ -46,4 +46,25 @@ describe("ResponsiveDrawer", () => {
     expect(scrollBody).toHaveAttribute("data-drawer-scroll-body");
     expect(interactionBody).toContainElement(scrollBody);
   });
+
+  it("can expand and restore the panel without changing the close action", () => {
+    render(
+      <LocaleProvider>
+        <ResponsiveDrawer open onOpenChange={vi.fn()} title="پرونده حضور">
+          محتوای پنل
+        </ResponsiveDrawer>
+      </LocaleProvider>,
+    );
+    const expand = screen.getByRole("button", { name: "باز کردن پنل در فضای کاری" });
+
+    fireEvent.click(expand);
+
+    expect(expand.closest(".responsive-drawer-popup")).toHaveClass(
+      "responsive-drawer-popup--expanded",
+    );
+    expect(screen.getByRole("button", { name: "بازگرداندن اندازه پنل" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+  });
 });

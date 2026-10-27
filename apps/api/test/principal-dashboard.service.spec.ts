@@ -119,6 +119,7 @@ describe("PrincipalDashboardService", () => {
       permissionRequests: 2,
     });
     expect(dashboard.sessionReviews).toEqual({
+      mode: "absences_only",
       pendingCount: 2,
       items: [
         expect.objectContaining({ id: "session-a", marked: 9, absent: 1 }),

@@ -24,6 +24,7 @@ import {
   ReviewPhoneNumberChangeRequestDto,
 } from "./dto/phone-number-change.dto";
 import { RequireCapabilities } from "../../common/decorators/capabilities.decorator";
+import { isApprovedBrowserOrigin } from "../../config/app.config";
 
 type LoginPortal = "student" | "admin";
 
@@ -94,6 +95,32 @@ export class AuthController {
     const result = await this.auth.refresh(
       req.cookies?.[refreshCookieName],
       typeof csrfToken === "string" ? csrfToken : undefined,
+    );
+    this.setAuthCookies(res, result);
+    return ok({
+      csrfToken: result.csrfToken,
+      expiresAt: result.expiresAt,
+      refreshExpiresAt: result.refreshExpiresAt,
+    });
+  }
+
+  /**
+   * A new browser tab has no sessionStorage CSRF value, although its secure
+   * refresh cookie may still be valid. This narrowly scoped recovery path is
+   * origin- and header-gated before it rotates that credential.
+   */
+  @Post("bootstrap-session")
+  async bootstrapSession(
+    @Req() req: FastifyRequest,
+    @Res({ passthrough: true }) res: FastifyReply,
+  ) {
+    this.assertTrustedBootstrapRequest(req);
+    const refreshCookieName = this.config.get<string>(
+      "refreshCookieName",
+      "moshaver_v2_refresh",
+    );
+    const result = await this.auth.bootstrapSession(
+      req.cookies?.[refreshCookieName],
     );
     this.setAuthCookies(res, result);
     return ok({
@@ -282,5 +309,22 @@ export class AuthController {
       ),
       ...(domain ? { domain } : {}),
     } as const;
+  }
+
+  private assertTrustedBootstrapRequest(req: FastifyRequest) {
+    const origin = req.headers.origin;
+    const bootstrapHeader = req.headers["x-auth-session-bootstrap"];
+    const approvedOrigins = this.config.get<string[]>("corsOrigins") || [];
+    if (
+      typeof origin !== "string" ||
+      !isApprovedBrowserOrigin(origin, approvedOrigins) ||
+      bootstrapHeader !== "1"
+    ) {
+      throw new ApiException(
+        403,
+        "SESSION_BOOTSTRAP_FORBIDDEN",
+        "درخواست بازیابی نشست معتبر نیست.",
+      );
+    }
   }
 }

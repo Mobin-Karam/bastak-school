@@ -2,6 +2,7 @@ import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } fro
 import {
   api,
   ApiError,
+  bootstrapSession,
   onAuthFailure,
   refreshSession,
   setApiWorkContext,
@@ -77,8 +78,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setMessage(copy.sessionChecking);
 
     try {
-      const raw = await getCurrentUser();
-      const context = await getAccountContext();
+      const loadIdentity = async () => {
+        const raw = await getCurrentUser();
+        const context = await getAccountContext();
+        return { raw, context };
+      };
+      let identity: Awaited<ReturnType<typeof loadIdentity>>;
+      try {
+        identity = await loadIdentity();
+      } catch (error) {
+        if (!(error instanceof ApiError) || error.status !== 401) throw error;
+        if (!(await bootstrapSession())) throw error;
+        identity = await loadIdentity();
+      }
+      const { raw, context } = identity;
       const me = normalizeUser({ ...context.user, role: context.roles[0] ?? raw.role });
 
       if (current !== operation.current) return;
@@ -115,7 +128,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       restoreAttempts.current += 1;
 
       if (restoreAttempts.current >= MAX_RESTORE_ATTEMPTS) {
-        finishLocalLogout(copy.serverUnresponsive, false);
+        setStatus("unavailable");
+        setMessage(copy.serverUnresponsive);
         return;
       }
 

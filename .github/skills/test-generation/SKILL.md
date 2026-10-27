@@ -15,3 +15,9 @@ For capability-sensitive features, prioritize server authorization and cross-org
 - Regression: exact failure mode for a fixed bug.
 
 Use existing fixtures/builders. Keep tests deterministic. Avoid real external services unless the repository deliberately uses them. Assert meaningful behavior rather than implementation trivia.
+
+For CI-repair tests, use the exact failed job log and current head SHA to reproduce the narrowest command. Preserve the intended gate, test the real root cause, rerun locally after repair, and state that a fresh CI result is still needed; do not weaken assertions or cite results from a prior head.
+
+## Release evidence tests
+
+When testing deployment-sensitive work, use `docs/operations/release-evidence.md` to select the layer: source behavior, disposable container/release rehearsal, and private production proof are distinct. For migrations, cover fresh schema, representative populated upgrade, restore/preservation, and the exact recovery allowance if one is needed; prove unrelated legacy data changes remain rejected. Report skipped/external/private checks as unverified rather than manufacturing production success.

@@ -25,3 +25,7 @@ Produce a plan grounded in existing files. Include:
 - risks and rollback considerations when relevant.
 
 Prefer the smallest plan that completely solves the request.
+
+## Release-aware planning
+
+When work can affect a release, plan against `docs/operations/development-to-production.md` and include: exact affected CI/rehearsal checks, migration effects on populated data and recovery path, deployment/configuration/private-receiver publication impact, protected `develop` to `main` promotion, and the evidence still required after source CI. Do not represent local validation, dispatch, or an artifact as production completion.
