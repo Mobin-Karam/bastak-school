@@ -27,6 +27,7 @@ import {
   TimetableRevisionDto,
   TimetableVersionDto,
   TimetableSubstitutionRequestDto,
+  TimetableSubstitutionDecisionDto,
 } from "./timetable.dto";
 @Controller("schedule/timetable")
 export class TimetableController {
@@ -39,6 +40,15 @@ export class TimetableController {
     @Body() dto: TimetableSubstitutionRequestDto,
   ) {
     return this.timetable.requestSubstitution(user, id, dto).then(ok);
+  }
+  @Post("substitution-requests/:id/review")
+  @RequireCapabilities("schedule.publish")
+  reviewSubstitution(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Body() dto: TimetableSubstitutionDecisionDto,
+  ) {
+    return this.timetable.reviewSubstitution(user, id, dto).then(ok);
   }
   @Get(":organizationId") @RequireCapabilities("schedule.read") workspace(
     @CurrentUser() user: AuthenticatedUser,
