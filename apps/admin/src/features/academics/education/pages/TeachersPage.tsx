@@ -8,6 +8,7 @@ import { ResponsiveDrawer } from "../../../../shared/ui/responsive-drawer";
 import { Badge, EmptyState, LoadingState } from "../../../../shared/ui/ui";
 import { listAcademicTeachers, type AcademicTeacher } from "../api/academic.api";
 import { listClasses, type EducationClass } from "../api/classes.api";
+import { listSchedule, type ScheduleEntry } from "../../schedule/api/schedule.api";
 
 const roleLabels: Record<string, string> = {
   TEACHER: "دبیر",
@@ -46,6 +47,11 @@ export function TeachersPage() {
     queryKey: ["classes", "teacher-directory", organizationId],
     queryFn: () => listClasses(organizationId),
     enabled: Boolean(organizationId),
+  });
+  const schedule = useQuery({
+    queryKey: ["schedule", "teacher-profile", organizationId, selected?.id],
+    queryFn: listSchedule,
+    enabled: Boolean(organizationId && selected),
   });
   const teacherRows = teachers.data?.items ?? [];
   const classRows = useMemo(() => classes.data ?? [], [classes.data]);
@@ -124,6 +130,9 @@ export function TeachersPage() {
             assignments={assignmentsFor(selected.id, classRows)}
             loading={classes.isLoading}
             assignmentsError={classes.isError}
+            schedule={schedule.data ?? []}
+            scheduleLoading={schedule.isLoading}
+            scheduleError={schedule.isError}
           />
         ) : null}
       </ResponsiveDrawer>
@@ -148,12 +157,29 @@ function TeacherProfile({
   assignments,
   loading,
   assignmentsError,
+  schedule,
+  scheduleLoading,
+  scheduleError,
 }: {
   teacher: AcademicTeacher;
   assignments: Array<{ classroom: string; schoolYear: string; subject: string }>;
   loading: boolean;
   assignmentsError: boolean;
+  schedule: ScheduleEntry[];
+  scheduleLoading: boolean;
+  scheduleError: boolean;
 }) {
+  const teacherSchedule = schedule
+    .filter(
+      (entry) =>
+        entry.status === "ACTIVE" &&
+        (entry.teacher?.id === teacher.id || entry.classBook?.teacher.id === teacher.id),
+    )
+    .sort(
+      (left, right) =>
+        left.weekday - right.weekday || left.startTime.localeCompare(right.startTime),
+    );
+  const totalMinutes = teacherSchedule.reduce((sum, entry) => sum + durationMinutes(entry), 0);
   return (
     <div className="grid gap-5 py-4">
       <div className="flex items-center gap-3">
@@ -212,6 +238,73 @@ function TeacherProfile({
           </ul>
         ) : null}
       </section>
+      <section
+        aria-labelledby="teacher-load-title"
+        className="grid gap-3 border-t border-[rgb(var(--border-subtle))] pt-4"
+      >
+        <div>
+          <h3 id="teacher-load-title" className="text-sm font-bold text-ink">
+            بار آموزشی هفتگی
+          </h3>
+          <p className="mt-1 text-xs text-slate-500">جلسه‌های فعال ثبت‌شده در برنامه مدرسه</p>
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+          <div className="rounded-xl bg-brand/10 p-3">
+            <strong className="block text-lg font-black text-brand">
+              {teacherSchedule.length.toLocaleString("fa-IR")}
+            </strong>
+            <span className="text-xs font-bold text-slate-600">جلسه در هفته</span>
+          </div>
+          <div className="rounded-xl bg-sky-500/10 p-3">
+            <strong className="block text-lg font-black text-sky-800">
+              {formatHours(totalMinutes)}
+            </strong>
+            <span className="text-xs font-bold text-slate-600">ساعت در هفته</span>
+          </div>
+        </div>
+        {scheduleLoading ? (
+          <p role="status" className="text-sm text-slate-500">
+            در حال دریافت برنامه دبیر…
+          </p>
+        ) : null}
+        {scheduleError ? (
+          <p role="alert" className="text-sm text-rose-700">
+            برنامه دبیر دریافت نشد؛ دوباره تلاش کنید.
+          </p>
+        ) : null}
+        {!scheduleLoading && !scheduleError && !teacherSchedule.length ? (
+          <EmptyState title="جلسه فعالی برای این دبیر ثبت نشده است." />
+        ) : null}
+        {!scheduleLoading && !scheduleError && teacherSchedule.length ? (
+          <ul className="grid gap-2" aria-label="برنامه هفتگی دبیر">
+            {teacherSchedule.map((entry) => (
+              <li
+                key={entry.id}
+                className="flex items-center justify-between gap-3 rounded-xl border border-[rgb(var(--border-subtle))] p-3"
+              >
+                <span>
+                  <strong className="block text-sm text-ink">{entry.title}</strong>
+                  <span className="mt-1 block text-xs text-slate-500">
+                    {weekdays[entry.weekday]} · {entry.classroom?.name ?? "کلاس ثبت نشده"}
+                  </span>
+                </span>
+                <bdi dir="ltr" className="text-xs font-black text-brand">
+                  {entry.startTime}–{entry.endTime}
+                </bdi>
+              </li>
+            ))}
+          </ul>
+        ) : null}
+      </section>
     </div>
   );
 }
+
+const weekdays = ["شنبه", "یکشنبه", "دوشنبه", "سه‌شنبه", "چهارشنبه", "پنجشنبه", "جمعه"];
+const durationMinutes = (entry: ScheduleEntry) => {
+  const [startHour, startMinute] = entry.startTime.split(":").map(Number);
+  const [endHour, endMinute] = entry.endTime.split(":").map(Number);
+  return endHour * 60 + endMinute - startHour * 60 - startMinute;
+};
+const formatHours = (minutes: number) =>
+  `${(minutes / 60).toLocaleString("fa-IR", { maximumFractionDigits: 1 })} ساعت`;

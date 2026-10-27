@@ -5,6 +5,7 @@ import { LocaleProvider } from "../../../../shared/ui/locale";
 import { TeachersPage } from "./TeachersPage";
 import { listAcademicTeachers } from "../api/academic.api";
 import { listClasses } from "../api/classes.api";
+import { listSchedule } from "../../schedule/api/schedule.api";
 
 vi.mock("../../../identity/auth", () => ({
   useAuth: () => ({
@@ -14,6 +15,7 @@ vi.mock("../../../identity/auth", () => ({
 }));
 vi.mock("../api/academic.api", () => ({ listAcademicTeachers: vi.fn() }));
 vi.mock("../api/classes.api", () => ({ listClasses: vi.fn() }));
+vi.mock("../../schedule/api/schedule.api", () => ({ listSchedule: vi.fn() }));
 vi.mock("../../../../shared/ui/responsive-drawer", () => ({
   ResponsiveDrawer: ({
     open,
@@ -86,6 +88,26 @@ describe("TeachersPage", () => {
         ],
       },
     ]);
+    vi.mocked(listSchedule).mockResolvedValue([
+      {
+        id: "schedule-one",
+        title: "ریاضی",
+        weekday: 0,
+        startTime: "08:00",
+        endTime: "09:30",
+        room: "",
+        status: "ACTIVE",
+        organization: { id: "school-one", name: "مدرسه" },
+        classroom: { id: "class-one", name: "کلاس اول" },
+        teacher: {
+          id: "teacher-one",
+          username: "teacher.one",
+          firstName: "زهرا",
+          lastName: "محمدی",
+        },
+        classBook: null,
+      },
+    ]);
   });
 
   afterEach(() => {
@@ -105,5 +127,7 @@ describe("TeachersPage", () => {
     const drawer = await screen.findByRole("dialog", { name: "زهرا محمدی" });
     expect(within(drawer).getByText("ریاضی")).toBeInTheDocument();
     expect(within(drawer).getByText(/کلاس اول/)).toBeInTheDocument();
+    expect(await within(drawer).findByText("۱")).toBeInTheDocument();
+    expect(within(drawer).getByText(/۱٫۵ ساعت/)).toBeInTheDocument();
   });
 });
