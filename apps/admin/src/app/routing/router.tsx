@@ -45,6 +45,9 @@ const StudentsPage = lazy(() =>
 const ClassesPage = lazy(() =>
   import("../../features/academics/education/classes").then((m) => ({ default: m.ClassesPage })),
 );
+const TeachersPage = lazy(() =>
+  import("../../features/academics/education").then((m) => ({ default: m.TeachersPage })),
+);
 const BookShelfPage = lazy(() =>
   import("../../features/academics/education/books").then((m) => ({ default: m.BookShelfPage })),
 );
@@ -452,6 +455,16 @@ export const adminRouteObjects = [
               <CapabilityRoute capability="classes.read">
                 <RouteScreen>
                   <ClassesPage />
+                </RouteScreen>
+              </CapabilityRoute>
+            ),
+          },
+          {
+            path: "teachers",
+            element: (
+              <CapabilityRoute capability="classes.manage" allOf={["classes.read"]}>
+                <RouteScreen>
+                  <TeachersPage />
                 </RouteScreen>
               </CapabilityRoute>
             ),

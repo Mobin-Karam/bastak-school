@@ -118,7 +118,7 @@ export class AcademicService {
           },
           user: { status: UserStatus.ACTIVE },
         },
-        relations: { user: true, membership: true },
+        relations: { user: true, membership: { roleAssignments: { role: true } } },
         order: { id: "ASC" },
         skip: page.offset,
         take: page.limit,
@@ -131,6 +131,11 @@ export class AcademicService {
         lastName: r.user.lastName,
         username: r.user.username,
         membershipId: r.membership?.id,
+        roles: [
+          ...new Set(
+            r.membership?.roleAssignments.map((assignment) => assignment.role.code) ?? [],
+          ),
+        ],
       })),
       total,
       offset: page.offset,

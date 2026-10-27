@@ -60,6 +60,14 @@ export const educationNavigation = [
     capability: "classes.read",
   },
   {
+    path: "teachers",
+    title: "دبیران",
+    description: "فهرست دبیران فعال مدرسه و نقش‌های هم‌زمان آن‌ها",
+    icon: UserRoundCheck,
+    capability: "classes.manage",
+    allOf: ["classes.read"],
+  },
+  {
     path: "books",
     title: "قفسه کتاب‌ها",
     description: "کتاب‌های درسی، کلاس‌های مرتبط و دبیر مسئول",
