@@ -25,6 +25,7 @@ import {
 } from "../../database/entities/school-schedule-template.entity";
 import { User } from "../../database/entities/user.entity";
 import { UserRelationship } from "../../database/entities/user-relationship.entity";
+import { TeacherLeaveRequest } from "../../database/entities/teacher-leave-request.entity";
 import { AuthenticatedUser } from "../auth";
 import { AuthorizationService, UserContext } from "../authorization";
 import {
@@ -34,6 +35,8 @@ import {
   SaveScheduleEntryDto,
   ScheduleSubstitutionDecisionDto,
   ScheduleSubstitutionRequestDto,
+  TeacherLeaveRequestDto,
+  TeacherLeaveReviewDto,
 } from "./schedule.dto";
 
 @Injectable()
@@ -49,6 +52,8 @@ export class ScheduleService {
     private readonly occurrenceOverrides: Repository<SchoolScheduleOccurrenceOverride>,
     @InjectRepository(SchoolScheduleSubstitutionRequest)
     private readonly substitutions: Repository<SchoolScheduleSubstitutionRequest>,
+    @InjectRepository(TeacherLeaveRequest)
+    private readonly teacherLeaves: Repository<TeacherLeaveRequest>,
     @InjectRepository(Organization)
     private readonly organizations: Repository<Organization>,
     @InjectRepository(OrganizationMembership)
@@ -149,6 +154,215 @@ export class ScheduleService {
           : this.isTeacherEntry(row.sourceEntry!, user.id),
       )
       .map((row) => this.publicSubstitution(row));
+  }
+  private publicTeacherLeave(row: TeacherLeaveRequest) {
+    const person = (user?: User | null) =>
+      user
+        ? {
+            id: user.id,
+            username: user.username,
+            firstName: user.firstName,
+            lastName: user.lastName,
+          }
+        : null;
+    return {
+      id: row.id,
+      organizationId: row.organizationId,
+      teacherId: row.teacherId,
+      startDate: row.startDate,
+      endDate: row.endDate,
+      reason: row.reason,
+      status: row.status,
+      resolution: row.resolution,
+      substituteTeacherId: row.substituteTeacherId,
+      reviewedById: row.reviewedById,
+      reviewedAt: row.reviewedAt?.toISOString() ?? null,
+      createdAt: row.createdAt.toISOString(),
+      teacher: person(row.teacher),
+      substituteTeacher: person(row.substituteTeacher),
+    };
+  }
+  async teacherLeaveRequests(user: AuthenticatedUser) {
+    const context = this.context(user);
+    this.authorization.requireCapability(context, "schedule.read");
+    const reviewer =
+      this.isOperator(context) &&
+      user.capabilities?.includes("schedule.publish");
+    const rows = await this.teacherLeaves.find({
+      where: reviewer
+        ? { organizationId: In(context.organizationIds) }
+        : { teacherId: user.id, organizationId: In(context.organizationIds) },
+      relations: { teacher: true, substituteTeacher: true },
+      order: { createdAt: "DESC" },
+    });
+    return rows.map((row) => this.publicTeacherLeave(row));
+  }
+  async requestTeacherLeave(
+    user: AuthenticatedUser,
+    dto: TeacherLeaveRequestDto,
+  ) {
+    const context = this.context(user);
+    this.authorization.requireCapability(context, "attendance.class.manage");
+    if (
+      !this.dateIsValid(dto.startDate) ||
+      !this.dateIsValid(dto.endDate) ||
+      dto.endDate < dto.startDate
+    )
+      throw new ApiException(
+        422,
+        "TEACHER_LEAVE_DATE_INVALID",
+        "بازه مرخصی معتبر نیست.",
+      );
+    if (
+      !context.organizationIds.includes(dto.organizationId) &&
+      !context.roles.includes("PLATFORM_ADMIN")
+    )
+      throw new ApiException(403, "FORBIDDEN", "دسترسی کافی ندارید.");
+    const row = await this.teacherLeaves.save(
+      this.teacherLeaves.create({
+        organizationId: dto.organizationId,
+        teacherId: user.id,
+        startDate: dto.startDate,
+        endDate: dto.endDate,
+        reason: dto.reason.trim(),
+        status: "pending",
+        resolution: null,
+        substituteTeacherId: null,
+        reviewedById: null,
+        reviewedAt: null,
+      }),
+    );
+    return this.publicTeacherLeave({
+      ...row,
+      teacher: { id: user.id } as User,
+    });
+  }
+  async reviewTeacherLeave(
+    user: AuthenticatedUser,
+    id: string,
+    dto: TeacherLeaveReviewDto,
+  ) {
+    const context = this.context(user);
+    this.authorization.requireCapability(context, "schedule.publish");
+    const row = await this.teacherLeaves.findOne({
+      where: { id },
+      relations: { teacher: true, substituteTeacher: true },
+    });
+    if (!row || row.status !== "pending")
+      throw new ApiException(
+        404,
+        "TEACHER_LEAVE_NOT_FOUND",
+        "درخواست مرخصی در انتظار بررسی پیدا نشد.",
+      );
+    if (
+      !this.isOperator(context) ||
+      (!context.roles.includes("PLATFORM_ADMIN") &&
+        !context.organizationIds.includes(row.organizationId))
+    )
+      throw new ApiException(403, "FORBIDDEN", "دسترسی کافی ندارید.");
+    if (
+      dto.decision === "approved" &&
+      (!dto.resolution ||
+        (dto.resolution === "substitute" && !dto.substituteTeacherId))
+    )
+      throw new ApiException(
+        422,
+        "TEACHER_LEAVE_RESOLUTION_REQUIRED",
+        "برای تأیید، لغو جلسه یا دبیر جایگزین را انتخاب کنید.",
+      );
+    const substitute =
+      dto.resolution === "substitute"
+        ? await this.teacherForOrganization(
+            dto.substituteTeacherId,
+            row.organizationId,
+          )
+        : null;
+    if (dto.resolution === "substitute" && !substitute)
+      throw new ApiException(
+        422,
+        "TEACHER_SUBSTITUTE_INVALID",
+        "دبیر جایگزین معتبر نیست.",
+      );
+    if (substitute?.id === row.teacherId)
+      throw new ApiException(
+        422,
+        "TEACHER_SUBSTITUTE_INVALID",
+        "دبیر جایگزین باید فرد دیگری باشد.",
+      );
+    row.status = dto.decision;
+    row.resolution =
+      dto.decision === "approved" ? (dto.resolution ?? null) : null;
+    row.substituteTeacherId = substitute?.id ?? null;
+    row.substituteTeacher = substitute;
+    row.reviewedById = user.id;
+    row.reviewedAt = new Date();
+    if (dto.decision === "approved")
+      await this.applyTeacherLeave(row, user.id, substitute);
+    return this.publicTeacherLeave(await this.teacherLeaves.save(row));
+  }
+  private async applyTeacherLeave(
+    row: TeacherLeaveRequest,
+    changedById: string,
+    substitute: User | null,
+  ) {
+    const entries = await this.entries.find({
+      where: {
+        organization: { id: row.organizationId },
+        versionId: IsNull(),
+        status: "ACTIVE",
+      },
+      relations: {
+        organization: true,
+        classroom: true,
+        classBook: { teacher: true },
+        teacher: true,
+      },
+    });
+    const affected = entries.filter(
+      (entry) =>
+        entry.teacher?.id === row.teacherId ||
+        entry.classBook?.teacher?.id === row.teacherId,
+    );
+    for (let date = row.startDate; date <= row.endDate;) {
+      const next = new Date(`${date}T12:00:00Z`);
+      next.setUTCDate(next.getUTCDate() + 1);
+      for (const entry of affected.filter(
+        (item) =>
+          item.weekday === this.weekdayForDate(date) &&
+          (!item.startsOn || item.startsOn <= date) &&
+          (!item.endsOn || item.endsOn >= date),
+      )) {
+        const override = await this.occurrenceOverrides.findOneBy({
+          entryId: entry.id,
+          date,
+        });
+        if (override) continue;
+        await this.occurrenceOverrides.save(
+          this.occurrenceOverrides.create({
+            entryId: entry.id,
+            date,
+            cancelled: true,
+            changedById,
+          }),
+        );
+        if (substitute)
+          await this.entries.save(
+            this.entries.create({
+              ...entry,
+              id: undefined,
+              teacher: substitute,
+              status: "REPLACED",
+              weekday: entry.weekday,
+              startsOn: date,
+              endsOn: date,
+              notes: `جایگزین مرخصی ${row.id}`,
+              teacherNameSnapshot:
+                `${substitute.firstName ?? ""} ${substitute.lastName ?? ""}`.trim(),
+            }),
+          );
+      }
+      date = next.toISOString().slice(0, 10);
+    }
   }
   async substitutionSlots(user: AuthenticatedUser, date: string) {
     const context = this.context(user);
@@ -509,19 +723,32 @@ export class ScheduleService {
       });
     if (context.roles.includes("TEACHER"))
       return this.entries.find({
-        where: {
-          versionId: IsNull(),
-          teacher: { id: user.id },
-          classBook: { teacher: { id: user.id } },
-          organization: {
-            id: In(
-              requestedOrganizationId
-                ? [requestedOrganizationId]
-                : context.organizationIds,
-            ),
+        where: [
+          {
+            versionId: IsNull(),
+            teacher: { id: user.id },
+            organization: {
+              id: In(
+                requestedOrganizationId
+                  ? [requestedOrganizationId]
+                  : context.organizationIds,
+              ),
+            },
+            status: In(["ACTIVE", "REPLACED"]),
           },
-          status: In(["ACTIVE", "REPLACED"]),
-        },
+          {
+            versionId: IsNull(),
+            classBook: { teacher: { id: user.id } },
+            organization: {
+              id: In(
+                requestedOrganizationId
+                  ? [requestedOrganizationId]
+                  : context.organizationIds,
+              ),
+            },
+            status: In(["ACTIVE", "REPLACED"]),
+          },
+        ],
         relations: {
           organization: true,
           classroom: true,

@@ -5,10 +5,16 @@ import { useAuth } from "../../../identity/auth";
 import { DataTable, type DataTableColumn } from "../../../../shared/ui/data-table";
 import { ManagementPageHeader } from "../../../../shared/ui/management-workspace";
 import { ResponsiveDrawer } from "../../../../shared/ui/responsive-drawer";
-import { Badge, EmptyState, LoadingState } from "../../../../shared/ui/ui";
+import { Badge, Button, EmptyState, LoadingState } from "../../../../shared/ui/ui";
 import { listAcademicTeachers, type AcademicTeacher } from "../api/academic.api";
 import { listClasses, type EducationClass } from "../api/classes.api";
 import { listSchedule, type ScheduleEntry } from "../../schedule/api/schedule.api";
+import {
+  listTeacherLeaveRequests,
+  reviewTeacherLeaveRequest,
+  type TeacherLeaveRequest,
+} from "../../schedule/api/teacher-leave.api";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 const roleLabels: Record<string, string> = {
   TEACHER: "دبیر",
@@ -36,6 +42,7 @@ function assignmentsFor(teacherId: string, classes: EducationClass[]) {
 
 export function TeachersPage() {
   const auth = useAuth();
+  const client = useQueryClient();
   const organizationId = auth.context?.activeOrganization?.id;
   const [selected, setSelected] = useState<AcademicTeacher | null>(null);
   const teachers = useQuery({
@@ -53,7 +60,38 @@ export function TeachersPage() {
     queryFn: listSchedule,
     enabled: Boolean(organizationId && selected),
   });
+  const leaveRequests = useQuery({
+    queryKey: ["teacher-leaves", organizationId],
+    queryFn: listTeacherLeaveRequests,
+    enabled: Boolean(organizationId && auth.can("schedule.publish")),
+  });
+  const reviewLeave = useMutation({
+    mutationFn: ({
+      id,
+      body,
+    }: {
+      id: string;
+      body: {
+        decision: "approved" | "rejected";
+        resolution?: "cancel" | "substitute";
+        substituteTeacherId?: string;
+      };
+    }) => reviewTeacherLeaveRequest(id, body),
+    onSuccess: () => {
+      void client.invalidateQueries({ queryKey: ["teacher-leaves"] });
+      void client.invalidateQueries({ queryKey: ["schedule"] });
+    },
+  });
   const teacherRows = teachers.data?.items ?? [];
+  const today = new Date().toISOString().slice(0, 10);
+  const onLeave = (teacherId: string) =>
+    (leaveRequests.data ?? []).some(
+      (leave) =>
+        leave.teacherId === teacherId &&
+        leave.status === "approved" &&
+        leave.startDate <= today &&
+        leave.endDate >= today,
+    );
   const classRows = useMemo(() => classes.data ?? [], [classes.data]);
   const columns = useMemo<DataTableColumn<AcademicTeacher>[]>(
     () => [
@@ -82,8 +120,19 @@ export function TeachersPage() {
         value: (teacher) => assignmentsFor(teacher.id, classRows).length,
         cell: (teacher) => assignmentsFor(teacher.id, classRows).length.toLocaleString("fa-IR"),
       },
+      {
+        id: "leave",
+        label: "وضعیت",
+        value: (teacher) => (onLeave(teacher.id) ? "در مرخصی" : "فعال"),
+        cell: (teacher) =>
+          onLeave(teacher.id) ? (
+            <Badge tone="amber">در مرخصی</Badge>
+          ) : (
+            <Badge tone="green">فعال</Badge>
+          ),
+      },
     ],
-    [classRows],
+    [classRows, leaveRequests.data],
   );
 
   if (!organizationId) {
@@ -133,9 +182,107 @@ export function TeachersPage() {
             schedule={schedule.data ?? []}
             scheduleLoading={schedule.isLoading}
             scheduleError={schedule.isError}
+            onLeave={onLeave(selected.id)}
           />
         ) : null}
       </ResponsiveDrawer>
+      {auth.can("schedule.publish") ? (
+        <TeacherLeaveReviewQueue
+          rows={leaveRequests.data ?? []}
+          teachers={teacherRows}
+          busy={reviewLeave.isPending}
+          onReview={(id, body) => reviewLeave.mutate({ id, body })}
+        />
+      ) : null}
+    </section>
+  );
+}
+
+function TeacherLeaveReviewQueue({
+  rows,
+  teachers,
+  busy,
+  onReview,
+}: {
+  rows: TeacherLeaveRequest[];
+  teachers: AcademicTeacher[];
+  busy: boolean;
+  onReview: (
+    id: string,
+    body: {
+      decision: "approved" | "rejected";
+      resolution?: "cancel" | "substitute";
+      substituteTeacherId?: string;
+    },
+  ) => void;
+}) {
+  const [substituteByRequest, setSubstituteByRequest] = useState<Record<string, string>>({});
+  const pending = rows.filter((row) => row.status === "pending");
+  return (
+    <section className="grid gap-3" dir="rtl">
+      <h2 className="text-sm font-black text-ink">درخواست‌های مرخصی دبیران</h2>
+      {!pending.length ? (
+        <p className="text-sm text-slate-500">درخواست مرخصی در انتظاری وجود ندارد.</p>
+      ) : (
+        pending.map((row) => (
+          <div
+            key={row.id}
+            className="grid gap-2 rounded-xl border border-[rgb(var(--border-subtle))] p-3"
+          >
+            <strong>
+              {[row.teacher?.firstName, row.teacher?.lastName].filter(Boolean).join(" ") ||
+                row.teacher?.username}
+            </strong>
+            <span className="text-xs text-slate-500">
+              {row.startDate} تا {row.endDate} · {row.reason}
+            </span>
+            <select
+              className="h-10 rounded-lg border border-[rgb(var(--border-subtle))] px-2 text-sm"
+              value={substituteByRequest[row.id] ?? ""}
+              onChange={(event) =>
+                setSubstituteByRequest((current) => ({ ...current, [row.id]: event.target.value }))
+              }
+            >
+              <option value="">لغو همه جلسه‌های این بازه</option>
+              {teachers
+                .filter((teacher) => teacher.id !== row.teacherId)
+                .map((teacher) => (
+                  <option key={teacher.id} value={teacher.id}>
+                    {fullName(teacher)}
+                  </option>
+                ))}
+            </select>
+            <div className="flex gap-2">
+              <Button
+                size="sm"
+                disabled={busy}
+                onClick={() =>
+                  onReview(
+                    row.id,
+                    substituteByRequest[row.id]
+                      ? {
+                          decision: "approved",
+                          resolution: "substitute",
+                          substituteTeacherId: substituteByRequest[row.id],
+                        }
+                      : { decision: "approved", resolution: "cancel" },
+                  )
+                }
+              >
+                تأیید
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                disabled={busy}
+                onClick={() => onReview(row.id, { decision: "rejected" })}
+              >
+                رد
+              </Button>
+            </div>
+          </div>
+        ))
+      )}
     </section>
   );
 }
@@ -160,6 +307,7 @@ function TeacherProfile({
   schedule,
   scheduleLoading,
   scheduleError,
+  onLeave,
 }: {
   teacher: AcademicTeacher;
   assignments: Array<{ classroom: string; schoolYear: string; subject: string }>;
@@ -168,6 +316,7 @@ function TeacherProfile({
   schedule: ScheduleEntry[];
   scheduleLoading: boolean;
   scheduleError: boolean;
+  onLeave: boolean;
 }) {
   const teacherSchedule = schedule
     .filter(
@@ -188,6 +337,7 @@ function TeacherProfile({
         </span>
         <div className="min-w-0">
           <h2 className="truncate text-base font-black text-ink">{fullName(teacher)}</h2>
+          {onLeave ? <Badge tone="amber">در مرخصی</Badge> : null}
           <p className="mt-1 text-sm text-slate-500">
             <bdi dir="ltr">{teacher.username}</bdi>
           </p>

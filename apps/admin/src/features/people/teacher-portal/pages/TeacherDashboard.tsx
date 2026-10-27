@@ -12,6 +12,7 @@ import { AnnouncementEnvelope } from "../../../analytics/dashboard/components/An
 import { CurrentPrayerCard } from "../../../analytics/school-home/components/CurrentPrayerCard";
 import { TeacherClassAttendanceSheet } from "../components/TeacherClassAttendanceSheet";
 import { activeEntriesForTehranToday } from "../model/teacher-dashboard-schedule";
+import { listTeacherLeaveRequests } from "../../../academics/schedule/api/teacher-leave.api";
 
 function tehranClockMinutes(date: Date) {
   const parts = new Intl.DateTimeFormat("en-GB", {
@@ -41,6 +42,10 @@ export function TeacherDashboard() {
     queryFn: () => getAdminDashboard("TEACHER"),
   });
   const schedule = useQuery({ queryKey: ["schedule", "teacher"], queryFn: listSchedule });
+  const leaves = useQuery({
+    queryKey: ["teacher-leaves", "self"],
+    queryFn: listTeacherLeaveRequests,
+  });
   useEffect(() => {
     const timer = window.setInterval(() => setNow(new Date()), 60_000);
     return () => window.clearInterval(timer);
@@ -61,6 +66,10 @@ export function TeacherDashboard() {
         currentMinute >= clockMinutes(entry.startTime) &&
         currentMinute < clockMinutes(entry.endTime),
     ) ?? null;
+  const today = todayIso();
+  const activeLeave = (leaves.data ?? []).find(
+    (leave) => leave.status === "approved" && leave.startDate <= today && leave.endDate >= today,
+  );
 
   if (schedule.isLoading && home.isLoading)
     return <LoadingState label="در حال آماده‌سازی میز استاد…" />;
@@ -76,6 +85,11 @@ export function TeacherDashboard() {
           امروز · {formatDate(todayIso(), { dateStyle: "full" })}
         </span>
       </section>
+      {activeLeave ? (
+        <Card className="border-amber-300 bg-amber-50 p-3 text-sm font-bold text-amber-900 dark:bg-amber-950/30 dark:text-amber-100">
+          شما در بازه مرخصی تأییدشده هستید: {activeLeave.startDate} تا {activeLeave.endDate}
+        </Card>
+      ) : null}
       <AnnouncementEnvelope announcements={home.data?.home?.announcements} />
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">

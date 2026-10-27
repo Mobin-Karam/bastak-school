@@ -55,6 +55,7 @@ import {
   SchoolScheduleSubstitutionRequest,
 } from "../src/database/entities/school-schedule-substitution.entity";
 import { EducationClassBook } from "../src/database/entities/education-class-book.entity";
+import { TeacherLeaveRequest } from "../src/database/entities/teacher-leave-request.entity";
 import { EducationBook } from "../src/database/entities/education-book.entity";
 import { StudentPresence } from "../src/database/entities/student-presence.entity";
 import { Plan } from "../src/database/entities/plan.entity";
@@ -825,6 +826,7 @@ describe("migration-backed persistence and verified recovery (disposable SQLite 
       db.getRepository(SchoolScheduleTemplate),
       db.getRepository(SchoolScheduleOccurrenceOverride),
       db.getRepository(SchoolScheduleSubstitutionRequest),
+      db.getRepository(TeacherLeaveRequest),
       db.getRepository(Organization),
       db.getRepository(OrganizationMembership),
       db.getRepository(EducationClass),

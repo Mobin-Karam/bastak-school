@@ -124,3 +124,4 @@ export { AttendancePool } from "./attendance-pool.entity";
 export * from "./timetable.entity";
 
 export * from "./academic-structure.entity";
+export { TeacherLeaveRequest } from "./teacher-leave-request.entity";

@@ -61,3 +61,15 @@ export class ScheduleSubstitutionRequestDto {
 export class ScheduleSubstitutionDecisionDto {
   @IsIn(["approved", "rejected"]) decision!: "approved" | "rejected";
 }
+export class TeacherLeaveRequestDto {
+  @IsUUID() organizationId!: string;
+  @Matches(/^\d{4}-\d{2}-\d{2}$/) startDate!: string;
+  @Matches(/^\d{4}-\d{2}-\d{2}$/) endDate!: string;
+  @IsString() @MinLength(2) reason!: string;
+}
+export class TeacherLeaveReviewDto {
+  @IsIn(["approved", "rejected"]) decision!: "approved" | "rejected";
+  @IsOptional() @IsIn(["cancel", "substitute"]) resolution?:
+    "cancel" | "substitute";
+  @IsOptional() @IsUUID() substituteTeacherId?: string;
+}

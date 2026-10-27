@@ -19,6 +19,8 @@ import {
   CreateScheduleTemplateDto,
   ScheduleSubstitutionDecisionDto,
   ScheduleSubstitutionRequestDto,
+  TeacherLeaveRequestDto,
+  TeacherLeaveReviewDto,
   SaveScheduleEntryDto,
 } from "./schedule.dto";
 import { ScheduleService } from "./schedule.service";
@@ -44,6 +46,28 @@ export class ScheduleController {
     @Query("date") date: string,
   ) {
     return this.schedule.substitutionSlots(user, date).then(ok);
+  }
+  @Get("teacher-leave-requests")
+  @RequireCapabilities("schedule.read")
+  teacherLeaveRequests(@CurrentUser() user: AuthenticatedUser) {
+    return this.schedule.teacherLeaveRequests(user).then(ok);
+  }
+  @Post("teacher-leave-requests")
+  @RequireCapabilities("attendance.class.manage")
+  requestTeacherLeave(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() dto: TeacherLeaveRequestDto,
+  ) {
+    return this.schedule.requestTeacherLeave(user, dto).then(ok);
+  }
+  @Post("teacher-leave-requests/:id/review")
+  @RequireCapabilities("schedule.publish")
+  reviewTeacherLeave(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param("id") id: string,
+    @Body() dto: TeacherLeaveReviewDto,
+  ) {
+    return this.schedule.reviewTeacherLeave(user, id, dto).then(ok);
   }
   @Post("substitution-requests")
   @RequireCapabilities("attendance.class.manage")
