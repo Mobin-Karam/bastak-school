@@ -157,22 +157,6 @@ export class TimetableImportDto extends TimetableRevisionDto {
 export class TimetableAttendanceDto {
   @Matches(/^\d{4}-\d{2}-\d{2}$/) @IsDateString({ strict: true }) date!: string;
 }
-export class TimetableSubstitutionRequestDto {
-  @IsUUID() lessonId!: string;
-  @Matches(/^\d{4}-\d{2}-\d{2}$/)
-  @IsDateString({ strict: true })
-  freezeDate!: string;
-  @Matches(/^\d{4}-\d{2}-\d{2}$/)
-  @IsDateString({ strict: true })
-  replacementDate!: string;
-  @Matches(/^([01]\d|2[0-3]):[0-5]\d$/) replacementStartTime!: string;
-  @Matches(/^([01]\d|2[0-3]):[0-5]\d$/) replacementEndTime!: string;
-  @IsString() @MinLength(2) @MaxLength(240) title!: string;
-  @IsOptional() @IsString() @MaxLength(2000) message?: string;
-}
-export class TimetableSubstitutionDecisionDto {
-  @IsIn(["approved", "rejected"]) decision!: "approved" | "rejected";
-}
 
 export class TimetablePageDto {
   @IsOptional() @Type(() => Number) @IsInt() @Min(0) offset = 0;

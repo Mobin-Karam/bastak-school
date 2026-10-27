@@ -86,19 +86,6 @@ export type TimetableOverride = TimetableOverrideDraft & {
   changedByName: string;
   createdAt: string;
 };
-
-/** A teacher-proposed, principal-approved one-time replacement for one lesson occurrence. */
-export type TimetableSubstitutionRequest = {
-  id: string;
-  lessonId: string;
-  freezeDate: string;
-  replacementDate: string;
-  replacementStartTime: string;
-  replacementEndTime: string;
-  title: string;
-  message: string;
-  status: "pending" | "approved" | "rejected";
-};
 export type TimetableHoliday = {
   /** Present when composing calendars from multiple executing versions. */
   versionId?: string;

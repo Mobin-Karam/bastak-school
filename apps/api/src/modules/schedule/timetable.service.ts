@@ -40,7 +40,6 @@ import {
   TimetableOccurrence,
   TimetableChange,
   TimetableImport,
-  TimetableSubstitutionRequest,
 } from "../../database/entities/timetable.entity";
 import { SchoolScheduleEntry } from "../../database/entities/school-schedule-entry.entity";
 import { AttendanceRecord } from "../../database/entities/attendance-record.entity";
@@ -63,7 +62,6 @@ import {
   TimetablePublishDto,
   TimetableOverrideDto,
   TimetableImportDto,
-  TimetableSubstitutionRequestDto,
 } from "./timetable.dto";
 import {
   canonicalDate,
@@ -95,52 +93,6 @@ export class TimetableService {
     private readonly attendance: AttendanceService,
     private readonly notifications: NotificationsService,
   ) {}
-  async requestSubstitution(
-    user: AuthenticatedUser,
-    versionId: string,
-    dto: TimetableSubstitutionRequestDto,
-  ) {
-    const { version, term, year } = await this.version(
-      user,
-      versionId,
-      "schedule.read",
-      this.database.manager,
-    );
-    const data = await this.versionData(
-      this.database.manager,
-      version,
-      term,
-      year,
-    );
-    const lesson = data.lessons.find((row) => row.id === dto.lessonId);
-    if (
-      !lesson ||
-      lesson.teacherId !== user.id ||
-      weekdayOf(dto.freezeDate) !== lesson.weekday
-    )
-      this.fail(
-        "TIMETABLE_SUBSTITUTION_FORBIDDEN",
-        "فقط استاد جلسه اصلی می‌تواند درخواست ثبت کند.",
-        403,
-      );
-    this.times(dto.replacementStartTime, dto.replacementEndTime);
-    return this.database.manager
-      .getRepository(TimetableSubstitutionRequest)
-      .save({
-        versionId,
-        lessonId: dto.lessonId,
-        freezeDate: dto.freezeDate,
-        replacementDate: dto.replacementDate,
-        replacementStartTime: dto.replacementStartTime,
-        replacementEndTime: dto.replacementEndTime,
-        title: dto.title,
-        message: dto.message?.trim() || "",
-        status: "pending",
-        requestedById: user.id,
-        reviewedById: null,
-        reviewedAt: null,
-      });
-  }
   private fail(
     code: string,
     message: string,

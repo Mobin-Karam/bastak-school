@@ -26,20 +26,10 @@ import {
   TimetablePublishDto,
   TimetableRevisionDto,
   TimetableVersionDto,
-  TimetableSubstitutionRequestDto,
 } from "./timetable.dto";
 @Controller("schedule/timetable")
 export class TimetableController {
   constructor(private readonly timetable: TimetableService) {}
-  @Post("versions/:id/substitution-requests")
-  @RequireCapabilities("attendance.class.manage")
-  requestSubstitution(
-    @CurrentUser() user: AuthenticatedUser,
-    @Param("id", ParseUUIDPipe) id: string,
-    @Body() dto: TimetableSubstitutionRequestDto,
-  ) {
-    return this.timetable.requestSubstitution(user, id, dto).then(ok);
-  }
   @Get(":organizationId") @RequireCapabilities("schedule.read") workspace(
     @CurrentUser() user: AuthenticatedUser,
     @Param("organizationId", ParseUUIDPipe) org: string,
