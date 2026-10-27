@@ -1991,14 +1991,13 @@ html.is-scrolling :is(body, .scroll-reveal)::-webkit-scrollbar-thumb,
   .data-table-workspace[data-scroll-rows="true"] > .data-table-workspace__rows {
     flex: 1 1 auto;
     min-height: 0;
-    overflow: hidden;
-  }
-
-  .data-table-workspace[data-scroll-rows="true"] .data-table-workspace__viewport {
-    height: 100%;
-    max-height: 100%;
     overflow: auto;
     overscroll-behavior: contain;
+  }
+
+  .data-table-workspace[data-scroll-rows="true"] .data-table-workspace__rows > [role="region"] {
+    height: 100%;
+    max-height: 100%;
   }
 
   .management-master-detail__layout {
