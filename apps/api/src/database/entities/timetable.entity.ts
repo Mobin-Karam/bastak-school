@@ -211,6 +211,26 @@ export class TimetableOverride {
   @Column({ type: "varchar", length: 240 }) changedByName!: string;
   @CreateDateColumn() createdAt!: Date;
 }
+@Entity("timetable_substitution_requests")
+@Index(["versionId", "lessonId", "freezeDate"], { unique: true })
+export class TimetableSubstitutionRequest {
+  @PrimaryGeneratedColumn("uuid") id!: string;
+  @Column({ type: "varchar", length: 36 }) versionId!: string;
+  @Column({ type: "varchar", length: 36 }) lessonId!: string;
+  @Column({ type: "varchar", length: 10 }) freezeDate!: string;
+  @Column({ type: "varchar", length: 10 }) replacementDate!: string;
+  @Column({ type: "varchar", length: 5 }) replacementStartTime!: string;
+  @Column({ type: "varchar", length: 5 }) replacementEndTime!: string;
+  @Column({ type: "varchar", length: 240 }) title!: string;
+  @Column({ type: "text", default: "" }) message!: string;
+  @Column({ type: "varchar", length: 12, default: "pending" }) status!:
+    "pending" | "approved" | "rejected";
+  @Column({ type: "varchar", length: 36 }) requestedById!: string;
+  @Column({ type: "varchar", length: 36, nullable: true }) reviewedById!:
+    string | null;
+  @Column({ type: "datetime", nullable: true }) reviewedAt!: Date | null;
+  @CreateDateColumn() createdAt!: Date;
+}
 @Entity("timetable_occurrences")
 @Index(["lessonId", "date"], { unique: true })
 export class TimetableOccurrence {
