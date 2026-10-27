@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { CalendarRange, LayoutGrid, List, RefreshCw } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
@@ -10,7 +10,12 @@ import { SegmentedControl } from "../../../../shared/ui/segmented-control";
 import { Button, Card, EmptyState, Select } from "../../../../shared/ui/ui";
 import { useStudentSelection } from "../../../../shared/hooks/useStudentSelection";
 import { addDays, todayIso, normalizePersianText } from "../../../../shared/lib/utils";
-import { getReports } from "../api/reports.api";
+import {
+  getReports,
+  getTeacherStudentReports,
+  markTeacherStudentReportSeen,
+} from "../api/reports.api";
+import { useAuth } from "../../../identity/auth";
 import { ReportCard } from "../components/ReportCard";
 import { ReportCompactList } from "../components/ReportCompactList";
 import { ReportSummary } from "../components/ReportSummary";
@@ -28,6 +33,8 @@ function validIsoDate(value: string | null) {
 }
 
 export function ReportsPage() {
+  const auth = useAuth();
+  const client = useQueryClient();
   const students = useStudentSelection();
   const locale = useLocale();
   const copy = reportCopy(locale.language);
@@ -63,6 +70,15 @@ export function ReportsPage() {
     enabled: !!students.studentId,
     queryFn: () => getReports(students.studentId, from, to),
   });
+  const teacherReports = useQuery({
+    queryKey: ["principal", "teacher-reports"],
+    queryFn: getTeacherStudentReports,
+    enabled: auth.can("attendance.review"),
+  });
+  const seen = useMutation({
+    mutationFn: markTeacherStudentReportSeen,
+    onSuccess: () => void client.invalidateQueries({ queryKey: ["principal", "teacher-reports"] }),
+  });
   const visibleReports = useMemo(() => {
     const needle = normalizePersianText(search);
     return (reports.data ?? [])
@@ -88,6 +104,45 @@ export function ReportsPage() {
         title={copy.title}
         description={copy.description}
       />
+      {auth.can("attendance.review") ? (
+        <Card aria-label="گزارش‌های استادان" className="grid gap-3">
+          <div>
+            <h2 className="font-black text-ink">گزارش‌های خصوصی استادان</h2>
+            <p className="text-xs text-slate-500">فقط مدیران مجاز این گزارش‌ها را می‌بینند.</p>
+          </div>
+          {teacherReports.data?.length ? (
+            teacherReports.data.map((report) => (
+              <article
+                key={report.id}
+                className="rounded-xl border border-[rgb(var(--border-subtle))] p-3"
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <strong>{report.studentName}</strong>
+                  <span className="text-xs text-slate-500">
+                    {report.teacherName} · {report.sessionTitle}
+                  </span>
+                </div>
+                <p className="mt-2 text-sm">{report.message}</p>
+                <div className="mt-3 flex items-center gap-2 text-xs">
+                  {report.seenAt ? (
+                    <span className="text-emerald-700">دیده‌شده</span>
+                  ) : (
+                    <Button
+                      size="sm"
+                      disabled={seen.isPending}
+                      onClick={() => seen.mutate(report.id)}
+                    >
+                      علامت‌گذاری به‌عنوان دیده‌شده
+                    </Button>
+                  )}
+                </div>
+              </article>
+            ))
+          ) : (
+            <p className="text-sm text-slate-500">گزارش جدیدی وجود ندارد.</p>
+          )}
+        </Card>
+      ) : null}
       <Card className="sticky top-14 z-10 shadow-[var(--shadow-surface)]">
         <div className="grid gap-4">
           <div className="grid gap-3 lg:grid-cols-[minmax(220px,1fr)_minmax(160px,0.7fr)_minmax(160px,0.7fr)]">
