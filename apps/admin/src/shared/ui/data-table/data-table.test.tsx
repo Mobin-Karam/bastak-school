@@ -79,6 +79,9 @@ describe("shared DataTable", () => {
       "overflow-x-auto",
     );
     expect(screen.getByRole("table").querySelector("thead")).toHaveClass("sticky", "top-0");
+    expect(screen.getByRole("table").querySelector("th")).toHaveClass("sticky", "top-0");
+    expect(screen.getByRole("table").querySelector("tbody")).toHaveClass("divide-y");
+    expect(screen.getByRole("table").querySelector("tbody tr")).toHaveClass("border-b");
     expect(screen.getByRole("region", { name: "Books" })).toHaveClass("overflow-hidden");
   });
 
@@ -105,6 +108,7 @@ describe("shared DataTable", () => {
     expect(table().queryByText("Ali")).not.toBeInTheDocument();
     const cards = within(screen.getByRole("list", { name: "Books — Card view" }));
     expect(cards.getAllByRole("listitem")).toHaveLength(10);
+    expect(cards.getAllByRole("listitem")[0].querySelector("dl")).toHaveClass("divide-y");
     expect(cards.queryByText("Ali")).not.toBeInTheDocument();
     await userEvent.selectOptions(screen.getByRole("combobox", { name: "Rows per page" }), "25");
     expect(table().getAllByRole("row")).toHaveLength(15);

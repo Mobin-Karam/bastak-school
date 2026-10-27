@@ -24,14 +24,14 @@ export function DataTableDesktop<TData>({
     >
       <table className="w-full min-w-[640px] text-sm">
         <caption className="sr-only">{label}</caption>
-        <thead className="sticky top-0 z-10 bg-[rgb(var(--surface-muted))]">
+        <thead className="sticky top-0 z-10 bg-[rgb(var(--surface-muted))] shadow-sm">
           {table.getHeaderGroups().map((group) => (
             <tr key={group.id} className="border-y border-[rgb(var(--border-subtle))]">
               {group.headers.map((header) => (
                 <th
                   key={header.id}
                   scope="col"
-                  className="px-4 text-start font-medium text-slate-600 dark:text-slate-300"
+                  className="sticky top-0 z-10 bg-[rgb(var(--surface-muted))] px-4 text-start font-medium text-slate-600 dark:text-slate-300"
                   aria-sort={
                     header.column.getIsSorted() === "asc"
                       ? "ascending"
@@ -75,7 +75,7 @@ export function DataTableDesktop<TData>({
             <tr
               key={row.id}
               data-selected={row.getIsSelected() || undefined}
-              className="hover:bg-[rgb(var(--surface-muted))] data-[selected]:bg-brand/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand"
+              className="border-b border-[rgb(var(--border-subtle))] hover:bg-[rgb(var(--surface-muted))] data-[selected]:bg-brand/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand last:border-b-0"
               tabIndex={onRowClick ? 0 : undefined}
               onClick={(event) => {
                 if (!(event.target as HTMLElement).closest("button,input,a,[role=menuitem]"))
