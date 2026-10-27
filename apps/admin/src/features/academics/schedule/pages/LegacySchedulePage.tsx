@@ -58,6 +58,7 @@ import { SpreadsheetTransferActions } from "../../../../shared/ui/spreadsheet-tr
 import { SpreadsheetTransferLauncher } from "../../../../shared/ui/spreadsheet-transfer-launcher";
 import { useViewportShell } from "../../../../app/layout/lib/viewport-shell";
 import { MobileTabs } from "../../../../shared/ui/mobile";
+import { ResponsiveDrawer } from "../../../../shared/ui/responsive-drawer";
 
 const weekdays = ["شنبه", "یکشنبه", "دوشنبه", "سه‌شنبه", "چهارشنبه", "پنجشنبه", "جمعه"];
 const blank = (): ScheduleDraft => ({
@@ -89,6 +90,11 @@ export function LegacySchedulePage() {
   const [activeWeekday, setActiveWeekday] = useState(() => legacyWeekdayForIso(todayIso()));
   const [templatePreview, setTemplatePreview] = useState<ScheduleTemplate | null>(null);
   const [toolsSidebarHidden, setToolsSidebarHidden] = useState(false);
+  const [editor, setEditor] = useState<{
+    entry?: ScheduleEntry;
+    copy: boolean;
+    initial?: ScheduleDraft;
+  } | null>(null);
   const selectedOrganizationId = auth.context?.activeOrganization?.id;
   const entries = useQuery({
     queryKey: ["schedule", selectedOrganizationId ?? "all"],
@@ -298,29 +304,7 @@ export function LegacySchedulePage() {
     return <EmptyState title="دریافت برنامه انجام نشد." />;
   if (isTeacher) return <TeacherSchedulePage entries={entries.data ?? []} />;
   const editEntry = (entry?: ScheduleEntry, copy = false, initial?: ScheduleDraft) => {
-    modal.open({
-      title: entry ? (copy ? "کپی جلسه در برنامه" : "ویرایش جلسه") : "افزودن جلسه به برنامه",
-      description:
-        entry && !copy
-          ? "جزئیات جلسه را اصلاح کنید؛ تغییرات فقط پس از ذخیره اعمال می‌شود."
-          : "روز و زمان مقصد را انتخاب کنید؛ جلسه اصلی بدون تغییر باقی می‌ماند.",
-      size: "lg",
-      content: (
-        <ScheduleEditorForm
-          initial={initial ?? (entry ? draftFromEntry(entry) : blank())}
-          timeBlocks={timeBlocks.data ?? []}
-          organizations={organizationOptions}
-          classes={classes.data ?? []}
-          isSaving={save.isPending}
-          onCancel={modal.close}
-          onSubmit={async (draft) => {
-            await save.mutateAsync({ id: copy ? undefined : entry?.id, drafts: draft });
-            modal.close();
-          }}
-          allowMultiple={!entry || copy}
-        />
-      ),
-    });
+    setEditor({ entry, copy, initial });
   };
   const confirmDelete = (entry: ScheduleEntry) => {
     void modal
@@ -412,185 +396,224 @@ export function LegacySchedulePage() {
     </SpreadsheetTransferLauncher>
   ) : null;
   return (
-    <section
-      className={`relative grid w-full max-w-none gap-4 pb-[calc(6rem+env(safe-area-inset-bottom))] min-[960px]:pb-6 min-[960px]:transition-[grid-template-columns] min-[960px]:duration-300 min-[960px]:ease-out motion-reduce:transition-none ${toolsSidebarHidden ? "min-[960px]:grid-cols-[minmax(0,1fr)_0rem]" : "min-[960px]:grid-cols-[minmax(0,1fr)_22rem]"}`}
-      dir="rtl"
-    >
-      <button
-        type="button"
-        className="absolute -left-3 top-4 z-20 hidden size-11 place-items-center rounded-r-full border border-slate-200 bg-[rgb(var(--surface-card))] text-slate-500 shadow-[0_8px_20px_rgb(15_23_42_/_14%)] outline-none transition hover:bg-brand hover:text-white focus-visible:ring-2 focus-visible:ring-brand motion-reduce:transition-none min-[960px]:grid"
-        onClick={() => setToolsSidebarHidden((hidden) => !hidden)}
-        title={toolsSidebarHidden ? "نمایش ابزارهای برنامه" : "پنهان کردن ابزارهای برنامه"}
-        aria-label={toolsSidebarHidden ? "نمایش ابزارهای برنامه" : "پنهان کردن ابزارهای برنامه"}
-        aria-expanded={!toolsSidebarHidden}
-        aria-controls="legacy-schedule-tools"
+    <>
+      <section
+        className={`relative grid w-full max-w-none gap-4 pb-[calc(6rem+env(safe-area-inset-bottom))] min-[960px]:pb-6 min-[960px]:transition-[grid-template-columns] min-[960px]:duration-300 min-[960px]:ease-out motion-reduce:transition-none ${toolsSidebarHidden ? "min-[960px]:grid-cols-[minmax(0,1fr)_0rem]" : "min-[960px]:grid-cols-[minmax(0,1fr)_22rem]"}`}
+        dir="rtl"
       >
-        {toolsSidebarHidden ? (
-          <PanelRightOpen size={18} aria-hidden="true" />
-        ) : (
-          <PanelRightClose size={18} aria-hidden="true" />
-        )}
-      </button>
-      <div className="order-2 grid gap-3 min-[960px]:order-1">
-        {templatePreview ? (
-          <ScheduleTemplatePreview
-            template={templatePreview}
-            activeEntries={scheduleEntries.filter((entry) => entry.status === "ACTIVE")}
-            onCancel={() => setTemplatePreview(null)}
-            onApply={() =>
-              void modal
-                .confirm({
-                  title: "اجرای الگوی برنامه؟",
-                  description: `جلسه‌های فعال فعلی با جلسه‌های «${templatePreview.name}» جایگزین می‌شوند. جلسه‌ای به بایگانی برنامه اضافه نمی‌شود.`,
-                  tone: "danger",
-                  confirmLabel: "اجرای الگو",
-                  cancelLabel: "انصراف",
-                  softConfirm: true,
-                })
-                .then((ok) => ok && applyTemplate.mutate(templatePreview.id))
+        <button
+          type="button"
+          className="absolute -left-3 top-4 z-20 hidden size-11 place-items-center rounded-r-full border border-slate-200 bg-[rgb(var(--surface-card))] text-slate-500 shadow-[0_8px_20px_rgb(15_23_42_/_14%)] outline-none transition hover:bg-brand hover:text-white focus-visible:ring-2 focus-visible:ring-brand motion-reduce:transition-none min-[960px]:grid"
+          onClick={() => setToolsSidebarHidden((hidden) => !hidden)}
+          title={toolsSidebarHidden ? "نمایش ابزارهای برنامه" : "پنهان کردن ابزارهای برنامه"}
+          aria-label={toolsSidebarHidden ? "نمایش ابزارهای برنامه" : "پنهان کردن ابزارهای برنامه"}
+          aria-expanded={!toolsSidebarHidden}
+          aria-controls="legacy-schedule-tools"
+        >
+          {toolsSidebarHidden ? (
+            <PanelRightOpen size={18} aria-hidden="true" />
+          ) : (
+            <PanelRightClose size={18} aria-hidden="true" />
+          )}
+        </button>
+        <div className="order-2 grid gap-3 min-[960px]:order-1">
+          {templatePreview ? (
+            <ScheduleTemplatePreview
+              template={templatePreview}
+              activeEntries={scheduleEntries.filter((entry) => entry.status === "ACTIVE")}
+              onCancel={() => setTemplatePreview(null)}
+              onApply={() =>
+                void modal
+                  .confirm({
+                    title: "اجرای الگوی برنامه؟",
+                    description: `جلسه‌های فعال فعلی با جلسه‌های «${templatePreview.name}» جایگزین می‌شوند. جلسه‌ای به بایگانی برنامه اضافه نمی‌شود.`,
+                    tone: "danger",
+                    confirmLabel: "اجرای الگو",
+                    cancelLabel: "انصراف",
+                    softConfirm: true,
+                  })
+                  .then((ok) => ok && applyTemplate.mutate(templatePreview.id))
+              }
+            />
+          ) : null}
+          <ScheduleWorkspace
+            entries={scheduleEntries}
+            classes={classes.data ?? []}
+            activeWeekday={activeWeekday}
+            onWeekdayChange={setActiveWeekday}
+            canEdit={canEdit}
+            canArchive={canArchive}
+            showOrganization={auth.hasRole("PLATFORM_ADMIN")}
+            canDelete={canDelete}
+            canCreate={canCreate}
+            onAdd={(classroom, weekday) =>
+              editEntry(undefined, false, {
+                ...blank(),
+                organizationId: classroom.organization.id,
+                classroomId: classroom.id,
+                weekday,
+              })
             }
+            onCopy={(entry) => editEntry(entry, true)}
+            onEdit={editEntry}
+            onArchive={confirmArchive}
+            onDelete={confirmDelete}
+            onOpenDetails={openDetails}
+            onMove={(entry, weekday) => move.mutate({ entry, weekday })}
+          />
+        </div>
+        <aside
+          id="legacy-schedule-tools"
+          aria-label="ابزارهای برنامه هفتگی"
+          aria-hidden={toolsSidebarHidden}
+          inert={toolsSidebarHidden}
+          className={`order-1 grid min-w-0 gap-3 overflow-hidden transition-[opacity,transform] duration-300 ease-out motion-reduce:transition-none min-[960px]:order-2 min-[960px]:sticky min-[960px]:top-3 min-[960px]:self-start ${toolsSidebarHidden ? "min-[960px]:pointer-events-none min-[960px]:translate-x-3 min-[960px]:opacity-0" : "min-[960px]:translate-x-0 min-[960px]:opacity-100"}`}
+        >
+          <div className="grid gap-3 min-[960px]:max-h-[calc(100dvh-7rem)] min-[960px]:overflow-y-auto min-[960px]:pe-1 [scrollbar-color:rgb(var(--border-subtle))_transparent] [scrollbar-width:thin]">
+            <header className="flex items-center gap-2 px-1">
+              <span
+                className="grid size-9 place-items-center rounded-xl bg-brand/10 text-brand"
+                aria-hidden="true"
+              >
+                <CalendarClock size={18} />
+              </span>
+              <div>
+                <h2 className="text-sm font-black text-ink">ابزارهای برنامه</h2>
+                <p className="text-[11px] text-slate-500 dark:text-slate-300">
+                  جلسه‌ها، زمان‌ها و الگوها را از همین‌جا مدیریت کنید.
+                </p>
+              </div>
+            </header>
+            <ScheduleSidebarSummary entries={scheduleEntries} toolbar={scheduleToolbar} />
+            {canCreate ? (
+              <Card className="border-brand/15 bg-[rgb(var(--surface-card))] p-4">
+                <span className="grid size-10 place-items-center rounded-xl bg-brand/10 text-brand">
+                  <Plus size={20} />
+                </span>
+                <h3 className="mt-3 font-black text-ink">ساخت جلسه، بدون ترک جدول</h3>
+                <p className="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-300">
+                  در یک فرم کوتاه، مدرسه، زمان و فضای جلسه را مشخص کنید.
+                </p>
+                <Button className="mt-4 w-full" onClick={() => editEntry()}>
+                  <Plus size={16} /> افزودن جلسه
+                </Button>
+              </Card>
+            ) : null}
+            {canEdit ? (
+              <ScheduleTimeBlocks
+                blocks={timeBlocks.data ?? []}
+                organizationId={selectedOrganizationId}
+                saving={saveTimeBlock.isPending}
+                removing={removeTimeBlock.isPending}
+                onCreate={(draft) => saveTimeBlock.mutate(draft)}
+                onRemove={(block) =>
+                  void modal
+                    .confirm({
+                      title: "حذف بازه زمانی؟",
+                      description: `«${block.name}» از فهرست بازه‌های قابل‌استفاده حذف می‌شود؛ جلسه‌های قبلی تغییری نمی‌کنند.`,
+                      tone: "danger",
+                      confirmLabel: "حذف بازه",
+                      cancelLabel: "انصراف",
+                      softConfirm: true,
+                    })
+                    .then((confirmed) => confirmed && removeTimeBlock.mutate(block.id))
+                }
+              />
+            ) : null}
+            {canManageTemplates ? (
+              <ScheduleTemplates
+                templates={templates.data ?? []}
+                organizationId={selectedOrganizationId}
+                onCreate={(name) =>
+                  selectedOrganizationId &&
+                  createTemplate.mutate({ organizationId: selectedOrganizationId, name })
+                }
+                onCopy={(template) =>
+                  selectedOrganizationId &&
+                  createTemplate.mutate({
+                    organizationId: selectedOrganizationId,
+                    name: `${template.name} (کپی)`,
+                    sourceTemplateId: template.id,
+                  })
+                }
+                onPreview={setTemplatePreview}
+                onArchive={(template) =>
+                  void modal
+                    .confirm({
+                      title: "بایگانی الگو؟",
+                      description: `«${template.name}» دیگر قابل اجرا نخواهد بود.`,
+                      tone: "danger",
+                      confirmLabel: "بایگانی الگو",
+                      cancelLabel: "انصراف",
+                      softConfirm: true,
+                    })
+                    .then((ok) => ok && archiveTemplate.mutate(template.id))
+                }
+                onRestore={(template) =>
+                  void modal
+                    .confirm({
+                      title: "بازیابی الگوی برنامه؟",
+                      description: `«${template.name}» دوباره در فهرست الگوهای قابل اجرا قرار می‌گیرد.`,
+                      confirmLabel: "بازیابی الگو",
+                      cancelLabel: "انصراف",
+                    })
+                    .then((ok) => ok && restoreTemplate.mutate(template.id))
+                }
+                onRemove={(template) =>
+                  void modal
+                    .confirm({
+                      title: "حذف الگوی برنامه؟",
+                      description: `«${template.name}» برای همیشه حذف می‌شود؛ جلسه‌های ساخته‌شده از آن تغییری نمی‌کنند.`,
+                      tone: "danger",
+                      confirmLabel: "حذف الگو",
+                      cancelLabel: "انصراف",
+                      softConfirm: true,
+                    })
+                    .then((ok) => ok && removeTemplate.mutate(template.id))
+                }
+              />
+            ) : null}
+          </div>
+        </aside>
+      </section>
+      <ResponsiveDrawer
+        open={Boolean(editor)}
+        onOpenChange={(open) => !open && setEditor(null)}
+        title={
+          editor?.entry
+            ? editor.copy
+              ? "کپی جلسه در برنامه"
+              : "ویرایش جلسه"
+            : "افزودن جلسه به برنامه"
+        }
+        description={
+          editor?.entry && !editor.copy
+            ? "جزئیات جلسه را اصلاح کنید؛ تغییرات فقط پس از ذخیره اعمال می‌شود."
+            : "روز و زمان مقصد را انتخاب کنید؛ جلسه اصلی بدون تغییر باقی می‌ماند."
+        }
+        desktopSide="left"
+        className="w-full max-w-4xl"
+      >
+        {editor ? (
+          <ScheduleEditorForm
+            initial={editor.initial ?? (editor.entry ? draftFromEntry(editor.entry) : blank())}
+            timeBlocks={timeBlocks.data ?? []}
+            organizations={organizationOptions}
+            classes={classes.data ?? []}
+            isSaving={save.isPending}
+            onCancel={() => setEditor(null)}
+            onSubmit={async (draft) => {
+              await save.mutateAsync({
+                id: editor.copy ? undefined : editor.entry?.id,
+                drafts: draft,
+              });
+              setEditor(null);
+            }}
+            allowMultiple={!editor.entry || editor.copy}
           />
         ) : null}
-        <ScheduleWorkspace
-          entries={scheduleEntries}
-          classes={classes.data ?? []}
-          activeWeekday={activeWeekday}
-          onWeekdayChange={setActiveWeekday}
-          canEdit={canEdit}
-          canArchive={canArchive}
-          showOrganization={auth.hasRole("PLATFORM_ADMIN")}
-          canDelete={canDelete}
-          canCreate={canCreate}
-          onAdd={(classroom, weekday) =>
-            editEntry(undefined, false, {
-              ...blank(),
-              organizationId: classroom.organization.id,
-              classroomId: classroom.id,
-              weekday,
-            })
-          }
-          onCopy={(entry) => editEntry(entry, true)}
-          onEdit={editEntry}
-          onArchive={confirmArchive}
-          onDelete={confirmDelete}
-          onOpenDetails={openDetails}
-          onMove={(entry, weekday) => move.mutate({ entry, weekday })}
-        />
-      </div>
-      <aside
-        id="legacy-schedule-tools"
-        aria-label="ابزارهای برنامه هفتگی"
-        aria-hidden={toolsSidebarHidden}
-        inert={toolsSidebarHidden}
-        className={`order-1 grid min-w-0 gap-3 overflow-hidden transition-[opacity,transform] duration-300 ease-out motion-reduce:transition-none min-[960px]:order-2 min-[960px]:sticky min-[960px]:top-3 min-[960px]:self-start ${toolsSidebarHidden ? "min-[960px]:pointer-events-none min-[960px]:translate-x-3 min-[960px]:opacity-0" : "min-[960px]:translate-x-0 min-[960px]:opacity-100"}`}
-      >
-        <div className="grid gap-3 min-[960px]:max-h-[calc(100dvh-7rem)] min-[960px]:overflow-y-auto min-[960px]:pe-1 [scrollbar-color:rgb(var(--border-subtle))_transparent] [scrollbar-width:thin]">
-          <header className="flex items-center gap-2 px-1">
-            <span
-              className="grid size-9 place-items-center rounded-xl bg-brand/10 text-brand"
-              aria-hidden="true"
-            >
-              <CalendarClock size={18} />
-            </span>
-            <div>
-              <h2 className="text-sm font-black text-ink">ابزارهای برنامه</h2>
-              <p className="text-[11px] text-slate-500 dark:text-slate-300">
-                جلسه‌ها، زمان‌ها و الگوها را از همین‌جا مدیریت کنید.
-              </p>
-            </div>
-          </header>
-          <ScheduleSidebarSummary entries={scheduleEntries} toolbar={scheduleToolbar} />
-          {canCreate ? (
-            <Card className="border-brand/15 bg-[rgb(var(--surface-card))] p-4">
-              <span className="grid size-10 place-items-center rounded-xl bg-brand/10 text-brand">
-                <Plus size={20} />
-              </span>
-              <h3 className="mt-3 font-black text-ink">ساخت جلسه، بدون ترک جدول</h3>
-              <p className="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-300">
-                در یک فرم کوتاه، مدرسه، زمان و فضای جلسه را مشخص کنید.
-              </p>
-              <Button className="mt-4 w-full" onClick={() => editEntry()}>
-                <Plus size={16} /> افزودن جلسه
-              </Button>
-            </Card>
-          ) : null}
-          {canEdit ? (
-            <ScheduleTimeBlocks
-              blocks={timeBlocks.data ?? []}
-              organizationId={selectedOrganizationId}
-              saving={saveTimeBlock.isPending}
-              removing={removeTimeBlock.isPending}
-              onCreate={(draft) => saveTimeBlock.mutate(draft)}
-              onRemove={(block) =>
-                void modal
-                  .confirm({
-                    title: "حذف بازه زمانی؟",
-                    description: `«${block.name}» از فهرست بازه‌های قابل‌استفاده حذف می‌شود؛ جلسه‌های قبلی تغییری نمی‌کنند.`,
-                    tone: "danger",
-                    confirmLabel: "حذف بازه",
-                    cancelLabel: "انصراف",
-                    softConfirm: true,
-                  })
-                  .then((confirmed) => confirmed && removeTimeBlock.mutate(block.id))
-              }
-            />
-          ) : null}
-          {canManageTemplates ? (
-            <ScheduleTemplates
-              templates={templates.data ?? []}
-              organizationId={selectedOrganizationId}
-              onCreate={(name) =>
-                selectedOrganizationId &&
-                createTemplate.mutate({ organizationId: selectedOrganizationId, name })
-              }
-              onCopy={(template) =>
-                selectedOrganizationId &&
-                createTemplate.mutate({
-                  organizationId: selectedOrganizationId,
-                  name: `${template.name} (کپی)`,
-                  sourceTemplateId: template.id,
-                })
-              }
-              onPreview={setTemplatePreview}
-              onArchive={(template) =>
-                void modal
-                  .confirm({
-                    title: "بایگانی الگو؟",
-                    description: `«${template.name}» دیگر قابل اجرا نخواهد بود.`,
-                    tone: "danger",
-                    confirmLabel: "بایگانی الگو",
-                    cancelLabel: "انصراف",
-                    softConfirm: true,
-                  })
-                  .then((ok) => ok && archiveTemplate.mutate(template.id))
-              }
-              onRestore={(template) =>
-                void modal
-                  .confirm({
-                    title: "بازیابی الگوی برنامه؟",
-                    description: `«${template.name}» دوباره در فهرست الگوهای قابل اجرا قرار می‌گیرد.`,
-                    confirmLabel: "بازیابی الگو",
-                    cancelLabel: "انصراف",
-                  })
-                  .then((ok) => ok && restoreTemplate.mutate(template.id))
-              }
-              onRemove={(template) =>
-                void modal
-                  .confirm({
-                    title: "حذف الگوی برنامه؟",
-                    description: `«${template.name}» برای همیشه حذف می‌شود؛ جلسه‌های ساخته‌شده از آن تغییری نمی‌کنند.`,
-                    tone: "danger",
-                    confirmLabel: "حذف الگو",
-                    cancelLabel: "انصراف",
-                    softConfirm: true,
-                  })
-                  .then((ok) => ok && removeTemplate.mutate(template.id))
-              }
-            />
-          ) : null}
-        </div>
-      </aside>
-    </section>
+      </ResponsiveDrawer>
+    </>
   );
 }
 
