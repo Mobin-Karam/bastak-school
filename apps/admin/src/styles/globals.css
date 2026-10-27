@@ -2034,6 +2034,9 @@ html.is-scrolling :is(body, .scroll-reveal)::-webkit-scrollbar-thumb,
      remains horizontal-only so a pointer over a row cannot trap vertical input. */
   .data-table-workspace[data-scroll-rows="true"] > .data-table-workspace__content {
     flex: 1 1 auto;
+    /* Overrides the fixed control-child rule above: this is the one bounded
+       results viewport and must be allowed to shrink inside the workspace. */
+    flex-shrink: 1;
     min-height: 0;
     overflow-x: hidden;
     overflow-y: auto;
