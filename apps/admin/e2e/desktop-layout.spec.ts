@@ -35,9 +35,9 @@ for (const direction of ["rtl", "ltr"]) {
         `<div class="grid gap-4">
         <section class="workspace-actions"><button>Add book</button></section>
         <section class="p-4">Class selector</section>
-        <section class="data-table-workspace rounded-xl border overflow-hidden">
+        <section class="data-table-workspace rounded-xl border overflow-hidden" data-scroll-rows="true">
           <div class="p-3">Search and filters</div>
-          <div class="data-table-workspace__rows hidden md:block"><div class="max-h-[65dvh] overflow-auto overscroll-contain" role="region" tabindex="0" aria-label="Books">${rows}</div></div>
+          <div class="data-table-workspace__rows hidden md:block"><div role="region" tabindex="0" aria-label="Books">${rows}</div></div>
           <div class="p-3" data-pagination><button>Next page</button></div>
         </section></div>`,
       );
