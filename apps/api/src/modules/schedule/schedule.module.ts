@@ -12,6 +12,10 @@ import { Organization } from "../../database/entities/organization.entity";
 import { SchoolScheduleEntry } from "../../database/entities/school-schedule-entry.entity";
 import { SchoolScheduleTimeBlock } from "../../database/entities/school-schedule-time-block.entity";
 import { SchoolScheduleTemplate } from "../../database/entities/school-schedule-template.entity";
+import {
+  SchoolScheduleOccurrenceOverride,
+  SchoolScheduleSubstitutionRequest,
+} from "../../database/entities/school-schedule-substitution.entity";
 import { EducationClassBook } from "../../database/entities/education-class-book.entity";
 import { UserRelationship } from "../../database/entities/user-relationship.entity";
 import { ScheduleController } from "./schedule.controller";
@@ -25,6 +29,8 @@ import { ScheduleService } from "./schedule.service";
       SchoolScheduleEntry,
       SchoolScheduleTimeBlock,
       SchoolScheduleTemplate,
+      SchoolScheduleOccurrenceOverride,
+      SchoolScheduleSubstitutionRequest,
       EducationClassBook,
       Organization,
       OrganizationMembership,

@@ -69,6 +69,10 @@ export { EducationClass } from "./education-class.entity";
 export { EducationClassBook } from "./education-class-book.entity";
 export { EducationClassEnrollment } from "./education-class-enrollment.entity";
 export { SchoolScheduleEntry } from "./school-schedule-entry.entity";
+export {
+  SchoolScheduleOccurrenceOverride,
+  SchoolScheduleSubstitutionRequest,
+} from "./school-schedule-substitution.entity";
 export { SchoolScheduleTimeBlock } from "./school-schedule-time-block.entity";
 export { SchoolScheduleTemplate } from "./school-schedule-template.entity";
 export { SchoolPrayerTime } from "./school-prayer-time.entity";

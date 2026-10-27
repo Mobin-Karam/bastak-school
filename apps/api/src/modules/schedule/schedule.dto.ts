@@ -7,6 +7,7 @@ import {
   Matches,
   Max,
   Min,
+  MinLength,
 } from "class-validator";
 
 export class SaveScheduleEntryDto {
@@ -35,4 +36,16 @@ export class CreateScheduleTemplateDto {
   @IsUUID() organizationId!: string;
   @IsString() name!: string;
   @IsOptional() @IsUUID() sourceTemplateId?: string;
+}
+export class ScheduleSubstitutionRequestDto {
+  @IsUUID() sourceEntryId!: string;
+  @IsUUID() targetEntryId!: string;
+  @Matches(/^\d{4}-\d{2}-\d{2}$/) freezeDate!: string;
+  @Matches(/^\d{4}-\d{2}-\d{2}$/) replacementDate!: string;
+  @IsUUID() replacementTimeBlockId!: string;
+  @IsString() @MinLength(2) title!: string;
+  @IsOptional() @IsString() message?: string;
+}
+export class ScheduleSubstitutionDecisionDto {
+  @IsIn(["approved", "rejected"]) decision!: "approved" | "rejected";
 }

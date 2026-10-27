@@ -293,7 +293,7 @@ export function LegacySchedulePage() {
   )
     return <EmptyState title="دریافت برنامه انجام نشد." />;
   if (isTeacher) return <TeacherSchedulePage entries={entries.data ?? []} />;
-  const editEntry = (entry?: ScheduleEntry, copy = false) => {
+  const editEntry = (entry?: ScheduleEntry, copy = false, initial?: ScheduleDraft) => {
     modal.open({
       title: entry ? (copy ? "کپی جلسه در برنامه" : "ویرایش جلسه") : "افزودن جلسه به برنامه",
       description:
@@ -303,7 +303,7 @@ export function LegacySchedulePage() {
       size: "lg",
       content: (
         <ScheduleEditorForm
-          initial={entry ? draftFromEntry(entry) : blank()}
+          initial={initial ?? (entry ? draftFromEntry(entry) : blank())}
           timeBlocks={timeBlocks.data ?? []}
           organizations={organizationOptions}
           classes={classes.data ?? []}
@@ -455,6 +455,15 @@ export function LegacySchedulePage() {
           canArchive={canArchive}
           showOrganization={auth.hasRole("PLATFORM_ADMIN")}
           canDelete={canDelete}
+          canCreate={canCreate}
+          onAdd={(classroom, weekday) =>
+            editEntry(undefined, false, {
+              ...blank(),
+              organizationId: classroom.organization.id,
+              classroomId: classroom.id,
+              weekday,
+            })
+          }
           onEdit={editEntry}
           onArchive={confirmArchive}
           onDelete={confirmDelete}
@@ -587,6 +596,7 @@ type ScheduleWorkspaceProps = {
   activeWeekday: number;
   onWeekdayChange: (weekday: number) => void;
   canEdit: boolean;
+  canCreate: boolean;
   canArchive: boolean;
   canDelete: boolean;
   showOrganization: boolean;
@@ -595,6 +605,7 @@ type ScheduleWorkspaceProps = {
   onDelete: (entry: ScheduleEntry) => void;
   onOpenDetails: (entry: ScheduleEntry) => void;
   onMove: (entry: ScheduleEntry, weekday: number) => void;
+  onAdd: (classroom: EducationClass, weekday: number) => void;
 };
 
 function ScheduleSidebarSummary({
@@ -638,6 +649,7 @@ function ScheduleWorkspace({
   activeWeekday,
   onWeekdayChange,
   canEdit,
+  canCreate,
   canArchive,
   canDelete,
   showOrganization,
@@ -646,6 +658,7 @@ function ScheduleWorkspace({
   onDelete,
   onOpenDetails,
   onMove,
+  onAdd,
 }: ScheduleWorkspaceProps) {
   const isMobileShell = useViewportShell() === "mobile";
   const activeScheduleEntries = useMemo(
@@ -680,13 +693,14 @@ function ScheduleWorkspace({
           {
             id: `class:${classroom.id}`,
             label: classroom.name,
+            classroom,
             entries: [] as ScheduleEntry[],
           },
         ]),
     );
     const additionalLanes = new Map<
       string,
-      { id: string; label: string; entries: ScheduleEntry[] }
+      { id: string; label: string; classroom?: EducationClass; entries: ScheduleEntry[] }
     >();
 
     activeScheduleEntries.forEach((entry) => {
@@ -860,7 +874,20 @@ function ScheduleWorkspace({
                                     onDragEnd={() => setDraggedEntry(null)}
                                   />
                                 ))}
+                                {canCreate && lane.classroom ? (
+                                  <ScheduleAddDropZone
+                                    classroom={lane.classroom}
+                                    weekday={weekday}
+                                    onAdd={onAdd}
+                                  />
+                                ) : null}
                               </div>
+                            ) : canCreate && lane.classroom ? (
+                              <ScheduleAddDropZone
+                                classroom={lane.classroom}
+                                weekday={weekday}
+                                onAdd={onAdd}
+                              />
                             ) : (
                               <span className="block min-h-14" aria-label="کلاسی ثبت نشده است" />
                             )}
@@ -926,6 +953,30 @@ function ScheduleMetric({
       <b className="block text-lg font-black tabular-nums">{value.toLocaleString("fa-IR")}</b>
       <span className="text-[10px] font-bold">{label}</span>
     </div>
+  );
+}
+
+function ScheduleAddDropZone({
+  classroom,
+  weekday,
+  onAdd,
+}: {
+  classroom: EducationClass;
+  weekday: number;
+  onAdd: (classroom: EducationClass, weekday: number) => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={() => onAdd(classroom, weekday)}
+      className="group grid min-h-10 w-full place-items-center rounded-md border border-dashed border-slate-300 bg-slate-50/70 px-2 py-1 text-slate-400 outline-none transition hover:border-brand/50 hover:bg-brand/5 hover:text-brand focus-visible:border-brand focus-visible:ring-2 focus-visible:ring-brand dark:border-white/15 dark:bg-white/[.025]"
+      aria-label={`افزودن جلسه برای ${classroom.name} در ${weekdays[weekday]}`}
+      title={`افزودن جلسه برای ${classroom.name} در ${weekdays[weekday]}`}
+    >
+      <span className="inline-flex items-center gap-1 text-[10px] font-black opacity-0 transition group-hover:opacity-100 group-focus-visible:opacity-100">
+        <Plus size={13} aria-hidden="true" /> افزودن جلسه
+      </span>
+    </button>
   );
 }
 

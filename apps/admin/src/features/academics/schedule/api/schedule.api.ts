@@ -8,6 +8,9 @@ export type ScheduleEntry = {
   endTime: string;
   room: string;
   status: "ACTIVE" | "ARCHIVED" | "REPLACED";
+  startsOn?: string | null;
+  endsOn?: string | null;
+  notes?: string;
   organization: { id: string; name: string; type?: string; status?: string };
   classroom?: { id: string; name: string } | null;
   classBook?: {
@@ -44,6 +47,28 @@ export type ScheduleTemplate = {
   entries: ScheduleTemplateEntry[];
   updatedAt: string;
 };
+export type ScheduleSubstitutionRequest = {
+  id: string;
+  sourceEntryId: string;
+  targetEntryId: string;
+  freezeDate: string;
+  replacementDate: string;
+  replacementTimeBlockId: string;
+  title: string;
+  message: string;
+  status: "pending" | "approved" | "rejected";
+  requestedById: string;
+  reviewedById: string | null;
+  reviewedAt: string | null;
+  replacementEntryId: string | null;
+  counterpartReplacementEntryId: string | null;
+  createdAt: string;
+  source?: ScheduleEntry;
+  target?: ScheduleEntry;
+  replacementTimeBlock?: Pick<ScheduleTimeBlock, "id" | "name" | "startTime" | "endTime">;
+};
+export const listScheduleSubstitutionSlots = (date: string) =>
+  api.get<ScheduleEntry[]>(`/schedule/substitution-slots?${new URLSearchParams({ date })}`);
 export const listSchedule = () => api.get<ScheduleEntry[]>("/schedule");
 export const createScheduleEntry = (draft: ScheduleDraft) =>
   api.post<ScheduleEntry>("/schedule", draft);
@@ -84,3 +109,19 @@ export const previewScheduleImport = (entries: ScheduleDraft[]) =>
 export const commitScheduleImport = (entries: ScheduleDraft[]) =>
   api.post<{ imported: number }>("/schedule/import/commit", { entries });
 export const exportSchedule = () => api.get<ScheduleEntry[]>("/schedule/export");
+export const listScheduleSubstitutionRequests = () =>
+  api.get<ScheduleSubstitutionRequest[]>("/schedule/substitution-requests");
+export const requestScheduleSubstitution = (body: {
+  sourceEntryId: string;
+  targetEntryId: string;
+  freezeDate: string;
+  replacementDate: string;
+  replacementTimeBlockId: string;
+  title: string;
+  message?: string;
+}) => api.post<ScheduleSubstitutionRequest>("/schedule/substitution-requests", body);
+export const reviewScheduleSubstitution = (id: string, decision: "approved" | "rejected") =>
+  api.post<ScheduleSubstitutionRequest>(
+    `/schedule/substitution-requests/${encodeURIComponent(id)}/review`,
+    { decision },
+  );

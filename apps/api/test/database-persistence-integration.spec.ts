@@ -8,6 +8,9 @@ import { DataSource } from "typeorm";
 import * as entities from "../src/database/entities";
 import { PersistenceUniquenessAndReadIndexes1730800000000 } from "../src/database/migrations/1730800000000-PersistenceUniquenessAndReadIndexes";
 import { AcademicSchedulingFoundation1730900000000 } from "../src/database/migrations/1730900000000-AcademicSchedulingFoundation";
+import { SchoolScheduleTimeBlocks1731800000000 } from "../src/database/migrations/1731800000000-SchoolScheduleTimeBlocks";
+import { SchoolScheduleTimeBlockPartOfDay1731800100000 } from "../src/database/migrations/1731800100000-SchoolScheduleTimeBlockPartOfDay";
+import { LegacyScheduleSubstitutionRequests1761800000000 } from "../src/database/migrations/1761800000000-LegacyScheduleSubstitutionRequests";
 import { NightAttendance1728234800000 } from "../src/database/migrations/1728234800000-NightAttendance";
 import {
   Organization,
@@ -47,6 +50,10 @@ import { UserRelationship } from "../src/database/entities/user-relationship.ent
 import { SchoolScheduleEntry } from "../src/database/entities/school-schedule-entry.entity";
 import { SchoolScheduleTimeBlock } from "../src/database/entities/school-schedule-time-block.entity";
 import { SchoolScheduleTemplate } from "../src/database/entities/school-schedule-template.entity";
+import {
+  SchoolScheduleOccurrenceOverride,
+  SchoolScheduleSubstitutionRequest,
+} from "../src/database/entities/school-schedule-substitution.entity";
 import { EducationClassBook } from "../src/database/entities/education-class-book.entity";
 import { EducationBook } from "../src/database/entities/education-book.entity";
 import { StudentPresence } from "../src/database/entities/student-presence.entity";
@@ -568,7 +575,13 @@ describe("migration-backed persistence and verified recovery (disposable SQLite 
       access,
       {} as AuthorizationService,
       new RealtimeService(),
-      new RewardsService(db.getRepository(StudentRewardLedger), db.getRepository(Student), db.getRepository(AuditLog), access, {} as AuthorizationService),
+      new RewardsService(
+        db.getRepository(StudentRewardLedger),
+        db.getRepository(Student),
+        db.getRepository(AuditLog),
+        access,
+        {} as AuthorizationService,
+      ),
     );
     const command = {
       organizationId: a.id,
@@ -683,7 +696,9 @@ describe("migration-backed persistence and verified recovery (disposable SQLite 
     const service = residence();
     await service.setAssignments(actor, room.id, [student.id]);
 
-    await expect(service.updateRoom(actor, room.id, { capacity: 0 })).rejects.toMatchObject({
+    await expect(
+      service.updateRoom(actor, room.id, { capacity: 0 }),
+    ).rejects.toMatchObject({
       response: { error: { code: "DORM_ROOM_CAPACITY" } },
     });
     await expect(service.archiveRoom(actor, room.id)).rejects.toMatchObject({
@@ -712,10 +727,14 @@ describe("migration-backed persistence and verified recovery (disposable SQLite 
       roomId: room.id,
       status: "ARCHIVED",
     });
-    expect((await service.listRooms(actor)).map((entry) => entry.id)).not.toContain(room.id);
-    expect((await service.listRooms(actor, undefined, true)).find((entry) => entry.id === room.id)).toEqual(
-      expect.objectContaining({ status: "ARCHIVED" }),
-    );
+    expect(
+      (await service.listRooms(actor)).map((entry) => entry.id),
+    ).not.toContain(room.id);
+    expect(
+      (await service.listRooms(actor, undefined, true)).find(
+        (entry) => entry.id === room.id,
+      ),
+    ).toEqual(expect.objectContaining({ status: "ARCHIVED" }));
     await expect(service.restoreRoom(actor, room.id)).resolves.toEqual({
       roomId: room.id,
       status: "ACTIVE",
@@ -781,6 +800,19 @@ describe("migration-backed persistence and verified recovery (disposable SQLite 
     await db.transaction(async (manager) =>
       new AcademicSchedulingFoundation1730900000000().up(manager.queryRunner!),
     );
+    await db.transaction(async (manager) =>
+      new SchoolScheduleTimeBlocks1731800000000().up(manager.queryRunner!),
+    );
+    await db.transaction(async (manager) =>
+      new SchoolScheduleTimeBlockPartOfDay1731800100000().up(
+        manager.queryRunner!,
+      ),
+    );
+    await db.transaction(async (manager) =>
+      new LegacyScheduleSubstitutionRequests1761800000000().up(
+        manager.queryRunner!,
+      ),
+    );
     const authorization = new AuthorizationService(
       db.getRepository(UserRoleAssignment),
       db.getRepository(OrganizationMembership),
@@ -791,6 +823,8 @@ describe("migration-backed persistence and verified recovery (disposable SQLite 
       db.getRepository(SchoolScheduleEntry),
       db.getRepository(SchoolScheduleTimeBlock),
       db.getRepository(SchoolScheduleTemplate),
+      db.getRepository(SchoolScheduleOccurrenceOverride),
+      db.getRepository(SchoolScheduleSubstitutionRequest),
       db.getRepository(Organization),
       db.getRepository(OrganizationMembership),
       db.getRepository(EducationClass),
@@ -862,5 +896,86 @@ describe("migration-backed persistence and verified recovery (disposable SQLite 
     expect(JSON.stringify(responses)).not.toContain("unused-test-fixture");
     expect(created.teacher?.id).toBe(actor.id);
     expect(created.classBook?.teacher?.id).toBe(actor.id);
+    const block = await schedule.createTimeBlock(scoped, {
+      organizationId: a.id,
+      name: "جبرانی",
+      startTime: "10:00",
+      endTime: "10:45",
+    });
+    const teacherActor = {
+      ...scoped,
+      role: "TEACHER" as const,
+      roles: ["TEACHER" as const],
+      capabilities: ["schedule.read", "attendance.class.manage"],
+    };
+    const target = await schedule.create(scoped, {
+      ...dto,
+      title: "جلسه مقصد",
+      weekday: 3,
+      startTime: "10:00",
+      endTime: "10:45",
+    });
+    const principalActor = {
+      ...scoped,
+      capabilities: ["schedule.read", "schedule.publish"],
+    };
+    const pending = await schedule.requestSubstitution(teacherActor, {
+      sourceEntryId: created.id,
+      targetEntryId: target.id,
+      freezeDate: "2026-10-11",
+      replacementDate: "2026-10-13",
+      replacementTimeBlockId: block.id,
+      title: "جلسه جبرانی",
+      message: "زمان جایگزین",
+    });
+    expect(pending.status).toBe("pending");
+    expect(await schedule.substitutionRequests(teacherActor)).toHaveLength(1);
+    const approved = await schedule.reviewSubstitution(
+      principalActor,
+      pending.id,
+      {
+        decision: "approved",
+      },
+    );
+    expect(approved).toMatchObject({
+      status: "approved",
+      replacementEntryId: expect.any(String),
+      counterpartReplacementEntryId: expect.any(String),
+    });
+    expect(
+      await db.getRepository(SchoolScheduleOccurrenceOverride).findOneBy({
+        entryId: created.id,
+        date: "2026-10-11",
+      }),
+    ).toMatchObject({ cancelled: true });
+    expect(
+      await db.getRepository(SchoolScheduleOccurrenceOverride).findOneBy({
+        entryId: target.id,
+        date: "2026-10-13",
+      }),
+    ).toMatchObject({ cancelled: true });
+    expect(
+      await db
+        .getRepository(SchoolScheduleEntry)
+        .findOneBy({ id: approved.replacementEntryId! }),
+    ).toMatchObject({
+      status: "REPLACED",
+      startsOn: "2026-10-13",
+      endsOn: "2026-10-13",
+      startTime: "10:00",
+      endTime: "10:45",
+      title: "جلسه جبرانی",
+    });
+    expect(
+      await db
+        .getRepository(SchoolScheduleEntry)
+        .findOneBy({ id: approved.counterpartReplacementEntryId! }),
+    ).toMatchObject({
+      title: "جلسه مقصد",
+      startsOn: "2026-10-11",
+      endsOn: "2026-10-11",
+      startTime: "08:00",
+      endTime: "09:00",
+    });
   });
 });

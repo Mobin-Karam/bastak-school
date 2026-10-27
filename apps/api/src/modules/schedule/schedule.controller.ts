@@ -16,6 +16,8 @@ import {
   ArchiveScheduleEntryDto,
   CreateScheduleTimeBlockDto,
   CreateScheduleTemplateDto,
+  ScheduleSubstitutionDecisionDto,
+  ScheduleSubstitutionRequestDto,
   SaveScheduleEntryDto,
 } from "./schedule.dto";
 import { ScheduleService } from "./schedule.service";
@@ -28,6 +30,36 @@ export class ScheduleController {
     @Query("organizationId") organizationId?: string,
   ) {
     return this.schedule.list(user, organizationId).then(ok);
+  }
+  @Get("substitution-requests")
+  @RequireCapabilities("schedule.read")
+  substitutionRequests(@CurrentUser() user: AuthenticatedUser) {
+    return this.schedule.substitutionRequests(user).then(ok);
+  }
+  @Get("substitution-slots")
+  @RequireCapabilities("schedule.read")
+  substitutionSlots(
+    @CurrentUser() user: AuthenticatedUser,
+    @Query("date") date: string,
+  ) {
+    return this.schedule.substitutionSlots(user, date).then(ok);
+  }
+  @Post("substitution-requests")
+  @RequireCapabilities("attendance.class.manage")
+  requestSubstitution(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() dto: ScheduleSubstitutionRequestDto,
+  ) {
+    return this.schedule.requestSubstitution(user, dto).then(ok);
+  }
+  @Post("substitution-requests/:id/review")
+  @RequireCapabilities("schedule.publish")
+  reviewSubstitution(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param("id") id: string,
+    @Body() dto: ScheduleSubstitutionDecisionDto,
+  ) {
+    return this.schedule.reviewSubstitution(user, id, dto).then(ok);
   }
   @Get("templates") @RequireCapabilities("schedule.read") templates(
     @CurrentUser() user: AuthenticatedUser,

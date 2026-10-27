@@ -16,6 +16,10 @@ import { Organization } from "../../database/entities/organization.entity";
 import { SchoolScheduleEntry } from "../../database/entities/school-schedule-entry.entity";
 import { SchoolScheduleTimeBlock } from "../../database/entities/school-schedule-time-block.entity";
 import {
+  SchoolScheduleOccurrenceOverride,
+  SchoolScheduleSubstitutionRequest,
+} from "../../database/entities/school-schedule-substitution.entity";
+import {
   SchoolScheduleTemplate,
   type ScheduleTemplateEntry,
 } from "../../database/entities/school-schedule-template.entity";
@@ -28,6 +32,8 @@ import {
   CreateScheduleTimeBlockDto,
   CreateScheduleTemplateDto,
   SaveScheduleEntryDto,
+  ScheduleSubstitutionDecisionDto,
+  ScheduleSubstitutionRequestDto,
 } from "./schedule.dto";
 
 @Injectable()
@@ -39,6 +45,10 @@ export class ScheduleService {
     private readonly timeBlocks: Repository<SchoolScheduleTimeBlock>,
     @InjectRepository(SchoolScheduleTemplate)
     private readonly templates: Repository<SchoolScheduleTemplate>,
+    @InjectRepository(SchoolScheduleOccurrenceOverride)
+    private readonly occurrenceOverrides: Repository<SchoolScheduleOccurrenceOverride>,
+    @InjectRepository(SchoolScheduleSubstitutionRequest)
+    private readonly substitutions: Repository<SchoolScheduleSubstitutionRequest>,
     @InjectRepository(Organization)
     private readonly organizations: Repository<Organization>,
     @InjectRepository(OrganizationMembership)
@@ -63,6 +73,387 @@ export class ScheduleService {
       ["PLATFORM_ADMIN", "ORGANIZATION_ADMIN", "PRINCIPAL"].includes(role),
     );
   }
+  private weekdayForDate(date: string) {
+    return (new Date(`${date}T12:00:00Z`).getUTCDay() + 1) % 7;
+  }
+  private dateIsValid(date: string) {
+    return (
+      /^\d{4}-\d{2}-\d{2}$/.test(date) &&
+      !Number.isNaN(Date.parse(`${date}T12:00:00Z`))
+    );
+  }
+  private isTeacherEntry(entry: SchoolScheduleEntry, userId: string) {
+    return (
+      entry.teacher?.id === userId || entry.classBook?.teacher?.id === userId
+    );
+  }
+  private publicSubstitution(row: SchoolScheduleSubstitutionRequest) {
+    return {
+      id: row.id,
+      sourceEntryId: row.sourceEntryId,
+      targetEntryId: row.targetEntryId,
+      freezeDate: row.freezeDate,
+      replacementDate: row.replacementDate,
+      replacementTimeBlockId: row.replacementTimeBlockId,
+      title: row.title,
+      message: row.message,
+      status: row.status,
+      requestedById: row.requestedById,
+      reviewedById: row.reviewedById,
+      reviewedAt: row.reviewedAt?.toISOString() ?? null,
+      replacementEntryId: row.replacementEntryId,
+      counterpartReplacementEntryId: row.counterpartReplacementEntryId,
+      createdAt: row.createdAt.toISOString(),
+      source: row.sourceEntry ? this.publicEntry(row.sourceEntry) : undefined,
+      target: row.targetEntry ? this.publicEntry(row.targetEntry) : undefined,
+      replacementTimeBlock: row.replacementTimeBlock
+        ? {
+            id: row.replacementTimeBlock.id,
+            name: row.replacementTimeBlock.name,
+            startTime: row.replacementTimeBlock.startTime,
+            endTime: row.replacementTimeBlock.endTime,
+          }
+        : undefined,
+    };
+  }
+  async substitutionRequests(user: AuthenticatedUser) {
+    const context = this.context(user);
+    this.authorization.requireCapability(context, "schedule.read");
+    const operator =
+      user.capabilities?.includes("schedule.publish") &&
+      this.isOperator(context);
+    const rows = await this.substitutions.find({
+      where: operator ? {} : { requestedById: user.id },
+      relations: {
+        sourceEntry: {
+          organization: true,
+          classroom: true,
+          teacher: true,
+          classBook: { book: true, teacher: true },
+        },
+        targetEntry: {
+          organization: true,
+          classroom: true,
+          teacher: true,
+          classBook: { book: true, teacher: true },
+        },
+        replacementTimeBlock: true,
+      },
+      order: { createdAt: "DESC" },
+    });
+    return rows
+      .filter((row) =>
+        operator
+          ? context.roles.includes("PLATFORM_ADMIN") ||
+            context.organizationIds.includes(row.sourceEntry!.organization.id)
+          : this.isTeacherEntry(row.sourceEntry!, user.id),
+      )
+      .map((row) => this.publicSubstitution(row));
+  }
+  async substitutionSlots(user: AuthenticatedUser, date: string) {
+    const context = this.context(user);
+    this.authorization.requireCapability(context, "schedule.read");
+    if (!this.dateIsValid(date))
+      throw new ApiException(
+        422,
+        "SCHEDULE_DATE_INVALID",
+        "تاریخ جلسه معتبر نیست.",
+      );
+    const entries = await this.entries.find({
+      where: {
+        versionId: IsNull(),
+        status: "ACTIVE",
+        organization: { id: In(context.organizationIds) },
+      },
+      relations: {
+        organization: true,
+        classroom: true,
+        teacher: true,
+        classBook: { book: true, teacher: true },
+      },
+      order: { startTime: "ASC" },
+    });
+    const overrides = await this.occurrenceOverrides.find({ where: { date } });
+    const cancelled = new Set(
+      overrides.filter((row) => row.cancelled).map((row) => row.entryId),
+    );
+    return entries
+      .filter(
+        (entry) =>
+          entry.weekday === this.weekdayForDate(date) &&
+          (!entry.startsOn || entry.startsOn <= date) &&
+          (!entry.endsOn || entry.endsOn >= date) &&
+          !cancelled.has(entry.id),
+      )
+      .map((entry) => this.publicEntry(entry));
+  }
+  async requestSubstitution(
+    user: AuthenticatedUser,
+    dto: ScheduleSubstitutionRequestDto,
+  ) {
+    const context = this.context(user);
+    this.authorization.requireCapability(context, "attendance.class.manage");
+    if (
+      !this.dateIsValid(dto.freezeDate) ||
+      !this.dateIsValid(dto.replacementDate)
+    )
+      throw new ApiException(
+        422,
+        "SCHEDULE_DATE_INVALID",
+        "تاریخ جلسه معتبر نیست.",
+      );
+    const source = await this.entries.findOne({
+      where: { id: dto.sourceEntryId, versionId: IsNull(), status: "ACTIVE" },
+      relations: {
+        organization: true,
+        classroom: true,
+        teacher: true,
+        classBook: { book: true, teacher: true },
+      },
+    });
+    if (
+      !source ||
+      !this.isTeacherEntry(source, user.id) ||
+      this.weekdayForDate(dto.freezeDate) !== source.weekday ||
+      (source.startsOn && source.startsOn > dto.freezeDate) ||
+      (source.endsOn && source.endsOn < dto.freezeDate)
+    )
+      throw new ApiException(
+        403,
+        "SCHEDULE_SUBSTITUTION_FORBIDDEN",
+        "فقط دبیر جلسه اصلی می‌تواند همان نوبت را جابه‌جا کند.",
+      );
+    if (
+      !context.organizationIds.includes(source.organization.id) &&
+      !context.roles.includes("PLATFORM_ADMIN")
+    )
+      throw new ApiException(403, "FORBIDDEN", "دسترسی کافی ندارید.");
+    const target = await this.entries.findOne({
+      where: { id: dto.targetEntryId, versionId: IsNull(), status: "ACTIVE" },
+      relations: {
+        organization: true,
+        classroom: true,
+        teacher: true,
+        classBook: { book: true, teacher: true },
+      },
+    });
+    if (
+      !target ||
+      target.id === source.id ||
+      target.organization.id !== source.organization.id ||
+      target.weekday !== this.weekdayForDate(dto.replacementDate) ||
+      (target.startsOn && target.startsOn > dto.replacementDate) ||
+      (target.endsOn && target.endsOn < dto.replacementDate)
+    )
+      throw new ApiException(
+        422,
+        "SCHEDULE_SWAP_TARGET_INVALID",
+        "جلسه مقصد در تاریخ انتخاب‌شده قابل جابه‌جایی نیست.",
+      );
+    const timeBlock = await this.timeBlocks.findOne({
+      where: {
+        id: dto.replacementTimeBlockId,
+        organization: { id: source.organization.id },
+      },
+      relations: { organization: true },
+    });
+    if (!timeBlock)
+      throw new ApiException(
+        422,
+        "SCHEDULE_TIME_BLOCK_INVALID",
+        "بازه زمانی این مدرسه پیدا نشد.",
+      );
+    if (
+      target.startTime !== timeBlock.startTime ||
+      target.endTime !== timeBlock.endTime
+    )
+      throw new ApiException(
+        422,
+        "SCHEDULE_SWAP_TARGET_INVALID",
+        "جلسه انتخاب‌شده با بازه زمانی مقصد یکسان نیست.",
+      );
+    const row = await this.substitutions.save(
+      this.substitutions.create({
+        sourceEntry: source,
+        sourceEntryId: source.id,
+        targetEntry: target,
+        targetEntryId: target.id,
+        freezeDate: dto.freezeDate,
+        replacementDate: dto.replacementDate,
+        replacementTimeBlock: timeBlock,
+        replacementTimeBlockId: timeBlock.id,
+        title: dto.title.trim(),
+        message: dto.message?.trim() || "",
+        requestedById: user.id,
+        reviewedById: null,
+        reviewedAt: null,
+        replacementEntryId: null,
+        counterpartReplacementEntryId: null,
+        status: "pending",
+      }),
+    );
+    return this.publicSubstitution({
+      ...row,
+      sourceEntry: source,
+      targetEntry: target,
+      replacementTimeBlock: timeBlock,
+    });
+  }
+  async reviewSubstitution(
+    user: AuthenticatedUser,
+    id: string,
+    dto: ScheduleSubstitutionDecisionDto,
+  ) {
+    const context = this.context(user);
+    this.authorization.requireCapability(context, "schedule.publish");
+    return attendanceTransaction(this.entries.manager, async (manager) => {
+      const request = await manager.findOne(SchoolScheduleSubstitutionRequest, {
+        where: { id },
+        relations: {
+          sourceEntry: {
+            organization: true,
+            classroom: true,
+            teacher: true,
+            classBook: { book: true, teacher: true },
+          },
+          targetEntry: {
+            organization: true,
+            classroom: true,
+            teacher: true,
+            classBook: { book: true, teacher: true },
+          },
+          replacementTimeBlock: true,
+        },
+      });
+      if (!request || request.status !== "pending")
+        throw new ApiException(
+          404,
+          "SCHEDULE_SUBSTITUTION_NOT_FOUND",
+          "درخواست در انتظار بررسی پیدا نشد.",
+        );
+      const source = request.sourceEntry!;
+      const target = request.targetEntry!;
+      if (
+        !this.isOperator(context) ||
+        (!context.roles.includes("PLATFORM_ADMIN") &&
+          !context.organizationIds.includes(source.organization.id))
+      )
+        throw new ApiException(403, "FORBIDDEN", "دسترسی کافی ندارید.");
+      request.status = dto.decision;
+      request.reviewedById = user.id;
+      request.reviewedAt = new Date();
+      if (dto.decision === "approved") {
+        const block = request.replacementTimeBlock!;
+        if (
+          source.status !== "ACTIVE" ||
+          target.status !== "ACTIVE" ||
+          source.organization.id !== target.organization.id ||
+          source.weekday !== this.weekdayForDate(request.freezeDate) ||
+          target.weekday !== this.weekdayForDate(request.replacementDate) ||
+          (source.startsOn && source.startsOn > request.freezeDate) ||
+          (source.endsOn && source.endsOn < request.freezeDate) ||
+          (target.startsOn && target.startsOn > request.replacementDate) ||
+          (target.endsOn && target.endsOn < request.replacementDate) ||
+          target.startTime !== block.startTime ||
+          target.endTime !== block.endTime
+        )
+          throw new ApiException(
+            409,
+            "SCHEDULE_SWAP_TARGET_INVALID",
+            "یکی از جلسه‌های انتخاب‌شده دیگر در تاریخ یا بازه درخواستی قابل جابه‌جایی نیست.",
+          );
+        const existing = await manager.findOneBy(
+          SchoolScheduleOccurrenceOverride,
+          {
+            entryId: source.id,
+            date: request.freezeDate,
+          },
+        );
+        if (existing)
+          throw new ApiException(
+            409,
+            "SCHEDULE_SUBSTITUTION_CONFLICT",
+            "برای این جلسه در این تاریخ تغییر دیگری ثبت شده است.",
+          );
+        await manager.save(
+          manager.create(SchoolScheduleOccurrenceOverride, {
+            ...(existing ?? {}),
+            entryId: source.id,
+            date: request.freezeDate,
+            cancelled: true,
+            changedById: user.id,
+          }),
+        );
+        const targetExisting = await manager.findOneBy(
+          SchoolScheduleOccurrenceOverride,
+          { entryId: target.id, date: request.replacementDate },
+        );
+        if (targetExisting)
+          throw new ApiException(
+            409,
+            "SCHEDULE_SUBSTITUTION_CONFLICT",
+            "برای جلسه مقصد در این تاریخ تغییر دیگری ثبت شده است.",
+          );
+        await manager.save(
+          manager.create(SchoolScheduleOccurrenceOverride, {
+            ...(targetExisting ?? {}),
+            entryId: target.id,
+            date: request.replacementDate,
+            cancelled: true,
+            changedById: user.id,
+          }),
+        );
+        const replacement = await manager.save(
+          manager.create(SchoolScheduleEntry, {
+            organization: source.organization,
+            classroom: source.classroom,
+            classBook: source.classBook,
+            teacher: source.teacher,
+            title: request.title,
+            weekday: this.weekdayForDate(request.replacementDate),
+            startTime: block.startTime,
+            endTime: block.endTime,
+            room: source.room,
+            status: "REPLACED",
+            versionId: null,
+            periodId: null,
+            locationId: null,
+            startsOn: request.replacementDate,
+            endsOn: request.replacementDate,
+            notes: request.message,
+            classroomNameSnapshot: source.classroomNameSnapshot,
+            teacherNameSnapshot: source.teacherNameSnapshot,
+          }),
+        );
+        request.replacementEntryId = replacement.id;
+        const counterpart = await manager.save(
+          manager.create(SchoolScheduleEntry, {
+            organization: target.organization,
+            classroom: target.classroom,
+            classBook: target.classBook,
+            teacher: target.teacher,
+            title: target.title,
+            weekday: this.weekdayForDate(request.freezeDate),
+            startTime: source.startTime,
+            endTime: source.endTime,
+            room: source.room,
+            status: "REPLACED",
+            versionId: null,
+            periodId: null,
+            locationId: null,
+            startsOn: request.freezeDate,
+            endsOn: request.freezeDate,
+            notes: request.message,
+            classroomNameSnapshot: target.classroomNameSnapshot,
+            teacherNameSnapshot: target.teacherNameSnapshot,
+          }),
+        );
+        request.counterpartReplacementEntryId = counterpart.id;
+      }
+      const saved = await manager.save(request);
+      return this.publicSubstitution(saved);
+    });
+  }
   async list(user: AuthenticatedUser, organizationId?: string) {
     return (await this.listEntities(user, organizationId)).map((entry) =>
       this.publicEntry(entry),
@@ -84,8 +475,9 @@ export class ScheduleService {
           ? {
               organization: { id: requestedOrganizationId },
               versionId: IsNull(),
+              status: In(["ACTIVE", "ARCHIVED"]),
             }
-          : { versionId: IsNull() },
+          : { versionId: IsNull(), status: In(["ACTIVE", "ARCHIVED"]) },
         relations: {
           organization: true,
           classroom: true,
@@ -98,6 +490,7 @@ export class ScheduleService {
       return this.entries.find({
         where: {
           versionId: IsNull(),
+          status: In(["ACTIVE", "ARCHIVED"]),
           organization: {
             id: In(
               requestedOrganizationId
@@ -127,7 +520,7 @@ export class ScheduleService {
                 : context.organizationIds,
             ),
           },
-          status: "ACTIVE",
+          status: In(["ACTIVE", "REPLACED"]),
         },
         relations: {
           organization: true,
@@ -280,7 +673,7 @@ export class ScheduleService {
         relations: { organization: true },
         order: { name: "ASC" },
       });
-    if (!this.isOperator(context) || !context.organizationIds.length) return [];
+    if (!context.organizationIds.length) return [];
     return this.timeBlocks.find({
       where: {
         organization: {
