@@ -1,5 +1,6 @@
-import { X } from "lucide-react";
+import { Maximize2, Minimize2, X } from "lucide-react";
 import type { ReactNode } from "react";
+import { useState } from "react";
 
 import { useIsMobile } from "../hooks/use-mobile";
 import { useOptionalAdminLanguage } from "./locale";
@@ -32,6 +33,8 @@ type ResponsiveDrawerProps = {
   dismissible?: boolean;
   /** Use inside another ResponsiveDrawer. */
   nested?: boolean;
+  /** Start expanded inside the desktop workspace while preserving the navigation rail. */
+  defaultDesktopExpanded?: boolean;
 };
 
 /** Responsive Base UI drawer adapter shared by operational panels and attendance flows. */
@@ -49,9 +52,11 @@ export function ResponsiveDrawer({
   modal,
   dismissible,
   nested = false,
+  defaultDesktopExpanded = false,
 }: ResponsiveDrawerProps) {
   const language = useOptionalAdminLanguage();
   const isMobile = useIsMobile();
+  const [desktopExpanded, setDesktopExpanded] = useState(defaultDesktopExpanded);
   const DrawerRoot = nested ? DrawerNested : Drawer;
   return (
     <DrawerRoot
@@ -69,13 +74,36 @@ export function ResponsiveDrawer({
       disablePointerDismissal={dismissible === false}
     >
       <DrawerVirtualKeyboardProvider>
-        <DrawerContent className={className}>
+        <DrawerContent
+          className={`${className ?? ""} ${desktopExpanded ? "responsive-drawer-popup--expanded" : ""}`}
+        >
           <DrawerHeader
             className="relative text-start sm:text-start"
             dir={language === "fa" ? "rtl" : "ltr"}
           >
             <DrawerTitle>{title}</DrawerTitle>
             {description ? <DrawerDescription>{description}</DrawerDescription> : null}
+            <button
+              type="button"
+              onClick={() => setDesktopExpanded((expanded) => !expanded)}
+              aria-pressed={desktopExpanded}
+              aria-label={
+                desktopExpanded
+                  ? language === "fa"
+                    ? "بازگرداندن اندازه پنل"
+                    : "Restore panel size"
+                  : language === "fa"
+                    ? "باز کردن پنل در فضای کاری"
+                    : "Expand panel in workspace"
+              }
+              className="absolute end-14 top-3 hidden size-11 place-items-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring min-[1200px]:grid"
+            >
+              {desktopExpanded ? (
+                <Minimize2 size={16} aria-hidden="true" />
+              ) : (
+                <Maximize2 size={16} aria-hidden="true" />
+              )}
+            </button>
             <DrawerClose
               aria-label={language === "fa" ? "بستن" : "Close"}
               className="absolute end-3 top-3 grid size-11 place-items-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"

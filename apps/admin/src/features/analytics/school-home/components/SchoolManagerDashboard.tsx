@@ -31,17 +31,21 @@ import { useAdminNotifications } from "../../../communications/notifications/hoo
 import { notificationAdminUrl } from "../../../communications/notifications/model/notification-model";
 import { useDevicePerformance } from "../../../../app/layout/hooks/use-device-performance";
 import { PrincipalDashboard } from "./PrincipalDashboard";
+import { PrincipalLandingPage } from "./PrincipalLandingPage";
 
 /** Principal and supervisor home: school calendar, live prayer time, announcements and attendance totals. */
 export function SchoolManagerDashboard() {
   const auth = useAuth();
-  return auth.activeRole === "PRINCIPAL" ? (
+  return auth.activeRole === "PRINCIPAL" ? <PrincipalLandingPage /> : <SchoolOperationsDashboard />;
+}
+
+/** The existing detailed workspace stays available after the Principal's launchpad. */
+export function PrincipalWorkspaceDashboard() {
+  return (
     <>
       <SchoolOperationsDashboard principalMode />
       <PrincipalDashboard />
     </>
-  ) : (
-    <SchoolOperationsDashboard />
   );
 }
 function SchoolOperationsDashboard({ principalMode = false }: { principalMode?: boolean }) {

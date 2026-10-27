@@ -39,8 +39,8 @@ const DrawerContent = React.forwardRef<
   React.ComponentPropsWithoutRef<typeof DrawerPrimitive.Popup>
 >(({ className, children, ...props }, ref) => (
   <DrawerPrimitive.Portal>
-    <DrawerPrimitive.Backdrop className="fixed inset-0 z-[120] bg-black/55 transition-opacity duration-200 data-[ending-style]:opacity-0 data-[starting-style]:opacity-0 motion-reduce:transition-none" />
-    <DrawerPrimitive.Viewport className="fixed inset-0 z-[121] overflow-hidden outline-none">
+    <DrawerPrimitive.Backdrop className="responsive-drawer-backdrop fixed inset-0 z-[120] bg-black/55 transition-opacity duration-200 data-[ending-style]:opacity-0 data-[starting-style]:opacity-0 motion-reduce:transition-none" />
+    <DrawerPrimitive.Viewport className="responsive-drawer-viewport fixed inset-0 z-[121] overflow-hidden outline-none">
       <DrawerPrimitive.Popup
         ref={ref}
         className={cn(
