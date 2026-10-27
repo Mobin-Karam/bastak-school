@@ -216,7 +216,7 @@ export function StudentEditor({
         {validationMessage}
       </p>
 
-      <div className="grid items-start gap-4 min-[1200px]:grid-cols-4">
+      <div className="student-editor__sections grid items-start gap-4">
         <section className="grid h-full content-start gap-3 rounded-xl border border-slate-200 p-3 dark:border-slate-800">
           <div>
             <h4 className="text-sm font-bold text-slate-800 dark:text-slate-100">

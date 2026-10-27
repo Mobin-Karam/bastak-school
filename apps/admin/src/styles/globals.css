@@ -345,6 +345,7 @@
 @layer components {
   .responsive-drawer-popup {
     position: fixed;
+    container-type: inline-size;
     inset-inline: 0;
     bottom: 0;
     /* Short sheets fit their content; long sheets cap to the visual viewport
@@ -400,10 +401,51 @@
     }
   }
 
+  /* Portal-mounted drawers must preserve the persistent desktop navigation
+     rail. The expanded form uses the remaining workspace instead of covering
+     the rail, while the backdrop begins after it as well. */
+  @media (min-width: 1200px) {
+    body:has(.admin-role-shell[data-shell="desktop"] .admin-main-rail)
+      :is(.responsive-drawer-backdrop, .responsive-drawer-viewport) {
+      inset-inline-start: 15rem;
+    }
+
+    body:has(.admin-role-shell[data-shell="desktop"] .admin-main-rail)
+      .responsive-drawer-popup--expanded {
+      inset-block: 1.25rem;
+      inset-inline: 1.25rem;
+      inset-inline-start: 16.25rem;
+      width: auto;
+      height: auto;
+      max-width: none;
+      max-height: calc(100dvh - 2.5rem);
+      border-radius: 1.5rem;
+    }
+  }
+
   @media (prefers-reduced-motion: reduce) {
     .responsive-drawer-popup {
       transition: none;
     }
+  }
+}
+
+/* Student creation is arranged by the drawer's available workspace, not the
+   window width. A normal drawer remains a focused vertical flow; an expanded
+   workspace progressively reveals more complete section columns. */
+.student-editor__sections {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+@container (min-width: 48rem) {
+  .student-editor__sections {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@container (min-width: 60rem) {
+  .student-editor__sections {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 }
 

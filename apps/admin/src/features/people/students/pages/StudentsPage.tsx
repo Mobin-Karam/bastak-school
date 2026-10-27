@@ -185,7 +185,6 @@ export function StudentsPage() {
   const [bulkPassword, setBulkPassword] = useState("");
   const [bulkScope, setBulkScope] = useState<"selected" | "filtered">("filtered");
   const [feedback, setFeedback] = useState<StudentEditorFeedback>(null);
-  const [createDiscardOpen, setCreateDiscardOpen] = useState(false);
   const deferredSearch = useDeferredValue(search);
   const { students } = studentStore;
   const qc = useQueryClient();
@@ -338,7 +337,6 @@ export function StudentsPage() {
 
   function startCreate() {
     const run = () => {
-      setCreateDiscardOpen(false);
       setCreating(true);
       setEditing(false);
       setDetailOpen(false);
@@ -376,27 +374,11 @@ export function StudentsPage() {
   }
 
   function discardCreate() {
-    const previous = students.find((student) => student.id === studentStore.studentId) ?? null;
-    setCreateDiscardOpen(false);
-    setCreating(false);
-    setEditing(false);
-    setDetailOpen(false);
-    setMobileDirectory(true);
-    setFeedback(null);
-    if (previous) {
-      setSelectedId(previous.id);
-      setForm(studentToForm(previous));
-      updateStudentContext(previous.id);
-    } else {
-      setSelectedId("");
-      setForm(emptyStudentForm());
-      updateStudentContext("");
-    }
+    finishCreate();
   }
 
   function cancelCreate() {
-    if (!dirty) return discardCreate();
-    setCreateDiscardOpen(true);
+    discardCreate();
   }
 
   function startEdit() {
@@ -445,7 +427,6 @@ export function StudentsPage() {
   }
 
   function finishCreate() {
-    setCreateDiscardOpen(false);
     setCreating(false);
     setEditing(false);
     setDetailOpen(false);
@@ -1102,7 +1083,8 @@ export function StudentsPage() {
               onOpenChange={(open) => !open && cancelCreate()}
               title={copy.createStudent}
               description={copy.createDescription}
-              className="max-w-full border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card))] text-[rgb(var(--color-ink))] min-[1200px]:!inset-5 min-[1200px]:!h-auto min-[1200px]:!w-auto min-[1200px]:!max-h-[calc(100dvh-2.5rem)] min-[1200px]:rounded-3xl"
+              defaultDesktopExpanded
+              className="max-w-full border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card))] text-[rgb(var(--color-ink))]"
             >
               <section className="flex min-h-0 flex-1 flex-col overflow-hidden">
                 <div className="border-b border-border p-3 min-[1200px]:hidden">
@@ -1140,23 +1122,6 @@ export function StudentsPage() {
                   </div>
                 </div>
               </section>
-              <ResponsiveDrawer
-                nested
-                open={createDiscardOpen}
-                onOpenChange={setCreateDiscardOpen}
-                title={copy.cancelCreateTitle}
-                description={copy.cancelCreateDescription}
-                className="max-h-[min(26rem,72dvh)]"
-              >
-                <div className="grid gap-3 pt-2 sm:grid-cols-2">
-                  <Button variant="soft" onClick={() => setCreateDiscardOpen(false)}>
-                    {language === "fa" ? "ادامه ویرایش" : "Continue editing"}
-                  </Button>
-                  <Button variant="danger" onClick={discardCreate}>
-                    {copy.cancelCreation}
-                  </Button>
-                </div>
-              </ResponsiveDrawer>
             </ResponsiveDrawer>
             {selected ? (
               <ResponsiveDrawer
