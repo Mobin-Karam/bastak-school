@@ -1,6 +1,6 @@
 import { AdaptiveSelect } from "@/shared/ui/adaptive-select";
 import { RotateCcw, Save, UserPlus, X } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Button, Field, Input } from "../../../../shared/ui/ui";
 import { api } from "../../../../shared/api/api";
@@ -119,10 +119,6 @@ export function StudentEditor({
   usernameError?: string;
   student?: Student;
 }) {
-  const [activeStep, setActiveStep] = useState<1 | 2 | 3 | 4 | 5>(1);
-  useEffect(() => {
-    setActiveStep(1);
-  }, [mode, student?.id]);
   const language = useOptionalAdminLanguage() ?? "fa";
   const copy = studentCopy[language];
   const catalog = useQuery({
@@ -163,12 +159,6 @@ export function StudentEditor({
     form.learnerProfile === "independent"
       ? !!form.independentType
       : !!form.gradeId && !!form.educationTypeId && (!structure?.track_required || !!form.trackId);
-  const identityValid =
-    !!form.firstName.trim() &&
-    !!form.lastName.trim() &&
-    !!form.username.trim() &&
-    passwordValid &&
-    !usernameError;
   const baseValid =
     !!form.firstName.trim() && !!form.lastName.trim() && !!form.username.trim() && educationValid;
   const saveDisabled =
@@ -180,16 +170,16 @@ export function StudentEditor({
     !guardiansValid ||
     !!usernameError;
   const completion = useMemo(() => formCompleteness(form, mode === "create"), [form, mode]);
-  const steps = [
-    language === "fa" ? "هویت و حساب" : "Identity & account",
-    language === "fa" ? "ثبت‌نام" : "Enrollment",
-    language === "fa" ? "آموزش" : "Education",
-    language === "fa" ? "سرپرست‌ها" : "Guardians",
-    language === "fa" ? "مرور و ثبت" : "Review & save",
-  ];
+  const validationMessage = saveDisabled
+    ? language === "fa"
+      ? "فیلدهای دارای خطا را اصلاح کنید؛ بررسی اولیه هم‌زمان با ورود اطلاعات انجام می‌شود."
+      : "Fix the fields with errors; initial validation runs as you enter information."
+    : language === "fa"
+      ? "فرم آماده ثبت است. بررسی نهایی هنگام ارسال توسط سرور انجام می‌شود."
+      : "This form is ready to save. The server performs the final validation on submission.";
 
   return (
-    <section className="grid gap-5">
+    <section className="grid gap-5 min-[1200px]:gap-6">
       {mode === "create" ? (
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
@@ -219,35 +209,14 @@ export function StudentEditor({
 
       <Progress value={completion} label={copy.profileCompletion} language={language} />
 
-      <ol
-        className="grid grid-cols-2 gap-2 sm:grid-cols-5"
-        aria-label={language === "fa" ? "مراحل پرونده دانش‌آموز" : "Student profile steps"}
+      <p
+        aria-live="polite"
+        className={`rounded-xl border px-3 py-2 text-xs ${saveDisabled ? "border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-900/70 dark:bg-amber-950/30 dark:text-amber-200" : "border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-900/70 dark:bg-emerald-950/30 dark:text-emerald-200"}`}
       >
-        {steps.map((label, index) => {
-          const step = (index + 1) as 1 | 2 | 3 | 4 | 5;
-          const active = activeStep === step;
-          const complete = activeStep > step;
-          return (
-            <li key={label}>
-              <button
-                type="button"
-                onClick={() => setActiveStep(step)}
-                aria-current={active ? "step" : undefined}
-                className={`flex min-h-12 w-full items-center gap-2 rounded-xl border px-3 text-start text-xs font-bold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand ${active ? "border-brand bg-brand/10 text-brand" : complete ? "border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-200" : "border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-muted))] text-slate-500"}`}
-              >
-                <span className="grid size-6 shrink-0 place-items-center rounded-full bg-current/10">
-                  {step}
-                </span>
-                <span className="leading-4">{label}</span>
-              </button>
-            </li>
-          );
-        })}
-      </ol>
+        {validationMessage}
+      </p>
 
-      <section
-        className={`grid gap-3 rounded-xl border border-slate-200 p-3 dark:border-slate-800 ${activeStep !== 1 ? "hidden" : ""}`}
-      >
+      <section className="grid gap-3 rounded-xl border border-slate-200 p-3 dark:border-slate-800">
         <div>
           <h4 className="text-sm font-bold text-slate-800 dark:text-slate-100">
             {copy.accountInformation}
@@ -256,7 +225,7 @@ export function StudentEditor({
             {copy.accountInformationDescription}
           </p>
         </div>
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className="grid gap-3 sm:grid-cols-2 min-[1200px]:grid-cols-4">
           <Field label={language === "fa" ? "نام" : "First name"}>
             <Input
               autoFocus={mode === "create"}
@@ -302,9 +271,7 @@ export function StudentEditor({
         ) : null}
       </section>
 
-      <section
-        className={`grid gap-3 rounded-xl border border-slate-200 p-3 dark:border-slate-800 ${activeStep !== 2 ? "hidden" : ""}`}
-      >
+      <section className="grid gap-3 rounded-xl border border-slate-200 p-3 dark:border-slate-800">
         <div>
           <h4 className="text-sm font-bold text-slate-800 dark:text-slate-100">
             {language === "fa" ? "مشخصات ثبت‌نام" : "Enrollment details"}
@@ -315,7 +282,7 @@ export function StudentEditor({
               : "National ID, Jalali birth date, and government school are stored on the student profile."}
           </p>
         </div>
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className="grid gap-3 sm:grid-cols-2 min-[1200px]:grid-cols-4">
           <Field
             label={language === "fa" ? "کد ملی" : "National ID"}
             error={
@@ -369,9 +336,7 @@ export function StudentEditor({
         </div>
       </section>
 
-      <section
-        className={`grid gap-3 rounded-xl border border-slate-200 p-3 dark:border-slate-800 ${activeStep !== 4 ? "hidden" : ""}`}
-      >
+      <section className="grid gap-3 rounded-xl border border-slate-200 p-3 dark:border-slate-800">
         <div>
           <h4 className="text-sm font-bold text-slate-800 dark:text-slate-100">
             {language === "fa" ? "حساب سرپرست‌ها" : "Guardian accounts"}
@@ -410,7 +375,7 @@ export function StudentEditor({
             </p>
           </div>
         ) : null}
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className="grid gap-3 sm:grid-cols-2 min-[1200px]:grid-cols-4">
           <Field
             label={language === "fa" ? "شماره مادر" : "Mother phone"}
             error={
@@ -480,9 +445,7 @@ export function StudentEditor({
         </div>
       </section>
 
-      <section
-        className={`grid gap-3 rounded-xl border border-slate-200 p-3 dark:border-slate-800 ${activeStep !== 3 ? "hidden" : ""}`}
-      >
+      <section className="grid gap-3 rounded-xl border border-slate-200 p-3 dark:border-slate-800">
         <div>
           <h4 className="text-sm font-bold text-slate-800 dark:text-slate-100">
             {copy.educationStatus}
@@ -509,7 +472,7 @@ export function StudentEditor({
           ))}
         </div>
         {form.learnerProfile === "independent" ? (
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className="grid gap-3 sm:grid-cols-2 min-[1200px]:grid-cols-4">
             <Field label={copy.learnerType}>
               <AdaptiveSelect
                 className="h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm dark:border-slate-700 dark:bg-slate-900"
@@ -533,7 +496,7 @@ export function StudentEditor({
           </div>
         ) : null}
         {form.learnerProfile === "school" ? (
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className="grid gap-3 sm:grid-cols-2 min-[1200px]:grid-cols-4">
             <Field label={copy.grade}>
               <AdaptiveSelect
                 className="h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm dark:border-slate-700 dark:bg-slate-900"
@@ -604,59 +567,19 @@ export function StudentEditor({
         ) : null}
       </section>
 
-      {activeStep === 5 ? (
-        <section className="grid gap-2 rounded-xl border border-brand/25 bg-brand/5 p-4 text-sm">
-          <h4 className="font-black text-ink">
-            {language === "fa" ? "مرور نهایی" : "Final review"}
-          </h4>
-          <p className="text-slate-600 dark:text-slate-300">
-            {form.name || `${form.firstName} ${form.lastName}` || "—"} · {form.username || "—"}
-          </p>
-          <p className="text-xs text-slate-500">
-            {mode === "create"
-              ? language === "fa"
-                ? "پس از ثبت، پرونده از فهرست قابل انتخاب و تکمیل خواهد بود."
-                : "After saving, the record can be selected and completed from the directory."
-              : language === "fa"
-                ? "تغییرات پس از ذخیره در پرونده دانش‌آموز اعمال می‌شوند."
-                : "Changes will be applied to the student record after saving."}
-          </p>
-        </section>
-      ) : null}
-
       <div className="sticky bottom-2 z-10 grid gap-2 rounded-xl border border-slate-200 bg-white/95 p-2 shadow-lg backdrop-blur sm:grid-cols-[minmax(0,1fr)_auto] dark:border-slate-800 dark:bg-slate-950/95">
         <Button
           loading={busy}
           loadingLabel={mode === "create" ? copy.creating : copy.saving}
-          disabled={
-            busy ||
-            (activeStep === 1 && !identityValid) ||
-            (activeStep === 3 && !educationValid) ||
-            (activeStep === 5 && saveDisabled)
-          }
-          onClick={() => {
-            if (activeStep < 5) setActiveStep((activeStep + 1) as 2 | 3 | 4 | 5);
-            else onSave();
-          }}
+          disabled={saveDisabled}
+          onClick={onSave}
         >
           <Save size={16} />
-          {activeStep < 5
-            ? language === "fa"
-              ? "ادامه"
-              : "Continue"
-            : mode === "create"
-              ? copy.saveStudent
-              : copy.saveChanges}
+          {mode === "create" ? copy.saveStudent : copy.saveChanges}
         </Button>
-        <Button
-          variant="soft"
-          disabled={busy || (activeStep === 1 ? !dirty : false)}
-          onClick={() =>
-            activeStep > 1 ? setActiveStep((activeStep - 1) as 1 | 2 | 3 | 4) : onReset()
-          }
-        >
+        <Button variant="soft" disabled={busy || !dirty} onClick={onReset}>
           <RotateCcw size={16} />
-          {activeStep > 1 ? (language === "fa" ? "مرحله قبل" : "Previous step") : copy.reset}
+          {copy.reset}
         </Button>
       </div>
     </section>

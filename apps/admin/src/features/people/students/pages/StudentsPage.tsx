@@ -231,19 +231,6 @@ export function StudentsPage() {
       ? copy.phoneNumberInvalid
       : undefined;
 
-  const counts = useMemo(
-    () => ({
-      all: students.length,
-      active: students.filter((student) => getStudentStatus(student) === "active").length,
-      inactive: students.filter((student) => getStudentStatus(student) === "inactive").length,
-      archived: students.filter((student) => getStudentStatus(student) === "archived").length,
-    }),
-    [students],
-  );
-  const incompleteCount = useMemo(
-    () => students.filter((student) => getStudentProfileCompleteness(student) < 100).length,
-    [students],
-  );
   const classOptions = useMemo(() => studentClassOptions(students), [students]);
 
   const filtered = useMemo(() => {
@@ -831,14 +818,10 @@ export function StudentsPage() {
     setForm((current) => ({ ...current, [key]: value }));
   }
 
-  function setSort(value: StudentSort) {
+  function setDirectorySort(value: StudentSort, direction: StudentSortDirection) {
     setPage(1);
-    if (value === sort) {
-      setSortDirection((current) => (current === "asc" ? "desc" : "asc"));
-      return;
-    }
     setSortState(value);
-    setSortDirection(value === "lastSeen" || value === "completeness" ? "desc" : "asc");
+    setSortDirection(direction);
   }
 
   function clearFilters() {
@@ -856,7 +839,6 @@ export function StudentsPage() {
 
   function setDirectoryStatus(next: StudentStatusFilter) {
     setStatus(next);
-    setProfileFilter("all");
     setPage(1);
   }
 
@@ -865,9 +847,8 @@ export function StudentsPage() {
     setPage(1);
   }
 
-  function toggleDirectoryIncomplete() {
-    setProfileFilter((current) => (current === "incomplete" ? "all" : "incomplete"));
-    if (profileFilter !== "incomplete") setStatus("all");
+  function setDirectoryProfile(next: StudentProfileFilter) {
+    setProfileFilter(next);
     setPage(1);
   }
 
@@ -1046,28 +1027,23 @@ export function StudentsPage() {
         directory={
           <StudentList
             students={pagedStudents}
-            total={students.length}
             filteredTotal={filtered.length}
             page={activePage}
-            pageCount={pageCount}
             pageSize={pageSize}
-            setPage={setPage}
-            setPageSize={setDirectoryPageSize}
-            selectedId={selectedId}
             search={search}
-            setSearch={setDirectorySearch}
             status={status}
             classId={classId}
             classOptions={classOptions}
-            counts={counts}
-            incomplete={incompleteCount}
             profileFilter={profileFilter}
             sort={sort}
             sortDirection={sortDirection}
-            onSort={setSort}
+            onSearchChange={setDirectorySearch}
+            onSortChange={setDirectorySort}
             onStatusChange={setDirectoryStatus}
             onClassChange={setDirectoryClass}
-            onIncompleteToggle={toggleDirectoryIncomplete}
+            onProfileFilterChange={setDirectoryProfile}
+            onPageChange={setPage}
+            onPageSizeChange={setDirectoryPageSize}
             onClearFilters={clearFilters}
             onSelect={requestSelection}
             directoryActions={
@@ -1117,7 +1093,6 @@ export function StudentsPage() {
             loading={studentStore.isLoading}
             error={studentStore.isError}
             onRetry={() => void studentStore.refetch()}
-            creating={creating}
           />
         }
         detail={
@@ -1127,9 +1102,9 @@ export function StudentsPage() {
               onOpenChange={(open) => !open && cancelCreate()}
               title={copy.createStudent}
               description={copy.createDescription}
-              className="border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card))] text-[rgb(var(--color-ink))]"
+              className="max-w-full border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card))] text-[rgb(var(--color-ink))] min-[1200px]:!inset-5 min-[1200px]:!h-auto min-[1200px]:!w-auto min-[1200px]:!max-h-[calc(100dvh-2.5rem)] min-[1200px]:rounded-3xl"
             >
-              <section className="overflow-hidden">
+              <section className="flex min-h-0 flex-1 flex-col overflow-hidden">
                 <div className="border-b border-border p-3 min-[1200px]:hidden">
                   <button
                     type="button"
@@ -1140,7 +1115,7 @@ export function StudentsPage() {
                     {copy.backToDirectory}
                   </button>
                 </div>
-                <div className="min-h-0 p-3 sm:p-4 min-[1200px]:flex-1 min-[1200px]:overflow-y-auto min-[1200px]:overscroll-contain">
+                <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-3 pb-[calc(1rem+env(safe-area-inset-bottom))] sm:p-4 sm:pb-[calc(1rem+env(safe-area-inset-bottom))] min-[1200px]:p-6">
                   <FeedbackBanner
                     feedback={feedback}
                     onDismiss={() => setFeedback(null)}
