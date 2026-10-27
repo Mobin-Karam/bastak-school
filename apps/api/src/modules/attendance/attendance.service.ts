@@ -1490,15 +1490,6 @@ export class AttendanceService {
       submit?: boolean;
     } = {},
   ) {
-    if (
-      dto.entries.some((entry) => entry.status === AttendanceStatus.EXCUSED)
-    ) {
-      throw new ApiException(
-        422,
-        "ATTENDANCE_EXCUSE_REQUIRES_REVIEW",
-        "ابتدا غیبت را ثبت کنید؛ موجه‌بودن دلیل در مرحله بررسی مشخص می‌شود.",
-      );
-    }
     if (!dto.entries.length) {
       throw new ApiException(
         422,
@@ -2012,11 +2003,9 @@ export class AttendanceService {
         "دانش‌آموز عضو این کلاس نیست.",
       );
     return this.attendanceTransaction(async (manager) => {
-      const student = await manager
-        .getRepository(Student)
-        .findOne({
-          where: { id: dto.studentId, organization: { id: organization.id } },
-        });
+      const student = await manager.getRepository(Student).findOne({
+        where: { id: dto.studentId, organization: { id: organization.id } },
+      });
       if (!student)
         throw new ApiException(404, "STUDENT_NOT_FOUND", "دانش‌آموز پیدا نشد.");
       const context = await this.contextDescriptor(

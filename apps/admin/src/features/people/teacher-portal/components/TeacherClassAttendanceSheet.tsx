@@ -27,6 +27,7 @@ import { api } from "../../../../shared/api/api";
 import { ResponsiveModal } from "../../../../shared/ui/responsive-modal";
 import { Button, EmptyState, LoadingState } from "../../../../shared/ui/ui";
 import { AttendanceCoin } from "../../../../shared/ui/attendance-coin";
+import { DatePicker } from "../../../../shared/ui/date-picker";
 
 type AttendanceStatus = SelfAttendanceRecord["status"];
 
@@ -35,15 +36,23 @@ const attendanceActions: Array<{
   label: string;
   activeClassName: string;
 }> = [
-  { status: "present", label: "حاضر", activeClassName: "bg-emerald-600 text-white" },
-  { status: "absent", label: "غایب", activeClassName: "bg-rose-600 text-white" },
+  { status: "present", label: "ح · حاضر", activeClassName: "bg-emerald-600 text-white" },
+  { status: "absent", label: "غ · غایب", activeClassName: "bg-rose-600 text-white" },
   {
     status: "late",
-    label: "تأخیر",
+    label: "ت · تأخیر",
     activeClassName: "bg-amber-100 text-amber-950 dark:bg-amber-950 dark:text-amber-100",
   },
-  { status: "excused", label: "موجه", activeClassName: "bg-sky-600 text-white" },
+  { status: "excused", label: "م · موجه", activeClassName: "bg-sky-600 text-white" },
 ];
+
+const isoDay = (date: Date) => date.toISOString().slice(0, 10);
+function nearestSessionDate(date: string, weekday: number, direction: -1 | 1) {
+  const next = new Date(`${date}T12:00:00Z`);
+  do next.setUTCDate(next.getUTCDate() + direction);
+  while ((next.getUTCDay() + 1) % 7 !== weekday);
+  return isoDay(next);
+}
 
 /** Class roster and physical attendance management for a teacher's own scheduled class. */
 export function TeacherClassAttendanceSheet({
@@ -79,6 +88,7 @@ export function TeacherClassAttendanceSheet({
   const [pointReason, setPointReason] = useState("");
   const [savedSessionId, setSavedSessionId] = useState<string | null>(null);
   const [reportText, setReportText] = useState<Record<string, string>>({});
+  const [sessionDate, setSessionDate] = useState(() => isoDay(new Date()));
   const participants = useQuery({
     queryKey: ["attendance", "participants", scopeKey, "class", entry?.classroom?.id],
     queryFn: () => getAttendanceParticipants("class", entry!.classroom!.id),
@@ -103,6 +113,7 @@ export function TeacherClassAttendanceSheet({
     setPointReason("");
     setSavedSessionId(null);
     setReportText({});
+    setSessionDate(isoDay(new Date()));
   }, [entry?.id, open, scopeKey]);
 
   // The roster is an attendance-taking surface: a teacher starts from a full
@@ -133,7 +144,7 @@ export function TeacherClassAttendanceSheet({
       const entries = Object.entries(marks).map(([studentId, status]) => ({
         studentId,
         status,
-        note: status === "absent" ? reasons[studentId]?.trim() || undefined : undefined,
+        note: status === "excused" ? reasons[studentId]?.trim() || undefined : undefined,
       }));
       if (!entries.length) throw new Error("برای ثبت، وضعیت دست‌کم یک دانش‌آموز را انتخاب کنید.");
       const write = prepareAttendanceWrite(
@@ -149,7 +160,7 @@ export function TeacherClassAttendanceSheet({
           organizationId: entry.organization.id,
           contextType: "class",
           contextId: entry.classroom!.id,
-          sessionDate: new Date().toISOString(),
+          sessionDate: `${sessionDate}T12:00:00.000Z`,
           entries,
         }),
       );
@@ -243,6 +254,28 @@ export function TeacherClassAttendanceSheet({
         }
       >
         <section aria-label="فهرست دانش‌آموزان کلاس">
+          {entry ? (
+            <div className="mt-4 flex flex-wrap items-end gap-2 rounded-xl bg-[rgb(var(--surface-muted))] p-3">
+              <Button
+                size="sm"
+                variant="soft"
+                onClick={() => setSessionDate(nearestSessionDate(sessionDate, entry.weekday, -1))}
+              >
+                جلسه قبل
+              </Button>
+              <label className="grid gap-1 text-xs font-bold text-slate-600 dark:text-slate-300">
+                تاریخ جلسه
+                <DatePicker value={sessionDate} onChange={setSessionDate} />
+              </label>
+              <Button
+                size="sm"
+                variant="soft"
+                onClick={() => setSessionDate(nearestSessionDate(sessionDate, entry.weekday, 1))}
+              >
+                جلسه بعد
+              </Button>
+            </div>
+          ) : null}
           {!entry?.classroom?.id ? (
             <div className="mt-5">
               <EmptyState title="برای این برنامه کلاس مشخص نشده است." />
@@ -338,9 +371,9 @@ export function TeacherClassAttendanceSheet({
                         })}
                       </div>
                     ) : null}
-                    {canManage && marks[student.id] === "absent" ? (
+                    {canManage && marks[student.id] === "excused" ? (
                       <label className="mt-2 block text-xs font-bold text-slate-600 dark:text-slate-300">
-                        دلیل غیبت
+                        توضیح موجه (اختیاری)
                         <input
                           value={reasons[student.id] ?? ""}
                           onChange={(event) =>
@@ -351,7 +384,7 @@ export function TeacherClassAttendanceSheet({
                           }
                           disabled={save.isPending}
                           maxLength={500}
-                          placeholder="دلیل اعلام‌شده توسط دانش‌آموز یا ولی"
+                          placeholder="در صورت نیاز، توضیح موجه را بنویسید"
                           className="mt-1 min-h-10 w-full rounded-lg border border-[rgb(var(--border-subtle))] bg-card px-3 text-xs font-normal text-ink outline-none focus-visible:ring-2 focus-visible:ring-brand"
                         />
                       </label>
