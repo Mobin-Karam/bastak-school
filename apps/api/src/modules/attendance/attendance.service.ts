@@ -840,7 +840,7 @@ export class AttendanceService {
               : "present",
         })),
       },
-      { allowOccurrence: true, submit: true },
+      { allowOccurrence: true, allowHistoricalOccurrence: true, submit: true },
     );
   }
 
@@ -907,7 +907,10 @@ export class AttendanceService {
             dto.correctionRequiresReview ??
             existing?.correctionRequiresReview ??
             false,
-          principalReviewMode: dto.principalReviewMode ?? existing?.principalReviewMode ?? "absences_only",
+          principalReviewMode:
+            dto.principalReviewMode ??
+            existing?.principalReviewMode ??
+            "absences_only",
         }),
       );
       await manager.save(
@@ -1481,7 +1484,11 @@ export class AttendanceService {
   async bulkMark(
     user: AuthenticatedUser,
     dto: BulkMarkAttendanceDto,
-    options: { allowOccurrence?: boolean; submit?: boolean } = {},
+    options: {
+      allowOccurrence?: boolean;
+      allowHistoricalOccurrence?: boolean;
+      submit?: boolean;
+    } = {},
   ) {
     if (
       dto.entries.some((entry) => entry.status === AttendanceStatus.EXCUSED)
@@ -1641,7 +1648,15 @@ export class AttendanceService {
           "ATTENDANCE_SESSION_CANCELLED",
           "این درس لغو شده است؛ حضور تاریخی فقط قابل مشاهده است.",
         );
-      this.assertSessionIsActiveForMarking(session);
+      // A timetable occurrence remains the same historical lesson after its
+      // scheduled window closes. Its assigned teacher may correct that saved
+      // roster until a reviewer finalizes or cancels it; generic live attendance
+      // sessions keep the normal time-window rule.
+      if (!(
+        options.allowHistoricalOccurrence &&
+        session?.sourceKind === "class_schedule"
+      ))
+        this.assertSessionIsActiveForMarking(session);
       if (session?.occurrenceKey && !options.allowOccurrence)
         throw new ApiException(
           409,
@@ -1787,28 +1802,40 @@ export class AttendanceService {
             : points < 0
               ? "کسر یک امتیاز برای غیبت در کلاس"
               : "وضعیت حضور بدون تغییر امتیاز";
-        await this.rewards.recordAttendanceOutcome({
-          recordId: record.id,
-          revision: record.revision,
-          student: record.student,
-          organization,
-          points,
-          reason,
-          contextType: session.contextType,
-          contextId: session.contextId,
-          contextName: session.titleSnapshot || null,
-        }, manager);
+        await this.rewards.recordAttendanceOutcome(
+          {
+            recordId: record.id,
+            revision: record.revision,
+            student: record.student,
+            organization,
+            points,
+            reason,
+            contextType: session.contextType,
+            contextId: session.contextId,
+            contextName: session.titleSnapshot || null,
+          },
+          manager,
+        );
       }
       if (options.submit) {
-        if (session.status !== "open" && session.status !== "scheduled")
+        const revisingTimetableOccurrence =
+          session.sourceKind === "class_schedule" &&
+          session.status === "submitted";
+        if (
+          !revisingTimetableOccurrence &&
+          session.status !== "open" &&
+          session.status !== "scheduled"
+        )
           throw new ApiException(
             409,
             "ATTENDANCE_SESSION_ALREADY_SUBMITTED",
             "ثبت اولیه این جلسه قبلاً انجام شده است.",
           );
-        session.status = "submitted";
-        session.submittedAt = new Date();
-        session.submittedBy = { id: user.id } as User;
+        if (!revisingTimetableOccurrence) {
+          session.status = "submitted";
+          session.submittedAt = new Date();
+          session.submittedBy = { id: user.id } as User;
+        }
       }
       session.revision++;
       await sessions.save(session);
@@ -1987,16 +2014,30 @@ export class AttendanceService {
     return this.attendanceTransaction(async (manager) => {
       const student = await manager
         .getRepository(Student)
-        .findOne({ where: { id: dto.studentId, organization: { id: organization.id } } });
+        .findOne({
+          where: { id: dto.studentId, organization: { id: organization.id } },
+        });
       if (!student)
         throw new ApiException(404, "STUDENT_NOT_FOUND", "دانش‌آموز پیدا نشد.");
-      const context = await this.contextDescriptor(dto.contextType, dto.contextId);
-      const row = await this.rewards.recordTrustedSource({
-        student, organization, awardedById: user.id, points: dto.points,
-        reason: dto.reason, sourceType: "attendance_manual",
-        contextType: dto.contextType, contextId: dto.contextId, contextName: context.title,
-        requestId: dto.requestId,
-      }, manager);
+      const context = await this.contextDescriptor(
+        dto.contextType,
+        dto.contextId,
+      );
+      const row = await this.rewards.recordTrustedSource(
+        {
+          student,
+          organization,
+          awardedById: user.id,
+          points: dto.points,
+          reason: dto.reason,
+          sourceType: "attendance_manual",
+          contextType: dto.contextType,
+          contextId: dto.contextId,
+          contextName: context.title,
+          requestId: dto.requestId,
+        },
+        manager,
+      );
       await manager.getRepository(AuditLog).save({
         user: { id: user.id },
         organizationId: organization.id,

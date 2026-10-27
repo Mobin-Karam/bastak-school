@@ -107,8 +107,9 @@ export function AttendancePage() {
   const sessionWindow = linkedSession ? attendanceSessionWindow(linkedSession, windowNow) : null;
   const sessionWindowActive = !sessionWindow || sessionWindow.active;
   const canManage = linkedSession
-    ? (linkedSession.status === "open" || linkedSession.status === "scheduled") &&
-      sessionWindowActive &&
+    ? linkedSession.status !== "cancelled" &&
+      linkedSession.status !== "finalized" &&
+      (linkedSession.scheduledStartAt !== null || sessionWindowActive) &&
       (auth.can("attendance.manage") ||
         (linkedSession.contextType === "class" && auth.can("attendance.class.manage")))
     : auth.can("attendance.manage");
