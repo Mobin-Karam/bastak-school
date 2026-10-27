@@ -1,5 +1,7 @@
 import {
   IsIn,
+  ArrayMaxSize,
+  ArrayMinSize,
   IsInt,
   IsOptional,
   IsString,
@@ -8,7 +10,9 @@ import {
   Max,
   Min,
   MinLength,
+  ValidateNested,
 } from "class-validator";
+import { Type } from "class-transformer";
 
 export class SaveScheduleEntryDto {
   @IsUUID() organizationId!: string;
@@ -20,6 +24,14 @@ export class SaveScheduleEntryDto {
   @Matches(/^([01]\d|2[0-3]):[0-5]\d$/) startTime!: string;
   @Matches(/^([01]\d|2[0-3]):[0-5]\d$/) endTime!: string;
   @IsOptional() @IsString() room?: string;
+}
+
+export class CreateScheduleEntriesDto {
+  @ArrayMinSize(1)
+  @ArrayMaxSize(28)
+  @ValidateNested({ each: true })
+  @Type(() => SaveScheduleEntryDto)
+  entries!: SaveScheduleEntryDto[];
 }
 
 export class ArchiveScheduleEntryDto {

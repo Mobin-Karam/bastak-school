@@ -34,6 +34,7 @@ import {
   applyScheduleTemplate,
   commitScheduleImport,
   createScheduleEntry,
+  createScheduleEntries,
   createScheduleTemplate,
   createScheduleTimeBlock,
   deleteScheduleEntry,
@@ -126,8 +127,11 @@ export function LegacySchedulePage() {
   });
   const reload = () => void client.invalidateQueries({ queryKey: ["schedule"] });
   const save = useMutation({
-    mutationFn: ({ id, draft }: { id?: string; draft: ScheduleDraft }) =>
-      id ? updateScheduleEntry(id, draft) : createScheduleEntry(draft),
+    mutationFn: async ({ id, drafts }: { id?: string; drafts: ScheduleDraft[] }) => {
+      if (id) return [await updateScheduleEntry(id, drafts[0])];
+      if (drafts.length === 1) return [await createScheduleEntry(drafts[0])];
+      return createScheduleEntries(drafts);
+    },
     onSuccess: () => {
       reload();
       notify("برنامه ذخیره شد.", "success");
@@ -310,9 +314,10 @@ export function LegacySchedulePage() {
           isSaving={save.isPending}
           onCancel={modal.close}
           onSubmit={async (draft) => {
-            await save.mutateAsync({ id: copy ? undefined : entry?.id, draft });
+            await save.mutateAsync({ id: copy ? undefined : entry?.id, drafts: draft });
             modal.close();
           }}
+          allowMultiple={!entry || copy}
         />
       ),
     });
@@ -1277,6 +1282,7 @@ function ScheduleEditorForm({
   organizations,
   classes,
   isSaving,
+  allowMultiple,
   onCancel,
   onSubmit,
 }: {
@@ -1291,11 +1297,15 @@ function ScheduleEditorForm({
   }>;
   isSaving: boolean;
   onCancel: () => void;
-  onSubmit: (draft: ScheduleDraft) => Promise<void>;
+  onSubmit: (draft: ScheduleDraft[]) => Promise<void>;
+  allowMultiple: boolean;
 }) {
   const [draft, setDraft] = useState(initial);
+  const [occurrences, setOccurrences] = useState(() => [
+    { weekday: initial.weekday, startTime: initial.startTime, endTime: initial.endTime },
+  ]);
   const [attempted, setAttempted] = useState(false);
-  const invalidTime = draft.startTime >= draft.endTime;
+  const invalidTime = occurrences.some((item) => item.startTime >= item.endTime);
   const canSubmit = Boolean(
     draft.organizationId &&
     draft.title.trim() &&
@@ -1308,12 +1318,19 @@ function ScheduleEditorForm({
 
   return (
     <form
-      className="grid gap-5"
+      className="grid gap-5 lg:grid-cols-2"
       dir="rtl"
       onSubmit={(event) => {
         event.preventDefault();
         setAttempted(true);
-        if (canSubmit) void onSubmit({ ...draft, title: draft.title.trim() });
+        if (canSubmit)
+          void onSubmit(
+            occurrences.map((occurrence) => ({
+              ...draft,
+              ...occurrence,
+              title: draft.title.trim(),
+            })),
+          );
       }}
     >
       <fieldset className="grid gap-3 rounded-2xl border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-muted))]/60 p-3">
@@ -1403,37 +1420,107 @@ function ScheduleEditorForm({
         {attempted && !draft.title.trim() ? (
           <p className="text-xs font-bold text-rose-600">عنوان جلسه را وارد کنید.</p>
         ) : null}
-        <label className="grid gap-1.5 text-sm font-bold">
-          روز هفته
-          <AdaptiveSelect
-            value={draft.weekday}
-            onChange={(event) => update({ weekday: Number(event.target.value) })}
-            className="h-11 rounded-xl border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card))] px-3 text-sm text-ink focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20"
-          >
-            {weekdays.map((label, index) => (
-              <option key={label} value={index}>
-                {label}
-              </option>
-            ))}
-          </AdaptiveSelect>
-        </label>
-        <div className="grid grid-cols-2 gap-3">
-          <label className="grid gap-1.5 text-sm font-bold">
-            شروع{" "}
-            <Input
-              type="time"
-              value={draft.startTime}
-              onChange={(event) => update({ startTime: event.target.value })}
-            />
-          </label>
-          <label className="grid gap-1.5 text-sm font-bold">
-            پایان{" "}
-            <Input
-              type="time"
-              value={draft.endTime}
-              onChange={(event) => update({ endTime: event.target.value })}
-            />
-          </label>
+        <div className="grid gap-3" aria-label="نوبت‌های هفتگی جلسه">
+          {occurrences.map((occurrence, index) => (
+            <div
+              key={index}
+              className="grid gap-2 rounded-xl border border-[rgb(var(--border-subtle))] p-3"
+            >
+              <div className="flex items-center justify-between gap-2">
+                <strong className="text-sm">نوبت {index + 1}</strong>
+                {allowMultiple && occurrences.length > 1 ? (
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    onClick={() =>
+                      setOccurrences((items) => items.filter((_, itemIndex) => itemIndex !== index))
+                    }
+                  >
+                    حذف
+                  </Button>
+                ) : null}
+              </div>
+              <label className="grid gap-1.5 text-sm font-bold">
+                روز هفته
+                <AdaptiveSelect
+                  value={occurrence.weekday}
+                  onChange={(event) =>
+                    setOccurrences((items) =>
+                      items.map((item, itemIndex) =>
+                        itemIndex === index
+                          ? { ...item, weekday: Number(event.target.value) }
+                          : item,
+                      ),
+                    )
+                  }
+                >
+                  {weekdays.map((label, weekday) => (
+                    <option key={label} value={weekday}>
+                      {label}
+                    </option>
+                  ))}
+                </AdaptiveSelect>
+              </label>
+              <div className="grid grid-cols-2 gap-3">
+                <label className="grid gap-1.5 text-sm font-bold">
+                  شروع
+                  <Input
+                    type="time"
+                    value={occurrence.startTime}
+                    onChange={(event) =>
+                      setOccurrences((items) =>
+                        items.map((item, itemIndex) =>
+                          itemIndex === index ? { ...item, startTime: event.target.value } : item,
+                        ),
+                      )
+                    }
+                  />
+                </label>
+                <label className="grid gap-1.5 text-sm font-bold">
+                  پایان
+                  <Input
+                    type="time"
+                    value={occurrence.endTime}
+                    onChange={(event) =>
+                      setOccurrences((items) =>
+                        items.map((item, itemIndex) =>
+                          itemIndex === index ? { ...item, endTime: event.target.value } : item,
+                        ),
+                      )
+                    }
+                  />
+                </label>
+              </div>
+            </div>
+          ))}
+          {allowMultiple ? (
+            <div className="flex flex-wrap gap-2">
+              <Button
+                type="button"
+                size="sm"
+                variant="soft"
+                onClick={() =>
+                  setOccurrences((items) => [
+                    ...items,
+                    { ...items[0], weekday: (items[items.length - 1].weekday + 1) % 7 },
+                  ])
+                }
+              >
+                روز دیگر
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="soft"
+                onClick={() =>
+                  setOccurrences((items) => [...items, { ...items[items.length - 1] }])
+                }
+              >
+                نوبت دیگر در همان روز
+              </Button>
+            </div>
+          ) : null}
         </div>
         {timeBlocks.length ? (
           <label className="grid gap-1.5 text-sm font-bold">
@@ -1442,7 +1529,14 @@ function ScheduleEditorForm({
               defaultValue=""
               onChange={(event) => {
                 const block = timeBlocks.find((item) => item.id === event.target.value);
-                if (block) update({ startTime: block.startTime, endTime: block.endTime });
+                if (block)
+                  setOccurrences((items) =>
+                    items.map((item, index) =>
+                      index === items.length - 1
+                        ? { ...item, startTime: block.startTime, endTime: block.endTime }
+                        : item,
+                    ),
+                  );
               }}
               className="h-11 rounded-xl border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card))] px-3 text-sm text-ink focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20"
             >
@@ -1468,7 +1562,7 @@ function ScheduleEditorForm({
           />
         </label>
       </fieldset>
-      <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+      <div className="flex flex-col-reverse gap-2 lg:col-span-2 sm:flex-row sm:justify-end">
         <Button type="button" variant="ghost" onClick={onCancel}>
           انصراف
         </Button>

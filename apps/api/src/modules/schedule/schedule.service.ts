@@ -1014,6 +1014,17 @@ export class ScheduleService {
       )
       .then((entry) => this.publicEntry(entry));
   }
+  async createMany(user: AuthenticatedUser, entries: SaveScheduleEntryDto[]) {
+    if (!entries.length || entries.length > 28)
+      throw new ApiException(
+        422,
+        "SCHEDULE_BATCH_INVALID",
+        "تعداد جلسه‌ها معتبر نیست.",
+      );
+    return attendanceTransaction(this.entries.manager, (manager) =>
+      Promise.all(entries.map((entry) => this.create(user, entry, manager))),
+    );
+  }
   async update(user: AuthenticatedUser, id: string, dto: SaveScheduleEntryDto) {
     const context = this.context(user);
     this.authorization.requireCapability(context, "schedule.update");

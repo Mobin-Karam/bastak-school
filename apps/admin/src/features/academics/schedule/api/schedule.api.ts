@@ -72,6 +72,8 @@ export const listScheduleSubstitutionSlots = (date: string) =>
 export const listSchedule = () => api.get<ScheduleEntry[]>("/schedule");
 export const createScheduleEntry = (draft: ScheduleDraft) =>
   api.post<ScheduleEntry>("/schedule", draft);
+export const createScheduleEntries = (entries: ScheduleDraft[]) =>
+  api.post<ScheduleEntry[]>("/schedule/batch", { entries });
 export const updateScheduleEntry = (id: string, draft: ScheduleDraft) =>
   api.patch<ScheduleEntry>(`/schedule/${encodeURIComponent(id)}`, draft);
 export const archiveScheduleEntry = (id: string, status: "ACTIVE" | "ARCHIVED") =>

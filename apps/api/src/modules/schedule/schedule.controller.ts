@@ -14,6 +14,7 @@ import { ok } from "../../common/utils/envelope";
 import { AuthenticatedUser } from "../auth";
 import {
   ArchiveScheduleEntryDto,
+  CreateScheduleEntriesDto,
   CreateScheduleTimeBlockDto,
   CreateScheduleTemplateDto,
   ScheduleSubstitutionDecisionDto,
@@ -136,6 +137,12 @@ export class ScheduleController {
     @Body() dto: SaveScheduleEntryDto,
   ) {
     return this.schedule.create(user, dto).then(ok);
+  }
+  @Post("batch") @RequireCapabilities("schedule.create") createBatch(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() dto: CreateScheduleEntriesDto,
+  ) {
+    return this.schedule.createMany(user, dto.entries).then(ok);
   }
   @Post("import/preview") @RequireCapabilities("schedule.import") preview(
     @CurrentUser() user: AuthenticatedUser,
