@@ -1,7 +1,9 @@
 import { render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { ThemeProvider } from "../../../../shared/theme/theme";
 import { LocaleProvider } from "../../../../shared/ui/locale";
+import { ModalProvider } from "../../../../shared/ui/modal";
 import { AdminMainSidebar } from "./AdminMainSidebar";
 
 const auth = {
@@ -18,19 +20,23 @@ describe("AdminMainSidebar locale flow", () => {
     window.localStorage.setItem("moshaver-admin-location", "international");
 
     render(
-      <LocaleProvider>
-        <MemoryRouter>
-          <AdminMainSidebar
-            collapsed={false}
-            currentSection="خانه"
-            currentPath=""
-            selectedStudentId=""
-            onToggle={() => undefined}
-            onOpenSearch={() => undefined}
-            direction="ltr"
-          />
-        </MemoryRouter>
-      </LocaleProvider>,
+      <ThemeProvider>
+        <LocaleProvider>
+          <ModalProvider>
+            <MemoryRouter>
+              <AdminMainSidebar
+                collapsed={false}
+                currentSection="خانه"
+                currentPath=""
+                selectedStudentId=""
+                onToggle={() => undefined}
+                onOpenSearch={() => undefined}
+                direction="ltr"
+              />
+            </MemoryRouter>
+          </ModalProvider>
+        </LocaleProvider>
+      </ThemeProvider>,
     );
 
     expect(screen.getAllByText("Advisor workspace").length).toBeGreaterThan(0);

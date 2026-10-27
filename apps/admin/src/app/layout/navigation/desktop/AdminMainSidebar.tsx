@@ -5,6 +5,7 @@ import { adminDestination, localizedNavigationForCapabilities } from "../config/
 import { useAuth } from "../../../../features/identity/auth";
 import { rolePortalTitle } from "../../../../shared/lib/role-ui";
 import { useAdminShellCopy, useLocale } from "../../../../shared/ui/locale";
+import { AdminAccountMenu } from "../../components/AdminAccountMenu";
 
 export function AdminMainSidebar({
   collapsed,
@@ -229,6 +230,9 @@ export function AdminMainSidebar({
           />
         ) : null}
       </div>
+      <footer className="mt-3 shrink-0 border-t border-[rgb(var(--border-subtle))] pt-3">
+        <AdminAccountMenu compact={collapsed} />
+      </footer>
     </aside>
   );
 }

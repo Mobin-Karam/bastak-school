@@ -807,12 +807,16 @@ function ScheduleWorkspace({
     setActiveTab(classroomId);
   };
   const closeClassTab = (classroomId: string) => {
-    setClassTabIds((current) => current.filter((id) => id !== classroomId));
-    if (activeTab === classroomId) setActiveTab("main");
+    const tabIndex = classTabIds.indexOf(classroomId);
+    const remainingTabs = classTabIds.filter((id) => id !== classroomId);
+    setClassTabIds(remainingTabs);
+    if (activeTab === classroomId) {
+      setActiveTab(remainingTabs[tabIndex] ?? remainingTabs[tabIndex - 1] ?? "main");
+    }
   };
 
   return (
-    <section className="grid gap-3" aria-label="برنامه هفتگی مدرسه">
+    <section className="flex flex-col gap-3" aria-label="برنامه هفتگی مدرسه">
       {selectedClassroom ? (
         <ClassScheduleBoard
           classroom={selectedClassroom}
@@ -1031,17 +1035,25 @@ function ScheduleWorkspace({
 
       <nav
         aria-label="برگه‌های فضای کاری برنامه"
-        className="fixed inset-x-3 bottom-[calc(0.75rem+env(safe-area-inset-bottom))] z-40 mx-auto flex w-auto max-w-4xl items-end gap-1 overflow-x-auto rounded-2xl border border-slate-200/90 bg-white/95 p-1.5 shadow-[0_16px_40px_-14px_rgba(15,23,42,.42)] backdrop-blur dark:border-white/15 dark:bg-slate-950/95 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        className="sticky top-0 z-30 order-first flex min-h-[4.5rem] w-full items-center gap-3 overflow-x-auto border-b border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card)_/_94%)] px-3 py-2 shadow-[0_10px_22px_-22px_rgba(15,23,42,.5)] backdrop-blur-md dark:bg-[rgb(var(--surface-card)_/_94%)] sm:px-5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
         dir="rtl"
       >
+        <div className="hidden shrink-0 border-e border-[rgb(var(--border-subtle))] pe-3 sm:block">
+          <p className="text-sm font-black text-ink">برنامه هفتگی</p>
+          <p className="mt-0.5 text-[11px] text-slate-500 dark:text-slate-300">فضای کاری کلاس‌ها</p>
+        </div>
         <button
           type="button"
+          role="tab"
+          id="schedule-main-tab"
+          aria-controls="schedule-workspace-panel"
+          aria-selected={activeTab === "main"}
           onClick={() => setActiveTab("main")}
           aria-current={activeTab === "main" ? "page" : undefined}
-          className={`shrink-0 rounded-xl px-3 py-2 text-xs font-black outline-none transition focus-visible:ring-2 focus-visible:ring-brand ${
+          className={`shrink-0 rounded-t-xl border border-b-0 px-3 py-2.5 text-xs font-black outline-none transition focus-visible:ring-2 focus-visible:ring-brand ${
             activeTab === "main"
-              ? "bg-brand text-white shadow-sm"
-              : "text-slate-600 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-white/10"
+              ? "border-brand bg-brand text-white shadow-sm"
+              : "border-transparent bg-[rgb(var(--surface-muted))] text-slate-600 hover:border-slate-200 hover:bg-white dark:text-slate-200 dark:hover:border-white/15 dark:hover:bg-white/10"
           }`}
         >
           برنامه اصلی
@@ -1053,14 +1065,18 @@ function ScheduleWorkspace({
           return (
             <span
               key={classroomId}
-              className={`flex shrink-0 items-center gap-1 rounded-xl ps-3 pe-1 py-1 text-xs font-black transition ${
+              className={`flex shrink-0 items-center gap-1 rounded-t-xl border border-b-0 ps-3 pe-1 py-1.5 text-xs font-black transition ${
                 active
-                  ? "bg-brand text-white shadow-sm"
-                  : "text-slate-600 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-white/10"
+                  ? "border-brand bg-brand text-white shadow-sm"
+                  : "border-transparent bg-[rgb(var(--surface-muted))] text-slate-600 hover:border-slate-200 hover:bg-white dark:text-slate-200 dark:hover:border-white/15 dark:hover:bg-white/10"
               }`}
             >
               <button
                 type="button"
+                role="tab"
+                id={`schedule-class-tab-${classroomId}`}
+                aria-controls="schedule-workspace-panel"
+                aria-selected={active}
                 onClick={() => setActiveTab(classroomId)}
                 aria-current={active ? "page" : undefined}
                 className="rounded-lg px-1 py-1 outline-none focus-visible:ring-2 focus-visible:ring-current"
@@ -1078,7 +1094,7 @@ function ScheduleWorkspace({
             </span>
           );
         })}
-        <label className="relative block w-10 shrink-0" title="باز کردن برنامه یک کلاس">
+        <label className="relative ms-auto block w-10 shrink-0" title="باز کردن برنامه یک کلاس">
           <span className="sr-only">انتخاب کلاس برای باز کردن برگه</span>
           <AdaptiveSelect
             value=""
