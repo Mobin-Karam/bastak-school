@@ -1956,8 +1956,8 @@ html.is-scrolling :is(body, .scroll-reveal)::-webkit-scrollbar-thumb,
     min-width: 0;
   }
 
-  /* Directories keep their controls above a bounded data panel. */
-  .admin-page-shell > :has(> .data-table-workspace),
+  /* Opt-in directories keep their controls above a bounded data panel. */
+  .admin-page-shell > :has(> .data-table-workspace[data-scroll-rows="true"]),
   .admin-page-shell > :has(> .management-master-detail) {
     display: flex;
     flex-direction: column;
@@ -1965,35 +1965,37 @@ html.is-scrolling :is(body, .scroll-reveal)::-webkit-scrollbar-thumb,
     min-height: 0;
   }
 
-  .admin-page-shell > :has(> .data-table-workspace) > :not(.data-table-workspace),
+  .admin-page-shell
+    > :has(> .data-table-workspace[data-scroll-rows="true"])
+    > :not(.data-table-workspace),
   .admin-page-shell > :has(> .management-master-detail) > :not(.management-master-detail) {
     flex-shrink: 0;
   }
 
-  .admin-page-shell > * > .data-table-workspace,
+  .admin-page-shell > * > .data-table-workspace[data-scroll-rows="true"],
   .admin-page-shell > * > .management-master-detail {
     flex: 1 1 12rem;
     min-height: 12rem;
   }
 
-  .data-table-workspace {
+  .data-table-workspace[data-scroll-rows="true"] {
     display: flex;
     min-height: 0;
     flex-direction: column;
   }
 
-  .data-table-workspace > * {
+  .data-table-workspace[data-scroll-rows="true"] > * {
     flex-shrink: 0;
   }
 
-  .data-table-workspace > .data-table-workspace__rows {
+  .data-table-workspace[data-scroll-rows="true"] > .data-table-workspace__rows {
     flex: 1 1 auto;
     min-height: 0;
     overflow: auto;
     overscroll-behavior: contain;
   }
 
-  .data-table-workspace__rows > [role="region"] {
+  .data-table-workspace[data-scroll-rows="true"] .data-table-workspace__rows > [role="region"] {
     height: 100%;
     max-height: 100%;
   }

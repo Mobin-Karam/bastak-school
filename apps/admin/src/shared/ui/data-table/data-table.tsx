@@ -322,8 +322,9 @@ export function DataTable<TData>({
       aria-label={label}
       aria-busy={loading || refreshing || busy || exporting || undefined}
       dir={language === "fa" ? "rtl" : "ltr"}
+      data-scroll-rows={scrollRows || undefined}
       className={`data-table-workspace w-full max-w-full min-w-0 rounded-xl border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card))] text-ink shadow-[var(--shadow-surface)] ${
-        scrollRows ? "flex flex-col overflow-hidden" : "max-h-[100dvh] overflow-auto"
+        scrollRows ? "flex flex-col overflow-hidden" : ""
       } ${className ?? ""} ${selectedRows.length ? "pb-28 md:pb-0" : ""}`}
     >
       <DataTableToolbar

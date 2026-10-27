@@ -82,6 +82,16 @@ describe("shared DataTable", () => {
     expect(screen.getByRole("region", { name: "Books" })).toHaveClass("overflow-hidden");
   });
 
+  it("grows with a larger page instead of creating a vertical results viewport by default", async () => {
+    mount();
+    const workspace = screen.getByRole("region", { name: "Books" });
+    expect(workspace).not.toHaveAttribute("data-scroll-rows");
+    expect(workspace).not.toHaveClass("max-h-[100dvh]", "overflow-auto");
+
+    await userEvent.selectOptions(screen.getByRole("combobox", { name: "Rows per page" }), "25");
+    expect(table().getAllByRole("row")).toHaveLength(26);
+  });
+
   it("shares pagination, locale sorting and debounced search between table and cards", async () => {
     mount();
     expect(table().getAllByRole("row")).toHaveLength(11);

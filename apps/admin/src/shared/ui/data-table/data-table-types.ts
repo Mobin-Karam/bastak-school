@@ -56,7 +56,7 @@ export type DataTableProps<TData> = {
   preferenceKey?: string;
   /** Exports all filtered client rows, using visible columns. Server exports are feature-owned. */
   exportFilename?: string;
-  /** Keep table controls and pagination fixed while only the result area scrolls. */
+  /** Opt into a bounded result area; ordinary tables grow with their current page. */
   scrollRows?: boolean;
   /** Layout classes for a feature-owned table viewport. */
   className?: string;
