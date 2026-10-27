@@ -4,7 +4,6 @@ import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../../../identity/auth";
 import { listSchedule, type ScheduleEntry } from "../../../academics/schedule/api/schedule.api";
-import { listClasses } from "../../../academics/education/api/classes.api";
 import { todayIso } from "../../../../shared/lib/utils";
 import { useLocale } from "../../../../shared/ui/locale";
 import { Card, EmptyState, LoadingState } from "../../../../shared/ui/ui";
@@ -12,6 +11,7 @@ import { getAdminDashboard } from "../../../analytics/dashboard/api/dashboard.ap
 import { AnnouncementEnvelope } from "../../../analytics/dashboard/components/AnnouncementEnvelope";
 import { CurrentPrayerCard } from "../../../analytics/school-home/components/CurrentPrayerCard";
 import { TeacherClassAttendanceSheet } from "../components/TeacherClassAttendanceSheet";
+import { activeEntriesForTehranToday } from "../model/teacher-dashboard-schedule";
 
 function tehranClockMinutes(date: Date) {
   const parts = new Intl.DateTimeFormat("en-GB", {
@@ -41,14 +41,6 @@ export function TeacherDashboard() {
     queryFn: () => getAdminDashboard("TEACHER"),
   });
   const schedule = useQuery({ queryKey: ["schedule", "teacher"], queryFn: listSchedule });
-  // The API limits this list to classes where the current teacher is assigned
-  // to at least one class book. Books are displayed from that same scoped
-  // response; the client never selects a teacher or class by itself.
-  const classes = useQuery({
-    queryKey: ["classes", "teacher"],
-    queryFn: () => listClasses(auth.context?.activeOrganization?.id),
-    enabled: auth.can("classes.read"),
-  });
   useEffect(() => {
     const timer = window.setInterval(() => setNow(new Date()), 60_000);
     return () => window.clearInterval(timer);
@@ -59,13 +51,8 @@ export function TeacherDashboard() {
   // against the schedule query before opening attendance so organization and
   // classroom identifiers never come from an untrusted UI value.
   const todayEntries = useMemo(
-    () =>
-      (schedule.data ?? []).filter(
-        (entry) =>
-          entry.status === "ACTIVE" &&
-          entry.weekday === new Date(`${todayIso()}T12:00:00`).getDay(),
-      ),
-    [schedule.data],
+    () => activeEntriesForTehranToday(schedule.data ?? [], now),
+    [schedule.data, now],
   );
   const currentMinute = tehranClockMinutes(now);
   const currentClass =
@@ -154,48 +141,40 @@ export function TeacherDashboard() {
             برنامه هفتگی <ChevronLeft size={15} aria-hidden="true" />
           </Link>
         </div>
-        {classes.isLoading ? (
-          <LoadingState label="در حال دریافت کلاس‌ها و کتاب‌های شما…" />
-        ) : classes.isError ? (
-          <EmptyState title="کلاس‌ها و کتاب‌های شما دریافت نشد." />
-        ) : classes.data?.filter((classroom) =>
-            todayEntries.some((entry) => entry.classroom?.id === classroom.id),
-          ).length ? (
+        {schedule.isLoading ? (
+          <LoadingState label="در حال دریافت کلاس‌های امروز شما…" />
+        ) : schedule.isError ? (
+          <EmptyState title="برنامهٔ امروز شما دریافت نشد." />
+        ) : todayEntries.length ? (
           <div className="grid gap-3 sm:grid-cols-2 min-[1200px]:grid-cols-3">
-            {classes.data
-              .filter((classroom) =>
-                todayEntries.some((entry) => entry.classroom?.id === classroom.id),
-              )
-              .map((classroom) => (
-                <Card key={classroom.id} className="min-w-0 p-3">
-                  <div className="flex items-start gap-2">
-                    <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-brand/10 text-brand">
-                      <UsersRound size={17} aria-hidden="true" />
-                    </span>
-                    <div className="min-w-0">
-                      <h3 className="truncate text-sm font-black text-ink">{classroom.name}</h3>
-                      <p className="mt-0.5 text-[11px] text-slate-500">
-                        {classroom.enrollmentCount.toLocaleString("fa-IR")} دانش‌آموز
-                      </p>
-                    </div>
+            {todayEntries.map((entry) => (
+              <Card key={entry.id} className="min-w-0 p-3">
+                <div className="flex items-start gap-2">
+                  <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-brand/10 text-brand">
+                    <UsersRound size={17} aria-hidden="true" />
+                  </span>
+                  <div className="min-w-0">
+                    <h3 className="truncate text-sm font-black text-ink">{entry.title}</h3>
+                    <p className="mt-0.5 text-[11px] text-slate-500">
+                      {entry.classroom?.name ?? "کلاس ثبت نشده"}
+                    </p>
                   </div>
-                  <ul className="mt-3 grid gap-1.5" aria-label={`کتاب‌های ${classroom.name}`}>
-                    {classroom.books.map((book) => (
-                      <li
-                        key={book.id}
-                        className="flex min-w-0 items-center gap-1.5 rounded-lg bg-[rgb(var(--surface-muted))] px-2.5 py-2 text-xs text-slate-700 dark:text-slate-200"
-                      >
-                        <BookOpenCheck
-                          size={14}
-                          className="shrink-0 text-brand"
-                          aria-hidden="true"
-                        />
-                        <span className="truncate font-bold">{book.title}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </Card>
-              ))}
+                </div>
+                <div className="mt-3 flex min-w-0 items-center gap-1.5 rounded-lg bg-[rgb(var(--surface-muted))] px-2.5 py-2 text-xs text-slate-700 dark:text-slate-200">
+                  <BookOpenCheck size={14} className="shrink-0 text-brand" aria-hidden="true" />
+                  <span className="truncate font-bold">
+                    {entry.classBook?.book.titleFa ?? "درس ثبت نشده"}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setSelectedClass(entry)}
+                  className="mt-3 inline-flex min-h-10 items-center gap-1 rounded-lg px-2 text-xs font-bold text-brand outline-none hover:bg-brand/5 focus-visible:ring-2 focus-visible:ring-brand"
+                >
+                  فهرست کلاس و حضور <ChevronLeft size={14} aria-hidden="true" />
+                </button>
+              </Card>
+            ))}
           </div>
         ) : (
           <EmptyState title="امروز کلاس واگذارشده‌ای ندارید." />

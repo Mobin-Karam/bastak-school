@@ -21,6 +21,7 @@ import { AttendanceService } from "../src/modules/attendance";
 import { AuthorizationService } from "../src/modules/authorization";
 import { RealtimeService } from "../src/modules/realtime";
 import { NotificationsService } from "../src/modules/notifications";
+import { RewardsService } from "../src/modules/rewards";
 import type { AuthenticatedUser } from "../src/modules/auth";
 import type { TimetableLessonDto } from "../src/modules/schedule/timetable.dto";
 const {
@@ -196,6 +197,7 @@ describe("versioned timetable integration (migration-built SQLite)", () => {
       access,
       {} as AuthorizationService,
       new RealtimeService(),
+      new RewardsService(db.getRepository(entities.StudentRewardLedger), db.getRepository(Student), db.getRepository(entities.AuditLog), access, {} as AuthorizationService),
     );
     service = new TimetableService(
       db,

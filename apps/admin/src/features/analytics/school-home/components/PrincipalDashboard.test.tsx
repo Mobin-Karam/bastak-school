@@ -8,6 +8,7 @@ import {
   getPrincipalDashboard,
   getAttendanceSessionForReview,
   reviewAttendanceSession,
+  type PrincipalDashboardContract,
 } from "../api/principal-dashboard.api";
 import { PrincipalDashboard } from "./PrincipalDashboard";
 
@@ -19,7 +20,6 @@ vi.mock("../api/principal-dashboard.api", () => ({
   getAttendanceSessionForReview: vi.fn(),
   reviewAttendanceSession: vi.fn(),
 }));
-
 const sessionDetail = {
   id: "session-a",
   organizationId: "school-a",
@@ -97,6 +97,7 @@ const dashboardData = {
     permissionRequests: 0,
   },
   sessionReviews: {
+    mode: "absences_only",
     pendingCount: 1,
     items: [
       {
@@ -127,7 +128,7 @@ const dashboardData = {
       endDate: "2026-10-22T00:00:00.000Z",
     },
   ],
-};
+} satisfies PrincipalDashboardContract;
 
 function renderDashboard() {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -164,9 +165,9 @@ describe("PrincipalDashboard", () => {
     renderDashboard();
 
     expect(
-      await screen.findByRole("heading", { name: "جلسه‌های حضورِ نیازمند بررسی" }),
+      await screen.findByRole("heading", { name: "فهرست جلسه‌های حضورِ نیازمند بررسی" }),
     ).toBeVisible();
-    expect(screen.getByText(/۱ جلسه در چرخهٔ بازبینی هر ۲۴ ساعت/)).toBeVisible();
+    expect(screen.getByText(/۱ جلسهٔ خوانده‌نشده در چرخهٔ ۲۴ ساعته/)).toBeVisible();
     expect(screen.getAllByText("پایه اول")[0]).toBeVisible();
     await user.click(screen.getAllByRole("button", { name: /مشاهدهٔ جزئیات/ })[0]);
 
@@ -185,6 +186,7 @@ describe("PrincipalDashboard", () => {
     vi.mocked(getPrincipalDashboard).mockResolvedValue({
       ...dashboardData,
       sessionReviews: {
+        mode: "absences_only",
         pendingCount: 1,
         items: [{ ...dashboardData.sessionReviews.items[0], absent: 0 }],
       },
@@ -205,6 +207,7 @@ describe("PrincipalDashboard", () => {
     vi.mocked(getPrincipalDashboard).mockResolvedValue({
       ...dashboardData,
       sessionReviews: {
+        mode: "absences_only",
         pendingCount: 11,
         items: Array.from({ length: 11 }, (_, index) => ({
           ...dashboardData.sessionReviews.items[0],
@@ -226,31 +229,32 @@ describe("PrincipalDashboard", () => {
     expect(screen.getByRole("button", { name: "بعدی" })).toBeDisabled();
   });
 
-  it("hides the leadership review section when the active context lacks attendance.review", async () => {
+  it("keeps attendance out of the dashboard when the active context lacks review access", async () => {
     authCan.mockImplementation(() => false);
     renderDashboard();
 
-    expect(await screen.findByRole("heading", { name: "نبض مدرسه" })).toBeVisible();
-    expect(screen.queryByRole("heading", { name: "جلسه‌های حضورِ نیازمند بررسی" })).toBeNull();
+    expect(await screen.findByRole("heading", { name: "عملیات فعال" })).toBeVisible();
+    expect(
+      screen.queryByRole("heading", { name: "فهرست جلسه‌های حضورِ نیازمند بررسی" }),
+    ).toBeNull();
+    expect(screen.queryByRole("heading", { name: "خلاصهٔ حضور مدرسه" })).toBeNull();
+    expect(screen.queryByRole("heading", { name: "دانش‌آموزان غایب" })).toBeNull();
   });
 
-  it("puts today’s four operational sections first", async () => {
+  it("keeps the attendance list as the only attendance surface", async () => {
     authCan.mockImplementation((capability) =>
       ["students.read", "attendance.read", "leave.read"].includes(capability),
     );
     renderDashboard();
 
-    expect(await screen.findByRole("heading", { name: "دانش‌آموزان غایب" })).toBeVisible();
-    expect(screen.getByRole("heading", { name: "درخواست‌های مرخصی" })).toBeVisible();
-    expect(screen.getByRole("heading", { name: "خلاصهٔ حضور مدرسه" })).toBeVisible();
+    expect(await screen.findByRole("heading", { name: "درخواست‌های مرخصی" })).toBeVisible();
     expect(screen.getByRole("heading", { name: "عملیات فعال" })).toBeVisible();
-    expect(screen.getByRole("link", { name: /علی رضایی/ })).toHaveAttribute(
-      "href",
-      "/admin/students?studentId=student-a",
-    );
     expect(screen.getByRole("link", { name: /رضا احمدی/ })).toHaveAttribute(
       "href",
       "/admin/leave-requests?requestId=leave-a",
     );
+    expect(screen.queryByRole("heading", { name: "دانش‌آموزان غایب" })).toBeNull();
+    expect(screen.queryByRole("heading", { name: "خلاصهٔ حضور مدرسه" })).toBeNull();
+    expect(screen.queryByRole("heading", { name: "تراکنش‌های سکه" })).toBeNull();
   });
 });

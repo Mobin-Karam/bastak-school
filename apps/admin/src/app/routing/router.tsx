@@ -45,6 +45,9 @@ const StudentsPage = lazy(() =>
 const ClassesPage = lazy(() =>
   import("../../features/academics/education/classes").then((m) => ({ default: m.ClassesPage })),
 );
+const TeachersPage = lazy(() =>
+  import("../../features/academics/education").then((m) => ({ default: m.TeachersPage })),
+);
 const BookShelfPage = lazy(() =>
   import("../../features/academics/education/books").then((m) => ({ default: m.BookShelfPage })),
 );
@@ -145,6 +148,12 @@ const AchievementsComingSoonPage = lazy(() =>
 );
 const CoinShopComingSoonPage = lazy(() =>
   import("../../features/coin-shop").then((m) => ({ default: m.CoinShopComingSoonPage })),
+);
+const RewardsPage = lazy(() =>
+  import("../../features/rewards").then((m) => ({ default: m.RewardsPage })),
+);
+const MyRewardsPage = lazy(() =>
+  import("../../features/rewards").then((m) => ({ default: m.MyRewardsPage })),
 );
 const ManagementComingSoonPage = lazy(() =>
   import("../../features/management").then((m) => ({ default: m.ManagementComingSoonPage })),
@@ -451,6 +460,16 @@ export const adminRouteObjects = [
             ),
           },
           {
+            path: "teachers",
+            element: (
+              <CapabilityRoute capability="classes.manage" allOf={["classes.read"]}>
+                <RouteScreen>
+                  <TeachersPage />
+                </RouteScreen>
+              </CapabilityRoute>
+            ),
+          },
+          {
             path: "books",
             element: (
               <RouteScreen>
@@ -622,6 +641,30 @@ export const adminRouteObjects = [
                   <StudentProfilePage />
                 </RouteScreen>
               </StudentOnlyRoute>
+            ),
+          },
+          {
+            path: "my-rewards",
+            element: (
+              <CapabilityRoute capability="rewards.self.read">
+                <StudentOnlyRoute>
+                  <RouteScreen>
+                    <MyRewardsPage />
+                  </RouteScreen>
+                </StudentOnlyRoute>
+              </CapabilityRoute>
+            ),
+          },
+          {
+            path: "rewards",
+            element: (
+              <CapabilityRoute capability="rewards.read">
+                <NonStudentRoute>
+                  <RouteScreen>
+                    <RewardsPage />
+                  </RouteScreen>
+                </NonStudentRoute>
+              </CapabilityRoute>
             ),
           },
           {

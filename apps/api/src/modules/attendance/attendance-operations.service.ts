@@ -20,7 +20,6 @@ import {
   AttendanceReviewStatus,
   AttendanceStatus,
 } from "../../database/entities/attendance-record.entity";
-import { StudentPointLedger } from "../../database/entities/student-point-ledger.entity";
 import { AttendancePool } from "../../database/entities/attendance-pool.entity";
 import { DormAttendanceDelegate } from "../../database/entities/dorm-attendance-delegate.entity";
 import { DormRoom } from "../../database/entities/dorm-room.entity";
@@ -34,6 +33,7 @@ import { User, UserStatus } from "../../database/entities/user.entity";
 import { AuthenticatedUser } from "../auth";
 import { SchoolAccessService } from "../school-access";
 import { RealtimeService } from "../realtime";
+import { RewardsService } from "../rewards";
 import { AttendanceService } from "./attendance.service";
 import { attendanceTransaction } from "./attendance-transaction";
 import {
@@ -67,6 +67,7 @@ export class AttendanceOperationsService {
     private readonly attendance: AttendanceService,
     private readonly access: SchoolAccessService,
     private readonly realtime: RealtimeService,
+    private readonly rewards: RewardsService,
   ) {}
   private repo<T extends object>(entity: new () => T) {
     return this.sessions.manager.getRepository(entity);
@@ -1278,9 +1279,6 @@ export class AttendanceOperationsService {
           (row) =>
             row.session.contextType === "class" && visibleClassIds.has(row.session.contextId),
         );
-    const points = await this.repo(StudentPointLedger).find({
-      where: { student: { id }, organization: { id: student.organization!.id } },
-    });
     const counts = this.counts(visibleRows);
     const totalSessions = visibleRows.length;
     const attendanceRate = totalSessions
@@ -1304,7 +1302,7 @@ export class AttendanceOperationsService {
       name: student.name,
       schoolName: student.organization?.name ?? "—",
       classNames: visibleEnrollments.map(({ classroom }) => classroom.name),
-      points: points.reduce((total, row) => total + row.points, 0),
+      points: await this.rewards.balanceForStudent(id, student.organization!.id),
       attendanceRate,
       attendanceCoverage: eligibleSessionCount
         ? Math.round((totalSessions / eligibleSessionCount) * 100)
@@ -1337,10 +1335,7 @@ export class AttendanceOperationsService {
       },
     });
     const counts = this.counts(rows);
-    const pointRows = await this.repo(StudentPointLedger).find({
-      where: { student: { id: student.id } },
-    });
-    const points = pointRows.reduce((total, row) => total + row.points, 0);
+    const points = await this.rewards.balanceForStudent(student.id, student.organization!.id);
     const rate = rows.length
       ? Math.round(((counts.present + counts.late) / rows.length) * 100)
       : null;

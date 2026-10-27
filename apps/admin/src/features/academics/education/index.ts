@@ -7,3 +7,4 @@ export { QuizzesPage } from "./quizzes";
 export { SubjectsPage } from "./subjects";
 export { ResourcesPage } from "./resources";
 export { ClassesPage } from "./classes";
+export { TeachersPage } from "./pages/TeachersPage";

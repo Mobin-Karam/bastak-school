@@ -11,6 +11,7 @@ const STUDENT_ONLY_ROUTES = new Set([
   "achievements",
   "family",
   "my-attendance",
+  "my-rewards",
   "profile",
   "student-leave",
 ]);

@@ -40,6 +40,8 @@ import { ExitPermission } from "../src/database/entities/exit-permission.entity"
 import { RequestLetter } from "../src/database/entities/request-letter.entity";
 import { ScheduleService } from "../src/modules/schedule/schedule.service";
 import { AuthorizationService } from "../src/modules/authorization";
+import { RewardsService } from "../src/modules/rewards";
+import { StudentRewardLedger } from "../src/database/entities/student-reward-ledger.entity";
 import { UserRoleAssignment } from "../src/database/entities/user-role-assignment.entity";
 import { UserRelationship } from "../src/database/entities/user-relationship.entity";
 import { SchoolScheduleEntry } from "../src/database/entities/school-schedule-entry.entity";
@@ -73,6 +75,8 @@ function database(filename: string, baseline = false, runMigrations = true) {
             file === "1731300100000-AttendanceAcademicSnapshots.ts" ||
             file === "1731400000000-StudentAttendancePoints.ts" ||
             file === "1731400100000-StudentPointLedgerIdempotencyScope.ts" ||
+            file === "1731900000000-RewardsLedgerExtraction.ts" ||
+            file === "1731910000000-PrincipalAttendanceReviewPolicy.ts" ||
             file === "1731800300000-StudentAccountChangeLimits.ts"),
       )
       .map((file) => path.join(directory, file)),
@@ -562,8 +566,9 @@ describe("migration-backed persistence and verified recovery (disposable SQLite 
       db.getRepository(DormRoomAssignment),
       db.getRepository(OrganizationMembership),
       access,
-      {} as never,
+      {} as AuthorizationService,
       new RealtimeService(),
+      new RewardsService(db.getRepository(StudentRewardLedger), db.getRepository(Student), db.getRepository(AuditLog), access, {} as AuthorizationService),
     );
     const command = {
       organizationId: a.id,
