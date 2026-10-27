@@ -64,7 +64,6 @@ import {
   TimetableOverrideDto,
   TimetableImportDto,
   TimetableSubstitutionRequestDto,
-  TimetableSubstitutionDecisionDto,
 } from "./timetable.dto";
 import {
   canonicalDate,
@@ -141,77 +140,6 @@ export class TimetableService {
         reviewedById: null,
         reviewedAt: null,
       });
-  }
-  async reviewSubstitution(
-    user: AuthenticatedUser,
-    id: string,
-    dto: TimetableSubstitutionDecisionDto,
-  ) {
-    const request = await this.database.manager
-      .getRepository(TimetableSubstitutionRequest)
-      .findOneBy({ id });
-    if (!request || request.status !== "pending")
-      this.fail(
-        "TIMETABLE_SUBSTITUTION_NOT_FOUND",
-        "درخواست در انتظار بررسی پیدا نشد.",
-        404,
-      );
-    const { version, term, year } = await this.version(
-      user,
-      request.versionId,
-      "schedule.publish",
-      this.database.manager,
-    );
-    request.status = dto.decision;
-    request.reviewedById = user.id;
-    request.reviewedAt = new Date();
-    if (dto.decision === "approved") {
-      const original = (
-        await this.versionData(this.database.manager, version, term, year)
-      ).lessons.find((row) => row.id === request.lessonId);
-      if (!original)
-        this.fail("TIMETABLE_LESSON_NOT_FOUND", "جلسه اصلی پیدا نشد.", 404);
-      await this.database.manager
-        .getRepository(TimetableOverride)
-        .save({
-          versionId: version.id,
-          lessonId: original.id,
-          date: request.freezeDate,
-          cancelled: true,
-          teacherId: null,
-          locationId: null,
-          startTime: null,
-          endTime: null,
-          reason: request.message || request.title,
-          changedById: user.id,
-          changedByName: this.name(user),
-        });
-      await this.database.manager
-        .getRepository(SchoolScheduleEntry)
-        .save({
-          organization: { id: year.organizationId } as never,
-          classroom: { id: original.classroomId } as never,
-          classBook: { id: original.classBookId } as never,
-          teacher: { id: original.teacherId } as never,
-          title: request.title,
-          weekday: weekdayOf(request.replacementDate),
-          startTime: request.replacementStartTime,
-          endTime: request.replacementEndTime,
-          room: "",
-          status: "ACTIVE",
-          versionId: version.id,
-          periodId: original.periodId,
-          locationId: original.locationId,
-          startsOn: request.replacementDate,
-          endsOn: request.replacementDate,
-          notes: request.message,
-          classroomNameSnapshot: original.classroomName,
-          teacherNameSnapshot: original.teacherName,
-        });
-    }
-    return this.database.manager
-      .getRepository(TimetableSubstitutionRequest)
-      .save(request);
   }
   private fail(
     code: string,
