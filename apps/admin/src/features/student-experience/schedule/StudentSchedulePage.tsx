@@ -10,7 +10,7 @@ import {
   UserRound,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQueries, useQuery } from "@tanstack/react-query";
 import {
   listSchedule,
   listScheduleCancellations,
@@ -68,9 +68,14 @@ function StudentScheduleContent({ entries }: { entries: ScheduleEntry[] }) {
   const [followToday, setFollowToday] = useState(true);
   const today = schoolTodayIso(currentTime);
   const activeWeekday = scheduleWeekdayForIso(selectedDate);
-  const cancellations = useQuery({
-    queryKey: ["schedule", "cancellations", selectedDate],
-    queryFn: () => listScheduleCancellations(selectedDate),
+  const displayedDates = studentScheduleWeekdayOrder.map((weekday) =>
+    studentScheduleDateForWeekday(selectedDate, weekday),
+  );
+  const cancellationQueries = useQueries({
+    queries: displayedDates.map((date) => ({
+      queryKey: ["schedule", "cancellations", date],
+      queryFn: () => listScheduleCancellations(date),
+    })),
   });
 
   useEffect(() => {
@@ -93,10 +98,14 @@ function StudentScheduleContent({ entries }: { entries: ScheduleEntry[] }) {
     () => studentScheduleWeekdayOrder.map((day) => entriesForStudentDay(entries, day)),
     [entries],
   );
-  const cancelledEntryIds = new Set((cancellations.data ?? []).map((item) => item.entryId));
-  const activeEntries = byWeekday[activeWeekday].filter(
-    (entry) => !cancelledEntryIds.has(entry.id),
+  const cancellationsByDate = new Map(
+    displayedDates.map((date, index) => [date, cancellationQueries[index].data ?? []]),
   );
+  const visibleEntries = (weekday: number, date: string) => {
+    const cancelled = new Set((cancellationsByDate.get(date) ?? []).map((item) => item.entryId));
+    return byWeekday[weekday].filter((entry) => !cancelled.has(entry.id));
+  };
+  const activeEntries = visibleEntries(activeWeekday, selectedDate);
   const selectedDateLabel = formatStudentScheduleDate(selectedDate, {
     weekday: "long",
     day: "numeric",
@@ -185,12 +194,12 @@ function StudentScheduleContent({ entries }: { entries: ScheduleEntry[] }) {
           </div>
         </div>
       </header>
-      {cancellations.data?.length ? (
+      {(cancellationsByDate.get(selectedDate) ?? []).length ? (
         <div
           role="status"
           className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm font-bold text-amber-900 dark:bg-amber-950/30 dark:text-amber-100"
         >
-          {cancellations.data[0].message}
+          {cancellationsByDate.get(selectedDate)?.[0].message}
         </div>
       ) : null}
 
@@ -212,7 +221,7 @@ function StudentScheduleContent({ entries }: { entries: ScheduleEntry[] }) {
                   key={weekday}
                   type="button"
                   aria-pressed={isActive}
-                  aria-label={`${studentScheduleWeekdays[weekday]}، ${formatStudentScheduleDate(dayDate, { day: "numeric", month: "long" })}، ${byWeekday[weekday].length} کلاس`}
+                  aria-label={`${studentScheduleWeekdays[weekday]}، ${formatStudentScheduleDate(dayDate, { day: "numeric", month: "long" })}، ${visibleEntries(weekday, dayDate).length} کلاس`}
                   onClick={() => chooseDate(dayDate)}
                   className={`student-schedule__weekday ${isActive ? "student-schedule__weekday--active" : ""}`}
                 >
@@ -223,7 +232,7 @@ function StudentScheduleContent({ entries }: { entries: ScheduleEntry[] }) {
                     {formatStudentScheduleDate(dayDate, { day: "numeric" })}
                   </span>
                   <span className="student-schedule__weekday-count">
-                    {fa(byWeekday[weekday].length)} کلاس
+                    {fa(visibleEntries(weekday, dayDate).length)} کلاس
                   </span>
                   {dayDate === today && (
                     <span className="student-schedule__today-dot" aria-label="امروز" />
@@ -259,11 +268,11 @@ function StudentScheduleContent({ entries }: { entries: ScheduleEntry[] }) {
                     </p>
                   </div>
                   <span className="student-schedule__day-count">
-                    {fa(byWeekday[weekday].length)}
+                    {fa(visibleEntries(weekday, date).length)}
                   </span>
                 </div>
                 <StudentScheduleList
-                  entries={byWeekday[weekday]}
+                  entries={visibleEntries(weekday, date)}
                   date={date}
                   currentTime={currentTime}
                   onOpen={openDetails}
