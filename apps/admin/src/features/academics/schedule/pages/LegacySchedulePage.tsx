@@ -59,6 +59,7 @@ import { SpreadsheetTransferLauncher } from "../../../../shared/ui/spreadsheet-t
 import { useViewportShell } from "../../../../app/layout/lib/viewport-shell";
 import { MobileTabs } from "../../../../shared/ui/mobile";
 import { ResponsiveDrawer } from "../../../../shared/ui/responsive-drawer";
+import { listTeacherLeaveRequests, type TeacherLeaveRequest } from "../api/teacher-leave.api";
 
 const weekdays = ["شنبه", "یکشنبه", "دوشنبه", "سه‌شنبه", "چهارشنبه", "پنجشنبه", "جمعه"];
 const blank = (): ScheduleDraft => ({
@@ -126,6 +127,20 @@ export function LegacySchedulePage() {
     enabled: canManageTemplates,
   });
   const isTeacher = auth.activeRole === "TEACHER";
+  const teacherLeaves = useQuery({
+    queryKey: ["teacher-leaves", selectedOrganizationId],
+    queryFn: listTeacherLeaveRequests,
+    enabled: auth.can("schedule.publish"),
+  });
+  const approvedLeaveByTeacher = useMemo(
+    () =>
+      new Map(
+        (teacherLeaves.data ?? [])
+          .filter((leave) => leave.status === "approved")
+          .map((leave) => [leave.teacherId, leave]),
+      ),
+    [teacherLeaves.data],
+  );
   const classes = useQuery({
     queryKey: ["classes", "schedule"],
     queryFn: () => listClasses(),
@@ -460,6 +475,9 @@ export function LegacySchedulePage() {
             onDelete={confirmDelete}
             onOpenDetails={openDetails}
             onMove={(entry, weekday) => move.mutate({ entry, weekday })}
+            leaveForEntry={(entry) =>
+              approvedLeaveByTeacher.get(entry.teacher?.id ?? entry.classBook?.teacher.id ?? "")
+            }
           />
         </div>
         <aside
@@ -636,6 +654,7 @@ type ScheduleWorkspaceProps = {
   onMove: (entry: ScheduleEntry, weekday: number) => void;
   onAdd: (classroom: EducationClass, weekday: number) => void;
   onCopy: (entry: ScheduleEntry) => void;
+  leaveForEntry: (entry: ScheduleEntry) => TeacherLeaveRequest | undefined;
 };
 
 function ScheduleSidebarSummary({
@@ -690,6 +709,7 @@ function ScheduleWorkspace({
   onMove,
   onAdd,
   onCopy,
+  leaveForEntry,
 }: ScheduleWorkspaceProps) {
   const isMobileShell = useViewportShell() === "mobile";
   const activeScheduleEntries = useMemo(
@@ -812,6 +832,7 @@ function ScheduleWorkspace({
                 onArchive={onArchive}
                 onDelete={onDelete}
                 onOpenPlan={onOpenDetails}
+                leave={leaveForEntry(entry)}
               />
             ))}
             {!activeEntries.length ? (
@@ -905,6 +926,7 @@ function ScheduleWorkspace({
                                     onOpenPlan={onOpenDetails}
                                     onDragStart={() => setDraggedEntry(entry)}
                                     onDragEnd={() => setDraggedEntry(null)}
+                                    leave={leaveForEntry(entry)}
                                   />
                                 ))}
                                 {canCreate && lane.classroom ? (
@@ -958,6 +980,7 @@ function ScheduleWorkspace({
                 onArchive={onArchive}
                 onDelete={onDelete}
                 onOpenPlan={onOpenDetails}
+                leave={leaveForEntry(entry)}
               />
             ))}
           </div>
@@ -1015,6 +1038,7 @@ function ScheduleAddDropZone({
 
 function ScheduleMatrixCell({
   entry,
+  leave,
   canEdit,
   canCreate,
   canArchive,
@@ -1029,6 +1053,7 @@ function ScheduleMatrixCell({
   onDragEnd,
 }: {
   entry: ScheduleEntry;
+  leave?: TeacherLeaveRequest;
   showOrganization: boolean;
   canEdit: boolean;
   canCreate: boolean;
@@ -1070,6 +1095,11 @@ function ScheduleMatrixCell({
         <p className="mt-0.5 truncate text-[10px] font-bold tabular-nums text-brand" dir="ltr">
           {entry.startTime}–{entry.endTime}
         </p>
+        {leave ? (
+          <span className="mt-1 inline-flex rounded bg-amber-100 px-1 py-0.5 text-[9px] font-black text-amber-800 dark:bg-amber-500/20 dark:text-amber-100">
+            منجمد در مرخصی · {leave.startDate} تا {leave.endDate}
+          </span>
+        ) : null}
         {showOrganization ? (
           <span className="mt-1 block scale-90 origin-right">
             <OrganizationTag organization={entry.organization} compact />
@@ -1126,6 +1156,7 @@ function ScheduleMatrixCell({
 
 function ScheduleEntryCard({
   entry,
+  leave,
   showOrganization,
   compact,
   canEdit,
@@ -1137,6 +1168,7 @@ function ScheduleEntryCard({
   onOpenPlan,
 }: {
   entry: ScheduleEntry;
+  leave?: TeacherLeaveRequest;
   showOrganization: boolean;
   compact: boolean;
   canEdit: boolean;
@@ -1165,6 +1197,11 @@ function ScheduleEntryCard({
           <p className="mt-1 text-[11px] font-bold text-brand" dir="ltr">
             {entry.startTime} — {entry.endTime}
           </p>
+          {leave ? (
+            <span className="mt-1 inline-flex rounded bg-amber-100 px-2 py-0.5 text-[10px] font-black text-amber-800 dark:bg-amber-500/20 dark:text-amber-100">
+              منجمد در مرخصی · {leave.startDate} تا {leave.endDate}
+            </span>
+          ) : null}
           {!compact ? (
             <p className="mt-1.5 flex items-center gap-1 text-[11px] text-slate-500">
               <MapPin size={13} aria-hidden="true" />
