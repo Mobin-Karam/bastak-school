@@ -17,7 +17,7 @@ export function DataTableDesktop<TData>({
 }) {
   return (
     <div
-      className="w-full min-w-0 max-w-full overflow-x-auto overflow-y-visible"
+      className="data-table-workspace__viewport w-full min-w-0 max-w-full overflow-x-auto overflow-y-visible"
       role="region"
       aria-label={`${label} — ${copy.table}`}
       tabIndex={0}
@@ -26,7 +26,7 @@ export function DataTableDesktop<TData>({
         <caption className="sr-only">{label}</caption>
         <thead className="sticky top-0 z-10 bg-[rgb(var(--surface-muted))] shadow-sm">
           {table.getHeaderGroups().map((group) => (
-            <tr key={group.id} className="border-y border-[rgb(var(--border-subtle))]">
+            <tr key={group.id} className="border-y border-slate-300 dark:border-slate-600">
               {group.headers.map((header) => (
                 <th
                   key={header.id}
@@ -70,12 +70,12 @@ export function DataTableDesktop<TData>({
             </tr>
           ))}
         </thead>
-        <tbody className="divide-y divide-[rgb(var(--border-subtle))]">
+        <tbody className="divide-y divide-slate-300 dark:divide-slate-600">
           {table.getRowModel().rows.map((row) => (
             <tr
               key={row.id}
               data-selected={row.getIsSelected() || undefined}
-              className="border-b border-[rgb(var(--border-subtle))] hover:bg-[rgb(var(--surface-muted))] data-[selected]:bg-brand/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand last:border-b-0"
+              className="border-b border-slate-300 dark:border-slate-600 hover:bg-[rgb(var(--surface-muted))] data-[selected]:bg-brand/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand last:border-b-0"
               tabIndex={onRowClick ? 0 : undefined}
               onClick={(event) => {
                 if (!(event.target as HTMLElement).closest("button,input,a,[role=menuitem]"))
