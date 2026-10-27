@@ -39,6 +39,11 @@ const StudentSignupPage = lazy(() =>
 const DashboardPage = lazy(() =>
   import("../../features/analytics/dashboard").then((m) => ({ default: m.DashboardPage })),
 );
+const PrincipalWorkspaceDashboard = lazy(() =>
+  import("../../features/analytics/school-home").then((m) => ({
+    default: m.PrincipalWorkspaceDashboard,
+  })),
+);
 const StudentsPage = lazy(() =>
   import("../../features/people/students").then((m) => ({ default: m.StudentsPage })),
 );
@@ -397,6 +402,16 @@ export const adminRouteObjects = [
               <RouteScreen>
                 <DashboardPage />
               </RouteScreen>
+            ),
+          },
+          {
+            path: "dashboard/principal",
+            element: (
+              <PrincipalOnlyRoute>
+                <RouteScreen>
+                  <PrincipalWorkspaceDashboard />
+                </RouteScreen>
+              </PrincipalOnlyRoute>
             ),
           },
           {

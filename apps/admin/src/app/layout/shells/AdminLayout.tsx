@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
-import { Outlet, useNavigate } from "react-router-dom";
+import { Outlet, useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "../../../features/identity/auth";
 import { AdminCommandPalette } from "../command-palette/AdminCommandPalette";
 import { adminContentOffsetClass } from "../lib/layout-geometry";
@@ -33,9 +33,18 @@ export function AdminLayout() {
   const model = useAdminShellModel();
   const shell = useViewportShell();
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
+  const [searchParams, setSearchParams] = useSearchParams();
 
   const openCommandPalette = useCallback(() => setCommandPaletteOpen(true), []);
   const closeCommandPalette = useCallback(() => setCommandPaletteOpen(false), []);
+
+  useEffect(() => {
+    if (searchParams.get("command") !== "search") return;
+    setCommandPaletteOpen(true);
+    const next = new URLSearchParams(searchParams);
+    next.delete("command");
+    setSearchParams(next, { replace: true });
+  }, [searchParams]);
 
   useEffect(() => {
     document.documentElement.dataset.adminMotion =
