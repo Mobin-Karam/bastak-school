@@ -59,6 +59,7 @@ import { SpreadsheetTransferLauncher } from "../../../../shared/ui/spreadsheet-t
 import { useViewportShell } from "../../../../app/layout/lib/viewport-shell";
 import { MobileTabs } from "../../../../shared/ui/mobile";
 import { ResponsiveDrawer } from "../../../../shared/ui/responsive-drawer";
+import { useLocale } from "../../../../shared/ui/locale";
 import { listTeacherLeaveRequests, type TeacherLeaveRequest } from "../api/teacher-leave.api";
 
 const weekdays = ["شنبه", "یکشنبه", "دوشنبه", "سه‌شنبه", "چهارشنبه", "پنجشنبه", "جمعه"];
@@ -356,6 +357,9 @@ export function LegacySchedulePage() {
       );
   };
   const openDetails = (entry: ScheduleEntry) => {
+    const leave = approvedLeaveByTeacher.get(
+      entry.teacher?.id ?? entry.classBook?.teacher.id ?? "",
+    );
     modal.open({
       title: "جزئیات جلسه",
       description: "زمان، کلاس و فضای آموزشی جلسه انتخاب‌شده",
@@ -363,6 +367,7 @@ export function LegacySchedulePage() {
       content: (
         <SchedulePlanModal
           entry={entry}
+          leave={leave}
           showOrganization={auth.hasRole("PLATFORM_ADMIN")}
           canEdit={canEdit}
           canCreate={canCreate}
@@ -1036,6 +1041,26 @@ function ScheduleAddDropZone({
   );
 }
 
+function LeaveFrozenTag({
+  leave,
+  compact = false,
+}: {
+  leave: TeacherLeaveRequest;
+  compact?: boolean;
+}) {
+  const { formatDate } = useLocale();
+
+  return (
+    <span
+      className={`mt-1 inline-flex rounded bg-amber-100 py-0.5 font-black text-amber-800 dark:bg-amber-500/20 dark:text-amber-100 ${
+        compact ? "px-1 text-[9px]" : "px-2 text-[10px]"
+      }`}
+    >
+      منجمد در مرخصی · {formatDate(leave.startDate)} تا {formatDate(leave.endDate)}
+    </span>
+  );
+}
+
 function ScheduleMatrixCell({
   entry,
   leave,
@@ -1095,11 +1120,7 @@ function ScheduleMatrixCell({
         <p className="mt-0.5 truncate text-[10px] font-bold tabular-nums text-brand" dir="ltr">
           {entry.startTime}–{entry.endTime}
         </p>
-        {leave ? (
-          <span className="mt-1 inline-flex rounded bg-amber-100 px-1 py-0.5 text-[9px] font-black text-amber-800 dark:bg-amber-500/20 dark:text-amber-100">
-            منجمد در مرخصی · {leave.startDate} تا {leave.endDate}
-          </span>
-        ) : null}
+        {leave ? <LeaveFrozenTag leave={leave} compact /> : null}
         {showOrganization ? (
           <span className="mt-1 block scale-90 origin-right">
             <OrganizationTag organization={entry.organization} compact />
@@ -1197,11 +1218,7 @@ function ScheduleEntryCard({
           <p className="mt-1 text-[11px] font-bold text-brand" dir="ltr">
             {entry.startTime} — {entry.endTime}
           </p>
-          {leave ? (
-            <span className="mt-1 inline-flex rounded bg-amber-100 px-2 py-0.5 text-[10px] font-black text-amber-800 dark:bg-amber-500/20 dark:text-amber-100">
-              منجمد در مرخصی · {leave.startDate} تا {leave.endDate}
-            </span>
-          ) : null}
+          {leave ? <LeaveFrozenTag leave={leave} /> : null}
           {!compact ? (
             <p className="mt-1.5 flex items-center gap-1 text-[11px] text-slate-500">
               <MapPin size={13} aria-hidden="true" />
@@ -1256,6 +1273,7 @@ function ScheduleEntryCard({
 
 function SchedulePlanModal({
   entry,
+  leave,
   showOrganization,
   canEdit,
   canCreate,
@@ -1268,6 +1286,7 @@ function SchedulePlanModal({
   onClose,
 }: {
   entry: ScheduleEntry;
+  leave?: TeacherLeaveRequest;
   showOrganization: boolean;
   canEdit: boolean;
   canCreate: boolean;
@@ -1315,6 +1334,15 @@ function SchedulePlanModal({
           value={teacherName(entry) || "استاد این جلسه ثبت نشده است"}
         />
       </dl>
+
+      {leave ? (
+        <section className="rounded-xl border border-amber-200 bg-amber-50 p-3 dark:border-amber-400/30 dark:bg-amber-500/10">
+          <p className="text-xs font-black text-amber-900 dark:text-amber-100">
+            جلسه در بازه مرخصی دبیر منجمد است
+          </p>
+          <LeaveFrozenTag leave={leave} />
+        </section>
+      ) : null}
 
       {showOrganization ? (
         <section className="rounded-xl border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-muted))] p-3">
