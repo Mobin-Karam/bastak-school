@@ -216,356 +216,361 @@ export function StudentEditor({
         {validationMessage}
       </p>
 
-      <section className="grid gap-3 rounded-xl border border-slate-200 p-3 dark:border-slate-800">
-        <div>
-          <h4 className="text-sm font-bold text-slate-800 dark:text-slate-100">
-            {copy.accountInformation}
-          </h4>
-          <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-            {copy.accountInformationDescription}
-          </p>
-        </div>
-        <div className="grid gap-3 sm:grid-cols-2 min-[1200px]:grid-cols-4">
-          <Field label={language === "fa" ? "نام" : "First name"}>
-            <Input
-              autoFocus={mode === "create"}
-              value={form.firstName}
-              onChange={(event) => setField("firstName", event.target.value)}
-              placeholder={language === "fa" ? "نام دانش‌آموز" : "First name"}
-            />
-          </Field>
-          <Field label={language === "fa" ? "نام خانوادگی" : "Last name"}>
-            <Input
-              value={form.lastName}
-              onChange={(event) => setField("lastName", event.target.value)}
-              placeholder={language === "fa" ? "نام خانوادگی دانش‌آموز" : "Last name"}
-            />
-          </Field>
-          <Field label={copy.username} error={usernameError}>
-            <Input
-              dir="ltr"
-              autoComplete="off"
-              spellCheck={false}
-              value={form.username}
-              onChange={(event) => setField("username", event.target.value)}
-              placeholder={copy.username}
-            />
-          </Field>
-        </div>
-        {mode === "create" ? (
-          <Field
-            label={copy.password}
-            error={
-              form.password && form.password.length < 12 ? copy.passwordMinimumCreate : undefined
-            }
-          >
-            <Input
-              dir="ltr"
-              autoComplete="new-password"
-              type="password"
-              value={form.password}
-              onChange={(event) => setField("password", event.target.value)}
-              placeholder={copy.passwordMinimumCreate}
-            />
-          </Field>
-        ) : null}
-      </section>
-
-      <section className="grid gap-3 rounded-xl border border-slate-200 p-3 dark:border-slate-800">
-        <div>
-          <h4 className="text-sm font-bold text-slate-800 dark:text-slate-100">
-            {language === "fa" ? "مشخصات ثبت‌نام" : "Enrollment details"}
-          </h4>
-          <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-            {language === "fa"
-              ? "کد ملی، تاریخ تولد شمسی و مدرسه دولتی در پرونده دانش‌آموز نگهداری می‌شود."
-              : "National ID, Jalali birth date, and government school are stored on the student profile."}
-          </p>
-        </div>
-        <div className="grid gap-3 sm:grid-cols-2 min-[1200px]:grid-cols-4">
-          <Field
-            label={language === "fa" ? "کد ملی" : "National ID"}
-            error={
-              form.nationalCode.trim() && !nationalCodeValid
-                ? language === "fa"
-                  ? "کد ملی معتبر نیست."
-                  : "Enter a valid national ID."
-                : undefined
-            }
-          >
-            <Input
-              dir="ltr"
-              value={form.nationalCode}
-              onChange={(event) => setField("nationalCode", event.target.value)}
-              placeholder="۰۰۰۰۰۰۰۰۰۰"
-            />
-          </Field>
-          <Field label={language === "fa" ? "تاریخ تولد (شمسی)" : "Birth date (Jalali)"}>
-            <DatePicker
-              calendar="persian"
-              value={form.birthDateJalali}
-              onChange={(isoDate) => setField("birthDateJalali", isoDate)}
-              ariaLabel={language === "fa" ? "تاریخ تولد شمسی" : "Birth date"}
-            />
-          </Field>
-          <Field label={language === "fa" ? "مدرسه دولتی" : "Government school"}>
-            <Input
-              value={form.governmentSchool}
-              onChange={(event) => setField("governmentSchool", event.target.value)}
-            />
-          </Field>
-          <Field label={language === "fa" ? "کلاس این مدرسه" : "School class"}>
-            <AdaptiveSelect
-              className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm dark:border-slate-700 dark:bg-slate-900"
-              value={form.classId}
-              onChange={(event) => setField("classId", event.target.value)}
-              disabled={classes.isLoading}
-            >
-              <option value="">
-                {language === "fa" ? "هنوز کلاس تعیین نشده" : "No class assigned yet"}
-              </option>
-              {classes.data
-                ?.filter((item) => item.status === "ACTIVE")
-                .map((item) => (
-                  <option key={item.id} value={item.id}>
-                    {item.name} ({item.code})
-                  </option>
-                ))}
-            </AdaptiveSelect>
-          </Field>
-        </div>
-      </section>
-
-      <section className="grid gap-3 rounded-xl border border-slate-200 p-3 dark:border-slate-800">
-        <div>
-          <h4 className="text-sm font-bold text-slate-800 dark:text-slate-100">
-            {language === "fa" ? "حساب سرپرست‌ها" : "Guardian accounts"}
-          </h4>
-          <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-            {language === "fa"
-              ? "حداقل یکی از مادر یا پدر اختیاری است. هر حساب فقط به دانش‌آموزان پیوندخورده دسترسی دارد."
-              : "Mother and father are optional. Each account can access only linked students."}
-          </p>
-        </div>
-        {mode === "edit" ? (
-          <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-xs dark:border-slate-800 dark:bg-slate-900">
-            <strong className="block text-slate-700 dark:text-slate-200">
-              {language === "fa" ? "سرپرست‌های فعلی" : "Current linked guardians"}
-            </strong>
-            {student?.guardians?.length ? (
-              <ul className="mt-2 grid gap-1.5 sm:grid-cols-2">
-                {student.guardians.map((guardian) => (
-                  <li key={guardian.id} className="rounded bg-white px-2 py-1.5 dark:bg-slate-950">
-                    <span className="font-semibold text-ink">{guardian.name}</span>
-                    <span className="ms-1 text-slate-500" dir="ltr">
-                      {guardian.phoneNumber || "—"}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p className="mt-1.5 text-slate-500">
-                {language === "fa" ? "سرپرستی پیوند نخورده است." : "No guardian is linked yet."}
-              </p>
-            )}
-            <p className="mt-2 text-slate-500">
-              {language === "fa"
-                ? "گذرواژه‌های قبلی نمایش داده نمی‌شوند. برای افزودن سرپرست جدید، شماره و گذرواژه را وارد کنید."
-                : "Existing passwords are never shown. Enter a phone number and password only to add a guardian."}
+      <div className="grid items-start gap-4 min-[1200px]:grid-cols-4">
+        <section className="grid h-full content-start gap-3 rounded-xl border border-slate-200 p-3 dark:border-slate-800">
+          <div>
+            <h4 className="text-sm font-bold text-slate-800 dark:text-slate-100">
+              {copy.accountInformation}
+            </h4>
+            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+              {copy.accountInformationDescription}
             </p>
           </div>
-        ) : null}
-        <div className="grid gap-3 sm:grid-cols-2 min-[1200px]:grid-cols-4">
-          <Field
-            label={language === "fa" ? "شماره مادر" : "Mother phone"}
-            error={
-              form.motherPhoneNumber.trim() &&
-              !/^09\d{9}$/.test(normalizedDigits(form.motherPhoneNumber))
-                ? language === "fa"
-                  ? "شماره همراه معتبر نیست."
-                  : "Enter a valid mobile number."
-                : undefined
-            }
-          >
-            <Input
-              dir="ltr"
-              value={form.motherPhoneNumber}
-              onChange={(event) => setField("motherPhoneNumber", event.target.value)}
-            />
-          </Field>
-          <Field
-            label={language === "fa" ? "گذرواژه مادر" : "Mother password"}
-            error={
-              form.motherPassword && form.motherPassword.length < 12
-                ? copy.passwordMinimumCreate
-                : undefined
-            }
-          >
-            <Input
-              dir="ltr"
-              type="password"
-              autoComplete="new-password"
-              value={form.motherPassword}
-              onChange={(event) => setField("motherPassword", event.target.value)}
-            />
-          </Field>
-          <Field
-            label={language === "fa" ? "شماره پدر" : "Father phone"}
-            error={
-              form.fatherPhoneNumber.trim() &&
-              !/^09\d{9}$/.test(normalizedDigits(form.fatherPhoneNumber))
-                ? language === "fa"
-                  ? "شماره همراه معتبر نیست."
-                  : "Enter a valid mobile number."
-                : undefined
-            }
-          >
-            <Input
-              dir="ltr"
-              value={form.fatherPhoneNumber}
-              onChange={(event) => setField("fatherPhoneNumber", event.target.value)}
-            />
-          </Field>
-          <Field
-            label={language === "fa" ? "گذرواژه پدر" : "Father password"}
-            error={
-              form.fatherPassword && form.fatherPassword.length < 12
-                ? copy.passwordMinimumCreate
-                : undefined
-            }
-          >
-            <Input
-              dir="ltr"
-              type="password"
-              autoComplete="new-password"
-              value={form.fatherPassword}
-              onChange={(event) => setField("fatherPassword", event.target.value)}
-            />
-          </Field>
-        </div>
-      </section>
-
-      <section className="grid gap-3 rounded-xl border border-slate-200 p-3 dark:border-slate-800">
-        <div>
-          <h4 className="text-sm font-bold text-slate-800 dark:text-slate-100">
-            {copy.educationStatus}
-          </h4>
-          <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-            {copy.educationStatusDescription}
-          </p>
-        </div>
-        <div className="grid grid-cols-2 rounded-xl bg-slate-100 p-1 dark:bg-slate-900">
-          {(
-            [
-              ["school", copy.schoolStudent],
-              ["independent", copy.independentLearner],
-            ] as const
-          ).map(([value, label]) => (
-            <button
-              key={value}
-              type="button"
-              onClick={() => setField("learnerProfile", value)}
-              className={`rounded-lg px-3 py-2 text-sm font-semibold transition ${form.learnerProfile === value ? "bg-white text-ink shadow-sm dark:bg-slate-800 dark:text-white" : "text-slate-500"}`}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-        {form.learnerProfile === "independent" ? (
-          <div className="grid gap-3 sm:grid-cols-2 min-[1200px]:grid-cols-4">
-            <Field label={copy.learnerType}>
-              <AdaptiveSelect
-                className="h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm dark:border-slate-700 dark:bg-slate-900"
-                value={form.independentType}
-                onChange={(event) => setField("independentType", event.target.value)}
-              >
-                <option value="">{copy.selectLearnerType}</option>
-                <option value="adult">{copy.adult}</option>
-                <option value="gap_year">{copy.gapYear}</option>
-                <option value="homeschool">{copy.homeschool}</option>
-                <option value="other">{copy.other}</option>
-              </AdaptiveSelect>
-            </Field>
-            <Field label={copy.learningLevel}>
+          <div className="grid gap-3">
+            <Field label={language === "fa" ? "نام" : "First name"}>
               <Input
-                value={form.learningLevel}
-                onChange={(event) => setField("learningLevel", event.target.value)}
-                placeholder={copy.learningLevelPlaceholder}
+                autoFocus={mode === "create"}
+                value={form.firstName}
+                onChange={(event) => setField("firstName", event.target.value)}
+                placeholder={language === "fa" ? "نام دانش‌آموز" : "First name"}
+              />
+            </Field>
+            <Field label={language === "fa" ? "نام خانوادگی" : "Last name"}>
+              <Input
+                value={form.lastName}
+                onChange={(event) => setField("lastName", event.target.value)}
+                placeholder={language === "fa" ? "نام خانوادگی دانش‌آموز" : "Last name"}
+              />
+            </Field>
+            <Field label={copy.username} error={usernameError}>
+              <Input
+                dir="ltr"
+                autoComplete="off"
+                spellCheck={false}
+                value={form.username}
+                onChange={(event) => setField("username", event.target.value)}
+                placeholder={copy.username}
               />
             </Field>
           </div>
-        ) : null}
-        {form.learnerProfile === "school" ? (
-          <div className="grid gap-3 sm:grid-cols-2 min-[1200px]:grid-cols-4">
-            <Field label={copy.grade}>
+          {mode === "create" ? (
+            <Field
+              label={copy.password}
+              error={
+                form.password && form.password.length < 12 ? copy.passwordMinimumCreate : undefined
+              }
+            >
+              <Input
+                dir="ltr"
+                autoComplete="new-password"
+                type="password"
+                value={form.password}
+                onChange={(event) => setField("password", event.target.value)}
+                placeholder={copy.passwordMinimumCreate}
+              />
+            </Field>
+          ) : null}
+        </section>
+
+        <section className="grid h-full content-start gap-3 rounded-xl border border-slate-200 p-3 dark:border-slate-800">
+          <div>
+            <h4 className="text-sm font-bold text-slate-800 dark:text-slate-100">
+              {language === "fa" ? "مشخصات ثبت‌نام" : "Enrollment details"}
+            </h4>
+            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+              {language === "fa"
+                ? "کد ملی، تاریخ تولد شمسی و مدرسه دولتی در پرونده دانش‌آموز نگهداری می‌شود."
+                : "National ID, Jalali birth date, and government school are stored on the student profile."}
+            </p>
+          </div>
+          <div className="grid gap-3">
+            <Field
+              label={language === "fa" ? "کد ملی" : "National ID"}
+              error={
+                form.nationalCode.trim() && !nationalCodeValid
+                  ? language === "fa"
+                    ? "کد ملی معتبر نیست."
+                    : "Enter a valid national ID."
+                  : undefined
+              }
+            >
+              <Input
+                dir="ltr"
+                value={form.nationalCode}
+                onChange={(event) => setField("nationalCode", event.target.value)}
+                placeholder="۰۰۰۰۰۰۰۰۰۰"
+              />
+            </Field>
+            <Field label={language === "fa" ? "تاریخ تولد (شمسی)" : "Birth date (Jalali)"}>
+              <DatePicker
+                calendar="persian"
+                value={form.birthDateJalali}
+                onChange={(isoDate) => setField("birthDateJalali", isoDate)}
+                ariaLabel={language === "fa" ? "تاریخ تولد شمسی" : "Birth date"}
+              />
+            </Field>
+            <Field label={language === "fa" ? "مدرسه دولتی" : "Government school"}>
+              <Input
+                value={form.governmentSchool}
+                onChange={(event) => setField("governmentSchool", event.target.value)}
+              />
+            </Field>
+            <Field label={language === "fa" ? "کلاس این مدرسه" : "School class"}>
               <AdaptiveSelect
-                className="h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm dark:border-slate-700 dark:bg-slate-900"
-                value={form.gradeId}
-                onChange={(event) => {
-                  const gradeId = event.target.value;
-                  const next = catalog.data?.gradeStructure.find((item) =>
-                    item.grades.includes(Number(gradeId)),
-                  );
-                  setField("gradeId", gradeId);
-                  setField(
-                    "educationTypeId",
-                    next?.education_type_ids.length === 1 ? next.education_type_ids[0] : "",
-                  );
-                  setField("trackId", "");
-                }}
-                disabled={catalog.isLoading}
+                className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm dark:border-slate-700 dark:bg-slate-900"
+                value={form.classId}
+                onChange={(event) => setField("classId", event.target.value)}
+                disabled={classes.isLoading}
               >
-                <option value="">{copy.selectGrade}</option>
-                {catalog.data?.grades.map((grade) => (
-                  <option key={grade.id} value={grade.id}>
-                    {grade.fa}
-                  </option>
-                ))}
+                <option value="">
+                  {language === "fa" ? "هنوز کلاس تعیین نشده" : "No class assigned yet"}
+                </option>
+                {classes.data
+                  ?.filter((item) => item.status === "ACTIVE")
+                  .map((item) => (
+                    <option key={item.id} value={item.id}>
+                      {item.name} ({item.code})
+                    </option>
+                  ))}
               </AdaptiveSelect>
             </Field>
-            <Field label={copy.educationType}>
-              <AdaptiveSelect
-                className="h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm dark:border-slate-700 dark:bg-slate-900"
-                value={form.educationTypeId}
-                disabled={!form.gradeId || catalog.isLoading}
-                onChange={(event) => {
-                  setField("educationTypeId", event.target.value);
-                  setField("trackId", "");
-                }}
-              >
-                <option value="">{copy.selectEducationType}</option>
-                {educationTypes.map((item) => (
-                  <option key={item.id} value={item.id}>
-                    {item.fa}
-                  </option>
-                ))}
-              </AdaptiveSelect>
+          </div>
+        </section>
+
+        <section className="grid h-full content-start gap-3 rounded-xl border border-slate-200 p-3 dark:border-slate-800">
+          <div>
+            <h4 className="text-sm font-bold text-slate-800 dark:text-slate-100">
+              {language === "fa" ? "حساب سرپرست‌ها" : "Guardian accounts"}
+            </h4>
+            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+              {language === "fa"
+                ? "حداقل یکی از مادر یا پدر اختیاری است. هر حساب فقط به دانش‌آموزان پیوندخورده دسترسی دارد."
+                : "Mother and father are optional. Each account can access only linked students."}
+            </p>
+          </div>
+          {mode === "edit" ? (
+            <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-xs dark:border-slate-800 dark:bg-slate-900">
+              <strong className="block text-slate-700 dark:text-slate-200">
+                {language === "fa" ? "سرپرست‌های فعلی" : "Current linked guardians"}
+              </strong>
+              {student?.guardians?.length ? (
+                <ul className="mt-2 grid gap-1.5 sm:grid-cols-2">
+                  {student.guardians.map((guardian) => (
+                    <li
+                      key={guardian.id}
+                      className="rounded bg-white px-2 py-1.5 dark:bg-slate-950"
+                    >
+                      <span className="font-semibold text-ink">{guardian.name}</span>
+                      <span className="ms-1 text-slate-500" dir="ltr">
+                        {guardian.phoneNumber || "—"}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="mt-1.5 text-slate-500">
+                  {language === "fa" ? "سرپرستی پیوند نخورده است." : "No guardian is linked yet."}
+                </p>
+              )}
+              <p className="mt-2 text-slate-500">
+                {language === "fa"
+                  ? "گذرواژه‌های قبلی نمایش داده نمی‌شوند. برای افزودن سرپرست جدید، شماره و گذرواژه را وارد کنید."
+                  : "Existing passwords are never shown. Enter a phone number and password only to add a guardian."}
+              </p>
+            </div>
+          ) : null}
+          <div className="grid gap-3">
+            <Field
+              label={language === "fa" ? "شماره مادر" : "Mother phone"}
+              error={
+                form.motherPhoneNumber.trim() &&
+                !/^09\d{9}$/.test(normalizedDigits(form.motherPhoneNumber))
+                  ? language === "fa"
+                    ? "شماره همراه معتبر نیست."
+                    : "Enter a valid mobile number."
+                  : undefined
+              }
+            >
+              <Input
+                dir="ltr"
+                value={form.motherPhoneNumber}
+                onChange={(event) => setField("motherPhoneNumber", event.target.value)}
+              />
             </Field>
-            {structure?.track_required ? (
-              <Field label={copy.track}>
+            <Field
+              label={language === "fa" ? "گذرواژه مادر" : "Mother password"}
+              error={
+                form.motherPassword && form.motherPassword.length < 12
+                  ? copy.passwordMinimumCreate
+                  : undefined
+              }
+            >
+              <Input
+                dir="ltr"
+                type="password"
+                autoComplete="new-password"
+                value={form.motherPassword}
+                onChange={(event) => setField("motherPassword", event.target.value)}
+              />
+            </Field>
+            <Field
+              label={language === "fa" ? "شماره پدر" : "Father phone"}
+              error={
+                form.fatherPhoneNumber.trim() &&
+                !/^09\d{9}$/.test(normalizedDigits(form.fatherPhoneNumber))
+                  ? language === "fa"
+                    ? "شماره همراه معتبر نیست."
+                    : "Enter a valid mobile number."
+                  : undefined
+              }
+            >
+              <Input
+                dir="ltr"
+                value={form.fatherPhoneNumber}
+                onChange={(event) => setField("fatherPhoneNumber", event.target.value)}
+              />
+            </Field>
+            <Field
+              label={language === "fa" ? "گذرواژه پدر" : "Father password"}
+              error={
+                form.fatherPassword && form.fatherPassword.length < 12
+                  ? copy.passwordMinimumCreate
+                  : undefined
+              }
+            >
+              <Input
+                dir="ltr"
+                type="password"
+                autoComplete="new-password"
+                value={form.fatherPassword}
+                onChange={(event) => setField("fatherPassword", event.target.value)}
+              />
+            </Field>
+          </div>
+        </section>
+
+        <section className="grid h-full content-start gap-3 rounded-xl border border-slate-200 p-3 dark:border-slate-800">
+          <div>
+            <h4 className="text-sm font-bold text-slate-800 dark:text-slate-100">
+              {copy.educationStatus}
+            </h4>
+            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+              {copy.educationStatusDescription}
+            </p>
+          </div>
+          <div className="grid grid-cols-2 rounded-xl bg-slate-100 p-1 dark:bg-slate-900">
+            {(
+              [
+                ["school", copy.schoolStudent],
+                ["independent", copy.independentLearner],
+              ] as const
+            ).map(([value, label]) => (
+              <button
+                key={value}
+                type="button"
+                onClick={() => setField("learnerProfile", value)}
+                className={`rounded-lg px-3 py-2 text-sm font-semibold transition ${form.learnerProfile === value ? "bg-white text-ink shadow-sm dark:bg-slate-800 dark:text-white" : "text-slate-500"}`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          {form.learnerProfile === "independent" ? (
+            <div className="grid gap-3">
+              <Field label={copy.learnerType}>
                 <AdaptiveSelect
                   className="h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm dark:border-slate-700 dark:bg-slate-900"
-                  value={form.trackId}
-                  disabled={!form.educationTypeId || catalog.isLoading}
-                  onChange={(event) => setField("trackId", event.target.value)}
+                  value={form.independentType}
+                  onChange={(event) => setField("independentType", event.target.value)}
                 >
-                  <option value="">{copy.selectTrack}</option>
-                  {tracks.map((item) => (
+                  <option value="">{copy.selectLearnerType}</option>
+                  <option value="adult">{copy.adult}</option>
+                  <option value="gap_year">{copy.gapYear}</option>
+                  <option value="homeschool">{copy.homeschool}</option>
+                  <option value="other">{copy.other}</option>
+                </AdaptiveSelect>
+              </Field>
+              <Field label={copy.learningLevel}>
+                <Input
+                  value={form.learningLevel}
+                  onChange={(event) => setField("learningLevel", event.target.value)}
+                  placeholder={copy.learningLevelPlaceholder}
+                />
+              </Field>
+            </div>
+          ) : null}
+          {form.learnerProfile === "school" ? (
+            <div className="grid gap-3">
+              <Field label={copy.grade}>
+                <AdaptiveSelect
+                  className="h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm dark:border-slate-700 dark:bg-slate-900"
+                  value={form.gradeId}
+                  onChange={(event) => {
+                    const gradeId = event.target.value;
+                    const next = catalog.data?.gradeStructure.find((item) =>
+                      item.grades.includes(Number(gradeId)),
+                    );
+                    setField("gradeId", gradeId);
+                    setField(
+                      "educationTypeId",
+                      next?.education_type_ids.length === 1 ? next.education_type_ids[0] : "",
+                    );
+                    setField("trackId", "");
+                  }}
+                  disabled={catalog.isLoading}
+                >
+                  <option value="">{copy.selectGrade}</option>
+                  {catalog.data?.grades.map((grade) => (
+                    <option key={grade.id} value={grade.id}>
+                      {grade.fa}
+                    </option>
+                  ))}
+                </AdaptiveSelect>
+              </Field>
+              <Field label={copy.educationType}>
+                <AdaptiveSelect
+                  className="h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm dark:border-slate-700 dark:bg-slate-900"
+                  value={form.educationTypeId}
+                  disabled={!form.gradeId || catalog.isLoading}
+                  onChange={(event) => {
+                    setField("educationTypeId", event.target.value);
+                    setField("trackId", "");
+                  }}
+                >
+                  <option value="">{copy.selectEducationType}</option>
+                  {educationTypes.map((item) => (
                     <option key={item.id} value={item.id}>
                       {item.fa}
                     </option>
                   ))}
                 </AdaptiveSelect>
               </Field>
-            ) : null}
-          </div>
-        ) : null}
-        {catalog.isError ? (
-          <p role="alert" className="text-xs text-rose-700">
-            {copy.educationLoadFailed}
-          </p>
-        ) : null}
-      </section>
+              {structure?.track_required ? (
+                <Field label={copy.track}>
+                  <AdaptiveSelect
+                    className="h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm dark:border-slate-700 dark:bg-slate-900"
+                    value={form.trackId}
+                    disabled={!form.educationTypeId || catalog.isLoading}
+                    onChange={(event) => setField("trackId", event.target.value)}
+                  >
+                    <option value="">{copy.selectTrack}</option>
+                    {tracks.map((item) => (
+                      <option key={item.id} value={item.id}>
+                        {item.fa}
+                      </option>
+                    ))}
+                  </AdaptiveSelect>
+                </Field>
+              ) : null}
+            </div>
+          ) : null}
+          {catalog.isError ? (
+            <p role="alert" className="text-xs text-rose-700">
+              {copy.educationLoadFailed}
+            </p>
+          ) : null}
+        </section>
+      </div>
 
       <div className="sticky bottom-2 z-10 grid gap-2 rounded-xl border border-slate-200 bg-white/95 p-2 shadow-lg backdrop-blur sm:grid-cols-[minmax(0,1fr)_auto] dark:border-slate-800 dark:bg-slate-950/95">
         <Button
