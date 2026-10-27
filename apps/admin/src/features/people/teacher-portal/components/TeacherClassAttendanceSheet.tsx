@@ -99,6 +99,14 @@ export function TeacherClassAttendanceSheet({
     queryFn: listMyAttendanceAbsenceReviews,
     enabled: open,
   });
+  const teacherReports = useQuery({
+    queryKey: ["teacher", "student-reports", scopeKey],
+    queryFn: () =>
+      api.get<Array<{ studentId: string; sessionId: string; seenAt: string | null }>>(
+        "/teacher/student-reports",
+      ),
+    enabled: open && canManage,
+  });
   const classReviews = (reviews.data ?? []).filter(
     (review) => review.contextType === "class" && review.contextId === entry?.classroom?.id,
   );
@@ -454,6 +462,19 @@ export function TeacherClassAttendanceSheet({
                         >
                           ارسال برای مدیر
                         </Button>
+                        {teacherReports.data?.some(
+                          (item) =>
+                            item.studentId === student.id && item.sessionId === savedSessionId,
+                        ) ? (
+                          <p className="mt-2 text-[11px] text-slate-500">
+                            {teacherReports.data.find(
+                              (item) =>
+                                item.studentId === student.id && item.sessionId === savedSessionId,
+                            )?.seenAt
+                              ? "مدیر گزارش را دیده است."
+                              : "گزارش در انتظار مشاهده مدیر است."}
+                          </p>
+                        ) : null}
                       </div>
                     ) : null}
                   </li>

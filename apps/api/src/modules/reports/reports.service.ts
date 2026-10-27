@@ -206,6 +206,23 @@ export class ReportsService {
     return { id: row.id, seenAt: row.seenAt };
   }
 
+  async teacherReportsForTeacher(context: UserContext) {
+    this.authorization.requireCapability(context, "attendance.class.manage");
+    const rows = await this.teacherReports.find({
+      where: { teacher: { id: context.id } },
+      relations: { student: true, session: true },
+      order: { createdAt: "DESC" },
+      take: 100,
+    });
+    return rows.map((row) => ({
+      id: row.id,
+      studentId: row.student.id,
+      sessionId: row.session.id,
+      message: row.message,
+      seenAt: row.seenAt,
+    }));
+  }
+
   async recoveryForActor(context: UserContext) {
     if (context.roles.includes("STUDENT")) return this.listRecovery(context.id);
     this.authorization.requireCapability(context, "recovery_requests.read");

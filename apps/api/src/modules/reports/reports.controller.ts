@@ -105,6 +105,12 @@ export class ReportsController {
     return this.reports.markTeacherReportSeen(this.context(user), id).then(ok);
   }
 
+  @Get("teacher/student-reports")
+  @RequireCapabilities("attendance.class.manage")
+  myTeacherReports(@CurrentUser() user: AuthenticatedUser) {
+    return this.reports.teacherReportsForTeacher(this.context(user)).then(ok);
+  }
+
   private context(user: AuthenticatedUser): UserContext {
     return {
       ...user,
