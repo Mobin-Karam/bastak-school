@@ -469,6 +469,7 @@ export function LegacySchedulePage() {
               weekday,
             })
           }
+          onCopy={(entry) => editEntry(entry, true)}
           onEdit={editEntry}
           onArchive={confirmArchive}
           onDelete={confirmDelete}
@@ -611,6 +612,7 @@ type ScheduleWorkspaceProps = {
   onOpenDetails: (entry: ScheduleEntry) => void;
   onMove: (entry: ScheduleEntry, weekday: number) => void;
   onAdd: (classroom: EducationClass, weekday: number) => void;
+  onCopy: (entry: ScheduleEntry) => void;
 };
 
 function ScheduleSidebarSummary({
@@ -664,6 +666,7 @@ function ScheduleWorkspace({
   onOpenDetails,
   onMove,
   onAdd,
+  onCopy,
 }: ScheduleWorkspaceProps) {
   const isMobileShell = useViewportShell() === "mobile";
   const activeScheduleEntries = useMemo(
@@ -868,10 +871,12 @@ function ScheduleWorkspace({
                                     key={entry.id}
                                     entry={entry}
                                     canEdit={canEdit}
+                                    canCreate={canCreate}
                                     canArchive={canArchive}
                                     canDelete={canDelete}
                                     showOrganization={showOrganization}
                                     onEdit={onEdit}
+                                    onCopy={onCopy}
                                     onArchive={onArchive}
                                     onDelete={onDelete}
                                     onOpenPlan={onOpenDetails}
@@ -988,10 +993,12 @@ function ScheduleAddDropZone({
 function ScheduleMatrixCell({
   entry,
   canEdit,
+  canCreate,
   canArchive,
   canDelete,
   showOrganization,
   onEdit,
+  onCopy,
   onArchive,
   onDelete,
   onOpenPlan,
@@ -1001,9 +1008,11 @@ function ScheduleMatrixCell({
   entry: ScheduleEntry;
   showOrganization: boolean;
   canEdit: boolean;
+  canCreate: boolean;
   canArchive: boolean;
   canDelete: boolean;
   onEdit: (entry: ScheduleEntry) => void;
+  onCopy: (entry: ScheduleEntry) => void;
   onArchive: (entry: ScheduleEntry) => void;
   onDelete: (entry: ScheduleEntry) => void;
   onOpenPlan: (entry: ScheduleEntry) => void;
@@ -1044,8 +1053,18 @@ function ScheduleMatrixCell({
           </span>
         ) : null}
       </button>
-      {canEdit || canArchive || canDelete ? (
+      {canCreate || canEdit || canArchive || canDelete ? (
         <div className="mt-1 flex gap-0.5">
+          {canCreate ? (
+            <button
+              type="button"
+              aria-label={`تکرار ${entry.title}`}
+              onClick={() => onCopy(entry)}
+              className="rounded p-1 text-brand hover:bg-brand/10 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-brand"
+            >
+              <Copy size={12} />
+            </button>
+          ) : null}
           {canEdit ? (
             <button
               type="button"
