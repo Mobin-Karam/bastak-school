@@ -69,6 +69,10 @@ export type ScheduleSubstitutionRequest = {
 };
 export const listScheduleSubstitutionSlots = (date: string) =>
   api.get<ScheduleEntry[]>(`/schedule/substitution-slots?${new URLSearchParams({ date })}`);
+export const listScheduleCancellations = (date: string) =>
+  api.get<Array<{ entryId: string; date: string; message: string }>>(
+    `/schedule/cancellations?${new URLSearchParams({ date })}`,
+  );
 export const listSchedule = () => api.get<ScheduleEntry[]>("/schedule");
 export const createScheduleEntry = (draft: ScheduleDraft) =>
   api.post<ScheduleEntry>("/schedule", draft);

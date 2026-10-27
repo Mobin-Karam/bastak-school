@@ -47,6 +47,14 @@ export class ScheduleController {
   ) {
     return this.schedule.substitutionSlots(user, date).then(ok);
   }
+  @Get("cancellations")
+  @RequireCapabilities("schedule.read")
+  scheduleCancellations(
+    @CurrentUser() user: AuthenticatedUser,
+    @Query("date") date: string,
+  ) {
+    return this.schedule.scheduleCancellations(user, date).then(ok);
+  }
   @Get("teacher-leave-requests")
   @RequireCapabilities("schedule.read")
   teacherLeaveRequests(@CurrentUser() user: AuthenticatedUser) {

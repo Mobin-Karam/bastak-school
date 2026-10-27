@@ -11,7 +11,11 @@ import {
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { listSchedule, type ScheduleEntry } from "../../academics/schedule/api/schedule.api";
+import {
+  listSchedule,
+  listScheduleCancellations,
+  type ScheduleEntry,
+} from "../../academics/schedule/api/schedule.api";
 import { useAuth } from "../../identity/auth";
 import { fa } from "../../../shared/lib/utils";
 import { DatePicker } from "../../../shared/ui/date-picker";
@@ -64,6 +68,10 @@ function StudentScheduleContent({ entries }: { entries: ScheduleEntry[] }) {
   const [followToday, setFollowToday] = useState(true);
   const today = schoolTodayIso(currentTime);
   const activeWeekday = scheduleWeekdayForIso(selectedDate);
+  const cancellations = useQuery({
+    queryKey: ["schedule", "cancellations", selectedDate],
+    queryFn: () => listScheduleCancellations(selectedDate),
+  });
 
   useEffect(() => {
     const tick = () => setCurrentTime(new Date());
@@ -85,7 +93,10 @@ function StudentScheduleContent({ entries }: { entries: ScheduleEntry[] }) {
     () => studentScheduleWeekdayOrder.map((day) => entriesForStudentDay(entries, day)),
     [entries],
   );
-  const activeEntries = byWeekday[activeWeekday];
+  const cancelledEntryIds = new Set((cancellations.data ?? []).map((item) => item.entryId));
+  const activeEntries = byWeekday[activeWeekday].filter(
+    (entry) => !cancelledEntryIds.has(entry.id),
+  );
   const selectedDateLabel = formatStudentScheduleDate(selectedDate, {
     weekday: "long",
     day: "numeric",
@@ -174,6 +185,14 @@ function StudentScheduleContent({ entries }: { entries: ScheduleEntry[] }) {
           </div>
         </div>
       </header>
+      {cancellations.data?.length ? (
+        <div
+          role="status"
+          className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm font-bold text-amber-900 dark:bg-amber-950/30 dark:text-amber-100"
+        >
+          {cancellations.data[0].message}
+        </div>
+      ) : null}
 
       <div className="student-schedule__summary" aria-live="polite">
         <span>

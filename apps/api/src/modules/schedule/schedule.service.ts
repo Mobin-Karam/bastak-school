@@ -401,6 +401,26 @@ export class ScheduleService {
       )
       .map((entry) => this.publicEntry(entry));
   }
+  async scheduleCancellations(user: AuthenticatedUser, date: string) {
+    if (!this.dateIsValid(date))
+      throw new ApiException(
+        422,
+        "SCHEDULE_DATE_INVALID",
+        "تاریخ جلسه معتبر نیست.",
+      );
+    const entries = await this.listEntities(user);
+    const overrides = await this.occurrenceOverrides.find({
+      where: { date, cancelled: true },
+    });
+    const visible = new Set(entries.map((entry) => entry.id));
+    return overrides
+      .filter((row) => visible.has(row.entryId))
+      .map((row) => ({
+        entryId: row.entryId,
+        date,
+        message: "این جلسه به‌دلیل مرخصی دبیر برگزار نمی‌شود.",
+      }));
+  }
   async requestSubstitution(
     user: AuthenticatedUser,
     dto: ScheduleSubstitutionRequestDto,
