@@ -48,7 +48,7 @@ describe("ResponsiveDrawer", () => {
   });
 
   it("can expand and restore the panel without changing the close action", () => {
-    const { container } = render(
+    render(
       <LocaleProvider>
         <ResponsiveDrawer open onOpenChange={vi.fn()} title="پرونده حضور">
           محتوای پنل
