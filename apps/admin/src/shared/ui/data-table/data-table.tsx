@@ -344,7 +344,13 @@ export function DataTable<TData>({
         onModeChange={(mode) => setPreferences((current) => ({ ...current, mode }))}
         onDensityChange={(density) => setPreferences((current) => ({ ...current, density }))}
       />
-      <div className={scrollRows ? "min-h-0 flex-1 overflow-auto" : undefined}>
+      <div
+        className={
+          scrollRows
+            ? "data-table-workspace__content min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-y-contain"
+            : undefined
+        }
+      >
         {!online ? (
           <p role="status" className="px-3 py-2 text-sm text-amber-700 dark:text-amber-300">
             {copy.offline}
