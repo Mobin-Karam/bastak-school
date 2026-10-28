@@ -345,6 +345,8 @@ export function DataTable<TData>({
         onDensityChange={(density) => setPreferences((current) => ({ ...current, density }))}
       />
       <div
+        tabIndex={scrollRows ? 0 : undefined}
+        aria-label={scrollRows ? `${label} results` : undefined}
         className={
           scrollRows
             ? "data-table-workspace__content min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-y-contain"

@@ -90,6 +90,7 @@ describe("shared DataTable", () => {
     expect(screen.getByRole("table").closest(".data-table-workspace__content")).toHaveClass(
       "overflow-y-auto",
     );
+    expect(screen.getByLabelText("Books results")).toHaveAttribute("tabindex", "0");
   });
 
   it("grows with a larger page instead of creating a vertical results viewport by default", async () => {
