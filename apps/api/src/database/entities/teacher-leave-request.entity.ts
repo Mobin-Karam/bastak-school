@@ -25,6 +25,13 @@ export class TeacherLeaveRequest {
   @Column({ type: "varchar", length: 10 }) startDate!: string;
   @Column({ type: "varchar", length: 10 }) endDate!: string;
   @Column({ type: "text" }) reason!: string;
+  /** Immutable cycles of the legacy sessions affected when this leave was requested. */
+  @Column({ type: "simple-json", nullable: true }) academicCycleSnapshots?: Array<{
+    academicYearId: string;
+    academicYearName: string | null;
+    termId: string;
+    termName: string | null;
+  }> | null;
   @Column({ type: "varchar", length: 16, default: "pending" }) status!:
     "pending" | "approved" | "rejected";
   @Column({ type: "varchar", length: 16, nullable: true }) resolution!:

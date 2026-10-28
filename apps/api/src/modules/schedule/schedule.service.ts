@@ -514,6 +514,7 @@ export class ScheduleService {
       startDate: row.startDate,
       endDate: row.endDate,
       reason: row.reason,
+      academicCycleSnapshots: row.academicCycleSnapshots ?? [],
       status: row.status,
       resolution: row.resolution,
       substituteTeacherId: row.substituteTeacherId,
@@ -565,6 +566,10 @@ export class ScheduleService {
       !context.roles.includes("PLATFORM_ADMIN")
     )
       throw new ApiException(403, "FORBIDDEN", "دسترسی کافی ندارید.");
+    const cycleSnapshots = await this.teacherLeaveCycleSnapshots(
+      dto.organizationId,
+      user.id,
+    );
     const row = await this.teacherLeaves.save(
       this.teacherLeaves.create({
         organizationId: dto.organizationId,
@@ -572,6 +577,7 @@ export class ScheduleService {
         startDate: dto.startDate,
         endDate: dto.endDate,
         reason: dto.reason.trim(),
+        academicCycleSnapshots: cycleSnapshots,
         status: "pending",
         resolution: null,
         substituteTeacherId: null,
@@ -588,6 +594,46 @@ export class ScheduleService {
       ...row,
       teacher: { id: user.id } as User,
     });
+  }
+  private async teacherLeaveCycleSnapshots(
+    organizationId: string,
+    teacherId: string,
+  ) {
+    const entries = await this.entries.find({
+      where: {
+        organization: { id: organizationId },
+        versionId: IsNull(),
+        status: "ACTIVE",
+      },
+      relations: { teacher: true, classBook: { teacher: true } },
+    });
+    const affected = entries.filter(
+      (entry) =>
+        (entry.teacher?.id === teacherId || entry.classBook?.teacher?.id === teacherId) &&
+        entry.academicYearId &&
+        entry.termId,
+    );
+    const yearIds = [...new Set(affected.map((entry) => entry.academicYearId!))];
+    const years = yearIds.length
+      ? await this.academicYearRepo.findBy({ id: In(yearIds) })
+      : [];
+    const yearNames = new Map(years.map((year) => [year.id, year.name]));
+    const termIds = [...new Set(affected.map((entry) => entry.termId!))];
+    const terms = termIds.length
+      ? await this.academicTerms.findBy({ id: In(termIds) })
+      : [];
+    const termNames = new Map(terms.map((term) => [term.id, term.name]));
+    return [...new Map(
+      affected.map((entry) => {
+        const value = {
+          academicYearId: entry.academicYearId!,
+          academicYearName: entry.academicYearNameSnapshot ?? yearNames.get(entry.academicYearId!) ?? null,
+          termId: entry.termId!,
+          termName: entry.termNameSnapshot ?? termNames.get(entry.termId!) ?? null,
+        };
+        return [`${value.academicYearId}:${value.termId}`, value] as const;
+      }),
+    ).values()];
   }
   async reviewTeacherLeave(
     user: AuthenticatedUser,
