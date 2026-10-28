@@ -9,6 +9,10 @@ import {
   NotificationType,
 } from "../../database/entities/notification.entity";
 import { AttendanceCorrection } from "../../database/entities/attendance-correction.entity";
+import {
+  AttendanceSupervisorCheck,
+  SupervisorAttendanceEntry,
+} from "../../database/entities/attendance-supervisor-check.entity";
 import { Injectable } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import {
@@ -58,6 +62,7 @@ import {
   ReviewAttendanceCorrectionDto,
   UpdateAttendancePolicyDto,
   AttendanceHistoryQueryDto,
+  SaveSupervisorAttendanceCheckDto,
 } from "./attendance.dto";
 
 const maximumAttendanceBatchSize = 500;
@@ -87,6 +92,8 @@ export class AttendanceService {
     private readonly authorization: AuthorizationService,
     private readonly realtime: RealtimeService,
     private readonly rewards: RewardsService,
+    @InjectRepository(AttendanceSupervisorCheck)
+    private readonly supervisorChecks?: Repository<AttendanceSupervisorCheck>,
   ) {}
 
   async authorizeOrganization(user: AuthenticatedUser, organizationId: string) {
@@ -438,6 +445,181 @@ export class AttendanceService {
           createdAt: row.createdAt.toISOString(),
         };
       });
+  }
+
+  /** The supervisor queue intentionally contains timetable lessons, not the teacher's context list. */
+  async listSupervisorSessions(user: AuthenticatedUser) {
+    this.assertSupervisor(user);
+    const ids = await this.access.scopedOrganizationIds(
+      this.effectiveUser(user),
+      user.activeOrganizationId || undefined,
+    );
+    if (!ids.length) return [];
+    const rows = await this.sessions.find({
+      where: { organization: { id: In(ids) }, sourceKind: "class_schedule" },
+      relations: { organization: true, assignedStaff: true, records: true },
+      order: { sessionDate: "DESC", id: "DESC" },
+      take: 250,
+    });
+    const checks = await this.checkRepository().find({
+      where: { supervisor: { id: user.id } },
+      relations: { session: true },
+    });
+    const ownCheckBySession = new Map(
+      checks.map((check) => [check.session.id, check]),
+    );
+    return rows.map((session) => ({
+      id: session.id,
+      organizationId: session.organization.id,
+      organizationName: session.organization.name,
+      classId: session.contextId,
+      className: session.titleSnapshot,
+      bookName: session.subjectNameSnapshot ?? "",
+      teacherName: session.assignedStaffNameSnapshot || "—",
+      sessionDate: session.sessionDate.toISOString(),
+      status: session.status,
+      teacherSubmittedAt: session.submittedAt?.toISOString() ?? null,
+      roster: session.rosterSnapshot ?? [],
+      ownCheck: ownCheckBySession.has(session.id)
+        ? this.supervisorCheckView(ownCheckBySession.get(session.id)!)
+        : null,
+    }));
+  }
+
+  async saveSupervisorCheck(
+    user: AuthenticatedUser,
+    sessionId: string,
+    dto: SaveSupervisorAttendanceCheckDto,
+  ) {
+    this.assertSupervisor(user);
+    const session = await this.sessions.findOne({
+      where: { id: sessionId, sourceKind: "class_schedule" },
+      relations: { organization: true },
+    });
+    if (!session)
+      throw new ApiException(
+        404,
+        "ATTENDANCE_SESSION_NOT_FOUND",
+        "جلسه کلاسی پیدا نشد.",
+      );
+    await this.authorizeOrganization(user, session.organization.id);
+    const roster = new Set(
+      (session.rosterSnapshot ?? []).map((student) => student.id),
+    );
+    if (!roster.size)
+      throw new ApiException(
+        422,
+        "ATTENDANCE_ROSTER_MISSING",
+        "فهرست دانش‌آموزان جلسه ثبت نشده است.",
+      );
+    if (dto.entries.some((entry) => !roster.has(entry.studentId)))
+      throw new ApiException(
+        422,
+        "SUPERVISOR_CHECK_STUDENT_INVALID",
+        "فقط دانش‌آموزان همان جلسه قابل ثبت هستند.",
+      );
+    const repository = this.checkRepository();
+    let check = await repository.findOne({
+      where: { session: { id: session.id }, supervisor: { id: user.id } },
+      relations: { session: true, supervisor: true, organization: true },
+    });
+    if (
+      check &&
+      dto.expectedRevision !== undefined &&
+      dto.expectedRevision !== check.revision
+    )
+      throw new ApiException(
+        409,
+        "SUPERVISOR_CHECK_REVISION_CONFLICT",
+        "این بررسی توسط شما تغییر کرده است.",
+      );
+    const entries: SupervisorAttendanceEntry[] = dto.entries.map((entry) => ({
+      studentId: entry.studentId,
+      status: entry.status as AttendanceStatus,
+      note: entry.note?.trim() ?? "",
+    }));
+    if (!check) {
+      check = repository.create({
+        organization: session.organization,
+        session,
+        supervisor: { id: user.id } as User,
+        entries,
+        revision: 0,
+        submittedAt: new Date(),
+      });
+    } else {
+      check.entries = entries;
+      check.revision += 1;
+      check.submittedAt = new Date();
+    }
+    const saved = await repository.save(check);
+    return this.supervisorCheckView(saved);
+  }
+
+  async listSupervisorComparisons(user: AuthenticatedUser) {
+    this.assertReviewAccess(user);
+    const ids = await this.access.scopedOrganizationIds(
+      this.effectiveUser(user),
+      user.activeOrganizationId || undefined,
+    );
+    if (!ids.length) return [];
+    const sessions = await this.sessions.find({
+      where: { organization: { id: In(ids) }, sourceKind: "class_schedule" },
+      relations: {
+        organization: true,
+        assignedStaff: true,
+        records: { student: true },
+      },
+      order: { sessionDate: "DESC", id: "DESC" },
+      take: 250,
+    });
+    const checks = await this.checkRepository().find({
+      where: { organization: { id: In(ids) } },
+      relations: { session: true, supervisor: true },
+      order: { updatedAt: "DESC" },
+    });
+    const checksBySession = new Map<string, AttendanceSupervisorCheck[]>();
+    for (const check of checks)
+      checksBySession.set(check.session.id, [
+        ...(checksBySession.get(check.session.id) ?? []),
+        check,
+      ]);
+    return sessions.map((session) => {
+      const teacher = new Map(
+        session.records.map((record) => [record.student.id, record.status]),
+      );
+      const sessionChecks = checksBySession.get(session.id) ?? [];
+      const comparisons = sessionChecks.map((check) => {
+        const observed = new Map(
+          check.entries.map((entry) => [entry.studentId, entry.status]),
+        );
+        const mismatches = [...observed].filter(
+          ([studentId, status]) => teacher.get(studentId) !== status,
+        ).length;
+        return {
+          ...this.supervisorCheckView(check),
+          mismatchCount: mismatches,
+        };
+      });
+      const comparisonStatus = !session.submittedAt
+        ? "teacher_missing"
+        : !comparisons.length
+          ? "supervisor_missing"
+          : comparisons.some((check) => check.mismatchCount > 0)
+            ? "mismatch"
+            : "matched";
+      return {
+        sessionId: session.id,
+        organizationName: session.organization.name,
+        className: session.titleSnapshot,
+        bookName: session.subjectNameSnapshot ?? "",
+        teacherName: session.assignedStaffNameSnapshot || "—",
+        sessionDate: session.sessionDate.toISOString(),
+        comparisonStatus,
+        teacherRecordCount: teacher.size,
+        supervisorChecks: comparisons,
+      };
+    });
   }
 
   async paginatedSessions(
@@ -2669,6 +2851,40 @@ export class AttendanceService {
 
   private effectiveUser(user: AuthenticatedUser): AuthenticatedUser {
     return { ...user, role: user.roles ? (user.roles[0] ?? "") : user.role };
+  }
+
+  private checkRepository() {
+    if (!this.supervisorChecks)
+      throw new ApiException(
+        503,
+        "SUPERVISOR_CHECKS_UNAVAILABLE",
+        "ثبت بررسی ناظر در دسترس نیست.",
+      );
+    return this.supervisorChecks;
+  }
+
+  private assertSupervisor(user: AuthenticatedUser) {
+    if ((user.roles ?? [user.role]).includes("SCHOOL_SUPERVISOR")) return;
+    throw new ApiException(
+      403,
+      "SUPERVISOR_ATTENDANCE_FORBIDDEN",
+      "ثبت حضور و غیاب نظارتی فقط برای ناظر مدرسه مجاز است.",
+    );
+  }
+
+  private supervisorCheckView(check: AttendanceSupervisorCheck) {
+    return {
+      id: check.id,
+      supervisorId: check.supervisor?.id ?? null,
+      supervisorName: check.supervisor
+        ? `${check.supervisor.firstName} ${check.supervisor.lastName}`.trim() ||
+          check.supervisor.username
+        : "—",
+      entries: check.entries,
+      revision: check.revision,
+      submittedAt: check.submittedAt?.toISOString() ?? null,
+      updatedAt: check.updatedAt?.toISOString() ?? null,
+    };
   }
 
   private assertWorkOrganization(

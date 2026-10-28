@@ -36,6 +36,8 @@ import { useAttendanceDiscard } from "../components/useAttendanceDiscard";
 import { AttendanceRosterView } from "../views/AttendanceRosterView";
 import { PendingCorrectionQueue } from "../components/PendingCorrectionQueue";
 import { AttendanceReviewQueue } from "../components/AttendanceReviewQueue";
+import { SupervisorAttendancePanel } from "../components/SupervisorAttendancePanel";
+import { SupervisorComparisonPanel } from "../components/SupervisorComparisonPanel";
 import {
   attendanceStatusMeta as statusMeta,
   attendanceStatuses as statuses,
@@ -60,7 +62,7 @@ import { attendanceSessionWindow } from "../model/attendance-session-window";
 
 type Notice = { kind: "success" | "warning" | "error" | "info"; text: string };
 
-type AttendanceSection = AttendanceContextType | "sessions" | "pool";
+type AttendanceSection = AttendanceContextType | "sessions" | "pool" | "supervisor" | "comparison";
 const contextOrder: AttendanceContextType[] = ["class", "class_group", "dorm"];
 const sectionLabels = {
   class: "کلاس",
@@ -68,6 +70,8 @@ const sectionLabels = {
   dorm: "خوابگاه",
   sessions: "جلسات",
   pool: "حوضچه",
+  supervisor: "نظارت کلاس‌ها",
+  comparison: "تطبیق ناظر",
 };
 const contextIcon = {
   class: BookOpenCheck,
@@ -75,6 +79,8 @@ const contextIcon = {
   dorm: Building2,
   sessions: CalendarCheck2,
   pool: Radio,
+  supervisor: ShieldAlert,
+  comparison: Check,
 } as const;
 const shell = "border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card))]";
 const muted = "text-slate-600 dark:text-slate-300";
@@ -94,6 +100,7 @@ function errorText(error: unknown, fallback: string) {
 export function AttendancePage() {
   const auth = useAuth();
   const canViewStaffSessions = auth.canAny(["attendance.review", "attendance.class.read"]);
+  const isSupervisor = auth.context?.roles.includes("SCHOOL_SUPERVISOR") ?? false;
   const { profile } = useLocale();
   const navigate = useNavigate();
   const [linkedSession, setLinkedSession] = useState<AttendanceSessionDetail | null>(null);
@@ -117,6 +124,8 @@ export function AttendancePage() {
     ...contextOrder,
     ...(canViewStaffSessions ? (["sessions"] as const) : []),
     ...(auth.can("attendance.review") ? (["pool"] as const) : []),
+    ...(isSupervisor ? (["supervisor"] as const) : []),
+    ...(auth.can("attendance.review") ? (["comparison"] as const) : []),
   ];
   const scopeKey = JSON.stringify([
     auth.user?.id,
@@ -131,13 +140,17 @@ export function AttendancePage() {
   const requestedSessionId = searchParams.get("sessionId");
   const requestedSectionParam = searchParams.get("section");
   const requestedSection: AttendanceSection =
-    requestedSectionParam === "sessions" && canViewStaffSessions
-      ? "sessions"
-      : requestedSectionParam === "pool" && auth.can("attendance.review")
-        ? "pool"
-        : contextOrder.includes(requestedSectionParam as AttendanceContextType)
-          ? (requestedSectionParam as AttendanceContextType)
-          : "class";
+    requestedSectionParam === "supervisor" && isSupervisor
+      ? "supervisor"
+      : requestedSectionParam === "comparison" && auth.can("attendance.review")
+        ? "comparison"
+        : requestedSectionParam === "sessions" && canViewStaffSessions
+          ? "sessions"
+          : requestedSectionParam === "pool" && auth.can("attendance.review")
+            ? "pool"
+            : contextOrder.includes(requestedSectionParam as AttendanceContextType)
+              ? (requestedSectionParam as AttendanceContextType)
+              : "class";
   const requestedReviewRecordId =
     requestedSection === "sessions" ? searchParams.get("reviewRecordId") : null;
   const requestedCorrectionId =
@@ -469,7 +482,8 @@ export function AttendancePage() {
     discard.request(() => {
       setChosenType(type);
       setGroupClassId("");
-      if (type !== "sessions" && type !== "pool") setContextType(type);
+      if (contextOrder.includes(type as AttendanceContextType))
+        setContextType(type as AttendanceContextType);
       setContextId("");
       setNotice(null);
       setAttendanceUrl(type);
@@ -682,7 +696,7 @@ export function AttendancePage() {
                 type="button"
                 key={type}
                 aria-pressed={active}
-                aria-label={`${sectionLabels[type]} ${type === "pool" ? "فراخوان زنده" : type === "sessions" ? "سوابق حضور" : `${total} مورد`}`}
+                aria-label={`${sectionLabels[type]} ${type === "pool" ? "فراخوان زنده" : type === "sessions" ? "سوابق حضور" : type === "supervisor" ? "بررسی مستقل" : type === "comparison" ? "گزارش مدیر" : `${total} مورد`}`}
                 disabled={saving || loadingContexts}
                 onClick={() => chooseAttendanceType(type)}
                 className={`flex min-h-[5rem] min-w-0 flex-col items-center justify-center gap-1 rounded-2xl text-center transition-colors motion-reduce:transition-none sm:flex-row sm:justify-center ${active ? "bg-brand text-white shadow-sm" : "text-ink hover:bg-[rgb(var(--surface-muted))]"}`}
@@ -701,7 +715,11 @@ export function AttendancePage() {
                       ? "فراخوان زنده"
                       : type === "sessions"
                         ? "سوابق حضور"
-                        : `${total} مورد`}
+                        : type === "supervisor"
+                          ? "ثبت مستقل"
+                          : type === "comparison"
+                            ? "گزارش مدیر"
+                            : `${total} مورد`}
                   </span>
                 </span>
               </button>
@@ -710,7 +728,10 @@ export function AttendancePage() {
         </div>
       </div>
 
-      {chosenType !== "sessions" && chosenType !== "pool" ? (
+      {chosenType !== "sessions" &&
+      chosenType !== "pool" &&
+      chosenType !== "supervisor" &&
+      chosenType !== "comparison" ? (
         <Card
           id="attendance-targets"
           className="space-y-6 rounded-3xl border border-sky-100 p-4 sm:p-6 dark:border-slate-700"
@@ -1118,6 +1139,10 @@ export function AttendancePage() {
           ) : null}
         </div>
       </ResponsiveDrawer>
+      {chosenType === "supervisor" && isSupervisor ? <SupervisorAttendancePanel /> : null}
+      {chosenType === "comparison" && auth.can("attendance.review") ? (
+        <SupervisorComparisonPanel />
+      ) : null}
       {(chosenType === "sessions" && canViewStaffSessions) ||
       (chosenType === "pool" && auth.can("attendance.review")) ? (
         <>

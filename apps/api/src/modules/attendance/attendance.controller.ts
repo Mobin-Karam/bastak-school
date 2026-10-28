@@ -17,6 +17,7 @@ import { AuthenticatedUser } from "../auth";
 import { AttendanceService } from "./attendance.service";
 import {
   BulkMarkAttendanceDto,
+  SaveSupervisorAttendanceCheckDto,
   CreateAttendanceSessionDto,
   ReviewAttendanceAbsenceDto,
   AwardAttendancePointsDto,
@@ -41,6 +42,28 @@ export class AttendanceController {
     @Param("id") id: string,
   ) {
     return this.attendance.sessionDetail(user, id).then(ok);
+  }
+
+  @Get("attendance/supervisor-sessions")
+  @RequireCapabilities("attendance.read")
+  supervisorSessions(@CurrentUser() user: AuthenticatedUser) {
+    return this.attendance.listSupervisorSessions(user).then(ok);
+  }
+
+  @Post("attendance/sessions/:id/supervisor-check")
+  @RequireCapabilities("attendance.manage")
+  saveSupervisorCheck(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param("id") id: string,
+    @Body() dto: SaveSupervisorAttendanceCheckDto,
+  ) {
+    return this.attendance.saveSupervisorCheck(user, id, dto).then(ok);
+  }
+
+  @Get("attendance/supervisor-comparisons")
+  @RequireCapabilities("attendance.review")
+  supervisorComparisons(@CurrentUser() user: AuthenticatedUser) {
+    return this.attendance.listSupervisorComparisons(user).then(ok);
   }
 
   @Get("attendance/sessions/:id/history")

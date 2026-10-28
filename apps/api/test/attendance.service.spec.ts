@@ -38,6 +38,7 @@ import {
 import { AttendanceCorrection } from "../src/database/entities/attendance-correction.entity";
 import { AttendancePolicy } from "../src/database/entities/attendance-policy.entity";
 import { AttendanceSession } from "../src/database/entities/attendance-session.entity";
+import { AttendanceSupervisorCheck } from "../src/database/entities/attendance-supervisor-check.entity";
 import {
   Organization,
   OrganizationType,
@@ -173,10 +174,58 @@ describe("AttendanceService organization boundaries (real SQLite)", () => {
         ),
         {} as AuthorizationService,
       ),
+      db.getRepository(AttendanceSupervisorCheck),
     );
   });
   afterEach(async () => {
     if (db?.isInitialized) await db.destroy();
+  });
+
+  it("keeps a supervisor observation independent and editable for one teacher occurrence", async () => {
+    const session = await db.getRepository(AttendanceSession).save({
+      organization: orgA,
+      contextType: "class",
+      contextId: assignedClass.id,
+      sessionDate: new Date("2026-10-28T08:00:00.000Z"),
+      sourceKind: "class_schedule",
+      occurrenceKey: `supervisor-check:${randomUUID()}`,
+      titleSnapshot: assignedClass.name,
+      rosterSnapshot: [
+        {
+          id: studentA.id,
+          name: studentA.name,
+          nationalCode: null,
+          userId: null,
+        },
+      ],
+    });
+    const supervisor = {
+      ...actor,
+      roles: ["SCHOOL_SUPERVISOR"],
+      role: "SCHOOL_SUPERVISOR",
+    };
+    const created = await service.saveSupervisorCheck(supervisor, session.id, {
+      entries: [{ studentId: studentA.id, status: "absent" }],
+    });
+    const updated = await service.saveSupervisorCheck(supervisor, session.id, {
+      expectedRevision: created.revision,
+      entries: [{ studentId: studentA.id, status: "present" }],
+    });
+
+    expect(updated.revision).toBe(1);
+    expect(updated.entries).toEqual([
+      { studentId: studentA.id, status: "present", note: "" },
+    ]);
+    expect(
+      await db
+        .getRepository(AttendanceRecord)
+        .count({ where: { session: { id: session.id } } }),
+    ).toBe(0);
+    expect(
+      await db
+        .getRepository(AttendanceSupervisorCheck)
+        .count({ where: { session: { id: session.id } } }),
+    ).toBe(1);
   });
 
   it("returns parent class IDs for scoped attendance groups", async () => {

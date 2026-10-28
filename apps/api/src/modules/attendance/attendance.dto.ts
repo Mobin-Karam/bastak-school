@@ -53,6 +53,18 @@ export class BulkMarkAttendanceDto {
   entries!: AttendanceEntryDto[];
 }
 
+/** A supervisor records an independent observation, never a replacement teacher record. */
+export class SaveSupervisorAttendanceCheckDto {
+  @IsOptional() @IsInt() @Min(0) expectedRevision?: number;
+  @IsArray()
+  @ArrayMinSize(1)
+  @ArrayMaxSize(500)
+  @ArrayUnique<AttendanceEntryDto>((entry) => entry.studentId)
+  @ValidateNested({ each: true })
+  @Type(() => AttendanceEntryDto)
+  entries!: AttendanceEntryDto[];
+}
+
 export class ReviewAttendanceAbsenceDto {
   @IsIn(["approved", "rejected"])
   decision!: "approved" | "rejected";
@@ -165,7 +177,8 @@ export class UpdateAttendancePolicyDto {
   @IsBoolean() allowPartialSubmission!: boolean;
   @IsBoolean() lateCountsAsPresent!: boolean;
   @IsOptional() @IsBoolean() correctionRequiresReview?: boolean;
-  @IsOptional() @IsIn(["automatic", "absences_only"])
+  @IsOptional()
+  @IsIn(["automatic", "absences_only"])
   principalReviewMode?: "automatic" | "absences_only";
 }
 

@@ -70,6 +70,55 @@ export type AttendanceBulkMarkRequest = {
 export const bulkMarkAttendance = (body: AttendanceBulkMarkRequest) =>
   api.post<{ sessionId: string; count: number }>("/attendance/bulk-mark", body);
 
+export type SupervisorAttendanceSession = {
+  id: string;
+  organizationName: string;
+  className: string;
+  bookName: string;
+  teacherName: string;
+  sessionDate: string;
+  status: string;
+  teacherSubmittedAt: string | null;
+  roster: Array<{ id: string; name: string }>;
+  ownCheck: SupervisorAttendanceCheck | null;
+};
+
+export type SupervisorAttendanceCheck = {
+  id: string;
+  revision: number;
+  submittedAt: string | null;
+  entries: AttendanceBulkMarkRequest["entries"];
+};
+
+export const listSupervisorAttendanceSessions = () =>
+  api.get<SupervisorAttendanceSession[]>("/attendance/supervisor-sessions");
+
+export const saveSupervisorAttendanceCheck = (
+  sessionId: string,
+  body: { expectedRevision?: number; entries: AttendanceBulkMarkRequest["entries"] },
+) =>
+  api.post<SupervisorAttendanceCheck>(
+    `/attendance/sessions/${encodeURIComponent(sessionId)}/supervisor-check`,
+    body,
+  );
+
+export type SupervisorComparison = {
+  sessionId: string;
+  organizationName: string;
+  className: string;
+  bookName: string;
+  teacherName: string;
+  sessionDate: string;
+  comparisonStatus: "teacher_missing" | "supervisor_missing" | "mismatch" | "matched";
+  teacherRecordCount: number;
+  supervisorChecks: Array<
+    SupervisorAttendanceCheck & { supervisorName: string; mismatchCount: number }
+  >;
+};
+
+export const listSupervisorComparisons = () =>
+  api.get<SupervisorComparison[]>("/attendance/supervisor-comparisons");
+
 export type AttendanceAbsenceReview = {
   id: string;
   studentId: string;
