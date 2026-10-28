@@ -37,5 +37,13 @@ export class TeacherLeaveRequest {
   @Column({ type: "varchar", length: 36, nullable: true }) reviewedById!:
     string | null;
   @Column({ type: "datetime", nullable: true }) reviewedAt!: Date | null;
+  /** A teacher may request an earlier return while an approved leave is active. */
+  @Column({ type: "varchar", length: 10, nullable: true }) returnDate!:
+    string | null;
+  @Column({ type: "text", nullable: true }) returnMessage!: string | null;
+  @Column({ type: "varchar", length: 16, nullable: true }) returnStatus!:
+    "pending" | "approved" | "rejected" | null;
+  @Column({ type: "datetime", nullable: true }) returnRequestedAt!: Date | null;
+  @Column({ type: "datetime", nullable: true }) returnReviewedAt!: Date | null;
   @CreateDateColumn() createdAt!: Date;
 }

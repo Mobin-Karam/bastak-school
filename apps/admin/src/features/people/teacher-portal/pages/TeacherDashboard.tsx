@@ -55,21 +55,27 @@ export function TeacherDashboard() {
   // The home payload intentionally contains a lean calendar record. Resolve it
   // against the schedule query before opening attendance so organization and
   // classroom identifiers never come from an untrusted UI value.
-  const todayEntries = useMemo(
+  const scheduledTodayEntries = useMemo(
     () => activeEntriesForTehranToday(schedule.data ?? [], now),
     [schedule.data, now],
   );
   const currentMinute = tehranClockMinutes(now);
+  const today = todayIso();
+  const activeLeave = (leaves.data ?? []).find(
+    (leave) =>
+      leave.status === "approved" &&
+      leave.startDate <= today &&
+      leave.endDate >= today &&
+      !(leave.returnStatus === "approved" && leave.returnDate && leave.returnDate <= today),
+  );
+  // A leave freezes attendance entry points as well as the visible schedule.
+  const todayEntries = activeLeave ? [] : scheduledTodayEntries;
   const currentClass =
     todayEntries.find(
       (entry) =>
         currentMinute >= clockMinutes(entry.startTime) &&
         currentMinute < clockMinutes(entry.endTime),
     ) ?? null;
-  const today = todayIso();
-  const activeLeave = (leaves.data ?? []).find(
-    (leave) => leave.status === "approved" && leave.startDate <= today && leave.endDate >= today,
-  );
 
   if (schedule.isLoading && home.isLoading)
     return <LoadingState label="در حال آماده‌سازی میز استاد…" />;
@@ -87,7 +93,8 @@ export function TeacherDashboard() {
       </section>
       {activeLeave ? (
         <Card className="border-amber-300 bg-amber-50 p-3 text-sm font-bold text-amber-900 dark:bg-amber-950/30 dark:text-amber-100">
-          شما در بازه مرخصی تأییدشده هستید: {activeLeave.startDate} تا {activeLeave.endDate}
+          شما در بازه مرخصی تأییدشده هستید: {formatDate(activeLeave.startDate)} تا{" "}
+          {formatDate(activeLeave.endDate)}
         </Card>
       ) : null}
       <AnnouncementEnvelope announcements={home.data?.home?.announcements} />

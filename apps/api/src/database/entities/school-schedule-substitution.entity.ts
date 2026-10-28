@@ -24,6 +24,9 @@ export class SchoolScheduleOccurrenceOverride {
   entry?: SchoolScheduleEntry;
   @Column({ type: "varchar", length: 10 }) date!: string;
   @Column({ default: true }) cancelled!: boolean;
+  /** Identifies cancellations made by a teacher leave so early return can restore only them. */
+  @Column({ type: "varchar", length: 36, nullable: true }) leaveRequestId?:
+    string | null;
   @Column({ type: "varchar", length: 36 }) changedById!: string;
   @ManyToOne(() => User, { nullable: false, onDelete: "RESTRICT" })
   @JoinColumn({ name: "changedById" })

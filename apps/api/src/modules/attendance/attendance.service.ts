@@ -9,6 +9,7 @@ import {
   NotificationType,
 } from "../../database/entities/notification.entity";
 import { AttendanceCorrection } from "../../database/entities/attendance-correction.entity";
+import { TeacherLeaveRequest } from "../../database/entities/teacher-leave-request.entity";
 import {
   AttendanceSupervisorCheck,
   SupervisorAttendanceEntry,
@@ -1788,6 +1789,33 @@ export class AttendanceService {
             notificationEvents: [],
           };
         }
+      }
+      // A teacher's own attendance must be frozen for every approved leave day.
+      // School-wide staff retain their operational ability to correct history.
+      if (!this.schoolWide(user)) {
+        const day = sessionDate.toISOString().slice(0, 10);
+        const leave = await manager.getRepository(TeacherLeaveRequest).findOne({
+          where: {
+            organizationId: organization.id,
+            teacherId: user.id,
+            status: "approved",
+            startDate: LessThanOrEqual(day),
+            endDate: MoreThanOrEqual(day),
+          },
+        });
+        if (
+          leave &&
+          !(
+            leave.returnStatus === "approved" &&
+            leave.returnDate &&
+            leave.returnDate <= day
+          )
+        )
+          throw new ApiException(
+            409,
+            "TEACHER_LEAVE_ATTENDANCE_FROZEN",
+            "حضور و غیاب در بازه مرخصی تأییدشده غیرفعال است.",
+          );
       }
       let session = dto.sessionId
         ? await sessions.findOne({

@@ -39,6 +39,8 @@ import {
   ScheduleSubstitutionRequestDto,
   TeacherLeaveRequestDto,
   TeacherLeaveReviewDto,
+  TeacherLeaveReturnRequestDto,
+  TeacherLeaveReturnReviewDto,
 } from "./schedule.dto";
 
 @Injectable()
@@ -181,6 +183,11 @@ export class ScheduleService {
       substituteTeacherId: row.substituteTeacherId,
       reviewedById: row.reviewedById,
       reviewedAt: row.reviewedAt?.toISOString() ?? null,
+      returnDate: row.returnDate,
+      returnMessage: row.returnMessage,
+      returnStatus: row.returnStatus,
+      returnRequestedAt: row.returnRequestedAt?.toISOString() ?? null,
+      returnReviewedAt: row.returnReviewedAt?.toISOString() ?? null,
       createdAt: row.createdAt.toISOString(),
       teacher: person(row.teacher),
       substituteTeacher: person(row.substituteTeacher),
@@ -234,6 +241,11 @@ export class ScheduleService {
         substituteTeacherId: null,
         reviewedById: null,
         reviewedAt: null,
+        returnDate: null,
+        returnMessage: null,
+        returnStatus: null,
+        returnRequestedAt: null,
+        returnReviewedAt: null,
       }),
     );
     return this.publicTeacherLeave({
@@ -304,6 +316,76 @@ export class ScheduleService {
       await this.applyTeacherLeave(row, user.id, substitute);
     return this.publicTeacherLeave(await this.teacherLeaves.save(row));
   }
+  async requestTeacherLeaveReturn(
+    user: AuthenticatedUser,
+    id: string,
+    dto: TeacherLeaveReturnRequestDto,
+  ) {
+    const context = this.context(user);
+    this.authorization.requireCapability(context, "attendance.class.manage");
+    const row = await this.teacherLeaves.findOneBy({ id });
+    if (!row || row.teacherId !== user.id || row.status !== "approved")
+      throw new ApiException(
+        404,
+        "TEACHER_LEAVE_NOT_FOUND",
+        "مرخصی تأییدشده پیدا نشد.",
+      );
+    if (
+      !this.dateIsValid(dto.returnDate) ||
+      dto.returnDate < row.startDate ||
+      dto.returnDate > row.endDate
+    )
+      throw new ApiException(
+        422,
+        "TEACHER_LEAVE_RETURN_DATE_INVALID",
+        "تاریخ بازگشت باید در بازه مرخصی باشد.",
+      );
+    if (row.returnStatus === "approved")
+      throw new ApiException(
+        409,
+        "TEACHER_LEAVE_RETURN_ALREADY_APPROVED",
+        "بازگشت این مرخصی پیش‌تر تأیید شده است.",
+      );
+    row.returnDate = dto.returnDate;
+    row.returnMessage = dto.returnMessage?.trim() || null;
+    row.returnStatus = "pending";
+    row.returnRequestedAt = new Date();
+    row.returnReviewedAt = null;
+    return this.publicTeacherLeave(await this.teacherLeaves.save(row));
+  }
+  async reviewTeacherLeaveReturn(
+    user: AuthenticatedUser,
+    id: string,
+    dto: TeacherLeaveReturnReviewDto,
+  ) {
+    const context = this.context(user);
+    this.authorization.requireCapability(context, "schedule.publish");
+    const row = await this.teacherLeaves.findOne({
+      where: { id },
+      relations: { teacher: true, substituteTeacher: true },
+    });
+    if (
+      !row ||
+      row.status !== "approved" ||
+      row.returnStatus !== "pending" ||
+      !row.returnDate
+    )
+      throw new ApiException(
+        404,
+        "TEACHER_LEAVE_RETURN_NOT_FOUND",
+        "درخواست بازگشت در انتظار بررسی پیدا نشد.",
+      );
+    if (
+      !this.isOperator(context) ||
+      (!context.roles.includes("PLATFORM_ADMIN") &&
+        !context.organizationIds.includes(row.organizationId))
+    )
+      throw new ApiException(403, "FORBIDDEN", "دسترسی کافی ندارید.");
+    row.returnStatus = dto.decision;
+    row.returnReviewedAt = new Date();
+    if (dto.decision === "approved") await this.restoreTeacherLeave(row);
+    return this.publicTeacherLeave(await this.teacherLeaves.save(row));
+  }
   private async applyTeacherLeave(
     row: TeacherLeaveRequest,
     changedById: string,
@@ -346,6 +428,7 @@ export class ScheduleService {
             entryId: entry.id,
             date,
             cancelled: true,
+            leaveRequestId: row.id,
             changedById,
           }),
         );
@@ -367,6 +450,27 @@ export class ScheduleService {
       }
       date = next.toISOString().slice(0, 10);
     }
+  }
+  private async restoreTeacherLeave(row: TeacherLeaveRequest) {
+    const restoredFrom = row.returnDate!;
+    const overrides = await this.occurrenceOverrides.find({
+      where: { leaveRequestId: row.id },
+    });
+    await this.occurrenceOverrides.remove(
+      overrides.filter((override) => override.date >= restoredFrom),
+    );
+    const replacements = await this.entries.find({
+      where: { organization: { id: row.organizationId } },
+    });
+    await this.entries.save(
+      replacements
+        .filter(
+          (entry) =>
+            entry.notes === `جایگزین مرخصی ${row.id}` &&
+            (entry.startsOn ?? "") >= restoredFrom,
+        )
+        .map((entry) => ({ ...entry, status: "ARCHIVED" as const })),
+    );
   }
   async substitutionSlots(user: AuthenticatedUser, date: string) {
     const context = this.context(user);
@@ -961,7 +1065,11 @@ export class ScheduleService {
     return this.timeBlockGroups.find({
       where: {
         organization: {
-          id: In(requestedOrganizationId ? [requestedOrganizationId] : context.organizationIds),
+          id: In(
+            requestedOrganizationId
+              ? [requestedOrganizationId]
+              : context.organizationIds,
+          ),
         },
       },
       relations: { organization: true },
@@ -1218,7 +1326,11 @@ export class ScheduleService {
         "گروه بازه زمانی برای این مدرسه معتبر نیست.",
       );
     const existing = await this.timeBlocks.findOne({
-      where: { organization: { id: organization.id }, group: { id: group.id }, name },
+      where: {
+        organization: { id: organization.id },
+        group: { id: group.id },
+        name,
+      },
     });
     if (existing)
       throw new ApiException(
@@ -1241,16 +1353,30 @@ export class ScheduleService {
     user: AuthenticatedUser,
     dto: CreateScheduleTimeBlockGroupDto,
   ) {
-    const organization = await this.templateScope(user, dto.organizationId, "schedule.update");
+    const organization = await this.templateScope(
+      user,
+      dto.organizationId,
+      "schedule.update",
+    );
     const name = dto.name.trim();
     if (!name)
-      throw new ApiException(422, "TIME_BLOCK_GROUP_NAME_REQUIRED", "نام گروه لازم است.");
+      throw new ApiException(
+        422,
+        "TIME_BLOCK_GROUP_NAME_REQUIRED",
+        "نام گروه لازم است.",
+      );
     const existing = await this.timeBlockGroups.findOne({
       where: { organization: { id: organization.id }, name },
     });
     if (existing)
-      throw new ApiException(409, "TIME_BLOCK_GROUP_NAME_EXISTS", "این گروه قبلاً ثبت شده است.");
-    return this.timeBlockGroups.save(this.timeBlockGroups.create({ organization, name }));
+      throw new ApiException(
+        409,
+        "TIME_BLOCK_GROUP_NAME_EXISTS",
+        "این گروه قبلاً ثبت شده است.",
+      );
+    return this.timeBlockGroups.save(
+      this.timeBlockGroups.create({ organization, name }),
+    );
   }
   async removeTimeBlockGroup(user: AuthenticatedUser, id: string) {
     const context = this.context(user);
@@ -1260,13 +1386,20 @@ export class ScheduleService {
       relations: { organization: true },
     });
     if (!group)
-      throw new ApiException(404, "TIME_BLOCK_GROUP_NOT_FOUND", "گروه بازه زمانی پیدا نشد.");
+      throw new ApiException(
+        404,
+        "TIME_BLOCK_GROUP_NOT_FOUND",
+        "گروه بازه زمانی پیدا نشد.",
+      );
     if (
       !this.isOperator(context) ||
-      (!context.roles.includes("PLATFORM_ADMIN") && !context.organizationIds.includes(group.organization.id))
+      (!context.roles.includes("PLATFORM_ADMIN") &&
+        !context.organizationIds.includes(group.organization.id))
     )
       throw new ApiException(403, "FORBIDDEN", "دسترسی کافی ندارید.");
-    const hasBlocks = await this.timeBlocks.exist({ where: { group: { id: group.id } } });
+    const hasBlocks = await this.timeBlocks.exist({
+      where: { group: { id: group.id } },
+    });
     if (hasBlocks)
       throw new ApiException(
         409,

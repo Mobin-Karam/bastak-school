@@ -13,6 +13,7 @@ import {
 import {
   listTeacherLeaveRequests,
   reviewTeacherLeaveRequest,
+  reviewTeacherLeaveReturn,
   type TeacherLeaveRequest,
 } from "../../academics/schedule/api/teacher-leave.api";
 
@@ -41,7 +42,7 @@ const requestLabel = (row: LeaveRequest) =>
 
 export function LeaveRequestsPage() {
   const auth = useAuth();
-  const { language, profile } = useLocale();
+  const { language, formatDate } = useLocale();
   const copy = leaveRequestsCopy(language);
   const [rows, setRows] = useState<LeaveRequest[]>([]),
     [query, setQuery] = useState(""),
@@ -123,6 +124,21 @@ export function LeaveRequestsPage() {
       setBusy("");
     }
   };
+  const reviewTeacherReturn = async (
+    row: TeacherLeaveRequest,
+    decision: "approved" | "rejected",
+  ) => {
+    setBusy(`teacher-return:${row.id}`);
+    setError("");
+    try {
+      const updated = await reviewTeacherLeaveReturn(row.id, { decision });
+      setTeacherLeaves((items) => items.map((item) => (item.id === row.id ? updated : item)));
+    } catch (error) {
+      setError(error instanceof Error ? error.message : copy.saveFailed);
+    } finally {
+      setBusy("");
+    }
+  };
   return (
     <section className="grid gap-4" aria-busy={loading}>
       <section className="flex flex-wrap items-start justify-between gap-3">
@@ -170,9 +186,7 @@ export function LeaveRequestsPage() {
                   <p className="mt-1 text-xs font-bold text-brand">{requestLabel(row)}</p>
                   <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">{row.reason}</p>
                   <p className="mt-1 text-xs text-slate-500">
-                    {new Date(row.startDate).toLocaleDateString(profile.locale)} —{" "}
-                    {new Date(row.endDate).toLocaleDateString(profile.locale)} ·{" "}
-                    {row.organizationName}
+                    {formatDate(row.startDate)} — {formatDate(row.endDate)} · {row.organizationName}
                   </p>
                   {row.note ? (
                     <p className="mt-2 text-xs text-slate-500">
@@ -212,11 +226,13 @@ export function LeaveRequestsPage() {
               برای هر بازه، جانشین انتخاب کنید یا جلسه‌ها را لغو کنید.
             </p>
           </div>
-          {!teacherLeaves.filter((row) => row.status === "pending").length ? (
+          {!teacherLeaves.filter(
+            (row) => row.status === "pending" || row.returnStatus === "pending",
+          ).length ? (
             <EmptyState title="درخواست مرخصی دبیر در انتظاری وجود ندارد." />
           ) : (
             teacherLeaves
-              .filter((row) => row.status === "pending")
+              .filter((row) => row.status === "pending" || row.returnStatus === "pending")
               .map((row) => (
                 <article
                   key={row.id}
@@ -227,42 +243,69 @@ export function LeaveRequestsPage() {
                       row.teacher?.username}
                   </strong>
                   <p className="text-xs text-slate-500">
-                    {row.startDate} تا {row.endDate} · {row.reason}
+                    {formatDate(row.startDate)} تا {formatDate(row.endDate)} · {row.reason}
                   </p>
-                  <select
-                    value={substitutes[row.id] ?? ""}
-                    onChange={(event) =>
-                      setSubstitutes((items) => ({ ...items, [row.id]: event.target.value }))
-                    }
-                    className="h-10 rounded-lg border border-[rgb(var(--border-subtle))] px-2 text-sm"
-                  >
-                    <option value="">لغو جلسه‌ها و نمایش اطلاعیه برای دانش‌آموزان</option>
-                    {teachers
-                      .filter((teacher) => teacher.id !== row.teacherId)
-                      .map((teacher) => (
-                        <option key={teacher.id} value={teacher.id}>
-                          {[teacher.firstName, teacher.lastName].filter(Boolean).join(" ") ||
-                            teacher.username}
-                        </option>
-                      ))}
-                  </select>
-                  <div className="flex gap-2">
-                    <Button
-                      size="sm"
-                      loading={busy === `teacher:${row.id}`}
-                      onClick={() => void reviewTeacherLeave(row, "approved")}
+                  {row.status === "pending" ? (
+                    <select
+                      value={substitutes[row.id] ?? ""}
+                      onChange={(event) =>
+                        setSubstitutes((items) => ({ ...items, [row.id]: event.target.value }))
+                      }
+                      className="h-10 rounded-lg border border-[rgb(var(--border-subtle))] px-2 text-sm"
                     >
-                      تأیید
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="danger"
-                      disabled={Boolean(busy)}
-                      onClick={() => void reviewTeacherLeave(row, "rejected")}
-                    >
-                      رد
-                    </Button>
-                  </div>
+                      <option value="">لغو جلسه‌ها و نمایش اطلاعیه برای دانش‌آموزان</option>
+                      {teachers
+                        .filter((teacher) => teacher.id !== row.teacherId)
+                        .map((teacher) => (
+                          <option key={teacher.id} value={teacher.id}>
+                            {[teacher.firstName, teacher.lastName].filter(Boolean).join(" ") ||
+                              teacher.username}
+                          </option>
+                        ))}
+                    </select>
+                  ) : null}
+                  {row.status === "pending" ? (
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        loading={busy === `teacher:${row.id}`}
+                        onClick={() => void reviewTeacherLeave(row, "approved")}
+                      >
+                        تأیید
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="danger"
+                        disabled={Boolean(busy)}
+                        onClick={() => void reviewTeacherLeave(row, "rejected")}
+                      >
+                        رد
+                      </Button>
+                    </div>
+                  ) : null}
+                  {row.returnStatus === "pending" && row.returnDate ? (
+                    <div className="mt-2 rounded-lg bg-amber-50 p-2 text-xs text-amber-900 dark:bg-amber-950/30 dark:text-amber-100">
+                      <p>درخواست بازگشت در {formatDate(row.returnDate)}</p>
+                      {row.returnMessage ? <p className="mt-1">{row.returnMessage}</p> : null}
+                      <div className="mt-2 flex gap-2">
+                        <Button
+                          size="sm"
+                          loading={busy === `teacher-return:${row.id}`}
+                          onClick={() => void reviewTeacherReturn(row, "approved")}
+                        >
+                          تأیید بازگشت
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="danger"
+                          disabled={Boolean(busy)}
+                          onClick={() => void reviewTeacherReturn(row, "rejected")}
+                        >
+                          رد بازگشت
+                        </Button>
+                      </div>
+                    </div>
+                  ) : null}
                 </article>
               ))
           )}

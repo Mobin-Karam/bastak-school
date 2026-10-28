@@ -11,6 +11,11 @@ export type TeacherLeaveRequest = {
   resolution: "cancel" | "substitute" | null;
   substituteTeacherId: string | null;
   reviewedAt: string | null;
+  returnDate: string | null;
+  returnMessage: string | null;
+  returnStatus: "pending" | "approved" | "rejected" | null;
+  returnRequestedAt: string | null;
+  returnReviewedAt: string | null;
   teacher?: { id: string; username: string; firstName?: string; lastName?: string } | null;
   substituteTeacher?: {
     id: string;
@@ -35,3 +40,9 @@ export const reviewTeacherLeaveRequest = (
     substituteTeacherId?: string;
   },
 ) => api.post<TeacherLeaveRequest>(`/schedule/teacher-leave-requests/${id}/review`, body);
+export const requestTeacherLeaveReturn = (
+  id: string,
+  body: { returnDate: string; returnMessage?: string },
+) => api.post<TeacherLeaveRequest>(`/schedule/teacher-leave-requests/${id}/return`, body);
+export const reviewTeacherLeaveReturn = (id: string, body: { decision: "approved" | "rejected" }) =>
+  api.post<TeacherLeaveRequest>(`/schedule/teacher-leave-requests/${id}/return/review`, body);

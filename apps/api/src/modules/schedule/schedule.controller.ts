@@ -22,6 +22,8 @@ import {
   ScheduleSubstitutionRequestDto,
   TeacherLeaveRequestDto,
   TeacherLeaveReviewDto,
+  TeacherLeaveReturnRequestDto,
+  TeacherLeaveReturnReviewDto,
   SaveScheduleEntryDto,
 } from "./schedule.dto";
 import { ScheduleService } from "./schedule.service";
@@ -77,6 +79,24 @@ export class ScheduleController {
     @Body() dto: TeacherLeaveReviewDto,
   ) {
     return this.schedule.reviewTeacherLeave(user, id, dto).then(ok);
+  }
+  @Post("teacher-leave-requests/:id/return")
+  @RequireCapabilities("attendance.class.manage")
+  requestTeacherLeaveReturn(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param("id") id: string,
+    @Body() dto: TeacherLeaveReturnRequestDto,
+  ) {
+    return this.schedule.requestTeacherLeaveReturn(user, id, dto).then(ok);
+  }
+  @Post("teacher-leave-requests/:id/return/review")
+  @RequireCapabilities("schedule.publish")
+  reviewTeacherLeaveReturn(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param("id") id: string,
+    @Body() dto: TeacherLeaveReturnReviewDto,
+  ) {
+    return this.schedule.reviewTeacherLeaveReturn(user, id, dto).then(ok);
   }
   @Post("substitution-requests")
   @RequireCapabilities("attendance.class.manage")
@@ -151,7 +171,9 @@ export class ScheduleController {
   ) {
     return this.schedule.listTimeBlocks(user, organizationId).then(ok);
   }
-  @Get("time-block-groups") @RequireCapabilities("schedule.read") timeBlockGroups(
+  @Get("time-block-groups")
+  @RequireCapabilities("schedule.read")
+  timeBlockGroups(
     @CurrentUser() user: AuthenticatedUser,
     @Query("organizationId") organizationId?: string,
   ) {
@@ -167,7 +189,10 @@ export class ScheduleController {
   }
   @Delete("time-block-groups/:id")
   @RequireCapabilities("schedule.update")
-  removeTimeBlockGroup(@CurrentUser() user: AuthenticatedUser, @Param("id") id: string) {
+  removeTimeBlockGroup(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param("id") id: string,
+  ) {
     return this.schedule.removeTimeBlockGroup(user, id).then(ok);
   }
   @Post("time-blocks") @RequireCapabilities("schedule.update") createTimeBlock(

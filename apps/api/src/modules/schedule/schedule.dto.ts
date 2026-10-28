@@ -78,3 +78,10 @@ export class TeacherLeaveReviewDto {
     "cancel" | "substitute";
   @IsOptional() @IsUUID() substituteTeacherId?: string;
 }
+export class TeacherLeaveReturnRequestDto {
+  @Matches(/^\d{4}-\d{2}-\d{2}$/) returnDate!: string;
+  @IsOptional() @IsString() @MinLength(2) returnMessage?: string;
+}
+export class TeacherLeaveReturnReviewDto {
+  @IsIn(["approved", "rejected"]) decision!: "approved" | "rejected";
+}
