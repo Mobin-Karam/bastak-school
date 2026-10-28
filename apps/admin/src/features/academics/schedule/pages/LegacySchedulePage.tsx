@@ -74,6 +74,7 @@ import { SpreadsheetTransferLauncher } from "../../../../shared/ui/spreadsheet-t
 import { useViewportShell } from "../../../../app/layout/lib/viewport-shell";
 import { MobileTabs } from "../../../../shared/ui/mobile";
 import { ResponsiveDrawer } from "../../../../shared/ui/responsive-drawer";
+import { DatePicker } from "../../../../shared/ui/date-picker";
 import { useLocale } from "../../../../shared/ui/locale";
 import { listTeacherLeaveRequests, type TeacherLeaveRequest } from "../api/teacher-leave.api";
 
@@ -2920,17 +2921,20 @@ function AcademicCycleManager({
           aria-label="نام سال تحصیلی"
         />
         <div className="grid grid-cols-2 gap-2">
-          <Input
-            type="date"
+          <DatePicker
+            calendar="persian"
             value={yearStart}
-            onChange={(event) => setYearStart(event.target.value)}
-            aria-label="شروع سال تحصیلی"
+            onChange={setYearStart}
+            ariaLabel="شروع سال تحصیلی"
+            required
           />
-          <Input
-            type="date"
+          <DatePicker
+            calendar="persian"
             value={yearEnd}
-            onChange={(event) => setYearEnd(event.target.value)}
-            aria-label="پایان سال تحصیلی"
+            onChange={setYearEnd}
+            ariaLabel="پایان سال تحصیلی"
+            min={yearStart}
+            required
           />
         </div>
         <Button
@@ -2968,17 +2972,20 @@ function AcademicCycleManager({
           aria-label="نام نیم‌سال"
         />
         <div className="grid grid-cols-2 gap-2">
-          <Input
-            type="date"
+          <DatePicker
+            calendar="persian"
             value={termStart}
-            onChange={(event) => setTermStart(event.target.value)}
-            aria-label="شروع نیم‌سال"
+            onChange={setTermStart}
+            ariaLabel="شروع نیم‌سال"
+            required
           />
-          <Input
-            type="date"
+          <DatePicker
+            calendar="persian"
             value={termEnd}
-            onChange={(event) => setTermEnd(event.target.value)}
-            aria-label="پایان نیم‌سال"
+            onChange={setTermEnd}
+            ariaLabel="پایان نیم‌سال"
+            min={termStart}
+            required
           />
         </div>
         <Button

@@ -14,6 +14,7 @@ import { notify } from "../../../../shared/ui/notifications";
 import { api } from "../../../../shared/api/api";
 import type { AttendanceContextOption } from "../api/attendance.api";
 import { contextLabelMap } from "../api/attendance.api";
+import { listLegacyAcademicCycles } from "../../../academics/schedule/api/schedule.api";
 import {
   closeAttendancePool,
   createAttendancePool,
@@ -25,13 +26,12 @@ import {
   getAttendanceProfile,
   getSavedAttendanceSession,
   getAttendanceSessionHistory,
-  getStaffAttendanceSessions,
   updateAttendancePolicy,
   finalizeAttendanceSession,
   cancelAttendanceSession,
   correctAttendanceRecord,
 } from "../api/attendance-operations.api";
-import type { AttendancePoolDraft, StaffAttendanceSession } from "@moshaver/api-contract";
+import type { AttendancePoolDraft } from "@moshaver/api-contract";
 
 const field =
   "min-h-12 w-full rounded-xl border border-[rgb(var(--border-subtle))] bg-card px-3 text-sm";
@@ -717,8 +717,10 @@ export function AttendanceStaffWorkspace({
 }) {
   const auth = useAuth();
   const cache = useQueryClient();
-  const [category, setCategory] = useState<StaffAttendanceSession["contextType"]>("class");
+  const [category, setCategory] = useState<"class" | "class_group" | "dorm">("class");
   const [contextFilter, setContextFilter] = useState("");
+  const [academicYearId, setAcademicYearId] = useState("");
+  const [termId, setTermId] = useState("");
   const [sessionsPage, setSessionsPage] = useState(1);
   const [poolContextFilter, setPoolContextFilter] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -747,8 +749,21 @@ export function AttendanceStaffWorkspace({
       ),
   });
   const report = useQuery({
-    queryKey: ["attendance-report-summary", scope, reportFrom, reportTo],
-    queryFn: () => getAttendanceReportSummary({ from: reportFrom, to: reportTo }),
+    queryKey: [
+      "attendance-report-summary",
+      scope,
+      reportFrom,
+      reportTo,
+      academicYearId,
+      termId,
+    ],
+    queryFn: () =>
+      getAttendanceReportSummary({
+        from: reportFrom,
+        to: reportTo,
+        academicYearId: academicYearId || undefined,
+        termId: termId || undefined,
+      }),
     enabled: section === "sessions" && auth.can("attendance.reports.read"),
     refetchInterval: 60000,
   });
@@ -757,17 +772,36 @@ export function AttendanceStaffWorkspace({
     queryFn: getAttendancePolicy,
     enabled: section === "sessions" && auth.can("attendance.settings.manage"),
   });
-  const sessions = useQuery({
-    queryKey: ["attendance-staff-sessions", scope, refreshVersion, sessionsPage],
-    queryFn: () => getStaffAttendanceSessions(sessionsPage),
-    refetchInterval: 15000,
+  const organizationId = auth.context?.activeOrganization?.id;
+  const academicCycles = useQuery({
+    queryKey: ["legacy-academic-cycles", organizationId],
+    queryFn: () => listLegacyAcademicCycles(organizationId!),
+    enabled: section === "sessions" && Boolean(organizationId),
   });
   const history = useQuery({
-    queryKey: ["attendance-session-history", scope, sessionsPage],
-    queryFn: () => getAttendanceHistorySessions(sessionsPage),
+    queryKey: [
+      "attendance-session-history",
+      scope,
+      sessionsPage,
+      category,
+      contextFilter,
+      academicYearId,
+      termId,
+    ],
+    queryFn: () =>
+      getAttendanceHistorySessions({
+        page: sessionsPage,
+        contextType: category,
+        contextId: contextFilter || undefined,
+        academicYearId: academicYearId || undefined,
+        termId: termId || undefined,
+      }),
     enabled: section === "sessions" && auth.can("attendance.read"),
   });
-  const sessionItems = sessions.data?.items ?? [];
+  const sessionItems = history.data?.items ?? [];
+  const currentTerms = (academicCycles.data?.terms ?? []).filter(
+    (term) => !academicYearId || term.academicYearId === academicYearId,
+  );
   const pools = useQuery({
     queryKey: ["attendance-pools", scope],
     queryFn: getAttendancePools,
@@ -788,7 +822,7 @@ export function AttendanceStaffWorkspace({
     const events = api.openEvents((type) => {
       if (type === "attendance.updated") {
         void cache.invalidateQueries({ queryKey: ["attendance-overview", scope] });
-        void cache.invalidateQueries({ queryKey: ["attendance-staff-sessions", scope] });
+        void cache.invalidateQueries({ queryKey: ["attendance-session-history", scope] });
       }
     });
     return () => events.close();
@@ -820,7 +854,7 @@ export function AttendanceStaffWorkspace({
       setTitle("");
       setPlace("");
       await pools.refetch();
-      await sessions.refetch();
+      await history.refetch();
       notify("فراخوان حضور برای حساب اعضا فعال شد.", "success");
     } catch (error) {
       const message = error instanceof Error ? error.message : "فراخوان ایجاد نشد.";
@@ -1106,9 +1140,9 @@ export function AttendanceStaffWorkspace({
                 یک جلسه را برای مرور اعضا، نهایی‌سازی یا اصلاح ثبت‌ها انتخاب کنید.
               </p>
             </div>
-            {sessions.data ? (
+            {history.data ? (
               <span className="rounded-full bg-white px-2.5 py-1 text-xs font-bold text-slate-600 ring-1 ring-[rgb(var(--border-subtle))] dark:bg-slate-950 dark:text-slate-300">
-                {sessions.data.total.toLocaleString("fa-IR")} جلسه
+                {history.data.total.toLocaleString("fa-IR")} جلسه
               </span>
             ) : null}
           </div>
@@ -1133,7 +1167,7 @@ export function AttendanceStaffWorkspace({
               دسترسی شما
             </p>
           ) : null}
-          <div className="grid gap-2 sm:grid-cols-2">
+          <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
             <label className="grid gap-1 text-xs font-bold text-slate-600 dark:text-slate-300">
               نوع زمینه
               <AdaptiveSelect
@@ -1164,13 +1198,9 @@ export function AttendanceStaffWorkspace({
                 <option value="">همه کلاس‌ها و اتاق‌ها</option>
                 {Array.from(
                   new Map(
-                    sessionItems
-                      .filter((session) => session.contextType === category)
-                      .map((session) => [
-                        session.contextId,
-                        contexts.find((context) => context.id === session.contextId)?.name ||
-                          session.title,
-                      ]),
+                    contexts
+                      .filter((context) => context.contextType === category)
+                      .map((context) => [context.id, context.name]),
                   ).entries(),
                 ).map(([id, name]) => (
                   <option key={id} value={id}>
@@ -1179,13 +1209,48 @@ export function AttendanceStaffWorkspace({
                 ))}
               </AdaptiveSelect>
             </label>
+            <label className="grid gap-1 text-xs font-bold text-slate-600 dark:text-slate-300">
+              سال تحصیلی
+              <AdaptiveSelect
+                aria-label="سال تحصیلی جلسات"
+                className={field}
+                value={academicYearId}
+                onChange={(event) => {
+                  setAcademicYearId(event.target.value);
+                  setTermId("");
+                  setSessionsPage(1);
+                }}
+              >
+                <option value="">همه سال‌ها</option>
+                {(academicCycles.data?.years ?? []).map((year) => (
+                  <option key={year.id} value={year.id}>{year.name}</option>
+                ))}
+              </AdaptiveSelect>
+            </label>
+            <label className="grid gap-1 text-xs font-bold text-slate-600 dark:text-slate-300">
+              نیم‌سال
+              <AdaptiveSelect
+                aria-label="نیم‌سال جلسات"
+                className={field}
+                value={termId}
+                onChange={(event) => {
+                  setTermId(event.target.value);
+                  setSessionsPage(1);
+                }}
+              >
+                <option value="">همه نیم‌سال‌ها</option>
+                {currentTerms.map((term) => (
+                  <option key={term.id} value={term.id}>{term.name}</option>
+                ))}
+              </AdaptiveSelect>
+            </label>
           </div>
-          {sessions.isLoading ? (
+          {history.isLoading ? (
             <p role="status">در حال دریافت جلسات…</p>
-          ) : sessions.isError ? (
+          ) : history.isError ? (
             <p role="alert">
               جلسات دریافت نشد.{" "}
-              <button type="button" onClick={() => void sessions.refetch()}>
+              <button type="button" onClick={() => void history.refetch()}>
                 تلاش مجدد
               </button>
             </p>
@@ -1196,12 +1261,15 @@ export function AttendanceStaffWorkspace({
               aria-label="فهرست جلسات حضور"
               tabIndex={0}
             >
-              <table className="min-w-[720px] w-full text-start text-sm">
+              <table className="min-w-[980px] w-full text-start text-sm">
                 <thead className="bg-[rgb(var(--surface-muted))] text-xs text-slate-500">
                   <tr>
                     <th className="px-3 py-3 text-start font-bold">جلسه</th>
                     <th className="px-3 py-3 text-start font-bold">زمینه</th>
+                    <th className="px-3 py-3 text-start font-bold">استاد / کتاب</th>
+                    <th className="px-3 py-3 text-start font-bold">سال و نیم‌سال</th>
                     <th className="px-3 py-3 text-start font-bold">زمان</th>
+                    <th className="px-3 py-3 text-center font-bold">وضعیت</th>
                     <th className="px-3 py-3 text-center font-bold">حاضر</th>
                     <th className="px-3 py-3 text-center font-bold">غایب</th>
                     <th className="px-3 py-3 text-center font-bold">نامشخص</th>
@@ -1210,11 +1278,6 @@ export function AttendanceStaffWorkspace({
                 </thead>
                 <tbody className="divide-y divide-[rgb(var(--border-subtle))]">
                   {sessionItems
-                    .filter(
-                      (session) =>
-                        session.contextType === category &&
-                        (!contextFilter || session.contextId === contextFilter),
-                    )
                     .map((session) => (
                       <tr key={session.id} className="hover:bg-[rgb(var(--surface-muted))]">
                         <td className="px-3 py-3 font-bold">
@@ -1229,10 +1292,22 @@ export function AttendanceStaffWorkspace({
                         <td className="px-3 py-3 text-xs text-slate-500">
                           {labels[session.contextType]}
                         </td>
+                        <td className="px-3 py-3 text-xs text-slate-500">
+                          <div>{session.teacherName || "استاد ثبت نشده"}</div>
+                          <div className="mt-0.5 text-slate-400">{session.subjectName || "کتاب ثبت نشده"}</div>
+                        </td>
+                        <td className="px-3 py-3 text-xs text-slate-500">
+                          <div>{session.academicYearName || "بدون سال"}</div>
+                          <div className="mt-0.5 text-slate-400">{session.termName || "بدون نیم‌سال"}</div>
+                        </td>
                         <td className="px-3 py-3 whitespace-nowrap text-xs text-slate-500">
                           {new Date(session.sessionDate).toLocaleString("fa-IR", {
                             timeZone: "Asia/Tehran",
                           })}
+                        </td>
+                        <td className="px-3 py-3 text-center text-xs text-slate-500">
+                          <div>{session.status}</div>
+                          <div className="mt-0.5 text-slate-400">ویرایش {session.revision.toLocaleString("fa-IR")}</div>
                         </td>
                         <td className="px-3 py-3 text-center">{session.present}</td>
                         <td className="px-3 py-3 text-center">{session.absent}</td>
@@ -1252,12 +1327,12 @@ export function AttendanceStaffWorkspace({
               </table>
             </div>
           )}
-          {sessions.data && !sessionItems.some((session) => session.contextType === category) ? (
+          {history.data && !sessionItems.length ? (
             <p className="py-4 text-center text-sm text-slate-500">
               جلسه‌ای در این بخش ثبت نشده است.
             </p>
           ) : null}
-          {sessions.data && sessions.data.total > 0 ? (
+          {history.data && history.data.total > 0 ? (
             <nav
               aria-label="صفحه‌بندی سوابق حضور"
               className="flex items-center justify-between gap-2"
@@ -1265,21 +1340,21 @@ export function AttendanceStaffWorkspace({
               <button
                 type="button"
                 className={`${action} border border-[rgb(var(--border-subtle))]`}
-                disabled={sessions.isFetching || sessions.data.page <= 1}
+                disabled={history.isFetching || history.data.page <= 1}
                 onClick={() => setSessionsPage((page) => Math.max(1, page - 1))}
               >
                 جدیدتر
               </button>
               <span className="text-xs text-slate-500">
-                صفحه {sessions.data.page.toLocaleString("fa-IR")} از{" "}
-                {Math.max(1, Math.ceil(sessions.data.total / sessions.data.limit)).toLocaleString(
+                صفحه {history.data.page.toLocaleString("fa-IR")} از{" "}
+                {Math.max(1, Math.ceil(history.data.total / history.data.limit)).toLocaleString(
                   "fa-IR",
                 )}
               </span>
               <button
                 type="button"
                 className={`${action} border border-[rgb(var(--border-subtle))]`}
-                disabled={sessions.isFetching || !sessions.data.hasNext}
+                disabled={history.isFetching || !history.data.hasNext}
                 onClick={() => setSessionsPage((page) => page + 1)}
               >
                 قدیمی‌تر

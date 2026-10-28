@@ -150,6 +150,17 @@ export class PrincipalDashboardService {
     to?: string,
     classId?: string,
   ): Promise<PrincipalDashboardContract> {
+    const roles = user.roles?.length ? user.roles : [user.role];
+    if (
+      !roles.some((role) =>
+        ["PRINCIPAL", "ORGANIZATION_ADMIN", "PLATFORM_ADMIN"].includes(role),
+      )
+    )
+      throw new ApiException(
+        403,
+        "PRINCIPAL_DASHBOARD_FORBIDDEN",
+        "میز عملیاتی مدیر فقط برای مدیر مدرسه در دسترس است.",
+      );
     const organizationId = user.activeOrganizationId;
     if (!organizationId)
       throw new ApiException(

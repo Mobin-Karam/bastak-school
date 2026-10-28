@@ -236,7 +236,7 @@ export class ScheduleService {
           "فعال‌سازی سال حداقل به دو نیم‌سال نیاز دارد.",
         );
       await this.academicYearRepo.update(
-        { organizationId: year.organizationId },
+        { organizationId: year.organizationId, state: "ACTIVE" },
         { state: "ARCHIVED" },
       );
       year.state = "ACTIVE";

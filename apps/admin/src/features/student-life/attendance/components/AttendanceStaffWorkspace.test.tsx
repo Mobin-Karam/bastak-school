@@ -12,6 +12,7 @@ const mocks = vi.hoisted(() => ({
   policy: vi.fn(),
   updatePolicy: vi.fn(),
   sessions: vi.fn(),
+  historySessions: vi.fn(),
   pools: vi.fn(),
   create: vi.fn(),
   detail: vi.fn(),
@@ -24,7 +25,7 @@ vi.mock("../api/attendance-operations.api.ts", () => ({
   getAttendanceReportSummary: mocks.report,
   getAttendancePolicy: mocks.policy,
   updateAttendancePolicy: mocks.updatePolicy,
-  getStaffAttendanceSessions: mocks.sessions,
+  getAttendanceHistorySessions: mocks.historySessions,
   getAttendancePools: mocks.pools,
   createAttendancePool: mocks.create,
   getSavedAttendanceSession: mocks.detail,
@@ -122,6 +123,38 @@ beforeEach(() => {
         sessionDate: "2026-10-11T10:00:00Z",
         present: 1,
         absent: 1,
+        unmarked: 1,
+      },
+    ],
+    page: 1,
+    limit: 25,
+    total: 1,
+    hasNext: false,
+  });
+  mocks.historySessions.mockResolvedValue({
+    items: [
+      {
+        id: "session",
+        organizationId: "org",
+        contextType: "class",
+        contextId: "class",
+        title: "جلسه کلاس الف",
+        teacherName: "استاد الف",
+        subjectId: "book",
+        subjectName: "فقه",
+        status: "submitted",
+        revision: 1,
+        academicYearId: "year",
+        academicYearName: "سال تحصیلی ۱۴۰۵",
+        termId: "term",
+        termName: "نیم‌سال اول",
+        sessionDate: "2026-10-11T10:00:00Z",
+        marked: 2,
+        expected: 3,
+        present: 1,
+        absent: 1,
+        late: 0,
+        excused: 0,
         unmarked: 1,
       },
     ],
@@ -229,7 +262,7 @@ describe("staff session and pool creation", () => {
     expect(await screen.findByText("سال تحصیلی ۱۴۰۵ · نیم‌سال اول · فقه")).toBeInTheDocument();
   });
   it("pages the staff session archive without requesting an unbounded list", async () => {
-    mocks.sessions
+    mocks.historySessions
       .mockResolvedValueOnce({
         items: [
           {
@@ -237,9 +270,23 @@ describe("staff session and pool creation", () => {
             contextType: "class",
             contextId: "class",
             title: "جلسه جدید",
+            organizationId: "org",
+            teacherName: null,
+            subjectId: null,
+            subjectName: null,
+            status: "submitted",
+            revision: 1,
+            academicYearId: null,
+            academicYearName: null,
+            termId: null,
+            termName: null,
             sessionDate: "2026-10-12T10:00:00Z",
+            marked: 1,
+            expected: 1,
             present: 1,
             absent: 0,
+            late: 0,
+            excused: 0,
             unmarked: 0,
           },
         ],
@@ -255,9 +302,23 @@ describe("staff session and pool creation", () => {
             contextType: "class",
             contextId: "class",
             title: "جلسه قدیمی",
+            organizationId: "org",
+            teacherName: null,
+            subjectId: null,
+            subjectName: null,
+            status: "submitted",
+            revision: 1,
+            academicYearId: null,
+            academicYearName: null,
+            termId: null,
+            termName: null,
             sessionDate: "2026-10-11T10:00:00Z",
+            marked: 1,
+            expected: 1,
             present: 1,
             absent: 0,
+            late: 0,
+            excused: 0,
             unmarked: 0,
           },
         ],
@@ -279,7 +340,10 @@ describe("staff session and pool creation", () => {
     expect(await screen.findByText("جلسه جدید")).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "قدیمی‌تر" }));
     expect(await screen.findByText("جلسه قدیمی")).toBeInTheDocument();
-    expect(mocks.sessions).toHaveBeenNthCalledWith(2, 2);
+    expect(mocks.historySessions).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({ page: 2 }),
+    );
   });
   it("creates a class-based pool on HTTP previews and preserves its request ID on retry", async () => {
     const getRandomValues = crypto.getRandomValues.bind(crypto);

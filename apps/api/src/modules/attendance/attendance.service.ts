@@ -698,7 +698,7 @@ export class AttendanceService {
         );
     const [rows, total] = await this.sessions.findAndCount({
       where,
-      relations: { organization: true, records: true },
+      relations: { organization: true, records: true, assignedStaff: true },
       order: { sessionDate: "DESC", id: "DESC" },
       skip: (page - 1) * limit,
       take: limit,
@@ -710,6 +710,13 @@ export class AttendanceService {
         row.contextType === "study_group" ? "class_group" : row.contextType,
       contextId: row.contextId,
       title: row.titleSnapshot,
+      teacherName:
+        row.assignedStaffNameSnapshot ||
+        [row.assignedStaff?.firstName, row.assignedStaff?.lastName]
+          .filter(Boolean)
+          .join(" ") ||
+        row.assignedStaff?.username ||
+        null,
       subjectId: row.subjectIdSnapshot ?? null,
       subjectName: row.subjectNameSnapshot ?? null,
       status: row.status,
@@ -721,6 +728,14 @@ export class AttendanceService {
       sessionDate: row.sessionDate.toISOString(),
       marked: row.records.length,
       expected: row.rosterSnapshot?.length ?? null,
+      present: row.records.filter((record) => record.status === "present").length,
+      absent: row.records.filter((record) => record.status === "absent").length,
+      late: row.records.filter((record) => record.status === "late").length,
+      excused: row.records.filter((record) => record.status === "excused").length,
+      unmarked:
+        row.rosterSnapshot?.length == null
+          ? null
+          : Math.max(0, row.rosterSnapshot.length - row.records.length),
     }));
     return {
       items,
@@ -837,6 +852,16 @@ export class AttendanceService {
         termIdSnapshot: term.id,
         termNameSnapshot: term.name,
         assignedStaff: teacherId ? ({ id: teacherId } as User) : null,
+        assignedStaffNameSnapshot:
+          [entry.teacher?.firstName, entry.teacher?.lastName]
+            .filter(Boolean)
+            .join(" ") ||
+          entry.teacher?.username ||
+          [entry.classBook?.teacher?.firstName, entry.classBook?.teacher?.lastName]
+            .filter(Boolean)
+            .join(" ") ||
+          entry.classBook?.teacher?.username ||
+          "",
         rosterSnapshot: roster.map((member) => ({
           id: member.id,
           name: member.name,
@@ -928,6 +953,7 @@ export class AttendanceService {
         termIdSnapshot: term.id,
         termNameSnapshot: term.name,
         assignedStaff: dto.teacherId ? ({ id: dto.teacherId } as User) : null,
+        assignedStaffNameSnapshot: "",
         rosterSnapshot: roster.map((member) => ({
           id: member.id,
           name: member.name,

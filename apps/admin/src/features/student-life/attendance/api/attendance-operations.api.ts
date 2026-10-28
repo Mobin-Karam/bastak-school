@@ -66,12 +66,23 @@ export type AttendanceHistorySession = {
   contextType: "class" | "class_group" | "dorm";
   contextId: string;
   title: string;
+  teacherName: string | null;
   subjectId: string | null;
   subjectName: string | null;
   status: "scheduled" | "open" | "submitted" | "finalized" | "cancelled";
+  revision: number;
+  academicYearId: string | null;
+  academicYearName: string | null;
+  termId: string | null;
+  termName: string | null;
   sessionDate: string;
   marked: number;
   expected: number | null;
+  present: number;
+  absent: number;
+  late: number;
+  excused: number;
+  unmarked: number | null;
 };
 export type AttendanceHistorySessionPage = {
   items: AttendanceHistorySession[];
@@ -80,14 +91,25 @@ export type AttendanceHistorySessionPage = {
   total: number;
   hasNext: boolean;
 };
-export const getAttendanceHistorySessions = (page = 1, limit = 25) => {
-  const search = new URLSearchParams({ page: String(page), limit: String(limit) });
+export type AttendanceHistorySessionFilters = {
+  page?: number;
+  limit?: number;
+  contextType?: "class" | "class_group" | "dorm";
+  contextId?: string;
+  academicYearId?: string;
+  termId?: string;
+};
+export const getAttendanceHistorySessions = (filters: AttendanceHistorySessionFilters = {}) => {
+  const search = new URLSearchParams({
+    page: String(filters.page ?? 1),
+    limit: String(filters.limit ?? 25),
+  });
+  if (filters.contextType) search.set("contextType", filters.contextType);
+  if (filters.contextId) search.set("contextId", filters.contextId);
+  if (filters.academicYearId) search.set("academicYearId", filters.academicYearId);
+  if (filters.termId) search.set("termId", filters.termId);
   return api.get<AttendanceHistorySessionPage>(`/attendance/history/sessions?${search.toString()}`);
 };
-export const getStaffAttendanceSessions = (page = 1, limit = 25) =>
-  api.get<StaffAttendanceSessionPage>(
-    `/attendance/staff-sessions?page=${encodeURIComponent(page)}&limit=${encodeURIComponent(limit)}`,
-  );
 export const getSavedAttendanceSession = (id: string) =>
   api.get<AttendanceSessionDetail>(`/attendance/sessions/${encodeURIComponent(id)}`);
 export const submitAttendanceAbsences = (

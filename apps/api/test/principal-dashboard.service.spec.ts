@@ -164,19 +164,41 @@ describe("PrincipalDashboardService", () => {
     const query = jest.fn().mockResolvedValue([]);
     const service = new PrincipalDashboardService({ query } as never);
 
-    const dashboard = await service.get(
-      {
-        ...principal,
-        roles: ["TEACHER"],
-        role: "TEACHER",
-        capabilities: ["attendance.read"],
-      },
-      "2026-10-14",
-      "2026-10-20",
-    );
+    await expect(
+      service.get(
+        {
+          ...principal,
+          roles: ["TEACHER"],
+          role: "TEACHER",
+          capabilities: ["attendance.read"],
+        },
+        "2026-10-14",
+        "2026-10-20",
+      ),
+    ).rejects.toMatchObject({
+      response: { error: { code: "PRINCIPAL_DASHBOARD_FORBIDDEN" } },
+    });
+    expect(query).not.toHaveBeenCalled();
+  });
 
-    expect(dashboard).not.toHaveProperty("attendance");
-    expect(dashboard).not.toHaveProperty("principalLists");
+  it("never exposes the principal dashboard to the religious education manager", async () => {
+    const query = jest.fn().mockResolvedValue([]);
+    const service = new PrincipalDashboardService({ query } as never);
+
+    await expect(
+      service.get(
+        {
+          ...principal,
+          roles: ["RELIGIOUS_EDUCATION_MANAGER"],
+          role: "RELIGIOUS_EDUCATION_MANAGER",
+          capabilities: ["schedule.read.all", "attendance.read", "attendance.manage"],
+        },
+        "2026-10-14",
+        "2026-10-20",
+      ),
+    ).rejects.toMatchObject({
+      response: { error: { code: "PRINCIPAL_DASHBOARD_FORBIDDEN" } },
+    });
     expect(query).not.toHaveBeenCalled();
   });
 

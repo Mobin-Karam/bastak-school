@@ -28,7 +28,16 @@ describe("attendance report API", () => {
 
 describe("attendance session history API", () => {
   it("requests a bounded server-side history page", () => {
-    getAttendanceHistorySessions(2, 50);
-    expect(get).toHaveBeenLastCalledWith("/attendance/history/sessions?page=2&limit=50");
+    getAttendanceHistorySessions({
+      page: 2,
+      limit: 50,
+      contextType: "class",
+      contextId: "class-1",
+      academicYearId: "year-1",
+      termId: "term-1",
+    });
+    expect(get).toHaveBeenLastCalledWith(
+      "/attendance/history/sessions?page=2&limit=50&contextType=class&contextId=class-1&academicYearId=year-1&termId=term-1",
+    );
   });
 });
