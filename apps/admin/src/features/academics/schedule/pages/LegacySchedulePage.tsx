@@ -1175,7 +1175,7 @@ function ClassTabPicker({
               key={classroom.id}
               type="button"
               onClick={() => onSelect(classroom.id)}
-              className="group rounded-2xl border border-slate-200 bg-[linear-gradient(145deg,#fff,#f3f9ff)] p-4 text-right outline-none transition hover:-translate-y-0.5 hover:border-brand/45 hover:shadow-lg focus-visible:ring-2 focus-visible:ring-brand motion-reduce:transform-none dark:border-white/10 dark:bg-white/[.04]"
+              className="group rounded-2xl border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card))] p-4 text-right shadow-[0_10px_22px_-20px_rgba(15,23,42,.55)] outline-none transition hover:-translate-y-0.5 hover:border-brand/45 hover:bg-[rgb(var(--surface-muted))] hover:shadow-lg focus-visible:ring-2 focus-visible:ring-brand motion-reduce:transform-none"
             >
               <div className="flex items-start justify-between gap-3">
                 <div>
