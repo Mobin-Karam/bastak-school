@@ -1070,5 +1070,24 @@ describe("migration-backed persistence and verified recovery (disposable SQLite 
         title: "نباید ویرایش شود",
       }),
     ).rejects.toThrow();
+    const leave = await schedule.requestTeacherLeave(teacherActor, {
+      organizationId: a.id,
+      startDate: "2027-03-01",
+      endDate: "2027-03-03",
+      reason: "مرخصی آزمایشی",
+    });
+    expect(
+      (await schedule.teacherLeaveRequests(principalActor)).some(
+        (item) => item.id === leave.id,
+      ),
+    ).toBe(true);
+    expect(
+      await schedule.teacherLeaveRequests({
+        ...principalActor,
+        id: randomUUID(),
+        role: "RELIGIOUS_EDUCATION_MANAGER",
+        roles: ["RELIGIOUS_EDUCATION_MANAGER"],
+      }),
+    ).toEqual([]);
   });
 });
