@@ -63,11 +63,12 @@ export class AttendanceSession {
     string | null;
   @Column({ type: "varchar", length: 240, nullable: true })
   subjectNameSnapshot?: string | null;
-  @Column({ type: "varchar", length: 36, nullable: true }) academicYearIdSnapshot?:
-    string | null;
+  @Column({ type: "varchar", length: 36, nullable: true })
+  academicYearIdSnapshot?: string | null;
   @Column({ type: "varchar", length: 240, nullable: true })
   academicYearNameSnapshot?: string | null;
-  @Column({ type: "varchar", length: 36, nullable: true }) termIdSnapshot?: string | null;
+  @Column({ type: "varchar", length: 36, nullable: true }) termIdSnapshot?:
+    string | null;
   @Column({ type: "varchar", length: 240, nullable: true }) termNameSnapshot?:
     string | null;
   @Column({ length: 64, default: "Asia/Tehran" }) timeZone!: string;
@@ -83,7 +84,11 @@ export class AttendanceSession {
   submittedBy?: User | null;
   @Column({ type: "datetime", nullable: true }) submittedAt?: Date | null;
   @Column({ type: "varchar", length: 32, nullable: true }) sourceKind?:
-    "class_schedule" | "attendance_schedule" | "exceptional" | null;
+    | "class_schedule"
+    | "attendance_schedule"
+    | "legacy_schedule"
+    | "exceptional"
+    | null;
   @Column({ type: "varchar", length: 36, nullable: true }) sourceScheduleId?:
     string | null;
   @Column({ type: "datetime", nullable: true }) rosterCapturedAt?: Date | null;

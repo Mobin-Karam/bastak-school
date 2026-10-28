@@ -147,7 +147,7 @@ export function TeacherClassAttendanceSheet({
 
   const save = useMutation({
     onMutate: () => ({ scopeKey }),
-    mutationFn: () => {
+    mutationFn: async () => {
       if (!entry?.classroom?.id) throw new Error("این کلاس هنوز به برنامه متصل نشده است.");
       const entries = Object.entries(marks).map(([studentId, status]) => ({
         studentId,
@@ -155,20 +155,24 @@ export function TeacherClassAttendanceSheet({
         note: status === "excused" ? reasons[studentId]?.trim() || undefined : undefined,
       }));
       if (!entries.length) throw new Error("برای ثبت، وضعیت دست‌کم یک دانش‌آموز را انتخاب کنید.");
+      const scheduled = await api.post<{ id: string; revision: number; duplicate: boolean }>(
+        "/attendance/legacy-schedule-session",
+        { entryId: entry.id, date: sessionDate },
+      );
       const write = prepareAttendanceWrite(
         pendingWrite.current,
         JSON.stringify({
           scopeKey,
           scheduleId: entry.id,
+          sessionId: scheduled.id,
           organizationId: entry.organization.id,
           classroomId: entry.classroom.id,
           entries,
         }),
         () => ({
           organizationId: entry.organization.id,
-          contextType: "class",
-          contextId: entry.classroom!.id,
-          sessionDate: `${sessionDate}T12:00:00.000Z`,
+          sessionId: scheduled.id,
+          expectedRevision: scheduled.revision,
           entries,
         }),
       );

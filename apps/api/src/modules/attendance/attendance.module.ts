@@ -16,6 +16,11 @@ import { DormRoomAssignment } from "../../database/entities/dorm-room-assignment
 import { DormRoom } from "../../database/entities/dorm-room.entity";
 import { EducationClassEnrollment } from "../../database/entities/education-class-enrollment.entity";
 import { EducationClass } from "../../database/entities/education-class.entity";
+import { SchoolScheduleEntry } from "../../database/entities/school-schedule-entry.entity";
+import {
+  SchoolAcademicYear,
+  SchoolAcademicTerm,
+} from "../../database/entities/school-academic-year.entity";
 import { Student } from "../../database/entities/student.entity";
 import { OrganizationMembership } from "../../database/entities/organization-membership.entity";
 import { StudyGroupMembership } from "../../database/entities/study-group-membership.entity";
@@ -42,6 +47,9 @@ import { AttendanceService } from "./attendance.service";
       AuditLog,
       Student,
       EducationClass,
+      SchoolScheduleEntry,
+      SchoolAcademicYear,
+      SchoolAcademicTerm,
       EducationClassEnrollment,
       StudyGroup,
       StudyGroupMembership,

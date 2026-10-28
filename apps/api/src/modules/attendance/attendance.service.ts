@@ -10,6 +10,11 @@ import {
 } from "../../database/entities/notification.entity";
 import { AttendanceCorrection } from "../../database/entities/attendance-correction.entity";
 import { TeacherLeaveRequest } from "../../database/entities/teacher-leave-request.entity";
+import { SchoolScheduleEntry } from "../../database/entities/school-schedule-entry.entity";
+import {
+  SchoolAcademicYear,
+  SchoolAcademicTerm,
+} from "../../database/entities/school-academic-year.entity";
 import {
   AttendanceSupervisorCheck,
   SupervisorAttendanceEntry,
@@ -54,6 +59,7 @@ import { RewardsService } from "../rewards";
 import {
   BulkMarkAttendanceDto,
   CreateAttendanceSessionDto,
+  OpenLegacyScheduleAttendanceDto,
   ReviewAttendanceAbsenceDto,
   AwardAttendancePointsDto,
   SubmitAttendanceAbsencesDto,
@@ -667,6 +673,10 @@ export class AttendanceService {
           ...(query.contextType ? { contextType: query.contextType } : {}),
           ...(query.contextId ? { contextId: query.contextId } : {}),
           ...(query.subjectId ? { subjectIdSnapshot: query.subjectId } : {}),
+          ...(query.academicYearId
+            ? { academicYearIdSnapshot: query.academicYearId }
+            : {}),
+          ...(query.termId ? { termIdSnapshot: query.termId } : {}),
           ...(sessionDate ? { sessionDate } : {}),
         }
       : filteredAllowed.flatMap((context) =>
@@ -678,6 +688,10 @@ export class AttendanceService {
             contextType,
             contextId: context.id,
             ...(query.subjectId ? { subjectIdSnapshot: query.subjectId } : {}),
+            ...(query.academicYearId
+              ? { academicYearIdSnapshot: query.academicYearId }
+              : {}),
+            ...(query.termId ? { termIdSnapshot: query.termId } : {}),
             ...(sessionDate ? { sessionDate } : {}),
           })),
         );
@@ -698,6 +712,11 @@ export class AttendanceService {
       subjectId: row.subjectIdSnapshot ?? null,
       subjectName: row.subjectNameSnapshot ?? null,
       status: row.status,
+      revision: row.revision,
+      academicYearId: row.academicYearIdSnapshot ?? null,
+      academicYearName: row.academicYearNameSnapshot ?? null,
+      termId: row.termIdSnapshot ?? null,
+      termName: row.termNameSnapshot ?? null,
       sessionDate: row.sessionDate.toISOString(),
       marked: row.records.length,
       expected: row.rosterSnapshot?.length ?? null,
@@ -712,6 +731,125 @@ export class AttendanceService {
   }
 
   /** Schedule owns occurrence identity; attendance owns roster and historical snapshots. */
+  async openLegacyScheduleSession(
+    user: AuthenticatedUser,
+    dto: OpenLegacyScheduleAttendanceDto,
+  ) {
+    const entry = await this.sessions.manager
+      .getRepository(SchoolScheduleEntry)
+      .findOne({
+        where: { id: dto.entryId, status: "ACTIVE" },
+        relations: {
+          organization: true,
+          classroom: true,
+          teacher: true,
+          classBook: { book: true, teacher: true },
+        },
+      });
+    if (
+      !entry?.organization ||
+      !entry.classroom ||
+      !entry.termId ||
+      !entry.academicYearId
+    )
+      throw new ApiException(
+        422,
+        "ATTENDANCE_LEGACY_SCHEDULE_SCOPE",
+        "جلسهٔ برنامه باید کلاس، سال و نیم‌سال فعال داشته باشد.",
+      );
+    const organizationId = entry.organization.id;
+    this.assertWorkOrganization(user, organizationId);
+    const teacherId = entry.teacher?.id ?? entry.classBook?.teacher?.id ?? null;
+    const isAssignedTeacher =
+      teacherId === user.id &&
+      user.capabilities?.includes("attendance.class.manage");
+    if (!isAssignedTeacher)
+      await this.assertContextAccess(
+        user,
+        "class",
+        entry.classroom.id,
+        organizationId,
+        true,
+      );
+    const year = await this.sessions.manager
+      .getRepository(SchoolAcademicYear)
+      .findOneBy({ id: entry.academicYearId, organizationId });
+    const term = await this.sessions.manager
+      .getRepository(SchoolAcademicTerm)
+      .findOneBy({ id: entry.termId, academicYearId: entry.academicYearId });
+    if (
+      !year ||
+      !term ||
+      year.state === "ARCHIVED" ||
+      term.state === "ARCHIVED" ||
+      term.correctionOpen
+    )
+      throw new ApiException(
+        409,
+        "ATTENDANCE_TERM_LOCKED",
+        "نیم‌سال انتخاب‌شده برای ثبت جلسهٔ جدید باز نیست.",
+      );
+    if (dto.date < term.startsOn || dto.date > term.endsOn)
+      throw new ApiException(
+        422,
+        "ATTENDANCE_TERM_DATE",
+        "تاریخ جلسه خارج از نیم‌سال است.",
+      );
+    const weekday = (new Date(`${dto.date}T12:00:00Z`).getUTCDay() + 1) % 7;
+    if (weekday !== entry.weekday)
+      throw new ApiException(
+        422,
+        "ATTENDANCE_LEGACY_WEEKDAY",
+        "تاریخ انتخاب‌شده با روز این جلسه هماهنگ نیست.",
+      );
+    const occurrenceKey = `legacy-schedule:${entry.id}:${dto.date}`;
+    const existing = await this.sessions.findOne({
+      where: { organization: { id: organizationId }, occurrenceKey },
+    });
+    if (existing)
+      return { id: existing.id, revision: existing.revision, duplicate: true };
+    const roster = await this.listParticipants(
+      user,
+      "class",
+      entry.classroom.id,
+    );
+    const startsAt = new Date(`${dto.date}T${entry.startTime}:00.000Z`);
+    const endsAt = new Date(`${dto.date}T${entry.endTime}:00.000Z`);
+    const row = await this.sessions.save(
+      this.sessions.create({
+        organization: entry.organization,
+        contextType: "class",
+        contextId: entry.classroom.id,
+        sessionDate: startsAt,
+        operationalDate: dto.date,
+        scheduledStartAt: startsAt,
+        scheduledEndAt: endsAt,
+        timeZone: "Asia/Tehran",
+        occurrenceKey,
+        sourceKind: "legacy_schedule",
+        sourceScheduleId: entry.id,
+        titleSnapshot: entry.title,
+        subjectIdSnapshot: entry.classBook?.book?.id ?? null,
+        subjectNameSnapshot: entry.classBook?.book?.titleFa ?? null,
+        academicYearIdSnapshot: year.id,
+        academicYearNameSnapshot: year.name,
+        termIdSnapshot: term.id,
+        termNameSnapshot: term.name,
+        assignedStaff: teacherId ? ({ id: teacherId } as User) : null,
+        rosterSnapshot: roster.map((member) => ({
+          id: member.id,
+          name: member.name,
+          nationalCode: member.nationalCode ?? null,
+          userId: member.userId,
+        })),
+        rosterCapturedAt: new Date(),
+        createdBy: { id: user.id } as User,
+        note: `جلسه برنامه legacy · ${dto.date}`,
+      }),
+    );
+    return { id: row.id, revision: row.revision, duplicate: false };
+  }
+
   async createTimetableSession(
     user: AuthenticatedUser,
     input: {
@@ -1777,7 +1915,10 @@ export class AttendanceService {
             relations: { assignedStaff: true },
           });
           const assigned =
-            receiptSession?.sourceKind === "class_schedule" &&
+            !!receiptSession &&
+            ["class_schedule", "legacy_schedule"].includes(
+              receiptSession?.sourceKind ?? "",
+            ) &&
             receiptSession.assignedStaff?.id === user.id &&
             user.capabilities?.includes("attendance.class.manage");
           if (!assigned)
@@ -1848,7 +1989,9 @@ export class AttendanceService {
         );
       if (
         session &&
-        (session.sourceKind === "class_schedule" ||
+        (["class_schedule", "legacy_schedule"].includes(
+          session.sourceKind ?? "",
+        ) ||
           dto.expectedRevision !== undefined) &&
         session.revision !== dto.expectedRevision
       )
@@ -1869,15 +2012,11 @@ export class AttendanceService {
       // sessions keep the normal time-window rule.
       if (!(
         options.allowHistoricalOccurrence &&
-        session?.sourceKind === "class_schedule"
+        ["class_schedule", "legacy_schedule"].includes(
+          session?.sourceKind ?? "",
+        )
       ))
         this.assertSessionIsActiveForMarking(session);
-      if (session?.occurrenceKey && !options.allowOccurrence)
-        throw new ApiException(
-          409,
-          "ATTENDANCE_SESSION_WORKFLOW_REQUIRED",
-          "برای این جلسه از ثبت حضور جلسه با شماره نسخه استفاده کنید.",
-        );
       const contextType = session?.contextType ?? dto.contextType;
       const contextId = session?.contextId ?? dto.contextId;
       if (!contextType || !contextId)
@@ -1887,9 +2026,22 @@ export class AttendanceService {
           "کلاس، گروه یا اتاق لازم است.",
         );
       const assignedTeacher =
-        session?.sourceKind === "class_schedule" &&
+        !!session &&
+        ["class_schedule", "legacy_schedule"].includes(
+          session?.sourceKind ?? "",
+        ) &&
         session.assignedStaff?.id === user.id &&
         user.capabilities?.includes("attendance.class.manage");
+      if (
+        session?.occurrenceKey &&
+        !options.allowOccurrence &&
+        !assignedTeacher
+      )
+        throw new ApiException(
+          409,
+          "ATTENDANCE_SESSION_WORKFLOW_REQUIRED",
+          "برای این جلسه از گردش‌کار حضور برنامه استفاده کنید.",
+        );
       if (session?.status === "finalized" && !assignedTeacher)
         throw new ApiException(
           409,

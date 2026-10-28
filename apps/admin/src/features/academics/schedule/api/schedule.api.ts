@@ -30,6 +30,25 @@ export type ScheduleDraft = {
   startTime: string;
   endTime: string;
   room?: string;
+  academicYearId?: string;
+  termId?: string;
+};
+export type LegacyAcademicYear = {
+  id: string;
+  organizationId: string;
+  name: string;
+  startsOn: string;
+  endsOn: string;
+  state: "DRAFT" | "ACTIVE" | "ARCHIVED";
+};
+export type LegacyAcademicTerm = {
+  id: string;
+  academicYearId: string;
+  name: string;
+  startsOn: string;
+  endsOn: string;
+  state: "DRAFT" | "ACTIVE" | "ARCHIVED";
+  correctionOpen: boolean;
 };
 export type ScheduleTimeBlock = {
   id: string;
@@ -80,6 +99,33 @@ export const listScheduleCancellations = (date: string) =>
     `/schedule/cancellations?${new URLSearchParams({ date })}`,
   );
 export const listSchedule = () => api.get<ScheduleEntry[]>("/schedule");
+export const listLegacyAcademicCycles = (organizationId: string) =>
+  api.get<{ years: LegacyAcademicYear[]; terms: LegacyAcademicTerm[] }>(
+    `/schedule/academic-years?${new URLSearchParams({ organizationId })}`,
+  );
+export const createLegacyAcademicYear = (body: {
+  organizationId: string;
+  name: string;
+  startsOn: string;
+  endsOn: string;
+}) => api.post<LegacyAcademicYear>("/schedule/academic-years", body);
+export const createLegacyAcademicTerm = (body: {
+  academicYearId: string;
+  name: string;
+  startsOn: string;
+  endsOn: string;
+}) => api.post<LegacyAcademicTerm>("/schedule/academic-terms", body);
+export const changeLegacyAcademicYearState = (id: string, action: "activate" | "archive") =>
+  api.post<LegacyAcademicYear>(`/schedule/academic-years/${encodeURIComponent(id)}/lifecycle`, {
+    action,
+  });
+export const changeLegacyAcademicTermState = (
+  id: string,
+  action: "archive" | "reopen" | "close-correction",
+) =>
+  api.post<LegacyAcademicTerm>(`/schedule/academic-terms/${encodeURIComponent(id)}/lifecycle`, {
+    action,
+  });
 export const createScheduleEntry = (draft: ScheduleDraft) =>
   api.post<ScheduleEntry>("/schedule", draft);
 export const createScheduleEntries = (entries: ScheduleDraft[]) =>

@@ -27,6 +27,12 @@ export class CreateAttendanceSessionDto {
   @IsDateString() sessionDate!: string;
   @IsOptional() @IsString() @MaxLength(1000) note?: string;
 }
+export class OpenLegacyScheduleAttendanceDto {
+  @IsUUID() entryId!: string;
+  @Matches(/^\d{4}-\d{2}-\d{2}$/)
+  @IsDateString({ strict: true })
+  date!: string;
+}
 
 export class AttendanceEntryDto {
   @IsUUID() studentId!: string;
@@ -196,6 +202,8 @@ export class AttendanceHistoryQueryDto {
     "class" | "class_group" | "dorm";
   @IsOptional() @IsUUID() contextId?: string;
   @IsOptional() @IsString() @MaxLength(120) subjectId?: string;
+  @IsOptional() @IsUUID() academicYearId?: string;
+  @IsOptional() @IsUUID() termId?: string;
   @IsOptional() @IsDateString({ strict: true }) from?: string;
   @IsOptional() @IsDateString({ strict: true }) to?: string;
 }

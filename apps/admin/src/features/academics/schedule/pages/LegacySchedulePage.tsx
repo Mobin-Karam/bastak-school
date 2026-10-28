@@ -48,6 +48,11 @@ import {
   listScheduleTemplates,
   listScheduleTimeBlocks,
   listScheduleTimeBlockGroups,
+  listLegacyAcademicCycles,
+  createLegacyAcademicYear,
+  createLegacyAcademicTerm,
+  changeLegacyAcademicYearState,
+  changeLegacyAcademicTermState,
   previewScheduleImport,
   restoreScheduleTemplate,
   type ScheduleDraft,
@@ -58,6 +63,7 @@ import type {
   ScheduleTemplate,
   ScheduleTimeBlock,
   ScheduleTimeBlockGroup,
+  LegacyAcademicTerm,
 } from "../api/schedule.api";
 import { TeacherSchedulePage } from "../../../people/teacher-portal";
 import { OrganizationTag } from "../../../../shared/ui/organization-tag";
@@ -101,6 +107,7 @@ export function LegacySchedulePage() {
   const [activeWeekday, setActiveWeekday] = useState(() => legacyWeekdayForIso(todayIso()));
   const [templatePreview, setTemplatePreview] = useState<ScheduleTemplate | null>(null);
   const [toolsSidebarHidden, setToolsSidebarHidden] = useState(false);
+  const [academicCyclesOpen, setAcademicCyclesOpen] = useState(false);
   const [editor, setEditor] = useState<{
     entry?: ScheduleEntry;
     copy: boolean;
@@ -125,6 +132,16 @@ export function LegacySchedulePage() {
   const canArchive = auth.can("schedule.archive");
   const canDelete = auth.can("schedule.delete");
   const canWrite = canCreate || canEdit;
+  const canManageAcademicCycles =
+    canWrite &&
+    ["PRINCIPAL", "RELIGIOUS_EDUCATION_MANAGER", "ORGANIZATION_ADMIN", "PLATFORM_ADMIN"].some(
+      (role) => auth.hasRole(role as Parameters<typeof auth.hasRole>[0]),
+    );
+  const academicCycles = useQuery({
+    queryKey: ["schedule", "academic-cycles", selectedOrganizationId],
+    queryFn: () => listLegacyAcademicCycles(selectedOrganizationId!),
+    enabled: !!selectedOrganizationId && canManageAcademicCycles,
+  });
   const canManageTemplates = canCreate && canEdit && canArchive && canDelete;
   const timeBlocks = useQuery({
     queryKey: ["schedule", "time-blocks", selectedOrganizationId ?? "all"],
@@ -162,6 +179,10 @@ export function LegacySchedulePage() {
     enabled: canWrite,
   });
   const reload = () => void client.invalidateQueries({ queryKey: ["schedule"] });
+  const reloadAcademicCycles = () =>
+    void client.invalidateQueries({
+      queryKey: ["schedule", "academic-cycles", selectedOrganizationId],
+    });
   const save = useMutation({
     mutationFn: async ({ id, drafts }: { id?: string; drafts: ScheduleDraft[] }) => {
       if (id) return [await updateScheduleEntry(id, drafts[0])];
@@ -449,6 +470,19 @@ export function LegacySchedulePage() {
   ) : null;
   return (
     <>
+      {canManageAcademicCycles ? (
+        <Card className="flex flex-wrap items-center justify-between gap-3 p-4" dir="rtl">
+          <div>
+            <p className="text-sm font-black">سال تحصیلی و نیم‌سال‌ها</p>
+            <p className="mt-1 text-xs text-slate-500 dark:text-slate-300">
+              برنامهٔ legacy هر جلسه را به سال و نیم‌سال فعال متصل می‌کند.
+            </p>
+          </div>
+          <Button variant="soft" onClick={() => setAcademicCyclesOpen(true)}>
+            <GraduationCap size={17} /> مدیریت سال و نیم‌سال
+          </Button>
+        </Card>
+      ) : null}
       <section
         className={`relative grid w-full max-w-none gap-4 pb-[calc(6rem+env(safe-area-inset-bottom))] min-[960px]:pb-6 min-[960px]:transition-[grid-template-columns] min-[960px]:duration-300 min-[960px]:ease-out motion-reduce:transition-none ${toolsSidebarHidden ? "min-[960px]:grid-cols-[minmax(0,1fr)_0rem]" : "min-[960px]:grid-cols-[minmax(0,1fr)_22rem]"}`}
         dir="rtl"
@@ -647,6 +681,20 @@ export function LegacySchedulePage() {
           </div>
         </aside>
       </section>
+      <ResponsiveDrawer
+        open={academicCyclesOpen}
+        onOpenChange={setAcademicCyclesOpen}
+        title="مدیریت سال تحصیلی و نیم‌سال"
+        description="سال فعال باید دست‌کم دو نیم‌سال بدون هم‌پوشانی داشته باشد. بازگشایی ترم بایگانی‌شده فقط برای اصلاح سوابق است."
+        desktopSide="left"
+      >
+        <AcademicCycleManager
+          organizationId={selectedOrganizationId ?? ""}
+          data={academicCycles.data}
+          loading={academicCycles.isLoading}
+          onChanged={reloadAcademicCycles}
+        />
+      </ResponsiveDrawer>
       <ResponsiveDrawer
         open={Boolean(editor)}
         onOpenChange={(open) => !open && setEditor(null)}
@@ -2744,6 +2792,217 @@ function ScheduleTimeBlocks({
         </p>
       )}
     </Card>
+  );
+}
+
+function AcademicCycleManager({
+  organizationId,
+  data,
+  loading,
+  onChanged,
+}: {
+  organizationId: string;
+  data?: {
+    years: Array<{ id: string; name: string; startsOn: string; endsOn: string; state: string }>;
+    terms: LegacyAcademicTerm[];
+  };
+  loading: boolean;
+  onChanged: () => void;
+}) {
+  const [yearName, setYearName] = useState("");
+  const [yearStart, setYearStart] = useState("");
+  const [yearEnd, setYearEnd] = useState("");
+  const [termName, setTermName] = useState("");
+  const [termStart, setTermStart] = useState("");
+  const [termEnd, setTermEnd] = useState("");
+  const [yearId, setYearId] = useState("");
+  const changed = () => {
+    onChanged();
+    notify("چرخه تحصیلی به‌روزرسانی شد.", "success");
+  };
+  const createYear = useMutation({
+    mutationFn: createLegacyAcademicYear,
+    onSuccess: changed,
+    onError: (error) =>
+      notify(error instanceof Error ? error.message : "ثبت سال انجام نشد.", "error"),
+  });
+  const createTerm = useMutation({
+    mutationFn: createLegacyAcademicTerm,
+    onSuccess: changed,
+    onError: (error) =>
+      notify(error instanceof Error ? error.message : "ثبت نیم‌سال انجام نشد.", "error"),
+  });
+  const changeYear = useMutation({
+    mutationFn: ({ id, action }: { id: string; action: "activate" | "archive" }) =>
+      changeLegacyAcademicYearState(id, action),
+    onSuccess: changed,
+    onError: (error) =>
+      notify(error instanceof Error ? error.message : "تغییر وضعیت سال انجام نشد.", "error"),
+  });
+  const changeTerm = useMutation({
+    mutationFn: ({
+      id,
+      action,
+    }: {
+      id: string;
+      action: "archive" | "reopen" | "close-correction";
+    }) => changeLegacyAcademicTermState(id, action),
+    onSuccess: changed,
+    onError: (error) =>
+      notify(error instanceof Error ? error.message : "تغییر وضعیت نیم‌سال انجام نشد.", "error"),
+  });
+  if (loading) return <LoadingState label="در حال دریافت سال‌های تحصیلی…" />;
+  const years = data?.years ?? [];
+  const currentYearId =
+    yearId || years.find((year) => year.state === "ACTIVE")?.id || years[0]?.id || "";
+  return (
+    <div className="grid gap-5" dir="rtl">
+      <Card className="grid gap-3 p-4">
+        <h3 className="font-black">سال تحصیلی جدید</h3>
+        <Input
+          value={yearName}
+          onChange={(event) => setYearName(event.target.value)}
+          placeholder="مثلاً سال تحصیلی ۱۴۰۵–۱۴۰۶"
+          aria-label="نام سال تحصیلی"
+        />
+        <div className="grid grid-cols-2 gap-2">
+          <Input
+            type="date"
+            value={yearStart}
+            onChange={(event) => setYearStart(event.target.value)}
+            aria-label="شروع سال تحصیلی"
+          />
+          <Input
+            type="date"
+            value={yearEnd}
+            onChange={(event) => setYearEnd(event.target.value)}
+            aria-label="پایان سال تحصیلی"
+          />
+        </div>
+        <Button
+          disabled={!organizationId || !yearName || !yearStart || !yearEnd || createYear.isPending}
+          onClick={() =>
+            createYear.mutate({
+              organizationId,
+              name: yearName,
+              startsOn: yearStart,
+              endsOn: yearEnd,
+            })
+          }
+        >
+          ایجاد سال پیش‌نویس
+        </Button>
+      </Card>
+      <Card className="grid gap-3 p-4">
+        <h3 className="font-black">نیم‌سال جدید</h3>
+        <AdaptiveSelect
+          value={currentYearId}
+          onChange={(event) => setYearId(event.target.value)}
+          aria-label="سال تحصیلی نیم‌سال"
+        >
+          <option value="">انتخاب سال</option>
+          {years.map((year) => (
+            <option key={year.id} value={year.id}>
+              {year.name}
+            </option>
+          ))}
+        </AdaptiveSelect>
+        <Input
+          value={termName}
+          onChange={(event) => setTermName(event.target.value)}
+          placeholder="مثلاً نیم‌سال اول"
+          aria-label="نام نیم‌سال"
+        />
+        <div className="grid grid-cols-2 gap-2">
+          <Input
+            type="date"
+            value={termStart}
+            onChange={(event) => setTermStart(event.target.value)}
+            aria-label="شروع نیم‌سال"
+          />
+          <Input
+            type="date"
+            value={termEnd}
+            onChange={(event) => setTermEnd(event.target.value)}
+            aria-label="پایان نیم‌سال"
+          />
+        </div>
+        <Button
+          disabled={!currentYearId || !termName || !termStart || !termEnd || createTerm.isPending}
+          onClick={() =>
+            createTerm.mutate({
+              academicYearId: currentYearId,
+              name: termName,
+              startsOn: termStart,
+              endsOn: termEnd,
+            })
+          }
+        >
+          افزودن نیم‌سال
+        </Button>
+      </Card>
+      <section className="grid gap-3" aria-label="سال‌ها و نیم‌سال‌های ثبت‌شده">
+        {years.map((year) => (
+          <Card key={year.id} className="grid gap-3 p-4">
+            <div className="flex items-start justify-between gap-2">
+              <div>
+                <strong>{year.name}</strong>
+                <p className="text-xs text-slate-500">
+                  {year.startsOn} تا {year.endsOn}
+                </p>
+              </div>
+              <Button
+                variant="soft"
+                disabled={changeYear.isPending}
+                onClick={() =>
+                  changeYear.mutate({
+                    id: year.id,
+                    action: year.state === "ACTIVE" ? "archive" : "activate",
+                  })
+                }
+              >
+                {year.state === "ACTIVE" ? "بایگانی" : "فعال‌سازی"}
+              </Button>
+            </div>
+            <ul className="grid gap-2">
+              {(data?.terms ?? [])
+                .filter((term) => term.academicYearId === year.id)
+                .map((term) => (
+                  <li
+                    key={term.id}
+                    className="flex items-center justify-between gap-2 rounded-lg bg-[rgb(var(--surface-muted))] p-2 text-sm"
+                  >
+                    <span>
+                      {term.name} · {term.startsOn} تا {term.endsOn}
+                    </span>
+                    <Button
+                      variant="ghost"
+                      disabled={changeTerm.isPending}
+                      onClick={() =>
+                        changeTerm.mutate({
+                          id: term.id,
+                          action: term.correctionOpen
+                            ? "close-correction"
+                            : term.state === "ARCHIVED"
+                              ? "reopen"
+                              : "archive",
+                        })
+                      }
+                    >
+                      {term.correctionOpen
+                        ? "بستن اصلاح"
+                        : term.state === "ARCHIVED"
+                          ? "اصلاح تاریخی"
+                          : "بایگانی"}
+                    </Button>
+                  </li>
+                ))}
+            </ul>
+          </Card>
+        ))}
+        {!years.length ? <EmptyState title="هنوز سال تحصیلی ثبت نشده است." /> : null}
+      </section>
+    </div>
   );
 }
 
