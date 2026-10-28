@@ -947,6 +947,7 @@ function ScheduleWorkspace({
           {layout === "time-blocks" ? (
             <ScheduleTimeBlockBoard
               entries={activeScheduleEntries}
+              classes={activeClasses}
               timeBlocks={timeBlocks}
               onOpenDetails={onOpenDetails}
               leaveForEntry={leaveForEntry}
@@ -1625,11 +1626,13 @@ function ScheduleMatrixCell({
 
 function ScheduleTimeBlockBoard({
   entries,
+  classes,
   timeBlocks,
   onOpenDetails,
   leaveForEntry,
 }: {
   entries: ScheduleEntry[];
+  classes: EducationClass[];
   timeBlocks: ScheduleTimeBlock[];
   onOpenDetails: (entry: ScheduleEntry) => void;
   leaveForEntry: (entry: ScheduleEntry) => TeacherLeaveRequest | undefined;
@@ -1662,80 +1665,74 @@ function ScheduleTimeBlockBoard({
   }, [entries, timeBlocks]);
   const morningSlots = slots.filter((slot) => slot.partOfDay === "AM");
   const afternoonSlots = slots.filter((slot) => slot.partOfDay === "PM");
+  const classRows = useMemo(() => {
+    const known = classes.map((classroom) => ({ id: classroom.id, name: classroom.name }));
+    const knownIds = new Set(known.map((classroom) => classroom.id));
+    entries.forEach((entry) => {
+      if (!entry.classroom || knownIds.has(entry.classroom.id)) return;
+      knownIds.add(entry.classroom.id);
+      known.push({ id: entry.classroom.id, name: entry.classroom.name });
+    });
+    return known.sort((left, right) => left.name.localeCompare(right.name, "fa"));
+  }, [classes, entries]);
   if (!slots.length)
     return <EmptyState title="برای نمایش زمان‌بندی، ابتدا بازه یا جلسه‌ای ثبت کنید." />;
 
   return (
     <div className="overflow-x-auto p-3" dir="rtl">
-      <div className="min-w-[62rem] overflow-hidden rounded-xl border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card))]">
-        <div
-          className="grid border-b border-[rgb(var(--border-subtle))]"
-          style={{ gridTemplateColumns: `10rem repeat(${slots.length}, minmax(10rem, 1fr))` }}
-        >
-          <div className="row-span-2 flex items-center justify-center border-s border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-muted))] px-3 text-xs font-black text-ink">
-            روز هفته
-          </div>
-          {morningSlots.length ? (
-            <div className="border-s border-sky-500/20 bg-sky-500/10 px-3 py-2 text-center text-xs font-black text-sky-800 dark:text-sky-200" style={{ gridColumn: `span ${morningSlots.length}` }}>
-              صبح
-            </div>
-          ) : null}
-          {afternoonSlots.length ? (
-            <div className="border-s border-amber-500/20 bg-amber-500/10 px-3 py-2 text-center text-xs font-black text-amber-800 dark:text-amber-200" style={{ gridColumn: `span ${afternoonSlots.length}` }}>
-              عصر
-            </div>
-          ) : null}
-          {slots.map((slot) => (
-            <div key={slot.id} className="border-s border-t border-[rgb(var(--border-subtle))] px-2 py-2 text-center">
-              <p className="truncate text-xs font-black text-ink">{slot.label}</p>
-              <p className="mt-0.5 text-[10px] font-bold text-slate-500" dir="ltr">{slot.startTime}–{slot.endTime}</p>
-            </div>
-          ))}
-        </div>
-        {displayWeekdays.map((weekday) => (
-          <div
-            key={weekday}
-            className="grid border-b border-[rgb(var(--border-subtle))] last:border-b-0"
-            style={{ gridTemplateColumns: `10rem repeat(${slots.length}, minmax(10rem, 1fr))` }}
-          >
-            <div className="sticky right-0 z-10 flex min-h-24 flex-col justify-center border-s border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-muted))] px-3">
-              <span className="text-sm font-black text-ink">{weekdays[weekday]}</span>
-              <span className="mt-1 text-[10px] font-bold text-slate-500">همه کلاس‌ها</span>
-            </div>
-            {slots.map((slot) => {
-              const cellEntries = entries.filter(
-                (entry) =>
-                  entry.weekday === weekday &&
-                  entry.startTime === slot.startTime &&
-                  entry.endTime === slot.endTime,
-              );
+      <table className="min-w-[72rem] border-separate border-spacing-0 overflow-hidden rounded-xl border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card))] text-right">
+        <thead>
+          <tr>
+            <th rowSpan={2} className="sticky right-0 z-20 w-28 border-s border-b border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-muted))] px-3 py-2 text-xs font-black text-ink">روز</th>
+            <th rowSpan={2} className="sticky right-28 z-20 w-40 border-s border-b border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-muted))] px-3 py-2 text-xs font-black text-ink">کلاس</th>
+            {morningSlots.length ? <th colSpan={morningSlots.length} className="border-s border-b border-sky-500/20 bg-sky-500/10 px-3 py-2 text-center text-xs font-black text-sky-800 dark:text-sky-200">صبح</th> : null}
+            {afternoonSlots.length ? <th colSpan={afternoonSlots.length} className="border-s border-b border-amber-500/20 bg-amber-500/10 px-3 py-2 text-center text-xs font-black text-amber-800 dark:text-amber-200">عصر</th> : null}
+          </tr>
+          <tr>
+            {slots.map((slot) => (
+              <th key={slot.id} className="min-w-40 border-s border-b border-[rgb(var(--border-subtle))] px-2 py-2 text-center">
+                <p className="truncate text-xs font-black text-ink">{slot.label}</p>
+                <p className="mt-0.5 text-[10px] font-bold text-slate-500" dir="ltr">{slot.startTime}–{slot.endTime}</p>
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {displayWeekdays.flatMap((weekday) =>
+            classRows.map((classroom, classIndex) => {
+              const isDayStart = classIndex === 0;
+              const dayTone = weekday % 2
+                ? "bg-sky-500/[.035] dark:bg-sky-400/[.045]"
+                : "bg-amber-500/[.025] dark:bg-amber-400/[.035]";
+              const dayBoundary = isDayStart
+                ? "border-t-4 border-brand/45 dark:border-brand/60"
+                : "";
               return (
-                <div key={slot.id} className="min-h-24 border-s border-[rgb(var(--border-subtle))] p-1.5">
-                  {cellEntries.length ? (
-                    <div className="grid gap-1">
-                      {cellEntries.map((entry) => {
-                        const leave = leaveForEntry(entry);
-                        return (
-                          <button
-                            key={entry.id}
-                            type="button"
-                            onClick={() => onOpenDetails(entry)}
-                            className="w-full rounded-lg border border-brand/15 bg-brand/5 px-2 py-1.5 text-right transition hover:border-brand/45 hover:bg-brand/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
-                          >
-                            <span className="block truncate text-[11px] font-black text-ink">{entry.classroom?.name || "کلاس عمومی"}</span>
-                            <span className="mt-0.5 block truncate text-[10px] text-slate-600 dark:text-slate-300">{entry.title}</span>
-                            {leave ? <span className="mt-1 block text-[9px] font-bold text-amber-700 dark:text-amber-300">مرخصی دبیر</span> : null}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  ) : <span className="block h-full" aria-label="جلسه‌ای ثبت نشده است" />}
-                </div>
+              <tr key={`${weekday}-${classroom.id}`} className={`align-top ${dayTone}`}>
+                {classIndex === 0 ? (
+                  <th rowSpan={classRows.length} scope="rowgroup" className={`sticky right-0 z-10 border-s border-b border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-muted))] px-3 py-3 align-middle text-sm font-black text-ink ${dayBoundary}`}>
+                    {weekdays[weekday]}
+                  </th>
+                ) : null}
+                <th scope="row" className={`sticky right-28 z-10 border-s border-b border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card))] px-3 py-3 text-xs font-black text-ink ${dayBoundary}`}>{classroom.name}</th>
+                {slots.map((slot) => {
+                  const cellEntries = entries.filter((entry) => entry.weekday === weekday && entry.classroom?.id === classroom.id && entry.startTime === slot.startTime && entry.endTime === slot.endTime);
+                  return <td key={slot.id} className={`min-h-16 border-s border-b border-[rgb(var(--border-subtle))] p-1.5 ${dayBoundary}`}>
+                    {cellEntries.map((entry) => {
+                      const leave = leaveForEntry(entry);
+                      return <button key={entry.id} type="button" onClick={() => onOpenDetails(entry)} className="mb-1 w-full rounded-lg border border-brand/15 bg-brand/5 px-2 py-1.5 text-right transition hover:border-brand/45 hover:bg-brand/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand">
+                        <span className="block truncate text-[11px] font-black text-ink">{entry.title}</span>
+                        {leave ? <span className="mt-1 block text-[9px] font-bold text-amber-700 dark:text-amber-300">مرخصی دبیر</span> : null}
+                      </button>;
+                    })}
+                  </td>;
+                })}
+              </tr>
               );
-            })}
-          </div>
-        ))}
-      </div>
+            }),
+          )}
+        </tbody>
+      </table>
     </div>
   );
 }
