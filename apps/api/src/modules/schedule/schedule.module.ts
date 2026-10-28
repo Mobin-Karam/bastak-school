@@ -24,6 +24,7 @@ import {
 import { EducationClassBook } from "../../database/entities/education-class-book.entity";
 import { UserRelationship } from "../../database/entities/user-relationship.entity";
 import { TeacherLeaveRequest } from "../../database/entities/teacher-leave-request.entity";
+import { AuditLog } from "../../database/entities/audit-log.entity";
 import { ScheduleController } from "./schedule.controller";
 import { ScheduleService } from "./schedule.service";
 @Module({
@@ -41,6 +42,7 @@ import { ScheduleService } from "./schedule.service";
       SchoolScheduleOccurrenceOverride,
       SchoolScheduleSubstitutionRequest,
       TeacherLeaveRequest,
+      AuditLog,
       EducationClassBook,
       Organization,
       OrganizationMembership,

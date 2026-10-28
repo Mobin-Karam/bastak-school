@@ -1,5 +1,6 @@
 import { attendanceTransaction } from "../attendance";
 import { ImportHistory } from "../../database/entities/import-history.entity";
+import { AuditLog } from "../../database/entities/audit-log.entity";
 import { EntityManager } from "typeorm";
 import { Injectable } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
@@ -82,7 +83,27 @@ export class ScheduleService {
     @InjectRepository(EducationClassBook)
     private readonly classBooks: Repository<EducationClassBook>,
     private readonly authorization: AuthorizationService,
+    @InjectRepository(AuditLog) private readonly auditLogs?: Repository<AuditLog>,
   ) {}
+  private async auditAcademicCycle(
+    user: AuthenticatedUser,
+    organizationId: string,
+    entity: "school_academic_year" | "school_academic_term",
+    action: string,
+    id: string,
+    metadata: Record<string, unknown> = {},
+  ) {
+    if (!this.auditLogs) return;
+    await this.auditLogs.save(
+      this.auditLogs.create({
+        user: { id: user.id } as User,
+        organizationId,
+        entity,
+        action,
+        metadata: { id, ...metadata },
+      }),
+    );
+  }
   private context(user: AuthenticatedUser): UserContext {
     return {
       ...user,
@@ -171,7 +192,7 @@ export class ScheduleService {
       !context.organizationIds.includes(dto.organizationId)
     )
       throw new ApiException(403, "FORBIDDEN", "دسترسی کافی ندارید.");
-    return this.academicYearRepo.save(
+    const row = await this.academicYearRepo.save(
       this.academicYearRepo.create({
         organizationId: dto.organizationId,
         name: dto.name.trim(),
@@ -180,6 +201,8 @@ export class ScheduleService {
         state: "DRAFT",
       }),
     );
+    await this.auditAcademicCycle(user, row.organizationId, "school_academic_year", "created", row.id);
+    return row;
   }
   async createAcademicTerm(
     user: AuthenticatedUser,
@@ -211,7 +234,7 @@ export class ScheduleService {
         "SCHEDULE_ACADEMIC_TERM_OVERLAP",
         "نیم‌سال‌ها نباید هم‌پوشانی داشته باشند.",
       );
-    return this.academicTerms.save(
+    const row = await this.academicTerms.save(
       this.academicTerms.create({
         academicYearId: year.id,
         name: dto.name.trim(),
@@ -220,6 +243,10 @@ export class ScheduleService {
         state: "DRAFT",
       }),
     );
+    await this.auditAcademicCycle(user, year.organizationId, "school_academic_term", "created", row.id, {
+      academicYearId: year.id,
+    });
+    return row;
   }
   async updateAcademicYear(user: AuthenticatedUser, id: string, dto: UpdateLegacyAcademicYearDto) {
     const year = await this.scopedAcademicYear(user, id);
@@ -228,10 +255,16 @@ export class ScheduleService {
     const terms = await this.academicTerms.findBy({ academicYearId: year.id });
     if (terms.some((term) => term.startsOn < dto.startsOn || term.endsOn > dto.endsOn))
       throw new ApiException(422, "SCHEDULE_ACADEMIC_DATE", "بازهٔ جدید سال باید همه نیم‌سال‌ها را در بر بگیرد.");
+    const previous = { name: year.name, startsOn: year.startsOn, endsOn: year.endsOn };
     year.name = dto.name.trim();
     year.startsOn = dto.startsOn;
     year.endsOn = dto.endsOn;
-    return this.academicYearRepo.save(year);
+    const row = await this.academicYearRepo.save(year);
+    await this.auditAcademicCycle(user, row.organizationId, "school_academic_year", "updated", row.id, {
+      previous,
+      next: { name: row.name, startsOn: row.startsOn, endsOn: row.endsOn },
+    });
+    return row;
   }
   async updateAcademicTerm(user: AuthenticatedUser, id: string, dto: UpdateLegacyAcademicTermDto) {
     const term = await this.academicTerms.findOneBy({ id });
@@ -255,10 +288,17 @@ export class ScheduleService {
       .getExists();
     if (overlap)
       throw new ApiException(409, "SCHEDULE_ACADEMIC_TERM_OVERLAP", "نیم‌سال‌ها نباید هم‌پوشانی داشته باشند.");
+    const previous = { name: term.name, startsOn: term.startsOn, endsOn: term.endsOn };
     term.name = dto.name.trim();
     term.startsOn = dto.startsOn;
     term.endsOn = dto.endsOn;
-    return this.academicTerms.save(term);
+    const row = await this.academicTerms.save(term);
+    await this.auditAcademicCycle(user, year.organizationId, "school_academic_term", "updated", row.id, {
+      academicYearId: year.id,
+      previous,
+      next: { name: row.name, startsOn: row.startsOn, endsOn: row.endsOn },
+    });
+    return row;
   }
   async academicYearLifecycle(
     user: AuthenticatedUser,
@@ -299,6 +339,9 @@ export class ScheduleService {
         "SCHEDULE_ACADEMIC_LIFECYCLE",
         "عملیات سال تحصیلی معتبر نیست.",
       );
+    await this.auditAcademicCycle(user, year.organizationId, "school_academic_year", dto.action, year.id, {
+      state: year.state,
+    });
     return year;
   }
   async academicTermLifecycle(
@@ -327,7 +370,37 @@ export class ScheduleService {
         "SCHEDULE_ACADEMIC_LIFECYCLE",
         "عملیات نیم‌سال معتبر نیست.",
       );
-    return this.academicTerms.save(term);
+    const row = await this.academicTerms.save(term);
+    const year = await this.academicYearRepo.findOneByOrFail({ id: row.academicYearId });
+    await this.auditAcademicCycle(user, year.organizationId, "school_academic_term", dto.action, row.id, {
+      academicYearId: year.id,
+      state: row.state,
+      correctionOpen: row.correctionOpen,
+    });
+    return row;
+  }
+  async academicYearHistory(user: AuthenticatedUser, id: string) {
+    const year = await this.scopedAcademicYear(user, id);
+    if (!this.auditLogs) return [];
+    const rows = await this.auditLogs.find({
+      where: { organizationId: year.organizationId, entity: "school_academic_year" },
+      order: { createdAt: "DESC" },
+      take: 100,
+    });
+    return rows.filter((row) => row.metadata?.id === id);
+  }
+  async academicTermHistory(user: AuthenticatedUser, id: string) {
+    const term = await this.academicTerms.findOneBy({ id });
+    if (!term)
+      throw new ApiException(404, "SCHEDULE_ACADEMIC_TERM_NOT_FOUND", "نیم‌سال پیدا نشد.");
+    const year = await this.scopedAcademicYear(user, term.academicYearId);
+    if (!this.auditLogs) return [];
+    const rows = await this.auditLogs.find({
+      where: { organizationId: year.organizationId, entity: "school_academic_term" },
+      order: { createdAt: "DESC" },
+      take: 100,
+    });
+    return rows.filter((row) => row.metadata?.id === id);
   }
   private weekdayForDate(date: string) {
     return (new Date(`${date}T12:00:00Z`).getUTCDay() + 1) % 7;

@@ -94,7 +94,8 @@ function database(filename: string, baseline = false, runMigrations = true) {
             file === "1731400100000-StudentPointLedgerIdempotencyScope.ts" ||
             file === "1731900000000-RewardsLedgerExtraction.ts" ||
             file === "1731910000000-PrincipalAttendanceReviewPolicy.ts" ||
-            file === "1731800300000-StudentAccountChangeLimits.ts"),
+            file === "1731800300000-StudentAccountChangeLimits.ts" ||
+            file === "1762300200000-AttendanceHistoricalImportReason.ts"),
       )
       .map((file) => path.join(directory, file)),
     synchronize: false,
@@ -861,6 +862,7 @@ describe("migration-backed persistence and verified recovery (disposable SQLite 
       db.getRepository(EducationClass),
       db.getRepository(EducationClassBook),
       authorization,
+      db.getRepository(AuditLog),
     );
     const teacher = await db
       .getRepository(User)
@@ -892,6 +894,24 @@ describe("migration-backed persistence and verified recovery (disposable SQLite 
         "schedule.update",
       ],
     };
+    const academicYear = await schedule.createAcademicYear(scoped, {
+      organizationId: a.id,
+      name: "۱۴۰۵–۱۴۰۶",
+      startsOn: "2026-09-23",
+      endsOn: "2027-06-22",
+    });
+    const academicTerm = await schedule.createAcademicTerm(scoped, {
+      academicYearId: academicYear.id,
+      name: "نیم‌سال اول",
+      startsOn: "2026-09-23",
+      endsOn: "2027-01-31",
+    });
+    expect(await schedule.academicYearHistory(scoped, academicYear.id)).toEqual(
+      expect.arrayContaining([expect.objectContaining({ action: "created" })]),
+    );
+    expect(await schedule.academicTermHistory(scoped, academicTerm.id)).toEqual(
+      expect.arrayContaining([expect.objectContaining({ action: "created" })]),
+    );
     const dto = {
       organizationId: a.id,
       classroomId: classroom.id,
