@@ -917,7 +917,7 @@ describe("migration-backed persistence and verified recovery (disposable SQLite 
       where: { name: "زنگ قدیمی" },
       relations: { group: true },
     });
-    expect(migrated.group.name).toBe("صبح");
+    expect(migrated.group?.name).toBe("صبح");
     const block = await schedule.createTimeBlock(scoped, {
       organizationId: a.id,
       groupId: group.id,
@@ -925,7 +925,10 @@ describe("migration-backed persistence and verified recovery (disposable SQLite 
       startTime: "10:00",
       endTime: "10:45",
     });
-    expect((await schedule.listTimeBlocks(scoped))[0]?.group.id).toBe(group.id);
+    expect(
+      (await schedule.listTimeBlocks(scoped)).find((item) => item.id === block.id)
+        ?.group?.id,
+    ).toBe(group.id);
     const teacherActor = {
       ...scoped,
       role: "TEACHER" as const,
