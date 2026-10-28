@@ -64,6 +64,10 @@ import { useLocale } from "../../../../shared/ui/locale";
 import { listTeacherLeaveRequests, type TeacherLeaveRequest } from "../api/teacher-leave.api";
 
 const weekdays = ["شنبه", "یکشنبه", "دوشنبه", "سه‌شنبه", "چهارشنبه", "پنجشنبه", "جمعه"];
+const timeBlockGroups = [
+  { partOfDay: "AM", label: "صبح", tone: "sky" },
+  { partOfDay: "PM", label: "عصر", tone: "amber" },
+] as const;
 const blank = (): ScheduleDraft => ({
   organizationId: "",
   title: "",
@@ -2018,12 +2022,21 @@ function ScheduleEditorForm({
               className="h-11 rounded-xl border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card))] px-3 text-sm text-ink focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20"
             >
               <option value="">یک بازه را برای اعمال زمان انتخاب کنید</option>
-              {timeBlocks.map((block) => (
-                <option key={block.id} value={block.id}>
-                  {block.name} · {block.startTime} تا {block.endTime}
-                  {timeBlockPartOfDay(block.startTime)}
-                </option>
-              ))}
+              {timeBlockGroups.map((group) => {
+                const groupBlocks = timeBlocks.filter(
+                  (block) => block.partOfDay === group.partOfDay,
+                );
+                if (!groupBlocks.length) return null;
+                return (
+                  <optgroup key={group.partOfDay} label={group.label}>
+                    {groupBlocks.map((block) => (
+                      <option key={block.id} value={block.id}>
+                        {block.name} · {block.startTime} تا {block.endTime}
+                      </option>
+                    ))}
+                  </optgroup>
+                );
+              })}
             </AdaptiveSelect>
           </label>
         ) : null}
@@ -2265,6 +2278,12 @@ function ScheduleTimeBlocks({
   const [startTime, setStartTime] = useState("08:00");
   const [endTime, setEndTime] = useState("09:00");
   const valid = Boolean(organizationId && name.trim() && startTime < endTime);
+  const blocksByPartOfDay = timeBlockGroups.map((group) => ({
+    ...group,
+    blocks: blocks
+      .filter((block) => block.partOfDay === group.partOfDay)
+      .sort((left, right) => left.startTime.localeCompare(right.startTime)),
+  }));
   return (
     <Card className="p-4" dir="rtl">
       <div className="flex items-center gap-2">
@@ -2319,46 +2338,67 @@ function ScheduleTimeBlocks({
         </Button>
       </form>
       {blocks.length ? (
-        <ul
-          className="mt-3 grid max-h-56 gap-1.5 overflow-y-auto pe-1 [scrollbar-width:thin]"
+        <div
+          className="mt-4 grid max-h-72 gap-4 overflow-y-auto pe-1 [scrollbar-width:thin]"
           aria-label="بازه‌های زمانی ذخیره‌شده"
         >
-          {blocks.map((block) => (
-            <li
-              key={block.id}
-              className="flex items-center justify-between gap-2 rounded-lg bg-[rgb(var(--surface-muted))] px-2 py-1.5 text-xs"
-            >
-              <span className="min-w-0 truncate font-bold text-ink">
-                {block.name}{" "}
-                <b className="font-normal text-slate-500" dir="ltr">
-                  {block.startTime}–{block.endTime}
-                </b>
-                <em className="ms-1 not-italic text-slate-500">
-                  {timeBlockPartOfDay(block.startTime)}
-                </em>
-              </span>
-              <Button
-                size="sm"
-                variant="ghost"
-                className="text-rose-700 hover:bg-rose-50 hover:text-rose-800 dark:text-rose-300 dark:hover:bg-rose-950/30"
-                disabled={removing}
-                aria-label={`حذف بازه ${block.name}`}
-                onClick={() => onRemove(block)}
+          {blocksByPartOfDay.map((group) =>
+            group.blocks.length ? (
+              <section
+                key={group.partOfDay}
+                aria-labelledby={`time-block-group-${group.partOfDay}`}
               >
-                <Trash2 size={13} />
-              </Button>
-            </li>
-          ))}
-        </ul>
+                <div className="mb-2 flex items-center gap-2">
+                  <span
+                    className={`size-2 rounded-full ${
+                      group.tone === "sky" ? "bg-sky-500" : "bg-amber-500"
+                    }`}
+                    aria-hidden="true"
+                  />
+                  <h4
+                    id={`time-block-group-${group.partOfDay}`}
+                    className="text-xs font-black text-ink"
+                  >
+                    {group.label}
+                  </h4>
+                  <span className="text-[11px] font-bold text-slate-400">
+                    {group.blocks.length.toLocaleString("fa-IR")} بازه
+                  </span>
+                </div>
+                <ul className="grid gap-1.5">
+                  {group.blocks.map((block) => (
+                    <li
+                      key={block.id}
+                      className="flex items-center justify-between gap-2 rounded-lg bg-[rgb(var(--surface-muted))] px-2 py-1.5 text-xs"
+                    >
+                      <span className="min-w-0 truncate font-bold text-ink">
+                        {block.name}{" "}
+                        <b className="font-normal text-slate-500" dir="ltr">
+                          {block.startTime}–{block.endTime}
+                        </b>
+                      </span>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="text-rose-700 hover:bg-rose-50 hover:text-rose-800 dark:text-rose-300 dark:hover:bg-rose-950/30"
+                        disabled={removing}
+                        aria-label={`حذف بازه ${block.name}`}
+                        onClick={() => onRemove(block)}
+                      >
+                        <Trash2 size={13} />
+                      </Button>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            ) : null,
+          )}
+        </div>
       ) : (
         <p className="mt-3 text-xs leading-5 text-slate-500">هنوز بازه‌ای ثبت نشده است.</p>
       )}
     </Card>
   );
-}
-
-function timeBlockPartOfDay(startTime: string) {
-  return startTime < "12:00" ? "پیش از ظهر" : "پس از ظهر";
 }
 
 function draftFromEntry(entry: ScheduleEntry): ScheduleDraft {
