@@ -929,6 +929,8 @@ describe("migration-backed persistence and verified recovery (disposable SQLite 
       weekday: 1,
       startTime: "08:00",
       endTime: "09:00",
+      academicYearId: academicYear.id,
+      termId: academicTerm.id,
     };
     const countBefore = await db.getRepository(SchoolScheduleEntry).count();
     await expect(
@@ -1041,6 +1043,8 @@ describe("migration-backed persistence and verified recovery (disposable SQLite 
       startTime: "10:00",
       endTime: "10:45",
       title: "جلسه جبرانی",
+      academicYearId: academicYear.id,
+      termId: academicTerm.id,
     });
     expect(
       await db
@@ -1052,6 +1056,8 @@ describe("migration-backed persistence and verified recovery (disposable SQLite 
       endsOn: "2026-10-11",
       startTime: "08:00",
       endTime: "09:00",
+      academicYearId: academicYear.id,
+      termId: academicTerm.id,
     });
     await schedule.createAcademicTerm(scoped, {
       academicYearId: academicYear.id,
