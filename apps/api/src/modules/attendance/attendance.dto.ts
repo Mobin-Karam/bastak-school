@@ -45,6 +45,14 @@ export class CreateHistoricalAttendanceSessionDto {
   @Matches(/^\d{4}-\d{2}-\d{2}$/) @IsDateString({ strict: true }) date!: string;
   @IsString() @MinLength(3) @MaxLength(1000) reason!: string;
 }
+export class HistoricalAttendanceCandidatesQueryDto {
+  @IsUUID() organizationId!: string;
+  @IsUUID() academicYearId!: string;
+  @IsUUID() termId!: string;
+  @IsOptional() @IsUUID() classroomId?: string;
+  @IsOptional() @Matches(/^\d{4}-\d{2}-\d{2}$/) @IsDateString({ strict: true }) from?: string;
+  @IsOptional() @Matches(/^\d{4}-\d{2}-\d{2}$/) @IsDateString({ strict: true }) to?: string;
+}
 
 export class AttendanceEntryDto {
   @IsUUID() studentId!: string;

@@ -21,6 +21,7 @@ import {
   CreateAttendanceSessionDto,
   OpenLegacyScheduleAttendanceDto,
   CreateHistoricalAttendanceSessionDto,
+  HistoricalAttendanceCandidatesQueryDto,
   ReviewAttendanceAbsenceDto,
   AwardAttendancePointsDto,
   SubmitAttendanceAbsencesDto,
@@ -139,6 +140,15 @@ export class AttendanceController {
     @Body() dto: CreateHistoricalAttendanceSessionDto,
   ) {
     return this.attendance.createHistoricalSession(user, dto).then(ok);
+  }
+
+  @Get("attendance/historical-candidates")
+  @RequireCapabilities("attendance.manage")
+  historicalCandidates(
+    @CurrentUser() user: AuthenticatedUser,
+    @Query() query: HistoricalAttendanceCandidatesQueryDto,
+  ) {
+    return this.attendance.historicalCandidates(user, query).then(ok);
   }
 
   @Post("attendance/bulk-mark")

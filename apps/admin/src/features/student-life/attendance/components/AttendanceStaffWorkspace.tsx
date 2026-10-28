@@ -1,7 +1,7 @@
 import { AdaptiveSelect } from "@/shared/ui/adaptive-select";
 import { attendanceRequestId } from "../model/attendance-request-id";
 import { useEffect, useRef, useState } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { PolarAngleAxis, PolarGrid, Radar, RadarChart, ResponsiveContainer } from "recharts";
 import { CalendarCheck2, CircleUserRound, MapPin, UsersRound } from "lucide-react";
 import { useAuth } from "../../../identity/auth";
@@ -22,6 +22,8 @@ import {
   getAttendancePolicy,
   getAttendanceReportSummary,
   getAttendanceHistorySessions,
+  getHistoricalAttendanceCandidates,
+  importLegacyScheduleOccurrence,
   getAttendancePools,
   getAttendanceProfile,
   getSavedAttendanceSession,
@@ -721,6 +723,7 @@ export function AttendanceStaffWorkspace({
   const [contextFilter, setContextFilter] = useState("");
   const [academicYearId, setAcademicYearId] = useState("");
   const [termId, setTermId] = useState("");
+  const [reconciliationOpen, setReconciliationOpen] = useState(false);
   const [sessionsPage, setSessionsPage] = useState(1);
   const [poolContextFilter, setPoolContextFilter] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -802,6 +805,42 @@ export function AttendanceStaffWorkspace({
   const currentTerms = (academicCycles.data?.terms ?? []).filter(
     (term) => !academicYearId || term.academicYearId === academicYearId,
   );
+  const canReconcileHistoricalAttendance = [
+    "PRINCIPAL",
+    "RELIGIOUS_EDUCATION_MANAGER",
+    "ORGANIZATION_ADMIN",
+    "PLATFORM_ADMIN",
+  ].includes(auth.activeRole ?? "");
+  const historicalCandidates = useQuery({
+    queryKey: [
+      "attendance-historical-candidates",
+      organizationId,
+      academicYearId,
+      termId,
+      contextFilter,
+    ],
+    queryFn: () =>
+      getHistoricalAttendanceCandidates({
+        organizationId: organizationId!,
+        academicYearId,
+        termId,
+        classroomId: category === "class" ? contextFilter || undefined : undefined,
+      }),
+    enabled:
+      reconciliationOpen &&
+      canReconcileHistoricalAttendance &&
+      Boolean(organizationId && academicYearId && termId),
+  });
+  const importHistoricalOccurrence = useMutation({
+    mutationFn: importLegacyScheduleOccurrence,
+    onSuccess: () => {
+      void cache.invalidateQueries({ queryKey: ["attendance-session-history", scope] });
+      void cache.invalidateQueries({ queryKey: ["attendance-historical-candidates"] });
+      notify("جلسهٔ تاریخی با تأیید شما ایجاد شد.", "success");
+    },
+    onError: (error) =>
+      notify(error instanceof Error ? error.message : "ایجاد جلسهٔ تاریخی انجام نشد.", "error"),
+  });
   const pools = useQuery({
     queryKey: ["attendance-pools", scope],
     queryFn: getAttendancePools,
@@ -1125,6 +1164,60 @@ export function AttendanceStaffWorkspace({
             </button>
           </form>
         ) : null
+      ) : null}
+      {canReconcileHistoricalAttendance ? (
+        <section className="rounded-2xl border border-amber-200 bg-amber-50/60 p-3 dark:border-amber-900 dark:bg-amber-950/20">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <p className="text-sm font-black">تطبیق حضورهای گذشته</p>
+              <p className="mt-1 text-xs leading-5 text-slate-600 dark:text-slate-300">
+                فقط رخدادهای برنامهٔ legacy که هنوز جلسهٔ حضور ندارند پیشنهاد می‌شوند؛ هیچ موردی بدون تأیید شما ثبت نمی‌شود.
+              </p>
+            </div>
+            <button
+              type="button"
+              className={`${action} border border-amber-300 bg-white text-amber-900 dark:border-amber-800 dark:bg-slate-950 dark:text-amber-200`}
+              disabled={!academicYearId || !termId}
+              onClick={() => setReconciliationOpen((open) => !open)}
+            >
+              {reconciliationOpen ? "بستن صف تطبیق" : "نمایش صف تطبیق"}
+            </button>
+          </div>
+          {reconciliationOpen && !academicYearId ? (
+            <p role="alert" className="mt-3 text-xs text-amber-800 dark:text-amber-200">
+              ابتدا سال و نیم‌سال را در فیلتر آرشیو انتخاب کنید.
+            </p>
+          ) : null}
+          {reconciliationOpen && academicYearId && termId ? (
+            historicalCandidates.isLoading ? (
+              <p role="status" className="mt-3 text-xs text-slate-500">در حال پیدا کردن رخدادهای بدون حضور…</p>
+            ) : historicalCandidates.isError ? (
+              <p role="alert" className="mt-3 text-xs text-rose-700 dark:text-rose-300">
+                صف تطبیق دریافت نشد. <button type="button" className="font-bold underline" onClick={() => void historicalCandidates.refetch()}>تلاش دوباره</button>
+              </p>
+            ) : (
+              <ul className="mt-3 grid gap-2" aria-label="رخدادهای پیشنهادی حضور گذشته">
+                {(historicalCandidates.data ?? []).slice(0, 20).map((candidate) => (
+                  <li key={`${candidate.entryId}:${candidate.date}`} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-200/70 bg-white/80 p-3 text-xs dark:border-amber-900 dark:bg-slate-950/70">
+                    <span>
+                      <strong className="text-sm">{candidate.title}</strong>
+                      <span className="mt-1 block text-slate-500">{candidate.classroomName} · {candidate.teacherName} · {candidate.subjectName || "بدون کتاب"} · {new Date(`${candidate.date}T12:00:00Z`).toLocaleDateString("fa-IR-u-ca-persian")} · {candidate.startTime} تا {candidate.endTime}</span>
+                    </span>
+                    <button
+                      type="button"
+                      className={`${action} min-h-10 border border-amber-300 bg-amber-100 text-amber-950 dark:border-amber-800 dark:bg-amber-900/40 dark:text-amber-100`}
+                      disabled={importHistoricalOccurrence.isPending}
+                      onClick={() => importHistoricalOccurrence.mutate({ entryId: candidate.entryId, date: candidate.date })}
+                    >
+                      ایجاد جلسه
+                    </button>
+                  </li>
+                ))}
+                {!historicalCandidates.data?.length ? <li className="rounded-xl bg-white/70 p-3 text-xs text-slate-600 dark:bg-slate-950/70 dark:text-slate-300">رخداد بدون جلسه‌ای در این بازه پیدا نشد.</li> : null}
+              </ul>
+            )
+          ) : null}
+        </section>
       ) : null}
       {section === "sessions" ? (
         <section

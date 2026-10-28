@@ -99,6 +99,33 @@ export type AttendanceHistorySessionFilters = {
   academicYearId?: string;
   termId?: string;
 };
+export type HistoricalAttendanceCandidate = {
+  entryId: string;
+  date: string;
+  title: string;
+  classroomId: string;
+  classroomName: string;
+  teacherName: string;
+  subjectName: string | null;
+  startTime: string;
+  endTime: string;
+};
+export const getHistoricalAttendanceCandidates = (params: {
+  organizationId: string;
+  academicYearId: string;
+  termId: string;
+  classroomId?: string;
+}) =>
+  api.get<HistoricalAttendanceCandidate[]>(
+    `/attendance/historical-candidates?${new URLSearchParams(
+      Object.entries(params).filter(([, value]) => Boolean(value)) as Array<[string, string]>,
+    ).toString()}`,
+  );
+export const importLegacyScheduleOccurrence = (body: { entryId: string; date: string }) =>
+  api.post<{ id: string; revision: number; duplicate: boolean }>(
+    "/attendance/legacy-schedule-session",
+    body,
+  );
 export const getAttendanceHistorySessions = (filters: AttendanceHistorySessionFilters = {}) => {
   const search = new URLSearchParams({
     page: String(filters.page ?? 1),

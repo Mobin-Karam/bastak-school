@@ -13,6 +13,8 @@ const mocks = vi.hoisted(() => ({
   updatePolicy: vi.fn(),
   sessions: vi.fn(),
   historySessions: vi.fn(),
+  historicalCandidates: vi.fn(),
+  importHistoricalOccurrence: vi.fn(),
   pools: vi.fn(),
   create: vi.fn(),
   detail: vi.fn(),
@@ -26,6 +28,8 @@ vi.mock("../api/attendance-operations.api.ts", () => ({
   getAttendancePolicy: mocks.policy,
   updateAttendancePolicy: mocks.updatePolicy,
   getAttendanceHistorySessions: mocks.historySessions,
+  getHistoricalAttendanceCandidates: mocks.historicalCandidates,
+  importLegacyScheduleOccurrence: mocks.importHistoricalOccurrence,
   getAttendancePools: mocks.pools,
   createAttendancePool: mocks.create,
   getSavedAttendanceSession: mocks.detail,
@@ -163,6 +167,8 @@ beforeEach(() => {
     total: 1,
     hasNext: false,
   });
+  mocks.historicalCandidates.mockResolvedValue([]);
+  mocks.importHistoricalOccurrence.mockResolvedValue({ id: "session", revision: 0, duplicate: false });
   mocks.pools.mockResolvedValue([]);
   mocks.history.mockResolvedValue([]);
   mocks.cancel.mockResolvedValue({ sessionId: "session", revision: 1, status: "cancelled" });

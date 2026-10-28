@@ -61,6 +61,7 @@ import {
   CreateAttendanceSessionDto,
   OpenLegacyScheduleAttendanceDto,
   CreateHistoricalAttendanceSessionDto,
+  HistoricalAttendanceCandidatesQueryDto,
   ReviewAttendanceAbsenceDto,
   AwardAttendancePointsDto,
   SubmitAttendanceAbsencesDto,
@@ -966,6 +967,117 @@ export class AttendanceService {
       }),
     );
     return { id: row.id, revision: row.revision, duplicate: false };
+  }
+
+  /**
+   * Suggests, but never creates, missed legacy schedule occurrences.  A manager
+   * must explicitly open each candidate through the normal occurrence endpoint.
+   */
+  async historicalCandidates(
+    user: AuthenticatedUser,
+    query: HistoricalAttendanceCandidatesQueryDto,
+  ) {
+    const roles = user.roles?.length ? user.roles : [user.role];
+    if (
+      !roles.some((role) =>
+        [
+          "PRINCIPAL",
+          "RELIGIOUS_EDUCATION_MANAGER",
+          "ORGANIZATION_ADMIN",
+          "PLATFORM_ADMIN",
+        ].includes(role),
+      )
+    )
+      throw new ApiException(
+        403,
+        "ATTENDANCE_HISTORICAL_FORBIDDEN",
+        "تطبیق حضور گذشته فقط برای مدیر و مسئول آموزش دینی مجاز است.",
+      );
+    this.assertWorkOrganization(user, query.organizationId);
+    const year = await this.sessions.manager
+      .getRepository(SchoolAcademicYear)
+      .findOneBy({ id: query.academicYearId, organizationId: query.organizationId });
+    const term = await this.sessions.manager
+      .getRepository(SchoolAcademicTerm)
+      .findOneBy({ id: query.termId, academicYearId: query.academicYearId });
+    if (!year || !term)
+      throw new ApiException(
+        422,
+        "ATTENDANCE_HISTORICAL_TERM",
+        "سال و نیم‌سال انتخاب‌شده با مدرسه سازگار نیست.",
+      );
+    const today = new Date().toISOString().slice(0, 10);
+    const from = [term.startsOn, query.from].filter(Boolean).sort().at(-1)!;
+    const to = [term.endsOn, query.to, today].filter(Boolean).sort()[0]!;
+    if (from > to) return [];
+    const entries = await this.sessions.manager
+      .getRepository(SchoolScheduleEntry)
+      .find({
+        where: {
+          organization: { id: query.organizationId },
+          academicYearId: query.academicYearId,
+          termId: query.termId,
+          status: "ACTIVE",
+          ...(query.classroomId ? { classroom: { id: query.classroomId } } : {}),
+        },
+        relations: { classroom: true, teacher: true, classBook: { book: true, teacher: true } },
+      });
+    const candidates: Array<{
+      entryId: string;
+      date: string;
+      title: string;
+      classroomId: string;
+      classroomName: string;
+      teacherName: string;
+      subjectName: string | null;
+      startTime: string;
+      endTime: string;
+    }> = [];
+    for (const entry of entries) {
+      if (!entry.classroom) continue;
+      const start = entry.startsOn && entry.startsOn > from ? entry.startsOn : from;
+      const end = entry.endsOn && entry.endsOn < to ? entry.endsOn : to;
+      for (
+        let cursor = new Date(`${start}T12:00:00Z`);
+        cursor <= new Date(`${end}T12:00:00Z`);
+        cursor.setUTCDate(cursor.getUTCDate() + 1)
+      ) {
+        const date = cursor.toISOString().slice(0, 10);
+        if ((cursor.getUTCDay() + 1) % 7 !== entry.weekday) continue;
+        candidates.push({
+          entryId: entry.id,
+          date,
+          title: entry.title,
+          classroomId: entry.classroom.id,
+          classroomName: entry.classroom.name,
+          teacherName:
+            entry.teacherNameSnapshot ||
+            [entry.teacher?.firstName, entry.teacher?.lastName].filter(Boolean).join(" ") ||
+            entry.teacher?.username ||
+            [entry.classBook?.teacher?.firstName, entry.classBook?.teacher?.lastName]
+              .filter(Boolean)
+              .join(" ") ||
+            entry.classBook?.teacher?.username ||
+            "استاد ثبت نشده",
+          subjectName: entry.classBook?.book?.titleFa ?? null,
+          startTime: entry.startTime,
+          endTime: entry.endTime,
+        });
+      }
+    }
+    if (!candidates.length) return [];
+    const existing = await this.sessions.find({
+      where: {
+        organization: { id: query.organizationId },
+        occurrenceKey: In(candidates.map((candidate) => `legacy-schedule:${candidate.entryId}:${candidate.date}`)),
+      },
+      select: { occurrenceKey: true },
+    });
+    const saved = new Set(existing.map((session) => session.occurrenceKey));
+    return candidates
+      .filter((candidate) => !saved.has(`legacy-schedule:${candidate.entryId}:${candidate.date}`))
+      .sort((left, right) => left.date.localeCompare(right.date) || left.startTime.localeCompare(right.startTime))
+      .slice(0, 500);
   }
 
   async createTimetableSession(
