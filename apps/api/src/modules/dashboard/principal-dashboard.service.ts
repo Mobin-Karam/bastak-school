@@ -195,11 +195,7 @@ export class PrincipalDashboardService {
       to: end,
     };
 
-    if (
-      can("attendance.read") ||
-      can("attendance.reports.read") ||
-      can("attendance.review")
-    )
+    if (can("attendance.review"))
       response.attendance = await this.attendance(
         organizationId,
         start,
@@ -242,25 +238,28 @@ export class PrincipalDashboardService {
     if (can("leave.read"))
       response.pendingLeaveRequests =
         await this.pendingLeaveRequests(organizationId);
-    if (
-      can("attendance.read") ||
-      can("attendance.review") ||
-      can("attendance.reports.read") ||
-      can("schedule.publish")
-    )
-      response.principalLists = await this.principalLists(organizationId, end);
+    if (can("attendance.review") || can("leave.read"))
+      response.principalLists = await this.principalLists(organizationId, end, {
+        attendanceReview: can("attendance.review"),
+        leaveRead: can("leave.read"),
+      });
     return response;
   }
 
-  private async principalLists(organizationId: string, day: string) {
+  private async principalLists(
+    organizationId: string,
+    day: string,
+    permissions: { attendanceReview: boolean; leaveRead: boolean },
+  ) {
     const [
       teacherSessions,
       teacherReports,
       dormAttendance,
       teacherLeaveRequests,
     ] = await Promise.all([
-      this.db.query(
-        `SELECT s.id, COALESCE(NULLIF(s.titleSnapshot,''),'جلسه کلاس') title,
+      permissions.attendanceReview
+        ? this.db.query(
+            `SELECT s.id, COALESCE(NULLIF(s.titleSnapshot,''),'جلسه کلاس') title,
             TRIM(COALESCE(u.firstName,'') || ' ' || COALESCE(u.lastName,'')) teacherName,
             s.sessionDate,
             SUM(CASE WHEN r.status='present' THEN 1 ELSE 0 END) present,
@@ -273,10 +272,12 @@ export class PrincipalDashboardService {
              AND COALESCE(s.operationalDate,date(s.sessionDate))=?
            GROUP BY s.id, u.firstName, u.lastName
            ORDER BY s.sessionDate DESC LIMIT 12`,
-        [organizationId, day],
-      ),
-      this.db.query(
-        `SELECT r.id, TRIM(COALESCE(t.firstName,'') || ' ' || COALESCE(t.lastName,'')) teacherName,
+            [organizationId, day],
+          )
+        : Promise.resolve([]),
+      permissions.attendanceReview
+        ? this.db.query(
+            `SELECT r.id, TRIM(COALESCE(t.firstName,'') || ' ' || COALESCE(t.lastName,'')) teacherName,
             COALESCE(NULLIF(student.name,''),TRIM(COALESCE(su.firstName,'') || ' ' || COALESCE(su.lastName,'')),'دانش‌آموز') studentName,
             r.message, r.createdAt, r.seenAt
            FROM teacher_student_reports r
@@ -284,10 +285,12 @@ export class PrincipalDashboardService {
            JOIN students student ON student.id=r.studentId
            LEFT JOIN users su ON su.id=student.userId
            WHERE r.organizationId=? ORDER BY r.createdAt DESC LIMIT 12`,
-        [organizationId],
-      ),
-      this.db.query(
-        `SELECT s.contextId id, COALESCE(NULLIF(d.name,''),NULLIF(s.titleSnapshot,''),'اتاق خوابگاه') name,
+            [organizationId],
+          )
+        : Promise.resolve([]),
+      permissions.attendanceReview
+        ? this.db.query(
+            `SELECT s.contextId id, COALESCE(NULLIF(d.name,''),NULLIF(s.titleSnapshot,''),'اتاق خوابگاه') name,
             COUNT(r.id) total, SUM(CASE WHEN r.status='present' THEN 1 ELSE 0 END) present,
             SUM(CASE WHEN r.status='absent' THEN 1 ELSE 0 END) absent
            FROM attendance_sessions s
@@ -296,16 +299,19 @@ export class PrincipalDashboardService {
            WHERE s.organizationId=? AND s.contextType='dorm'
              AND COALESCE(s.operationalDate,date(s.sessionDate))=?
            GROUP BY s.contextId, d.name, s.titleSnapshot ORDER BY absent DESC, total DESC LIMIT 12`,
-        [organizationId, day],
-      ),
-      this.db.query(
-        `SELECT l.id, TRIM(COALESCE(u.firstName,'') || ' ' || COALESCE(u.lastName,'')) teacherName,
+            [organizationId, day],
+          )
+        : Promise.resolve([]),
+      permissions.leaveRead
+        ? this.db.query(
+            `SELECT l.id, TRIM(COALESCE(u.firstName,'') || ' ' || COALESCE(u.lastName,'')) teacherName,
             l.startDate, l.endDate, l.returnDate, l.status, l.returnStatus
            FROM teacher_leave_requests l JOIN users u ON u.id=l.teacherId
            WHERE l.organizationId=? AND (l.status='pending' OR l.returnStatus='pending')
            ORDER BY l.createdAt ASC LIMIT 12`,
-        [organizationId],
-      ),
+            [organizationId],
+          )
+        : Promise.resolve([]),
     ]);
     return {
       teacherSessions: teacherSessions.map((row: Record<string, unknown>) => ({

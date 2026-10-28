@@ -11,10 +11,7 @@ export class PrincipalDashboardController {
 
   @Get("principal")
   @RequireAnyCapabilities(
-    "students.read",
-    "attendance.read",
     "attendance.review",
-    "attendance.reports.read",
     "analytics.read",
     "leave.read",
     "exit.read",

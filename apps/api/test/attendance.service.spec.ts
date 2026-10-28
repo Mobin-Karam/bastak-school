@@ -63,6 +63,7 @@ describe("AttendanceService organization boundaries (real SQLite)", () => {
   let foreignClass: EducationClass;
   let foreignGroup: StudyGroup;
   let foreignRoom: DormRoom;
+  let staff: User;
   let studentA: Student;
   let studentB: Student;
   const realtime = new RealtimeService();
@@ -83,17 +84,17 @@ describe("AttendanceService organization boundaries (real SQLite)", () => {
       { name: "School A", type: OrganizationType.SCHOOL },
       { name: "School B", type: OrganizationType.SCHOOL },
     ]);
-    const user = await db.getRepository(User).save({
+    staff = await db.getRepository(User).save({
       username: "attendance-test-staff",
       passwordHash: "not-a-login-hash",
       role: UserRole.TEACHER,
     });
     await db
       .getRepository(OrganizationMembership)
-      .save({ organization: orgA, user });
+      .save({ organization: orgA, user: staff });
     actor = {
-      id: user.id,
-      username: user.username,
+      id: staff.id,
+      username: staff.username,
       role: "PRINCIPAL",
       roles: ["PRINCIPAL"],
       capabilities: ["attendance.read", "attendance.manage"],
@@ -116,7 +117,7 @@ describe("AttendanceService organization boundaries (real SQLite)", () => {
           gradeId: 1,
           educationTypeId: "school",
           trackId: "general",
-          advisor: user,
+          advisor: staff,
         },
         {
           organization: orgB,
@@ -179,6 +180,42 @@ describe("AttendanceService organization boundaries (real SQLite)", () => {
   });
   afterEach(async () => {
     if (db?.isInitialized) await db.destroy();
+  });
+
+  it("keeps organization-wide academic access separate from dorm access", async () => {
+    const room = await db.getRepository(DormRoom).save({
+      organization: orgA,
+      code: "A-1",
+      name: "Room A",
+    });
+    await db
+      .getRepository(DormRoomAssignment)
+      .save({ room, student: studentA });
+    const academicManager = {
+      ...actor,
+      role: "RELIGIOUS_EDUCATION_MANAGER",
+      roles: ["RELIGIOUS_EDUCATION_MANAGER"],
+    };
+
+    const contexts = await service.listContexts(academicManager);
+    expect(contexts).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ id: assignedClass.id, contextType: "class" }),
+      ]),
+    );
+    expect(contexts).not.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ id: room.id, contextType: "dorm" }),
+      ]),
+    );
+    await expect(
+      service.bulkMark(academicManager, {
+        organizationId: orgA.id,
+        contextType: "dorm",
+        contextId: room.id,
+        entries: [{ studentId: studentA.id, status: "present" }],
+      }),
+    ).rejects.toMatchObject({ response: { error: { code: "FORBIDDEN" } } });
   });
 
   it("keeps a supervisor observation independent and editable for one teacher occurrence", async () => {
@@ -885,6 +922,48 @@ describe("AttendanceService organization boundaries (real SQLite)", () => {
         expect.objectContaining({ action: "attendance.record.corrected" }),
       ]),
     );
+  });
+
+  it("lets the assigned teacher revise a finalized timetable occurrence without reopening it", async () => {
+    const session = await db.getRepository(AttendanceSession).save({
+      organization: orgA,
+      contextType: "class",
+      contextId: assignedClass.id,
+      sessionDate: new Date("2026-10-28T08:00:00.000Z"),
+      sourceKind: "class_schedule",
+      occurrenceKey: `finalized-teacher-edit:${randomUUID()}`,
+      status: "finalized",
+      assignedStaff: staff,
+      rosterSnapshot: [
+        {
+          id: studentA.id,
+          name: studentA.name,
+          nationalCode: null,
+          userId: null,
+        },
+      ],
+    });
+    const teacher = {
+      ...actor,
+      role: "TEACHER",
+      roles: ["TEACHER"],
+      capabilities: ["attendance.class.manage"],
+    };
+
+    const result = await service.submitAbsences(teacher, session.id, {
+      requestId: randomUUID(),
+      expectedRevision: 0,
+      absentStudentIds: [studentA.id],
+    });
+
+    expect(result).toMatchObject({ status: "finalized", revision: 1 });
+    expect(
+      await db
+        .getRepository(AttendanceRecord)
+        .findOneByOrFail({ session: { id: session.id } }),
+    ).toMatchObject({
+      status: AttendanceStatus.ABSENT,
+    });
   });
 
   it("records daily principal reviews against the exact attendance revision", async () => {

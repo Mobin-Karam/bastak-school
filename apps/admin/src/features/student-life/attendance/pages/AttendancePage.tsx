@@ -100,7 +100,7 @@ function errorText(error: unknown, fallback: string) {
 export function AttendancePage() {
   const auth = useAuth();
   const canViewStaffSessions = auth.canAny(["attendance.review", "attendance.class.read"]);
-  const isSupervisor = auth.context?.roles.includes("SCHOOL_SUPERVISOR") ?? false;
+  const isSupervisor = auth.context?.roles?.includes("SCHOOL_SUPERVISOR") ?? false;
   const { profile } = useLocale();
   const navigate = useNavigate();
   const [linkedSession, setLinkedSession] = useState<AttendanceSessionDetail | null>(null);
@@ -113,12 +113,19 @@ export function AttendancePage() {
   }, [linkedSession?.id, linkedSession?.scheduledStartAt, linkedSession?.scheduledEndAt]);
   const sessionWindow = linkedSession ? attendanceSessionWindow(linkedSession, windowNow) : null;
   const sessionWindowActive = !sessionWindow || sessionWindow.active;
+  const canEditHistoricalTimetableSession =
+    linkedSession?.sourceKind === "class_schedule" &&
+    linkedSession.assignedStaffId === auth.user?.id &&
+    auth.can("attendance.class.manage");
+  const canManageLinkedSession =
+    auth.can("attendance.manage") ||
+    (linkedSession?.contextType === "class" && auth.can("attendance.class.manage"));
   const canManage = linkedSession
     ? linkedSession.status !== "cancelled" &&
-      linkedSession.status !== "finalized" &&
-      (linkedSession.scheduledStartAt !== null || sessionWindowActive) &&
-      (auth.can("attendance.manage") ||
-        (linkedSession.contextType === "class" && auth.can("attendance.class.manage")))
+      (canEditHistoricalTimetableSession ||
+        (linkedSession.status !== "finalized" &&
+          (linkedSession.scheduledStartAt !== null || sessionWindowActive))) &&
+      canManageLinkedSession
     : auth.can("attendance.manage");
   const sections: AttendanceSection[] = [
     ...contextOrder,

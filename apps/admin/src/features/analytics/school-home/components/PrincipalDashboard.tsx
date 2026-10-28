@@ -103,7 +103,10 @@ export function PrincipalDashboard() {
   ].filter((item) => auth.can(item.capability));
   return (
     <main className="principal-dashboard mx-auto grid w-full max-w-7xl gap-4" dir="rtl">
-      <PrincipalOperationalLists lists={data.principalLists} />
+      <PrincipalOperationalLists
+        lists={data.principalLists}
+        canReviewAttendance={auth.can("attendance.review")}
+      />
       <section className="principal-dashboard__principal-layout" aria-label="داشبورد مدیر مدرسه">
         {auth.can("attendance.review") && data.sessionReviews ? (
           <Card className="principal-dashboard__session-reviews space-y-4 p-5">

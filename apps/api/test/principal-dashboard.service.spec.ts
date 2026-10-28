@@ -151,12 +151,33 @@ describe("PrincipalDashboardService", () => {
     expect(dashboard).not.toHaveProperty("behaviour");
     expect(dashboard).not.toHaveProperty("queues");
     expect(dashboard).not.toHaveProperty("sessionReviews");
+    expect(dashboard).not.toHaveProperty("principalLists");
     expect(dashboard.operations).toEqual({
       activeStudents: 0,
       currentlyOut: 0,
       scheduleEntries: 0,
       staff: 0,
     });
+  });
+
+  it("never exposes operational principal lists to an attendance reader", async () => {
+    const query = jest.fn().mockResolvedValue([]);
+    const service = new PrincipalDashboardService({ query } as never);
+
+    const dashboard = await service.get(
+      {
+        ...principal,
+        roles: ["TEACHER"],
+        role: "TEACHER",
+        capabilities: ["attendance.read"],
+      },
+      "2026-10-14",
+      "2026-10-20",
+    );
+
+    expect(dashboard).not.toHaveProperty("attendance");
+    expect(dashboard).not.toHaveProperty("principalLists");
+    expect(query).not.toHaveBeenCalled();
   });
 
   it("requires an explicit active organization and rejects unbounded or invalid date ranges", async () => {

@@ -25,11 +25,18 @@ const statusLabel = {
   supervisor_missing: "بررسی ناظر نشده",
 };
 
-export function PrincipalOperationalLists({ lists }: { lists?: Lists }) {
+export function PrincipalOperationalLists({
+  lists,
+  canReviewAttendance,
+}: {
+  lists?: Lists;
+  canReviewAttendance: boolean;
+}) {
   const modal = useModal();
   const comparisons = useQuery({
     queryKey: ["principal-supervisor-comparisons"],
     queryFn: listSupervisorComparisons,
+    enabled: canReviewAttendance,
     refetchInterval: 30_000,
   });
   const openComparison = (item: SupervisorComparison) =>

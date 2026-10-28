@@ -46,6 +46,7 @@ vi.mock("../../../identity/auth", () => ({
   useAuth: () => ({
     can: canMock,
     canAny: canAnyMock,
+    user: { id: "teacher-1" },
     context: { activeOrganization: { id: "org-1" } },
   }),
 }));
@@ -581,6 +582,50 @@ describe("AttendancePage", () => {
     const group = await screen.findByRole("group", { name: "وضعیت علی" });
     expect(within(group).queryByRole("button", { name: "حاضر" })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "تأیید حضور همه" })).toBeEnabled();
+    await user.click(within(group).getByRole("button", { name: "غایب" }));
+    await user.click(screen.getByRole("button", { name: /بررسی و ثبت حضور/ }));
+    await user.click(screen.getByRole("button", { name: "تأیید و ثبت" }));
+    await waitFor(() => expect(submitAttendanceAbsencesMock).toHaveBeenCalledOnce());
+  });
+
+  it("keeps a finalized timetable occurrence editable for its assigned teacher", async () => {
+    canMock.mockImplementation((capability: string) => capability === "attendance.class.manage");
+    listAttendanceContextsMock.mockResolvedValue([
+      {
+        id: "class-1",
+        contextType: "class",
+        name: "کلاس",
+        total: 1,
+        activeOrganizationId: "org-1",
+      },
+    ]);
+    getSavedAttendanceSessionMock.mockResolvedValue({
+      id: "session-1",
+      contextType: "class",
+      contextId: "class-1",
+      title: "کلاس",
+      revision: 2,
+      status: "finalized",
+      sourceKind: "class_schedule",
+      assignedStaffId: "teacher-1",
+      organizationId: "org-1",
+      roster: [{ id: "student-1", name: "علی" }],
+      records: [],
+    });
+    const user = userEvent.setup();
+    render(
+      <MemoryRouter
+        initialEntries={[
+          "/admin/attendance?contextType=class&contextId=class-1&sessionId=session-1",
+        ]}
+      >
+        <LocaleProvider>
+          <AttendancePage />
+        </LocaleProvider>
+      </MemoryRouter>,
+    );
+
+    const group = await screen.findByRole("group", { name: "وضعیت علی" });
     await user.click(within(group).getByRole("button", { name: "غایب" }));
     await user.click(screen.getByRole("button", { name: /بررسی و ثبت حضور/ }));
     await user.click(screen.getByRole("button", { name: "تأیید و ثبت" }));

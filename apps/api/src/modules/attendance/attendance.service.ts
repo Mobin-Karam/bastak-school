@@ -204,6 +204,7 @@ export class AttendanceService {
       scheduledStartAt: session.scheduledStartAt?.toISOString() ?? null,
       scheduledEndAt: session.scheduledEndAt?.toISOString() ?? null,
       timeZone: session.timeZone,
+      sourceKind: session.sourceKind ?? null,
       status: session.status,
       revision: session.revision,
       assignedStaffId: session.assignedStaff?.id ?? null,
@@ -342,7 +343,7 @@ export class AttendanceService {
       }),
     ]);
     const schoolWide = this.schoolWide(user);
-    const canDorm = schoolWide || user.roles?.includes("DISCIPLINARIAN");
+    const canDorm = this.dormWide(user);
     return [
       ...classes
         .filter(
@@ -1000,7 +1001,14 @@ export class AttendanceService {
         "ATTENDANCE_ROSTER_SNAPSHOT_REQUIRED",
         "فهرست قطعی جلسه موجود نیست؛ ثبت غایب‌محور ممکن نیست.",
       );
-    if (session.status === "cancelled" || session.status === "finalized")
+    const assignedTimetableTeacher =
+      session.sourceKind === "class_schedule" &&
+      session.assignedStaff?.id === user.id &&
+      user.capabilities?.includes("attendance.class.manage");
+    if (
+      session.status === "cancelled" ||
+      (session.status === "finalized" && !assignedTimetableTeacher)
+    )
       throw new ApiException(
         409,
         "ATTENDANCE_SESSION_LOCKED",
@@ -1882,6 +1890,12 @@ export class AttendanceService {
         session?.sourceKind === "class_schedule" &&
         session.assignedStaff?.id === user.id &&
         user.capabilities?.includes("attendance.class.manage");
+      if (session?.status === "finalized" && !assignedTeacher)
+        throw new ApiException(
+          409,
+          "ATTENDANCE_SESSION_LOCKED",
+          "جلسه نهایی‌شده فقط توسط استاد همان درس قابل اصلاح است.",
+        );
       if (!assignedTeacher)
         await this.assertContextAccess(
           user,
@@ -2027,7 +2041,9 @@ export class AttendanceService {
       if (options.submit) {
         const revisingTimetableOccurrence =
           session.sourceKind === "class_schedule" &&
-          session.status === "submitted";
+          (session.status === "submitted" || session.status === "finalized") &&
+          session.assignedStaff?.id === user.id &&
+          user.capabilities?.includes("attendance.class.manage");
         if (
           !revisingTimetableOccurrence &&
           session.status !== "open" &&
@@ -2850,13 +2866,15 @@ export class AttendanceService {
         "کلاس، گروه یا اتاق متعلق به سازمان انتخاب‌شده نیست.",
       );
     }
-    if (this.schoolWide(user)) return;
-    if (type === "dorm")
+    if (type === "dorm") {
+      if (this.dormWide(user)) return;
       throw new ApiException(
         403,
         "FORBIDDEN",
         "دسترسی خوابگاه برای این نقش مجاز نیست.",
       );
+    }
+    if (this.schoolWide(user)) return;
     const classroom =
       type === "class"
         ? await this.classes.findOne({
@@ -2945,6 +2963,17 @@ export class AttendanceService {
       "DISCIPLINARIAN",
       "RELIGIOUS_EDUCATION_MANAGER",
       "GOVERNMENT_EDUCATION_MANAGER",
+      "SCHOOL_SUPERVISOR",
+    ].some((role) => (user.roles ?? [user.role]).includes(role));
+  }
+
+  /** Academic leaders can be organization-wide for classes, but dorm access is explicit. */
+  private dormWide(user: AuthenticatedUser) {
+    return [
+      "PLATFORM_ADMIN",
+      "ORGANIZATION_ADMIN",
+      "PRINCIPAL",
+      "DISCIPLINARIAN",
       "SCHOOL_SUPERVISOR",
     ].some((role) => (user.roles ?? [user.role]).includes(role));
   }
