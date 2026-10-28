@@ -795,6 +795,7 @@ function ScheduleWorkspace({
   );
   const [classTabIds, setClassTabIds] = useState<string[]>([]);
   const [activeTab, setActiveTab] = useState<"main" | string>("main");
+  const [classPickerOpen, setClassPickerOpen] = useState(false);
   const selectedClassroom =
     activeTab === "main"
       ? undefined
@@ -805,6 +806,7 @@ function ScheduleWorkspace({
       current.includes(classroomId) ? current : [...current, classroomId],
     );
     setActiveTab(classroomId);
+    setClassPickerOpen(false);
   };
   const closeClassTab = (classroomId: string) => {
     const tabIndex = classTabIds.indexOf(classroomId);
@@ -817,7 +819,15 @@ function ScheduleWorkspace({
 
   return (
     <section className="flex flex-col gap-3" aria-label="برنامه هفتگی مدرسه">
-      {selectedClassroom ? (
+      {classPickerOpen ? (
+        <ClassTabPicker
+          classes={activeClasses}
+          entries={activeScheduleEntries}
+          openTabs={classTabIds}
+          onSelect={openClassTab}
+          onCancel={() => setClassPickerOpen(false)}
+        />
+      ) : selectedClassroom ? (
         <ClassScheduleBoard
           classroom={selectedClassroom}
           entries={activeScheduleEntries.filter(
@@ -1006,7 +1016,10 @@ function ScheduleWorkspace({
         </Card>
       )}
 
-      {(canEdit || canArchive || canDelete) && archivedEntries.length ? (
+      {!classPickerOpen &&
+      !selectedClassroom &&
+      (canEdit || canArchive || canDelete) &&
+      archivedEntries.length ? (
         <Card className="p-3">
           <div className="flex items-center gap-2">
             <Archive size={17} className="text-slate-500" aria-hidden="true" />
@@ -1094,29 +1107,99 @@ function ScheduleWorkspace({
             </span>
           );
         })}
-        <label className="relative ms-auto block w-10 shrink-0" title="باز کردن برنامه یک کلاس">
-          <span className="sr-only">انتخاب کلاس برای باز کردن برگه</span>
-          <AdaptiveSelect
-            value=""
-            onValueChange={openClassTab}
-            menuSide="top"
-            menuAlign="end"
-            menuMaxHeight={420}
-            menuClassName="min-w-[min(22rem,calc(100vw-1.5rem))] text-base [&_[role=option]]:min-h-12 [&_[role=option]]:text-base [&_[role=option]]:font-bold"
-            aria-label="انتخاب کلاس برای باز کردن برگه"
-            className="min-h-9 justify-center border-dashed border-brand/45 bg-brand/5 px-2 text-center text-brand [&>span]:text-lg [&>svg]:hidden"
-          >
-            <option value="" disabled>
-              ＋
-            </option>
-            {activeClasses.map((classroom) => (
-              <option key={classroom.id} value={classroom.id}>
-                {classroom.name}
-              </option>
-            ))}
-          </AdaptiveSelect>
-        </label>
+        <button
+          type="button"
+          onClick={() => setClassPickerOpen((open) => !open)}
+          aria-expanded={classPickerOpen}
+          aria-controls="schedule-class-picker"
+          className={`ms-auto grid size-9 shrink-0 place-items-center rounded-lg border outline-none transition focus-visible:ring-2 focus-visible:ring-brand ${
+            classPickerOpen
+              ? "border-brand bg-brand text-white"
+              : "border-dashed border-brand/45 bg-brand/5 text-brand hover:bg-brand/10"
+          }`}
+          aria-label={classPickerOpen ? "بستن انتخاب کلاس" : "باز کردن انتخاب کلاس"}
+          title={classPickerOpen ? "بستن انتخاب کلاس" : "باز کردن برنامه یک کلاس"}
+        >
+          {classPickerOpen ? (
+            <X size={17} aria-hidden="true" />
+          ) : (
+            <Plus size={18} aria-hidden="true" />
+          )}
+        </button>
       </nav>
+    </section>
+  );
+}
+
+function ClassTabPicker({
+  classes,
+  entries,
+  openTabs,
+  onSelect,
+  onCancel,
+}: {
+  classes: EducationClass[];
+  entries: ScheduleEntry[];
+  openTabs: string[];
+  onSelect: (classroomId: string) => void;
+  onCancel: () => void;
+}) {
+  return (
+    <section
+      id="schedule-class-picker"
+      className="rounded-2xl border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card))] p-4 shadow-[0_16px_28px_-26px_rgba(18,52,86,.45)] sm:p-5"
+      aria-labelledby="schedule-class-picker-title"
+      dir="rtl"
+    >
+      <header className="flex flex-wrap items-start justify-between gap-3 border-b border-[rgb(var(--border-subtle))] pb-4">
+        <div>
+          <p className="text-xs font-black text-brand">برگه جدید</p>
+          <h2 id="schedule-class-picker-title" className="mt-1 text-xl font-black text-ink">
+            یک کلاس را برای مشاهده برنامه انتخاب کنید
+          </h2>
+          <p className="mt-1 text-sm text-slate-500 dark:text-slate-300">
+            با انتخاب هر کارت، برنامه همان کلاس در یک برگه جدید باز می‌شود.
+          </p>
+        </div>
+        <Button variant="ghost" onClick={onCancel}>
+          انصراف
+        </Button>
+      </header>
+      <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+        {classes.map((classroom) => {
+          const classEntries = entries.filter((entry) => entry.classroom?.id === classroom.id);
+          const teacherCount = new Set(classEntries.map(teacherName).filter(Boolean)).size;
+          const alreadyOpen = openTabs.includes(classroom.id);
+          return (
+            <button
+              key={classroom.id}
+              type="button"
+              onClick={() => onSelect(classroom.id)}
+              className="group rounded-2xl border border-slate-200 bg-[linear-gradient(145deg,#fff,#f3f9ff)] p-4 text-right outline-none transition hover:-translate-y-0.5 hover:border-brand/45 hover:shadow-lg focus-visible:ring-2 focus-visible:ring-brand motion-reduce:transform-none dark:border-white/10 dark:bg-white/[.04]"
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <h3 className="text-lg font-black text-ink">{classroom.name}</h3>
+                  <p className="mt-1 text-xs font-bold text-slate-500 dark:text-slate-300">
+                    {classroom.schoolYear}
+                  </p>
+                </div>
+                {alreadyOpen ? (
+                  <span className="rounded-full bg-brand/10 px-2 py-1 text-[10px] font-black text-brand">
+                    باز است
+                  </span>
+                ) : null}
+              </div>
+              <div className="mt-4 grid grid-cols-3 gap-2 border-t border-slate-200 pt-3 text-center dark:border-white/10">
+                <ClassScheduleMetric label="جلسه" value={classEntries.length} />
+                <ClassScheduleMetric label="درس" value={classroom.books.length} />
+                <ClassScheduleMetric label="دبیر" value={teacherCount} />
+              </div>
+            </button>
+          );
+        })}
+      </div>
+      {!classes.length ? <EmptyState title="کلاس فعالی برای انتخاب وجود ندارد." /> : null}
     </section>
   );
 }
