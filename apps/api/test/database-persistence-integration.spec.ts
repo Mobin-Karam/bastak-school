@@ -1045,5 +1045,25 @@ describe("migration-backed persistence and verified recovery (disposable SQLite 
       startTime: "08:00",
       endTime: "09:00",
     });
+    await schedule.createAcademicTerm(scoped, {
+      academicYearId: academicYear.id,
+      name: "نیم‌سال دوم",
+      startsOn: "2027-02-01",
+      endsOn: "2027-06-22",
+    });
+    await schedule.academicYearLifecycle(scoped, academicYear.id, { action: "activate" });
+    const archivedTermEntry = await schedule.create(scoped, {
+      ...dto,
+      title: "جلسه بایگانی‌شونده",
+      academicYearId: academicYear.id,
+      termId: academicTerm.id,
+    });
+    await schedule.academicTermLifecycle(scoped, academicTerm.id, { action: "archive" });
+    await expect(
+      schedule.update(scoped, archivedTermEntry.id, {
+        ...dto,
+        title: "نباید ویرایش شود",
+      }),
+    ).rejects.toThrow();
   });
 });

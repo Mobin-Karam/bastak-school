@@ -402,6 +402,24 @@ export class ScheduleService {
     });
     return rows.filter((row) => row.metadata?.id === id);
   }
+  private async assertLegacyScheduleWritable(entry: SchoolScheduleEntry) {
+    if (!entry.academicYearId && !entry.termId) return;
+    const year = entry.academicYearId
+      ? await this.academicYearRepo.findOneBy({ id: entry.academicYearId })
+      : null;
+    const term = entry.academicYearId && entry.termId
+      ? await this.academicTerms.findOneBy({
+          id: entry.termId,
+          academicYearId: entry.academicYearId,
+        })
+      : null;
+    if (!year || !term || year.state === "ARCHIVED" || term.state === "ARCHIVED")
+      throw new ApiException(
+        409,
+        "SCHEDULE_ACADEMIC_TERM_LOCKED",
+        "برنامهٔ نیم‌سال بایگانی‌شده فقط خواندنی است؛ بازگشایی تاریخی فقط برای اصلاح حضور و غیاب است.",
+      );
+  }
   private weekdayForDate(date: string) {
     return (new Date(`${date}T12:00:00Z`).getUTCDay() + 1) % 7;
   }
@@ -1871,6 +1889,7 @@ export class ScheduleService {
         "TIMETABLE_IMMUTABLE",
         "این درس را از نسخه برنامه درسی مدیریت کنید.",
       );
+    await this.assertLegacyScheduleWritable(item);
     if (dto.organizationId !== item.organization.id)
       throw new ApiException(
         422,
@@ -1933,6 +1952,7 @@ export class ScheduleService {
         "TIMETABLE_IMMUTABLE",
         "این درس را از نسخه برنامه درسی مدیریت کنید.",
       );
+    await this.assertLegacyScheduleWritable(item);
     item.status = dto.status;
     return this.entries.save(item).then((entry) => this.publicEntry(entry));
   }
@@ -1957,6 +1977,7 @@ export class ScheduleService {
         "TIMETABLE_IMMUTABLE",
         "این درس را از نسخه برنامه درسی مدیریت کنید.",
       );
+    await this.assertLegacyScheduleWritable(item);
     await this.entries.remove(item);
     return { deleted: true };
   }
