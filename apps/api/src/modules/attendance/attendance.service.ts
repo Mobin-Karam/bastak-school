@@ -569,13 +569,27 @@ export class AttendanceService {
 
   async listSupervisorComparisons(user: AuthenticatedUser) {
     this.assertReviewAccess(user);
+    const roles = user.roles?.length ? user.roles : [user.role];
+    if (
+      !roles.some((role) =>
+        ["PRINCIPAL", "ORGANIZATION_ADMIN", "PLATFORM_ADMIN"].includes(role),
+      )
+    )
+      throw new ApiException(
+        403,
+        "SUPERVISOR_COMPARISONS_PRINCIPAL_ONLY",
+        "تطبیق حضور استاد و ناظر فقط برای مدیر مدرسه در دسترس است.",
+      );
     const ids = await this.access.scopedOrganizationIds(
       this.effectiveUser(user),
       user.activeOrganizationId || undefined,
     );
     if (!ids.length) return [];
     const sessions = await this.sessions.find({
-      where: { organization: { id: In(ids) }, sourceKind: "class_schedule" },
+      where: {
+        organization: { id: In(ids) },
+        sourceKind: In(["class_schedule", "legacy_schedule"]),
+      },
       relations: {
         organization: true,
         assignedStaff: true,

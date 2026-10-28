@@ -223,6 +223,29 @@ describe("AttendanceService organization boundaries (real SQLite)", () => {
     ).rejects.toMatchObject({ response: { error: { code: "FORBIDDEN" } } });
   });
 
+  it("keeps supervisor comparisons principal-only and includes legacy schedule sessions", async () => {
+    await db.getRepository(AttendanceSession).save({
+      organization: orgA,
+      contextType: "class",
+      contextId: assignedClass.id,
+      sessionDate: new Date("2026-10-12T08:00:00Z"),
+      titleSnapshot: "جلسهٔ legacy",
+      sourceKind: "legacy_schedule",
+      assignedStaff: staff,
+      rosterSnapshot: [],
+    });
+    const principal = { ...actor, capabilities: ["attendance.review"] };
+    expect(await service.listSupervisorComparisons(principal)).toEqual(
+      expect.arrayContaining([expect.objectContaining({ className: "جلسهٔ legacy" })]),
+    );
+    await expect(
+      service.listSupervisorComparisons({
+        ...principal,
+        roles: ["RELIGIOUS_EDUCATION_MANAGER"],
+      }),
+    ).rejects.toMatchObject({ status: 403 });
+  });
+
   it("persists a manually reconciled historical session with academic snapshots and an audit trail", async () => {
     const year = await db.getRepository(SchoolAcademicYear).save({
       organizationId: orgA.id,
