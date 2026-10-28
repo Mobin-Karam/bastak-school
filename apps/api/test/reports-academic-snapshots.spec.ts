@@ -82,8 +82,14 @@ describe("teacher report academic snapshots", () => {
       roles: ["PRINCIPAL"],
       capabilities: ["attendance.review"],
       organizationIds: [organization.id],
-    } as never;
-    expect(await service.teacherReportsForPrincipal(principal, { academicYearId: "year-1", termId: "term-1" })).toHaveLength(1);
-    expect(await service.teacherReportsForPrincipal(principal, { termId: "other-term" })).toHaveLength(0);
+    };
+    expect(await service.teacherReportsForPrincipal(principal as never, { academicYearId: "year-1", termId: "term-1" })).toHaveLength(1);
+    expect(await service.teacherReportsForPrincipal(principal as never, { termId: "other-term" })).toHaveLength(0);
+    await expect(
+      service.teacherReportsForPrincipal({
+        ...principal,
+        roles: ["RELIGIOUS_EDUCATION_MANAGER"],
+      } as never),
+    ).rejects.toMatchObject({ status: 403 });
   });
 });

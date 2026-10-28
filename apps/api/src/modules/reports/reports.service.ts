@@ -32,6 +32,19 @@ export class ReportsService {
     private readonly sessions: Repository<AttendanceSession>,
   ) {}
 
+  private assertPrincipalOperator(context: UserContext) {
+    if (
+      !context.roles.some((role) =>
+        ["PRINCIPAL", "ORGANIZATION_ADMIN", "PLATFORM_ADMIN"].includes(role),
+      )
+    )
+      throw new ApiException(
+        403,
+        "TEACHER_REPORTS_PRINCIPAL_ONLY",
+        "گزارش‌های خصوصی استاد فقط برای مدیر مدرسه در دسترس است.",
+      );
+  }
+
   async saveReport(userId: string, dto: CreateDailyReportDto) {
     const student = await this.studentForUser(userId);
     let report = await this.reports.findOne({
@@ -159,6 +172,7 @@ export class ReportsService {
     filters: { academicYearId?: string; termId?: string } = {},
   ) {
     this.authorization.requireCapability(context, "attendance.review");
+    this.assertPrincipalOperator(context);
     const rows = await this.teacherReports.find({
       where: {
         ...(filters.academicYearId ? { academicYearIdSnapshot: filters.academicYearId } : {}),
@@ -203,6 +217,7 @@ export class ReportsService {
 
   async markTeacherReportSeen(context: UserContext, id: string) {
     this.authorization.requireCapability(context, "attendance.review");
+    this.assertPrincipalOperator(context);
     const row = await this.teacherReports.findOne({
       where: { id },
       relations: { organization: true },
