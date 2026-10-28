@@ -915,11 +915,11 @@ export class AttendanceService {
         "ATTENDANCE_HISTORICAL_TERM",
         "سال، نیم‌سال و تاریخ جلسه تاریخی باید با هم سازگار باشند.",
       );
-    if (term.state === "ARCHIVED" && !term.correctionOpen)
+    if (term.state === "ARCHIVED" || term.correctionOpen)
       throw new ApiException(
         409,
         "ATTENDANCE_TERM_ARCHIVED",
-        "برای اصلاح تاریخچه، نیم‌سال بایگانی‌شده را بازگشایی اصلاحی کنید.",
+        "نیم‌سال بایگانی‌شده یا بازگشایی‌شده برای اصلاح، جلسهٔ جدید نمی‌پذیرد.",
       );
     const classroom = await this.classes.findOne({
       where: { id: dto.classroomId, organization: { id: organization.id } },

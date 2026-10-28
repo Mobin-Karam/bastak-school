@@ -274,6 +274,23 @@ describe("AttendanceService organization boundaries (real SQLite)", () => {
       subjectNameSnapshot: book.titleFa,
     });
     expect(await db.getRepository(AuditLog).countBy({ action: "attendance.historical_session.created" })).toBe(1);
+    await db.getRepository(SchoolAcademicTerm).update(
+      { id: term.id },
+      { state: "ARCHIVED", correctionOpen: true },
+    );
+    await expect(
+      service.createHistoricalSession(actor, {
+        organizationId: orgA.id,
+        academicYearId: year.id,
+        termId: term.id,
+        classroomId: assignedClass.id,
+        teacherId: staff.id,
+        subjectId: book.id,
+        title: "جلسهٔ جدید ممنوع",
+        date: "2026-10-13",
+        reason: "نباید ثبت شود",
+      }),
+    ).rejects.toMatchObject({ status: 409 });
   });
 
   it("keeps a supervisor observation independent and editable for one teacher occurrence", async () => {
