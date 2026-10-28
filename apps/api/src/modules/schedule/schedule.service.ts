@@ -533,7 +533,7 @@ export class ScheduleService {
     const context = this.context(user);
     this.authorization.requireCapability(context, "schedule.read");
     const reviewer =
-      this.isOperator(context) &&
+      this.isPrincipalOperator(context) &&
       user.capabilities?.includes("schedule.publish");
     const rows = await this.teacherLeaves.find({
       where: reviewer
