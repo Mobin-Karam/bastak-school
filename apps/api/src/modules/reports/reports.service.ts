@@ -127,7 +127,7 @@ export class ReportsService {
     });
     if (
       !session ||
-      (["class_schedule", "legacy_schedule"].includes(session.sourceKind ?? "")
+      (["class_schedule", "legacy_schedule", "legacy_import"].includes(session.sourceKind ?? "")
         ? session.assignedStaff?.id !== context.id
         : session.createdBy?.id !== context.id)
     )

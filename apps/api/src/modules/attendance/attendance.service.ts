@@ -458,7 +458,7 @@ export class AttendanceService {
       });
   }
 
-  /** The supervisor queue intentionally contains timetable lessons, not the teacher's context list. */
+  /** The supervisor queue contains saved class occurrences, never the teacher's live context list. */
   async listSupervisorSessions(user: AuthenticatedUser) {
     this.assertSupervisor(user);
     const ids = await this.access.scopedOrganizationIds(
@@ -467,7 +467,10 @@ export class AttendanceService {
     );
     if (!ids.length) return [];
     const rows = await this.sessions.find({
-      where: { organization: { id: In(ids) }, sourceKind: "class_schedule" },
+      where: {
+        organization: { id: In(ids) },
+        sourceKind: In(["class_schedule", "legacy_schedule", "legacy_import"]),
+      },
       relations: { organization: true, assignedStaff: true, records: true },
       order: { sessionDate: "DESC", id: "DESC" },
       take: 250,
@@ -504,7 +507,10 @@ export class AttendanceService {
   ) {
     this.assertSupervisor(user);
     const session = await this.sessions.findOne({
-      where: { id: sessionId, sourceKind: "class_schedule" },
+      where: {
+        id: sessionId,
+        sourceKind: In(["class_schedule", "legacy_schedule", "legacy_import"]),
+      },
       relations: { organization: true },
     });
     if (!session)
@@ -588,7 +594,7 @@ export class AttendanceService {
     const sessions = await this.sessions.find({
       where: {
         organization: { id: In(ids) },
-        sourceKind: In(["class_schedule", "legacy_schedule"]),
+        sourceKind: In(["class_schedule", "legacy_schedule", "legacy_import"]),
       },
       relations: {
         organization: true,
@@ -2216,7 +2222,7 @@ export class AttendanceService {
           });
           const assigned =
             !!receiptSession &&
-            ["class_schedule", "legacy_schedule"].includes(
+            ["class_schedule", "legacy_schedule", "legacy_import"].includes(
               receiptSession?.sourceKind ?? "",
             ) &&
             receiptSession.assignedStaff?.id === user.id &&
@@ -2290,7 +2296,7 @@ export class AttendanceService {
       await this.assertAcademicSessionWritable(manager, session);
       if (
         session &&
-        (["class_schedule", "legacy_schedule"].includes(
+        (["class_schedule", "legacy_schedule", "legacy_import"].includes(
           session.sourceKind ?? "",
         ) ||
           dto.expectedRevision !== undefined) &&
@@ -2313,7 +2319,7 @@ export class AttendanceService {
       // sessions keep the normal time-window rule.
       if (!(
         options.allowHistoricalOccurrence &&
-        ["class_schedule", "legacy_schedule"].includes(
+        ["class_schedule", "legacy_schedule", "legacy_import"].includes(
           session?.sourceKind ?? "",
         )
       ))
@@ -2493,7 +2499,9 @@ export class AttendanceService {
       }
       if (options.submit) {
         const revisingTimetableOccurrence =
-          session.sourceKind === "class_schedule" &&
+          ["class_schedule", "legacy_schedule", "legacy_import"].includes(
+            session.sourceKind ?? "",
+          ) &&
           (session.status === "submitted" || session.status === "finalized") &&
           session.assignedStaff?.id === user.id &&
           user.capabilities?.includes("attendance.class.manage");
