@@ -43,6 +43,7 @@ import { DormRoomAssignment } from "../../database/entities/dorm-room-assignment
 import { DormRoom } from "../../database/entities/dorm-room.entity";
 import { EducationClassEnrollment } from "../../database/entities/education-class-enrollment.entity";
 import { EducationClass } from "../../database/entities/education-class.entity";
+import { EducationBook } from "../../database/entities/education-book.entity";
 import { Student } from "../../database/entities/student.entity";
 import { StudyGroupMembership } from "../../database/entities/study-group-membership.entity";
 import { StudyGroup } from "../../database/entities/study-group.entity";
@@ -929,7 +930,29 @@ export class AttendanceService {
         "ATTENDANCE_CONTEXT_NOT_FOUND",
         "کلاس در مدرسه فعال پیدا نشد.",
       );
-    const key = `legacy-import:${dto.classroomId}:${dto.subjectId ?? "manual"}:${dto.date}:${dto.title.trim()}`;
+    const teacherMembership = await this.memberships.findOne({
+      where: {
+        organization: { id: organization.id },
+        user: { id: dto.teacherId },
+        status: MembershipStatus.ACTIVE,
+      },
+    });
+    if (!teacherMembership)
+      throw new ApiException(
+        422,
+        "ATTENDANCE_HISTORICAL_TEACHER",
+        "استاد انتخاب‌شده عضو فعال این مدرسه نیست.",
+      );
+    const book = await this.sessions.manager
+      .getRepository(EducationBook)
+      .findOneBy({ id: dto.subjectId });
+    if (!book)
+      throw new ApiException(
+        422,
+        "ATTENDANCE_HISTORICAL_BOOK",
+        "کتاب انتخاب‌شده پیدا نشد.",
+      );
+    const key = `legacy-import:${dto.classroomId}:${dto.subjectId}:${dto.date}:${dto.title.trim()}`;
     const existing = await this.sessions.findOne({
       where: { organization: { id: organization.id }, occurrenceKey: key },
     });
@@ -947,13 +970,13 @@ export class AttendanceService {
         sourceKind: "legacy_import",
         historicalImportReason: dto.reason.trim(),
         titleSnapshot: dto.title.trim(),
-        subjectIdSnapshot: dto.subjectId ?? null,
-        subjectNameSnapshot: dto.subjectName?.trim() || null,
+        subjectIdSnapshot: book.id,
+        subjectNameSnapshot: book.titleFa,
         academicYearIdSnapshot: year.id,
         academicYearNameSnapshot: year.name,
         termIdSnapshot: term.id,
         termNameSnapshot: term.name,
-        assignedStaff: dto.teacherId ? ({ id: dto.teacherId } as User) : null,
+        assignedStaff: { id: dto.teacherId } as User,
         assignedStaffNameSnapshot: "",
         rosterSnapshot: roster.map((member) => ({
           id: member.id,
@@ -966,6 +989,22 @@ export class AttendanceService {
         note: dto.reason.trim(),
       }),
     );
+    await this.sessions.manager.getRepository(AuditLog).save({
+      user: { id: user.id } as User,
+      organizationId: organization.id,
+      action: "attendance.historical_session.created",
+      entity: "attendance",
+      metadata: {
+        sessionId: row.id,
+        sourceKind: row.sourceKind,
+        academicYearId: year.id,
+        termId: term.id,
+        classroomId: classroom.id,
+        teacherId: dto.teacherId,
+        bookId: book.id,
+        reason: dto.reason.trim(),
+      },
+    });
     return { id: row.id, revision: row.revision, duplicate: false };
   }
 

@@ -15,6 +15,8 @@ import { api } from "../../../../shared/api/api";
 import type { AttendanceContextOption } from "../api/attendance.api";
 import { contextLabelMap } from "../api/attendance.api";
 import { listLegacyAcademicCycles } from "../../../academics/schedule/api/schedule.api";
+import { listAcademicTeachers } from "../../../academics/education/api/academic.api";
+import { getEducationBooks } from "../../../academics/subjects/api/subjects.api";
 import {
   closeAttendancePool,
   createAttendancePool,
@@ -24,6 +26,7 @@ import {
   getAttendanceHistorySessions,
   getHistoricalAttendanceCandidates,
   importLegacyScheduleOccurrence,
+  createHistoricalAttendanceSession,
   getAttendancePools,
   getAttendanceProfile,
   getSavedAttendanceSession,
@@ -725,6 +728,15 @@ export function AttendanceStaffWorkspace({
   const [academicYearId, setAcademicYearId] = useState("");
   const [termId, setTermId] = useState("");
   const [reconciliationOpen, setReconciliationOpen] = useState(false);
+  const [manualHistoricalOpen, setManualHistoricalOpen] = useState(false);
+  const [manualHistorical, setManualHistorical] = useState({
+    classroomId: "",
+    teacherId: "",
+    subjectId: "",
+    date: "",
+    title: "",
+    reason: "",
+  });
   const [sessionsPage, setSessionsPage] = useState(1);
   const [poolContextFilter, setPoolContextFilter] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -838,6 +850,16 @@ export function AttendanceStaffWorkspace({
       canReconcileHistoricalAttendance &&
       Boolean(organizationId && academicYearId && termId),
   });
+  const academicTeachers = useQuery({
+    queryKey: ["academic-teachers", organizationId],
+    queryFn: () => listAcademicTeachers(organizationId!, { limit: 200 }),
+    enabled: manualHistoricalOpen && Boolean(organizationId),
+  });
+  const educationBooks = useQuery({
+    queryKey: ["education-books", "historical-attendance"],
+    queryFn: getEducationBooks,
+    enabled: manualHistoricalOpen,
+  });
   const importHistoricalOccurrence = useMutation({
     mutationFn: importLegacyScheduleOccurrence,
     onSuccess: () => {
@@ -847,6 +869,18 @@ export function AttendanceStaffWorkspace({
     },
     onError: (error) =>
       notify(error instanceof Error ? error.message : "ایجاد جلسهٔ تاریخی انجام نشد.", "error"),
+  });
+  const createManualHistoricalSession = useMutation({
+    mutationFn: createHistoricalAttendanceSession,
+    onSuccess: () => {
+      setManualHistoricalOpen(false);
+      setManualHistorical({ classroomId: "", teacherId: "", subjectId: "", date: "", title: "", reason: "" });
+      void cache.invalidateQueries({ queryKey: ["attendance-session-history", scope] });
+      void cache.invalidateQueries({ queryKey: ["attendance-historical-candidates"] });
+      notify("جلسهٔ تاریخی دستی ثبت شد.", "success");
+    },
+    onError: (error) =>
+      notify(error instanceof Error ? error.message : "ثبت جلسهٔ تاریخی انجام نشد.", "error"),
   });
   const pools = useQuery({
     queryKey: ["attendance-pools", scope],
@@ -1189,6 +1223,14 @@ export function AttendanceStaffWorkspace({
             >
               {reconciliationOpen ? "بستن صف تطبیق" : "نمایش صف تطبیق"}
             </button>
+            <button
+              type="button"
+              className={`${action} bg-amber-700 text-white hover:bg-amber-800`}
+              disabled={!academicYearId || !termId}
+              onClick={() => setManualHistoricalOpen(true)}
+            >
+              ثبت دستی جلسهٔ گذشته
+            </button>
           </div>
           {reconciliationOpen && !academicYearId ? (
             <p role="alert" className="mt-3 text-xs text-amber-800 dark:text-amber-200">
@@ -1226,6 +1268,74 @@ export function AttendanceStaffWorkspace({
           ) : null}
         </section>
       ) : null}
+      <ResponsiveDrawer
+        open={manualHistoricalOpen}
+        onOpenChange={setManualHistoricalOpen}
+        title="ثبت دستی جلسهٔ حضور گذشته"
+        description="برای جلسه‌ای که در برنامهٔ legacy وجود ندارد، کلاس، استاد، کتاب، تاریخ و علت ثبت تاریخی را مشخص کنید."
+        desktopSide="left"
+      >
+        <form
+          className="grid gap-3" dir="rtl"
+          onSubmit={(event) => {
+            event.preventDefault();
+            const book = (educationBooks.data ?? []).find((item) => item.id === manualHistorical.subjectId);
+            if (!organizationId || !academicYearId || !termId || !manualHistorical.classroomId || !manualHistorical.teacherId || !book || !manualHistorical.date || !manualHistorical.title.trim() || !manualHistorical.reason.trim()) {
+              notify("همهٔ اطلاعات جلسهٔ تاریخی را کامل کنید.", "error");
+              return;
+            }
+            createManualHistoricalSession.mutate({
+              organizationId,
+              academicYearId,
+              termId,
+              classroomId: manualHistorical.classroomId,
+              teacherId: manualHistorical.teacherId,
+              subjectId: book.id,
+              subjectName: book.titleFa,
+              date: manualHistorical.date,
+              title: manualHistorical.title.trim(),
+              reason: manualHistorical.reason.trim(),
+            });
+          }}
+        >
+          <label className="grid gap-1 text-sm font-bold">
+            کلاس
+            <select className={field} value={manualHistorical.classroomId} onChange={(event) => setManualHistorical((value) => ({ ...value, classroomId: event.target.value }))} required>
+              <option value="">انتخاب کلاس</option>
+              {contexts.filter((context) => context.contextType === "class").map((context) => <option key={context.id} value={context.id}>{context.name}</option>)}
+            </select>
+          </label>
+          <label className="grid gap-1 text-sm font-bold">
+            استاد
+            <select className={field} value={manualHistorical.teacherId} onChange={(event) => setManualHistorical((value) => ({ ...value, teacherId: event.target.value }))} required>
+              <option value="">{academicTeachers.isLoading ? "در حال دریافت استادها…" : "انتخاب استاد"}</option>
+              {(academicTeachers.data?.items ?? []).map((teacher) => <option key={teacher.id} value={teacher.id}>{[teacher.firstName, teacher.lastName].filter(Boolean).join(" ") || teacher.username}</option>)}
+            </select>
+          </label>
+          <label className="grid gap-1 text-sm font-bold">
+            کتاب
+            <select className={field} value={manualHistorical.subjectId} onChange={(event) => setManualHistorical((value) => ({ ...value, subjectId: event.target.value }))} required>
+              <option value="">{educationBooks.isLoading ? "در حال دریافت کتاب‌ها…" : "انتخاب کتاب"}</option>
+              {(educationBooks.data ?? []).map((book) => <option key={book.id} value={book.id}>{book.titleFa}</option>)}
+            </select>
+          </label>
+          <label className="grid gap-1 text-sm font-bold">
+            تاریخ جلسه
+            <DatePicker calendar="persian" value={manualHistorical.date} onChange={(date) => setManualHistorical((value) => ({ ...value, date }))} ariaLabel="تاریخ جلسهٔ گذشته" required />
+          </label>
+          <label className="grid gap-1 text-sm font-bold">
+            عنوان جلسه
+            <input className={field} value={manualHistorical.title} onChange={(event) => setManualHistorical((value) => ({ ...value, title: event.target.value }))} required />
+          </label>
+          <label className="grid gap-1 text-sm font-bold">
+            دلیل ثبت تاریخی
+            <textarea className={`${field} min-h-28 py-3`} value={manualHistorical.reason} onChange={(event) => setManualHistorical((value) => ({ ...value, reason: event.target.value }))} required />
+          </label>
+          <button type="submit" className={`${action} bg-amber-700 text-white hover:bg-amber-800`} disabled={createManualHistoricalSession.isPending}>
+            {createManualHistoricalSession.isPending ? "در حال ثبت…" : "ثبت جلسهٔ تاریخی"}
+          </button>
+        </form>
+      </ResponsiveDrawer>
       {section === "sessions" ? (
         <section
           className="space-y-4 rounded-2xl border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-muted))]/40 p-3 sm:p-4"

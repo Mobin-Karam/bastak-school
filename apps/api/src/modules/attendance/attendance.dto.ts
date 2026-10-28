@@ -38,8 +38,8 @@ export class CreateHistoricalAttendanceSessionDto {
   @IsUUID() academicYearId!: string;
   @IsUUID() termId!: string;
   @IsUUID() classroomId!: string;
-  @IsOptional() @IsUUID() teacherId?: string;
-  @IsOptional() @IsUUID() subjectId?: string;
+  @IsUUID() teacherId!: string;
+  @IsUUID() subjectId!: string;
   @IsOptional() @IsString() @MaxLength(240) subjectName?: string;
   @IsString() @MinLength(3) @MaxLength(240) title!: string;
   @Matches(/^\d{4}-\d{2}-\d{2}$/) @IsDateString({ strict: true }) date!: string;

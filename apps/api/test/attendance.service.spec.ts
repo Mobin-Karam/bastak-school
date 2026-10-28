@@ -52,6 +52,11 @@ import { StudyGroup } from "../src/database/entities/study-group.entity";
 import { StudyGroupMembership } from "../src/database/entities/study-group-membership.entity";
 import { DormRoom } from "../src/database/entities/dorm-room.entity";
 import { DormRoomAssignment } from "../src/database/entities/dorm-room-assignment.entity";
+import { EducationBook } from "../src/database/entities/education-book.entity";
+import {
+  SchoolAcademicTerm,
+  SchoolAcademicYear,
+} from "../src/database/entities/school-academic-year.entity";
 
 describe("AttendanceService organization boundaries (real SQLite)", () => {
   let db: DataSource;
@@ -216,6 +221,59 @@ describe("AttendanceService organization boundaries (real SQLite)", () => {
         entries: [{ studentId: studentA.id, status: "present" }],
       }),
     ).rejects.toMatchObject({ response: { error: { code: "FORBIDDEN" } } });
+  });
+
+  it("persists a manually reconciled historical session with academic snapshots and an audit trail", async () => {
+    const year = await db.getRepository(SchoolAcademicYear).save({
+      organizationId: orgA.id,
+      name: "۱۴۰۵–۱۴۰۶",
+      startsOn: "2026-09-23",
+      endsOn: "2027-06-22",
+      state: "ACTIVE",
+    });
+    const term = await db.getRepository(SchoolAcademicTerm).save({
+      academicYearId: year.id,
+      name: "نیم‌سال اول",
+      startsOn: "2026-09-23",
+      endsOn: "2027-01-31",
+      state: "ACTIVE",
+    });
+    const book = await db.getRepository(EducationBook).save({
+      id: randomUUID(),
+      country: "IR",
+      schoolYear: "1405-1406",
+      grade: 1,
+      level: "school",
+      branch: "general",
+      track: "general",
+      category: "general",
+      titleFa: "کتاب آزمون",
+      titleEn: "Test Book",
+      appliesTo: ["school"],
+      organizationId: orgA.id,
+    });
+    const result = await service.createHistoricalSession(actor, {
+      organizationId: orgA.id,
+      academicYearId: year.id,
+      termId: term.id,
+      classroomId: assignedClass.id,
+      teacherId: staff.id,
+      subjectId: book.id,
+      title: "جلسه جبرانی",
+      date: "2026-10-12",
+      reason: "برنامهٔ قدیمی ثبت نشده بود",
+    });
+    const session = await db.getRepository(AttendanceSession).findOneByOrFail({ id: result.id });
+    expect(session).toMatchObject({
+      sourceKind: "legacy_import",
+      academicYearIdSnapshot: year.id,
+      academicYearNameSnapshot: year.name,
+      termIdSnapshot: term.id,
+      termNameSnapshot: term.name,
+      subjectIdSnapshot: book.id,
+      subjectNameSnapshot: book.titleFa,
+    });
+    expect(await db.getRepository(AuditLog).countBy({ action: "attendance.historical_session.created" })).toBe(1);
   });
 
   it("keeps a supervisor observation independent and editable for one teacher occurrence", async () => {

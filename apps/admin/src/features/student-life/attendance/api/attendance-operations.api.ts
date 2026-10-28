@@ -126,6 +126,18 @@ export const importLegacyScheduleOccurrence = (body: { entryId: string; date: st
     "/attendance/legacy-schedule-session",
     body,
   );
+export const createHistoricalAttendanceSession = (body: {
+  organizationId: string;
+  academicYearId: string;
+  termId: string;
+  classroomId: string;
+  teacherId?: string;
+  subjectId?: string;
+  subjectName?: string;
+  title: string;
+  date: string;
+  reason: string;
+}) => api.post<{ id: string; revision: number; duplicate: boolean }>("/attendance/historical-sessions", body);
 export const getAttendanceHistorySessions = (filters: AttendanceHistorySessionFilters = {}) => {
   const search = new URLSearchParams({
     page: String(filters.page ?? 1),
