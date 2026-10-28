@@ -57,6 +57,7 @@ import {
   SchoolAcademicTerm,
   SchoolAcademicYear,
 } from "../src/database/entities/school-academic-year.entity";
+import { SchoolScheduleEntry } from "../src/database/entities/school-schedule-entry.entity";
 
 describe("AttendanceService organization boundaries (real SQLite)", () => {
   let db: DataSource;
@@ -244,6 +245,45 @@ describe("AttendanceService organization boundaries (real SQLite)", () => {
         roles: ["RELIGIOUS_EDUCATION_MANAGER"],
       }),
     ).rejects.toMatchObject({ status: 403 });
+  });
+
+  it("audits an attendance occurrence opened from the legacy schedule", async () => {
+    const year = await db.getRepository(SchoolAcademicYear).save({
+      organizationId: orgA.id,
+      name: "۱۴۰۵–۱۴۰۶",
+      startsOn: "2026-09-23",
+      endsOn: "2027-06-22",
+      state: "ACTIVE",
+    });
+    const term = await db.getRepository(SchoolAcademicTerm).save({
+      academicYearId: year.id,
+      name: "نیم‌سال اول",
+      startsOn: "2026-09-23",
+      endsOn: "2027-01-31",
+      state: "ACTIVE",
+    });
+    const entry = await db.getRepository(SchoolScheduleEntry).save({
+      organization: orgA,
+      classroom: assignedClass,
+      teacher: staff,
+      title: "جلسهٔ legacy",
+      weekday: 2,
+      startTime: "08:00",
+      endTime: "09:00",
+      room: "",
+      academicYearId: year.id,
+      termId: term.id,
+    });
+    const opened = await service.openLegacyScheduleSession(
+      { ...actor, id: staff.id, capabilities: ["attendance.class.manage"] },
+      { entryId: entry.id, date: "2026-10-12" },
+    );
+    expect(opened.duplicate).toBe(false);
+    expect(
+      await db
+        .getRepository(AuditLog)
+        .countBy({ action: "attendance.legacy_occurrence.created" }),
+    ).toBe(1);
   });
 
   it("persists a manually reconciled historical session with academic snapshots and an audit trail", async () => {

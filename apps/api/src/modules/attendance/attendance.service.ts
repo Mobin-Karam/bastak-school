@@ -895,6 +895,20 @@ export class AttendanceService {
         note: `جلسه برنامه legacy · ${dto.date}`,
       }),
     );
+    await this.sessions.manager.getRepository(AuditLog).save({
+      user: { id: user.id } as User,
+      organizationId,
+      action: "attendance.legacy_occurrence.created",
+      entity: "attendance",
+      metadata: {
+        sessionId: row.id,
+        entryId: entry.id,
+        occurrenceKey,
+        academicYearId: year.id,
+        termId: term.id,
+        date: dto.date,
+      },
+    });
     return { id: row.id, revision: row.revision, duplicate: false };
   }
 
