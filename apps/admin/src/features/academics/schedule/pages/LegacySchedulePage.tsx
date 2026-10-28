@@ -108,6 +108,8 @@ export function LegacySchedulePage() {
   const [templatePreview, setTemplatePreview] = useState<ScheduleTemplate | null>(null);
   const [toolsSidebarHidden, setToolsSidebarHidden] = useState(false);
   const [academicCyclesOpen, setAcademicCyclesOpen] = useState(false);
+  const [scheduleAcademicYearId, setScheduleAcademicYearId] = useState("");
+  const [scheduleTermId, setScheduleTermId] = useState("");
   const [editor, setEditor] = useState<{
     entry?: ScheduleEntry;
     copy: boolean;
@@ -142,6 +144,14 @@ export function LegacySchedulePage() {
     queryFn: () => listLegacyAcademicCycles(selectedOrganizationId!),
     enabled: !!selectedOrganizationId && canManageAcademicCycles,
   });
+  const activeAcademicYear = academicCycles.data?.years.find((year) => year.state === "ACTIVE");
+  const selectedScheduleYearId = scheduleAcademicYearId || activeAcademicYear?.id || "";
+  const availableScheduleTerms = (academicCycles.data?.terms ?? []).filter(
+    (term) =>
+      term.academicYearId === selectedScheduleYearId &&
+      term.state !== "ARCHIVED" &&
+      !term.correctionOpen,
+  );
   const canManageTemplates = canCreate && canEdit && canArchive && canDelete;
   const timeBlocks = useQuery({
     queryKey: ["schedule", "time-blocks", selectedOrganizationId ?? "all"],
@@ -185,9 +195,14 @@ export function LegacySchedulePage() {
     });
   const save = useMutation({
     mutationFn: async ({ id, drafts }: { id?: string; drafts: ScheduleDraft[] }) => {
-      if (id) return [await updateScheduleEntry(id, drafts[0])];
-      if (drafts.length === 1) return [await createScheduleEntry(drafts[0])];
-      return createScheduleEntries(drafts);
+      const scopedDrafts = drafts.map((draft) => ({
+        ...draft,
+        academicYearId: draft.academicYearId ?? (selectedScheduleYearId || undefined),
+        termId: draft.termId ?? (scheduleTermId || availableScheduleTerms[0]?.id || undefined),
+      }));
+      if (id) return [await updateScheduleEntry(id, scopedDrafts[0])];
+      if (scopedDrafts.length === 1) return [await createScheduleEntry(scopedDrafts[0])];
+      return createScheduleEntries(scopedDrafts);
     },
     onSuccess: () => {
       reload();
@@ -481,6 +496,45 @@ export function LegacySchedulePage() {
           <Button variant="soft" onClick={() => setAcademicCyclesOpen(true)}>
             <GraduationCap size={17} /> مدیریت سال و نیم‌سال
           </Button>
+        </Card>
+      ) : null}
+      {canWrite && activeAcademicYear ? (
+        <Card className="flex flex-wrap items-end gap-3 p-4" dir="rtl">
+          <label className="grid min-w-48 gap-1 text-xs font-bold">
+            سال تحصیلی جلسه‌های جدید
+            <AdaptiveSelect
+              value={selectedScheduleYearId}
+              onChange={(event) => {
+                setScheduleAcademicYearId(event.target.value);
+                setScheduleTermId("");
+              }}
+            >
+              {academicCycles.data?.years
+                .filter((year) => year.state !== "ARCHIVED")
+                .map((year) => (
+                  <option key={year.id} value={year.id}>
+                    {year.name}
+                  </option>
+                ))}
+            </AdaptiveSelect>
+          </label>
+          <label className="grid min-w-48 gap-1 text-xs font-bold">
+            نیم‌سال جلسه‌های جدید
+            <AdaptiveSelect
+              value={scheduleTermId || availableScheduleTerms[0]?.id || ""}
+              onChange={(event) => setScheduleTermId(event.target.value)}
+            >
+              <option value="">انتخاب نیم‌سال</option>
+              {availableScheduleTerms.map((term) => (
+                <option key={term.id} value={term.id}>
+                  {term.name}
+                </option>
+              ))}
+            </AdaptiveSelect>
+          </label>
+          <p className="max-w-sm text-xs leading-5 text-slate-500">
+            جلسه‌های تازه به سال و نیم‌سال انتخاب‌شده متصل می‌شوند؛ برنامهٔ گذشته تغییر نمی‌کند.
+          </p>
         </Card>
       ) : null}
       <section
