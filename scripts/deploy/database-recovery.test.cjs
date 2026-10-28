@@ -147,6 +147,27 @@ test("rejects undeclared schema additions to an empty table", () => {
   db.close();
 });
 
+test("permits only the default group link created for legacy time blocks", () => {
+  const db = new Database(":memory:");
+  db.exec(`
+    CREATE TABLE school_schedule_time_blocks (id TEXT PRIMARY KEY, organizationId TEXT NOT NULL, partOfDay TEXT NOT NULL);
+    CREATE TABLE migrations (name TEXT);
+    INSERT INTO school_schedule_time_blocks VALUES ('block-1', 'school-1', 'AM');
+  `);
+  const before = inventory(db);
+  db.exec(`
+    CREATE TABLE school_schedule_time_block_groups (id TEXT PRIMARY KEY, organizationId TEXT NOT NULL, name TEXT NOT NULL);
+    INSERT INTO school_schedule_time_block_groups VALUES ('morning', 'school-1', 'صبح');
+    ALTER TABLE school_schedule_time_blocks ADD COLUMN groupId TEXT;
+    UPDATE school_schedule_time_blocks SET groupId='morning';
+    INSERT INTO migrations VALUES ('SchoolScheduleTimeBlockGroups1762000000000');
+  `);
+  assert.doesNotThrow(() => preserved(before, inventory(db), db));
+  db.prepare("UPDATE school_schedule_time_blocks SET groupId='unknown'").run();
+  assert.throws(() => preserved(before, inventory(db), db), /unexpected default group/);
+  db.close();
+});
+
 test("permits only null subject and academic snapshots for existing attendance sessions", () => {
   const db = new Database(":memory:");
   db.exec(`

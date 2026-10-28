@@ -37,6 +37,12 @@ export type ScheduleTimeBlock = {
   startTime: string;
   endTime: string;
   partOfDay: "AM" | "PM";
+  group: { id: string; name: string };
+  organization: { id: string; name: string };
+};
+export type ScheduleTimeBlockGroup = {
+  id: string;
+  name: string;
   organization: { id: string; name: string };
 };
 export type ScheduleTemplateEntry = Omit<ScheduleDraft, "organizationId">;
@@ -87,12 +93,19 @@ export const deleteScheduleEntry = (id: string) =>
 export const listScheduleTimeBlocks = () => api.get<ScheduleTimeBlock[]>("/schedule/time-blocks");
 export const createScheduleTimeBlock = (draft: {
   organizationId: string;
+  groupId: string;
   name: string;
   startTime: string;
   endTime: string;
 }) => api.post<ScheduleTimeBlock>("/schedule/time-blocks", draft);
 export const deleteScheduleTimeBlock = (id: string) =>
   api.delete(`/schedule/time-blocks/${encodeURIComponent(id)}`);
+export const listScheduleTimeBlockGroups = () =>
+  api.get<ScheduleTimeBlockGroup[]>("/schedule/time-block-groups");
+export const createScheduleTimeBlockGroup = (draft: { organizationId: string; name: string }) =>
+  api.post<ScheduleTimeBlockGroup>("/schedule/time-block-groups", draft);
+export const deleteScheduleTimeBlockGroup = (id: string) =>
+  api.delete(`/schedule/time-block-groups/${encodeURIComponent(id)}`);
 export const listScheduleTemplates = () => api.get<ScheduleTemplate[]>("/schedule/templates");
 export const createScheduleTemplate = (draft: {
   organizationId: string;

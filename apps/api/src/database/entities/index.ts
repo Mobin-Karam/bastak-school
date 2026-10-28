@@ -74,6 +74,7 @@ export {
   SchoolScheduleSubstitutionRequest,
 } from "./school-schedule-substitution.entity";
 export { SchoolScheduleTimeBlock } from "./school-schedule-time-block.entity";
+export { SchoolScheduleTimeBlockGroup } from "./school-schedule-time-block-group.entity";
 export { SchoolScheduleTemplate } from "./school-schedule-template.entity";
 export { SchoolPrayerTime } from "./school-prayer-time.entity";
 export { SchoolAnnouncement } from "./school-announcement.entity";

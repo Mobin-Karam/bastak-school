@@ -11,6 +11,7 @@ import { OrganizationMembership } from "../../database/entities/organization-mem
 import { Organization } from "../../database/entities/organization.entity";
 import { SchoolScheduleEntry } from "../../database/entities/school-schedule-entry.entity";
 import { SchoolScheduleTimeBlock } from "../../database/entities/school-schedule-time-block.entity";
+import { SchoolScheduleTimeBlockGroup } from "../../database/entities/school-schedule-time-block-group.entity";
 import { SchoolScheduleTemplate } from "../../database/entities/school-schedule-template.entity";
 import {
   SchoolScheduleOccurrenceOverride,
@@ -29,6 +30,7 @@ import { ScheduleService } from "./schedule.service";
     TypeOrmModule.forFeature([
       SchoolScheduleEntry,
       SchoolScheduleTimeBlock,
+      SchoolScheduleTimeBlockGroup,
       SchoolScheduleTemplate,
       SchoolScheduleOccurrenceOverride,
       SchoolScheduleSubstitutionRequest,

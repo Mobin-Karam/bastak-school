@@ -15,6 +15,7 @@ import {
 import { Organization } from "../../database/entities/organization.entity";
 import { SchoolScheduleEntry } from "../../database/entities/school-schedule-entry.entity";
 import { SchoolScheduleTimeBlock } from "../../database/entities/school-schedule-time-block.entity";
+import { SchoolScheduleTimeBlockGroup } from "../../database/entities/school-schedule-time-block-group.entity";
 import {
   SchoolScheduleOccurrenceOverride,
   SchoolScheduleSubstitutionRequest,
@@ -31,6 +32,7 @@ import { AuthorizationService, UserContext } from "../authorization";
 import {
   ArchiveScheduleEntryDto,
   CreateScheduleTimeBlockDto,
+  CreateScheduleTimeBlockGroupDto,
   CreateScheduleTemplateDto,
   SaveScheduleEntryDto,
   ScheduleSubstitutionDecisionDto,
@@ -46,6 +48,8 @@ export class ScheduleService {
     private readonly entries: Repository<SchoolScheduleEntry>,
     @InjectRepository(SchoolScheduleTimeBlock)
     private readonly timeBlocks: Repository<SchoolScheduleTimeBlock>,
+    @InjectRepository(SchoolScheduleTimeBlockGroup)
+    private readonly timeBlockGroups: Repository<SchoolScheduleTimeBlockGroup>,
     @InjectRepository(SchoolScheduleTemplate)
     private readonly templates: Repository<SchoolScheduleTemplate>,
     @InjectRepository(SchoolScheduleOccurrenceOverride)
@@ -917,8 +921,8 @@ export class ScheduleService {
         where: requestedOrganizationId
           ? { organization: { id: requestedOrganizationId } }
           : {},
-        relations: { organization: true },
-        order: { name: "ASC" },
+        relations: { organization: true, group: true },
+        order: { group: { name: "ASC" }, startTime: "ASC", name: "ASC" },
       });
     if (!context.organizationIds.length) return [];
     return this.timeBlocks.find({
@@ -929,6 +933,35 @@ export class ScheduleService {
               ? [requestedOrganizationId]
               : context.organizationIds,
           ),
+        },
+      },
+      relations: { organization: true, group: true },
+      order: { group: { name: "ASC" }, startTime: "ASC", name: "ASC" },
+    });
+  }
+  async listTimeBlockGroups(user: AuthenticatedUser, organizationId?: string) {
+    const context = this.context(user);
+    this.authorization.requireCapability(context, "schedule.read");
+    const requestedOrganizationId = organizationId ?? user.activeOrganizationId;
+    if (
+      requestedOrganizationId &&
+      !context.roles.includes("PLATFORM_ADMIN") &&
+      !context.organizationIds.includes(requestedOrganizationId)
+    )
+      throw new ApiException(403, "FORBIDDEN", "دسترسی کافی ندارید.");
+    if (context.roles.includes("PLATFORM_ADMIN"))
+      return this.timeBlockGroups.find({
+        where: requestedOrganizationId
+          ? { organization: { id: requestedOrganizationId } }
+          : {},
+        relations: { organization: true },
+        order: { name: "ASC" },
+      });
+    if (!context.organizationIds.length) return [];
+    return this.timeBlockGroups.find({
+      where: {
+        organization: {
+          id: In(requestedOrganizationId ? [requestedOrganizationId] : context.organizationIds),
         },
       },
       relations: { organization: true },
@@ -1174,19 +1207,74 @@ export class ScheduleService {
         "TIME_BLOCK_NAME_REQUIRED",
         "نام بازه زمانی لازم است.",
       );
-    const partOfDay = dto.startTime < "12:00" ? "AM" : "PM";
+    const group = await this.timeBlockGroups.findOne({
+      where: { id: dto.groupId },
+      relations: { organization: true },
+    });
+    if (!group || group.organization.id !== organization.id)
+      throw new ApiException(
+        422,
+        "TIME_BLOCK_GROUP_INVALID",
+        "گروه بازه زمانی برای این مدرسه معتبر نیست.",
+      );
     const existing = await this.timeBlocks.findOne({
-      where: { organization: { id: organization.id }, name, partOfDay },
+      where: { organization: { id: organization.id }, group: { id: group.id }, name },
     });
     if (existing)
       throw new ApiException(
         409,
         "TIME_BLOCK_NAME_EXISTS",
-        "این نام بازه زمانی برای همین نیم‌روز قبلاً ثبت شده است.",
+        "این نام بازه زمانی در همین گروه قبلاً ثبت شده است.",
       );
     return this.timeBlocks.save(
-      this.timeBlocks.create({ ...dto, name, partOfDay, organization }),
+      this.timeBlocks.create({
+        name,
+        startTime: dto.startTime,
+        endTime: dto.endTime,
+        partOfDay: dto.startTime < "12:00" ? "AM" : "PM",
+        organization,
+        group,
+      }),
     );
+  }
+  async createTimeBlockGroup(
+    user: AuthenticatedUser,
+    dto: CreateScheduleTimeBlockGroupDto,
+  ) {
+    const organization = await this.templateScope(user, dto.organizationId, "schedule.update");
+    const name = dto.name.trim();
+    if (!name)
+      throw new ApiException(422, "TIME_BLOCK_GROUP_NAME_REQUIRED", "نام گروه لازم است.");
+    const existing = await this.timeBlockGroups.findOne({
+      where: { organization: { id: organization.id }, name },
+    });
+    if (existing)
+      throw new ApiException(409, "TIME_BLOCK_GROUP_NAME_EXISTS", "این گروه قبلاً ثبت شده است.");
+    return this.timeBlockGroups.save(this.timeBlockGroups.create({ organization, name }));
+  }
+  async removeTimeBlockGroup(user: AuthenticatedUser, id: string) {
+    const context = this.context(user);
+    this.authorization.requireCapability(context, "schedule.update");
+    const group = await this.timeBlockGroups.findOne({
+      where: { id },
+      relations: { organization: true },
+    });
+    if (!group)
+      throw new ApiException(404, "TIME_BLOCK_GROUP_NOT_FOUND", "گروه بازه زمانی پیدا نشد.");
+    if (
+      !this.isOperator(context) ||
+      (!context.roles.includes("PLATFORM_ADMIN") && !context.organizationIds.includes(group.organization.id))
+    )
+      throw new ApiException(403, "FORBIDDEN", "دسترسی کافی ندارید.");
+    const hasBlocks = await this.timeBlocks.exist({ where: { group: { id: group.id } } });
+    if (hasBlocks)
+      throw new ApiException(
+        409,
+        "TIME_BLOCK_GROUP_NOT_EMPTY",
+        "ابتدا بازه‌های این گروه را حذف یا به گروه دیگری منتقل کنید.",
+      );
+    await this.timeBlockGroups.remove(group);
+    return { deleted: true };
   }
   async removeTimeBlock(user: AuthenticatedUser, id: string) {
     const context = this.context(user);

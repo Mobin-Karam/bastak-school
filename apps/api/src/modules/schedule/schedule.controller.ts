@@ -15,6 +15,7 @@ import { AuthenticatedUser } from "../auth";
 import {
   ArchiveScheduleEntryDto,
   CreateScheduleEntriesDto,
+  CreateScheduleTimeBlockGroupDto,
   CreateScheduleTimeBlockDto,
   CreateScheduleTemplateDto,
   ScheduleSubstitutionDecisionDto,
@@ -149,6 +150,25 @@ export class ScheduleController {
     @Query("organizationId") organizationId?: string,
   ) {
     return this.schedule.listTimeBlocks(user, organizationId).then(ok);
+  }
+  @Get("time-block-groups") @RequireCapabilities("schedule.read") timeBlockGroups(
+    @CurrentUser() user: AuthenticatedUser,
+    @Query("organizationId") organizationId?: string,
+  ) {
+    return this.schedule.listTimeBlockGroups(user, organizationId).then(ok);
+  }
+  @Post("time-block-groups")
+  @RequireCapabilities("schedule.update")
+  createTimeBlockGroup(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() dto: CreateScheduleTimeBlockGroupDto,
+  ) {
+    return this.schedule.createTimeBlockGroup(user, dto).then(ok);
+  }
+  @Delete("time-block-groups/:id")
+  @RequireCapabilities("schedule.update")
+  removeTimeBlockGroup(@CurrentUser() user: AuthenticatedUser, @Param("id") id: string) {
+    return this.schedule.removeTimeBlockGroup(user, id).then(ok);
   }
   @Post("time-blocks") @RequireCapabilities("schedule.update") createTimeBlock(
     @CurrentUser() user: AuthenticatedUser,

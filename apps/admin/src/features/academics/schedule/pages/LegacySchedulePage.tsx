@@ -18,7 +18,7 @@ import {
   UserRound,
   X,
 } from "lucide-react";
-import { useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { listOrganizations } from "../../../identity/access/api/access.api";
 import { useAuth } from "../../../identity/auth";
 import { listClasses, type EducationClass } from "../../education/api/classes.api";
@@ -38,19 +38,27 @@ import {
   createScheduleEntries,
   createScheduleTemplate,
   createScheduleTimeBlock,
+  createScheduleTimeBlockGroup,
   deleteScheduleEntry,
   deleteScheduleTemplate,
   deleteScheduleTimeBlock,
+  deleteScheduleTimeBlockGroup,
   exportSchedule,
   listSchedule,
   listScheduleTemplates,
   listScheduleTimeBlocks,
+  listScheduleTimeBlockGroups,
   previewScheduleImport,
   restoreScheduleTemplate,
   type ScheduleDraft,
   updateScheduleEntry,
 } from "../api/schedule.api";
-import type { ScheduleEntry, ScheduleTemplate, ScheduleTimeBlock } from "../api/schedule.api";
+import type {
+  ScheduleEntry,
+  ScheduleTemplate,
+  ScheduleTimeBlock,
+  ScheduleTimeBlockGroup,
+} from "../api/schedule.api";
 import { TeacherSchedulePage } from "../../../people/teacher-portal";
 import { OrganizationTag } from "../../../../shared/ui/organization-tag";
 import { todayIso } from "../../../../shared/lib/utils";
@@ -64,10 +72,6 @@ import { useLocale } from "../../../../shared/ui/locale";
 import { listTeacherLeaveRequests, type TeacherLeaveRequest } from "../api/teacher-leave.api";
 
 const weekdays = ["شنبه", "یکشنبه", "دوشنبه", "سه‌شنبه", "چهارشنبه", "پنجشنبه", "جمعه"];
-const timeBlockGroups = [
-  { partOfDay: "AM", label: "صبح", tone: "sky" },
-  { partOfDay: "PM", label: "عصر", tone: "amber" },
-] as const;
 const blank = (): ScheduleDraft => ({
   organizationId: "",
   title: "",
@@ -125,6 +129,11 @@ export function LegacySchedulePage() {
   const timeBlocks = useQuery({
     queryKey: ["schedule", "time-blocks", selectedOrganizationId ?? "all"],
     queryFn: listScheduleTimeBlocks,
+    enabled: canWrite,
+  });
+  const timeBlockGroups = useQuery({
+    queryKey: ["schedule", "time-block-groups", selectedOrganizationId ?? "all"],
+    queryFn: listScheduleTimeBlockGroups,
     enabled: canWrite,
   });
   const templates = useQuery({
@@ -211,6 +220,24 @@ export function LegacySchedulePage() {
     },
     onError: (error) =>
       notify(error instanceof Error ? error.message : "حذف بازه زمانی انجام نشد.", "error"),
+  });
+  const saveTimeBlockGroup = useMutation({
+    mutationFn: createScheduleTimeBlockGroup,
+    onSuccess: () => {
+      void client.invalidateQueries({ queryKey: ["schedule", "time-block-groups"] });
+      notify("گروه بازه زمانی ذخیره شد.", "success");
+    },
+    onError: (error) =>
+      notify(error instanceof Error ? error.message : "ذخیره گروه انجام نشد.", "error"),
+  });
+  const removeTimeBlockGroup = useMutation({
+    mutationFn: deleteScheduleTimeBlockGroup,
+    onSuccess: () => {
+      void client.invalidateQueries({ queryKey: ["schedule", "time-block-groups"] });
+      notify("گروه بازه زمانی حذف شد.", "success");
+    },
+    onError: (error) =>
+      notify(error instanceof Error ? error.message : "حذف گروه انجام نشد.", "error"),
   });
   const templateReload = () => void client.invalidateQueries({ queryKey: ["schedule"] });
   const createTemplate = useMutation({
@@ -465,6 +492,7 @@ export function LegacySchedulePage() {
           <ScheduleWorkspace
             entries={scheduleEntries}
             classes={classes.data ?? []}
+            timeBlocks={timeBlocks.data ?? []}
             activeWeekday={activeWeekday}
             onWeekdayChange={setActiveWeekday}
             canEdit={canEdit}
@@ -531,10 +559,12 @@ export function LegacySchedulePage() {
             {canEdit ? (
               <ScheduleTimeBlocks
                 blocks={timeBlocks.data ?? []}
+                groups={timeBlockGroups.data ?? []}
                 organizationId={selectedOrganizationId}
-                saving={saveTimeBlock.isPending}
-                removing={removeTimeBlock.isPending}
+                saving={saveTimeBlock.isPending || saveTimeBlockGroup.isPending}
+                removing={removeTimeBlock.isPending || removeTimeBlockGroup.isPending}
                 onCreate={(draft) => saveTimeBlock.mutate(draft)}
+                onCreateGroup={(draft) => saveTimeBlockGroup.mutate(draft)}
                 onRemove={(block) =>
                   void modal
                     .confirm({
@@ -546,6 +576,18 @@ export function LegacySchedulePage() {
                       softConfirm: true,
                     })
                     .then((confirmed) => confirmed && removeTimeBlock.mutate(block.id))
+                }
+                onRemoveGroup={(group) =>
+                  void modal
+                    .confirm({
+                      title: "حذف گروه بازه زمانی؟",
+                      description: `«${group.name}» فقط در صورتی حذف می‌شود که بازه‌ای در آن نمانده باشد.`,
+                      tone: "danger",
+                      confirmLabel: "حذف گروه",
+                      cancelLabel: "انصراف",
+                      softConfirm: true,
+                    })
+                    .then((confirmed) => confirmed && removeTimeBlockGroup.mutate(group.id))
                 }
               />
             ) : null}
@@ -627,6 +669,7 @@ export function LegacySchedulePage() {
           <ScheduleEditorForm
             initial={editor.initial ?? (editor.entry ? draftFromEntry(editor.entry) : blank())}
             timeBlocks={timeBlocks.data ?? []}
+            timeBlockGroups={timeBlockGroups.data ?? []}
             organizations={organizationOptions}
             classes={classes.data ?? []}
             isSaving={save.isPending}
@@ -651,6 +694,7 @@ const displayWeekdays = [0, 1, 2, 3, 4, 5, 6] as const;
 type ScheduleWorkspaceProps = {
   entries: ScheduleEntry[];
   classes: EducationClass[];
+  timeBlocks: ScheduleTimeBlock[];
   activeWeekday: number;
   onWeekdayChange: (weekday: number) => void;
   canEdit: boolean;
@@ -706,6 +750,7 @@ function ScheduleSidebarSummary({
 function ScheduleWorkspace({
   entries,
   classes,
+  timeBlocks,
   activeWeekday,
   onWeekdayChange,
   canEdit,
@@ -801,6 +846,7 @@ function ScheduleWorkspace({
   const [classTabIds, setClassTabIds] = useState<string[]>([]);
   const [activeTab, setActiveTab] = useState<"main" | string>("main");
   const [classPickerOpen, setClassPickerOpen] = useState(false);
+  const [layout, setLayout] = useState<"classes" | "time-blocks">("classes");
   const selectedClassroom =
     activeTab === "main"
       ? undefined
@@ -849,9 +895,7 @@ function ScheduleWorkspace({
               <CalendarClock size={19} className="shrink-0 text-brand" aria-hidden="true" />
               <div>
                 <h2 className="text-sm font-black text-ink">جدول کلاس‌ها</h2>
-                <p className="text-[11px] text-slate-500">
-                  برای مشاهده جزئیات، یک روز را انتخاب کنید.
-                </p>
+                <p className="text-[11px] text-slate-500">نمای کلاس‌ها یا نمای زمان‌بندی هفتگی را انتخاب کنید.</p>
               </div>
             </div>
             <button
@@ -863,7 +907,30 @@ function ScheduleWorkspace({
             </button>
           </div>
 
-          <div className="border-b border-[rgb(var(--border-subtle))] px-3 py-2 md:hidden">
+          <div className="flex flex-wrap gap-1 border-b border-[rgb(var(--border-subtle))] px-3 py-2 sm:px-4" role="tablist" aria-label="نمای برنامه">
+            <Button
+              type="button"
+              size="sm"
+              variant={layout === "classes" ? "primary" : "ghost"}
+              role="tab"
+              aria-selected={layout === "classes"}
+              onClick={() => setLayout("classes")}
+            >
+              نمای کلاس‌ها
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant={layout === "time-blocks" ? "primary" : "ghost"}
+              role="tab"
+              aria-selected={layout === "time-blocks"}
+              onClick={() => setLayout("time-blocks")}
+            >
+              نمای روز و بازه
+            </Button>
+          </div>
+
+          {layout === "classes" ? <div className="border-b border-[rgb(var(--border-subtle))] px-3 py-2 md:hidden">
             <MobileTabs
               ariaLabel="انتخاب روز برنامه"
               value={activeWeekday}
@@ -875,9 +942,16 @@ function ScheduleWorkspace({
               }))}
               className="justify-start gap-1.5 border-0 bg-transparent p-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
             />
-          </div>
+          </div> : null}
 
-          {isMobileShell ? (
+          {layout === "time-blocks" ? (
+            <ScheduleTimeBlockBoard
+              entries={activeScheduleEntries}
+              timeBlocks={timeBlocks}
+              onOpenDetails={onOpenDetails}
+              leaveForEntry={leaveForEntry}
+            />
+          ) : isMobileShell ? (
             <div className="grid gap-2 p-3">
               {activeEntries.map((entry) => (
                 <ScheduleEntryCard
@@ -1549,6 +1623,123 @@ function ScheduleMatrixCell({
   );
 }
 
+function ScheduleTimeBlockBoard({
+  entries,
+  timeBlocks,
+  onOpenDetails,
+  leaveForEntry,
+}: {
+  entries: ScheduleEntry[];
+  timeBlocks: ScheduleTimeBlock[];
+  onOpenDetails: (entry: ScheduleEntry) => void;
+  leaveForEntry: (entry: ScheduleEntry) => TeacherLeaveRequest | undefined;
+}) {
+  const slots = useMemo(() => {
+    const known = timeBlocks.map((block) => ({
+      id: block.id,
+      label: block.name,
+      startTime: block.startTime,
+      endTime: block.endTime,
+      partOfDay: block.partOfDay,
+    }));
+    const keys = new Set(known.map((block) => `${block.startTime}-${block.endTime}`));
+    entries.forEach((entry) => {
+      const key = `${entry.startTime}-${entry.endTime}`;
+      if (keys.has(key)) return;
+      keys.add(key);
+      known.push({
+        id: `session-${key}`,
+        label: `${entry.startTime} تا ${entry.endTime}`,
+        startTime: entry.startTime,
+        endTime: entry.endTime,
+        partOfDay: entry.startTime < "12:00" ? "AM" : "PM",
+      });
+    });
+    return known.sort((left, right) => {
+      const groupOrder = left.partOfDay === right.partOfDay ? 0 : left.partOfDay === "AM" ? -1 : 1;
+      return groupOrder || left.startTime.localeCompare(right.startTime);
+    });
+  }, [entries, timeBlocks]);
+  const morningSlots = slots.filter((slot) => slot.partOfDay === "AM");
+  const afternoonSlots = slots.filter((slot) => slot.partOfDay === "PM");
+  if (!slots.length)
+    return <EmptyState title="برای نمایش زمان‌بندی، ابتدا بازه یا جلسه‌ای ثبت کنید." />;
+
+  return (
+    <div className="overflow-x-auto p-3" dir="rtl">
+      <div className="min-w-[62rem] overflow-hidden rounded-xl border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card))]">
+        <div
+          className="grid border-b border-[rgb(var(--border-subtle))]"
+          style={{ gridTemplateColumns: `10rem repeat(${slots.length}, minmax(10rem, 1fr))` }}
+        >
+          <div className="row-span-2 flex items-center justify-center border-s border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-muted))] px-3 text-xs font-black text-ink">
+            روز هفته
+          </div>
+          {morningSlots.length ? (
+            <div className="border-s border-sky-500/20 bg-sky-500/10 px-3 py-2 text-center text-xs font-black text-sky-800 dark:text-sky-200" style={{ gridColumn: `span ${morningSlots.length}` }}>
+              صبح
+            </div>
+          ) : null}
+          {afternoonSlots.length ? (
+            <div className="border-s border-amber-500/20 bg-amber-500/10 px-3 py-2 text-center text-xs font-black text-amber-800 dark:text-amber-200" style={{ gridColumn: `span ${afternoonSlots.length}` }}>
+              عصر
+            </div>
+          ) : null}
+          {slots.map((slot) => (
+            <div key={slot.id} className="border-s border-t border-[rgb(var(--border-subtle))] px-2 py-2 text-center">
+              <p className="truncate text-xs font-black text-ink">{slot.label}</p>
+              <p className="mt-0.5 text-[10px] font-bold text-slate-500" dir="ltr">{slot.startTime}–{slot.endTime}</p>
+            </div>
+          ))}
+        </div>
+        {displayWeekdays.map((weekday) => (
+          <div
+            key={weekday}
+            className="grid border-b border-[rgb(var(--border-subtle))] last:border-b-0"
+            style={{ gridTemplateColumns: `10rem repeat(${slots.length}, minmax(10rem, 1fr))` }}
+          >
+            <div className="sticky right-0 z-10 flex min-h-24 flex-col justify-center border-s border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-muted))] px-3">
+              <span className="text-sm font-black text-ink">{weekdays[weekday]}</span>
+              <span className="mt-1 text-[10px] font-bold text-slate-500">همه کلاس‌ها</span>
+            </div>
+            {slots.map((slot) => {
+              const cellEntries = entries.filter(
+                (entry) =>
+                  entry.weekday === weekday &&
+                  entry.startTime === slot.startTime &&
+                  entry.endTime === slot.endTime,
+              );
+              return (
+                <div key={slot.id} className="min-h-24 border-s border-[rgb(var(--border-subtle))] p-1.5">
+                  {cellEntries.length ? (
+                    <div className="grid gap-1">
+                      {cellEntries.map((entry) => {
+                        const leave = leaveForEntry(entry);
+                        return (
+                          <button
+                            key={entry.id}
+                            type="button"
+                            onClick={() => onOpenDetails(entry)}
+                            className="w-full rounded-lg border border-brand/15 bg-brand/5 px-2 py-1.5 text-right transition hover:border-brand/45 hover:bg-brand/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+                          >
+                            <span className="block truncate text-[11px] font-black text-ink">{entry.classroom?.name || "کلاس عمومی"}</span>
+                            <span className="mt-0.5 block truncate text-[10px] text-slate-600 dark:text-slate-300">{entry.title}</span>
+                            {leave ? <span className="mt-1 block text-[9px] font-bold text-amber-700 dark:text-amber-300">مرخصی دبیر</span> : null}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  ) : <span className="block h-full" aria-label="جلسه‌ای ثبت نشده است" />}
+                </div>
+              );
+            })}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function ScheduleEntryCard({
   entry,
   leave,
@@ -1760,6 +1951,7 @@ function SchedulePlanModal({
 function ScheduleEditorForm({
   initial,
   timeBlocks,
+  timeBlockGroups,
   organizations,
   classes,
   isSaving,
@@ -1769,6 +1961,7 @@ function ScheduleEditorForm({
 }: {
   initial: ScheduleDraft;
   timeBlocks: ScheduleTimeBlock[];
+  timeBlockGroups: ScheduleTimeBlockGroup[];
   organizations: Array<{ id: string; name: string }>;
   classes: Array<{
     id: string;
@@ -1786,6 +1979,7 @@ function ScheduleEditorForm({
     { weekday: initial.weekday, startTime: initial.startTime, endTime: initial.endTime },
   ]);
   const [attempted, setAttempted] = useState(false);
+  const [selectedTimeBlockGroupId, setSelectedTimeBlockGroupId] = useState("");
   const invalidTime = occurrences.some((item) => item.startTime >= item.endTime);
   const canSubmit = Boolean(
     draft.organizationId &&
@@ -1796,6 +1990,20 @@ function ScheduleEditorForm({
   const selectedClass = classes.find((item) => item.id === draft.classroomId);
   const update = (changes: Partial<ScheduleDraft>) =>
     setDraft((current) => ({ ...current, ...changes }));
+  const selectedTimeBlockGroup = timeBlockGroups.find(
+    (group) => group.id === selectedTimeBlockGroupId,
+  );
+  const visibleTimeBlocks = timeBlocks.filter(
+    (block) => block.group.id === selectedTimeBlockGroupId,
+  );
+  useEffect(() => {
+    if (
+      selectedTimeBlockGroupId &&
+      timeBlockGroups.some((group) => group.id === selectedTimeBlockGroupId)
+    )
+      return;
+    setSelectedTimeBlockGroupId(timeBlockGroups[0]?.id ?? "");
+  }, [selectedTimeBlockGroupId, timeBlockGroups]);
 
   return (
     <form
@@ -2003,11 +2211,25 @@ function ScheduleEditorForm({
             </div>
           ) : null}
         </div>
-        {timeBlocks.length ? (
-          <label className="grid gap-1.5 text-sm font-bold">
-            بازه زمانی آماده
+        {timeBlockGroups.length ? (
+          <div className="grid gap-3 rounded-xl border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-muted))]/45 p-3">
+            <label className="grid gap-1.5 text-sm font-bold">
+              ۱. گروه بازه زمانی
+              <AdaptiveSelect
+                value={selectedTimeBlockGroupId}
+                onChange={(event) => setSelectedTimeBlockGroupId(event.target.value)}
+                className="h-11 rounded-xl border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card))] px-3 text-sm text-ink focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20"
+              >
+                {timeBlockGroups.map((group) => (
+                  <option key={group.id} value={group.id}>{group.name}</option>
+                ))}
+              </AdaptiveSelect>
+            </label>
+            <label className="grid gap-1.5 text-sm font-bold">
+              ۲. بازه زمانی آماده
             <AdaptiveSelect
-              defaultValue=""
+              value=""
+              disabled={!selectedTimeBlockGroup || !visibleTimeBlocks.length}
               onChange={(event) => {
                 const block = timeBlocks.find((item) => item.id === event.target.value);
                 if (block)
@@ -2021,24 +2243,19 @@ function ScheduleEditorForm({
               }}
               className="h-11 rounded-xl border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card))] px-3 text-sm text-ink focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20"
             >
-              <option value="">یک بازه را برای اعمال زمان انتخاب کنید</option>
-              {timeBlockGroups.map((group) => {
-                const groupBlocks = timeBlocks.filter(
-                  (block) => block.partOfDay === group.partOfDay,
-                );
-                if (!groupBlocks.length) return null;
-                return (
-                  <optgroup key={group.partOfDay} label={group.label}>
-                    {groupBlocks.map((block) => (
-                      <option key={block.id} value={block.id}>
-                        {block.name} · {block.startTime} تا {block.endTime}
-                      </option>
-                    ))}
-                  </optgroup>
-                );
-              })}
+              <option value="">
+                {visibleTimeBlocks.length
+                  ? "یک بازه را برای اعمال زمان انتخاب کنید"
+                  : "در این گروه بازه‌ای ثبت نشده است"}
+              </option>
+              {visibleTimeBlocks.map((block) => (
+                <option key={block.id} value={block.id}>
+                  {block.name} · {block.startTime} تا {block.endTime}
+                </option>
+              ))}
             </AdaptiveSelect>
-          </label>
+            </label>
+          </div>
         ) : null}
         {attempted && invalidTime ? (
           <p className="text-xs font-bold text-rose-600">زمان پایان باید پس از زمان شروع باشد.</p>
@@ -2256,34 +2473,41 @@ function ScheduleTemplates({
 
 function ScheduleTimeBlocks({
   blocks,
+  groups,
   organizationId,
   saving,
   removing,
   onCreate,
+  onCreateGroup,
   onRemove,
+  onRemoveGroup,
 }: {
   blocks: ScheduleTimeBlock[];
+  groups: ScheduleTimeBlockGroup[];
   organizationId?: string;
   saving: boolean;
   removing: boolean;
   onCreate: (draft: {
     organizationId: string;
+    groupId: string;
     name: string;
     startTime: string;
     endTime: string;
   }) => void;
+  onCreateGroup: (draft: { organizationId: string; name: string }) => void;
   onRemove: (block: ScheduleTimeBlock) => void;
+  onRemoveGroup: (group: ScheduleTimeBlockGroup) => void;
 }) {
+  const [groupName, setGroupName] = useState("");
+  const [groupId, setGroupId] = useState("");
   const [name, setName] = useState("");
   const [startTime, setStartTime] = useState("08:00");
   const [endTime, setEndTime] = useState("09:00");
-  const valid = Boolean(organizationId && name.trim() && startTime < endTime);
-  const blocksByPartOfDay = timeBlockGroups.map((group) => ({
-    ...group,
-    blocks: blocks
-      .filter((block) => block.partOfDay === group.partOfDay)
-      .sort((left, right) => left.startTime.localeCompare(right.startTime)),
-  }));
+  const valid = Boolean(organizationId && groupId && name.trim() && startTime < endTime);
+  useEffect(() => {
+    if (groupId && groups.some((group) => group.id === groupId)) return;
+    setGroupId(groups[0]?.id ?? "");
+  }, [groupId, groups]);
   return (
     <Card className="p-4" dir="rtl">
       <div className="flex items-center gap-2">
@@ -2291,19 +2515,50 @@ function ScheduleTimeBlocks({
           <Clock3 size={17} />
         </span>
         <div>
-          <h3 className="text-sm font-black text-ink">بازه‌های زمانی آماده</h3>
-          <p className="text-[11px] text-slate-500">یک‌بار بسازید، در هر جلسه استفاده کنید.</p>
+          <h3 className="text-sm font-black text-ink">گروه‌ها و بازه‌های زمانی</h3>
+          <p className="text-[11px] text-slate-500">اول گروه بسازید، سپس بازه‌های آن را در جلسه انتخاب کنید.</p>
         </div>
       </div>
+      <form
+        className="mt-3 flex gap-2"
+        onSubmit={(event) => {
+          event.preventDefault();
+          if (!organizationId || !groupName.trim()) return;
+          onCreateGroup({ organizationId, name: groupName.trim() });
+          setGroupName("");
+        }}
+      >
+        <Input
+          value={groupName}
+          onChange={(event) => setGroupName(event.target.value)}
+          placeholder="مثلاً پایه دهم یا نوبت صبح"
+          aria-label="نام گروه بازه زمانی"
+        />
+        <Button type="submit" variant="soft" disabled={!organizationId || !groupName.trim() || saving}>
+          <Plus size={15} /> گروه
+        </Button>
+      </form>
       <form
         className="mt-3 grid gap-2"
         onSubmit={(event) => {
           event.preventDefault();
           if (!organizationId || !valid) return;
-          onCreate({ organizationId, name: name.trim(), startTime, endTime });
+          onCreate({ organizationId, groupId, name: name.trim(), startTime, endTime });
           setName("");
         }}
       >
+        <label className="grid gap-1 text-xs font-bold text-slate-700 dark:text-slate-200">
+          گروه
+          <AdaptiveSelect
+            value={groupId}
+            onChange={(event) => setGroupId(event.target.value)}
+            disabled={!groups.length}
+            className="h-10 rounded-xl border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card))] px-3 text-sm text-ink"
+          >
+            <option value="">ابتدا یک گروه بسازید</option>
+            {groups.map((group) => <option key={group.id} value={group.id}>{group.name}</option>)}
+          </AdaptiveSelect>
+        </label>
         <label className="grid gap-1 text-xs font-bold text-slate-700 dark:text-slate-200">
           نام بازه
           <Input
@@ -2337,36 +2592,42 @@ function ScheduleTimeBlocks({
           افزودن بازه
         </Button>
       </form>
-      {blocks.length ? (
+      {groups.length ? (
         <div
           className="mt-4 grid max-h-72 gap-4 overflow-y-auto pe-1 [scrollbar-width:thin]"
           aria-label="بازه‌های زمانی ذخیره‌شده"
         >
-          {blocksByPartOfDay.map((group) =>
-            group.blocks.length ? (
-              <section
-                key={group.partOfDay}
-                aria-labelledby={`time-block-group-${group.partOfDay}`}
-              >
+          {groups.map((group) => {
+            const groupBlocks = blocks
+              .filter((block) => block.group.id === group.id)
+              .sort((left, right) => left.startTime.localeCompare(right.startTime));
+            return (
+              <section key={group.id} aria-labelledby={`time-block-group-${group.id}`}>
                 <div className="mb-2 flex items-center gap-2">
-                  <span
-                    className={`size-2 rounded-full ${
-                      group.tone === "sky" ? "bg-sky-500" : "bg-amber-500"
-                    }`}
-                    aria-hidden="true"
-                  />
+                  <span className="size-2 rounded-full bg-brand" aria-hidden="true" />
                   <h4
-                    id={`time-block-group-${group.partOfDay}`}
+                    id={`time-block-group-${group.id}`}
                     className="text-xs font-black text-ink"
                   >
-                    {group.label}
+                    {group.name}
                   </h4>
                   <span className="text-[11px] font-bold text-slate-400">
-                    {group.blocks.length.toLocaleString("fa-IR")} بازه
+                    {groupBlocks.length.toLocaleString("fa-IR")} بازه
                   </span>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="ms-auto text-rose-700 hover:bg-rose-50 hover:text-rose-800 dark:text-rose-300 dark:hover:bg-rose-950/30"
+                    disabled={removing || Boolean(groupBlocks.length)}
+                    title={groupBlocks.length ? "ابتدا بازه‌های گروه را حذف کنید" : "حذف گروه"}
+                    aria-label={`حذف گروه ${group.name}`}
+                    onClick={() => onRemoveGroup(group)}
+                  >
+                    <Trash2 size={13} />
+                  </Button>
                 </div>
-                <ul className="grid gap-1.5">
-                  {group.blocks.map((block) => (
+                {groupBlocks.length ? <ul className="grid gap-1.5">
+                  {groupBlocks.map((block) => (
                     <li
                       key={block.id}
                       className="flex items-center justify-between gap-2 rounded-lg bg-[rgb(var(--surface-muted))] px-2 py-1.5 text-xs"
@@ -2389,13 +2650,13 @@ function ScheduleTimeBlocks({
                       </Button>
                     </li>
                   ))}
-                </ul>
+                </ul> : <p className="text-[11px] text-slate-500">هنوز بازه‌ای در این گروه ثبت نشده است.</p>}
               </section>
-            ) : null,
-          )}
+            );
+          })}
         </div>
       ) : (
-        <p className="mt-3 text-xs leading-5 text-slate-500">هنوز بازه‌ای ثبت نشده است.</p>
+        <p className="mt-3 text-xs leading-5 text-slate-500">برای افزودن بازه، ابتدا یک گروه بسازید.</p>
       )}
     </Card>
   );

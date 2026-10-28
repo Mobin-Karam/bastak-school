@@ -116,6 +116,12 @@ const expectations = {
       value: "null",
     },
   },
+  SchoolScheduleTimeBlockGroups1762000000000: {
+    "school_schedule_time_blocks.groupId": {
+      nullable: true,
+      value: "default-time-block-group",
+    },
+  },
 };
 
 // A migration may be allowed to change an existing value only when the
@@ -125,6 +131,11 @@ const expectations = {
 const legacyValueTransforms = {
   AttendanceCorrectionReviewIntegrity1731300300000: {
     "attendance_corrections.reviewedById": "null-if-missing-user",
+  },
+  // Existing time blocks retain every original field. Their new group links
+  // point only to the migration-created organization default groups.
+  SchoolScheduleTimeBlockGroups1762000000000: {
+    "school_schedule_time_blocks.groupId": "default-time-block-group",
   },
 };
 const [command, original, destination] = process.argv.slice(2);
@@ -292,6 +303,17 @@ function preservesOriginalRow(original, upgraded, table, applied, after) {
       );
       if (!referencedUserStillExists) continue;
     }
+    if (transform === "default-time-block-group" && typeof upgraded[column] === "string") {
+      const group = (after.rows.school_schedule_time_block_groups?.records || []).find(
+        (candidate) => candidate.id === upgraded[column],
+      );
+      if (
+        group &&
+        group.organizationId === original.organizationId &&
+        group.name === (original.partOfDay === "PM" ? "عصر" : "صبح")
+      )
+        continue;
+    }
     return false;
   }
   return true;
@@ -399,6 +421,24 @@ function validateAddedColumns(beforeTable, afterTable, table, applied, db) {
           beforeTable,
           afterTable,
         );
+      if (expectation.value === "default-time-block-group") {
+        const group = (db
+          .prepare(
+            "SELECT organizationId, name FROM school_schedule_time_block_groups WHERE id = ?",
+          )
+          .get(value) || {});
+        if (
+          typeof value !== "string" ||
+          group.organizationId !== row.organizationId ||
+          group.name !== (row.partOfDay === "PM" ? "عصر" : "صبح")
+        )
+          fail(
+            table,
+            `unexpected default group in ${column.name}`,
+            beforeTable,
+            afterTable,
+          );
+      }
     }
   }
 }

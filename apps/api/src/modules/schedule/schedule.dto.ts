@@ -40,9 +40,14 @@ export class ArchiveScheduleEntryDto {
 
 export class CreateScheduleTimeBlockDto {
   @IsUUID() organizationId!: string;
+  @IsUUID() groupId!: string;
   @IsString() name!: string;
   @Matches(/^([01]\d|2[0-3]):[0-5]\d$/) startTime!: string;
   @Matches(/^([01]\d|2[0-3]):[0-5]\d$/) endTime!: string;
+}
+export class CreateScheduleTimeBlockGroupDto {
+  @IsUUID() organizationId!: string;
+  @IsString() name!: string;
 }
 export class CreateScheduleTemplateDto {
   @IsUUID() organizationId!: string;

@@ -10,6 +10,7 @@ import { PersistenceUniquenessAndReadIndexes1730800000000 } from "../src/databas
 import { AcademicSchedulingFoundation1730900000000 } from "../src/database/migrations/1730900000000-AcademicSchedulingFoundation";
 import { SchoolScheduleTimeBlocks1731800000000 } from "../src/database/migrations/1731800000000-SchoolScheduleTimeBlocks";
 import { SchoolScheduleTimeBlockPartOfDay1731800100000 } from "../src/database/migrations/1731800100000-SchoolScheduleTimeBlockPartOfDay";
+import { SchoolScheduleTimeBlockGroups1762000000000 } from "../src/database/migrations/1762000000000-SchoolScheduleTimeBlockGroups";
 import { LegacyScheduleSubstitutionRequests1761800000000 } from "../src/database/migrations/1761800000000-LegacyScheduleSubstitutionRequests";
 import { NightAttendance1728234800000 } from "../src/database/migrations/1728234800000-NightAttendance";
 import {
@@ -49,6 +50,7 @@ import { UserRoleAssignment } from "../src/database/entities/user-role-assignmen
 import { UserRelationship } from "../src/database/entities/user-relationship.entity";
 import { SchoolScheduleEntry } from "../src/database/entities/school-schedule-entry.entity";
 import { SchoolScheduleTimeBlock } from "../src/database/entities/school-schedule-time-block.entity";
+import { SchoolScheduleTimeBlockGroup } from "../src/database/entities/school-schedule-time-block-group.entity";
 import { SchoolScheduleTemplate } from "../src/database/entities/school-schedule-template.entity";
 import {
   SchoolScheduleOccurrenceOverride,
@@ -809,6 +811,14 @@ describe("migration-backed persistence and verified recovery (disposable SQLite 
         manager.queryRunner!,
       ),
     );
+    await db.query(
+      `INSERT INTO school_schedule_time_blocks (id, organizationId, name, startTime, endTime, partOfDay)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      [randomUUID(), a.id, "زنگ قدیمی", "08:00", "08:45", "AM"],
+    );
+    await db.transaction(async (manager) =>
+      new SchoolScheduleTimeBlockGroups1762000000000().up(manager.queryRunner!),
+    );
     await db.transaction(async (manager) =>
       new LegacyScheduleSubstitutionRequests1761800000000().up(
         manager.queryRunner!,
@@ -823,6 +833,7 @@ describe("migration-backed persistence and verified recovery (disposable SQLite 
     const schedule = new ScheduleService(
       db.getRepository(SchoolScheduleEntry),
       db.getRepository(SchoolScheduleTimeBlock),
+      db.getRepository(SchoolScheduleTimeBlockGroup),
       db.getRepository(SchoolScheduleTemplate),
       db.getRepository(SchoolScheduleOccurrenceOverride),
       db.getRepository(SchoolScheduleSubstitutionRequest),
@@ -898,12 +909,23 @@ describe("migration-backed persistence and verified recovery (disposable SQLite 
     expect(JSON.stringify(responses)).not.toContain("unused-test-fixture");
     expect(created.teacher?.id).toBe(actor.id);
     expect(created.classBook?.teacher?.id).toBe(actor.id);
+    const group = await schedule.createTimeBlockGroup(scoped, {
+      organizationId: a.id,
+      name: "جبرانی",
+    });
+    const migrated = await db.getRepository(SchoolScheduleTimeBlock).findOneOrFail({
+      where: { name: "زنگ قدیمی" },
+      relations: { group: true },
+    });
+    expect(migrated.group.name).toBe("صبح");
     const block = await schedule.createTimeBlock(scoped, {
       organizationId: a.id,
+      groupId: group.id,
       name: "جبرانی",
       startTime: "10:00",
       endTime: "10:45",
     });
+    expect((await schedule.listTimeBlocks(scoped))[0]?.group.id).toBe(group.id);
     const teacherActor = {
       ...scoped,
       role: "TEACHER" as const,
