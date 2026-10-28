@@ -55,6 +55,8 @@ import {
   changeLegacyAcademicTermState,
   updateLegacyAcademicYear,
   updateLegacyAcademicTerm,
+  listLegacyAcademicYearHistory,
+  listLegacyAcademicTermHistory,
   previewScheduleImport,
   restoreScheduleTemplate,
   type ScheduleDraft,
@@ -66,6 +68,7 @@ import type {
   ScheduleTimeBlock,
   ScheduleTimeBlockGroup,
   LegacyAcademicTerm,
+  LegacyAcademicCycleAudit,
 } from "../api/schedule.api";
 import { TeacherSchedulePage } from "../../../people/teacher-portal";
 import { OrganizationTag } from "../../../../shared/ui/organization-tag";
@@ -2866,6 +2869,7 @@ function AcademicCycleManager({
   loading: boolean;
   onChanged: () => void;
 }) {
+  const { formatDate } = useLocale();
   const [yearName, setYearName] = useState("");
   const [yearStart, setYearStart] = useState("");
   const [yearEnd, setYearEnd] = useState("");
@@ -2875,6 +2879,19 @@ function AcademicCycleManager({
   const [yearId, setYearId] = useState("");
   const [editingYearId, setEditingYearId] = useState<string | null>(null);
   const [editingTermId, setEditingTermId] = useState<string | null>(null);
+  const [historyTarget, setHistoryTarget] = useState<{
+    kind: "year" | "term";
+    id: string;
+    name: string;
+  } | null>(null);
+  const history = useQuery({
+    queryKey: ["schedule", "academic-cycle-history", historyTarget?.kind, historyTarget?.id],
+    queryFn: () =>
+      historyTarget?.kind === "year"
+        ? listLegacyAcademicYearHistory(historyTarget.id)
+        : listLegacyAcademicTermHistory(historyTarget!.id),
+    enabled: Boolean(historyTarget),
+  });
   const changed = () => {
     onChanged();
     notify("چرخه تحصیلی به‌روزرسانی شد.", "success");
@@ -3045,6 +3062,9 @@ function AcademicCycleManager({
               {year.state !== "ARCHIVED" ? <Button variant="ghost" onClick={() => {
                 setEditingYearId(year.id); setYearName(year.name); setYearStart(year.startsOn); setYearEnd(year.endsOn);
               }}>ویرایش</Button> : null}
+              <Button variant="ghost" onClick={() => setHistoryTarget({ kind: "year", id: year.id, name: year.name })}>
+                تاریخچه
+              </Button>
             </div>
             <ul className="grid gap-2">
               {(data?.terms ?? [])
@@ -3080,11 +3100,36 @@ function AcademicCycleManager({
                     {(term.state !== "ARCHIVED" || term.correctionOpen) ? <Button variant="ghost" onClick={() => {
                       setEditingTermId(term.id); setYearId(year.id); setTermName(term.name); setTermStart(term.startsOn); setTermEnd(term.endsOn);
                     }}>ویرایش</Button> : null}
+                    <Button variant="ghost" onClick={() => setHistoryTarget({ kind: "term", id: term.id, name: term.name })}>
+                      تاریخچه
+                    </Button>
                   </li>
                 ))}
             </ul>
           </Card>
         ))}
+        {historyTarget ? (
+          <Card className="grid gap-3 p-4" aria-live="polite">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <h4 className="font-black">تاریخچهٔ {historyTarget.name}</h4>
+                <p className="text-xs text-slate-500">رویدادهای ثبت‌شده برای این {historyTarget.kind === "year" ? "سال تحصیلی" : "نیم‌سال"}</p>
+              </div>
+              <Button variant="ghost" onClick={() => setHistoryTarget(null)}>بستن</Button>
+            </div>
+            {history.isLoading ? <LoadingState label="در حال دریافت تاریخچه…" /> : null}
+            {history.isError ? <p className="text-sm text-danger">دریافت تاریخچه انجام نشد.</p> : null}
+            {!history.isLoading && !history.isError && !(history.data ?? []).length ? (
+              <EmptyState title="رویدادی برای این مورد ثبت نشده است." />
+            ) : null}
+            {(history.data ?? []).map((event: LegacyAcademicCycleAudit) => (
+              <div key={event.id} className="flex items-center justify-between gap-3 rounded-lg bg-[rgb(var(--surface-muted))] p-3 text-sm">
+                <strong>{academicCycleAuditLabel(event.action)}</strong>
+                <time className="text-xs text-slate-500">{formatDate(event.createdAt, { dateStyle: "medium", timeStyle: "short" })}</time>
+              </div>
+            ))}
+          </Card>
+        ) : null}
         {!years.length ? <EmptyState title="هنوز سال تحصیلی ثبت نشده است." /> : null}
       </section>
     </div>
@@ -3131,6 +3176,19 @@ function PlanDetail({
 
 function legacyWeekdayForIso(iso: string) {
   return (new Date(`${iso}T12:00:00`).getDay() + 1) % 7;
+}
+
+function academicCycleAuditLabel(action: string) {
+  return (
+    {
+      created: "ایجاد شد",
+      updated: "ویرایش شد",
+      activate: "فعال شد",
+      archive: "بایگانی شد",
+      reopen: "برای اصلاح تاریخی بازگشایی شد",
+      "close-correction": "اصلاح تاریخی بسته شد",
+    } as Record<string, string>
+  )[action] ?? action;
 }
 
 function teacherName(entry: ScheduleEntry) {

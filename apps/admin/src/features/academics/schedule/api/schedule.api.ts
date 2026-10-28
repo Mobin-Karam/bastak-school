@@ -50,6 +50,12 @@ export type LegacyAcademicTerm = {
   state: "DRAFT" | "ACTIVE" | "ARCHIVED";
   correctionOpen: boolean;
 };
+export type LegacyAcademicCycleAudit = {
+  id: string;
+  action: string;
+  createdAt: string;
+  metadata?: Record<string, unknown> | null;
+};
 export type ScheduleTimeBlock = {
   id: string;
   name: string;
@@ -123,6 +129,10 @@ export const updateLegacyAcademicTerm = (
   id: string,
   body: Pick<LegacyAcademicTerm, "name" | "startsOn" | "endsOn">,
 ) => api.patch<LegacyAcademicTerm>(`/schedule/academic-terms/${encodeURIComponent(id)}`, body);
+export const listLegacyAcademicYearHistory = (id: string) =>
+  api.get<LegacyAcademicCycleAudit[]>(`/schedule/academic-years/${encodeURIComponent(id)}/history`);
+export const listLegacyAcademicTermHistory = (id: string) =>
+  api.get<LegacyAcademicCycleAudit[]>(`/schedule/academic-terms/${encodeURIComponent(id)}/history`);
 export const changeLegacyAcademicYearState = (id: string, action: "activate" | "archive") =>
   api.post<LegacyAcademicYear>(`/schedule/academic-years/${encodeURIComponent(id)}/lifecycle`, {
     action,
