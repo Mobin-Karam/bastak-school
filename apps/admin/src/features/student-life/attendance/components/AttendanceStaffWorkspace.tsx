@@ -720,6 +720,7 @@ export function AttendanceStaffWorkspace({
   const auth = useAuth();
   const cache = useQueryClient();
   const [category, setCategory] = useState<"class" | "class_group" | "dorm">("class");
+  const [officeTab, setOfficeTab] = useState<"teacher" | "groups" | "history" | "reports">("teacher");
   const [contextFilter, setContextFilter] = useState("");
   const [academicYearId, setAcademicYearId] = useState("");
   const [termId, setTermId] = useState("");
@@ -805,6 +806,12 @@ export function AttendanceStaffWorkspace({
   const currentTerms = (academicCycles.data?.terms ?? []).filter(
     (term) => !academicYearId || term.academicYearId === academicYearId,
   );
+  const selectOfficeTab = (tab: "teacher" | "groups" | "history" | "reports") => {
+    setOfficeTab(tab);
+    setCategory(tab === "groups" ? "class_group" : "class");
+    setContextFilter("");
+    setSessionsPage(1);
+  };
   const canReconcileHistoricalAttendance = [
     "PRINCIPAL",
     "RELIGIOUS_EDUCATION_MANAGER",
@@ -1239,6 +1246,33 @@ export function AttendanceStaffWorkspace({
               </span>
             ) : null}
           </div>
+          <nav
+            className="grid grid-cols-2 gap-1 rounded-xl border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card))] p-1 sm:flex"
+            aria-label="تب‌های دفتر حضور کلاس"
+            role="tablist"
+          >
+            {[
+              ["teacher", "جلسات استاد"],
+              ["groups", "حضور گروه‌ها"],
+              ["history", "تاریخچه"],
+              ["reports", "گزارش‌ها"],
+            ].map(([tab, label]) => (
+              <button
+                key={tab}
+                type="button"
+                role="tab"
+                aria-selected={officeTab === tab}
+                className={`min-h-10 rounded-lg px-3 text-xs font-bold transition-colors focus-visible:ring-2 focus-visible:ring-blue-500 ${
+                  officeTab === tab
+                    ? "bg-blue-600 text-white"
+                    : "text-slate-600 hover:bg-[rgb(var(--surface-muted))] dark:text-slate-300"
+                }`}
+                onClick={() => selectOfficeTab(tab as typeof officeTab)}
+              >
+                {label}
+              </button>
+            ))}
+          </nav>
           {history.isLoading ? (
             <p role="status" className="text-xs text-slate-500">
               در حال دریافت سابقه جامع جلسات…
@@ -1338,16 +1372,30 @@ export function AttendanceStaffWorkspace({
               </AdaptiveSelect>
             </label>
           </div>
-          {history.isLoading ? (
+          {officeTab === "reports" && report.data ? (
+            <div
+              role="tabpanel"
+              className="grid gap-3 rounded-xl border border-emerald-200 bg-emerald-50/60 p-4 text-sm dark:border-emerald-900 dark:bg-emerald-950/20"
+            >
+              <strong>گزارش نیم‌سالِ انتخاب‌شده</strong>
+              <p className="text-xs text-slate-600 dark:text-slate-300">
+                {report.data.finalizedSessions.toLocaleString("fa-IR")} جلسهٔ نهایی · {report.data.present.toLocaleString("fa-IR")} حاضر · {report.data.absent.toLocaleString("fa-IR")} غایب · {report.data.late.toLocaleString("fa-IR")} تأخیر · {report.data.excused.toLocaleString("fa-IR")} موجه
+              </p>
+              <p className="text-xs text-slate-600 dark:text-slate-300">
+                نرخ حضور: {report.data.attendanceRate === null ? "نامشخص" : `${report.data.attendanceRate.toLocaleString("fa-IR")}٪`}
+              </p>
+            </div>
+          ) : null}
+          {officeTab !== "reports" && history.isLoading ? (
             <p role="status">در حال دریافت جلسات…</p>
-          ) : history.isError ? (
+          ) : officeTab !== "reports" && history.isError ? (
             <p role="alert">
               جلسات دریافت نشد.{" "}
               <button type="button" onClick={() => void history.refetch()}>
                 تلاش مجدد
               </button>
             </p>
-          ) : (
+          ) : officeTab !== "reports" ? (
             <div
               className="overflow-x-auto rounded-2xl border border-[rgb(var(--border-subtle))]"
               role="region"
@@ -1419,13 +1467,13 @@ export function AttendanceStaffWorkspace({
                 </tbody>
               </table>
             </div>
-          )}
-          {history.data && !sessionItems.length ? (
+          ) : null}
+          {officeTab !== "reports" && history.data && !sessionItems.length ? (
             <p className="py-4 text-center text-sm text-slate-500">
               جلسه‌ای در این بخش ثبت نشده است.
             </p>
           ) : null}
-          {history.data && history.data.total > 0 ? (
+          {officeTab !== "reports" && history.data && history.data.total > 0 ? (
             <nav
               aria-label="صفحه‌بندی سوابق حضور"
               className="flex items-center justify-between gap-2"
