@@ -1806,26 +1806,28 @@ export class ScheduleService {
         "SCHEDULE_ACADEMIC_TERM_REQUIRED",
         "برای سال فعال، سال و نیم‌سال جلسه را انتخاب کنید.",
       );
+    let academicYear: SchoolAcademicYear | null = null;
+    let academicTerm: SchoolAcademicTerm | null = null;
     if (dto.academicYearId || dto.termId) {
-      const term =
+      academicTerm =
         dto.academicYearId && dto.termId
           ? await this.academicTerms.findOneBy({
               id: dto.termId,
               academicYearId: dto.academicYearId,
             })
           : null;
-      const year = dto.academicYearId
+      academicYear = dto.academicYearId
         ? await this.academicYearRepo.findOneBy({
             id: dto.academicYearId,
             organizationId: organization.id,
           })
         : null;
       if (
-        !year ||
-        !term ||
-        year.state === "ARCHIVED" ||
-        term.state === "ARCHIVED" ||
-        term.correctionOpen
+        !academicYear ||
+        !academicTerm ||
+        academicYear.state === "ARCHIVED" ||
+        academicTerm.state === "ARCHIVED" ||
+        academicTerm.correctionOpen
       )
         throw new ApiException(
           409,
@@ -1864,6 +1866,8 @@ export class ScheduleService {
           teacher,
           academicYearId: dto.academicYearId ?? null,
           termId: dto.termId ?? null,
+          academicYearNameSnapshot: academicYear?.name ?? null,
+          termNameSnapshot: academicTerm?.name ?? null,
         }),
       )
       .then((entry) => this.publicEntry(entry));

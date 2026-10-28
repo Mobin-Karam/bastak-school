@@ -15,6 +15,7 @@ import { LegacyScheduleSubstitutionRequests1761800000000 } from "../src/database
 import { TeacherLeaveRequests1761900000000 } from "../src/database/migrations/1761900000000-TeacherLeaveRequests";
 import { TeacherLeaveEarlyReturn1762200000000 } from "../src/database/migrations/1762200000000-TeacherLeaveEarlyReturn";
 import { LegacyScheduleAcademicCycles1762300000000 } from "../src/database/migrations/1762300000000-LegacyScheduleAcademicCycles";
+import { LegacyScheduleAcademicNameSnapshots1762300400000 } from "../src/database/migrations/1762300400000-LegacyScheduleAcademicNameSnapshots";
 import { NightAttendance1728234800000 } from "../src/database/migrations/1728234800000-NightAttendance";
 import {
   Organization,
@@ -841,6 +842,9 @@ describe("migration-backed persistence and verified recovery (disposable SQLite 
     await db.transaction(async (manager) =>
       new LegacyScheduleAcademicCycles1762300000000().up(manager.queryRunner!),
     );
+    await db.transaction(async (manager) =>
+      new LegacyScheduleAcademicNameSnapshots1762300400000().up(manager.queryRunner!),
+    );
     const authorization = new AuthorizationService(
       db.getRepository(UserRoleAssignment),
       db.getRepository(OrganizationMembership),
@@ -1057,6 +1061,10 @@ describe("migration-backed persistence and verified recovery (disposable SQLite 
       title: "جلسه بایگانی‌شونده",
       academicYearId: academicYear.id,
       termId: academicTerm.id,
+    });
+    expect(archivedTermEntry).toMatchObject({
+      academicYearNameSnapshot: academicYear.name,
+      termNameSnapshot: academicTerm.name,
     });
     expect(
       (await schedule.list(scoped, a.id, academicYear.id, academicTerm.id)).map(
