@@ -27,6 +27,8 @@ import {
   SaveScheduleEntryDto,
   CreateLegacyAcademicYearDto,
   CreateLegacyAcademicTermDto,
+  UpdateLegacyAcademicYearDto,
+  UpdateLegacyAcademicTermDto,
   LegacyAcademicLifecycleDto,
 } from "./schedule.dto";
 import { ScheduleService } from "./schedule.service";
@@ -48,6 +50,10 @@ export class ScheduleController {
   ) {
     return this.schedule.createAcademicYear(user, dto).then(ok);
   }
+  @Patch("academic-years/:id") @RequireCapabilities("schedule.update")
+  updateAcademicYear(@CurrentUser() user: AuthenticatedUser, @Param("id") id: string, @Body() dto: UpdateLegacyAcademicYearDto) {
+    return this.schedule.updateAcademicYear(user, id, dto).then(ok);
+  }
   @Post("academic-years/:id/lifecycle")
   @RequireCapabilities("schedule.update")
   academicYearLifecycle(
@@ -64,6 +70,10 @@ export class ScheduleController {
     @Body() dto: CreateLegacyAcademicTermDto,
   ) {
     return this.schedule.createAcademicTerm(user, dto).then(ok);
+  }
+  @Patch("academic-terms/:id") @RequireCapabilities("schedule.update")
+  updateAcademicTerm(@CurrentUser() user: AuthenticatedUser, @Param("id") id: string, @Body() dto: UpdateLegacyAcademicTermDto) {
+    return this.schedule.updateAcademicTerm(user, id, dto).then(ok);
   }
   @Post("academic-terms/:id/lifecycle")
   @RequireCapabilities("schedule.update")

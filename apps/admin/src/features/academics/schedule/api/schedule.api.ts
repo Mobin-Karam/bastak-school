@@ -115,6 +115,14 @@ export const createLegacyAcademicTerm = (body: {
   startsOn: string;
   endsOn: string;
 }) => api.post<LegacyAcademicTerm>("/schedule/academic-terms", body);
+export const updateLegacyAcademicYear = (
+  id: string,
+  body: Pick<LegacyAcademicYear, "name" | "startsOn" | "endsOn">,
+) => api.patch<LegacyAcademicYear>(`/schedule/academic-years/${encodeURIComponent(id)}`, body);
+export const updateLegacyAcademicTerm = (
+  id: string,
+  body: Pick<LegacyAcademicTerm, "name" | "startsOn" | "endsOn">,
+) => api.patch<LegacyAcademicTerm>(`/schedule/academic-terms/${encodeURIComponent(id)}`, body);
 export const changeLegacyAcademicYearState = (id: string, action: "activate" | "archive") =>
   api.post<LegacyAcademicYear>(`/schedule/academic-years/${encodeURIComponent(id)}/lifecycle`, {
     action,

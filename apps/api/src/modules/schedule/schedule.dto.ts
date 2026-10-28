@@ -39,6 +39,16 @@ export class CreateLegacyAcademicTermDto {
   @Matches(/^\d{4}-\d{2}-\d{2}$/) startsOn!: string;
   @Matches(/^\d{4}-\d{2}-\d{2}$/) endsOn!: string;
 }
+export class UpdateLegacyAcademicYearDto {
+  @IsString() @MinLength(2) name!: string;
+  @Matches(/^\d{4}-\d{2}-\d{2}$/) startsOn!: string;
+  @Matches(/^\d{4}-\d{2}-\d{2}$/) endsOn!: string;
+}
+export class UpdateLegacyAcademicTermDto {
+  @IsString() @MinLength(2) name!: string;
+  @Matches(/^\d{4}-\d{2}-\d{2}$/) startsOn!: string;
+  @Matches(/^\d{4}-\d{2}-\d{2}$/) endsOn!: string;
+}
 export class LegacyAcademicLifecycleDto {
   @IsIn(["activate", "archive", "reopen", "close-correction"]) action!:
     "activate" | "archive" | "reopen" | "close-correction";

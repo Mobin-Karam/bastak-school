@@ -41,6 +41,8 @@ import {
   SaveScheduleEntryDto,
   CreateLegacyAcademicYearDto,
   CreateLegacyAcademicTermDto,
+  UpdateLegacyAcademicYearDto,
+  UpdateLegacyAcademicTermDto,
   LegacyAcademicLifecycleDto,
   ScheduleSubstitutionDecisionDto,
   ScheduleSubstitutionRequestDto,
@@ -218,6 +220,45 @@ export class ScheduleService {
         state: "DRAFT",
       }),
     );
+  }
+  async updateAcademicYear(user: AuthenticatedUser, id: string, dto: UpdateLegacyAcademicYearDto) {
+    const year = await this.scopedAcademicYear(user, id);
+    if (year.state === "ARCHIVED" || dto.endsOn < dto.startsOn)
+      throw new ApiException(422, "SCHEDULE_ACADEMIC_DATE", "سال تحصیلی قابل ویرایش نیست یا بازه معتبر نیست.");
+    const terms = await this.academicTerms.findBy({ academicYearId: year.id });
+    if (terms.some((term) => term.startsOn < dto.startsOn || term.endsOn > dto.endsOn))
+      throw new ApiException(422, "SCHEDULE_ACADEMIC_DATE", "بازهٔ جدید سال باید همه نیم‌سال‌ها را در بر بگیرد.");
+    year.name = dto.name.trim();
+    year.startsOn = dto.startsOn;
+    year.endsOn = dto.endsOn;
+    return this.academicYearRepo.save(year);
+  }
+  async updateAcademicTerm(user: AuthenticatedUser, id: string, dto: UpdateLegacyAcademicTermDto) {
+    const term = await this.academicTerms.findOneBy({ id });
+    if (!term)
+      throw new ApiException(404, "SCHEDULE_ACADEMIC_TERM_NOT_FOUND", "نیم‌سال پیدا نشد.");
+    const year = await this.scopedAcademicYear(user, term.academicYearId);
+    if (
+      (term.state === "ARCHIVED" && !term.correctionOpen) ||
+      dto.endsOn < dto.startsOn ||
+      dto.startsOn < year.startsOn ||
+      dto.endsOn > year.endsOn
+    )
+      throw new ApiException(422, "SCHEDULE_ACADEMIC_DATE", "نیم‌سال قابل ویرایش نیست یا بازه معتبر نیست.");
+    const overlap = await this.academicTerms
+      .createQueryBuilder("term")
+      .where("term.academicYearId = :year AND term.id != :id", { year: year.id, id })
+      .andWhere("term.startsOn <= :end AND term.endsOn >= :start", {
+        start: dto.startsOn,
+        end: dto.endsOn,
+      })
+      .getExists();
+    if (overlap)
+      throw new ApiException(409, "SCHEDULE_ACADEMIC_TERM_OVERLAP", "نیم‌سال‌ها نباید هم‌پوشانی داشته باشند.");
+    term.name = dto.name.trim();
+    term.startsOn = dto.startsOn;
+    term.endsOn = dto.endsOn;
+    return this.academicTerms.save(term);
   }
   async academicYearLifecycle(
     user: AuthenticatedUser,
