@@ -969,6 +969,23 @@ export class AttendanceService {
     return { id: row.id, revision: row.revision, duplicate: false };
   }
 
+  private async assertAcademicSessionWritable(
+    manager: EntityManager,
+    session: AttendanceSession | null,
+  ) {
+    if (!session?.academicYearIdSnapshot || !session.termIdSnapshot) return;
+    const term = await manager.getRepository(SchoolAcademicTerm).findOneBy({
+      id: session.termIdSnapshot,
+      academicYearId: session.academicYearIdSnapshot,
+    });
+    if (!term || (term.state === "ARCHIVED" && !term.correctionOpen))
+      throw new ApiException(
+        409,
+        "ATTENDANCE_TERM_ARCHIVED",
+        "نیم‌سال بایگانی‌شده فقط خواندنی است؛ ابتدا آن را برای اصلاح تاریخی بازگشایی کنید.",
+      );
+  }
+
   /**
    * Suggests, but never creates, missed legacy schedule occurrences.  A manager
    * must explicitly open each candidate through the normal occurrence endpoint.
@@ -2217,6 +2234,7 @@ export class AttendanceService {
           "ATTENDANCE_SESSION_NOT_FOUND",
           "جلسه حضور و غیاب پیدا نشد.",
         );
+      await this.assertAcademicSessionWritable(manager, session);
       if (
         session &&
         (["class_schedule", "legacy_schedule"].includes(
