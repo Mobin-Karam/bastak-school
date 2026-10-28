@@ -33,6 +33,18 @@ export class OpenLegacyScheduleAttendanceDto {
   @IsDateString({ strict: true })
   date!: string;
 }
+export class CreateHistoricalAttendanceSessionDto {
+  @IsUUID() organizationId!: string;
+  @IsUUID() academicYearId!: string;
+  @IsUUID() termId!: string;
+  @IsUUID() classroomId!: string;
+  @IsOptional() @IsUUID() teacherId?: string;
+  @IsOptional() @IsUUID() subjectId?: string;
+  @IsOptional() @IsString() @MaxLength(240) subjectName?: string;
+  @IsString() @MinLength(3) @MaxLength(240) title!: string;
+  @Matches(/^\d{4}-\d{2}-\d{2}$/) @IsDateString({ strict: true }) date!: string;
+  @IsString() @MinLength(3) @MaxLength(1000) reason!: string;
+}
 
 export class AttendanceEntryDto {
   @IsUUID() studentId!: string;

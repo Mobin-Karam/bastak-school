@@ -60,6 +60,7 @@ import {
   BulkMarkAttendanceDto,
   CreateAttendanceSessionDto,
   OpenLegacyScheduleAttendanceDto,
+  CreateHistoricalAttendanceSessionDto,
   ReviewAttendanceAbsenceDto,
   AwardAttendancePointsDto,
   SubmitAttendanceAbsencesDto,
@@ -845,6 +846,97 @@ export class AttendanceService {
         rosterCapturedAt: new Date(),
         createdBy: { id: user.id } as User,
         note: `جلسه برنامه legacy · ${dto.date}`,
+      }),
+    );
+    return { id: row.id, revision: row.revision, duplicate: false };
+  }
+
+  async createHistoricalSession(
+    user: AuthenticatedUser,
+    dto: CreateHistoricalAttendanceSessionDto,
+  ) {
+    const roles = user.roles?.length ? user.roles : [user.role];
+    if (
+      !roles.some((role) =>
+        [
+          "PRINCIPAL",
+          "RELIGIOUS_EDUCATION_MANAGER",
+          "ORGANIZATION_ADMIN",
+          "PLATFORM_ADMIN",
+        ].includes(role),
+      )
+    )
+      throw new ApiException(
+        403,
+        "ATTENDANCE_HISTORICAL_FORBIDDEN",
+        "ورود حضور گذشته فقط برای مدیر و مسئول آموزش دینی مجاز است.",
+      );
+    this.assertWorkOrganization(user, dto.organizationId);
+    const organization = await this.access.organizationForUser(
+      this.effectiveUser(user),
+      dto.organizationId,
+    );
+    const year = await this.sessions.manager
+      .getRepository(SchoolAcademicYear)
+      .findOneBy({ id: dto.academicYearId, organizationId: organization.id });
+    const term = await this.sessions.manager
+      .getRepository(SchoolAcademicTerm)
+      .findOneBy({ id: dto.termId, academicYearId: dto.academicYearId });
+    if (!year || !term || dto.date < term.startsOn || dto.date > term.endsOn)
+      throw new ApiException(
+        422,
+        "ATTENDANCE_HISTORICAL_TERM",
+        "سال، نیم‌سال و تاریخ جلسه تاریخی باید با هم سازگار باشند.",
+      );
+    if (term.state === "ARCHIVED" && !term.correctionOpen)
+      throw new ApiException(
+        409,
+        "ATTENDANCE_TERM_ARCHIVED",
+        "برای اصلاح تاریخچه، نیم‌سال بایگانی‌شده را بازگشایی اصلاحی کنید.",
+      );
+    const classroom = await this.classes.findOne({
+      where: { id: dto.classroomId, organization: { id: organization.id } },
+    });
+    if (!classroom)
+      throw new ApiException(
+        404,
+        "ATTENDANCE_CONTEXT_NOT_FOUND",
+        "کلاس در مدرسه فعال پیدا نشد.",
+      );
+    const key = `legacy-import:${dto.classroomId}:${dto.subjectId ?? "manual"}:${dto.date}:${dto.title.trim()}`;
+    const existing = await this.sessions.findOne({
+      where: { organization: { id: organization.id }, occurrenceKey: key },
+    });
+    if (existing)
+      return { id: existing.id, revision: existing.revision, duplicate: true };
+    const roster = await this.listParticipants(user, "class", classroom.id);
+    const row = await this.sessions.save(
+      this.sessions.create({
+        organization,
+        contextType: "class",
+        contextId: classroom.id,
+        sessionDate: new Date(`${dto.date}T12:00:00.000Z`),
+        operationalDate: dto.date,
+        occurrenceKey: key,
+        sourceKind: "legacy_import",
+        historicalImportReason: dto.reason.trim(),
+        titleSnapshot: dto.title.trim(),
+        subjectIdSnapshot: dto.subjectId ?? null,
+        subjectNameSnapshot: dto.subjectName?.trim() || null,
+        academicYearIdSnapshot: year.id,
+        academicYearNameSnapshot: year.name,
+        termIdSnapshot: term.id,
+        termNameSnapshot: term.name,
+        assignedStaff: dto.teacherId ? ({ id: dto.teacherId } as User) : null,
+        rosterSnapshot: roster.map((member) => ({
+          id: member.id,
+          name: member.name,
+          nationalCode: member.nationalCode ?? null,
+          userId: member.userId,
+        })),
+        rosterCapturedAt: new Date(),
+        createdBy: { id: user.id } as User,
+        note: dto.reason.trim(),
       }),
     );
     return { id: row.id, revision: row.revision, duplicate: false };

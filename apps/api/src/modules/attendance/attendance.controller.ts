@@ -20,6 +20,7 @@ import {
   SaveSupervisorAttendanceCheckDto,
   CreateAttendanceSessionDto,
   OpenLegacyScheduleAttendanceDto,
+  CreateHistoricalAttendanceSessionDto,
   ReviewAttendanceAbsenceDto,
   AwardAttendancePointsDto,
   SubmitAttendanceAbsencesDto,
@@ -130,6 +131,14 @@ export class AttendanceController {
     @Body() dto: OpenLegacyScheduleAttendanceDto,
   ) {
     return this.attendance.openLegacyScheduleSession(user, dto).then(ok);
+  }
+  @Post("attendance/historical-sessions")
+  @RequireCapabilities("attendance.manage")
+  createHistoricalSession(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() dto: CreateHistoricalAttendanceSessionDto,
+  ) {
+    return this.attendance.createHistoricalSession(user, dto).then(ok);
   }
 
   @Post("attendance/bulk-mark")

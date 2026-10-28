@@ -87,8 +87,11 @@ export class AttendanceSession {
     | "class_schedule"
     | "attendance_schedule"
     | "legacy_schedule"
+    | "legacy_import"
     | "exceptional"
     | null;
+  @Column({ type: "text", nullable: true }) historicalImportReason?:
+    string | null;
   @Column({ type: "varchar", length: 36, nullable: true }) sourceScheduleId?:
     string | null;
   @Column({ type: "datetime", nullable: true }) rosterCapturedAt?: Date | null;
