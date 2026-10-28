@@ -594,12 +594,17 @@ export class AttendanceService {
         const observed = new Map(
           check.entries.map((entry) => [entry.studentId, entry.status]),
         );
-        const mismatches = [...observed].filter(
-          ([studentId, status]) => teacher.get(studentId) !== status,
-        ).length;
+        const mismatches = [...observed]
+          .filter(([studentId, status]) => teacher.get(studentId) !== status)
+          .map(([studentId, status]) => ({
+            studentId,
+            teacherStatus: teacher.get(studentId) ?? null,
+            supervisorStatus: status,
+          }));
         return {
           ...this.supervisorCheckView(check),
-          mismatchCount: mismatches,
+          mismatchCount: mismatches.length,
+          mismatches,
         };
       });
       const comparisonStatus = !session.submittedAt
@@ -618,6 +623,7 @@ export class AttendanceService {
         sessionDate: session.sessionDate.toISOString(),
         comparisonStatus,
         teacherRecordCount: teacher.size,
+        roster: session.rosterSnapshot ?? [],
         supervisorChecks: comparisons,
       };
     });

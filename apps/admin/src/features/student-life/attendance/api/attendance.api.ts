@@ -111,8 +111,17 @@ export type SupervisorComparison = {
   sessionDate: string;
   comparisonStatus: "teacher_missing" | "supervisor_missing" | "mismatch" | "matched";
   teacherRecordCount: number;
+  roster: Array<{ id: string; name: string }>;
   supervisorChecks: Array<
-    SupervisorAttendanceCheck & { supervisorName: string; mismatchCount: number }
+    SupervisorAttendanceCheck & {
+      supervisorName: string;
+      mismatchCount: number;
+      mismatches: Array<{
+        studentId: string;
+        teacherStatus: "present" | "absent" | "late" | "excused" | null;
+        supervisorStatus: "present" | "absent" | "late" | "excused";
+      }>;
+    }
   >;
 };
 

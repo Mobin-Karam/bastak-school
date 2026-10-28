@@ -77,6 +77,40 @@ export type PrincipalDashboardContract = {
     startDate: string;
     endDate: string;
   }>;
+  principalLists?: {
+    teacherSessions: Array<{
+      id: string;
+      title: string;
+      teacherName: string;
+      sessionDate: string;
+      present: number;
+      absent: number;
+      marked: number;
+    }>;
+    teacherReports: Array<{
+      id: string;
+      teacherName: string;
+      studentName: string;
+      message: string;
+      createdAt: string;
+      seenAt: string | null;
+    }>;
+    dormAttendance: Array<{
+      id: string;
+      name: string;
+      total: number;
+      present: number;
+      absent: number;
+    }>;
+    teacherLeaveRequests: Array<{
+      id: string;
+      teacherName: string;
+      type: "leave" | "return";
+      startDate: string;
+      endDate: string;
+      status: "pending";
+    }>;
+  };
 };
 
 export const getPrincipalDashboard = (range: "7d" | "30d", classId?: string) => {

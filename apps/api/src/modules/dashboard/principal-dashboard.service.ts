@@ -91,6 +91,40 @@ type PrincipalDashboardContract = {
     startDate: string;
     endDate: string;
   }>;
+  principalLists?: {
+    teacherSessions: Array<{
+      id: string;
+      title: string;
+      teacherName: string;
+      sessionDate: string;
+      present: number;
+      absent: number;
+      marked: number;
+    }>;
+    teacherReports: Array<{
+      id: string;
+      teacherName: string;
+      studentName: string;
+      message: string;
+      createdAt: string;
+      seenAt: string | null;
+    }>;
+    dormAttendance: Array<{
+      id: string;
+      name: string;
+      total: number;
+      present: number;
+      absent: number;
+    }>;
+    teacherLeaveRequests: Array<{
+      id: string;
+      teacherName: string;
+      type: "leave" | "return";
+      startDate: string;
+      endDate: string;
+      status: "pending";
+    }>;
+  };
 };
 
 /**
@@ -208,7 +242,116 @@ export class PrincipalDashboardService {
     if (can("leave.read"))
       response.pendingLeaveRequests =
         await this.pendingLeaveRequests(organizationId);
+    if (
+      can("attendance.read") ||
+      can("attendance.review") ||
+      can("attendance.reports.read") ||
+      can("schedule.publish")
+    )
+      response.principalLists = await this.principalLists(organizationId, end);
     return response;
+  }
+
+  private async principalLists(organizationId: string, day: string) {
+    const [
+      teacherSessions,
+      teacherReports,
+      dormAttendance,
+      teacherLeaveRequests,
+    ] = await Promise.all([
+      this.db.query(
+        `SELECT s.id, COALESCE(NULLIF(s.titleSnapshot,''),'جلسه کلاس') title,
+            TRIM(COALESCE(u.firstName,'') || ' ' || COALESCE(u.lastName,'')) teacherName,
+            s.sessionDate,
+            SUM(CASE WHEN r.status='present' THEN 1 ELSE 0 END) present,
+            SUM(CASE WHEN r.status='absent' THEN 1 ELSE 0 END) absent,
+            COUNT(r.id) marked
+           FROM attendance_sessions s
+           LEFT JOIN users u ON u.id=s.assignedStaffId
+           LEFT JOIN attendance_records r ON r.sessionId=s.id
+           WHERE s.organizationId=? AND s.contextType='class'
+             AND COALESCE(s.operationalDate,date(s.sessionDate))=?
+           GROUP BY s.id, u.firstName, u.lastName
+           ORDER BY s.sessionDate DESC LIMIT 12`,
+        [organizationId, day],
+      ),
+      this.db.query(
+        `SELECT r.id, TRIM(COALESCE(t.firstName,'') || ' ' || COALESCE(t.lastName,'')) teacherName,
+            COALESCE(NULLIF(student.name,''),TRIM(COALESCE(su.firstName,'') || ' ' || COALESCE(su.lastName,'')),'دانش‌آموز') studentName,
+            r.message, r.createdAt, r.seenAt
+           FROM teacher_student_reports r
+           JOIN users t ON t.id=r.teacherId
+           JOIN students student ON student.id=r.studentId
+           LEFT JOIN users su ON su.id=student.userId
+           WHERE r.organizationId=? ORDER BY r.createdAt DESC LIMIT 12`,
+        [organizationId],
+      ),
+      this.db.query(
+        `SELECT s.contextId id, COALESCE(NULLIF(d.name,''),NULLIF(s.titleSnapshot,''),'اتاق خوابگاه') name,
+            COUNT(r.id) total, SUM(CASE WHEN r.status='present' THEN 1 ELSE 0 END) present,
+            SUM(CASE WHEN r.status='absent' THEN 1 ELSE 0 END) absent
+           FROM attendance_sessions s
+           LEFT JOIN dorm_rooms d ON d.id=s.contextId
+           LEFT JOIN attendance_records r ON r.sessionId=s.id
+           WHERE s.organizationId=? AND s.contextType='dorm'
+             AND COALESCE(s.operationalDate,date(s.sessionDate))=?
+           GROUP BY s.contextId, d.name, s.titleSnapshot ORDER BY absent DESC, total DESC LIMIT 12`,
+        [organizationId, day],
+      ),
+      this.db.query(
+        `SELECT l.id, TRIM(COALESCE(u.firstName,'') || ' ' || COALESCE(u.lastName,'')) teacherName,
+            l.startDate, l.endDate, l.returnDate, l.status, l.returnStatus
+           FROM teacher_leave_requests l JOIN users u ON u.id=l.teacherId
+           WHERE l.organizationId=? AND (l.status='pending' OR l.returnStatus='pending')
+           ORDER BY l.createdAt ASC LIMIT 12`,
+        [organizationId],
+      ),
+    ]);
+    return {
+      teacherSessions: teacherSessions.map((row: Record<string, unknown>) => ({
+        id: String(row.id),
+        title: String(row.title),
+        teacherName: String(row.teacherName).trim() || "استاد",
+        sessionDate: String(row.sessionDate),
+        present: Number(row.present ?? 0),
+        absent: Number(row.absent ?? 0),
+        marked: Number(row.marked ?? 0),
+      })),
+      teacherReports: teacherReports.map((row: Record<string, unknown>) => ({
+        id: String(row.id),
+        teacherName: String(row.teacherName).trim() || "استاد",
+        studentName: String(row.studentName),
+        message: String(row.message),
+        createdAt: String(row.createdAt),
+        seenAt: row.seenAt == null ? null : String(row.seenAt),
+      })),
+      dormAttendance: dormAttendance.map((row: Record<string, unknown>) => ({
+        id: String(row.id),
+        name: String(row.name),
+        total: Number(row.total ?? 0),
+        present: Number(row.present ?? 0),
+        absent: Number(row.absent ?? 0),
+      })),
+      teacherLeaveRequests: teacherLeaveRequests.map(
+        (row: Record<string, unknown>) => ({
+          id: String(row.id),
+          teacherName: String(row.teacherName).trim() || "استاد",
+          type:
+            row.returnStatus === "pending"
+              ? ("return" as const)
+              : ("leave" as const),
+          startDate:
+            row.returnStatus === "pending"
+              ? String(row.returnDate)
+              : String(row.startDate),
+          endDate:
+            row.returnStatus === "pending"
+              ? String(row.returnDate)
+              : String(row.endDate),
+          status: "pending" as const,
+        }),
+      ),
+    };
   }
 
   private async todayAbsences(organizationId: string, day: string) {
@@ -521,7 +664,9 @@ export class PrincipalDashboardService {
       [organizationId],
     );
     const mode: "automatic" | "absences_only" =
-      policies[0]?.principalReviewMode === "automatic" ? "automatic" : "absences_only";
+      policies[0]?.principalReviewMode === "automatic"
+        ? "automatic"
+        : "absences_only";
     if (mode === "automatic") return { mode, pendingCount: 0, items: [] };
     const dueBefore = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
     const classFilter = classId
