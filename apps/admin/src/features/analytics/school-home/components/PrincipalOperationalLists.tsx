@@ -5,6 +5,7 @@ import {
   CalendarCheck2,
   FileWarning,
   GitCompareArrows,
+  UsersRound,
   UserRoundCheck,
 } from "lucide-react";
 import { Link } from "react-router-dom";
@@ -50,6 +51,7 @@ export function PrincipalOperationalLists({
     teacherSessions: [],
     teacherReports: [],
     dormAttendance: [],
+    classGroupAttendance: [],
     teacherLeaveRequests: [],
   };
   return (
@@ -132,6 +134,33 @@ export function PrincipalOperationalLists({
           ))}
           {!values.dormAttendance.length ? (
             <Empty text="برای امروز حضور خوابگاه ثبت نشده است." />
+          ) : null}
+        </ListCard>
+        <ListCard
+          icon={<UsersRound />}
+          title="حضور گروه‌های کلاس"
+          description="ثبت‌های مستقل گروه‌های آموزشی"
+        >
+          {values.classGroupAttendance.map((item) => (
+            <Link
+              key={item.id}
+              to={`/admin/attendance?section=groups&sessionId=${encodeURIComponent(item.id)}`}
+              className="principal-dashboard__operation-row"
+            >
+              <span>
+                <strong>{item.name}</strong>
+                <small>
+                  {formatDate(item.sessionDate)} · {item.total.toLocaleString("fa-IR")} ثبت
+                </small>
+              </span>
+              <b className="text-emerald-700 dark:text-emerald-300">
+                {item.present.toLocaleString("fa-IR")} ح
+              </b>
+              <em>{item.absent.toLocaleString("fa-IR")} غ</em>
+            </Link>
+          ))}
+          {!values.classGroupAttendance.length ? (
+            <Empty text="برای امروز حضور گروهی ثبت نشده است." />
           ) : null}
         </ListCard>
         <ListCard

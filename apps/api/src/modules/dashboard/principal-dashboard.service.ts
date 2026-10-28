@@ -116,6 +116,14 @@ type PrincipalDashboardContract = {
       present: number;
       absent: number;
     }>;
+    classGroupAttendance: Array<{
+      id: string;
+      name: string;
+      total: number;
+      present: number;
+      absent: number;
+      sessionDate: string;
+    }>;
     teacherLeaveRequests: Array<{
       id: string;
       teacherName: string;
@@ -255,6 +263,7 @@ export class PrincipalDashboardService {
       teacherSessions,
       teacherReports,
       dormAttendance,
+      classGroupAttendance,
       teacherLeaveRequests,
     ] = await Promise.all([
       permissions.attendanceReview
@@ -302,6 +311,22 @@ export class PrincipalDashboardService {
             [organizationId, day],
           )
         : Promise.resolve([]),
+      permissions.attendanceReview
+        ? this.db.query(
+            `SELECT s.id, COALESCE(NULLIF(g.name,''),NULLIF(s.titleSnapshot,''),'گروه کلاس') name,
+              s.sessionDate, COUNT(r.id) total,
+              SUM(CASE WHEN r.status='present' THEN 1 ELSE 0 END) present,
+              SUM(CASE WHEN r.status='absent' THEN 1 ELSE 0 END) absent
+             FROM attendance_sessions s
+             LEFT JOIN study_groups g ON g.id=s.contextId
+             LEFT JOIN attendance_records r ON r.sessionId=s.id
+             WHERE s.organizationId=? AND s.contextType IN ('class_group','study_group')
+               AND COALESCE(s.operationalDate,date(s.sessionDate))=?
+             GROUP BY s.id, g.name, s.titleSnapshot
+             ORDER BY s.sessionDate DESC LIMIT 12`,
+            [organizationId, day],
+          )
+        : Promise.resolve([]),
       permissions.leaveRead
         ? this.db.query(
             `SELECT l.id, TRIM(COALESCE(u.firstName,'') || ' ' || COALESCE(u.lastName,'')) teacherName,
@@ -338,6 +363,16 @@ export class PrincipalDashboardService {
         present: Number(row.present ?? 0),
         absent: Number(row.absent ?? 0),
       })),
+      classGroupAttendance: classGroupAttendance.map(
+        (row: Record<string, unknown>) => ({
+          id: String(row.id),
+          name: String(row.name),
+          total: Number(row.total ?? 0),
+          present: Number(row.present ?? 0),
+          absent: Number(row.absent ?? 0),
+          sessionDate: String(row.sessionDate),
+        }),
+      ),
       teacherLeaveRequests: teacherLeaveRequests.map(
         (row: Record<string, unknown>) => ({
           id: String(row.id),

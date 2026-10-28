@@ -102,6 +102,14 @@ export type PrincipalDashboardContract = {
       present: number;
       absent: number;
     }>;
+    classGroupAttendance: Array<{
+      id: string;
+      name: string;
+      total: number;
+      present: number;
+      absent: number;
+      sessionDate: string;
+    }>;
     teacherLeaveRequests: Array<{
       id: string;
       teacherName: string;
