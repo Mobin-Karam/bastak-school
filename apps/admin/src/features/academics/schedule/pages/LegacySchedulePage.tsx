@@ -895,7 +895,9 @@ function ScheduleWorkspace({
               <CalendarClock size={19} className="shrink-0 text-brand" aria-hidden="true" />
               <div>
                 <h2 className="text-sm font-black text-ink">جدول کلاس‌ها</h2>
-                <p className="text-[11px] text-slate-500">نمای کلاس‌ها یا نمای زمان‌بندی هفتگی را انتخاب کنید.</p>
+                <p className="text-[11px] text-slate-500">
+                  نمای کلاس‌ها یا نمای زمان‌بندی هفتگی را انتخاب کنید.
+                </p>
               </div>
             </div>
             <button
@@ -907,7 +909,11 @@ function ScheduleWorkspace({
             </button>
           </div>
 
-          <div className="flex flex-wrap gap-1 border-b border-[rgb(var(--border-subtle))] px-3 py-2 sm:px-4" role="tablist" aria-label="نمای برنامه">
+          <div
+            className="flex flex-wrap gap-1 border-b border-[rgb(var(--border-subtle))] px-3 py-2 sm:px-4"
+            role="tablist"
+            aria-label="نمای برنامه"
+          >
             <Button
               type="button"
               size="sm"
@@ -930,19 +936,21 @@ function ScheduleWorkspace({
             </Button>
           </div>
 
-          {layout === "classes" ? <div className="border-b border-[rgb(var(--border-subtle))] px-3 py-2 md:hidden">
-            <MobileTabs
-              ariaLabel="انتخاب روز برنامه"
-              value={activeWeekday}
-              onValueChange={onWeekdayChange}
-              options={displayWeekdays.map((weekday) => ({
-                value: weekday,
-                label: weekdays[weekday],
-                className: "min-h-11 shrink-0 rounded-xl px-3 text-xs",
-              }))}
-              className="justify-start gap-1.5 border-0 bg-transparent p-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-            />
-          </div> : null}
+          {layout === "classes" ? (
+            <div className="border-b border-[rgb(var(--border-subtle))] px-3 py-2 md:hidden">
+              <MobileTabs
+                ariaLabel="انتخاب روز برنامه"
+                value={activeWeekday}
+                onValueChange={onWeekdayChange}
+                options={displayWeekdays.map((weekday) => ({
+                  value: weekday,
+                  label: weekdays[weekday],
+                  className: "min-h-11 shrink-0 rounded-xl px-3 text-xs",
+                }))}
+                className="justify-start gap-1.5 border-0 bg-transparent p-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+              />
+            </div>
+          ) : null}
 
           {layout === "time-blocks" ? (
             <ScheduleTimeBlockBoard
@@ -1683,16 +1691,45 @@ function ScheduleTimeBlockBoard({
       <table className="min-w-[72rem] border-separate border-spacing-0 overflow-hidden rounded-xl border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card))] text-right">
         <thead>
           <tr>
-            <th rowSpan={2} className="sticky right-0 z-20 w-28 border-s border-b border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-muted))] px-3 py-2 text-xs font-black text-ink">روز</th>
-            <th rowSpan={2} className="sticky right-28 z-20 w-40 border-s border-b border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-muted))] px-3 py-2 text-xs font-black text-ink">کلاس</th>
-            {morningSlots.length ? <th colSpan={morningSlots.length} className="border-s border-b border-sky-500/20 bg-sky-500/10 px-3 py-2 text-center text-xs font-black text-sky-800 dark:text-sky-200">صبح</th> : null}
-            {afternoonSlots.length ? <th colSpan={afternoonSlots.length} className="border-s border-b border-amber-500/20 bg-amber-500/10 px-3 py-2 text-center text-xs font-black text-amber-800 dark:text-amber-200">عصر</th> : null}
+            <th
+              rowSpan={2}
+              className="sticky right-0 z-20 w-28 border-s border-b border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-muted))] px-3 py-2 text-xs font-black text-ink"
+            >
+              روز
+            </th>
+            <th
+              rowSpan={2}
+              className="sticky right-28 z-20 w-40 border-s border-b border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-muted))] px-3 py-2 text-xs font-black text-ink"
+            >
+              کلاس
+            </th>
+            {morningSlots.length ? (
+              <th
+                colSpan={morningSlots.length}
+                className="border-s border-b border-sky-500/20 bg-sky-500/10 px-3 py-2 text-center text-xs font-black text-sky-800 dark:text-sky-200"
+              >
+                صبح
+              </th>
+            ) : null}
+            {afternoonSlots.length ? (
+              <th
+                colSpan={afternoonSlots.length}
+                className="border-s border-b border-amber-500/20 bg-amber-500/10 px-3 py-2 text-center text-xs font-black text-amber-800 dark:text-amber-200"
+              >
+                عصر
+              </th>
+            ) : null}
           </tr>
           <tr>
             {slots.map((slot) => (
-              <th key={slot.id} className="min-w-40 border-s border-b border-[rgb(var(--border-subtle))] px-2 py-2 text-center">
+              <th
+                key={slot.id}
+                className="min-w-40 border-s border-b border-[rgb(var(--border-subtle))] px-2 py-2 text-center"
+              >
                 <p className="truncate text-xs font-black text-ink">{slot.label}</p>
-                <p className="mt-0.5 text-[10px] font-bold text-slate-500" dir="ltr">{slot.startTime}–{slot.endTime}</p>
+                <p className="mt-0.5 text-[10px] font-bold text-slate-500" dir="ltr">
+                  {slot.startTime}–{slot.endTime}
+                </p>
               </th>
             ))}
           </tr>
@@ -1701,33 +1738,67 @@ function ScheduleTimeBlockBoard({
           {displayWeekdays.flatMap((weekday) =>
             classRows.map((classroom, classIndex) => {
               const isDayStart = classIndex === 0;
-              const dayTone = weekday % 2
-                ? "bg-sky-500/[.035] dark:bg-sky-400/[.045]"
-                : "bg-amber-500/[.025] dark:bg-amber-400/[.035]";
+              const dayTone =
+                weekday % 2
+                  ? "bg-sky-500/[.035] dark:bg-sky-400/[.045]"
+                  : "bg-amber-500/[.025] dark:bg-amber-400/[.035]";
               const dayBoundary = isDayStart
                 ? "border-t-4 border-brand/45 dark:border-brand/60"
                 : "";
               return (
-              <tr key={`${weekday}-${classroom.id}`} className={`align-top ${dayTone}`}>
-                {classIndex === 0 ? (
-                  <th rowSpan={classRows.length} scope="rowgroup" className={`sticky right-0 z-10 border-s border-b border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-muted))] px-3 py-3 align-middle text-sm font-black text-ink ${dayBoundary}`}>
-                    {weekdays[weekday]}
+                <tr key={`${weekday}-${classroom.id}`} className={`align-top ${dayTone}`}>
+                  {classIndex === 0 ? (
+                    <th
+                      rowSpan={classRows.length}
+                      scope="rowgroup"
+                      className={`sticky right-0 z-10 border-s border-b border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-muted))] px-3 py-3 align-middle text-sm font-black text-ink ${dayBoundary}`}
+                    >
+                      {weekdays[weekday]}
+                    </th>
+                  ) : null}
+                  <th
+                    scope="row"
+                    className={`sticky right-28 z-10 border-s border-b border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card))] px-3 py-3 text-xs font-black text-ink ${dayBoundary}`}
+                  >
+                    {classroom.name}
                   </th>
-                ) : null}
-                <th scope="row" className={`sticky right-28 z-10 border-s border-b border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card))] px-3 py-3 text-xs font-black text-ink ${dayBoundary}`}>{classroom.name}</th>
-                {slots.map((slot) => {
-                  const cellEntries = entries.filter((entry) => entry.weekday === weekday && entry.classroom?.id === classroom.id && entry.startTime === slot.startTime && entry.endTime === slot.endTime);
-                  return <td key={slot.id} className={`min-h-16 border-s border-b border-[rgb(var(--border-subtle))] p-1.5 ${dayBoundary}`}>
-                    {cellEntries.map((entry) => {
-                      const leave = leaveForEntry(entry);
-                      return <button key={entry.id} type="button" onClick={() => onOpenDetails(entry)} className="mb-1 w-full rounded-lg border border-brand/15 bg-brand/5 px-2 py-1.5 text-right transition hover:border-brand/45 hover:bg-brand/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand">
-                        <span className="block truncate text-[11px] font-black text-ink">{entry.title}</span>
-                        {leave ? <span className="mt-1 block text-[9px] font-bold text-amber-700 dark:text-amber-300">مرخصی دبیر</span> : null}
-                      </button>;
-                    })}
-                  </td>;
-                })}
-              </tr>
+                  {slots.map((slot) => {
+                    const cellEntries = entries.filter(
+                      (entry) =>
+                        entry.weekday === weekday &&
+                        entry.classroom?.id === classroom.id &&
+                        entry.startTime === slot.startTime &&
+                        entry.endTime === slot.endTime,
+                    );
+                    return (
+                      <td
+                        key={slot.id}
+                        className={`min-h-16 border-s border-b border-[rgb(var(--border-subtle))] p-1.5 ${dayBoundary}`}
+                      >
+                        {cellEntries.map((entry) => {
+                          const leave = leaveForEntry(entry);
+                          return (
+                            <button
+                              key={entry.id}
+                              type="button"
+                              onClick={() => onOpenDetails(entry)}
+                              className="mb-1 w-full rounded-lg border border-brand/15 bg-brand/5 px-2 py-1.5 text-right transition hover:border-brand/45 hover:bg-brand/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+                            >
+                              <span className="block truncate text-[11px] font-black text-ink">
+                                {entry.title}
+                              </span>
+                              {leave ? (
+                                <span className="mt-1 block text-[9px] font-bold text-amber-700 dark:text-amber-300">
+                                  مرخصی دبیر
+                                </span>
+                              ) : null}
+                            </button>
+                          );
+                        })}
+                      </td>
+                    );
+                  })}
+                </tr>
               );
             }),
           )}
@@ -2218,39 +2289,41 @@ function ScheduleEditorForm({
                 className="h-11 rounded-xl border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card))] px-3 text-sm text-ink focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20"
               >
                 {timeBlockGroups.map((group) => (
-                  <option key={group.id} value={group.id}>{group.name}</option>
+                  <option key={group.id} value={group.id}>
+                    {group.name}
+                  </option>
                 ))}
               </AdaptiveSelect>
             </label>
             <label className="grid gap-1.5 text-sm font-bold">
               ۲. بازه زمانی آماده
-            <AdaptiveSelect
-              value=""
-              disabled={!selectedTimeBlockGroup || !visibleTimeBlocks.length}
-              onChange={(event) => {
-                const block = timeBlocks.find((item) => item.id === event.target.value);
-                if (block)
-                  setOccurrences((items) =>
-                    items.map((item, index) =>
-                      index === items.length - 1
-                        ? { ...item, startTime: block.startTime, endTime: block.endTime }
-                        : item,
-                    ),
-                  );
-              }}
-              className="h-11 rounded-xl border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card))] px-3 text-sm text-ink focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20"
-            >
-              <option value="">
-                {visibleTimeBlocks.length
-                  ? "یک بازه را برای اعمال زمان انتخاب کنید"
-                  : "در این گروه بازه‌ای ثبت نشده است"}
-              </option>
-              {visibleTimeBlocks.map((block) => (
-                <option key={block.id} value={block.id}>
-                  {block.name} · {block.startTime} تا {block.endTime}
+              <AdaptiveSelect
+                value=""
+                disabled={!selectedTimeBlockGroup || !visibleTimeBlocks.length}
+                onChange={(event) => {
+                  const block = timeBlocks.find((item) => item.id === event.target.value);
+                  if (block)
+                    setOccurrences((items) =>
+                      items.map((item, index) =>
+                        index === items.length - 1
+                          ? { ...item, startTime: block.startTime, endTime: block.endTime }
+                          : item,
+                      ),
+                    );
+                }}
+                className="h-11 rounded-xl border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card))] px-3 text-sm text-ink focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20"
+              >
+                <option value="">
+                  {visibleTimeBlocks.length
+                    ? "یک بازه را برای اعمال زمان انتخاب کنید"
+                    : "در این گروه بازه‌ای ثبت نشده است"}
                 </option>
-              ))}
-            </AdaptiveSelect>
+                {visibleTimeBlocks.map((block) => (
+                  <option key={block.id} value={block.id}>
+                    {block.name} · {block.startTime} تا {block.endTime}
+                  </option>
+                ))}
+              </AdaptiveSelect>
             </label>
           </div>
         ) : null}
@@ -2513,7 +2586,9 @@ function ScheduleTimeBlocks({
         </span>
         <div>
           <h3 className="text-sm font-black text-ink">گروه‌ها و بازه‌های زمانی</h3>
-          <p className="text-[11px] text-slate-500">اول گروه بسازید، سپس بازه‌های آن را در جلسه انتخاب کنید.</p>
+          <p className="text-[11px] text-slate-500">
+            اول گروه بسازید، سپس بازه‌های آن را در جلسه انتخاب کنید.
+          </p>
         </div>
       </div>
       <form
@@ -2531,7 +2606,11 @@ function ScheduleTimeBlocks({
           placeholder="مثلاً پایه دهم یا نوبت صبح"
           aria-label="نام گروه بازه زمانی"
         />
-        <Button type="submit" variant="soft" disabled={!organizationId || !groupName.trim() || saving}>
+        <Button
+          type="submit"
+          variant="soft"
+          disabled={!organizationId || !groupName.trim() || saving}
+        >
           <Plus size={15} /> گروه
         </Button>
       </form>
@@ -2553,7 +2632,11 @@ function ScheduleTimeBlocks({
             className="h-10 rounded-xl border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card))] px-3 text-sm text-ink"
           >
             <option value="">ابتدا یک گروه بسازید</option>
-            {groups.map((group) => <option key={group.id} value={group.id}>{group.name}</option>)}
+            {groups.map((group) => (
+              <option key={group.id} value={group.id}>
+                {group.name}
+              </option>
+            ))}
           </AdaptiveSelect>
         </label>
         <label className="grid gap-1 text-xs font-bold text-slate-700 dark:text-slate-200">
@@ -2602,10 +2685,7 @@ function ScheduleTimeBlocks({
               <section key={group.id} aria-labelledby={`time-block-group-${group.id}`}>
                 <div className="mb-2 flex items-center gap-2">
                   <span className="size-2 rounded-full bg-brand" aria-hidden="true" />
-                  <h4
-                    id={`time-block-group-${group.id}`}
-                    className="text-xs font-black text-ink"
-                  >
+                  <h4 id={`time-block-group-${group.id}`} className="text-xs font-black text-ink">
                     {group.name}
                   </h4>
                   <span className="text-[11px] font-bold text-slate-400">
@@ -2623,37 +2703,45 @@ function ScheduleTimeBlocks({
                     <Trash2 size={13} />
                   </Button>
                 </div>
-                {groupBlocks.length ? <ul className="grid gap-1.5">
-                  {groupBlocks.map((block) => (
-                    <li
-                      key={block.id}
-                      className="flex items-center justify-between gap-2 rounded-lg bg-[rgb(var(--surface-muted))] px-2 py-1.5 text-xs"
-                    >
-                      <span className="min-w-0 truncate font-bold text-ink">
-                        {block.name}{" "}
-                        <b className="font-normal text-slate-500" dir="ltr">
-                          {block.startTime}–{block.endTime}
-                        </b>
-                      </span>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="text-rose-700 hover:bg-rose-50 hover:text-rose-800 dark:text-rose-300 dark:hover:bg-rose-950/30"
-                        disabled={removing}
-                        aria-label={`حذف بازه ${block.name}`}
-                        onClick={() => onRemove(block)}
+                {groupBlocks.length ? (
+                  <ul className="grid gap-1.5">
+                    {groupBlocks.map((block) => (
+                      <li
+                        key={block.id}
+                        className="flex items-center justify-between gap-2 rounded-lg bg-[rgb(var(--surface-muted))] px-2 py-1.5 text-xs"
                       >
-                        <Trash2 size={13} />
-                      </Button>
-                    </li>
-                  ))}
-                </ul> : <p className="text-[11px] text-slate-500">هنوز بازه‌ای در این گروه ثبت نشده است.</p>}
+                        <span className="min-w-0 truncate font-bold text-ink">
+                          {block.name}{" "}
+                          <b className="font-normal text-slate-500" dir="ltr">
+                            {block.startTime}–{block.endTime}
+                          </b>
+                        </span>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="text-rose-700 hover:bg-rose-50 hover:text-rose-800 dark:text-rose-300 dark:hover:bg-rose-950/30"
+                          disabled={removing}
+                          aria-label={`حذف بازه ${block.name}`}
+                          onClick={() => onRemove(block)}
+                        >
+                          <Trash2 size={13} />
+                        </Button>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-[11px] text-slate-500">
+                    هنوز بازه‌ای در این گروه ثبت نشده است.
+                  </p>
+                )}
               </section>
             );
           })}
         </div>
       ) : (
-        <p className="mt-3 text-xs leading-5 text-slate-500">برای افزودن بازه، ابتدا یک گروه بسازید.</p>
+        <p className="mt-3 text-xs leading-5 text-slate-500">
+          برای افزودن بازه، ابتدا یک گروه بسازید.
+        </p>
       )}
     </Card>
   );

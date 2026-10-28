@@ -164,8 +164,14 @@ describe("AttendanceService organization boundaries (real SQLite)", () => {
       {} as AuthorizationService,
       realtime,
       new RewardsService(
-        db.getRepository(StudentRewardLedger), db.getRepository(Student), db.getRepository(AuditLog),
-        new SchoolAccessService(organizations, db.getRepository(OrganizationMembership)), {} as AuthorizationService,
+        db.getRepository(StudentRewardLedger),
+        db.getRepository(Student),
+        db.getRepository(AuditLog),
+        new SchoolAccessService(
+          organizations,
+          db.getRepository(OrganizationMembership),
+        ),
+        {} as AuthorizationService,
       ),
     );
   });
@@ -195,20 +201,23 @@ describe("AttendanceService organization boundaries (real SQLite)", () => {
     );
   });
 
-  it("rejects direct excused marks without creating attendance or bypassing review", async () => {
-    await expect(
-      service.bulkMark(actor, {
-        organizationId: orgA.id,
-        contextType: "class",
-        contextId: assignedClass.id,
-        entries: [{ studentId: studentA.id, status: "excused" }],
-      }),
-    ).rejects.toMatchObject({
-      response: { error: { code: "ATTENDANCE_EXCUSE_REQUIRES_REVIEW" } },
+  it("records a direct excused mark with an optional teacher note", async () => {
+    const marked = await service.bulkMark(actor, {
+      organizationId: orgA.id,
+      contextType: "class",
+      contextId: assignedClass.id,
+      entries: [{ studentId: studentA.id, status: "excused" }],
     });
-    expect(await db.getRepository(AttendanceRecord).count()).toBe(0);
-    expect(await db.getRepository(AttendanceSession).count()).toBe(0);
-    expect(emit).not.toHaveBeenCalled();
+    expect(marked.records).toEqual([
+      expect.objectContaining({
+        studentId: studentA.id,
+        status: "excused",
+        note: "",
+      }),
+    ]);
+    expect(await db.getRepository(AttendanceRecord).count()).toBe(1);
+    expect(await db.getRepository(AttendanceSession).count()).toBe(1);
+    expect(emit).toHaveBeenCalled();
   });
 
   it("returns saved records with unknown legacy roster totals rather than today's membership", async () => {

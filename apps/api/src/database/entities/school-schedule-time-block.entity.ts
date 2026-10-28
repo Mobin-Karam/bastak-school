@@ -21,11 +21,16 @@ export class SchoolScheduleTimeBlock {
   @ManyToOne(() => Organization, { nullable: false, onDelete: "CASCADE" })
   organization!: Organization;
   @ManyToOne(() => SchoolScheduleTimeBlockGroup, {
-    nullable: false,
+    // This association is backfilled from a populated SQLite table. SQLite
+    // cannot add a non-null foreign-key column in place without rebuilding a
+    // table that existing substitution requests already reference. Service
+    // methods require a same-organization group for every newly written block.
+    nullable: true,
     onDelete: "RESTRICT",
+    createForeignKeyConstraints: false,
   })
   @JoinColumn({ name: "groupId" })
-  group!: SchoolScheduleTimeBlockGroup;
+  group?: SchoolScheduleTimeBlockGroup;
   @Column({ length: 80 }) name!: string;
   @Column({ length: 5 }) startTime!: string;
   @Column({ length: 5 }) endTime!: string;
