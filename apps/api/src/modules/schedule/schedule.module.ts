@@ -10,6 +10,10 @@ import { EducationClassEnrollment } from "../../database/entities/education-clas
 import { OrganizationMembership } from "../../database/entities/organization-membership.entity";
 import { Organization } from "../../database/entities/organization.entity";
 import { SchoolScheduleEntry } from "../../database/entities/school-schedule-entry.entity";
+import {
+  SchoolAcademicYear,
+  SchoolAcademicTerm,
+} from "../../database/entities/school-academic-year.entity";
 import { SchoolScheduleTimeBlock } from "../../database/entities/school-schedule-time-block.entity";
 import { SchoolScheduleTimeBlockGroup } from "../../database/entities/school-schedule-time-block-group.entity";
 import { SchoolScheduleTemplate } from "../../database/entities/school-schedule-template.entity";
@@ -29,6 +33,8 @@ import { ScheduleService } from "./schedule.service";
     NotificationsModule,
     TypeOrmModule.forFeature([
       SchoolScheduleEntry,
+      SchoolAcademicYear,
+      SchoolAcademicTerm,
       SchoolScheduleTimeBlock,
       SchoolScheduleTimeBlockGroup,
       SchoolScheduleTemplate,

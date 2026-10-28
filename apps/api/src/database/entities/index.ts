@@ -70,6 +70,10 @@ export { EducationClassBook } from "./education-class-book.entity";
 export { EducationClassEnrollment } from "./education-class-enrollment.entity";
 export { SchoolScheduleEntry } from "./school-schedule-entry.entity";
 export {
+  SchoolAcademicYear,
+  SchoolAcademicTerm,
+} from "./school-academic-year.entity";
+export {
   SchoolScheduleOccurrenceOverride,
   SchoolScheduleSubstitutionRequest,
 } from "./school-schedule-substitution.entity";

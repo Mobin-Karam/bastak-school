@@ -14,6 +14,7 @@ import { SchoolScheduleTimeBlockGroups1762000000000 } from "../src/database/migr
 import { LegacyScheduleSubstitutionRequests1761800000000 } from "../src/database/migrations/1761800000000-LegacyScheduleSubstitutionRequests";
 import { TeacherLeaveRequests1761900000000 } from "../src/database/migrations/1761900000000-TeacherLeaveRequests";
 import { TeacherLeaveEarlyReturn1762200000000 } from "../src/database/migrations/1762200000000-TeacherLeaveEarlyReturn";
+import { LegacyScheduleAcademicCycles1762300000000 } from "../src/database/migrations/1762300000000-LegacyScheduleAcademicCycles";
 import { NightAttendance1728234800000 } from "../src/database/migrations/1728234800000-NightAttendance";
 import {
   Organization,
@@ -51,6 +52,10 @@ import { StudentRewardLedger } from "../src/database/entities/student-reward-led
 import { UserRoleAssignment } from "../src/database/entities/user-role-assignment.entity";
 import { UserRelationship } from "../src/database/entities/user-relationship.entity";
 import { SchoolScheduleEntry } from "../src/database/entities/school-schedule-entry.entity";
+import {
+  SchoolAcademicYear,
+  SchoolAcademicTerm,
+} from "../src/database/entities/school-academic-year.entity";
 import { SchoolScheduleTimeBlock } from "../src/database/entities/school-schedule-time-block.entity";
 import { SchoolScheduleTimeBlockGroup } from "../src/database/entities/school-schedule-time-block-group.entity";
 import { SchoolScheduleTemplate } from "../src/database/entities/school-schedule-template.entity";
@@ -832,6 +837,9 @@ describe("migration-backed persistence and verified recovery (disposable SQLite 
     await db.transaction(async (manager) =>
       new TeacherLeaveEarlyReturn1762200000000().up(manager.queryRunner!),
     );
+    await db.transaction(async (manager) =>
+      new LegacyScheduleAcademicCycles1762300000000().up(manager.queryRunner!),
+    );
     const authorization = new AuthorizationService(
       db.getRepository(UserRoleAssignment),
       db.getRepository(OrganizationMembership),
@@ -840,6 +848,8 @@ describe("migration-backed persistence and verified recovery (disposable SQLite 
     );
     const schedule = new ScheduleService(
       db.getRepository(SchoolScheduleEntry),
+      db.getRepository(SchoolAcademicYear),
+      db.getRepository(SchoolAcademicTerm),
       db.getRepository(SchoolScheduleTimeBlock),
       db.getRepository(SchoolScheduleTimeBlockGroup),
       db.getRepository(SchoolScheduleTemplate),

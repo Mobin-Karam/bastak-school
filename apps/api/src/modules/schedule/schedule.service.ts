@@ -14,6 +14,10 @@ import {
 } from "../../database/entities/organization-membership.entity";
 import { Organization } from "../../database/entities/organization.entity";
 import { SchoolScheduleEntry } from "../../database/entities/school-schedule-entry.entity";
+import {
+  SchoolAcademicYear,
+  SchoolAcademicTerm,
+} from "../../database/entities/school-academic-year.entity";
 import { SchoolScheduleTimeBlock } from "../../database/entities/school-schedule-time-block.entity";
 import { SchoolScheduleTimeBlockGroup } from "../../database/entities/school-schedule-time-block-group.entity";
 import {
@@ -35,6 +39,9 @@ import {
   CreateScheduleTimeBlockGroupDto,
   CreateScheduleTemplateDto,
   SaveScheduleEntryDto,
+  CreateLegacyAcademicYearDto,
+  CreateLegacyAcademicTermDto,
+  LegacyAcademicLifecycleDto,
   ScheduleSubstitutionDecisionDto,
   ScheduleSubstitutionRequestDto,
   TeacherLeaveRequestDto,
@@ -48,6 +55,10 @@ export class ScheduleService {
   constructor(
     @InjectRepository(SchoolScheduleEntry)
     private readonly entries: Repository<SchoolScheduleEntry>,
+    @InjectRepository(SchoolAcademicYear)
+    private readonly academicYearRepo: Repository<SchoolAcademicYear>,
+    @InjectRepository(SchoolAcademicTerm)
+    private readonly academicTerms: Repository<SchoolAcademicTerm>,
     @InjectRepository(SchoolScheduleTimeBlock)
     private readonly timeBlocks: Repository<SchoolScheduleTimeBlock>,
     @InjectRepository(SchoolScheduleTimeBlockGroup)
@@ -81,8 +92,201 @@ export class ScheduleService {
   }
   private isOperator(context: UserContext) {
     return context.roles.some((role) =>
+      [
+        "PLATFORM_ADMIN",
+        "ORGANIZATION_ADMIN",
+        "PRINCIPAL",
+        "RELIGIOUS_EDUCATION_MANAGER",
+      ].includes(role),
+    );
+  }
+  private isPrincipalOperator(context: UserContext) {
+    return context.roles.some((role) =>
       ["PLATFORM_ADMIN", "ORGANIZATION_ADMIN", "PRINCIPAL"].includes(role),
     );
+  }
+  private assertAcademicManager(context: UserContext) {
+    if (!this.isOperator(context))
+      throw new ApiException(
+        403,
+        "SCHEDULE_ACADEMIC_FORBIDDEN",
+        "مدیریت سال و نیم‌سال فقط برای مدیر و مسئول آموزش دینی مجاز است.",
+      );
+  }
+  private async scopedAcademicYear(user: AuthenticatedUser, id: string) {
+    const context = this.context(user);
+    this.assertAcademicManager(context);
+    const year = await this.academicYearRepo.findOneBy({ id });
+    if (
+      !year ||
+      (!context.roles.includes("PLATFORM_ADMIN") &&
+        !context.organizationIds.includes(year.organizationId))
+    )
+      throw new ApiException(
+        404,
+        "SCHEDULE_ACADEMIC_YEAR_NOT_FOUND",
+        "سال تحصیلی پیدا نشد.",
+      );
+    return year;
+  }
+  async academicYears(user: AuthenticatedUser, organizationId?: string) {
+    const context = this.context(user);
+    this.authorization.requireCapability(context, "schedule.read");
+    const org = organizationId ?? context.organizationIds[0];
+    if (
+      !org ||
+      (!context.roles.includes("PLATFORM_ADMIN") &&
+        !context.organizationIds.includes(org))
+    )
+      throw new ApiException(403, "FORBIDDEN", "دسترسی کافی ندارید.");
+    const years = await this.academicYearRepo.find({
+      where: { organizationId: org },
+      order: { startsOn: "DESC" },
+    });
+    const terms = years.length
+      ? await this.academicTerms.find({
+          where: { academicYearId: In(years.map((year) => year.id)) },
+          order: { startsOn: "ASC" },
+        })
+      : [];
+    return { years, terms };
+  }
+  async createAcademicYear(
+    user: AuthenticatedUser,
+    dto: CreateLegacyAcademicYearDto,
+  ) {
+    const context = this.context(user);
+    this.authorization.requireCapability(context, "schedule.create");
+    this.assertAcademicManager(context);
+    if (dto.endsOn < dto.startsOn)
+      throw new ApiException(
+        422,
+        "SCHEDULE_ACADEMIC_DATE",
+        "بازه سال تحصیلی معتبر نیست.",
+      );
+    if (
+      !context.roles.includes("PLATFORM_ADMIN") &&
+      !context.organizationIds.includes(dto.organizationId)
+    )
+      throw new ApiException(403, "FORBIDDEN", "دسترسی کافی ندارید.");
+    return this.academicYearRepo.save(
+      this.academicYearRepo.create({
+        organizationId: dto.organizationId,
+        name: dto.name.trim(),
+        startsOn: dto.startsOn,
+        endsOn: dto.endsOn,
+        state: "DRAFT",
+      }),
+    );
+  }
+  async createAcademicTerm(
+    user: AuthenticatedUser,
+    dto: CreateLegacyAcademicTermDto,
+  ) {
+    const year = await this.scopedAcademicYear(user, dto.academicYearId);
+    if (
+      year.state === "ARCHIVED" ||
+      dto.startsOn < year.startsOn ||
+      dto.endsOn > year.endsOn ||
+      dto.endsOn < dto.startsOn
+    )
+      throw new ApiException(
+        422,
+        "SCHEDULE_ACADEMIC_DATE",
+        "بازه نیم‌سال باید داخل سال و معتبر باشد.",
+      );
+    const overlap = await this.academicTerms
+      .createQueryBuilder("term")
+      .where("term.academicYearId = :year", { year: year.id })
+      .andWhere("term.startsOn <= :end AND term.endsOn >= :start", {
+        start: dto.startsOn,
+        end: dto.endsOn,
+      })
+      .getExists();
+    if (overlap)
+      throw new ApiException(
+        409,
+        "SCHEDULE_ACADEMIC_TERM_OVERLAP",
+        "نیم‌سال‌ها نباید هم‌پوشانی داشته باشند.",
+      );
+    return this.academicTerms.save(
+      this.academicTerms.create({
+        academicYearId: year.id,
+        name: dto.name.trim(),
+        startsOn: dto.startsOn,
+        endsOn: dto.endsOn,
+        state: "DRAFT",
+      }),
+    );
+  }
+  async academicYearLifecycle(
+    user: AuthenticatedUser,
+    id: string,
+    dto: LegacyAcademicLifecycleDto,
+  ) {
+    const year = await this.scopedAcademicYear(user, id);
+    if (dto.action === "activate") {
+      const terms = await this.academicTerms.findBy({
+        academicYearId: year.id,
+      });
+      if (terms.length < 2)
+        throw new ApiException(
+          409,
+          "SCHEDULE_ACADEMIC_TERMS_REQUIRED",
+          "فعال‌سازی سال حداقل به دو نیم‌سال نیاز دارد.",
+        );
+      await this.academicYearRepo.update(
+        { organizationId: year.organizationId },
+        { state: "ARCHIVED" },
+      );
+      year.state = "ACTIVE";
+      await this.academicYearRepo.save(year);
+      await this.academicTerms.update(
+        { academicYearId: year.id, state: "DRAFT" },
+        { state: "ACTIVE" },
+      );
+    } else if (dto.action === "archive") {
+      year.state = "ARCHIVED";
+      await this.academicYearRepo.save(year);
+      await this.academicTerms.update(
+        { academicYearId: year.id },
+        { state: "ARCHIVED", correctionOpen: false },
+      );
+    } else
+      throw new ApiException(
+        422,
+        "SCHEDULE_ACADEMIC_LIFECYCLE",
+        "عملیات سال تحصیلی معتبر نیست.",
+      );
+    return year;
+  }
+  async academicTermLifecycle(
+    user: AuthenticatedUser,
+    id: string,
+    dto: LegacyAcademicLifecycleDto,
+  ) {
+    const term = await this.academicTerms.findOneBy({ id });
+    if (!term)
+      throw new ApiException(
+        404,
+        "SCHEDULE_ACADEMIC_TERM_NOT_FOUND",
+        "نیم‌سال پیدا نشد.",
+      );
+    await this.scopedAcademicYear(user, term.academicYearId);
+    if (dto.action === "archive") {
+      term.state = "ARCHIVED";
+      term.correctionOpen = false;
+    } else if (dto.action === "reopen" && term.state === "ARCHIVED")
+      term.correctionOpen = true;
+    else if (dto.action === "close-correction" && term.correctionOpen)
+      term.correctionOpen = false;
+    else
+      throw new ApiException(
+        422,
+        "SCHEDULE_ACADEMIC_LIFECYCLE",
+        "عملیات نیم‌سال معتبر نیست.",
+      );
+    return this.academicTerms.save(term);
   }
   private weekdayForDate(date: string) {
     return (new Date(`${date}T12:00:00Z`).getUTCDay() + 1) % 7;
@@ -271,7 +475,7 @@ export class ScheduleService {
         "درخواست مرخصی در انتظار بررسی پیدا نشد.",
       );
     if (
-      !this.isOperator(context) ||
+      !this.isPrincipalOperator(context) ||
       (!context.roles.includes("PLATFORM_ADMIN") &&
         !context.organizationIds.includes(row.organizationId))
     )
@@ -376,7 +580,7 @@ export class ScheduleService {
         "درخواست بازگشت در انتظار بررسی پیدا نشد.",
       );
     if (
-      !this.isOperator(context) ||
+      !this.isPrincipalOperator(context) ||
       (!context.roles.includes("PLATFORM_ADMIN") &&
         !context.organizationIds.includes(row.organizationId))
     )
@@ -1449,6 +1653,43 @@ export class ScheduleService {
     });
     if (!organization)
       throw new ApiException(404, "ORGANIZATION_NOT_FOUND", "مدرسه پیدا نشد.");
+    const activeYear = await this.academicYearRepo.findOneBy({
+      organizationId: organization.id,
+      state: "ACTIVE",
+    });
+    if (activeYear && (!dto.academicYearId || !dto.termId))
+      throw new ApiException(
+        422,
+        "SCHEDULE_ACADEMIC_TERM_REQUIRED",
+        "برای سال فعال، سال و نیم‌سال جلسه را انتخاب کنید.",
+      );
+    if (dto.academicYearId || dto.termId) {
+      const term =
+        dto.academicYearId && dto.termId
+          ? await this.academicTerms.findOneBy({
+              id: dto.termId,
+              academicYearId: dto.academicYearId,
+            })
+          : null;
+      const year = dto.academicYearId
+        ? await this.academicYearRepo.findOneBy({
+            id: dto.academicYearId,
+            organizationId: organization.id,
+          })
+        : null;
+      if (
+        !year ||
+        !term ||
+        year.state === "ARCHIVED" ||
+        term.state === "ARCHIVED" ||
+        term.correctionOpen
+      )
+        throw new ApiException(
+          409,
+          "SCHEDULE_ACADEMIC_TERM_LOCKED",
+          "سال یا نیم‌سال انتخاب‌شده برای جلسه جدید قابل استفاده نیست.",
+        );
+    }
     const classroom = await this.classroomForOrganization(
       dto.classroomId,
       organization.id,
@@ -1478,6 +1719,8 @@ export class ScheduleService {
           classroom,
           classBook,
           teacher,
+          academicYearId: dto.academicYearId ?? null,
+          termId: dto.termId ?? null,
         }),
       )
       .then((entry) => this.publicEntry(entry));

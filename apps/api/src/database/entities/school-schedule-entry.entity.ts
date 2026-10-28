@@ -32,6 +32,10 @@ export class SchoolScheduleEntry {
   @Column({ length: 120, default: "" }) room!: string;
   @Column({ length: 20, default: "ACTIVE" }) status!:
     "ACTIVE" | "ARCHIVED" | "REPLACED";
+  @Column({ type: "varchar", length: 36, nullable: true }) academicYearId!:
+    string | null;
+  @Column({ type: "varchar", length: 36, nullable: true }) termId!:
+    string | null;
   @Column({ type: "varchar", length: 36, nullable: true }) versionId!:
     string | null;
   @ManyToOne("TimetableVersion", { nullable: true, onDelete: "RESTRICT" })

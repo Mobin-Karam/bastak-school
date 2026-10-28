@@ -24,6 +24,24 @@ export class SaveScheduleEntryDto {
   @Matches(/^([01]\d|2[0-3]):[0-5]\d$/) startTime!: string;
   @Matches(/^([01]\d|2[0-3]):[0-5]\d$/) endTime!: string;
   @IsOptional() @IsString() room?: string;
+  @IsOptional() @IsUUID() academicYearId?: string;
+  @IsOptional() @IsUUID() termId?: string;
+}
+export class CreateLegacyAcademicYearDto {
+  @IsUUID() organizationId!: string;
+  @IsString() @MinLength(2) name!: string;
+  @Matches(/^\d{4}-\d{2}-\d{2}$/) startsOn!: string;
+  @Matches(/^\d{4}-\d{2}-\d{2}$/) endsOn!: string;
+}
+export class CreateLegacyAcademicTermDto {
+  @IsUUID() academicYearId!: string;
+  @IsString() @MinLength(2) name!: string;
+  @Matches(/^\d{4}-\d{2}-\d{2}$/) startsOn!: string;
+  @Matches(/^\d{4}-\d{2}-\d{2}$/) endsOn!: string;
+}
+export class LegacyAcademicLifecycleDto {
+  @IsIn(["activate", "archive", "reopen", "close-correction"]) action!:
+    "activate" | "archive" | "reopen" | "close-correction";
 }
 
 export class CreateScheduleEntriesDto {

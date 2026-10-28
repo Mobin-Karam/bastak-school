@@ -25,12 +25,55 @@ import {
   TeacherLeaveReturnRequestDto,
   TeacherLeaveReturnReviewDto,
   SaveScheduleEntryDto,
+  CreateLegacyAcademicYearDto,
+  CreateLegacyAcademicTermDto,
+  LegacyAcademicLifecycleDto,
 } from "./schedule.dto";
 import { ScheduleService } from "./schedule.service";
 
 @Controller("schedule")
 export class ScheduleController {
   constructor(private readonly schedule: ScheduleService) {}
+  @Get("academic-years") @RequireCapabilities("schedule.read") academicYears(
+    @CurrentUser() user: AuthenticatedUser,
+    @Query("organizationId") organizationId?: string,
+  ) {
+    return this.schedule.academicYears(user, organizationId).then(ok);
+  }
+  @Post("academic-years")
+  @RequireCapabilities("schedule.create")
+  createAcademicYear(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() dto: CreateLegacyAcademicYearDto,
+  ) {
+    return this.schedule.createAcademicYear(user, dto).then(ok);
+  }
+  @Post("academic-years/:id/lifecycle")
+  @RequireCapabilities("schedule.update")
+  academicYearLifecycle(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param("id") id: string,
+    @Body() dto: LegacyAcademicLifecycleDto,
+  ) {
+    return this.schedule.academicYearLifecycle(user, id, dto).then(ok);
+  }
+  @Post("academic-terms")
+  @RequireCapabilities("schedule.create")
+  createAcademicTerm(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() dto: CreateLegacyAcademicTermDto,
+  ) {
+    return this.schedule.createAcademicTerm(user, dto).then(ok);
+  }
+  @Post("academic-terms/:id/lifecycle")
+  @RequireCapabilities("schedule.update")
+  academicTermLifecycle(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param("id") id: string,
+    @Body() dto: LegacyAcademicLifecycleDto,
+  ) {
+    return this.schedule.academicTermLifecycle(user, id, dto).then(ok);
+  }
   @Get() @RequireCapabilities("schedule.read") list(
     @CurrentUser() user: AuthenticatedUser,
     @Query("organizationId") organizationId?: string,
