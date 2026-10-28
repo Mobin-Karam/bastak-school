@@ -419,12 +419,12 @@ export function LegacySchedulePage() {
   return (
     <>
       <section
-        className={`relative grid w-full max-w-none gap-4 pb-[calc(6rem+env(safe-area-inset-bottom))] min-[960px]:pb-6 min-[960px]:transition-[grid-template-columns] min-[960px]:duration-300 min-[960px]:ease-out motion-reduce:transition-none ${toolsSidebarHidden ? "min-[960px]:grid-cols-[minmax(0,1fr)_0rem]" : "min-[960px]:grid-cols-[minmax(0,1fr)_22rem]"}`}
+        className={`relative grid w-full max-w-none gap-4 pb-[calc(6rem+env(safe-area-inset-bottom))] pt-16 min-[960px]:pb-6 min-[960px]:pt-0 min-[960px]:transition-[grid-template-columns] min-[960px]:duration-300 min-[960px]:ease-out motion-reduce:transition-none ${toolsSidebarHidden ? "min-[960px]:grid-cols-[minmax(0,1fr)_0rem]" : "min-[960px]:grid-cols-[minmax(0,1fr)_22rem]"}`}
         dir="rtl"
       >
         <button
           type="button"
-          className="absolute -left-3 top-4 z-20 hidden size-11 place-items-center rounded-r-full border border-slate-200 bg-[rgb(var(--surface-card))] text-slate-500 shadow-[0_8px_20px_rgb(15_23_42_/_14%)] outline-none transition hover:bg-brand hover:text-white focus-visible:ring-2 focus-visible:ring-brand motion-reduce:transition-none min-[960px]:grid"
+          className="absolute end-3 top-3 z-30 inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card))] px-3 text-sm font-black text-slate-600 shadow-[0_10px_24px_-14px_rgba(15,23,42,.36)] outline-none transition hover:border-brand/45 hover:bg-brand hover:text-white focus-visible:ring-2 focus-visible:ring-brand motion-reduce:transition-none dark:text-slate-200"
           onClick={() => setToolsSidebarHidden((hidden) => !hidden)}
           title={toolsSidebarHidden ? "نمایش ابزارهای برنامه" : "پنهان کردن ابزارهای برنامه"}
           aria-label={toolsSidebarHidden ? "نمایش ابزارهای برنامه" : "پنهان کردن ابزارهای برنامه"}
@@ -432,10 +432,11 @@ export function LegacySchedulePage() {
           aria-controls="legacy-schedule-tools"
         >
           {toolsSidebarHidden ? (
-            <PanelRightOpen size={18} aria-hidden="true" />
+            <PanelRightOpen size={22} aria-hidden="true" />
           ) : (
-            <PanelRightClose size={18} aria-hidden="true" />
+            <PanelRightClose size={22} aria-hidden="true" />
           )}
+          <span>{toolsSidebarHidden ? "نمایش ابزارها" : "ابزارها"}</span>
         </button>
         <div className="order-2 grid gap-3 min-[960px]:order-1">
           {templatePreview ? (
@@ -491,7 +492,7 @@ export function LegacySchedulePage() {
           aria-label="ابزارهای برنامه هفتگی"
           aria-hidden={toolsSidebarHidden}
           inert={toolsSidebarHidden}
-          className={`order-1 grid min-w-0 gap-3 overflow-hidden transition-[opacity,transform] duration-300 ease-out motion-reduce:transition-none min-[960px]:order-2 min-[960px]:sticky min-[960px]:top-3 min-[960px]:self-start ${toolsSidebarHidden ? "min-[960px]:pointer-events-none min-[960px]:translate-x-3 min-[960px]:opacity-0" : "min-[960px]:translate-x-0 min-[960px]:opacity-100"}`}
+          className={`order-1 grid min-w-0 gap-3 overflow-hidden transition-[opacity,transform] duration-300 ease-out motion-reduce:transition-none min-[960px]:order-2 min-[960px]:sticky min-[960px]:top-3 min-[960px]:self-start ${toolsSidebarHidden ? "max-[959px]:hidden min-[960px]:pointer-events-none min-[960px]:translate-x-3 min-[960px]:opacity-0" : "min-[960px]:translate-x-0 min-[960px]:opacity-100"}`}
         >
           <div className="grid gap-3 min-[960px]:max-h-[calc(100dvh-7rem)] min-[960px]:overflow-y-auto min-[960px]:pe-1 [scrollbar-color:rgb(var(--border-subtle))_transparent] [scrollbar-width:thin]">
             <header className="flex items-center gap-2 px-1">
