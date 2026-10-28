@@ -176,8 +176,10 @@ export const createScheduleTemplate = (draft: {
   name: string;
   sourceTemplateId?: string;
 }) => api.post<ScheduleTemplate>("/schedule/templates", draft);
-export const applyScheduleTemplate = (id: string) =>
-  api.post<{ applied: number }>(`/schedule/templates/${encodeURIComponent(id)}/apply`, {});
+export const applyScheduleTemplate = (
+  id: string,
+  body: { academicYearId: string; termId: string },
+) => api.post<{ applied: number }>(`/schedule/templates/${encodeURIComponent(id)}/apply`, body);
 export const archiveScheduleTemplate = (id: string) =>
   api.patch<ScheduleTemplate>(`/schedule/templates/${encodeURIComponent(id)}/archive`, {});
 export const restoreScheduleTemplate = (id: string) =>

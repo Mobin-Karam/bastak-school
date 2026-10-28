@@ -11,6 +11,7 @@ import { AcademicSchedulingFoundation1730900000000 } from "../src/database/migra
 import { SchoolScheduleTimeBlocks1731800000000 } from "../src/database/migrations/1731800000000-SchoolScheduleTimeBlocks";
 import { SchoolScheduleTimeBlockPartOfDay1731800100000 } from "../src/database/migrations/1731800100000-SchoolScheduleTimeBlockPartOfDay";
 import { SchoolScheduleTimeBlockGroups1762000000000 } from "../src/database/migrations/1762000000000-SchoolScheduleTimeBlockGroups";
+import { SchoolScheduleTemplates1731800200000 } from "../src/database/migrations/1731800200000-SchoolScheduleTemplates";
 import { LegacyScheduleSubstitutionRequests1761800000000 } from "../src/database/migrations/1761800000000-LegacyScheduleSubstitutionRequests";
 import { TeacherLeaveRequests1761900000000 } from "../src/database/migrations/1761900000000-TeacherLeaveRequests";
 import { TeacherLeaveEarlyReturn1762200000000 } from "../src/database/migrations/1762200000000-TeacherLeaveEarlyReturn";
@@ -830,6 +831,9 @@ describe("migration-backed persistence and verified recovery (disposable SQLite 
       new SchoolScheduleTimeBlockGroups1762000000000().up(manager.queryRunner!),
     );
     await db.transaction(async (manager) =>
+      new SchoolScheduleTemplates1731800200000().up(manager.queryRunner!),
+    );
+    await db.transaction(async (manager) =>
       new LegacyScheduleSubstitutionRequests1761800000000().up(
         manager.queryRunner!,
       ),
@@ -1059,7 +1063,7 @@ describe("migration-backed persistence and verified recovery (disposable SQLite 
       academicYearId: academicYear.id,
       termId: academicTerm.id,
     });
-    await schedule.createAcademicTerm(scoped, {
+    const secondTerm = await schedule.createAcademicTerm(scoped, {
       academicYearId: academicYear.id,
       name: "نیم‌سال دوم",
       startsOn: "2027-02-01",
@@ -1115,5 +1119,23 @@ describe("migration-backed persistence and verified recovery (disposable SQLite 
         roles: ["RELIGIOUS_EDUCATION_MANAGER"],
       }),
     ).toEqual([]);
+    const template = await schedule.createTemplate(scoped, {
+      organizationId: a.id,
+      name: "الگوی چرخه‌دار",
+    });
+    await schedule.applyTemplate(scoped, template.id, {
+      academicYearId: academicYear.id,
+      termId: secondTerm.id,
+    });
+    expect(
+      await db.getRepository(SchoolScheduleEntry).findOneBy({
+        academicYearId: academicYear.id,
+        termId: secondTerm.id,
+        status: "ACTIVE",
+      }),
+    ).toMatchObject({
+      academicYearNameSnapshot: academicYear.name,
+      termNameSnapshot: secondTerm.name,
+    });
   });
 });

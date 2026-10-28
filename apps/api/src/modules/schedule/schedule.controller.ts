@@ -14,6 +14,7 @@ import { ok } from "../../common/utils/envelope";
 import { AuthenticatedUser } from "../auth";
 import {
   ArchiveScheduleEntryDto,
+  ApplyScheduleTemplateDto,
   CreateScheduleEntriesDto,
   CreateScheduleTimeBlockGroupDto,
   CreateScheduleTimeBlockDto,
@@ -195,8 +196,9 @@ export class ScheduleController {
   applyTemplate(
     @CurrentUser() user: AuthenticatedUser,
     @Param("id") id: string,
+    @Body() dto: ApplyScheduleTemplateDto,
   ) {
-    return this.schedule.applyTemplate(user, id).then(ok);
+    return this.schedule.applyTemplate(user, id, dto).then(ok);
   }
   @Patch("templates/:id/archive")
   @RequireCapabilities("schedule.archive")

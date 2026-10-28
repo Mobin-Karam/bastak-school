@@ -82,6 +82,10 @@ export class CreateScheduleTemplateDto {
   @IsString() name!: string;
   @IsOptional() @IsUUID() sourceTemplateId?: string;
 }
+export class ApplyScheduleTemplateDto {
+  @IsUUID() academicYearId!: string;
+  @IsUUID() termId!: string;
+}
 export class ScheduleSubstitutionRequestDto {
   @IsUUID() sourceEntryId!: string;
   @IsUUID() targetEntryId!: string;

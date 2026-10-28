@@ -291,7 +291,15 @@ export function LegacySchedulePage() {
     onError: (e) => notify(e instanceof Error ? e.message : "ذخیره الگو انجام نشد.", "error"),
   });
   const applyTemplate = useMutation({
-    mutationFn: applyScheduleTemplate,
+    mutationFn: ({
+      id,
+      academicYearId,
+      termId,
+    }: {
+      id: string;
+      academicYearId: string;
+      termId: string;
+    }) => applyScheduleTemplate(id, { academicYearId, termId }),
     onSuccess: (result) => {
       setTemplatePreview(null);
       templateReload();
@@ -579,7 +587,18 @@ export function LegacySchedulePage() {
                     cancelLabel: "انصراف",
                     softConfirm: true,
                   })
-                  .then((ok) => ok && applyTemplate.mutate(templatePreview.id))
+                  .then(
+                    (ok) =>
+                      ok &&
+                      selectedScheduleYearId &&
+                      (scheduleTermId || availableScheduleTerms[0]?.id)
+                        ? applyTemplate.mutate({
+                            id: templatePreview.id,
+                            academicYearId: selectedScheduleYearId,
+                            termId: scheduleTermId || availableScheduleTerms[0]!.id,
+                          })
+                        : notify("پیش از اجرای الگو، سال و نیم‌سال را انتخاب کنید.", "error"),
+                  )
               }
             />
           ) : null}

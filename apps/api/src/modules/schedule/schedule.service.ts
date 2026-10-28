@@ -1584,7 +1584,11 @@ export class ScheduleService {
       );
     return template;
   }
-  async applyTemplate(user: AuthenticatedUser, id: string) {
+  async applyTemplate(
+    user: AuthenticatedUser,
+    id: string,
+    dto: { academicYearId: string; termId: string },
+  ) {
     const template = await this.templates.findOne({
       where: { id },
       relations: { organization: true },
@@ -1601,6 +1605,20 @@ export class ScheduleService {
         409,
         "SCHEDULE_TEMPLATE_ARCHIVED",
         "الگوی بایگانی‌شده قابل اجرا نیست.",
+      );
+    const year = await this.academicYearRepo.findOneBy({
+      id: dto.academicYearId,
+      organizationId: template.organization.id,
+    });
+    const term = await this.academicTerms.findOneBy({
+      id: dto.termId,
+      academicYearId: dto.academicYearId,
+    });
+    if (!year || !term || year.state === "ARCHIVED" || term.state === "ARCHIVED" || term.correctionOpen)
+      throw new ApiException(
+        409,
+        "SCHEDULE_ACADEMIC_TERM_LOCKED",
+        "برای اجرای الگو، سال و نیم‌سال قابل استفاده را انتخاب کنید.",
       );
     return attendanceTransaction(this.entries.manager, async (manager) => {
       await manager.update(
@@ -1623,6 +1641,10 @@ export class ScheduleService {
             ? ({ id: entry.classBookId } as EducationClassBook)
             : null,
           teacher: entry.teacherId ? ({ id: entry.teacherId } as User) : null,
+          academicYearId: year.id,
+          termId: term.id,
+          academicYearNameSnapshot: year.name,
+          termNameSnapshot: term.name,
           status: "ACTIVE",
         }),
       );
