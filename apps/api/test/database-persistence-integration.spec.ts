@@ -1058,6 +1058,11 @@ describe("migration-backed persistence and verified recovery (disposable SQLite 
       academicYearId: academicYear.id,
       termId: academicTerm.id,
     });
+    expect(
+      (await schedule.list(scoped, a.id, academicYear.id, academicTerm.id)).map(
+        (entry) => entry.id,
+      ),
+    ).toContain(archivedTermEntry.id);
     await schedule.academicTermLifecycle(scoped, academicTerm.id, { action: "archive" });
     await expect(
       schedule.update(scoped, archivedTermEntry.id, {

@@ -95,8 +95,10 @@ export class ScheduleController {
   @Get() @RequireCapabilities("schedule.read") list(
     @CurrentUser() user: AuthenticatedUser,
     @Query("organizationId") organizationId?: string,
+    @Query("academicYearId") academicYearId?: string,
+    @Query("termId") termId?: string,
   ) {
-    return this.schedule.list(user, organizationId).then(ok);
+    return this.schedule.list(user, organizationId, academicYearId, termId).then(ok);
   }
   @Get("substitution-requests")
   @RequireCapabilities("schedule.read")

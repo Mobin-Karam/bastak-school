@@ -1132,10 +1132,21 @@ export class ScheduleService {
       return this.publicSubstitution(saved);
     });
   }
-  async list(user: AuthenticatedUser, organizationId?: string) {
-    return (await this.listEntities(user, organizationId)).map((entry) =>
+  async list(
+    user: AuthenticatedUser,
+    organizationId?: string,
+    academicYearId?: string,
+    termId?: string,
+  ) {
+    return (await this.listEntities(user, organizationId))
+      .filter(
+        (entry) =>
+          (!academicYearId || entry.academicYearId === academicYearId) &&
+          (!termId || entry.termId === termId),
+      )
+      .map((entry) =>
       this.publicEntry(entry),
-    );
+      );
   }
   private async listEntities(user: AuthenticatedUser, organizationId?: string) {
     const requestedOrganizationId = organizationId ?? user.activeOrganizationId;
