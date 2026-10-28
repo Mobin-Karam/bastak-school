@@ -25,6 +25,10 @@ export class TeacherStudentReport {
   session!: AttendanceSession;
   @ManyToOne(() => User, { nullable: false, onDelete: "RESTRICT" })
   teacher!: User;
+  @Column({ type: "varchar", length: 36, nullable: true }) academicYearIdSnapshot?: string | null;
+  @Column({ type: "varchar", length: 120, nullable: true }) academicYearNameSnapshot?: string | null;
+  @Column({ type: "varchar", length: 36, nullable: true }) termIdSnapshot?: string | null;
+  @Column({ type: "varchar", length: 120, nullable: true }) termNameSnapshot?: string | null;
   @Column({ type: "varchar", length: 2000 }) message!: string;
   @Column({ type: "datetime", nullable: true }) seenAt!: Date | null;
   @ManyToOne(() => User, { nullable: true, onDelete: "SET NULL" })

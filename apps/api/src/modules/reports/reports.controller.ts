@@ -92,8 +92,14 @@ export class ReportsController {
 
   @Get("principal/teacher-reports")
   @RequireCapabilities("attendance.review")
-  principalTeacherReports(@CurrentUser() user: AuthenticatedUser) {
-    return this.reports.teacherReportsForPrincipal(this.context(user)).then(ok);
+  principalTeacherReports(
+    @CurrentUser() user: AuthenticatedUser,
+    @Query("academicYearId") academicYearId?: string,
+    @Query("termId") termId?: string,
+  ) {
+    return this.reports
+      .teacherReportsForPrincipal(this.context(user), { academicYearId, termId })
+      .then(ok);
   }
 
   @Patch("principal/teacher-reports/:id/seen")

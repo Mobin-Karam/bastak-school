@@ -114,7 +114,7 @@ export class ReportsService {
     });
     if (
       !session ||
-      (session.sourceKind === "class_schedule"
+      (["class_schedule", "legacy_schedule"].includes(session.sourceKind ?? "")
         ? session.assignedStaff?.id !== context.id
         : session.createdBy?.id !== context.id)
     )
@@ -143,6 +143,10 @@ export class ReportsService {
         session,
         student,
         teacher: { id: context.id } as User,
+        academicYearIdSnapshot: session.academicYearIdSnapshot ?? null,
+        academicYearNameSnapshot: session.academicYearNameSnapshot ?? null,
+        termIdSnapshot: session.termIdSnapshot ?? null,
+        termNameSnapshot: session.termNameSnapshot ?? null,
         message: dto.message.trim(),
         seenAt: null,
         seenBy: null,
@@ -150,9 +154,16 @@ export class ReportsService {
     );
   }
 
-  async teacherReportsForPrincipal(context: UserContext) {
+  async teacherReportsForPrincipal(
+    context: UserContext,
+    filters: { academicYearId?: string; termId?: string } = {},
+  ) {
     this.authorization.requireCapability(context, "attendance.review");
     const rows = await this.teacherReports.find({
+      where: {
+        ...(filters.academicYearId ? { academicYearIdSnapshot: filters.academicYearId } : {}),
+        ...(filters.termId ? { termIdSnapshot: filters.termId } : {}),
+      },
       relations: {
         organization: true,
         student: true,
@@ -178,6 +189,10 @@ export class ReportsService {
             .join(" ") || row.teacher.username,
         sessionId: row.session.id,
         sessionTitle: row.session.titleSnapshot,
+        academicYearId: row.academicYearIdSnapshot ?? null,
+        academicYearName: row.academicYearNameSnapshot ?? null,
+        termId: row.termIdSnapshot ?? null,
+        termName: row.termNameSnapshot ?? null,
         seenByName: row.seenBy
           ? [row.seenBy.firstName, row.seenBy.lastName]
               .filter(Boolean)
