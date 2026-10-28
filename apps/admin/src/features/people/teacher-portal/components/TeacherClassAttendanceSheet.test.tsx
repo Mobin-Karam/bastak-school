@@ -3,6 +3,7 @@ import { cleanup, render, screen, waitFor, within } from "@testing-library/react
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ScheduleEntry } from "../../../academics/schedule/api/schedule.api";
+import { LocaleProvider } from "../../../../shared/ui/locale";
 import { TeacherClassAttendanceSheet } from "./TeacherClassAttendanceSheet";
 
 const {
@@ -52,9 +53,11 @@ function renderSheet(onOpenChange = vi.fn()) {
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   });
   return render(
-    <QueryClientProvider client={queryClient}>
-      <TeacherClassAttendanceSheet entry={entry} open onOpenChange={onOpenChange} canManage />
-    </QueryClientProvider>,
+    <LocaleProvider>
+      <QueryClientProvider client={queryClient}>
+        <TeacherClassAttendanceSheet entry={entry} open onOpenChange={onOpenChange} canManage />
+      </QueryClientProvider>
+    </LocaleProvider>,
   );
 }
 
@@ -84,7 +87,7 @@ describe("TeacherClassAttendanceSheet", () => {
     expect(dialog).toHaveClass("max-w-xl");
     expect(
       within(screen.getByRole("group", { name: "وضعیت حضور علی رضایی" })).getByRole("button", {
-        name: "حاضر",
+        name: "ح · حاضر",
       }),
     ).toHaveAttribute("aria-pressed", "true");
   });
@@ -99,18 +102,20 @@ describe("TeacherClassAttendanceSheet", () => {
     renderSheet(onOpenChange);
     const user = userEvent.setup();
     const group = await screen.findByRole("group", { name: "وضعیت حضور علی رضایی" });
-    await user.click(within(group).getByRole("button", { name: "حاضر" }));
+    await user.click(within(group).getByRole("button", { name: "ح · حاضر" }));
     await user.click(screen.getByRole("button", { name: "بررسی و ثبت حضور و غیاب" }));
     expect(bulkMarkAttendanceMock).not.toHaveBeenCalled();
     await user.click(screen.getByRole("button", { name: "تأیید و ثبت" }));
     await waitFor(() => expect(screen.getByRole("button", { name: "تأیید و ثبت" })).toBeEnabled());
     expect(onOpenChange).not.toHaveBeenCalled();
-    expect(within(group).getByRole("button", { name: "حاضر", hidden: true })).toHaveAttribute(
+    expect(within(group).getByRole("button", { name: "ح · حاضر", hidden: true })).toHaveAttribute(
       "aria-pressed",
       "true",
     );
     await user.click(screen.getByRole("button", { name: "تأیید و ثبت" }));
-    await waitFor(() => expect(onOpenChange).toHaveBeenCalledWith(false));
+    await waitFor(() => expect(bulkMarkAttendanceMock).toHaveBeenCalledTimes(2));
+    expect(screen.queryByText("مرحله ۲: بررسی و ثبت")).not.toBeInTheDocument();
+    expect(onOpenChange).not.toHaveBeenCalled();
     expect(bulkMarkAttendanceMock.mock.calls[1][0]).toEqual(
       bulkMarkAttendanceMock.mock.calls[0][0],
     );
@@ -130,14 +135,14 @@ describe("TeacherClassAttendanceSheet", () => {
     expect(screen.getByRole("dialog", { name: "ریاضی دهم" })).toBeInTheDocument();
 
     const group = screen.getByRole("group", { name: "وضعیت حضور علی رضایی" });
-    await user.click(within(group).getByRole("button", { name: "غایب" }));
+    await user.click(within(group).getByRole("button", { name: "غ · غایب" }));
     await user.click(screen.getByRole("button", { name: "پاک کردن" }));
 
     expect(screen.getByRole("dialog", { name: "ریاضی دهم" })).toBeInTheDocument();
     expect(screen.getByText("تغییرات حضور و غیاب پاک می‌شوند")).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "بازگشت و حفظ تغییرات" }));
     expect(screen.getByRole("dialog", { name: "ریاضی دهم" })).toBeInTheDocument();
-    expect(within(group).getByRole("button", { name: "غایب" })).toHaveAttribute(
+    expect(within(group).getByRole("button", { name: "غ · غایب" })).toHaveAttribute(
       "aria-pressed",
       "true",
     );

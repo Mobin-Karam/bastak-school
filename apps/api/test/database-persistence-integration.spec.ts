@@ -12,6 +12,8 @@ import { SchoolScheduleTimeBlocks1731800000000 } from "../src/database/migration
 import { SchoolScheduleTimeBlockPartOfDay1731800100000 } from "../src/database/migrations/1731800100000-SchoolScheduleTimeBlockPartOfDay";
 import { SchoolScheduleTimeBlockGroups1762000000000 } from "../src/database/migrations/1762000000000-SchoolScheduleTimeBlockGroups";
 import { LegacyScheduleSubstitutionRequests1761800000000 } from "../src/database/migrations/1761800000000-LegacyScheduleSubstitutionRequests";
+import { TeacherLeaveRequests1761900000000 } from "../src/database/migrations/1761900000000-TeacherLeaveRequests";
+import { TeacherLeaveEarlyReturn1762200000000 } from "../src/database/migrations/1762200000000-TeacherLeaveEarlyReturn";
 import { NightAttendance1728234800000 } from "../src/database/migrations/1728234800000-NightAttendance";
 import {
   Organization,
@@ -824,6 +826,12 @@ describe("migration-backed persistence and verified recovery (disposable SQLite 
         manager.queryRunner!,
       ),
     );
+    await db.transaction(async (manager) =>
+      new TeacherLeaveRequests1761900000000().up(manager.queryRunner!),
+    );
+    await db.transaction(async (manager) =>
+      new TeacherLeaveEarlyReturn1762200000000().up(manager.queryRunner!),
+    );
     const authorization = new AuthorizationService(
       db.getRepository(UserRoleAssignment),
       db.getRepository(OrganizationMembership),
@@ -913,10 +921,12 @@ describe("migration-backed persistence and verified recovery (disposable SQLite 
       organizationId: a.id,
       name: "جبرانی",
     });
-    const migrated = await db.getRepository(SchoolScheduleTimeBlock).findOneOrFail({
-      where: { name: "زنگ قدیمی" },
-      relations: { group: true },
-    });
+    const migrated = await db
+      .getRepository(SchoolScheduleTimeBlock)
+      .findOneOrFail({
+        where: { name: "زنگ قدیمی" },
+        relations: { group: true },
+      });
     expect(migrated.group?.name).toBe("صبح");
     const block = await schedule.createTimeBlock(scoped, {
       organizationId: a.id,
@@ -926,8 +936,9 @@ describe("migration-backed persistence and verified recovery (disposable SQLite 
       endTime: "10:45",
     });
     expect(
-      (await schedule.listTimeBlocks(scoped)).find((item) => item.id === block.id)
-        ?.group?.id,
+      (await schedule.listTimeBlocks(scoped)).find(
+        (item) => item.id === block.id,
+      )?.group?.id,
     ).toBe(group.id);
     const teacherActor = {
       ...scoped,
