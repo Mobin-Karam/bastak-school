@@ -12,6 +12,7 @@ import type {
   StaffAttendanceProfile,
   StaffAttendanceSession,
   StudentAttendancePool,
+  TeacherStudentClassAttendanceProfile,
 } from "@moshaver/api-contract";
 
 export const getAttendanceOverview = () => api.get<AttendanceDailyOverview>("/attendance/overview");
@@ -232,6 +233,10 @@ export const reviewAttendanceCorrection = (
   );
 export const getAttendanceProfile = (id: string) =>
   api.get<StaffAttendanceProfile>(`/attendance/students/${encodeURIComponent(id)}/profile`);
+export const getTeacherStudentClassProfile = (studentId: string, entryId: string) =>
+  api.get<TeacherStudentClassAttendanceProfile>(
+    `/attendance/teacher-students/${encodeURIComponent(studentId)}/class-profile?entryId=${encodeURIComponent(entryId)}`,
+  );
 export const getDormDelegates = () => api.get<DormAttendanceDelegate[]>("/attendance/delegates");
 export const setDormDelegate = (roomId: string, body: DormDelegateDraft) =>
   api.put<DormAttendanceDelegate>(`/attendance/dorm/${encodeURIComponent(roomId)}/delegate`, body);

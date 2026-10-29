@@ -13,4 +13,5 @@ export {
   awardAttendancePoints,
   getAttendanceEncouragement,
   getAttendanceOverview,
+  getTeacherStudentClassProfile,
 } from "./attendance-operations.api";

@@ -296,6 +296,7 @@ export type {
   StaffAttendanceSession,
   AttendanceDailyOverview,
   StaffAttendanceProfile,
+  TeacherStudentClassAttendanceProfile,
   AttendanceEncouragement,
   AttendanceMissingMember,
 } from "./attendance-operations";

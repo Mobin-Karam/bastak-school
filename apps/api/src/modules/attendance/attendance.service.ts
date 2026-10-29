@@ -1,4 +1,7 @@
-import type { AttendanceSessionDetail } from "@moshaver/api-contract";
+import type {
+  AttendanceSessionDetail,
+  TeacherStudentClassAttendanceProfile,
+} from "@moshaver/api-contract";
 import { attendanceTransaction } from "./attendance-transaction";
 import { AuditLog } from "../../database/entities/audit-log.entity";
 import { createHash, randomUUID } from "node:crypto";
@@ -2871,6 +2874,175 @@ export class AttendanceService {
       recordedById: row.recordedBy?.id ?? null,
       updatedAt: row.updatedAt.toISOString(),
     }));
+  }
+
+  async teacherStudentClassProfile(
+    user: AuthenticatedUser,
+    studentId: string,
+    entryId: string,
+  ): Promise<TeacherStudentClassAttendanceProfile> {
+    const roles = user.roles?.length ? user.roles : [user.role];
+    if (
+      !roles.includes("TEACHER") ||
+      !user.capabilities?.includes("attendance.class.read")
+    )
+      throw new ApiException(403, "FORBIDDEN", "دسترسی کافی ندارید.");
+
+    const scheduleEntries =
+      this.sessions.manager.getRepository(SchoolScheduleEntry);
+    const selectedEntry = await scheduleEntries.findOne({
+      where: { id: entryId },
+      relations: {
+        organization: true,
+        classroom: true,
+        teacher: true,
+        classBook: { book: true, teacher: true },
+      },
+    });
+    if (
+      !selectedEntry?.organization ||
+      !selectedEntry.classroom ||
+      !selectedEntry.classBook?.book
+    )
+      throw new ApiException(
+        404,
+        "SCHEDULE_ENTRY_NOT_FOUND",
+        "جلسه برنامه پیدا نشد.",
+      );
+
+    const assignedTeacherId =
+      selectedEntry.teacher?.id ?? selectedEntry.classBook.teacher?.id;
+    if (assignedTeacherId !== user.id)
+      throw new ApiException(
+        404,
+        "SCHEDULE_ENTRY_NOT_FOUND",
+        "جلسه برنامه پیدا نشد.",
+      );
+    await this.authorizeContext(
+      user,
+      "class",
+      selectedEntry.classroom.id,
+      selectedEntry.organization.id,
+      false,
+    );
+
+    const enrollment = await this.enrollments.findOne({
+      where: {
+        student: { id: studentId },
+        classroom: { id: selectedEntry.classroom.id },
+      },
+      relations: { student: true },
+    });
+    if (!enrollment)
+      throw new ApiException(
+        404,
+        "STUDENT_NOT_FOUND",
+        "دانش‌آموز در این کلاس پیدا نشد.",
+      );
+
+    const siblings = await scheduleEntries.find({
+      where: {
+        organization: { id: selectedEntry.organization.id },
+        classroom: { id: selectedEntry.classroom.id },
+        classBook: { id: selectedEntry.classBook.id },
+      },
+      relations: { teacher: true, classBook: { teacher: true } },
+    });
+    const sourceIds = siblings
+      .filter(
+        (entry) =>
+          (entry.teacher?.id ?? entry.classBook?.teacher?.id) === user.id,
+      )
+      .map((entry) => entry.id);
+    if (!sourceIds.includes(entryId)) sourceIds.push(entryId);
+
+    const sessions = await this.sessions.find({
+      where: {
+        organization: { id: selectedEntry.organization.id },
+        contextType: "class",
+        contextId: selectedEntry.classroom.id,
+        sourceKind: "legacy_schedule",
+        sourceScheduleId: In(sourceIds),
+        subjectIdSnapshot: selectedEntry.classBook.book.id,
+        assignedStaff: { id: user.id },
+      },
+      order: { sessionDate: "DESC", id: "DESC" },
+    });
+    const sessionIds = sessions.map((session) => session.id);
+    const [records, coinRows] = sessionIds.length
+      ? await Promise.all([
+          this.records.find({
+            where: {
+              student: { id: studentId },
+              session: { id: In(sessionIds) },
+            },
+            relations: { session: true },
+          }),
+          this.requireSessionCoins().find({
+            where: {
+              student: { id: studentId },
+              session: { id: In(sessionIds) },
+            },
+            relations: { session: true },
+          }),
+        ])
+      : [[], []];
+    const recordsBySession = new Map(
+      records.map((record) => [record.session.id, record]),
+    );
+    const coinsBySession = new Map(
+      coinRows.map((row) => [row.session.id, row.coins]),
+    );
+    const scopedSessions = sessions.filter(
+      (session) =>
+        (session.rosterSnapshot ?? []).some(
+          (member) => member.id === studentId,
+        ) || recordsBySession.has(session.id),
+    );
+    const counts = { present: 0, absent: 0, late: 0, excused: 0, unmarked: 0 };
+    const rows = scopedSessions.map((session) => {
+      const record = recordsBySession.get(session.id);
+      const status: TeacherStudentClassAttendanceProfile["sessions"][number]["status"] =
+        record?.status ?? "unmarked";
+      counts[status] += 1;
+      return {
+        sessionId: session.id,
+        sessionDate:
+          session.operationalDate ?? session.sessionDate.toISOString(),
+        title: session.titleSnapshot || selectedEntry.title,
+        status,
+        note: record?.note ?? "",
+        coins: coinsBySession.get(session.id) ?? 0,
+      };
+    });
+    return {
+      studentId,
+      studentName:
+        enrollment.student?.name ??
+        (await this.students.findOneBy({ id: studentId }))?.name ??
+        "",
+      classId: selectedEntry.classroom.id,
+      className: selectedEntry.classroom.name,
+      bookId: selectedEntry.classBook.book.id,
+      bookName: selectedEntry.classBook.book.titleFa,
+      teacherName:
+        [selectedEntry.teacher?.firstName, selectedEntry.teacher?.lastName]
+          .filter(Boolean)
+          .join(" ") ||
+        selectedEntry.teacher?.username ||
+        [
+          selectedEntry.classBook.teacher?.firstName,
+          selectedEntry.classBook.teacher?.lastName,
+        ]
+          .filter(Boolean)
+          .join(" ") ||
+        selectedEntry.classBook.teacher?.username ||
+        "",
+      totalCoins: rows.reduce((total, row) => total + row.coins, 0),
+      totalSessions: rows.length,
+      counts,
+      sessions: rows,
+    };
   }
 
   async setSessionStudentCoins(

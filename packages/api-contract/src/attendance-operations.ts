@@ -106,6 +106,33 @@ export type StaffAttendanceProfile = {
     note: string;
   }>;
 };
+/** Attendance history and coins for one student in a teacher's class/book assignment. */
+export type TeacherStudentClassAttendanceProfile = {
+  studentId: string;
+  studentName: string;
+  classId: string;
+  className: string;
+  bookId: string;
+  bookName: string;
+  teacherName: string;
+  totalCoins: number;
+  totalSessions: number;
+  counts: {
+    present: number;
+    absent: number;
+    late: number;
+    excused: number;
+    unmarked: number;
+  };
+  sessions: Array<{
+    sessionId: string;
+    sessionDate: string;
+    title: string;
+    status: PhysicalAttendanceStatus | "excused" | "unmarked";
+    note: string;
+    coins: number;
+  }>;
+};
 export type AttendanceEncouragement = {
   totalSessions: number;
   present: number;

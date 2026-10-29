@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   bulkMarkAttendance,
+  getTeacherStudentClassProfile,
   getAttendanceParticipants,
   listMyAttendanceAbsenceReviews,
   prepareAttendanceWrite,
@@ -19,8 +20,7 @@ import { Button, EmptyState, LoadingState } from "../../../../shared/ui/ui";
 import { AttendanceCoin } from "../../../../shared/ui/attendance-coin";
 import { DatePicker } from "../../../../shared/ui/date-picker";
 import { ResponsiveDrawer } from "../../../../shared/ui/responsive-drawer";
-import { getStudentOverview, getStudentProfile } from "../../students/api/students.api";
-import { StudentOverview } from "../../students/components/StudentOverview";
+import { TeacherStudentAttendanceProfile } from "./TeacherStudentAttendanceProfile";
 
 type AttendanceStatus = SelfAttendanceRecord["status"];
 
@@ -95,15 +95,10 @@ export function TeacherClassAttendanceSheet({
     queryFn: listMyAttendanceAbsenceReviews,
     enabled: open,
   });
-  const studentOverview = useQuery({
-    queryKey: ["teacher", "student-overview", scopeKey, profileStudentId],
-    queryFn: () => getStudentOverview(profileStudentId!),
-    enabled: Boolean(profileStudentId),
-  });
-  const studentProfile = useQuery({
-    queryKey: ["teacher", "student-profile", scopeKey, profileStudentId],
-    queryFn: () => getStudentProfile(profileStudentId!),
-    enabled: Boolean(profileStudentId),
+  const teacherStudentProfile = useQuery({
+    queryKey: ["teacher", "student-class-profile", scopeKey, entry?.id, profileStudentId],
+    queryFn: () => getTeacherStudentClassProfile(profileStudentId!, entry!.id),
+    enabled: Boolean(profileStudentId && entry?.id),
   });
   const classReviews = (reviews.data ?? []).filter(
     (review) => review.contextType === "class" && review.contextId === entry?.classroom?.id,
@@ -676,34 +671,31 @@ export function TeacherClassAttendanceSheet({
       <ResponsiveDrawer
         open={Boolean(profileStudentId)}
         onOpenChange={(next) => !next && setProfileStudentId(null)}
-        title="پرونده دانش‌آموز"
-        description={studentProfile.data?.identity.fullName ?? "اطلاعات پرونده و وضعیت حضور"}
+        title="کارنامه دانش‌آموز"
+        description={`${entry?.classroom?.name ?? "کلاس"} · ${entry?.classBook?.book.titleFa ?? entry?.title ?? "کتاب"}`}
         desktopSide="left"
       >
-        {studentOverview.data || studentProfile.data ? (
-          <StudentOverview
-            student={(studentOverview.data ?? studentProfile.data)!}
-            overview={studentOverview.data ?? studentProfile.data}
-            profile={studentProfile.data}
-            loading={studentOverview.isLoading || studentProfile.isLoading}
-            error={studentOverview.isError || studentProfile.isError}
-            onRetry={() => {
-              void studentOverview.refetch();
-              void studentProfile.refetch();
-            }}
-          />
-        ) : studentOverview.isLoading || studentProfile.isLoading ? (
+        {teacherStudentProfile.data ? (
+          <TeacherStudentAttendanceProfile profile={teacherStudentProfile.data} />
+        ) : teacherStudentProfile.isLoading ? (
           <LoadingState label="در حال دریافت پرونده دانش‌آموز…" />
         ) : (
           <EmptyState
-            title="پرونده دانش‌آموز دریافت نشد."
-            description="اتصال را بررسی کنید و دوباره تلاش کنید."
+            title={
+              teacherStudentProfile.isError
+                ? "اطلاعات حضور دریافت نشد."
+                : "دانش‌آموزی انتخاب نشده است."
+            }
+            description={
+              teacherStudentProfile.isError
+                ? "دوباره تلاش کنید یا دسترسی این برنامه به کلاس را بررسی کنید."
+                : undefined
+            }
             action={
               <Button
                 variant="soft"
                 onClick={() => {
-                  void studentOverview.refetch();
-                  void studentProfile.refetch();
+                  void teacherStudentProfile.refetch();
                 }}
               >
                 تلاش دوباره

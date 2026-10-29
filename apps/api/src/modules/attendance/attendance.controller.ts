@@ -100,6 +100,18 @@ export class AttendanceController {
       .then(ok);
   }
 
+  @Get("attendance/teacher-students/:studentId/class-profile")
+  @RequireCapabilities("attendance.class.read")
+  teacherStudentClassProfile(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param("studentId") studentId: string,
+    @Query("entryId") entryId: string,
+  ) {
+    return this.attendance
+      .teacherStudentClassProfile(user, studentId, entryId)
+      .then(ok);
+  }
+
   @Get("student/attendance/sessions")
   @RequireCapabilities("attendance.read")
   sessions(

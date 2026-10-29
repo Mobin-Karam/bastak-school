@@ -160,19 +160,13 @@ export class StudentAdministrationService {
   }
 
   async get(user: AuthenticatedUser, id: string, capability = "students.read") {
-    const context = this.context(user);
-    const relationshipAccess = await this.authorization.canAccessStudent(
-      context,
-      id,
-      capability,
-    );
-    const assignedClassAccess =
-      !relationshipAccess &&
-      capability === "students.read" &&
-      context.roles.includes("TEACHER") &&
-      this.authorization.hasCapability(context, capability) &&
-      (await this.teacherHasStudentInAssignedClass(context, id));
-    if (!relationshipAccess && !assignedClassAccess)
+    if (
+      !(await this.authorization.canAccessStudent(
+        this.context(user),
+        id,
+        capability,
+      ))
+    )
       throw new ApiException(404, "NOT_FOUND", "دانش‌آموز یافت نشد.");
     const student = await this.students.findOne({
       where: { id },
@@ -186,32 +180,6 @@ export class StudentAdministrationService {
     if (!student)
       throw new ApiException(404, "NOT_FOUND", "دانش‌آموز یافت نشد.");
     return this.project(student);
-  }
-
-  /** Teachers may read a profile from a class roster they are assigned to. */
-  private async teacherHasStudentInAssignedClass(
-    context: UserContext,
-    studentId: string,
-  ) {
-    if (!context.organizationIds.length) return false;
-    const enrollments = await this.enrollments.find({
-      where: { student: { id: studentId } },
-      relations: {
-        classroom: {
-          organization: true,
-          advisor: true,
-          books: { teacher: true },
-        },
-      },
-    });
-    return enrollments.some(({ classroom }) => {
-      if (!context.organizationIds.includes(classroom.organization?.id))
-        return false;
-      return (
-        classroom.advisor?.id === context.id ||
-        classroom.books?.some((book) => book.teacher?.id === context.id)
-      );
-    });
   }
 
   async profile(user: AuthenticatedUser, id: string) {
