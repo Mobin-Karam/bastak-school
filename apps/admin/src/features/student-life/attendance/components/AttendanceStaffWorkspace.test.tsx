@@ -236,7 +236,13 @@ describe("staff session and pool creation", () => {
     );
     await user.click(await screen.findByRole("button", { name: "تنظیمات حضور" }));
     const partial = await screen.findByRole("switch", { name: "اجازه ثبت ناقص" });
+    expect(partial).toHaveAttribute("data-state", "checked");
+    await user.click(screen.getByText("اجازه ثبت ناقص"));
+    expect(partial).toHaveAttribute("data-state", "unchecked");
     await user.click(partial);
+    expect(partial).toHaveAttribute("data-state", "checked");
+    await user.click(partial);
+    expect(partial).toHaveAttribute("data-state", "unchecked");
     await user.click(screen.getByRole("button", { name: "ذخیره قوانین حضور" }));
     await waitFor(() =>
       expect(mocks.updatePolicy).toHaveBeenCalledWith(

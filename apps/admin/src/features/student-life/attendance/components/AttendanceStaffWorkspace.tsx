@@ -1,6 +1,6 @@
 import { AdaptiveSelect } from "@/shared/ui/adaptive-select";
 import { attendanceRequestId } from "../model/attendance-request-id";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { PolarAngleAxis, PolarGrid, Radar, RadarChart, ResponsiveContainer } from "recharts";
 import {
@@ -73,25 +73,35 @@ function PolicySwitch({
   defaultChecked: boolean;
   disabled?: boolean;
 }) {
+  const id = useId();
   const [checked, setChecked] = useState(defaultChecked);
   return (
-    <label className="flex min-h-16 cursor-pointer items-start justify-between gap-3 rounded-xl border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card))] p-3 transition-colors hover:border-brand/40 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-brand/40 dark:hover:border-brand/60">
-      <span className="min-w-0">
+    <div className="flex min-h-20 items-center justify-between gap-3 rounded-xl border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card))] p-3 transition-colors hover:border-brand/40 has-[:focus-within]:ring-2 has-[:focus-within]:ring-brand/40 dark:hover:border-brand/60">
+      <label htmlFor={id} className="min-w-0 cursor-pointer">
         <b className="block text-xs text-ink">{label}</b>
         <span className="mt-1 block text-xs font-normal leading-5 text-slate-500 dark:text-slate-300">
           {description}
         </span>
-      </span>
-      <input name={name} type="hidden" value={checked ? "on" : ""} />
-      <Switch
-        name={name}
-        aria-label={label}
-        className="mt-0.5 h-6 w-11 border-0 bg-slate-300 data-[state=checked]:bg-brand data-[state=unchecked]:bg-slate-300 focus-visible:ring-brand/40 dark:bg-slate-700 dark:data-[state=unchecked]:bg-slate-700"
-        checked={checked}
-        onCheckedChange={setChecked}
-        disabled={disabled}
-      />
-    </label>
+      </label>
+      <div className="flex shrink-0 flex-col items-end gap-1.5">
+        <span
+          className={`text-[11px] font-black ${checked ? "text-brand" : "text-slate-500 dark:text-slate-400"}`}
+          aria-live="polite"
+        >
+          {checked ? "روشن" : "خاموش"}
+        </span>
+        <input name={name} type="hidden" value={checked ? "on" : ""} />
+        <Switch
+          id={id}
+          dir="rtl"
+          aria-label={label}
+          className="h-7 w-12 border border-transparent bg-slate-200 p-0.5 data-[state=checked]:bg-brand data-[state=unchecked]:bg-slate-200 focus-visible:ring-brand/50 focus-visible:ring-offset-2 dark:bg-slate-700 dark:data-[state=unchecked]:bg-slate-700"
+          checked={checked}
+          onCheckedChange={setChecked}
+          disabled={disabled}
+        />
+      </div>
+    </div>
   );
 }
 
