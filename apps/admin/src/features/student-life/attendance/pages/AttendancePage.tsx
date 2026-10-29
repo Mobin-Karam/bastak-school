@@ -99,6 +99,7 @@ function errorText(error: unknown, fallback: string) {
 
 export function AttendancePage() {
   const auth = useAuth();
+  const isPrincipal = auth.activeRole === "PRINCIPAL";
   const canViewStaffSessions = auth.canAny(["attendance.review", "attendance.class.read"]);
   const isSupervisor = auth.context?.roles?.includes("SCHOOL_SUPERVISOR") ?? false;
   const { profile } = useLocale();
@@ -127,8 +128,11 @@ export function AttendancePage() {
           (linkedSession.scheduledStartAt !== null || sessionWindowActive))) &&
       canManageLinkedSession
     : auth.can("attendance.manage");
+  // Principals review school attendance through the sessions, review, and
+  // comparison workspaces. Manual class, group, and dorm marking remains for
+  // the staff roles assigned to perform it.
   const sections: AttendanceSection[] = [
-    ...contextOrder,
+    ...(isPrincipal ? [] : contextOrder),
     ...(canViewStaffSessions ? (["sessions"] as const) : []),
     ...(auth.can("attendance.review") ? (["pool"] as const) : []),
     ...(isSupervisor ? (["supervisor"] as const) : []),
@@ -146,18 +150,12 @@ export function AttendancePage() {
   const requestedType = searchParams.get("contextType");
   const requestedSessionId = searchParams.get("sessionId");
   const requestedSectionParam = searchParams.get("section");
-  const requestedSection: AttendanceSection =
-    requestedSectionParam === "supervisor" && isSupervisor
-      ? "supervisor"
-      : requestedSectionParam === "comparison" && auth.can("attendance.review")
-        ? "comparison"
-        : requestedSectionParam === "sessions" && canViewStaffSessions
-          ? "sessions"
-          : requestedSectionParam === "pool" && auth.can("attendance.review")
-            ? "pool"
-            : contextOrder.includes(requestedSectionParam as AttendanceContextType)
-              ? (requestedSectionParam as AttendanceContextType)
-              : "class";
+  const fallbackSection: AttendanceSection = sections[0] ?? (isPrincipal ? "sessions" : "class");
+  const requestedSection: AttendanceSection = sections.includes(
+    requestedSectionParam as AttendanceSection,
+  )
+    ? (requestedSectionParam as AttendanceSection)
+    : fallbackSection;
   const requestedReviewRecordId =
     requestedSection === "sessions" ? searchParams.get("reviewRecordId") : null;
   const requestedCorrectionId =
@@ -204,7 +202,7 @@ export function AttendancePage() {
     if (contextOrder.includes(requestedSection as AttendanceContextType)) {
       setContextType(requestedSection as AttendanceContextType);
     }
-    if (!requestedId) return;
+    if (isPrincipal || !requestedId) return;
     const requested = contexts.find(
       (context) =>
         context.id === requestedId && (!requestedType || context.contextType === requestedType),
@@ -213,7 +211,7 @@ export function AttendancePage() {
     setContextType(requested.contextType);
     setContextId(requested.id);
     setGroupClassId(requested.classId || "");
-  }, [contexts, requestedId, requestedSection, requestedType]);
+  }, [contexts, isPrincipal, requestedId, requestedSection, requestedType]);
   const visibleContexts = useMemo(
     () =>
       contexts.filter((c) =>
@@ -295,9 +293,11 @@ export function AttendancePage() {
       .then((available) => {
         if (!active) return;
         setContexts(available);
-        const requested = available.find(
-          (c) => c.id === requestedId && (!requestedType || c.contextType === requestedType),
-        );
+        const requested = isPrincipal
+          ? undefined
+          : available.find(
+              (c) => c.id === requestedId && (!requestedType || c.contextType === requestedType),
+            );
         if (requested) {
           setContextType(requested.contextType);
           setChosenType(requested.contextType);
@@ -322,7 +322,7 @@ export function AttendancePage() {
     };
     // URL params are initial selection only. Subsequent selection is controlled by the user.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [loadVersion, scopeKey]);
+  }, [isPrincipal, loadVersion, scopeKey]);
 
   useEffect(() => {
     const currentRequest = ++requestId.current;

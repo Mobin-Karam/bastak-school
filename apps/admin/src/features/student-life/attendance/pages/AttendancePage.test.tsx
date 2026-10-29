@@ -16,6 +16,7 @@ const {
   getSavedAttendanceSessionMock,
   submitAttendanceAbsencesMock,
   awardAttendancePointsMock,
+  authState,
 } = vi.hoisted(() => ({
   listAttendanceSessionsMock: vi.fn(),
   listAttendanceContextsMock: vi.fn(),
@@ -26,6 +27,10 @@ const {
   getSavedAttendanceSessionMock: vi.fn(),
   submitAttendanceAbsencesMock: vi.fn(),
   awardAttendancePointsMock: vi.fn(),
+  authState: {
+    activeRole: "TEACHER",
+    roles: [] as string[],
+  },
 }));
 
 vi.mock("../api/attendance.api.ts", () => ({
@@ -47,7 +52,8 @@ vi.mock("../../../identity/auth", () => ({
     can: canMock,
     canAny: canAnyMock,
     user: { id: "teacher-1" },
-    context: { activeOrganization: { id: "org-1" } },
+    activeRole: authState.activeRole,
+    context: { activeOrganization: { id: "org-1" }, roles: authState.roles },
   }),
 }));
 vi.mock("../../../../shared/ui/responsive-drawer", () => ({
@@ -92,6 +98,8 @@ describe("AttendancePage", () => {
       vi.fn(() => ({ matches: false, addEventListener: vi.fn(), removeEventListener: vi.fn() })),
     );
     vi.clearAllMocks();
+    authState.activeRole = "TEACHER";
+    authState.roles = [];
     canMock.mockImplementation((capability: string) => capability === "attendance.manage");
     canAnyMock.mockImplementation((capabilities: readonly string[]) =>
       capabilities.some((capability) => canMock(capability)),
@@ -134,6 +142,23 @@ describe("AttendancePage", () => {
     expect(await screen.findByText("فضای کار جلسات")).toBeInTheDocument();
     expect(screen.getByText("صف بررسی غیبت")).toBeInTheDocument();
     expect(screen.getByText("صف اصلاحات حضور")).toBeInTheDocument();
+  });
+
+  it("keeps principals in attendance review workspaces when an old manual-section URL is opened", async () => {
+    authState.activeRole = "PRINCIPAL";
+    canMock.mockImplementation((capability: string) => capability === "attendance.review");
+    render(
+      <MemoryRouter initialEntries={["/admin/attendance?section=class"]}>
+        <LocaleProvider>
+          <AttendancePage />
+        </LocaleProvider>
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByText("فضای کار جلسات")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "کلاس 0 مورد" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "گروه کلاس 0 مورد" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "خوابگاه 0 مورد" })).not.toBeInTheDocument();
   });
   it("gives a teacher the sessions workspace without reviewer queues", async () => {
     canMock.mockImplementation((capability: string) => capability === "attendance.class.read");
