@@ -15,6 +15,7 @@ export function MyAttendancePage() {
   const auth = useAuth();
   const { formatDate } = useLocale();
   const [summaryOpen, setSummaryOpen] = useState(false);
+  const [section, setSection] = useState<"lessons" | "dorm">("lessons");
   const scope = JSON.stringify([
     auth.user?.id,
     auth.activeRole,
@@ -69,12 +70,10 @@ export function MyAttendancePage() {
           <Button variant="ghost" className="mt-3 min-h-11 w-full justify-between" onClick={() => setSummaryOpen(true)}><span>راهنمای وضعیت‌ها و آخرین ثبت</span><ChevronDown size={17} aria-hidden="true" /></Button>
         </Card>
       ) : null}
-      <Card id="student-attendance-history" className="scroll-mt-4 rounded-3xl p-4 sm:p-5">
-        <div className="mb-3 flex items-center justify-between gap-2"><div><h2 className="font-black text-ink">تاریخچه حضور</h2><p className="mt-1 text-xs text-slate-500">جلسه‌ها را بر اساس تاریخ یا وضعیت پیدا کنید.</p></div><Badge tone="blue">شخصی</Badge></div>
-        <StudentAttendanceHistoryList scope={scope} />
-      </Card>
-      <div className="space-y-2"><h2 className="px-1 text-sm font-black text-ink">کارهای حضور امروز</h2><p className="px-1 text-xs leading-5 text-slate-500">اگر برای اتاق خوابگاه مسئول شده‌اید یا فراخوان فعالی وجود دارد، از این بخش اقدام کنید.</p></div>
-      <StudentAttendanceWorkspace key={scope} scope={scope} />
+      <div role="tablist" aria-label="بخش‌های حضور و غیاب" className="grid grid-cols-2 gap-2 rounded-2xl bg-[rgb(var(--surface-muted))] p-1">
+        {([["lessons", "حضور کلاس‌ها"], ["dorm", "خوابگاه و فراخوان"]] as const).map(([key, label]) => <button key={key} id={`attendance-tab-${key}`} type="button" role="tab" aria-selected={section === key} aria-controls={`attendance-panel-${key}`} onClick={() => setSection(key)} className={`min-h-11 rounded-xl px-3 text-sm font-black transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand ${section === key ? "bg-[rgb(var(--surface-card))] text-ink shadow-sm" : "text-slate-600 dark:text-slate-300"}`}>{label}</button>)}
+      </div>
+      {section === "lessons" ? <section id="attendance-panel-lessons" role="tabpanel" aria-labelledby="attendance-tab-lessons"><Card id="student-attendance-history" className="scroll-mt-4 rounded-3xl p-4 sm:p-5"><div className="mb-3 flex items-center justify-between gap-2"><div><h2 className="font-black text-ink">تاریخچه حضور کلاس‌ها</h2><p className="mt-1 text-xs text-slate-500">جلسه‌ها را بر اساس تاریخ یا وضعیت پیدا کنید.</p></div><Badge tone="blue">شخصی</Badge></div><StudentAttendanceHistoryList scope={scope} /></Card></section> : <section id="attendance-panel-dorm" role="tabpanel" aria-labelledby="attendance-tab-dorm"><div className="mb-3 space-y-1 px-1"><h2 className="text-sm font-black text-ink">حضور خوابگاه و فراخوان‌ها</h2><p className="text-xs leading-5 text-slate-500">مسئولیت اتاق و فراخوان فعال را جدا از سابقه کلاس‌ها پیگیری کنید.</p></div><StudentAttendanceWorkspace key={scope} scope={scope} /></section>}
       <ResponsiveDrawer open={summaryOpen} onOpenChange={setSummaryOpen} title="خلاصه حضور" description="تعریف وضعیت‌های ثبت‌شده در پرونده حضور شما.">
         {query.data ? <div className="grid gap-3"><Card className="p-4"><p className="font-bold text-ink">{query.data.message}</p><p className="mt-2 text-sm text-slate-500">{query.data.totalSessions.toLocaleString("fa-IR")} جلسه ثبت‌شده · آخرین بروزرسانی {formatDate(new Date())}</p></Card>{[["حاضر", query.data.present, "در جلسه حضور داشته‌اید."], ["غایب", query.data.absent, "در جلسه غایب ثبت شده‌اید."], ["تأخیر", query.data.late, "با تأخیر در جلسه حاضر شده‌اید."], ["موجه", query.data.excused, "غیبت شما موجه ثبت شده است."]].map(([label, value, description]) => <Card key={String(label)} className="flex items-center justify-between gap-3 p-3"><div><strong className="text-sm text-ink">{label}</strong><p className="mt-1 text-xs text-slate-500">{description}</p></div><span className="text-xl font-black tabular-nums">{Number(value).toLocaleString("fa-IR")}</span></Card>)}</div> : null}
       </ResponsiveDrawer>

@@ -248,6 +248,14 @@ function DormAttendanceEditor({
         description="مسئولیت شما فقط حضور ساکنان همین اتاق در شب جاری است."
       >
         <div className="space-y-4">
+          <Card className="grid gap-3 border-blue-200 bg-blue-50/70 p-4 dark:border-blue-900 dark:bg-blue-950/30">
+            <div className="flex items-center gap-3">
+              <span className="grid size-12 shrink-0 place-items-center rounded-2xl bg-white text-blue-700 shadow-sm dark:bg-slate-900 dark:text-blue-300"><Building2 size={23} aria-hidden="true" /></span>
+              <div className="min-w-0 flex-1"><p className="text-xs font-bold text-blue-800 dark:text-blue-200">اتاق محل مسئولیت</p><h2 className="mt-0.5 truncate text-lg font-black text-ink">{assignment.roomName}</h2></div>
+              <span className="shrink-0 rounded-xl bg-white px-3 py-2 text-xs font-black text-ink dark:bg-slate-900">شب {new Intl.DateTimeFormat("fa-IR-u-ca-persian", { timeZone: "Asia/Tehran", month: "2-digit", day: "2-digit" }).format(new Date(`${assignment.nightDate}T12:00:00`))}</span>
+            </div>
+            <div className="grid grid-cols-3 gap-2 text-center"><div className="rounded-xl bg-white/80 p-2 dark:bg-slate-900/80"><p className="text-[10px] text-slate-500">ساکن</p><p className="text-lg font-black text-ink">{participants.length.toLocaleString("fa-IR")}</p></div><div className="rounded-xl bg-white/80 p-2 dark:bg-slate-900/80"><p className="text-[10px] text-slate-500">غایب</p><p className="text-lg font-black text-rose-700 dark:text-rose-300">{counts.absent.toLocaleString("fa-IR")}</p></div><div className="rounded-xl bg-white/80 p-2 dark:bg-slate-900/80"><p className="text-[10px] text-slate-500">وضعیت‌نداده</p><p className="text-lg font-black text-ink">{counts.unmarked.toLocaleString("fa-IR")}</p></div></div>
+          </Card>
           <p className="rounded-xl bg-blue-50 p-3 text-sm leading-6 text-blue-800 dark:bg-blue-950/30 dark:text-blue-200">
             حضور با زمان فعلی ثبت می‌شود. اجازه شما از شب {assignment.startsOn} تا شب{" "}
             {assignment.endsOn} است.
@@ -365,28 +373,9 @@ export function StudentAttendanceWorkspace({ scope }: { scope: string }) {
       ) : null}
       {assignments.data?.length ? (
         <Card className="space-y-3 rounded-3xl p-4">
-          <h2 className="flex items-center gap-2 font-black">
-            <Building2 size={20} /> مسئولیت حضور اتاق
-          </h2>
-          {assignments.data.map((assignment) => (
-            <div
-              key={assignment.id}
-              className="rounded-2xl border border-[rgb(var(--border-subtle))] p-4"
-            >
-              <p className="font-bold">{assignment.roomName}</p>
-              <p className="mt-1 text-xs leading-6 text-slate-500">
-                شب‌های {assignment.startsOn} تا {assignment.endsOn} · فقط ساکنان این اتاق
-              </p>
-              <button
-                type="button"
-                disabled={!assignment.canMark}
-                onClick={() => setAssignmentId(assignment.id)}
-                className="mt-3 min-h-12 w-full rounded-xl bg-blue-600 text-sm font-bold text-white disabled:opacity-50"
-              >
-                {assignment.canMark ? "ثبت حضور شب جاری" : "مسئولیت هنوز آغاز نشده است"}
-              </button>
-            </div>
-          ))}
+          <h2 className="flex items-center gap-2 font-black"><Building2 size={20} /> مسئولیت حضور اتاق</h2>
+          <p className="text-xs leading-5 text-slate-500">اتاق مسئولیت‌دار را انتخاب کنید؛ حضور فقط برای ساکنان همان اتاق ثبت می‌شود.</p>
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">{assignments.data.map((assignment, index) => <button key={assignment.id} type="button" disabled={!assignment.canMark} onClick={() => setAssignmentId(assignment.id)} className="min-h-24 rounded-2xl border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-muted))] p-3 text-right transition hover:border-blue-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand disabled:opacity-60"><span className="flex items-center justify-between gap-2"><strong className="min-w-0 truncate text-sm text-ink">{assignment.roomName}</strong><span className="grid size-7 shrink-0 place-items-center rounded-lg bg-blue-100 text-xs font-black text-blue-800 dark:bg-blue-950 dark:text-blue-200">{(index + 1).toLocaleString("fa-IR")}</span></span><span className="mt-2 block text-[11px] leading-5 text-slate-500">{assignment.canMark ? `شب ${assignment.nightDate}` : `از ${assignment.startsOn}`}</span><span className="mt-1 block text-xs font-bold text-brand">{assignment.canMark ? "بازکردن ثبت حضور" : "هنوز آغاز نشده"}</span></button>)}</div>
         </Card>
       ) : null}
       {pools.isError ? (
