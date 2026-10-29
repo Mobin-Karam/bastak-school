@@ -99,7 +99,8 @@ const dashboardData = {
         expected: 1,
         marked: 1,
         present: 0,
-        absent: 1,
+        // The list projection can be stale; the detail roster remains authoritative.
+        absent: 0,
         late: 0,
         excused: 0,
         lastReviewedAt: null,
@@ -162,6 +163,7 @@ describe("PrincipalDashboard", () => {
     const sessionButton = await screen.findByRole("button", { name: /پایه اول.*غایب/ });
     await user.click(sessionButton);
     expect(await screen.findByText("علی رضایی")).toBeVisible();
+    expect(screen.getByText("غایب: ۱")).toBeVisible();
     const submit = screen.getByRole("button", { name: /ثبت بازبینی و انتقال به آرشیو/ });
     expect(submit).toBeDisabled();
     await user.type(screen.getByLabelText(/پیام مدیر برای استاد/), "علت غیبت را پیگیری کنید.");
