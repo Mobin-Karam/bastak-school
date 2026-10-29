@@ -1,7 +1,9 @@
-import { Injectable } from "@nestjs/common";
+import { Injectable, Optional } from "@nestjs/common";
 import { DataSource } from "typeorm";
 import { ApiException } from "../../common/exceptions/api.exception";
 import { AuthenticatedUser } from "../auth";
+import { NotificationsService } from "../notifications/notifications.service";
+import { NotificationType } from "../../database/entities/notification.entity";
 
 type CountRow = { count?: number | string };
 type PrincipalDashboardContract = {
@@ -142,7 +144,10 @@ type PrincipalDashboardContract = {
  */
 @Injectable()
 export class PrincipalDashboardService {
-  constructor(private readonly db: DataSource) {}
+  constructor(
+    private readonly db: DataSource,
+    @Optional() private readonly notifications?: NotificationsService,
+  ) {}
 
   async get(
     user: AuthenticatedUser,
@@ -221,6 +226,8 @@ export class PrincipalDashboardService {
         end,
         classId,
       );
+    if (can("attendance.review") && end === this.today())
+      await this.notifyOverdueTeacherSessions(user, organizationId, end);
     if (can("analytics.read") && can("students.read"))
       response.behaviour = await this.behaviour(
         organizationId,
@@ -806,6 +813,51 @@ export class PrincipalDashboardService {
     return (
       ((await this.db.query(sql, parameters))[0] as Record<string, unknown>) ??
       {}
+    );
+  }
+  /** Creates one durable notification per missed legacy occurrence and principal. */
+  private async notifyOverdueTeacherSessions(
+    user: AuthenticatedUser,
+    organizationId: string,
+    date: string,
+  ) {
+    if (!this.notifications) return;
+    const notifications = this.notifications;
+    const now = new Intl.DateTimeFormat("en-GB", {
+      timeZone: "Asia/Tehran",
+      hour: "2-digit",
+      minute: "2-digit",
+      hourCycle: "h23",
+    })
+      .format(new Date())
+      .replace(":", "");
+    const currentTime = `${now.slice(0, 2)}:${now.slice(2, 4)}`;
+    const weekday = (new Date(`${date}T12:00:00Z`).getUTCDay() + 1) % 7;
+    const rows = await this.db.query(
+      `SELECT e.id, e.title, e.endTime, COALESCE(NULLIF(e.classroomNameSnapshot,''),'کلاس') classroomName,
+        TRIM(COALESCE(u.firstName,'') || ' ' || COALESCE(u.lastName,'')) teacherName
+       FROM school_schedule_entries e
+       LEFT JOIN users u ON u.id=e.teacherId
+       WHERE e.organizationId=? AND e.status='ACTIVE' AND e.weekday=?
+         AND e.academicYearId IS NOT NULL AND e.termId IS NOT NULL
+         AND (e.startsOn IS NULL OR e.startsOn<=?) AND (e.endsOn IS NULL OR e.endsOn>=?)
+         AND e.endTime<?
+         AND NOT EXISTS (SELECT 1 FROM attendance_sessions s WHERE s.organizationId=e.organizationId AND s.occurrenceKey=('legacy-schedule:' || e.id || ':' || ?))`,
+      [organizationId, weekday, date, date, currentTime, date],
+    );
+    await Promise.all(
+      (rows as Array<Record<string, unknown>>).map((row) =>
+        notifications.createForUser(user.id, {
+          type: NotificationType.WARNING,
+          category: "attendance_overdue",
+          priority: "high",
+          title: "حضور و غیاب استاد ثبت نشده است",
+          body: `${String(row.teacherName).trim() || "استاد"} برای ${String(row.classroomName)} · ${String(row.title)} تا پایان زمان جلسه حضور و غیاب ثبت نکرده است.`,
+          url: "/admin/attendance?section=sessions",
+          organizationId,
+          dedupeKey: `attendance-overdue:${date}:${String(row.id)}:${user.id}`,
+        }),
+      ),
     );
   }
   private async scalar(sql: string, parameters: unknown[]) {
