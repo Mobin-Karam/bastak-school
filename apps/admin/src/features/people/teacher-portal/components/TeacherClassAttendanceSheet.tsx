@@ -88,6 +88,7 @@ export function TeacherClassAttendanceSheet({
   const [pointReason, setPointReason] = useState("");
   const [savedSessionId, setSavedSessionId] = useState<string | null>(null);
   const [reportText, setReportText] = useState<Record<string, string>>({});
+  const [reportTarget, setReportTarget] = useState<{ id: string; name: string } | null>(null);
   const [sessionDate, setSessionDate] = useState(() => isoDay(new Date()));
   const participants = useQuery({
     queryKey: ["attendance", "participants", scopeKey, "class", entry?.classroom?.id],
@@ -98,14 +99,6 @@ export function TeacherClassAttendanceSheet({
     queryKey: ["attendance", "my-absence-reviews", scopeKey],
     queryFn: listMyAttendanceAbsenceReviews,
     enabled: open,
-  });
-  const teacherReports = useQuery({
-    queryKey: ["teacher", "student-reports", scopeKey],
-    queryFn: () =>
-      api.get<Array<{ studentId: string; sessionId: string; seenAt: string | null }>>(
-        "/teacher/student-reports",
-      ),
-    enabled: open && canManage,
   });
   const classReviews = (reviews.data ?? []).filter(
     (review) => review.contextType === "class" && review.contextId === entry?.classroom?.id,
@@ -121,6 +114,7 @@ export function TeacherClassAttendanceSheet({
     setPointReason("");
     setSavedSessionId(null);
     setReportText({});
+    setReportTarget(null);
     setSessionDate(isoDay(new Date()));
   }, [entry?.id, open, scopeKey]);
 
@@ -152,7 +146,10 @@ export function TeacherClassAttendanceSheet({
       const entries = Object.entries(marks).map(([studentId, status]) => ({
         studentId,
         status,
-        note: status === "excused" ? reasons[studentId]?.trim() || undefined : undefined,
+        note:
+          status === "excused" || status === "absent"
+            ? reasons[studentId]?.trim() || undefined
+            : undefined,
       }));
       if (!entries.length) throw new Error("برای ثبت، وضعیت دست‌کم یک دانش‌آموز را انتخاب کنید.");
       const scheduled = await api.post<{ id: string; revision: number; duplicate: boolean }>(
@@ -202,6 +199,7 @@ export function TeacherClassAttendanceSheet({
     },
     onSuccess: (_, values) => {
       setReportText((current) => ({ ...current, [values.studentId]: "" }));
+      setReportTarget(null);
       notify("گزارش برای مدیر ارسال شد.", "success");
     },
     onError: (error) =>
@@ -226,6 +224,12 @@ export function TeacherClassAttendanceSheet({
     );
     setReasons({});
   };
+  const hasMissingExcusedReason = (participants.data ?? []).some(
+    (student) => marks[student.id] === "excused" && !(reasons[student.id] ?? "").trim(),
+  );
+  const canMoveToNextSession = entry
+    ? nearestSessionDate(sessionDate, entry.weekday, 1) <= isoDay(new Date())
+    : false;
   const points = useMutation({
     mutationFn: () => {
       if (!entry?.classroom?.id || !pointTarget)
@@ -277,12 +281,17 @@ export function TeacherClassAttendanceSheet({
               </Button>
               <label className="grid gap-1 text-xs font-bold text-slate-600 dark:text-slate-300">
                 تاریخ جلسه
-                <DatePicker value={sessionDate} onChange={setSessionDate} />
+                <DatePicker
+                  value={sessionDate}
+                  max={isoDay(new Date())}
+                  onChange={setSessionDate}
+                />
               </label>
               <Button
                 size="sm"
                 variant="soft"
                 onClick={() => setSessionDate(nearestSessionDate(sessionDate, entry.weekday, 1))}
+                disabled={!canMoveToNextSession}
               >
                 جلسه بعد
               </Button>
@@ -383,9 +392,12 @@ export function TeacherClassAttendanceSheet({
                         })}
                       </div>
                     ) : null}
-                    {canManage && marks[student.id] === "excused" ? (
+                    {canManage &&
+                    (marks[student.id] === "excused" || marks[student.id] === "absent") ? (
                       <label className="mt-2 block text-xs font-bold text-slate-600 dark:text-slate-300">
-                        توضیح موجه (اختیاری)
+                        {marks[student.id] === "excused"
+                          ? "توضیح موجه (اجباری)"
+                          : "توضیح غیبت (اختیاری)"}
                         <input
                           value={reasons[student.id] ?? ""}
                           onChange={(event) =>
@@ -396,7 +408,11 @@ export function TeacherClassAttendanceSheet({
                           }
                           disabled={save.isPending}
                           maxLength={500}
-                          placeholder="در صورت نیاز، توضیح موجه را بنویسید"
+                          placeholder={
+                            marks[student.id] === "excused"
+                              ? "علت موجه‌بودن را بنویسید"
+                              : "در صورت نیاز، توضیح غیبت را بنویسید"
+                          }
                           className="mt-1 min-h-10 w-full rounded-lg border border-[rgb(var(--border-subtle))] bg-card px-3 text-xs font-normal text-ink outline-none focus-visible:ring-2 focus-visible:ring-brand"
                         />
                       </label>
@@ -435,50 +451,15 @@ export function TeacherClassAttendanceSheet({
                       </div>
                     ) : null}
                     {canManage && savedSessionId ? (
-                      <div className="mt-3 border-t border-[rgb(var(--border-subtle))] pt-3">
-                        <label className="block text-xs font-bold text-slate-600 dark:text-slate-300">
-                          گزارش خصوصی برای مدیر
-                          <textarea
-                            value={reportText[student.id] ?? ""}
-                            onChange={(event) =>
-                              setReportText((current) => ({
-                                ...current,
-                                [student.id]: event.target.value,
-                              }))
-                            }
-                            maxLength={2000}
-                            placeholder="مشاهده، نگرانی یا پیگیری مربوط به این دانش‌آموز"
-                            className="mt-1 min-h-20 w-full rounded-lg border border-[rgb(var(--border-subtle))] bg-card p-2 text-xs font-normal text-ink"
-                          />
-                        </label>
+                      <div className="mt-3 flex items-center justify-between border-t border-[rgb(var(--border-subtle))] pt-3">
+                        <span className="text-xs text-slate-500">گزارش خصوصی برای مدیر</span>
                         <Button
                           size="sm"
-                          className="mt-2"
-                          disabled={
-                            report.isPending || (reportText[student.id] ?? "").trim().length < 2
-                          }
-                          onClick={() =>
-                            report.mutate({
-                              studentId: student.id,
-                              message: reportText[student.id].trim(),
-                            })
-                          }
+                          variant="soft"
+                          onClick={() => setReportTarget({ id: student.id, name: student.name })}
                         >
-                          ارسال برای مدیر
+                          گزارش
                         </Button>
-                        {teacherReports.data?.some(
-                          (item) =>
-                            item.studentId === student.id && item.sessionId === savedSessionId,
-                        ) ? (
-                          <p className="mt-2 text-[11px] text-slate-500">
-                            {teacherReports.data.find(
-                              (item) =>
-                                item.studentId === student.id && item.sessionId === savedSessionId,
-                            )?.seenAt
-                              ? "مدیر گزارش را دیده است."
-                              : "گزارش در انتظار مشاهده مدیر است."}
-                          </p>
-                        ) : null}
                       </div>
                     ) : null}
                   </li>
@@ -566,7 +547,9 @@ export function TeacherClassAttendanceSheet({
                     <Button
                       variant="soft"
                       className="flex-1"
-                      disabled={!Object.keys(marks).length || save.isPending}
+                      disabled={
+                        !Object.keys(marks).length || save.isPending || hasMissingExcusedReason
+                      }
                       onClick={() => {
                         if (reviewing) {
                           setReviewing(false);
@@ -627,6 +610,37 @@ export function TeacherClassAttendanceSheet({
             ثبت سکه
           </Button>
         </div>
+      </ResponsiveModal>
+      <ResponsiveModal
+        open={Boolean(reportTarget)}
+        onOpenChange={(next) => !next && setReportTarget(null)}
+        title="گزارش خصوصی برای مدیر"
+        description={reportTarget ? `دربارهٔ ${reportTarget.name}` : ""}
+      >
+        {reportTarget ? (
+          <div className="space-y-3" dir="rtl">
+            <textarea
+              value={reportText[reportTarget.id] ?? ""}
+              onChange={(event) =>
+                setReportText((current) => ({ ...current, [reportTarget.id]: event.target.value }))
+              }
+              maxLength={2000}
+              placeholder="مشاهده، نگرانی یا پیگیری مربوط به این دانش‌آموز"
+              className="min-h-32 w-full rounded-xl border border-[rgb(var(--border-subtle))] bg-card p-3 text-sm"
+            />
+            <Button
+              disabled={report.isPending || (reportText[reportTarget.id] ?? "").trim().length < 2}
+              onClick={() =>
+                report.mutate({
+                  studentId: reportTarget.id,
+                  message: reportText[reportTarget.id].trim(),
+                })
+              }
+            >
+              ارسال برای مدیر
+            </Button>
+          </div>
+        ) : null}
       </ResponsiveModal>
     </>
   );
