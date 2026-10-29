@@ -510,16 +510,25 @@ function SessionReviewRow({
     () => (detail.data?.records ?? []).filter((record) => record.physicalStatus === "absent"),
     [detail.data?.records],
   );
+  const delayedRecords = useMemo(
+    () => (detail.data?.records ?? []).filter((record) => record.physicalStatus === "late"),
+    [detail.data?.records],
+  );
+  const reviewRecords = useMemo(
+    () => [...absentRecords, ...delayedRecords],
+    [absentRecords, delayedRecords],
+  );
   const visibleRecords = useMemo(() => {
     const normalizedQuery = studentQuery.trim().toLocaleLowerCase("fa-IR");
-    if (!normalizedQuery) return absentRecords;
-    return absentRecords.filter((record) =>
+    if (!normalizedQuery) return reviewRecords;
+    return reviewRecords.filter((record) =>
       (rosterNames.get(record.studentId) ?? "")
         .toLocaleLowerCase("fa-IR")
         .includes(normalizedQuery),
     );
-  }, [absentRecords, rosterNames, studentQuery]);
+  }, [reviewRecords, rosterNames, studentQuery]);
   const absentCount = detail.data ? absentRecords.length : session.absent;
+  const delayedCount = detail.data ? delayedRecords.length : session.late;
   const needsAbsenceMessage = absentCount > 0;
   return (
     <article className="rounded-2xl border border-[rgb(var(--border-subtle))] p-4">
@@ -534,8 +543,15 @@ function SessionReviewRow({
       >
         <span className="flex items-start justify-between gap-3">
           <strong>{session.title}</strong>
-          <span className="rounded-full bg-amber-100 px-2 py-1 text-xs font-bold text-amber-900 dark:bg-amber-950 dark:text-amber-100">
-            {absentCount.toLocaleString("fa-IR")} غایب
+          <span className="flex flex-wrap justify-end gap-1.5">
+            <span className="rounded-full bg-amber-100 px-2 py-1 text-xs font-bold text-amber-900 dark:bg-amber-950 dark:text-amber-100">
+              {absentCount.toLocaleString("fa-IR")} غایب
+            </span>
+            {delayedCount > 0 ? (
+              <span className="rounded-full bg-sky-100 px-2 py-1 text-xs font-bold text-sky-950 dark:bg-sky-950 dark:text-sky-100">
+                {delayedCount.toLocaleString("fa-IR")} تأخیر
+              </span>
+            ) : null}
           </span>
         </span>
         <small className="mt-1 block text-muted-foreground">
@@ -575,6 +591,7 @@ function SessionReviewRow({
                 </div>
                 <div className="principal-dashboard__session-totals" aria-label="خلاصه غیبت‌ها">
                   <Count label="غایبِ نیازمند پیگیری" value={absentCount} />
+                  <Count label="تأخیر" value={delayedCount} />
                 </div>
               </section>
               <label className="principal-dashboard__student-search">
@@ -587,27 +604,49 @@ function SessionReviewRow({
                 />
               </label>
               <p className="text-sm font-bold">
-                دانش‌آموزان غایب ({visibleRecords.length.toLocaleString("fa-IR")})
+                دانش‌آموزان غایب و دارای تأخیر ({visibleRecords.length.toLocaleString("fa-IR")})
               </p>
               <ul className="grid gap-2">
-                {visibleRecords.map((record) => (
-                  <li key={record.id} className="principal-dashboard__absent-student-row">
-                    <span className="principal-dashboard__absent-student-name">
-                      {rosterNames.get(record.studentId) ?? "دانش‌آموز"}
-                      {record.note ? (
-                        <small className="mt-1 block text-muted-foreground">
-                          یادداشت استاد: {record.note}
-                        </small>
-                      ) : null}
-                    </span>
-                    <span className="principal-dashboard__absent-student-badge">
-                      غایب · نیازمند پیگیری
-                    </span>
-                  </li>
-                ))}
+                {visibleRecords.map((record) => {
+                  const delayed = record.physicalStatus === "late";
+                  return (
+                    <li
+                      key={record.id}
+                      className={
+                        delayed
+                          ? "principal-dashboard__late-student-row"
+                          : "principal-dashboard__absent-student-row"
+                      }
+                    >
+                      <span
+                        className={
+                          delayed
+                            ? "principal-dashboard__late-student-name"
+                            : "principal-dashboard__absent-student-name"
+                        }
+                      >
+                        {rosterNames.get(record.studentId) ?? "دانش‌آموز"}
+                        {record.note ? (
+                          <small className="mt-1 block text-muted-foreground">
+                            یادداشت استاد: {record.note}
+                          </small>
+                        ) : null}
+                      </span>
+                      <span
+                        className={
+                          delayed
+                            ? "principal-dashboard__late-student-badge"
+                            : "principal-dashboard__absent-student-badge"
+                        }
+                      >
+                        {delayed ? "تأخیر · نیازمند پیگیری" : "غایب · نیازمند پیگیری"}
+                      </span>
+                    </li>
+                  );
+                })}
               </ul>
               {!visibleRecords.length ? (
-                <Empty text="دانش‌آموز غایبی با این نام در این جلسه پیدا نشد." />
+                <Empty text="دانش‌آموز غایب یا دارای تأخیر با این نام در این جلسه پیدا نشد." />
               ) : null}
               {needsAbsenceMessage && (
                 <label className="text-sm font-semibold">

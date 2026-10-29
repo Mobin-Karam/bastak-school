@@ -58,6 +58,7 @@ const sessionDetail = {
   roster: [
     { id: "student-a", name: "علی رضایی", nationalCode: null, userId: null },
     { id: "student-b", name: "رضا احمدی", nationalCode: null, userId: null },
+    { id: "student-c", name: "حسن موسوی", nationalCode: null, userId: null },
   ],
   rosterComplete: true,
   records: [
@@ -93,9 +94,25 @@ const sessionDetail = {
       reviewNote: "",
       reviewedAt: null,
     },
+    {
+      id: "record-c",
+      studentId: "student-c",
+      physicalStatus: "late" as const,
+      legacyStatus: "late" as const,
+      note: "ده دقیقه تأخیر",
+      revision: 1,
+      minutesLate: 10,
+      arrivalAt: null,
+      recordedById: null,
+      recordedByName: "",
+      recordedAt: "2026-10-21T08:00:00.000Z",
+      reviewStatus: null,
+      reviewNote: "",
+      reviewedAt: null,
+    },
   ],
-  expected: 2,
-  marked: 2,
+  expected: 3,
+  marked: 3,
   unmarked: 0,
   canManage: false,
   canCorrect: false,
@@ -186,6 +203,8 @@ describe("PrincipalDashboard", () => {
     await user.click(sessionButton);
     expect(await screen.findByText("علی رضایی")).toBeVisible();
     expect(screen.getByText("رضا احمدی")).toBeVisible();
+    expect(screen.getByText("حسن موسوی")).toBeVisible();
+    expect(screen.getByText("تأخیر · نیازمند پیگیری")).toBeVisible();
     expect(screen.getByText("غایبِ نیازمند پیگیری: ۲")).toBeVisible();
     const submit = screen.getByRole("button", { name: /ثبت بازبینی و انتقال به آرشیو/ });
     expect(submit).toBeDisabled();
