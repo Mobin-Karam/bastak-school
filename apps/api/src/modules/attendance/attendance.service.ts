@@ -1890,6 +1890,52 @@ export class AttendanceService {
   }
 
   /**
+   * Candidate sessions for the principal's one-time auto-archive action.
+   * A session is eligible only when its saved roster is complete and every
+   * recorded physical observation is present.  The client reviews these one
+   * at a time so cancelling the UI never leaves a background batch running.
+   */
+  async listReviewablePresentSessions(
+    user: AuthenticatedUser,
+    requestedOrganizationId?: string,
+  ) {
+    if (!user.capabilities?.includes("attendance.review"))
+      throw new ApiException(403, "FORBIDDEN", "دسترسی بازبینی حضور لازم است.");
+    const organizationId = requestedOrganizationId || user.activeOrganizationId;
+    if (!organizationId)
+      throw new ApiException(
+        422,
+        "ATTENDANCE_ORGANIZATION_REQUIRED",
+        "مدرسه فعال را انتخاب کنید.",
+      );
+    await this.authorizeOrganization(user, organizationId);
+    const rows = (await this.sessions.manager.query(
+      `SELECT s.id, s.revision
+         FROM attendance_sessions s
+        WHERE s.organizationId=? AND s.contextType='class'
+          AND s.status IN ('submitted','finalized')
+          AND s.rosterSnapshot IS NOT NULL
+          AND json_array_length(s.rosterSnapshot) > 0
+          AND (SELECT COUNT(id) FROM attendance_records r WHERE r.sessionId=s.id) = json_array_length(s.rosterSnapshot)
+          AND NOT EXISTS (
+            SELECT 1 FROM attendance_records r
+             WHERE r.sessionId=s.id AND (r.physicalStatus IS NULL OR r.physicalStatus <> 'present')
+          )
+          AND NOT EXISTS (
+            SELECT 1 FROM attendance_session_reviews ar
+             WHERE ar.sessionId=s.id AND ar.reviewedRevision=s.revision
+          )
+        ORDER BY s.sessionDate ASC, s.id ASC
+        LIMIT 100`,
+      [organizationId],
+    )) as Array<{ id: string; revision: number | string }>;
+    return rows.map((row) => ({
+      id: String(row.id),
+      revision: Number(row.revision),
+    }));
+  }
+
+  /**
    * Cancellation is a terminal, revisioned lifecycle transition for sessions
    * without observations.  It deliberately retains the session and audit
    * record; submitted/finalized observations must use the correction flow.

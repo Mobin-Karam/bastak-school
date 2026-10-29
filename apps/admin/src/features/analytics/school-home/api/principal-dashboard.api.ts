@@ -138,3 +138,10 @@ export const reviewAttendanceSession = (sessionId: string, message?: string) =>
 
 export const getAttendanceSessionForReview = (sessionId: string) =>
   api.get<AttendanceSessionDetail>(`/attendance/sessions/${encodeURIComponent(sessionId)}`);
+
+export const getReviewablePresentSessions = (organizationId?: string) => {
+  const query = organizationId ? `?organizationId=${encodeURIComponent(organizationId)}` : "";
+  return api.get<Array<{ id: string; revision: number }>>(
+    `/attendance/reviewable-present-sessions${query}`,
+  );
+};

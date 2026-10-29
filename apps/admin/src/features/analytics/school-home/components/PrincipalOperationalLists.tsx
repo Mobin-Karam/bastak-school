@@ -7,7 +7,7 @@ import {
   UserRoundCheck,
   Check,
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useAuth } from "../../../identity/auth";
 import { Button, LoadingState } from "../../../../shared/ui/ui";
 import { ResponsiveDrawer } from "../../../../shared/ui/responsive-drawer";
@@ -19,6 +19,7 @@ import {
 } from "../../../student-life/attendance/api/attendance-operations.api";
 import {
   getAttendanceSessionForReview,
+  getReviewablePresentSessions,
   reviewAttendanceSession,
   type PrincipalDashboardContract,
 } from "../api/principal-dashboard.api";
@@ -94,6 +95,13 @@ export function PrincipalOperationalLists({
 }) {
   const auth = useAuth();
   const [active, setActive] = useState<Panel | null>(null);
+  const [autoArchiveEnabled, setAutoArchiveEnabled] = useState(false);
+  const [autoArchiveProgress, setAutoArchiveProgress] = useState<{
+    completed: number;
+    total: number;
+  } | null>(null);
+  const [autoArchiveError, setAutoArchiveError] = useState(false);
+  const autoArchiveCancelled = useRef(false);
   const client = useQueryClient();
   const organizationId = auth.context?.activeOrganization?.id;
   const dorm = useQuery({
@@ -110,6 +118,11 @@ export function PrincipalOperationalLists({
     queryKey: ["attendance-policy", organizationId],
     queryFn: getAttendancePolicy,
     enabled: active === "sessions" && auth.can("attendance.settings.manage"),
+  });
+  const fullyPresentSessions = useQuery({
+    queryKey: ["attendance", "reviewable-present-sessions", organizationId],
+    queryFn: () => getReviewablePresentSessions(organizationId),
+    enabled: active === "sessions" && canReviewAttendance,
   });
   const updatePolicy = useMutation({
     mutationFn: (next: AttendancePolicy) => updateAttendancePolicy(next),
@@ -171,6 +184,36 @@ export function PrincipalOperationalLists({
       void client.invalidateQueries({ queryKey: ["principal-dashboard"] });
     },
   });
+  const runAutoArchive = async (checked: boolean) => {
+    if (!checked) {
+      if (autoArchiveProgress) autoArchiveCancelled.current = true;
+      else setAutoArchiveEnabled(false);
+      return;
+    }
+    const candidates = fullyPresentSessions.data ?? [];
+    if (!candidates.length) return;
+    autoArchiveCancelled.current = false;
+    setAutoArchiveError(false);
+    setAutoArchiveEnabled(true);
+    setAutoArchiveProgress({ completed: 0, total: candidates.length });
+    let completed = 0;
+    try {
+      for (const session of candidates) {
+        if (autoArchiveCancelled.current) break;
+        await reviewAttendanceSession(session.id);
+        completed += 1;
+        setAutoArchiveProgress({ completed, total: candidates.length });
+      }
+    } catch {
+      setAutoArchiveError(true);
+    } finally {
+      setAutoArchiveEnabled(false);
+      setAutoArchiveProgress(null);
+      void client.invalidateQueries({ queryKey: ["attendance", "reviewable-present-sessions"] });
+      void client.invalidateQueries({ queryKey: ["principal-dashboard"] });
+      void client.invalidateQueries({ queryKey: ["attendance"] });
+    }
+  };
 
   const sessions = sessionReviews?.items ?? [];
   const pendingDorm = useMemo(
@@ -247,6 +290,14 @@ export function PrincipalOperationalLists({
               عملیات انجام نشد. اتصال و دسترسی را بررسی کنید و دوباره تلاش کنید.
             </p>
           ) : null}
+          {autoArchiveError ? (
+            <p
+              role="alert"
+              className="rounded-xl bg-rose-50 p-3 text-sm text-rose-800 dark:bg-rose-950 dark:text-rose-100"
+            >
+              بایگانی خودکار کامل نشد. موارد انجام‌شده ذخیره شده‌اند؛ برای بقیه دوباره تلاش کنید.
+            </p>
+          ) : null}
           {active === "dorm" && (
             <>
               <p className="text-sm text-muted-foreground">
@@ -293,6 +344,27 @@ export function PrincipalOperationalLists({
                   />
                 </label>
               )}
+              <label className="flex items-center justify-between gap-4 rounded-2xl border border-[rgb(var(--border-subtle))] p-4">
+                <span>
+                  <strong className="block">بایگانی خودکارِ جلسه‌های کاملاً حاضر</strong>
+                  <small className="text-muted-foreground">
+                    فقط جلسه‌های کامل، بدون غیبت یا تأخیر، یک‌بار بایگانی می‌شوند.
+                    {fullyPresentSessions.data?.length
+                      ? ` ${fullyPresentSessions.data.length.toLocaleString("fa-IR")} جلسه آماده است.`
+                      : " جلسهٔ آماده‌ای وجود ندارد."}
+                  </small>
+                </span>
+                <Switch
+                  checked={autoArchiveEnabled}
+                  disabled={
+                    fullyPresentSessions.isLoading ||
+                    !fullyPresentSessions.data?.length ||
+                    Boolean(autoArchiveProgress)
+                  }
+                  onCheckedChange={(checked) => void runAutoArchive(checked)}
+                  aria-label="بایگانی خودکار جلسه‌های کاملاً حاضر"
+                />
+              </label>
               {policy.isLoading ? <LoadingState label="دریافت تنظیم بازبینی…" /> : null}
               {sessions.length ? (
                 sessions.map((session) => (
@@ -376,6 +448,39 @@ export function PrincipalOperationalLists({
             ))}
         </div>
       </ResponsiveDrawer>
+      {autoArchiveProgress ? (
+        <div
+          className="principal-dashboard__auto-archive-overlay"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="auto-archive-title"
+        >
+          <div className="principal-dashboard__auto-archive-dialog" dir="rtl">
+            <p className="principal-dashboard__eyebrow">در حال بایگانی خودکار</p>
+            <h2 id="auto-archive-title">جلسه‌های کاملاً حاضر در حال ثبت در آرشیو هستند</h2>
+            <p>
+              {autoArchiveProgress.completed.toLocaleString("fa-IR")} از{" "}
+              {autoArchiveProgress.total.toLocaleString("fa-IR")} جلسه انجام شد.
+            </p>
+            <div
+              className="principal-dashboard__auto-archive-progress"
+              role="progressbar"
+              aria-valuemin={0}
+              aria-valuemax={autoArchiveProgress.total}
+              aria-valuenow={autoArchiveProgress.completed}
+            >
+              <span
+                style={{
+                  width: `${(autoArchiveProgress.completed / autoArchiveProgress.total) * 100}%`,
+                }}
+              />
+            </div>
+            <Button variant="soft" onClick={() => void runAutoArchive(false)}>
+              لغو پس از جلسهٔ در حال انجام
+            </Button>
+          </div>
+        </div>
+      ) : null}
     </>
   );
 }
@@ -402,7 +507,7 @@ function SessionReviewRow({
     [detail.data?.roster],
   );
   const absentRecords = useMemo(
-    () => (detail.data?.records ?? []).filter((record) => attendanceStatus(record) === "absent"),
+    () => (detail.data?.records ?? []).filter((record) => record.physicalStatus === "absent"),
     [detail.data?.records],
   );
   const visibleRecords = useMemo(() => {
@@ -486,11 +591,8 @@ function SessionReviewRow({
               </p>
               <ul className="grid gap-2">
                 {visibleRecords.map((record) => (
-                  <li
-                    key={record.id}
-                    className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-[rgb(var(--surface-muted))] p-3 text-sm"
-                  >
-                    <span>
+                  <li key={record.id} className="principal-dashboard__absent-student-row">
+                    <span className="principal-dashboard__absent-student-name">
                       {rosterNames.get(record.studentId) ?? "دانش‌آموز"}
                       {record.note ? (
                         <small className="mt-1 block text-muted-foreground">
@@ -498,7 +600,7 @@ function SessionReviewRow({
                         </small>
                       ) : null}
                     </span>
-                    <span className="rounded-full bg-orange-100 px-3 py-1 text-xs font-bold text-orange-900 dark:bg-orange-950 dark:text-orange-200">
+                    <span className="rounded-full bg-rose-200 px-3 py-1 text-xs font-black text-rose-950 dark:bg-rose-950 dark:text-rose-100">
                       غایب
                     </span>
                   </li>
@@ -645,13 +747,6 @@ function Count({ label, value }: { label: string; value: number }) {
       {label}: {value.toLocaleString("fa-IR")}
     </span>
   );
-}
-function attendanceStatus(record: {
-  physicalStatus: "present" | "absent" | "late" | "legacy_unknown";
-  legacyStatus: "present" | "absent" | "late" | "excused";
-}): "present" | "absent" | "late" | "excused" {
-  if (record.legacyStatus === "excused") return "excused";
-  return record.physicalStatus === "legacy_unknown" ? record.legacyStatus : record.physicalStatus;
 }
 function Empty({ text }: { text: string }) {
   return (

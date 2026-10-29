@@ -40,9 +40,12 @@ describe("PrincipalDashboardService", () => {
         if (
           sql.includes("attendance_session_reviews") &&
           sql.includes("COUNT(DISTINCT s.id)")
-        )
+        ) {
+          expect(sql).toContain("absent_record.physicalStatus='absent'");
           return [{ count: 2 }];
-        if (sql.includes("attendance_session_reviews"))
+        }
+        if (sql.includes("attendance_session_reviews")) {
+          expect(sql).toContain("r.physicalStatus='absent'");
           return [
             {
               id: "session-a",
@@ -60,6 +63,7 @@ describe("PrincipalDashboardService", () => {
               lastReviewedAt: null,
             },
           ];
+        }
         if (sql.includes("COUNT(t.id) total"))
           return [{ total: 4, complete: 3 }];
         if (sql.includes("COUNT(DISTINCT ss.studentId) participants"))

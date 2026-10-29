@@ -782,7 +782,7 @@ export class PrincipalDashboardService {
         s.sessionDate, s.status, json_array_length(s.rosterSnapshot) expected, latest.reviewedAt lastReviewedAt,
         COUNT(r.id) marked,
         SUM(CASE WHEN r.status='present' THEN 1 ELSE 0 END) present,
-        SUM(CASE WHEN r.status='absent' THEN 1 ELSE 0 END) absent,
+        SUM(CASE WHEN r.physicalStatus='absent' THEN 1 ELSE 0 END) absent,
         SUM(CASE WHEN r.status='late' THEN 1 ELSE 0 END) late,
         SUM(CASE WHEN r.status='excused' THEN 1 ELSE 0 END) excused
        ${base} GROUP BY s.id ORDER BY s.sessionDate DESC LIMIT 10`,

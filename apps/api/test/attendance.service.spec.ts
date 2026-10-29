@@ -237,7 +237,9 @@ describe("AttendanceService organization boundaries (real SQLite)", () => {
     });
     const principal = { ...actor, capabilities: ["attendance.review"] };
     expect(await service.listSupervisorComparisons(principal)).toEqual(
-      expect.arrayContaining([expect.objectContaining({ className: "جلسهٔ legacy" })]),
+      expect.arrayContaining([
+        expect.objectContaining({ className: "جلسهٔ legacy" }),
+      ]),
     );
     await expect(
       service.listSupervisorComparisons({
@@ -326,7 +328,9 @@ describe("AttendanceService organization boundaries (real SQLite)", () => {
       date: "2026-10-12",
       reason: "برنامهٔ قدیمی ثبت نشده بود",
     });
-    const session = await db.getRepository(AttendanceSession).findOneByOrFail({ id: result.id });
+    const session = await db
+      .getRepository(AttendanceSession)
+      .findOneByOrFail({ id: result.id });
     expect(session).toMatchObject({
       sourceKind: "legacy_import",
       academicYearIdSnapshot: year.id,
@@ -336,11 +340,14 @@ describe("AttendanceService organization boundaries (real SQLite)", () => {
       subjectIdSnapshot: book.id,
       subjectNameSnapshot: book.titleFa,
     });
-    expect(await db.getRepository(AuditLog).countBy({ action: "attendance.historical_session.created" })).toBe(1);
-    await db.getRepository(SchoolAcademicTerm).update(
-      { id: term.id },
-      { state: "ARCHIVED", correctionOpen: true },
-    );
+    expect(
+      await db
+        .getRepository(AuditLog)
+        .countBy({ action: "attendance.historical_session.created" }),
+    ).toBe(1);
+    await db
+      .getRepository(SchoolAcademicTerm)
+      .update({ id: term.id }, { state: "ARCHIVED", correctionOpen: true });
     await expect(
       service.createHistoricalSession(actor, {
         organizationId: orgA.id,
@@ -1144,6 +1151,37 @@ describe("AttendanceService organization boundaries (real SQLite)", () => {
         marked.sessionId,
       ),
     ).rejects.toMatchObject({ response: { error: { code: "FORBIDDEN" } } });
+  });
+
+  it("requires the principal's explanation for a physically absent student and sends it to review storage", async () => {
+    const marked = await service.bulkMark(actor, {
+      organizationId: orgA.id,
+      contextType: "class",
+      contextId: assignedClass.id,
+      entries: [{ studentId: studentA.id, status: "absent" }],
+    });
+    const reviewer = {
+      ...actor,
+      capabilities: [...(actor.capabilities ?? []), "attendance.review"],
+    };
+
+    await expect(
+      service.reviewSessionEvery24Hours(reviewer, marked.sessionId),
+    ).rejects.toMatchObject({
+      response: { error: { code: "ATTENDANCE_REVIEW_MESSAGE_REQUIRED" } },
+    });
+
+    await service.reviewSessionEvery24Hours(reviewer, marked.sessionId, {
+      message: "لطفاً علت غیبت دانش‌آموز را پیگیری و اعلام کنید.",
+    });
+    expect(
+      await db.query(
+        "SELECT teacherMessage FROM attendance_session_reviews WHERE sessionId=?",
+        [marked.sessionId],
+      ),
+    ).toEqual([
+      { teacherMessage: "لطفاً علت غیبت دانش‌آموز را پیگیری و اعلام کنید." },
+    ]);
   });
 
   it("cancels an unmarked session with an audit trail and prevents absence-first submission", async () => {

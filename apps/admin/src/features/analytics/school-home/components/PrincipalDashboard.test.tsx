@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   getPrincipalDashboard,
   getAttendanceSessionForReview,
+  getReviewablePresentSessions,
   reviewAttendanceSession,
   type PrincipalDashboardContract,
 } from "../api/principal-dashboard.api";
@@ -16,6 +17,7 @@ vi.mock("../../../identity/auth/hooks/useAuth", () => ({ useAuth: () => ({ can: 
 vi.mock("../api/principal-dashboard.api", () => ({
   getPrincipalDashboard: vi.fn(),
   getAttendanceSessionForReview: vi.fn(),
+  getReviewablePresentSessions: vi.fn(),
   reviewAttendanceSession: vi.fn(),
 }));
 vi.mock("../../../student-life/attendance/api/attendance.api", () => ({
@@ -53,7 +55,10 @@ const sessionDetail = {
   assignedStaffName: "استاد",
   submittedAt: null,
   submittedById: null,
-  roster: [{ id: "student-a", name: "علی رضایی", nationalCode: null, userId: null }],
+  roster: [
+    { id: "student-a", name: "علی رضایی", nationalCode: null, userId: null },
+    { id: "student-b", name: "رضا احمدی", nationalCode: null, userId: null },
+  ],
   rosterComplete: true,
   records: [
     {
@@ -72,9 +77,25 @@ const sessionDetail = {
       reviewNote: "",
       reviewedAt: null,
     },
+    {
+      id: "record-b",
+      studentId: "student-b",
+      physicalStatus: "absent" as const,
+      legacyStatus: "excused" as const,
+      note: "مجوز ثبت شده است",
+      revision: 1,
+      minutesLate: null,
+      arrivalAt: null,
+      recordedById: null,
+      recordedByName: "",
+      recordedAt: "2026-10-21T08:00:00.000Z",
+      reviewStatus: null,
+      reviewNote: "",
+      reviewedAt: null,
+    },
   ],
-  expected: 1,
-  marked: 1,
+  expected: 2,
+  marked: 2,
   unmarked: 0,
   canManage: false,
   canCorrect: false,
@@ -143,6 +164,7 @@ describe("PrincipalDashboard", () => {
       reviewedAt: "2026-10-21T09:00:00.000Z",
     });
     vi.mocked(getAttendanceSessionForReview).mockResolvedValue(sessionDetail);
+    vi.mocked(getReviewablePresentSessions).mockResolvedValue([]);
   });
 
   it("shows only capability-authorized dashboard cards", async () => {
@@ -163,7 +185,8 @@ describe("PrincipalDashboard", () => {
     const sessionButton = await screen.findByRole("button", { name: /پایه اول.*غایب/ });
     await user.click(sessionButton);
     expect(await screen.findByText("علی رضایی")).toBeVisible();
-    expect(screen.getByText("غایبِ نیازمند پیگیری: ۱")).toBeVisible();
+    expect(screen.getByText("رضا احمدی")).toBeVisible();
+    expect(screen.getByText("غایبِ نیازمند پیگیری: ۲")).toBeVisible();
     const submit = screen.getByRole("button", { name: /ثبت بازبینی و انتقال به آرشیو/ });
     expect(submit).toBeDisabled();
     await user.type(screen.getByLabelText(/پیام مدیر برای استاد/), "علت غیبت را پیگیری کنید.");
@@ -173,5 +196,16 @@ describe("PrincipalDashboard", () => {
     await waitFor(() =>
       expect(reviewAttendanceSession).toHaveBeenCalledWith("session-a", "علت غیبت را پیگیری کنید."),
     );
+  });
+
+  it("enables one-time auto-archive only when fully-present sessions are eligible", async () => {
+    vi.mocked(getReviewablePresentSessions).mockResolvedValue([{ id: "present-a", revision: 2 }]);
+    const user = userEvent.setup();
+    renderDashboard();
+    await user.click(await screen.findByRole("button", { name: /جلسه‌های کلاس/ }));
+    const autoArchive = await screen.findByRole("switch", {
+      name: "بایگانی خودکار جلسه‌های کاملاً حاضر",
+    });
+    expect(autoArchive).toBeEnabled();
   });
 });

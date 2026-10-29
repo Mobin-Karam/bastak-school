@@ -212,6 +212,17 @@ export class AttendanceController {
     return this.attendance.reviewSessionEvery24Hours(user, id, dto).then(ok);
   }
 
+  @Get("attendance/reviewable-present-sessions")
+  @RequireCapabilities("attendance.review")
+  reviewablePresentSessions(
+    @CurrentUser() user: AuthenticatedUser,
+    @Query("organizationId") organizationId?: string,
+  ) {
+    return this.attendance
+      .listReviewablePresentSessions(user, organizationId)
+      .then(ok);
+  }
+
   @Post("attendance/sessions/:id/cancel")
   @RequireCapabilities("attendance.review")
   cancel(
