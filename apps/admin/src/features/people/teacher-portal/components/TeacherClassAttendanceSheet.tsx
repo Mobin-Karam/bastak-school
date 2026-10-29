@@ -20,7 +20,7 @@ import {
   Minus,
   Plus,
 } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { ScheduleEntry } from "../../../academics/schedule/api/schedule.api";
 import { notify } from "../../../../shared/ui/notifications";
 import { api } from "../../../../shared/api/api";
@@ -103,6 +103,20 @@ export function TeacherClassAttendanceSheet({
   const classReviews = (reviews.data ?? []).filter(
     (review) => review.contextType === "class" && review.contextId === entry?.classroom?.id,
   );
+  const recentAbsenceCounts = useMemo(() => {
+    const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+    return (reviews.data ?? []).reduce<Record<string, number>>((counts, review) => {
+      const sessionTimestamp = Date.parse(review.sessionDate);
+      if (
+        review.status !== "absent" ||
+        !Number.isFinite(sessionTimestamp) ||
+        sessionTimestamp < sevenDaysAgo
+      )
+        return counts;
+      counts[review.studentId] = (counts[review.studentId] ?? 0) + 1;
+      return counts;
+    }, {});
+  }, [reviews.data]);
 
   useEffect(() => {
     setReviewing(false);
@@ -349,13 +363,20 @@ export function TeacherClassAttendanceSheet({
                 {participants.data.map((student) => (
                   <li
                     key={student.id}
-                    className="rounded-2xl border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-muted))] p-3"
+                    className={`rounded-2xl border bg-[rgb(var(--surface-muted))] p-3 ${recentAbsenceCounts[student.id] ? "border-amber-400 ring-1 ring-amber-300/70 dark:border-amber-500 dark:ring-amber-500/40" : "border-[rgb(var(--border-subtle))]"}`}
                   >
                     <div className="flex items-center justify-between gap-2">
                       <p className="min-w-0 truncate text-sm font-bold text-ink">{student.name}</p>
-                      <span className="shrink-0 text-[11px] text-slate-600 dark:text-slate-300">
-                        {student.nationalCode || "دانش‌آموز"}
-                      </span>
+                      <div className="flex shrink-0 items-center gap-1.5">
+                        {recentAbsenceCounts[student.id] ? (
+                          <span className="rounded-full bg-amber-100 px-2 py-1 text-[10px] font-black text-amber-900 dark:bg-amber-950/60 dark:text-amber-100">
+                            {recentAbsenceCounts[student.id].toLocaleString("fa-IR")} غیبت در ۷ روز
+                          </span>
+                        ) : null}
+                        <span className="text-[11px] text-slate-600 dark:text-slate-300">
+                          {student.nationalCode || "دانش‌آموز"}
+                        </span>
+                      </div>
                     </div>
                     {canManage ? (
                       <div

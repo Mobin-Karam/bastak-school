@@ -158,4 +158,27 @@ describe("TeacherClassAttendanceSheet", () => {
 
     expect(onOpenChange).toHaveBeenCalledWith(false);
   });
+
+  it("shows a seven-day absence marker only for the affected student", async () => {
+    getAttendanceParticipantsMock.mockResolvedValue([
+      { id: "student-1", name: "علی رضایی" },
+      { id: "student-2", name: "حسن رضایی" },
+    ]);
+    listMyAttendanceAbsenceReviewsMock.mockResolvedValue([
+      {
+        id: "absence-1",
+        studentId: "student-1",
+        studentName: "علی رضایی",
+        status: "absent",
+        sessionDate: new Date().toISOString(),
+        reviewStatus: "pending",
+        contextType: "class",
+        contextId: "class-1",
+      },
+    ]);
+    renderSheet();
+
+    expect(await screen.findByText("۱ غیبت در ۷ روز")).toBeInTheDocument();
+    expect(screen.getByText("حسن رضایی").closest("li")?.className).not.toContain("border-amber");
+  });
 });
