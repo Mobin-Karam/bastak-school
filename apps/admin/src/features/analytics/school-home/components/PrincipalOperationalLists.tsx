@@ -126,6 +126,16 @@ export function PrincipalOperationalLists({
   });
   const updatePolicy = useMutation({
     mutationFn: (next: AttendancePolicy) => updateAttendancePolicy(next),
+    onMutate: async (next) => {
+      await client.cancelQueries({ queryKey: ["attendance-policy", organizationId] });
+      const previous = client.getQueryData<AttendancePolicy>(["attendance-policy", organizationId]);
+      client.setQueryData(["attendance-policy", organizationId], next);
+      return { previous };
+    },
+    onError: (_error, _next, context) => {
+      if (context?.previous)
+        client.setQueryData(["attendance-policy", organizationId], context.previous);
+    },
     onSuccess: () => {
       void client.invalidateQueries({ queryKey: ["attendance-policy"] });
       void client.invalidateQueries({ queryKey: ["principal-dashboard"] });
@@ -325,6 +335,10 @@ export function PrincipalOperationalLists({
           )}
           {active === "sessions" && (
             <>
+              {policy.isError ? <ErrorText onRetry={() => void policy.refetch()} /> : null}
+              {fullyPresentSessions.isError ? (
+                <ErrorText onRetry={() => void fullyPresentSessions.refetch()} />
+              ) : null}
               {auth.can("attendance.settings.manage") && policy.data && (
                 <label className="flex items-center justify-between gap-4 rounded-2xl border border-[rgb(var(--border-subtle))] p-4">
                   <span>

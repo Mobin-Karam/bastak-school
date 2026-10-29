@@ -10,6 +10,10 @@ import {
   reviewAttendanceSession,
   type PrincipalDashboardContract,
 } from "../api/principal-dashboard.api";
+import {
+  getAttendancePolicy,
+  updateAttendancePolicy,
+} from "../../../student-life/attendance/api/attendance-operations.api";
 import { PrincipalDashboard } from "./PrincipalDashboard";
 
 const authCan = vi.hoisted(() => vi.fn((capability: string) => capability === "attendance.review"));
@@ -24,6 +28,10 @@ vi.mock("../../../student-life/attendance/api/attendance.api", () => ({
   listAttendanceAbsenceReviews: vi.fn().mockResolvedValue([]),
   markDormAbsenceOutsideSchool: vi.fn(),
   reviewAttendanceAbsence: vi.fn(),
+}));
+vi.mock("../../../student-life/attendance/api/attendance-operations.api", () => ({
+  getAttendancePolicy: vi.fn(),
+  updateAttendancePolicy: vi.fn(),
 }));
 vi.mock("../../reports/api/reports.api", () => ({
   getTeacherStudentReports: vi.fn().mockResolvedValue([]),
@@ -182,6 +190,24 @@ describe("PrincipalDashboard", () => {
     });
     vi.mocked(getAttendanceSessionForReview).mockResolvedValue(sessionDetail);
     vi.mocked(getReviewablePresentSessions).mockResolvedValue([]);
+    vi.mocked(getAttendancePolicy).mockResolvedValue({
+      organizationId: "school-a",
+      timeZone: "Asia/Tehran",
+      dayStartsAt: "04:00",
+      allowPartialSubmission: true,
+      lateCountsAsPresent: true,
+      correctionRequiresReview: false,
+      principalReviewMode: "absences_only",
+    });
+    vi.mocked(updateAttendancePolicy).mockResolvedValue({
+      organizationId: "school-a",
+      timeZone: "Asia/Tehran",
+      dayStartsAt: "04:00",
+      allowPartialSubmission: true,
+      lateCountsAsPresent: true,
+      correctionRequiresReview: false,
+      principalReviewMode: "all_sessions",
+    });
   });
 
   it("shows only capability-authorized dashboard cards", async () => {
@@ -226,5 +252,25 @@ describe("PrincipalDashboard", () => {
       name: "بایگانی خودکار جلسه‌های کاملاً حاضر",
     });
     expect(autoArchive).toBeEnabled();
+    await user.click(autoArchive);
+    await waitFor(() => expect(reviewAttendanceSession).toHaveBeenCalledWith("present-a"));
+  });
+
+  it("persists the review-mode switch immediately", async () => {
+    authCan.mockImplementation(
+      (capability) =>
+        capability === "attendance.review" || capability === "attendance.settings.manage",
+    );
+    const user = userEvent.setup();
+    renderDashboard();
+    await user.click(await screen.findByRole("button", { name: /جلسه‌های کلاس/ }));
+    await user.click(
+      await screen.findByRole("switch", { name: "نمایش همهٔ جلسه‌ها برای بازبینی" }),
+    );
+    await waitFor(() =>
+      expect(updateAttendancePolicy).toHaveBeenCalledWith(
+        expect.objectContaining({ principalReviewMode: "all_sessions" }),
+      ),
+    );
   });
 });

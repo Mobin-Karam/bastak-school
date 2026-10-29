@@ -1675,29 +1675,6 @@ export class AttendanceService {
           metadata: { before: existing ?? null, after: dto },
         }),
       );
-      if (saved.principalReviewMode !== "all_sessions") {
-        const eligible = (await manager.query(
-          `SELECT s.id sessionId, s.revision
-             FROM attendance_sessions s
-            WHERE s.organizationId=? AND s.status IN ('submitted','finalized')
-              AND NOT EXISTS (
-                SELECT 1 FROM attendance_records r
-                 WHERE r.sessionId=s.id AND r.physicalStatus='absent'
-              )
-              AND NOT EXISTS (
-                SELECT 1 FROM attendance_session_reviews ar
-                 WHERE ar.sessionId=s.id AND ar.reviewedRevision=s.revision
-              )`,
-          [dto.organizationId],
-        )) as Array<{ sessionId: string; revision: number }>;
-        const reviewedAt = new Date().toISOString();
-        for (const row of eligible) {
-          await manager.query(
-            "INSERT INTO attendance_session_reviews(id,sessionId,reviewerId,reviewedRevision,reviewedAt,teacherMessage) VALUES(?,?,NULL,?,?,?)",
-            [randomUUID(), row.sessionId, row.revision, reviewedAt, ""],
-          );
-        }
-      }
       return saved;
     });
     return {
