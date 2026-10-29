@@ -94,6 +94,7 @@ type PrincipalDashboardContract = {
     endDate: string;
   }>;
   principalLists?: {
+    counts?: { dorm: number; reports: number; leave: number; groups: number };
     teacherSessions: Array<{
       id: string;
       title: string;
@@ -283,6 +284,7 @@ export class PrincipalDashboardService {
       dormAttendance,
       classGroupAttendance,
       teacherLeaveRequests,
+      counts,
     ] = await Promise.all([
       permissions.attendanceReview
         ? this.db.query(
@@ -355,8 +357,40 @@ export class PrincipalDashboardService {
             [organizationId],
           )
         : Promise.resolve([]),
+      Promise.all([
+        permissions.attendanceReview
+          ? this.scalar(
+              `SELECT COUNT(DISTINCT r.id) count FROM attendance_records r JOIN attendance_sessions s ON s.id=r.sessionId WHERE s.organizationId=? AND s.contextType='dorm' AND r.status='absent' AND r.reviewStatus='pending'`,
+              [organizationId],
+            )
+          : Promise.resolve(0),
+        permissions.attendanceReview
+          ? this.scalar(
+              `SELECT COUNT(id) count FROM teacher_student_reports WHERE organizationId=? AND seenAt IS NULL`,
+              [organizationId],
+            )
+          : Promise.resolve(0),
+        permissions.leaveRead
+          ? this.scalar(
+              `SELECT COUNT(id) count FROM teacher_leave_requests WHERE organizationId=? AND (status='pending' OR returnStatus='pending')`,
+              [organizationId],
+            )
+          : Promise.resolve(0),
+        permissions.attendanceReview
+          ? this.scalar(
+              `SELECT COUNT(DISTINCT s.id) count FROM attendance_sessions s WHERE s.organizationId=? AND s.contextType IN ('class_group','study_group') AND COALESCE(s.operationalDate,date(s.sessionDate))=?`,
+              [organizationId, day],
+            )
+          : Promise.resolve(0),
+      ]),
     ]);
     return {
+      counts: {
+        dorm: Number(counts[0] ?? 0),
+        reports: Number(counts[1] ?? 0),
+        leave: Number(counts[2] ?? 0),
+        groups: Number(counts[3] ?? 0),
+      },
       teacherSessions: teacherSessions.map((row: Record<string, unknown>) => ({
         id: String(row.id),
         title: String(row.title),

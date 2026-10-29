@@ -1,52 +1,185 @@
-import { useQuery } from "@tanstack/react-query";
-import type { ReactNode } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   BedDouble,
   CalendarCheck2,
   FileWarning,
-  GitCompareArrows,
   UsersRound,
   UserRoundCheck,
+  Check,
 } from "lucide-react";
-import { Link } from "react-router-dom";
-import { Card } from "../../../../shared/ui/ui";
-import { useModal } from "../../../../shared/ui/modal";
+import { useMemo, useState } from "react";
+import { useAuth } from "../../../identity/auth";
+import { Card, Button, LoadingState } from "../../../../shared/ui/ui";
+import { ResponsiveDrawer } from "../../../../shared/ui/responsive-drawer";
+import { Switch } from "../../../../shared/ui/switch";
 import {
-  listSupervisorComparisons,
-  type SupervisorComparison,
+  getAttendancePolicy,
+  updateAttendancePolicy,
+  type AttendancePolicy,
+} from "../../../student-life/attendance/api/attendance-operations.api";
+import {
+  getAttendanceSessionForReview,
+  reviewAttendanceSession,
+  type PrincipalDashboardContract,
+} from "../api/principal-dashboard.api";
+import {
+  listAttendanceAbsenceReviews,
+  markDormAbsenceOutsideSchool,
+  reviewAttendanceAbsence,
+  type AttendanceAbsenceReview,
 } from "../../../student-life/attendance/api/attendance.api";
-import type { PrincipalDashboardContract } from "../api/principal-dashboard.api";
+import {
+  actOnTeacherStudentReport,
+  getTeacherStudentReports,
+  markTeacherStudentReportSeen,
+  type TeacherStudentReport,
+} from "../../reports/api/reports.api";
 
 type Lists = NonNullable<PrincipalDashboardContract["principalLists"]>;
+type SessionReview = NonNullable<PrincipalDashboardContract["sessionReviews"]>["items"][number];
+type Panel = "dorm" | "sessions" | "reports" | "leave" | "groups";
 
-const statusLabel = {
-  matched: "مطابق",
-  mismatch: "مغایرت",
-  teacher_missing: "ثبت معلم نشده",
-  supervisor_missing: "بررسی ناظر نشده",
-};
+const cards: Array<{
+  id: Panel;
+  title: string;
+  description: string;
+  icon: typeof BedDouble;
+  capability: string;
+}> = [
+  {
+    id: "dorm",
+    title: "بازبینی حضور خوابگاه",
+    description: "غیبت‌های خوابگاه را بررسی و در آرشیو ثبت کنید",
+    icon: BedDouble,
+    capability: "attendance.review",
+  },
+  {
+    id: "sessions",
+    title: "جلسه‌های کلاس",
+    description: "حضور ثبت‌شدهٔ استادان را بررسی کنید",
+    icon: CalendarCheck2,
+    capability: "attendance.review",
+  },
+  {
+    id: "reports",
+    title: "گزارش‌های دانش‌آموزان",
+    description: "گزارش محرمانهٔ استاد دربارهٔ دانش‌آموز",
+    icon: FileWarning,
+    capability: "attendance.review",
+  },
+  {
+    id: "leave",
+    title: "درخواست‌های مرخصی استادان",
+    description: "درخواست‌های رسیده را یکجا ببینید",
+    icon: UserRoundCheck,
+    capability: "leave.read",
+  },
+  {
+    id: "groups",
+    title: "حضور گروه‌های کلاس",
+    description: "جلسه‌ها و سوابق حضور گروهی",
+    icon: UsersRound,
+    capability: "attendance.review",
+  },
+];
 
 export function PrincipalOperationalLists({
   lists,
+  sessionReviews,
   canReviewAttendance,
 }: {
   lists?: Lists;
+  sessionReviews?: NonNullable<PrincipalDashboardContract["sessionReviews"]>;
   canReviewAttendance: boolean;
 }) {
-  const modal = useModal();
-  const comparisons = useQuery({
-    queryKey: ["principal-supervisor-comparisons"],
-    queryFn: listSupervisorComparisons,
+  const auth = useAuth();
+  const [active, setActive] = useState<Panel | null>(null);
+  const client = useQueryClient();
+  const organizationId = auth.context?.activeOrganization?.id;
+  const dorm = useQuery({
+    queryKey: ["attendance", "absence-reviews", "principal-home", organizationId],
+    queryFn: () => listAttendanceAbsenceReviews(organizationId, "dorm"),
     enabled: canReviewAttendance,
-    refetchInterval: 30_000,
   });
-  const openComparison = (item: SupervisorComparison) =>
-    modal.open({
-      title: `تطبیق حضور · ${item.className}`,
-      description: `${item.bookName} · ${item.teacherName} · ${formatDate(item.sessionDate)}`,
-      size: "lg",
-      content: <ComparisonDetails item={item} />,
-    });
+  const reports = useQuery({
+    queryKey: ["principal", "teacher-reports"],
+    queryFn: getTeacherStudentReports,
+    enabled: canReviewAttendance,
+  });
+  const policy = useQuery({
+    queryKey: ["attendance-policy", organizationId],
+    queryFn: getAttendancePolicy,
+    enabled: active === "sessions" && auth.can("attendance.settings.manage"),
+  });
+  const updatePolicy = useMutation({
+    mutationFn: (next: AttendancePolicy) => updateAttendancePolicy(next),
+    onSuccess: () => {
+      void client.invalidateQueries({ queryKey: ["attendance-policy"] });
+      void client.invalidateQueries({ queryKey: ["principal-dashboard"] });
+    },
+  });
+  const reviewSession = useMutation({
+    mutationFn: ({ id, message }: { id: string; message?: string }) =>
+      reviewAttendanceSession(id, message),
+    onSuccess: () => {
+      void client.invalidateQueries({ queryKey: ["principal-dashboard"] });
+      void client.invalidateQueries({ queryKey: ["attendance"] });
+    },
+  });
+  const reviewDorm = useMutation({
+    mutationFn: ({
+      item,
+      decision,
+      note,
+      outside,
+    }: {
+      item: AttendanceAbsenceReview;
+      decision: "approved" | "rejected";
+      note: string;
+      outside: boolean;
+    }) =>
+      reviewAttendanceAbsence(item.id, { decision, note: note || undefined }).then(
+        async (saved) => {
+          if (decision === "approved" && outside)
+            await markDormAbsenceOutsideSchool(saved.id, note || undefined);
+          return saved;
+        },
+      ),
+    onSuccess: () => {
+      void client.invalidateQueries({ queryKey: ["attendance", "absence-reviews"] });
+      void client.invalidateQueries({ queryKey: ["attendance"] });
+      void client.invalidateQueries({ queryKey: ["principal-dashboard"] });
+    },
+  });
+  const seenReport = useMutation({
+    mutationFn: markTeacherStudentReportSeen,
+    onSuccess: () => {
+      void client.invalidateQueries({ queryKey: ["principal", "teacher-reports"] });
+      void client.invalidateQueries({ queryKey: ["principal-dashboard"] });
+    },
+  });
+  const reportAction = useMutation({
+    mutationFn: ({
+      id,
+      action,
+    }: {
+      id: string;
+      action: "full_screen_summons" | "contact_request";
+    }) => actOnTeacherStudentReport(id, action),
+    onSuccess: () => {
+      void client.invalidateQueries({ queryKey: ["principal", "teacher-reports"] });
+      void client.invalidateQueries({ queryKey: ["principal-dashboard"] });
+    },
+  });
+
+  const sessions = sessionReviews?.items ?? [];
+  const pendingDorm = useMemo(
+    () =>
+      (dorm.data ?? []).filter(
+        (item) => item.contextType === "dorm" && item.reviewStatus === "pending",
+      ),
+    [dorm.data],
+  );
   const values = lists ?? {
     teacherSessions: [],
     teacherReports: [],
@@ -54,270 +187,417 @@ export function PrincipalOperationalLists({
     classGroupAttendance: [],
     teacherLeaveRequests: [],
   };
+  const counts: Record<Panel, number> = {
+    dorm: values.counts?.dorm ?? pendingDorm.length,
+    sessions: sessionReviews?.pendingCount ?? sessions.length,
+    reports:
+      values.counts?.reports ??
+      reports.data?.filter((report) => !report.seenAt).length ??
+      values.teacherReports.filter((report) => !report.seenAt).length,
+    leave: values.counts?.leave ?? values.teacherLeaveRequests.length,
+    groups: values.counts?.groups ?? values.classGroupAttendance.length,
+  };
+  const visibleCards = cards.filter(({ capability }) => auth.can(capability));
+
   return (
     <>
-      <section className="principal-dashboard__operation-grid" aria-label="فهرست‌های عملیاتی مدیر">
-        <ListCard
-          icon={<CalendarCheck2 />}
-          title="جلسه‌های معلم‌ها"
-          description="ثبت‌های امروز کلاس‌ها"
-        >
-          {values.teacherSessions.map((item) => (
-            <Link
-              key={item.id}
-              to={`/admin/attendance?section=sessions&sessionId=${encodeURIComponent(item.id)}`}
-              className="principal-dashboard__operation-row"
-            >
-              <span>
-                <strong>{item.title}</strong>
-                <small>
-                  {item.teacherName} · {formatDate(item.sessionDate)}
-                </small>
-              </span>
-              <b className="text-emerald-700 dark:text-emerald-300">
-                {item.present.toLocaleString("fa-IR")} ح
-              </b>
-              <em>{item.absent.toLocaleString("fa-IR")} غ</em>
-            </Link>
-          ))}
-          {!values.teacherSessions.length ? (
-            <Empty text="ثبت کلاسی برای امروز موجود نیست." />
-          ) : null}
-        </ListCard>
-        <ListCard
-          icon={<FileWarning />}
-          title="گزارش معلم‌ها"
-          description="گزارش‌های مربوط به دانش‌آموزان"
-        >
-          {values.teacherReports.map((item) => (
-            <Link
-              key={item.id}
-              to="/admin/teacher-reports"
-              className="principal-dashboard__operation-row"
-            >
-              <span>
-                <strong>{item.studentName}</strong>
-                <small>
-                  {item.teacherName} · {formatDateTime(item.createdAt)}
-                </small>
-                <small className="line-clamp-1">{item.message}</small>
-              </span>
-              <em
-                className={
-                  item.seenAt ? "principal-dashboard__seen" : "principal-dashboard__unseen"
-                }
-              >
-                {item.seenAt ? "دیده شد" : "جدید"}
-              </em>
-            </Link>
-          ))}
-          {!values.teacherReports.length ? (
-            <Empty text="گزارش جدیدی از معلم‌ها وجود ندارد." />
-          ) : null}
-        </ListCard>
-        <ListCard icon={<BedDouble />} title="حضور خوابگاه" description="جمع ثبت‌شده در هر اتاق">
-          {values.dormAttendance.map((item) => (
-            <Link
-              key={item.id}
-              to={`/admin/attendance?section=dorm&contextId=${encodeURIComponent(item.id)}`}
-              className="principal-dashboard__operation-row"
-            >
-              <span>
-                <strong>{item.name}</strong>
-                <small>{item.total.toLocaleString("fa-IR")} ثبت وضعیت</small>
-              </span>
-              <b className="text-emerald-700 dark:text-emerald-300">
-                {item.present.toLocaleString("fa-IR")} حاضر
-              </b>
-              <em>{item.absent.toLocaleString("fa-IR")} غایب</em>
-            </Link>
-          ))}
-          {!values.dormAttendance.length ? (
-            <Empty text="برای امروز حضور خوابگاه ثبت نشده است." />
-          ) : null}
-        </ListCard>
-        <ListCard
-          icon={<UsersRound />}
-          title="حضور گروه‌های کلاس"
-          description="ثبت‌های مستقل گروه‌های آموزشی"
-        >
-          {values.classGroupAttendance.map((item) => (
-            <Link
-              key={item.id}
-              to={`/admin/attendance?section=groups&sessionId=${encodeURIComponent(item.id)}`}
-              className="principal-dashboard__operation-row"
-            >
-              <span>
-                <strong>{item.name}</strong>
-                <small>
-                  {formatDate(item.sessionDate)} · {item.total.toLocaleString("fa-IR")} ثبت
-                </small>
-              </span>
-              <b className="text-emerald-700 dark:text-emerald-300">
-                {item.present.toLocaleString("fa-IR")} ح
-              </b>
-              <em>{item.absent.toLocaleString("fa-IR")} غ</em>
-            </Link>
-          ))}
-          {!values.classGroupAttendance.length ? (
-            <Empty text="برای امروز حضور گروهی ثبت نشده است." />
-          ) : null}
-        </ListCard>
-        <ListCard
-          icon={<UserRoundCheck />}
-          title="مرخصی و بازگشت معلم"
-          description="در انتظار تصمیم مدیر"
-        >
-          {values.teacherLeaveRequests.map((item) => (
-            <Link
-              key={`${item.type}:${item.id}`}
-              to="/admin/leave-requests"
-              className="principal-dashboard__operation-row"
-            >
-              <span>
-                <strong>{item.teacherName}</strong>
-                <small>
-                  {formatDate(item.startDate)} تا {formatDate(item.endDate)}
-                </small>
-              </span>
-              <em
-                className={
-                  item.type === "return"
-                    ? "principal-dashboard__return-tag"
-                    : "principal-dashboard__leave-tag"
-                }
-              >
-                {item.type === "return" ? "بازگشت" : "مرخصی"}
-              </em>
-            </Link>
-          ))}
-          {!values.teacherLeaveRequests.length ? (
-            <Empty text="درخواست مرخصی یا بازگشت معلمی منتظر نیست." />
-          ) : null}
-        </ListCard>
+      <section className="principal-dashboard__home-cards" aria-label="فهرست‌های مدیریتی">
+        {visibleCards.map(({ id, title, description, icon: Icon }) => (
+          <button
+            key={id}
+            type="button"
+            className="principal-dashboard__home-card"
+            onClick={() => setActive(id)}
+            aria-haspopup="dialog"
+          >
+            <span className="principal-dashboard__home-icon">
+              <Icon aria-hidden="true" size={23} />
+            </span>
+            <span className="principal-dashboard__home-copy">
+              <strong>{title}</strong>
+              <small>{description}</small>
+            </span>
+            <span className="principal-dashboard__home-count" aria-label={`${counts[id]} مورد`}>
+              {counts[id].toLocaleString("fa-IR")}
+            </span>
+          </button>
+        ))}
       </section>
-      <Card className="principal-dashboard__supervisor-timeline p-5">
-        <div className="principal-dashboard__section-heading">
-          <div>
-            <p>نظارت زنده</p>
-            <h2>تطبیق حضور ناظر با جلسه معلم</h2>
-          </div>
-          <GitCompareArrows aria-hidden="true" />
+
+      <ResponsiveDrawer
+        open={active !== null}
+        onOpenChange={(open) => !open && setActive(null)}
+        title={cards.find((item) => item.id === active)?.title ?? "فهرست مدیر"}
+        description="موارد این بخش در همین پنل بررسی و در سوابق مربوط ذخیره می‌شوند."
+        desktopSide="left"
+        className="principal-dashboard__drawer"
+      >
+        <div className="grid gap-3" dir="rtl">
+          {updatePolicy.isError ||
+          reviewSession.isError ||
+          reviewDorm.isError ||
+          seenReport.isError ||
+          reportAction.isError ? (
+            <p
+              role="alert"
+              className="rounded-xl bg-rose-50 p-3 text-sm text-rose-800 dark:bg-rose-950 dark:text-rose-100"
+            >
+              عملیات انجام نشد. اتصال و دسترسی را بررسی کنید و دوباره تلاش کنید.
+            </p>
+          ) : null}
+          {active === "dorm" && (
+            <>
+              <p className="text-sm text-muted-foreground">
+                پس از ثبت تصمیم، سابقهٔ اصلی حضور خوابگاه در آرشیو باقی می‌ماند.
+              </p>
+              {dorm.isLoading ? (
+                <LoadingState label="دریافت موارد خوابگاه…" />
+              ) : dorm.isError ? (
+                <ErrorText onRetry={() => void dorm.refetch()} />
+              ) : pendingDorm.length ? (
+                pendingDorm.map((item) => (
+                  <DormReviewRow
+                    key={item.id}
+                    item={item}
+                    onReview={(decision, note, outside) =>
+                      reviewDorm.mutate({ item, decision, note, outside })
+                    }
+                    busy={reviewDorm.isPending}
+                  />
+                ))
+              ) : (
+                <Empty text="غیبت خوابگاهی برای بررسی باقی نمانده است." />
+              )}
+            </>
+          )}
+          {active === "sessions" && (
+            <>
+              {auth.can("attendance.settings.manage") && policy.data && (
+                <label className="flex items-center justify-between gap-4 rounded-2xl border border-[rgb(var(--border-subtle))] p-4">
+                  <span>
+                    <strong className="block">نمایش همهٔ جلسه‌ها</strong>
+                    <small className="text-muted-foreground">خاموش: فقط جلسه‌های دارای غیبت</small>
+                  </span>
+                  <Switch
+                    checked={policy.data.principalReviewMode === "all_sessions"}
+                    disabled={updatePolicy.isPending}
+                    onCheckedChange={(checked) =>
+                      updatePolicy.mutate({
+                        ...policy.data!,
+                        principalReviewMode: checked ? "all_sessions" : "absences_only",
+                      })
+                    }
+                    aria-label="نمایش همهٔ جلسه‌ها برای بازبینی"
+                  />
+                </label>
+              )}
+              {policy.isLoading ? <LoadingState label="دریافت تنظیم بازبینی…" /> : null}
+              {sessions.length ? (
+                sessions.map((session) => (
+                  <SessionReviewRow
+                    key={session.id}
+                    session={session}
+                    onReview={(message) => reviewSession.mutate({ id: session.id, message })}
+                    busy={reviewSession.isPending}
+                  />
+                ))
+              ) : (
+                <Empty text="جلسه‌ای برای بررسی باقی نمانده است." />
+              )}
+            </>
+          )}
+          {active === "reports" && (
+            <>
+              {reports.isLoading ? (
+                <LoadingState label="دریافت گزارش‌ها…" />
+              ) : reports.isError ? (
+                <ErrorText onRetry={() => void reports.refetch()} />
+              ) : (reports.data ?? []).length ? (
+                reports.data!.map((report) => (
+                  <ReportRow
+                    key={report.id}
+                    report={report}
+                    onSeen={() => seenReport.mutate(report.id)}
+                    onAction={(action) => reportAction.mutate({ id: report.id, action })}
+                    busy={seenReport.isPending || reportAction.isPending}
+                  />
+                ))
+              ) : (
+                <Empty text="گزارشی برای نمایش وجود ندارد." />
+              )}
+            </>
+          )}
+          {active === "leave" &&
+            (values.teacherLeaveRequests.length ? (
+              values.teacherLeaveRequests.map((item) => (
+                <article
+                  key={`${item.type}:${item.id}`}
+                  className="rounded-2xl border border-[rgb(var(--border-subtle))] p-4"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <strong>{item.teacherName}</strong>
+                    <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-bold text-amber-900 dark:bg-amber-950 dark:text-amber-100">
+                      {item.type === "return" ? "درخواست بازگشت" : "درخواست مرخصی"}
+                    </span>
+                  </div>
+                  <p className="mt-2 text-sm text-muted-foreground">
+                    {formatDate(item.startDate)} تا {formatDate(item.endDate)}
+                  </p>
+                  <p className="mt-2 text-xs text-muted-foreground">درخواست در صف بررسی است.</p>
+                </article>
+              ))
+            ) : (
+              <Empty text="درخواست مرخصی یا بازگشت استادی در صف نیست." />
+            ))}
+          {active === "groups" &&
+            (values.classGroupAttendance.length ? (
+              values.classGroupAttendance.map((item) => (
+                <article
+                  key={item.id}
+                  className="rounded-2xl border border-[rgb(var(--border-subtle))] p-4"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <strong>{item.name}</strong>
+                    <span className="text-xs text-muted-foreground">
+                      {formatDate(item.sessionDate)}
+                    </span>
+                  </div>
+                  <div className="mt-3 flex flex-wrap gap-2 text-xs">
+                    <Count label="کل" value={item.total} />
+                    <Count label="حاضر" value={item.present} />
+                    <Count label="غایب" value={item.absent} />
+                  </div>
+                </article>
+              ))
+            ) : (
+              <Empty text="حضور گروهی برای نمایش ثبت نشده است." />
+            ))}
         </div>
-        <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
-          هر ۳۰ ثانیه تازه می‌شود. برای دیدن اختلاف دانش‌آموزان، یک مورد را باز کنید.
-        </p>
-        {comparisons.isError ? (
-          <p role="alert" className="mt-3 text-sm text-rose-700 dark:text-rose-300">
-            گزارش ناظر دریافت نشد.
-          </p>
-        ) : null}
-        <ol className="principal-dashboard__timeline">
-          {(comparisons.data ?? []).slice(0, 10).map((item) => (
-            <li key={item.sessionId}>
-              <button type="button" onClick={() => openComparison(item)}>
-                <time>{formatDate(item.sessionDate)}</time>
-                <span>
-                  <strong>{item.className}</strong>
-                  <small>
-                    {item.bookName} · {item.teacherName}
-                  </small>
-                </span>
-                <em className={`principal-dashboard__comparison-${item.comparisonStatus}`}>
-                  {statusLabel[item.comparisonStatus]}
-                </em>
-              </button>
-            </li>
-          ))}
-        </ol>
-        {!comparisons.isLoading && !comparisons.data?.length ? (
-          <Empty text="جلسه نظارتی قابل تطبیقی وجود ندارد." />
-        ) : null}
-      </Card>
+      </ResponsiveDrawer>
     </>
   );
 }
 
-function ListCard({
-  icon,
-  title,
-  description,
-  children,
+function SessionReviewRow({
+  session,
+  onReview,
+  busy,
 }: {
-  icon: ReactNode;
-  title: string;
-  description: string;
-  children: ReactNode;
+  session: SessionReview;
+  onReview: (message: string) => void;
+  busy: boolean;
+}) {
+  const detail = useQuery({
+    queryKey: ["principal-attendance-review-detail", session.id],
+    queryFn: () => getAttendanceSessionForReview(session.id),
+    enabled: false,
+  });
+  const [open, setOpen] = useState(false);
+  const [message, setMessage] = useState("");
+  return (
+    <article className="rounded-2xl border border-[rgb(var(--border-subtle))] p-4">
+      <button
+        type="button"
+        className="w-full text-start"
+        onClick={() => {
+          setOpen((value) => !value);
+          if (!detail.data) void detail.refetch();
+        }}
+        aria-expanded={open}
+      >
+        <span className="flex items-start justify-between gap-3">
+          <strong>{session.title}</strong>
+          <span className="rounded-full bg-amber-100 px-2 py-1 text-xs font-bold text-amber-900 dark:bg-amber-950 dark:text-amber-100">
+            {session.absent.toLocaleString("fa-IR")} غایب
+          </span>
+        </span>
+        <small className="mt-1 block text-muted-foreground">
+          {formatDate(session.sessionDate)} · {session.present.toLocaleString("fa-IR")} حاضر ·{" "}
+          {session.late.toLocaleString("fa-IR")} تأخیر
+        </small>
+      </button>
+      {open && (
+        <div className="mt-3 grid gap-3 border-t border-[rgb(var(--border-subtle))] pt-3">
+          {detail.isLoading ? (
+            <LoadingState label="دریافت فهرست دانش‌آموزان…" />
+          ) : detail.isError ? (
+            <ErrorText onRetry={() => void detail.refetch()} />
+          ) : (
+            <>
+              <p className="text-sm font-bold">غایبان</p>
+              <ul className="grid gap-2">
+                {(detail.data?.records ?? [])
+                  .filter((record) => record.physicalStatus === "absent")
+                  .map((record) => (
+                    <li
+                      key={record.id}
+                      className="rounded-xl bg-[rgb(var(--surface-muted))] p-3 text-sm"
+                    >
+                      {detail.data?.roster.find((student) => student.id === record.studentId)
+                        ?.name ?? "دانش‌آموز"}
+                      {record.note ? (
+                        <small className="mt-1 block text-muted-foreground">
+                          یادداشت استاد: {record.note}
+                        </small>
+                      ) : null}
+                    </li>
+                  ))}
+              </ul>
+              {session.absent > 0 && (
+                <label className="text-sm font-semibold">
+                  پیام مدیر برای استاد (درخواست توضیح غیبت‌ها)
+                  <textarea
+                    value={message}
+                    maxLength={500}
+                    onChange={(event) => setMessage(event.target.value)}
+                    className="mt-2 min-h-20 w-full rounded-xl border border-[rgb(var(--border-subtle))] bg-card p-3 font-normal"
+                    placeholder="برای مثال: لطفاً علت غیبت دانش‌آموزان را پیگیری و توضیح دهید."
+                  />
+                </label>
+              )}
+              <Button
+                disabled={busy || (session.absent > 0 && !message.trim())}
+                onClick={() => onReview(message.trim())}
+              >
+                <Check size={16} /> ثبت بازبینی و انتقال به آرشیو
+              </Button>
+            </>
+          )}
+        </div>
+      )}
+    </article>
+  );
+}
+
+function DormReviewRow({
+  item,
+  onReview,
+  busy,
+}: {
+  item: AttendanceAbsenceReview;
+  onReview: (decision: "approved" | "rejected", note: string, outside: boolean) => void;
+  busy: boolean;
+}) {
+  const [note, setNote] = useState("");
+  const [outside, setOutside] = useState(false);
+  return (
+    <article className="rounded-2xl border border-[rgb(var(--border-subtle))] p-4">
+      <div className="flex items-start justify-between gap-3">
+        <strong>{item.studentName}</strong>
+        <span className="text-xs text-muted-foreground">{formatDate(item.sessionDate)}</span>
+      </div>
+      <p className="mt-1 text-xs text-muted-foreground">
+        {item.organizationName} · {item.teacherName}
+      </p>
+      <p className="mt-3 text-sm">دلیل ثبت‌شده: {item.reason || "ثبت نشده"}</p>
+      <label className="mt-3 block text-sm font-semibold">
+        یادداشت بررسی
+        <textarea
+          value={note}
+          onChange={(event) => setNote(event.target.value)}
+          maxLength={500}
+          className="mt-2 min-h-16 w-full rounded-xl border border-[rgb(var(--border-subtle))] bg-card p-3 font-normal"
+        />
+      </label>
+      {item.contextType === "dorm" && (
+        <label className="mt-3 flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={outside}
+            onChange={(event) => setOutside(event.target.checked)}
+          />{" "}
+          پس از پذیرش، خارج از مدرسه ثبت شود
+        </label>
+      )}
+      <div className="mt-3 flex flex-wrap gap-2">
+        <Button disabled={busy} onClick={() => onReview("approved", note.trim(), outside)}>
+          پذیرش و ذخیره در آرشیو
+        </Button>
+        <Button
+          variant="soft"
+          disabled={busy}
+          onClick={() => onReview("rejected", note.trim(), false)}
+        >
+          رد دلیل
+        </Button>
+      </div>
+    </article>
+  );
+}
+
+function ReportRow({
+  report,
+  onSeen,
+  onAction,
+  busy,
+}: {
+  report: TeacherStudentReport;
+  onSeen: () => void;
+  onAction: (action: "full_screen_summons" | "contact_request") => void;
+  busy: boolean;
 }) {
   return (
-    <Card className="principal-dashboard__operation-card p-4">
-      <div className="principal-dashboard__section-heading">
-        <div>
-          <p>{description}</p>
-          <h2>{title}</h2>
-        </div>
-        {icon}
+    <article className="rounded-2xl border border-[rgb(var(--border-subtle))] p-4">
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <strong>{report.studentName}</strong>
+        <small className="text-muted-foreground">
+          {report.teacherName} · {report.sessionTitle}
+        </small>
       </div>
-      <div className="principal-dashboard__operation-list">{children}</div>
-    </Card>
+      <p className="mt-3 whitespace-pre-wrap text-sm leading-6">{report.message}</p>
+      <div className="mt-3 flex flex-wrap gap-2">
+        {!report.seenAt && (
+          <Button variant="soft" disabled={busy} onClick={onSeen}>
+            علامت‌گذاری به‌عنوان دیده‌شده
+          </Button>
+        )}
+        {report.principalAction ? (
+          <span className="self-center text-xs font-bold text-emerald-700">اقدام ارسال شد</span>
+        ) : (
+          <>
+            <Button disabled={busy} onClick={() => onAction("full_screen_summons")}>
+              ارسال اعلان مراجعه به دفتر
+            </Button>
+            <Button variant="soft" disabled={busy} onClick={() => onAction("contact_request")}>
+              درخواست تماس با دانش‌آموز
+            </Button>
+          </>
+        )}
+      </div>
+    </article>
+  );
+}
+
+function Count({ label, value }: { label: string; value: number }) {
+  return (
+    <span className="rounded-full bg-[rgb(var(--surface-muted))] px-3 py-1">
+      {label}: {value.toLocaleString("fa-IR")}
+    </span>
   );
 }
 function Empty({ text }: { text: string }) {
   return (
-    <p className="mt-4 rounded-xl bg-[rgb(var(--surface-muted))] p-3 text-sm text-slate-600 dark:text-slate-300">
+    <p className="rounded-2xl bg-[rgb(var(--surface-muted))] p-4 text-sm text-muted-foreground">
       {text}
     </p>
+  );
+}
+function ErrorText({ onRetry }: { onRetry: () => void }) {
+  return (
+    <div
+      role="alert"
+      className="rounded-2xl bg-rose-50 p-4 text-sm text-rose-800 dark:bg-rose-950 dark:text-rose-100"
+    >
+      دریافت فهرست انجام نشد.{" "}
+      <button className="font-bold underline" onClick={onRetry}>
+        تلاش دوباره
+      </button>
+    </div>
   );
 }
 function formatDate(value: string) {
   return new Intl.DateTimeFormat("fa-IR-u-ca-persian", {
     dateStyle: "medium",
-  }).format(new Date(value.length === 10 ? `${value}T12:00:00` : value));
-}
-
-function formatDateTime(value: string) {
-  return new Intl.DateTimeFormat("fa-IR-u-ca-persian", {
-    dateStyle: "short",
-    timeStyle: "short",
     timeZone: "Asia/Tehran",
-  }).format(new Date(value));
-}
-function ComparisonDetails({ item }: { item: SupervisorComparison }) {
-  const byStudent = new Map(item.roster.map((student) => [student.id, student.name]));
-  const mismatches = item.supervisorChecks.flatMap((check) =>
-    check.mismatches.map((difference) => ({ ...difference, supervisorName: check.supervisorName })),
-  );
-  return (
-    <div className="grid gap-3">
-      <div className="grid grid-cols-2 gap-2 text-center">
-        <div className="rounded-xl bg-[rgb(var(--surface-muted))] p-3">
-          <small>ثبت معلم</small>
-          <strong className="block text-lg">
-            {item.teacherRecordCount.toLocaleString("fa-IR")}
-          </strong>
-        </div>
-        <div className="rounded-xl bg-[rgb(var(--surface-muted))] p-3">
-          <small>اختلاف</small>
-          <strong className="block text-lg">{mismatches.length.toLocaleString("fa-IR")}</strong>
-        </div>
-      </div>
-      {mismatches.length ? (
-        <ul className="grid max-h-[45dvh] gap-2 overflow-y-auto">
-          {mismatches.map((difference) => (
-            <li
-              key={`${difference.supervisorName}:${difference.studentId}`}
-              className="rounded-xl border border-[rgb(var(--border-subtle))] p-3"
-            >
-              <strong>{byStudent.get(difference.studentId) ?? "دانش‌آموز"}</strong>
-              <span className="mt-1 block text-sm text-slate-600 dark:text-slate-300">
-                معلم: {difference.teacherStatus ?? "ثبت نشده"} · ناظر: {difference.supervisorStatus}
-              </span>
-            </li>
-          ))}
-        </ul>
-      ) : (
-        <Empty text="بین ثبت معلم و ناظر اختلافی وجود ندارد." />
-      )}
-    </div>
-  );
+  }).format(new Date(value.length === 10 ? `${value}T12:00:00` : value));
 }

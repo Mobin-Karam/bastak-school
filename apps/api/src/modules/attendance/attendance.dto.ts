@@ -228,6 +228,10 @@ export class UpdateAttendancePolicyDto {
   principalReviewMode?: "all_sessions" | "absences_only";
 }
 
+export class DailyAttendanceReviewDto {
+  @IsOptional() @IsString() @MaxLength(500) message?: string;
+}
+
 export class ReviewAttendanceCorrectionDto {
   @IsUUID() requestId!: string;
   @IsIn(["approved", "rejected"]) decision!: "approved" | "rejected";

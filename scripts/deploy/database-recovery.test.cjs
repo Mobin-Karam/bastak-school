@@ -26,6 +26,29 @@ test("permits only the migration's orphaned scoped-role deletion", () => {
   db.close();
 });
 
+test("allows only the empty teacher-message default added to prior attendance reviews", () => {
+  const db = new Database(":memory:");
+  db.exec(`
+    CREATE TABLE attendance_session_reviews (id TEXT PRIMARY KEY, reviewedRevision INTEGER NOT NULL);
+    CREATE TABLE migrations (name TEXT);
+    INSERT INTO attendance_session_reviews VALUES ('review-1', 2);
+  `);
+  const before = inventory(db);
+  db.exec(`
+    ALTER TABLE attendance_session_reviews ADD COLUMN teacherMessage varchar(500) NOT NULL DEFAULT '';
+    INSERT INTO migrations VALUES ('AttendanceReviewTeacherMessage1762400000000');
+  `);
+  assert.doesNotThrow(() => preserved(before, inventory(db), db));
+  db.prepare(
+    "UPDATE attendance_session_reviews SET teacherMessage='unrelated' WHERE id='review-1'",
+  ).run();
+  assert.throws(
+    () => preserved(before, inventory(db), db),
+    /non-default value in teacherMessage/,
+  );
+  db.close();
+});
+
 test("preserves existing authorization rows while adding the school-admin lifecycle grants", () => {
   const db = new Database(":memory:");
   db.exec(`

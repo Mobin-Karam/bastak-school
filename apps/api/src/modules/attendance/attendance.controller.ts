@@ -23,6 +23,7 @@ import {
   CreateHistoricalAttendanceSessionDto,
   HistoricalAttendanceCandidatesQueryDto,
   ReviewAttendanceAbsenceDto,
+  DailyAttendanceReviewDto,
   AwardAttendancePointsDto,
   SetAttendanceSessionStudentCoinDto,
   SubmitAttendanceAbsencesDto,
@@ -203,8 +204,12 @@ export class AttendanceController {
 
   @Post("attendance/sessions/:id/daily-review")
   @RequireCapabilities("attendance.review")
-  dailyReview(@CurrentUser() user: AuthenticatedUser, @Param("id") id: string) {
-    return this.attendance.reviewSessionEvery24Hours(user, id).then(ok);
+  dailyReview(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param("id") id: string,
+    @Body() dto: DailyAttendanceReviewDto,
+  ) {
+    return this.attendance.reviewSessionEvery24Hours(user, id, dto).then(ok);
   }
 
   @Post("attendance/sessions/:id/cancel")
@@ -271,8 +276,11 @@ export class AttendanceController {
   absenceReviews(
     @CurrentUser() user: AuthenticatedUser,
     @Query("organizationId") organizationId?: string,
+    @Query("contextType") contextType?: string,
   ) {
-    return this.attendance.listAbsenceReviews(user, organizationId).then(ok);
+    return this.attendance
+      .listAbsenceReviews(user, organizationId, contextType)
+      .then(ok);
   }
 
   @Get("attendance/live-records")

@@ -68,6 +68,7 @@ import {
   CreateHistoricalAttendanceSessionDto,
   HistoricalAttendanceCandidatesQueryDto,
   ReviewAttendanceAbsenceDto,
+  DailyAttendanceReviewDto,
   AwardAttendancePointsDto,
   SetAttendanceSessionStudentCoinDto,
   SubmitAttendanceAbsencesDto,
@@ -1674,6 +1675,29 @@ export class AttendanceService {
           metadata: { before: existing ?? null, after: dto },
         }),
       );
+      if (saved.principalReviewMode !== "all_sessions") {
+        const eligible = (await manager.query(
+          `SELECT s.id sessionId, s.revision
+             FROM attendance_sessions s
+            WHERE s.organizationId=? AND s.status IN ('submitted','finalized')
+              AND NOT EXISTS (
+                SELECT 1 FROM attendance_records r
+                 WHERE r.sessionId=s.id AND r.physicalStatus='absent'
+              )
+              AND NOT EXISTS (
+                SELECT 1 FROM attendance_session_reviews ar
+                 WHERE ar.sessionId=s.id AND ar.reviewedRevision=s.revision
+              )`,
+          [dto.organizationId],
+        )) as Array<{ sessionId: string; revision: number }>;
+        const reviewedAt = new Date().toISOString();
+        for (const row of eligible) {
+          await manager.query(
+            "INSERT INTO attendance_session_reviews(id,sessionId,reviewerId,reviewedRevision,reviewedAt,teacherMessage) VALUES(?,?,NULL,?,?,?)",
+            [randomUUID(), row.sessionId, row.revision, reviewedAt, ""],
+          );
+        }
+      }
       return saved;
     });
     return {
@@ -1754,7 +1778,11 @@ export class AttendanceService {
     });
   }
 
-  async reviewSessionEvery24Hours(user: AuthenticatedUser, sessionId: string) {
+  async reviewSessionEvery24Hours(
+    user: AuthenticatedUser,
+    sessionId: string,
+    dto: DailyAttendanceReviewDto = {},
+  ) {
     if (!user.capabilities?.includes("attendance.review"))
       throw new ApiException(
         403,
@@ -1764,7 +1792,11 @@ export class AttendanceService {
     return this.attendanceTransaction(async (manager) => {
       const session = await manager.getRepository(AttendanceSession).findOne({
         where: { id: sessionId },
-        relations: { organization: true },
+        relations: {
+          organization: true,
+          assignedStaff: true,
+          submittedBy: true,
+        },
       });
       if (!session)
         throw new ApiException(
@@ -1786,17 +1818,59 @@ export class AttendanceService {
           "فقط جلسه ثبت‌شده قابل بازبینی است.",
         );
 
+      const absentCount = await manager.getRepository(AttendanceRecord).count({
+        where: { session: { id: session.id }, physicalStatus: "absent" },
+      });
+      const teacherMessage = dto.message?.trim().slice(0, 500) ?? "";
+      if (absentCount > 0 && !teacherMessage)
+        throw new ApiException(
+          400,
+          "ATTENDANCE_REVIEW_MESSAGE_REQUIRED",
+          "برای جلسه دارای غیبت، پیام درخواست توضیح از استاد را بنویسید.",
+        );
+
       const reviewedAt = new Date();
       await manager.query(
-        "INSERT INTO attendance_session_reviews(id,sessionId,reviewerId,reviewedRevision,reviewedAt) VALUES(?,?,?,?,?)",
+        "INSERT INTO attendance_session_reviews(id,sessionId,reviewerId,reviewedRevision,reviewedAt,teacherMessage) VALUES(?,?,?,?,?,?)",
         [
           randomUUID(),
           session.id,
           user.id,
           session.revision,
           reviewedAt.toISOString(),
+          teacherMessage,
         ],
       );
+      const teacherId = session.assignedStaff?.id ?? session.submittedBy?.id;
+      if (teacherId && teacherMessage) {
+        const notification = await manager.getRepository(Notification).save(
+          manager.getRepository(Notification).create({
+            user: { id: teacherId },
+            organization: session.organization,
+            type: NotificationType.MESSAGE,
+            category: "attendance-review",
+            title: "درخواست توضیح دربارهٔ غیبت جلسه",
+            body: teacherMessage,
+            url: "/admin",
+            data: { sessionId: session.id, revision: session.revision },
+            priority: "normal",
+          }),
+        );
+        this.realtime.emitToUser(teacherId, "notification.created", {
+          id: notification.id,
+          type: notification.type,
+          category: notification.category,
+          title: notification.title,
+          body: notification.body,
+          url: notification.url,
+          data: notification.data,
+          priority: notification.priority,
+          createdAt: notification.createdAt,
+          organizationId: session.organization.id,
+          readAt: notification.readAt ?? null,
+          isRead: false,
+        });
+      }
       await manager.save(
         AuditLog,
         manager.create(AuditLog, {
@@ -1804,7 +1878,11 @@ export class AttendanceService {
           action: "attendance.session.daily-reviewed",
           entity: "attendance",
           organizationId: session.organization.id,
-          metadata: { sessionId: session.id, status: session.status },
+          metadata: {
+            sessionId: session.id,
+            status: session.status,
+            teacherMessage,
+          },
         }),
       );
       return { sessionId: session.id, reviewedAt: reviewedAt.toISOString() };
@@ -2640,6 +2718,9 @@ export class AttendanceService {
       }
       session.revision++;
       await sessions.save(session);
+      if (options.submit && policy?.principalReviewMode !== "all_sessions") {
+        await this.autoReviewIfAbsenceFree(manager, session);
+      }
       await manager.getRepository(AuditLog).save({
         user: { id: user.id },
         action: "attendance.records.marked",
@@ -3132,6 +3213,32 @@ export class AttendanceService {
     });
   }
 
+  private async autoReviewIfAbsenceFree(
+    manager: EntityManager,
+    session: AttendanceSession,
+  ) {
+    const [absence] = (await manager.query(
+      "SELECT COUNT(id) count FROM attendance_records WHERE sessionId=? AND physicalStatus='absent'",
+      [session.id],
+    )) as Array<{ count: number | string }>;
+    if (Number(absence?.count ?? 0) > 0) return;
+    const [existing] = (await manager.query(
+      "SELECT id FROM attendance_session_reviews WHERE sessionId=? AND reviewedRevision=? LIMIT 1",
+      [session.id, session.revision],
+    )) as Array<{ id: string }>;
+    if (existing) return;
+    await manager.query(
+      "INSERT INTO attendance_session_reviews(id,sessionId,reviewerId,reviewedRevision,reviewedAt,teacherMessage) VALUES(?,?,NULL,?,?,?)",
+      [
+        randomUUID(),
+        session.id,
+        session.revision,
+        new Date().toISOString(),
+        "",
+      ],
+    );
+  }
+
   private attendanceTransaction<T>(
     work: (manager: EntityManager) => Promise<T>,
   ): Promise<T> {
@@ -3148,7 +3255,11 @@ export class AttendanceService {
     return this.sessionCoins;
   }
 
-  async listAbsenceReviews(user: AuthenticatedUser, organizationId?: string) {
+  async listAbsenceReviews(
+    user: AuthenticatedUser,
+    organizationId?: string,
+    contextType?: string,
+  ) {
     this.assertReviewAccess(user);
     const ids = await this.access.scopedOrganizationIds(
       this.effectiveUser(user),
@@ -3159,6 +3270,9 @@ export class AttendanceService {
       where: {
         session: { organization: { id: In(ids) } },
         status: AttendanceStatus.ABSENT,
+        ...(contextType === "dorm"
+          ? { session: { organization: { id: In(ids) }, contextType: "dorm" } }
+          : {}),
       },
       relations: {
         session: { organization: true },

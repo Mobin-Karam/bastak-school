@@ -7,6 +7,14 @@ const Database = require("better-sqlite3");
 // failed rehearsal, not an implicit permission to transform live data. This is
 // intentionally self-contained because production streams this helper to Node.
 const expectations = {
+  AttendanceReviewTeacherMessage1762400000000: {
+    "attendance_session_reviews.teacherMessage": {
+      nullable: false,
+      default: "",
+      value: "default",
+    },
+  },
+
   AcademicSchedulingFoundation1730900000000: {
     "education_classes.academicYearId": {
       nullable: true,

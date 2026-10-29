@@ -3,7 +3,6 @@ import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { ModalProvider } from "../../../../shared/ui/modal";
 import {
   getPrincipalDashboard,
   getAttendanceSessionForReview,
@@ -13,13 +12,23 @@ import {
 import { PrincipalDashboard } from "./PrincipalDashboard";
 
 const authCan = vi.hoisted(() => vi.fn((capability: string) => capability === "attendance.review"));
-
 vi.mock("../../../identity/auth/hooks/useAuth", () => ({ useAuth: () => ({ can: authCan }) }));
 vi.mock("../api/principal-dashboard.api", () => ({
   getPrincipalDashboard: vi.fn(),
   getAttendanceSessionForReview: vi.fn(),
   reviewAttendanceSession: vi.fn(),
 }));
+vi.mock("../../../student-life/attendance/api/attendance.api", () => ({
+  listAttendanceAbsenceReviews: vi.fn().mockResolvedValue([]),
+  markDormAbsenceOutsideSchool: vi.fn(),
+  reviewAttendanceAbsence: vi.fn(),
+}));
+vi.mock("../../reports/api/reports.api", () => ({
+  getTeacherStudentReports: vi.fn().mockResolvedValue([]),
+  markTeacherStudentReportSeen: vi.fn(),
+  actOnTeacherStudentReport: vi.fn(),
+}));
+
 const sessionDetail = {
   id: "session-a",
   organizationId: "school-a",
@@ -41,7 +50,7 @@ const sessionDetail = {
   status: "submitted" as const,
   revision: 1,
   assignedStaffId: null,
-  assignedStaffName: "",
+  assignedStaffName: "استاد",
   submittedAt: null,
   submittedById: null,
   roster: [{ id: "student-a", name: "علی رضایی", nationalCode: null, userId: null }],
@@ -64,9 +73,9 @@ const sessionDetail = {
       reviewedAt: null,
     },
   ],
-  expected: 10,
-  marked: 9,
-  unmarked: 1,
+  expected: 1,
+  marked: 1,
+  unmarked: 0,
   canManage: false,
   canCorrect: false,
 };
@@ -76,28 +85,8 @@ const dashboardData = {
   generatedAt: "2026-10-21T09:00:00.000Z",
   from: "2026-10-15",
   to: "2026-10-21",
-  attendance: {
-    today: { present: 8, absent: 1, late: 1, excused: 0, rate: 90 },
-    present: 8,
-    absent: 1,
-    late: 1,
-    excused: 0,
-    rate: 90,
-    trend: [],
-    classes: [],
-  },
-  behaviour: {
-    dimensions: [{ key: "attendance", label: "حضور", value: 90 }],
-    risks: [],
-  },
-  queues: {
-    attendanceReviews: 0,
-    leaveRequests: 0,
-    exitRequests: 0,
-    permissionRequests: 0,
-  },
   sessionReviews: {
-    mode: "absences_only",
+    mode: "absences_only" as const,
     pendingCount: 1,
     items: [
       {
@@ -107,9 +96,9 @@ const dashboardData = {
         title: "پایه اول",
         sessionDate: "2026-10-21T08:00:00.000Z",
         status: "submitted",
-        expected: 10,
-        marked: 9,
-        present: 8,
+        expected: 1,
+        marked: 1,
+        present: 0,
         absent: 1,
         late: 0,
         excused: 0,
@@ -117,28 +106,23 @@ const dashboardData = {
       },
     ],
   },
-  operations: { activeStudents: 10, currentlyOut: 0, scheduleEntries: 4, staff: 2 },
-  todayAbsences: [{ id: "student-a", name: "علی رضایی", context: "پایه اول", sessions: 1 }],
-  pendingLeaveRequests: [
-    {
-      id: "leave-a",
-      studentName: "رضا احمدی",
-      leaveType: "LEAVE",
-      startDate: "2026-10-21T00:00:00.000Z",
-      endDate: "2026-10-22T00:00:00.000Z",
-    },
-  ],
+  principalLists: {
+    counts: { dorm: 0, reports: 0, leave: 0, groups: 0 },
+    teacherSessions: [],
+    teacherReports: [],
+    dormAttendance: [],
+    classGroupAttendance: [],
+    teacherLeaveRequests: [],
+  },
 } satisfies PrincipalDashboardContract;
 
 function renderDashboard() {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <QueryClientProvider client={client}>
-      <ModalProvider>
-        <MemoryRouter>
-          <PrincipalDashboard />
-        </MemoryRouter>
-      </ModalProvider>
+      <MemoryRouter>
+        <PrincipalDashboard />
+      </MemoryRouter>
     </QueryClientProvider>,
   );
 }
@@ -160,101 +144,32 @@ describe("PrincipalDashboard", () => {
     vi.mocked(getAttendanceSessionForReview).mockResolvedValue(sessionDetail);
   });
 
-  it("shows absent-student details before the principal confirms review", async () => {
-    const user = userEvent.setup();
+  it("shows only capability-authorized dashboard cards", async () => {
     renderDashboard();
-
-    expect(
-      await screen.findByRole("heading", { name: "فهرست جلسه‌های حضورِ نیازمند بررسی" }),
-    ).toBeVisible();
-    expect(screen.getByText(/۱ جلسهٔ خوانده‌نشده در چرخهٔ ۲۴ ساعته/)).toBeVisible();
-    expect(screen.getAllByText("پایه اول")[0]).toBeVisible();
-    await user.click(screen.getAllByRole("button", { name: /مشاهدهٔ جزئیات/ })[0]);
-
-    expect(await screen.findByText("علی رضایی")).toBeVisible();
-    expect(reviewAttendanceSession).not.toHaveBeenCalled();
-    await user.click(screen.getByRole("button", { name: "جزئیات را بررسی و تأیید می‌کنم" }));
-
-    await waitFor(() =>
-      expect(reviewAttendanceSession).toHaveBeenCalledWith("session-a", expect.anything()),
-    );
-    await waitFor(() => expect(getPrincipalDashboard).toHaveBeenCalledTimes(2));
-  });
-
-  it("records the review immediately when the session has no absences", async () => {
-    const user = userEvent.setup();
-    vi.mocked(getPrincipalDashboard).mockResolvedValue({
-      ...dashboardData,
-      sessionReviews: {
-        mode: "absences_only",
-        pendingCount: 1,
-        items: [{ ...dashboardData.sessionReviews.items[0], absent: 0 }],
-      },
-    });
-    vi.mocked(getAttendanceSessionForReview).mockClear();
-    renderDashboard();
-
-    await user.click((await screen.findAllByRole("button", { name: "تأیید بازبینی و ثبت" }))[0]);
-
-    await waitFor(() =>
-      expect(reviewAttendanceSession).toHaveBeenCalledWith("session-a", expect.anything()),
-    );
-    expect(getAttendanceSessionForReview).not.toHaveBeenCalled();
-  });
-
-  it("paginates attendance-review rows without changing their review actions", async () => {
-    const user = userEvent.setup();
-    vi.mocked(getPrincipalDashboard).mockResolvedValue({
-      ...dashboardData,
-      sessionReviews: {
-        mode: "absences_only",
-        pendingCount: 11,
-        items: Array.from({ length: 11 }, (_, index) => ({
-          ...dashboardData.sessionReviews.items[0],
-          id: `session-${index + 1}`,
-          title: `کلاس ${index + 1}`,
-        })),
-      },
-    });
-    renderDashboard();
-
-    expect((await screen.findAllByText("کلاس 1"))[0]).toBeVisible();
-    expect(screen.queryAllByText("کلاس 11")).toHaveLength(0);
-    expect(screen.getByText("صفحه ۱ از ۲")).toBeVisible();
-    await user.click(screen.getByRole("button", { name: "بعدی" }));
-
-    expect((await screen.findAllByText("کلاس 11"))[0]).toBeVisible();
-    expect(screen.queryAllByText("کلاس 1")).toHaveLength(0);
-    expect(screen.getByText("صفحه ۲ از ۲")).toBeVisible();
-    expect(screen.getByRole("button", { name: "بعدی" })).toBeDisabled();
-  });
-
-  it("keeps attendance out of the dashboard when the active context lacks review access", async () => {
+    expect(await screen.findByRole("button", { name: /جلسه‌های کلاس/ })).toBeVisible();
+    expect(screen.getByRole("button", { name: /بازبینی حضور خوابگاه/ })).toBeVisible();
+    expect(screen.queryByRole("button", { name: /درخواست‌های مرخصی استادان/ })).toBeNull();
     authCan.mockImplementation(() => false);
+    cleanup();
     renderDashboard();
-
-    expect(await screen.findByRole("heading", { name: "عملیات فعال" })).toBeVisible();
-    expect(
-      screen.queryByRole("heading", { name: "فهرست جلسه‌های حضورِ نیازمند بررسی" }),
-    ).toBeNull();
-    expect(screen.queryByRole("heading", { name: "خلاصهٔ حضور مدرسه" })).toBeNull();
-    expect(screen.queryByRole("heading", { name: "دانش‌آموزان غایب" })).toBeNull();
+    await waitFor(() => expect(screen.queryByRole("button", { name: /جلسه‌های کلاس/ })).toBeNull());
   });
 
-  it("keeps the attendance list as the only attendance surface", async () => {
-    authCan.mockImplementation((capability) =>
-      ["students.read", "attendance.read", "leave.read"].includes(capability),
-    );
+  it("opens session review in a drawer and requires a teacher message for absences", async () => {
+    const user = userEvent.setup();
     renderDashboard();
+    await user.click(await screen.findByRole("button", { name: /جلسه‌های کلاس/ }));
+    const sessionButton = await screen.findByRole("button", { name: /پایه اول.*غایب/ });
+    await user.click(sessionButton);
+    expect(await screen.findByText("علی رضایی")).toBeVisible();
+    const submit = screen.getByRole("button", { name: /ثبت بازبینی و انتقال به آرشیو/ });
+    expect(submit).toBeDisabled();
+    await user.type(screen.getByLabelText(/پیام مدیر برای استاد/), "علت غیبت را پیگیری کنید.");
+    expect(submit).toBeEnabled();
+    await user.click(submit);
 
-    expect(await screen.findByRole("heading", { name: "درخواست‌های مرخصی" })).toBeVisible();
-    expect(screen.getByRole("heading", { name: "عملیات فعال" })).toBeVisible();
-    expect(screen.getByRole("link", { name: /رضا احمدی/ })).toHaveAttribute(
-      "href",
-      "/admin/leave-requests?requestId=leave-a",
+    await waitFor(() =>
+      expect(reviewAttendanceSession).toHaveBeenCalledWith("session-a", "علت غیبت را پیگیری کنید."),
     );
-    expect(screen.queryByRole("heading", { name: "دانش‌آموزان غایب" })).toBeNull();
-    expect(screen.queryByRole("heading", { name: "خلاصهٔ حضور مدرسه" })).toBeNull();
-    expect(screen.queryByRole("heading", { name: "تراکنش‌های سکه" })).toBeNull();
   });
 });

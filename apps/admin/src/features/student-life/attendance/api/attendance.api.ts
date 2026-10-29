@@ -145,9 +145,12 @@ export type AttendanceAbsenceReview = {
   teacherName: string;
 };
 
-export const listAttendanceAbsenceReviews = (organizationId?: string) =>
+export const listAttendanceAbsenceReviews = (
+  organizationId?: string,
+  contextType?: AttendanceContextType,
+) =>
   api.get<AttendanceAbsenceReview[]>(
-    `/attendance/absence-reviews${organizationId ? `?organizationId=${encodeURIComponent(organizationId)}` : ""}`,
+    `/attendance/absence-reviews${new URLSearchParams(Object.entries({ organizationId, contextType }).filter(([, value]) => Boolean(value)) as Array<[string, string]>).size ? `?${new URLSearchParams(Object.entries({ organizationId, contextType }).filter(([, value]) => Boolean(value)) as Array<[string, string]>).toString()}` : ""}`,
   );
 
 export const listLiveAttendanceRecords = (organizationId?: string) =>

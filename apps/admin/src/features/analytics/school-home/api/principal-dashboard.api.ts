@@ -78,6 +78,7 @@ export type PrincipalDashboardContract = {
     endDate: string;
   }>;
   principalLists?: {
+    counts?: { dorm: number; reports: number; leave: number; groups: number };
     teacherSessions: Array<{
       id: string;
       title: string;
@@ -129,10 +130,10 @@ export const getPrincipalDashboard = (range: "7d" | "30d", classId?: string) => 
   return api.get<PrincipalDashboardContract>(`/dashboard/principal?${query.toString()}`);
 };
 
-export const reviewAttendanceSession = (sessionId: string) =>
+export const reviewAttendanceSession = (sessionId: string, message?: string) =>
   api.post<{ sessionId: string; reviewedAt: string }>(
     `/attendance/sessions/${encodeURIComponent(sessionId)}/daily-review`,
-    {},
+    { message },
   );
 
 export const getAttendanceSessionForReview = (sessionId: string) =>
