@@ -419,18 +419,6 @@ const teacherNavigation: readonly NavigationGroup[] = [
     ],
   },
   {
-    section: "حضور و غیاب",
-    items: [
-      {
-        path: "attendance",
-        title: "حضور و غیاب کلاس",
-        description: "ثبت و پیگیری حضور کلاس‌های واگذارشده به شما",
-        icon: ClipboardCheck,
-        capability: "attendance.read",
-      },
-    ],
-  },
-  {
     section: "گفت‌وگو",
     items: [
       {

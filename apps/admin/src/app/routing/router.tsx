@@ -353,6 +353,16 @@ function StudentOnlyRoute({ children }: { children: ReactNode }) {
   return auth.activeRole === "STUDENT" ? <>{children}</> : <Navigate to="/admin" replace />;
 }
 
+/** Teachers take attendance from their own schedule, never from the staff-wide workspace. */
+function StaffAttendanceRoute({ children }: { children: ReactNode }) {
+  const auth = useAuth();
+  return auth.activeRole === "TEACHER" ? (
+    <Navigate to="/admin/schedule" replace />
+  ) : (
+    <>{children}</>
+  );
+}
+
 function NonStudentRoute({ children }: { children: ReactNode }) {
   const auth = useAuth();
   return auth.activeRole === "STUDENT" ? <Navigate to="/admin" replace /> : <>{children}</>;
@@ -505,11 +515,13 @@ export const adminRouteObjects = [
           {
             path: "attendance",
             element: (
-              <CapabilityRoute capability="attendance.read">
-                <RouteScreen>
-                  <AttendancePage />
-                </RouteScreen>
-              </CapabilityRoute>
+              <StaffAttendanceRoute>
+                <CapabilityRoute capability="attendance.read">
+                  <RouteScreen>
+                    <AttendancePage />
+                  </RouteScreen>
+                </CapabilityRoute>
+              </StaffAttendanceRoute>
             ),
           },
           {

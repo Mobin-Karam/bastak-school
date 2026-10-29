@@ -74,7 +74,6 @@ describe("teacher navigation", () => {
     expect(paths).toEqual([
       "schedule",
       "classes",
-      "attendance",
       "teacher-chat",
       "teacher-profile",
       "settings",
