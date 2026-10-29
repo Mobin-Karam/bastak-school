@@ -410,6 +410,24 @@ function SessionReviewRow({
         .includes(normalizedQuery),
     );
   }, [detail.data?.records, rosterNames, studentQuery]);
+  const attendanceTotals = useMemo(() => {
+    if (!detail.data) {
+      return {
+        present: session.present,
+        absent: session.absent,
+        late: session.late,
+        excused: session.excused,
+      };
+    }
+    return detail.data.records.reduce(
+      (totals, record) => {
+        totals[attendanceStatus(record)] += 1;
+        return totals;
+      },
+      { present: 0, absent: 0, late: 0, excused: 0 },
+    );
+  }, [detail.data, session.absent, session.excused, session.late, session.present]);
+  const needsAbsenceMessage = attendanceTotals.absent > 0;
   return (
     <article className="rounded-2xl border border-[rgb(var(--border-subtle))] p-4">
       <button
@@ -424,12 +442,12 @@ function SessionReviewRow({
         <span className="flex items-start justify-between gap-3">
           <strong>{session.title}</strong>
           <span className="rounded-full bg-amber-100 px-2 py-1 text-xs font-bold text-amber-900 dark:bg-amber-950 dark:text-amber-100">
-            {session.absent.toLocaleString("fa-IR")} غایب
+            {attendanceTotals.absent.toLocaleString("fa-IR")} غایب
           </span>
         </span>
         <small className="mt-1 block text-muted-foreground">
-          {formatDate(session.sessionDate)} · {session.present.toLocaleString("fa-IR")} حاضر ·{" "}
-          {session.late.toLocaleString("fa-IR")} تأخیر
+          {formatDate(session.sessionDate)} · {attendanceTotals.present.toLocaleString("fa-IR")}{" "}
+          حاضر · {attendanceTotals.late.toLocaleString("fa-IR")} تأخیر
         </small>
       </button>
       {open && (
@@ -464,10 +482,10 @@ function SessionReviewRow({
                   </small>
                 </div>
                 <div className="principal-dashboard__session-totals" aria-label="خلاصه حضور">
-                  <Count label="حاضر" value={session.present} />
-                  <Count label="غایب" value={session.absent} />
-                  <Count label="تأخیر" value={session.late} />
-                  <Count label="موجه" value={session.excused} />
+                  <Count label="حاضر" value={attendanceTotals.present} />
+                  <Count label="غایب" value={attendanceTotals.absent} />
+                  <Count label="تأخیر" value={attendanceTotals.late} />
+                  <Count label="موجه" value={attendanceTotals.excused} />
                 </div>
               </section>
               <label className="principal-dashboard__student-search">
@@ -484,10 +502,7 @@ function SessionReviewRow({
               </p>
               <ul className="grid gap-2">
                 {visibleRecords.map((record) => {
-                  const status =
-                    record.physicalStatus === "legacy_unknown"
-                      ? record.legacyStatus
-                      : record.physicalStatus;
+                  const status = attendanceStatus(record);
                   const statusStyle = {
                     present:
                       "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200",
@@ -525,7 +540,7 @@ function SessionReviewRow({
               {!visibleRecords.length ? (
                 <Empty text="دانش‌آموزی با این نام در این جلسه پیدا نشد." />
               ) : null}
-              {session.absent > 0 && (
+              {needsAbsenceMessage && (
                 <label className="text-sm font-semibold">
                   پیام مدیر برای استاد (درخواست توضیح غیبت‌ها)
                   <textarea
@@ -539,12 +554,12 @@ function SessionReviewRow({
               )}
               <div className="principal-dashboard__review-action">
                 <small>
-                  {session.absent > 0
+                  {needsAbsenceMessage
                     ? "برای بایگانی این جلسه، پیام پیگیری غیبت‌ها برای استاد لازم است."
                     : "این جلسه بدون غیبت، پس از بازبینی در آرشیو نگهداری می‌شود."}
                 </small>
                 <Button
-                  disabled={busy || (session.absent > 0 && !message.trim())}
+                  disabled={busy || (needsAbsenceMessage && !message.trim())}
                   onClick={() => onReview(message.trim())}
                 >
                   <Check size={16} /> ثبت بازبینی و انتقال به آرشیو
@@ -663,6 +678,13 @@ function Count({ label, value }: { label: string; value: number }) {
       {label}: {value.toLocaleString("fa-IR")}
     </span>
   );
+}
+function attendanceStatus(record: {
+  physicalStatus: "present" | "absent" | "late" | "legacy_unknown";
+  legacyStatus: "present" | "absent" | "late" | "excused";
+}): "present" | "absent" | "late" | "excused" {
+  if (record.legacyStatus === "excused") return "excused";
+  return record.physicalStatus === "legacy_unknown" ? record.legacyStatus : record.physicalStatus;
 }
 function Empty({ text }: { text: string }) {
   return (
