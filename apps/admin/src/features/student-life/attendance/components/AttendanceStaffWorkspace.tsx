@@ -16,9 +16,11 @@ import { useAuth } from "../../../identity/auth";
 import { Card } from "../../../../shared/ui/ui";
 import { AttendanceCoin } from "../../../../shared/ui/attendance-coin";
 import { DatePicker } from "../../../../shared/ui/date-picker";
+import { todayIso } from "../../../../shared/lib/utils";
 import { ResponsiveDrawer } from "../../../../shared/ui/responsive-drawer";
 import { Switch } from "../../../../shared/ui/switch";
 import { AttendanceSelect } from "./AttendanceSelect";
+import { PendingScheduleCalendar, monthBounds } from "./PendingScheduleCalendar";
 import { notify } from "../../../../shared/ui/notifications";
 import { api } from "../../../../shared/api/api";
 import type { AttendanceContextOption } from "../api/attendance.api";
@@ -46,6 +48,7 @@ import {
   correctAttendanceRecord,
 } from "../api/attendance-operations.api";
 import type { AttendancePoolDraft } from "@moshaver/api-contract";
+import type { HistoricalAttendanceCandidate } from "../api/attendance-operations.api";
 
 const field =
   "min-h-12 w-full rounded-xl border border-[rgb(var(--border-subtle))] bg-card px-3 text-sm";
@@ -852,7 +855,7 @@ export function AttendanceStaffWorkspace({
   const [contextFilter, setContextFilter] = useState("");
   const [academicYearId, setAcademicYearId] = useState("");
   const [termId, setTermId] = useState("");
-  const [reconciliationOpen, setReconciliationOpen] = useState(false);
+  const [calendarDate, setCalendarDate] = useState(() => todayIso());
   const [manualHistoricalOpen, setManualHistoricalOpen] = useState(false);
   const [manualHistorical, setManualHistorical] = useState({
     classroomId: "",
@@ -941,6 +944,16 @@ export function AttendanceStaffWorkspace({
     (year) => year.id === academicYearId,
   );
   const selectedTerm = currentTerms.find((term) => term.id === termId);
+  useEffect(() => {
+    if (academicYearId) return;
+    const activeYear = (academicCycles.data?.years ?? []).find((year) => year.state === "ACTIVE");
+    if (activeYear) setAcademicYearId(activeYear.id);
+  }, [academicCycles.data?.years, academicYearId]);
+  useEffect(() => {
+    if (!academicYearId || termId) return;
+    const activeTerm = currentTerms.find((term) => term.state === "ACTIVE");
+    if (activeTerm) setTermId(activeTerm.id);
+  }, [academicYearId, currentTerms, termId]);
   const selectOfficeTab = (tab: "teacher" | "groups" | "history" | "reports") => {
     setOfficeTab(tab);
     setCategory(tab === "teacher" ? "class" : tab === "groups" ? "class_group" : "");
@@ -960,6 +973,8 @@ export function AttendanceStaffWorkspace({
       academicYearId,
       termId,
       contextFilter,
+      monthBounds(calendarDate).start,
+      monthBounds(calendarDate).end,
     ],
     queryFn: () =>
       getHistoricalAttendanceCandidates({
@@ -967,11 +982,12 @@ export function AttendanceStaffWorkspace({
         academicYearId,
         termId,
         classroomId: category === "class" ? contextFilter || undefined : undefined,
+        from: monthBounds(calendarDate).start,
+        to: monthBounds(calendarDate).end,
       }),
     enabled:
-      reconciliationOpen &&
       canReconcileHistoricalAttendance &&
-      Boolean(organizationId && academicYearId && termId),
+      Boolean(section === "sessions" && organizationId && academicYearId && termId),
   });
   const academicTeachers = useQuery({
     queryKey: ["academic-teachers", organizationId],
@@ -993,6 +1009,22 @@ export function AttendanceStaffWorkspace({
     onError: (error) =>
       notify(error instanceof Error ? error.message : "ایجاد جلسهٔ تاریخی انجام نشد.", "error"),
   });
+  const openCandidateForAttendance = (candidate: HistoricalAttendanceCandidate) => {
+    importHistoricalOccurrence.mutate(
+      { entryId: candidate.entryId, date: candidate.date },
+      {
+        onSuccess: (session) => {
+          const params = new URLSearchParams({
+            section: "class",
+            contextType: "class",
+            contextId: candidate.classroomId,
+            sessionId: session.id,
+          });
+          window.location.assign(`/admin/attendance?${params.toString()}`);
+        },
+      },
+    );
+  };
   const createManualHistoricalSession = useMutation({
     mutationFn: createHistoricalAttendanceSession,
     onSuccess: () => {
@@ -1448,23 +1480,20 @@ export function AttendanceStaffWorkspace({
         </ResponsiveDrawer>
       ) : null}
       {canReconcileHistoricalAttendance ? (
-        <section className="rounded-2xl border border-amber-200 bg-amber-50/60 p-3 dark:border-amber-900 dark:bg-amber-950/20">
+        <section
+          className="rounded-2xl border border-amber-200 bg-amber-50/60 p-3 dark:border-amber-900 dark:bg-amber-950/20"
+          aria-labelledby="scheduled-attendance-calendar-title"
+        >
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
-              <p className="text-sm font-black">تطبیق حضورهای گذشته</p>
+              <p id="scheduled-attendance-calendar-title" className="text-sm font-black">
+                تقویم جلسه‌های ثبت‌نشده
+              </p>
               <p className="mt-1 text-xs leading-5 text-slate-600 dark:text-slate-300">
-                فقط رخدادهای برنامهٔ legacy که هنوز جلسهٔ حضور ندارند پیشنهاد می‌شوند؛ هیچ موردی
-                بدون تأیید شما ثبت نمی‌شود.
+                روز را انتخاب کنید، سپس کلاس و درس همان روز را باز کنید تا حضور همان رخداد تاریخ‌دار
+                ثبت شود.
               </p>
             </div>
-            <button
-              type="button"
-              className={`${action} border border-amber-300 bg-white text-amber-900 dark:border-amber-800 dark:bg-slate-950 dark:text-amber-200`}
-              disabled={!academicYearId || !termId}
-              onClick={() => setReconciliationOpen((open) => !open)}
-            >
-              {reconciliationOpen ? "بستن صف تطبیق" : "نمایش صف تطبیق"}
-            </button>
             <button
               type="button"
               className={`${action} bg-amber-700 text-white hover:bg-amber-800`}
@@ -1474,19 +1503,19 @@ export function AttendanceStaffWorkspace({
               ثبت دستی جلسهٔ گذشته
             </button>
           </div>
-          {reconciliationOpen && !academicYearId ? (
+          {!academicYearId || !termId ? (
             <p role="alert" className="mt-3 text-xs text-amber-800 dark:text-amber-200">
-              ابتدا سال و نیم‌سال را در فیلتر آرشیو انتخاب کنید.
+              ابتدا سال تحصیلی و نیم‌سال را در محدودهٔ دفتر انتخاب کنید.
             </p>
           ) : null}
-          {reconciliationOpen && academicYearId && termId ? (
+          {academicYearId && termId ? (
             historicalCandidates.isLoading ? (
               <p role="status" className="mt-3 text-xs text-slate-500">
-                در حال پیدا کردن رخدادهای بدون حضور…
+                در حال آماده‌سازی تقویم جلسه‌های ثبت‌نشده…
               </p>
             ) : historicalCandidates.isError ? (
               <p role="alert" className="mt-3 text-xs text-rose-700 dark:text-rose-300">
-                صف تطبیق دریافت نشد.{" "}
+                تقویم جلسه‌های ثبت‌نشده دریافت نشد.{" "}
                 <button
                   type="button"
                   className="font-bold underline"
@@ -1496,44 +1525,68 @@ export function AttendanceStaffWorkspace({
                 </button>
               </p>
             ) : (
-              <ul className="mt-3 grid gap-2" aria-label="رخدادهای پیشنهادی حضور گذشته">
-                {(historicalCandidates.data ?? []).slice(0, 20).map((candidate) => (
-                  <li
-                    key={`${candidate.entryId}:${candidate.date}`}
-                    className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-200/70 bg-white/80 p-3 text-xs dark:border-amber-900 dark:bg-slate-950/70"
-                  >
-                    <span>
-                      <strong className="text-sm">{candidate.title}</strong>
-                      <span className="mt-1 block text-slate-500">
-                        {candidate.classroomName} · {candidate.teacherName} ·{" "}
-                        {candidate.subjectName || "بدون کتاب"} ·{" "}
-                        {new Date(`${candidate.date}T12:00:00Z`).toLocaleDateString(
-                          "fa-IR-u-ca-persian",
-                        )}{" "}
-                        · {candidate.startTime} تا {candidate.endTime}
-                      </span>
+              <div className="mt-3 grid gap-3 xl:grid-cols-[minmax(20rem,.9fr)_minmax(0,1.1fr)]">
+                <PendingScheduleCalendar
+                  candidates={historicalCandidates.data ?? []}
+                  selectedDate={calendarDate}
+                  onSelectedDateChange={setCalendarDate}
+                  onMonthChange={setCalendarDate}
+                  disabled={importHistoricalOccurrence.isPending}
+                />
+                <div className="rounded-2xl border border-amber-200/70 bg-white/80 p-3 dark:border-amber-900 dark:bg-slate-950/70">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-sm font-black text-ink">
+                      جلسه‌های{" "}
+                      {new Date(`${calendarDate}T12:00:00Z`).toLocaleDateString(
+                        "fa-IR-u-ca-persian",
+                      )}
+                    </p>
+                    <span className="rounded-full bg-amber-100 px-2 py-1 text-[11px] font-bold text-amber-900 dark:bg-amber-950/50 dark:text-amber-100">
+                      {(historicalCandidates.data ?? [])
+                        .filter((candidate) => candidate.date === calendarDate)
+                        .length.toLocaleString("fa-IR")}{" "}
+                      مورد
                     </span>
-                    <button
-                      type="button"
-                      className={`${action} min-h-10 border border-amber-300 bg-amber-100 text-amber-950 dark:border-amber-800 dark:bg-amber-900/40 dark:text-amber-100`}
-                      disabled={importHistoricalOccurrence.isPending}
-                      onClick={() =>
-                        importHistoricalOccurrence.mutate({
-                          entryId: candidate.entryId,
-                          date: candidate.date,
-                        })
-                      }
-                    >
-                      ایجاد جلسه
-                    </button>
-                  </li>
-                ))}
-                {!historicalCandidates.data?.length ? (
-                  <li className="rounded-xl bg-white/70 p-3 text-xs text-slate-600 dark:bg-slate-950/70 dark:text-slate-300">
-                    رخداد بدون جلسه‌ای در این بازه پیدا نشد.
-                  </li>
-                ) : null}
-              </ul>
+                  </div>
+                  <ul className="mt-3 grid gap-2" aria-label="جلسه‌های ثبت‌نشده روز انتخاب‌شده">
+                    {(historicalCandidates.data ?? [])
+                      .filter((candidate) => candidate.date === calendarDate)
+                      .map((candidate) => (
+                        <li
+                          key={`${candidate.entryId}:${candidate.date}`}
+                          className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-200/70 bg-white/80 p-3 text-xs dark:border-amber-900 dark:bg-slate-950/70"
+                        >
+                          <span>
+                            <strong className="text-sm">{candidate.title}</strong>
+                            <span className="mt-1 block text-slate-500">
+                              {candidate.classroomName} · {candidate.teacherName} ·{" "}
+                              {candidate.subjectName || "بدون کتاب"} · {candidate.startTime} تا{" "}
+                              {candidate.endTime}
+                            </span>
+                          </span>
+                          <button
+                            type="button"
+                            className={`${action} min-h-10 border border-amber-300 bg-amber-100 text-amber-950 dark:border-amber-800 dark:bg-amber-900/40 dark:text-amber-100`}
+                            disabled={importHistoricalOccurrence.isPending}
+                            onClick={() => openCandidateForAttendance(candidate)}
+                          >
+                            {importHistoricalOccurrence.isPending
+                              ? "در حال بازکردن…"
+                              : "ثبت حضور این جلسه"}
+                          </button>
+                        </li>
+                      ))}
+                    {!(historicalCandidates.data ?? []).some(
+                      (candidate) => candidate.date === calendarDate,
+                    ) ? (
+                      <li className="rounded-xl bg-[rgb(var(--surface-muted))] p-3 text-xs leading-5 text-slate-600 dark:text-slate-300">
+                        برای این روز جلسهٔ برنامهٔ ثبت‌نشده‌ای وجود ندارد. روزی با نشان تعداد جلسه
+                        را انتخاب کنید.
+                      </li>
+                    ) : null}
+                  </ul>
+                </div>
+              </div>
             )
           ) : null}
         </section>

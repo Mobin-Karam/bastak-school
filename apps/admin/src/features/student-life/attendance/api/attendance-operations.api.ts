@@ -115,6 +115,8 @@ export const getHistoricalAttendanceCandidates = (params: {
   academicYearId: string;
   termId: string;
   classroomId?: string;
+  from?: string;
+  to?: string;
 }) =>
   api.get<HistoricalAttendanceCandidate[]>(
     `/attendance/historical-candidates?${new URLSearchParams(

@@ -150,12 +150,17 @@ export function AttendancePage() {
   const requestedType = searchParams.get("contextType");
   const requestedSessionId = searchParams.get("sessionId");
   const requestedSectionParam = searchParams.get("section");
+  // Principals do not get the manual class workspace, but may open one
+  // scheduled class occurrence directly from the missing-session calendar.
+  const directScheduledSessionRequest = Boolean(
+    isPrincipal && requestedSessionId && requestedType === "class" && requestedId,
+  );
   const fallbackSection: AttendanceSection = sections[0] ?? (isPrincipal ? "sessions" : "class");
-  const requestedSection: AttendanceSection = sections.includes(
-    requestedSectionParam as AttendanceSection,
-  )
-    ? (requestedSectionParam as AttendanceSection)
-    : fallbackSection;
+  const requestedSection: AttendanceSection = directScheduledSessionRequest
+    ? "class"
+    : sections.includes(requestedSectionParam as AttendanceSection)
+      ? (requestedSectionParam as AttendanceSection)
+      : fallbackSection;
   const requestedReviewRecordId =
     requestedSection === "sessions" ? searchParams.get("reviewRecordId") : null;
   const requestedCorrectionId =
@@ -202,7 +207,7 @@ export function AttendancePage() {
     if (contextOrder.includes(requestedSection as AttendanceContextType)) {
       setContextType(requestedSection as AttendanceContextType);
     }
-    if (isPrincipal || !requestedId) return;
+    if ((isPrincipal && !directScheduledSessionRequest) || !requestedId) return;
     const requested = contexts.find(
       (context) =>
         context.id === requestedId && (!requestedType || context.contextType === requestedType),
@@ -211,7 +216,14 @@ export function AttendancePage() {
     setContextType(requested.contextType);
     setContextId(requested.id);
     setGroupClassId(requested.classId || "");
-  }, [contexts, isPrincipal, requestedId, requestedSection, requestedType]);
+  }, [
+    contexts,
+    directScheduledSessionRequest,
+    isPrincipal,
+    requestedId,
+    requestedSection,
+    requestedType,
+  ]);
   const visibleContexts = useMemo(
     () =>
       contexts.filter((c) =>
@@ -293,11 +305,12 @@ export function AttendancePage() {
       .then((available) => {
         if (!active) return;
         setContexts(available);
-        const requested = isPrincipal
-          ? undefined
-          : available.find(
-              (c) => c.id === requestedId && (!requestedType || c.contextType === requestedType),
-            );
+        const requested =
+          isPrincipal && !directScheduledSessionRequest
+            ? undefined
+            : available.find(
+                (c) => c.id === requestedId && (!requestedType || c.contextType === requestedType),
+              );
         if (requested) {
           setContextType(requested.contextType);
           setChosenType(requested.contextType);
@@ -322,7 +335,7 @@ export function AttendancePage() {
     };
     // URL params are initial selection only. Subsequent selection is controlled by the user.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isPrincipal, loadVersion, scopeKey]);
+  }, [directScheduledSessionRequest, isPrincipal, loadVersion, scopeKey]);
 
   useEffect(() => {
     const currentRequest = ++requestId.current;
@@ -510,7 +523,10 @@ export function AttendancePage() {
       setContextId("");
       setReviewOpen(false);
       setNotice(null);
-      setAttendanceUrl(chosenType);
+      if (isPrincipal && directScheduledSessionRequest) {
+        setChosenType("sessions");
+        setAttendanceUrl("sessions");
+      } else setAttendanceUrl(chosenType);
     });
   }
   function mark(id: string, status: AttendanceStatus) {

@@ -160,6 +160,41 @@ describe("AttendancePage", () => {
     expect(screen.queryByRole("button", { name: "گروه کلاس 0 مورد" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "خوابگاه 0 مورد" })).not.toBeInTheDocument();
   });
+
+  it("lets a principal open one scheduled class occurrence from the attendance calendar", async () => {
+    authState.activeRole = "PRINCIPAL";
+    canMock.mockImplementation((capability: string) =>
+      ["attendance.read", "attendance.manage", "attendance.review"].includes(capability),
+    );
+    listAttendanceContextsMock.mockResolvedValue([]);
+    getSavedAttendanceSessionMock.mockResolvedValue({
+      id: "session-1",
+      contextType: "class",
+      contextId: "class-1",
+      title: "فقه · کلاس الف",
+      revision: 0,
+      status: "open",
+      organizationId: "org-1",
+      roster: [{ id: "student-1", name: "علی" }],
+      records: [],
+    });
+
+    render(
+      <MemoryRouter
+        initialEntries={[
+          "/admin/attendance?section=class&contextType=class&contextId=class-1&sessionId=session-1",
+        ]}
+      >
+        <LocaleProvider>
+          <AttendancePage />
+        </LocaleProvider>
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByRole("dialog", { name: "فقه · کلاس الف" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "کلاس 0 مورد" })).not.toBeInTheDocument();
+    expect(screen.getByRole("group", { name: "وضعیت علی" })).toBeInTheDocument();
+  });
   it("gives a teacher the sessions workspace without reviewer queues", async () => {
     canMock.mockImplementation((capability: string) => capability === "attendance.class.read");
     const user = userEvent.setup();
