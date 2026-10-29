@@ -2424,15 +2424,25 @@ export class AttendanceService {
           "ATTENDANCE_SESSION_CANCELLED",
           "این درس لغو شده است؛ حضور تاریخی فقط قابل مشاهده است.",
         );
+      const assignedTeacher =
+        !!session &&
+        ["class_schedule", "legacy_schedule"].includes(
+          session.sourceKind ?? "",
+        ) &&
+        session.assignedStaff?.id === user.id &&
+        user.capabilities?.includes("attendance.class.manage");
       // A timetable occurrence remains the same historical lesson after its
       // scheduled window closes. Its assigned teacher may correct that saved
       // roster until a reviewer finalizes or cancels it; generic live attendance
       // sessions keep the normal time-window rule.
       if (!(
-        options.allowHistoricalOccurrence &&
+        session &&
         ["class_schedule", "legacy_schedule", "legacy_import"].includes(
-          session?.sourceKind ?? "",
-        )
+          session.sourceKind ?? "",
+        ) &&
+        session.scheduledEndAt &&
+        session.scheduledEndAt.getTime() <= Date.now() &&
+        (assignedTeacher || options.allowHistoricalOccurrence)
       ))
         this.assertSessionIsActiveForMarking(session);
       const contextType = session?.contextType ?? dto.contextType;
@@ -2443,13 +2453,6 @@ export class AttendanceService {
           "ATTENDANCE_CONTEXT_REQUIRED",
           "کلاس، گروه یا اتاق لازم است.",
         );
-      const assignedTeacher =
-        !!session &&
-        ["class_schedule", "legacy_schedule"].includes(
-          session?.sourceKind ?? "",
-        ) &&
-        session.assignedStaff?.id === user.id &&
-        user.capabilities?.includes("attendance.class.manage");
       if (
         session?.occurrenceKey &&
         !options.allowOccurrence &&
