@@ -196,9 +196,9 @@ export function LegacySchedulePage() {
   useEffect(() => {
     if (!academicBootstrap.data) return;
     setBootstrapEntryIds(academicBootstrap.data.unassignedScheduleEntries.map((entry) => entry.id));
-    setBootstrapSessionIds(
-      academicBootstrap.data.unassignedAttendanceSessions.map((session) => session.id),
-    );
+    // Attendance history is selected by the setup gate only after a term is
+    // chosen. Selecting all history here can include dates from another term.
+    setBootstrapSessionIds([]);
   }, [academicBootstrap.data]);
   const selectedScheduleYearId = scheduleAcademicYearId || activeAcademicYear?.id || "";
   const availableScheduleTerms = (academicCycles.data?.terms ?? []).filter(
@@ -3005,6 +3005,28 @@ function ScheduleAcademicSetupGate({
   const toggle = (ids: string[], id: string, onChange: (next: string[]) => void) =>
     onChange(ids.includes(id) ? ids.filter((current) => current !== id) : [...ids, id]);
   const requiresReconciliation = entries.length > 0 || attendanceSessions.length > 0;
+  const selectedTerm = terms.find((term) => term.id === selectedTermId);
+  const eligibleAttendanceSessions = selectedTerm
+    ? attendanceSessions.filter((session) => {
+        const date = session.operationalDate ?? session.sessionDate.slice(0, 10);
+        return date >= selectedTerm.startsOn && date <= selectedTerm.endsOn;
+      })
+    : [];
+  const excludedAttendanceCount = attendanceSessions.length - eligibleAttendanceSessions.length;
+  const selectedEntryCount = selectedEntryIds.filter((id) =>
+    entries.some((entry) => entry.id === id),
+  ).length;
+  const selectedSessionCount = selectedSessionIds.filter((id) =>
+    eligibleAttendanceSessions.some((session) => session.id === id),
+  ).length;
+  const selectedCount = selectedEntryCount + selectedSessionCount;
+  const selectTerm = (termId: string) => {
+    onTermChange(termId);
+    // A previous term's selected attendance records must never be submitted
+    // with the newly selected term. The operator chooses the new set explicitly.
+    onSessionIdsChange([]);
+  };
+
   return (
     <div
       className="fixed inset-0 z-[70] grid place-items-center bg-slate-950/35 p-4 backdrop-blur-sm"
@@ -3049,82 +3071,170 @@ function ScheduleAcademicSetupGate({
             </Button>
           </section>
         ) : requiresReconciliation ? (
-          <section className="mt-5 space-y-4">
-            <div>
-              <h2 className="font-black">۲. داده‌های قدیمی را به نیم‌سال منتسب کنید</h2>
+          <section className="mt-5 space-y-4" aria-labelledby="academic-reconciliation-title">
+            <div className="rounded-2xl border border-brand/25 bg-brand/5 p-4">
+              <p className="text-xs font-black text-brand">مرحلهٔ ۲ · انتساب سوابق قبلی</p>
+              <h2 id="academic-reconciliation-title" className="mt-1 font-black">
+                ابتدا نیم‌سال را انتخاب کنید، سپس فقط موارد همان بازه را تأیید کنید
+              </h2>
               <p className="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-300">
-                انتخاب شما صریح، قابل پیگیری و غیرخودکار است. سابقه‌ای که تاریخش خارج از بازهٔ
-                نیم‌سال باشد پذیرفته نمی‌شود.
+                این کار سابقه را جابه‌جا یا بازنویسی نمی‌کند؛ فقط سال و نیم‌سال آن را ثبت و در
+                تاریخچه پیگیری می‌کند.
               </p>
             </div>
-            <label className="grid max-w-sm gap-1 text-sm font-bold">
-              نیم‌سال مقصد در {activeYear.name}
-              <AdaptiveSelect
-                value={selectedTermId}
-                onChange={(event) => onTermChange(event.target.value)}
-              >
-                <option value="">انتخاب نیم‌سال</option>
-                {terms.map((term) => (
-                  <option key={term.id} value={term.id}>
-                    {term.name}
-                  </option>
-                ))}
-              </AdaptiveSelect>
-            </label>
-            {entries.length ? (
-              <fieldset className="rounded-xl border border-[rgb(var(--border-subtle))] p-3">
-                <legend className="px-1 text-sm font-black">
-                  جلسه‌های قدیمی برنامه ({entries.length})
-                </legend>
-                <div className="mt-2 max-h-40 space-y-2 overflow-y-auto">
-                  {entries.map((entry) => (
-                    <label
-                      key={entry.id}
-                      className="flex cursor-pointer items-start gap-2 rounded-lg p-2 hover:bg-[rgb(var(--surface-muted))]"
-                    >
-                      <input
-                        type="checkbox"
-                        checked={selectedEntryIds.includes(entry.id)}
-                        onChange={() => toggle(selectedEntryIds, entry.id, onEntryIdsChange)}
-                      />
-                      <span className="text-sm">
-                        <b>{entry.title}</b> · {entry.classroomName} · {entry.teacherName} ·{" "}
-                        {entry.startTime} تا {entry.endTime}
-                      </span>
-                    </label>
+
+            <div className="grid gap-3 rounded-2xl border border-[rgb(var(--border-subtle))] p-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
+              <label className="grid gap-1 text-sm font-bold">
+                نیم‌سال مقصد در {activeYear.name}
+                <AdaptiveSelect
+                  value={selectedTermId}
+                  onChange={(event) => selectTerm(event.target.value)}
+                  aria-describedby="academic-term-help"
+                >
+                  <option value="">انتخاب نیم‌سال</option>
+                  {terms.map((term) => (
+                    <option key={term.id} value={term.id}>
+                      {term.name} · {term.startsOn} تا {term.endsOn}
+                    </option>
                   ))}
+                </AdaptiveSelect>
+                <span id="academic-term-help" className="text-xs font-normal text-slate-500">
+                  سوابق حضور بر اساس تاریخ واقعی‌شان فیلتر می‌شوند.
+                </span>
+              </label>
+              {selectedTerm ? (
+                <div className="rounded-xl bg-[rgb(var(--surface-muted))] px-3 py-2 text-xs leading-5 text-slate-600 dark:text-slate-300">
+                  <b className="block text-ink">{selectedTerm.name}</b>
+                  {selectedTerm.startsOn} تا {selectedTerm.endsOn}
                 </div>
-              </fieldset>
-            ) : null}
-            {attendanceSessions.length ? (
-              <fieldset className="rounded-xl border border-[rgb(var(--border-subtle))] p-3">
-                <legend className="px-1 text-sm font-black">
-                  سوابق حضور قدیمی ({attendanceSessions.length})
-                </legend>
-                <div className="mt-2 max-h-40 space-y-2 overflow-y-auto">
-                  {attendanceSessions.map((session) => (
-                    <label
-                      key={session.id}
-                      className="flex cursor-pointer items-start gap-2 rounded-lg p-2 hover:bg-[rgb(var(--surface-muted))]"
-                    >
-                      <input
-                        type="checkbox"
-                        checked={selectedSessionIds.includes(session.id)}
-                        onChange={() => toggle(selectedSessionIds, session.id, onSessionIdsChange)}
-                      />
-                      <span className="text-sm">
-                        <b>{session.title}</b> ·{" "}
-                        {session.operationalDate ?? session.sessionDate.slice(0, 10)} ·{" "}
-                        {session.assignedStaffName || "ثبت‌کننده نامشخص"}
-                      </span>
-                    </label>
-                  ))}
+              ) : null}
+            </div>
+
+            {!selectedTermId ? (
+              <EmptyState
+                title="یک نیم‌سال انتخاب کنید"
+                description="پس از انتخاب نیم‌سال، سامانه فقط سابقه‌های حضورِ قابل‌انتساب به همان بازه را آماده می‌کند."
+              />
+            ) : (
+              <>
+                <div className="grid gap-3 lg:grid-cols-2">
+                  <fieldset className="rounded-2xl border border-[rgb(var(--border-subtle))] p-3">
+                    <div className="flex flex-wrap items-start justify-between gap-2">
+                      <legend className="px-1 text-sm font-black">
+                        جلسه‌های برنامهٔ بدون نیم‌سال ({entries.length})
+                      </legend>
+                      <Button
+                        variant="ghost"
+                        className="min-h-9 px-2 text-xs"
+                        onClick={() =>
+                          onEntryIdsChange(
+                            selectedEntryCount === entries.length
+                              ? []
+                              : entries.map((entry) => entry.id),
+                          )
+                        }
+                      >
+                        {selectedEntryCount === entries.length ? "لغو انتخاب همه" : "انتخاب همه"}
+                      </Button>
+                    </div>
+                    <p className="mt-1 text-xs leading-5 text-slate-500">
+                      این جلسه‌های هفتگی به نیم‌سال انتخاب‌شده وصل می‌شوند.
+                    </p>
+                    <div className="mt-3 max-h-56 space-y-1 overflow-y-auto" role="list">
+                      {entries.map((entry) => (
+                        <label
+                          key={entry.id}
+                          className="flex cursor-pointer items-start gap-2 rounded-xl p-2 text-sm hover:bg-[rgb(var(--surface-muted))] has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-brand/50"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={selectedEntryIds.includes(entry.id)}
+                            onChange={() => toggle(selectedEntryIds, entry.id, onEntryIdsChange)}
+                          />
+                          <span>
+                            <b>{entry.title}</b>
+                            <span className="mt-0.5 block text-xs text-slate-500">
+                              {entry.classroomName} · {entry.teacherName} ·{" "}
+                              {weekdays[entry.weekday]} · {entry.startTime} تا {entry.endTime}
+                            </span>
+                          </span>
+                        </label>
+                      ))}
+                    </div>
+                  </fieldset>
+
+                  <fieldset className="rounded-2xl border border-[rgb(var(--border-subtle))] p-3">
+                    <div className="flex flex-wrap items-start justify-between gap-2">
+                      <legend className="px-1 text-sm font-black">
+                        سوابق حضورِ قابل‌انتساب ({eligibleAttendanceSessions.length})
+                      </legend>
+                      <Button
+                        variant="ghost"
+                        className="min-h-9 px-2 text-xs"
+                        onClick={() =>
+                          onSessionIdsChange(
+                            selectedSessionCount === eligibleAttendanceSessions.length
+                              ? []
+                              : eligibleAttendanceSessions.map((session) => session.id),
+                          )
+                        }
+                      >
+                        {selectedSessionCount === eligibleAttendanceSessions.length
+                          ? "لغو انتخاب همه"
+                          : "انتخاب همهٔ قابل‌انتساب"}
+                      </Button>
+                    </div>
+                    <p className="mt-1 text-xs leading-5 text-slate-500">
+                      فقط تاریخ‌های داخل بازهٔ {selectedTerm?.name} نمایش داده می‌شوند.
+                    </p>
+                    {excludedAttendanceCount ? (
+                      <p className="mt-2 rounded-lg bg-amber-50 px-2 py-1.5 text-xs leading-5 text-amber-900 dark:bg-amber-950/30 dark:text-amber-100">
+                        {excludedAttendanceCount.toLocaleString("fa-IR")} سابقه خارج از این نیم‌سال
+                        است؛ آن‌ها را در نیم‌سال درست خود منتسب کنید.
+                      </p>
+                    ) : null}
+                    <div className="mt-3 max-h-56 space-y-1 overflow-y-auto" role="list">
+                      {eligibleAttendanceSessions.map((session) => (
+                        <label
+                          key={session.id}
+                          className="flex cursor-pointer items-start gap-2 rounded-xl p-2 text-sm hover:bg-[rgb(var(--surface-muted))] has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-brand/50"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={selectedSessionIds.includes(session.id)}
+                            onChange={() =>
+                              toggle(selectedSessionIds, session.id, onSessionIdsChange)
+                            }
+                          />
+                          <span>
+                            <b>{session.title}</b>
+                            <span className="mt-0.5 block text-xs text-slate-500">
+                              {session.operationalDate ?? session.sessionDate.slice(0, 10)} ·{" "}
+                              {session.assignedStaffName || "ثبت‌کننده نامشخص"}
+                            </span>
+                          </span>
+                        </label>
+                      ))}
+                      {!eligibleAttendanceSessions.length ? (
+                        <p className="rounded-xl bg-[rgb(var(--surface-muted))] p-3 text-sm text-slate-500">
+                          سابقهٔ حضورِ بدون نیم‌سال در این بازه وجود ندارد.
+                        </p>
+                      ) : null}
+                    </div>
+                  </fieldset>
                 </div>
-              </fieldset>
-            ) : null}
-            <Button disabled={!selectedTermId || reconciling} onClick={onReconcile}>
-              {reconciling ? "در حال تطبیق…" : "ثبت تطبیق انتخاب‌شده"}
-            </Button>
+
+                <div className="sticky bottom-0 flex flex-wrap items-center justify-between gap-3 border-t border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card))]/95 pt-4 backdrop-blur">
+                  <p className="text-sm text-slate-600 dark:text-slate-300" aria-live="polite">
+                    <b className="text-ink">{selectedCount.toLocaleString("fa-IR")}</b> مورد برای
+                    انتساب انتخاب شده است.
+                  </p>
+                  <Button disabled={!selectedCount || reconciling} onClick={onReconcile}>
+                    {reconciling ? "در حال ثبت انتساب…" : "تأیید و ثبت انتساب"}
+                  </Button>
+                </div>
+              </>
+            )}
           </section>
         ) : (
           <section className="mt-5 rounded-2xl border border-amber-300 bg-amber-50/70 p-4 dark:border-amber-700 dark:bg-amber-950/20">
