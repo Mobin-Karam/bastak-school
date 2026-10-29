@@ -396,6 +396,20 @@ function SessionReviewRow({
   });
   const [open, setOpen] = useState(false);
   const [message, setMessage] = useState("");
+  const [studentQuery, setStudentQuery] = useState("");
+  const rosterNames = useMemo(
+    () => new Map((detail.data?.roster ?? []).map((student) => [student.id, student.name])),
+    [detail.data?.roster],
+  );
+  const visibleRecords = useMemo(() => {
+    const normalizedQuery = studentQuery.trim().toLocaleLowerCase("fa-IR");
+    if (!normalizedQuery) return detail.data?.records ?? [];
+    return (detail.data?.records ?? []).filter((record) =>
+      (rosterNames.get(record.studentId) ?? "")
+        .toLocaleLowerCase("fa-IR")
+        .includes(normalizedQuery),
+    );
+  }, [detail.data?.records, rosterNames, studentQuery]);
   return (
     <article className="rounded-2xl border border-[rgb(var(--border-subtle))] p-4">
       <button
@@ -426,9 +440,50 @@ function SessionReviewRow({
             <ErrorText onRetry={() => void detail.refetch()} />
           ) : (
             <>
-              <p className="text-sm font-bold">وضعیت دانش‌آموزان</p>
+              <section
+                className="principal-dashboard__session-identity"
+                aria-label="مشخصات جلسهٔ انتخاب‌شده"
+              >
+                <div>
+                  <span>کلاس و درس</span>
+                  <strong>{detail.data?.title ?? session.title}</strong>
+                  <small>{detail.data?.subjectName || "درس ثبت نشده"}</small>
+                </div>
+                <div>
+                  <span>استاد و زمان</span>
+                  <strong>{detail.data?.assignedStaffName || "استاد ثبت نشده"}</strong>
+                  <small>
+                    {formatDate(detail.data?.sessionDate ?? session.sessionDate)}
+                    {detail.data?.scheduledStartAt
+                      ? ` · ${new Intl.DateTimeFormat("fa-IR", {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                          timeZone: "Asia/Tehran",
+                        }).format(new Date(detail.data.scheduledStartAt))}`
+                      : ""}
+                  </small>
+                </div>
+                <div className="principal-dashboard__session-totals" aria-label="خلاصه حضور">
+                  <Count label="حاضر" value={session.present} />
+                  <Count label="غایب" value={session.absent} />
+                  <Count label="تأخیر" value={session.late} />
+                  <Count label="موجه" value={session.excused} />
+                </div>
+              </section>
+              <label className="principal-dashboard__student-search">
+                <span>جست‌وجوی دانش‌آموز</span>
+                <input
+                  value={studentQuery}
+                  onChange={(event) => setStudentQuery(event.target.value)}
+                  placeholder="نام دانش‌آموز را بنویسید"
+                  type="search"
+                />
+              </label>
+              <p className="text-sm font-bold">
+                وضعیت دانش‌آموزان ({visibleRecords.length.toLocaleString("fa-IR")})
+              </p>
               <ul className="grid gap-2">
-                {(detail.data?.records ?? []).map((record) => {
+                {visibleRecords.map((record) => {
                   const status =
                     record.physicalStatus === "legacy_unknown"
                       ? record.legacyStatus
@@ -453,8 +508,7 @@ function SessionReviewRow({
                       className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-[rgb(var(--surface-muted))] p-3 text-sm"
                     >
                       <span>
-                        {detail.data?.roster.find((student) => student.id === record.studentId)
-                          ?.name ?? "دانش‌آموز"}
+                        {rosterNames.get(record.studentId) ?? "دانش‌آموز"}
                         {record.note ? (
                           <small className="mt-1 block text-muted-foreground">
                             یادداشت استاد: {record.note}
@@ -468,6 +522,9 @@ function SessionReviewRow({
                   );
                 })}
               </ul>
+              {!visibleRecords.length ? (
+                <Empty text="دانش‌آموزی با این نام در این جلسه پیدا نشد." />
+              ) : null}
               {session.absent > 0 && (
                 <label className="text-sm font-semibold">
                   پیام مدیر برای استاد (درخواست توضیح غیبت‌ها)
@@ -480,12 +537,19 @@ function SessionReviewRow({
                   />
                 </label>
               )}
-              <Button
-                disabled={busy || (session.absent > 0 && !message.trim())}
-                onClick={() => onReview(message.trim())}
-              >
-                <Check size={16} /> ثبت بازبینی و انتقال به آرشیو
-              </Button>
+              <div className="principal-dashboard__review-action">
+                <small>
+                  {session.absent > 0
+                    ? "برای بایگانی این جلسه، پیام پیگیری غیبت‌ها برای استاد لازم است."
+                    : "این جلسه بدون غیبت، پس از بازبینی در آرشیو نگهداری می‌شود."}
+                </small>
+                <Button
+                  disabled={busy || (session.absent > 0 && !message.trim())}
+                  onClick={() => onReview(message.trim())}
+                >
+                  <Check size={16} /> ثبت بازبینی و انتقال به آرشیو
+                </Button>
+              </div>
             </>
           )}
         </div>
