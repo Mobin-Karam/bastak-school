@@ -18,6 +18,9 @@ import { ResponsiveModal } from "../../../../shared/ui/responsive-modal";
 import { Button, EmptyState, LoadingState } from "../../../../shared/ui/ui";
 import { AttendanceCoin } from "../../../../shared/ui/attendance-coin";
 import { DatePicker } from "../../../../shared/ui/date-picker";
+import { ResponsiveDrawer } from "../../../../shared/ui/responsive-drawer";
+import { getStudentOverview, getStudentProfile } from "../../students/api/students.api";
+import { StudentOverview } from "../../students/components/StudentOverview";
 
 type AttendanceStatus = SelfAttendanceRecord["status"];
 
@@ -80,6 +83,7 @@ export function TeacherClassAttendanceSheet({
   const [savedSessionId, setSavedSessionId] = useState<string | null>(null);
   const [reportText, setReportText] = useState<Record<string, string>>({});
   const [reportTarget, setReportTarget] = useState<{ id: string; name: string } | null>(null);
+  const [profileStudentId, setProfileStudentId] = useState<string | null>(null);
   const [sessionDate, setSessionDate] = useState(() => isoDay(new Date()));
   const participants = useQuery({
     queryKey: ["attendance", "participants", scopeKey, "class", entry?.classroom?.id],
@@ -90,6 +94,16 @@ export function TeacherClassAttendanceSheet({
     queryKey: ["attendance", "my-absence-reviews", scopeKey],
     queryFn: listMyAttendanceAbsenceReviews,
     enabled: open,
+  });
+  const studentOverview = useQuery({
+    queryKey: ["teacher", "student-overview", scopeKey, profileStudentId],
+    queryFn: () => getStudentOverview(profileStudentId!),
+    enabled: Boolean(profileStudentId),
+  });
+  const studentProfile = useQuery({
+    queryKey: ["teacher", "student-profile", scopeKey, profileStudentId],
+    queryFn: () => getStudentProfile(profileStudentId!),
+    enabled: Boolean(profileStudentId),
   });
   const classReviews = (reviews.data ?? []).filter(
     (review) => review.contextType === "class" && review.contextId === entry?.classroom?.id,
@@ -118,6 +132,7 @@ export function TeacherClassAttendanceSheet({
     setSavedSessionId(null);
     setReportText({});
     setReportTarget(null);
+    setProfileStudentId(null);
     setSessionDate(
       initialDate ??
         (entry ? latestTeacherSessionDate(isoDay(new Date()), entry.weekday) : isoDay(new Date())),
@@ -413,7 +428,18 @@ export function TeacherClassAttendanceSheet({
                     className={`rounded-2xl border bg-[rgb(var(--surface-muted))] p-3 ${recentAbsenceCounts[student.id] ? "border-amber-400 ring-1 ring-amber-300/70 dark:border-amber-500 dark:ring-amber-500/40" : "border-[rgb(var(--border-subtle))]"}`}
                   >
                     <div className="flex items-center justify-between gap-2">
-                      <p className="min-w-0 truncate text-sm font-bold text-ink">{student.name}</p>
+                      <div className="flex min-w-0 items-center gap-2">
+                        <p className="truncate text-sm font-bold text-ink">{student.name}</p>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="shrink-0 whitespace-nowrap"
+                          aria-label={`مشاهده پرونده ${student.name}`}
+                          onClick={() => setProfileStudentId(student.id)}
+                        >
+                          پرونده
+                        </Button>
+                      </div>
                       <div className="flex shrink-0 items-center gap-1.5">
                         {recentAbsenceCounts[student.id] ? (
                           <span className="rounded-full bg-amber-100 px-2 py-1 text-[10px] font-black text-amber-900 dark:bg-amber-950/60 dark:text-amber-100">
@@ -647,6 +673,45 @@ export function TeacherClassAttendanceSheet({
         </section>
       </ResponsiveModal>
       {discard.confirmation}
+      <ResponsiveDrawer
+        open={Boolean(profileStudentId)}
+        onOpenChange={(next) => !next && setProfileStudentId(null)}
+        title="پرونده دانش‌آموز"
+        description={studentProfile.data?.identity.fullName ?? "اطلاعات پرونده و وضعیت حضور"}
+        desktopSide="left"
+      >
+        {studentOverview.data || studentProfile.data ? (
+          <StudentOverview
+            student={(studentOverview.data ?? studentProfile.data)!}
+            overview={studentOverview.data ?? studentProfile.data}
+            profile={studentProfile.data}
+            loading={studentOverview.isLoading || studentProfile.isLoading}
+            error={studentOverview.isError || studentProfile.isError}
+            onRetry={() => {
+              void studentOverview.refetch();
+              void studentProfile.refetch();
+            }}
+          />
+        ) : studentOverview.isLoading || studentProfile.isLoading ? (
+          <LoadingState label="در حال دریافت پرونده دانش‌آموز…" />
+        ) : (
+          <EmptyState
+            title="پرونده دانش‌آموز دریافت نشد."
+            description="اتصال را بررسی کنید و دوباره تلاش کنید."
+            action={
+              <Button
+                variant="soft"
+                onClick={() => {
+                  void studentOverview.refetch();
+                  void studentProfile.refetch();
+                }}
+              >
+                تلاش دوباره
+              </Button>
+            }
+          />
+        )}
+      </ResponsiveDrawer>
       <ResponsiveModal
         open={Boolean(reportTarget)}
         onOpenChange={(next) => !next && setReportTarget(null)}
