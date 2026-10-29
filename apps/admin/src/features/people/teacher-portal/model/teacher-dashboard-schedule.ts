@@ -26,3 +26,43 @@ export function activeEntriesForTehranToday(entries: ScheduleEntry[], now: Date)
   const weekday = tehranSchoolWeekday(now);
   return entries.filter((entry) => entry.status === "ACTIVE" && entry.weekday === weekday);
 }
+
+/** Finds the next assigned weekly lesson in Tehran time, including the next school day. */
+export function nextTeacherScheduleEntry(
+  entries: ScheduleEntry[],
+  now: Date,
+): {
+  entry: ScheduleEntry;
+  dayOffset: number;
+} | null {
+  const currentWeekday = tehranSchoolWeekday(now);
+  const currentMinute = Number(
+    new Intl.DateTimeFormat("en-GB", {
+      timeZone: "Asia/Tehran",
+      hour: "2-digit",
+      minute: "2-digit",
+      hourCycle: "h23",
+    })
+      .format(now)
+      .replace(":", ""),
+  );
+  const currentMinutes = Math.floor(currentMinute / 100) * 60 + (currentMinute % 100);
+  const startMinutes = (entry: ScheduleEntry) => {
+    const [hour = "0", minute = "0"] = entry.startTime.split(":");
+    return Number(hour) * 60 + Number(minute);
+  };
+
+  for (let dayOffset = 0; dayOffset < 7; dayOffset += 1) {
+    const weekday = (currentWeekday + dayOffset) % 7;
+    const candidates = entries
+      .filter(
+        (entry) =>
+          entry.status === "ACTIVE" &&
+          entry.weekday === weekday &&
+          (dayOffset > 0 || startMinutes(entry) >= currentMinutes),
+      )
+      .sort((left, right) => startMinutes(left) - startMinutes(right));
+    if (candidates[0]) return { entry: candidates[0], dayOffset };
+  }
+  return null;
+}

@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { BookOpenCheck, CalendarClock, ChevronLeft, Clock3, UsersRound } from "lucide-react";
+import { ArrowLeft, CalendarClock, Clock3, MapPin } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../../../identity/auth";
@@ -8,10 +8,12 @@ import { todayIso } from "../../../../shared/lib/utils";
 import { useLocale } from "../../../../shared/ui/locale";
 import { Card, EmptyState, LoadingState } from "../../../../shared/ui/ui";
 import { getAdminDashboard } from "../../../analytics/dashboard/api/dashboard.api";
-import { AnnouncementEnvelope } from "../../../analytics/dashboard/components/AnnouncementEnvelope";
 import { CurrentPrayerCard } from "../../../analytics/school-home/components/CurrentPrayerCard";
 import { TeacherClassAttendanceSheet } from "../components/TeacherClassAttendanceSheet";
-import { activeEntriesForTehranToday } from "../model/teacher-dashboard-schedule";
+import {
+  activeEntriesForTehranToday,
+  nextTeacherScheduleEntry,
+} from "../model/teacher-dashboard-schedule";
 import { listTeacherLeaveRequests } from "../../../academics/schedule/api/teacher-leave.api";
 
 function tehranClockMinutes(date: Date) {
@@ -76,6 +78,15 @@ export function TeacherDashboard() {
         currentMinute >= clockMinutes(entry.startTime) &&
         currentMinute < clockMinutes(entry.endTime),
     ) ?? null;
+  const nextClass = activeLeave ? null : nextTeacherScheduleEntry(schedule.data ?? [], now);
+  const attendanceEntry = currentClass ?? nextClass?.entry ?? null;
+  const nextClassDayLabel = !nextClass
+    ? "برنامهٔ آینده"
+    : nextClass.dayOffset === 0
+      ? "امروز"
+      : nextClass.dayOffset === 1
+        ? "فردا"
+        : `${nextClass.dayOffset.toLocaleString("fa-IR")} روز دیگر`;
 
   if (schedule.isLoading && home.isLoading)
     return <LoadingState label="در حال آماده‌سازی میز استاد…" />;
@@ -85,120 +96,135 @@ export function TeacherDashboard() {
       className="home-workspace mx-auto grid w-full max-w-6xl gap-3 lg:content-start"
       aria-label="خانه استاد"
     >
-      <section className="workspace-actions flex items-baseline justify-between gap-3 px-1 pt-1">
-        <h2 className="sr-only">امروز در مدرسه</h2>
-        <span className="text-xs text-slate-500">
-          امروز · {formatDate(todayIso(), { dateStyle: "full" })}
-        </span>
-      </section>
+      <header className="rounded-3xl border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card))] px-4 py-4 sm:px-5">
+        <p className="text-xs font-bold text-brand">داشبورد امروز استاد</p>
+        <h1 className="mt-1 text-lg font-black text-ink sm:text-xl">
+          {formatDate(todayIso(), { dateStyle: "full" })}
+        </h1>
+      </header>
       {activeLeave ? (
         <Card className="border-amber-300 bg-amber-50 p-3 text-sm font-bold text-amber-900 dark:bg-amber-950/30 dark:text-amber-100">
           شما در بازه مرخصی تأییدشده هستید: {formatDate(activeLeave.startDate)} تا{" "}
           {formatDate(activeLeave.endDate)}
         </Card>
       ) : null}
-      <AnnouncementEnvelope announcements={home.data?.home?.announcements} />
-
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-        <Card
-          className={`col-span-2 min-w-0 p-3 sm:col-span-1 ${currentClass ? "border-2 border-brand bg-brand/5 shadow-lg shadow-brand/10" : ""}`}
-          aria-label="کلاس جاری"
-        >
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex items-center gap-2">
-              <span className="grid size-9 place-items-center rounded-xl bg-brand/10 text-brand">
-                <CalendarClock size={18} aria-hidden="true" />
+      <div className="grid gap-3 lg:grid-cols-[minmax(0,1.35fr)_minmax(18rem,.65fr)]">
+        <Card className="min-w-0 overflow-hidden p-0" aria-label="کلاس بعدی استاد">
+          <div className="flex items-start justify-between gap-4 p-4 sm:p-5">
+            <div className="flex min-w-0 items-start gap-3">
+              <span className="grid size-11 shrink-0 place-items-center rounded-2xl bg-brand/10 text-brand">
+                <CalendarClock size={21} aria-hidden="true" />
               </span>
-              <div>
-                <h2 className="text-sm font-black text-ink">کلاس همین حالا</h2>
-                <p className="mt-0.5 text-[11px] text-slate-500">بر اساس ساعت جاری تهران</p>
+              <div className="min-w-0">
+                <p className="text-xs font-bold text-brand">
+                  {currentClass ? "کلاس در حال برگزاری" : `کلاس بعدی · ${nextClassDayLabel}`}
+                </p>
+                <h2 className="mt-1 text-base font-black text-ink sm:text-lg">
+                  {attendanceEntry?.title ?? "کلاس آینده‌ای ثبت نشده است"}
+                </h2>
+                {attendanceEntry ? (
+                  <p className="mt-1 text-xs leading-5 text-slate-500">
+                    {attendanceEntry.classroom?.name ?? "کلاس ثبت نشده"} ·{" "}
+                    {attendanceEntry.classBook?.book.titleFa ?? "درس ثبت نشده"}
+                  </p>
+                ) : null}
               </div>
             </div>
-            <Link
-              className="inline-flex items-center gap-1 text-xs font-bold text-brand"
-              to="/admin/schedule"
-            >
-              برنامه کامل <ChevronLeft size={15} aria-hidden="true" />
-            </Link>
           </div>
-          {currentClass ? (
+          {attendanceEntry ? (
             <button
               type="button"
-              onClick={() => setSelectedClass(currentClass)}
-              className="mt-3 flex w-full items-center gap-2 rounded-xl bg-brand p-3 text-right text-white outline-none transition hover:bg-brand/90 focus-visible:ring-2 focus-visible:ring-brand motion-reduce:transition-none"
-              aria-label={`باز کردن فهرست ${currentClass.title}`}
+              onClick={() => setSelectedClass(attendanceEntry)}
+              className="flex w-full items-center justify-between gap-3 border-t border-brand/15 bg-brand/5 px-4 py-3 text-right outline-none transition-colors hover:bg-brand/10 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand sm:px-5"
+              aria-label={`باز کردن جلسه ${attendanceEntry.title}`}
             >
-              <Clock3 size={17} className="shrink-0 text-white" aria-hidden="true" />
-              <div className="min-w-0">
-                <p className="truncate text-sm font-bold text-white">{currentClass.title}</p>
-                <p className="mt-0.5 text-xs text-white/80">
-                  {currentClass.startTime} تا {currentClass.endTime}
-                  {currentClass.room ? ` · ${currentClass.room}` : ""}
-                </p>
-              </div>
+              <span className="flex min-w-0 items-center gap-2 text-sm font-black text-brand">
+                <Clock3 size={17} className="shrink-0" aria-hidden="true" />
+                {attendanceEntry.startTime} تا {attendanceEntry.endTime}
+                {attendanceEntry.room ? ` · ${attendanceEntry.room}` : ""}
+              </span>
+              <span className="inline-flex shrink-0 items-center gap-1 text-xs font-bold text-brand">
+                ورود به جلسه <ArrowLeft size={15} aria-hidden="true" />
+              </span>
             </button>
           ) : (
-            <EmptyState title="در این ساعت کلاسی ندارید." />
+            <div className="border-t border-[rgb(var(--border-subtle))] px-4 py-3 sm:px-5">
+              <EmptyState title="در برنامهٔ شما کلاس آینده‌ای وجود ندارد." />
+            </div>
           )}
         </Card>
 
-        <CurrentPrayerCard times={prayerTimes} />
+        <CurrentPrayerCard times={prayerTimes} className="min-h-32 h-full" />
       </div>
 
-      <section aria-labelledby="teacher-classes-title" className="grid gap-3">
-        <div className="flex items-center justify-between gap-3 px-1">
+      <section
+        aria-labelledby="teacher-classes-title"
+        className="min-w-0 rounded-3xl border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card))] p-4 sm:p-5"
+      >
+        <div className="flex items-start justify-between gap-3">
           <div>
-            <h2 id="teacher-classes-title" className="text-sm font-black text-ink">
-              کلاس‌های امروز من
+            <p className="text-xs font-bold text-brand">برنامهٔ امروز</p>
+            <h2 id="teacher-classes-title" className="mt-1 text-base font-black text-ink">
+              خط زمانی کلاس‌های من
             </h2>
-            <p className="mt-0.5 text-[11px] text-slate-500">
-              فقط کلاس‌های واگذارشده‌ای که امروز در برنامه شما هستند.
+            <p className="mt-1 text-xs leading-5 text-slate-500">
+              برای حضور و غیاب، فهرست دانش‌آموزان، سکه و گزارش خصوصی هر جلسه را باز کنید.
             </p>
           </div>
           <Link
-            className="inline-flex shrink-0 items-center gap-1 text-xs font-bold text-brand"
+            className="shrink-0 text-xs font-bold text-brand hover:underline"
             to="/admin/schedule"
           >
-            برنامه هفتگی <ChevronLeft size={15} aria-hidden="true" />
+            برنامهٔ هفتگی
           </Link>
         </div>
         {schedule.isLoading ? (
-          <LoadingState label="در حال دریافت کلاس‌های امروز شما…" />
+          <div className="mt-4">
+            <LoadingState label="در حال دریافت کلاس‌های امروز شما…" />
+          </div>
         ) : schedule.isError ? (
-          <EmptyState title="برنامهٔ امروز شما دریافت نشد." />
+          <div className="mt-4">
+            <EmptyState title="برنامهٔ امروز شما دریافت نشد." />
+          </div>
         ) : todayEntries.length ? (
-          <div className="grid gap-3 sm:grid-cols-2 min-[1200px]:grid-cols-3">
+          <ol
+            className="mt-5 space-y-3 border-s-2 border-brand/20 ps-4 sm:ps-5"
+            aria-label="خط زمانی کلاس‌های امروز"
+          >
             {todayEntries.map((entry) => (
-              <Card key={entry.id} className="min-w-0 p-3">
-                <div className="flex items-start gap-2">
-                  <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-brand/10 text-brand">
-                    <UsersRound size={17} aria-hidden="true" />
-                  </span>
-                  <div className="min-w-0">
-                    <h3 className="truncate text-sm font-black text-ink">{entry.title}</h3>
-                    <p className="mt-0.5 text-[11px] text-slate-500">
-                      {entry.classroom?.name ?? "کلاس ثبت نشده"}
-                    </p>
-                  </div>
-                </div>
-                <div className="mt-3 flex min-w-0 items-center gap-1.5 rounded-lg bg-[rgb(var(--surface-muted))] px-2.5 py-2 text-xs text-slate-700 dark:text-slate-200">
-                  <BookOpenCheck size={14} className="shrink-0 text-brand" aria-hidden="true" />
-                  <span className="truncate font-bold">
-                    {entry.classBook?.book.titleFa ?? "درس ثبت نشده"}
-                  </span>
-                </div>
+              <li key={entry.id} className="relative">
+                <span
+                  className="absolute -start-[1.58rem] top-5 grid size-5 place-items-center rounded-full border-4 border-[rgb(var(--surface-card))] bg-brand sm:-start-[1.82rem]"
+                  aria-hidden="true"
+                />
                 <button
                   type="button"
                   onClick={() => setSelectedClass(entry)}
-                  className="mt-3 inline-flex min-h-10 items-center gap-1 rounded-lg px-2 text-xs font-bold text-brand outline-none hover:bg-brand/5 focus-visible:ring-2 focus-visible:ring-brand"
+                  className="grid w-full gap-3 rounded-2xl border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-muted))] p-4 text-right transition-colors hover:border-brand/50 hover:bg-brand/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand sm:grid-cols-[7rem_minmax(0,1fr)_auto] sm:items-center"
+                  aria-label={`باز کردن جلسه ${entry.title}`}
                 >
-                  فهرست کلاس و حضور <ChevronLeft size={14} aria-hidden="true" />
+                  <time className="font-black tabular-nums text-brand" dir="ltr">
+                    {entry.startTime} — {entry.endTime}
+                  </time>
+                  <div className="min-w-0">
+                    <h3 className="truncate text-lg font-black text-ink sm:text-xl">
+                      {entry.classroom?.name ?? entry.title}
+                    </h3>
+                    <p className="mt-1 truncate text-xs text-slate-600 dark:text-slate-300">
+                      {entry.title} · {entry.classBook?.book.titleFa ?? "درس ثبت نشده"}
+                    </p>
+                  </div>
+                  <span className="flex items-center gap-1 text-xs font-bold text-brand">
+                    <MapPin size={15} aria-hidden="true" /> {entry.room || "بدون اتاق"}
+                  </span>
                 </button>
-              </Card>
+              </li>
             ))}
-          </div>
+          </ol>
         ) : (
-          <EmptyState title="امروز کلاس واگذارشده‌ای ندارید." />
+          <div className="mt-4">
+            <EmptyState title="امروز کلاس واگذارشده‌ای ندارید." />
+          </div>
         )}
       </section>
 
