@@ -147,23 +147,39 @@
   justify-content: space-between;
   gap: 0.75rem;
   padding: 0.9rem;
-  border: 1px solid rgb(225 29 72 / 44%);
-  border-inline-start: 0.3rem solid rgb(225 29 72);
+  border: 1px solid rgb(180 83 9 / 72%);
+  border-inline-start: 0.3rem solid rgb(159 18 57);
   border-radius: 0.8rem;
-  background: rgb(255 247 214 / 92%);
+  background: rgb(254 243 199);
 }
 .dark .principal-dashboard__absent-student-row {
-  border-color: rgb(251 113 133 / 48%);
-  background: rgb(69 50 14 / 72%);
+  border-color: rgb(253 230 138 / 72%);
+  background: rgb(69 32 6);
 }
 .principal-dashboard__absent-student-name {
-  color: rgb(159 18 57);
+  color: rgb(136 19 55);
   font-size: 1.02rem;
   font-weight: 900;
   line-height: 1.55;
 }
 .dark .principal-dashboard__absent-student-name {
-  color: rgb(254 205 211);
+  color: rgb(255 228 230);
+}
+.principal-dashboard__absent-student-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2rem;
+  padding-inline: 0.7rem;
+  border-radius: 999px;
+  background: rgb(136 19 55);
+  color: white;
+  font-size: 0.75rem;
+  font-weight: 900;
+  line-height: 1.25;
+}
+.dark .principal-dashboard__absent-student-badge {
+  background: rgb(253 164 175);
+  color: rgb(76 5 25);
 }
 .principal-dashboard__review-action {
   position: sticky;

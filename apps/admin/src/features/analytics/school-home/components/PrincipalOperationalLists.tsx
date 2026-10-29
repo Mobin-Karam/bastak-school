@@ -600,8 +600,8 @@ function SessionReviewRow({
                         </small>
                       ) : null}
                     </span>
-                    <span className="rounded-full bg-rose-200 px-3 py-1 text-xs font-black text-rose-950 dark:bg-rose-950 dark:text-rose-100">
-                      غایب
+                    <span className="principal-dashboard__absent-student-badge">
+                      غایب · نیازمند پیگیری
                     </span>
                   </li>
                 ))}
