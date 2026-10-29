@@ -163,7 +163,7 @@ describe("PrincipalDashboard", () => {
     const sessionButton = await screen.findByRole("button", { name: /پایه اول.*غایب/ });
     await user.click(sessionButton);
     expect(await screen.findByText("علی رضایی")).toBeVisible();
-    expect(screen.getByText("غایب: ۱")).toBeVisible();
+    expect(screen.getByText("غایبِ نیازمند پیگیری: ۱")).toBeVisible();
     const submit = screen.getByRole("button", { name: /ثبت بازبینی و انتقال به آرشیو/ });
     expect(submit).toBeDisabled();
     await user.type(screen.getByLabelText(/پیام مدیر برای استاد/), "علت غیبت را پیگیری کنید.");

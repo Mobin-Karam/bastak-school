@@ -401,33 +401,21 @@ function SessionReviewRow({
     () => new Map((detail.data?.roster ?? []).map((student) => [student.id, student.name])),
     [detail.data?.roster],
   );
+  const absentRecords = useMemo(
+    () => (detail.data?.records ?? []).filter((record) => attendanceStatus(record) === "absent"),
+    [detail.data?.records],
+  );
   const visibleRecords = useMemo(() => {
     const normalizedQuery = studentQuery.trim().toLocaleLowerCase("fa-IR");
-    if (!normalizedQuery) return detail.data?.records ?? [];
-    return (detail.data?.records ?? []).filter((record) =>
+    if (!normalizedQuery) return absentRecords;
+    return absentRecords.filter((record) =>
       (rosterNames.get(record.studentId) ?? "")
         .toLocaleLowerCase("fa-IR")
         .includes(normalizedQuery),
     );
-  }, [detail.data?.records, rosterNames, studentQuery]);
-  const attendanceTotals = useMemo(() => {
-    if (!detail.data) {
-      return {
-        present: session.present,
-        absent: session.absent,
-        late: session.late,
-        excused: session.excused,
-      };
-    }
-    return detail.data.records.reduce(
-      (totals, record) => {
-        totals[attendanceStatus(record)] += 1;
-        return totals;
-      },
-      { present: 0, absent: 0, late: 0, excused: 0 },
-    );
-  }, [detail.data, session.absent, session.excused, session.late, session.present]);
-  const needsAbsenceMessage = attendanceTotals.absent > 0;
+  }, [absentRecords, rosterNames, studentQuery]);
+  const absentCount = detail.data ? absentRecords.length : session.absent;
+  const needsAbsenceMessage = absentCount > 0;
   return (
     <article className="rounded-2xl border border-[rgb(var(--border-subtle))] p-4">
       <button
@@ -442,12 +430,11 @@ function SessionReviewRow({
         <span className="flex items-start justify-between gap-3">
           <strong>{session.title}</strong>
           <span className="rounded-full bg-amber-100 px-2 py-1 text-xs font-bold text-amber-900 dark:bg-amber-950 dark:text-amber-100">
-            {attendanceTotals.absent.toLocaleString("fa-IR")} غایب
+            {absentCount.toLocaleString("fa-IR")} غایب
           </span>
         </span>
         <small className="mt-1 block text-muted-foreground">
-          {formatDate(session.sessionDate)} · {attendanceTotals.present.toLocaleString("fa-IR")}{" "}
-          حاضر · {attendanceTotals.late.toLocaleString("fa-IR")} تأخیر
+          {formatDate(session.sessionDate)} · فقط غیبت‌های نیازمند پیگیری
         </small>
       </button>
       {open && (
@@ -481,11 +468,8 @@ function SessionReviewRow({
                       : ""}
                   </small>
                 </div>
-                <div className="principal-dashboard__session-totals" aria-label="خلاصه حضور">
-                  <Count label="حاضر" value={attendanceTotals.present} />
-                  <Count label="غایب" value={attendanceTotals.absent} />
-                  <Count label="تأخیر" value={attendanceTotals.late} />
-                  <Count label="موجه" value={attendanceTotals.excused} />
+                <div className="principal-dashboard__session-totals" aria-label="خلاصه غیبت‌ها">
+                  <Count label="غایبِ نیازمند پیگیری" value={absentCount} />
                 </div>
               </section>
               <label className="principal-dashboard__student-search">
@@ -498,47 +482,30 @@ function SessionReviewRow({
                 />
               </label>
               <p className="text-sm font-bold">
-                وضعیت دانش‌آموزان ({visibleRecords.length.toLocaleString("fa-IR")})
+                دانش‌آموزان غایب ({visibleRecords.length.toLocaleString("fa-IR")})
               </p>
               <ul className="grid gap-2">
-                {visibleRecords.map((record) => {
-                  const status = attendanceStatus(record);
-                  const statusStyle = {
-                    present:
-                      "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200",
-                    absent: "bg-orange-100 text-orange-900 dark:bg-orange-950 dark:text-orange-200",
-                    late: "bg-sky-100 text-sky-800 dark:bg-sky-950 dark:text-sky-200",
-                    excused:
-                      "bg-violet-100 text-violet-800 dark:bg-violet-950 dark:text-violet-200",
-                  }[status];
-                  const statusLabel = {
-                    present: "حاضر",
-                    absent: "غایب",
-                    late: "تأخیر",
-                    excused: "موجه",
-                  }[status];
-                  return (
-                    <li
-                      key={record.id}
-                      className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-[rgb(var(--surface-muted))] p-3 text-sm"
-                    >
-                      <span>
-                        {rosterNames.get(record.studentId) ?? "دانش‌آموز"}
-                        {record.note ? (
-                          <small className="mt-1 block text-muted-foreground">
-                            یادداشت استاد: {record.note}
-                          </small>
-                        ) : null}
-                      </span>
-                      <span className={`rounded-full px-3 py-1 text-xs font-bold ${statusStyle}`}>
-                        {statusLabel}
-                      </span>
-                    </li>
-                  );
-                })}
+                {visibleRecords.map((record) => (
+                  <li
+                    key={record.id}
+                    className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-[rgb(var(--surface-muted))] p-3 text-sm"
+                  >
+                    <span>
+                      {rosterNames.get(record.studentId) ?? "دانش‌آموز"}
+                      {record.note ? (
+                        <small className="mt-1 block text-muted-foreground">
+                          یادداشت استاد: {record.note}
+                        </small>
+                      ) : null}
+                    </span>
+                    <span className="rounded-full bg-orange-100 px-3 py-1 text-xs font-bold text-orange-900 dark:bg-orange-950 dark:text-orange-200">
+                      غایب
+                    </span>
+                  </li>
+                ))}
               </ul>
               {!visibleRecords.length ? (
-                <Empty text="دانش‌آموزی با این نام در این جلسه پیدا نشد." />
+                <Empty text="دانش‌آموز غایبی با این نام در این جلسه پیدا نشد." />
               ) : null}
               {needsAbsenceMessage && (
                 <label className="text-sm font-semibold">
