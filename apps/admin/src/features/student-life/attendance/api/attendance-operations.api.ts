@@ -48,7 +48,7 @@ export type AttendancePolicy = {
   allowPartialSubmission: boolean;
   lateCountsAsPresent: boolean;
   correctionRequiresReview: boolean;
-  principalReviewMode: "automatic" | "absences_only";
+  principalReviewMode: "all_sessions" | "absences_only";
 };
 export const getAttendancePolicy = () => api.get<AttendancePolicy>("/attendance/policy");
 export const updateAttendancePolicy = (body: AttendancePolicy) =>
@@ -137,7 +137,11 @@ export const createHistoricalAttendanceSession = (body: {
   title: string;
   date: string;
   reason: string;
-}) => api.post<{ id: string; revision: number; duplicate: boolean }>("/attendance/historical-sessions", body);
+}) =>
+  api.post<{ id: string; revision: number; duplicate: boolean }>(
+    "/attendance/historical-sessions",
+    body,
+  );
 export const getAttendanceHistorySessions = (filters: AttendanceHistorySessionFilters = {}) => {
   const search = new URLSearchParams({
     page: String(filters.page ?? 1),

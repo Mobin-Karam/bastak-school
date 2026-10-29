@@ -160,6 +160,31 @@ describe("PrincipalDashboardService", () => {
     });
   });
 
+  it("puts every completed session in the principal queue when the all-session policy is enabled", async () => {
+    const queries: string[] = [];
+    const service = new PrincipalDashboardService({
+      query: jest.fn(async (sql: string) => {
+        queries.push(sql);
+        if (sql.includes("SELECT principalReviewMode"))
+          return [{ principalReviewMode: "all_sessions" }];
+        if (sql.includes("COUNT(DISTINCT s.id)")) return [{ count: 1 }];
+        if (sql.includes("attendance_session_reviews")) return [];
+        if (sql.includes("COUNT(r.id) total"))
+          return [{ present: 0, absent: 0, late: 0, excused: 0, total: 0 }];
+        return [{ count: 0 }];
+      }),
+    } as never);
+    const dashboard = await service.get(principal, "2026-10-14", "2026-10-20");
+    expect(dashboard.sessionReviews).toMatchObject({
+      mode: "all_sessions",
+      pendingCount: 1,
+    });
+    const reviewCountQuery = queries.find((sql) =>
+      sql.includes("COUNT(DISTINCT s.id)"),
+    );
+    expect(reviewCountQuery).not.toContain("absent_record");
+  });
+
   it("never exposes operational principal lists to an attendance reader", async () => {
     const query = jest.fn().mockResolvedValue([]);
     const service = new PrincipalDashboardService({ query } as never);
@@ -191,7 +216,11 @@ describe("PrincipalDashboardService", () => {
           ...principal,
           roles: ["RELIGIOUS_EDUCATION_MANAGER"],
           role: "RELIGIOUS_EDUCATION_MANAGER",
-          capabilities: ["schedule.read.all", "attendance.read", "attendance.manage"],
+          capabilities: [
+            "schedule.read.all",
+            "attendance.read",
+            "attendance.manage",
+          ],
         },
         "2026-10-14",
         "2026-10-20",

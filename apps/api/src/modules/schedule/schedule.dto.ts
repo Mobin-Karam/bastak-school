@@ -1,4 +1,5 @@
 import {
+  IsArray,
   IsIn,
   ArrayMaxSize,
   ArrayMinSize,
@@ -52,6 +53,21 @@ export class UpdateLegacyAcademicTermDto {
 export class LegacyAcademicLifecycleDto {
   @IsIn(["activate", "archive", "reopen", "close-correction"]) action!:
     "activate" | "archive" | "reopen" | "close-correction";
+}
+
+/** Explicit, auditable allocation of legacy data; never performed automatically. */
+export class ReconcileLegacyAcademicCycleDto {
+  @IsUUID() organizationId!: string;
+  @IsUUID() academicYearId!: string;
+  @IsUUID() termId!: string;
+  @IsArray()
+  @ArrayMaxSize(500)
+  @IsUUID("4", { each: true })
+  scheduleEntryIds!: string[];
+  @IsArray()
+  @ArrayMaxSize(500)
+  @IsUUID("4", { each: true })
+  attendanceSessionIds!: string[];
 }
 
 export class CreateScheduleEntriesDto {

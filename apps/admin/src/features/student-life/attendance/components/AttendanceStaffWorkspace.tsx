@@ -723,7 +723,9 @@ export function AttendanceStaffWorkspace({
   const auth = useAuth();
   const cache = useQueryClient();
   const [category, setCategory] = useState<"class" | "class_group" | "dorm">("class");
-  const [officeTab, setOfficeTab] = useState<"teacher" | "groups" | "history" | "reports">("teacher");
+  const [officeTab, setOfficeTab] = useState<"teacher" | "groups" | "history" | "reports">(
+    "teacher",
+  );
   const [contextFilter, setContextFilter] = useState("");
   const [academicYearId, setAcademicYearId] = useState("");
   const [termId, setTermId] = useState("");
@@ -765,14 +767,7 @@ export function AttendanceStaffWorkspace({
       ),
   });
   const report = useQuery({
-    queryKey: [
-      "attendance-report-summary",
-      scope,
-      reportFrom,
-      reportTo,
-      academicYearId,
-      termId,
-    ],
+    queryKey: ["attendance-report-summary", scope, reportFrom, reportTo, academicYearId, termId],
     queryFn: () =>
       getAttendanceReportSummary({
         from: reportFrom,
@@ -874,7 +869,14 @@ export function AttendanceStaffWorkspace({
     mutationFn: createHistoricalAttendanceSession,
     onSuccess: () => {
       setManualHistoricalOpen(false);
-      setManualHistorical({ classroomId: "", teacherId: "", subjectId: "", date: "", title: "", reason: "" });
+      setManualHistorical({
+        classroomId: "",
+        teacherId: "",
+        subjectId: "",
+        date: "",
+        title: "",
+        reason: "",
+      });
       void cache.invalidateQueries({ queryKey: ["attendance-session-history", scope] });
       void cache.invalidateQueries({ queryKey: ["attendance-historical-candidates"] });
       notify("جلسهٔ تاریخی دستی ثبت شد.", "success");
@@ -888,6 +890,11 @@ export function AttendanceStaffWorkspace({
     enabled: section === "pool",
     refetchInterval: 10000,
   });
+  useEffect(() => {
+    void cache.invalidateQueries({ queryKey: ["attendance-overview", scope] });
+    void cache.invalidateQueries({ queryKey: ["attendance-session-history", scope] });
+    void cache.invalidateQueries({ queryKey: ["attendance-pools", scope] });
+  }, [cache, refreshVersion, scope]);
   useEffect(() => {
     setSelectedId(null);
     setSessionsPage(1);
@@ -969,8 +976,8 @@ export function AttendanceStaffWorkspace({
         allowPartialSubmission: form.get("allowPartialSubmission") === "on",
         lateCountsAsPresent: form.get("lateCountsAsPresent") === "on",
         correctionRequiresReview: form.get("correctionRequiresReview") === "on",
-        principalReviewMode: String(form.get("principalReviewMode") ?? "absences_only") as
-          "automatic" | "absences_only",
+        principalReviewMode:
+          form.get("principalReviewAllSessions") === "on" ? "all_sessions" : "absences_only",
       });
       await policy.refetch();
       notify("قانون حضور و غیاب مدرسه ذخیره شد.", "success");
@@ -1183,17 +1190,19 @@ export function AttendanceStaffWorkspace({
                 />
                 اصلاح حضور نیازمند تأیید ناظر باشد
               </label>
-              <label className="grid gap-1">
-                بازبینی روزانهٔ مدیر
-                <select
-                  name="principalReviewMode"
-                  className={field}
-                  defaultValue={policy.data.principalReviewMode}
+              <label className="flex items-start gap-2">
+                <input
+                  name="principalReviewAllSessions"
+                  type="checkbox"
+                  defaultChecked={policy.data.principalReviewMode === "all_sessions"}
                   disabled={policySaving}
-                >
-                  <option value="automatic">تکمیل خودکار همهٔ جلسه‌ها</option>
-                  <option value="absences_only">فقط جلسه‌های دارای غیبت برای بررسی بیاید</option>
-                </select>
+                />
+                <span>
+                  <b className="block">بازبینی همهٔ جلسه‌ها توسط مدیر</b>
+                  <span className="text-xs font-normal text-slate-500 dark:text-slate-300">
+                    اگر خاموش باشد، فقط جلسه‌های دارای غیبت در صف بازبینی مدیر قرار می‌گیرند.
+                  </span>
+                </span>
               </label>
             </div>
             <button
@@ -1212,7 +1221,8 @@ export function AttendanceStaffWorkspace({
             <div>
               <p className="text-sm font-black">تطبیق حضورهای گذشته</p>
               <p className="mt-1 text-xs leading-5 text-slate-600 dark:text-slate-300">
-                فقط رخدادهای برنامهٔ legacy که هنوز جلسهٔ حضور ندارند پیشنهاد می‌شوند؛ هیچ موردی بدون تأیید شما ثبت نمی‌شود.
+                فقط رخدادهای برنامهٔ legacy که هنوز جلسهٔ حضور ندارند پیشنهاد می‌شوند؛ هیچ موردی
+                بدون تأیید شما ثبت نمی‌شود.
               </p>
             </div>
             <button
@@ -1239,30 +1249,58 @@ export function AttendanceStaffWorkspace({
           ) : null}
           {reconciliationOpen && academicYearId && termId ? (
             historicalCandidates.isLoading ? (
-              <p role="status" className="mt-3 text-xs text-slate-500">در حال پیدا کردن رخدادهای بدون حضور…</p>
+              <p role="status" className="mt-3 text-xs text-slate-500">
+                در حال پیدا کردن رخدادهای بدون حضور…
+              </p>
             ) : historicalCandidates.isError ? (
               <p role="alert" className="mt-3 text-xs text-rose-700 dark:text-rose-300">
-                صف تطبیق دریافت نشد. <button type="button" className="font-bold underline" onClick={() => void historicalCandidates.refetch()}>تلاش دوباره</button>
+                صف تطبیق دریافت نشد.{" "}
+                <button
+                  type="button"
+                  className="font-bold underline"
+                  onClick={() => void historicalCandidates.refetch()}
+                >
+                  تلاش دوباره
+                </button>
               </p>
             ) : (
               <ul className="mt-3 grid gap-2" aria-label="رخدادهای پیشنهادی حضور گذشته">
                 {(historicalCandidates.data ?? []).slice(0, 20).map((candidate) => (
-                  <li key={`${candidate.entryId}:${candidate.date}`} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-200/70 bg-white/80 p-3 text-xs dark:border-amber-900 dark:bg-slate-950/70">
+                  <li
+                    key={`${candidate.entryId}:${candidate.date}`}
+                    className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-200/70 bg-white/80 p-3 text-xs dark:border-amber-900 dark:bg-slate-950/70"
+                  >
                     <span>
                       <strong className="text-sm">{candidate.title}</strong>
-                      <span className="mt-1 block text-slate-500">{candidate.classroomName} · {candidate.teacherName} · {candidate.subjectName || "بدون کتاب"} · {new Date(`${candidate.date}T12:00:00Z`).toLocaleDateString("fa-IR-u-ca-persian")} · {candidate.startTime} تا {candidate.endTime}</span>
+                      <span className="mt-1 block text-slate-500">
+                        {candidate.classroomName} · {candidate.teacherName} ·{" "}
+                        {candidate.subjectName || "بدون کتاب"} ·{" "}
+                        {new Date(`${candidate.date}T12:00:00Z`).toLocaleDateString(
+                          "fa-IR-u-ca-persian",
+                        )}{" "}
+                        · {candidate.startTime} تا {candidate.endTime}
+                      </span>
                     </span>
                     <button
                       type="button"
                       className={`${action} min-h-10 border border-amber-300 bg-amber-100 text-amber-950 dark:border-amber-800 dark:bg-amber-900/40 dark:text-amber-100`}
                       disabled={importHistoricalOccurrence.isPending}
-                      onClick={() => importHistoricalOccurrence.mutate({ entryId: candidate.entryId, date: candidate.date })}
+                      onClick={() =>
+                        importHistoricalOccurrence.mutate({
+                          entryId: candidate.entryId,
+                          date: candidate.date,
+                        })
+                      }
                     >
                       ایجاد جلسه
                     </button>
                   </li>
                 ))}
-                {!historicalCandidates.data?.length ? <li className="rounded-xl bg-white/70 p-3 text-xs text-slate-600 dark:bg-slate-950/70 dark:text-slate-300">رخداد بدون جلسه‌ای در این بازه پیدا نشد.</li> : null}
+                {!historicalCandidates.data?.length ? (
+                  <li className="rounded-xl bg-white/70 p-3 text-xs text-slate-600 dark:bg-slate-950/70 dark:text-slate-300">
+                    رخداد بدون جلسه‌ای در این بازه پیدا نشد.
+                  </li>
+                ) : null}
               </ul>
             )
           ) : null}
@@ -1276,11 +1314,24 @@ export function AttendanceStaffWorkspace({
         desktopSide="left"
       >
         <form
-          className="grid gap-3" dir="rtl"
+          className="grid gap-3"
+          dir="rtl"
           onSubmit={(event) => {
             event.preventDefault();
-            const book = (educationBooks.data ?? []).find((item) => item.id === manualHistorical.subjectId);
-            if (!organizationId || !academicYearId || !termId || !manualHistorical.classroomId || !manualHistorical.teacherId || !book || !manualHistorical.date || !manualHistorical.title.trim() || !manualHistorical.reason.trim()) {
+            const book = (educationBooks.data ?? []).find(
+              (item) => item.id === manualHistorical.subjectId,
+            );
+            if (
+              !organizationId ||
+              !academicYearId ||
+              !termId ||
+              !manualHistorical.classroomId ||
+              !manualHistorical.teacherId ||
+              !book ||
+              !manualHistorical.date ||
+              !manualHistorical.title.trim() ||
+              !manualHistorical.reason.trim()
+            ) {
               notify("همهٔ اطلاعات جلسهٔ تاریخی را کامل کنید.", "error");
               return;
             }
@@ -1300,38 +1351,102 @@ export function AttendanceStaffWorkspace({
         >
           <label className="grid gap-1 text-sm font-bold">
             کلاس
-            <select className={field} value={manualHistorical.classroomId} onChange={(event) => setManualHistorical((value) => ({ ...value, classroomId: event.target.value }))} required>
+            <select
+              className={field}
+              value={manualHistorical.classroomId}
+              onChange={(event) =>
+                setManualHistorical((value) => ({ ...value, classroomId: event.target.value }))
+              }
+              required
+            >
               <option value="">انتخاب کلاس</option>
-              {contexts.filter((context) => context.contextType === "class").map((context) => <option key={context.id} value={context.id}>{context.name}</option>)}
+              {contexts
+                .filter((context) => context.contextType === "class")
+                .map((context) => (
+                  <option key={context.id} value={context.id}>
+                    {context.name}
+                  </option>
+                ))}
             </select>
           </label>
           <label className="grid gap-1 text-sm font-bold">
             استاد
-            <select className={field} value={manualHistorical.teacherId} onChange={(event) => setManualHistorical((value) => ({ ...value, teacherId: event.target.value }))} required>
-              <option value="">{academicTeachers.isLoading ? "در حال دریافت استادها…" : "انتخاب استاد"}</option>
-              {(academicTeachers.data?.items ?? []).map((teacher) => <option key={teacher.id} value={teacher.id}>{[teacher.firstName, teacher.lastName].filter(Boolean).join(" ") || teacher.username}</option>)}
+            <select
+              className={field}
+              value={manualHistorical.teacherId}
+              onChange={(event) =>
+                setManualHistorical((value) => ({ ...value, teacherId: event.target.value }))
+              }
+              required
+            >
+              <option value="">
+                {academicTeachers.isLoading ? "در حال دریافت استادها…" : "انتخاب استاد"}
+              </option>
+              {(academicTeachers.data?.items ?? []).map((teacher) => (
+                <option key={teacher.id} value={teacher.id}>
+                  {[teacher.firstName, teacher.lastName].filter(Boolean).join(" ") ||
+                    teacher.username}
+                </option>
+              ))}
             </select>
           </label>
           <label className="grid gap-1 text-sm font-bold">
             کتاب
-            <select className={field} value={manualHistorical.subjectId} onChange={(event) => setManualHistorical((value) => ({ ...value, subjectId: event.target.value }))} required>
-              <option value="">{educationBooks.isLoading ? "در حال دریافت کتاب‌ها…" : "انتخاب کتاب"}</option>
-              {(educationBooks.data ?? []).map((book) => <option key={book.id} value={book.id}>{book.titleFa}</option>)}
+            <select
+              className={field}
+              value={manualHistorical.subjectId}
+              onChange={(event) =>
+                setManualHistorical((value) => ({ ...value, subjectId: event.target.value }))
+              }
+              required
+            >
+              <option value="">
+                {educationBooks.isLoading ? "در حال دریافت کتاب‌ها…" : "انتخاب کتاب"}
+              </option>
+              {(educationBooks.data ?? []).map((book) => (
+                <option key={book.id} value={book.id}>
+                  {book.titleFa}
+                </option>
+              ))}
             </select>
           </label>
           <label className="grid gap-1 text-sm font-bold">
             تاریخ جلسه
-            <DatePicker calendar="persian" value={manualHistorical.date} onChange={(date) => setManualHistorical((value) => ({ ...value, date }))} ariaLabel="تاریخ جلسهٔ گذشته" required />
+            <DatePicker
+              calendar="persian"
+              value={manualHistorical.date}
+              onChange={(date) => setManualHistorical((value) => ({ ...value, date }))}
+              ariaLabel="تاریخ جلسهٔ گذشته"
+              required
+            />
           </label>
           <label className="grid gap-1 text-sm font-bold">
             عنوان جلسه
-            <input className={field} value={manualHistorical.title} onChange={(event) => setManualHistorical((value) => ({ ...value, title: event.target.value }))} required />
+            <input
+              className={field}
+              value={manualHistorical.title}
+              onChange={(event) =>
+                setManualHistorical((value) => ({ ...value, title: event.target.value }))
+              }
+              required
+            />
           </label>
           <label className="grid gap-1 text-sm font-bold">
             دلیل ثبت تاریخی
-            <textarea className={`${field} min-h-28 py-3`} value={manualHistorical.reason} onChange={(event) => setManualHistorical((value) => ({ ...value, reason: event.target.value }))} required />
+            <textarea
+              className={`${field} min-h-28 py-3`}
+              value={manualHistorical.reason}
+              onChange={(event) =>
+                setManualHistorical((value) => ({ ...value, reason: event.target.value }))
+              }
+              required
+            />
           </label>
-          <button type="submit" className={`${action} bg-amber-700 text-white hover:bg-amber-800`} disabled={createManualHistoricalSession.isPending}>
+          <button
+            type="submit"
+            className={`${action} bg-amber-700 text-white hover:bg-amber-800`}
+            disabled={createManualHistoricalSession.isPending}
+          >
             {createManualHistoricalSession.isPending ? "در حال ثبت…" : "ثبت جلسهٔ تاریخی"}
           </button>
         </form>
@@ -1460,7 +1575,9 @@ export function AttendanceStaffWorkspace({
               >
                 <option value="">همه سال‌ها</option>
                 {(academicCycles.data?.years ?? []).map((year) => (
-                  <option key={year.id} value={year.id}>{year.name}</option>
+                  <option key={year.id} value={year.id}>
+                    {year.name}
+                  </option>
                 ))}
               </AdaptiveSelect>
             </label>
@@ -1477,7 +1594,9 @@ export function AttendanceStaffWorkspace({
               >
                 <option value="">همه نیم‌سال‌ها</option>
                 {currentTerms.map((term) => (
-                  <option key={term.id} value={term.id}>{term.name}</option>
+                  <option key={term.id} value={term.id}>
+                    {term.name}
+                  </option>
                 ))}
               </AdaptiveSelect>
             </label>
@@ -1489,10 +1608,17 @@ export function AttendanceStaffWorkspace({
             >
               <strong>گزارش نیم‌سالِ انتخاب‌شده</strong>
               <p className="text-xs text-slate-600 dark:text-slate-300">
-                {report.data.finalizedSessions.toLocaleString("fa-IR")} جلسهٔ نهایی · {report.data.present.toLocaleString("fa-IR")} حاضر · {report.data.absent.toLocaleString("fa-IR")} غایب · {report.data.late.toLocaleString("fa-IR")} تأخیر · {report.data.excused.toLocaleString("fa-IR")} موجه
+                {report.data.finalizedSessions.toLocaleString("fa-IR")} جلسهٔ نهایی ·{" "}
+                {report.data.present.toLocaleString("fa-IR")} حاضر ·{" "}
+                {report.data.absent.toLocaleString("fa-IR")} غایب ·{" "}
+                {report.data.late.toLocaleString("fa-IR")} تأخیر ·{" "}
+                {report.data.excused.toLocaleString("fa-IR")} موجه
               </p>
               <p className="text-xs text-slate-600 dark:text-slate-300">
-                نرخ حضور: {report.data.attendanceRate === null ? "نامشخص" : `${report.data.attendanceRate.toLocaleString("fa-IR")}٪`}
+                نرخ حضور:{" "}
+                {report.data.attendanceRate === null
+                  ? "نامشخص"
+                  : `${report.data.attendanceRate.toLocaleString("fa-IR")}٪`}
               </p>
             </div>
           ) : null}
@@ -1528,52 +1654,57 @@ export function AttendanceStaffWorkspace({
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[rgb(var(--border-subtle))]">
-                  {sessionItems
-                    .map((session) => (
-                      <tr key={session.id} className="hover:bg-[rgb(var(--surface-muted))]">
-                        <td className="px-3 py-3 font-bold">
-                          <button
-                            type="button"
-                            className="text-start hover:text-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 dark:hover:text-blue-300"
-                            onClick={() => setSelectedId(session.id)}
-                          >
-                            {session.title}
-                          </button>
-                        </td>
-                        <td className="px-3 py-3 text-xs text-slate-500">
-                          {labels[session.contextType]}
-                        </td>
-                        <td className="px-3 py-3 text-xs text-slate-500">
-                          <div>{session.teacherName || "استاد ثبت نشده"}</div>
-                          <div className="mt-0.5 text-slate-400">{session.subjectName || "کتاب ثبت نشده"}</div>
-                        </td>
-                        <td className="px-3 py-3 text-xs text-slate-500">
-                          <div>{session.academicYearName || "بدون سال"}</div>
-                          <div className="mt-0.5 text-slate-400">{session.termName || "بدون نیم‌سال"}</div>
-                        </td>
-                        <td className="px-3 py-3 whitespace-nowrap text-xs text-slate-500">
-                          {new Date(session.sessionDate).toLocaleString("fa-IR", {
-                            timeZone: "Asia/Tehran",
-                          })}
-                        </td>
-                        <td className="px-3 py-3 text-center text-xs text-slate-500">
-                          <div>{session.status}</div>
-                          <div className="mt-0.5 text-slate-400">ویرایش {session.revision.toLocaleString("fa-IR")}</div>
-                        </td>
-                        <td className="px-3 py-3 text-center">{session.present}</td>
-                        <td className="px-3 py-3 text-center">{session.absent}</td>
-                        <td className="px-3 py-3 text-center">{session.unmarked ?? "—"}</td>
-                        <td className="px-3 py-3 text-end">
-                          <button
-                            type="button"
-                            className={`${action} min-h-9 border border-[rgb(var(--border-subtle))] px-3 text-xs`}
-                            onClick={() => setSelectedId(session.id)}
-                          >
-                            مشاهده
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
+                  {sessionItems.map((session) => (
+                    <tr key={session.id} className="hover:bg-[rgb(var(--surface-muted))]">
+                      <td className="px-3 py-3 font-bold">
+                        <button
+                          type="button"
+                          className="text-start hover:text-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 dark:hover:text-blue-300"
+                          onClick={() => setSelectedId(session.id)}
+                        >
+                          {session.title}
+                        </button>
+                      </td>
+                      <td className="px-3 py-3 text-xs text-slate-500">
+                        {labels[session.contextType]}
+                      </td>
+                      <td className="px-3 py-3 text-xs text-slate-500">
+                        <div>{session.teacherName || "استاد ثبت نشده"}</div>
+                        <div className="mt-0.5 text-slate-400">
+                          {session.subjectName || "کتاب ثبت نشده"}
+                        </div>
+                      </td>
+                      <td className="px-3 py-3 text-xs text-slate-500">
+                        <div>{session.academicYearName || "بدون سال"}</div>
+                        <div className="mt-0.5 text-slate-400">
+                          {session.termName || "بدون نیم‌سال"}
+                        </div>
+                      </td>
+                      <td className="px-3 py-3 whitespace-nowrap text-xs text-slate-500">
+                        {new Date(session.sessionDate).toLocaleString("fa-IR", {
+                          timeZone: "Asia/Tehran",
+                        })}
+                      </td>
+                      <td className="px-3 py-3 text-center text-xs text-slate-500">
+                        <div>{session.status}</div>
+                        <div className="mt-0.5 text-slate-400">
+                          ویرایش {session.revision.toLocaleString("fa-IR")}
+                        </div>
+                      </td>
+                      <td className="px-3 py-3 text-center">{session.present}</td>
+                      <td className="px-3 py-3 text-center">{session.absent}</td>
+                      <td className="px-3 py-3 text-center">{session.unmarked ?? "—"}</td>
+                      <td className="px-3 py-3 text-end">
+                        <button
+                          type="button"
+                          className={`${action} min-h-9 border border-[rgb(var(--border-subtle))] px-3 text-xs`}
+                          onClick={() => setSelectedId(session.id)}
+                        >
+                          مشاهده
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
             </div>

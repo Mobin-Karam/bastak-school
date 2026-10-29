@@ -750,10 +750,12 @@ export class AttendanceService {
       sessionDate: row.sessionDate.toISOString(),
       marked: row.records.length,
       expected: row.rosterSnapshot?.length ?? null,
-      present: row.records.filter((record) => record.status === "present").length,
+      present: row.records.filter((record) => record.status === "present")
+        .length,
       absent: row.records.filter((record) => record.status === "absent").length,
       late: row.records.filter((record) => record.status === "late").length,
-      excused: row.records.filter((record) => record.status === "excused").length,
+      excused: row.records.filter((record) => record.status === "excused")
+        .length,
       unmarked:
         row.rosterSnapshot?.length == null
           ? null
@@ -879,7 +881,10 @@ export class AttendanceService {
             .filter(Boolean)
             .join(" ") ||
           entry.teacher?.username ||
-          [entry.classBook?.teacher?.firstName, entry.classBook?.teacher?.lastName]
+          [
+            entry.classBook?.teacher?.firstName,
+            entry.classBook?.teacher?.lastName,
+          ]
             .filter(Boolean)
             .join(" ") ||
           entry.classBook?.teacher?.username ||
@@ -1086,7 +1091,10 @@ export class AttendanceService {
     this.assertWorkOrganization(user, query.organizationId);
     const year = await this.sessions.manager
       .getRepository(SchoolAcademicYear)
-      .findOneBy({ id: query.academicYearId, organizationId: query.organizationId });
+      .findOneBy({
+        id: query.academicYearId,
+        organizationId: query.organizationId,
+      });
     const term = await this.sessions.manager
       .getRepository(SchoolAcademicTerm)
       .findOneBy({ id: query.termId, academicYearId: query.academicYearId });
@@ -1108,9 +1116,15 @@ export class AttendanceService {
           academicYearId: query.academicYearId,
           termId: query.termId,
           status: "ACTIVE",
-          ...(query.classroomId ? { classroom: { id: query.classroomId } } : {}),
+          ...(query.classroomId
+            ? { classroom: { id: query.classroomId } }
+            : {}),
         },
-        relations: { classroom: true, teacher: true, classBook: { book: true, teacher: true } },
+        relations: {
+          classroom: true,
+          teacher: true,
+          classBook: { book: true, teacher: true },
+        },
       });
     const candidates: Array<{
       entryId: string;
@@ -1125,7 +1139,8 @@ export class AttendanceService {
     }> = [];
     for (const entry of entries) {
       if (!entry.classroom) continue;
-      const start = entry.startsOn && entry.startsOn > from ? entry.startsOn : from;
+      const start =
+        entry.startsOn && entry.startsOn > from ? entry.startsOn : from;
       const end = entry.endsOn && entry.endsOn < to ? entry.endsOn : to;
       for (
         let cursor = new Date(`${start}T12:00:00Z`);
@@ -1142,9 +1157,14 @@ export class AttendanceService {
           classroomName: entry.classroom.name,
           teacherName:
             entry.teacherNameSnapshot ||
-            [entry.teacher?.firstName, entry.teacher?.lastName].filter(Boolean).join(" ") ||
+            [entry.teacher?.firstName, entry.teacher?.lastName]
+              .filter(Boolean)
+              .join(" ") ||
             entry.teacher?.username ||
-            [entry.classBook?.teacher?.firstName, entry.classBook?.teacher?.lastName]
+            [
+              entry.classBook?.teacher?.firstName,
+              entry.classBook?.teacher?.lastName,
+            ]
               .filter(Boolean)
               .join(" ") ||
             entry.classBook?.teacher?.username ||
@@ -1159,14 +1179,26 @@ export class AttendanceService {
     const existing = await this.sessions.find({
       where: {
         organization: { id: query.organizationId },
-        occurrenceKey: In(candidates.map((candidate) => `legacy-schedule:${candidate.entryId}:${candidate.date}`)),
+        occurrenceKey: In(
+          candidates.map(
+            (candidate) =>
+              `legacy-schedule:${candidate.entryId}:${candidate.date}`,
+          ),
+        ),
       },
       select: { occurrenceKey: true },
     });
     const saved = new Set(existing.map((session) => session.occurrenceKey));
     return candidates
-      .filter((candidate) => !saved.has(`legacy-schedule:${candidate.entryId}:${candidate.date}`))
-      .sort((left, right) => left.date.localeCompare(right.date) || left.startTime.localeCompare(right.startTime))
+      .filter(
+        (candidate) =>
+          !saved.has(`legacy-schedule:${candidate.entryId}:${candidate.date}`),
+      )
+      .sort(
+        (left, right) =>
+          left.date.localeCompare(right.date) ||
+          left.startTime.localeCompare(right.startTime),
+      )
       .slice(0, 500);
   }
 
@@ -1527,7 +1559,10 @@ export class AttendanceService {
       allowPartialSubmission: policy?.allowPartialSubmission ?? true,
       lateCountsAsPresent: policy?.lateCountsAsPresent ?? true,
       correctionRequiresReview: policy?.correctionRequiresReview ?? false,
-      principalReviewMode: policy?.principalReviewMode ?? "absences_only",
+      principalReviewMode:
+        policy?.principalReviewMode === "all_sessions"
+          ? "all_sessions"
+          : "absences_only",
     };
   }
 
@@ -1564,8 +1599,9 @@ export class AttendanceService {
             false,
           principalReviewMode:
             dto.principalReviewMode ??
-            existing?.principalReviewMode ??
-            "absences_only",
+            (existing?.principalReviewMode === "all_sessions"
+              ? "all_sessions"
+              : "absences_only"),
         }),
       );
       await manager.save(

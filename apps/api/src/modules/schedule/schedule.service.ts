@@ -15,6 +15,7 @@ import {
 } from "../../database/entities/organization-membership.entity";
 import { Organization } from "../../database/entities/organization.entity";
 import { SchoolScheduleEntry } from "../../database/entities/school-schedule-entry.entity";
+import { AttendanceSession } from "../../database/entities/attendance-session.entity";
 import {
   SchoolAcademicYear,
   SchoolAcademicTerm,
@@ -45,6 +46,7 @@ import {
   UpdateLegacyAcademicYearDto,
   UpdateLegacyAcademicTermDto,
   LegacyAcademicLifecycleDto,
+  ReconcileLegacyAcademicCycleDto,
   ScheduleSubstitutionDecisionDto,
   ScheduleSubstitutionRequestDto,
   TeacherLeaveRequestDto,
@@ -62,6 +64,8 @@ export class ScheduleService {
     private readonly academicYearRepo: Repository<SchoolAcademicYear>,
     @InjectRepository(SchoolAcademicTerm)
     private readonly academicTerms: Repository<SchoolAcademicTerm>,
+    @InjectRepository(AttendanceSession)
+    private readonly attendanceSessions: Repository<AttendanceSession>,
     @InjectRepository(SchoolScheduleTimeBlock)
     private readonly timeBlocks: Repository<SchoolScheduleTimeBlock>,
     @InjectRepository(SchoolScheduleTimeBlockGroup)
@@ -83,7 +87,8 @@ export class ScheduleService {
     @InjectRepository(EducationClassBook)
     private readonly classBooks: Repository<EducationClassBook>,
     private readonly authorization: AuthorizationService,
-    @InjectRepository(AuditLog) private readonly auditLogs?: Repository<AuditLog>,
+    @InjectRepository(AuditLog)
+    private readonly auditLogs?: Repository<AuditLog>,
   ) {}
   private async auditAcademicCycle(
     user: AuthenticatedUser,
@@ -174,6 +179,287 @@ export class ScheduleService {
       : [];
     return { years, terms };
   }
+  /** Status used by the legacy schedule's mandatory first-time setup flow. */
+  async academicBootstrap(user: AuthenticatedUser, organizationId?: string) {
+    const context = this.context(user);
+    this.authorization.requireCapability(context, "schedule.read");
+    const org = organizationId ?? context.organizationIds[0];
+    if (
+      !org ||
+      (!context.roles.includes("PLATFORM_ADMIN") &&
+        !context.organizationIds.includes(org))
+    )
+      throw new ApiException(403, "FORBIDDEN", "دسترسی کافی ندارید.");
+    const activeYear = await this.academicYearRepo.findOneBy({
+      organizationId: org,
+      state: "ACTIVE",
+    });
+    // Teachers may see whether the school has completed setup, but the legacy
+    // reconciliation queue contains organization-wide attendance history.
+    if (!this.isOperator(context))
+      return {
+        activeYear: activeYear
+          ? {
+              id: activeYear.id,
+              name: activeYear.name,
+              startsOn: activeYear.startsOn,
+              endsOn: activeYear.endsOn,
+            }
+          : null,
+        unassignedScheduleEntries: [],
+        unassignedAttendanceSessions: [],
+        pendingAttendance: [],
+        pendingAttendanceCount: 0,
+      };
+    const [entries, sessions, activeTerms] = await Promise.all([
+      this.entries.find({
+        where: { organization: { id: org }, academicYearId: IsNull() },
+        relations: {
+          classroom: true,
+          teacher: true,
+          classBook: { book: true, teacher: true },
+        },
+        order: { weekday: "ASC", startTime: "ASC" },
+        take: 500,
+      }),
+      this.attendanceSessions.find({
+        where: { organization: { id: org }, academicYearIdSnapshot: IsNull() },
+        relations: { assignedStaff: true },
+        order: { sessionDate: "DESC" },
+        take: 500,
+      }),
+      activeYear
+        ? this.academicTerms.find({
+            where: { academicYearId: activeYear.id, state: "ACTIVE" },
+            order: { startsOn: "ASC" },
+          })
+        : Promise.resolve([]),
+    ]);
+    const pendingAttendance: Array<{
+      entryId: string;
+      termId: string;
+      date: string;
+      title: string;
+      classroomName: string;
+    }> = [];
+    let pendingAttendanceCount = 0;
+    if (activeYear) {
+      const scheduledEntries = await this.entries.find({
+        where: {
+          organization: { id: org },
+          academicYearId: activeYear.id,
+          status: "ACTIVE",
+        },
+        relations: { classroom: true },
+      });
+      const today = new Date().toISOString().slice(0, 10);
+      const expected: Array<(typeof pendingAttendance)[number]> = [];
+      for (const entry of scheduledEntries) {
+        if (!entry.termId || !entry.classroom) continue;
+        const term = activeTerms.find(
+          (candidate) => candidate.id === entry.termId,
+        );
+        if (!term) continue;
+        const start =
+          entry.startsOn && entry.startsOn > term.startsOn
+            ? entry.startsOn
+            : term.startsOn;
+        const end = [term.endsOn, entry.endsOn, today]
+          .filter(Boolean)
+          .sort()[0]!;
+        for (
+          let cursor = new Date(`${start}T12:00:00Z`);
+          cursor <= new Date(`${end}T12:00:00Z`);
+          cursor.setUTCDate(cursor.getUTCDate() + 1)
+        ) {
+          const date = cursor.toISOString().slice(0, 10);
+          if (this.weekdayForDate(date) !== entry.weekday) continue;
+          expected.push({
+            entryId: entry.id,
+            termId: term.id,
+            date,
+            title: entry.title,
+            classroomName: entry.classroom.name,
+          });
+        }
+      }
+      const existingKeys = new Set<string | null | undefined>();
+      for (let index = 0; index < expected.length; index += 400) {
+        const occurrenceKeys = expected
+          .slice(index, index + 400)
+          .map((item) => `legacy-schedule:${item.entryId}:${item.date}`);
+        const existing = await this.attendanceSessions.find({
+          where: {
+            organization: { id: org },
+            occurrenceKey: In(occurrenceKeys),
+          },
+          select: { occurrenceKey: true, status: true },
+        });
+        existing
+          .filter((session) =>
+            ["submitted", "finalized"].includes(session.status),
+          )
+          .forEach((session) => existingKeys.add(session.occurrenceKey));
+      }
+      const missing = expected.filter(
+        (item) =>
+          !existingKeys.has(`legacy-schedule:${item.entryId}:${item.date}`),
+      );
+      pendingAttendance.push(...missing.slice(0, 500));
+      // The UI receives a bounded sample and the real count separately.
+      pendingAttendanceCount = missing.length;
+    }
+    return {
+      activeYear: activeYear
+        ? {
+            id: activeYear.id,
+            name: activeYear.name,
+            startsOn: activeYear.startsOn,
+            endsOn: activeYear.endsOn,
+          }
+        : null,
+      unassignedScheduleEntries: entries.map((entry) => ({
+        id: entry.id,
+        title: entry.title,
+        weekday: entry.weekday,
+        startTime: entry.startTime,
+        endTime: entry.endTime,
+        classroomName: entry.classroom?.name ?? "کلاس نامشخص",
+        teacherName:
+          [entry.teacher?.firstName, entry.teacher?.lastName]
+            .filter(Boolean)
+            .join(" ") ||
+          entry.teacher?.username ||
+          [
+            entry.classBook?.teacher?.firstName,
+            entry.classBook?.teacher?.lastName,
+          ]
+            .filter(Boolean)
+            .join(" ") ||
+          entry.classBook?.teacher?.username ||
+          "استاد نامشخص",
+      })),
+      unassignedAttendanceSessions: sessions.map((session) => ({
+        id: session.id,
+        title: session.titleSnapshot || "جلسهٔ ثبت‌شده",
+        sessionDate: session.sessionDate.toISOString(),
+        operationalDate: session.operationalDate,
+        contextType: session.contextType,
+        assignedStaffName:
+          session.assignedStaffNameSnapshot ||
+          session.assignedStaff?.username ||
+          "",
+      })),
+      pendingAttendance,
+      pendingAttendanceCount,
+    };
+  }
+  async reconcileLegacyAcademicCycle(
+    user: AuthenticatedUser,
+    dto: ReconcileLegacyAcademicCycleDto,
+  ) {
+    const context = this.context(user);
+    this.authorization.requireCapability(context, "schedule.update");
+    this.assertAcademicManager(context);
+    if (
+      !context.roles.includes("PLATFORM_ADMIN") &&
+      !context.organizationIds.includes(dto.organizationId)
+    )
+      throw new ApiException(403, "FORBIDDEN", "دسترسی کافی ندارید.");
+    const year = await this.academicYearRepo.findOneBy({
+      id: dto.academicYearId,
+      organizationId: dto.organizationId,
+    });
+    const term = await this.academicTerms.findOneBy({
+      id: dto.termId,
+      academicYearId: dto.academicYearId,
+    });
+    if (!year || !term || year.state !== "ACTIVE" || term.state !== "ACTIVE")
+      throw new ApiException(
+        409,
+        "SCHEDULE_ACADEMIC_RECONCILIATION_TERM",
+        "برای تطبیق، سال و نیم‌سال فعال همان مدرسه را انتخاب کنید.",
+      );
+    const entryIds = [...new Set(dto.scheduleEntryIds)];
+    const sessionIds = [...new Set(dto.attendanceSessionIds)];
+    return attendanceTransaction(this.entries.manager, async (manager) => {
+      const entries = entryIds.length
+        ? await manager.getRepository(SchoolScheduleEntry).find({
+            where: {
+              id: In(entryIds),
+              organization: { id: dto.organizationId },
+              academicYearId: IsNull(),
+            },
+          })
+        : [];
+      const sessions = sessionIds.length
+        ? await manager.getRepository(AttendanceSession).find({
+            where: {
+              id: In(sessionIds),
+              organization: { id: dto.organizationId },
+              academicYearIdSnapshot: IsNull(),
+            },
+          })
+        : [];
+      if (
+        entries.length !== entryIds.length ||
+        sessions.length !== sessionIds.length
+      )
+        throw new ApiException(
+          409,
+          "SCHEDULE_ACADEMIC_RECONCILIATION_CHANGED",
+          "بخشی از داده‌های انتخاب‌شده قبلاً تطبیق داده شده یا دیگر در دسترس نیست.",
+        );
+      for (const session of sessions) {
+        const date =
+          session.operationalDate ??
+          session.sessionDate.toISOString().slice(0, 10);
+        if (date < term.startsOn || date > term.endsOn)
+          throw new ApiException(
+            422,
+            "SCHEDULE_ACADEMIC_RECONCILIATION_DATE",
+            "تاریخ هر سابقهٔ حضور باید داخل بازهٔ نیم‌سال انتخاب‌شده باشد.",
+          );
+      }
+      for (const entry of entries) {
+        entry.academicYearId = year.id;
+        entry.termId = term.id;
+        entry.academicYearNameSnapshot = year.name;
+        entry.termNameSnapshot = term.name;
+      }
+      for (const session of sessions) {
+        session.academicYearIdSnapshot = year.id;
+        session.termIdSnapshot = term.id;
+        session.academicYearNameSnapshot = year.name;
+        session.termNameSnapshot = term.name;
+        session.historicalImportReason =
+          session.historicalImportReason ||
+          "تطبیق صریح دادهٔ قدیمی با سال و نیم‌سال";
+      }
+      if (entries.length)
+        await manager.getRepository(SchoolScheduleEntry).save(entries);
+      if (sessions.length)
+        await manager.getRepository(AttendanceSession).save(sessions);
+      await manager.getRepository(AuditLog).save(
+        manager.getRepository(AuditLog).create({
+          user: { id: user.id } as User,
+          organizationId: dto.organizationId,
+          entity: "academic_cycle_reconciliation",
+          action: "legacy_data_assigned",
+          metadata: {
+            academicYearId: year.id,
+            termId: term.id,
+            entryIds,
+            sessionIds,
+          },
+        }),
+      );
+      return {
+        scheduleEntries: entries.length,
+        attendanceSessions: sessions.length,
+      };
+    });
+  }
   async createAcademicYear(
     user: AuthenticatedUser,
     dto: CreateLegacyAcademicYearDto,
@@ -201,7 +487,13 @@ export class ScheduleService {
         state: "DRAFT",
       }),
     );
-    await this.auditAcademicCycle(user, row.organizationId, "school_academic_year", "created", row.id);
+    await this.auditAcademicCycle(
+      user,
+      row.organizationId,
+      "school_academic_year",
+      "created",
+      row.id,
+    );
     return row;
   }
   async createAcademicTerm(
@@ -243,33 +535,75 @@ export class ScheduleService {
         state: "DRAFT",
       }),
     );
-    await this.auditAcademicCycle(user, year.organizationId, "school_academic_term", "created", row.id, {
-      academicYearId: year.id,
-    });
+    await this.auditAcademicCycle(
+      user,
+      year.organizationId,
+      "school_academic_term",
+      "created",
+      row.id,
+      {
+        academicYearId: year.id,
+      },
+    );
     return row;
   }
-  async updateAcademicYear(user: AuthenticatedUser, id: string, dto: UpdateLegacyAcademicYearDto) {
+  async updateAcademicYear(
+    user: AuthenticatedUser,
+    id: string,
+    dto: UpdateLegacyAcademicYearDto,
+  ) {
     const year = await this.scopedAcademicYear(user, id);
     if (year.state === "ARCHIVED" || dto.endsOn < dto.startsOn)
-      throw new ApiException(422, "SCHEDULE_ACADEMIC_DATE", "سال تحصیلی قابل ویرایش نیست یا بازه معتبر نیست.");
+      throw new ApiException(
+        422,
+        "SCHEDULE_ACADEMIC_DATE",
+        "سال تحصیلی قابل ویرایش نیست یا بازه معتبر نیست.",
+      );
     const terms = await this.academicTerms.findBy({ academicYearId: year.id });
-    if (terms.some((term) => term.startsOn < dto.startsOn || term.endsOn > dto.endsOn))
-      throw new ApiException(422, "SCHEDULE_ACADEMIC_DATE", "بازهٔ جدید سال باید همه نیم‌سال‌ها را در بر بگیرد.");
-    const previous = { name: year.name, startsOn: year.startsOn, endsOn: year.endsOn };
+    if (
+      terms.some(
+        (term) => term.startsOn < dto.startsOn || term.endsOn > dto.endsOn,
+      )
+    )
+      throw new ApiException(
+        422,
+        "SCHEDULE_ACADEMIC_DATE",
+        "بازهٔ جدید سال باید همه نیم‌سال‌ها را در بر بگیرد.",
+      );
+    const previous = {
+      name: year.name,
+      startsOn: year.startsOn,
+      endsOn: year.endsOn,
+    };
     year.name = dto.name.trim();
     year.startsOn = dto.startsOn;
     year.endsOn = dto.endsOn;
     const row = await this.academicYearRepo.save(year);
-    await this.auditAcademicCycle(user, row.organizationId, "school_academic_year", "updated", row.id, {
-      previous,
-      next: { name: row.name, startsOn: row.startsOn, endsOn: row.endsOn },
-    });
+    await this.auditAcademicCycle(
+      user,
+      row.organizationId,
+      "school_academic_year",
+      "updated",
+      row.id,
+      {
+        previous,
+        next: { name: row.name, startsOn: row.startsOn, endsOn: row.endsOn },
+      },
+    );
     return row;
   }
-  async updateAcademicTerm(user: AuthenticatedUser, id: string, dto: UpdateLegacyAcademicTermDto) {
+  async updateAcademicTerm(
+    user: AuthenticatedUser,
+    id: string,
+    dto: UpdateLegacyAcademicTermDto,
+  ) {
     const term = await this.academicTerms.findOneBy({ id });
     if (!term)
-      throw new ApiException(404, "SCHEDULE_ACADEMIC_TERM_NOT_FOUND", "نیم‌سال پیدا نشد.");
+      throw new ApiException(
+        404,
+        "SCHEDULE_ACADEMIC_TERM_NOT_FOUND",
+        "نیم‌سال پیدا نشد.",
+      );
     const year = await this.scopedAcademicYear(user, term.academicYearId);
     if (
       (term.state === "ARCHIVED" && !term.correctionOpen) ||
@@ -277,27 +611,49 @@ export class ScheduleService {
       dto.startsOn < year.startsOn ||
       dto.endsOn > year.endsOn
     )
-      throw new ApiException(422, "SCHEDULE_ACADEMIC_DATE", "نیم‌سال قابل ویرایش نیست یا بازه معتبر نیست.");
+      throw new ApiException(
+        422,
+        "SCHEDULE_ACADEMIC_DATE",
+        "نیم‌سال قابل ویرایش نیست یا بازه معتبر نیست.",
+      );
     const overlap = await this.academicTerms
       .createQueryBuilder("term")
-      .where("term.academicYearId = :year AND term.id != :id", { year: year.id, id })
+      .where("term.academicYearId = :year AND term.id != :id", {
+        year: year.id,
+        id,
+      })
       .andWhere("term.startsOn <= :end AND term.endsOn >= :start", {
         start: dto.startsOn,
         end: dto.endsOn,
       })
       .getExists();
     if (overlap)
-      throw new ApiException(409, "SCHEDULE_ACADEMIC_TERM_OVERLAP", "نیم‌سال‌ها نباید هم‌پوشانی داشته باشند.");
-    const previous = { name: term.name, startsOn: term.startsOn, endsOn: term.endsOn };
+      throw new ApiException(
+        409,
+        "SCHEDULE_ACADEMIC_TERM_OVERLAP",
+        "نیم‌سال‌ها نباید هم‌پوشانی داشته باشند.",
+      );
+    const previous = {
+      name: term.name,
+      startsOn: term.startsOn,
+      endsOn: term.endsOn,
+    };
     term.name = dto.name.trim();
     term.startsOn = dto.startsOn;
     term.endsOn = dto.endsOn;
     const row = await this.academicTerms.save(term);
-    await this.auditAcademicCycle(user, year.organizationId, "school_academic_term", "updated", row.id, {
-      academicYearId: year.id,
-      previous,
-      next: { name: row.name, startsOn: row.startsOn, endsOn: row.endsOn },
-    });
+    await this.auditAcademicCycle(
+      user,
+      year.organizationId,
+      "school_academic_term",
+      "updated",
+      row.id,
+      {
+        academicYearId: year.id,
+        previous,
+        next: { name: row.name, startsOn: row.startsOn, endsOn: row.endsOn },
+      },
+    );
     return row;
   }
   async academicYearLifecycle(
@@ -339,9 +695,16 @@ export class ScheduleService {
         "SCHEDULE_ACADEMIC_LIFECYCLE",
         "عملیات سال تحصیلی معتبر نیست.",
       );
-    await this.auditAcademicCycle(user, year.organizationId, "school_academic_year", dto.action, year.id, {
-      state: year.state,
-    });
+    await this.auditAcademicCycle(
+      user,
+      year.organizationId,
+      "school_academic_year",
+      dto.action,
+      year.id,
+      {
+        state: year.state,
+      },
+    );
     return year;
   }
   async academicTermLifecycle(
@@ -371,19 +734,31 @@ export class ScheduleService {
         "عملیات نیم‌سال معتبر نیست.",
       );
     const row = await this.academicTerms.save(term);
-    const year = await this.academicYearRepo.findOneByOrFail({ id: row.academicYearId });
-    await this.auditAcademicCycle(user, year.organizationId, "school_academic_term", dto.action, row.id, {
-      academicYearId: year.id,
-      state: row.state,
-      correctionOpen: row.correctionOpen,
+    const year = await this.academicYearRepo.findOneByOrFail({
+      id: row.academicYearId,
     });
+    await this.auditAcademicCycle(
+      user,
+      year.organizationId,
+      "school_academic_term",
+      dto.action,
+      row.id,
+      {
+        academicYearId: year.id,
+        state: row.state,
+        correctionOpen: row.correctionOpen,
+      },
+    );
     return row;
   }
   async academicYearHistory(user: AuthenticatedUser, id: string) {
     const year = await this.scopedAcademicYear(user, id);
     if (!this.auditLogs) return [];
     const rows = await this.auditLogs.find({
-      where: { organizationId: year.organizationId, entity: "school_academic_year" },
+      where: {
+        organizationId: year.organizationId,
+        entity: "school_academic_year",
+      },
       order: { createdAt: "DESC" },
       take: 100,
     });
@@ -392,11 +767,18 @@ export class ScheduleService {
   async academicTermHistory(user: AuthenticatedUser, id: string) {
     const term = await this.academicTerms.findOneBy({ id });
     if (!term)
-      throw new ApiException(404, "SCHEDULE_ACADEMIC_TERM_NOT_FOUND", "نیم‌سال پیدا نشد.");
+      throw new ApiException(
+        404,
+        "SCHEDULE_ACADEMIC_TERM_NOT_FOUND",
+        "نیم‌سال پیدا نشد.",
+      );
     const year = await this.scopedAcademicYear(user, term.academicYearId);
     if (!this.auditLogs) return [];
     const rows = await this.auditLogs.find({
-      where: { organizationId: year.organizationId, entity: "school_academic_term" },
+      where: {
+        organizationId: year.organizationId,
+        entity: "school_academic_term",
+      },
       order: { createdAt: "DESC" },
       take: 100,
     });
@@ -407,13 +789,19 @@ export class ScheduleService {
     const year = entry.academicYearId
       ? await this.academicYearRepo.findOneBy({ id: entry.academicYearId })
       : null;
-    const term = entry.academicYearId && entry.termId
-      ? await this.academicTerms.findOneBy({
-          id: entry.termId,
-          academicYearId: entry.academicYearId,
-        })
-      : null;
-    if (!year || !term || year.state === "ARCHIVED" || term.state === "ARCHIVED")
+    const term =
+      entry.academicYearId && entry.termId
+        ? await this.academicTerms.findOneBy({
+            id: entry.termId,
+            academicYearId: entry.academicYearId,
+          })
+        : null;
+    if (
+      !year ||
+      !term ||
+      year.state === "ARCHIVED" ||
+      term.state === "ARCHIVED"
+    )
       throw new ApiException(
         409,
         "SCHEDULE_ACADEMIC_TERM_LOCKED",
@@ -609,11 +997,14 @@ export class ScheduleService {
     });
     const affected = entries.filter(
       (entry) =>
-        (entry.teacher?.id === teacherId || entry.classBook?.teacher?.id === teacherId) &&
+        (entry.teacher?.id === teacherId ||
+          entry.classBook?.teacher?.id === teacherId) &&
         entry.academicYearId &&
         entry.termId,
     );
-    const yearIds = [...new Set(affected.map((entry) => entry.academicYearId!))];
+    const yearIds = [
+      ...new Set(affected.map((entry) => entry.academicYearId!)),
+    ];
     const years = yearIds.length
       ? await this.academicYearRepo.findBy({ id: In(yearIds) })
       : [];
@@ -623,17 +1014,23 @@ export class ScheduleService {
       ? await this.academicTerms.findBy({ id: In(termIds) })
       : [];
     const termNames = new Map(terms.map((term) => [term.id, term.name]));
-    return [...new Map(
-      affected.map((entry) => {
-        const value = {
-          academicYearId: entry.academicYearId!,
-          academicYearName: entry.academicYearNameSnapshot ?? yearNames.get(entry.academicYearId!) ?? null,
-          termId: entry.termId!,
-          termName: entry.termNameSnapshot ?? termNames.get(entry.termId!) ?? null,
-        };
-        return [`${value.academicYearId}:${value.termId}`, value] as const;
-      }),
-    ).values()];
+    return [
+      ...new Map(
+        affected.map((entry) => {
+          const value = {
+            academicYearId: entry.academicYearId!,
+            academicYearName:
+              entry.academicYearNameSnapshot ??
+              yearNames.get(entry.academicYearId!) ??
+              null,
+            termId: entry.termId!,
+            termName:
+              entry.termNameSnapshot ?? termNames.get(entry.termId!) ?? null,
+          };
+          return [`${value.academicYearId}:${value.termId}`, value] as const;
+        }),
+      ).values(),
+    ];
   }
   async reviewTeacherLeave(
     user: AuthenticatedUser,
@@ -1198,9 +1595,7 @@ export class ScheduleService {
           (!academicYearId || entry.academicYearId === academicYearId) &&
           (!termId || entry.termId === termId),
       )
-      .map((entry) =>
-      this.publicEntry(entry),
-      );
+      .map((entry) => this.publicEntry(entry));
   }
   private async listEntities(user: AuthenticatedUser, organizationId?: string) {
     const requestedOrganizationId = organizationId ?? user.activeOrganizationId;
@@ -1614,7 +2009,13 @@ export class ScheduleService {
       id: dto.termId,
       academicYearId: dto.academicYearId,
     });
-    if (!year || !term || year.state === "ARCHIVED" || term.state === "ARCHIVED" || term.correctionOpen)
+    if (
+      !year ||
+      !term ||
+      year.state === "ARCHIVED" ||
+      term.state === "ARCHIVED" ||
+      term.correctionOpen
+    )
       throw new ApiException(
         409,
         "SCHEDULE_ACADEMIC_TERM_LOCKED",
@@ -1876,11 +2277,23 @@ export class ScheduleService {
       organizationId: organization.id,
       state: "ACTIVE",
     });
-    if (activeYear && (!dto.academicYearId || !dto.termId))
+    if (!activeYear)
+      throw new ApiException(
+        409,
+        "SCHEDULE_ACADEMIC_SETUP_REQUIRED",
+        "پیش از ساخت برنامه، سال تحصیلی و دست‌کم دو نیم‌سال را ایجاد و سال را فعال کنید.",
+      );
+    if (!dto.academicYearId || !dto.termId)
       throw new ApiException(
         422,
         "SCHEDULE_ACADEMIC_TERM_REQUIRED",
         "برای سال فعال، سال و نیم‌سال جلسه را انتخاب کنید.",
+      );
+    if (dto.academicYearId !== activeYear.id)
+      throw new ApiException(
+        422,
+        "SCHEDULE_ACADEMIC_YEAR_ACTIVE",
+        "جلسه‌های جدید باید به سال تحصیلی فعال مدرسه متصل شوند.",
       );
     let academicYear: SchoolAcademicYear | null = null;
     let academicTerm: SchoolAcademicTerm | null = null;

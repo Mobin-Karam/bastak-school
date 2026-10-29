@@ -50,8 +50,14 @@ export class HistoricalAttendanceCandidatesQueryDto {
   @IsUUID() academicYearId!: string;
   @IsUUID() termId!: string;
   @IsOptional() @IsUUID() classroomId?: string;
-  @IsOptional() @Matches(/^\d{4}-\d{2}-\d{2}$/) @IsDateString({ strict: true }) from?: string;
-  @IsOptional() @Matches(/^\d{4}-\d{2}-\d{2}$/) @IsDateString({ strict: true }) to?: string;
+  @IsOptional()
+  @Matches(/^\d{4}-\d{2}-\d{2}$/)
+  @IsDateString({ strict: true })
+  from?: string;
+  @IsOptional()
+  @Matches(/^\d{4}-\d{2}-\d{2}$/)
+  @IsDateString({ strict: true })
+  to?: string;
 }
 
 export class AttendanceEntryDto {
@@ -204,8 +210,8 @@ export class UpdateAttendancePolicyDto {
   @IsBoolean() lateCountsAsPresent!: boolean;
   @IsOptional() @IsBoolean() correctionRequiresReview?: boolean;
   @IsOptional()
-  @IsIn(["automatic", "absences_only"])
-  principalReviewMode?: "automatic" | "absences_only";
+  @IsIn(["all_sessions", "absences_only"])
+  principalReviewMode?: "all_sessions" | "absences_only";
 }
 
 export class ReviewAttendanceCorrectionDto {

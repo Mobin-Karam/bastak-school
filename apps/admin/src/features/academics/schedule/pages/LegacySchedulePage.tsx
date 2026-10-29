@@ -57,6 +57,8 @@ import {
   updateLegacyAcademicTerm,
   listLegacyAcademicYearHistory,
   listLegacyAcademicTermHistory,
+  getLegacyAcademicBootstrap,
+  reconcileLegacyAcademicCycle,
   previewScheduleImport,
   restoreScheduleTemplate,
   type ScheduleDraft,
@@ -114,6 +116,9 @@ export function LegacySchedulePage() {
   const [templatePreview, setTemplatePreview] = useState<ScheduleTemplate | null>(null);
   const [toolsSidebarHidden, setToolsSidebarHidden] = useState(false);
   const [academicCyclesOpen, setAcademicCyclesOpen] = useState(false);
+  const [bootstrapTermId, setBootstrapTermId] = useState("");
+  const [bootstrapEntryIds, setBootstrapEntryIds] = useState<string[]>([]);
+  const [bootstrapSessionIds, setBootstrapSessionIds] = useState<string[]>([]);
   const [scheduleAcademicYearId, setScheduleAcademicYearId] = useState("");
   const [scheduleTermId, setScheduleTermId] = useState("");
   const [editor, setEditor] = useState<{
@@ -150,7 +155,51 @@ export function LegacySchedulePage() {
     queryFn: () => listLegacyAcademicCycles(selectedOrganizationId!),
     enabled: !!selectedOrganizationId && canManageAcademicCycles,
   });
+  const academicBootstrap = useQuery({
+    queryKey: ["schedule", "academic-bootstrap", selectedOrganizationId],
+    queryFn: () => getLegacyAcademicBootstrap(selectedOrganizationId!),
+    enabled: !!selectedOrganizationId && auth.can("schedule.read"),
+  });
   const activeAcademicYear = academicCycles.data?.years.find((year) => year.state === "ACTIVE");
+  const bootstrapActiveYear = academicBootstrap.data?.activeYear;
+  const bootstrapTerms = (academicCycles.data?.terms ?? []).filter(
+    (term) => term.academicYearId === bootstrapActiveYear?.id && term.state === "ACTIVE",
+  );
+  const selectedBootstrapTermId = bootstrapTermId || bootstrapTerms[0]?.id || "";
+  const scheduleSetupBlocked = Boolean(
+    selectedOrganizationId &&
+    !academicBootstrap.isLoading &&
+    (!bootstrapActiveYear ||
+      (academicBootstrap.data &&
+        (academicBootstrap.data.unassignedScheduleEntries.length > 0 ||
+          academicBootstrap.data.unassignedAttendanceSessions.length > 0 ||
+          academicBootstrap.data.pendingAttendanceCount > 0))),
+  );
+  const reconcileAcademicBootstrap = useMutation({
+    mutationFn: () =>
+      reconcileLegacyAcademicCycle({
+        organizationId: selectedOrganizationId!,
+        academicYearId: bootstrapActiveYear!.id,
+        termId: selectedBootstrapTermId,
+        scheduleEntryIds: bootstrapEntryIds,
+        attendanceSessionIds: bootstrapSessionIds,
+      }),
+    onSuccess: () => {
+      notify("داده‌های قدیمی با سال و نیم‌سال انتخاب‌شده پیوند خوردند.", "success");
+      setBootstrapEntryIds([]);
+      setBootstrapSessionIds([]);
+      void client.invalidateQueries({ queryKey: ["schedule"] });
+    },
+    onError: (error) =>
+      notify(error instanceof Error ? error.message : "تطبیق داده‌های قدیمی انجام نشد.", "error"),
+  });
+  useEffect(() => {
+    if (!academicBootstrap.data) return;
+    setBootstrapEntryIds(academicBootstrap.data.unassignedScheduleEntries.map((entry) => entry.id));
+    setBootstrapSessionIds(
+      academicBootstrap.data.unassignedAttendanceSessions.map((session) => session.id),
+    );
+  }, [academicBootstrap.data]);
   const selectedScheduleYearId = scheduleAcademicYearId || activeAcademicYear?.id || "";
   const availableScheduleTerms = (academicCycles.data?.terms ?? []).filter(
     (term) =>
@@ -195,10 +244,14 @@ export function LegacySchedulePage() {
     enabled: canWrite,
   });
   const reload = () => void client.invalidateQueries({ queryKey: ["schedule"] });
-  const reloadAcademicCycles = () =>
+  const reloadAcademicCycles = () => {
     void client.invalidateQueries({
       queryKey: ["schedule", "academic-cycles", selectedOrganizationId],
     });
+    void client.invalidateQueries({
+      queryKey: ["schedule", "academic-bootstrap", selectedOrganizationId],
+    });
+  };
   const save = useMutation({
     mutationFn: async ({ id, drafts }: { id?: string; drafts: ScheduleDraft[] }) => {
       const scopedDrafts = drafts.map((draft) => ({
@@ -499,6 +552,26 @@ export function LegacySchedulePage() {
   ) : null;
   return (
     <>
+      {scheduleSetupBlocked ? (
+        <ScheduleAcademicSetupGate
+          canManage={canManageAcademicCycles}
+          activeYear={bootstrapActiveYear}
+          terms={bootstrapTerms}
+          selectedTermId={selectedBootstrapTermId}
+          onTermChange={setBootstrapTermId}
+          entries={academicBootstrap.data?.unassignedScheduleEntries ?? []}
+          attendanceSessions={academicBootstrap.data?.unassignedAttendanceSessions ?? []}
+          pendingAttendance={academicBootstrap.data?.pendingAttendance ?? []}
+          pendingAttendanceCount={academicBootstrap.data?.pendingAttendanceCount ?? 0}
+          selectedEntryIds={bootstrapEntryIds}
+          selectedSessionIds={bootstrapSessionIds}
+          onEntryIdsChange={setBootstrapEntryIds}
+          onSessionIdsChange={setBootstrapSessionIds}
+          onOpenAcademicCycles={() => setAcademicCyclesOpen(true)}
+          onReconcile={() => reconcileAcademicBootstrap.mutate()}
+          reconciling={reconcileAcademicBootstrap.isPending}
+        />
+      ) : null}
       {canManageAcademicCycles ? (
         <Card className="flex flex-wrap items-center justify-between gap-3 p-4" dir="rtl">
           <div>
@@ -587,17 +660,16 @@ export function LegacySchedulePage() {
                     cancelLabel: "انصراف",
                     softConfirm: true,
                   })
-                  .then(
-                    (ok) =>
-                      ok &&
-                      selectedScheduleYearId &&
-                      (scheduleTermId || availableScheduleTerms[0]?.id)
-                        ? applyTemplate.mutate({
-                            id: templatePreview.id,
-                            academicYearId: selectedScheduleYearId,
-                            termId: scheduleTermId || availableScheduleTerms[0]!.id,
-                          })
-                        : notify("پیش از اجرای الگو، سال و نیم‌سال را انتخاب کنید.", "error"),
+                  .then((ok) =>
+                    ok &&
+                    selectedScheduleYearId &&
+                    (scheduleTermId || availableScheduleTerms[0]?.id)
+                      ? applyTemplate.mutate({
+                          id: templatePreview.id,
+                          academicYearId: selectedScheduleYearId,
+                          termId: scheduleTermId || availableScheduleTerms[0]!.id,
+                        })
+                      : notify("پیش از اجرای الگو، سال و نیم‌سال را انتخاب کنید.", "error"),
                   )
               }
             />
@@ -2874,6 +2946,218 @@ function ScheduleTimeBlocks({
   );
 }
 
+function ScheduleAcademicSetupGate({
+  canManage,
+  activeYear,
+  terms,
+  selectedTermId,
+  onTermChange,
+  entries,
+  attendanceSessions,
+  pendingAttendance,
+  pendingAttendanceCount,
+  selectedEntryIds,
+  selectedSessionIds,
+  onEntryIdsChange,
+  onSessionIdsChange,
+  onOpenAcademicCycles,
+  onReconcile,
+  reconciling,
+}: {
+  canManage: boolean;
+  activeYear: { id: string; name: string } | null | undefined;
+  terms: LegacyAcademicTerm[];
+  selectedTermId: string;
+  onTermChange: (id: string) => void;
+  entries: Array<{
+    id: string;
+    title: string;
+    weekday: number;
+    startTime: string;
+    endTime: string;
+    classroomName: string;
+    teacherName: string;
+  }>;
+  attendanceSessions: Array<{
+    id: string;
+    title: string;
+    sessionDate: string;
+    operationalDate: string | null;
+    contextType: string;
+    assignedStaffName: string;
+  }>;
+  pendingAttendance: Array<{
+    entryId: string;
+    termId: string;
+    date: string;
+    title: string;
+    classroomName: string;
+  }>;
+  pendingAttendanceCount: number;
+  selectedEntryIds: string[];
+  selectedSessionIds: string[];
+  onEntryIdsChange: (ids: string[]) => void;
+  onSessionIdsChange: (ids: string[]) => void;
+  onOpenAcademicCycles: () => void;
+  onReconcile: () => void;
+  reconciling: boolean;
+}) {
+  const toggle = (ids: string[], id: string, onChange: (next: string[]) => void) =>
+    onChange(ids.includes(id) ? ids.filter((current) => current !== id) : [...ids, id]);
+  const requiresReconciliation = entries.length > 0 || attendanceSessions.length > 0;
+  return (
+    <div
+      className="fixed inset-0 z-[70] grid place-items-center bg-slate-950/35 p-4 backdrop-blur-sm"
+      dir="rtl"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="schedule-setup-title"
+    >
+      <Card className="max-h-[min(46rem,calc(100dvh-2rem))] w-full max-w-3xl overflow-y-auto border-brand/30 bg-[rgb(var(--surface-card))] p-5 shadow-2xl">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <p className="text-xs font-black text-brand">راه‌اندازی الزامی برنامه</p>
+            <h1 id="schedule-setup-title" className="mt-1 text-xl font-black">
+              {activeYear ? "تکمیل اتصال سال تحصیلی و حضور" : "برنامه هنوز سال تحصیلی ندارد"}
+            </h1>
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600 dark:text-slate-300">
+              تا زمان تکمیل این مراحل، برنامه قابل ویرایش نیست تا هیچ جلسه یا حضور و غیابی بدون سال
+              و نیم‌سال ثبت نشود.
+            </p>
+          </div>
+          <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-black text-amber-900 dark:bg-amber-950/50 dark:text-amber-200">
+            مرحلهٔ {activeYear ? (requiresReconciliation ? "۲" : "۳") : "۱"} از ۳
+          </span>
+        </div>
+        {!canManage ? (
+          <p
+            role="alert"
+            className="mt-5 rounded-xl bg-amber-50 p-4 text-sm leading-6 text-amber-900 dark:bg-amber-950/30 dark:text-amber-100"
+          >
+            مدیر یا مسئول آموزش دینی باید سال تحصیلی، نیم‌سال و تطبیق داده‌های گذشته را کامل کند. پس
+            از آن برنامه برای شما باز می‌شود.
+          </p>
+        ) : !activeYear ? (
+          <section className="mt-5 rounded-2xl border border-[rgb(var(--border-subtle))] p-4">
+            <h2 className="font-black">۱. سال و نیم‌سال‌ها را بسازید و فعال کنید</h2>
+            <p className="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-300">
+              ابتدا یک سال تحصیلی بسازید، حداقل دو نیم‌سال بدون هم‌پوشانی تعریف کنید و سپس سال را
+              فعال نمایید.
+            </p>
+            <Button className="mt-4" onClick={onOpenAcademicCycles}>
+              <GraduationCap size={17} /> ساخت سال تحصیلی و نیم‌سال
+            </Button>
+          </section>
+        ) : requiresReconciliation ? (
+          <section className="mt-5 space-y-4">
+            <div>
+              <h2 className="font-black">۲. داده‌های قدیمی را به نیم‌سال منتسب کنید</h2>
+              <p className="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-300">
+                انتخاب شما صریح، قابل پیگیری و غیرخودکار است. سابقه‌ای که تاریخش خارج از بازهٔ
+                نیم‌سال باشد پذیرفته نمی‌شود.
+              </p>
+            </div>
+            <label className="grid max-w-sm gap-1 text-sm font-bold">
+              نیم‌سال مقصد در {activeYear.name}
+              <AdaptiveSelect
+                value={selectedTermId}
+                onChange={(event) => onTermChange(event.target.value)}
+              >
+                <option value="">انتخاب نیم‌سال</option>
+                {terms.map((term) => (
+                  <option key={term.id} value={term.id}>
+                    {term.name}
+                  </option>
+                ))}
+              </AdaptiveSelect>
+            </label>
+            {entries.length ? (
+              <fieldset className="rounded-xl border border-[rgb(var(--border-subtle))] p-3">
+                <legend className="px-1 text-sm font-black">
+                  جلسه‌های قدیمی برنامه ({entries.length})
+                </legend>
+                <div className="mt-2 max-h-40 space-y-2 overflow-y-auto">
+                  {entries.map((entry) => (
+                    <label
+                      key={entry.id}
+                      className="flex cursor-pointer items-start gap-2 rounded-lg p-2 hover:bg-[rgb(var(--surface-muted))]"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={selectedEntryIds.includes(entry.id)}
+                        onChange={() => toggle(selectedEntryIds, entry.id, onEntryIdsChange)}
+                      />
+                      <span className="text-sm">
+                        <b>{entry.title}</b> · {entry.classroomName} · {entry.teacherName} ·{" "}
+                        {entry.startTime} تا {entry.endTime}
+                      </span>
+                    </label>
+                  ))}
+                </div>
+              </fieldset>
+            ) : null}
+            {attendanceSessions.length ? (
+              <fieldset className="rounded-xl border border-[rgb(var(--border-subtle))] p-3">
+                <legend className="px-1 text-sm font-black">
+                  سوابق حضور قدیمی ({attendanceSessions.length})
+                </legend>
+                <div className="mt-2 max-h-40 space-y-2 overflow-y-auto">
+                  {attendanceSessions.map((session) => (
+                    <label
+                      key={session.id}
+                      className="flex cursor-pointer items-start gap-2 rounded-lg p-2 hover:bg-[rgb(var(--surface-muted))]"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={selectedSessionIds.includes(session.id)}
+                        onChange={() => toggle(selectedSessionIds, session.id, onSessionIdsChange)}
+                      />
+                      <span className="text-sm">
+                        <b>{session.title}</b> ·{" "}
+                        {session.operationalDate ?? session.sessionDate.slice(0, 10)} ·{" "}
+                        {session.assignedStaffName || "ثبت‌کننده نامشخص"}
+                      </span>
+                    </label>
+                  ))}
+                </div>
+              </fieldset>
+            ) : null}
+            <Button disabled={!selectedTermId || reconciling} onClick={onReconcile}>
+              {reconciling ? "در حال تطبیق…" : "ثبت تطبیق انتخاب‌شده"}
+            </Button>
+          </section>
+        ) : (
+          <section className="mt-5 rounded-2xl border border-amber-300 bg-amber-50/70 p-4 dark:border-amber-700 dark:bg-amber-950/20">
+            <h2 className="font-black text-amber-950 dark:text-amber-100">
+              ۳. حضور جلسه‌های گذشته را کامل کنید
+            </h2>
+            <p className="mt-2 text-sm leading-6 text-amber-900 dark:text-amber-200">
+              {pendingAttendanceCount
+                ? `${pendingAttendanceCount.toLocaleString("fa-IR")} رخداد برنامه تا امروز هنوز جلسهٔ حضور ندارد. ابتدا آن‌ها را در دفتر حضور تکمیل کنید.`
+                : "در حال بررسی رخدادهای گذشته…"}
+            </p>
+            {pendingAttendance.length ? (
+              <ul className="mt-3 max-h-36 space-y-1 overflow-y-auto text-sm text-amber-950 dark:text-amber-100">
+                {pendingAttendance.slice(0, 12).map((item) => (
+                  <li key={`${item.entryId}:${item.date}`}>
+                    {item.date} · {item.title} · {item.classroomName}
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+            <Button
+              className="mt-4"
+              onClick={() => window.location.assign("/admin/attendance?section=sessions")}
+            >
+              رفتن به دفتر حضور و غیاب
+            </Button>
+          </section>
+        )}
+      </Card>
+    </div>
+  );
+}
+
 function AcademicCycleManager({
   organizationId,
   data,
@@ -2947,8 +3231,17 @@ function AcademicCycleManager({
       notify(error instanceof Error ? error.message : "تغییر وضعیت نیم‌سال انجام نشد.", "error"),
   });
   const updateYear = useMutation({
-    mutationFn: ({ id, name, startsOn, endsOn }: { id: string; name: string; startsOn: string; endsOn: string }) =>
-      updateLegacyAcademicYear(id, { name, startsOn, endsOn }),
+    mutationFn: ({
+      id,
+      name,
+      startsOn,
+      endsOn,
+    }: {
+      id: string;
+      name: string;
+      startsOn: string;
+      endsOn: string;
+    }) => updateLegacyAcademicYear(id, { name, startsOn, endsOn }),
     onSuccess: () => {
       setEditingYearId(null);
       setYearName("");
@@ -2956,11 +3249,21 @@ function AcademicCycleManager({
       setYearEnd("");
       changed();
     },
-    onError: (error) => notify(error instanceof Error ? error.message : "ویرایش سال انجام نشد.", "error"),
+    onError: (error) =>
+      notify(error instanceof Error ? error.message : "ویرایش سال انجام نشد.", "error"),
   });
   const updateTerm = useMutation({
-    mutationFn: ({ id, name, startsOn, endsOn }: { id: string; name: string; startsOn: string; endsOn: string }) =>
-      updateLegacyAcademicTerm(id, { name, startsOn, endsOn }),
+    mutationFn: ({
+      id,
+      name,
+      startsOn,
+      endsOn,
+    }: {
+      id: string;
+      name: string;
+      startsOn: string;
+      endsOn: string;
+    }) => updateLegacyAcademicTerm(id, { name, startsOn, endsOn }),
     onSuccess: () => {
       setEditingTermId(null);
       setTermName("");
@@ -2968,7 +3271,8 @@ function AcademicCycleManager({
       setTermEnd("");
       changed();
     },
-    onError: (error) => notify(error instanceof Error ? error.message : "ویرایش نیم‌سال انجام نشد.", "error"),
+    onError: (error) =>
+      notify(error instanceof Error ? error.message : "ویرایش نیم‌سال انجام نشد.", "error"),
   });
   if (loading) return <LoadingState label="در حال دریافت سال‌های تحصیلی…" />;
   const years = data?.years ?? [];
@@ -3002,10 +3306,29 @@ function AcademicCycleManager({
           />
         </div>
         <Button
-          disabled={!organizationId || !yearName || !yearStart || !yearEnd || createYear.isPending || updateYear.isPending}
-          onClick={() => editingYearId
-            ? updateYear.mutate({ id: editingYearId, name: yearName, startsOn: yearStart, endsOn: yearEnd })
-            : createYear.mutate({ organizationId, name: yearName, startsOn: yearStart, endsOn: yearEnd })}
+          disabled={
+            !organizationId ||
+            !yearName ||
+            !yearStart ||
+            !yearEnd ||
+            createYear.isPending ||
+            updateYear.isPending
+          }
+          onClick={() =>
+            editingYearId
+              ? updateYear.mutate({
+                  id: editingYearId,
+                  name: yearName,
+                  startsOn: yearStart,
+                  endsOn: yearEnd,
+                })
+              : createYear.mutate({
+                  organizationId,
+                  name: yearName,
+                  startsOn: yearStart,
+                  endsOn: yearEnd,
+                })
+          }
         >
           {editingYearId ? "ذخیره تغییرهای سال" : "ایجاد سال پیش‌نویس"}
         </Button>
@@ -3048,10 +3371,29 @@ function AcademicCycleManager({
           />
         </div>
         <Button
-          disabled={!currentYearId || !termName || !termStart || !termEnd || createTerm.isPending || updateTerm.isPending}
-          onClick={() => editingTermId
-            ? updateTerm.mutate({ id: editingTermId, name: termName, startsOn: termStart, endsOn: termEnd })
-            : createTerm.mutate({ academicYearId: currentYearId, name: termName, startsOn: termStart, endsOn: termEnd })}
+          disabled={
+            !currentYearId ||
+            !termName ||
+            !termStart ||
+            !termEnd ||
+            createTerm.isPending ||
+            updateTerm.isPending
+          }
+          onClick={() =>
+            editingTermId
+              ? updateTerm.mutate({
+                  id: editingTermId,
+                  name: termName,
+                  startsOn: termStart,
+                  endsOn: termEnd,
+                })
+              : createTerm.mutate({
+                  academicYearId: currentYearId,
+                  name: termName,
+                  startsOn: termStart,
+                  endsOn: termEnd,
+                })
+          }
         >
           {editingTermId ? "ذخیره تغییرهای نیم‌سال" : "افزودن نیم‌سال"}
         </Button>
@@ -3078,10 +3420,23 @@ function AcademicCycleManager({
               >
                 {year.state === "ACTIVE" ? "بایگانی" : "فعال‌سازی"}
               </Button>
-              {year.state !== "ARCHIVED" ? <Button variant="ghost" onClick={() => {
-                setEditingYearId(year.id); setYearName(year.name); setYearStart(year.startsOn); setYearEnd(year.endsOn);
-              }}>ویرایش</Button> : null}
-              <Button variant="ghost" onClick={() => setHistoryTarget({ kind: "year", id: year.id, name: year.name })}>
+              {year.state !== "ARCHIVED" ? (
+                <Button
+                  variant="ghost"
+                  onClick={() => {
+                    setEditingYearId(year.id);
+                    setYearName(year.name);
+                    setYearStart(year.startsOn);
+                    setYearEnd(year.endsOn);
+                  }}
+                >
+                  ویرایش
+                </Button>
+              ) : null}
+              <Button
+                variant="ghost"
+                onClick={() => setHistoryTarget({ kind: "year", id: year.id, name: year.name })}
+              >
                 تاریخچه
               </Button>
             </div>
@@ -3116,10 +3471,26 @@ function AcademicCycleManager({
                           ? "اصلاح تاریخی"
                           : "بایگانی"}
                     </Button>
-                    {(term.state !== "ARCHIVED" || term.correctionOpen) ? <Button variant="ghost" onClick={() => {
-                      setEditingTermId(term.id); setYearId(year.id); setTermName(term.name); setTermStart(term.startsOn); setTermEnd(term.endsOn);
-                    }}>ویرایش</Button> : null}
-                    <Button variant="ghost" onClick={() => setHistoryTarget({ kind: "term", id: term.id, name: term.name })}>
+                    {term.state !== "ARCHIVED" || term.correctionOpen ? (
+                      <Button
+                        variant="ghost"
+                        onClick={() => {
+                          setEditingTermId(term.id);
+                          setYearId(year.id);
+                          setTermName(term.name);
+                          setTermStart(term.startsOn);
+                          setTermEnd(term.endsOn);
+                        }}
+                      >
+                        ویرایش
+                      </Button>
+                    ) : null}
+                    <Button
+                      variant="ghost"
+                      onClick={() =>
+                        setHistoryTarget({ kind: "term", id: term.id, name: term.name })
+                      }
+                    >
                       تاریخچه
                     </Button>
                   </li>
@@ -3132,19 +3503,31 @@ function AcademicCycleManager({
             <div className="flex items-center justify-between gap-3">
               <div>
                 <h4 className="font-black">تاریخچهٔ {historyTarget.name}</h4>
-                <p className="text-xs text-slate-500">رویدادهای ثبت‌شده برای این {historyTarget.kind === "year" ? "سال تحصیلی" : "نیم‌سال"}</p>
+                <p className="text-xs text-slate-500">
+                  رویدادهای ثبت‌شده برای این{" "}
+                  {historyTarget.kind === "year" ? "سال تحصیلی" : "نیم‌سال"}
+                </p>
               </div>
-              <Button variant="ghost" onClick={() => setHistoryTarget(null)}>بستن</Button>
+              <Button variant="ghost" onClick={() => setHistoryTarget(null)}>
+                بستن
+              </Button>
             </div>
             {history.isLoading ? <LoadingState label="در حال دریافت تاریخچه…" /> : null}
-            {history.isError ? <p className="text-sm text-danger">دریافت تاریخچه انجام نشد.</p> : null}
+            {history.isError ? (
+              <p className="text-sm text-danger">دریافت تاریخچه انجام نشد.</p>
+            ) : null}
             {!history.isLoading && !history.isError && !(history.data ?? []).length ? (
               <EmptyState title="رویدادی برای این مورد ثبت نشده است." />
             ) : null}
             {(history.data ?? []).map((event: LegacyAcademicCycleAudit) => (
-              <div key={event.id} className="flex items-center justify-between gap-3 rounded-lg bg-[rgb(var(--surface-muted))] p-3 text-sm">
+              <div
+                key={event.id}
+                className="flex items-center justify-between gap-3 rounded-lg bg-[rgb(var(--surface-muted))] p-3 text-sm"
+              >
                 <strong>{academicCycleAuditLabel(event.action)}</strong>
-                <time className="text-xs text-slate-500">{formatDate(event.createdAt, { dateStyle: "medium", timeStyle: "short" })}</time>
+                <time className="text-xs text-slate-500">
+                  {formatDate(event.createdAt, { dateStyle: "medium", timeStyle: "short" })}
+                </time>
               </div>
             ))}
           </Card>
@@ -3199,15 +3582,17 @@ function legacyWeekdayForIso(iso: string) {
 
 function academicCycleAuditLabel(action: string) {
   return (
-    {
-      created: "ایجاد شد",
-      updated: "ویرایش شد",
-      activate: "فعال شد",
-      archive: "بایگانی شد",
-      reopen: "برای اصلاح تاریخی بازگشایی شد",
-      "close-correction": "اصلاح تاریخی بسته شد",
-    } as Record<string, string>
-  )[action] ?? action;
+    (
+      {
+        created: "ایجاد شد",
+        updated: "ویرایش شد",
+        activate: "فعال شد",
+        archive: "بایگانی شد",
+        reopen: "برای اصلاح تاریخی بازگشایی شد",
+        "close-correction": "اصلاح تاریخی بسته شد",
+      } as Record<string, string>
+    )[action] ?? action
+  );
 }
 
 function teacherName(entry: ScheduleEntry) {

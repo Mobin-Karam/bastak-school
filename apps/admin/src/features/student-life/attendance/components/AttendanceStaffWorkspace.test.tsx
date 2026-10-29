@@ -15,6 +15,7 @@ const mocks = vi.hoisted(() => ({
   historySessions: vi.fn(),
   historicalCandidates: vi.fn(),
   importHistoricalOccurrence: vi.fn(),
+  createHistoricalSession: vi.fn(),
   pools: vi.fn(),
   create: vi.fn(),
   detail: vi.fn(),
@@ -30,6 +31,7 @@ vi.mock("../api/attendance-operations.api.ts", () => ({
   getAttendanceHistorySessions: mocks.historySessions,
   getHistoricalAttendanceCandidates: mocks.historicalCandidates,
   importLegacyScheduleOccurrence: mocks.importHistoricalOccurrence,
+  createHistoricalAttendanceSession: mocks.createHistoricalSession,
   getAttendancePools: mocks.pools,
   createAttendancePool: mocks.create,
   getSavedAttendanceSession: mocks.detail,
@@ -168,7 +170,16 @@ beforeEach(() => {
     hasNext: false,
   });
   mocks.historicalCandidates.mockResolvedValue([]);
-  mocks.importHistoricalOccurrence.mockResolvedValue({ id: "session", revision: 0, duplicate: false });
+  mocks.importHistoricalOccurrence.mockResolvedValue({
+    id: "session",
+    revision: 0,
+    duplicate: false,
+  });
+  mocks.createHistoricalSession.mockResolvedValue({
+    id: "historical-session",
+    revision: 0,
+    duplicate: false,
+  });
   mocks.pools.mockResolvedValue([]);
   mocks.history.mockResolvedValue([]);
   mocks.cancel.mockResolvedValue({ sessionId: "session", revision: 1, status: "cancelled" });
@@ -346,10 +357,7 @@ describe("staff session and pool creation", () => {
     expect(await screen.findByText("جلسه جدید")).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "قدیمی‌تر" }));
     expect(await screen.findByText("جلسه قدیمی")).toBeInTheDocument();
-    expect(mocks.historySessions).toHaveBeenNthCalledWith(
-      2,
-      expect.objectContaining({ page: 2 }),
-    );
+    expect(mocks.historySessions).toHaveBeenNthCalledWith(2, expect.objectContaining({ page: 2 }));
   });
   it("creates a class-based pool on HTTP previews and preserves its request ID on retry", async () => {
     const getRandomValues = crypto.getRandomValues.bind(crypto);

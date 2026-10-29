@@ -10,10 +10,12 @@ const {
   getAttendanceParticipantsMock,
   listMyAttendanceAbsenceReviewsMock,
   bulkMarkAttendanceMock,
+  createLegacyOccurrenceMock,
 } = vi.hoisted(() => ({
   getAttendanceParticipantsMock: vi.fn(),
   listMyAttendanceAbsenceReviewsMock: vi.fn(),
   bulkMarkAttendanceMock: vi.fn(),
+  createLegacyOccurrenceMock: vi.fn(),
 }));
 
 vi.mock("../../../student-life/attendance/api/attendance.api.ts", () => ({
@@ -31,7 +33,10 @@ vi.mock("../../../identity/auth", () => ({
 }));
 
 vi.mock("../../../../shared/api/api", () => ({
-  api: { openEvents: () => ({ close: vi.fn() }) },
+  api: {
+    openEvents: () => ({ close: vi.fn() }),
+    post: createLegacyOccurrenceMock,
+  },
 }));
 
 vi.mock("../../../../shared/ui/notifications", () => ({ notify: vi.fn() }));
@@ -62,12 +67,13 @@ function renderSheet(onOpenChange = vi.fn()) {
 }
 
 afterEach(cleanup);
-beforeEach(() =>
+beforeEach(() => {
   vi.stubGlobal(
     "matchMedia",
     vi.fn(() => ({ matches: false, addEventListener: vi.fn(), removeEventListener: vi.fn() })),
-  ),
-);
+  );
+  createLegacyOccurrenceMock.mockResolvedValue({ id: "session-1", revision: 0, duplicate: false });
+});
 
 describe("TeacherClassAttendanceSheet", () => {
   it("uses the shared responsive drawer while retaining the roster query", async () => {

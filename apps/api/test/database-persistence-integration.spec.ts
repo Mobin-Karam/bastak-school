@@ -18,6 +18,7 @@ import { TeacherLeaveEarlyReturn1762200000000 } from "../src/database/migrations
 import { LegacyScheduleAcademicCycles1762300000000 } from "../src/database/migrations/1762300000000-LegacyScheduleAcademicCycles";
 import { LegacyScheduleAcademicNameSnapshots1762300400000 } from "../src/database/migrations/1762300400000-LegacyScheduleAcademicNameSnapshots";
 import { TeacherLeaveAcademicCycleSnapshots1762300500000 } from "../src/database/migrations/1762300500000-TeacherLeaveAcademicCycleSnapshots";
+import { PrincipalAttendanceAllSessionsReview1762300600000 } from "../src/database/migrations/1762300600000-PrincipalAttendanceAllSessionsReview";
 import { NightAttendance1728234800000 } from "../src/database/migrations/1728234800000-NightAttendance";
 import {
   Organization,
@@ -848,10 +849,19 @@ describe("migration-backed persistence and verified recovery (disposable SQLite 
       new LegacyScheduleAcademicCycles1762300000000().up(manager.queryRunner!),
     );
     await db.transaction(async (manager) =>
-      new LegacyScheduleAcademicNameSnapshots1762300400000().up(manager.queryRunner!),
+      new LegacyScheduleAcademicNameSnapshots1762300400000().up(
+        manager.queryRunner!,
+      ),
     );
     await db.transaction(async (manager) =>
-      new TeacherLeaveAcademicCycleSnapshots1762300500000().up(manager.queryRunner!),
+      new TeacherLeaveAcademicCycleSnapshots1762300500000().up(
+        manager.queryRunner!,
+      ),
+    );
+    await db.transaction(async (manager) =>
+      new PrincipalAttendanceAllSessionsReview1762300600000().up(
+        manager.queryRunner!,
+      ),
     );
     const authorization = new AuthorizationService(
       db.getRepository(UserRoleAssignment),
@@ -863,6 +873,7 @@ describe("migration-backed persistence and verified recovery (disposable SQLite 
       db.getRepository(SchoolScheduleEntry),
       db.getRepository(SchoolAcademicYear),
       db.getRepository(SchoolAcademicTerm),
+      db.getRepository(AttendanceSession),
       db.getRepository(SchoolScheduleTimeBlock),
       db.getRepository(SchoolScheduleTimeBlockGroup),
       db.getRepository(SchoolScheduleTemplate),
@@ -917,6 +928,76 @@ describe("migration-backed persistence and verified recovery (disposable SQLite 
       name: "نیم‌سال اول",
       startsOn: "2026-09-23",
       endsOn: "2027-01-31",
+    });
+    const secondTerm = await schedule.createAcademicTerm(scoped, {
+      academicYearId: academicYear.id,
+      name: "نیم‌سال دوم",
+      startsOn: "2027-02-01",
+      endsOn: "2027-06-22",
+    });
+    await schedule.academicYearLifecycle(scoped, academicYear.id, {
+      action: "activate",
+    });
+    const legacyEntry = await db.getRepository(SchoolScheduleEntry).save({
+      organization: a,
+      classroom,
+      classBook,
+      teacher,
+      title: "جلسهٔ قدیمی",
+      weekday: 1,
+      startTime: "10:00",
+      endTime: "11:00",
+      room: "۱۰۱",
+      status: "ACTIVE",
+    });
+    const legacyAttendance = await db.getRepository(AttendanceSession).save({
+      organization: a,
+      contextType: "class",
+      contextId: classroom.id,
+      sessionDate: new Date("2026-10-11T10:00:00.000Z"),
+      operationalDate: "2026-10-11",
+      titleSnapshot: "حضور قدیمی",
+      timeZone: "Asia/Tehran",
+      status: "submitted",
+      revision: 0,
+      assignedStaffNameSnapshot: teacher.username,
+      rosterSnapshot: [],
+    });
+    const bootstrap = await schedule.academicBootstrap(scoped, a.id);
+    expect(
+      bootstrap.unassignedScheduleEntries.map((entry) => entry.id),
+    ).toContain(legacyEntry.id);
+    expect(
+      bootstrap.unassignedAttendanceSessions.map((session) => session.id),
+    ).toContain(legacyAttendance.id);
+    await expect(
+      schedule.reconcileLegacyAcademicCycle(scoped, {
+        organizationId: a.id,
+        academicYearId: academicYear.id,
+        termId: academicTerm.id,
+        scheduleEntryIds: [legacyEntry.id],
+        attendanceSessionIds: [legacyAttendance.id],
+      }),
+    ).resolves.toEqual({ scheduleEntries: 1, attendanceSessions: 1 });
+    expect(
+      await db
+        .getRepository(SchoolScheduleEntry)
+        .findOneByOrFail({ id: legacyEntry.id }),
+    ).toMatchObject({
+      academicYearId: academicYear.id,
+      termId: academicTerm.id,
+      academicYearNameSnapshot: academicYear.name,
+      termNameSnapshot: academicTerm.name,
+    });
+    expect(
+      await db
+        .getRepository(AttendanceSession)
+        .findOneByOrFail({ id: legacyAttendance.id }),
+    ).toMatchObject({
+      academicYearIdSnapshot: academicYear.id,
+      termIdSnapshot: academicTerm.id,
+      academicYearNameSnapshot: academicYear.name,
+      termNameSnapshot: academicTerm.name,
     });
     expect(await schedule.academicYearHistory(scoped, academicYear.id)).toEqual(
       expect.arrayContaining([expect.objectContaining({ action: "created" })]),
@@ -1063,13 +1144,6 @@ describe("migration-backed persistence and verified recovery (disposable SQLite 
       academicYearId: academicYear.id,
       termId: academicTerm.id,
     });
-    const secondTerm = await schedule.createAcademicTerm(scoped, {
-      academicYearId: academicYear.id,
-      name: "نیم‌سال دوم",
-      startsOn: "2027-02-01",
-      endsOn: "2027-06-22",
-    });
-    await schedule.academicYearLifecycle(scoped, academicYear.id, { action: "activate" });
     const archivedTermEntry = await schedule.create(scoped, {
       ...dto,
       title: "جلسه بایگانی‌شونده",
@@ -1085,7 +1159,9 @@ describe("migration-backed persistence and verified recovery (disposable SQLite 
         (entry) => entry.id,
       ),
     ).toContain(archivedTermEntry.id);
-    await schedule.academicTermLifecycle(scoped, academicTerm.id, { action: "archive" });
+    await schedule.academicTermLifecycle(scoped, academicTerm.id, {
+      action: "archive",
+    });
     await expect(
       schedule.update(scoped, archivedTermEntry.id, {
         ...dto,

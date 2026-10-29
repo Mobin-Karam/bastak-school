@@ -56,6 +56,34 @@ export type LegacyAcademicCycleAudit = {
   createdAt: string;
   metadata?: Record<string, unknown> | null;
 };
+export type LegacyAcademicBootstrap = {
+  activeYear: Pick<LegacyAcademicYear, "id" | "name" | "startsOn" | "endsOn"> | null;
+  unassignedScheduleEntries: Array<{
+    id: string;
+    title: string;
+    weekday: number;
+    startTime: string;
+    endTime: string;
+    classroomName: string;
+    teacherName: string;
+  }>;
+  unassignedAttendanceSessions: Array<{
+    id: string;
+    title: string;
+    sessionDate: string;
+    operationalDate: string | null;
+    contextType: string;
+    assignedStaffName: string;
+  }>;
+  pendingAttendance: Array<{
+    entryId: string;
+    termId: string;
+    date: string;
+    title: string;
+    classroomName: string;
+  }>;
+  pendingAttendanceCount: number;
+};
 export type ScheduleTimeBlock = {
   id: string;
   name: string;
@@ -108,6 +136,21 @@ export const listSchedule = () => api.get<ScheduleEntry[]>("/schedule");
 export const listLegacyAcademicCycles = (organizationId: string) =>
   api.get<{ years: LegacyAcademicYear[]; terms: LegacyAcademicTerm[] }>(
     `/schedule/academic-years?${new URLSearchParams({ organizationId })}`,
+  );
+export const getLegacyAcademicBootstrap = (organizationId: string) =>
+  api.get<LegacyAcademicBootstrap>(
+    `/schedule/academic-bootstrap?${new URLSearchParams({ organizationId })}`,
+  );
+export const reconcileLegacyAcademicCycle = (body: {
+  organizationId: string;
+  academicYearId: string;
+  termId: string;
+  scheduleEntryIds: string[];
+  attendanceSessionIds: string[];
+}) =>
+  api.post<{ scheduleEntries: number; attendanceSessions: number }>(
+    "/schedule/academic-reconciliation",
+    body,
   );
 export const createLegacyAcademicYear = (body: {
   organizationId: string;

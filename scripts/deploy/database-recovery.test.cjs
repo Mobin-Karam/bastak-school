@@ -243,6 +243,24 @@ test("permits only the correction-review repair for a missing reviewer", () => {
   db.close();
 });
 
+test("permits only the explicit automatic-to-all-session review-policy migration", () => {
+  const db = new Database(":memory:");
+  db.exec(`
+    CREATE TABLE attendance_policies (id TEXT PRIMARY KEY, principalReviewMode TEXT NOT NULL);
+    CREATE TABLE migrations (name TEXT);
+    INSERT INTO attendance_policies VALUES ('legacy-policy', 'automatic'), ('absence-policy', 'absences_only');
+  `);
+  const before = inventory(db);
+  db.exec(`
+    UPDATE attendance_policies SET principalReviewMode='all_sessions' WHERE id='legacy-policy';
+    INSERT INTO migrations(name) VALUES ('PrincipalAttendanceAllSessionsReview1762300600000');
+  `);
+  assert.doesNotThrow(() => preserved(before, inventory(db), db));
+  db.prepare("UPDATE attendance_policies SET principalReviewMode='all_sessions' WHERE id='absence-policy'").run();
+  assert.throws(() => preserved(before, inventory(db), db), /existing logical records changed/);
+  db.close();
+});
+
 for (const sql of [
   "ALTER TABLE education_classes ADD COLUMN academicYearId TEXT DEFAULT 'unexpected'",
   "ALTER TABLE education_classes ADD COLUMN academicYearId TEXT; UPDATE education_classes SET academicYearId='unexpected'",

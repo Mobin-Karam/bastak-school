@@ -118,8 +118,8 @@ export function PrincipalDashboard() {
               <ClipboardCheck aria-hidden="true" />
             </div>
             <p className="text-sm text-slate-600 dark:text-slate-300">
-              {data.sessionReviews.mode === "automatic"
-                ? "جلسه‌های حضور بدون بازبینی مدیر به‌صورت خودکار نهایی می‌شوند."
+              {data.sessionReviews.mode === "all_sessions"
+                ? `${data.sessionReviews.pendingCount.toLocaleString("fa-IR")} جلسهٔ خوانده‌نشده در چرخهٔ ۲۴ ساعته قرار دارد؛ همهٔ جلسه‌ها برای بازبینی مدیر نمایش داده می‌شوند.`
                 : `${data.sessionReviews.pendingCount.toLocaleString("fa-IR")} جلسهٔ خوانده‌نشده در چرخهٔ ۲۴ ساعته قرار دارد؛ فقط جلسه‌های دارای غیبت برای بازبینی مدیر نمایش داده می‌شوند.`}
             </p>
             {sessionReviewItems.length ? (

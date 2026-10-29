@@ -31,6 +31,7 @@ import {
   UpdateLegacyAcademicYearDto,
   UpdateLegacyAcademicTermDto,
   LegacyAcademicLifecycleDto,
+  ReconcileLegacyAcademicCycleDto,
 } from "./schedule.dto";
 import { ScheduleService } from "./schedule.service";
 
@@ -43,6 +44,22 @@ export class ScheduleController {
   ) {
     return this.schedule.academicYears(user, organizationId).then(ok);
   }
+  @Get("academic-bootstrap")
+  @RequireCapabilities("schedule.read")
+  academicBootstrap(
+    @CurrentUser() user: AuthenticatedUser,
+    @Query("organizationId") organizationId?: string,
+  ) {
+    return this.schedule.academicBootstrap(user, organizationId).then(ok);
+  }
+  @Post("academic-reconciliation")
+  @RequireCapabilities("schedule.update")
+  reconcileLegacyAcademicCycle(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() dto: ReconcileLegacyAcademicCycleDto,
+  ) {
+    return this.schedule.reconcileLegacyAcademicCycle(user, dto).then(ok);
+  }
   @Post("academic-years")
   @RequireCapabilities("schedule.create")
   createAcademicYear(
@@ -51,12 +68,21 @@ export class ScheduleController {
   ) {
     return this.schedule.createAcademicYear(user, dto).then(ok);
   }
-  @Patch("academic-years/:id") @RequireCapabilities("schedule.update")
-  updateAcademicYear(@CurrentUser() user: AuthenticatedUser, @Param("id") id: string, @Body() dto: UpdateLegacyAcademicYearDto) {
+  @Patch("academic-years/:id")
+  @RequireCapabilities("schedule.update")
+  updateAcademicYear(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param("id") id: string,
+    @Body() dto: UpdateLegacyAcademicYearDto,
+  ) {
     return this.schedule.updateAcademicYear(user, id, dto).then(ok);
   }
-  @Get("academic-years/:id/history") @RequireCapabilities("schedule.read")
-  academicYearHistory(@CurrentUser() user: AuthenticatedUser, @Param("id") id: string) {
+  @Get("academic-years/:id/history")
+  @RequireCapabilities("schedule.read")
+  academicYearHistory(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param("id") id: string,
+  ) {
     return this.schedule.academicYearHistory(user, id).then(ok);
   }
   @Post("academic-years/:id/lifecycle")
@@ -76,12 +102,21 @@ export class ScheduleController {
   ) {
     return this.schedule.createAcademicTerm(user, dto).then(ok);
   }
-  @Patch("academic-terms/:id") @RequireCapabilities("schedule.update")
-  updateAcademicTerm(@CurrentUser() user: AuthenticatedUser, @Param("id") id: string, @Body() dto: UpdateLegacyAcademicTermDto) {
+  @Patch("academic-terms/:id")
+  @RequireCapabilities("schedule.update")
+  updateAcademicTerm(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param("id") id: string,
+    @Body() dto: UpdateLegacyAcademicTermDto,
+  ) {
     return this.schedule.updateAcademicTerm(user, id, dto).then(ok);
   }
-  @Get("academic-terms/:id/history") @RequireCapabilities("schedule.read")
-  academicTermHistory(@CurrentUser() user: AuthenticatedUser, @Param("id") id: string) {
+  @Get("academic-terms/:id/history")
+  @RequireCapabilities("schedule.read")
+  academicTermHistory(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param("id") id: string,
+  ) {
     return this.schedule.academicTermHistory(user, id).then(ok);
   }
   @Post("academic-terms/:id/lifecycle")
@@ -99,7 +134,9 @@ export class ScheduleController {
     @Query("academicYearId") academicYearId?: string,
     @Query("termId") termId?: string,
   ) {
-    return this.schedule.list(user, organizationId, academicYearId, termId).then(ok);
+    return this.schedule
+      .list(user, organizationId, academicYearId, termId)
+      .then(ok);
   }
   @Get("substitution-requests")
   @RequireCapabilities("schedule.read")

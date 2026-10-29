@@ -137,6 +137,9 @@ const legacyValueTransforms = {
   SchoolScheduleTimeBlockGroups1762000000000: {
     "school_schedule_time_blocks.groupId": "default-time-block-group",
   },
+  PrincipalAttendanceAllSessionsReview1762300600000: {
+    "attendance_policies.principalReviewMode": "automatic-to-all-sessions",
+  },
 };
 const [command, original, destination] = process.argv.slice(2);
 function open(file) {
@@ -314,6 +317,12 @@ function preservesOriginalRow(original, upgraded, table, applied, after) {
       )
         continue;
     }
+    if (
+      transform === "automatic-to-all-sessions" &&
+      value === "automatic" &&
+      upgraded[column] === "all_sessions"
+    )
+      continue;
     return false;
   }
   return true;
