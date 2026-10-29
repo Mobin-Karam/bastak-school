@@ -327,6 +327,32 @@ test("permits only the explicit automatic-to-all-session review-policy migration
   db.close();
 });
 
+test("permits only the default/null principal-action columns on retained teacher reports", () => {
+  const db = new Database(":memory:");
+  db.exec(`
+    CREATE TABLE teacher_student_reports (id TEXT PRIMARY KEY, message TEXT NOT NULL);
+    CREATE TABLE migrations (name TEXT);
+    INSERT INTO teacher_student_reports VALUES ('legacy-report', 'retain this report');
+  `);
+  const before = inventory(db);
+  db.exec(`
+    ALTER TABLE teacher_student_reports ADD COLUMN principalAction TEXT;
+    ALTER TABLE teacher_student_reports ADD COLUMN principalActionNote TEXT NOT NULL DEFAULT '';
+    ALTER TABLE teacher_student_reports ADD COLUMN principalActionAt TEXT;
+    ALTER TABLE teacher_student_reports ADD COLUMN principalActionById TEXT;
+    INSERT INTO migrations(name) VALUES ('TeacherStudentReportPrincipalActions1762301000000');
+  `);
+  assert.doesNotThrow(() => preserved(before, inventory(db), db));
+  db.prepare(
+    "UPDATE teacher_student_reports SET principalAction='contact_request' WHERE id='legacy-report'",
+  ).run();
+  assert.throws(
+    () => preserved(before, inventory(db), db),
+    /non-null value in principalAction/,
+  );
+  db.close();
+});
+
 for (const sql of [
   "ALTER TABLE education_classes ADD COLUMN academicYearId TEXT DEFAULT 'unexpected'",
   "ALTER TABLE education_classes ADD COLUMN academicYearId TEXT; UPDATE education_classes SET academicYearId='unexpected'",

@@ -13,6 +13,7 @@ import { addDays, todayIso, normalizePersianText } from "../../../../shared/lib/
 import {
   getReports,
   getTeacherStudentReports,
+  actOnTeacherStudentReport,
   markTeacherStudentReportSeen,
 } from "../api/reports.api";
 import { useAuth } from "../../../identity/auth";
@@ -22,6 +23,7 @@ import { ReportSummary } from "../components/ReportSummary";
 import { reportDate, reportText, summarizeReports } from "../report-utils";
 import { ManagementPageHeader } from "../../../../shared/ui/management-workspace";
 import { reportCopy } from "../model/report-copy";
+import { notify } from "../../../../shared/ui/notifications";
 
 type ViewMode = "cards" | "compact";
 type SortMode = "newest" | "oldest";
@@ -45,6 +47,13 @@ export function ReportsPage() {
   const search = params.get("q") || "";
   const sort: SortMode = params.get("sort") === "oldest" ? "oldest" : "newest";
   const view: ViewMode = params.get("view") === "compact" ? "compact" : "cards";
+  // The API deliberately keeps private teacher reports principal-only. This
+  // prevents an education manager from being shown actions that will be denied.
+  const canReviewTeacherReports =
+    auth.can("attendance.review") &&
+    (auth.hasRole("PRINCIPAL") ||
+      auth.hasRole("ORGANIZATION_ADMIN") ||
+      auth.hasRole("PLATFORM_ADMIN"));
 
   function setReportParams(
     next: Partial<{ from: string; to: string; q: string; sort: SortMode; view: ViewMode }>,
@@ -73,11 +82,26 @@ export function ReportsPage() {
   const teacherReports = useQuery({
     queryKey: ["principal", "teacher-reports"],
     queryFn: getTeacherStudentReports,
-    enabled: auth.can("attendance.review"),
+    enabled: canReviewTeacherReports,
   });
   const seen = useMutation({
     mutationFn: markTeacherStudentReportSeen,
     onSuccess: () => void client.invalidateQueries({ queryKey: ["principal", "teacher-reports"] }),
+  });
+  const reportAction = useMutation({
+    mutationFn: ({
+      id,
+      action,
+    }: {
+      id: string;
+      action: "full_screen_summons" | "contact_request";
+    }) => actOnTeacherStudentReport(id, action),
+    onSuccess: () => {
+      notify("اقدام مدیر برای دانش‌آموز ارسال شد.", "success");
+      void client.invalidateQueries({ queryKey: ["principal", "teacher-reports"] });
+    },
+    onError: (error) =>
+      notify(error instanceof Error ? error.message : "ارسال اقدام مدیر انجام نشد.", "error"),
   });
   const visibleReports = useMemo(() => {
     const needle = normalizePersianText(search);
@@ -104,7 +128,7 @@ export function ReportsPage() {
         title={copy.title}
         description={copy.description}
       />
-      {auth.can("attendance.review") ? (
+      {canReviewTeacherReports ? (
         <Card aria-label="گزارش‌های استادان" className="grid gap-3">
           <div>
             <h2 className="font-black text-ink">گزارش‌های خصوصی استادان</h2>
@@ -134,6 +158,35 @@ export function ReportsPage() {
                     >
                       علامت‌گذاری به‌عنوان دیده‌شده
                     </Button>
+                  )}
+                  {report.principalAction ? (
+                    <span className="font-bold text-sky-700 dark:text-sky-300">
+                      {report.principalAction === "full_screen_summons"
+                        ? "دعوت فوری به دفتر ارسال شد"
+                        : "درخواست تماس ارسال شد"}
+                    </span>
+                  ) : (
+                    <>
+                      <Button
+                        size="sm"
+                        variant="soft"
+                        disabled={reportAction.isPending}
+                        onClick={() =>
+                          reportAction.mutate({ id: report.id, action: "contact_request" })
+                        }
+                      >
+                        درخواست تماس
+                      </Button>
+                      <Button
+                        size="sm"
+                        disabled={reportAction.isPending}
+                        onClick={() =>
+                          reportAction.mutate({ id: report.id, action: "full_screen_summons" })
+                        }
+                      >
+                        دعوت فوری به دفتر
+                      </Button>
+                    </>
                   )}
                 </div>
               </article>

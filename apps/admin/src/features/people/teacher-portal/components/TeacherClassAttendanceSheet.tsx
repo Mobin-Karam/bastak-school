@@ -1,7 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   bulkMarkAttendance,
-  awardAttendancePoints,
   getAttendanceParticipants,
   listMyAttendanceAbsenceReviews,
   prepareAttendanceWrite,
@@ -10,16 +9,7 @@ import {
   useAttendanceDiscard,
 } from "../../../student-life/attendance/public";
 import { useAuth } from "../../../identity/auth";
-import {
-  BadgeCheck,
-  Check,
-  CircleCheck,
-  CircleX,
-  Clock3,
-  MessageSquareText,
-  Minus,
-  Plus,
-} from "lucide-react";
+import { BadgeCheck, Check, CircleCheck, CircleX, Clock3, MessageSquareText } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { ScheduleEntry } from "../../../academics/schedule/api/schedule.api";
 import { notify } from "../../../../shared/ui/notifications";
@@ -80,12 +70,6 @@ export function TeacherClassAttendanceSheet({
   const [clearConfirmationOpen, setClearConfirmationOpen] = useState(false);
   const [marks, setMarks] = useState<Record<string, AttendanceStatus>>({});
   const [reasons, setReasons] = useState<Record<string, string>>({});
-  const [pointTarget, setPointTarget] = useState<{
-    id: string;
-    name: string;
-    points: number;
-  } | null>(null);
-  const [pointReason, setPointReason] = useState("");
   const [savedSessionId, setSavedSessionId] = useState<string | null>(null);
   const [reportText, setReportText] = useState<Record<string, string>>({});
   const [reportTarget, setReportTarget] = useState<{ id: string; name: string } | null>(null);
@@ -124,13 +108,29 @@ export function TeacherClassAttendanceSheet({
     setMarks({});
     setReasons({});
     pendingWrite.current = null;
-    setPointTarget(null);
-    setPointReason("");
     setSavedSessionId(null);
     setReportText({});
     setReportTarget(null);
     setSessionDate(isoDay(new Date()));
   }, [entry?.id, open, scopeKey]);
+
+  useEffect(() => {
+    if (!open || !entry) return;
+    let active = true;
+    void api
+      .get<{ id: string; revision: number } | null>(
+        `/attendance/legacy-schedule-session?entryId=${encodeURIComponent(entry.id)}&date=${encodeURIComponent(sessionDate)}`,
+      )
+      .then((session) => {
+        if (active) setSavedSessionId(session?.id ?? null);
+      })
+      .catch(() => {
+        if (active) setSavedSessionId(null);
+      });
+    return () => {
+      active = false;
+    };
+  }, [entry, open, sessionDate]);
 
   // The roster is an attendance-taking surface: a teacher starts from a full
   // present register and records only exceptions. The API still receives an
@@ -244,25 +244,60 @@ export function TeacherClassAttendanceSheet({
   const canMoveToNextSession = entry
     ? nearestSessionDate(sessionDate, entry.weekday, 1) <= isoDay(new Date())
     : false;
-  const points = useMutation({
-    mutationFn: () => {
-      if (!entry?.classroom?.id || !pointTarget)
-        throw new Error("دانش‌آموز یا کلاس انتخاب نشده است.");
-      if (pointReason.trim().length < 3) throw new Error("دلیل سکه را وارد کنید.");
-      return awardAttendancePoints({
-        requestId: crypto.randomUUID(),
-        organizationId: entry.organization.id,
-        contextType: "class",
-        contextId: entry.classroom.id,
-        studentId: pointTarget.id,
-        points: pointTarget.points,
-        reason: pointReason.trim(),
-      });
+  const sessionCoins = useQuery({
+    queryKey: ["attendance", "session-coins", savedSessionId],
+    queryFn: () =>
+      api.get<Array<{ studentId: string; coins: number; revision: number }>>(
+        `/attendance/sessions/${encodeURIComponent(savedSessionId!)}/coins`,
+      ),
+    enabled: Boolean(savedSessionId),
+  });
+  const savedAttendance = useQuery({
+    queryKey: ["attendance", "session-detail", savedSessionId],
+    queryFn: () =>
+      api.get<{
+        records: Array<{ studentId: string; legacyStatus: AttendanceStatus; note: string }>;
+      }>(`/attendance/sessions/${encodeURIComponent(savedSessionId!)}`),
+    enabled: Boolean(savedSessionId),
+  });
+  useEffect(() => {
+    if (!savedSessionId || !savedAttendance.data || !participants.data?.length) return;
+    const known = new Map(savedAttendance.data.records.map((record) => [record.studentId, record]));
+    setMarks(
+      Object.fromEntries(
+        participants.data.map((student) => [
+          student.id,
+          known.get(student.id)?.legacyStatus ?? "present",
+        ]),
+      ),
+    );
+    setReasons(
+      Object.fromEntries(
+        savedAttendance.data.records
+          .filter((record) => Boolean(record.note))
+          .map((record) => [record.studentId, record.note]),
+      ),
+    );
+  }, [participants.data, savedAttendance.data, savedSessionId]);
+  const coinsByStudent = useMemo(
+    () => Object.fromEntries((sessionCoins.data ?? []).map((coin) => [coin.studentId, coin])),
+    [sessionCoins.data],
+  );
+  const setCoins = useMutation({
+    mutationFn: ({ studentId, coins }: { studentId: string; coins: number }) => {
+      if (!savedSessionId) throw new Error("ابتدا حضور این جلسه را ثبت کنید.");
+      return api.patch(
+        `/attendance/sessions/${encodeURIComponent(savedSessionId)}/students/${encodeURIComponent(studentId)}/coins`,
+        {
+          requestId: crypto.randomUUID(),
+          coins,
+          expectedRevision: coinsByStudent[studentId]?.revision ?? 0,
+        },
+      );
     },
     onSuccess: () => {
-      notify("سکه کلاسی ثبت شد.", "success");
-      setPointTarget(null);
-      setPointReason("");
+      void client.invalidateQueries({ queryKey: ["attendance", "session-coins", savedSessionId] });
+      notify("سکه جلسه ثبت شد.", "success");
     },
     onError: (error) =>
       notify(error instanceof Error ? error.message : "ثبت سکه انجام نشد.", "error"),
@@ -438,37 +473,34 @@ export function TeacherClassAttendanceSheet({
                         />
                       </label>
                     ) : null}
-                    {canManage ? (
+                    {canManage && savedSessionId ? (
                       <div className="mt-3 flex items-center gap-2 border-t border-[rgb(var(--border-subtle))] pt-2">
                         <span className="flex items-center gap-1 text-[11px] font-bold text-slate-500">
-                          <AttendanceCoin className="size-4 object-contain" /> سکه کلاسی
+                          <AttendanceCoin className="size-4 object-contain" /> سکه همین جلسه (۰ تا
+                          ۳)
                         </span>
-                        <button
-                          type="button"
-                          disabled={save.isPending || points.isPending}
-                          onClick={() => {
-                            setPointTarget({ id: student.id, name: student.name, points: 1 });
-                            setPointReason("");
-                          }}
-                          aria-label={`افزودن یک سکه برای ${student.name}`}
-                          title="افزودن یک سکه"
-                          className="grid min-h-9 min-w-9 place-items-center rounded-lg bg-emerald-50 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-200"
+                        <div
+                          className="ms-auto flex gap-1"
+                          role="group"
+                          aria-label={`سکه ${student.name}`}
                         >
-                          <Plus size={16} aria-hidden="true" />
-                        </button>
-                        <button
-                          type="button"
-                          disabled={save.isPending || points.isPending}
-                          onClick={() => {
-                            setPointTarget({ id: student.id, name: student.name, points: -1 });
-                            setPointReason("");
-                          }}
-                          aria-label={`کسر یک سکه از ${student.name}`}
-                          title="کسر یک سکه"
-                          className="grid min-h-9 min-w-9 place-items-center rounded-lg bg-rose-50 text-rose-800 dark:bg-rose-950/40 dark:text-rose-200"
-                        >
-                          <Minus size={16} aria-hidden="true" />
-                        </button>
+                          {[0, 1, 2, 3].map((coins) => (
+                            <button
+                              key={coins}
+                              type="button"
+                              aria-pressed={(coinsByStudent[student.id]?.coins ?? 0) === coins}
+                              disabled={setCoins.isPending}
+                              onClick={() => setCoins.mutate({ studentId: student.id, coins })}
+                              className={`grid min-h-9 min-w-9 place-items-center rounded-lg text-xs font-black ${
+                                (coinsByStudent[student.id]?.coins ?? 0) === coins
+                                  ? "bg-amber-400 text-amber-950"
+                                  : "bg-[rgb(var(--surface-muted))] text-slate-600 dark:text-slate-300"
+                              }`}
+                            >
+                              {coins}
+                            </button>
+                          ))}
+                        </div>
                       </div>
                     ) : null}
                     {canManage && savedSessionId ? (
@@ -603,35 +635,6 @@ export function TeacherClassAttendanceSheet({
         </section>
       </ResponsiveModal>
       {discard.confirmation}
-      <ResponsiveModal
-        open={Boolean(pointTarget)}
-        onOpenChange={(next) => !next && !points.isPending && setPointTarget(null)}
-        title={pointTarget?.points && pointTarget.points > 0 ? "افزودن سکه کلاسی" : "کسر سکه کلاسی"}
-        description={pointTarget?.name ?? ""}
-      >
-        <div className="space-y-4" dir="rtl">
-          <p className="text-sm leading-6">
-            برای ثبت {pointTarget?.points ?? 0} سکه، دلیل روشن و قابل پیگیری وارد کنید.
-          </p>
-          <label className="block text-sm font-bold">
-            دلیل
-            <textarea
-              autoFocus
-              value={pointReason}
-              onChange={(event) => setPointReason(event.target.value)}
-              maxLength={500}
-              className="mt-2 min-h-24 w-full rounded-xl border border-[rgb(var(--border-subtle))] bg-card p-3 font-normal"
-            />
-          </label>
-          <Button
-            loading={points.isPending}
-            disabled={pointReason.trim().length < 3}
-            onClick={() => points.mutate()}
-          >
-            ثبت سکه
-          </Button>
-        </div>
-      </ResponsiveModal>
       <ResponsiveModal
         open={Boolean(reportTarget)}
         onOpenChange={(next) => !next && setReportTarget(null)}

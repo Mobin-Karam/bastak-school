@@ -24,6 +24,7 @@ import {
   HistoricalAttendanceCandidatesQueryDto,
   ReviewAttendanceAbsenceDto,
   AwardAttendancePointsDto,
+  SetAttendanceSessionStudentCoinDto,
   SubmitAttendanceAbsencesDto,
   FinalizeAttendanceSessionDto,
   CancelAttendanceSessionDto,
@@ -132,6 +133,14 @@ export class AttendanceController {
     @Body() dto: OpenLegacyScheduleAttendanceDto,
   ) {
     return this.attendance.openLegacyScheduleSession(user, dto).then(ok);
+  }
+  @Get("attendance/legacy-schedule-session")
+  @RequireAnyCapabilities("attendance.read", "attendance.class.manage")
+  findLegacyScheduleSession(
+    @CurrentUser() user: AuthenticatedUser,
+    @Query() dto: OpenLegacyScheduleAttendanceDto,
+  ) {
+    return this.attendance.findLegacyScheduleSession(user, dto).then(ok);
   }
   @Post("attendance/historical-sessions")
   @RequireCapabilities("attendance.manage")
@@ -280,6 +289,32 @@ export class AttendanceController {
     @Body() dto: AwardAttendancePointsDto,
   ) {
     return this.attendance.awardPoints(user, dto).then(ok);
+  }
+
+  @Get("attendance/sessions/:id/coins")
+  @RequireCapabilities("attendance.read")
+  sessionCoins(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param("id") id: string,
+  ) {
+    return this.attendance.listSessionCoins(user, id).then(ok);
+  }
+
+  @Patch("attendance/sessions/:sessionId/students/:studentId/coins")
+  @RequireAnyCapabilities(
+    "attendance.points.adjust",
+    "attendance.class.manage",
+    "attendance.review",
+  )
+  setSessionStudentCoins(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param("sessionId") sessionId: string,
+    @Param("studentId") studentId: string,
+    @Body() dto: SetAttendanceSessionStudentCoinDto,
+  ) {
+    return this.attendance
+      .setSessionStudentCoins(user, sessionId, studentId, dto)
+      .then(ok);
   }
 
   @Get("attendance/my-absence-reviews")

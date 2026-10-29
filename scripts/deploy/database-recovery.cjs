@@ -101,7 +101,7 @@ const expectations = {
     "school_announcements.mediaUrl": { nullable: true, value: "null" },
     "school_announcements.mediaType": { nullable: true, value: "null" },
   },
-    // Student account-change limits.
+  // Student account-change limits.
   // Existing users begin with zero password changes.
   // Existing account-change requests have no pending password hash.
   StudentAccountChangeLimits1731800300000: {
@@ -120,6 +120,26 @@ const expectations = {
     "school_schedule_time_blocks.groupId": {
       nullable: true,
       value: "default-time-block-group",
+    },
+  },
+  // Existing private reports acquire no principal action until a principal acts.
+  TeacherStudentReportPrincipalActions1762301000000: {
+    "teacher_student_reports.principalAction": {
+      nullable: true,
+      value: "null",
+    },
+    "teacher_student_reports.principalActionNote": {
+      nullable: false,
+      default: "",
+      value: "default",
+    },
+    "teacher_student_reports.principalActionAt": {
+      nullable: true,
+      value: "null",
+    },
+    "teacher_student_reports.principalActionById": {
+      nullable: true,
+      value: "null",
     },
   },
 };
@@ -306,10 +326,13 @@ function preservesOriginalRow(original, upgraded, table, applied, after) {
       );
       if (!referencedUserStillExists) continue;
     }
-    if (transform === "default-time-block-group" && typeof upgraded[column] === "string") {
-      const group = (after.rows.school_schedule_time_block_groups?.records || []).find(
-        (candidate) => candidate.id === upgraded[column],
-      );
+    if (
+      transform === "default-time-block-group" &&
+      typeof upgraded[column] === "string"
+    ) {
+      const group = (
+        after.rows.school_schedule_time_block_groups?.records || []
+      ).find((candidate) => candidate.id === upgraded[column]);
       if (
         group &&
         group.organizationId === original.organizationId &&
@@ -431,11 +454,12 @@ function validateAddedColumns(beforeTable, afterTable, table, applied, db) {
           afterTable,
         );
       if (expectation.value === "default-time-block-group") {
-        const group = (db
-          .prepare(
-            "SELECT organizationId, name FROM school_schedule_time_block_groups WHERE id = ?",
-          )
-          .get(value) || {});
+        const group =
+          db
+            .prepare(
+              "SELECT organizationId, name FROM school_schedule_time_block_groups WHERE id = ?",
+            )
+            .get(value) || {};
         if (
           typeof value !== "string" ||
           group.organizationId !== row.organizationId ||

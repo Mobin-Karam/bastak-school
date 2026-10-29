@@ -3,6 +3,7 @@ import { attendanceTransaction } from "./attendance-transaction";
 import { AuditLog } from "../../database/entities/audit-log.entity";
 import { createHash, randomUUID } from "node:crypto";
 import { AttendanceWriteReceipt } from "../../database/entities/attendance-write-receipt.entity";
+import { AttendanceSessionStudentCoin } from "../../database/entities/attendance-session-student-coin.entity";
 import { AttendancePolicy } from "../../database/entities/attendance-policy.entity";
 import {
   Notification,
@@ -65,6 +66,7 @@ import {
   HistoricalAttendanceCandidatesQueryDto,
   ReviewAttendanceAbsenceDto,
   AwardAttendancePointsDto,
+  SetAttendanceSessionStudentCoinDto,
   SubmitAttendanceAbsencesDto,
   FinalizeAttendanceSessionDto,
   CancelAttendanceSessionDto,
@@ -104,6 +106,8 @@ export class AttendanceService {
     private readonly rewards: RewardsService,
     @InjectRepository(AttendanceSupervisorCheck)
     private readonly supervisorChecks?: Repository<AttendanceSupervisorCheck>,
+    @InjectRepository(AttendanceSessionStudentCoin)
+    private readonly sessionCoins?: Repository<AttendanceSessionStudentCoin>,
   ) {}
 
   async authorizeOrganization(user: AuthenticatedUser, organizationId: string) {
@@ -915,6 +919,47 @@ export class AttendanceService {
       },
     });
     return { id: row.id, revision: row.revision, duplicate: false };
+  }
+
+  /** Read-only lookup lets a teacher revise a saved occurrence without creating a new one. */
+  async findLegacyScheduleSession(
+    user: AuthenticatedUser,
+    dto: OpenLegacyScheduleAttendanceDto,
+  ) {
+    const entry = await this.sessions.manager
+      .getRepository(SchoolScheduleEntry)
+      .findOne({
+        where: { id: dto.entryId },
+        relations: {
+          organization: true,
+          classroom: true,
+          teacher: true,
+          classBook: { teacher: true },
+        },
+      });
+    if (!entry?.organization || !entry.classroom)
+      throw new ApiException(
+        404,
+        "SCHEDULE_ENTRY_NOT_FOUND",
+        "جلسه برنامه پیدا نشد.",
+      );
+    this.assertWorkOrganization(user, entry.organization.id);
+    const teacherId = entry.teacher?.id ?? entry.classBook?.teacher?.id;
+    if (teacherId !== user.id)
+      await this.assertContextAccess(
+        user,
+        "class",
+        entry.classroom.id,
+        entry.organization.id,
+        false,
+      );
+    const row = await this.sessions.findOne({
+      where: {
+        organization: { id: entry.organization.id },
+        occurrenceKey: `legacy-schedule:${entry.id}:${dto.date}`,
+      },
+    });
+    return row ? { id: row.id, revision: row.revision } : null;
   }
 
   async createHistoricalSession(
@@ -2808,10 +2853,124 @@ export class AttendanceService {
     });
   }
 
+  async listSessionCoins(user: AuthenticatedUser, sessionId: string) {
+    const session = await this.authorizedSavedSession(user, sessionId);
+    const rows = await this.requireSessionCoins().find({
+      where: { session: { id: session.id } },
+      relations: { student: true, recordedBy: true },
+      order: { updatedAt: "ASC", id: "ASC" },
+    });
+    return rows.map((row) => ({
+      id: row.id,
+      studentId: row.student.id,
+      coins: row.coins,
+      revision: row.revision,
+      recordedById: row.recordedBy?.id ?? null,
+      updatedAt: row.updatedAt.toISOString(),
+    }));
+  }
+
+  async setSessionStudentCoins(
+    user: AuthenticatedUser,
+    sessionId: string,
+    studentId: string,
+    dto: SetAttendanceSessionStudentCoinDto,
+  ) {
+    const session = await this.authorizedSavedSession(user, sessionId);
+    const isAssignedTeacher = session.assignedStaff?.id === user.id;
+    const canReview = user.capabilities?.includes("attendance.review") ?? false;
+    const canAdjust =
+      user.capabilities?.includes("attendance.points.adjust") ?? false;
+    if (!isAssignedTeacher && !canReview && !canAdjust)
+      throw new ApiException(
+        403,
+        "ATTENDANCE_SESSION_COIN_FORBIDDEN",
+        "اجازه تغییر سکه این جلسه را ندارید.",
+      );
+    if (
+      !(session.rosterSnapshot ?? []).some(
+        (student) => student.id === studentId,
+      )
+    )
+      throw new ApiException(
+        422,
+        "STUDENT_NOT_IN_SESSION",
+        "دانش‌آموز در فهرست قطعی این جلسه نیست.",
+      );
+    return this.attendanceTransaction(async (manager) => {
+      const coins = manager.getRepository(AttendanceSessionStudentCoin);
+      const current = await coins.findOne({
+        where: { session: { id: session.id }, student: { id: studentId } },
+        relations: { student: true },
+      });
+      if (current && current.revision !== dto.expectedRevision)
+        throw new ApiException(
+          409,
+          "ATTENDANCE_SESSION_COIN_CONFLICT",
+          "سکه این دانش‌آموز هم‌زمان تغییر کرده است؛ صفحه را تازه کنید.",
+        );
+      if (!current && dto.expectedRevision !== 0)
+        throw new ApiException(
+          409,
+          "ATTENDANCE_SESSION_COIN_CONFLICT",
+          "نسخه سکه معتبر نیست؛ صفحه را تازه کنید.",
+        );
+      const student =
+        current?.student ??
+        (await manager.getRepository(Student).findOne({
+          where: {
+            id: studentId,
+            organization: { id: session.organization.id },
+          },
+        }));
+      if (!student)
+        throw new ApiException(404, "STUDENT_NOT_FOUND", "دانش‌آموز پیدا نشد.");
+      const row =
+        current ?? coins.create({ session, student, coins: 0, revision: 0 });
+      if (row.coins === dto.coins)
+        return { studentId, coins: row.coins, revision: row.revision };
+      row.coins = dto.coins;
+      row.revision += 1;
+      row.recordedBy = { id: user.id } as User;
+      const saved = await coins.save(row);
+      await manager.getRepository(AuditLog).save(
+        manager.getRepository(AuditLog).create({
+          user: { id: user.id } as User,
+          action: "attendance.session_coin.updated",
+          entity: "attendance_session_student_coin",
+          organizationId: session.organization.id,
+          metadata: {
+            sessionId,
+            studentId,
+            coins: saved.coins,
+            revision: saved.revision,
+            requestId: dto.requestId,
+          },
+        }),
+      );
+      return {
+        studentId,
+        coins: saved.coins,
+        revision: saved.revision,
+        updatedAt: saved.updatedAt.toISOString(),
+      };
+    });
+  }
+
   private attendanceTransaction<T>(
     work: (manager: EntityManager) => Promise<T>,
   ): Promise<T> {
     return attendanceTransaction(this.sessions.manager, work);
+  }
+
+  private requireSessionCoins() {
+    if (!this.sessionCoins)
+      throw new ApiException(
+        500,
+        "ATTENDANCE_SESSION_COINS_UNAVAILABLE",
+        "زیرساخت سکه جلسه آماده نیست.",
+      );
+    return this.sessionCoins;
   }
 
   async listAbsenceReviews(user: AuthenticatedUser, organizationId?: string) {

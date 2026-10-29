@@ -19,6 +19,7 @@ import { RequireCapabilities } from "../../common/decorators/capabilities.decora
 import { UserContext } from "../authorization";
 import { RecoveryRequestStatus } from "../../database/entities/recovery-request.entity";
 import { CreateTeacherStudentReportDto } from "./dto/create-teacher-student-report.dto";
+import { ActOnTeacherStudentReportDto } from "./dto/act-on-teacher-student-report.dto";
 
 @Controller()
 export class ReportsController {
@@ -98,7 +99,10 @@ export class ReportsController {
     @Query("termId") termId?: string,
   ) {
     return this.reports
-      .teacherReportsForPrincipal(this.context(user), { academicYearId, termId })
+      .teacherReportsForPrincipal(this.context(user), {
+        academicYearId,
+        termId,
+      })
       .then(ok);
   }
 
@@ -109,6 +113,18 @@ export class ReportsController {
     @Param("id") id: string,
   ) {
     return this.reports.markTeacherReportSeen(this.context(user), id).then(ok);
+  }
+
+  @Patch("principal/teacher-reports/:id/action")
+  @RequireCapabilities("attendance.review")
+  actOnTeacherReport(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param("id") id: string,
+    @Body() dto: ActOnTeacherStudentReportDto,
+  ) {
+    return this.reports
+      .actOnTeacherReport(this.context(user), id, dto)
+      .then(ok);
   }
 
   @Get("teacher/student-reports")

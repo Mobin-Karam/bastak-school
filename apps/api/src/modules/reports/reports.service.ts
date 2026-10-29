@@ -1,4 +1,4 @@
-import { Injectable } from "@nestjs/common";
+import { Injectable, Optional } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 import { ApiException } from "../../common/exceptions/api.exception";
@@ -15,6 +15,9 @@ import { User } from "../../database/entities/user.entity";
 import { TeacherStudentReport } from "../../database/entities/teacher-student-report.entity";
 import { AttendanceSession } from "../../database/entities/attendance-session.entity";
 import { CreateTeacherStudentReportDto } from "./dto/create-teacher-student-report.dto";
+import { ActOnTeacherStudentReportDto } from "./dto/act-on-teacher-student-report.dto";
+import { NotificationsService } from "../notifications/notifications.service";
+import { NotificationType } from "../../database/entities/notification.entity";
 
 @Injectable()
 export class ReportsService {
@@ -30,6 +33,7 @@ export class ReportsService {
     private readonly teacherReports: Repository<TeacherStudentReport>,
     @InjectRepository(AttendanceSession)
     private readonly sessions: Repository<AttendanceSession>,
+    @Optional() private readonly notifications?: NotificationsService,
   ) {}
 
   private assertPrincipalOperator(context: UserContext) {
@@ -127,7 +131,9 @@ export class ReportsService {
     });
     if (
       !session ||
-      (["class_schedule", "legacy_schedule", "legacy_import"].includes(session.sourceKind ?? "")
+      (["class_schedule", "legacy_schedule", "legacy_import"].includes(
+        session.sourceKind ?? "",
+      )
         ? session.assignedStaff?.id !== context.id
         : session.createdBy?.id !== context.id)
     )
@@ -175,7 +181,9 @@ export class ReportsService {
     this.assertPrincipalOperator(context);
     const rows = await this.teacherReports.find({
       where: {
-        ...(filters.academicYearId ? { academicYearIdSnapshot: filters.academicYearId } : {}),
+        ...(filters.academicYearId
+          ? { academicYearIdSnapshot: filters.academicYearId }
+          : {}),
         ...(filters.termId ? { termIdSnapshot: filters.termId } : {}),
       },
       relations: {
@@ -212,6 +220,9 @@ export class ReportsService {
               .filter(Boolean)
               .join(" ") || row.seenBy.username
           : null,
+        principalAction: row.principalAction ?? null,
+        principalActionNote: row.principalActionNote ?? "",
+        principalActionAt: row.principalActionAt ?? null,
       }));
   }
 
@@ -234,6 +245,74 @@ export class ReportsService {
       await this.teacherReports.save(row);
     }
     return { id: row.id, seenAt: row.seenAt };
+  }
+
+  async actOnTeacherReport(
+    context: UserContext,
+    id: string,
+    dto: ActOnTeacherStudentReportDto,
+  ) {
+    this.authorization.requireCapability(context, "attendance.review");
+    this.assertPrincipalOperator(context);
+    const row = await this.teacherReports.findOne({
+      where: { id },
+      relations: { organization: true, student: { user: true } },
+    });
+    if (!row || !context.organizationIds.includes(row.organization.id))
+      throw new ApiException(
+        404,
+        "TEACHER_REPORT_NOT_FOUND",
+        "گزارش پیدا نشد.",
+      );
+    if (!row.student.user)
+      throw new ApiException(
+        409,
+        "STUDENT_USER_MISSING",
+        "حساب کاربری دانش‌آموز موجود نیست.",
+      );
+    row.principalAction = dto.action;
+    row.principalActionNote = dto.note?.trim() ?? "";
+    row.principalActionAt = new Date();
+    row.principalActionBy = { id: context.id } as User;
+    if (!row.seenAt) {
+      row.seenAt = row.principalActionAt;
+      row.seenBy = { id: context.id } as User;
+    }
+    await this.teacherReports.save(row);
+    const isSummons = dto.action === "full_screen_summons";
+    await this.requireNotifications().createForUser(row.student.user.id, {
+      type: NotificationType.WARNING,
+      category: "principal_student_report",
+      priority: isSummons ? "urgent" : "high",
+      title: isSummons ? "مراجعه به دفتر مدرسه" : "درخواست تماس با دفتر",
+      body:
+        row.principalActionNote ||
+        (isSummons
+          ? "لطفاً در اولین فرصت به دفتر مدرسه مراجعه کنید."
+          : "لطفاً با دفتر مدرسه تماس بگیرید یا مراجعه کنید."),
+      url: "/student/notifications",
+      data: {
+        presentation: isSummons ? "full_screen" : "standard",
+        teacherReportId: row.id,
+      },
+      organizationId: row.organization.id,
+      dedupeKey: `teacher-report-action:${row.id}:${dto.action}`,
+    });
+    return {
+      id: row.id,
+      action: row.principalAction,
+      actionAt: row.principalActionAt,
+    };
+  }
+
+  private requireNotifications() {
+    if (!this.notifications)
+      throw new ApiException(
+        500,
+        "NOTIFICATIONS_UNAVAILABLE",
+        "زیرساخت اعلان آماده نیست.",
+      );
+    return this.notifications;
   }
 
   async teacherReportsForTeacher(context: UserContext) {

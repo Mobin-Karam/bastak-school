@@ -171,6 +171,40 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
     });
   }, [auth, modal, notificationItems, markNotificationRead]);
 
+  useEffect(() => {
+    if (!auth.hasRole("STUDENT")) return;
+    const summons = notificationItems.find(
+      (item) =>
+        item.category === "principal_student_report" &&
+        item.data?.presentation === "full_screen" &&
+        !item.isRead &&
+        !shownAbsences.current.has(`report:${item.id}`),
+    );
+    if (!summons) return;
+    shownAbsences.current.add(`report:${summons.id}`);
+    modal.open({
+      title: "پیام فوری دفتر مدرسه",
+      description: "پیگیری حضوری لازم است",
+      size: "full",
+      content: (
+        <section className="grid min-h-[60vh] content-center gap-6 p-6 text-center" dir="rtl">
+          <p className="text-2xl font-black text-amber-800 dark:text-amber-200">{summons.title}</p>
+          <p className="mx-auto max-w-md text-base leading-8 text-slate-700 dark:text-slate-200">
+            {summons.body}
+          </p>
+          <Button
+            onClick={() => {
+              markNotificationRead(summons.id);
+              modal.close();
+            }}
+          >
+            متوجه شدم
+          </Button>
+        </section>
+      ),
+    });
+  }, [auth, modal, notificationItems, markNotificationRead]);
+
   useNotificationRealtime({
     authenticated: auth.status === "authenticated",
     scopeKey: notificationScopeKey,

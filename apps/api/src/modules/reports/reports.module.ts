@@ -9,6 +9,7 @@ import { AuthorizationModule } from "../authorization/authorization.module";
 import { User } from "../../database/entities/user.entity";
 import { TeacherStudentReport } from "../../database/entities/teacher-student-report.entity";
 import { AttendanceSession } from "../../database/entities/attendance-session.entity";
+import { NotificationsModule } from "../notifications/notifications.module";
 
 @Module({
   imports: [
@@ -21,6 +22,7 @@ import { AttendanceSession } from "../../database/entities/attendance-session.en
       AttendanceSession,
     ]),
     AuthorizationModule,
+    NotificationsModule,
   ],
   controllers: [ReportsController],
   providers: [ReportsService],

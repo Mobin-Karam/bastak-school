@@ -2,6 +2,7 @@ export { AuditLog } from "./audit-log.entity";
 export { ChatMessage } from "./chat-message.entity";
 export { DailyReport } from "./daily-report.entity";
 export { TeacherStudentReport } from "./teacher-student-report.entity";
+export { AttendanceSessionStudentCoin } from "./attendance-session-student-coin.entity";
 export { ExamAttempt } from "./exam-attempt.entity";
 export { Exam } from "./exam.entity";
 export { Mistake } from "./mistake.entity";
