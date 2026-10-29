@@ -66,3 +66,17 @@ export function nextTeacherScheduleEntry(
   }
   return null;
 }
+
+export function tehranDateWithOffset(now: Date, dayOffset: number): string {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Tehran",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(now);
+  const part = (type: Intl.DateTimeFormatPartTypes) =>
+    parts.find((item) => item.type === type)?.value ?? "";
+  const date = new Date(`${part("year")}-${part("month")}-${part("day")}T12:00:00Z`);
+  date.setUTCDate(date.getUTCDate() + dayOffset);
+  return date.toISOString().slice(0, 10);
+}

@@ -55,11 +55,13 @@ export function TeacherClassAttendanceSheet({
   open,
   onOpenChange,
   canManage,
+  initialDate,
 }: {
   entry: ScheduleEntry | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   canManage: boolean;
+  initialDate?: string;
 }) {
   const client = useQueryClient();
   const auth = useAuth();
@@ -117,9 +119,10 @@ export function TeacherClassAttendanceSheet({
     setReportText({});
     setReportTarget(null);
     setSessionDate(
-      entry ? latestTeacherSessionDate(isoDay(new Date()), entry.weekday) : isoDay(new Date()),
+      initialDate ??
+        (entry ? latestTeacherSessionDate(isoDay(new Date()), entry.weekday) : isoDay(new Date())),
     );
-  }, [entry?.id, open, scopeKey]);
+  }, [entry?.id, initialDate, open, scopeKey]);
 
   useEffect(() => {
     if (!open || !entry) return;
@@ -251,6 +254,7 @@ export function TeacherClassAttendanceSheet({
   const canMoveToNextSession = entry
     ? nearestSessionDate(sessionDate, entry.weekday, 1) <= isoDay(new Date())
     : false;
+  const canManageSelectedSession = canManage && sessionDate <= isoDay(new Date());
   const sessionCoins = useQuery({
     queryKey: ["attendance", "session-coins", savedSessionId],
     queryFn: () =>
@@ -339,7 +343,6 @@ export function TeacherClassAttendanceSheet({
                 تاریخ جلسه
                 <DatePicker
                   value={sessionDate}
-                  max={isoDay(new Date())}
                   onChange={(date) => setSessionDate(latestTeacherSessionDate(date, entry.weekday))}
                 />
               </label>
@@ -372,11 +375,13 @@ export function TeacherClassAttendanceSheet({
           ) : (
             <>
               <p className="mt-5 text-xs leading-5 text-slate-600 dark:text-slate-300">
-                {canManage
-                  ? reviewing
-                    ? "انتخاب‌های خود را بررسی کنید و سپس ثبت را تأیید کنید."
-                    : "همه دانش‌آموزان حاضر هستند؛ فقط وضعیت استثناها را تغییر دهید و سپس به بررسی بروید."
-                  : "فهرست دانش‌آموزان این کلاس در اختیار شماست."}
+                {sessionDate > isoDay(new Date())
+                  ? "این جلسه هنوز برگزار نشده است؛ حضور و غیاب تا زمان برگزاری غیرفعال است."
+                  : canManage
+                    ? reviewing
+                      ? "انتخاب‌های خود را بررسی کنید و سپس ثبت را تأیید کنید."
+                      : "همه دانش‌آموزان حاضر هستند؛ فقط وضعیت استثناها را تغییر دهید و سپس به بررسی بروید."
+                    : "فهرست دانش‌آموزان این کلاس در اختیار شماست."}
               </p>
               {classReviews.length && !reviewing ? (
                 <div className="mt-3 rounded-xl border border-sky-200 bg-sky-50 p-3 text-xs dark:border-sky-900/60 dark:bg-sky-950/25">
@@ -420,7 +425,7 @@ export function TeacherClassAttendanceSheet({
                         </span>
                       </div>
                     </div>
-                    {canManage ? (
+                    {canManageSelectedSession ? (
                       <div
                         className="mt-3 grid grid-cols-4 gap-1.5"
                         role="group"
@@ -455,7 +460,7 @@ export function TeacherClassAttendanceSheet({
                         })}
                       </div>
                     ) : null}
-                    {canManage &&
+                    {canManageSelectedSession &&
                     (marks[student.id] === "excused" || marks[student.id] === "absent") ? (
                       <label className="mt-2 block text-xs font-bold text-slate-600 dark:text-slate-300">
                         {marks[student.id] === "excused"
@@ -480,7 +485,7 @@ export function TeacherClassAttendanceSheet({
                         />
                       </label>
                     ) : null}
-                    {canManage && savedSessionId ? (
+                    {canManageSelectedSession && savedSessionId ? (
                       <div className="mt-3 flex items-center gap-2 border-t border-[rgb(var(--border-subtle))] pt-2">
                         <span className="flex items-center gap-1 text-[11px] font-bold text-slate-500">
                           <AttendanceCoin className="size-4 object-contain" /> سکه همین جلسه (۰ تا
@@ -510,7 +515,7 @@ export function TeacherClassAttendanceSheet({
                         </div>
                       </div>
                     ) : null}
-                    {canManage && savedSessionId ? (
+                    {canManageSelectedSession && savedSessionId ? (
                       <div className="mt-3 flex items-center justify-between border-t border-[rgb(var(--border-subtle))] pt-3">
                         <span className="text-xs text-slate-500">گزارش خصوصی برای مدیر</span>
                         <Button
@@ -568,7 +573,7 @@ export function TeacherClassAttendanceSheet({
                   ) : null}
                 </div>
               ) : null}
-              {canManage ? (
+              {canManageSelectedSession ? (
                 <div className="sticky bottom-0 mt-4 bg-card pt-3">
                   {clearConfirmationOpen ? (
                     <div

@@ -13,6 +13,7 @@ import { TeacherClassAttendanceSheet } from "../components/TeacherClassAttendanc
 import {
   activeEntriesForTehranToday,
   nextTeacherScheduleEntry,
+  tehranDateWithOffset,
 } from "../model/teacher-dashboard-schedule";
 import { listTeacherLeaveRequests } from "../../../academics/schedule/api/teacher-leave.api";
 
@@ -39,6 +40,7 @@ export function TeacherDashboard() {
   const { formatDate } = useLocale();
   const [now, setNow] = useState(() => new Date());
   const [selectedClass, setSelectedClass] = useState<ScheduleEntry | null>(null);
+  const [selectedClassDate, setSelectedClassDate] = useState<string>();
   const home = useQuery({
     queryKey: ["dashboard", "teacher-home"],
     queryFn: () => getAdminDashboard("TEACHER"),
@@ -134,7 +136,12 @@ export function TeacherDashboard() {
           {attendanceEntry ? (
             <button
               type="button"
-              onClick={() => setSelectedClass(attendanceEntry)}
+              onClick={() => {
+                setSelectedClassDate(
+                  currentClass ? today : tehranDateWithOffset(now, nextClass?.dayOffset ?? 0),
+                );
+                setSelectedClass(attendanceEntry);
+              }}
               className="flex w-full items-center justify-between gap-3 border-t border-brand/15 bg-brand/5 px-4 py-3 text-right outline-none transition-colors hover:bg-brand/10 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand sm:px-5"
               aria-label={`باز کردن جلسه ${attendanceEntry.title}`}
             >
@@ -233,6 +240,7 @@ export function TeacherDashboard() {
         open={Boolean(selectedClass)}
         onOpenChange={(open) => !open && setSelectedClass(null)}
         canManage={auth.can("attendance.manage")}
+        initialDate={selectedClassDate}
       />
     </section>
   );
