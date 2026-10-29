@@ -299,6 +299,61 @@ describe("staff session and pool creation", () => {
     );
     expect(screen.getByRole("combobox", { name: "نوع جلسات حضور" })).toHaveValue("");
   });
+
+  it("reloads the day from the server and opens its next unsaved scheduled lesson", async () => {
+    mocks.auth.activeRole = "PRINCIPAL";
+    mocks.historicalCandidates.mockResolvedValue([
+      {
+        entryId: "already-saved-entry",
+        classroomId: "class",
+        classroomName: "کلاس الف",
+        teacherName: "استاد الف",
+        subjectName: "فقه",
+        title: "جلسه اول",
+        date: "2026-10-11",
+        startTime: "08:00",
+        endTime: "09:00",
+      },
+      {
+        entryId: "next-entry",
+        classroomId: "class",
+        classroomName: "کلاس الف",
+        teacherName: "استاد الف",
+        subjectName: "فقه",
+        title: "جلسه دوم",
+        date: "2026-10-11",
+        startTime: "09:00",
+        endTime: "10:00",
+      },
+    ]);
+    const openNext = vi.fn();
+    const completeDay = vi.fn();
+    render(
+      <AttendanceStaffWorkspace
+        contexts={contexts}
+        scope="principal"
+        refreshVersion={0}
+        section="sessions"
+        continueScheduledSession={{
+          date: "2026-10-11",
+          completedEntryId: "already-saved-entry",
+        }}
+        onOpenScheduledSession={openNext}
+        onScheduledDayComplete={completeDay}
+      />,
+      { wrapper: Providers },
+    );
+
+    await waitFor(() =>
+      expect(openNext).toHaveBeenCalledWith({
+        sessionId: "session",
+        contextId: "class",
+        date: "2026-10-11",
+        entryId: "next-entry",
+      }),
+    );
+    expect(completeDay).not.toHaveBeenCalled();
+  });
   it("renders the immutable academic and subject snapshots for a saved session", async () => {
     const user = userEvent.setup();
     render(

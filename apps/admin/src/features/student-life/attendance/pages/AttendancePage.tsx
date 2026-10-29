@@ -174,9 +174,13 @@ export function AttendancePage() {
     sessionId: string;
     contextId: string;
     date: string;
+    entryId: string;
   } | null>(null);
   const [archiveSessionId, setArchiveSessionId] = useState<string | null>(null);
-  const [continueScheduledDate, setContinueScheduledDate] = useState<string | null>(null);
+  const [continueScheduledSession, setContinueScheduledSession] = useState<{
+    date: string;
+    completedEntryId: string;
+  } | null>(null);
   const [completedScheduledDate, setCompletedScheduledDate] = useState<string | null>(null);
   const sessionContextId = inlineScheduledSession?.contextId ?? requestedId;
   const sessionContextType = inlineScheduledSession ? "class" : requestedType;
@@ -715,7 +719,10 @@ export function AttendancePage() {
       if (completedScheduledSessionId && inlineScheduledSession) {
         setReviewOpen(false);
         setParticipants([]);
-        setContinueScheduledDate(inlineScheduledSession.date);
+        setContinueScheduledSession({
+          date: inlineScheduledSession.date,
+          completedEntryId: inlineScheduledSession.entryId,
+        });
         setInlineScheduledSession(null);
         setArchiveSessionId(completedScheduledSessionId);
         setContextId("");
@@ -1290,11 +1297,11 @@ export function AttendancePage() {
                 setAttendanceUrl("class");
               })
             }
-            onOpenScheduledSession={({ sessionId, contextId, date }) =>
+            onOpenScheduledSession={({ sessionId, contextId, date, entryId }) =>
               discard.request(() => {
                 setArchiveSessionId(null);
-                setContinueScheduledDate(null);
-                setInlineScheduledSession({ sessionId, contextId, date });
+                setContinueScheduledSession(null);
+                setInlineScheduledSession({ sessionId, contextId, date, entryId });
                 setContextType("class");
                 setContextId(contextId);
                 setGroupClassId("");
@@ -1303,9 +1310,9 @@ export function AttendancePage() {
                 setNotice(null);
               })
             }
-            continueScheduledDate={continueScheduledDate}
+            continueScheduledSession={continueScheduledSession}
             onScheduledDayComplete={(date) => {
-              setContinueScheduledDate(null);
+              setContinueScheduledSession(null);
               setCompletedScheduledDate(date);
             }}
             initialSelectedSessionId={archiveSessionId}

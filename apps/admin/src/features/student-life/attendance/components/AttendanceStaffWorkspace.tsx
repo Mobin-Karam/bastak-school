@@ -839,7 +839,7 @@ export function AttendanceStaffWorkspace({
   refreshVersion,
   onNewSession,
   onOpenScheduledSession,
-  continueScheduledDate,
+  continueScheduledSession,
   onScheduledDayComplete,
   initialSelectedSessionId,
   section,
@@ -848,9 +848,14 @@ export function AttendanceStaffWorkspace({
   scope: string;
   refreshVersion: number;
   onNewSession?: () => void;
-  onOpenScheduledSession?: (target: { sessionId: string; contextId: string; date: string }) => void;
+  onOpenScheduledSession?: (target: {
+    sessionId: string;
+    contextId: string;
+    date: string;
+    entryId: string;
+  }) => void;
   /** After a saved scheduled lesson, opens the next remaining lesson for this day. */
-  continueScheduledDate?: string | null;
+  continueScheduledSession?: { date: string; completedEntryId: string } | null;
   onScheduledDayComplete?: (date: string) => void;
   initialSelectedSessionId?: string | null;
   section: "sessions" | "pool";
@@ -868,7 +873,7 @@ export function AttendanceStaffWorkspace({
   const [academicYearId, setAcademicYearId] = useState("");
   const [termId, setTermId] = useState("");
   const [calendarDate, setCalendarDate] = useState(() => todayIso());
-  const continuedScheduledDate = useRef<string | null>(null);
+  const continuedScheduledSession = useRef<string | null>(null);
   const [manualHistoricalOpen, setManualHistoricalOpen] = useState(false);
   const [manualHistorical, setManualHistorical] = useState({
     classroomId: "",
@@ -1032,6 +1037,7 @@ export function AttendanceStaffWorkspace({
               sessionId: session.id,
               contextId: candidate.classroomId,
               date: candidate.date,
+              entryId: candidate.entryId,
             });
           },
         },
@@ -1040,26 +1046,36 @@ export function AttendanceStaffWorkspace({
     [importHistoricalOccurrence, onOpenScheduledSession],
   );
   useEffect(() => {
-    if (!continueScheduledDate) {
-      continuedScheduledDate.current = null;
+    if (!continueScheduledSession) {
+      continuedScheduledSession.current = null;
       return;
     }
-    if (continuedScheduledDate.current === continueScheduledDate) return;
-    if (historicalCandidates.isLoading || importHistoricalOccurrence.isPending) return;
-    continuedScheduledDate.current = continueScheduledDate;
-    const next = (historicalCandidates.data ?? []).find(
-      (candidate) => candidate.date === continueScheduledDate,
-    );
-    if (next) {
-      openCandidateForAttendance(next);
-      return;
-    }
-    onScheduledDayComplete?.(continueScheduledDate);
+    const continuationKey = `${continueScheduledSession.date}:${continueScheduledSession.completedEntryId}`;
+    if (continuedScheduledSession.current === continuationKey) return;
+    continuedScheduledSession.current = continuationKey;
+
+    // Do not decide from React Query's cached candidates: it can still include
+    // the occurrence that was just saved. A fresh server response is the only
+    // authority for declaring an entire day complete.
+    void historicalCandidates.refetch().then((result) => {
+      if (result.isError) {
+        notify("فهرست جلسه‌های باقی‌ماندهٔ روز دریافت نشد؛ تکمیل روز تأیید نشد.", "error");
+        return;
+      }
+      const next = (result.data ?? []).find(
+        (candidate) =>
+          candidate.date === continueScheduledSession.date &&
+          candidate.entryId !== continueScheduledSession.completedEntryId,
+      );
+      if (next) {
+        openCandidateForAttendance(next);
+        return;
+      }
+      onScheduledDayComplete?.(continueScheduledSession.date);
+    });
   }, [
-    continueScheduledDate,
-    historicalCandidates.data,
-    historicalCandidates.isLoading,
-    importHistoricalOccurrence.isPending,
+    continueScheduledSession,
+    historicalCandidates,
     openCandidateForAttendance,
     onScheduledDayComplete,
   ]);
