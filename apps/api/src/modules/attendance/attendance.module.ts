@@ -13,6 +13,7 @@ import { AttendanceRecord } from "../../database/entities/attendance-record.enti
 import { AttendanceSession } from "../../database/entities/attendance-session.entity";
 import { AttendanceSupervisorCheck } from "../../database/entities/attendance-supervisor-check.entity";
 import { TeacherLeaveRequest } from "../../database/entities/teacher-leave-request.entity";
+import { LeaveRequest } from "../../database/entities/leave-request.entity";
 import { DormRoomAssignment } from "../../database/entities/dorm-room-assignment.entity";
 import { DormRoom } from "../../database/entities/dorm-room.entity";
 import { EducationClassEnrollment } from "../../database/entities/education-class-enrollment.entity";
@@ -41,6 +42,7 @@ import { AttendanceService } from "./attendance.service";
       AttendanceSession,
       AttendanceSupervisorCheck,
       TeacherLeaveRequest,
+      LeaveRequest,
       AttendanceRecord,
       AttendanceWriteReceipt,
       AttendancePolicy,

@@ -14,6 +14,11 @@ import {
 } from "../../database/entities/notification.entity";
 import { AttendanceCorrection } from "../../database/entities/attendance-correction.entity";
 import { TeacherLeaveRequest } from "../../database/entities/teacher-leave-request.entity";
+import {
+  LeaveRequest,
+  LeaveRequestStatus,
+  LeaveRequestType,
+} from "../../database/entities/leave-request.entity";
 import { SchoolScheduleEntry } from "../../database/entities/school-schedule-entry.entity";
 import {
   SchoolAcademicYear,
@@ -2671,10 +2676,34 @@ export class AttendanceService {
           }),
         );
       }
+      // A principal-approved student leave is the authoritative reason for an
+      // absence at this occurrence. Keep the teacher's observed present/late
+      // value intact: that discrepancy is surfaced to the reviewers below.
+      const occurrenceAt = session.scheduledStartAt ?? session.sessionDate;
+      const activeStudentLeaves = await manager
+        .getRepository(LeaveRequest)
+        .find({
+          where: {
+            organization: { id: organization.id },
+            leaveType: LeaveRequestType.LEAVE,
+            status: LeaveRequestStatus.APPROVED,
+            startDate: LessThanOrEqual(occurrenceAt),
+            endDate: MoreThanOrEqual(occurrenceAt),
+          },
+          relations: { student: true },
+        });
+      const leaveByStudentId = new Map(
+        activeStudentLeaves.map((leave) => [leave.student.id, leave]),
+      );
       const saved: AttendanceRecord[] = [];
       const changes: Array<Record<string, unknown>> = [];
       for (const entry of entries) {
         const student = byId.get(entry.studentId)!;
+        const activeLeave = leaveByStudentId.get(student.id);
+        const status =
+          activeLeave && entry.status === AttendanceStatus.ABSENT
+            ? AttendanceStatus.EXCUSED
+            : entry.status;
         let record = await records.findOne({
           where: { session: { id: session.id }, student: { id: student.id } },
           relations: { student: true },
@@ -2687,16 +2716,19 @@ export class AttendanceService {
             }
           : null;
         if (!record) record = records.create({ session, student });
-        record.status = entry.status;
+        record.status = status;
         record.physicalStatus =
-          entry.status === AttendanceStatus.EXCUSED
+          status === AttendanceStatus.EXCUSED
             ? "legacy_unknown"
-            : entry.status;
+            : status;
         record.revision = (record.revision ?? 0) + 1;
-        record.note = entry.note?.trim() || "";
+        record.note =
+          activeLeave && entry.status === AttendanceStatus.ABSENT
+            ? activeLeave.note || activeLeave.reason
+            : entry.note?.trim() || "";
         record.recordedBy = { id: user.id } as User;
         record.reviewStatus =
-          entry.status === AttendanceStatus.ABSENT
+          status === AttendanceStatus.ABSENT
             ? AttendanceReviewStatus.PENDING
             : null;
         record.reviewNote = "";
