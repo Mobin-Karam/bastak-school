@@ -6,10 +6,14 @@ import { LocaleProvider } from "../../../../shared/ui/locale";
 import { ModalProvider } from "../../../../shared/ui/modal";
 import { AdminMainSidebar } from "./AdminMainSidebar";
 
-const auth = {
+const auth: {
+  activeRole: string;
+  capabilities: string[];
+  can: (capability: string) => boolean;
+} = {
   activeRole: "ADVISOR",
   capabilities: ["plans.read", "chat.read"],
-  can: () => false,
+  can: (_capability) => false,
 };
 
 vi.mock("../../../../features/identity/auth", () => ({ useAuth: () => auth }));
