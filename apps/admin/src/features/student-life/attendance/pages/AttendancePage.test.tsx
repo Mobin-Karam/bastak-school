@@ -71,7 +71,26 @@ vi.mock("../../../../shared/ui/responsive-drawer", () => ({
 }));
 
 vi.mock("../components/AttendanceStaffWorkspace", () => ({
-  AttendanceStaffWorkspace: () => <div>فضای کار جلسات</div>,
+  AttendanceStaffWorkspace: ({ onOpenScheduledSession }: any) => (
+    <div>
+      فضای کار جلسات
+      {onOpenScheduledSession ? (
+        <button
+          type="button"
+          onClick={() =>
+            onOpenScheduledSession({
+              sessionId: "session-1",
+              contextId: "class-1",
+              date: "2026-10-11",
+              entryId: "entry-1",
+            })
+          }
+        >
+          بازکردن جلسه تقویم
+        </button>
+      ) : null}
+    </div>
+  ),
   AttendanceProfileDialog: () => null,
 }));
 vi.mock("../components/PendingCorrectionQueue", () => ({
@@ -194,6 +213,33 @@ describe("AttendancePage", () => {
     expect(await screen.findByRole("dialog", { name: "فقه · کلاس الف" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "کلاس 0 مورد" })).not.toBeInTheDocument();
     expect(await screen.findByRole("group", { name: "وضعیت علی" })).toBeInTheDocument();
+  });
+
+  it("keeps the sessions workspace mounted behind a calendar attendance drawer", async () => {
+    authState.activeRole = "PRINCIPAL";
+    canMock.mockImplementation((capability: string) =>
+      ["attendance.read", "attendance.manage", "attendance.review"].includes(capability),
+    );
+    listAttendanceContextsMock.mockResolvedValue([]);
+    getSavedAttendanceSessionMock.mockResolvedValue({
+      id: "session-1",
+      contextType: "class",
+      contextId: "class-1",
+      title: "فقه · کلاس الف",
+      revision: 0,
+      status: "open",
+      organizationId: "org-1",
+      roster: [{ id: "student-1", name: "علی" }],
+      records: [],
+    });
+    const user = userEvent.setup();
+    render(<AttendancePage />, { wrapper: TestProviders });
+
+    await user.click(await screen.findByRole("button", { name: "بازکردن جلسه تقویم" }));
+
+    expect(await screen.findByRole("dialog", { name: "فقه · کلاس الف" })).toBeInTheDocument();
+    expect(screen.getByText("فضای کار جلسات")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "کلاس 0 مورد" })).not.toBeInTheDocument();
   });
   it("gives a teacher the sessions workspace without reviewer queues", async () => {
     canMock.mockImplementation((capability: string) => capability === "attendance.class.read");

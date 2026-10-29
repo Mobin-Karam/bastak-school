@@ -195,11 +195,13 @@ export function AttendancePage() {
     sessionContextId,
   );
   const fallbackSection: AttendanceSection = sections[0] ?? (isPrincipal ? "sessions" : "class");
-  const requestedSection: AttendanceSection = directScheduledSessionRequest
-    ? "class"
-    : sections.includes(requestedSectionParam as AttendanceSection)
-      ? (requestedSectionParam as AttendanceSection)
-      : fallbackSection;
+  const requestedSection: AttendanceSection = inlineScheduledSession
+    ? "sessions"
+    : directScheduledSessionRequest
+      ? "class"
+      : sections.includes(requestedSectionParam as AttendanceSection)
+        ? (requestedSectionParam as AttendanceSection)
+        : fallbackSection;
   const requestedReviewRecordId =
     requestedSection === "sessions" ? searchParams.get("reviewRecordId") : null;
   const requestedCorrectionId =
@@ -355,7 +357,9 @@ export function AttendancePage() {
               );
         if (requested) {
           setContextType(requested.contextType);
-          setChosenType(requested.contextType);
+          // Opening a lesson from the sessions calendar is an overlay on the
+          // sessions workspace, not navigation into the manual class page.
+          setChosenType(inlineScheduledSession ? "sessions" : requested.contextType);
           setContextId(requested.id);
           setGroupClassId(requested.classId || "");
         }
