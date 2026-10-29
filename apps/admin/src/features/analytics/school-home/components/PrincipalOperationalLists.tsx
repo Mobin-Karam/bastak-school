@@ -9,7 +9,7 @@ import {
 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useAuth } from "../../../identity/auth";
-import { Card, Button, LoadingState } from "../../../../shared/ui/ui";
+import { Button, LoadingState } from "../../../../shared/ui/ui";
 import { ResponsiveDrawer } from "../../../../shared/ui/responsive-drawer";
 import { Switch } from "../../../../shared/ui/switch";
 import {
