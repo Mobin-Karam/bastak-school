@@ -180,6 +180,12 @@ export class SubmitAttendanceAbsencesDto {
   @ArrayUnique()
   @IsUUID("4", { each: true })
   lateStudentIds?: string[];
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(500)
+  @ArrayUnique()
+  @IsUUID("4", { each: true })
+  excusedStudentIds?: string[];
 }
 
 export class FinalizeAttendanceSessionDto {
@@ -197,7 +203,8 @@ export class CancelAttendanceSessionDto {
 export class CorrectAttendanceRecordDto {
   @IsUUID() requestId!: string;
   @IsInt() @Min(0) expectedRevision!: number;
-  @IsIn(["present", "absent", "late"]) status!: "present" | "absent" | "late";
+  @IsIn(["present", "absent", "late", "excused"])
+  status!: "present" | "absent" | "late" | "excused";
   @IsString() @MinLength(3) @MaxLength(500) reason!: string;
   @IsOptional() @IsInt() @Min(0) @Max(1440) minutesLate?: number;
 }

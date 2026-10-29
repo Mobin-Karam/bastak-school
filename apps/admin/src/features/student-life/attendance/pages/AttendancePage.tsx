@@ -31,6 +31,7 @@ import { Card } from "../../../../shared/ui/ui";
 import { api, ApiError } from "../../../../shared/api/api";
 import { notify } from "../../../../shared/ui/notifications";
 import { ResponsiveDrawer } from "../../../../shared/ui/responsive-drawer";
+import { ResponsiveModal } from "../../../../shared/ui/responsive-modal";
 import { useAuth } from "../../../identity/auth";
 import { useAttendanceDiscard } from "../components/useAttendanceDiscard";
 import { AttendanceRosterView } from "../views/AttendanceRosterView";
@@ -97,9 +98,29 @@ function errorText(error: unknown, fallback: string) {
   return error instanceof Error && error.message ? error.message : fallback;
 }
 
+function sessionDateLabel(value: string) {
+  const date = new Date(value);
+  return Number.isNaN(date.getTime())
+    ? "تاریخ نامشخص"
+    : new Intl.DateTimeFormat("fa-IR-u-ca-persian", { dateStyle: "full" }).format(date);
+}
+
+function sessionTimeLabel(start: string | null, end: string | null) {
+  if (!start && !end) return "ساعت برنامه ثبت نشده";
+  const formatter = new Intl.DateTimeFormat("fa-IR", { hour: "2-digit", minute: "2-digit" });
+  const format = (value: string | null) => {
+    if (!value) return "—";
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? "—" : formatter.format(date);
+  };
+  return `${format(start)} تا ${format(end)}`;
+}
+
 export function AttendancePage() {
   const auth = useAuth();
   const isPrincipal = auth.activeRole === "PRINCIPAL";
+  const isAcademicAttendanceOperator =
+    isPrincipal || auth.activeRole === "RELIGIOUS_EDUCATION_MANAGER";
   const canViewStaffSessions = auth.canAny(["attendance.review", "attendance.class.read"]);
   const isSupervisor = auth.context?.roles?.includes("SCHOOL_SUPERVISOR") ?? false;
   const { profile } = useLocale();
@@ -149,11 +170,25 @@ export function AttendancePage() {
   const requestedId = searchParams.get("contextId");
   const requestedType = searchParams.get("contextType");
   const requestedSessionId = searchParams.get("sessionId");
+  const [inlineScheduledSession, setInlineScheduledSession] = useState<{
+    sessionId: string;
+    contextId: string;
+    date: string;
+  } | null>(null);
+  const [archiveSessionId, setArchiveSessionId] = useState<string | null>(null);
+  const [continueScheduledDate, setContinueScheduledDate] = useState<string | null>(null);
+  const [completedScheduledDate, setCompletedScheduledDate] = useState<string | null>(null);
+  const sessionContextId = inlineScheduledSession?.contextId ?? requestedId;
+  const sessionContextType = inlineScheduledSession ? "class" : requestedType;
+  const activeSessionId = inlineScheduledSession?.sessionId ?? requestedSessionId;
   const requestedSectionParam = searchParams.get("section");
   // Principals do not get the manual class workspace, but may open one
   // scheduled class occurrence directly from the missing-session calendar.
   const directScheduledSessionRequest = Boolean(
-    isPrincipal && requestedSessionId && requestedType === "class" && requestedId,
+    (isAcademicAttendanceOperator || inlineScheduledSession) &&
+    activeSessionId &&
+    sessionContextType === "class" &&
+    sessionContextId,
   );
   const fallbackSection: AttendanceSection = sections[0] ?? (isPrincipal ? "sessions" : "class");
   const requestedSection: AttendanceSection = directScheduledSessionRequest
@@ -207,10 +242,11 @@ export function AttendancePage() {
     if (contextOrder.includes(requestedSection as AttendanceContextType)) {
       setContextType(requestedSection as AttendanceContextType);
     }
-    if ((isPrincipal && !directScheduledSessionRequest) || !requestedId) return;
+    if ((isPrincipal && !directScheduledSessionRequest) || !sessionContextId) return;
     const requested = contexts.find(
       (context) =>
-        context.id === requestedId && (!requestedType || context.contextType === requestedType),
+        context.id === sessionContextId &&
+        (!sessionContextType || context.contextType === sessionContextType),
     );
     if (!requested) return;
     setContextType(requested.contextType);
@@ -220,9 +256,9 @@ export function AttendancePage() {
     contexts,
     directScheduledSessionRequest,
     isPrincipal,
-    requestedId,
+    sessionContextId,
     requestedSection,
-    requestedType,
+    sessionContextType,
   ]);
   const visibleContexts = useMemo(
     () =>
@@ -277,11 +313,11 @@ export function AttendancePage() {
     setLoadingContexts(true);
     const linkedContexts = async () => {
       const rows = await listAttendanceContexts();
-      if (requestedSessionId) {
-        const session = await getSavedAttendanceSession(requestedSessionId);
+      if (activeSessionId) {
+        const session = await getSavedAttendanceSession(activeSessionId);
         if (
-          session.contextType !== requestedType ||
-          session.contextId !== requestedId ||
+          session.contextType !== sessionContextType ||
+          session.contextId !== sessionContextId ||
           session.organizationId !== auth.context?.activeOrganization?.id
         )
           throw new Error("جلسه و زمینه مدرسه مطابقت ندارند.");
@@ -309,7 +345,9 @@ export function AttendancePage() {
           isPrincipal && !directScheduledSessionRequest
             ? undefined
             : available.find(
-                (c) => c.id === requestedId && (!requestedType || c.contextType === requestedType),
+                (c) =>
+                  c.id === sessionContextId &&
+                  (!sessionContextType || c.contextType === sessionContextType),
               );
         if (requested) {
           setContextType(requested.contextType);
@@ -335,7 +373,15 @@ export function AttendancePage() {
     };
     // URL params are initial selection only. Subsequent selection is controlled by the user.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [directScheduledSessionRequest, isPrincipal, loadVersion, scopeKey]);
+  }, [
+    activeSessionId,
+    directScheduledSessionRequest,
+    isPrincipal,
+    loadVersion,
+    scopeKey,
+    sessionContextId,
+    sessionContextType,
+  ]);
 
   useEffect(() => {
     const currentRequest = ++requestId.current;
@@ -354,8 +400,8 @@ export function AttendancePage() {
     setLoadingPeople(true);
     setLinkedSession(null);
     const sessionId =
-      selected.id === requestedId && selected.contextType === requestedType
-        ? requestedSessionId
+      selected.id === sessionContextId && selected.contextType === sessionContextType
+        ? activeSessionId
         : null;
     const fetchRoster = sessionId
       ? getSavedAttendanceSession(sessionId).then((session) => {
@@ -406,7 +452,7 @@ export function AttendancePage() {
     return () => {
       if (requestId.current === currentRequest) requestId.current += 1;
     };
-  }, [selected, rosterVersion, requestedId, requestedType, requestedSessionId]);
+  }, [selected, rosterVersion, sessionContextId, sessionContextType, activeSessionId]);
 
   useEffect(() => {
     const handleBeforeUnload = (event: BeforeUnloadEvent) => {
@@ -523,7 +569,11 @@ export function AttendancePage() {
       setContextId("");
       setReviewOpen(false);
       setNotice(null);
-      if (isPrincipal && directScheduledSessionRequest) {
+      if (inlineScheduledSession) {
+        setInlineScheduledSession(null);
+        setArchiveSessionId(null);
+        setChosenType("sessions");
+      } else if (isPrincipal && directScheduledSessionRequest) {
         setChosenType("sessions");
         setAttendanceUrl("sessions");
       } else setAttendanceUrl(chosenType);
@@ -590,7 +640,7 @@ export function AttendancePage() {
   }
   async function save() {
     if (!canManage || saving || loadingPeople || conflict) return;
-    if (requestedSessionId && selected?.id === requestedId && !linkedSession) {
+    if (activeSessionId && selected?.id === sessionContextId && !linkedSession) {
       setNotice({ kind: "error", text: "ابتدا جلسه درس را بارگذاری کنید." });
       return;
     }
@@ -651,6 +701,9 @@ export function AttendancePage() {
           lateStudentIds: participants
             .filter((person) => person.status === "late")
             .map((person) => person.id),
+          excusedStudentIds: participants
+            .filter((person) => person.status === "excused")
+            .map((person) => person.id),
         });
       } else {
         await bulkMarkAttendance(write.body);
@@ -658,6 +711,19 @@ export function AttendancePage() {
       if (scopeRef.current !== scopeKey) return;
       pendingWrite.current = null;
       if (linkedSession) setRosterVersion((value) => value + 1);
+      const completedScheduledSessionId = linkedSession?.id;
+      if (completedScheduledSessionId && inlineScheduledSession) {
+        setReviewOpen(false);
+        setParticipants([]);
+        setContinueScheduledDate(inlineScheduledSession.date);
+        setInlineScheduledSession(null);
+        setArchiveSessionId(completedScheduledSessionId);
+        setContextId("");
+        setChosenType("sessions");
+        setStaffRefreshVersion((value) => value + 1);
+        notify("حضور جلسه ثبت شد و در آرشیو جلسه باز شد.", "success");
+        return;
+      }
       setReviewOpen(false);
       setParticipants((all) => all.map((p) => ({ ...p, status: "unmarked" })));
       setNotice({
@@ -942,6 +1008,45 @@ export function AttendancePage() {
                   ? `${linkedSession.title} · ${linkedSession.status === "cancelled" ? "لغو شده؛ فقط مشاهده تاریخچه" : "حضور همین وقوع درس ثبت می‌شود."}`
                   : "این جلسه با زمان فعلی ثبت می‌شود."}
               </p>
+              {linkedSession ? (
+                <section
+                  aria-label="مشخصات جلسه انتخاب‌شده"
+                  className="overflow-hidden rounded-2xl border border-brand/20 bg-gradient-to-bl from-brand/10 via-[rgb(var(--surface-card))] to-[rgb(var(--surface-muted))]"
+                >
+                  <div className="border-b border-brand/15 px-4 py-3 sm:px-5">
+                    <p className="text-xs font-bold text-brand">جلسهٔ انتخاب‌شده از برنامه</p>
+                    <h3 className="mt-1 text-base font-black text-[rgb(var(--color-ink))]">
+                      {linkedSession.title}
+                    </h3>
+                  </div>
+                  <dl className="grid divide-y divide-[rgb(var(--border-subtle))] sm:grid-cols-3 sm:divide-x sm:divide-y-0 sm:divide-x-reverse">
+                    <div className="min-w-0 px-4 py-3 sm:px-5">
+                      <dt className={`text-[11px] font-bold ${muted}`}>تاریخ جلسه</dt>
+                      <dd className="mt-1 text-sm font-black text-[rgb(var(--color-ink))]">
+                        {sessionDateLabel(linkedSession.sessionDate)}
+                      </dd>
+                    </div>
+                    <div className="min-w-0 px-4 py-3 sm:px-5">
+                      <dt className={`text-[11px] font-bold ${muted}`}>استاد</dt>
+                      <dd className="mt-1 truncate text-sm font-black text-[rgb(var(--color-ink))]">
+                        {linkedSession.assignedStaffName || "استاد ثبت نشده"}
+                      </dd>
+                    </div>
+                    <div className="min-w-0 px-4 py-3 sm:px-5">
+                      <dt className={`text-[11px] font-bold ${muted}`}>زمان</dt>
+                      <dd
+                        className="mt-1 text-sm font-black text-[rgb(var(--color-ink))]"
+                        dir="ltr"
+                      >
+                        {sessionTimeLabel(
+                          linkedSession.scheduledStartAt,
+                          linkedSession.scheduledEndAt,
+                        )}
+                      </dd>
+                    </div>
+                  </dl>
+                </section>
+              ) : null}
               {linkedSession && sessionWindow?.message ? (
                 <p
                   role="status"
@@ -1185,6 +1290,25 @@ export function AttendancePage() {
                 setAttendanceUrl("class");
               })
             }
+            onOpenScheduledSession={({ sessionId, contextId, date }) =>
+              discard.request(() => {
+                setArchiveSessionId(null);
+                setContinueScheduledDate(null);
+                setInlineScheduledSession({ sessionId, contextId, date });
+                setContextType("class");
+                setContextId(contextId);
+                setGroupClassId("");
+                setChosenType("class");
+                setReviewOpen(false);
+                setNotice(null);
+              })
+            }
+            continueScheduledDate={continueScheduledDate}
+            onScheduledDayComplete={(date) => {
+              setContinueScheduledDate(null);
+              setCompletedScheduledDate(date);
+            }}
+            initialSelectedSessionId={archiveSessionId}
           />
           {chosenType === "sessions" && auth.can("attendance.review") ? (
             <div className="grid items-start gap-4 xl:grid-cols-2">
@@ -1194,6 +1318,34 @@ export function AttendancePage() {
           ) : null}
         </>
       ) : null}
+      <ResponsiveModal
+        open={Boolean(completedScheduledDate)}
+        onOpenChange={(open) => {
+          if (!open) setCompletedScheduledDate(null);
+        }}
+        title="جلسه‌های این روز کامل شد"
+        description={
+          completedScheduledDate
+            ? `تمام جلسه‌های برنامه‌ریزی‌شدهٔ ${sessionDateLabel(`${completedScheduledDate}T12:00:00Z`)} ثبت و به آرشیو افزوده شدند.`
+            : ""
+        }
+      >
+        <div className="space-y-4" dir={profile.direction}>
+          <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm leading-6 text-emerald-900 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-100">
+            برای بازبینی یا اصلاح هر جلسه، از آرشیو جلسه‌ها استفاده کنید. اصلاح‌ها با دلیل و سابقهٔ
+            تغییر ثبت می‌شوند.
+          </div>
+          <div className="flex justify-end">
+            <button
+              type="button"
+              className={`${buttonBase} bg-brand text-white`}
+              onClick={() => setCompletedScheduledDate(null)}
+            >
+              مشاهده آرشیو جلسه‌ها
+            </button>
+          </div>
+        </div>
+      </ResponsiveModal>
       {profileId && canViewStaffSessions ? (
         <AttendanceProfileDialog
           studentId={profileId}

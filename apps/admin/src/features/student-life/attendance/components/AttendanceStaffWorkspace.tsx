@@ -1,6 +1,6 @@
 import { AdaptiveSelect } from "@/shared/ui/adaptive-select";
 import { attendanceRequestId } from "../model/attendance-request-id";
-import { useEffect, useId, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { PolarAngleAxis, PolarGrid, Radar, RadarChart, ResponsiveContainer } from "recharts";
 import {
@@ -348,7 +348,7 @@ function SavedSessionDialog({
   const [correction, setCorrection] = useState<{
     id: string;
     revision: number;
-    status: "present" | "absent" | "late";
+    status: "present" | "absent" | "late" | "excused";
   } | null>(null);
   const [correctionReason, setCorrectionReason] = useState("");
   const [correcting, setCorrecting] = useState(false);
@@ -655,7 +655,7 @@ function SavedSessionDialog({
                       current
                         ? {
                             ...current,
-                            status: event.target.value as "present" | "absent" | "late",
+                            status: event.target.value as "present" | "absent" | "late" | "excused",
                           }
                         : null,
                     )
@@ -664,6 +664,7 @@ function SavedSessionDialog({
                   <option value="present">حاضر</option>
                   <option value="absent">غایب</option>
                   <option value="late">تأخیر</option>
+                  <option value="excused">موجه</option>
                 </AdaptiveSelect>
                 <textarea
                   aria-label="دلیل اصلاح حضور"
@@ -762,10 +763,12 @@ function SavedSessionDialog({
                                       id: record.id,
                                       revision: record.revision,
                                       status:
-                                        record.physicalStatus === "late" ||
-                                        record.physicalStatus === "absent"
-                                          ? record.physicalStatus
-                                          : "present",
+                                        record.legacyStatus === "excused"
+                                          ? "excused"
+                                          : record.physicalStatus === "late" ||
+                                              record.physicalStatus === "absent"
+                                            ? record.physicalStatus
+                                            : "present",
                                     });
                                     setCorrectionReason("");
                                   }}
@@ -835,12 +838,21 @@ export function AttendanceStaffWorkspace({
   scope,
   refreshVersion,
   onNewSession,
+  onOpenScheduledSession,
+  continueScheduledDate,
+  onScheduledDayComplete,
+  initialSelectedSessionId,
   section,
 }: {
   contexts: AttendanceContextOption[];
   scope: string;
   refreshVersion: number;
   onNewSession?: () => void;
+  onOpenScheduledSession?: (target: { sessionId: string; contextId: string; date: string }) => void;
+  /** After a saved scheduled lesson, opens the next remaining lesson for this day. */
+  continueScheduledDate?: string | null;
+  onScheduledDayComplete?: (date: string) => void;
+  initialSelectedSessionId?: string | null;
   section: "sessions" | "pool";
 }) {
   const auth = useAuth();
@@ -856,6 +868,7 @@ export function AttendanceStaffWorkspace({
   const [academicYearId, setAcademicYearId] = useState("");
   const [termId, setTermId] = useState("");
   const [calendarDate, setCalendarDate] = useState(() => todayIso());
+  const continuedScheduledDate = useRef<string | null>(null);
   const [manualHistoricalOpen, setManualHistoricalOpen] = useState(false);
   const [manualHistorical, setManualHistorical] = useState({
     classroomId: "",
@@ -1009,22 +1022,47 @@ export function AttendanceStaffWorkspace({
     onError: (error) =>
       notify(error instanceof Error ? error.message : "ایجاد جلسهٔ تاریخی انجام نشد.", "error"),
   });
-  const openCandidateForAttendance = (candidate: HistoricalAttendanceCandidate) => {
-    importHistoricalOccurrence.mutate(
-      { entryId: candidate.entryId, date: candidate.date },
-      {
-        onSuccess: (session) => {
-          const params = new URLSearchParams({
-            section: "class",
-            contextType: "class",
-            contextId: candidate.classroomId,
-            sessionId: session.id,
-          });
-          window.location.assign(`/admin/attendance?${params.toString()}`);
+  const openCandidateForAttendance = useCallback(
+    (candidate: HistoricalAttendanceCandidate) => {
+      importHistoricalOccurrence.mutate(
+        { entryId: candidate.entryId, date: candidate.date },
+        {
+          onSuccess: (session) => {
+            onOpenScheduledSession?.({
+              sessionId: session.id,
+              contextId: candidate.classroomId,
+              date: candidate.date,
+            });
+          },
         },
-      },
+      );
+    },
+    [importHistoricalOccurrence, onOpenScheduledSession],
+  );
+  useEffect(() => {
+    if (!continueScheduledDate) {
+      continuedScheduledDate.current = null;
+      return;
+    }
+    if (continuedScheduledDate.current === continueScheduledDate) return;
+    if (historicalCandidates.isLoading || importHistoricalOccurrence.isPending) return;
+    continuedScheduledDate.current = continueScheduledDate;
+    const next = (historicalCandidates.data ?? []).find(
+      (candidate) => candidate.date === continueScheduledDate,
     );
-  };
+    if (next) {
+      openCandidateForAttendance(next);
+      return;
+    }
+    onScheduledDayComplete?.(continueScheduledDate);
+  }, [
+    continueScheduledDate,
+    historicalCandidates.data,
+    historicalCandidates.isLoading,
+    importHistoricalOccurrence.isPending,
+    openCandidateForAttendance,
+    onScheduledDayComplete,
+  ]);
   const createManualHistoricalSession = useMutation({
     mutationFn: createHistoricalAttendanceSession,
     onSuccess: () => {
@@ -1055,6 +1093,9 @@ export function AttendanceStaffWorkspace({
     void cache.invalidateQueries({ queryKey: ["attendance-session-history", scope] });
     void cache.invalidateQueries({ queryKey: ["attendance-pools", scope] });
   }, [cache, refreshVersion, scope]);
+  useEffect(() => {
+    if (initialSelectedSessionId) setSelectedId(initialSelectedSessionId);
+  }, [initialSelectedSessionId]);
   useEffect(() => {
     setSelectedId(null);
     setSessionsPage(1);

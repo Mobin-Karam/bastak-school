@@ -81,6 +81,7 @@ export type SubmitAttendanceAbsences = {
   expectedRevision: number;
   absentStudentIds: string[];
   lateStudentIds?: string[];
+  excusedStudentIds?: string[];
 };
 export type ResolveAttendanceSession = {
   organizationId: string;

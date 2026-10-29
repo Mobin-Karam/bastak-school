@@ -164,6 +164,7 @@ export const submitAttendanceAbsences = (
     expectedRevision: number;
     absentStudentIds: string[];
     lateStudentIds?: string[];
+    excusedStudentIds?: string[];
   },
 ) =>
   api.post<{ sessionId: string; revision: number; status: string; count: number }>(
@@ -191,7 +192,7 @@ export const correctAttendanceRecord = (
   body: {
     requestId: string;
     expectedRevision: number;
-    status: "present" | "absent" | "late";
+    status: "present" | "absent" | "late" | "excused";
     reason: string;
     minutesLate?: number;
   },

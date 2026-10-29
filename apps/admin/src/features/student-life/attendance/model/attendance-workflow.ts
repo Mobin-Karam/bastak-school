@@ -11,7 +11,13 @@ export type AttendanceParticipant = {
 
 export type AttendanceFilter = "all" | AttendanceStatus;
 
-export const attendanceStatuses: MarkedAttendanceStatus[] = ["present", "absent", "late"];
+/** Keep the four statuses together so every roster renders the same choices. */
+export const attendanceStatuses: MarkedAttendanceStatus[] = [
+  "present",
+  "absent",
+  "late",
+  "excused",
+];
 
 export const attendanceStatusMeta: Record<
   MarkedAttendanceStatus,

@@ -76,7 +76,35 @@ test("preserves existing authorization rows while repairing principal announceme
     INSERT INTO migrations VALUES ('PrincipalAnnouncementManagementCapabilityRepair1762300700000');
   `);
   assert.doesNotThrow(() => preserved(before, inventory(db), db));
-  db.prepare("UPDATE permissions SET description='changed' WHERE id='attendance-read'").run();
+  db.prepare(
+    "UPDATE permissions SET description='changed' WHERE id='attendance-read'",
+  ).run();
+  assert.throws(
+    () => preserved(before, inventory(db), db),
+    /existing logical records changed/,
+  );
+  db.close();
+});
+
+test("preserves authorization history while granting attendance correction to the academic manager", () => {
+  const db = new Database(":memory:");
+  db.exec(`
+    CREATE TABLE roles (id TEXT PRIMARY KEY, code TEXT NOT NULL);
+    CREATE TABLE permissions (id TEXT PRIMARY KEY, code TEXT NOT NULL, description TEXT NOT NULL);
+    CREATE TABLE role_permissions (id TEXT PRIMARY KEY, roleId TEXT NOT NULL, permissionId TEXT NOT NULL);
+    CREATE TABLE migrations (name TEXT);
+    INSERT INTO roles VALUES ('religious-manager', 'RELIGIOUS_EDUCATION_MANAGER');
+    INSERT INTO permissions VALUES ('attendance-manage', 'attendance.manage', 'Retained');
+    INSERT INTO role_permissions VALUES ('existing-grant', 'religious-manager', 'attendance-manage');
+  `);
+  const before = inventory(db);
+  db.exec(`
+    INSERT INTO permissions VALUES ('attendance-correct', 'attendance.correct', 'Attendance correction');
+    INSERT INTO role_permissions VALUES ('academic-correction', 'religious-manager', 'attendance-correct');
+    INSERT INTO migrations VALUES ('ReligiousEducationAttendanceCorrectionAccess1762300800000');
+  `);
+  assert.doesNotThrow(() => preserved(before, inventory(db), db));
+  db.prepare("DELETE FROM role_permissions WHERE id='existing-grant'").run();
   assert.throws(
     () => preserved(before, inventory(db), db),
     /existing logical records changed/,
@@ -194,7 +222,10 @@ test("permits only the default group link created for legacy time blocks", () =>
   `);
   assert.doesNotThrow(() => preserved(before, inventory(db), db));
   db.prepare("UPDATE school_schedule_time_blocks SET groupId='unknown'").run();
-  assert.throws(() => preserved(before, inventory(db), db), /unexpected default group/);
+  assert.throws(
+    () => preserved(before, inventory(db), db),
+    /unexpected default group/,
+  );
   db.close();
 });
 
@@ -286,8 +317,13 @@ test("permits only the explicit automatic-to-all-session review-policy migration
     INSERT INTO migrations(name) VALUES ('PrincipalAttendanceAllSessionsReview1762300600000');
   `);
   assert.doesNotThrow(() => preserved(before, inventory(db), db));
-  db.prepare("UPDATE attendance_policies SET principalReviewMode='all_sessions' WHERE id='absence-policy'").run();
-  assert.throws(() => preserved(before, inventory(db), db), /existing logical records changed/);
+  db.prepare(
+    "UPDATE attendance_policies SET principalReviewMode='all_sessions' WHERE id='absence-policy'",
+  ).run();
+  assert.throws(
+    () => preserved(before, inventory(db), db),
+    /existing logical records changed/,
+  );
   db.close();
 });
 

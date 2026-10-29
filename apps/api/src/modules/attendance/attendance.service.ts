@@ -1469,11 +1469,17 @@ export class AttendanceService {
   ) {
     const absent = new Set(dto.absentStudentIds);
     const late = new Set(dto.lateStudentIds ?? []);
-    if ([...absent].some((studentId) => late.has(studentId)))
+    const excused = new Set(dto.excusedStudentIds ?? []);
+    if (
+      [...absent].some(
+        (studentId) => late.has(studentId) || excused.has(studentId),
+      ) ||
+      [...late].some((studentId) => excused.has(studentId))
+    )
       throw new ApiException(
         422,
         "ATTENDANCE_STATUS_CONFLICT",
-        "یک طلبه نمی‌تواند هم‌زمان غایب و دیرآمده باشد.",
+        "هر طلبه فقط می‌تواند یک وضعیت حضور داشته باشد.",
       );
     const session = await this.sessions.findOne({
       where: { id: sessionId },
@@ -1505,7 +1511,11 @@ export class AttendanceService {
         "این جلسه لغو یا نهایی شده است.",
       );
     const roster = new Set(session.rosterSnapshot.map((member) => member.id));
-    if ([...absent, ...late].some((studentId) => !roster.has(studentId)))
+    if (
+      [...absent, ...late, ...excused].some(
+        (studentId) => !roster.has(studentId),
+      )
+    )
       throw new ApiException(
         422,
         "ATTENDANCE_STUDENT_NOT_IN_SESSION",
@@ -1524,7 +1534,9 @@ export class AttendanceService {
             ? "absent"
             : late.has(member.id)
               ? "late"
-              : "present",
+              : excused.has(member.id)
+                ? "excused"
+                : "present",
         })),
       },
       { allowOccurrence: true, allowHistoricalOccurrence: true, submit: true },
@@ -1896,7 +1908,8 @@ export class AttendanceService {
       };
       const after = {
         status: dto.status,
-        physicalStatus: dto.status,
+        physicalStatus:
+          dto.status === "excused" ? "legacy_unknown" : dto.status,
         minutesLate: dto.status === "late" ? (dto.minutesLate ?? null) : null,
         revision: record.revision + 1,
       };
@@ -1993,7 +2006,8 @@ export class AttendanceService {
         };
       }
       record.status = dto.status as AttendanceStatus;
-      record.physicalStatus = dto.status;
+      record.physicalStatus =
+        dto.status === "excused" ? "legacy_unknown" : dto.status;
       record.minutesLate =
         dto.status === "late" ? (dto.minutesLate ?? null) : null;
       record.reviewStatus =
@@ -2116,8 +2130,8 @@ export class AttendanceService {
       correction.reviewedAt = new Date();
       if (dto.decision === "approved") {
         const after = correction.after as {
-          status?: "present" | "absent" | "late";
-          physicalStatus?: "present" | "absent" | "late";
+          status?: "present" | "absent" | "late" | "excused";
+          physicalStatus?: "present" | "absent" | "late" | "legacy_unknown";
           minutesLate?: number | null;
         };
         if (
@@ -2131,7 +2145,9 @@ export class AttendanceService {
           );
         const record = correction.record;
         record.status = after.status as AttendanceStatus;
-        record.physicalStatus = after.physicalStatus ?? after.status;
+        record.physicalStatus =
+          after.physicalStatus ??
+          (after.status === "excused" ? "legacy_unknown" : after.status);
         record.minutesLate =
           after.status === "late" ? (after.minutesLate ?? null) : null;
         record.reviewStatus =

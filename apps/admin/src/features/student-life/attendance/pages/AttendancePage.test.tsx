@@ -193,7 +193,7 @@ describe("AttendancePage", () => {
 
     expect(await screen.findByRole("dialog", { name: "فقه · کلاس الف" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "کلاس 0 مورد" })).not.toBeInTheDocument();
-    expect(screen.getByRole("group", { name: "وضعیت علی" })).toBeInTheDocument();
+    expect(await screen.findByRole("group", { name: "وضعیت علی" })).toBeInTheDocument();
   });
   it("gives a teacher the sessions workspace without reviewer queues", async () => {
     canMock.mockImplementation((capability: string) => capability === "attendance.class.read");
