@@ -22,6 +22,7 @@ const mocks = vi.hoisted(() => ({
   profile: vi.fn(),
   history: vi.fn(),
   cancel: vi.fn(),
+  auth: { activeRole: "TEACHER" },
 }));
 vi.mock("../api/attendance-operations.api.ts", () => ({
   getAttendanceOverview: mocks.overview,
@@ -39,7 +40,13 @@ vi.mock("../api/attendance-operations.api.ts", () => ({
   getAttendanceSessionHistory: mocks.history,
   cancelAttendanceSession: mocks.cancel,
 }));
-vi.mock("../../../identity/auth", () => ({ useAuth: () => ({ can: () => true }) }));
+vi.mock("../../../identity/auth", () => ({
+  useAuth: () => ({
+    can: () => true,
+    activeRole: mocks.auth.activeRole,
+    context: { activeOrganization: { id: "org" } },
+  }),
+}));
 vi.mock("../../../../shared/api/api", () => ({ api: { openEvents: () => ({ close: vi.fn() }) } }));
 vi.mock("../../../../shared/ui/responsive-drawer", () => ({
   ResponsiveDrawer: ({ open, title, description, children, onOpenChange }: any) =>
@@ -89,6 +96,7 @@ afterEach(() => {
 });
 beforeEach(() => {
   vi.clearAllMocks();
+  mocks.auth.activeRole = "TEACHER";
   vi.stubGlobal(
     "matchMedia",
     vi.fn(() => ({ matches: false, addEventListener: vi.fn(), removeEventListener: vi.fn() })),
@@ -226,6 +234,7 @@ describe("staff session and pool creation", () => {
       />,
       { wrapper: Providers },
     );
+    await user.click(await screen.findByRole("button", { name: "تنظیمات حضور" }));
     const partial = await screen.findByRole("checkbox", { name: "اجازه ثبت ناقص" });
     await user.click(partial);
     await user.click(screen.getByRole("button", { name: "ذخیره قوانین حضور" }));
@@ -264,6 +273,26 @@ describe("staff session and pool creation", () => {
     await waitFor(() => expect(mocks.history).toHaveBeenCalledWith("session"));
     expect(await screen.findByText("تغییری برای این جلسه ثبت نشده است.")).toBeInTheDocument();
   });
+  it("shows principals the complete school-session ledger by default", async () => {
+    mocks.auth.activeRole = "PRINCIPAL";
+    render(
+      <AttendanceStaffWorkspace
+        contexts={contexts}
+        scope="principal"
+        refreshVersion={0}
+        section="sessions"
+      />,
+      { wrapper: Providers },
+    );
+
+    expect(await screen.findByRole("tab", { name: "همه جلسه‌های مدرسه" })).toBeInTheDocument();
+    await waitFor(() =>
+      expect(mocks.historySessions).toHaveBeenCalledWith(
+        expect.objectContaining({ contextType: undefined }),
+      ),
+    );
+    expect(screen.getByRole("combobox", { name: "نوع جلسات حضور" })).toHaveValue("");
+  });
   it("renders the immutable academic and subject snapshots for a saved session", async () => {
     const user = userEvent.setup();
     render(
@@ -277,6 +306,8 @@ describe("staff session and pool creation", () => {
     );
     await user.click(await screen.findByText("جلسه کلاس الف"));
     expect(await screen.findByText("سال تحصیلی ۱۴۰۵ · نیم‌سال اول · فقه")).toBeInTheDocument();
+    expect(screen.getByRole("navigation", { name: "بخش‌های جزئیات جلسه" })).toBeInTheDocument();
+    expect(screen.getByText("وضعیت و مشخصات جلسه")).toBeInTheDocument();
   });
   it("pages the staff session archive without requesting an unbounded list", async () => {
     mocks.historySessions
@@ -505,6 +536,7 @@ describe("staff session and pool creation", () => {
   });
 
   it("shows the session workflow and keeps policy decisions as labeled switches", async () => {
+    const user = userEvent.setup();
     render(
       <AttendanceStaffWorkspace
         contexts={contexts}
@@ -517,6 +549,7 @@ describe("staff session and pool creation", () => {
 
     expect(await screen.findByRole("heading", { name: "مسیر کار جلسه" })).toBeInTheDocument();
     expect(screen.getByText("۱. محدودهٔ دفتر را انتخاب کنید")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "تنظیمات حضور" }));
     expect(
       await screen.findByRole("checkbox", { name: "بازبینی همهٔ جلسه‌ها" }),
     ).toBeInTheDocument();

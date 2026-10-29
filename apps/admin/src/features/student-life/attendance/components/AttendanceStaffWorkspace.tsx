@@ -452,7 +452,71 @@ function SavedSessionDialog({
           </p>
         ) : data ? (
           <div className="space-y-4">
+            <nav
+              aria-label="بخش‌های جزئیات جلسه"
+              className="sticky top-0 z-10 grid grid-cols-3 gap-1 rounded-xl border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card))]/95 p-1 backdrop-blur"
+            >
+              {[
+                ["attendance-session-summary", "خلاصه"],
+                ["attendance-session-members", "اعضا"],
+                ["attendance-session-history", "تاریخچه"],
+              ].map(([target, label]) => (
+                <button
+                  key={target}
+                  type="button"
+                  className="min-h-10 rounded-lg px-2 text-xs font-bold text-slate-700 hover:bg-[rgb(var(--surface-muted))] focus-visible:ring-2 focus-visible:ring-brand/40 dark:text-slate-200"
+                  onClick={() =>
+                    document.getElementById(target)?.scrollIntoView({ block: "start" })
+                  }
+                >
+                  {label}
+                </button>
+              ))}
+            </nav>
+            <section
+              id="attendance-session-summary"
+              className="rounded-2xl border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-muted))]/55 p-3"
+            >
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <p className="text-sm font-black text-ink">وضعیت و مشخصات جلسه</p>
+                  <p className="mt-1 text-xs text-slate-500">
+                    {new Date(data.sessionDate).toLocaleString("fa-IR", {
+                      timeZone: "Asia/Tehran",
+                    })}
+                  </p>
+                </div>
+                <span className="rounded-full bg-brand/10 px-3 py-1 text-xs font-bold text-brand">
+                  {data.status === "finalized"
+                    ? "نهایی‌شده"
+                    : data.status === "cancelled"
+                      ? "لغوشده"
+                      : data.status === "submitted"
+                        ? "در انتظار بازبینی"
+                        : "در حال ثبت"}
+                </span>
+              </div>
+              <dl className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
+                {[
+                  ["ثبت‌شده", data.marked],
+                  ["کل اعضا", data.roster.length],
+                  ["غایب", members.filter((member) => member.status === "absent").length],
+                  ["نامشخص", members.filter((member) => member.status === "unmarked").length],
+                ].map(([label, count]) => (
+                  <div
+                    key={String(label)}
+                    className="rounded-xl bg-[rgb(var(--surface-card))] p-2.5 text-center"
+                  >
+                    <dt className="text-[11px] font-bold text-slate-500">{label}</dt>
+                    <dd className="mt-1 text-lg font-black text-ink">
+                      {Number(count).toLocaleString("fa-IR")}
+                    </dd>
+                  </div>
+                ))}
+              </dl>
+            </section>
             <details
+              id="attendance-session-history"
               className="rounded-xl border border-[rgb(var(--border-subtle))] p-3"
               onToggle={(event) => setHistoryOpen(event.currentTarget.open)}
             >
@@ -617,123 +681,125 @@ function SavedSessionDialog({
                 </div>
               </div>
             ) : null}
-            <AttendanceSelect
-              label="فیلتر اعضای جلسه"
-              value={filter}
-              onChange={setFilter}
-              options={[
-                { value: "missing", label: "غایب یا حضور تأییدنشده" },
-                { value: "all", label: "همه اعضا" },
-                { value: "absent", label: "غایب" },
-                { value: "unmarked", label: "حضور تأییدنشده" },
-                { value: "present", label: "حاضر" },
-                { value: "late", label: "تأخیر" },
-              ]}
-            />
-            {!data.rosterComplete ? (
-              <p
-                role="status"
-                className="rounded-xl bg-amber-50 p-3 text-sm text-amber-900 dark:bg-amber-950/30 dark:text-amber-200"
+            <section id="attendance-session-members" className="scroll-mt-16 space-y-3">
+              <AttendanceSelect
+                label="فیلتر اعضای جلسه"
+                value={filter}
+                onChange={setFilter}
+                options={[
+                  { value: "missing", label: "غایب یا حضور تأییدنشده" },
+                  { value: "all", label: "همه اعضا" },
+                  { value: "absent", label: "غایب" },
+                  { value: "unmarked", label: "حضور تأییدنشده" },
+                  { value: "present", label: "حاضر" },
+                  { value: "late", label: "تأخیر" },
+                ]}
+              />
+              {!data.rosterComplete ? (
+                <p
+                  role="status"
+                  className="rounded-xl bg-amber-50 p-3 text-sm text-amber-900 dark:bg-amber-950/30 dark:text-amber-200"
+                >
+                  فهرست کامل این جلسه قدیمی ثبت نشده؛ تعداد افراد با وضعیت نامشخص قابل محاسبه نیست.
+                </p>
+              ) : null}
+              <div
+                className="overflow-x-auto rounded-xl border border-[rgb(var(--border-subtle))]"
+                role="region"
+                aria-label="اعضای جلسه"
+                tabIndex={0}
               >
-                فهرست کامل این جلسه قدیمی ثبت نشده؛ تعداد افراد با وضعیت نامشخص قابل محاسبه نیست.
-              </p>
-            ) : null}
-            <div
-              className="overflow-x-auto rounded-xl border border-[rgb(var(--border-subtle))]"
-              role="region"
-              aria-label="اعضای جلسه"
-              tabIndex={0}
-            >
-              <table className="min-w-[620px] w-full text-start text-sm">
-                <thead className="bg-[rgb(var(--surface-muted))] text-xs text-slate-500">
-                  <tr>
-                    <th className="px-3 py-2 text-start font-bold">دانش‌آموز</th>
-                    <th className="px-3 py-2 text-start font-bold">وضعیت</th>
-                    <th className="px-3 py-2 text-end font-bold">عملیات</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-[rgb(var(--border-subtle))]">
-                  {visible.map((member) => {
-                    const record = data.records.find((item) => item.studentId === member.id);
-                    return (
-                      <tr key={member.id}>
-                        <td className="px-3 py-3 font-bold">{member.name}</td>
-                        <td className="px-3 py-3 text-xs text-slate-500">
-                          {member.status === "unmarked"
-                            ? "حضور تأیید نشده"
-                            : statuses[member.status]}
-                        </td>
-                        <td className="px-3 py-3">
-                          <div className="flex justify-end gap-2">
-                            <button
-                              type="button"
-                              onClick={() => setProfileId(member.id)}
-                              className={`${action} min-h-9 border border-[rgb(var(--border-subtle))] px-3 text-xs`}
-                            >
-                              پرونده حضور
-                            </button>
-                            {auth.can("attendance.correct") && record ? (
+                <table className="min-w-[620px] w-full text-start text-sm">
+                  <thead className="bg-[rgb(var(--surface-muted))] text-xs text-slate-500">
+                    <tr>
+                      <th className="px-3 py-2 text-start font-bold">دانش‌آموز</th>
+                      <th className="px-3 py-2 text-start font-bold">وضعیت</th>
+                      <th className="px-3 py-2 text-end font-bold">عملیات</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-[rgb(var(--border-subtle))]">
+                    {visible.map((member) => {
+                      const record = data.records.find((item) => item.studentId === member.id);
+                      return (
+                        <tr key={member.id}>
+                          <td className="px-3 py-3 font-bold">{member.name}</td>
+                          <td className="px-3 py-3 text-xs text-slate-500">
+                            {member.status === "unmarked"
+                              ? "حضور تأیید نشده"
+                              : statuses[member.status]}
+                          </td>
+                          <td className="px-3 py-3">
+                            <div className="flex justify-end gap-2">
                               <button
                                 type="button"
-                                className={`${action} min-h-9 border border-amber-300 px-3 text-xs text-amber-800 dark:text-amber-200`}
-                                onClick={() => {
-                                  setCorrection({
-                                    id: record.id,
-                                    revision: record.revision,
-                                    status:
-                                      record.physicalStatus === "late" ||
-                                      record.physicalStatus === "absent"
-                                        ? record.physicalStatus
-                                        : "present",
-                                  });
-                                  setCorrectionReason("");
-                                }}
+                                onClick={() => setProfileId(member.id)}
+                                className={`${action} min-h-9 border border-[rgb(var(--border-subtle))] px-3 text-xs`}
                               >
-                                اصلاح
+                                پرونده حضور
                               </button>
-                            ) : null}
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-            {data.rosterComplete && !visible.length ? (
-              <p className="py-4 text-center text-sm text-slate-500">
-                عضوی با این وضعیت وجود ندارد.
-              </p>
-            ) : null}
-            {!data.rosterComplete ? (
-              <ul className="space-y-2">
-                {data.records
-                  .filter(
-                    (record) =>
-                      filter === "all" ||
-                      (filter === "missing"
-                        ? ["absent", "excused"].includes(record.legacyStatus)
-                        : record.legacyStatus === filter),
-                  )
-                  .map((record, index) => (
-                    <li
-                      key={record.id}
-                      className="flex items-center justify-between gap-2 rounded-xl border border-[rgb(var(--border-subtle))] p-3 text-sm"
-                    >
-                      <span>
-                        عضو ثبت‌شده {index + 1} · {statuses[record.legacyStatus]}
-                      </span>
-                      <button
-                        type="button"
-                        className={action}
-                        onClick={() => setProfileId(record.studentId)}
+                              {auth.can("attendance.correct") && record ? (
+                                <button
+                                  type="button"
+                                  className={`${action} min-h-9 border border-amber-300 px-3 text-xs text-amber-800 dark:text-amber-200`}
+                                  onClick={() => {
+                                    setCorrection({
+                                      id: record.id,
+                                      revision: record.revision,
+                                      status:
+                                        record.physicalStatus === "late" ||
+                                        record.physicalStatus === "absent"
+                                          ? record.physicalStatus
+                                          : "present",
+                                    });
+                                    setCorrectionReason("");
+                                  }}
+                                >
+                                  اصلاح
+                                </button>
+                              ) : null}
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+              {data.rosterComplete && !visible.length ? (
+                <p className="py-4 text-center text-sm text-slate-500">
+                  عضوی با این وضعیت وجود ندارد.
+                </p>
+              ) : null}
+              {!data.rosterComplete ? (
+                <ul className="space-y-2">
+                  {data.records
+                    .filter(
+                      (record) =>
+                        filter === "all" ||
+                        (filter === "missing"
+                          ? ["absent", "excused"].includes(record.legacyStatus)
+                          : record.legacyStatus === filter),
+                    )
+                    .map((record, index) => (
+                      <li
+                        key={record.id}
+                        className="flex items-center justify-between gap-2 rounded-xl border border-[rgb(var(--border-subtle))] p-3 text-sm"
                       >
-                        پرونده حضور
-                      </button>
-                    </li>
-                  ))}
-              </ul>
-            ) : null}
+                        <span>
+                          عضو ثبت‌شده {index + 1} · {statuses[record.legacyStatus]}
+                        </span>
+                        <button
+                          type="button"
+                          className={action}
+                          onClick={() => setProfileId(record.studentId)}
+                        >
+                          پرونده حضور
+                        </button>
+                      </li>
+                    ))}
+                </ul>
+              ) : null}
+            </section>
           </div>
         ) : null}
       </ResponsiveDrawer>
@@ -763,9 +829,12 @@ export function AttendanceStaffWorkspace({
 }) {
   const auth = useAuth();
   const cache = useQueryClient();
-  const [category, setCategory] = useState<"class" | "class_group" | "dorm">("class");
+  const isPrincipal = auth.activeRole === "PRINCIPAL";
+  const [category, setCategory] = useState<"" | "class" | "class_group" | "dorm">(
+    isPrincipal ? "" : "class",
+  );
   const [officeTab, setOfficeTab] = useState<"teacher" | "groups" | "history" | "reports">(
-    "teacher",
+    isPrincipal ? "history" : "teacher",
   );
   const [contextFilter, setContextFilter] = useState("");
   const [academicYearId, setAcademicYearId] = useState("");
@@ -790,6 +859,7 @@ export function AttendanceStaffWorkspace({
   const [busy, setBusy] = useState(false);
   const [formError, setFormError] = useState("");
   const [policySaving, setPolicySaving] = useState(false);
+  const [policyOpen, setPolicyOpen] = useState(false);
   const [reportFrom, setReportFrom] = useState("");
   const [reportTo, setReportTo] = useState("");
   const pending = useRef<{ fingerprint: string; body: AttendancePoolDraft } | null>(null);
@@ -843,7 +913,7 @@ export function AttendanceStaffWorkspace({
     queryFn: () =>
       getAttendanceHistorySessions({
         page: sessionsPage,
-        contextType: category,
+        contextType: category || undefined,
         contextId: contextFilter || undefined,
         academicYearId: academicYearId || undefined,
         termId: termId || undefined,
@@ -860,7 +930,7 @@ export function AttendanceStaffWorkspace({
   const selectedTerm = currentTerms.find((term) => term.id === termId);
   const selectOfficeTab = (tab: "teacher" | "groups" | "history" | "reports") => {
     setOfficeTab(tab);
-    setCategory(tab === "groups" ? "class_group" : "class");
+    setCategory(tab === "teacher" ? "class" : tab === "groups" ? "class_group" : "");
     setContextFilter("");
     setSessionsPage(1);
   };
@@ -1048,15 +1118,27 @@ export function AttendanceStaffWorkspace({
             جدید همان جلسه را ثبت می‌کنند.
           </p>
         </div>
-        {section === "sessions" && onNewSession && auth.can("attendance.manage") ? (
-          <button
-            type="button"
-            onClick={onNewSession}
-            className={`${action} bg-blue-600 text-white`}
-          >
-            ثبت جلسه تازه اکنون
-          </button>
-        ) : null}
+        <div className="flex flex-wrap gap-2">
+          {section === "sessions" && auth.can("attendance.settings.manage") ? (
+            <button
+              type="button"
+              onClick={() => setPolicyOpen(true)}
+              className={`${action} inline-flex items-center gap-2 border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card))] text-ink`}
+            >
+              <Settings2 className="size-4" aria-hidden="true" />
+              تنظیمات حضور
+            </button>
+          ) : null}
+          {section === "sessions" && onNewSession && auth.can("attendance.manage") ? (
+            <button
+              type="button"
+              onClick={onNewSession}
+              className={`${action} bg-blue-600 text-white`}
+            >
+              ثبت جلسه تازه اکنون
+            </button>
+          ) : null}
+        </div>
       </header>
       {section === "sessions" ? (
         <section
@@ -1250,98 +1332,107 @@ export function AttendanceStaffWorkspace({
         ) : null
       ) : null}
       {auth.can("attendance.settings.manage") ? (
-        policy.isLoading ? (
-          <p role="status" className="text-xs text-slate-500">
-            در حال دریافت قوانین حضور…
-          </p>
-        ) : policy.isError ? (
-          <p role="alert" className="text-xs text-rose-700 dark:text-rose-300">
-            قوانین حضور دریافت نشد.{" "}
-            <button
-              type="button"
-              onClick={() => void policy.refetch()}
-              className="font-bold underline"
+        <ResponsiveDrawer
+          open={policyOpen}
+          onOpenChange={setPolicyOpen}
+          title="تنظیمات حضور و غیاب"
+          description="این قوانین برای ثبت‌های بعدی مدرسه اعمال می‌شوند و رفتار بازبینی مدیر را تعیین می‌کنند."
+          desktopSide="left"
+          className="md:w-[min(46rem,96vw)]"
+        >
+          {policy.isLoading ? (
+            <p role="status" className="text-xs text-slate-500">
+              در حال دریافت قوانین حضور…
+            </p>
+          ) : policy.isError ? (
+            <p role="alert" className="text-xs text-rose-700 dark:text-rose-300">
+              قوانین حضور دریافت نشد.{" "}
+              <button
+                type="button"
+                onClick={() => void policy.refetch()}
+                className="font-bold underline"
+              >
+                تلاش دوباره
+              </button>
+            </p>
+          ) : policy.data ? (
+            <form
+              onSubmit={(event) => void savePolicy(event)}
+              className="rounded-2xl border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-muted))]/60 p-3 sm:p-4"
             >
-              تلاش دوباره
-            </button>
-          </p>
-        ) : policy.data ? (
-          <form
-            onSubmit={(event) => void savePolicy(event)}
-            className="rounded-2xl border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-muted))]/60 p-3 sm:p-4"
-          >
-            <div className="flex flex-wrap items-start justify-between gap-3">
-              <div>
-                <p className="flex items-center gap-2 text-sm font-black text-ink">
-                  <Settings2 className="size-4 text-brand" aria-hidden="true" />
-                  قوانین حضور و غیاب
-                </p>
-                <p className="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-300">
-                  این تنظیمات روی ثبت‌های بعدی اعمال می‌شوند و رفتار صف بازبینی مدیر را مشخص
-                  می‌کنند.
-                </p>
-              </div>
-              <span className="rounded-full bg-brand/10 px-3 py-1 text-xs font-bold text-brand">
-                {policy.data.principalReviewMode === "all_sessions"
-                  ? "بازبینی همه جلسه‌ها"
-                  : "بازبینی جلسه‌های دارای غیبت"}
-              </span>
-            </div>
-            <div className="mt-4 grid gap-3 lg:grid-cols-[minmax(12rem,.55fr)_minmax(0,1fr)]">
-              <label className="rounded-xl border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card))] p-3 text-xs font-bold text-ink">
-                شروع روز آموزشی
-                <span className="mt-1 block font-normal leading-5 text-slate-500 dark:text-slate-300">
-                  مرز محاسبهٔ روز حضور برای گزارش‌ها و صف‌ها.
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <p className="flex items-center gap-2 text-sm font-black text-ink">
+                    <Settings2 className="size-4 text-brand" aria-hidden="true" />
+                    قوانین حضور و غیاب
+                  </p>
+                  <p className="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-300">
+                    این تنظیمات روی ثبت‌های بعدی اعمال می‌شوند و رفتار صف بازبینی مدیر را مشخص
+                    می‌کنند.
+                  </p>
+                </div>
+                <span className="rounded-full bg-brand/10 px-3 py-1 text-xs font-bold text-brand">
+                  {policy.data.principalReviewMode === "all_sessions"
+                    ? "بازبینی همه جلسه‌ها"
+                    : "بازبینی جلسه‌های دارای غیبت"}
                 </span>
-                <input
-                  name="dayStartsAt"
-                  type="time"
-                  className={`${field} mt-3`}
-                  defaultValue={policy.data.dayStartsAt}
-                  disabled={policySaving}
-                  required
-                />
-              </label>
-              <div className="grid gap-2 sm:grid-cols-2">
-                <PolicySwitch
-                  name="allowPartialSubmission"
-                  label="اجازه ثبت ناقص"
-                  description="ثبت جلسه پیش از مشخص‌شدن وضعیت همهٔ اعضا مجاز باشد."
-                  defaultChecked={policy.data.allowPartialSubmission}
-                  disabled={policySaving}
-                />
-                <PolicySwitch
-                  name="lateCountsAsPresent"
-                  label="تأخیر در نرخ حضور"
-                  description="وضعیت تأخیر در محاسبهٔ نرخ حضور، حاضر محسوب شود."
-                  defaultChecked={policy.data.lateCountsAsPresent}
-                  disabled={policySaving}
-                />
-                <PolicySwitch
-                  name="correctionRequiresReview"
-                  label="بازبینی اصلاح‌ها"
-                  description="هر اصلاح حضور پیش از اثرگذاری نیازمند تأیید ناظر باشد."
-                  defaultChecked={policy.data.correctionRequiresReview}
-                  disabled={policySaving}
-                />
-                <PolicySwitch
-                  name="principalReviewAllSessions"
-                  label="بازبینی همهٔ جلسه‌ها"
-                  description="اگر خاموش باشد، فقط جلسه‌های دارای غیبت در صف بازبینی مدیر قرار می‌گیرند."
-                  defaultChecked={policy.data.principalReviewMode === "all_sessions"}
-                  disabled={policySaving}
-                />
               </div>
-            </div>
-            <button
-              type="submit"
-              className={`${action} mt-3 w-full bg-slate-900 text-white sm:w-auto`}
-              disabled={policySaving}
-            >
-              {policySaving ? "در حال ذخیره…" : "ذخیره قوانین حضور"}
-            </button>
-          </form>
-        ) : null
+              <div className="mt-4 grid gap-3 lg:grid-cols-[minmax(12rem,.55fr)_minmax(0,1fr)]">
+                <label className="rounded-xl border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card))] p-3 text-xs font-bold text-ink">
+                  شروع روز آموزشی
+                  <span className="mt-1 block font-normal leading-5 text-slate-500 dark:text-slate-300">
+                    مرز محاسبهٔ روز حضور برای گزارش‌ها و صف‌ها.
+                  </span>
+                  <input
+                    name="dayStartsAt"
+                    type="time"
+                    className={`${field} mt-3`}
+                    defaultValue={policy.data.dayStartsAt}
+                    disabled={policySaving}
+                    required
+                  />
+                </label>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  <PolicySwitch
+                    name="allowPartialSubmission"
+                    label="اجازه ثبت ناقص"
+                    description="ثبت جلسه پیش از مشخص‌شدن وضعیت همهٔ اعضا مجاز باشد."
+                    defaultChecked={policy.data.allowPartialSubmission}
+                    disabled={policySaving}
+                  />
+                  <PolicySwitch
+                    name="lateCountsAsPresent"
+                    label="تأخیر در نرخ حضور"
+                    description="وضعیت تأخیر در محاسبهٔ نرخ حضور، حاضر محسوب شود."
+                    defaultChecked={policy.data.lateCountsAsPresent}
+                    disabled={policySaving}
+                  />
+                  <PolicySwitch
+                    name="correctionRequiresReview"
+                    label="بازبینی اصلاح‌ها"
+                    description="هر اصلاح حضور پیش از اثرگذاری نیازمند تأیید ناظر باشد."
+                    defaultChecked={policy.data.correctionRequiresReview}
+                    disabled={policySaving}
+                  />
+                  <PolicySwitch
+                    name="principalReviewAllSessions"
+                    label="بازبینی همهٔ جلسه‌ها"
+                    description="اگر خاموش باشد، فقط جلسه‌های دارای غیبت در صف بازبینی مدیر قرار می‌گیرند."
+                    defaultChecked={policy.data.principalReviewMode === "all_sessions"}
+                    disabled={policySaving}
+                  />
+                </div>
+              </div>
+              <button
+                type="submit"
+                className={`${action} mt-3 w-full bg-slate-900 text-white sm:w-auto`}
+                disabled={policySaving}
+              >
+                {policySaving ? "در حال ذخیره…" : "ذخیره قوانین حضور"}
+              </button>
+            </form>
+          ) : null}
+        </ResponsiveDrawer>
       ) : null}
       {canReconcileHistoricalAttendance ? (
         <section className="rounded-2xl border border-amber-200 bg-amber-50/60 p-3 dark:border-amber-900 dark:bg-amber-950/20">
@@ -1604,12 +1695,18 @@ export function AttendanceStaffWorkspace({
             aria-label="تب‌های دفتر حضور کلاس"
             role="tablist"
           >
-            {[
-              ["teacher", "جلسات استاد"],
-              ["groups", "حضور گروه‌ها"],
-              ["history", "تاریخچه"],
-              ["reports", "گزارش‌ها"],
-            ].map(([tab, label]) => (
+            {(isPrincipal
+              ? [
+                  ["history", "همه جلسه‌های مدرسه"],
+                  ["reports", "گزارش‌ها"],
+                ]
+              : [
+                  ["teacher", "جلسات استاد"],
+                  ["groups", "حضور گروه‌ها"],
+                  ["history", "تاریخچه"],
+                  ["reports", "گزارش‌ها"],
+                ]
+            ).map(([tab, label]) => (
               <button
                 key={tab}
                 type="button"
@@ -1683,9 +1780,10 @@ export function AttendanceStaffWorkspace({
                   }}
                   className={field}
                 >
-                  {Object.entries(labels).map(([key, label]) => (
+                  <option value="">همه نوع جلسه‌ها</option>
+                  {(["class", "class_group", "dorm"] as const).map((key) => (
                     <option key={key} value={key}>
-                      {label}
+                      {labels[key]}
                     </option>
                   ))}
                 </AdaptiveSelect>
