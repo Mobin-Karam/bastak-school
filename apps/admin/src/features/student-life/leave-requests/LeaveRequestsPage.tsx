@@ -28,6 +28,9 @@ type LeaveRequest = {
   endDate: string;
   reason: string;
   note: string;
+  includesLunch?: boolean;
+  includesDinner?: boolean;
+  exitPermissionId?: string | null;
   status: Status;
 };
 const tones: Record<Status, "amber" | "green" | "red" | "blue" | "neutral"> = {
@@ -42,7 +45,7 @@ const requestLabel = (row: LeaveRequest) =>
 
 export function LeaveRequestsPage() {
   const auth = useAuth();
-  const { language, formatDate } = useLocale();
+  const { language, formatDate, formatDateTime } = useLocale();
   const copy = leaveRequestsCopy(language);
   const [rows, setRows] = useState<LeaveRequest[]>([]),
     [query, setQuery] = useState(""),
@@ -50,6 +53,7 @@ export function LeaveRequestsPage() {
     [loading, setLoading] = useState(true),
     [error, setError] = useState(""),
     [busy, setBusy] = useState("");
+  const [reviewNotes, setReviewNotes] = useState<Record<string, string>>({});
   const [teacherLeaves, setTeacherLeaves] = useState<TeacherLeaveRequest[]>([]);
   const [teachers, setTeachers] = useState<AcademicTeacher[]>([]);
   const [substitutes, setSubstitutes] = useState<Record<string, string>>({});
@@ -93,8 +97,16 @@ export function LeaveRequestsPage() {
     setBusy(row.id);
     setError("");
     try {
-      const updated = await api.patch<LeaveRequest>(`/leave-requests/${row.id}`, { status });
+      const updated = await api.patch<LeaveRequest>(`/leave-requests/${row.id}`, {
+        status,
+        note: reviewNotes[row.id]?.trim() || undefined,
+      });
       setRows((items) => items.map((item) => (item.id === row.id ? updated : item)));
+      setReviewNotes((notes) => {
+        const next = { ...notes };
+        delete next[row.id];
+        return next;
+      });
     } catch (e) {
       setError(e instanceof Error ? e.message : copy.saveFailed);
     } finally {
@@ -186,8 +198,15 @@ export function LeaveRequestsPage() {
                   <p className="mt-1 text-xs font-bold text-brand">{requestLabel(row)}</p>
                   <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">{row.reason}</p>
                   <p className="mt-1 text-xs text-slate-500">
-                    {formatDate(row.startDate)} — {formatDate(row.endDate)} · {row.organizationName}
+                    {formatDateTime(row.startDate)} — {formatDateTime(row.endDate)} · {row.organizationName}
                   </p>
+                  {row.leaveType === "LEAVE" ? (
+                    <p className="mt-1 text-xs font-semibold text-slate-600 dark:text-slate-300">
+                      وعده‌ها: {row.includesLunch ? "ناهار" : "بدون ناهار"}
+                      {" · "}
+                      {row.includesDinner ? "شام" : "بدون شام"}
+                    </p>
+                  ) : null}
                   {row.note ? (
                     <p className="mt-2 text-xs text-slate-500">
                       {copy.note}: {row.note}
@@ -195,7 +214,19 @@ export function LeaveRequestsPage() {
                   ) : null}
                 </div>
                 {row.status === "PENDING" ? (
-                  <div className="flex gap-2">
+                  <div className="grid gap-2 sm:min-w-64">
+                    <label className="grid gap-1 text-xs font-semibold text-slate-600 dark:text-slate-300">
+                      پیام مدیر برای حضور موجه دانش‌آموز (اختیاری)
+                      <textarea
+                        value={reviewNotes[row.id] ?? ""}
+                        onChange={(event) =>
+                          setReviewNotes((notes) => ({ ...notes, [row.id]: event.target.value }))
+                        }
+                        className="min-h-20 rounded-lg border border-[rgb(var(--border-subtle))] bg-transparent px-2 py-1.5 text-sm text-ink"
+                        placeholder="مثلاً مرخصی تأیید شده است."
+                      />
+                    </label>
+                    <div className="flex gap-2">
                     <Button
                       size="sm"
                       loading={busy === row.id}
@@ -213,6 +244,7 @@ export function LeaveRequestsPage() {
                       <X size={15} />
                       {copy.reject}
                     </Button>
+                    </div>
                   </div>
                 ) : null}
               </article>

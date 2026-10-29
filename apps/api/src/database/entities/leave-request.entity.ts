@@ -62,6 +62,16 @@ export class LeaveRequest {
   @Column({ type: "text", default: "" })
   note!: string;
 
+  @Column({ type: "boolean", default: false })
+  includesLunch!: boolean;
+
+  @Column({ type: "boolean", default: false })
+  includesDinner!: boolean;
+
+  /** Linked approved movement; it makes the requested departure time auditable. */
+  @Column({ type: "varchar", nullable: true })
+  exitPermissionId?: string | null;
+
   @Column({ type: "simple-array", default: "" })
   attachments!: string[];
 

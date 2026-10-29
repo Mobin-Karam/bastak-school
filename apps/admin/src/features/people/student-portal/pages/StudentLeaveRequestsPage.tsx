@@ -84,6 +84,10 @@ export function StudentLeaveRequestsPage() {
     leaveType: "SCHOOL_EXIT" as StudentLeaveType,
     startDate: todayIso(),
     endDate: todayIso(),
+    startTime: "08:00",
+    endTime: "18:00",
+    includesLunch: false,
+    includesDinner: false,
     reason: "",
     note: "",
   });
@@ -95,13 +99,23 @@ export function StudentLeaveRequestsPage() {
   const create = useMutation({
     mutationFn: () => {
       if (!organizationId) throw new Error("مدرسه فعال مشخص نیست.");
-      return createStudentLeaveRequest({ organizationId, ...draft });
+      const { startTime, endTime, ...leaveDraft } = draft;
+      return createStudentLeaveRequest({
+        organizationId,
+        ...leaveDraft,
+        startDate: `${draft.startDate}T${startTime}:00`,
+        endDate: `${draft.endDate}T${endTime}:00`,
+      });
     },
     onSuccess: () => {
       setDraft({
         leaveType: draft.leaveType,
         startDate: todayIso(),
         endDate: todayIso(),
+        startTime: "08:00",
+        endTime: "18:00",
+        includesLunch: false,
+        includesDinner: false,
         reason: "",
         note: "",
       });
@@ -216,6 +230,54 @@ export function StudentLeaveRequestsPage() {
               showToday={false}
               onChange={(endDate) => setDraft((current) => ({ ...current, endDate }))}
             />
+          </label>
+          <label className="grid gap-1 text-[11px] font-bold text-slate-500">
+            ساعت شروع
+            <input
+              type="time"
+              value={draft.startTime}
+              onChange={(event) =>
+                setDraft((current) => ({ ...current, startTime: event.target.value }))
+              }
+              className="h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm text-ink dark:border-slate-700 dark:bg-slate-900"
+            />
+          </label>
+          <label className="grid gap-1 text-[11px] font-bold text-slate-500">
+            ساعت پایان
+            <input
+              type="time"
+              value={draft.endTime}
+              onChange={(event) =>
+                setDraft((current) => ({ ...current, endTime: event.target.value }))
+              }
+              className="h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm text-ink dark:border-slate-700 dark:bg-slate-900"
+            />
+          </label>
+        </div>
+      </Card>
+
+      <Card className="mt-3 p-3">
+        <h2 className="text-sm font-black text-ink">وضعیت وعده‌ها در زمان مرخصی</h2>
+        <div className="mt-3 flex flex-wrap gap-3 text-sm font-bold text-ink">
+          <label className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              checked={draft.includesLunch}
+              onChange={(event) =>
+                setDraft((current) => ({ ...current, includesLunch: event.target.checked }))
+              }
+            />{" "}
+            ناهار
+          </label>
+          <label className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              checked={draft.includesDinner}
+              onChange={(event) =>
+                setDraft((current) => ({ ...current, includesDinner: event.target.checked }))
+              }
+            />{" "}
+            شام
           </label>
         </div>
       </Card>

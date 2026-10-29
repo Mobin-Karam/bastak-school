@@ -14,6 +14,8 @@ export type StudentLeaveRequest = {
   endDate: string;
   reason: string;
   note: string;
+  includesLunch: boolean;
+  includesDinner: boolean;
   status: StudentLeaveStatus;
   createdAt: string;
 };
@@ -28,4 +30,6 @@ export const createStudentLeaveRequest = (body: {
   endDate: string;
   reason: string;
   note?: string;
+  includesLunch?: boolean;
+  includesDinner?: boolean;
 }) => api.post<StudentLeaveRequest>("/student/leave-requests", body);

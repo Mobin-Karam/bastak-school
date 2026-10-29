@@ -49,6 +49,29 @@ test("allows only the empty teacher-message default added to prior attendance re
   db.close();
 });
 
+test("preserves historical leave requests while adding timed departure details", () => {
+  const db = new Database(":memory:");
+  db.exec(`
+    CREATE TABLE leave_requests (id TEXT PRIMARY KEY, reason TEXT NOT NULL);
+    CREATE TABLE migrations (name TEXT);
+    INSERT INTO leave_requests VALUES ('leave-1', 'Retained reason');
+  `);
+  const before = inventory(db);
+  db.exec(`
+    ALTER TABLE leave_requests ADD COLUMN includesLunch boolean NOT NULL DEFAULT 0;
+    ALTER TABLE leave_requests ADD COLUMN includesDinner boolean NOT NULL DEFAULT 0;
+    ALTER TABLE leave_requests ADD COLUMN exitPermissionId varchar;
+    INSERT INTO migrations VALUES ('StudentLeaveTimingAndMeals1762500000000');
+  `);
+  assert.doesNotThrow(() => preserved(before, inventory(db), db));
+  db.prepare("UPDATE leave_requests SET includesLunch=1 WHERE id='leave-1'").run();
+  assert.throws(
+    () => preserved(before, inventory(db), db),
+    /non-default value in includesLunch/,
+  );
+  db.close();
+});
+
 test("preserves existing authorization rows while adding the school-admin lifecycle grants", () => {
   const db = new Database(":memory:");
   db.exec(`

@@ -665,6 +665,8 @@ export class WorkflowsService {
       endDate: string;
       reason: string;
       note?: string;
+      includesLunch?: boolean;
+      includesDinner?: boolean;
       attachments?: string[];
     },
   ) {
@@ -682,11 +684,11 @@ export class WorkflowsService {
         "تاریخ شروع یا پایان مرخصی معتبر نیست.",
       );
     }
-    if (endDate < startDate) {
+    if (endDate <= startDate) {
       throw new ApiException(
         400,
         "LEAVE_DATE_RANGE_INVALID",
-        "تاریخ پایان نمی‌تواند قبل از تاریخ شروع باشد.",
+        "زمان پایان باید بعد از زمان شروع باشد.",
       );
     }
     if (!input.reason?.trim()) {
@@ -711,6 +713,8 @@ export class WorkflowsService {
         endDate,
         reason: input.reason.trim(),
         note: input.note?.trim() || "",
+        includesLunch: input.includesLunch === true,
+        includesDinner: input.includesDinner === true,
         attachments: Array.isArray(input.attachments)
           ? input.attachments.filter(Boolean)
           : [],
@@ -754,6 +758,27 @@ export class WorkflowsService {
     row.note = input.note?.trim() || row.note || "";
     row.approver = { id: user.id } as User;
     row.reviewedAt = new Date();
+    if (
+      status === LeaveRequestStatus.APPROVED &&
+      row.leaveType === LeaveRequestType.LEAVE &&
+      !row.exitPermissionId
+    ) {
+      const exit = await this.exitPermissions.save(
+        this.exitPermissions.create({
+          organization: row.organization,
+          student: row.student,
+          requestedDepartureAt: row.startDate,
+          expectedReturnAt: row.endDate,
+          destination: "مرخصی تأییدشده دانش‌آموز",
+          reason: row.reason,
+          note: row.note,
+          status: ExitPermissionStatus.APPROVED,
+          approver: { id: user.id } as User,
+          reviewedAt: row.reviewedAt,
+        }),
+      );
+      row.exitPermissionId = exit.id;
+    }
     const saved = await this.leaveRequests.save(row);
     return this.serializeLeaveRequest(saved);
   }
@@ -1145,7 +1170,8 @@ export class WorkflowsService {
     return this.serializeExitPermission(saved);
   }
 
-  /** A supervisor records the physical gate event; approval alone never changes occupancy. */
+  /** A supervisor may record the physical gate event. Scheduled approved leave
+   * also affects occupancy at its requested departure time, until return is recorded. */
   async recordExitMovement(
     user: AuthenticatedUser,
     exitPermissionId: string,
@@ -1230,7 +1256,12 @@ export class WorkflowsService {
         .andWhere("exit.status = :status", {
           status: ExitPermissionStatus.APPROVED,
         })
-        .andWhere("exit.actualDepartureAt IS NOT NULL")
+        .andWhere(
+          "(exit.actualDepartureAt IS NOT NULL OR exit.requestedDepartureAt <= :now)",
+          {
+            now: new Date().toISOString(),
+          },
+        )
         .andWhere("exit.actualReturnAt IS NULL")
         .getCount();
       result.push({
@@ -1692,6 +1723,9 @@ export class WorkflowsService {
       endDate: row.endDate.toISOString(),
       reason: row.reason,
       note: row.note,
+      includesLunch: row.includesLunch,
+      includesDinner: row.includesDinner,
+      exitPermissionId: row.exitPermissionId ?? null,
       attachments: row.attachments,
       status: row.status,
       approverId: row.approver?.id || null,
