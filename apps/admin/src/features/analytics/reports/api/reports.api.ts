@@ -20,6 +20,8 @@ export type TeacherStudentReport = {
 };
 export const getTeacherStudentReports = () =>
   api.get<TeacherStudentReport[]>("/principal/teacher-reports");
+export const getMyTeacherStudentReports = () =>
+  api.get<TeacherStudentReport[]>("/teacher/student-reports");
 export const markTeacherStudentReportSeen = (id: string) =>
   api.patch<{ id: string; seenAt: string }>(
     `/principal/teacher-reports/${encodeURIComponent(id)}/seen`,
