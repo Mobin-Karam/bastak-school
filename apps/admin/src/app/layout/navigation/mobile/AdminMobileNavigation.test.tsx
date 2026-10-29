@@ -70,9 +70,11 @@ describe("AdminMobileBottomNav", () => {
     await user.click(screen.getByRole("button", { name: "همه مسیرهای مدیریت" }));
     expect(container.querySelector("nav")).not.toHaveClass("glass-3d-dock--enhanced");
     expect(screen.getByRole("dialog")).toHaveAccessibleName("همه مسیرهای مدیریت");
-    expect(screen.getByRole("link", { name: /برنامه هفتگی/ })).toHaveAttribute(
+    expect(screen.queryByRole("link", { name: /برنامه هفتگی/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "اعلان‌ها" })).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /پروفایل/ })).toHaveAttribute(
       "href",
-      "/admin/schedule",
+      "/admin/teacher-profile",
     );
     expect(screen.queryByRole("link", { name: "مدارس / سازمان‌ها" })).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "دستاوردها" })).not.toBeInTheDocument();

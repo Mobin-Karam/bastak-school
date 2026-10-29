@@ -62,9 +62,9 @@ export function AdminMobileBottomNav({
     .filter((group) => !isStudentNavigation || group.sectionKey !== "پیشرفت و سکه")
     .map((group) => ({
       ...group,
-      items: isStudentNavigation
-        ? group.items.filter((item) => !primaryPaths.has(item.path))
-        : group.items,
+      // The bottom dock already owns these destinations. Repeating them in
+      // “More” wastes the drawer and creates duplicate icon-only choices.
+      items: group.items.filter((item) => !primaryPaths.has(item.path)),
     }))
     .filter((group) => group.items.length > 0);
 
