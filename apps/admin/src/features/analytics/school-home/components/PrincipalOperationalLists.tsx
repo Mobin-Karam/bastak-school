@@ -217,9 +217,11 @@ export function PrincipalOperationalLists({
               <strong>{title}</strong>
               <small>{description}</small>
             </span>
-            <span className="principal-dashboard__home-count" aria-label={`${counts[id]} مورد`}>
-              {counts[id].toLocaleString("fa-IR")}
-            </span>
+            {counts[id] > 0 ? (
+              <span className="principal-dashboard__home-count" aria-label={`${counts[id]} مورد`}>
+                {counts[id].toLocaleString("fa-IR")}
+              </span>
+            ) : null}
           </button>
         ))}
       </section>
@@ -424,24 +426,47 @@ function SessionReviewRow({
             <ErrorText onRetry={() => void detail.refetch()} />
           ) : (
             <>
-              <p className="text-sm font-bold">غایبان</p>
+              <p className="text-sm font-bold">وضعیت دانش‌آموزان</p>
               <ul className="grid gap-2">
-                {(detail.data?.records ?? [])
-                  .filter((record) => record.physicalStatus === "absent")
-                  .map((record) => (
+                {(detail.data?.records ?? []).map((record) => {
+                  const status =
+                    record.physicalStatus === "legacy_unknown"
+                      ? record.legacyStatus
+                      : record.physicalStatus;
+                  const statusStyle = {
+                    present:
+                      "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200",
+                    absent: "bg-orange-100 text-orange-900 dark:bg-orange-950 dark:text-orange-200",
+                    late: "bg-sky-100 text-sky-800 dark:bg-sky-950 dark:text-sky-200",
+                    excused:
+                      "bg-violet-100 text-violet-800 dark:bg-violet-950 dark:text-violet-200",
+                  }[status];
+                  const statusLabel = {
+                    present: "حاضر",
+                    absent: "غایب",
+                    late: "تأخیر",
+                    excused: "موجه",
+                  }[status];
+                  return (
                     <li
                       key={record.id}
-                      className="rounded-xl bg-[rgb(var(--surface-muted))] p-3 text-sm"
+                      className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-[rgb(var(--surface-muted))] p-3 text-sm"
                     >
-                      {detail.data?.roster.find((student) => student.id === record.studentId)
-                        ?.name ?? "دانش‌آموز"}
-                      {record.note ? (
-                        <small className="mt-1 block text-muted-foreground">
-                          یادداشت استاد: {record.note}
-                        </small>
-                      ) : null}
+                      <span>
+                        {detail.data?.roster.find((student) => student.id === record.studentId)
+                          ?.name ?? "دانش‌آموز"}
+                        {record.note ? (
+                          <small className="mt-1 block text-muted-foreground">
+                            یادداشت استاد: {record.note}
+                          </small>
+                        ) : null}
+                      </span>
+                      <span className={`rounded-full px-3 py-1 text-xs font-bold ${statusStyle}`}>
+                        {statusLabel}
+                      </span>
                     </li>
-                  ))}
+                  );
+                })}
               </ul>
               {session.absent > 0 && (
                 <label className="text-sm font-semibold">

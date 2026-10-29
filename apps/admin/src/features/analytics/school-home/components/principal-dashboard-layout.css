@@ -90,8 +90,9 @@
   padding-inline: 0.45rem;
   place-items: center;
   border-radius: 0.85rem;
-  color: #fff;
-  background: rgb(var(--color-brand));
+  border: 1px solid rgb(var(--color-brand) / 32%);
+  color: rgb(var(--color-ink));
+  background: rgb(var(--surface-muted));
   font-weight: 900;
   font-variant-numeric: tabular-nums;
 }
