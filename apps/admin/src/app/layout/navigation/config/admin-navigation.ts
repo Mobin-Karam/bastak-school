@@ -407,14 +407,13 @@ const teacherNavigation: readonly NavigationGroup[] = [
     ],
   },
   {
-    section: "کلاس‌های من",
+    section: "اعلان‌ها",
     items: [
       {
-        path: "classes",
-        title: "کلاس‌ها و کتاب‌های من",
-        description: "کلاس‌ها، کتاب‌ها و فهرست دانش‌آموزان واگذارشده به شما",
-        icon: School,
-        capability: "classes.read",
+        path: "communication/notifications",
+        title: "اعلان‌ها",
+        description: "پیام‌ها، پیگیری‌ها و اطلاع‌رسانی‌های مدرسه",
+        icon: Bell,
       },
     ],
   },

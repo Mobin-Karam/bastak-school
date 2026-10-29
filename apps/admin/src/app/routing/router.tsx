@@ -363,6 +363,15 @@ function StaffAttendanceRoute({ children }: { children: ReactNode }) {
   );
 }
 
+function StaffClassesRoute({ children }: { children: ReactNode }) {
+  const auth = useAuth();
+  return auth.activeRole === "TEACHER" ? (
+    <Navigate to="/admin/communication/notifications" replace />
+  ) : (
+    <>{children}</>
+  );
+}
+
 function NonStudentRoute({ children }: { children: ReactNode }) {
   const auth = useAuth();
   return auth.activeRole === "STUDENT" ? <Navigate to="/admin" replace /> : <>{children}</>;
@@ -477,11 +486,13 @@ export const adminRouteObjects = [
           {
             path: "classes",
             element: (
-              <CapabilityRoute capability="classes.read">
-                <RouteScreen>
-                  <ClassesPage />
-                </RouteScreen>
-              </CapabilityRoute>
+              <StaffClassesRoute>
+                <CapabilityRoute capability="classes.read">
+                  <RouteScreen>
+                    <ClassesPage />
+                  </RouteScreen>
+                </CapabilityRoute>
+              </StaffClassesRoute>
             ),
           },
           {
