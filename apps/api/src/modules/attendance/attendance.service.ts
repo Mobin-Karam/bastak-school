@@ -1828,6 +1828,20 @@ export class AttendanceService {
           "ATTENDANCE_REVIEW_MESSAGE_REQUIRED",
           "برای جلسه دارای غیبت، پیام درخواست توضیح از استاد را بنویسید.",
         );
+      const attentionRecords = await manager
+        .getRepository(AttendanceRecord)
+        .find({
+          where: {
+            session: { id: session.id },
+            physicalStatus: In(["absent", "late"]),
+          },
+          relations: { student: true },
+        });
+      const affectedStudents = attentionRecords.map((record) => ({
+        id: record.student.id,
+        name: record.student.name,
+        status: record.physicalStatus,
+      }));
 
       const reviewedAt = new Date();
       await manager.query(
@@ -1843,16 +1857,29 @@ export class AttendanceService {
       );
       const teacherId = session.assignedStaff?.id ?? session.submittedBy?.id;
       if (teacherId && teacherMessage) {
+        const studentNames = affectedStudents
+          .map((student) => student.name)
+          .join("، ");
         const notification = await manager.getRepository(Notification).save(
           manager.getRepository(Notification).create({
             user: { id: teacherId },
             organization: session.organization,
             type: NotificationType.MESSAGE,
             category: "attendance-review",
-            title: "درخواست توضیح دربارهٔ غیبت جلسه",
-            body: teacherMessage,
+            title: "پیام مدیر دربارهٔ ورود دانش‌آموزان به کلاس",
+            body: [
+              teacherMessage,
+              studentNames ? `دانش‌آموزان: ${studentNames}` : "",
+              "در صورت حضور دانش‌آموزان، مطابق دستور مدیر اجازهٔ ورود به کلاس را بدهید.",
+            ]
+              .filter(Boolean)
+              .join("\n"),
             url: "/admin",
-            data: { sessionId: session.id, revision: session.revision },
+            data: {
+              sessionId: session.id,
+              revision: session.revision,
+              affectedStudents,
+            },
             priority: "normal",
           }),
         );
@@ -1882,6 +1909,7 @@ export class AttendanceService {
             sessionId: session.id,
             status: session.status,
             teacherMessage,
+            affectedStudents,
           },
         }),
       );

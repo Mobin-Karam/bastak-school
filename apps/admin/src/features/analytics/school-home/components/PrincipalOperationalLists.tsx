@@ -529,7 +529,8 @@ function SessionReviewRow({
   }, [reviewRecords, rosterNames, studentQuery]);
   const absentCount = detail.data ? absentRecords.length : session.absent;
   const delayedCount = detail.data ? delayedRecords.length : session.late;
-  const needsAbsenceMessage = absentCount > 0;
+  const messageRequired = absentCount > 0;
+  const canMessageTeacher = absentCount > 0 || delayedCount > 0;
   return (
     <article className="rounded-2xl border border-[rgb(var(--border-subtle))] p-4">
       <button
@@ -648,26 +649,37 @@ function SessionReviewRow({
               {!visibleRecords.length ? (
                 <Empty text="دانش‌آموز غایب یا دارای تأخیر با این نام در این جلسه پیدا نشد." />
               ) : null}
-              {needsAbsenceMessage && (
+              {canMessageTeacher && (
                 <label className="text-sm font-semibold">
-                  پیام مدیر برای استاد (درخواست توضیح غیبت‌ها)
+                  پیام مدیر برای استاد دربارهٔ ورود دانش‌آموزان
                   <textarea
                     value={message}
                     maxLength={500}
                     onChange={(event) => setMessage(event.target.value)}
                     className="mt-2 min-h-20 w-full rounded-xl border border-[rgb(var(--border-subtle))] bg-card p-3 font-normal"
-                    placeholder="برای مثال: لطفاً علت غیبت دانش‌آموزان را پیگیری و توضیح دهید."
+                    placeholder={
+                      messageRequired
+                        ? "اجباری: دستور یا توضیح مدیر دربارهٔ دانش‌آموزان غایب را بنویسید."
+                        : "اختیاری: دستور مدیر برای اجازهٔ ورود دانش‌آموزان دارای تأخیر."
+                    }
                   />
+                  {messageRequired ? (
+                    <small className="mt-1 block text-rose-700 dark:text-rose-200">
+                      برای جلسه دارای غیبت، نوشتن پیام مدیر الزامی است.
+                    </small>
+                  ) : null}
                 </label>
               )}
               <div className="principal-dashboard__review-action">
                 <small>
-                  {needsAbsenceMessage
-                    ? "برای بایگانی این جلسه، پیام پیگیری غیبت‌ها برای استاد لازم است."
-                    : "این جلسه بدون غیبت، پس از بازبینی در آرشیو نگهداری می‌شود."}
+                  {messageRequired
+                    ? "پیام مدیر همراه نام دانش‌آموزان برای استاد ارسال می‌شود."
+                    : canMessageTeacher
+                      ? "در صورت نیاز، پیام مدیر همراه نام دانش‌آموزان دارای تأخیر برای استاد ارسال می‌شود."
+                      : "این جلسه بدون غیبت، پس از بازبینی در آرشیو نگهداری می‌شود."}
                 </small>
                 <Button
-                  disabled={busy || (needsAbsenceMessage && !message.trim())}
+                  disabled={busy || (messageRequired && !message.trim())}
                   onClick={() => onReview(message.trim())}
                 >
                   <Check size={16} /> ثبت بازبینی و انتقال به آرشیو
