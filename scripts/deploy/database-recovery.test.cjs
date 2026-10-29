@@ -54,6 +54,36 @@ test("preserves existing authorization rows while adding the school-admin lifecy
   db.close();
 });
 
+test("preserves existing authorization rows while repairing principal announcement grants", () => {
+  const db = new Database(":memory:");
+  db.exec(`
+    CREATE TABLE roles (id TEXT PRIMARY KEY, code TEXT NOT NULL);
+    CREATE TABLE permissions (id TEXT PRIMARY KEY, code TEXT NOT NULL, description TEXT NOT NULL);
+    CREATE TABLE role_permissions (id TEXT PRIMARY KEY, roleId TEXT NOT NULL, permissionId TEXT NOT NULL);
+    CREATE TABLE migrations (name TEXT);
+    INSERT INTO roles VALUES ('principal', 'PRINCIPAL');
+    INSERT INTO permissions VALUES ('attendance-read', 'attendance.read', 'Retained');
+    INSERT INTO role_permissions VALUES ('existing-grant', 'principal', 'attendance-read');
+  `);
+  const before = inventory(db);
+  db.exec(`
+    INSERT INTO permissions VALUES
+      ('announcement-read', 'announcements.read', 'School announcement capability'),
+      ('announcement-manage', 'announcements.manage', 'School announcement capability');
+    INSERT INTO role_permissions VALUES
+      ('principal-announcement-read', 'principal', 'announcement-read'),
+      ('principal-announcement-manage', 'principal', 'announcement-manage');
+    INSERT INTO migrations VALUES ('PrincipalAnnouncementManagementCapabilityRepair1762300700000');
+  `);
+  assert.doesNotThrow(() => preserved(before, inventory(db), db));
+  db.prepare("UPDATE permissions SET description='changed' WHERE id='attendance-read'").run();
+  assert.throws(
+    () => preserved(before, inventory(db), db),
+    /existing logical records changed/,
+  );
+  db.close();
+});
+
 test("rejects an unrelated role-assignment removal or change", () => {
   const db = fixture();
   const before = inventory(db);
