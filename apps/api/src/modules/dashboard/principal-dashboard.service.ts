@@ -2,7 +2,7 @@ import { Injectable, Optional } from "@nestjs/common";
 import { DataSource } from "typeorm";
 import { ApiException } from "../../common/exceptions/api.exception";
 import { AuthenticatedUser } from "../auth";
-import { NotificationsService } from "../notifications/notifications.service";
+import { NotificationsService } from "../notifications";
 import { NotificationType } from "../../database/entities/notification.entity";
 
 type CountRow = { count?: number | string };

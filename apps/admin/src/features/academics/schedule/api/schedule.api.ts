@@ -10,6 +10,10 @@ export type ScheduleEntry = {
   status: "ACTIVE" | "ARCHIVED" | "REPLACED";
   startsOn?: string | null;
   endsOn?: string | null;
+  academicYearId?: string | null;
+  academicYearNameSnapshot?: string | null;
+  termId?: string | null;
+  termNameSnapshot?: string | null;
   notes?: string;
   organization: { id: string; name: string; type?: string; status?: string };
   classroom?: { id: string; name: string } | null;
@@ -133,6 +137,16 @@ export const listScheduleCancellations = (date: string) =>
     `/schedule/cancellations?${new URLSearchParams({ date })}`,
   );
 export const listSchedule = () => api.get<ScheduleEntry[]>("/schedule");
+export const listScheduleByAcademicPeriod = (filters: {
+  academicYearId?: string;
+  termId?: string;
+}) => {
+  const query = new URLSearchParams();
+  if (filters.academicYearId) query.set("academicYearId", filters.academicYearId);
+  if (filters.termId) query.set("termId", filters.termId);
+  const suffix = query.size ? `?${query.toString()}` : "";
+  return api.get<ScheduleEntry[]>(`/schedule${suffix}`);
+};
 export const listLegacyAcademicCycles = (organizationId: string) =>
   api.get<{ years: LegacyAcademicYear[]; terms: LegacyAcademicTerm[] }>(
     `/schedule/academic-years?${new URLSearchParams({ organizationId })}`,

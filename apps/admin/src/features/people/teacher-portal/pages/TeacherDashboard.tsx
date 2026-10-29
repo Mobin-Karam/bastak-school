@@ -3,7 +3,11 @@ import { ArrowLeft, CalendarClock, Clock3, MapPin } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../../../identity/auth";
-import { listSchedule, type ScheduleEntry } from "../../../academics/schedule/api/schedule.api";
+import {
+  listLegacyAcademicCycles,
+  listScheduleByAcademicPeriod,
+  type ScheduleEntry,
+} from "../../../academics/schedule/api/schedule.api";
 import { todayIso } from "../../../../shared/lib/utils";
 import { useLocale } from "../../../../shared/ui/locale";
 import { Card, EmptyState, LoadingState } from "../../../../shared/ui/ui";
@@ -41,11 +45,37 @@ export function TeacherDashboard() {
   const [now, setNow] = useState(() => new Date());
   const [selectedClass, setSelectedClass] = useState<ScheduleEntry | null>(null);
   const [selectedClassDate, setSelectedClassDate] = useState<string>();
+  const organizationId = auth.context?.activeOrganization?.id;
+  const academicCycles = useQuery({
+    queryKey: ["schedule", "teacher-academic-cycles", organizationId],
+    queryFn: () => listLegacyAcademicCycles(organizationId!),
+    enabled: Boolean(organizationId),
+  });
+  const activeAcademicYear = academicCycles.data?.years.find((year) => year.state === "ACTIVE");
+  const activeAcademicTerm = academicCycles.data?.terms.find(
+    (term) => term.academicYearId === activeAcademicYear?.id && term.state === "ACTIVE",
+  );
   const home = useQuery({
     queryKey: ["dashboard", "teacher-home"],
     queryFn: () => getAdminDashboard("TEACHER"),
   });
-  const schedule = useQuery({ queryKey: ["schedule", "teacher"], queryFn: listSchedule });
+  const schedule = useQuery({
+    queryKey: [
+      "schedule",
+      "teacher",
+      organizationId,
+      activeAcademicYear?.id,
+      activeAcademicTerm?.id,
+    ],
+    queryFn: () =>
+      activeAcademicYear && activeAcademicTerm
+        ? listScheduleByAcademicPeriod({
+            academicYearId: activeAcademicYear.id,
+            termId: activeAcademicTerm.id,
+          })
+        : Promise.resolve([]),
+    enabled: academicCycles.isSuccess,
+  });
   const leaves = useQuery({
     queryKey: ["teacher-leaves", "self"],
     queryFn: listTeacherLeaveRequests,
@@ -90,7 +120,7 @@ export function TeacherDashboard() {
         ? "فردا"
         : `${nextClass.dayOffset.toLocaleString("fa-IR")} روز دیگر`;
 
-  if (schedule.isLoading && home.isLoading)
+  if ((schedule.isLoading || academicCycles.isLoading) && home.isLoading)
     return <LoadingState label="در حال آماده‌سازی میز استاد…" />;
 
   return (
@@ -108,6 +138,11 @@ export function TeacherDashboard() {
         <Card className="border-amber-300 bg-amber-50 p-3 text-sm font-bold text-amber-900 dark:bg-amber-950/30 dark:text-amber-100">
           شما در بازه مرخصی تأییدشده هستید: {formatDate(activeLeave.startDate)} تا{" "}
           {formatDate(activeLeave.endDate)}
+        </Card>
+      ) : null}
+      {!academicCycles.isLoading && (!activeAcademicYear || !activeAcademicTerm) ? (
+        <Card className="border-amber-300 bg-amber-50 p-3 text-sm font-semibold text-amber-950 dark:bg-amber-950/30 dark:text-amber-100">
+          برای نمایش و ثبت جلسه‌های برنامه، مدیر باید یک سال تحصیلی و نیم‌سال فعال انتخاب کند.
         </Card>
       ) : null}
       <div className="grid gap-3 lg:grid-cols-[minmax(0,1.35fr)_minmax(18rem,.65fr)]">
@@ -240,6 +275,8 @@ export function TeacherDashboard() {
         open={Boolean(selectedClass)}
         onOpenChange={(open) => !open && setSelectedClass(null)}
         canManage={auth.can("attendance.manage")}
+        semesterStartsOn={activeAcademicTerm?.startsOn}
+        semesterEndsOn={activeAcademicTerm?.endsOn}
         initialDate={selectedClassDate}
       />
     </section>

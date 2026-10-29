@@ -51,6 +51,22 @@ function nearestSessionDate(date: string, weekday: number, direction: -1 | 1) {
   while ((next.getUTCDay() + 1) % 7 !== weekday);
   return isoDay(next);
 }
+function firstSessionDateOnOrAfter(date: string, weekday: number) {
+  const first = new Date(`${date}T12:00:00Z`);
+  while ((first.getUTCDay() + 1) % 7 !== weekday) first.setUTCDate(first.getUTCDate() + 1);
+  return isoDay(first);
+}
+function clampTeacherSessionDate(
+  date: string,
+  weekday: number,
+  minimum?: string,
+  maximum?: string,
+) {
+  let aligned = latestTeacherSessionDate(date, weekday);
+  if (minimum && aligned < minimum) aligned = firstSessionDateOnOrAfter(minimum, weekday);
+  if (maximum && aligned > maximum) aligned = latestTeacherSessionDate(maximum, weekday);
+  return aligned;
+}
 
 /** Class roster and physical attendance management for a teacher's own scheduled class. */
 export function TeacherClassAttendanceSheet({
@@ -59,12 +75,16 @@ export function TeacherClassAttendanceSheet({
   onOpenChange,
   canManage,
   initialDate,
+  semesterStartsOn,
+  semesterEndsOn,
 }: {
   entry: ScheduleEntry | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   canManage: boolean;
   initialDate?: string;
+  semesterStartsOn?: string;
+  semesterEndsOn?: string;
 }) {
   const client = useQueryClient();
   const auth = useAuth();
@@ -85,6 +105,7 @@ export function TeacherClassAttendanceSheet({
   const [reportTarget, setReportTarget] = useState<{ id: string; name: string } | null>(null);
   const [profileStudentId, setProfileStudentId] = useState<string | null>(null);
   const [sessionDate, setSessionDate] = useState(() => isoDay(new Date()));
+  const entryWeekday = entry?.weekday;
   const participants = useQuery({
     queryKey: ["attendance", "participants", scopeKey, "class", entry?.classroom?.id],
     queryFn: () => getAttendanceParticipants("class", entry!.classroom!.id),
@@ -129,10 +150,16 @@ export function TeacherClassAttendanceSheet({
     setReportTarget(null);
     setProfileStudentId(null);
     setSessionDate(
-      initialDate ??
-        (entry ? latestTeacherSessionDate(isoDay(new Date()), entry.weekday) : isoDay(new Date())),
+      entryWeekday !== undefined
+        ? clampTeacherSessionDate(
+            initialDate ?? isoDay(new Date()),
+            entryWeekday,
+            semesterStartsOn,
+            semesterEndsOn,
+          )
+        : isoDay(new Date()),
     );
-  }, [entry?.id, initialDate, open, scopeKey]);
+  }, [entry?.id, entryWeekday, initialDate, open, scopeKey, semesterStartsOn, semesterEndsOn]);
 
   useEffect(() => {
     if (!open || !entry) return;
@@ -262,9 +289,18 @@ export function TeacherClassAttendanceSheet({
     (student) => marks[student.id] === "excused" && !(reasons[student.id] ?? "").trim(),
   );
   const canMoveToNextSession = entry
-    ? nearestSessionDate(sessionDate, entry.weekday, 1) <= isoDay(new Date())
+    ? nearestSessionDate(sessionDate, entry.weekday, 1) <= isoDay(new Date()) &&
+      (!semesterEndsOn || nearestSessionDate(sessionDate, entry.weekday, 1) <= semesterEndsOn)
     : false;
-  const canManageSelectedSession = canManage && sessionDate <= isoDay(new Date());
+  const previousSessionDate = entry ? nearestSessionDate(sessionDate, entry.weekday, -1) : null;
+  const canMoveToPreviousSession = Boolean(
+    previousSessionDate && (!semesterStartsOn || previousSessionDate >= semesterStartsOn),
+  );
+  const canManageSelectedSession =
+    canManage &&
+    sessionDate <= isoDay(new Date()) &&
+    (!semesterStartsOn || sessionDate >= semesterStartsOn) &&
+    (!semesterEndsOn || sessionDate <= semesterEndsOn);
   const sessionCoins = useQuery({
     queryKey: ["attendance", "session-coins", savedSessionId],
     queryFn: () =>
@@ -345,7 +381,11 @@ export function TeacherClassAttendanceSheet({
               <Button
                 size="sm"
                 variant="soft"
-                onClick={() => setSessionDate(nearestSessionDate(sessionDate, entry.weekday, -1))}
+                disabled={!canMoveToPreviousSession}
+                onClick={() => {
+                  if (canMoveToPreviousSession && previousSessionDate)
+                    setSessionDate(previousSessionDate);
+                }}
               >
                 جلسه قبل
               </Button>
@@ -353,7 +393,18 @@ export function TeacherClassAttendanceSheet({
                 تاریخ جلسه
                 <DatePicker
                   value={sessionDate}
-                  onChange={(date) => setSessionDate(latestTeacherSessionDate(date, entry.weekday))}
+                  min={semesterStartsOn}
+                  max={semesterEndsOn}
+                  onChange={(date) =>
+                    setSessionDate(
+                      clampTeacherSessionDate(
+                        date,
+                        entry.weekday,
+                        semesterStartsOn,
+                        semesterEndsOn,
+                      ),
+                    )
+                  }
                 />
               </label>
               <Button

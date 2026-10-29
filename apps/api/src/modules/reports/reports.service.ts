@@ -16,7 +16,7 @@ import { TeacherStudentReport } from "../../database/entities/teacher-student-re
 import { AttendanceSession } from "../../database/entities/attendance-session.entity";
 import { CreateTeacherStudentReportDto } from "./dto/create-teacher-student-report.dto";
 import { ActOnTeacherStudentReportDto } from "./dto/act-on-teacher-student-report.dto";
-import { NotificationsService } from "../notifications/notifications.service";
+import { NotificationsService } from "../notifications";
 import { NotificationType } from "../../database/entities/notification.entity";
 
 @Injectable()
