@@ -6,6 +6,7 @@ import { ResponsiveDrawer } from "../../../../shared/ui/responsive-drawer";
 import { Button, Card, EmptyState, LoadingState } from "../../../../shared/ui/ui";
 import {
   listAttendanceAbsenceReviews,
+  markDormAbsenceOutsideSchool,
   reviewAttendanceAbsence,
   type AttendanceAbsenceReview,
 } from "../api/attendance.api";
@@ -23,6 +24,7 @@ export function AttendanceReviewQueue({ initialRecordId }: { initialRecordId?: s
   const [decision, setDecision] = useState<"approved" | "rejected" | null>(null);
   const [note, setNote] = useState("");
   const [notice, setNotice] = useState<string | null>(null);
+  const [markOutsideSchool, setMarkOutsideSchool] = useState(false);
   const reviews = useQuery({
     queryKey: ["attendance", "absence-reviews", scope],
     queryFn: () => listAttendanceAbsenceReviews(organizationId),
@@ -49,12 +51,21 @@ export function AttendanceReviewQueue({ initialRecordId }: { initialRecordId?: s
       record,
       decision,
       note,
+      outsideSchool,
     }: {
       record: AttendanceAbsenceReview;
       decision: "approved" | "rejected";
       note: string;
+      outsideSchool: boolean;
       scope: string;
-    }) => reviewAttendanceAbsence(record.id, { decision, note: note.trim() || undefined }),
+    }) =>
+      reviewAttendanceAbsence(record.id, { decision, note: note.trim() || undefined }).then(
+        async (saved) => {
+          if (decision === "approved" && record.contextType === "dorm" && outsideSchool)
+            await markDormAbsenceOutsideSchool(saved.id, note.trim() || undefined);
+          return saved;
+        },
+      ),
     onSuccess: (_, variables) => {
       if (variables.scope !== scopeRef.current) return;
       setSelected(null);
@@ -78,6 +89,7 @@ export function AttendanceReviewQueue({ initialRecordId }: { initialRecordId?: s
     setSelected(focusedReview);
     setDecision(null);
     setNote("");
+    setMarkOutsideSchool(false);
   }, [focusedReview, mutation, selected]);
 
   return (
@@ -125,6 +137,7 @@ export function AttendanceReviewQueue({ initialRecordId }: { initialRecordId?: s
                   setSelected(review);
                   setDecision(null);
                   setNote("");
+                  setMarkOutsideSchool(false);
                 }}
               >
                 بررسی
@@ -171,6 +184,19 @@ export function AttendanceReviewQueue({ initialRecordId }: { initialRecordId?: s
                   رد دلیل
                 </Button>
               </div>
+              {selected?.contextType === "dorm" && auth.can("exit.manage") && (
+                <label className="flex items-start gap-2 rounded-xl border border-amber-300 bg-amber-50 p-3 text-xs leading-5 text-amber-950 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-100">
+                  <input
+                    type="checkbox"
+                    checked={markOutsideSchool}
+                    onChange={(event) => setMarkOutsideSchool(event.target.checked)}
+                    className="mt-0.5"
+                  />
+                  <span>
+                    پس از پذیرش، دانش‌آموز را «خارج از مدرسه» ثبت کن و از آمار حاضرین کم کن.
+                  </span>
+                </label>
+              )}
             </>
           ) : (
             <>
@@ -200,7 +226,13 @@ export function AttendanceReviewQueue({ initialRecordId }: { initialRecordId?: s
                   disabled={!auth.can("attendance.review")}
                   onClick={() => {
                     if (selected && decision)
-                      mutation.mutate({ record: selected, decision, note, scope });
+                      mutation.mutate({
+                        record: selected,
+                        decision,
+                        note,
+                        outsideSchool: markOutsideSchool,
+                        scope,
+                      });
                   }}
                 >
                   تأیید و ثبت تصمیم

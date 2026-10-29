@@ -161,6 +161,9 @@ export const reviewAttendanceAbsence = (
 ) =>
   api.patch<AttendanceAbsenceReview>(`/attendance/absence-reviews/${encodeURIComponent(id)}`, body);
 
+export const markDormAbsenceOutsideSchool = (id: string, note?: string) =>
+  api.post(`/attendance/absence-reviews/${encodeURIComponent(id)}/outside-school`, { note });
+
 export const listMyAttendanceAbsenceReviews = () =>
   api.get<AttendanceAbsenceReview[]>("/attendance/my-absence-reviews");
 

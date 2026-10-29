@@ -91,6 +91,19 @@ export class WorkflowsController {
     return ok(await this.service.reviewExitPermission(user, id, body as any));
   }
 
+  /** Principal confirms that a reviewed dorm absence means the student is physically outside school. */
+  @Post("attendance/absence-reviews/:id/outside-school")
+  @RequireCapabilities("exit.manage")
+  markDormAbsenceOutsideSchool(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param("id") id: string,
+    @Body() body: { note?: string },
+  ) {
+    return this.service
+      .markDormAbsenceOutsideSchool(user, id, body?.note)
+      .then(ok);
+  }
+
   @Post("student/exit-permissions/:id/return-request")
   @RequireCapabilities("exit.manage")
   requestReturn(
@@ -106,7 +119,14 @@ export class WorkflowsController {
   @RequireCapabilities("exit.manage")
   gateDeparture(
     @CurrentUser() user: AuthenticatedUser,
-    @Body() body: { organizationId: string; phoneNumber: string; destination?: string; reason?: string; expectedReturnAt?: string },
+    @Body()
+    body: {
+      organizationId: string;
+      phoneNumber: string;
+      destination?: string;
+      reason?: string;
+      expectedReturnAt?: string;
+    },
   ) {
     return this.service.recordGateDeparture(user, body).then(ok);
   }
@@ -116,7 +136,8 @@ export class WorkflowsController {
   @RequireCapabilities("exit.manage")
   gateReturn(
     @CurrentUser() user: AuthenticatedUser,
-    @Body() body: { organizationId: string; phoneNumber: string; note?: string },
+    @Body()
+    body: { organizationId: string; phoneNumber: string; note?: string },
   ) {
     return this.service.recordGateReturn(user, body).then(ok);
   }

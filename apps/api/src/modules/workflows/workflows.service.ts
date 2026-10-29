@@ -496,10 +496,7 @@ export class WorkflowsService {
       context,
       contextId,
     );
-    const organization = await this.organizationForUser(
-      user,
-      organizationId,
-    );
+    const organization = await this.organizationForUser(user, organizationId);
 
     if (context === "class") {
       const classroom = await this.classes.findOne({
@@ -872,6 +869,82 @@ export class WorkflowsService {
     row.approver = { id: user.id } as User;
     row.reviewedAt = new Date();
     const saved = await this.exitPermissions.save(row);
+    return this.serializeExitPermission(saved);
+  }
+
+  /**
+   * A dorm review never mutates its historical attendance record. Instead, an
+   * explicit physical-departure permission becomes the occupancy source of
+   * truth, preserving both the original absence and the principal's decision.
+   */
+  async markDormAbsenceOutsideSchool(
+    user: AuthenticatedUser,
+    recordId: string,
+    note?: string,
+  ) {
+    const roles = user.roles?.length ? user.roles : [user.role];
+    if (
+      !roles.some((role) =>
+        ["PRINCIPAL", "ORGANIZATION_ADMIN", "PLATFORM_ADMIN"].includes(role),
+      )
+    )
+      throw new ApiException(
+        403,
+        "DORM_OUTSIDE_SCHOOL_PRINCIPAL_ONLY",
+        "این اقدام فقط برای مدیر مدرسه مجاز است.",
+      );
+    const record = await this.attendanceRecords.findOne({
+      where: { id: recordId },
+      relations: { session: { organization: true }, student: true },
+    });
+    if (!record || record.session.contextType !== "dorm")
+      throw new ApiException(
+        404,
+        "DORM_ABSENCE_NOT_FOUND",
+        "غیبت خوابگاه پیدا نشد.",
+      );
+    await this.organizationForUser(user, record.session.organization.id);
+    if (record.reviewStatus !== "approved")
+      throw new ApiException(
+        409,
+        "DORM_ABSENCE_REVIEW_REQUIRED",
+        "ابتدا غیبت خوابگاه را تأیید کنید.",
+      );
+    const existing = await this.exitPermissions
+      .createQueryBuilder("exit")
+      .where("exit.organizationId = :organizationId", {
+        organizationId: record.session.organization.id,
+      })
+      .andWhere("exit.studentId = :studentId", { studentId: record.student.id })
+      .andWhere("exit.status = :status", {
+        status: ExitPermissionStatus.APPROVED,
+      })
+      .andWhere("exit.actualDepartureAt IS NOT NULL")
+      .andWhere("exit.actualReturnAt IS NULL")
+      .getOne();
+    if (existing) return this.serializeExitPermission(existing);
+    const now = new Date();
+    const saved = await this.exitPermissions.save(
+      this.exitPermissions.create({
+        organization: record.session.organization,
+        student: record.student,
+        destination: "خارج از مدرسه — بررسی غیبت خوابگاه",
+        reason: "ثبت خارج از مدرسه از بررسی تأییدشده غیبت خوابگاه",
+        requestedDepartureAt: record.session.sessionDate,
+        actualDepartureAt: now,
+        note:
+          note?.trim() ||
+          `غیبت خوابگاه در جلسه ${record.session.id} توسط مدیر بررسی شد.`,
+        status: ExitPermissionStatus.APPROVED,
+        approver: { id: user.id } as User,
+        reviewedAt: now,
+      }),
+    );
+    await this.emitOccupancyUpdate(
+      record.session.organization.id,
+      saved.id,
+      "departure-recorded",
+    );
     return this.serializeExitPermission(saved);
   }
 
@@ -1358,11 +1431,18 @@ export class WorkflowsService {
     return this.serializeLetter(saved);
   }
 
-  private async activeMemberships(user: AuthenticatedUser, organizationId?: string) {
+  private async activeMemberships(
+    user: AuthenticatedUser,
+    organizationId?: string,
+  ) {
     const ids = await this.access.scopedOrganizationIds(user, organizationId);
     if (!ids.length) return [];
     return this.memberships.find({
-      where: { user: { id: user.id }, organization: { id: In(ids) }, status: MembershipStatus.ACTIVE },
+      where: {
+        user: { id: user.id },
+        organization: { id: In(ids) },
+        status: MembershipStatus.ACTIVE,
+      },
       relations: { organization: true },
     });
   }
@@ -1423,7 +1503,10 @@ export class WorkflowsService {
     );
   }
 
-  private async organizationForUser(user: AuthenticatedUser, organizationId: string) {
+  private async organizationForUser(
+    user: AuthenticatedUser,
+    organizationId: string,
+  ) {
     return this.access.organizationForUser(user, organizationId);
   }
 
