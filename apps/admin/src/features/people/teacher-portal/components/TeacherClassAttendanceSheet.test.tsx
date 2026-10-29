@@ -4,18 +4,23 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ScheduleEntry } from "../../../academics/schedule/api/schedule.api";
 import { LocaleProvider } from "../../../../shared/ui/locale";
-import { TeacherClassAttendanceSheet } from "./TeacherClassAttendanceSheet";
+import {
+  latestTeacherSessionDate,
+  TeacherClassAttendanceSheet,
+} from "./TeacherClassAttendanceSheet";
 
 const {
   getAttendanceParticipantsMock,
   listMyAttendanceAbsenceReviewsMock,
   bulkMarkAttendanceMock,
   createLegacyOccurrenceMock,
+  getMock,
 } = vi.hoisted(() => ({
   getAttendanceParticipantsMock: vi.fn(),
   listMyAttendanceAbsenceReviewsMock: vi.fn(),
   bulkMarkAttendanceMock: vi.fn(),
   createLegacyOccurrenceMock: vi.fn(),
+  getMock: vi.fn(),
 }));
 
 vi.mock("../../../student-life/attendance/api/attendance.api.ts", () => ({
@@ -36,6 +41,7 @@ vi.mock("../../../../shared/api/api", () => ({
   api: {
     openEvents: () => ({ close: vi.fn() }),
     post: createLegacyOccurrenceMock,
+    get: getMock,
   },
 }));
 
@@ -73,9 +79,16 @@ beforeEach(() => {
     vi.fn(() => ({ matches: false, addEventListener: vi.fn(), removeEventListener: vi.fn() })),
   );
   createLegacyOccurrenceMock.mockResolvedValue({ id: "session-1", revision: 0, duplicate: false });
+  getMock.mockResolvedValue(null);
 });
 
 describe("TeacherClassAttendanceSheet", () => {
+  it("starts a lesson on its latest scheduled weekday instead of an arbitrary current day", () => {
+    // Legacy weekdays are Saturday=0 through Friday=6.
+    expect(latestTeacherSessionDate("2026-10-29", 6)).toBe("2026-10-23");
+    expect(latestTeacherSessionDate("2026-10-30", 6)).toBe("2026-10-30");
+  });
+
   it("uses the shared responsive drawer while retaining the roster query", async () => {
     getAttendanceParticipantsMock.mockResolvedValue([{ id: "student-1", name: "علی رضایی" }]);
     listMyAttendanceAbsenceReviewsMock.mockResolvedValue([]);

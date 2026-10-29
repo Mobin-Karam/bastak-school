@@ -37,6 +37,11 @@ const attendanceActions: Array<{
 ];
 
 const isoDay = (date: Date) => date.toISOString().slice(0, 10);
+export function latestTeacherSessionDate(date: string, weekday: number) {
+  const current = new Date(`${date}T12:00:00Z`);
+  while ((current.getUTCDay() + 1) % 7 !== weekday) current.setUTCDate(current.getUTCDate() - 1);
+  return isoDay(current);
+}
 function nearestSessionDate(date: string, weekday: number, direction: -1 | 1) {
   const next = new Date(`${date}T12:00:00Z`);
   do next.setUTCDate(next.getUTCDate() + direction);
@@ -111,7 +116,9 @@ export function TeacherClassAttendanceSheet({
     setSavedSessionId(null);
     setReportText({});
     setReportTarget(null);
-    setSessionDate(isoDay(new Date()));
+    setSessionDate(
+      entry ? latestTeacherSessionDate(isoDay(new Date()), entry.weekday) : isoDay(new Date()),
+    );
   }, [entry?.id, open, scopeKey]);
 
   useEffect(() => {
@@ -333,7 +340,7 @@ export function TeacherClassAttendanceSheet({
                 <DatePicker
                   value={sessionDate}
                   max={isoDay(new Date())}
-                  onChange={setSessionDate}
+                  onChange={(date) => setSessionDate(latestTeacherSessionDate(date, entry.weekday))}
                 />
               </label>
               <Button
