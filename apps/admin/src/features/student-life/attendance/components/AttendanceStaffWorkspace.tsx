@@ -17,6 +17,7 @@ import { Card } from "../../../../shared/ui/ui";
 import { AttendanceCoin } from "../../../../shared/ui/attendance-coin";
 import { DatePicker } from "../../../../shared/ui/date-picker";
 import { ResponsiveDrawer } from "../../../../shared/ui/responsive-drawer";
+import { Switch } from "../../../../shared/ui/switch";
 import { AttendanceSelect } from "./AttendanceSelect";
 import { notify } from "../../../../shared/ui/notifications";
 import { api } from "../../../../shared/api/api";
@@ -72,6 +73,7 @@ function PolicySwitch({
   defaultChecked: boolean;
   disabled?: boolean;
 }) {
+  const [checked, setChecked] = useState(defaultChecked);
   return (
     <label className="flex min-h-16 cursor-pointer items-start justify-between gap-3 rounded-xl border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card))] p-3 transition-colors hover:border-brand/40 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-brand/40 dark:hover:border-brand/60">
       <span className="min-w-0">
@@ -80,12 +82,13 @@ function PolicySwitch({
           {description}
         </span>
       </span>
-      <input
+      <input name={name} type="hidden" value={checked ? "on" : ""} />
+      <Switch
         name={name}
-        type="checkbox"
         aria-label={label}
-        className="mt-0.5 h-6 w-11 shrink-0 cursor-pointer appearance-none rounded-full bg-slate-300 transition-colors after:block after:size-4 after:translate-x-1 after:rounded-full after:bg-white after:shadow-sm after:transition-transform checked:bg-brand checked:after:translate-x-6 focus-visible:ring-2 focus-visible:ring-brand/40 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-slate-700"
-        defaultChecked={defaultChecked}
+        className="mt-0.5 h-6 w-11 border-0 bg-slate-300 data-[state=checked]:bg-brand data-[state=unchecked]:bg-slate-300 focus-visible:ring-brand/40 dark:bg-slate-700 dark:data-[state=unchecked]:bg-slate-700"
+        checked={checked}
+        onCheckedChange={setChecked}
         disabled={disabled}
       />
     </label>

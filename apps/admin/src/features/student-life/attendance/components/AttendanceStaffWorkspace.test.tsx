@@ -235,7 +235,7 @@ describe("staff session and pool creation", () => {
       { wrapper: Providers },
     );
     await user.click(await screen.findByRole("button", { name: "تنظیمات حضور" }));
-    const partial = await screen.findByRole("checkbox", { name: "اجازه ثبت ناقص" });
+    const partial = await screen.findByRole("switch", { name: "اجازه ثبت ناقص" });
     await user.click(partial);
     await user.click(screen.getByRole("button", { name: "ذخیره قوانین حضور" }));
     await waitFor(() =>
@@ -550,8 +550,6 @@ describe("staff session and pool creation", () => {
     expect(await screen.findByRole("heading", { name: "مسیر کار جلسه" })).toBeInTheDocument();
     expect(screen.getByText("۱. محدودهٔ دفتر را انتخاب کنید")).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "تنظیمات حضور" }));
-    expect(
-      await screen.findByRole("checkbox", { name: "بازبینی همهٔ جلسه‌ها" }),
-    ).toBeInTheDocument();
+    expect(await screen.findByRole("switch", { name: "بازبینی همهٔ جلسه‌ها" })).toBeInTheDocument();
   });
 });
