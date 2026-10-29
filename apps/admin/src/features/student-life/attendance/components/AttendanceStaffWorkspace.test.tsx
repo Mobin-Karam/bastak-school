@@ -503,4 +503,22 @@ describe("staff session and pool creation", () => {
     });
     expect(result.violations.map((violation) => violation.id)).toEqual([]);
   });
+
+  it("shows the session workflow and keeps policy decisions as labeled switches", async () => {
+    render(
+      <AttendanceStaffWorkspace
+        contexts={contexts}
+        scope="staff"
+        refreshVersion={0}
+        section="sessions"
+      />,
+      { wrapper: Providers },
+    );
+
+    expect(await screen.findByRole("heading", { name: "مسیر کار جلسه" })).toBeInTheDocument();
+    expect(screen.getByText("۱. محدودهٔ دفتر را انتخاب کنید")).toBeInTheDocument();
+    expect(
+      await screen.findByRole("checkbox", { name: "بازبینی همهٔ جلسه‌ها" }),
+    ).toBeInTheDocument();
+  });
 });

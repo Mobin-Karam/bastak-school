@@ -1,4 +1,4 @@
-import { createContext, useEffect, useMemo, useRef, type ReactNode } from "react";
+import { createContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "../../../identity/auth/hooks/useAuth";
 import { useNotificationInbox } from "../hooks/useNotificationInbox";
@@ -8,6 +8,57 @@ import { usePushNotifications } from "../hooks/usePushNotifications";
 import type { NotificationContextValue } from "../model/notification.types";
 import { useModal } from "../../../../shared/ui/modal";
 import { Button } from "../../../../shared/ui/ui";
+
+function PrincipalPushPrompt({
+  enable,
+  onClose,
+}: {
+  enable: () => Promise<void>;
+  onClose: () => void;
+}) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
+  return (
+    <section className="grid gap-4" dir="rtl">
+      <div className="rounded-xl border border-brand/20 bg-brand/5 p-4 text-sm leading-7 text-slate-700 dark:text-slate-200">
+        درخواست‌های حضور، گزارش‌ها و موارد نیازمند بررسی را روی همین دستگاه دریافت می‌کنید؛ حتی وقتی
+        این صفحه باز نیست.
+      </div>
+      {error ? (
+        <p
+          role="alert"
+          className="rounded-xl bg-rose-50 p-3 text-sm text-rose-800 dark:bg-rose-950/30 dark:text-rose-200"
+        >
+          {error}
+        </p>
+      ) : null}
+      <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+        <Button variant="ghost" disabled={busy} onClick={onClose}>
+          بعداً
+        </Button>
+        <Button
+          loading={busy}
+          loadingLabel="در حال فعال‌سازی…"
+          onClick={() => {
+            setBusy(true);
+            setError("");
+            void enable()
+              .then(onClose)
+              .catch((nextError: unknown) =>
+                setError(
+                  nextError instanceof Error ? nextError.message : "فعال‌سازی اعلان انجام نشد.",
+                ),
+              )
+              .finally(() => setBusy(false));
+          }}
+        >
+          فعال‌کردن اعلان‌های مدیر
+        </Button>
+      </div>
+    </section>
+  );
+}
 
 export const NotificationContext = createContext<NotificationContextValue | null>(null);
 
@@ -21,10 +72,56 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
   const sound = useNotificationSound();
   const push = usePushNotifications(notifications.refresh);
   const shownAbsences = useRef(new Set<string>());
+  const promptedPrincipalScopes = useRef(new Set<string>());
 
   useEffect(() => {
     shownAbsences.current.clear();
   }, [notificationScopeKey]);
+
+  useEffect(() => {
+    if (
+      auth.status !== "authenticated" ||
+      auth.activeRole !== "PRINCIPAL" ||
+      promptedPrincipalScopes.current.has(notificationScopeKey)
+    ) {
+      return;
+    }
+
+    promptedPrincipalScopes.current.add(notificationScopeKey);
+    void push.pushStatus().then((status) => {
+      if (
+        !status.supported ||
+        !status.serverConfigured ||
+        status.registered ||
+        status.permission === "denied"
+      ) {
+        return;
+      }
+
+      modal.open({
+        title: "اعلان‌های مدیر را فعال کنید",
+        description: "برای این دستگاه و نقش مدیر",
+        size: "md",
+        content: (
+          <PrincipalPushPrompt
+            enable={async () => {
+              await push.enablePush();
+              await notifications.refresh();
+            }}
+            onClose={modal.close}
+          />
+        ),
+      });
+    });
+  }, [
+    auth.activeRole,
+    auth.status,
+    modal,
+    notificationScopeKey,
+    notifications.refresh,
+    push.enablePush,
+    push.pushStatus,
+  ]);
 
   useEffect(() => {
     if (!auth.hasRole("STUDENT")) return;

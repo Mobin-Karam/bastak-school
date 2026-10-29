@@ -785,7 +785,19 @@ export class ScheduleService {
     return rows.filter((row) => row.metadata?.id === id);
   }
   private async assertLegacyScheduleWritable(entry: SchoolScheduleEntry) {
-    if (!entry.academicYearId && !entry.termId) return;
+    if (!entry.academicYearId && !entry.termId) {
+      const activeYear = await this.academicYearRepo.findOneBy({
+        organizationId: entry.organization.id,
+        state: "ACTIVE",
+      });
+      if (activeYear)
+        throw new ApiException(
+          409,
+          "SCHEDULE_ACADEMIC_RECONCILIATION_REQUIRED",
+          "این جلسهٔ قدیمی هنوز به سال و نیم‌سال منتسب نشده است؛ ابتدا تطبیق راه‌اندازی برنامه را کامل کنید.",
+        );
+      return;
+    }
     const year = entry.academicYearId
       ? await this.academicYearRepo.findOneBy({ id: entry.academicYearId })
       : null;

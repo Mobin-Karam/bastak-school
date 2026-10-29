@@ -134,6 +134,7 @@ export function usePushNotifications(refreshNotifications: () => void) {
     }
 
     await registerPushSubscription(subscription.toJSON());
+    await updatePushPreferences({ ...defaultPushPreferences, enabled: true });
     return pushStatus();
   }, [pushStatus]);
 

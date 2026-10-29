@@ -3,7 +3,15 @@ import { attendanceRequestId } from "../model/attendance-request-id";
 import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { PolarAngleAxis, PolarGrid, Radar, RadarChart, ResponsiveContainer } from "recharts";
-import { CalendarCheck2, CircleUserRound, MapPin, UsersRound } from "lucide-react";
+import {
+  CalendarCheck2,
+  CircleUserRound,
+  ClipboardList,
+  History,
+  MapPin,
+  Settings2,
+  UsersRound,
+} from "lucide-react";
 import { useAuth } from "../../../identity/auth";
 import { Card } from "../../../../shared/ui/ui";
 import { AttendanceCoin } from "../../../../shared/ui/attendance-coin";
@@ -50,6 +58,39 @@ const statuses = {
   excused: "موجه",
   unmarked: "نامشخص",
 };
+
+function PolicySwitch({
+  name,
+  label,
+  description,
+  defaultChecked,
+  disabled,
+}: {
+  name: string;
+  label: string;
+  description: string;
+  defaultChecked: boolean;
+  disabled?: boolean;
+}) {
+  return (
+    <label className="flex min-h-16 cursor-pointer items-start justify-between gap-3 rounded-xl border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card))] p-3 transition-colors hover:border-brand/40 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-brand/40 dark:hover:border-brand/60">
+      <span className="min-w-0">
+        <b className="block text-xs text-ink">{label}</b>
+        <span className="mt-1 block text-xs font-normal leading-5 text-slate-500 dark:text-slate-300">
+          {description}
+        </span>
+      </span>
+      <input
+        name={name}
+        type="checkbox"
+        aria-label={label}
+        className="mt-0.5 h-6 w-11 shrink-0 cursor-pointer appearance-none rounded-full bg-slate-300 transition-colors after:block after:size-4 after:translate-x-1 after:rounded-full after:bg-white after:shadow-sm after:transition-transform checked:bg-brand checked:after:translate-x-6 focus-visible:ring-2 focus-visible:ring-brand/40 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-slate-700"
+        defaultChecked={defaultChecked}
+        disabled={disabled}
+      />
+    </label>
+  );
+}
 
 function percent(value: number | null) {
   return value === null ? "—" : `${value.toLocaleString("fa-IR")}٪`;
@@ -813,6 +854,10 @@ export function AttendanceStaffWorkspace({
   const currentTerms = (academicCycles.data?.terms ?? []).filter(
     (term) => !academicYearId || term.academicYearId === academicYearId,
   );
+  const selectedAcademicYear = (academicCycles.data?.years ?? []).find(
+    (year) => year.id === academicYearId,
+  );
+  const selectedTerm = currentTerms.find((term) => term.id === termId);
   const selectOfficeTab = (tab: "teacher" | "groups" | "history" | "reports") => {
     setOfficeTab(tab);
     setCategory(tab === "groups" ? "class_group" : "class");
@@ -988,17 +1033,19 @@ export function AttendanceStaffWorkspace({
     }
   }
   return (
-    <Card className="space-y-6 rounded-3xl border border-sky-100 p-4 sm:p-6 dark:border-slate-700">
-      <header className="flex flex-wrap items-start justify-between gap-3 border-b border-[rgb(var(--border-subtle))] pb-4">
+    <Card className="space-y-6 rounded-3xl p-4 sm:p-6">
+      <header className="flex flex-wrap items-start justify-between gap-4 rounded-2xl border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-muted))]/60 p-4 sm:p-5">
         <div>
-          <p className="text-xs font-bold text-blue-700 dark:text-blue-300">عملیات حضور و غیاب</p>
-          <h2 className="mt-1 flex items-center gap-2 text-lg font-black text-ink">
+          <p className="text-xs font-bold text-blue-700 dark:text-blue-300">
+            دفتر عملیاتی حضور و غیاب
+          </p>
+          <h2 className="mt-1 flex items-center gap-2 text-xl font-black text-ink">
             <CalendarCheck2 className="text-blue-600" size={22} />
             {section === "pool" ? "حوضچه / فراخوان حضور" : "جلسات حضور"}
           </h2>
-          <p className="mt-2 max-w-2xl text-xs leading-6 text-slate-500">
-            خلاصه روزانه ساعت ۱۶ به وقت تهران از نو آغاز می‌شود. همه جلسات و پرونده‌ها در سوابق باقی
-            می‌مانند.
+          <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600 dark:text-slate-300">
+            مسیر ثبت از جلسهٔ برنامه تا بازبینی و سابقه در یک‌جا نگهداری می‌شود؛ ویرایش‌ها نسخهٔ
+            جدید همان جلسه را ثبت می‌کنند.
           </p>
         </div>
         {section === "sessions" && onNewSession && auth.can("attendance.manage") ? (
@@ -1011,6 +1058,84 @@ export function AttendanceStaffWorkspace({
           </button>
         ) : null}
       </header>
+      {section === "sessions" ? (
+        <section
+          aria-labelledby="attendance-workflow"
+          className="rounded-2xl border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card))] p-3 sm:p-4"
+        >
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h3
+                id="attendance-workflow"
+                className="flex items-center gap-2 text-sm font-black text-ink"
+              >
+                <ClipboardList className="size-4 text-brand" aria-hidden="true" />
+                مسیر کار جلسه
+              </h3>
+              <p className="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-300">
+                ابتدا بازهٔ آموزشی را مشخص کنید، سپس جلسه را ثبت یا انتخاب و در پایان سابقه و
+                بازبینی آن را پیگیری کنید.
+              </p>
+            </div>
+            <span className="rounded-full bg-brand/10 px-3 py-1.5 text-xs font-bold text-brand">
+              {selectedAcademicYear?.name || "همه سال‌ها"} ·{" "}
+              {selectedTerm?.name || "همه نیم‌سال‌ها"}
+            </span>
+          </div>
+          <ol className="mt-4 grid gap-2 md:grid-cols-3">
+            <li className="rounded-xl border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-muted))]/55 p-3">
+              <span className="flex items-center gap-2 text-xs font-black text-ink">
+                <span className="grid size-6 place-items-center rounded-full bg-brand text-white">
+                  ۱
+                </span>
+                انتخاب دوره و کلاس
+              </span>
+              <p className="mt-2 text-xs leading-5 text-slate-600 dark:text-slate-300">
+                فیلتر سال، نیم‌سال و کلاس پایین صفحه، دفتر کار شما را محدود می‌کند.
+              </p>
+            </li>
+            <li className="rounded-xl border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-muted))]/55 p-3">
+              <span className="flex items-center gap-2 text-xs font-black text-ink">
+                <span className="grid size-6 place-items-center rounded-full bg-brand text-white">
+                  ۲
+                </span>
+                ثبت یا تکمیل جلسه
+              </span>
+              <p className="mt-2 text-xs leading-5 text-slate-600 dark:text-slate-300">
+                برای جلسهٔ امروز ثبت تازه بسازید یا از صف تطبیق برای سوابق گذشته استفاده کنید.
+              </p>
+              {onNewSession && auth.can("attendance.manage") ? (
+                <button
+                  type="button"
+                  onClick={onNewSession}
+                  className="mt-3 min-h-9 rounded-lg bg-brand px-3 text-xs font-bold text-white focus-visible:ring-2 focus-visible:ring-brand/40"
+                >
+                  ثبت جلسه
+                </button>
+              ) : null}
+            </li>
+            <li className="rounded-xl border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-muted))]/55 p-3">
+              <span className="flex items-center gap-2 text-xs font-black text-ink">
+                <span className="grid size-6 place-items-center rounded-full bg-brand text-white">
+                  ۳
+                </span>
+                بازبینی و سابقه
+              </span>
+              <p className="mt-2 text-xs leading-5 text-slate-600 dark:text-slate-300">
+                جزئیات جلسه، شمارش حضور و نسخه‌های اصلاح در آرشیو قابل پیگیری هستند.
+              </p>
+              <button
+                type="button"
+                onClick={() => selectOfficeTab("history")}
+                className="mt-3 inline-flex min-h-9 items-center gap-1 rounded-lg border border-[rgb(var(--border-subtle))] px-3 text-xs font-bold text-slate-700 focus-visible:ring-2 focus-visible:ring-brand/40 dark:text-slate-200"
+              >
+                <History className="size-3.5" aria-hidden="true" />
+                رفتن به سابقه
+              </button>
+            </li>
+          </ol>
+        </section>
+      ) : null}
       {overview.isLoading ? (
         <p role="status">در حال دریافت خلاصه…</p>
       ) : overview.isError ? (
@@ -1143,71 +1268,74 @@ export function AttendanceStaffWorkspace({
         ) : policy.data ? (
           <form
             onSubmit={(event) => void savePolicy(event)}
-            className="grid gap-3 rounded-2xl border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-muted))] p-3 sm:grid-cols-2"
+            className="rounded-2xl border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-muted))]/60 p-3 sm:p-4"
           >
-            <div className="sm:col-span-2">
-              <p className="text-sm font-black">قوانین حضور و غیاب</p>
-              <p className="mt-1 text-xs text-slate-500">
-                این تنظیمات در backend روی ثبت‌های بعدی اعمال می‌شوند.
-              </p>
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <p className="flex items-center gap-2 text-sm font-black text-ink">
+                  <Settings2 className="size-4 text-brand" aria-hidden="true" />
+                  قوانین حضور و غیاب
+                </p>
+                <p className="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-300">
+                  این تنظیمات روی ثبت‌های بعدی اعمال می‌شوند و رفتار صف بازبینی مدیر را مشخص
+                  می‌کنند.
+                </p>
+              </div>
+              <span className="rounded-full bg-brand/10 px-3 py-1 text-xs font-bold text-brand">
+                {policy.data.principalReviewMode === "all_sessions"
+                  ? "بازبینی همه جلسه‌ها"
+                  : "بازبینی جلسه‌های دارای غیبت"}
+              </span>
             </div>
-            <label className="text-xs font-bold">
-              شروع روز آموزشی
-              <input
-                name="dayStartsAt"
-                type="time"
-                className={`${field} mt-1`}
-                defaultValue={policy.data.dayStartsAt}
-                disabled={policySaving}
-                required
-              />
-            </label>
-            <div className="grid content-center gap-2 text-xs font-bold">
-              <label className="flex items-center gap-2">
+            <div className="mt-4 grid gap-3 lg:grid-cols-[minmax(12rem,.55fr)_minmax(0,1fr)]">
+              <label className="rounded-xl border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card))] p-3 text-xs font-bold text-ink">
+                شروع روز آموزشی
+                <span className="mt-1 block font-normal leading-5 text-slate-500 dark:text-slate-300">
+                  مرز محاسبهٔ روز حضور برای گزارش‌ها و صف‌ها.
+                </span>
                 <input
+                  name="dayStartsAt"
+                  type="time"
+                  className={`${field} mt-3`}
+                  defaultValue={policy.data.dayStartsAt}
+                  disabled={policySaving}
+                  required
+                />
+              </label>
+              <div className="grid gap-2 sm:grid-cols-2">
+                <PolicySwitch
                   name="allowPartialSubmission"
-                  type="checkbox"
+                  label="اجازه ثبت ناقص"
+                  description="ثبت جلسه پیش از مشخص‌شدن وضعیت همهٔ اعضا مجاز باشد."
                   defaultChecked={policy.data.allowPartialSubmission}
                   disabled={policySaving}
                 />
-                اجازه ثبت ناقص
-              </label>
-              <label className="flex items-center gap-2">
-                <input
+                <PolicySwitch
                   name="lateCountsAsPresent"
-                  type="checkbox"
+                  label="تأخیر در نرخ حضور"
+                  description="وضعیت تأخیر در محاسبهٔ نرخ حضور، حاضر محسوب شود."
                   defaultChecked={policy.data.lateCountsAsPresent}
                   disabled={policySaving}
                 />
-                تأخیر در نرخ حضور محسوب شود
-              </label>
-              <label className="flex items-center gap-2">
-                <input
+                <PolicySwitch
                   name="correctionRequiresReview"
-                  type="checkbox"
+                  label="بازبینی اصلاح‌ها"
+                  description="هر اصلاح حضور پیش از اثرگذاری نیازمند تأیید ناظر باشد."
                   defaultChecked={policy.data.correctionRequiresReview}
                   disabled={policySaving}
                 />
-                اصلاح حضور نیازمند تأیید ناظر باشد
-              </label>
-              <label className="flex items-start gap-2">
-                <input
+                <PolicySwitch
                   name="principalReviewAllSessions"
-                  type="checkbox"
+                  label="بازبینی همهٔ جلسه‌ها"
+                  description="اگر خاموش باشد، فقط جلسه‌های دارای غیبت در صف بازبینی مدیر قرار می‌گیرند."
                   defaultChecked={policy.data.principalReviewMode === "all_sessions"}
                   disabled={policySaving}
                 />
-                <span>
-                  <b className="block">بازبینی همهٔ جلسه‌ها توسط مدیر</b>
-                  <span className="text-xs font-normal text-slate-500 dark:text-slate-300">
-                    اگر خاموش باشد، فقط جلسه‌های دارای غیبت در صف بازبینی مدیر قرار می‌گیرند.
-                  </span>
-                </span>
-              </label>
+              </div>
             </div>
             <button
               type="submit"
-              className={`${action} bg-slate-900 text-white sm:col-span-2`}
+              className={`${action} mt-3 w-full bg-slate-900 text-white sm:w-auto`}
               disabled={policySaving}
             >
               {policySaving ? "در حال ذخیره…" : "ذخیره قوانین حضور"}
@@ -1519,87 +1647,114 @@ export function AttendanceStaffWorkspace({
               دسترسی شما
             </p>
           ) : null}
-          <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
-            <label className="grid gap-1 text-xs font-bold text-slate-600 dark:text-slate-300">
-              نوع زمینه
-              <AdaptiveSelect
-                aria-label="نوع جلسات حضور"
-                value={category}
-                onChange={(event) => {
-                  setCategory(event.target.value as typeof category);
-                  setContextFilter("");
-                  setSessionsPage(1);
-                }}
-                className={field}
-              >
-                {Object.entries(labels).map(([key, label]) => (
-                  <option key={key} value={key}>
-                    {label}
-                  </option>
-                ))}
-              </AdaptiveSelect>
-            </label>
-            <label className="grid gap-1 text-xs font-bold text-slate-600 dark:text-slate-300">
-              کلاس یا اتاق
-              <AdaptiveSelect
-                aria-label="کلاس یا اتاق جلسات"
-                className={field}
-                value={contextFilter}
-                onChange={(event) => setContextFilter(event.target.value)}
-              >
-                <option value="">همه کلاس‌ها و اتاق‌ها</option>
-                {Array.from(
-                  new Map(
-                    contexts
-                      .filter((context) => context.contextType === category)
-                      .map((context) => [context.id, context.name]),
-                  ).entries(),
-                ).map(([id, name]) => (
-                  <option key={id} value={id}>
-                    {name}
-                  </option>
-                ))}
-              </AdaptiveSelect>
-            </label>
-            <label className="grid gap-1 text-xs font-bold text-slate-600 dark:text-slate-300">
-              سال تحصیلی
-              <AdaptiveSelect
-                aria-label="سال تحصیلی جلسات"
-                className={field}
-                value={academicYearId}
-                onChange={(event) => {
-                  setAcademicYearId(event.target.value);
-                  setTermId("");
-                  setSessionsPage(1);
-                }}
-              >
-                <option value="">همه سال‌ها</option>
-                {(academicCycles.data?.years ?? []).map((year) => (
-                  <option key={year.id} value={year.id}>
-                    {year.name}
-                  </option>
-                ))}
-              </AdaptiveSelect>
-            </label>
-            <label className="grid gap-1 text-xs font-bold text-slate-600 dark:text-slate-300">
-              نیم‌سال
-              <AdaptiveSelect
-                aria-label="نیم‌سال جلسات"
-                className={field}
-                value={termId}
-                onChange={(event) => {
-                  setTermId(event.target.value);
-                  setSessionsPage(1);
-                }}
-              >
-                <option value="">همه نیم‌سال‌ها</option>
-                {currentTerms.map((term) => (
-                  <option key={term.id} value={term.id}>
-                    {term.name}
-                  </option>
-                ))}
-              </AdaptiveSelect>
-            </label>
+          <div className="rounded-xl border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card))] p-3">
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <div>
+                <p className="text-xs font-black text-ink">۱. محدودهٔ دفتر را انتخاب کنید</p>
+                <p className="mt-1 text-xs text-slate-500 dark:text-slate-300">
+                  فیلترها هم آرشیو، هم گزارش نیم‌سال و هم صف تطبیق را هماهنگ می‌کنند.
+                </p>
+              </div>
+              {(academicYearId || termId || contextFilter) && (
+                <button
+                  type="button"
+                  className="min-h-9 rounded-lg px-2 text-xs font-bold text-brand underline focus-visible:ring-2 focus-visible:ring-brand/40"
+                  onClick={() => {
+                    setAcademicYearId("");
+                    setTermId("");
+                    setContextFilter("");
+                    setSessionsPage(1);
+                  }}
+                >
+                  پاک‌کردن فیلترها
+                </button>
+              )}
+            </div>
+            <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+              <label className="grid gap-1 text-xs font-bold text-slate-600 dark:text-slate-300">
+                نوع زمینه
+                <AdaptiveSelect
+                  aria-label="نوع جلسات حضور"
+                  value={category}
+                  onChange={(event) => {
+                    setCategory(event.target.value as typeof category);
+                    setContextFilter("");
+                    setSessionsPage(1);
+                  }}
+                  className={field}
+                >
+                  {Object.entries(labels).map(([key, label]) => (
+                    <option key={key} value={key}>
+                      {label}
+                    </option>
+                  ))}
+                </AdaptiveSelect>
+              </label>
+              <label className="grid gap-1 text-xs font-bold text-slate-600 dark:text-slate-300">
+                کلاس یا اتاق
+                <AdaptiveSelect
+                  aria-label="کلاس یا اتاق جلسات"
+                  className={field}
+                  value={contextFilter}
+                  onChange={(event) => {
+                    setContextFilter(event.target.value);
+                    setSessionsPage(1);
+                  }}
+                >
+                  <option value="">همه کلاس‌ها و اتاق‌ها</option>
+                  {Array.from(
+                    new Map(
+                      contexts
+                        .filter((context) => context.contextType === category)
+                        .map((context) => [context.id, context.name]),
+                    ).entries(),
+                  ).map(([id, name]) => (
+                    <option key={id} value={id}>
+                      {name}
+                    </option>
+                  ))}
+                </AdaptiveSelect>
+              </label>
+              <label className="grid gap-1 text-xs font-bold text-slate-600 dark:text-slate-300">
+                سال تحصیلی
+                <AdaptiveSelect
+                  aria-label="سال تحصیلی جلسات"
+                  className={field}
+                  value={academicYearId}
+                  onChange={(event) => {
+                    setAcademicYearId(event.target.value);
+                    setTermId("");
+                    setSessionsPage(1);
+                  }}
+                >
+                  <option value="">همه سال‌ها</option>
+                  {(academicCycles.data?.years ?? []).map((year) => (
+                    <option key={year.id} value={year.id}>
+                      {year.name}
+                    </option>
+                  ))}
+                </AdaptiveSelect>
+              </label>
+              <label className="grid gap-1 text-xs font-bold text-slate-600 dark:text-slate-300">
+                نیم‌سال
+                <AdaptiveSelect
+                  aria-label="نیم‌سال جلسات"
+                  className={field}
+                  value={termId}
+                  onChange={(event) => {
+                    setTermId(event.target.value);
+                    setSessionsPage(1);
+                  }}
+                >
+                  <option value="">همه نیم‌سال‌ها</option>
+                  {currentTerms.map((term) => (
+                    <option key={term.id} value={term.id}>
+                      {term.name}
+                    </option>
+                  ))}
+                </AdaptiveSelect>
+              </label>
+            </div>
           </div>
           {officeTab === "reports" && report.data ? (
             <div

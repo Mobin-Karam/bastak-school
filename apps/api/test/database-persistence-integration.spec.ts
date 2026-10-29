@@ -971,6 +971,24 @@ describe("migration-backed persistence and verified recovery (disposable SQLite 
       bootstrap.unassignedAttendanceSessions.map((session) => session.id),
     ).toContain(legacyAttendance.id);
     await expect(
+      schedule.update(scoped, legacyEntry.id, {
+        organizationId: a.id,
+        classroomId: classroom.id,
+        classBookId: classBook.id,
+        teacherId: teacher.id,
+        title: "نباید پیش از تطبیق ویرایش شود",
+        weekday: 1,
+        startTime: "10:00",
+        endTime: "11:00",
+        academicYearId: academicYear.id,
+        termId: academicTerm.id,
+      }),
+    ).rejects.toMatchObject({
+      response: {
+        error: { code: "SCHEDULE_ACADEMIC_RECONCILIATION_REQUIRED" },
+      },
+    });
+    await expect(
       schedule.reconcileLegacyAcademicCycle(scoped, {
         organizationId: a.id,
         academicYearId: academicYear.id,

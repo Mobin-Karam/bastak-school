@@ -67,7 +67,7 @@ export function deletePushSubscription(endpoint: string) {
   return api.delete(`/push/subscriptions?endpoint=${encodeURIComponent(endpoint)}`);
 }
 
-export function updatePushPreferences(preferences: PushPreferences) {
+export function updatePushPreferences(preferences: PushPreferences & { enabled?: boolean }) {
   return api.put("/push/preferences", preferences);
 }
 
