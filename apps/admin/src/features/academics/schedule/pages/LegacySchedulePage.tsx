@@ -10,8 +10,6 @@ import {
   GraduationCap,
   MapPin,
   Pencil,
-  PanelRightClose,
-  PanelRightOpen,
   Plus,
   RotateCcw,
   Trash2,
@@ -114,10 +112,7 @@ export function LegacySchedulePage() {
   const client = useQueryClient();
   const [activeWeekday, setActiveWeekday] = useState(() => legacyWeekdayForIso(todayIso()));
   const [templatePreview, setTemplatePreview] = useState<ScheduleTemplate | null>(null);
-  const [toolsSidebarHidden, setToolsSidebarHidden] = useState(false);
   const [mobileToolsOpen, setMobileToolsOpen] = useState(false);
-  const viewportShell = useViewportShell();
-  const compactWorkspace = viewportShell !== "desktop";
   const [academicCyclesOpen, setAcademicCyclesOpen] = useState(false);
   const [bootstrapTermId, setBootstrapTermId] = useState("");
   const [bootstrapEntryIds, setBootstrapEntryIds] = useState<string[]>([]);
@@ -578,7 +573,7 @@ export function LegacySchedulePage() {
     </SpreadsheetTransferLauncher>
   ) : null;
   const toolsPanel = (
-    <div className="grid gap-3 max-h-[calc(100dvh-10rem)] overflow-y-auto min-[960px]:pe-1 [scrollbar-color:rgb(var(--border-subtle))_transparent] [scrollbar-width:thin]">
+    <div className="grid gap-3">
       <header className="flex items-center gap-2 px-1">
         <span
           className="grid size-9 place-items-center rounded-xl bg-brand/10 text-brand"
@@ -719,7 +714,7 @@ export function LegacySchedulePage() {
           onReconcile={() => reconcileAcademicBootstrap.mutate()}
           reconciling={reconcileAcademicBootstrap.isPending}
         />
-      ) : null}
+      ) : null} */}
       <header
         className="mb-4 flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card))] p-4 shadow-[var(--shadow-surface)] sm:p-5"
         dir="rtl"
@@ -766,6 +761,16 @@ export function LegacySchedulePage() {
               <GraduationCap size={17} /> مدیریت سال و نیم‌سال
             </Button>
           ) : null}
+          <Button
+            variant="soft"
+            className="min-h-10 flex-1 sm:flex-none"
+            onClick={() => setMobileToolsOpen(true)}
+            aria-haspopup="dialog"
+            aria-expanded={mobileToolsOpen}
+            aria-controls="legacy-schedule-tools-drawer"
+          >
+            <CalendarClock size={17} /> ابزارهای برنامه
+          </Button>
           {canCreate ? (
             <Button className="min-h-10 flex-1 sm:flex-none" onClick={() => editEntry()}>
               <Plus size={17} /> افزودن جلسه
@@ -812,27 +817,8 @@ export function LegacySchedulePage() {
           </p>
         </Card>
       ) : null}
-      {!compactWorkspace ? (
-        <div className="mb-2 flex justify-end" dir="rtl">
-          <button
-            type="button"
-            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card))] px-3 text-sm font-black text-ink outline-none transition hover:border-brand/45 hover:bg-brand hover:text-white focus-visible:ring-2 focus-visible:ring-brand motion-reduce:transition-none"
-            onClick={() => setToolsSidebarHidden((hidden) => !hidden)}
-            aria-label={toolsSidebarHidden ? "نمایش ابزارهای برنامه" : "پنهان کردن ابزارهای برنامه"}
-            aria-expanded={!toolsSidebarHidden}
-            aria-controls="legacy-schedule-tools"
-          >
-            {toolsSidebarHidden ? (
-              <PanelRightOpen size={19} aria-hidden="true" />
-            ) : (
-              <PanelRightClose size={19} aria-hidden="true" />
-            )}
-            <span>{toolsSidebarHidden ? "نمایش ابزارها" : "ابزارها"}</span>
-          </button>
-        </div>
-      ) : null}
       <section
-        className={`relative grid w-full max-w-none gap-4 pb-[calc(6rem+env(safe-area-inset-bottom))] min-[1200px]:pb-6 min-[1200px]:transition-[grid-template-columns] min-[1200px]:duration-300 min-[1200px]:ease-out motion-reduce:transition-none ${toolsSidebarHidden ? "min-[1200px]:grid-cols-[minmax(0,1fr)_0rem]" : "min-[1200px]:grid-cols-[minmax(0,1fr)_22rem]"}`}
+        className="relative grid w-full max-w-none gap-4 pb-[calc(6rem+env(safe-area-inset-bottom))] min-[1200px]:pb-6"
         dir="rtl"
       >
         <div
@@ -903,27 +889,16 @@ export function LegacySchedulePage() {
             toolsOpen={mobileToolsOpen}
           />
         </div>
-        {!compactWorkspace ? (
-          <aside
-            id="legacy-schedule-tools"
-            aria-label="ابزارهای برنامه هفتگی"
-            aria-hidden={toolsSidebarHidden}
-            inert={toolsSidebarHidden}
-            className={`order-2 grid min-w-0 gap-3 overflow-hidden transition-[opacity,transform] duration-300 ease-out motion-reduce:transition-none min-[1200px]:sticky min-[1200px]:top-3 min-[1200px]:self-start ${toolsSidebarHidden ? "pointer-events-none translate-x-3 opacity-0" : "translate-x-0 opacity-100"}`}
-          >
-            {toolsPanel}
-          </aside>
-        ) : null}
       </section>
       <ResponsiveDrawer
-        open={compactWorkspace && mobileToolsOpen}
+        open={mobileToolsOpen}
         onOpenChange={setMobileToolsOpen}
         title="ابزارهای برنامه"
         description="عملیات برنامه، بازه‌های زمانی و الگوها را از این پنل مدیریت کنید."
         desktopSide="left"
         className="w-full max-w-xl"
       >
-        {toolsPanel}
+        <div id="legacy-schedule-tools-drawer">{toolsPanel}</div>
       </ResponsiveDrawer>
       <ResponsiveDrawer
         open={academicCyclesOpen}
