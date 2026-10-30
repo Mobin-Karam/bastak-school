@@ -77,6 +77,15 @@ const sectionLabels = {
   supervisor: "نظارت کلاس‌ها",
   comparison: "تطبیق ناظر",
 };
+const sectionDescriptions: Record<AttendanceSection, string> = {
+  class: "حضور و غیاب کلاس‌های درسی",
+  class_group: "حضور گروه‌های کلاسی",
+  dorm: "ثبت نوبت روز یا شب اتاق‌ها",
+  sessions: "جلسه‌ها، بررسی‌ها و بایگانی",
+  pool: "فراخوان‌های حضور و غیاب",
+  supervisor: "ثبت مستقل ناظر مدرسه",
+  comparison: "مقایسه با ثبت استاد",
+};
 const contextIcon = {
   class: BookOpenCheck,
   class_group: UserRoundCheck,
@@ -163,16 +172,19 @@ export function AttendancePage() {
           (linkedSession.scheduledStartAt !== null || sessionWindowActive))) &&
       canManageLinkedSession
     : auth.can("attendance.manage");
-  // Principals review school attendance through the sessions, review, and
-  // comparison workspaces. Manual class, group, and dorm marking remains for
-  // the staff roles assigned to perform it.
-  const sections: AttendanceSection[] = [
-    ...(isPrincipal ? [] : contextOrder),
-    ...(canViewStaffSessions ? (["sessions"] as const) : []),
-    ...(auth.can("attendance.review") ? (["pool"] as const) : []),
-    ...(isSupervisor ? (["supervisor"] as const) : []),
-    ...(auth.can("attendance.review") ? (["comparison"] as const) : []),
-  ];
+  // Principal operational reviews live on the principal dashboard. This page
+  // is their attendance settings and all-session history/archive workspace.
+  const sections: AttendanceSection[] = isPrincipal
+    ? canViewStaffSessions
+      ? ["sessions"]
+      : []
+    : [
+        ...contextOrder,
+        ...(canViewStaffSessions ? (["sessions"] as const) : []),
+        ...(auth.can("attendance.review") ? (["pool"] as const) : []),
+        ...(isSupervisor ? (["supervisor"] as const) : []),
+        ...(auth.can("attendance.review") ? (["comparison"] as const) : []),
+      ];
   const scopeKey = JSON.stringify([
     auth.user?.id,
     auth.activeRole,
@@ -184,6 +196,12 @@ export function AttendancePage() {
   const requestedId = searchParams.get("contextId");
   const requestedType = searchParams.get("contextType");
   const requestedSessionId = searchParams.get("sessionId");
+  useEffect(() => {
+    if (!isPrincipal || requestedType !== "dorm" || !requestedSessionId) return;
+    navigate(`/admin/dashboard/principal?dormSessionId=${encodeURIComponent(requestedSessionId)}`, {
+      replace: true,
+    });
+  }, [isPrincipal, navigate, requestedSessionId, requestedType]);
   const [dormOccurrence, setDormOccurrence] = useState<{
     sessionId: string;
     contextId: string;
@@ -896,7 +914,7 @@ export function AttendancePage() {
 
   return (
     <section dir={profile.direction} className="mx-auto w-full max-w-7xl space-y-4 pb-8">
-      <DormAttendanceReviewInbox />
+      {isPrincipal ? null : <DormAttendanceReviewInbox />}
       {notice && (
         <div
           role={notice.kind === "error" || notice.kind === "warning" ? "alert" : "status"}
@@ -916,48 +934,79 @@ export function AttendancePage() {
       )}
 
       <div
-        className={`${shell} overflow-x-auto rounded-2xl p-1.5`}
-        aria-label="مرحله اول: نوع حضور و غیاب"
+        className={`${shell} rounded-2xl p-3 sm:p-4`}
+        aria-labelledby="attendance-sections-title"
       >
+        <div className="mb-3 flex flex-wrap items-end justify-between gap-x-4 gap-y-1 px-1">
+          <div>
+            <h2 id="attendance-sections-title" className="text-sm font-black text-ink sm:text-base">
+              بخش حضور و غیاب
+            </h2>
+            <p className={`mt-1 text-xs leading-5 ${muted}`}>
+              {isPrincipal
+                ? "جلسه‌ها و بایگانی کامل مدرسه را از اینجا ببینید؛ صف بررسی‌ها در میزکار مدیر است."
+                : "نوع ثبت را انتخاب کنید؛ بعد کلاس، گروه یا اتاق موردنظر را باز کنید."}
+            </p>
+          </div>
+          <span className={`text-xs tabular-nums ${muted}`}>
+            {sections.length.toLocaleString("fa-IR")} بخش در دسترس
+          </span>
+        </div>
         <div
-          className="grid min-w-0 gap-1"
-          style={{ gridTemplateColumns: `repeat(${sections.length}, minmax(0, 1fr))` }}
+          role="group"
+          aria-labelledby="attendance-sections-title"
+          className={`grid min-w-0 gap-2 ${sections.length === 1 ? "max-w-2xl grid-cols-1" : "grid-cols-2 md:grid-cols-3 xl:grid-cols-4"}`}
         >
           {sections.map((type) => {
             const Icon = contextIcon[type];
             const active = chosenType === type;
             const total = contexts.filter((c) => c.contextType === type).length;
+            const hasTargetCount = ["class", "class_group", "dorm"].includes(type);
+            const countLabel = hasTargetCount
+              ? loadingContexts
+                ? "در حال بارگذاری"
+                : `${total.toLocaleString("fa-IR")} مورد`
+              : null;
             return (
               <button
                 type="button"
                 key={type}
                 aria-pressed={active}
-                aria-label={`${sectionLabels[type]} ${type === "pool" ? "فراخوان زنده" : type === "sessions" ? "سوابق حضور" : type === "supervisor" ? "بررسی مستقل" : type === "comparison" ? "گزارش مدیر" : `${total} مورد`}`}
-                disabled={saving || loadingContexts}
+                aria-label={`${sectionLabels[type]}${type === "sessions" ? "، سوابق حضور" : type === "pool" ? "، فراخوان زنده" : ""}${hasTargetCount ? ` ${loadingContexts ? "در حال بارگذاری" : `${total} مورد`}` : ""}`}
+                disabled={saving}
                 onClick={() => chooseAttendanceType(type)}
-                className={`flex min-h-[5rem] min-w-0 flex-col items-center justify-center gap-1 rounded-2xl text-center transition-colors motion-reduce:transition-none sm:flex-row sm:justify-center ${active ? "bg-brand text-white shadow-sm" : "text-ink hover:bg-[rgb(var(--surface-muted))]"}`}
+                className={`group flex min-h-[5.5rem] min-w-0 items-center gap-3 rounded-xl border p-3 text-start transition-colors motion-reduce:transition-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 disabled:cursor-not-allowed disabled:opacity-60 sm:min-h-24 sm:p-4 ${active ? "border-brand bg-brand text-white shadow-sm" : "border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card))] text-ink hover:border-brand/50 hover:bg-[rgb(var(--surface-muted))]"}`}
               >
                 <span
-                  className={`flex size-9 shrink-0 items-center justify-center rounded-lg ${active ? "bg-white/15" : "bg-[rgb(var(--surface-muted))]"}`}
+                  aria-hidden="true"
+                  className={`grid size-10 shrink-0 place-items-center rounded-xl ${active ? "bg-white/15 text-white" : "bg-[rgb(var(--surface-muted))] text-brand"}`}
                 >
-                  <Icon size={17} />
+                  <Icon size={19} />
                 </span>
-                <span className="min-w-0 text-[11px] font-bold leading-4 sm:text-sm">
-                  {sectionLabels[type]}
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-xs font-black leading-5 sm:text-sm">
+                    {sectionLabels[type]}
+                  </span>
                   <span
-                    className={`block text-[10px] font-normal ${active ? "text-white/80" : muted}`}
+                    className={`mt-0.5 block text-[11px] leading-4 ${active ? "text-white/85" : muted}`}
                   >
-                    {type === "pool"
-                      ? "فراخوان زنده"
-                      : type === "sessions"
-                        ? "سوابق حضور"
-                        : type === "supervisor"
-                          ? "ثبت مستقل"
-                          : type === "comparison"
-                            ? "گزارش مدیر"
-                            : `${total} مورد`}
+                    {sectionDescriptions[type]}
                   </span>
                 </span>
+                {countLabel ? (
+                  <span
+                    className={`shrink-0 rounded-full px-2 py-1 text-[10px] font-black tabular-nums sm:text-xs ${active ? "bg-white/15 text-white" : "bg-[rgb(var(--surface-muted))] text-ink"}`}
+                  >
+                    {loadingContexts ? (
+                      <span aria-hidden="true">…</span>
+                    ) : (
+                      <>
+                        {total.toLocaleString("fa-IR")}
+                        <span className="sr-only"> مورد</span>
+                      </>
+                    )}
+                  </span>
+                ) : null}
               </button>
             );
           })}

@@ -827,6 +827,62 @@ describe("attendance delegation, live pools and staff privacy (SQLite)", () => {
     ]);
   });
 
+  it("records an unauthorized dorm departure from the principal review queue", async () => {
+    const session = await db.getRepository(AttendanceSession).save({
+      organization: org,
+      contextType: "dorm",
+      contextId: room.id,
+      sessionDate: new Date(Date.now() - 60_000),
+      operationalDate: day,
+      attendancePeriod: "night",
+      dormAttendanceRole: "primary",
+      dormForwardedAt: new Date(Date.now() - 30_000),
+      status: "submitted",
+      rosterSnapshot: [{ id: students[0].id, name: students[0].name }],
+    });
+    await db.getRepository(AttendanceRecord).save({
+      session,
+      student: students[0],
+      status: AttendanceStatus.ABSENT,
+    });
+
+    const first = await operations.markUnauthorizedDormDeparture(
+      staff,
+      session.id,
+      students[0].id,
+    );
+    await expect(
+      operations.markUnauthorizedDormDeparture(
+        staff,
+        session.id,
+        students[0].id,
+      ),
+    ).resolves.toMatchObject({
+      exitPermissionId: first.exitPermissionId,
+      studentId: students[0].id,
+      origin: "dorm_unauthorized",
+      unauthorizedOutside: 1,
+      currentlyInSchool: 2,
+    });
+    expect(
+      await db.getRepository(ExitPermission).count({
+        where: {
+          student: { id: students[0].id },
+          origin: "dorm_unauthorized",
+        },
+      }),
+    ).toBe(1);
+    await expect(
+      db.getRepository(ExitPermission).findOneByOrFail({
+        student: { id: students[0].id },
+        origin: "dorm_unauthorized",
+      }),
+    ).resolves.toMatchObject({
+      status: ExitPermissionStatus.APPROVED,
+      origin: "dorm_unauthorized",
+    });
+  });
+
   it("reports finalized facts only and excludes submitted/cancelled sessions from its denominator", async () => {
     const [finalized, submitted, cancelled] = await db
       .getRepository(AttendanceSession)

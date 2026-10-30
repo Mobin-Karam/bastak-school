@@ -1,5 +1,6 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { cleanup, render, screen } from "@testing-library/react";
+import { MemoryRouter } from "react-router-dom";
 import { beforeEach, afterEach, describe, expect, it, vi } from "vitest";
 import { LocaleProvider } from "../../../../shared/ui/locale";
 import { MyAttendancePage } from "./MyAttendancePage";
@@ -36,9 +37,11 @@ describe("student attendance summary privacy", () => {
       <QueryClientProvider
         client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
       >
-        <LocaleProvider>
-          <MyAttendancePage />
-        </LocaleProvider>
+        <MemoryRouter>
+          <LocaleProvider>
+            <MyAttendancePage />
+          </LocaleProvider>
+        </MemoryRouter>
       </QueryClientProvider>,
     );
     await screen.findByText("برای حضور منظم‌تر برنامه‌ریزی کنید.");

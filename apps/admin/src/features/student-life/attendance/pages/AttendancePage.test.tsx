@@ -1,6 +1,6 @@
 import type { PropsWithChildren } from "react";
 import { cleanup, render, screen, waitFor, within } from "@testing-library/react";
-import { MemoryRouter } from "react-router-dom";
+import { MemoryRouter, useLocation } from "react-router-dom";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { LocaleProvider } from "../../../../shared/ui/locale";
@@ -16,6 +16,7 @@ const {
   getSavedAttendanceSessionMock,
   submitAttendanceAbsencesMock,
   awardAttendancePointsMock,
+  getDormAttendanceOccurrenceMock,
   authState,
 } = vi.hoisted(() => ({
   listAttendanceSessionsMock: vi.fn(),
@@ -27,6 +28,7 @@ const {
   getSavedAttendanceSessionMock: vi.fn(),
   submitAttendanceAbsencesMock: vi.fn(),
   awardAttendancePointsMock: vi.fn(),
+  getDormAttendanceOccurrenceMock: vi.fn(),
   authState: {
     activeRole: "TEACHER",
     roles: [] as string[],
@@ -43,6 +45,7 @@ vi.mock("../api/attendance.api.ts", () => ({
 
 vi.mock("../api/attendance-operations.api.ts", () => ({
   getSavedAttendanceSession: getSavedAttendanceSessionMock,
+  getDormAttendanceOccurrence: getDormAttendanceOccurrenceMock,
   submitAttendanceAbsences: submitAttendanceAbsencesMock,
   awardAttendancePoints: awardAttendancePointsMock,
 }));
@@ -99,6 +102,9 @@ vi.mock("../components/PendingCorrectionQueue", () => ({
 vi.mock("../components/AttendanceReviewQueue", () => ({
   AttendanceReviewQueue: () => <div>صف بررسی غیبت</div>,
 }));
+vi.mock("../components/DormAttendanceReviewInbox", () => ({
+  DormAttendanceReviewInbox: () => <div>صف بررسی خوابگاه</div>,
+}));
 
 function TestProviders({ children }: PropsWithChildren) {
   return (
@@ -106,6 +112,11 @@ function TestProviders({ children }: PropsWithChildren) {
       <LocaleProvider>{children}</LocaleProvider>
     </MemoryRouter>
   );
+}
+
+function LocationProbe() {
+  const location = useLocation();
+  return <output data-testid="current-location">{location.pathname + location.search}</output>;
 }
 
 afterEach(cleanup);
@@ -125,6 +136,7 @@ describe("AttendancePage", () => {
     );
     listAttendanceSessionsMock.mockResolvedValue([]);
     listAttendanceContextsMock.mockResolvedValue([]);
+    getDormAttendanceOccurrenceMock.mockResolvedValue(null);
     getAttendanceParticipantsMock.mockResolvedValue([]);
     bulkMarkAttendanceMock.mockResolvedValue({ sessionId: "mock-session", count: 0 });
     submitAttendanceAbsencesMock.mockResolvedValue({
@@ -178,6 +190,30 @@ describe("AttendancePage", () => {
     expect(screen.queryByRole("button", { name: "کلاس 0 مورد" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "گروه کلاس 0 مورد" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "خوابگاه 0 مورد" })).not.toBeInTheDocument();
+    expect(screen.queryByText("صف بررسی خوابگاه")).not.toBeInTheDocument();
+  });
+
+  it("redirects an old principal dorm-session link to the dashboard review drawer", async () => {
+    authState.activeRole = "PRINCIPAL";
+    canMock.mockImplementation((capability: string) => capability === "attendance.review");
+    render(
+      <MemoryRouter
+        initialEntries={[
+          "/admin/attendance?section=dorm&contextType=dorm&contextId=room-1&sessionId=session-1",
+        ]}
+      >
+        <LocaleProvider>
+          <LocationProbe />
+          <AttendancePage />
+        </LocaleProvider>
+      </MemoryRouter>,
+    );
+
+    await waitFor(() =>
+      expect(screen.getByTestId("current-location")).toHaveTextContent(
+        "/admin/dashboard/principal?dormSessionId=session-1",
+      ),
+    );
   });
 
   it("lets a principal open one scheduled class occurrence from the attendance calendar", async () => {
@@ -292,7 +328,7 @@ describe("AttendancePage", () => {
 
     await user.click(screen.getByRole("button", { name: "دهم الف 10-A · ۲ نفر" }));
     await waitFor(() => {
-      expect(getAttendanceParticipantsMock).toHaveBeenCalledWith("class", "class-1");
+      expect(getAttendanceParticipantsMock).toHaveBeenCalledWith("class", "class-1", undefined);
     });
   });
 
@@ -330,7 +366,7 @@ describe("AttendancePage", () => {
     expect(getAttendanceParticipantsMock).not.toHaveBeenCalled();
     await user.click(screen.getByRole("button", { name: /گروه اول G1/ }));
     await screen.findByRole("group", { name: "وضعیت علی" });
-    expect(getAttendanceParticipantsMock).toHaveBeenCalledWith("class_group", "group-1");
+    expect(getAttendanceParticipantsMock).toHaveBeenCalledWith("class_group", "group-1", undefined);
     expect(screen.getByRole("dialog")).toBeInTheDocument();
   });
 
@@ -365,7 +401,7 @@ describe("AttendancePage", () => {
     );
 
     await waitFor(() => {
-      expect(getAttendanceParticipantsMock).toHaveBeenCalledWith("class", "class-2");
+      expect(getAttendanceParticipantsMock).toHaveBeenCalledWith("class", "class-2", undefined);
     });
     expect(
       screen.getByRole("button", { name: "دهم ب 10-B · ۲ نفر", hidden: true }),
@@ -496,13 +532,10 @@ describe("AttendancePage", () => {
     const ali = await screen.findByRole("group", { name: "وضعیت علی" });
     expect(within(ali).getByRole("button", { name: "غایب" })).toBeVisible();
     expect(within(ali).queryByRole("button", { name: "حاضر" })).not.toBeInTheDocument();
-    expect(within(ali).queryByRole("button", { name: "تأخیر" })).not.toBeInTheDocument();
+    expect(within(ali).getByRole("button", { name: "تأخیر" })).toBeVisible();
+    expect(within(ali).getByRole("button", { name: "موجه" })).toBeVisible();
     await user.click(within(ali).getByRole("button", { name: "غایب" }));
-    await user.click(screen.getByRole("button", { name: /بررسی و ثبت اتاق/ }));
-    expect(
-      screen.getByText("فقط غایبان انتخاب شده‌اند. ۲ ساکن دیگر خودکار حاضر ثبت می‌شوند."),
-    ).toBeVisible();
-    await user.click(screen.getByRole("button", { name: "تأیید و ثبت" }));
+    await user.click(screen.getByRole("button", { name: /ثبت اتاق و ارسال به ناظر/ }));
     await waitFor(() =>
       expect(bulkMarkAttendanceMock).toHaveBeenCalledWith(
         expect.objectContaining({

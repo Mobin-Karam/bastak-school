@@ -99,7 +99,13 @@ function database(filename: string, baseline = false, runMigrations = true) {
             file === "1731900000000-RewardsLedgerExtraction.ts" ||
             file === "1731910000000-PrincipalAttendanceReviewPolicy.ts" ||
             file === "1731800300000-StudentAccountChangeLimits.ts" ||
-            file === "1762300200000-AttendanceHistoricalImportReason.ts"),
+            file === "1762300200000-AttendanceHistoricalImportReason.ts" ||
+            file === "1762500000000-StudentLeaveTimingAndMeals.ts" ||
+            file === "1762600000000-DormAttendanceReviewHandoff.ts" ||
+            file === "1762700000000-RepairDormAttendancePeriod.ts" ||
+            file === "1762800000000-DormAttendancePrimaryAndRoomChecks.ts" ||
+            file === "1762900000000-DormUnauthorizedDepartureOrigin.ts" ||
+            file === "1763000000000-DormAttendanceReviewForeignKeys.ts"),
       )
       .map((file) => path.join(directory, file)),
     synchronize: false,

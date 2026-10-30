@@ -115,6 +115,9 @@ export function LegacySchedulePage() {
   const [activeWeekday, setActiveWeekday] = useState(() => legacyWeekdayForIso(todayIso()));
   const [templatePreview, setTemplatePreview] = useState<ScheduleTemplate | null>(null);
   const [toolsSidebarHidden, setToolsSidebarHidden] = useState(false);
+  const [mobileToolsOpen, setMobileToolsOpen] = useState(false);
+  const viewportShell = useViewportShell();
+  const compactWorkspace = viewportShell !== "desktop";
   const [academicCyclesOpen, setAcademicCyclesOpen] = useState(false);
   const [bootstrapTermId, setBootstrapTermId] = useState("");
   const [bootstrapEntryIds, setBootstrapEntryIds] = useState<string[]>([]);
@@ -452,7 +455,31 @@ export function LegacySchedulePage() {
     (canWrite && (classes.isError || timeBlocks.isError)) ||
     (canManageTemplates && templates.isError)
   )
-    return <EmptyState title="دریافت برنامه انجام نشد." />;
+    return (
+      <Card
+        role="alert"
+        className="mx-auto grid max-w-xl justify-items-center gap-3 p-6 text-center"
+      >
+        <CalendarClock size={28} className="text-brand" aria-hidden="true" />
+        <h1 className="text-lg font-black text-ink">برنامه بارگذاری نشد</h1>
+        <p className="text-sm leading-6 text-slate-600 dark:text-slate-300">
+          اتصال را بررسی کنید و دوباره تلاش کنید. اطلاعات برنامه تغییر نکرده است.
+        </p>
+        <Button
+          onClick={() => {
+            void entries.refetch();
+            if (canReadOrganizations) void organizations.refetch();
+            if (canWrite) {
+              void classes.refetch();
+              void timeBlocks.refetch();
+            }
+            if (canManageTemplates) void templates.refetch();
+          }}
+        >
+          تلاش دوباره
+        </Button>
+      </Card>
+    );
   if (isTeacher) return <TeacherSchedulePage entries={entries.data ?? []} />;
   const editEntry = (entry?: ScheduleEntry, copy = false, initial?: ScheduleDraft) => {
     setEditor({ entry, copy, initial });
@@ -550,6 +577,127 @@ export function LegacySchedulePage() {
       </div>
     </SpreadsheetTransferLauncher>
   ) : null;
+  const toolsPanel = (
+    <div className="grid gap-3 max-h-[calc(100dvh-10rem)] overflow-y-auto min-[960px]:pe-1 [scrollbar-color:rgb(var(--border-subtle))_transparent] [scrollbar-width:thin]">
+      <header className="flex items-center gap-2 px-1">
+        <span
+          className="grid size-9 place-items-center rounded-xl bg-brand/10 text-brand"
+          aria-hidden="true"
+        >
+          <CalendarClock size={18} />
+        </span>
+        <div>
+          <h2 className="text-sm font-black text-ink">ابزارهای برنامه</h2>
+          <p className="text-[11px] text-slate-500 dark:text-slate-300">
+            جلسه‌ها، زمان‌ها و الگوها را از همین‌جا مدیریت کنید.
+          </p>
+        </div>
+      </header>
+      <ScheduleSidebarSummary entries={scheduleEntries} toolbar={scheduleToolbar} />
+      {canCreate ? (
+        <Card className="border-brand/15 bg-[rgb(var(--surface-card))] p-4">
+          <span className="grid size-10 place-items-center rounded-xl bg-brand/10 text-brand">
+            <Plus size={20} />
+          </span>
+          <h3 className="mt-3 font-black text-ink">ساخت جلسه، بدون ترک جدول</h3>
+          <p className="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-300">
+            در یک فرم کوتاه، مدرسه، زمان و فضای جلسه را مشخص کنید.
+          </p>
+          <Button className="mt-4 w-full" onClick={() => editEntry()}>
+            <Plus size={16} /> افزودن جلسه
+          </Button>
+        </Card>
+      ) : null}
+      {canEdit ? (
+        <ScheduleTimeBlocks
+          blocks={timeBlocks.data ?? []}
+          groups={timeBlockGroups.data ?? []}
+          organizationId={selectedOrganizationId}
+          saving={saveTimeBlock.isPending || saveTimeBlockGroup.isPending}
+          removing={removeTimeBlock.isPending || removeTimeBlockGroup.isPending}
+          onCreate={(draft) => saveTimeBlock.mutate(draft)}
+          onCreateGroup={(draft) => saveTimeBlockGroup.mutate(draft)}
+          onRemove={(block) =>
+            void modal
+              .confirm({
+                title: "حذف بازه زمانی؟",
+                description: `«${block.name}» از فهرست بازه‌های قابل‌استفاده حذف می‌شود؛ جلسه‌های قبلی تغییری نمی‌کنند.`,
+                tone: "danger",
+                confirmLabel: "حذف بازه",
+                cancelLabel: "انصراف",
+                softConfirm: true,
+              })
+              .then((confirmed) => confirmed && removeTimeBlock.mutate(block.id))
+          }
+          onRemoveGroup={(group) =>
+            void modal
+              .confirm({
+                title: "حذف گروه بازه زمانی؟",
+                description: `«${group.name}» فقط در صورتی حذف می‌شود که بازه‌ای در آن نمانده باشد.`,
+                tone: "danger",
+                confirmLabel: "حذف گروه",
+                cancelLabel: "انصراف",
+                softConfirm: true,
+              })
+              .then((confirmed) => confirmed && removeTimeBlockGroup.mutate(group.id))
+          }
+        />
+      ) : null}
+      {canManageTemplates ? (
+        <ScheduleTemplates
+          templates={templates.data ?? []}
+          organizationId={selectedOrganizationId}
+          onCreate={(name) =>
+            selectedOrganizationId &&
+            createTemplate.mutate({ organizationId: selectedOrganizationId, name })
+          }
+          onCopy={(template) =>
+            selectedOrganizationId &&
+            createTemplate.mutate({
+              organizationId: selectedOrganizationId,
+              name: `${template.name} (کپی)`,
+              sourceTemplateId: template.id,
+            })
+          }
+          onPreview={setTemplatePreview}
+          onArchive={(template) =>
+            void modal
+              .confirm({
+                title: "بایگانی الگو؟",
+                description: `«${template.name}» دیگر قابل اجرا نخواهد بود.`,
+                tone: "danger",
+                confirmLabel: "بایگانی الگو",
+                cancelLabel: "انصراف",
+                softConfirm: true,
+              })
+              .then((ok) => ok && archiveTemplate.mutate(template.id))
+          }
+          onRestore={(template) =>
+            void modal
+              .confirm({
+                title: "بازیابی الگوی برنامه؟",
+                description: `«${template.name}» دوباره در فهرست الگوهای قابل اجرا قرار می‌گیرد.`,
+                confirmLabel: "بازیابی الگو",
+                cancelLabel: "انصراف",
+              })
+              .then((ok) => ok && restoreTemplate.mutate(template.id))
+          }
+          onRemove={(template) =>
+            void modal
+              .confirm({
+                title: "حذف الگوی برنامه؟",
+                description: `«${template.name}» برای همیشه حذف می‌شود؛ جلسه‌های ساخته‌شده از آن تغییری نمی‌کنند.`,
+                tone: "danger",
+                confirmLabel: "حذف الگو",
+                cancelLabel: "انصراف",
+                softConfirm: true,
+              })
+              .then((ok) => ok && removeTemplate.mutate(template.id))
+          }
+        />
+      ) : null}
+    </div>
+  );
   return (
     <>
       {scheduleSetupBlocked ? (
@@ -572,19 +720,59 @@ export function LegacySchedulePage() {
           reconciling={reconcileAcademicBootstrap.isPending}
         />
       ) : null}
-      {canManageAcademicCycles ? (
-        <Card className="flex flex-wrap items-center justify-between gap-3 p-4" dir="rtl">
-          <div>
-            <p className="text-sm font-black">سال تحصیلی و نیم‌سال‌ها</p>
-            <p className="mt-1 text-xs text-slate-500 dark:text-slate-300">
-              برنامهٔ legacy هر جلسه را به سال و نیم‌سال فعال متصل می‌کند.
+      <header
+        className="mb-4 flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card))] p-4 shadow-[var(--shadow-surface)] sm:p-5"
+        dir="rtl"
+      >
+        <div className="flex min-w-0 items-center gap-3">
+          <span className="grid size-12 shrink-0 place-items-center rounded-2xl bg-brand/10 text-brand">
+            <CalendarClock size={24} aria-hidden="true" />
+          </span>
+          <div className="min-w-0">
+            <h1
+              id="schedule-page-title"
+              className="text-xl font-black tracking-tight text-ink sm:text-2xl"
+            >
+              برنامه هفتگی مدرسه
+            </h1>
+            <p className="mt-1 text-sm leading-5 text-slate-600 dark:text-slate-300">
+              جلسه‌ها را بر اساس روز یا کلاس ببینید و از همین صفحه مدیریت کنید.
             </p>
           </div>
-          <Button variant="soft" onClick={() => setAcademicCyclesOpen(true)}>
-            <GraduationCap size={17} /> مدیریت سال و نیم‌سال
-          </Button>
-        </Card>
-      ) : null}
+        </div>
+        <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
+          {activeAcademicYear ? (
+            <span className="inline-flex min-h-10 items-center gap-1.5 rounded-xl bg-brand/5 px-3 text-xs font-bold text-ink">
+              <GraduationCap size={15} className="text-brand" aria-hidden="true" />
+              سال ثبت جدید:{" "}
+              {academicCycles.data?.years.find((year) => year.id === selectedScheduleYearId)
+                ?.name ?? activeAcademicYear.name}
+            </span>
+          ) : null}
+          {availableScheduleTerms[0] ? (
+            <span className="inline-flex min-h-10 items-center rounded-xl bg-[rgb(var(--surface-muted))] px-3 text-xs font-bold text-ink">
+              نیم‌سال ثبت جدید:{" "}
+              {scheduleTermId
+                ? availableScheduleTerms.find((term) => term.id === scheduleTermId)?.name
+                : availableScheduleTerms[0].name}
+            </span>
+          ) : null}
+          {canManageAcademicCycles ? (
+            <Button
+              variant="soft"
+              className="min-h-10 flex-1 sm:flex-none"
+              onClick={() => setAcademicCyclesOpen(true)}
+            >
+              <GraduationCap size={17} /> مدیریت سال و نیم‌سال
+            </Button>
+          ) : null}
+          {canCreate ? (
+            <Button className="min-h-10 flex-1 sm:flex-none" onClick={() => editEntry()}>
+              <Plus size={17} /> افزودن جلسه
+            </Button>
+          ) : null}
+        </div>
+      </header>
       {canWrite && activeAcademicYear ? (
         <Card className="flex flex-wrap items-end gap-3 p-4" dir="rtl">
           <label className="grid min-w-48 gap-1 text-xs font-bold">
@@ -624,27 +812,35 @@ export function LegacySchedulePage() {
           </p>
         </Card>
       ) : null}
+      {!compactWorkspace ? (
+        <div className="mb-2 flex justify-end" dir="rtl">
+          <button
+            type="button"
+            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card))] px-3 text-sm font-black text-ink outline-none transition hover:border-brand/45 hover:bg-brand hover:text-white focus-visible:ring-2 focus-visible:ring-brand motion-reduce:transition-none"
+            onClick={() => setToolsSidebarHidden((hidden) => !hidden)}
+            aria-label={toolsSidebarHidden ? "نمایش ابزارهای برنامه" : "پنهان کردن ابزارهای برنامه"}
+            aria-expanded={!toolsSidebarHidden}
+            aria-controls="legacy-schedule-tools"
+          >
+            {toolsSidebarHidden ? (
+              <PanelRightOpen size={19} aria-hidden="true" />
+            ) : (
+              <PanelRightClose size={19} aria-hidden="true" />
+            )}
+            <span>{toolsSidebarHidden ? "نمایش ابزارها" : "ابزارها"}</span>
+          </button>
+        </div>
+      ) : null}
       <section
-        className={`relative grid w-full max-w-none gap-4 pb-[calc(6rem+env(safe-area-inset-bottom))] min-[960px]:pb-6 min-[960px]:transition-[grid-template-columns] min-[960px]:duration-300 min-[960px]:ease-out motion-reduce:transition-none ${toolsSidebarHidden ? "min-[960px]:grid-cols-[minmax(0,1fr)_0rem]" : "min-[960px]:grid-cols-[minmax(0,1fr)_22rem]"}`}
+        className={`relative grid w-full max-w-none gap-4 pb-[calc(6rem+env(safe-area-inset-bottom))] min-[1200px]:pb-6 min-[1200px]:transition-[grid-template-columns] min-[1200px]:duration-300 min-[1200px]:ease-out motion-reduce:transition-none ${toolsSidebarHidden ? "min-[1200px]:grid-cols-[minmax(0,1fr)_0rem]" : "min-[1200px]:grid-cols-[minmax(0,1fr)_22rem]"}`}
         dir="rtl"
       >
-        <button
-          type="button"
-          className="absolute end-3 top-[5rem] z-30 inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card))] px-3 text-sm font-black text-slate-600 shadow-[0_10px_24px_-14px_rgba(15,23,42,.36)] outline-none transition hover:border-brand/45 hover:bg-brand hover:text-white focus-visible:ring-2 focus-visible:ring-brand motion-reduce:transition-none dark:text-slate-200"
-          onClick={() => setToolsSidebarHidden((hidden) => !hidden)}
-          title={toolsSidebarHidden ? "نمایش ابزارهای برنامه" : "پنهان کردن ابزارهای برنامه"}
-          aria-label={toolsSidebarHidden ? "نمایش ابزارهای برنامه" : "پنهان کردن ابزارهای برنامه"}
-          aria-expanded={!toolsSidebarHidden}
-          aria-controls="legacy-schedule-tools"
+        <div
+          className="order-1 grid gap-3"
+          role="region"
+          id="schedule-workspace-panel"
+          aria-labelledby="schedule-page-title"
         >
-          {toolsSidebarHidden ? (
-            <PanelRightOpen size={22} aria-hidden="true" />
-          ) : (
-            <PanelRightClose size={22} aria-hidden="true" />
-          )}
-          <span>{toolsSidebarHidden ? "نمایش ابزارها" : "ابزارها"}</span>
-        </button>
-        <div className="order-1 grid gap-3">
           {templatePreview ? (
             <ScheduleTemplatePreview
               template={templatePreview}
@@ -702,136 +898,33 @@ export function LegacySchedulePage() {
             leaveForEntry={(entry) =>
               approvedLeaveByTeacher.get(entry.teacher?.id ?? entry.classBook?.teacher.id ?? "")
             }
+            onQuickAdd={() => editEntry()}
+            onOpenTools={() => setMobileToolsOpen(true)}
+            toolsOpen={mobileToolsOpen}
           />
         </div>
-        <aside
-          id="legacy-schedule-tools"
-          aria-label="ابزارهای برنامه هفتگی"
-          aria-hidden={toolsSidebarHidden}
-          inert={toolsSidebarHidden}
-          className={`order-2 grid min-w-0 gap-3 overflow-hidden transition-[opacity,transform] duration-300 ease-out motion-reduce:transition-none min-[960px]:sticky min-[960px]:top-3 min-[960px]:self-start ${toolsSidebarHidden ? "max-[959px]:hidden min-[960px]:pointer-events-none min-[960px]:translate-x-3 min-[960px]:opacity-0" : "min-[960px]:translate-x-0 min-[960px]:opacity-100"}`}
-        >
-          <div className="grid gap-3 min-[960px]:max-h-[calc(100dvh-7rem)] min-[960px]:overflow-y-auto min-[960px]:pe-1 [scrollbar-color:rgb(var(--border-subtle))_transparent] [scrollbar-width:thin]">
-            <header className="flex items-center gap-2 px-1">
-              <span
-                className="grid size-9 place-items-center rounded-xl bg-brand/10 text-brand"
-                aria-hidden="true"
-              >
-                <CalendarClock size={18} />
-              </span>
-              <div>
-                <h2 className="text-sm font-black text-ink">ابزارهای برنامه</h2>
-                <p className="text-[11px] text-slate-500 dark:text-slate-300">
-                  جلسه‌ها، زمان‌ها و الگوها را از همین‌جا مدیریت کنید.
-                </p>
-              </div>
-            </header>
-            <ScheduleSidebarSummary entries={scheduleEntries} toolbar={scheduleToolbar} />
-            {canCreate ? (
-              <Card className="border-brand/15 bg-[rgb(var(--surface-card))] p-4">
-                <span className="grid size-10 place-items-center rounded-xl bg-brand/10 text-brand">
-                  <Plus size={20} />
-                </span>
-                <h3 className="mt-3 font-black text-ink">ساخت جلسه، بدون ترک جدول</h3>
-                <p className="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-300">
-                  در یک فرم کوتاه، مدرسه، زمان و فضای جلسه را مشخص کنید.
-                </p>
-                <Button className="mt-4 w-full" onClick={() => editEntry()}>
-                  <Plus size={16} /> افزودن جلسه
-                </Button>
-              </Card>
-            ) : null}
-            {canEdit ? (
-              <ScheduleTimeBlocks
-                blocks={timeBlocks.data ?? []}
-                groups={timeBlockGroups.data ?? []}
-                organizationId={selectedOrganizationId}
-                saving={saveTimeBlock.isPending || saveTimeBlockGroup.isPending}
-                removing={removeTimeBlock.isPending || removeTimeBlockGroup.isPending}
-                onCreate={(draft) => saveTimeBlock.mutate(draft)}
-                onCreateGroup={(draft) => saveTimeBlockGroup.mutate(draft)}
-                onRemove={(block) =>
-                  void modal
-                    .confirm({
-                      title: "حذف بازه زمانی؟",
-                      description: `«${block.name}» از فهرست بازه‌های قابل‌استفاده حذف می‌شود؛ جلسه‌های قبلی تغییری نمی‌کنند.`,
-                      tone: "danger",
-                      confirmLabel: "حذف بازه",
-                      cancelLabel: "انصراف",
-                      softConfirm: true,
-                    })
-                    .then((confirmed) => confirmed && removeTimeBlock.mutate(block.id))
-                }
-                onRemoveGroup={(group) =>
-                  void modal
-                    .confirm({
-                      title: "حذف گروه بازه زمانی؟",
-                      description: `«${group.name}» فقط در صورتی حذف می‌شود که بازه‌ای در آن نمانده باشد.`,
-                      tone: "danger",
-                      confirmLabel: "حذف گروه",
-                      cancelLabel: "انصراف",
-                      softConfirm: true,
-                    })
-                    .then((confirmed) => confirmed && removeTimeBlockGroup.mutate(group.id))
-                }
-              />
-            ) : null}
-            {canManageTemplates ? (
-              <ScheduleTemplates
-                templates={templates.data ?? []}
-                organizationId={selectedOrganizationId}
-                onCreate={(name) =>
-                  selectedOrganizationId &&
-                  createTemplate.mutate({ organizationId: selectedOrganizationId, name })
-                }
-                onCopy={(template) =>
-                  selectedOrganizationId &&
-                  createTemplate.mutate({
-                    organizationId: selectedOrganizationId,
-                    name: `${template.name} (کپی)`,
-                    sourceTemplateId: template.id,
-                  })
-                }
-                onPreview={setTemplatePreview}
-                onArchive={(template) =>
-                  void modal
-                    .confirm({
-                      title: "بایگانی الگو؟",
-                      description: `«${template.name}» دیگر قابل اجرا نخواهد بود.`,
-                      tone: "danger",
-                      confirmLabel: "بایگانی الگو",
-                      cancelLabel: "انصراف",
-                      softConfirm: true,
-                    })
-                    .then((ok) => ok && archiveTemplate.mutate(template.id))
-                }
-                onRestore={(template) =>
-                  void modal
-                    .confirm({
-                      title: "بازیابی الگوی برنامه؟",
-                      description: `«${template.name}» دوباره در فهرست الگوهای قابل اجرا قرار می‌گیرد.`,
-                      confirmLabel: "بازیابی الگو",
-                      cancelLabel: "انصراف",
-                    })
-                    .then((ok) => ok && restoreTemplate.mutate(template.id))
-                }
-                onRemove={(template) =>
-                  void modal
-                    .confirm({
-                      title: "حذف الگوی برنامه؟",
-                      description: `«${template.name}» برای همیشه حذف می‌شود؛ جلسه‌های ساخته‌شده از آن تغییری نمی‌کنند.`,
-                      tone: "danger",
-                      confirmLabel: "حذف الگو",
-                      cancelLabel: "انصراف",
-                      softConfirm: true,
-                    })
-                    .then((ok) => ok && removeTemplate.mutate(template.id))
-                }
-              />
-            ) : null}
-          </div>
-        </aside>
+        {!compactWorkspace ? (
+          <aside
+            id="legacy-schedule-tools"
+            aria-label="ابزارهای برنامه هفتگی"
+            aria-hidden={toolsSidebarHidden}
+            inert={toolsSidebarHidden}
+            className={`order-2 grid min-w-0 gap-3 overflow-hidden transition-[opacity,transform] duration-300 ease-out motion-reduce:transition-none min-[1200px]:sticky min-[1200px]:top-3 min-[1200px]:self-start ${toolsSidebarHidden ? "pointer-events-none translate-x-3 opacity-0" : "translate-x-0 opacity-100"}`}
+          >
+            {toolsPanel}
+          </aside>
+        ) : null}
       </section>
+      <ResponsiveDrawer
+        open={compactWorkspace && mobileToolsOpen}
+        onOpenChange={setMobileToolsOpen}
+        title="ابزارهای برنامه"
+        description="عملیات برنامه، بازه‌های زمانی و الگوها را از این پنل مدیریت کنید."
+        desktopSide="left"
+        className="w-full max-w-xl"
+      >
+        {toolsPanel}
+      </ResponsiveDrawer>
       <ResponsiveDrawer
         open={academicCyclesOpen}
         onOpenChange={setAcademicCyclesOpen}
@@ -909,6 +1002,9 @@ type ScheduleWorkspaceProps = {
   onAdd: (classroom: EducationClass, weekday: number) => void;
   onCopy: (entry: ScheduleEntry) => void;
   leaveForEntry: (entry: ScheduleEntry) => TeacherLeaveRequest | undefined;
+  onQuickAdd: () => void;
+  onOpenTools: () => void;
+  toolsOpen: boolean;
 };
 
 function ScheduleSidebarSummary({
@@ -965,8 +1061,13 @@ function ScheduleWorkspace({
   onAdd,
   onCopy,
   leaveForEntry,
+  onQuickAdd,
+  onOpenTools,
+  toolsOpen,
 }: ScheduleWorkspaceProps) {
-  const isMobileShell = useViewportShell() === "mobile";
+  const viewportShell = useViewportShell();
+  const isMobileShell = viewportShell === "mobile";
+  const isCompactWorkspace = viewportShell !== "desktop";
   const activeScheduleEntries = useMemo(
     () => entries.filter((entry) => entry.status === "ACTIVE"),
     [entries],
@@ -1185,14 +1286,14 @@ function ScheduleWorkspace({
             <div className="overflow-x-auto p-3">
               {classLanes.length ? (
                 <table
-                  className="w-full min-w-[72rem] table-fixed overflow-hidden rounded-xl border border-slate-300 bg-white text-right text-[11px] dark:border-white/15 dark:bg-slate-950"
+                  className="w-full min-w-[72rem] table-fixed overflow-hidden rounded-xl border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card))] text-right text-xs text-ink"
                   aria-label="دفتر برنامه هفتگی کلاس‌ها"
                 >
-                  <thead>
-                    <tr className="bg-[#f2b600] text-slate-950 dark:bg-amber-500">
+                  <thead className="sticky top-0 z-20">
+                    <tr className="bg-[rgb(var(--surface-muted))] text-ink">
                       <th
                         scope="col"
-                        className="sticky right-0 z-20 w-36 border-s border-amber-700/35 bg-[#f2b600] px-3 py-2.5 text-center text-xs font-black dark:bg-amber-500"
+                        className="sticky right-0 z-20 w-36 border-s border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-muted))] px-3 py-3 text-center text-sm font-black text-ink"
                       >
                         کلاس / گروه
                       </th>
@@ -1200,12 +1301,12 @@ function ScheduleWorkspace({
                         <th
                           key={weekday}
                           scope="col"
-                          className={`border-s border-amber-700/30 px-2 py-2 text-center ${weekday === today ? "bg-[#e3a900] dark:bg-amber-400" : ""}`}
+                          className={`border-s border-[rgb(var(--border-subtle))] px-2 py-2.5 text-center ${weekday === today ? "bg-brand/10" : ""}`}
                         >
                           <button
                             type="button"
                             onClick={() => onWeekdayChange(weekday)}
-                            className="w-full rounded-md px-2 py-1 text-xs font-black transition hover:bg-white/25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900"
+                            className="w-full rounded-md px-2 py-1 text-sm font-black text-ink transition hover:bg-brand/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
                           >
                             {weekdays[weekday]}
                             {weekday === today ? (
@@ -1248,7 +1349,7 @@ function ScheduleWorkspace({
                                   onMove(draggedEntry, weekday);
                                 setDraggedEntry(null);
                               }}
-                              className={`align-top border-s border-t border-slate-200 p-1.5 dark:border-white/10 ${weekday === today ? "bg-brand/[.045]" : ""}`}
+                              className={`align-top border-s border-t border-[rgb(var(--border-subtle))] p-2 ${weekday === today ? "bg-brand/[.045]" : ""}`}
                             >
                               {cellEntries.length ? (
                                 <div className="grid min-h-14 gap-1">
@@ -1335,6 +1436,7 @@ function ScheduleWorkspace({
 
       <nav
         aria-label="برگه‌های فضای کاری برنامه"
+        role="group"
         className="sticky top-0 z-30 order-first -mx-3 mb-14 flex min-h-[4.5rem] w-[calc(100%+1.5rem)] items-center gap-3 overflow-x-auto border-b border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card)_/_94%)] px-3 py-2 shadow-[0_10px_22px_-22px_rgba(15,23,42,.5)] backdrop-blur-md dark:bg-[rgb(var(--surface-card)_/_94%)] sm:-mx-5 sm:w-[calc(100%+2.5rem)] sm:px-5 lg:-mx-6 lg:w-[calc(100%+3rem)] lg:px-6 xl:-mx-8 xl:w-[calc(100%+4rem)] xl:px-8 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
         dir="rtl"
       >
@@ -1344,10 +1446,9 @@ function ScheduleWorkspace({
         </div>
         <button
           type="button"
-          role="tab"
           id="schedule-main-tab"
           aria-controls="schedule-workspace-panel"
-          aria-selected={activeTab === "main"}
+          aria-pressed={activeTab === "main"}
           onClick={() => setActiveTab("main")}
           aria-current={activeTab === "main" ? "page" : undefined}
           className={`shrink-0 rounded-t-xl border border-b-0 px-3 py-2.5 text-xs font-black outline-none transition focus-visible:ring-2 focus-visible:ring-brand ${
@@ -1373,12 +1474,10 @@ function ScheduleWorkspace({
             >
               <button
                 type="button"
-                role="tab"
                 id={`schedule-class-tab-${classroomId}`}
                 aria-controls="schedule-workspace-panel"
-                aria-selected={active}
+                aria-pressed={active}
                 onClick={() => setActiveTab(classroomId)}
-                aria-current={active ? "page" : undefined}
                 className="rounded-lg px-1 py-1 outline-none focus-visible:ring-2 focus-visible:ring-current"
               >
                 {classroom.name}
@@ -1414,6 +1513,39 @@ function ScheduleWorkspace({
           )}
         </button>
       </nav>
+      {isCompactWorkspace ? (
+        <div
+          className={`sticky ${isMobileShell ? "bottom-[calc(4.5rem+env(safe-area-inset-bottom))]" : "bottom-2"} z-20 -mx-2 flex gap-2 rounded-2xl border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card)_/_96%)] p-2 shadow-[0_12px_30px_-16px_rgba(15,23,42,.5)] backdrop-blur motion-reduce:backdrop-blur-none`}
+          dir="rtl"
+          aria-label="عملیات سریع برنامه"
+        >
+          {canCreate ? (
+            <Button className="min-h-12 flex-1" onClick={onQuickAdd}>
+              <Plus size={17} aria-hidden="true" /> افزودن جلسه
+            </Button>
+          ) : null}
+          <Button
+            variant="soft"
+            className="min-h-12"
+            onClick={onOpenTools}
+            aria-haspopup="dialog"
+            aria-expanded={toolsOpen}
+          >
+            <CalendarClock size={17} aria-hidden="true" /> ابزارها
+          </Button>
+          <Button
+            variant="ghost"
+            className="min-h-12"
+            onClick={() => {
+              setActiveTab("main");
+              setClassPickerOpen(false);
+              onWeekdayChange(today);
+            }}
+          >
+            امروز
+          </Button>
+        </div>
+      ) : null}
     </section>
   );
 }
@@ -1887,25 +2019,28 @@ function ScheduleTimeBlockBoard({
 
   return (
     <div className="overflow-x-auto p-3" dir="rtl">
-      <table className="min-w-[72rem] border-separate border-spacing-0 overflow-hidden rounded-xl border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card))] text-right">
-        <thead>
+      <table
+        className="min-w-[72rem] border-separate border-spacing-0 overflow-hidden rounded-xl border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card))] text-right text-sm text-ink"
+        aria-label="برنامه هفتگی بر اساس روز، کلاس و بازه زمانی"
+      >
+        <thead className="sticky top-0 z-30">
           <tr>
             <th
               rowSpan={2}
-              className="sticky right-0 z-20 w-28 border-s border-b border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-muted))] px-3 py-2 text-xs font-black text-ink"
+              className="sticky right-0 z-20 w-28 border-s border-b border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-muted))] px-3 py-3 text-sm font-black text-ink"
             >
               روز
             </th>
             <th
               rowSpan={2}
-              className="sticky right-28 z-20 w-40 border-s border-b border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-muted))] px-3 py-2 text-xs font-black text-ink"
+              className="sticky right-28 z-20 w-40 border-s border-b border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-muted))] px-3 py-3 text-sm font-black text-ink"
             >
               کلاس
             </th>
             {morningSlots.length ? (
               <th
                 colSpan={morningSlots.length}
-                className="border-s border-b border-sky-500/20 bg-sky-500/10 px-3 py-2 text-center text-xs font-black text-sky-800 dark:text-sky-200"
+                className="border-s border-b border-sky-500/20 bg-sky-500/10 px-3 py-3 text-center text-sm font-black text-sky-800 dark:text-sky-200"
               >
                 صبح
               </th>
@@ -1913,7 +2048,7 @@ function ScheduleTimeBlockBoard({
             {afternoonSlots.length ? (
               <th
                 colSpan={afternoonSlots.length}
-                className="border-s border-b border-amber-500/20 bg-amber-500/10 px-3 py-2 text-center text-xs font-black text-amber-800 dark:text-amber-200"
+                className="border-s border-b border-amber-500/20 bg-amber-500/10 px-3 py-3 text-center text-sm font-black text-amber-800 dark:text-amber-200"
               >
                 عصر
               </th>
@@ -1923,7 +2058,7 @@ function ScheduleTimeBlockBoard({
             {slots.map((slot) => (
               <th
                 key={slot.id}
-                className="min-w-40 border-s border-b border-[rgb(var(--border-subtle))] px-2 py-2 text-center"
+                className="min-w-40 border-s border-b border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card))] px-2 py-3 text-center text-xs font-bold text-ink"
               >
                 <p className="truncate text-xs font-black text-ink">{slot.label}</p>
                 <p className="mt-0.5 text-[10px] font-bold text-slate-500" dir="ltr">

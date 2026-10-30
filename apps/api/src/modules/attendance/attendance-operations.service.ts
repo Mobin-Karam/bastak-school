@@ -1808,7 +1808,9 @@ export class AttendanceOperationsService {
             differences,
           },
           supervisorNote: session.dormSupervisorNote ?? "",
-          reviewUrl: `/admin/attendance?section=dorm&contextType=dorm&contextId=${encodeURIComponent(session.contextId)}&sessionId=${encodeURIComponent(session.id)}&date=${encodeURIComponent(session.operationalDate ?? "")}&period=${encodeURIComponent(session.attendancePeriod ?? "night")}`,
+          reviewUrl: principal
+            ? `/admin/dashboard/principal?dormSessionId=${encodeURIComponent(session.id)}`
+            : `/admin/attendance?section=dorm&contextType=dorm&contextId=${encodeURIComponent(session.contextId)}&sessionId=${encodeURIComponent(session.id)}&date=${encodeURIComponent(session.operationalDate ?? "")}&period=${encodeURIComponent(session.attendancePeriod ?? "night")}`,
         };
       }),
     );
@@ -1934,6 +1936,19 @@ export class AttendanceOperationsService {
         return exit;
       },
     );
+    // The transaction may have returned an existing idempotent exit rather
+    // than a newly-created entity. Reload its relations before notifications
+    // and occupancy events so retries follow the same path as the first write.
+    const savedWithRelations = await this.repo(ExitPermission).findOne({
+      where: { id: saved.id, organization: { id: In(ids) } },
+      relations: { organization: true, student: true },
+    });
+    if (!savedWithRelations)
+      throw new ApiException(
+        500,
+        "DORM_DEPARTURE_PERSISTENCE_FAILED",
+        "ثبت خروج خوابگاه پس از ذخیره‌سازی پیدا نشد.",
+      );
     const room = await this.repo(DormRoom).findOne({
       where: {
         id: (
@@ -1943,7 +1958,7 @@ export class AttendanceOperationsService {
     });
     const principals = await this.repo(OrganizationMembership).find({
       where: {
-        organization: { id: saved.organization.id },
+        organization: { id: savedWithRelations.organization.id },
         status: MembershipStatus.ACTIVE,
       },
       relations: { user: true, roleAssignments: { role: true } },
@@ -1952,8 +1967,8 @@ export class AttendanceOperationsService {
       principals.map((membership) => membership.user.id),
       "school.occupancy.updated",
       {
-        organizationId: saved.organization.id,
-        exitPermissionId: saved.id,
+        organizationId: savedWithRelations.organization.id,
+        exitPermissionId: savedWithRelations.id,
         action: "departure-recorded",
       },
     );
@@ -1963,7 +1978,7 @@ export class AttendanceOperationsService {
       ),
     )) {
       const notificationRepo = this.repo(Notification);
-      const dedupeKey = `dorm-unauthorized-departure:${saved.id}`;
+      const dedupeKey = `dorm-unauthorized-departure:${savedWithRelations.id}`;
       if (
         await notificationRepo.findOne({
           where: { user: { id: membership.user.id }, dedupeKey },
@@ -1973,13 +1988,17 @@ export class AttendanceOperationsService {
       const notification = await notificationRepo.save(
         notificationRepo.create({
           user: membership.user,
-          organization: saved.organization,
+          organization: savedWithRelations.organization,
           type: NotificationType.WARNING,
           category: "dorm-unauthorized-departure",
           title: "خروج بدون مجوز از تطبیق خوابگاه ثبت شد",
-          body: `${saved.student.name} · اتاق ${room?.name ?? "—"}${saved.note ? ` · ${saved.note}` : ""}`,
-          url: "/admin/exit-permissions",
-          data: { exitPermissionId: saved.id, studentId, sessionId },
+          body: `${savedWithRelations.student.name} · اتاق ${room?.name ?? "—"}${savedWithRelations.note ? ` · ${savedWithRelations.note}` : ""}`,
+          url: `/admin/dashboard/principal?dormSessionId=${encodeURIComponent(sessionId)}`,
+          data: {
+            exitPermissionId: savedWithRelations.id,
+            studentId,
+            sessionId,
+          },
           priority: "high",
           dedupeKey,
         }),
@@ -1990,19 +2009,19 @@ export class AttendanceOperationsService {
         body: notification.body,
         category: notification.category,
         url: notification.url,
-        organizationId: saved.organization.id,
+        organizationId: savedWithRelations.organization.id,
         isRead: false,
       });
     }
     const schoolPresence = await this.schoolPresenceSummary(
       this.sessions.manager,
-      saved.organization.id,
+      savedWithRelations.organization.id,
       new Date(),
     );
     return {
-      exitPermissionId: saved.id,
+      exitPermissionId: savedWithRelations.id,
       studentId,
-      origin: saved.origin,
+      origin: savedWithRelations.origin,
       ...schoolPresence,
     };
   }
@@ -2497,7 +2516,7 @@ export class AttendanceOperationsService {
           category: "dorm-attendance-principal-review",
           title,
           body: `${attention.length} مورد نیازمند توجه؛ بازبینی ناظر کامل شد.`,
-          url: `/admin/attendance?section=dorm&contextType=dorm&contextId=${encodeURIComponent(session.contextId)}&sessionId=${encodeURIComponent(session.id)}&date=${encodeURIComponent(session.operationalDate ?? "")}&period=${encodeURIComponent(session.attendancePeriod ?? "night")}`,
+          url: `/admin/dashboard/principal?dormSessionId=${encodeURIComponent(session.id)}`,
           data: { sessionId, attentionCount: attention.length },
           priority: "high",
           dedupeKey: `dorm-attendance-principal:${session.id}:${session.revision}`,

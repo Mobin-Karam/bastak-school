@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   AlertTriangle,
   Building2,
@@ -40,10 +40,17 @@ const statusStyle: Record<string, string> = {
 };
 
 /** Shared supervisor review and principal final-approval inbox for completed room roll calls. */
-export function DormAttendanceReviewInbox({ compact = false }: { compact?: boolean }) {
+export function DormAttendanceReviewInbox({
+  compact = false,
+  requestedSessionId,
+}: {
+  compact?: boolean;
+  requestedSessionId?: string;
+}) {
   const auth = useAuth();
   const navigate = useNavigate();
   const cache = useQueryClient();
+  const [searchParams] = useSearchParams();
   const isPrincipal = auth.activeRole === "PRINCIPAL";
   const isSupervisor = auth.activeRole === "SCHOOL_SUPERVISOR";
   const enabled = auth.can("attendance.review") && (isPrincipal || isSupervisor);
@@ -69,6 +76,15 @@ export function DormAttendanceReviewInbox({ compact = false }: { compact?: boole
   const [busy, setBusy] = useState(false);
   const [reopenConfirm, setReopenConfirm] = useState(false);
   const [verifyingOutsideId, setVerifyingOutsideId] = useState<string | null>(null);
+  const targetSessionId = requestedSessionId ?? searchParams.get("sessionId") ?? undefined;
+  useEffect(() => {
+    if (!targetSessionId || !queue.data) return;
+    const target = queue.data.find((item) => item.id === targetSessionId);
+    if (target) {
+      setSelected(target);
+      setNote(target.supervisorNote);
+    }
+  }, [queue.data, targetSessionId]);
   if (!enabled) return null;
   const refresh = () =>
     void Promise.all([

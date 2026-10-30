@@ -7,7 +7,8 @@ import {
   UserRoundCheck,
   Check,
 } from "lucide-react";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { useAuth } from "../../../identity/auth";
 import { Button, LoadingState } from "../../../../shared/ui/ui";
 import { ResponsiveDrawer } from "../../../../shared/ui/responsive-drawer";
@@ -93,7 +94,14 @@ export function PrincipalOperationalLists({
   canReviewAttendance: boolean;
 }) {
   const auth = useAuth();
-  const [active, setActive] = useState<Panel | null>(null);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const requestedDormSessionId = searchParams.get("dormSessionId");
+  const [active, setActive] = useState<Panel | null>(() =>
+    requestedDormSessionId ? "dorm" : null,
+  );
+  useEffect(() => {
+    if (requestedDormSessionId) setActive("dorm");
+  }, [requestedDormSessionId]);
   const [autoArchiveEnabled, setAutoArchiveEnabled] = useState(false);
   const [autoArchiveProgress, setAutoArchiveProgress] = useState<{
     completed: number;
@@ -256,7 +264,15 @@ export function PrincipalOperationalLists({
 
       <ResponsiveDrawer
         open={active !== null}
-        onOpenChange={(open) => !open && setActive(null)}
+        onOpenChange={(open) => {
+          if (open) return;
+          setActive(null);
+          if (requestedDormSessionId) {
+            const next = new URLSearchParams(searchParams);
+            next.delete("dormSessionId");
+            setSearchParams(next, { replace: true });
+          }
+        }}
         title={cards.find((item) => item.id === active)?.title ?? "فهرست مدیر"}
         description="موارد این بخش در همین پنل بررسی و در سوابق مربوط ذخیره می‌شوند."
         desktopSide="left"
@@ -282,7 +298,12 @@ export function PrincipalOperationalLists({
               بایگانی خودکار کامل نشد. موارد انجام‌شده ذخیره شده‌اند؛ برای بقیه دوباره تلاش کنید.
             </p>
           ) : null}
-          {active === "dorm" && <DormAttendanceReviewInbox compact />}
+          {active === "dorm" && (
+            <DormAttendanceReviewInbox
+              compact
+              requestedSessionId={requestedDormSessionId ?? undefined}
+            />
+          )}
           {active === "sessions" && (
             <>
               {policy.isError ? <ErrorText onRetry={() => void policy.refetch()} /> : null}

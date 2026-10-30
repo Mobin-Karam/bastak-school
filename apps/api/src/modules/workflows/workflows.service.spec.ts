@@ -248,7 +248,7 @@ describe("WorkflowsService", () => {
         organizationId: "org-1",
         leaveType: LeaveRequestType.SCHOOL_EXIT,
         startDate: "2025-02-01T00:00:00.000Z",
-        endDate: "2025-02-01T00:00:00.000Z",
+        endDate: "2025-02-01T01:00:00.000Z",
         reason: "Medical visit",
       },
     );
@@ -325,7 +325,12 @@ describe("WorkflowsService", () => {
     );
 
     const returned = await service.requestExitReturn(
-      { id: "student-user", username: "student", role: "STUDENT", sessionId: "s-1" },
+      {
+        id: "student-user",
+        username: "student",
+        role: "STUDENT",
+        sessionId: "s-1",
+      },
       "exit-1",
       "رسیدم",
     );
@@ -336,7 +341,10 @@ describe("WorkflowsService", () => {
     expect(realtime.emitToUsers).toHaveBeenCalledWith(
       ["gate-staff"],
       "school.occupancy.updated",
-      expect.objectContaining({ action: "return-requested", organizationId: "org-1" }),
+      expect.objectContaining({
+        action: "return-requested",
+        organizationId: "org-1",
+      }),
     );
   });
 });

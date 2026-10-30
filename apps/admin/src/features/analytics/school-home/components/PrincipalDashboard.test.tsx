@@ -12,12 +12,20 @@ import {
 } from "../api/principal-dashboard.api";
 import {
   getAttendancePolicy,
+  getDormAttendanceReviewQueue,
   updateAttendancePolicy,
 } from "../../../student-life/attendance/api/attendance-operations.api";
 import { PrincipalDashboard } from "./PrincipalDashboard";
 
 const authCan = vi.hoisted(() => vi.fn((capability: string) => capability === "attendance.review"));
-vi.mock("../../../identity/auth/hooks/useAuth", () => ({ useAuth: () => ({ can: authCan }) }));
+vi.mock("../../../identity/auth/hooks/useAuth", () => ({
+  useAuth: () => ({
+    can: authCan,
+    activeRole: "PRINCIPAL",
+    user: { id: "principal-a" },
+    context: { activeOrganization: { id: "school-a" }, roles: ["PRINCIPAL"] },
+  }),
+}));
 vi.mock("../api/principal-dashboard.api", () => ({
   getPrincipalDashboard: vi.fn(),
   getAttendanceSessionForReview: vi.fn(),
@@ -166,11 +174,11 @@ const dashboardData = {
   },
 } satisfies PrincipalDashboardContract;
 
-function renderDashboard() {
+function renderDashboard(initialEntries = ["/"]) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <QueryClientProvider client={client}>
-      <MemoryRouter>
+      <MemoryRouter initialEntries={initialEntries}>
         <PrincipalDashboard />
       </MemoryRouter>
     </QueryClientProvider>,
@@ -202,6 +210,7 @@ describe("PrincipalDashboard", () => {
       correctionRequiresReview: false,
       principalReviewMode: "absences_only",
     });
+    vi.mocked(getDormAttendanceReviewQueue).mockResolvedValue([]);
     vi.mocked(updateAttendancePolicy).mockResolvedValue({
       organizationId: "school-a",
       timeZone: "Asia/Tehran",
@@ -222,6 +231,61 @@ describe("PrincipalDashboard", () => {
     cleanup();
     renderDashboard();
     await waitFor(() => expect(screen.queryByRole("button", { name: /جلسه‌های کلاس/ })).toBeNull());
+  });
+
+  it("opens a dorm review notification link directly in the principal dorm drawer", async () => {
+    vi.mocked(getDormAttendanceReviewQueue).mockResolvedValue([
+      {
+        id: "dorm-session-a",
+        roomId: "room-a",
+        roomName: "۱",
+        sessionDate: "2026-10-29T18:00:00.000Z",
+        operationalDate: "2026-10-29",
+        attendancePeriod: "night",
+        attendanceRole: "primary",
+        delegateStudentId: "delegate-a",
+        delegateStudentName: "مسئول اتاق",
+        revision: 1,
+        total: 2,
+        recorded: 2,
+        present: 1,
+        absent: 1,
+        late: 0,
+        excused: 0,
+        authorizedOutside: 0,
+        attention: [
+          {
+            studentId: "student-a",
+            name: "دانش‌آموز غایب",
+            status: "absent",
+            authorizedOutside: false,
+            illegalDeparture: false,
+            exitPermissionId: null,
+          },
+        ],
+        schoolPresence: {
+          totalStudents: 20,
+          dormResidents: 8,
+          currentlyOutside: 1,
+          authorizedOutside: 0,
+          unauthorizedOutside: 1,
+          currentlyInSchool: 19,
+        },
+        comparison: {
+          state: "waiting",
+          roomCheckSessionId: null,
+          roomCheckerName: null,
+          checkedCount: 0,
+          mismatchCount: 0,
+          differences: [],
+        },
+        supervisorNote: "",
+        reviewUrl: "/admin/dashboard/principal?dormSessionId=dorm-session-a",
+      },
+    ]);
+    renderDashboard(["/admin/dashboard/principal?dormSessionId=dorm-session-a"]);
+    expect(await screen.findByText("دانش‌آموز غایب")).toBeInTheDocument();
+    expect(screen.getByText(/ساکنان خوابگاه: 8 نفر/)).toBeInTheDocument();
   });
 
   it("opens session review in a drawer and requires a teacher message for absences", async () => {
