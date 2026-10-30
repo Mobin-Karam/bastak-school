@@ -105,7 +105,8 @@ function database(filename: string, baseline = false, runMigrations = true) {
             file === "1762700000000-RepairDormAttendancePeriod.ts" ||
             file === "1762800000000-DormAttendancePrimaryAndRoomChecks.ts" ||
             file === "1762900000000-DormUnauthorizedDepartureOrigin.ts" ||
-            file === "1763000000000-DormAttendanceReviewForeignKeys.ts"),
+            file === "1763000000000-DormAttendanceReviewForeignKeys.ts" ||
+            file === "1763100000000-ScheduleTeacherChangeMarker.ts"),
       )
       .map((file) => path.join(directory, file)),
     synchronize: false,
@@ -1082,6 +1083,19 @@ describe("migration-backed persistence and verified recovery (disposable SQLite 
       countBefore,
     );
     const created = await schedule.create(scoped, dto);
+    // Previously scheduled occurrences are never silently filled.  Once the
+    // schedule is attached to the active year/term, the bootstrap queue must
+    // expose each past occurrence without an attendance session so an operator
+    // can explicitly open and record it.
+    const reconciliationQueue = await schedule.academicBootstrap(scoped, a.id);
+    expect(reconciliationQueue.pendingAttendance).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          entryId: created.id,
+          termId: academicTerm.id,
+        }),
+      ]),
+    );
     const updated = await schedule.update(scoped, created.id, {
       ...dto,
       title: "Updated",
@@ -1213,6 +1227,39 @@ describe("migration-backed persistence and verified recovery (disposable SQLite 
         (entry) => entry.id,
       ),
     ).toContain(archivedTermEntry.id);
+    await db.getRepository(AttendanceSession).save({
+      organization: a,
+      contextType: "class",
+      contextId: classroom.id,
+      sessionDate: new Date("2026-10-18T08:00:00.000Z"),
+      operationalDate: "2026-10-18",
+      occurrenceKey: `legacy-schedule:${archivedTermEntry.id}:2026-10-18`,
+      titleSnapshot: archivedTermEntry.title,
+      timeZone: "Asia/Tehran",
+      status: "draft",
+      revision: 0,
+      assignedStaffNameSnapshot: teacher.username,
+      rosterSnapshot: [],
+    });
+    const attendanceProtectedSwap = await schedule.requestSubstitution(
+      teacherActor,
+      {
+        sourceEntryId: archivedTermEntry.id,
+        targetEntryId: target.id,
+        freezeDate: "2026-10-18",
+        replacementDate: "2026-10-20",
+        replacementTimeBlockId: block.id,
+        title: "نباید حضور ثبت‌شده را جابه‌جا کند",
+        message: "",
+      },
+    );
+    await expect(
+      schedule.reviewSubstitution(principalActor, attendanceProtectedSwap.id, {
+        decision: "approved",
+      }),
+    ).rejects.toMatchObject({
+      response: { error: { code: "SCHEDULE_SUBSTITUTION_ATTENDANCE_EXISTS" } },
+    });
     await schedule.academicTermLifecycle(scoped, academicTerm.id, {
       action: "archive",
     });
@@ -1224,8 +1271,10 @@ describe("migration-backed persistence and verified recovery (disposable SQLite 
     ).rejects.toThrow();
     const leave = await schedule.requestTeacherLeave(teacherActor, {
       organizationId: a.id,
-      startDate: "2027-03-01",
-      endDate: "2027-03-03",
+      // The selected leave overlaps the archived first term.  Its snapshot is
+      // still retained for history, even though the term is read-only.
+      startDate: "2027-01-21",
+      endDate: "2027-01-23",
       reason: "مرخصی آزمایشی",
     });
     expect(leave.academicCycleSnapshots).toEqual(

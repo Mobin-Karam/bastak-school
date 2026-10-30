@@ -1256,47 +1256,127 @@ export class ScheduleService {
         entry.teacher?.id === row.teacherId ||
         entry.classBook?.teacher?.id === row.teacherId,
     );
+    const occurrences: Array<{ entry: SchoolScheduleEntry; date: string }> = [];
     for (let date = row.startDate; date <= row.endDate;) {
       const next = new Date(`${date}T12:00:00Z`);
       next.setUTCDate(next.getUTCDate() + 1);
-      for (const entry of affected.filter(
-        (item) =>
-          item.weekday === this.weekdayForDate(date) &&
-          (!item.startsOn || item.startsOn <= date) &&
-          (!item.endsOn || item.endsOn >= date),
-      )) {
-        const override = await this.occurrenceOverrides.findOneBy({
-          entryId: entry.id,
-          date,
-        });
-        if (override) continue;
-        await this.occurrenceOverrides.save(
-          this.occurrenceOverrides.create({
-            entryId: entry.id,
-            date,
-            cancelled: true,
-            leaveRequestId: row.id,
-            changedById,
-          }),
-        );
-        if (substitute)
-          await this.entries.save(
-            this.entries.create({
-              ...entry,
-              id: undefined,
-              teacher: substitute,
-              status: "REPLACED",
-              weekday: entry.weekday,
-              startsOn: date,
-              endsOn: date,
-              notes: `جایگزین مرخصی ${row.id}`,
-              teacherNameSnapshot:
-                `${substitute.firstName ?? ""} ${substitute.lastName ?? ""}`.trim(),
-            }),
-          );
-      }
+      affected
+        .filter(
+          (entry) =>
+            entry.weekday === this.weekdayForDate(date) &&
+            (!entry.startsOn || entry.startsOn <= date) &&
+            (!entry.endsOn || entry.endsOn >= date),
+        )
+        .forEach((entry) => occurrences.push({ entry, date }));
       date = next.toISOString().slice(0, 10);
     }
+    await this.assertTeacherLeaveOccurrencesCanChange(
+      row,
+      occurrences,
+      substitute,
+    );
+    for (const { entry, date } of occurrences) {
+      await this.occurrenceOverrides.save(
+        this.occurrenceOverrides.create({
+          entryId: entry.id,
+          date,
+          cancelled: true,
+          leaveRequestId: row.id,
+          changedById,
+        }),
+      );
+      if (substitute)
+        await this.entries.save(
+          this.entries.create({
+            ...entry,
+            id: undefined,
+            teacher: substitute,
+            status: "REPLACED",
+            weekday: entry.weekday,
+            startsOn: date,
+            endsOn: date,
+            notes: `جایگزین مرخصی ${row.id}`,
+            teacherNameSnapshot:
+              `${substitute.firstName ?? ""} ${substitute.lastName ?? ""}`.trim(),
+          }),
+        );
+    }
+  }
+  private async assertTeacherLeaveOccurrencesCanChange(
+    row: TeacherLeaveRequest,
+    occurrences: Array<{ entry: SchoolScheduleEntry; date: string }>,
+    substitute: User | null,
+  ) {
+    if (!occurrences.length) return;
+    const occurrenceKeys = occurrences.map(
+      ({ entry, date }) => `legacy-schedule:${entry.id}:${date}`,
+    );
+    const [attendance, overrides] = await Promise.all([
+      this.attendanceSessions.find({
+        where: {
+          organization: { id: row.organizationId },
+          occurrenceKey: In(occurrenceKeys),
+        },
+        select: { occurrenceKey: true, status: true },
+      }),
+      this.occurrenceOverrides.find({
+        where: occurrences.map(({ entry, date }) => ({
+          entryId: entry.id,
+          date,
+        })),
+      }),
+    ]);
+    // A leave must never silently cancel an occurrence whose attendance sheet
+    // already exists.  Even a draft/open sheet can contain a teacher's work,
+    // and cancelling it would leave the historical occurrence ambiguous.
+    if (attendance.length)
+      throw new ApiException(
+        409,
+        "TEACHER_LEAVE_ATTENDANCE_EXISTS",
+        "برای یکی از جلسه‌های این مرخصی حضور ثبت شده است؛ ابتدا آن را از مسیر اصلاح حضور بررسی کنید.",
+      );
+    if (overrides.length)
+      throw new ApiException(
+        409,
+        "TEACHER_LEAVE_OCCURRENCE_CHANGED",
+        "یکی از جلسه‌های این بازه قبلاً جابه‌جا یا لغو شده است.",
+      );
+    if (!substitute) return;
+    const substituteEntries = await this.entries.find({
+      where: {
+        organization: { id: row.organizationId },
+        teacher: { id: substitute.id },
+        status: In(["ACTIVE", "REPLACED"]),
+      },
+    });
+    const overlap = occurrences.find(({ entry, date }) =>
+      substituteEntries.some(
+        (other) =>
+          other.weekday === this.weekdayForDate(date) &&
+          (!other.startsOn || other.startsOn <= date) &&
+          (!other.endsOn || other.endsOn >= date) &&
+          this.timeRangesOverlap(
+            entry.startTime,
+            entry.endTime,
+            other.startTime,
+            other.endTime,
+          ),
+      ),
+    );
+    if (overlap)
+      throw new ApiException(
+        409,
+        "TEACHER_SUBSTITUTE_CONFLICT",
+        `دبیر جایگزین در ${overlap.date} و بازه ${overlap.entry.startTime} تا ${overlap.entry.endTime} جلسهٔ هم‌پوشان دارد.`,
+      );
+  }
+  private timeRangesOverlap(
+    startA: string,
+    endA: string,
+    startB: string,
+    endB: string,
+  ) {
+    return startA < endB && startB < endA;
   }
   private async restoreTeacherLeave(row: TeacherLeaveRequest) {
     const restoredFrom = row.returnDate!;
@@ -1550,6 +1630,22 @@ export class ScheduleService {
             409,
             "SCHEDULE_SWAP_TARGET_INVALID",
             "یکی از جلسه‌های انتخاب‌شده دیگر در تاریخ یا بازه درخواستی قابل جابه‌جایی نیست.",
+          );
+        const attendance = await manager.find(AttendanceSession, {
+          where: {
+            organization: { id: source.organization.id },
+            occurrenceKey: In([
+              `legacy-schedule:${source.id}:${request.freezeDate}`,
+              `legacy-schedule:${target.id}:${request.replacementDate}`,
+            ]),
+          },
+          select: { id: true },
+        });
+        if (attendance.length)
+          throw new ApiException(
+            409,
+            "SCHEDULE_SUBSTITUTION_ATTENDANCE_EXISTS",
+            "برای یکی از جلسه‌های جابه‌جایی حضور ثبت شده است؛ ابتدا آن را از مسیر اصلاح حضور بررسی کنید.",
           );
         const existing = await manager.findOneBy(
           SchoolScheduleOccurrenceOverride,
