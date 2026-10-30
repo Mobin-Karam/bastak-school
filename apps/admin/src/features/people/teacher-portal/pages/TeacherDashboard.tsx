@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, CalendarClock, Clock3, MapPin } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
@@ -10,7 +10,8 @@ import {
 } from "../../../academics/schedule/api/schedule.api";
 import { todayIso } from "../../../../shared/lib/utils";
 import { useLocale } from "../../../../shared/ui/locale";
-import { Card, EmptyState, LoadingState } from "../../../../shared/ui/ui";
+import { Button, Card, EmptyState, LoadingState } from "../../../../shared/ui/ui";
+import { notify } from "../../../../shared/ui/notifications";
 import { getAdminDashboard } from "../../../analytics/dashboard/api/dashboard.api";
 import { CurrentPrayerCard } from "../../../analytics/school-home/components/CurrentPrayerCard";
 import { TeacherClassAttendanceSheet } from "../components/TeacherClassAttendanceSheet";
@@ -19,7 +20,10 @@ import {
   nextTeacherScheduleEntry,
   tehranDateWithOffset,
 } from "../model/teacher-dashboard-schedule";
-import { listTeacherLeaveRequests } from "../../../academics/schedule/api/teacher-leave.api";
+import {
+  listTeacherLeaveRequests,
+  requestTeacherLeaveReturn,
+} from "../../../academics/schedule/api/teacher-leave.api";
 
 function tehranClockMinutes(date: Date) {
   const parts = new Intl.DateTimeFormat("en-GB", {
@@ -41,6 +45,7 @@ function clockMinutes(time: string) {
 /** The teacher's class-first home; schedule and roster data remain server-scoped. */
 export function TeacherDashboard() {
   const auth = useAuth();
+  const client = useQueryClient();
   const { formatDate } = useLocale();
   const [now, setNow] = useState(() => new Date());
   const [selectedClass, setSelectedClass] = useState<ScheduleEntry | null>(null);
@@ -102,6 +107,15 @@ export function TeacherDashboard() {
       leave.endDate >= today &&
       !(leave.returnStatus === "approved" && leave.returnDate && leave.returnDate <= today),
   );
+  const requestReturn = useMutation({
+    mutationFn: (leaveId: string) => requestTeacherLeaveReturn(leaveId, { returnDate: today }),
+    onSuccess: () => {
+      void client.invalidateQueries({ queryKey: ["teacher-leaves"] });
+      notify("درخواست بازگشت برای بررسی مدیر ارسال شد.", "success");
+    },
+    onError: (error) =>
+      notify(error instanceof Error ? error.message : "ارسال درخواست بازگشت انجام نشد.", "error"),
+  });
   // A leave freezes attendance entry points as well as the visible schedule.
   const todayEntries = activeLeave ? [] : scheduledTodayEntries;
   const currentClass =
@@ -135,9 +149,23 @@ export function TeacherDashboard() {
         </h1>
       </header>
       {activeLeave ? (
-        <Card className="border-amber-300 bg-amber-50 p-3 text-sm font-bold text-amber-900 dark:bg-amber-950/30 dark:text-amber-100">
-          شما در بازه مرخصی تأییدشده هستید: {formatDate(activeLeave.startDate)} تا{" "}
-          {formatDate(activeLeave.endDate)}
+        <Card className="grid gap-3 border-amber-300 bg-amber-50 p-3 text-sm font-bold text-amber-900 dark:bg-amber-950/30 dark:text-amber-100">
+          <p>
+            شما در بازه مرخصی تأییدشده هستید: {formatDate(activeLeave.startDate)} تا{" "}
+            {formatDate(activeLeave.endDate)}
+          </p>
+          {activeLeave.returnStatus === "pending" ? (
+            <p className="text-xs">درخواست بازگشت شما در انتظار بررسی مدیر است.</p>
+          ) : (
+            <Button
+              size="sm"
+              className="justify-self-start"
+              disabled={requestReturn.isPending}
+              onClick={() => requestReturn.mutate(activeLeave.id)}
+            >
+              درخواست بازگشت و بازگرداندن جلسه‌ها
+            </Button>
+          )}
         </Card>
       ) : null}
       {!academicCycles.isLoading && (!activeAcademicYear || !activeAcademicTerm) ? (
