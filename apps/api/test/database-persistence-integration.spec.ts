@@ -1150,67 +1150,18 @@ describe("migration-backed persistence and verified recovery (disposable SQLite 
       ...scoped,
       capabilities: ["schedule.read", "schedule.publish"],
     };
-    const pending = await schedule.requestSubstitution(teacherActor, {
-      sourceEntryId: created.id,
-      targetEntryId: target.id,
-      freezeDate: "2026-10-11",
-      replacementDate: "2026-10-13",
-      replacementTimeBlockId: block.id,
-      title: "جلسه جبرانی",
-      message: "زمان جایگزین",
-    });
-    expect(pending.status).toBe("pending");
-    expect(await schedule.substitutionRequests(teacherActor)).toHaveLength(1);
-    const approved = await schedule.reviewSubstitution(
-      principalActor,
-      pending.id,
-      {
-        decision: "approved",
-      },
-    );
-    expect(approved).toMatchObject({
-      status: "approved",
-      replacementEntryId: expect.any(String),
-      counterpartReplacementEntryId: expect.any(String),
-    });
-    expect(
-      await db.getRepository(SchoolScheduleOccurrenceOverride).findOneBy({
-        entryId: created.id,
-        date: "2026-10-11",
+    await expect(
+      schedule.requestSubstitution(teacherActor, {
+        sourceEntryId: created.id,
+        targetEntryId: target.id,
+        freezeDate: "2026-10-11",
+        replacementDate: "2026-10-13",
+        replacementTimeBlockId: block.id,
+        title: "جلسه جبرانی",
+        message: "زمان جایگزین",
       }),
-    ).toMatchObject({ cancelled: true });
-    expect(
-      await db.getRepository(SchoolScheduleOccurrenceOverride).findOneBy({
-        entryId: target.id,
-        date: "2026-10-13",
-      }),
-    ).toMatchObject({ cancelled: true });
-    expect(
-      await db
-        .getRepository(SchoolScheduleEntry)
-        .findOneBy({ id: approved.replacementEntryId! }),
-    ).toMatchObject({
-      status: "REPLACED",
-      startsOn: "2026-10-13",
-      endsOn: "2026-10-13",
-      startTime: "10:00",
-      endTime: "10:45",
-      title: "جلسه جبرانی",
-      academicYearId: academicYear.id,
-      termId: academicTerm.id,
-    });
-    expect(
-      await db
-        .getRepository(SchoolScheduleEntry)
-        .findOneBy({ id: approved.counterpartReplacementEntryId! }),
-    ).toMatchObject({
-      title: "جلسه مقصد",
-      startsOn: "2026-10-11",
-      endsOn: "2026-10-11",
-      startTime: "08:00",
-      endTime: "09:00",
-      academicYearId: academicYear.id,
-      termId: academicTerm.id,
+    ).rejects.toMatchObject({
+      response: { error: { code: "SCHEDULE_SUBSTITUTION_FROZEN" } },
     });
     const archivedTermEntry = await schedule.create(scoped, {
       ...dto,
@@ -1227,39 +1178,6 @@ describe("migration-backed persistence and verified recovery (disposable SQLite 
         (entry) => entry.id,
       ),
     ).toContain(archivedTermEntry.id);
-    await db.getRepository(AttendanceSession).save({
-      organization: a,
-      contextType: "class",
-      contextId: classroom.id,
-      sessionDate: new Date("2026-10-18T08:00:00.000Z"),
-      operationalDate: "2026-10-18",
-      occurrenceKey: `legacy-schedule:${archivedTermEntry.id}:2026-10-18`,
-      titleSnapshot: archivedTermEntry.title,
-      timeZone: "Asia/Tehran",
-      status: "draft",
-      revision: 0,
-      assignedStaffNameSnapshot: teacher.username,
-      rosterSnapshot: [],
-    });
-    const attendanceProtectedSwap = await schedule.requestSubstitution(
-      teacherActor,
-      {
-        sourceEntryId: archivedTermEntry.id,
-        targetEntryId: target.id,
-        freezeDate: "2026-10-18",
-        replacementDate: "2026-10-20",
-        replacementTimeBlockId: block.id,
-        title: "نباید حضور ثبت‌شده را جابه‌جا کند",
-        message: "",
-      },
-    );
-    await expect(
-      schedule.reviewSubstitution(principalActor, attendanceProtectedSwap.id, {
-        decision: "approved",
-      }),
-    ).rejects.toMatchObject({
-      response: { error: { code: "SCHEDULE_SUBSTITUTION_ATTENDANCE_EXISTS" } },
-    });
     await schedule.academicTermLifecycle(scoped, academicTerm.id, {
       action: "archive",
     });

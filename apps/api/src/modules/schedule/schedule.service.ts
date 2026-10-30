@@ -58,6 +58,10 @@ import {
   TeacherLeaveReturnReviewDto,
 } from "./schedule.dto";
 
+// Keep this server-side while the teacher displacement workflow is frozen.
+// Existing requests can still be reviewed; only creating a new one is paused.
+const teacherSessionDisplacementRequestsEnabled = false;
+
 @Injectable()
 export class ScheduleService {
   constructor(
@@ -1462,6 +1466,14 @@ export class ScheduleService {
   ) {
     const context = this.context(user);
     this.authorization.requireCapability(context, "attendance.class.manage");
+    if (!teacherSessionDisplacementRequestsEnabled)
+      // Existing pending requests remain reviewable by the principal, but
+      // teachers cannot create a new request through the API while frozen.
+      throw new ApiException(
+        409,
+        "SCHEDULE_SUBSTITUTION_FROZEN",
+        "ثبت درخواست جابه‌جایی جلسه موقتاً غیرفعال است.",
+      );
     if (
       !this.dateIsValid(dto.freezeDate) ||
       !this.dateIsValid(dto.replacementDate)
