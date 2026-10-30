@@ -36,8 +36,8 @@ export class SchoolScheduleEntry {
     string | null;
   @Column({ type: "varchar", length: 36, nullable: true }) termId!:
     string | null;
-  @Column({ type: "varchar", length: 120, nullable: true }) academicYearNameSnapshot!:
-    string | null;
+  @Column({ type: "varchar", length: 120, nullable: true })
+  academicYearNameSnapshot!: string | null;
   @Column({ type: "varchar", length: 120, nullable: true }) termNameSnapshot!:
     string | null;
   @Column({ type: "varchar", length: 36, nullable: true }) versionId!:
@@ -60,6 +60,10 @@ export class SchoolScheduleEntry {
   @Column({ type: "varchar", length: 10, nullable: true }) endsOn!:
     string | null;
   @Column({ type: "text", default: "" }) notes!: string;
+  /** Retains a visible audit marker when an operator permanently reassigns a lesson. */
+  @Column({ length: 240, nullable: true }) previousTeacherNameSnapshot!:
+    string | null;
+  @Column({ type: "datetime", nullable: true }) teacherChangedAt!: Date | null;
   @Column({ length: 240, default: "" }) classroomNameSnapshot!: string;
   @Column({ length: 240, default: "" }) teacherNameSnapshot!: string;
   @CreateDateColumn() createdAt!: Date;

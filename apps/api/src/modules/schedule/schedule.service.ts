@@ -2392,7 +2392,11 @@ export class ScheduleService {
     this.authorization.requireCapability(context, "schedule.update");
     const item = await this.entries.findOne({
       where: { id },
-      relations: { organization: true },
+      relations: {
+        organization: true,
+        teacher: true,
+        classBook: { teacher: true },
+      },
     });
     if (!item)
       throw new ApiException(404, "SCHEDULE_NOT_FOUND", "برنامه پیدا نشد.");
@@ -2434,6 +2438,9 @@ export class ScheduleService {
       teacher,
       dto.classBookId,
     );
+    const previousTeacher = item.teacher ?? item.classBook?.teacher ?? null;
+    const teacherChanged =
+      (previousTeacher?.id ?? null) !== (teacher?.id ?? null);
     Object.assign(item, {
       title: dto.title.trim(),
       weekday: dto.weekday,
@@ -2443,6 +2450,17 @@ export class ScheduleService {
       classroom,
       classBook,
       teacher,
+      ...(teacherChanged
+        ? {
+            previousTeacherNameSnapshot:
+              [previousTeacher?.firstName, previousTeacher?.lastName]
+                .filter(Boolean)
+                .join(" ") ||
+              previousTeacher?.username ||
+              "دبیر قبلی",
+            teacherChangedAt: new Date(),
+          }
+        : {}),
     });
     return this.entries.save(item).then((entry) => this.publicEntry(entry));
   }

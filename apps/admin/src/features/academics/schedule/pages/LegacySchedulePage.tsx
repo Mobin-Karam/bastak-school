@@ -2266,7 +2266,7 @@ function ClassScheduleBoard({
                       key={entry.id}
                       type="button"
                       onClick={() => onOpenDetails(entry)}
-                      className="rounded-xl border border-slate-200 bg-white p-3 text-right shadow-sm outline-none transition hover:-translate-y-0.5 hover:border-brand/45 hover:shadow-md focus-visible:ring-2 focus-visible:ring-brand motion-reduce:transform-none dark:border-white/10 dark:bg-white/[.04]"
+                      className={`rounded-xl border p-3 text-right shadow-sm outline-none transition hover:-translate-y-0.5 hover:shadow-md focus-visible:ring-2 focus-visible:ring-brand motion-reduce:transform-none ${sessionStateSurface(entry, leave)}`}
                     >
                       <div className="flex items-start justify-between gap-2">
                         <span className="min-w-0 text-sm font-black text-ink">
@@ -2286,6 +2286,7 @@ function ClassScheduleBoard({
                         <p className="mt-1 text-[11px] text-slate-500">{entry.title}</p>
                       ) : null}
                       {leave ? <LeaveFrozenTag leave={leave} /> : null}
+                      {!leave ? <TeacherChangedTag entry={entry} /> : null}
                     </button>
                   );
                 })}
@@ -2375,9 +2376,36 @@ function LeaveFrozenTag({
         compact ? "px-1 text-[9px]" : "px-2 text-[10px]"
       }`}
     >
-      منجمد در مرخصی · {formatDate(leave.startDate)} تا {formatDate(leave.endDate)}
+      دبیر در این جلسه حضور ندارد · {formatDate(leave.startDate)} تا {formatDate(leave.endDate)}
     </span>
   );
+}
+
+function TeacherChangedTag({
+  entry,
+  compact = false,
+}: {
+  entry: ScheduleEntry;
+  compact?: boolean;
+}) {
+  if (!entry.teacherChangedAt) return null;
+  return (
+    <span
+      className={`mt-1 inline-flex rounded bg-orange-100 py-0.5 font-black text-orange-900 dark:bg-orange-500/20 dark:text-orange-100 ${
+        compact ? "px-1 text-[9px]" : "px-2 text-[10px]"
+      }`}
+    >
+      تغییر دائمی دبیر
+      {entry.previousTeacherNameSnapshot ? ` · ${entry.previousTeacherNameSnapshot}` : ""}
+    </span>
+  );
+}
+
+function sessionStateSurface(entry: ScheduleEntry, leave?: TeacherLeaveRequest) {
+  if (leave) return "border-amber-400 bg-amber-50/90 dark:border-amber-400/70 dark:bg-amber-500/15";
+  if (entry.teacherChangedAt)
+    return "border-orange-400 bg-orange-50/90 dark:border-orange-400/70 dark:bg-orange-500/15";
+  return "border-slate-200 bg-white/90 dark:border-white/10 dark:bg-white/[.04]";
 }
 
 function ScheduleMatrixCell({
@@ -2421,10 +2449,14 @@ function ScheduleMatrixCell({
           ? "برای انتقال به روز دیگر بکشید؛ برای تغییر ساعت، ویرایش را انتخاب کنید."
           : undefined
       }
-      className={`rounded-md border px-1.5 py-1 shadow-[0_5px_9px_-9px_rgba(20,81,138,.7)] dark:border-white/10 ${canEdit ? "cursor-grab active:cursor-grabbing" : ""} ${
-        isSchoolWidePlan(entry)
-          ? "border-amber-300 bg-[#fff7cc] dark:border-amber-400/30 dark:bg-amber-500/15"
-          : "border-slate-200 bg-white/90 dark:bg-white/[.04]"
+      className={`rounded-md border px-1.5 py-1 shadow-[0_5px_9px_-9px_rgba(20,81,138,.7)] ${canEdit ? "cursor-grab active:cursor-grabbing" : ""} ${
+        leave
+          ? sessionStateSurface(entry, leave)
+          : entry.teacherChangedAt
+            ? sessionStateSurface(entry)
+            : isSchoolWidePlan(entry)
+              ? "border-amber-300 bg-[#fff7cc] dark:border-amber-400/30 dark:bg-amber-500/15"
+              : sessionStateSurface(entry)
       }`}
     >
       <button
@@ -2440,6 +2472,7 @@ function ScheduleMatrixCell({
           {entry.startTime}–{entry.endTime}
         </p>
         {leave ? <LeaveFrozenTag leave={leave} compact /> : null}
+        {!leave ? <TeacherChangedTag entry={entry} compact /> : null}
         {showOrganization ? (
           <span className="mt-1 block scale-90 origin-right">
             <OrganizationTag organization={entry.organization} compact />
@@ -2647,16 +2680,17 @@ function ScheduleTimeBlockBoard({
                               key={entry.id}
                               type="button"
                               onClick={() => onOpenDetails(entry)}
-                              className="mb-1 w-full rounded-lg border border-brand/15 bg-brand/5 px-2 py-1.5 text-right transition hover:border-brand/45 hover:bg-brand/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+                              className={`mb-1 w-full rounded-lg border px-2 py-1.5 text-right transition hover:border-brand/45 hover:bg-brand/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand ${sessionStateSurface(entry, leave)}`}
                             >
                               <span className="block truncate text-[11px] font-black text-ink">
                                 {entry.title}
                               </span>
                               {leave ? (
-                                <span className="mt-1 block text-[9px] font-bold text-amber-700 dark:text-amber-300">
-                                  مرخصی دبیر
+                                <span className="mt-1 block text-[9px] font-bold text-amber-800 dark:text-amber-200">
+                                  دبیر حضور ندارد
                                 </span>
                               ) : null}
+                              {!leave ? <TeacherChangedTag entry={entry} compact /> : null}
                             </button>
                           );
                         })}
@@ -2700,7 +2734,7 @@ function ScheduleEntryCard({
 }) {
   return (
     <article
-      className={`rounded-xl border border-sky-100 bg-[linear-gradient(145deg,#ffffff,#f3f9ff)] p-2.5 shadow-[0_8px_14px_-14px_rgba(20,81,138,.6)] dark:border-white/10 dark:bg-white/[.03] ${compact ? "" : "p-3"}`}
+      className={`rounded-xl border p-2.5 shadow-[0_8px_14px_-14px_rgba(20,81,138,.6)] ${sessionStateSurface(entry, leave)} ${compact ? "" : "p-3"}`}
     >
       <button
         type="button"
@@ -2717,6 +2751,7 @@ function ScheduleEntryCard({
             {entry.startTime} — {entry.endTime}
           </p>
           {leave ? <LeaveFrozenTag leave={leave} /> : null}
+          {!leave ? <TeacherChangedTag entry={entry} /> : null}
           {!compact ? (
             <p className="mt-1.5 flex items-center gap-1 text-[11px] text-slate-500">
               <MapPin size={13} aria-hidden="true" />

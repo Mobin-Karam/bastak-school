@@ -15,6 +15,8 @@ export type ScheduleEntry = {
   termId?: string | null;
   termNameSnapshot?: string | null;
   notes?: string;
+  previousTeacherNameSnapshot?: string | null;
+  teacherChangedAt?: string | null;
   organization: { id: string; name: string; type?: string; status?: string };
   classroom?: { id: string; name: string } | null;
   classBook?: {
