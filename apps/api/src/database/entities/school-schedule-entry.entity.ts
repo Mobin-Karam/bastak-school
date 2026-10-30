@@ -61,8 +61,8 @@ export class SchoolScheduleEntry {
     string | null;
   @Column({ type: "text", default: "" }) notes!: string;
   /** Retains a visible audit marker when an operator permanently reassigns a lesson. */
-  @Column({ length: 240, nullable: true }) previousTeacherNameSnapshot!:
-    string | null;
+  @Column({ type: "varchar", length: 240, nullable: true })
+  previousTeacherNameSnapshot!: string | null;
   @Column({ type: "datetime", nullable: true }) teacherChangedAt!: Date | null;
   @Column({ length: 240, default: "" }) classroomNameSnapshot!: string;
   @Column({ length: 240, default: "" }) teacherNameSnapshot!: string;
