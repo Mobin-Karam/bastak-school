@@ -792,108 +792,133 @@ function TeacherLeaveReviewList({
 }) {
   const [substitutes, setSubstitutes] = useState<Record<string, string>>({});
   const pending = rows.filter((row) => row.status === "pending" || row.returnStatus === "pending");
+  const archived = rows.filter((row) => !pending.includes(row));
   if (loading) return <LoadingState label="دریافت درخواست‌های مرخصی استادان…" />;
   if (error) return <ErrorText onRetry={() => window.location.reload()} />;
-  if (!pending.length) return <Empty text="درخواست مرخصی یا بازگشت استادی در صف نیست." />;
   return (
     <div className="grid gap-3">
       <p className="text-xs text-muted-foreground">
         تأیید مرخصی فقط رخدادهای همان بازه را منجمد می‌کند. با انتخاب جانشین، همان جلسه‌ها به‌صورت
         یک‌باره به دبیر منتخب واگذار می‌شوند.
       </p>
-      {pending.map((row) => {
-        const isReturn = row.returnStatus === "pending";
-        const teacherName =
-          [row.teacher?.firstName, row.teacher?.lastName].filter(Boolean).join(" ") ||
-          row.teacher?.username ||
-          "استاد";
-        return (
-          <article
-            key={`${row.id}:${isReturn ? "return" : "leave"}`}
-            className="grid gap-3 rounded-2xl border border-[rgb(var(--border-subtle))] p-4"
-          >
-            <div className="flex flex-wrap items-start justify-between gap-2">
-              <div>
-                <strong>{teacherName}</strong>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  {isReturn
-                    ? `بازگشت در ${formatDate(row.returnDate ?? row.startDate)}`
-                    : `${formatDate(row.startDate)} تا ${formatDate(row.endDate)}`}
-                </p>
+      {pending.length ? (
+        pending.map((row) => {
+          const isReturn = row.returnStatus === "pending";
+          const teacherName =
+            [row.teacher?.firstName, row.teacher?.lastName].filter(Boolean).join(" ") ||
+            row.teacher?.username ||
+            "استاد";
+          return (
+            <article
+              key={`${row.id}:${isReturn ? "return" : "leave"}`}
+              className="grid gap-3 rounded-2xl border border-[rgb(var(--border-subtle))] p-4"
+            >
+              <div className="flex flex-wrap items-start justify-between gap-2">
+                <div>
+                  <strong>{teacherName}</strong>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    {isReturn
+                      ? `بازگشت در ${formatDate(row.returnDate ?? row.startDate)}`
+                      : `${formatDate(row.startDate)} تا ${formatDate(row.endDate)}`}
+                  </p>
+                </div>
+                <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-bold text-amber-900 dark:bg-amber-950 dark:text-amber-100">
+                  {isReturn ? "درخواست بازگشت" : "درخواست مرخصی"}
+                </span>
               </div>
-              <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-bold text-amber-900 dark:bg-amber-950 dark:text-amber-100">
-                {isReturn ? "درخواست بازگشت" : "درخواست مرخصی"}
-              </span>
-            </div>
-            <p className="rounded-xl bg-[rgb(var(--surface-muted))] p-3 text-sm leading-6">
-              {isReturn ? row.returnMessage || "بدون پیام" : row.reason}
-            </p>
-            {isReturn ? (
-              <div className="flex flex-wrap gap-2">
-                <Button disabled={busy} onClick={() => onReviewReturn(row.id, "approved")}>
-                  تأیید بازگشت و فعال‌سازی برنامه
-                </Button>
-                <Button
-                  variant="soft"
-                  disabled={busy}
-                  onClick={() => onReviewReturn(row.id, "rejected")}
-                >
-                  رد درخواست
-                </Button>
-              </div>
-            ) : (
-              <>
-                <label className="grid gap-1 text-sm font-bold">
-                  دبیر جایگزین (اختیاری)
-                  <select
-                    className="h-11 rounded-xl border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface))] px-3 font-normal"
-                    value={substitutes[row.id] ?? ""}
-                    onChange={(event) =>
-                      setSubstitutes((current) => ({ ...current, [row.id]: event.target.value }))
-                    }
-                  >
-                    <option value="">بدون جانشین؛ نمایش لغو جلسه برای دانش‌آموزان</option>
-                    {teachers
-                      .filter((teacher) => teacher.id !== row.teacherId)
-                      .map((teacher) => (
-                        <option key={teacher.id} value={teacher.id}>
-                          {[teacher.firstName, teacher.lastName].filter(Boolean).join(" ") ||
-                            teacher.username}
-                        </option>
-                      ))}
-                  </select>
-                </label>
+              <p className="rounded-xl bg-[rgb(var(--surface-muted))] p-3 text-sm leading-6">
+                {isReturn ? row.returnMessage || "بدون پیام" : row.reason}
+              </p>
+              {isReturn ? (
                 <div className="flex flex-wrap gap-2">
-                  <Button
-                    disabled={busy}
-                    onClick={() =>
-                      onReviewLeave(
-                        row.id,
-                        substitutes[row.id]
-                          ? {
-                              decision: "approved",
-                              resolution: "substitute",
-                              substituteTeacherId: substitutes[row.id],
-                            }
-                          : { decision: "approved", resolution: "cancel" },
-                      )
-                    }
-                  >
-                    تأیید مرخصی
+                  <Button disabled={busy} onClick={() => onReviewReturn(row.id, "approved")}>
+                    تأیید بازگشت و فعال‌سازی برنامه
                   </Button>
                   <Button
                     variant="soft"
                     disabled={busy}
-                    onClick={() => onReviewLeave(row.id, { decision: "rejected" })}
+                    onClick={() => onReviewReturn(row.id, "rejected")}
                   >
                     رد درخواست
                   </Button>
                 </div>
-              </>
-            )}
-          </article>
-        );
-      })}
+              ) : (
+                <>
+                  <label className="grid gap-1 text-sm font-bold">
+                    دبیر جایگزین (اختیاری)
+                    <select
+                      className="h-11 rounded-xl border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface))] px-3 font-normal"
+                      value={substitutes[row.id] ?? ""}
+                      onChange={(event) =>
+                        setSubstitutes((current) => ({ ...current, [row.id]: event.target.value }))
+                      }
+                    >
+                      <option value="">بدون جانشین؛ نمایش لغو جلسه برای دانش‌آموزان</option>
+                      {teachers
+                        .filter((teacher) => teacher.id !== row.teacherId)
+                        .map((teacher) => (
+                          <option key={teacher.id} value={teacher.id}>
+                            {[teacher.firstName, teacher.lastName].filter(Boolean).join(" ") ||
+                              teacher.username}
+                          </option>
+                        ))}
+                    </select>
+                  </label>
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      disabled={busy}
+                      onClick={() =>
+                        onReviewLeave(
+                          row.id,
+                          substitutes[row.id]
+                            ? {
+                                decision: "approved",
+                                resolution: "substitute",
+                                substituteTeacherId: substitutes[row.id],
+                              }
+                            : { decision: "approved", resolution: "cancel" },
+                        )
+                      }
+                    >
+                      تأیید مرخصی
+                    </Button>
+                    <Button
+                      variant="soft"
+                      disabled={busy}
+                      onClick={() => onReviewLeave(row.id, { decision: "rejected" })}
+                    >
+                      رد درخواست
+                    </Button>
+                  </div>
+                </>
+              )}
+            </article>
+          );
+        })
+      ) : (
+        <Empty text="درخواست مرخصی یا بازگشت استادی در صف نیست." />
+      )}
+      {archived.length ? (
+        <section className="grid gap-2 border-t border-[rgb(var(--border-subtle))] pt-3">
+          <h3 className="text-sm font-black text-ink">آرشیو درخواست‌ها</h3>
+          {archived.map((row) => (
+            <article
+              key={row.id}
+              className="flex items-center justify-between gap-3 rounded-xl bg-[rgb(var(--surface-muted))] px-3 py-2 text-sm"
+            >
+              <span className="font-bold">
+                {[row.teacher?.firstName, row.teacher?.lastName].filter(Boolean).join(" ") ||
+                  row.teacher?.username ||
+                  "استاد"}
+              </span>
+              <span className="text-xs text-muted-foreground">
+                {row.status === "approved" ? "تأییدشده" : "ردشده"} · {formatDate(row.startDate)} تا{" "}
+                {formatDate(row.endDate)}
+              </span>
+            </article>
+          ))}
+        </section>
+      ) : null}
     </div>
   );
 }
