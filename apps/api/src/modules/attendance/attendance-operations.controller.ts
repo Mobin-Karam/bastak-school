@@ -145,15 +145,56 @@ export class AttendanceOperationsController {
   }
   @Post("attendance/dorm-sessions/:id/final-review")
   @RequireCapabilities("attendance.review")
-  finalizeDormReview(@CurrentUser() user: AuthenticatedUser, @Param("id") id: string) {
-    return this.operations.finalizeDormReview(user, id).then(ok);
-  }
-  @Get("attendance/students/:id/profile")
-  @RequireAnyCapabilities("attendance.review", "attendance.class.read")
-  profile(
+  finalizeDormReview(
     @CurrentUser() user: AuthenticatedUser,
     @Param("id") id: string,
   ) {
+    return this.operations.finalizeDormReview(user, id).then(ok);
+  }
+  @Post(
+    "attendance/dorm-sessions/:id/students/:studentId/unauthorized-departure",
+  )
+  @RequireCapabilities("attendance.review")
+  markUnauthorizedDormDeparture(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param("id") id: string,
+    @Param("studentId") studentId: string,
+    @Body() body: { note?: string },
+  ) {
+    return this.operations
+      .markUnauthorizedDormDeparture(user, id, studentId, body?.note)
+      .then(ok);
+  }
+  @Post(
+    "attendance/class-sessions/:id/students/:studentId/outside-presence-report",
+  )
+  @RequireCapabilities("attendance.class.read")
+  reportOutsidePresence(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param("id") sessionId: string,
+    @Param("studentId") studentId: string,
+    @Body() body: { note?: string },
+  ) {
+    return this.operations
+      .reportOutsideStudentPresent(user, sessionId, studentId, body?.note)
+      .then(ok);
+  }
+  @Get("attendance/outside-presence-reports")
+  @RequireCapabilities("attendance.review")
+  outsidePresenceReports(@CurrentUser() user: AuthenticatedUser) {
+    return this.operations.outsidePresenceReports(user).then(ok);
+  }
+  @Post("attendance/outside-presence-reports/:id/verify")
+  @RequireCapabilities("attendance.review")
+  verifyOutsidePresence(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param("id") id: string,
+  ) {
+    return this.operations.verifyOutsideStudentPresence(user, id).then(ok);
+  }
+  @Get("attendance/students/:id/profile")
+  @RequireAnyCapabilities("attendance.review", "attendance.class.read")
+  profile(@CurrentUser() user: AuthenticatedUser, @Param("id") id: string) {
     return this.operations.staffProfile(user, id).then(ok);
   }
   @Get("student/attendance/encouragement")

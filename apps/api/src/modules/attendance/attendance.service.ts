@@ -7,7 +7,11 @@ import { AuditLog } from "../../database/entities/audit-log.entity";
 import { createHash, randomUUID } from "node:crypto";
 import { AttendanceWriteReceipt } from "../../database/entities/attendance-write-receipt.entity";
 import { AttendanceSessionStudentCoin } from "../../database/entities/attendance-session-student-coin.entity";
-import { operationalDate, schoolLocalInstant, shiftSchoolDate } from "./attendance-time";
+import {
+  operationalDate,
+  schoolLocalInstant,
+  shiftSchoolDate,
+} from "./attendance-time";
 import { AttendancePolicy } from "../../database/entities/attendance-policy.entity";
 import {
   Notification,
@@ -20,7 +24,10 @@ import {
   LeaveRequestStatus,
   LeaveRequestType,
 } from "../../database/entities/leave-request.entity";
-import { ExitPermission, ExitPermissionStatus } from "../../database/entities/exit-permission.entity";
+import {
+  ExitPermission,
+  ExitPermissionStatus,
+} from "../../database/entities/exit-permission.entity";
 import { SchoolScheduleEntry } from "../../database/entities/school-schedule-entry.entity";
 import {
   SchoolAcademicYear,
@@ -2597,33 +2604,97 @@ export class AttendanceService {
         );
       let dormTerm: SchoolAcademicTerm | null = null;
       let dormOccurrenceKey: string | null = null;
-      const dormPeriod = session?.attendancePeriod ?? dto.attendancePeriod ?? "night";
+      const dormPeriod =
+        session?.attendancePeriod ?? dto.attendancePeriod ?? "night";
+      // Enforce tenant and role scope before returning term/session details.
+      // Otherwise callers without dorm access can distinguish configuration
+      // state from authorization failures.
+      if (!assignedTeacher && contextType === "dorm")
+        await this.assertContextAccess(
+          user,
+          contextType,
+          contextId,
+          organization.id,
+          true,
+        );
       if (contextType === "dorm") {
         const dormDate = operationalDate(sessionDate, "Asia/Tehran", "00:00");
         if (session?.termIdSnapshot && session.academicYearIdSnapshot) {
           dormTerm = await manager.getRepository(SchoolAcademicTerm).findOne({
-            where: { id: session.termIdSnapshot, academicYearId: session.academicYearIdSnapshot },
+            where: {
+              id: session.termIdSnapshot,
+              academicYearId: session.academicYearIdSnapshot,
+            },
             relations: { academicYear: true },
           });
         } else if (!session) {
           const terms = await manager.getRepository(SchoolAcademicTerm).find({
-            where: { state: "ACTIVE", academicYear: { organizationId: organization.id, state: "ACTIVE" } },
+            where: {
+              state: "ACTIVE",
+              academicYear: {
+                organizationId: organization.id,
+                state: "ACTIVE",
+              },
+            },
             relations: { academicYear: true },
           });
-          dormTerm = terms.find((term) => term.academicYear?.state === "ACTIVE" && term.startsOn <= dormDate && term.endsOn >= dormDate) ?? null;
+          dormTerm =
+            terms.find(
+              (term) =>
+                term.academicYear?.state === "ACTIVE" &&
+                term.startsOn <= dormDate &&
+                term.endsOn >= dormDate,
+            ) ?? null;
         }
-        if (!dormTerm?.academicYear || (!session && (dormTerm.state !== "ACTIVE" || dormTerm.academicYear.state !== "ACTIVE")))
-          throw new ApiException(409, "ATTENDANCE_DORM_TERM_REQUIRED", "برای این تاریخ باید یک نیم‌سال فعال باشد؛ حضورهای قدیمی باید جداگانه به نیم‌سال متصل شوند.");
-        dormOccurrenceKey = `dorm-delegate:${contextId}:${dormDate}:${dormPeriod}`;
+        if (
+          !dormTerm?.academicYear ||
+          (!session &&
+            (dormTerm.state !== "ACTIVE" ||
+              dormTerm.academicYear.state !== "ACTIVE"))
+        )
+          throw new ApiException(
+            409,
+            "ATTENDANCE_DORM_TERM_REQUIRED",
+            "برای این تاریخ باید یک نیم‌سال فعال باشد؛ حضورهای قدیمی باید جداگانه به نیم‌سال متصل شوند.",
+          );
+        dormOccurrenceKey = `dorm-attendance:primary:${contextId}:${dormDate}:${dormPeriod}`;
         if (!session) {
-          session = await sessions.findOne({ where: { organization: { id: organization.id }, occurrenceKey: dormOccurrenceKey }, relations: { organization: true, assignedStaff: true } });
+          session = await sessions.findOne({
+            where: {
+              organization: { id: organization.id },
+              occurrenceKey: dormOccurrenceKey,
+            },
+            relations: { organization: true, assignedStaff: true },
+          });
+          if (!session)
+            session = await sessions.findOne({
+              where: {
+                organization: { id: organization.id },
+                occurrenceKey: `dorm-delegate:${contextId}:${dormDate}:${dormPeriod}`,
+              },
+              relations: { organization: true, assignedStaff: true },
+            });
           if (!session && dormPeriod === "night")
-            session = await sessions.findOne({ where: { organization: { id: organization.id }, occurrenceKey: `dorm-delegate:${contextId}:${dormDate}` }, relations: { organization: true, assignedStaff: true } });
+            session = await sessions.findOne({
+              where: {
+                organization: { id: organization.id },
+                occurrenceKey: `dorm-delegate:${contextId}:${dormDate}`,
+              },
+              relations: { organization: true, assignedStaff: true },
+            });
         }
         if (session) {
-          if (session.attendancePeriod && session.attendancePeriod !== dormPeriod)
-            throw new ApiException(409, "ATTENDANCE_DORM_PERIOD_CONFLICT", "نوبت این جلسه با نوبت انتخاب‌شده یکسان نیست.");
+          if (
+            session.attendancePeriod &&
+            session.attendancePeriod !== dormPeriod
+          )
+            throw new ApiException(
+              409,
+              "ATTENDANCE_DORM_PERIOD_CONFLICT",
+              "نوبت این جلسه با نوبت انتخاب‌شده یکسان نیست.",
+            );
           session.attendancePeriod = dormPeriod;
+          session.dormAttendanceRole ??= "primary";
           session.academicYearIdSnapshot ??= dormTerm.academicYear.id;
           session.academicYearNameSnapshot ??= dormTerm.academicYear.name;
           session.termIdSnapshot ??= dormTerm.id;
@@ -2648,8 +2719,12 @@ export class AttendanceService {
           "جلسه نهایی‌شده فقط توسط استاد همان درس قابل اصلاح است.",
         );
       if (contextType === "dorm" && session?.dormForwardedAt)
-        throw new ApiException(409, "ATTENDANCE_DORM_REVIEW_LOCKED", "جلسه پس از ارسال برای مدیر قفل شده است.");
-      if (!assignedTeacher)
+        throw new ApiException(
+          409,
+          "ATTENDANCE_DORM_REVIEW_LOCKED",
+          "جلسه پس از ارسال برای مدیر قفل شده است.",
+        );
+      if (!assignedTeacher && contextType !== "dorm")
         await this.assertContextAccess(
           user,
           contextType,
@@ -2705,16 +2780,23 @@ export class AttendanceService {
             contextType,
             contextId,
             sessionDate,
-            ...(contextType === "dorm" && dormTerm?.academicYear ? {
-              occurrenceKey: dormOccurrenceKey,
-              operationalDate: operationalDate(sessionDate, "Asia/Tehran", "00:00"),
-              attendancePeriod: dormPeriod,
-              timeZone: "Asia/Tehran",
-              academicYearIdSnapshot: dormTerm.academicYear.id,
-              academicYearNameSnapshot: dormTerm.academicYear.name,
-              termIdSnapshot: dormTerm.id,
-              termNameSnapshot: dormTerm.name,
-            } : {}),
+            ...(contextType === "dorm" && dormTerm?.academicYear
+              ? {
+                  occurrenceKey: dormOccurrenceKey,
+                  dormAttendanceRole: "primary",
+                  operationalDate: operationalDate(
+                    sessionDate,
+                    "Asia/Tehran",
+                    "00:00",
+                  ),
+                  attendancePeriod: dormPeriod,
+                  timeZone: "Asia/Tehran",
+                  academicYearIdSnapshot: dormTerm.academicYear.id,
+                  academicYearNameSnapshot: dormTerm.academicYear.name,
+                  termIdSnapshot: dormTerm.id,
+                  termNameSnapshot: dormTerm.name,
+                }
+              : {}),
             titleSnapshot: descriptor.title,
             rosterSnapshot: fullRoster.map((student) => ({
               id: student.id,
@@ -2753,11 +2835,12 @@ export class AttendanceService {
       for (const entry of entries) {
         const student = byId.get(entry.studentId)!;
         const activeLeave = leaveByStudentId.get(student.id);
-        const status = activeLeave && contextType === "dorm"
-          ? AttendanceStatus.EXCUSED
-          : activeLeave && entry.status === AttendanceStatus.ABSENT
+        const status =
+          activeLeave && contextType === "dorm"
             ? AttendanceStatus.EXCUSED
-            : entry.status;
+            : activeLeave && entry.status === AttendanceStatus.ABSENT
+              ? AttendanceStatus.EXCUSED
+              : entry.status;
         let record = await records.findOne({
           where: { session: { id: session.id }, student: { id: student.id } },
           relations: { student: true },
@@ -2772,12 +2855,11 @@ export class AttendanceService {
         if (!record) record = records.create({ session, student });
         record.status = status;
         record.physicalStatus =
-          status === AttendanceStatus.EXCUSED
-            ? "legacy_unknown"
-            : status;
+          status === AttendanceStatus.EXCUSED ? "legacy_unknown" : status;
         record.revision = (record.revision ?? 0) + 1;
         record.note =
-          activeLeave && (contextType === "dorm" || entry.status === AttendanceStatus.ABSENT)
+          activeLeave &&
+          (contextType === "dorm" || entry.status === AttendanceStatus.ABSENT)
             ? activeLeave.note || activeLeave.reason
             : entry.note?.trim() || "";
         record.recordedBy = { id: user.id } as User;
@@ -2798,7 +2880,11 @@ export class AttendanceService {
               actualReturnAt: IsNull(),
             },
           });
-          const openExit = openExits.find((exit) => exit.actualDepartureAt || exit.requestedDepartureAt.getTime() <= Date.now());
+          const openExit = openExits.find(
+            (exit) =>
+              exit.actualDepartureAt ||
+              exit.requestedDepartureAt.getTime() <= Date.now(),
+          );
           if (openExit) {
             openExit.actualReturnAt = new Date();
             openExit.returnVerifiedBy = { id: user.id } as User;
@@ -3801,7 +3887,37 @@ export class AttendanceService {
         relations: { student: { user: true } },
         order: { createdAt: "ASC" },
       });
-      return rows.map((row) => this.studentView(row.student));
+      const exits = rows.length
+        ? await this.sessions.manager.getRepository(ExitPermission).find({
+            where: {
+              organization: { id: organizationId },
+              student: { id: In(rows.map((row) => row.student.id)) },
+              status: ExitPermissionStatus.APPROVED,
+            },
+            relations: { student: true },
+          })
+        : [];
+      const openExitByStudent = new Map(
+        exits
+          .filter(
+            (exit) =>
+              !exit.actualReturnAt &&
+              exit.requestedDepartureAt.getTime() <= Date.now(),
+          )
+          .map((exit) => [exit.student.id, exit]),
+      );
+      return rows.map((row) => {
+        const exit = openExitByStudent.get(row.student.id);
+        return {
+          ...this.studentView(row.student),
+          outsideSchool: Boolean(exit),
+          outsideSince: exit?.actualDepartureAt?.toISOString() ?? null,
+          outsideExitPermissionId: exit?.id ?? null,
+          outsidePresenceReported: Boolean(
+            exit?.returnRequestNote.startsWith("teacher-presence:"),
+          ),
+        };
+      });
     }
     if (context === "class_group" || context === "study_group") {
       const rows = await this.groupMemberships.find({
@@ -3819,24 +3935,71 @@ export class AttendanceService {
     const residentIds = rows.map((row) => row.student.id);
     let referenceTime = Date.now();
     if (context === "dorm" && occurrenceDate) {
-      try { shiftSchoolDate(occurrenceDate, 0); } catch { throw new ApiException(422, "ATTENDANCE_DATE_INVALID", "تاریخ جلسه معتبر نیست."); }
-      referenceTime = schoolLocalInstant(occurrenceDate, attendancePeriod === "day" ? "12:00" : "20:00", "Asia/Tehran").getTime();
+      try {
+        shiftSchoolDate(occurrenceDate, 0);
+      } catch {
+        throw new ApiException(
+          422,
+          "ATTENDANCE_DATE_INVALID",
+          "تاریخ جلسه معتبر نیست.",
+        );
+      }
+      referenceTime = schoolLocalInstant(
+        occurrenceDate,
+        attendancePeriod === "day" ? "12:00" : "20:00",
+        "Asia/Tehran",
+      ).getTime();
     }
-    const leaves = residentIds.length ? await this.sessions.manager.getRepository(LeaveRequest).find({
-      where: { organization: { id: organizationId }, student: { id: In(residentIds) }, leaveType: LeaveRequestType.LEAVE, status: LeaveRequestStatus.APPROVED },
-      relations: { student: true },
-    }) : [];
-    const activeLeaveByStudent = new Map(leaves.filter((leave) => leave.startDate.getTime() <= referenceTime && leave.endDate.getTime() >= referenceTime).map((leave) => [leave.student.id, leave]));
-    const exits = residentIds.length ? await this.sessions.manager.getRepository(ExitPermission).find({
-      where: { organization: { id: organizationId }, student: { id: In(residentIds) }, status: ExitPermissionStatus.APPROVED },
-      relations: { student: true },
-    }) : [];
-    const overdue = new Set(exits.filter((exit) => exit.expectedReturnAt && exit.expectedReturnAt.getTime() < referenceTime && !exit.actualReturnAt).map((exit) => exit.student.id));
+    const leaves = residentIds.length
+      ? await this.sessions.manager.getRepository(LeaveRequest).find({
+          where: {
+            organization: { id: organizationId },
+            student: { id: In(residentIds) },
+            leaveType: LeaveRequestType.LEAVE,
+            status: LeaveRequestStatus.APPROVED,
+          },
+          relations: { student: true },
+        })
+      : [];
+    const activeLeaveByStudent = new Map(
+      leaves
+        .filter(
+          (leave) =>
+            leave.startDate.getTime() <= referenceTime &&
+            leave.endDate.getTime() >= referenceTime,
+        )
+        .map((leave) => [leave.student.id, leave]),
+    );
+    const exits = residentIds.length
+      ? await this.sessions.manager.getRepository(ExitPermission).find({
+          where: {
+            organization: { id: organizationId },
+            student: { id: In(residentIds) },
+            status: ExitPermissionStatus.APPROVED,
+          },
+          relations: { student: true },
+        })
+      : [];
+    const overdue = new Set(
+      exits
+        .filter(
+          (exit) =>
+            exit.expectedReturnAt &&
+            exit.expectedReturnAt.getTime() < referenceTime &&
+            !exit.actualReturnAt,
+        )
+        .map((exit) => exit.student.id),
+    );
     return rows.map((row) => {
       const leave = activeLeaveByStudent.get(row.student.id);
       return {
         ...this.studentView(row.student),
-        approvedLeave: leave ? { startsAt: leave.startDate.toISOString(), endsAt: leave.endDate.toISOString() } : null,
+        approvedLeave: leave
+          ? {
+              startsAt: leave.startDate.toISOString(),
+              endsAt: leave.endDate.toISOString(),
+            }
+          : null,
         overdueReturn: overdue.has(row.student.id),
       };
     });

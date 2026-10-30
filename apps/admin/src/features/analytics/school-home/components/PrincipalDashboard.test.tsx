@@ -32,6 +32,9 @@ vi.mock("../../../student-life/attendance/api/attendance.api", () => ({
 vi.mock("../../../student-life/attendance/api/attendance-operations.api", () => ({
   getAttendancePolicy: vi.fn(),
   updateAttendancePolicy: vi.fn(),
+  getDormAttendanceReviewQueue: vi.fn().mockResolvedValue([]),
+  getOutsidePresenceReports: vi.fn().mockResolvedValue([]),
+  verifyOutsidePresenceReport: vi.fn(),
 }));
 vi.mock("../../reports/api/reports.api", () => ({
   getTeacherStudentReports: vi.fn().mockResolvedValue([]),

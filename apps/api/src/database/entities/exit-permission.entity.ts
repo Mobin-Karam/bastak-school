@@ -66,6 +66,10 @@ export class ExitPermission {
   @Column({ type: "text", default: "" })
   note!: string;
 
+  /** Origin distinguishes a student-approved leave from a dorm breach found in roll call. */
+  @Column({ type: "varchar", length: 32, nullable: true })
+  origin?: "student_request" | "dorm_authorized" | "dorm_unauthorized" | null;
+
   @Column({
     type: "varchar",
     length: 16,

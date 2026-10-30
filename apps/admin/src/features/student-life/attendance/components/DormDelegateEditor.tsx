@@ -47,7 +47,11 @@ export function DormDelegateEditor({
   }, [eligible, studentSearch]);
   const label = roomId === "all" ? "تمام اتاق‌های خوابگاه" : "اتاق";
   const delegate = delegates.data?.find(
-    (row) => (roomId === "all" ? row.dormWide : row.roomId === roomId) && !row.revoked,
+    (row) =>
+      (roomId === "all"
+        ? row.assignmentKind === "dorm_wide" || row.dormWide
+        : row.assignmentKind !== "dorm_wide" && !row.dormWide && row.roomId === roomId) &&
+      !row.revoked,
   );
   useEffect(() => {
     setStudentId(delegate?.studentId ?? "");
@@ -73,13 +77,13 @@ export function DormDelegateEditor({
   return (
     <details className="rounded-2xl border border-blue-200 bg-blue-50/60 p-4 dark:border-blue-900 dark:bg-blue-950/30">
       <summary className="min-h-11 cursor-pointer font-bold text-ink">
-        مسئول حضور {label}
+        {roomId === "all" ? "مسئول اصلی حضور همه اتاق‌ها" : "مسئول بررسی مستقل این اتاق"}
         {delegate ? `: ${delegate.studentName}` : ""}
       </summary>
       <p className="mb-3 text-xs leading-6 text-slate-500">
         {roomId === "all"
-          ? "اختیاری: یک ساکن را برای ثبت حضور اتاق‌ها در بازه انتخاب کنید. اگر مسئولی تعیین نکنید، خودتان می‌توانید حضور را ثبت کنید."
-          : "اختیاری: یک ساکن همین اتاق را برای ثبت حضور در بازه انتخاب کنید. اگر مسئولی تعیین نکنید، خودتان می‌توانید حضور را ثبت کنید."}
+          ? "این دانش‌آموز ثبت اصلی همه اتاق‌ها را انجام می‌دهد. مسئول هر اتاق جداگانه یک ثبت مستقل برای مقایسه می‌فرستد. هر دو ثبت با نام مسئول خود ذخیره می‌شوند."
+          : "این دانش‌آموز فقط ثبت مستقل این اتاق را برای مقایسه انجام می‌دهد و جای ثبت اصلی خوابگاه را نمی‌گیرد."}
         ثبت هر شب ساعت ۱۶ آغاز می‌شود.
       </p>
       {delegates.isError ? (

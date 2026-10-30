@@ -161,9 +161,11 @@ function DormAttendanceEditor({
   const initial = assignment.roster.map((member) => ({
     ...member,
     studentNumber: "",
-    status: member.approvedLeave
-      ? "excused"
-      : (assignment.records.find((record) => record.studentId === member.id)?.status ?? "present"),
+    status:
+      member.approvedLeave || member.authorizedExit
+        ? "excused"
+        : (assignment.records.find((record) => record.studentId === member.id)?.status ??
+          "present"),
   })) as AttendanceParticipant[];
   const baseline = useRef(initial);
   const editingRevision = useRef(assignment.revision);
@@ -221,6 +223,7 @@ function DormAttendanceEditor({
     setError("");
     try {
       const input = {
+        roomId: assignment.roomId,
         nightDate: assignment.nightDate,
         attendancePeriod: assignment.attendancePeriod,
         expectedRevision: editingRevision.current,
@@ -474,7 +477,10 @@ export function StudentAttendanceWorkspace({ scope }: { scope: string }) {
                       <span
                         className={`block text-xs font-black ${assignment.attendancePeriod === "night" ? "text-indigo-700 dark:text-indigo-300" : "text-amber-700 dark:text-amber-300"}`}
                       >
-                        {assignment.attendancePeriod === "night" ? "شب · اصلی" : "روز"}
+                        {assignment.attendancePeriod === "night" ? "شب · اصلی" : "روز"} ·{" "}
+                        {assignment.attendanceRole === "primary"
+                          ? "ثبت اصلی خوابگاه"
+                          : "بازبینی اتاق"}
                       </span>
                       <span className="mt-1 block text-sm font-bold text-ink">
                         {new Intl.DateTimeFormat("fa-IR-u-ca-persian", {

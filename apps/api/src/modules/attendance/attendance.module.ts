@@ -1,6 +1,10 @@
 import { AttendanceOperationsService } from "./attendance-operations.service";
 import { AttendanceOperationsController } from "./attendance-operations.controller";
 import { DormAttendanceDelegate } from "../../database/entities/dorm-attendance-delegate.entity";
+import {
+  DormRoomAttendanceDelegate,
+  DormWideAttendanceDelegate,
+} from "../../database/entities/dorm-attendance-assignment.entity";
 import { AttendancePool } from "../../database/entities/attendance-pool.entity";
 import { AttendanceWriteReceipt } from "../../database/entities/attendance-write-receipt.entity";
 import { AttendancePolicy } from "../../database/entities/attendance-policy.entity";
@@ -38,6 +42,8 @@ import { AttendanceService } from "./attendance.service";
   imports: [
     TypeOrmModule.forFeature([
       DormAttendanceDelegate,
+      DormRoomAttendanceDelegate,
+      DormWideAttendanceDelegate,
       AttendancePool,
       AttendanceSession,
       AttendanceSupervisorCheck,

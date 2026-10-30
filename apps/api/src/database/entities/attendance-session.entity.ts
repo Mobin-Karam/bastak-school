@@ -78,7 +78,15 @@ export class AttendanceSession {
   @Column({ type: "datetime", nullable: true }) scheduledEndAt?: Date | null;
   @Column({ length: 20, default: "open" }) status!: AttendanceSessionStatus;
   @Column({ type: "integer", default: 0 }) revision!: number;
-  @Column({ type: "varchar", length: 8, nullable: true }) attendancePeriod?: "day" | "night" | null;
+  @Column({ type: "varchar", length: 8, nullable: true }) attendancePeriod?:
+    "day" | "night" | null;
+  /** Which student assignment owns this roll call; null is legacy data. */
+  @Column({ type: "varchar", length: 16, nullable: true })
+  dormAttendanceRole?: "primary" | "room_check" | null;
+  @Column({ type: "varchar", length: 36, nullable: true })
+  dormDelegateStudentIdSnapshot?: string | null;
+  @Column({ type: "varchar", length: 160, nullable: true })
+  dormDelegateStudentNameSnapshot?: string | null;
   /** Dorm roll-call review handoff; null dates mean the next reviewer has not acted. */
   @ManyToOne(() => User, { nullable: true, onDelete: "SET NULL" })
   dormSupervisorReviewedBy?: User | null;

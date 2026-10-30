@@ -145,7 +145,8 @@ export class CreateExceptionalAttendanceSessionDto {
 
 export class SessionAttendanceEntryDto {
   @IsUUID() studentId!: string;
-  @IsIn(["present", "absent", "late", "excused"]) status!: "present" | "absent" | "late" | "excused";
+  @IsIn(["present", "absent", "late", "excused"]) status!:
+    "present" | "absent" | "late" | "excused";
   @IsOptional() @IsString() @MaxLength(500) note?: string;
   @IsOptional() @IsInt() @Min(0) @Max(1440) minutesLate?: number;
   @IsOptional() @IsDateString({ strict: true }) arrivalAt?: string;
@@ -273,6 +274,7 @@ export class SetDormAttendanceDelegateDto {
 }
 export class DelegatedDormAttendanceDto {
   @IsUUID() requestId!: string;
+  @IsOptional() @IsUUID() roomId?: string;
   @IsInt() @Min(0) expectedRevision!: number;
   @Matches(/^\d{4}-\d{2}-\d{2}$/)
   @IsDateString({ strict: true })

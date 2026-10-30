@@ -7,6 +7,7 @@ import type {
   AttendanceSessionDetail,
   DormAttendanceAssignment,
   DormAttendanceDelegate,
+  DormAttendanceReviewItem,
   DormAttendanceWrite,
   DormDelegateDraft,
   StaffAttendanceProfile,
@@ -15,21 +16,9 @@ import type {
   TeacherStudentClassAttendanceProfile,
 } from "@moshaver/api-contract";
 
+export type { DormAttendanceReviewItem };
+
 export const getAttendanceOverview = () => api.get<AttendanceDailyOverview>("/attendance/overview");
-export type DormAttendanceReviewItem = {
-  id: string;
-  roomId: string;
-  roomName: string;
-  sessionDate: string;
-  operationalDate: string | null;
-  attendancePeriod: "day" | "night";
-  revision: number;
-  total: number;
-  present: number;
-  attention: Array<{ studentId: string; name: string; status: "absent" | "late" | "excused" }>;
-  supervisorNote: string;
-  reviewUrl: string;
-};
 export const getDormAttendanceReviewQueue = () =>
   api.get<DormAttendanceReviewItem[]>("/attendance/dorm-review-queue");
 export const getDormAttendanceOccurrence = (
@@ -53,6 +42,43 @@ export const reopenDormAttendanceReview = (
   api.post<{ sessionId: string; revision: number; reviewUrl: string; reassigned: boolean }>(
     `/attendance/dorm-sessions/${encodeURIComponent(id)}/reopen`,
     { action, reason },
+  );
+export const markDormStudentUnauthorizedOutside = (
+  sessionId: string,
+  studentId: string,
+  note?: string,
+) =>
+  api.post<{
+    exitPermissionId: string;
+    studentId: string;
+    totalStudents: number;
+    dormResidents: number;
+    currentlyOutside: number;
+    authorizedOutside: number;
+    unauthorizedOutside: number;
+    currentlyInSchool: number;
+  }>(
+    `/attendance/dorm-sessions/${encodeURIComponent(sessionId)}/students/${encodeURIComponent(studentId)}/unauthorized-departure`,
+    { note },
+  );
+export const reportOutsideStudentPresent = (sessionId: string, studentId: string) =>
+  api.post<{ reported: boolean; exitPermissionId: string }>(
+    `/attendance/class-sessions/${encodeURIComponent(sessionId)}/students/${encodeURIComponent(studentId)}/outside-presence-report`,
+    {},
+  );
+export type OutsidePresenceReport = {
+  id: string;
+  studentId: string;
+  studentName: string;
+  requestedAt: string | null;
+  note: string;
+};
+export const getOutsidePresenceReports = () =>
+  api.get<OutsidePresenceReport[]>("/attendance/outside-presence-reports");
+export const verifyOutsidePresenceReport = (id: string) =>
+  api.post<{ verified: boolean; exitPermissionId: string; currentlyInSchool: number }>(
+    `/attendance/outside-presence-reports/${encodeURIComponent(id)}/verify`,
+    {},
   );
 export const finalizeDormAttendanceReview = (id: string) =>
   api.post<{ sessionId: string; status: string; reviewedAt: string }>(

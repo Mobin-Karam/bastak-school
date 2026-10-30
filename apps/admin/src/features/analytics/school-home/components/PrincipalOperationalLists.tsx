@@ -23,12 +23,11 @@ import {
   reviewAttendanceSession,
   type PrincipalDashboardContract,
 } from "../api/principal-dashboard.api";
+import { DormAttendanceReviewInbox } from "../../../student-life/attendance/components/DormAttendanceReviewInbox";
 import {
-  listAttendanceAbsenceReviews,
-  markDormAbsenceOutsideSchool,
-  reviewAttendanceAbsence,
-  type AttendanceAbsenceReview,
-} from "../../../student-life/attendance/api/attendance.api";
+  getDormAttendanceReviewQueue,
+  getOutsidePresenceReports,
+} from "../../../student-life/attendance/api/attendance-operations.api";
 import {
   actOnTeacherStudentReport,
   getTeacherStudentReports,
@@ -104,9 +103,15 @@ export function PrincipalOperationalLists({
   const autoArchiveCancelled = useRef(false);
   const client = useQueryClient();
   const organizationId = auth.context?.activeOrganization?.id;
-  const dorm = useQuery({
-    queryKey: ["attendance", "absence-reviews", "principal-home", organizationId],
-    queryFn: () => listAttendanceAbsenceReviews(organizationId, "dorm"),
+  const dormScope = JSON.stringify([auth.user?.id, auth.activeRole, organizationId]);
+  const dormQueue = useQuery({
+    queryKey: ["dorm-attendance-review-queue", dormScope],
+    queryFn: getDormAttendanceReviewQueue,
+    enabled: canReviewAttendance,
+  });
+  const outsidePresenceReports = useQuery({
+    queryKey: ["attendance", "outside-presence-reports", dormScope],
+    queryFn: getOutsidePresenceReports,
     enabled: canReviewAttendance,
   });
   const reports = useQuery({
@@ -147,31 +152,6 @@ export function PrincipalOperationalLists({
     onSuccess: () => {
       void client.invalidateQueries({ queryKey: ["principal-dashboard"] });
       void client.invalidateQueries({ queryKey: ["attendance"] });
-    },
-  });
-  const reviewDorm = useMutation({
-    mutationFn: ({
-      item,
-      decision,
-      note,
-      outside,
-    }: {
-      item: AttendanceAbsenceReview;
-      decision: "approved" | "rejected";
-      note: string;
-      outside: boolean;
-    }) =>
-      reviewAttendanceAbsence(item.id, { decision, note: note || undefined }).then(
-        async (saved) => {
-          if (decision === "approved" && outside)
-            await markDormAbsenceOutsideSchool(saved.id, note || undefined);
-          return saved;
-        },
-      ),
-    onSuccess: () => {
-      void client.invalidateQueries({ queryKey: ["attendance", "absence-reviews"] });
-      void client.invalidateQueries({ queryKey: ["attendance"] });
-      void client.invalidateQueries({ queryKey: ["principal-dashboard"] });
     },
   });
   const seenReport = useMutation({
@@ -226,13 +206,6 @@ export function PrincipalOperationalLists({
   };
 
   const sessions = sessionReviews?.items ?? [];
-  const pendingDorm = useMemo(
-    () =>
-      (dorm.data ?? []).filter(
-        (item) => item.contextType === "dorm" && item.reviewStatus === "pending",
-      ),
-    [dorm.data],
-  );
   const values = lists ?? {
     teacherSessions: [],
     teacherReports: [],
@@ -241,7 +214,9 @@ export function PrincipalOperationalLists({
     teacherLeaveRequests: [],
   };
   const counts: Record<Panel, number> = {
-    dorm: values.counts?.dorm ?? pendingDorm.length,
+    dorm:
+      (dormQueue.data?.length ?? values.counts?.dorm ?? 0) +
+      (outsidePresenceReports.data?.length ?? 0),
     sessions: sessionReviews?.pendingCount ?? sessions.length,
     reports:
       values.counts?.reports ??
@@ -290,7 +265,6 @@ export function PrincipalOperationalLists({
         <div className="grid gap-3" dir="rtl">
           {updatePolicy.isError ||
           reviewSession.isError ||
-          reviewDorm.isError ||
           seenReport.isError ||
           reportAction.isError ? (
             <p
@@ -308,31 +282,7 @@ export function PrincipalOperationalLists({
               بایگانی خودکار کامل نشد. موارد انجام‌شده ذخیره شده‌اند؛ برای بقیه دوباره تلاش کنید.
             </p>
           ) : null}
-          {active === "dorm" && (
-            <>
-              <p className="text-sm text-muted-foreground">
-                پس از ثبت تصمیم، سابقهٔ اصلی حضور خوابگاه در آرشیو باقی می‌ماند.
-              </p>
-              {dorm.isLoading ? (
-                <LoadingState label="دریافت موارد خوابگاه…" />
-              ) : dorm.isError ? (
-                <ErrorText onRetry={() => void dorm.refetch()} />
-              ) : pendingDorm.length ? (
-                pendingDorm.map((item) => (
-                  <DormReviewRow
-                    key={item.id}
-                    item={item}
-                    onReview={(decision, note, outside) =>
-                      reviewDorm.mutate({ item, decision, note, outside })
-                    }
-                    busy={reviewDorm.isPending}
-                  />
-                ))
-              ) : (
-                <Empty text="غیبت خوابگاهی برای بررسی باقی نمانده است." />
-              )}
-            </>
-          )}
+          {active === "dorm" && <DormAttendanceReviewInbox compact />}
           {active === "sessions" && (
             <>
               {policy.isError ? <ErrorText onRetry={() => void policy.refetch()} /> : null}
@@ -703,62 +653,6 @@ function SessionReviewRow({
           )}
         </div>
       )}
-    </article>
-  );
-}
-
-function DormReviewRow({
-  item,
-  onReview,
-  busy,
-}: {
-  item: AttendanceAbsenceReview;
-  onReview: (decision: "approved" | "rejected", note: string, outside: boolean) => void;
-  busy: boolean;
-}) {
-  const [note, setNote] = useState("");
-  const [outside, setOutside] = useState(false);
-  return (
-    <article className="rounded-2xl border border-[rgb(var(--border-subtle))] p-4">
-      <div className="flex items-start justify-between gap-3">
-        <strong>{item.studentName}</strong>
-        <span className="text-xs text-muted-foreground">{formatDate(item.sessionDate)}</span>
-      </div>
-      <p className="mt-1 text-xs text-muted-foreground">
-        {item.organizationName} · {item.teacherName}
-      </p>
-      <p className="mt-3 text-sm">دلیل ثبت‌شده: {item.reason || "ثبت نشده"}</p>
-      <label className="mt-3 block text-sm font-semibold">
-        یادداشت بررسی
-        <textarea
-          value={note}
-          onChange={(event) => setNote(event.target.value)}
-          maxLength={500}
-          className="mt-2 min-h-16 w-full rounded-xl border border-[rgb(var(--border-subtle))] bg-card p-3 font-normal"
-        />
-      </label>
-      {item.contextType === "dorm" && (
-        <label className="mt-3 flex items-center gap-2 text-sm">
-          <input
-            type="checkbox"
-            checked={outside}
-            onChange={(event) => setOutside(event.target.checked)}
-          />{" "}
-          پس از پذیرش، خارج از مدرسه ثبت شود
-        </label>
-      )}
-      <div className="mt-3 flex flex-wrap gap-2">
-        <Button disabled={busy} onClick={() => onReview("approved", note.trim(), outside)}>
-          پذیرش و ذخیره در آرشیو
-        </Button>
-        <Button
-          variant="soft"
-          disabled={busy}
-          onClick={() => onReview("rejected", note.trim(), false)}
-        >
-          رد دلیل
-        </Button>
-      </div>
     </article>
   );
 }

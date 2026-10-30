@@ -1765,6 +1765,7 @@ export class WorkflowsService {
       returnVerifiedById: row.returnVerifiedBy?.id || null,
       returnVerifiedAt: row.returnVerifiedAt?.toISOString() || null,
       note: row.note,
+      origin: row.origin ?? null,
       status: row.status,
       approverId: row.approver?.id || null,
       reviewedAt: row.reviewedAt?.toISOString() || null,

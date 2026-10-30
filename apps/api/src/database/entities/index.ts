@@ -126,6 +126,10 @@ export { SmsProviderConfiguration } from "./sms-provider-configuration.entity";
 export { AttendancePolicy } from "./attendance-policy.entity";
 export { AttendanceSchedule } from "./attendance-schedule.entity";
 export { DormAttendanceDelegate } from "./dorm-attendance-delegate.entity";
+export {
+  DormRoomAttendanceDelegate,
+  DormWideAttendanceDelegate,
+} from "./dorm-attendance-assignment.entity";
 export { AttendancePool } from "./attendance-pool.entity";
 
 export * from "./timetable.entity";

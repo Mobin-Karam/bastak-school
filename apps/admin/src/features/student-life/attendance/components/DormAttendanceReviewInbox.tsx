@@ -18,11 +18,19 @@ import {
   finalizeDormAttendanceReview,
   forwardDormAttendanceReview,
   getDormAttendanceReviewQueue,
+  getOutsidePresenceReports,
+  markDormStudentUnauthorizedOutside,
   reopenDormAttendanceReview,
+  verifyOutsidePresenceReport,
   type DormAttendanceReviewItem,
 } from "../api/attendance-operations.api";
 
-const statusLabel: Record<string, string> = { absent: "غایب", late: "تأخیر", excused: "موجه" };
+const statusLabel: Record<string, string> = {
+  present: "حاضر",
+  absent: "غایب",
+  late: "تأخیر",
+  excused: "موجه",
+};
 const statusStyle: Record<string, string> = {
   absent:
     "border-rose-300 bg-rose-50 text-rose-900 dark:border-rose-900 dark:bg-rose-950/40 dark:text-rose-100",
@@ -32,7 +40,7 @@ const statusStyle: Record<string, string> = {
 };
 
 /** Shared supervisor review and principal final-approval inbox for completed room roll calls. */
-export function DormAttendanceReviewInbox() {
+export function DormAttendanceReviewInbox({ compact = false }: { compact?: boolean }) {
   const auth = useAuth();
   const navigate = useNavigate();
   const cache = useQueryClient();
@@ -50,13 +58,25 @@ export function DormAttendanceReviewInbox() {
     enabled,
     refetchInterval: enabled ? 30000 : false,
   });
+  const outsideReports = useQuery({
+    queryKey: ["attendance", "outside-presence-reports", scope],
+    queryFn: getOutsidePresenceReports,
+    enabled: enabled && isPrincipal,
+    refetchInterval: enabled && isPrincipal ? 30000 : false,
+  });
   const [selected, setSelected] = useState<DormAttendanceReviewItem | null>(null);
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
   const [reopenConfirm, setReopenConfirm] = useState(false);
+  const [verifyingOutsideId, setVerifyingOutsideId] = useState<string | null>(null);
   if (!enabled) return null;
   const refresh = () =>
-    void cache.invalidateQueries({ queryKey: ["dorm-attendance-review-queue", scope] });
+    void Promise.all([
+      cache.invalidateQueries({ queryKey: ["dorm-attendance-review-queue", scope] }),
+      cache.invalidateQueries({ queryKey: ["attendance", "outside-presence-reports", scope] }),
+      cache.invalidateQueries({ queryKey: ["attendance", "participants"] }),
+      cache.invalidateQueries({ queryKey: ["principal-dashboard"] }),
+    ]);
   async function forward() {
     if (!selected || busy) return;
     setBusy(true);
@@ -117,7 +137,9 @@ export function DormAttendanceReviewInbox() {
   }
   return (
     <>
-      <Card className="space-y-3 rounded-2xl p-4 sm:p-5">
+      <Card
+        className={`space-y-3 rounded-2xl p-4 sm:p-5 ${compact ? "border-0 p-0 shadow-none" : ""}`}
+      >
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-2">
             <span className="grid size-10 place-items-center rounded-xl bg-amber-100 text-amber-800 dark:bg-amber-950/50 dark:text-amber-200">
@@ -127,11 +149,13 @@ export function DormAttendanceReviewInbox() {
               <h2 className="font-black">
                 {isPrincipal ? "تأیید نهایی حضور خوابگاه" : "بازبینی حضور اتاق‌ها"}
               </h2>
-              <p className="text-xs text-slate-500">
-                {isPrincipal
-                  ? "گزارش‌های بررسی‌شده توسط ناظر"
-                  : "اتاق‌های ثبت‌شده و موارد نیازمند توجه"}
-              </p>
+              {!compact ? (
+                <p className="text-xs text-slate-500">
+                  {isPrincipal
+                    ? "گزارش‌های بررسی‌شده توسط ناظر"
+                    : "اتاق‌های ثبت‌شده و موارد نیازمند توجه"}
+                </p>
+              ) : null}
             </div>
           </div>
           <span className="rounded-full bg-amber-100 px-3 py-1.5 text-sm font-black text-amber-900 dark:bg-amber-950/50 dark:text-amber-100">
@@ -178,11 +202,73 @@ export function DormAttendanceReviewInbox() {
                 {item.attendancePeriod === "night" ? "شب · اصلی" : "روز"} ·{" "}
                 {item.operationalDate ??
                   new Date(item.sessionDate).toLocaleDateString("fa-IR-u-ca-persian")}{" "}
-                · {item.present}/{item.total} حاضر
+                · {item.present}/{item.total} حاضر ·{" "}
+                {item.attendanceRole === "primary" ? "ثبت اصلی" : "بررسی اتاق"}
               </span>
             </button>
           ))}
         </div>
+        {isPrincipal ? (
+          <section
+            className="space-y-2 border-t border-[rgb(var(--border-subtle))] pt-3"
+            aria-label="گزارش حضور دانش‌آموز خارج از مدرسه"
+          >
+            <h3 className="font-black">گزارش حضور در کلاس برای دانش‌آموزان خارج از مدرسه</h3>
+            {outsideReports.isLoading ? (
+              <p className="text-sm text-slate-500">دریافت گزارش‌ها…</p>
+            ) : null}
+            {outsideReports.isError ? (
+              <p role="alert" className="text-sm text-rose-700">
+                گزارش‌ها دریافت نشد.{" "}
+                <button className="underline" onClick={() => void outsideReports.refetch()}>
+                  تلاش دوباره
+                </button>
+              </p>
+            ) : null}
+            {!outsideReports.isLoading &&
+            !outsideReports.isError &&
+            !outsideReports.data?.length ? (
+              <p className="text-sm text-slate-500">گزارش حضور تأییدنشده‌ای وجود ندارد.</p>
+            ) : null}
+            {outsideReports.data?.map((report) => (
+              <article
+                key={report.id}
+                className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-rose-300 bg-rose-50 p-3 text-rose-950 dark:border-rose-900 dark:bg-rose-950/30 dark:text-rose-100"
+              >
+                <div>
+                  <strong>{report.studentName}</strong>
+                  <p className="mt-1 text-xs">
+                    استاد می‌گوید دانش‌آموز در کلاس حاضر است. تأیید شما او را به آمار داخل مدرسه
+                    برمی‌گرداند.
+                  </p>
+                  {report.note ? <p className="mt-1 text-xs">{report.note}</p> : null}
+                </div>
+                <button
+                  type="button"
+                  disabled={verifyingOutsideId === report.id}
+                  onClick={async () => {
+                    setVerifyingOutsideId(report.id);
+                    try {
+                      await verifyOutsidePresenceReport(report.id);
+                      notify("بازگشت دانش‌آموز تأیید شد و آمار داخل مدرسه به‌روز شد.", "success");
+                      refresh();
+                    } catch (error) {
+                      notify(
+                        error instanceof Error ? error.message : "تأیید بازگشت انجام نشد.",
+                        "error",
+                      );
+                    } finally {
+                      setVerifyingOutsideId(null);
+                    }
+                  }}
+                  className="min-h-10 rounded-lg bg-rose-800 px-3 text-xs font-black text-white disabled:opacity-50"
+                >
+                  تأیید حضور و بازگشت
+                </button>
+              </article>
+            ))}
+          </section>
+        ) : null}
       </Card>
       {selected ? (
         <ResponsiveDrawer
@@ -213,6 +299,49 @@ export function DormAttendanceReviewInbox() {
                 <b className="text-lg">{selected.attention.length}</b>
               </div>
             </div>
+            <div className="rounded-xl border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-muted))] p-3 text-sm">
+              <p className="font-black">تطبیق ثبت‌ها</p>
+              <p className="mt-1 text-xs leading-6 text-slate-600 dark:text-slate-300">
+                مسئول ثبت: {selected.delegateStudentName ?? "ثبت دستی ناظر"} · ثبت‌شده{" "}
+                {selected.recorded} از {selected.total} نفر
+              </p>
+              <p className="text-xs leading-6 text-slate-600 dark:text-slate-300">
+                ساکنان خوابگاه: {selected.schoolPresence.dormResidents} نفر · مدرسه:{" "}
+                {selected.schoolPresence.totalStudents} نفر · داخل{" "}
+                {selected.schoolPresence.currentlyInSchool} · خارج{" "}
+                {selected.schoolPresence.currentlyOutside} (مجوزدار{" "}
+                {selected.schoolPresence.authorizedOutside}، غیرمجاز{" "}
+                {selected.schoolPresence.unauthorizedOutside})
+              </p>
+              <p
+                className={`mt-1 text-xs font-bold ${selected.comparison.state === "mismatch" ? "text-rose-700 dark:text-rose-300" : selected.comparison.state === "matched" ? "text-emerald-700 dark:text-emerald-300" : "text-amber-700 dark:text-amber-300"}`}
+              >
+                {selected.comparison.state === "waiting"
+                  ? "ثبت مسئول اتاق هنوز برای مقایسه نرسیده است."
+                  : selected.comparison.state === "matched"
+                    ? "ثبت مسئول اتاق با ثبت اصلی یکسان است."
+                    : `${selected.comparison.mismatchCount} اختلاف با ثبت ${selected.attendanceRole === "primary" ? "مسئول اتاق" : "اصلی"}`}
+              </p>
+              {selected.comparison.differences.length ? (
+                <ul className="mt-2 space-y-1 text-xs">
+                  {selected.comparison.differences.map((difference) => (
+                    <li
+                      key={difference.studentId}
+                      className="rounded-lg bg-rose-50 px-2 py-1 text-rose-900 dark:bg-rose-950/40 dark:text-rose-100"
+                    >
+                      {difference.name}: اصلی{" "}
+                      {statusLabel[difference.primaryStatus ?? ""] ??
+                        difference.primaryStatus ??
+                        "ثبت‌نشده"}{" "}
+                      · اتاق{" "}
+                      {statusLabel[difference.roomCheckStatus ?? ""] ??
+                        difference.roomCheckStatus ??
+                        "ثبت‌نشده"}
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
+            </div>
             {selected.attention.length ? (
               <div className="space-y-2">
                 {selected.attention.map((person) => (
@@ -222,8 +351,66 @@ export function DormAttendanceReviewInbox() {
                   >
                     <span className="font-black">{person.name}</span>
                     <span className="shrink-0 rounded-lg bg-white/80 px-2.5 py-1 text-xs font-black dark:bg-black/20">
-                      {statusLabel[person.status]}
+                      {person.authorizedOutside ? "خارج با مجوز" : statusLabel[person.status]}
+                      {person.illegalDeparture ? " · خروج غیرمجاز" : ""}
                     </span>
+                    {(isPrincipal || isSupervisor) &&
+                    selected.attendanceRole === "primary" &&
+                    person.status === "absent" &&
+                    !person.authorizedOutside ? (
+                      <button
+                        type="button"
+                        disabled={busy}
+                        onClick={async () => {
+                          if (
+                            !window.confirm(
+                              `خروج ${person.name} بدون مجوز را ثبت می‌کنید؟ این اقدام آمار افراد داخل مدرسه را به‌روز می‌کند.`,
+                            )
+                          )
+                            return;
+                          setBusy(true);
+                          try {
+                            const result = await markDormStudentUnauthorizedOutside(
+                              selected.id,
+                              person.studentId,
+                            );
+                            setSelected({
+                              ...selected,
+                              schoolPresence: {
+                                totalStudents: result.totalStudents,
+                                dormResidents: result.dormResidents,
+                                currentlyInSchool: result.currentlyInSchool,
+                                currentlyOutside: result.currentlyOutside,
+                                authorizedOutside: result.authorizedOutside,
+                                unauthorizedOutside: result.unauthorizedOutside,
+                              },
+                              attention: selected.attention.map((entry) =>
+                                entry.studentId === person.studentId
+                                  ? {
+                                      ...entry,
+                                      authorizedOutside: false,
+                                      illegalDeparture: true,
+                                      exitPermissionId: result.exitPermissionId,
+                                    }
+                                  : entry,
+                              ),
+                            });
+                            refresh();
+                            notify("خروج بدون مجوز ثبت شد و آمار حضور مدرسه به‌روز شد.", "success");
+                          } catch (error) {
+                            notify(
+                              error instanceof Error ? error.message : "ثبت خروج انجام نشد.",
+                              "error",
+                            );
+                          } finally {
+                            setBusy(false);
+                          }
+                        }}
+                        className="min-h-10 rounded-lg border border-rose-400 bg-white px-2 text-xs font-black text-rose-800 dark:bg-slate-950 dark:text-rose-200"
+                      >
+                        ثبت خروج غیرمجاز
+                      </button>
+                    ) : null}
                   </div>
                 ))}
               </div>
@@ -242,6 +429,12 @@ export function DormAttendanceReviewInbox() {
                   placeholder="توضیح کوتاه برای مدیر…"
                 />
               </label>
+            ) : null}
+            {!isPrincipal && selected.attendanceRole === "room_check" ? (
+              <p className="rounded-xl bg-sky-50 p-3 text-sm font-bold text-sky-900 dark:bg-sky-950/40 dark:text-sky-100">
+                این مشاهدهٔ مستقل برای مقایسه است و به فهرست نهایی مدیر ارسال نمی‌شود؛ ثبت اصلی،
+                مبنای بایگانی است.
+              </p>
             ) : null}
             {reopenConfirm ? (
               <div className="space-y-3 rounded-2xl border border-rose-300 bg-rose-50 p-4 dark:border-rose-900 dark:bg-rose-950/30">
@@ -279,7 +472,7 @@ export function DormAttendanceReviewInbox() {
               </div>
             ) : (
               <div className="grid gap-2 sm:grid-cols-2">
-                {!isPrincipal ? (
+                {!isPrincipal && selected.delegateStudentId ? (
                   <button
                     type="button"
                     disabled={busy}
@@ -302,21 +495,23 @@ export function DormAttendanceReviewInbox() {
                     رد و ثبت دوباره
                   </button>
                 ) : null}
-                <button
-                  type="button"
-                  disabled={busy}
-                  onClick={() => void (isPrincipal ? finalize() : forward())}
-                  className="flex min-h-12 items-center justify-center gap-2 rounded-xl bg-brand px-4 font-bold text-white disabled:opacity-50"
-                >
-                  {busy ? (
-                    <LoaderCircle className="animate-spin" size={18} />
-                  ) : isPrincipal ? (
-                    <Check size={18} />
-                  ) : (
-                    <ShieldCheck size={18} />
-                  )}{" "}
-                  {isPrincipal ? "تأیید و بایگانی" : "ارسال برای تأیید مدیر"}
-                </button>
+                {!isPrincipal && selected.attendanceRole === "room_check" ? null : (
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => void (isPrincipal ? finalize() : forward())}
+                    className="flex min-h-12 items-center justify-center gap-2 rounded-xl bg-brand px-4 font-bold text-white disabled:opacity-50"
+                  >
+                    {busy ? (
+                      <LoaderCircle className="animate-spin" size={18} />
+                    ) : isPrincipal ? (
+                      <Check size={18} />
+                    ) : (
+                      <ShieldCheck size={18} />
+                    )}{" "}
+                    {isPrincipal ? "تأیید و بایگانی" : "ارسال برای تأیید مدیر"}
+                  </button>
+                )}
               </div>
             )}
           </div>

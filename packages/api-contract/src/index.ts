@@ -288,6 +288,9 @@ export type {
 export type {
   DormAttendanceDelegate,
   DormAttendanceAssignment,
+  DormAttendanceComparison,
+  DormAttendanceReviewItem,
+  DormSchoolPresence,
   DormDelegateDraft,
   DormAttendanceWrite,
   AttendancePoolDraft,

@@ -10,14 +10,40 @@ const expectations = {
   RepairDormAttendancePeriod1762700000000: {
     "attendance_sessions.attendancePeriod": { nullable: true, value: "null" },
   },
+  DormAttendancePrimaryAndRoomChecks1762800000000: {
+    "attendance_sessions.dormAttendanceRole": { nullable: true, value: "null" },
+    "attendance_sessions.dormDelegateStudentIdSnapshot": {
+      nullable: true,
+      value: "null",
+    },
+    "attendance_sessions.dormDelegateStudentNameSnapshot": {
+      nullable: true,
+      value: "null",
+    },
+  },
+  DormUnauthorizedDepartureOrigin1762900000000: {
+    "exit_permissions.origin": { nullable: true, value: "null" },
+  },
   DormAttendanceReviewHandoff1762600000000: {
     "attendance_sessions.attendancePeriod": { nullable: true, value: "null" },
-    "attendance_sessions.dormSupervisorReviewedById": { nullable: true, value: "null" },
-    "attendance_sessions.dormSupervisorReviewedAt": { nullable: true, value: "null" },
+    "attendance_sessions.dormSupervisorReviewedById": {
+      nullable: true,
+      value: "null",
+    },
+    "attendance_sessions.dormSupervisorReviewedAt": {
+      nullable: true,
+      value: "null",
+    },
     "attendance_sessions.dormSupervisorNote": { nullable: true, value: "null" },
     "attendance_sessions.dormForwardedAt": { nullable: true, value: "null" },
-    "attendance_sessions.dormPrincipalReviewedById": { nullable: true, value: "null" },
-    "attendance_sessions.dormPrincipalReviewedAt": { nullable: true, value: "null" },
+    "attendance_sessions.dormPrincipalReviewedById": {
+      nullable: true,
+      value: "null",
+    },
+    "attendance_sessions.dormPrincipalReviewedAt": {
+      nullable: true,
+      value: "null",
+    },
   },
   // Existing leave rows have no meal choice or linked movement. The migration is
   // additive: false is the safe meal default and the relationship remains null.

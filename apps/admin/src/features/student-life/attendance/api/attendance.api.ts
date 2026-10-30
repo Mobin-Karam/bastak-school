@@ -58,6 +58,10 @@ export const getAttendanceParticipants = (
       nationalCode?: string | null;
       approvedLeave?: { startsAt: string; endsAt: string } | null;
       overdueReturn?: boolean;
+      outsideSchool?: boolean;
+      outsideSince?: string | null;
+      outsideExitPermissionId?: string | null;
+      outsidePresenceReported?: boolean;
     }>
   >(
     `/attendance/context/${encodeURIComponent(contextType)}/${encodeURIComponent(contextId)}/participants${occurrence?.date ? `?${new URLSearchParams({ date: occurrence.date, period: occurrence.period ?? "night" }).toString()}` : ""}`,

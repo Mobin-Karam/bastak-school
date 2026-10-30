@@ -21,6 +21,7 @@ import { AttendanceCoin } from "../../../../shared/ui/attendance-coin";
 import { DatePicker } from "../../../../shared/ui/date-picker";
 import { ResponsiveDrawer } from "../../../../shared/ui/responsive-drawer";
 import { TeacherStudentAttendanceProfile } from "./TeacherStudentAttendanceProfile";
+import { reportOutsideStudentPresent } from "../../../student-life/attendance/api/attendance-operations.api";
 
 type AttendanceStatus = SelfAttendanceRecord["status"];
 
@@ -266,6 +267,27 @@ export function TeacherClassAttendanceSheet({
     onError: (error) =>
       notify(error instanceof Error ? error.message : "ارسال گزارش انجام نشد.", "error"),
   });
+  const reportOutsidePresence = useMutation({
+    mutationFn: (studentId: string) => {
+      if (!savedSessionId) throw new Error("ابتدا حضور جلسه را ذخیره کنید.");
+      return reportOutsideStudentPresent(savedSessionId, studentId);
+    },
+    onSuccess: (_result, studentId) => {
+      client.setQueryData(
+        ["attendance", "participants", scopeKey, "class", entry?.classroom?.id],
+        (current: typeof participants.data) =>
+          current?.map((student) =>
+            student.id === studentId ? { ...student, outsidePresenceReported: true } : student,
+          ),
+      );
+      notify(
+        "گزارش حضور برای تأیید مدیر ارسال شد؛ آمار مدرسه پس از تأیید تغییر می‌کند.",
+        "success",
+      );
+    },
+    onError: (error) =>
+      notify(error instanceof Error ? error.message : "ارسال گزارش حضور انجام نشد.", "error"),
+  });
 
   // A complete "present" register is the starting state, not an unsaved edit.
   // This keeps the leave guard for actual exceptions while allowing a teacher to
@@ -471,7 +493,7 @@ export function TeacherClassAttendanceSheet({
                 {participants.data.map((student) => (
                   <li
                     key={student.id}
-                    className={`rounded-2xl border bg-[rgb(var(--surface-muted))] p-3 ${recentAbsenceCounts[student.id] ? "border-amber-400 ring-1 ring-amber-300/70 dark:border-amber-500 dark:ring-amber-500/40" : "border-[rgb(var(--border-subtle))]"}`}
+                    className={`rounded-2xl border bg-[rgb(var(--surface-muted))] p-3 ${student.outsideSchool ? "border-rose-600 ring-2 ring-rose-400/60 dark:border-rose-400 dark:ring-rose-500/50" : recentAbsenceCounts[student.id] ? "border-amber-400 ring-1 ring-amber-300/70 dark:border-amber-500 dark:ring-amber-500/40" : "border-[rgb(var(--border-subtle))]"}`}
                   >
                     <div className="flex items-center justify-between gap-2">
                       <div className="flex min-w-0 items-center gap-2">
@@ -497,6 +519,30 @@ export function TeacherClassAttendanceSheet({
                         </span>
                       </div>
                     </div>
+                    {student.outsideSchool ? (
+                      <div className="mt-2 flex flex-wrap items-center justify-between gap-2 rounded-lg bg-rose-100 px-3 py-2 text-xs font-black text-rose-950 dark:bg-rose-950/60 dark:text-rose-100">
+                        <span>
+                          {student.outsidePresenceReported
+                            ? "گزارش حضور در انتظار تأیید مدیر"
+                            : "خارج از مدرسه"}
+                        </span>
+                        {student.outsidePresenceReported ? null : marks[student.id] === "present" &&
+                          savedSessionId ? (
+                          <button
+                            type="button"
+                            disabled={reportOutsidePresence.isPending}
+                            onClick={() => reportOutsidePresence.mutate(student.id)}
+                            className="min-h-9 rounded-lg border border-rose-500 bg-white px-3 font-bold text-rose-900 disabled:opacity-50 dark:bg-slate-950 dark:text-rose-100"
+                          >
+                            گزارش حضور به مدیر
+                          </button>
+                        ) : (
+                          <span className="font-medium">
+                            برای گزارش، حضور را ثبت و جلسه را ذخیره کنید.
+                          </span>
+                        )}
+                      </div>
+                    ) : null}
                     {canManageSelectedSession ? (
                       <div
                         className="mt-3 grid grid-cols-4 gap-1.5"

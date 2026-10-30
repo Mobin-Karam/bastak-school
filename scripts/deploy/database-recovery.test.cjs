@@ -16,6 +16,35 @@ function fixture() {
   return db;
 }
 
+test("preserves existing dorm attendance and exit permissions while adding delegate snapshots and departure origin", () => {
+  const db = new Database(":memory:");
+  db.exec(`
+    CREATE TABLE attendance_sessions (id TEXT PRIMARY KEY, title TEXT NOT NULL);
+    CREATE TABLE exit_permissions (id TEXT PRIMARY KEY, status TEXT NOT NULL);
+    CREATE TABLE migrations (name TEXT);
+    INSERT INTO attendance_sessions VALUES ('session-1', 'Dorm attendance');
+    INSERT INTO exit_permissions VALUES ('exit-1', 'approved');
+  `);
+  const before = inventory(db);
+  db.exec(`
+    ALTER TABLE attendance_sessions ADD COLUMN dormAttendanceRole TEXT;
+    ALTER TABLE attendance_sessions ADD COLUMN dormDelegateStudentIdSnapshot TEXT;
+    ALTER TABLE attendance_sessions ADD COLUMN dormDelegateStudentNameSnapshot TEXT;
+    ALTER TABLE exit_permissions ADD COLUMN origin TEXT;
+    INSERT INTO migrations VALUES ('DormAttendancePrimaryAndRoomChecks1762800000000');
+    INSERT INTO migrations VALUES ('DormUnauthorizedDepartureOrigin1762900000000');
+  `);
+  assert.doesNotThrow(() => preserved(before, inventory(db), db));
+  db.prepare(
+    "UPDATE exit_permissions SET origin='dorm_unauthorized' WHERE id='exit-1'",
+  ).run();
+  assert.throws(
+    () => preserved(before, inventory(db), db),
+    /non-null value in origin/,
+  );
+  db.close();
+});
+
 test("permits only the migration's orphaned scoped-role deletion", () => {
   const db = fixture();
   const before = inventory(db);
@@ -64,7 +93,9 @@ test("preserves historical leave requests while adding timed departure details",
     INSERT INTO migrations VALUES ('StudentLeaveTimingAndMeals1762500000000');
   `);
   assert.doesNotThrow(() => preserved(before, inventory(db), db));
-  db.prepare("UPDATE leave_requests SET includesLunch=1 WHERE id='leave-1'").run();
+  db.prepare(
+    "UPDATE leave_requests SET includesLunch=1 WHERE id='leave-1'",
+  ).run();
   assert.throws(
     () => preserved(before, inventory(db), db),
     /non-default value in includesLunch/,
