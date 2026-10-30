@@ -18,6 +18,7 @@ import {
   X,
 } from "lucide-react";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import { listOrganizations } from "../../../identity/access/api/access.api";
 import { useAuth } from "../../../identity/auth";
 import { listClasses, type EducationClass } from "../../education/api/classes.api";
@@ -718,7 +719,7 @@ export function LegacySchedulePage() {
         />
       ) : null} */}
       <header
-        className="-mx-3 mb-0 grid gap-3 border-y border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card))] px-3 py-3 shadow-[var(--shadow-surface)] sm:-mx-5 sm:px-5 sm:py-4 lg:-mx-6 lg:px-6 xl:-mx-8 xl:px-8"
+        className="-mx-3 mb-0 grid gap-3 border-y border-sky-300/70 bg-sky-50/70 px-3 py-3 shadow-[var(--shadow-surface)] dark:border-sky-400/25 dark:bg-sky-950/25 sm:-mx-5 sm:px-5 sm:py-4 lg:-mx-6 lg:px-6 xl:-mx-8 xl:px-8"
         dir="rtl"
       >
         <div className="flex flex-wrap items-center justify-between gap-3">
@@ -830,6 +831,10 @@ export function LegacySchedulePage() {
             ) : null}
           </div>
         ) : null}
+        <div
+          id="schedule-header-tabs"
+          className="min-h-[3.75rem] border-t border-sky-300/70 pt-2 dark:border-sky-400/25"
+        />
       </header>
       <section
         className="relative mt-4 grid w-full max-w-none gap-4 pb-[calc(6rem+env(safe-area-inset-bottom))] min-[1200px]:pb-6"
@@ -1138,6 +1143,10 @@ function ScheduleWorkspace({
   const [layout, setLayout] = useState<"classes" | "time-blocks">("classes");
   const [archiveOpen, setArchiveOpen] = useState(false);
   const [archiveClassId, setArchiveClassId] = useState<string | null>(null);
+  const [headerTabsMount, setHeaderTabsMount] = useState<HTMLElement | null>(null);
+  useEffect(() => {
+    setHeaderTabsMount(document.getElementById("schedule-header-tabs"));
+  }, []);
   const selectedClassroom =
     activeTab === "main"
       ? undefined
@@ -1180,8 +1189,8 @@ function ScheduleWorkspace({
           onOpenDetails={onOpenDetails}
         />
       ) : (
-        <Card className="overflow-hidden p-0 shadow-[0_16px_28px_-26px_rgba(18,52,86,.45)]">
-          <div className="flex items-center justify-between gap-3 border-b border-[rgb(var(--border-subtle))] px-3 py-3 sm:px-4">
+        <Card className="overflow-hidden border-sky-200/80 bg-sky-50/30 p-0 shadow-[0_16px_28px_-26px_rgba(18,52,86,.45)] dark:border-sky-400/20 dark:bg-sky-950/10">
+          <div className="flex items-center justify-between gap-3 border-b border-sky-200/80 px-3 py-3 sm:px-4 dark:border-sky-400/20">
             <div className="flex min-w-0 items-center gap-2">
               <CalendarClock size={19} className="shrink-0 text-brand" aria-hidden="true" />
               <div>
@@ -1201,7 +1210,7 @@ function ScheduleWorkspace({
           </div>
 
           <div
-            className="flex flex-wrap gap-1 border-b border-[rgb(var(--border-subtle))] px-3 py-2 sm:px-4"
+            className="flex flex-wrap gap-1 border-b border-sky-200/80 bg-sky-100/35 px-3 py-2 sm:px-4 dark:border-sky-400/20 dark:bg-sky-950/20"
             role="tablist"
             aria-label="نمای برنامه"
           >
@@ -1281,7 +1290,7 @@ function ScheduleWorkspace({
                   aria-label="دفتر برنامه هفتگی کلاس‌ها"
                 >
                   <thead className="sticky top-0 z-20">
-                    <tr className="bg-[rgb(var(--surface-muted))] text-ink">
+                    <tr className="bg-sky-100/70 text-sky-950 dark:bg-sky-950/45 dark:text-sky-50">
                       <th
                         scope="col"
                         className="sticky right-0 z-20 w-36 border-s border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-muted))] px-3 py-3 text-center text-sm font-black text-ink"
@@ -1395,85 +1404,92 @@ function ScheduleWorkspace({
         </Card>
       )}
 
-      <nav
-        aria-label="برگه‌های فضای کاری برنامه"
-        role="group"
-        className="sticky top-0 z-30 order-first -mx-3 mb-14 flex min-h-[4.5rem] w-[calc(100%+1.5rem)] items-center gap-3 overflow-x-auto border-b border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card)_/_94%)] px-3 py-2 shadow-[0_10px_22px_-22px_rgba(15,23,42,.5)] backdrop-blur-md dark:bg-[rgb(var(--surface-card)_/_94%)] sm:-mx-5 sm:w-[calc(100%+2.5rem)] sm:px-5 lg:-mx-6 lg:w-[calc(100%+3rem)] lg:px-6 xl:-mx-8 xl:w-[calc(100%+4rem)] xl:px-8 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-        dir="rtl"
-      >
-        <div className="hidden shrink-0 border-e border-[rgb(var(--border-subtle))] pe-3 sm:block">
-          <p className="text-sm font-black text-ink">برنامه هفتگی</p>
-          <p className="mt-0.5 text-[11px] text-slate-500 dark:text-slate-300">فضای کاری کلاس‌ها</p>
-        </div>
-        <button
-          type="button"
-          id="schedule-main-tab"
-          aria-controls="schedule-workspace-panel"
-          aria-pressed={activeTab === "main"}
-          onClick={() => setActiveTab("main")}
-          aria-current={activeTab === "main" ? "page" : undefined}
-          className={`shrink-0 rounded-t-xl border border-b-0 px-3 py-2.5 text-xs font-black outline-none transition focus-visible:ring-2 focus-visible:ring-brand ${
-            activeTab === "main"
-              ? "border-brand bg-brand text-white shadow-sm"
-              : "border-transparent bg-[rgb(var(--surface-muted))] text-slate-600 hover:border-slate-200 hover:bg-white dark:text-slate-200 dark:hover:border-white/15 dark:hover:bg-white/10"
-          }`}
-        >
-          برنامه اصلی
-        </button>
-        {classTabIds.map((classroomId) => {
-          const classroom = activeClasses.find((item) => item.id === classroomId);
-          if (!classroom) return null;
-          const active = activeTab === classroomId;
-          return (
-            <span
-              key={classroomId}
-              className={`flex shrink-0 items-center gap-1 rounded-t-xl border border-b-0 ps-3 pe-1 py-1.5 text-xs font-black transition ${
-                active
-                  ? "border-brand bg-brand text-white shadow-sm"
-                  : "border-transparent bg-[rgb(var(--surface-muted))] text-slate-600 hover:border-slate-200 hover:bg-white dark:text-slate-200 dark:hover:border-white/15 dark:hover:bg-white/10"
-              }`}
+      {headerTabsMount
+        ? createPortal(
+            <nav
+              aria-label="برگه‌های فضای کاری برنامه"
+              role="group"
+              className="flex min-h-[3.25rem] items-center gap-2 overflow-x-auto px-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+              dir="rtl"
             >
+              <div className="hidden shrink-0 border-e border-[rgb(var(--border-subtle))] pe-3 sm:block">
+                <p className="text-sm font-black text-ink">برنامه هفتگی</p>
+                <p className="mt-0.5 text-[11px] text-slate-500 dark:text-slate-300">
+                  فضای کاری کلاس‌ها
+                </p>
+              </div>
               <button
                 type="button"
-                id={`schedule-class-tab-${classroomId}`}
+                id="schedule-main-tab"
                 aria-controls="schedule-workspace-panel"
-                aria-pressed={active}
-                onClick={() => setActiveTab(classroomId)}
-                className="rounded-lg px-1 py-1 outline-none focus-visible:ring-2 focus-visible:ring-current"
+                aria-pressed={activeTab === "main"}
+                onClick={() => setActiveTab("main")}
+                aria-current={activeTab === "main" ? "page" : undefined}
+                className={`shrink-0 rounded-t-xl border border-b-0 px-3 py-2.5 text-xs font-black outline-none transition focus-visible:ring-2 focus-visible:ring-brand ${
+                  activeTab === "main"
+                    ? "border-brand bg-brand text-white shadow-sm"
+                    : "border-transparent bg-[rgb(var(--surface-muted))] text-slate-600 hover:border-slate-200 hover:bg-white dark:text-slate-200 dark:hover:border-white/15 dark:hover:bg-white/10"
+                }`}
               >
-                {classroom.name}
+                برنامه اصلی
               </button>
+              {classTabIds.map((classroomId) => {
+                const classroom = activeClasses.find((item) => item.id === classroomId);
+                if (!classroom) return null;
+                const active = activeTab === classroomId;
+                return (
+                  <span
+                    key={classroomId}
+                    className={`flex shrink-0 items-center gap-1 rounded-t-xl border border-b-0 ps-3 pe-1 py-1.5 text-xs font-black transition ${
+                      active
+                        ? "border-brand bg-brand text-white shadow-sm"
+                        : "border-transparent bg-[rgb(var(--surface-muted))] text-slate-600 hover:border-slate-200 hover:bg-white dark:text-slate-200 dark:hover:border-white/15 dark:hover:bg-white/10"
+                    }`}
+                  >
+                    <button
+                      type="button"
+                      id={`schedule-class-tab-${classroomId}`}
+                      aria-controls="schedule-workspace-panel"
+                      aria-pressed={active}
+                      onClick={() => setActiveTab(classroomId)}
+                      className="rounded-lg px-1 py-1 outline-none focus-visible:ring-2 focus-visible:ring-current"
+                    >
+                      {classroom.name}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => closeClassTab(classroomId)}
+                      className="grid size-7 place-items-center rounded-lg outline-none transition hover:bg-black/10 focus-visible:ring-2 focus-visible:ring-current"
+                      aria-label={`بستن برگه ${classroom.name}`}
+                    >
+                      <X size={14} aria-hidden="true" />
+                    </button>
+                  </span>
+                );
+              })}
               <button
                 type="button"
-                onClick={() => closeClassTab(classroomId)}
-                className="grid size-7 place-items-center rounded-lg outline-none transition hover:bg-black/10 focus-visible:ring-2 focus-visible:ring-current"
-                aria-label={`بستن برگه ${classroom.name}`}
+                onClick={() => setClassPickerOpen((open) => !open)}
+                aria-expanded={classPickerOpen}
+                aria-controls="schedule-class-picker"
+                className={`ms-auto grid size-9 shrink-0 place-items-center rounded-lg border outline-none transition focus-visible:ring-2 focus-visible:ring-brand ${
+                  classPickerOpen
+                    ? "border-brand bg-brand text-white"
+                    : "border-dashed border-brand/45 bg-brand/5 text-brand hover:bg-brand/10"
+                }`}
+                aria-label={classPickerOpen ? "بستن انتخاب کلاس" : "باز کردن انتخاب کلاس"}
+                title={classPickerOpen ? "بستن انتخاب کلاس" : "باز کردن برنامه یک کلاس"}
               >
-                <X size={14} aria-hidden="true" />
+                {classPickerOpen ? (
+                  <X size={17} aria-hidden="true" />
+                ) : (
+                  <Plus size={18} aria-hidden="true" />
+                )}
               </button>
-            </span>
-          );
-        })}
-        <button
-          type="button"
-          onClick={() => setClassPickerOpen((open) => !open)}
-          aria-expanded={classPickerOpen}
-          aria-controls="schedule-class-picker"
-          className={`ms-auto grid size-9 shrink-0 place-items-center rounded-lg border outline-none transition focus-visible:ring-2 focus-visible:ring-brand ${
-            classPickerOpen
-              ? "border-brand bg-brand text-white"
-              : "border-dashed border-brand/45 bg-brand/5 text-brand hover:bg-brand/10"
-          }`}
-          aria-label={classPickerOpen ? "بستن انتخاب کلاس" : "باز کردن انتخاب کلاس"}
-          title={classPickerOpen ? "بستن انتخاب کلاس" : "باز کردن برنامه یک کلاس"}
-        >
-          {classPickerOpen ? (
-            <X size={17} aria-hidden="true" />
-          ) : (
-            <Plus size={18} aria-hidden="true" />
-          )}
-        </button>
-      </nav>
+            </nav>,
+            headerTabsMount,
+          )
+        : null}
       {isCompactWorkspace ? (
         <div
           className={`sticky ${isMobileShell ? "bottom-[calc(4.5rem+env(safe-area-inset-bottom))]" : "bottom-2"} z-20 -mx-2 flex gap-2 rounded-2xl border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card)_/_96%)] p-2 shadow-[0_12px_30px_-16px_rgba(15,23,42,.5)] backdrop-blur motion-reduce:backdrop-blur-none`}
@@ -1510,11 +1526,11 @@ function ScheduleWorkspace({
       {archivedEntries.length ? (
         <>
           <footer
-            className="sticky bottom-2 z-20 flex items-center justify-between gap-3 rounded-2xl border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card)_/_96%)] px-3 py-2 shadow-[0_12px_30px_-16px_rgba(15,23,42,.5)] backdrop-blur motion-reduce:backdrop-blur-none sm:px-4"
+            className="sticky bottom-2 z-20 flex items-center justify-between gap-3 rounded-2xl border border-violet-300/70 bg-violet-50/90 px-3 py-2 shadow-[0_12px_30px_-16px_rgba(15,23,42,.5)] backdrop-blur motion-reduce:backdrop-blur-none dark:border-violet-400/25 dark:bg-violet-950/45 sm:px-4"
             dir="rtl"
           >
             <div className="flex min-w-0 items-center gap-2">
-              <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-[rgb(var(--surface-muted))] text-slate-600 dark:text-slate-200">
+              <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-violet-200/70 text-violet-800 dark:bg-violet-400/20 dark:text-violet-100">
                 <Archive size={17} aria-hidden="true" />
               </span>
               <p className="truncate text-xs font-bold text-ink">
@@ -1810,8 +1826,8 @@ function ClassScheduleBoard({
       aria-label={`برنامه کلاس ${classroom.name}`}
       dir="rtl"
     >
-      <aside className="rounded-2xl border border-brand/20 bg-[linear-gradient(160deg,rgba(13,148,136,.16),rgba(255,255,255,.98)_52%,rgba(224,242,254,.8))] p-5 dark:bg-[linear-gradient(160deg,rgba(13,148,136,.3),rgba(15,23,42,.96))] lg:col-start-2 lg:row-start-1 lg:self-start">
-        <p className="text-xs font-black text-brand">جزئیات کلاس</p>
+      <aside className="rounded-2xl border border-emerald-300/70 bg-[linear-gradient(160deg,rgba(16,185,129,.16),rgba(255,255,255,.98)_52%,rgba(236,253,245,.88))] p-5 dark:border-emerald-400/25 dark:bg-[linear-gradient(160deg,rgba(5,150,105,.3),rgba(15,23,42,.96))] lg:col-start-2 lg:row-start-1 lg:self-start">
+        <p className="text-xs font-black text-emerald-700 dark:text-emerald-300">جزئیات کلاس</p>
         <h2 className="mt-1 text-2xl font-black tracking-tight text-ink">{classroom.name}</h2>
         <p className="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-300">
           درس‌ها و دبیران متصل به این کلاس.
@@ -1855,9 +1871,11 @@ function ClassScheduleBoard({
       </aside>
 
       <div className="grid gap-3 lg:col-start-1 lg:row-start-1">
-        <header className="flex flex-wrap items-end justify-between gap-3 rounded-2xl border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card))] px-4 py-3">
+        <header className="flex flex-wrap items-end justify-between gap-3 rounded-2xl border border-emerald-200 bg-emerald-50/60 px-4 py-3 dark:border-emerald-400/20 dark:bg-emerald-950/20">
           <div>
-            <p className="text-xs font-black text-brand">برنامه هفتگی</p>
+            <p className="text-xs font-black text-emerald-700 dark:text-emerald-300">
+              برنامه هفتگی
+            </p>
             <h3 className="mt-1 text-lg font-black text-ink">جلسه‌ها به ترتیب روز</h3>
           </div>
           <p className="text-xs font-bold text-slate-500 dark:text-slate-300">
@@ -1871,7 +1889,7 @@ function ClassScheduleBoard({
               key={weekday}
               className={`rounded-2xl border p-3 ${
                 weekday === today
-                  ? "border-brand/35 bg-brand/[.055]"
+                  ? "border-emerald-400/55 bg-emerald-50/75 dark:bg-emerald-950/20"
                   : "border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card))]"
               }`}
             >
