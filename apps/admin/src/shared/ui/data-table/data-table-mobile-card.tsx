@@ -62,7 +62,11 @@ export function DataTableMobileCards<TData>({
           </div>
           <dl className="grid divide-y divide-[rgb(var(--border-subtle))]">
             {columns
-              .filter((column) => table.getColumn(column.id)?.getIsVisible())
+              .filter(
+                (column) =>
+                  table.getColumn(column.id)?.getIsVisible() &&
+                  (column.primary || column.mobileVisible !== false),
+              )
               .map((column) => (
                 <div
                   key={column.id}
