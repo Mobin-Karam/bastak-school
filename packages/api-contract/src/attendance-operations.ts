@@ -19,7 +19,7 @@ export type DormAttendanceAssignment = DormAttendanceDelegate & {
   occurrenceId: string;
   nightDate: string;
   attendancePeriod: "day" | "night";
-  sessionStatus?: "scheduled" | "open" | "submitted" | "finalized" | "cancelled" | null;
+  sessionStatus?: "scheduled" | "open" | "draft" | "submitted" | "finalized" | "cancelled" | null;
   academicYearName?: string | null;
   termName?: string | null;
   revision: number;

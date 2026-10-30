@@ -118,10 +118,10 @@ export function DormDelegateEditor({
         >
           <option value="">انتخاب طلبه</option>
           {filteredEligible.map((member) => (
-              <option key={member.id} value={member.id}>
-                {member.name}
-              </option>
-            ))}
+            <option key={member.id} value={member.id}>
+              {member.name}
+            </option>
+          ))}
         </AdaptiveSelect>
         {studentSearch && !filteredEligible.length ? (
           <span role="status" className="mt-2 block text-xs text-slate-500">

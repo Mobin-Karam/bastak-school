@@ -32,14 +32,24 @@ export type DormAttendanceReviewItem = {
 };
 export const getDormAttendanceReviewQueue = () =>
   api.get<DormAttendanceReviewItem[]>("/attendance/dorm-review-queue");
-export const getDormAttendanceOccurrence = (roomId: string, date: string, period: "day" | "night") =>
-  api.get<AttendanceSessionDetail | null>(`/attendance/dorm-session?${new URLSearchParams({ roomId, date, period }).toString()}`);
+export const getDormAttendanceOccurrence = (
+  roomId: string,
+  date: string,
+  period: "day" | "night",
+) =>
+  api.get<AttendanceSessionDetail | null>(
+    `/attendance/dorm-session?${new URLSearchParams({ roomId, date, period }).toString()}`,
+  );
 export const forwardDormAttendanceReview = (id: string, note: string) =>
   api.post<{ sessionId: string; forwardedAt: string }>(
     `/attendance/dorm-sessions/${encodeURIComponent(id)}/forward-review`,
     { note },
   );
-export const reopenDormAttendanceReview = (id: string, action: "delegate" | "supervisor", reason: string) =>
+export const reopenDormAttendanceReview = (
+  id: string,
+  action: "delegate" | "supervisor",
+  reason: string,
+) =>
   api.post<{ sessionId: string; revision: number; reviewUrl: string; reassigned: boolean }>(
     `/attendance/dorm-sessions/${encodeURIComponent(id)}/reopen`,
     { action, reason },

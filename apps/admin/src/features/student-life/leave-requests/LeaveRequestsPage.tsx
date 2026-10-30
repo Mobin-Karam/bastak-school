@@ -198,7 +198,8 @@ export function LeaveRequestsPage() {
                   <p className="mt-1 text-xs font-bold text-brand">{requestLabel(row)}</p>
                   <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">{row.reason}</p>
                   <p className="mt-1 text-xs text-slate-500">
-                    {formatDateTime(row.startDate)} — {formatDateTime(row.endDate)} · {row.organizationName}
+                    {formatDateTime(row.startDate)} — {formatDateTime(row.endDate)} ·{" "}
+                    {row.organizationName}
                   </p>
                   {row.leaveType === "LEAVE" ? (
                     <p className="mt-1 text-xs font-semibold text-slate-600 dark:text-slate-300">
@@ -227,23 +228,23 @@ export function LeaveRequestsPage() {
                       />
                     </label>
                     <div className="flex gap-2">
-                    <Button
-                      size="sm"
-                      loading={busy === row.id}
-                      onClick={() => void review(row, "APPROVED")}
-                    >
-                      <Check size={15} />
-                      {copy.approve}
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="danger"
-                      disabled={busy === row.id}
-                      onClick={() => void review(row, "REJECTED")}
-                    >
-                      <X size={15} />
-                      {copy.reject}
-                    </Button>
+                      <Button
+                        size="sm"
+                        loading={busy === row.id}
+                        onClick={() => void review(row, "APPROVED")}
+                      >
+                        <Check size={15} />
+                        {copy.approve}
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="danger"
+                        disabled={busy === row.id}
+                        onClick={() => void review(row, "REJECTED")}
+                      >
+                        <X size={15} />
+                        {copy.reject}
+                      </Button>
                     </div>
                   </div>
                 ) : null}

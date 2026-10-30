@@ -1,5 +1,16 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, CalendarDays, CheckCircle2, ChevronLeft, Clock3, DoorOpen, FileText, Plus, Send, Utensils } from "lucide-react";
+import {
+  ArrowLeft,
+  CalendarDays,
+  CheckCircle2,
+  ChevronLeft,
+  Clock3,
+  DoorOpen,
+  FileText,
+  Plus,
+  Send,
+  Utensils,
+} from "lucide-react";
 import { useMemo, useState } from "react";
 import { useAuth } from "../../../identity/auth";
 import { DashboardCalendar } from "../../../analytics/dashboard/components/DashboardCalendar";
@@ -8,58 +19,532 @@ import { DatePicker } from "../../../../shared/ui/date-picker";
 import { ResponsiveDrawer } from "../../../../shared/ui/responsive-drawer";
 import { useLocale } from "../../../../shared/ui/locale";
 import { notify } from "../../../../shared/ui/notifications";
-import { Badge, Button, Card, EmptyState, ErrorState, LoadingState, Textarea } from "../../../../shared/ui/ui";
-import { createStudentLeaveRequest, listStudentLeaveRequests, type StudentLeaveRequest, type StudentLeaveStatus, type StudentLeaveType } from "../api/student-leave.api";
+import {
+  Badge,
+  Button,
+  Card,
+  EmptyState,
+  ErrorState,
+  LoadingState,
+  Textarea,
+} from "../../../../shared/ui/ui";
+import {
+  createStudentLeaveRequest,
+  listStudentLeaveRequests,
+  type StudentLeaveRequest,
+  type StudentLeaveStatus,
+  type StudentLeaveType,
+} from "../api/student-leave.api";
 
-const types: ReadonlyArray<{ id: StudentLeaveType; title: string; description: string; approver: string; icon: typeof DoorOpen }> = [
-  { id: "SCHOOL_EXIT", title: "خروج از مدرسه", description: "خروج موقت از محوطه", approver: "ناظم مدرسه", icon: DoorOpen },
-  { id: "LEAVE", title: "درخواست مرخصی", description: "مرخصی یک‌روزه یا چندروزه", approver: "مدیر مدرسه", icon: CalendarDays },
+const types: ReadonlyArray<{
+  id: StudentLeaveType;
+  title: string;
+  description: string;
+  approver: string;
+  icon: typeof DoorOpen;
+}> = [
+  {
+    id: "SCHOOL_EXIT",
+    title: "خروج از مدرسه",
+    description: "خروج موقت از محوطه",
+    approver: "ناظم مدرسه",
+    icon: DoorOpen,
+  },
+  {
+    id: "LEAVE",
+    title: "درخواست مرخصی",
+    description: "مرخصی یک‌روزه یا چندروزه",
+    approver: "مدیر مدرسه",
+    icon: CalendarDays,
+  },
 ];
-const status: Record<StudentLeaveStatus, { label: string; tone: "amber" | "green" | "red" | "blue" | "neutral" }> = {
-  PENDING: { label: "در انتظار بررسی", tone: "amber" }, APPROVED: { label: "تأیید شده", tone: "green" }, REJECTED: { label: "رد شده", tone: "red" }, CANCELLED: { label: "لغو شده", tone: "neutral" }, COMPLETED: { label: "تکمیل شده", tone: "blue" },
+const status: Record<
+  StudentLeaveStatus,
+  { label: string; tone: "amber" | "green" | "red" | "blue" | "neutral" }
+> = {
+  PENDING: { label: "در انتظار بررسی", tone: "amber" },
+  APPROVED: { label: "تأیید شده", tone: "green" },
+  REJECTED: { label: "رد شده", tone: "red" },
+  CANCELLED: { label: "لغو شده", tone: "neutral" },
+  COMPLETED: { label: "تکمیل شده", tone: "blue" },
 };
-type Draft = { leaveType: StudentLeaveType; startDate: string; endDate: string; startTime: string; endTime: string; includesLunch: boolean; includesDinner: boolean; reason: string; note: string };
-const fresh = (): Draft => ({ leaveType: "SCHOOL_EXIT", startDate: todayIso(), endDate: todayIso(), startTime: "08:00", endTime: "18:00", includesLunch: false, includesDinner: false, reason: "", note: "" });
+type Draft = {
+  leaveType: StudentLeaveType;
+  startDate: string;
+  endDate: string;
+  startTime: string;
+  endTime: string;
+  includesLunch: boolean;
+  includesDinner: boolean;
+  reason: string;
+  note: string;
+};
+const fresh = (): Draft => ({
+  leaveType: "SCHOOL_EXIT",
+  startDate: todayIso(),
+  endDate: todayIso(),
+  startTime: "08:00",
+  endTime: "18:00",
+  includesLunch: false,
+  includesDinner: false,
+  reason: "",
+  note: "",
+});
 
 /** Mobile-first leave journey: compose in a sheet, then explicitly review and send. */
 export function StudentLeaveRequestsPage() {
   const auth = useAuth();
   const { formatDate, formatDateTime } = useLocale();
   const client = useQueryClient();
-  const organizationId = auth.context?.activeOrganization?.id ?? auth.context?.availableOrganizations[0]?.id ?? auth.context?.memberships[0]?.id ?? "";
+  const organizationId =
+    auth.context?.activeOrganization?.id ??
+    auth.context?.availableOrganizations[0]?.id ??
+    auth.context?.memberships[0]?.id ??
+    "";
   const [draft, setDraft] = useState<Draft>(fresh);
   const [composer, setComposer] = useState(false);
   const [review, setReview] = useState(false);
   const [selected, setSelected] = useState<StudentLeaveRequest | null>(null);
-  const requests = useQuery({ queryKey: ["student", "leave-requests"], queryFn: listStudentLeaveRequests });
-  const type = useMemo(() => types.find((item) => item.id === draft.leaveType) ?? types[0], [draft.leaveType]);
+  const requests = useQuery({
+    queryKey: ["student", "leave-requests"],
+    queryFn: listStudentLeaveRequests,
+  });
+  const type = useMemo(
+    () => types.find((item) => item.id === draft.leaveType) ?? types[0],
+    [draft.leaveType],
+  );
   const start = `${draft.startDate}T${draft.startTime}:00`;
   const end = `${draft.endDate}T${draft.endTime}:00`;
   const valid = Boolean(organizationId && draft.reason.trim() && end > start);
-  const meals = [draft.includesLunch ? "ناهار" : null, draft.includesDinner ? "شام" : null].filter(Boolean).join(" و ") || "وعده‌ای انتخاب نشده است";
+  const meals =
+    [draft.includesLunch ? "ناهار" : null, draft.includesDinner ? "شام" : null]
+      .filter(Boolean)
+      .join(" و ") || "وعده‌ای انتخاب نشده است";
   const create = useMutation({
-    mutationFn: () => createStudentLeaveRequest({ organizationId, leaveType: draft.leaveType, startDate: start, endDate: end, includesLunch: draft.includesLunch, includesDinner: draft.includesDinner, reason: draft.reason.trim(), note: draft.note.trim() || undefined }),
-    onSuccess: () => { setDraft(fresh()); setReview(false); setComposer(false); void client.invalidateQueries({ queryKey: ["student", "leave-requests"] }); notify(`درخواست شما برای ${type.approver} ارسال شد.`, "success"); },
-    onError: (error) => notify(error instanceof Error ? error.message : "ارسال درخواست انجام نشد.", "error"),
+    mutationFn: () =>
+      createStudentLeaveRequest({
+        organizationId,
+        leaveType: draft.leaveType,
+        startDate: start,
+        endDate: end,
+        includesLunch: draft.includesLunch,
+        includesDinner: draft.includesDinner,
+        reason: draft.reason.trim(),
+        note: draft.note.trim() || undefined,
+      }),
+    onSuccess: () => {
+      setDraft(fresh());
+      setReview(false);
+      setComposer(false);
+      void client.invalidateQueries({ queryKey: ["student", "leave-requests"] });
+      notify(`درخواست شما برای ${type.approver} ارسال شد.`, "success");
+    },
+    onError: (error) =>
+      notify(error instanceof Error ? error.message : "ارسال درخواست انجام نشد.", "error"),
   });
-  const beginReview = () => { if (end <= start) return notify("زمان پایان باید بعد از زمان شروع باشد.", "error"); if (!draft.reason.trim()) return notify("لطفاً دلیل درخواست را بنویسید.", "error"); setReview(true); };
+  const beginReview = () => {
+    if (end <= start) return notify("زمان پایان باید بعد از زمان شروع باشد.", "error");
+    if (!draft.reason.trim()) return notify("لطفاً دلیل درخواست را بنویسید.", "error");
+    setReview(true);
+  };
   if (requests.isLoading) return <LoadingState label="در حال دریافت درخواست‌ها…" />;
 
-  return <main className="mx-auto w-full max-w-2xl space-y-5 pb-[calc(6rem+env(safe-area-inset-bottom))]" dir="rtl">
-    <section className="relative overflow-hidden rounded-3xl border border-brand/15 bg-[rgb(var(--surface-raised))] p-5 shadow-sm"><span className="absolute -left-8 -top-8 size-28 rounded-full bg-brand/10" aria-hidden="true" /><p className="relative text-xs font-black text-brand">خدمات دانش‌آموزی</p><h1 className="relative mt-1 text-xl font-black tracking-tight text-ink">خروج و مرخصی</h1><p className="relative mt-2 max-w-md text-sm leading-6 text-slate-600 dark:text-slate-300">زمان رفت‌و‌برگشت و دلیل را ثبت کنید. نتیجه بررسی مدیر یا ناظم همین‌جا نمایش داده می‌شود.</p><Button className="relative mt-4 min-h-12 w-full sm:w-auto" onClick={() => setComposer(true)}><Plus size={18} aria-hidden="true" /> درخواست جدید</Button></section>
-    <section aria-labelledby="student-leave-history"><div className="mb-2 flex items-center justify-between px-1"><div className="flex items-center gap-2"><Clock3 size={17} className="text-brand" aria-hidden="true" /><h2 id="student-leave-history" className="text-sm font-black text-ink">پیگیری درخواست‌ها</h2></div><span className="text-xs font-semibold text-slate-500">{requests.data?.length ?? 0} درخواست</span></div>{requests.isError ? <ErrorState title="دریافت درخواست‌ها انجام نشد" description="اتصال را بررسی کنید و دوباره تلاش کنید." action={<Button variant="soft" onClick={() => void requests.refetch()}>تلاش دوباره</Button>} /> : !requests.data?.length ? <EmptyState title="هنوز درخواستی ثبت نکرده‌اید." description="برای ثبت درخواست جدید، دکمه بالا را انتخاب کنید." /> : <div className="grid gap-2">{requests.data.map((request) => <RequestRow key={request.id} request={request} formatDateTime={formatDateTime} onClick={() => setSelected(request)} />)}</div>}</section>
-    <ResponsiveDrawer open={composer} onOpenChange={setComposer} title="درخواست جدید" description="اطلاعات را مرحله‌به‌مرحله وارد کنید." snapPoints={["78%", 1]} activeSnapPoint="78%"><div className="grid gap-5">
-      <section><p className="text-xs font-black text-brand">۱. نوع درخواست</p><div className="mt-2 grid grid-cols-2 gap-2">{types.map((item) => { const Icon = item.icon; const active = item.id === draft.leaveType; return <button key={item.id} type="button" aria-pressed={active} onClick={() => setDraft((value) => ({ ...value, leaveType: item.id }))} className={`min-h-28 rounded-2xl border p-3 text-right outline-none focus-visible:ring-2 focus-visible:ring-brand ${active ? "border-brand bg-brand/10 text-ink" : "border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-raised))] text-slate-600 dark:text-slate-300"}`}><Icon size={19} className="text-brand" aria-hidden="true" /><strong className="mt-3 block text-sm">{item.title}</strong><span className="mt-1 block text-xs leading-5">{item.description}</span></button>; })}</div></section>
-      <section><p className="text-xs font-black text-brand">۲. زمان رفت‌و‌برگشت</p><DashboardCalendar value={draft.startDate} onChange={(startDate) => setDraft((value) => ({ ...value, startDate, endDate: value.endDate < startDate ? startDate : value.endDate }))} capabilities={auth.capabilities} /><div className="mt-3 grid grid-cols-2 gap-2"><label className="grid gap-1 text-xs font-bold text-slate-600 dark:text-slate-300">تاریخ پایان<DatePicker value={draft.endDate} min={draft.startDate} required clearable={false} showToday={false} onChange={(endDate) => setDraft((value) => ({ ...value, endDate }))} /></label><div className="rounded-xl bg-slate-100 px-3 py-2 text-xs dark:bg-slate-900"><span className="text-slate-500">تاریخ شروع</span><strong className="mt-1 block text-ink">{formatDate(draft.startDate)}</strong></div><TimeInput label="ساعت شروع" value={draft.startTime} onChange={(startTime) => setDraft((value) => ({ ...value, startTime }))} /><TimeInput label="ساعت پایان" value={draft.endTime} onChange={(endTime) => setDraft((value) => ({ ...value, endTime }))} /></div></section>
-      <section><p className="text-xs font-black text-brand">۳. وعده‌ها و دلیل</p><div className="mt-2 rounded-2xl border border-[rgb(var(--border-subtle))] p-3"><div className="flex items-center gap-2 text-sm font-black text-ink"><Utensils size={17} className="text-brand" />در زمان مرخصی</div><div className="mt-3 grid grid-cols-2 gap-2"><MealToggle label="ناهار" checked={draft.includesLunch} onChange={(includesLunch) => setDraft((value) => ({ ...value, includesLunch }))} /><MealToggle label="شام" checked={draft.includesDinner} onChange={(includesDinner) => setDraft((value) => ({ ...value, includesDinner }))} /></div></div><label className="mt-3 grid gap-1.5 text-sm font-black text-ink">دلیل {type.title}<Textarea className="min-h-24 resize-none text-sm font-normal" placeholder={draft.leaveType === "SCHOOL_EXIT" ? "مثلاً مراجعه درمانی یا کار ضروری" : "مثلاً بیماری یا امور خانوادگی"} value={draft.reason} onChange={(event) => setDraft((value) => ({ ...value, reason: event.target.value }))} /></label><label className="mt-3 grid gap-1.5 text-xs font-bold text-slate-600 dark:text-slate-300">توضیح تکمیلی <span className="font-normal text-slate-400">(اختیاری)</span><Textarea className="min-h-20 resize-none text-sm font-normal" value={draft.note} onChange={(event) => setDraft((value) => ({ ...value, note: event.target.value }))} /></label></section>
-      <Button className="min-h-12 w-full" disabled={!valid} onClick={beginReview}><ArrowLeft size={17} aria-hidden="true" />بازبینی و ارسال</Button>
-    </div></ResponsiveDrawer>
-    <ResponsiveDrawer nested open={review} onOpenChange={setReview} title="بازبینی درخواست" description="پس از ارسال، درخواست برای بررسی ارسال می‌شود."><div className="grid gap-4"><Card className="grid gap-3 p-4"><div className="flex items-center gap-3"><span className="grid size-10 place-items-center rounded-xl bg-brand/10 text-brand"><type.icon size={20} aria-hidden="true" /></span><div><strong className="text-ink">{type.title}</strong><p className="text-xs text-slate-500">بررسی توسط {type.approver}</p></div></div><div className="grid gap-2 border-y border-[rgb(var(--border-subtle))] py-3 text-sm"><p><span className="text-slate-500">خروج: </span>{formatDateTime(start)}</p><p><span className="text-slate-500">بازگشت: </span>{formatDateTime(end)}</p><p><span className="text-slate-500">وعده‌ها: </span>{meals}</p></div><div><p className="text-xs font-bold text-slate-500">دلیل درخواست</p><p className="mt-1 leading-6 text-ink">{draft.reason}</p></div>{draft.note ? <div><p className="text-xs font-bold text-slate-500">توضیح تکمیلی</p><p className="mt-1 leading-6 text-ink">{draft.note}</p></div> : null}</Card><Button className="min-h-12 w-full" loading={create.isPending} onClick={() => create.mutate()}><Send size={17} aria-hidden="true" />ارسال برای {type.approver}</Button><Button variant="ghost" className="w-full" disabled={create.isPending} onClick={() => setReview(false)}>بازگشت و ویرایش</Button></div></ResponsiveDrawer>
-    <ResponsiveDrawer open={Boolean(selected)} onOpenChange={(open) => !open && setSelected(null)} title="جزئیات درخواست" description="وضعیت و نتیجه بررسی مدرسه">{selected ? <RequestDetails request={selected} formatDateTime={formatDateTime} /> : null}</ResponsiveDrawer>
-  </main>;
+  return (
+    <main
+      className="mx-auto w-full max-w-2xl space-y-5 pb-[calc(6rem+env(safe-area-inset-bottom))]"
+      dir="rtl"
+    >
+      <section className="relative overflow-hidden rounded-3xl border border-brand/15 bg-[rgb(var(--surface-raised))] p-5 shadow-sm">
+        <span
+          className="absolute -left-8 -top-8 size-28 rounded-full bg-brand/10"
+          aria-hidden="true"
+        />
+        <p className="relative text-xs font-black text-brand">خدمات دانش‌آموزی</p>
+        <h1 className="relative mt-1 text-xl font-black tracking-tight text-ink">خروج و مرخصی</h1>
+        <p className="relative mt-2 max-w-md text-sm leading-6 text-slate-600 dark:text-slate-300">
+          زمان رفت‌و‌برگشت و دلیل را ثبت کنید. نتیجه بررسی مدیر یا ناظم همین‌جا نمایش داده می‌شود.
+        </p>
+        <Button
+          className="relative mt-4 min-h-12 w-full sm:w-auto"
+          onClick={() => setComposer(true)}
+        >
+          <Plus size={18} aria-hidden="true" /> درخواست جدید
+        </Button>
+      </section>
+      <section aria-labelledby="student-leave-history">
+        <div className="mb-2 flex items-center justify-between px-1">
+          <div className="flex items-center gap-2">
+            <Clock3 size={17} className="text-brand" aria-hidden="true" />
+            <h2 id="student-leave-history" className="text-sm font-black text-ink">
+              پیگیری درخواست‌ها
+            </h2>
+          </div>
+          <span className="text-xs font-semibold text-slate-500">
+            {requests.data?.length ?? 0} درخواست
+          </span>
+        </div>
+        {requests.isError ? (
+          <ErrorState
+            title="دریافت درخواست‌ها انجام نشد"
+            description="اتصال را بررسی کنید و دوباره تلاش کنید."
+            action={
+              <Button variant="soft" onClick={() => void requests.refetch()}>
+                تلاش دوباره
+              </Button>
+            }
+          />
+        ) : !requests.data?.length ? (
+          <EmptyState
+            title="هنوز درخواستی ثبت نکرده‌اید."
+            description="برای ثبت درخواست جدید، دکمه بالا را انتخاب کنید."
+          />
+        ) : (
+          <div className="grid gap-2">
+            {requests.data.map((request) => (
+              <RequestRow
+                key={request.id}
+                request={request}
+                formatDateTime={formatDateTime}
+                onClick={() => setSelected(request)}
+              />
+            ))}
+          </div>
+        )}
+      </section>
+      <ResponsiveDrawer
+        open={composer}
+        onOpenChange={setComposer}
+        title="درخواست جدید"
+        description="اطلاعات را مرحله‌به‌مرحله وارد کنید."
+        snapPoints={["78%", 1]}
+        activeSnapPoint="78%"
+      >
+        <div className="grid gap-5">
+          <section>
+            <p className="text-xs font-black text-brand">۱. نوع درخواست</p>
+            <div className="mt-2 grid grid-cols-2 gap-2">
+              {types.map((item) => {
+                const Icon = item.icon;
+                const active = item.id === draft.leaveType;
+                return (
+                  <button
+                    key={item.id}
+                    type="button"
+                    aria-pressed={active}
+                    onClick={() => setDraft((value) => ({ ...value, leaveType: item.id }))}
+                    className={`min-h-28 rounded-2xl border p-3 text-right outline-none focus-visible:ring-2 focus-visible:ring-brand ${active ? "border-brand bg-brand/10 text-ink" : "border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-raised))] text-slate-600 dark:text-slate-300"}`}
+                  >
+                    <Icon size={19} className="text-brand" aria-hidden="true" />
+                    <strong className="mt-3 block text-sm">{item.title}</strong>
+                    <span className="mt-1 block text-xs leading-5">{item.description}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </section>
+          <section>
+            <p className="text-xs font-black text-brand">۲. زمان رفت‌و‌برگشت</p>
+            <DashboardCalendar
+              value={draft.startDate}
+              onChange={(startDate) =>
+                setDraft((value) => ({
+                  ...value,
+                  startDate,
+                  endDate: value.endDate < startDate ? startDate : value.endDate,
+                }))
+              }
+              capabilities={auth.capabilities}
+            />
+            <div className="mt-3 grid grid-cols-2 gap-2">
+              <label className="grid gap-1 text-xs font-bold text-slate-600 dark:text-slate-300">
+                تاریخ پایان
+                <DatePicker
+                  value={draft.endDate}
+                  min={draft.startDate}
+                  required
+                  clearable={false}
+                  showToday={false}
+                  onChange={(endDate) => setDraft((value) => ({ ...value, endDate }))}
+                />
+              </label>
+              <div className="rounded-xl bg-slate-100 px-3 py-2 text-xs dark:bg-slate-900">
+                <span className="text-slate-500">تاریخ شروع</span>
+                <strong className="mt-1 block text-ink">{formatDate(draft.startDate)}</strong>
+              </div>
+              <TimeInput
+                label="ساعت شروع"
+                value={draft.startTime}
+                onChange={(startTime) => setDraft((value) => ({ ...value, startTime }))}
+              />
+              <TimeInput
+                label="ساعت پایان"
+                value={draft.endTime}
+                onChange={(endTime) => setDraft((value) => ({ ...value, endTime }))}
+              />
+            </div>
+          </section>
+          <section>
+            <p className="text-xs font-black text-brand">۳. وعده‌های روز خروج و دلیل</p>
+            <div className="mt-2 rounded-2xl border border-[rgb(var(--border-subtle))] p-3">
+              <div className="flex items-center gap-2 text-sm font-black text-ink">
+                <Utensils size={17} className="text-brand" />
+                آیا روز خروج برای این وعده در مدرسه می‌مانید؟
+              </div>
+              <p className="mt-1 text-xs leading-5 text-slate-500">
+                این انتخاب فقط برای روز خروج است تا مدرسه تعداد غذای موردنیاز آشپزخانه را بداند.
+              </p>
+              <div className="mt-3 grid grid-cols-2 gap-2">
+                <MealToggle
+                  label="برای ناهار می‌مانم"
+                  checked={draft.includesLunch}
+                  onChange={(includesLunch) => setDraft((value) => ({ ...value, includesLunch }))}
+                />
+                <MealToggle
+                  label="برای شام می‌مانم"
+                  checked={draft.includesDinner}
+                  onChange={(includesDinner) => setDraft((value) => ({ ...value, includesDinner }))}
+                />
+              </div>
+            </div>
+            <label className="mt-3 grid gap-1.5 text-sm font-black text-ink">
+              دلیل {type.title}
+              <Textarea
+                className="min-h-24 resize-none text-sm font-normal"
+                placeholder={
+                  draft.leaveType === "SCHOOL_EXIT"
+                    ? "مثلاً مراجعه درمانی یا کار ضروری"
+                    : "مثلاً بیماری یا امور خانوادگی"
+                }
+                value={draft.reason}
+                onChange={(event) =>
+                  setDraft((value) => ({ ...value, reason: event.target.value }))
+                }
+              />
+            </label>
+            <label className="mt-3 grid gap-1.5 text-xs font-bold text-slate-600 dark:text-slate-300">
+              توضیح تکمیلی <span className="font-normal text-slate-400">(اختیاری)</span>
+              <Textarea
+                className="min-h-20 resize-none text-sm font-normal"
+                value={draft.note}
+                onChange={(event) => setDraft((value) => ({ ...value, note: event.target.value }))}
+              />
+            </label>
+          </section>
+          <Button className="min-h-12 w-full" disabled={!valid} onClick={beginReview}>
+            <ArrowLeft size={17} aria-hidden="true" />
+            بازبینی و ارسال
+          </Button>
+        </div>
+      </ResponsiveDrawer>
+      <ResponsiveDrawer
+        nested
+        open={review}
+        onOpenChange={setReview}
+        title="بازبینی درخواست"
+        description="پس از ارسال، درخواست برای بررسی ارسال می‌شود."
+      >
+        <div className="grid gap-4">
+          <Card className="grid gap-3 p-4">
+            <div className="flex items-center gap-3">
+              <span className="grid size-10 place-items-center rounded-xl bg-brand/10 text-brand">
+                <type.icon size={20} aria-hidden="true" />
+              </span>
+              <div>
+                <strong className="text-ink">{type.title}</strong>
+                <p className="text-xs text-slate-500">بررسی توسط {type.approver}</p>
+              </div>
+            </div>
+            <div className="grid gap-2 border-y border-[rgb(var(--border-subtle))] py-3 text-sm">
+              <p>
+                <span className="text-slate-500">خروج: </span>
+                {formatDateTime(start)}
+              </p>
+              <p>
+                <span className="text-slate-500">بازگشت: </span>
+                {formatDateTime(end)}
+              </p>
+              <p>
+                <span className="text-slate-500">وعده‌های روز خروج: </span>
+                {meals}
+              </p>
+            </div>
+            <div>
+              <p className="text-xs font-bold text-slate-500">دلیل درخواست</p>
+              <p className="mt-1 leading-6 text-ink">{draft.reason}</p>
+            </div>
+            {draft.note ? (
+              <div>
+                <p className="text-xs font-bold text-slate-500">توضیح تکمیلی</p>
+                <p className="mt-1 leading-6 text-ink">{draft.note}</p>
+              </div>
+            ) : null}
+          </Card>
+          <Button
+            className="min-h-12 w-full"
+            loading={create.isPending}
+            onClick={() => create.mutate()}
+          >
+            <Send size={17} aria-hidden="true" />
+            ارسال برای {type.approver}
+          </Button>
+          <Button
+            variant="ghost"
+            className="w-full"
+            disabled={create.isPending}
+            onClick={() => setReview(false)}
+          >
+            بازگشت و ویرایش
+          </Button>
+        </div>
+      </ResponsiveDrawer>
+      <ResponsiveDrawer
+        open={Boolean(selected)}
+        onOpenChange={(open) => !open && setSelected(null)}
+        title="جزئیات درخواست"
+        description="وضعیت و نتیجه بررسی مدرسه"
+      >
+        {selected ? <RequestDetails request={selected} formatDateTime={formatDateTime} /> : null}
+      </ResponsiveDrawer>
+    </main>
+  );
 }
 
-function TimeInput({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) { return <label className="grid gap-1 text-xs font-bold text-slate-600 dark:text-slate-300">{label}<input type="time" value={value} onChange={(event) => onChange(event.target.value)} className="h-11 rounded-xl border border-[rgb(var(--border-subtle))] bg-transparent px-3 text-sm text-ink" /></label>; }
-function MealToggle({ label, checked, onChange }: { label: string; checked: boolean; onChange: (checked: boolean) => void }) { return <label className={`flex min-h-11 cursor-pointer items-center justify-center gap-2 rounded-xl border text-sm font-bold ${checked ? "border-brand bg-brand/10 text-ink" : "border-[rgb(var(--border-subtle))] text-slate-600 dark:text-slate-300"}`}><input className="sr-only" type="checkbox" checked={checked} onChange={(event) => onChange(event.target.checked)} />{checked ? <CheckCircle2 size={16} className="text-brand" /> : null}{label}</label>; }
-function RequestRow({ request, formatDateTime, onClick }: { request: StudentLeaveRequest; formatDateTime: (value?: string | Date) => string; onClick: () => void }) { const item = types.find((value) => value.id === request.leaveType) ?? types[1]; const Icon = item.icon; return <button type="button" onClick={onClick} className="w-full rounded-2xl text-right outline-none focus-visible:ring-2 focus-visible:ring-brand"><Card className="flex items-center gap-3 p-3 transition hover:border-brand/40 motion-reduce:transition-none"><span className="grid size-11 shrink-0 place-items-center rounded-xl bg-brand/10 text-brand"><Icon size={20} aria-hidden="true" /></span><span className="min-w-0 flex-1"><span className="flex flex-wrap items-center justify-between gap-2"><strong className="text-sm text-ink">{item.title}</strong><Badge tone={status[request.status].tone}>{status[request.status].label}</Badge></span><span className="mt-1 block truncate text-xs text-slate-500">{formatDateTime(request.startDate)}</span><span className="mt-1 block truncate text-sm text-slate-700 dark:text-slate-200">{request.reason}</span></span><ChevronLeft size={18} className="shrink-0 text-slate-400" aria-hidden="true" /></Card></button>; }
-function RequestDetails({ request, formatDateTime }: { request: StudentLeaveRequest; formatDateTime: (value?: string | Date) => string }) { const item = types.find((value) => value.id === request.leaveType) ?? types[1]; const Icon = item.icon; const meals = [request.includesLunch ? "ناهار" : null, request.includesDinner ? "شام" : null].filter(Boolean).join(" و ") || "انتخاب نشده"; return <Card className="grid gap-3 p-4"><div className="flex items-center gap-3"><span className="grid size-11 place-items-center rounded-xl bg-brand/10 text-brand"><Icon size={21} aria-hidden="true" /></span><div className="min-w-0 flex-1"><strong className="text-ink">{item.title}</strong><p className="mt-1 text-xs text-slate-500">ثبت‌شده در {formatDateTime(request.createdAt)}</p></div><Badge tone={status[request.status].tone}>{status[request.status].label}</Badge></div><div className="grid gap-2 border-y border-[rgb(var(--border-subtle))] py-3 text-sm"><p><span className="text-slate-500">خروج: </span>{formatDateTime(request.startDate)}</p><p><span className="text-slate-500">بازگشت: </span>{formatDateTime(request.endDate)}</p><p><span className="text-slate-500">وعده‌ها: </span>{meals}</p></div><div><p className="flex items-center gap-1 text-xs font-bold text-slate-500"><FileText size={14} /> دلیل درخواست</p><p className="mt-1 leading-6 text-ink">{request.reason}</p></div>{request.note ? <div className="rounded-xl bg-slate-100 p-3 text-sm leading-6 text-slate-700 dark:bg-slate-900 dark:text-slate-200"><strong className="block text-xs text-slate-500">یادداشت مدرسه</strong>{request.note}</div> : null}</Card>; }
+function TimeInput({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <label className="grid gap-1 text-xs font-bold text-slate-600 dark:text-slate-300">
+      {label}
+      <input
+        type="time"
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        className="h-11 rounded-xl border border-[rgb(var(--border-subtle))] bg-transparent px-3 text-sm text-ink"
+      />
+    </label>
+  );
+}
+function MealToggle({
+  label,
+  checked,
+  onChange,
+}: {
+  label: string;
+  checked: boolean;
+  onChange: (checked: boolean) => void;
+}) {
+  return (
+    <label
+      className={`flex min-h-11 cursor-pointer items-center justify-center gap-2 rounded-xl border text-sm font-bold ${checked ? "border-brand bg-brand/10 text-ink" : "border-[rgb(var(--border-subtle))] text-slate-600 dark:text-slate-300"}`}
+    >
+      <input
+        className="sr-only"
+        type="checkbox"
+        checked={checked}
+        onChange={(event) => onChange(event.target.checked)}
+      />
+      {checked ? <CheckCircle2 size={16} className="text-brand" /> : null}
+      {label}
+    </label>
+  );
+}
+function RequestRow({
+  request,
+  formatDateTime,
+  onClick,
+}: {
+  request: StudentLeaveRequest;
+  formatDateTime: (value?: string | Date) => string;
+  onClick: () => void;
+}) {
+  const item = types.find((value) => value.id === request.leaveType) ?? types[1];
+  const Icon = item.icon;
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="w-full rounded-2xl text-right outline-none focus-visible:ring-2 focus-visible:ring-brand"
+    >
+      <Card className="flex items-center gap-3 p-3 transition hover:border-brand/40 motion-reduce:transition-none">
+        <span className="grid size-11 shrink-0 place-items-center rounded-xl bg-brand/10 text-brand">
+          <Icon size={20} aria-hidden="true" />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="flex flex-wrap items-center justify-between gap-2">
+            <strong className="text-sm text-ink">{item.title}</strong>
+            <Badge tone={status[request.status].tone}>{status[request.status].label}</Badge>
+          </span>
+          <span className="mt-1 block truncate text-xs text-slate-500">
+            {formatDateTime(request.startDate)}
+          </span>
+          <span className="mt-1 block truncate text-sm text-slate-700 dark:text-slate-200">
+            {request.reason}
+          </span>
+        </span>
+        <ChevronLeft size={18} className="shrink-0 text-slate-400" aria-hidden="true" />
+      </Card>
+    </button>
+  );
+}
+function RequestDetails({
+  request,
+  formatDateTime,
+}: {
+  request: StudentLeaveRequest;
+  formatDateTime: (value?: string | Date) => string;
+}) {
+  const item = types.find((value) => value.id === request.leaveType) ?? types[1];
+  const Icon = item.icon;
+  const meals =
+    [request.includesLunch ? "ناهار" : null, request.includesDinner ? "شام" : null]
+      .filter(Boolean)
+      .join(" و ") || "برای وعده‌ای در مدرسه نمی‌ماند";
+  return (
+    <Card className="grid gap-3 p-4">
+      <div className="flex items-center gap-3">
+        <span className="grid size-11 place-items-center rounded-xl bg-brand/10 text-brand">
+          <Icon size={21} aria-hidden="true" />
+        </span>
+        <div className="min-w-0 flex-1">
+          <strong className="text-ink">{item.title}</strong>
+          <p className="mt-1 text-xs text-slate-500">
+            ثبت‌شده در {formatDateTime(request.createdAt)}
+          </p>
+        </div>
+        <Badge tone={status[request.status].tone}>{status[request.status].label}</Badge>
+      </div>
+      <div className="grid gap-2 border-y border-[rgb(var(--border-subtle))] py-3 text-sm">
+        <p>
+          <span className="text-slate-500">خروج: </span>
+          {formatDateTime(request.startDate)}
+        </p>
+        <p>
+          <span className="text-slate-500">بازگشت: </span>
+          {formatDateTime(request.endDate)}
+        </p>
+        <p>
+          <span className="text-slate-500">غذای روز خروج: </span>
+          {meals}
+        </p>
+      </div>
+      <div>
+        <p className="flex items-center gap-1 text-xs font-bold text-slate-500">
+          <FileText size={14} /> دلیل درخواست
+        </p>
+        <p className="mt-1 leading-6 text-ink">{request.reason}</p>
+      </div>
+      {request.note ? (
+        <div className="rounded-xl bg-slate-100 p-3 text-sm leading-6 text-slate-700 dark:bg-slate-900 dark:text-slate-200">
+          <strong className="block text-xs text-slate-500">یادداشت مدرسه</strong>
+          {request.note}
+        </div>
+      ) : null}
+    </Card>
+  );
+}

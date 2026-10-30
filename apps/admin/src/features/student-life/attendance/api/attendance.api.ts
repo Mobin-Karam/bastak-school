@@ -45,9 +45,20 @@ export const listAttendanceContexts = (organizationId?: string) =>
     `/attendance/contexts${organizationId ? `?organizationId=${encodeURIComponent(organizationId)}` : ""}`,
   );
 
-export const getAttendanceParticipants = (contextType: AttendanceContextType, contextId: string, occurrence?: { date?: string; period?: "day" | "night" }) =>
+export const getAttendanceParticipants = (
+  contextType: AttendanceContextType,
+  contextId: string,
+  occurrence?: { date?: string; period?: "day" | "night" },
+) =>
   api.get<
-    Array<{ id: string; name: string; userId?: string | null; nationalCode?: string | null; approvedLeave?: { startsAt: string; endsAt: string } | null; overdueReturn?: boolean }>
+    Array<{
+      id: string;
+      name: string;
+      userId?: string | null;
+      nationalCode?: string | null;
+      approvedLeave?: { startsAt: string; endsAt: string } | null;
+      overdueReturn?: boolean;
+    }>
   >(
     `/attendance/context/${encodeURIComponent(contextType)}/${encodeURIComponent(contextId)}/participants${occurrence?.date ? `?${new URLSearchParams({ date: occurrence.date, period: occurrence.period ?? "night" }).toString()}` : ""}`,
   );
