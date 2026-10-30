@@ -107,6 +107,24 @@ describe("TeachersPage", () => {
         },
         classBook: null,
       },
+      {
+        id: "schedule-two",
+        title: "علوم",
+        weekday: 2,
+        startTime: "10:00",
+        endTime: "11:00",
+        room: "",
+        status: "ACTIVE",
+        organization: { id: "school-one", name: "مدرسه" },
+        classroom: { id: "class-one", name: "کلاس اول" },
+        teacher: {
+          id: "teacher-one",
+          username: "teacher.one",
+          firstName: "زهرا",
+          lastName: "محمدی",
+        },
+        classBook: null,
+      },
     ]);
   });
 
@@ -125,9 +143,12 @@ describe("TeachersPage", () => {
     fireEvent.click(within(table).getByText("زهرا محمدی").closest("tr")!);
 
     const drawer = await screen.findByRole("dialog", { name: "زهرا محمدی" });
+    expect(await within(drawer).findByRole("heading", { name: "شنبه" })).toBeInTheDocument();
     expect(within(drawer).getByText("ریاضی")).toBeInTheDocument();
-    expect(within(drawer).getByText(/کلاس اول/)).toBeInTheDocument();
-    expect(await within(drawer).findByText("۱")).toBeInTheDocument();
-    expect(within(drawer).getByText(/۱٫۵ ساعت/)).toBeInTheDocument();
+    expect(within(drawer).getAllByText(/کلاس اول/)).toHaveLength(2);
+    expect(within(drawer).getByRole("heading", { name: "دوشنبه" })).toBeInTheDocument();
+    expect(within(drawer).getByText("علوم")).toBeInTheDocument();
+    expect(await within(drawer).findByText("۲")).toBeInTheDocument();
+    expect(within(drawer).getByText("۲:۳۰ ساعت")).toBeInTheDocument();
   });
 });

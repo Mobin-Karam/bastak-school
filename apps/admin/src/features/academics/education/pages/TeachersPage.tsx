@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { BookOpen, GraduationCap, UserRound } from "lucide-react";
+import { UserRound } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useAuth } from "../../../identity/auth";
 import { DataTable, type DataTableColumn } from "../../../../shared/ui/data-table";
@@ -176,9 +176,6 @@ export function TeachersPage() {
         {selected ? (
           <TeacherProfile
             teacher={selected}
-            assignments={assignmentsFor(selected.id, classRows)}
-            loading={classes.isLoading}
-            assignmentsError={classes.isError}
             schedule={schedule.data ?? []}
             scheduleLoading={schedule.isLoading}
             scheduleError={schedule.isError}
@@ -301,18 +298,12 @@ function RoleBadges({ roles }: { roles: string[] }) {
 
 function TeacherProfile({
   teacher,
-  assignments,
-  loading,
-  assignmentsError,
   schedule,
   scheduleLoading,
   scheduleError,
   onLeave,
 }: {
   teacher: AcademicTeacher;
-  assignments: Array<{ classroom: string; schoolYear: string; subject: string }>;
-  loading: boolean;
-  assignmentsError: boolean;
   schedule: ScheduleEntry[];
   scheduleLoading: boolean;
   scheduleError: boolean;
@@ -329,6 +320,12 @@ function TeacherProfile({
         left.weekday - right.weekday || left.startTime.localeCompare(right.startTime),
     );
   const totalMinutes = teacherSchedule.reduce((sum, entry) => sum + durationMinutes(entry), 0);
+  const scheduleByDay = teacherSchedule.reduce<Map<number, ScheduleEntry[]>>((days, entry) => {
+    const entries = days.get(entry.weekday) ?? [];
+    entries.push(entry);
+    days.set(entry.weekday, entries);
+    return days;
+  }, new Map());
   return (
     <div className="grid gap-5 py-4">
       <div className="flex items-center gap-3">
@@ -348,45 +345,6 @@ function TeacherProfile({
           نقش‌ها در این مدرسه
         </h3>
         <RoleBadges roles={teacher.roles} />
-      </section>
-      <section aria-labelledby="teacher-assignments-title" className="grid gap-2">
-        <h3 id="teacher-assignments-title" className="text-sm font-bold text-ink">
-          تخصیص‌های آموزشی
-        </h3>
-        {loading ? (
-          <p role="status" className="text-sm text-slate-500">
-            در حال دریافت تخصیص‌ها…
-          </p>
-        ) : null}
-        {assignmentsError ? (
-          <p role="alert" className="text-sm text-rose-700">
-            تخصیص‌های آموزشی دریافت نشدند؛ دوباره تلاش کنید.
-          </p>
-        ) : null}
-        {!loading && !assignmentsError && !assignments.length ? (
-          <EmptyState title="هنوز درس یا کلاسی به این دبیر تخصیص داده نشده است." />
-        ) : null}
-        {!loading && !assignmentsError ? (
-          <ul className="grid gap-2">
-            {assignments.map((assignment, index) => (
-              <li
-                key={`${assignment.classroom}-${assignment.subject}-${index}`}
-                className="flex items-center gap-3 rounded-xl border border-[rgb(var(--border-subtle))] p-3"
-              >
-                <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-brand/10 text-brand">
-                  <BookOpen size={17} aria-hidden="true" />
-                </span>
-                <span className="min-w-0">
-                  <strong className="block truncate text-sm text-ink">{assignment.subject}</strong>
-                  <span className="mt-1 flex items-center gap-1 text-xs text-slate-500">
-                    <GraduationCap size={13} aria-hidden="true" />
-                    {assignment.classroom} · {assignment.schoolYear}
-                  </span>
-                </span>
-              </li>
-            ))}
-          </ul>
-        ) : null}
       </section>
       <section
         aria-labelledby="teacher-load-title"
@@ -426,24 +384,55 @@ function TeacherProfile({
           <EmptyState title="جلسه فعالی برای این دبیر ثبت نشده است." />
         ) : null}
         {!scheduleLoading && !scheduleError && teacherSchedule.length ? (
-          <ul className="grid gap-2" aria-label="برنامه هفتگی دبیر">
-            {teacherSchedule.map((entry) => (
-              <li
-                key={entry.id}
-                className="flex items-center justify-between gap-3 rounded-xl border border-[rgb(var(--border-subtle))] p-3"
-              >
-                <span>
-                  <strong className="block text-sm text-ink">{entry.title}</strong>
-                  <span className="mt-1 block text-xs text-slate-500">
-                    {weekdays[entry.weekday]} · {entry.classroom?.name ?? "کلاس ثبت نشده"}
-                  </span>
-                </span>
-                <bdi dir="ltr" className="text-xs font-black text-brand">
-                  {entry.startTime}–{entry.endTime}
-                </bdi>
-              </li>
-            ))}
-          </ul>
+          <div className="grid gap-3" aria-label="برنامه هفتگی دبیر">
+            {[...scheduleByDay.entries()].map(([weekday, entries]) => {
+              const style = scheduleDayStyles[weekday] ?? scheduleDayStyles[0];
+              return (
+                <section
+                  key={weekday}
+                  aria-labelledby={`teacher-schedule-day-${weekday}`}
+                  className={`overflow-hidden rounded-2xl border border-[rgb(var(--border-subtle))] border-s-4 ${style.frame}`}
+                >
+                  <div
+                    className={`flex items-center justify-between gap-3 px-3 py-2 ${style.header}`}
+                  >
+                    <h4
+                      id={`teacher-schedule-day-${weekday}`}
+                      className="text-base font-black text-ink"
+                    >
+                      {weekdays[weekday]}
+                    </h4>
+                    <span className="text-xs font-extrabold text-slate-700 dark:text-slate-200">
+                      {entries.length.toLocaleString("fa-IR")} جلسه
+                    </span>
+                  </div>
+                  <ul className="grid gap-px bg-[rgb(var(--border-subtle))]">
+                    {entries.map((entry) => (
+                      <li
+                        key={entry.id}
+                        className="flex items-center justify-between gap-3 bg-[rgb(var(--surface))] px-3 py-3"
+                      >
+                        <span className="min-w-0">
+                          <strong className="block truncate text-base font-black text-ink">
+                            {entry.title}
+                          </strong>
+                          <span className="mt-1 block text-sm font-bold text-slate-600 dark:text-slate-300">
+                            {entry.classroom?.name ?? "کلاس ثبت نشده"}
+                          </span>
+                        </span>
+                        <bdi
+                          dir="ltr"
+                          className={`shrink-0 rounded-lg px-2.5 py-1.5 text-sm font-black ${style.time}`}
+                        >
+                          {entry.startTime}–{entry.endTime}
+                        </bdi>
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+              );
+            })}
+          </div>
         ) : null}
       </section>
     </div>
@@ -451,10 +440,50 @@ function TeacherProfile({
 }
 
 const weekdays = ["شنبه", "یکشنبه", "دوشنبه", "سه‌شنبه", "چهارشنبه", "پنجشنبه", "جمعه"];
+const scheduleDayStyles = [
+  {
+    frame: "border-s-blue-600 dark:border-s-blue-400",
+    header: "bg-blue-50 dark:bg-blue-950/40",
+    time: "bg-blue-100 text-blue-900 dark:bg-blue-900/70 dark:text-blue-100",
+  },
+  {
+    frame: "border-s-teal-600 dark:border-s-teal-400",
+    header: "bg-teal-50 dark:bg-teal-950/40",
+    time: "bg-teal-100 text-teal-900 dark:bg-teal-900/70 dark:text-teal-100",
+  },
+  {
+    frame: "border-s-violet-600 dark:border-s-violet-400",
+    header: "bg-violet-50 dark:bg-violet-950/40",
+    time: "bg-violet-100 text-violet-900 dark:bg-violet-900/70 dark:text-violet-100",
+  },
+  {
+    frame: "border-s-rose-600 dark:border-s-rose-400",
+    header: "bg-rose-50 dark:bg-rose-950/40",
+    time: "bg-rose-100 text-rose-900 dark:bg-rose-900/70 dark:text-rose-100",
+  },
+  {
+    frame: "border-s-amber-600 dark:border-s-amber-400",
+    header: "bg-amber-50 dark:bg-amber-950/40",
+    time: "bg-amber-100 text-amber-900 dark:bg-amber-900/70 dark:text-amber-100",
+  },
+  {
+    frame: "border-s-cyan-600 dark:border-s-cyan-400",
+    header: "bg-cyan-50 dark:bg-cyan-950/40",
+    time: "bg-cyan-100 text-cyan-900 dark:bg-cyan-900/70 dark:text-cyan-100",
+  },
+  {
+    frame: "border-s-fuchsia-600 dark:border-s-fuchsia-400",
+    header: "bg-fuchsia-50 dark:bg-fuchsia-950/40",
+    time: "bg-fuchsia-100 text-fuchsia-900 dark:bg-fuchsia-900/70 dark:text-fuchsia-100",
+  },
+];
 const durationMinutes = (entry: ScheduleEntry) => {
   const [startHour, startMinute] = entry.startTime.split(":").map(Number);
   const [endHour, endMinute] = entry.endTime.split(":").map(Number);
   return endHour * 60 + endMinute - startHour * 60 - startMinute;
 };
 const formatHours = (minutes: number) =>
-  `${(minutes / 60).toLocaleString("fa-IR", { maximumFractionDigits: 1 })} ساعت`;
+  `${Math.floor(minutes / 60).toLocaleString("fa-IR")}:${(minutes % 60).toLocaleString("fa-IR", {
+    minimumIntegerDigits: 2,
+    useGrouping: false,
+  })} ساعت`;
