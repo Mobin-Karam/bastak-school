@@ -541,6 +541,38 @@
     inset 0 -3px 0 rgb(15 23 42 / 10%);
 }
 
+/* Focused supervisor attendance offices: each route has a compact, recognizable
+ * hexagonal marker without turning the session ledger into a tabbed workspace. */
+.attendance-office[class*="attendance-office--"] {
+  position: relative;
+  overflow: hidden;
+}
+
+.attendance-office[class*="attendance-office--"]::before {
+  position: absolute;
+  width: 5rem;
+  height: 5rem;
+  inset-block-start: -2.25rem;
+  inset-inline-end: -1.5rem;
+  content: "";
+  pointer-events: none;
+  clip-path: polygon(25% 4%, 75% 4%, 100% 50%, 75% 96%, 25% 96%, 0 50%);
+  opacity: 0.2;
+}
+
+.attendance-office--teacher::before {
+  background: #2563eb;
+}
+.attendance-office--groups::before {
+  background: #7c3aed;
+}
+.attendance-office--dorm::before {
+  background: #0f766e;
+}
+.attendance-office--history::before {
+  background: #475569;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .student-dashboard__hex-grid > * {
     transition: none !important;

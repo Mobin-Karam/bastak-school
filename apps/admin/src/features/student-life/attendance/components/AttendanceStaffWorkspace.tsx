@@ -1014,6 +1014,26 @@ export function AttendanceStaffWorkspace({
           ["history", "تاریخچه"],
           ["reports", "گزارش‌ها"],
         ];
+  const officeMeta = office
+    ? {
+        teacher: {
+          title: "حضور کلاس‌ها",
+          description: "جلسه‌های کلاس را بررسی و برای مشاهده جزئیات باز کنید.",
+        },
+        groups: {
+          title: "حضور گروه‌های کلاس",
+          description: "جلسه‌های گروه‌های کلاسی را جداگانه دنبال کنید.",
+        },
+        dorm: {
+          title: "حضور اتاق‌های خوابگاه",
+          description: "جلسه‌های ثبت‌شدهٔ اتاق‌ها و وضعیت آن‌ها را بررسی کنید.",
+        },
+        history: {
+          title: "آرشیو همه جلسه‌ها",
+          description: "تاریخچهٔ کامل جلسه‌های ثبت‌شدهٔ مدرسه.",
+        },
+      }[office]
+    : null;
   const canReconcileHistoricalAttendance = [
     "PRINCIPAL",
     "RELIGIOUS_EDUCATION_MANAGER",
@@ -1831,16 +1851,17 @@ export function AttendanceStaffWorkspace({
       </ResponsiveDrawer>
       {section === "sessions" ? (
         <section
-          className="space-y-4 rounded-2xl border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-muted))]/40 p-3 sm:p-4"
+          className={`attendance-office space-y-4 rounded-2xl border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-muted))]/40 p-3 sm:p-4 ${office ? `attendance-office--${office}` : ""}`}
           aria-labelledby="attendance-session-archive"
         >
           <div className="flex flex-wrap items-start justify-between gap-2">
             <div>
               <h3 id="attendance-session-archive" className="text-base font-black text-ink">
-                آرشیو جلسات
+                {officeMeta?.title ?? "آرشیو جلسات"}
               </h3>
               <p className="mt-1 text-xs text-slate-500">
-                یک جلسه را برای مرور اعضا، نهایی‌سازی یا اصلاح ثبت‌ها انتخاب کنید.
+                {officeMeta?.description ??
+                  "یک جلسه را برای مرور اعضا، نهایی‌سازی یا اصلاح ثبت‌ها انتخاب کنید."}
               </p>
             </div>
             {history.data ? (
@@ -1849,28 +1870,30 @@ export function AttendanceStaffWorkspace({
               </span>
             ) : null}
           </div>
-          <nav
-            className="grid grid-cols-2 gap-1 rounded-xl border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card))] p-1 sm:flex"
-            aria-label="تب‌های دفتر حضور کلاس"
-            role="tablist"
-          >
-            {officeTabs.map(([tab, label]) => (
-              <button
-                key={tab}
-                type="button"
-                role="tab"
-                aria-selected={officeTab === tab}
-                className={`min-h-10 rounded-lg px-3 text-xs font-bold transition-colors focus-visible:ring-2 focus-visible:ring-blue-500 ${
-                  officeTab === tab
-                    ? "bg-blue-600 text-white"
-                    : "text-slate-600 hover:bg-[rgb(var(--surface-muted))] dark:text-slate-300"
-                }`}
-                onClick={() => selectOfficeTab(tab)}
-              >
-                {label}
-              </button>
-            ))}
-          </nav>
+          {!office ? (
+            <nav
+              className="grid grid-cols-2 gap-1 rounded-xl border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card))] p-1 sm:flex"
+              aria-label="تب‌های دفتر حضور کلاس"
+              role="tablist"
+            >
+              {officeTabs.map(([tab, label]) => (
+                <button
+                  key={tab}
+                  type="button"
+                  role="tab"
+                  aria-selected={officeTab === tab}
+                  className={`min-h-10 rounded-lg px-3 text-xs font-bold transition-colors focus-visible:ring-2 focus-visible:ring-blue-500 ${
+                    officeTab === tab
+                      ? "bg-blue-600 text-white"
+                      : "text-slate-600 hover:bg-[rgb(var(--surface-muted))] dark:text-slate-300"
+                  }`}
+                  onClick={() => selectOfficeTab(tab)}
+                >
+                  {label}
+                </button>
+              ))}
+            </nav>
+          ) : null}
           {history.isLoading ? (
             <p role="status" className="text-xs text-slate-500">
               در حال دریافت سابقه جامع جلسات…
