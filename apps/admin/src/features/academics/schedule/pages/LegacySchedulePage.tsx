@@ -2,6 +2,7 @@ import { AdaptiveSelect } from "@/shared/ui/adaptive-select";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Archive,
+  BellRing,
   CalendarClock,
   BookOpenCheck,
   ChevronDown,
@@ -109,6 +110,30 @@ const spreadsheet = defineSpreadsheet<ScheduleDraft>({
   ],
 });
 
+type ScheduleSetupReminder = { dueAt: string };
+
+const setupReminderStorageKey = (userId: string, organizationId: string) =>
+  `bastak.schedule-academic-setup-reminder:${userId}:${organizationId}`;
+
+const readSetupReminder = (key: string | null): ScheduleSetupReminder | null => {
+  if (!key || typeof window === "undefined") return null;
+  try {
+    const value = JSON.parse(
+      window.localStorage.getItem(key) ?? "null",
+    ) as ScheduleSetupReminder | null;
+    return value && !Number.isNaN(Date.parse(value.dueAt)) ? value : null;
+  } catch {
+    return null;
+  }
+};
+
+const formatSetupReminder = (dueAt: string) =>
+  new Intl.DateTimeFormat("fa-IR-u-ca-persian", {
+    timeZone: "Asia/Tehran",
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(new Date(dueAt));
+
 export function LegacySchedulePage() {
   const auth = useAuth();
   const modal = useModal();
@@ -123,12 +148,17 @@ export function LegacySchedulePage() {
   const [bootstrapSessionIds, setBootstrapSessionIds] = useState<string[]>([]);
   const [scheduleAcademicYearId, setScheduleAcademicYearId] = useState("");
   const [scheduleTermId, setScheduleTermId] = useState("");
+  const [setupReminderDueAt, setSetupReminderDueAt] = useState<string | null>(null);
+  const [setupGateDeferred, setSetupGateDeferred] = useState(false);
   const [editor, setEditor] = useState<{
     entry?: ScheduleEntry;
     copy: boolean;
     initial?: ScheduleDraft;
   } | null>(null);
   const selectedOrganizationId = auth.context?.activeOrganization?.id;
+  const setupReminderKey = selectedOrganizationId
+    ? setupReminderStorageKey(auth.user?.id ?? "anonymous", selectedOrganizationId)
+    : null;
   const entries = useQuery({
     queryKey: ["schedule", selectedOrganizationId ?? "all"],
     queryFn: listSchedule,
@@ -177,6 +207,53 @@ export function LegacySchedulePage() {
           academicBootstrap.data.unassignedAttendanceSessions.length > 0 ||
           academicBootstrap.data.pendingAttendanceCount > 0))),
   );
+  useEffect(() => {
+    const reminder = readSetupReminder(setupReminderKey);
+    const dueAt = reminder?.dueAt ?? null;
+    setSetupReminderDueAt(dueAt);
+    setSetupGateDeferred(Boolean(dueAt && new Date(dueAt).getTime() > Date.now()));
+  }, [setupReminderKey]);
+  useEffect(() => {
+    if (!scheduleSetupBlocked) {
+      if (setupReminderKey) window.localStorage.removeItem(setupReminderKey);
+      setSetupReminderDueAt(null);
+      setSetupGateDeferred(false);
+      return;
+    }
+    if (!setupReminderDueAt) return;
+    const remaining = new Date(setupReminderDueAt).getTime() - Date.now();
+    if (remaining <= 0) {
+      if (setupReminderKey) window.localStorage.removeItem(setupReminderKey);
+      setSetupReminderDueAt(null);
+      setSetupGateDeferred(false);
+      notify("یادآور راه‌اندازی سال تحصیلی فرا رسید.", "warning");
+      return;
+    }
+    const timer = window.setTimeout(() => {
+      if (setupReminderKey) window.localStorage.removeItem(setupReminderKey);
+      setSetupReminderDueAt(null);
+      setSetupGateDeferred(false);
+      notify("یادآور راه‌اندازی سال تحصیلی فرا رسید.", "warning");
+    }, remaining);
+    return () => window.clearTimeout(timer);
+  }, [scheduleSetupBlocked, setupReminderDueAt, setupReminderKey]);
+  const deferScheduleSetup = (dueAt: string) => {
+    if (new Date(dueAt).getTime() <= Date.now()) {
+      notify("زمان یادآور باید در آینده باشد.", "error");
+      return;
+    }
+    if (setupReminderKey) {
+      window.localStorage.setItem(setupReminderKey, JSON.stringify({ dueAt }));
+    }
+    setSetupReminderDueAt(dueAt);
+    setSetupGateDeferred(true);
+    notify(`یادآور برای ${formatSetupReminder(dueAt)} ثبت شد.`, "success");
+  };
+  const resumeScheduleSetup = () => {
+    if (setupReminderKey) window.localStorage.removeItem(setupReminderKey);
+    setSetupReminderDueAt(null);
+    setSetupGateDeferred(false);
+  };
   const reconcileAcademicBootstrap = useMutation({
     mutationFn: () =>
       reconcileLegacyAcademicCycle({
@@ -711,7 +788,7 @@ export function LegacySchedulePage() {
   );
   return (
     <>
-      {scheduleSetupBlocked ? (
+      {scheduleSetupBlocked && !setupGateDeferred ? (
         <ScheduleAcademicSetupGate
           canManage={canManageAcademicCycles}
           activeYear={bootstrapActiveYear}
@@ -729,8 +806,31 @@ export function LegacySchedulePage() {
           onOpenAcademicCycles={() => setAcademicCyclesOpen(true)}
           onReconcile={() => reconcileAcademicBootstrap.mutate()}
           reconciling={reconcileAcademicBootstrap.isPending}
+          onDefer={deferScheduleSetup}
         />
-      ) : null} */}
+      ) : null}
+      {scheduleSetupBlocked && setupGateDeferred && setupReminderDueAt ? (
+        <section
+          className="mb-3 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-amber-300 bg-amber-50 px-4 py-3 text-amber-950 shadow-sm dark:border-amber-700 dark:bg-amber-950/35 dark:text-amber-100"
+          dir="rtl"
+          role="status"
+          aria-label="یادآور راه‌اندازی برنامه"
+        >
+          <div className="flex min-w-0 items-start gap-3">
+            <BellRing className="mt-0.5 shrink-0" size={20} aria-hidden="true" />
+            <div>
+              <p className="text-sm font-black">راه‌اندازی برنامه به تعویق افتاده است</p>
+              <p className="mt-0.5 text-xs leading-5">
+                یادآور: {formatSetupReminder(setupReminderDueAt)}. تا تکمیل سال و نیم‌سال، تغییرات
+                برنامه از سمت سرور مسدود است.
+              </p>
+            </div>
+          </div>
+          <Button variant="soft" className="min-h-10" onClick={resumeScheduleSetup}>
+            ادامهٔ راه‌اندازی
+          </Button>
+        </section>
+      ) : null}
       <header
         className="-mx-3 mb-0 grid gap-3 border-y border-sky-300/70 bg-sky-50/70 px-3 py-3 shadow-[var(--shadow-surface)] dark:border-sky-400/25 dark:bg-sky-950/25 sm:-mx-5 sm:px-5 sm:py-4 lg:-mx-6 lg:px-6 xl:-mx-8 xl:px-8"
         dir="rtl"
@@ -3529,6 +3629,7 @@ function ScheduleAcademicSetupGate({
   onOpenAcademicCycles,
   onReconcile,
   reconciling,
+  onDefer,
 }: {
   canManage: boolean;
   activeYear: { id: string; name: string } | null | undefined;
@@ -3567,7 +3668,10 @@ function ScheduleAcademicSetupGate({
   onOpenAcademicCycles: () => void;
   onReconcile: () => void;
   reconciling: boolean;
+  onDefer: (dueAt: string) => void;
 }) {
+  const [reminderDate, setReminderDate] = useState(todayIso());
+  const [reminderTime, setReminderTime] = useState("09:00");
   const toggle = (ids: string[], id: string, onChange: (next: string[]) => void) =>
     onChange(ids.includes(id) ? ids.filter((current) => current !== id) : [...ids, id]);
   const requiresReconciliation = entries.length > 0 || attendanceSessions.length > 0;
@@ -3591,6 +3695,11 @@ function ScheduleAcademicSetupGate({
     // A previous term's selected attendance records must never be submitted
     // with the newly selected term. The operator chooses the new set explicitly.
     onSessionIdsChange([]);
+  };
+  const defer = () => {
+    if (!reminderDate || !/^\d{2}:\d{2}$/.test(reminderTime)) return;
+    // The school calendar and all displayed schedule dates use Asia/Tehran.
+    onDefer(new Date(`${reminderDate}T${reminderTime}:00+03:30`).toISOString());
   };
 
   return (
@@ -3617,6 +3726,42 @@ function ScheduleAcademicSetupGate({
             مرحلهٔ {activeYear ? (requiresReconciliation ? "۲" : "۳") : "۱"} از ۳
           </span>
         </div>
+        <section
+          className="mt-4 grid gap-3 rounded-2xl border border-sky-200 bg-sky-50/70 p-3 dark:border-sky-800 dark:bg-sky-950/25 sm:grid-cols-[minmax(0,1fr)_9rem_auto] sm:items-end"
+          aria-labelledby="schedule-setup-reminder-title"
+        >
+          <div>
+            <h2 id="schedule-setup-reminder-title" className="text-sm font-black text-ink">
+              بعداً یادآوری کن
+            </h2>
+            <p className="mt-1 text-xs leading-5 text-slate-600 dark:text-slate-300">
+              تاریخ را با تقویم شمسی و ساعت را به وقت ایران انتخاب کنید. تا آن زمان فقط مشاهدهٔ
+              برنامه ممکن است.
+            </p>
+          </div>
+          <label className="grid gap-1 text-xs font-bold text-ink">
+            تاریخ شمسی
+            <DatePicker
+              calendar="persian"
+              value={reminderDate}
+              onChange={setReminderDate}
+              clearable={false}
+              ariaLabel="تاریخ یادآور راه‌اندازی برنامه"
+            />
+          </label>
+          <label className="grid gap-1 text-xs font-bold text-ink">
+            ساعت
+            <Input
+              type="time"
+              value={reminderTime}
+              onChange={(event) => setReminderTime(event.target.value)}
+              aria-label="ساعت یادآور راه‌اندازی برنامه"
+            />
+          </label>
+          <Button type="button" variant="soft" className="min-h-10 sm:col-start-3" onClick={defer}>
+            <BellRing size={16} /> ثبت یادآور
+          </Button>
+        </section>
         {!canManage ? (
           <p
             role="alert"

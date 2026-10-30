@@ -923,6 +923,36 @@ describe("migration-backed persistence and verified recovery (disposable SQLite 
         "schedule.update",
       ],
     };
+    const unconfiguredLegacyEntry = await db
+      .getRepository(SchoolScheduleEntry)
+      .save({
+        organization: a,
+        classroom,
+        classBook,
+        teacher,
+        title: "جلسهٔ پیش از راه‌اندازی",
+        weekday: 1,
+        startTime: "08:00",
+        endTime: "09:00",
+        room: "۱۰۱",
+        status: "ACTIVE",
+      });
+    await expect(
+      schedule.update(scoped, unconfiguredLegacyEntry.id, {
+        organizationId: a.id,
+        classroomId: classroom.id,
+        classBookId: classBook.id,
+        teacherId: teacher.id,
+        title: "نباید پیش از راه‌اندازی ویرایش شود",
+        weekday: 1,
+        startTime: "08:00",
+        endTime: "09:00",
+      }),
+    ).rejects.toMatchObject({
+      response: {
+        error: { code: "SCHEDULE_ACADEMIC_SETUP_REQUIRED" },
+      },
+    });
     const academicYear = await schedule.createAcademicYear(scoped, {
       organizationId: a.id,
       name: "۱۴۰۵–۱۴۰۶",

@@ -791,13 +791,15 @@ export class ScheduleService {
         organizationId: entry.organization.id,
         state: "ACTIVE",
       });
-      if (activeYear)
-        throw new ApiException(
-          409,
-          "SCHEDULE_ACADEMIC_RECONCILIATION_REQUIRED",
-          "این جلسهٔ قدیمی هنوز به سال و نیم‌سال منتسب نشده است؛ ابتدا تطبیق راه‌اندازی برنامه را کامل کنید.",
-        );
-      return;
+      throw new ApiException(
+        409,
+        activeYear
+          ? "SCHEDULE_ACADEMIC_RECONCILIATION_REQUIRED"
+          : "SCHEDULE_ACADEMIC_SETUP_REQUIRED",
+        activeYear
+          ? "این جلسهٔ قدیمی هنوز به سال و نیم‌سال منتسب نشده است؛ ابتدا تطبیق راه‌اندازی برنامه را کامل کنید."
+          : "پیش از تغییر برنامه، سال تحصیلی و دست‌کم دو نیم‌سال را ایجاد و سال را فعال کنید.",
+      );
     }
     const year = entry.academicYearId
       ? await this.academicYearRepo.findOneBy({ id: entry.academicYearId })
