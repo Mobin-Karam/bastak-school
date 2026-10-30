@@ -4,6 +4,7 @@ import {
   Archive,
   CalendarClock,
   BookOpenCheck,
+  ChevronDown,
   Clock3,
   Copy,
   Eye,
@@ -113,6 +114,7 @@ export function LegacySchedulePage() {
   const [activeWeekday, setActiveWeekday] = useState(() => legacyWeekdayForIso(todayIso()));
   const [templatePreview, setTemplatePreview] = useState<ScheduleTemplate | null>(null);
   const [mobileToolsOpen, setMobileToolsOpen] = useState(false);
+  const [headerControlsOpen, setHeaderControlsOpen] = useState(false);
   const [academicCyclesOpen, setAcademicCyclesOpen] = useState(false);
   const [bootstrapTermId, setBootstrapTermId] = useState("");
   const [bootstrapEntryIds, setBootstrapEntryIds] = useState<string[]>([]);
@@ -716,109 +718,121 @@ export function LegacySchedulePage() {
         />
       ) : null} */}
       <header
-        className="mb-4 flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card))] p-4 shadow-[var(--shadow-surface)] sm:p-5"
+        className="-mx-3 mb-0 grid gap-3 border-y border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card))] px-3 py-3 shadow-[var(--shadow-surface)] sm:-mx-5 sm:px-5 sm:py-4 lg:-mx-6 lg:px-6 xl:-mx-8 xl:px-8"
         dir="rtl"
       >
-        <div className="flex min-w-0 items-center gap-3">
-          <span className="grid size-12 shrink-0 place-items-center rounded-2xl bg-brand/10 text-brand">
-            <CalendarClock size={24} aria-hidden="true" />
-          </span>
-          <div className="min-w-0">
-            <h1
-              id="schedule-page-title"
-              className="text-xl font-black tracking-tight text-ink sm:text-2xl"
-            >
-              برنامه هفتگی مدرسه
-            </h1>
-            <p className="mt-1 text-sm leading-5 text-slate-600 dark:text-slate-300">
-              جلسه‌ها را بر اساس روز یا کلاس ببینید و از همین صفحه مدیریت کنید.
-            </p>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex min-w-0 items-center gap-2.5">
+            <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-brand/10 text-brand">
+              <CalendarClock size={21} aria-hidden="true" />
+            </span>
+            <div className="min-w-0">
+              <h1
+                id="schedule-page-title"
+                className="text-base font-black tracking-tight text-ink sm:text-lg"
+              >
+                برنامه هفتگی مدرسه
+              </h1>
+              <p className="mt-0.5 truncate text-xs text-slate-500 dark:text-slate-300">
+                {activeAcademicYear?.name ?? "سال تحصیلی انتخاب نشده"}
+                {availableScheduleTerms[0]
+                  ? ` · ${scheduleTermId ? availableScheduleTerms.find((term) => term.id === scheduleTermId)?.name : availableScheduleTerms[0].name}`
+                  : ""}
+              </p>
+            </div>
           </div>
-        </div>
-        <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
-          {activeAcademicYear ? (
-            <span className="inline-flex min-h-10 items-center gap-1.5 rounded-xl bg-brand/5 px-3 text-xs font-bold text-ink">
-              <GraduationCap size={15} className="text-brand" aria-hidden="true" />
-              سال ثبت جدید:{" "}
-              {academicCycles.data?.years.find((year) => year.id === selectedScheduleYearId)
-                ?.name ?? activeAcademicYear.name}
-            </span>
-          ) : null}
-          {availableScheduleTerms[0] ? (
-            <span className="inline-flex min-h-10 items-center rounded-xl bg-[rgb(var(--surface-muted))] px-3 text-xs font-bold text-ink">
-              نیم‌سال ثبت جدید:{" "}
-              {scheduleTermId
-                ? availableScheduleTerms.find((term) => term.id === scheduleTermId)?.name
-                : availableScheduleTerms[0].name}
-            </span>
-          ) : null}
-          {canManageAcademicCycles ? (
-            <Button
-              variant="soft"
-              className="min-h-10 flex-1 sm:flex-none"
-              onClick={() => setAcademicCyclesOpen(true)}
-            >
-              <GraduationCap size={17} /> مدیریت سال و نیم‌سال
-            </Button>
-          ) : null}
           <Button
-            variant="soft"
-            className="min-h-10 flex-1 sm:flex-none"
-            onClick={() => setMobileToolsOpen(true)}
-            aria-haspopup="dialog"
-            aria-expanded={mobileToolsOpen}
-            aria-controls="legacy-schedule-tools-drawer"
+            variant="ghost"
+            className="min-h-10 shrink-0"
+            onClick={() => setHeaderControlsOpen((open) => !open)}
+            aria-expanded={headerControlsOpen}
+            aria-controls="schedule-header-controls"
           >
-            <CalendarClock size={17} /> ابزارهای برنامه
+            کنترل‌ها
+            <ChevronDown
+              size={17}
+              aria-hidden="true"
+              className={`transition-transform motion-reduce:transition-none ${headerControlsOpen ? "rotate-180" : ""}`}
+            />
           </Button>
-          {canCreate ? (
-            <Button className="min-h-10 flex-1 sm:flex-none" onClick={() => editEntry()}>
-              <Plus size={17} /> افزودن جلسه
-            </Button>
-          ) : null}
         </div>
+        {headerControlsOpen ? (
+          <div
+            id="schedule-header-controls"
+            className="grid gap-3 border-t border-[rgb(var(--border-subtle))] pt-3"
+            aria-label="کنترل‌های برنامه هفتگی"
+          >
+            <div className="flex flex-wrap items-center gap-2">
+              {canManageAcademicCycles ? (
+                <Button
+                  variant="soft"
+                  className="min-h-10"
+                  onClick={() => setAcademicCyclesOpen(true)}
+                >
+                  <GraduationCap size={17} /> مدیریت سال و نیم‌سال
+                </Button>
+              ) : null}
+              <Button
+                variant="soft"
+                className="min-h-10"
+                onClick={() => setMobileToolsOpen(true)}
+                aria-haspopup="dialog"
+                aria-expanded={mobileToolsOpen}
+                aria-controls="legacy-schedule-tools-drawer"
+              >
+                <CalendarClock size={17} /> ابزارهای برنامه
+              </Button>
+              {canCreate ? (
+                <Button className="min-h-10" onClick={() => editEntry()}>
+                  <Plus size={17} /> افزودن جلسه
+                </Button>
+              ) : null}
+            </div>
+            {canWrite && activeAcademicYear ? (
+              <div className="flex flex-wrap items-end gap-3 border-t border-[rgb(var(--border-subtle))] pt-3">
+                <label className="grid min-w-48 gap-1 text-xs font-bold">
+                  سال تحصیلی جلسه‌های جدید
+                  <AdaptiveSelect
+                    value={selectedScheduleYearId}
+                    onChange={(event) => {
+                      setScheduleAcademicYearId(event.target.value);
+                      setScheduleTermId("");
+                    }}
+                  >
+                    {academicCycles.data?.years
+                      .filter((year) => year.state !== "ARCHIVED")
+                      .map((year) => (
+                        <option key={year.id} value={year.id}>
+                          {year.name}
+                        </option>
+                      ))}
+                  </AdaptiveSelect>
+                </label>
+                <label className="grid min-w-48 gap-1 text-xs font-bold">
+                  نیم‌سال جلسه‌های جدید
+                  <AdaptiveSelect
+                    value={scheduleTermId || availableScheduleTerms[0]?.id || ""}
+                    onChange={(event) => setScheduleTermId(event.target.value)}
+                  >
+                    <option value="">انتخاب نیم‌سال</option>
+                    {availableScheduleTerms.map((term) => (
+                      <option key={term.id} value={term.id}>
+                        {term.name}
+                      </option>
+                    ))}
+                  </AdaptiveSelect>
+                </label>
+                <p className="max-w-sm text-xs leading-5 text-slate-500 dark:text-slate-300">
+                  جلسه‌های تازه به سال و نیم‌سال انتخاب‌شده متصل می‌شوند؛ برنامهٔ گذشته تغییر
+                  نمی‌کند.
+                </p>
+              </div>
+            ) : null}
+          </div>
+        ) : null}
       </header>
-      {canWrite && activeAcademicYear ? (
-        <Card className="flex flex-wrap items-end gap-3 p-4" dir="rtl">
-          <label className="grid min-w-48 gap-1 text-xs font-bold">
-            سال تحصیلی جلسه‌های جدید
-            <AdaptiveSelect
-              value={selectedScheduleYearId}
-              onChange={(event) => {
-                setScheduleAcademicYearId(event.target.value);
-                setScheduleTermId("");
-              }}
-            >
-              {academicCycles.data?.years
-                .filter((year) => year.state !== "ARCHIVED")
-                .map((year) => (
-                  <option key={year.id} value={year.id}>
-                    {year.name}
-                  </option>
-                ))}
-            </AdaptiveSelect>
-          </label>
-          <label className="grid min-w-48 gap-1 text-xs font-bold">
-            نیم‌سال جلسه‌های جدید
-            <AdaptiveSelect
-              value={scheduleTermId || availableScheduleTerms[0]?.id || ""}
-              onChange={(event) => setScheduleTermId(event.target.value)}
-            >
-              <option value="">انتخاب نیم‌سال</option>
-              {availableScheduleTerms.map((term) => (
-                <option key={term.id} value={term.id}>
-                  {term.name}
-                </option>
-              ))}
-            </AdaptiveSelect>
-          </label>
-          <p className="max-w-sm text-xs leading-5 text-slate-500">
-            جلسه‌های تازه به سال و نیم‌سال انتخاب‌شده متصل می‌شوند؛ برنامهٔ گذشته تغییر نمی‌کند.
-          </p>
-        </Card>
-      ) : null}
       <section
-        className="relative grid w-full max-w-none gap-4 pb-[calc(6rem+env(safe-area-inset-bottom))] min-[1200px]:pb-6"
+        className="relative mt-4 grid w-full max-w-none gap-4 pb-[calc(6rem+env(safe-area-inset-bottom))] min-[1200px]:pb-6"
         dir="rtl"
       >
         <div
@@ -1122,6 +1136,8 @@ function ScheduleWorkspace({
   const [activeTab, setActiveTab] = useState<"main" | string>("main");
   const [classPickerOpen, setClassPickerOpen] = useState(false);
   const [layout, setLayout] = useState<"classes" | "time-blocks">("classes");
+  const [archiveOpen, setArchiveOpen] = useState(false);
+  const [archiveClassId, setArchiveClassId] = useState<string | null>(null);
   const selectedClassroom =
     activeTab === "main"
       ? undefined
@@ -1379,36 +1395,6 @@ function ScheduleWorkspace({
         </Card>
       )}
 
-      {!classPickerOpen &&
-      !selectedClassroom &&
-      (canEdit || canArchive || canDelete) &&
-      archivedEntries.length ? (
-        <Card className="p-3">
-          <div className="flex items-center gap-2">
-            <Archive size={17} className="text-slate-500" aria-hidden="true" />
-            <h2 className="text-sm font-black text-ink">برنامه‌های بایگانی‌شده</h2>
-          </div>
-          <div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
-            {archivedEntries.map((entry) => (
-              <ScheduleEntryCard
-                key={entry.id}
-                entry={entry}
-                showOrganization={showOrganization}
-                compact={false}
-                canEdit={canEdit}
-                canArchive={canArchive}
-                canDelete={canDelete}
-                onEdit={onEdit}
-                onArchive={onArchive}
-                onDelete={onDelete}
-                onOpenPlan={onOpenDetails}
-                leave={leaveForEntry(entry)}
-              />
-            ))}
-          </div>
-        </Card>
-      ) : null}
-
       <nav
         aria-label="برگه‌های فضای کاری برنامه"
         role="group"
@@ -1521,7 +1507,200 @@ function ScheduleWorkspace({
           </Button>
         </div>
       ) : null}
+      {archivedEntries.length ? (
+        <>
+          <footer
+            className="sticky bottom-2 z-20 flex items-center justify-between gap-3 rounded-2xl border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card)_/_96%)] px-3 py-2 shadow-[0_12px_30px_-16px_rgba(15,23,42,.5)] backdrop-blur motion-reduce:backdrop-blur-none sm:px-4"
+            dir="rtl"
+          >
+            <div className="flex min-w-0 items-center gap-2">
+              <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-[rgb(var(--surface-muted))] text-slate-600 dark:text-slate-200">
+                <Archive size={17} aria-hidden="true" />
+              </span>
+              <p className="truncate text-xs font-bold text-ink">
+                {archivedEntries.length.toLocaleString("fa-IR")} جلسه در بایگانی برنامه
+              </p>
+            </div>
+            <Button
+              size="sm"
+              variant="soft"
+              onClick={() => setArchiveOpen(true)}
+              aria-haspopup="dialog"
+              aria-expanded={archiveOpen}
+            >
+              مشاهده بایگانی
+            </Button>
+          </footer>
+          <ScheduleArchiveDrawer
+            open={archiveOpen}
+            onOpenChange={setArchiveOpen}
+            entries={archivedEntries}
+            classes={classes}
+            selectedClassId={archiveClassId}
+            onSelectedClassChange={setArchiveClassId}
+            canArchive={canArchive}
+            onRestore={onArchive}
+            onOpenDetails={onOpenDetails}
+          />
+        </>
+      ) : null}
     </section>
+  );
+}
+
+function ScheduleArchiveDrawer({
+  open,
+  onOpenChange,
+  entries,
+  classes,
+  selectedClassId,
+  onSelectedClassChange,
+  canArchive,
+  onRestore,
+  onOpenDetails,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  entries: ScheduleEntry[];
+  classes: EducationClass[];
+  selectedClassId: string | null;
+  onSelectedClassChange: (classId: string | null) => void;
+  canArchive: boolean;
+  onRestore: (entry: ScheduleEntry) => void;
+  onOpenDetails: (entry: ScheduleEntry) => void;
+}) {
+  const archiveClasses = useMemo(() => {
+    const groups = new Map<string, { id: string; name: string; entries: ScheduleEntry[] }>();
+    entries.forEach((entry) => {
+      const id = entry.classroom?.id ?? `unassigned:${entry.room || entry.organization.id}`;
+      const name =
+        entry.classroom?.name ??
+        classes.find((classroom) => classroom.id === entry.classroom?.id)?.name ??
+        entry.room ??
+        "جلسه‌های عمومی مدرسه";
+      const group = groups.get(id) ?? { id, name, entries: [] };
+      group.entries.push(entry);
+      groups.set(id, group);
+    });
+    return [...groups.values()]
+      .map((group) => ({
+        ...group,
+        entries: group.entries.sort(
+          (left, right) =>
+            left.weekday - right.weekday || left.startTime.localeCompare(right.startTime),
+        ),
+      }))
+      .sort((left, right) => left.name.localeCompare(right.name, "fa"));
+  }, [classes, entries]);
+  const selectedClass = archiveClasses.find((group) => group.id === selectedClassId) ?? null;
+
+  return (
+    <ResponsiveDrawer
+      open={open}
+      onOpenChange={(nextOpen) => {
+        onOpenChange(nextOpen);
+        if (!nextOpen) onSelectedClassChange(null);
+      }}
+      title={selectedClass ? `بایگانی ${selectedClass.name}` : "بایگانی برنامه"}
+      description={
+        selectedClass
+          ? "جلسه‌ها بر اساس روز هفته و زمان مرتب شده‌اند."
+          : "ابتدا یک کلاس را انتخاب کنید تا جلسه‌های بایگانی‌شده‌اش را ببینید."
+      }
+      desktopSide="bottom"
+      className="max-h-[min(78dvh,52rem)] w-full rounded-t-[1.75rem] border-x-0 border-b-0"
+    >
+      <div className="mx-auto grid w-full max-w-6xl gap-4" dir="rtl">
+        {selectedClass ? (
+          <>
+            <div className="flex items-center justify-between gap-3 rounded-2xl border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-muted))] p-3">
+              <div>
+                <p className="text-sm font-black text-ink">{selectedClass.name}</p>
+                <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-300">
+                  {selectedClass.entries.length.toLocaleString("fa-IR")} جلسه بایگانی‌شده
+                </p>
+              </div>
+              <Button size="sm" variant="ghost" onClick={() => onSelectedClassChange(null)}>
+                همه کلاس‌ها
+              </Button>
+            </div>
+            <div className="grid gap-3 lg:grid-cols-2">
+              {displayWeekdays.map((weekday) => {
+                const dayEntries = selectedClass.entries.filter(
+                  (entry) => entry.weekday === weekday,
+                );
+                if (!dayEntries.length) return null;
+                return (
+                  <section
+                    key={weekday}
+                    className="rounded-2xl border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card))] p-3"
+                    aria-labelledby={`archive-day-${weekday}`}
+                  >
+                    <header className="mb-2 flex items-center justify-between border-b border-[rgb(var(--border-subtle))] pb-2">
+                      <h3 id={`archive-day-${weekday}`} className="text-sm font-black text-ink">
+                        {weekdays[weekday]}
+                      </h3>
+                      <span className="rounded-full bg-[rgb(var(--surface-muted))] px-2 py-0.5 text-[11px] font-bold text-slate-600 dark:text-slate-200">
+                        {dayEntries.length.toLocaleString("fa-IR")} جلسه
+                      </span>
+                    </header>
+                    <div className="grid gap-2">
+                      {dayEntries.map((entry) => (
+                        <article
+                          key={entry.id}
+                          className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-muted))] p-2.5"
+                        >
+                          <button
+                            type="button"
+                            className="min-w-0 text-right outline-none focus-visible:ring-2 focus-visible:ring-brand"
+                            onClick={() => onOpenDetails(entry)}
+                          >
+                            <p className="truncate text-sm font-black text-ink">{entry.title}</p>
+                            <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-300">
+                              {entry.startTime} تا {entry.endTime}
+                              {entry.classBook?.book?.titleFa
+                                ? ` · ${entry.classBook.book.titleFa}`
+                                : ""}
+                            </p>
+                          </button>
+                          {canArchive ? (
+                            <Button size="sm" variant="soft" onClick={() => onRestore(entry)}>
+                              <RotateCcw size={14} /> بازیابی
+                            </Button>
+                          ) : null}
+                        </article>
+                      ))}
+                    </div>
+                  </section>
+                );
+              })}
+            </div>
+          </>
+        ) : (
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {archiveClasses.map((group) => (
+              <button
+                key={group.id}
+                type="button"
+                onClick={() => onSelectedClassChange(group.id)}
+                className="group rounded-2xl border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card))] p-4 text-right shadow-[0_12px_28px_-24px_rgba(15,23,42,.65)] outline-none transition hover:border-brand/55 hover:bg-brand/5 focus-visible:ring-2 focus-visible:ring-brand motion-reduce:transition-none"
+              >
+                <span className="grid size-10 place-items-center rounded-xl bg-brand/10 text-brand">
+                  <BookOpenCheck size={19} aria-hidden="true" />
+                </span>
+                <h3 className="mt-3 text-base font-black text-ink">{group.name}</h3>
+                <p className="mt-1 text-xs text-slate-500 dark:text-slate-300">
+                  {group.entries.length.toLocaleString("fa-IR")} جلسه در بایگانی
+                </p>
+                <span className="mt-3 inline-flex text-xs font-black text-brand group-hover:underline">
+                  مشاهده جلسه‌ها
+                </span>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+    </ResponsiveDrawer>
   );
 }
 
