@@ -536,6 +536,22 @@ export const adminRouteObjects = [
             ),
           },
           {
+            path: "attendance/classes",
+            element: <Navigate to="/admin/attendance?section=sessions&office=teacher" replace />,
+          },
+          {
+            path: "attendance/class-groups",
+            element: <Navigate to="/admin/attendance?section=sessions&office=groups" replace />,
+          },
+          {
+            path: "attendance/dorm",
+            element: <Navigate to="/admin/attendance?section=sessions&office=dorm" replace />,
+          },
+          {
+            path: "attendance/archive",
+            element: <Navigate to="/admin/attendance?section=sessions&office=history" replace />,
+          },
+          {
             path: "my-attendance",
             element: (
               <CapabilityRoute capability="attendance.self.read">

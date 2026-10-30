@@ -843,6 +843,7 @@ export function AttendanceStaffWorkspace({
   onScheduledDayComplete,
   initialSelectedSessionId,
   section,
+  office,
 }: {
   contexts: AttendanceContextOption[];
   scope: string;
@@ -859,15 +860,22 @@ export function AttendanceStaffWorkspace({
   onScheduledDayComplete?: (date: string) => void;
   initialSelectedSessionId?: string | null;
   section: "sessions" | "pool";
+  office?: "teacher" | "groups" | "dorm" | "history";
 }) {
   const auth = useAuth();
   const cache = useQueryClient();
   const isPrincipal = auth.activeRole === "PRINCIPAL";
-  const [category, setCategory] = useState<"" | "class" | "class_group" | "dorm">(
-    isPrincipal ? "" : "class",
+  const [category, setCategory] = useState<"" | "class" | "class_group" | "dorm">(() =>
+    office === "teacher"
+      ? "class"
+      : office === "groups"
+        ? "class_group"
+        : office === "dorm"
+          ? "dorm"
+          : "",
   );
-  const [officeTab, setOfficeTab] = useState<"teacher" | "groups" | "history" | "reports">(
-    isPrincipal ? "history" : "teacher",
+  const [officeTab, setOfficeTab] = useState<"teacher" | "groups" | "dorm" | "history" | "reports">(
+    office ?? (isPrincipal ? "history" : "teacher"),
   );
   const [contextFilter, setContextFilter] = useState("");
   const [academicYearId, setAcademicYearId] = useState("");
@@ -972,12 +980,40 @@ export function AttendanceStaffWorkspace({
     const activeTerm = currentTerms.find((term) => term.state === "ACTIVE");
     if (activeTerm) setTermId(activeTerm.id);
   }, [academicYearId, currentTerms, termId]);
-  const selectOfficeTab = (tab: "teacher" | "groups" | "history" | "reports") => {
+  const selectOfficeTab = (tab: "teacher" | "groups" | "dorm" | "history" | "reports") => {
     setOfficeTab(tab);
-    setCategory(tab === "teacher" ? "class" : tab === "groups" ? "class_group" : "");
+    setCategory(
+      tab === "teacher" ? "class" : tab === "groups" ? "class_group" : tab === "dorm" ? "dorm" : "",
+    );
     setContextFilter("");
     setSessionsPage(1);
   };
+  const officeTabs: Array<["teacher" | "groups" | "dorm" | "history" | "reports", string]> = office
+    ? [
+        [
+          office,
+          (
+            {
+              teacher: "جلسات کلاس‌ها",
+              groups: "حضور گروه‌های کلاس",
+              dorm: "حضور اتاق‌های خوابگاه",
+              history: "آرشیو همه جلسه‌ها",
+            } as const
+          )[office],
+        ],
+      ]
+    : isPrincipal
+      ? [
+          ["history", "همه جلسه‌های مدرسه"],
+          ["reports", "گزارش‌ها"],
+        ]
+      : [
+          ["teacher", "جلسات استاد"],
+          ["groups", "حضور گروه‌ها"],
+          ["dorm", "حضور خوابگاه"],
+          ["history", "تاریخچه"],
+          ["reports", "گزارش‌ها"],
+        ];
   const canReconcileHistoricalAttendance = [
     "PRINCIPAL",
     "RELIGIOUS_EDUCATION_MANAGER",
@@ -1818,18 +1854,7 @@ export function AttendanceStaffWorkspace({
             aria-label="تب‌های دفتر حضور کلاس"
             role="tablist"
           >
-            {(isPrincipal
-              ? [
-                  ["history", "همه جلسه‌های مدرسه"],
-                  ["reports", "گزارش‌ها"],
-                ]
-              : [
-                  ["teacher", "جلسات استاد"],
-                  ["groups", "حضور گروه‌ها"],
-                  ["history", "تاریخچه"],
-                  ["reports", "گزارش‌ها"],
-                ]
-            ).map(([tab, label]) => (
+            {officeTabs.map(([tab, label]) => (
               <button
                 key={tab}
                 type="button"
@@ -1840,7 +1865,7 @@ export function AttendanceStaffWorkspace({
                     ? "bg-blue-600 text-white"
                     : "text-slate-600 hover:bg-[rgb(var(--surface-muted))] dark:text-slate-300"
                 }`}
-                onClick={() => selectOfficeTab(tab as typeof officeTab)}
+                onClick={() => selectOfficeTab(tab)}
               >
                 {label}
               </button>

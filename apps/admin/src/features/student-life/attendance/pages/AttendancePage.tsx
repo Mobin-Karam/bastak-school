@@ -228,6 +228,10 @@ export function AttendancePage() {
   const activeSessionId =
     inlineScheduledSession?.sessionId ?? requestedSessionId ?? dormOccurrence?.sessionId;
   const requestedSectionParam = searchParams.get("section");
+  const requestedOffice = searchParams.get("office");
+  const office = ["teacher", "groups", "dorm", "history"].includes(requestedOffice ?? "")
+    ? (requestedOffice as "teacher" | "groups" | "dorm" | "history")
+    : undefined;
   // Principals do not get the manual class workspace, but may open one
   // scheduled class occurrence directly from the missing-session calendar.
   const directScheduledSessionRequest = Boolean(
@@ -1520,7 +1524,7 @@ export function AttendancePage() {
       (chosenType === "pool" && auth.can("attendance.review")) ? (
         <>
           <AttendanceStaffWorkspace
-            key={`${scopeKey}:${chosenType}`}
+            key={`${scopeKey}:${chosenType}:${office ?? "default"}`}
             section={chosenType === "pool" ? "pool" : "sessions"}
             contexts={contexts}
             scope={scopeKey}
@@ -1554,6 +1558,7 @@ export function AttendancePage() {
               setCompletedScheduledDate(date);
             }}
             initialSelectedSessionId={archiveSessionId}
+            office={office}
           />
           {chosenType === "sessions" && auth.can("attendance.review") ? (
             <div className="grid items-start gap-4 xl:grid-cols-2">
