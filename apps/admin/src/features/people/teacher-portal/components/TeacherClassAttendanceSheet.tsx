@@ -22,6 +22,10 @@ import { DatePicker } from "../../../../shared/ui/date-picker";
 import { ResponsiveDrawer } from "../../../../shared/ui/responsive-drawer";
 import { TeacherStudentAttendanceProfile } from "./TeacherStudentAttendanceProfile";
 import { reportOutsideStudentPresent } from "../../../student-life/attendance/api/attendance-operations.api";
+import {
+  listTeacherLeaveRequests,
+  requestTeacherLeaveReturn,
+} from "../../../academics/schedule/api/teacher-leave.api";
 
 type AttendanceStatus = SelfAttendanceRecord["status"];
 
@@ -105,6 +109,7 @@ export function TeacherClassAttendanceSheet({
   const [reportText, setReportText] = useState<Record<string, string>>({});
   const [reportTarget, setReportTarget] = useState<{ id: string; name: string } | null>(null);
   const [profileStudentId, setProfileStudentId] = useState<string | null>(null);
+  const [leaveReturnPromptOpen, setLeaveReturnPromptOpen] = useState(false);
   const [sessionDate, setSessionDate] = useState(() => isoDay(new Date()));
   const entryWeekday = entry?.weekday;
   const participants = useQuery({
@@ -117,6 +122,11 @@ export function TeacherClassAttendanceSheet({
     queryFn: listMyAttendanceAbsenceReviews,
     enabled: open,
   });
+  const teacherLeaves = useQuery({
+    queryKey: ["teacher-leaves", "attendance-sheet", scopeKey],
+    queryFn: listTeacherLeaveRequests,
+    enabled: open,
+  });
   const teacherStudentProfile = useQuery({
     queryKey: ["teacher", "student-class-profile", scopeKey, entry?.id, profileStudentId],
     queryFn: () => getTeacherStudentClassProfile(profileStudentId!, entry!.id),
@@ -125,6 +135,24 @@ export function TeacherClassAttendanceSheet({
   const classReviews = (reviews.data ?? []).filter(
     (review) => review.contextType === "class" && review.contextId === entry?.classroom?.id,
   );
+  const activeLeave = (teacherLeaves.data ?? []).find(
+    (leave) =>
+      leave.status === "approved" &&
+      leave.startDate <= sessionDate &&
+      leave.endDate >= sessionDate &&
+      !(leave.returnStatus === "approved" && leave.returnDate && leave.returnDate <= sessionDate),
+  );
+  const requestLeaveReturn = useMutation({
+    mutationFn: (leaveId: string) =>
+      requestTeacherLeaveReturn(leaveId, { returnDate: sessionDate }),
+    onSuccess: () => {
+      setLeaveReturnPromptOpen(false);
+      void client.invalidateQueries({ queryKey: ["teacher-leaves"] });
+      notify("درخواست بازگشت برای تأیید مدیر ارسال شد.", "success");
+    },
+    onError: (error) =>
+      notify(error instanceof Error ? error.message : "ارسال درخواست بازگشت انجام نشد.", "error"),
+  });
   const recentAbsenceCounts = useMemo(() => {
     const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
     return (reviews.data ?? []).reduce<Record<string, number>>((counts, review) => {
@@ -248,6 +276,9 @@ export function TeacherClassAttendanceSheet({
     },
     onError: (error, _, context) => {
       if (context?.scopeKey !== scopeRef.current) return;
+      if (error instanceof Error && error.message.includes("مرخصی تأییدشده")) {
+        setLeaveReturnPromptOpen(true);
+      }
       notify(error instanceof Error ? error.message : "ثبت حضور و غیاب انجام نشد.", "error");
     },
   });
@@ -801,6 +832,35 @@ export function TeacherClassAttendanceSheet({
           />
         )}
       </ResponsiveDrawer>
+      <ResponsiveModal
+        open={leaveReturnPromptOpen && Boolean(activeLeave)}
+        onOpenChange={setLeaveReturnPromptOpen}
+        title="شما در بازه مرخصی هستید"
+        description="برای ثبت حضور این جلسه، ابتدا درخواست بازگشت خود را برای تأیید مدیر ارسال کنید."
+      >
+        <div className="grid gap-3" dir="rtl">
+          <p className="rounded-xl bg-amber-50 p-3 text-sm leading-6 text-amber-950 dark:bg-amber-950/40 dark:text-amber-100">
+            بازگشت از {sessionDate} درخواست می‌شود. تا تأیید مدیر، جلسه‌های مرخصی‌دار همچنان منجمد
+            هستند.
+          </p>
+          <div className="flex gap-2">
+            <Button
+              variant="soft"
+              className="flex-1"
+              onClick={() => setLeaveReturnPromptOpen(false)}
+            >
+              فعلاً خیر
+            </Button>
+            <Button
+              className="flex-1"
+              disabled={!activeLeave || requestLeaveReturn.isPending}
+              onClick={() => activeLeave && requestLeaveReturn.mutate(activeLeave.id)}
+            >
+              ارسال درخواست بازگشت
+            </Button>
+          </div>
+        </div>
+      </ResponsiveModal>
       <ResponsiveModal
         open={Boolean(reportTarget)}
         onOpenChange={(next) => !next && setReportTarget(null)}
