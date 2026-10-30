@@ -1261,7 +1261,7 @@ function ScheduleWorkspace({
   const [classTabIds, setClassTabIds] = useState<string[]>([]);
   const [activeTab, setActiveTab] = useState<"main" | string>("main");
   const [classPickerOpen, setClassPickerOpen] = useState(false);
-  const [layout, setLayout] = useState<"classes" | "time-blocks">("classes");
+  const [layout, setLayout] = useState<"classes" | "time-blocks" | "class-timeline">("classes");
   const [archiveOpen, setArchiveOpen] = useState(false);
   const [archiveClassId, setArchiveClassId] = useState<string | null>(null);
   const [headerTabsMount, setHeaderTabsMount] = useState<HTMLElement | null>(null);
@@ -1355,10 +1355,25 @@ function ScheduleWorkspace({
             >
               نمای روز و بازه
             </Button>
+            <Button
+              type="button"
+              size="sm"
+              className="hidden md:inline-flex"
+              variant={layout === "class-timeline" ? "primary" : "ghost"}
+              role="tab"
+              aria-selected={layout === "class-timeline"}
+              onClick={() => setLayout("class-timeline")}
+            >
+              نمای عمودی کلاس‌ها
+            </Button>
           </div>
 
-          {layout === "classes" ? (
-            <div className="border-b border-[rgb(var(--border-subtle))] px-3 py-2 md:hidden">
+          {layout !== "time-blocks" ? (
+            <div
+              className={`border-b border-[rgb(var(--border-subtle))] px-3 py-2 ${
+                layout === "class-timeline" ? "" : "md:hidden"
+              }`}
+            >
               <MobileTabs
                 ariaLabel="انتخاب روز برنامه"
                 value={activeWeekday}
@@ -1381,7 +1396,7 @@ function ScheduleWorkspace({
               onOpenDetails={onOpenDetails}
               leaveForEntry={leaveForEntry}
             />
-          ) : isMobileShell ? (
+          ) : layout === "class-timeline" || isMobileShell ? (
             <MobileDailyScheduleTimeline
               entries={activeEntries}
               weekday={activeWeekday}
@@ -1673,17 +1688,25 @@ function ScheduleWorkspace({
 }
 
 const mobileClassAccents = [
-  "bg-sky-600 text-sky-950 ring-sky-300 dark:bg-sky-400 dark:ring-sky-400/40",
-  "bg-teal-600 text-teal-950 ring-teal-300 dark:bg-teal-400 dark:ring-teal-400/40",
-  "bg-violet-600 text-violet-950 ring-violet-300 dark:bg-violet-400 dark:ring-violet-400/40",
-  "bg-fuchsia-600 text-fuchsia-950 ring-fuchsia-300 dark:bg-fuchsia-400 dark:ring-fuchsia-400/40",
-  "bg-cyan-600 text-cyan-950 ring-cyan-300 dark:bg-cyan-400 dark:ring-cyan-400/40",
+  "bg-sky-700 text-white ring-sky-300 dark:bg-sky-500 dark:ring-sky-400/40",
+  "bg-teal-700 text-white ring-teal-300 dark:bg-teal-500 dark:ring-teal-400/40",
+  "bg-violet-700 text-white ring-violet-300 dark:bg-violet-500 dark:ring-violet-400/40",
+  "bg-fuchsia-700 text-white ring-fuchsia-300 dark:bg-fuchsia-500 dark:ring-fuchsia-400/40",
+  "bg-cyan-700 text-white ring-cyan-300 dark:bg-cyan-500 dark:ring-cyan-400/40",
 ] as const;
 
-function mobileClassAccent(entry: ScheduleEntry) {
+const mobileClassBorders = [
+  "border-sky-500",
+  "border-teal-500",
+  "border-violet-500",
+  "border-fuchsia-500",
+  "border-cyan-500",
+] as const;
+
+function mobileClassColorIndex(entry: ScheduleEntry) {
   const key = entry.classroom?.id ?? entry.classroom?.name ?? entry.id;
   const total = [...key].reduce((sum, character) => sum + character.charCodeAt(0), 0);
-  return mobileClassAccents[total % mobileClassAccents.length];
+  return total % mobileClassAccents.length;
 }
 
 function MobileDailyScheduleTimeline({
@@ -1697,14 +1720,24 @@ function MobileDailyScheduleTimeline({
   leaveForEntry: (entry: ScheduleEntry) => TeacherLeaveRequest | undefined;
   onOpenDetails: (entry: ScheduleEntry) => void;
 }) {
-  const groupedByStart = useMemo(() => {
-    const groups = new Map<string, ScheduleEntry[]>();
+  const groupedByClass = useMemo(() => {
+    const groups = new Map<string, { label: string; entries: ScheduleEntry[] }>();
     entries.forEach((entry) => {
-      const group = groups.get(entry.startTime) ?? [];
-      group.push(entry);
-      groups.set(entry.startTime, group);
+      const id = entry.classroom?.id ?? entry.classroom?.name ?? "school-wide";
+      const group = groups.get(id) ?? {
+        label: entry.classroom?.name ?? "برنامه مدرسه",
+        entries: [],
+      };
+      group.entries.push(entry);
+      groups.set(id, group);
     });
-    return [...groups.entries()].sort(([left], [right]) => left.localeCompare(right));
+    return [...groups.entries()]
+      .map(([id, group]) => ({
+        id,
+        ...group,
+        entries: group.entries.sort((left, right) => left.startTime.localeCompare(right.startTime)),
+      }))
+      .sort((left, right) => left.label.localeCompare(right.label, "fa"));
   }, [entries]);
 
   if (!entries.length)
@@ -1716,58 +1749,70 @@ function MobileDailyScheduleTimeline({
         <div>
           <h3 className="text-base font-black text-ink">{weekdays[weekday]}</h3>
           <p className="mt-0.5 text-xs font-bold text-slate-500">
-            زمان هر ردیف در کنار جلسه‌ها دیده می‌شود.
+            هر کلاس جداگانه و جلسه‌ها به ترتیب ساعت نمایش داده می‌شوند.
           </p>
         </div>
         <span className="rounded-full bg-slate-900 px-2.5 py-1 text-[11px] font-black text-white dark:bg-slate-100 dark:text-slate-900">
           {entries.length.toLocaleString("fa-IR")} جلسه
         </span>
       </header>
-      <ol className="relative grid gap-4 border-s-2 border-slate-300 ps-5 dark:border-white/20">
-        {groupedByStart.map(([startTime, slotEntries]) => (
-          <li key={startTime} className="relative">
-            <span className="absolute -start-[1.72rem] top-3 size-3 rounded-full bg-slate-900 ring-4 ring-white dark:bg-slate-100 dark:ring-slate-950" />
-            <div className="mb-2 flex items-center gap-2">
-              <time
-                dir="ltr"
-                className="rounded-lg bg-slate-900 px-2 py-1 text-sm font-black tabular-nums text-white dark:bg-slate-100 dark:text-slate-900"
-              >
-                {startTime}
-              </time>
-              <span className="text-xs font-bold text-slate-500">تا {slotEntries[0]?.endTime}</span>
-            </div>
-            <div className="grid auto-cols-[minmax(14rem,1fr)] grid-flow-col gap-3 overflow-x-auto pb-2 pe-1 [scrollbar-width:thin]">
-              {slotEntries.map((entry) => {
-                const leave = leaveForEntry(entry);
-                const accent = mobileClassAccent(entry);
-                return (
-                  <button
-                    key={entry.id}
-                    type="button"
-                    onClick={() => onOpenDetails(entry)}
-                    className={`min-h-32 snap-start rounded-2xl border-2 p-3 text-right shadow-sm outline-none transition hover:-translate-y-0.5 focus-visible:ring-2 focus-visible:ring-brand motion-reduce:transform-none ${sessionStateSurface(entry, leave)}`}
-                    aria-label={`جزئیات ${entry.title}، ${entry.classroom?.name ?? "کلاس"}`}
-                  >
-                    <span
-                      className={`mb-3 inline-flex rounded-full px-2.5 py-1 text-xs font-black ring-2 ${accent}`}
-                    >
-                      {entry.classroom?.name ?? "برنامه مدرسه"}
-                    </span>
-                    <strong className="block line-clamp-2 text-base font-black leading-6 text-ink">
-                      {entry.classBook?.book.titleFa || entry.title}
-                    </strong>
-                    <span className="mt-2 block text-sm font-bold text-slate-700 dark:text-slate-200">
-                      {teacherName(entry) || "دبیر ثبت نشده"}
-                    </span>
-                    {leave ? <LeaveFrozenTag leave={leave} compact /> : null}
-                    {!leave ? <TeacherChangedTag entry={entry} compact /> : null}
-                  </button>
-                );
-              })}
-            </div>
-          </li>
-        ))}
-      </ol>
+      <div className="grid gap-4">
+        {groupedByClass.map((group) => {
+          const colorIndex = mobileClassColorIndex(group.entries[0]!);
+          return (
+            <article
+              key={group.id}
+              className={`overflow-hidden rounded-2xl border border-slate-200 border-s-4 bg-white shadow-sm dark:border-white/10 dark:bg-white/[.03] ${mobileClassBorders[colorIndex]}`}
+            >
+              <header className="flex items-center justify-between gap-2 px-3 py-2.5">
+                <h4 className="text-base font-black text-ink">{group.label}</h4>
+                <span
+                  className={`rounded-full px-2.5 py-1 text-[11px] font-black ring-2 ${mobileClassAccents[colorIndex]}`}
+                >
+                  {group.entries.length.toLocaleString("fa-IR")} جلسه
+                </span>
+              </header>
+              <ol className="mx-3 mb-3 grid gap-3 border-s-2 border-slate-200 ps-4 dark:border-white/15">
+                {group.entries.map((entry) => {
+                  const leave = leaveForEntry(entry);
+                  return (
+                    <li key={entry.id} className="relative">
+                      <span
+                        className={`absolute -start-[1.35rem] top-4 size-2.5 rounded-full ring-4 ring-white dark:ring-slate-950 ${mobileClassAccents[colorIndex]}`}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => onOpenDetails(entry)}
+                        className={`grid w-full grid-cols-[auto_minmax(0,1fr)] gap-3 rounded-xl border-2 p-3 text-right shadow-sm outline-none transition hover:-translate-y-0.5 focus-visible:ring-2 focus-visible:ring-brand motion-reduce:transform-none ${sessionStateSurface(entry, leave)}`}
+                        aria-label={`جزئیات ${entry.title}، ${group.label}`}
+                      >
+                        <time
+                          dir="ltr"
+                          className="text-sm font-black tabular-nums text-slate-700 dark:text-slate-200"
+                        >
+                          {entry.startTime}
+                          <span className="mx-1 text-slate-400">–</span>
+                          {entry.endTime}
+                        </time>
+                        <span className="min-w-0">
+                          <strong className="block line-clamp-2 text-base font-black leading-6 text-ink">
+                            {entry.classBook?.book.titleFa || entry.title}
+                          </strong>
+                          <span className="mt-1 block text-sm font-bold text-slate-700 dark:text-slate-200">
+                            {teacherName(entry) || "دبیر ثبت نشده"}
+                          </span>
+                          {leave ? <LeaveFrozenTag leave={leave} compact /> : null}
+                          {!leave ? <TeacherChangedTag entry={entry} compact /> : null}
+                        </span>
+                      </button>
+                    </li>
+                  );
+                })}
+              </ol>
+            </article>
+          );
+        })}
+      </div>
     </section>
   );
 }
