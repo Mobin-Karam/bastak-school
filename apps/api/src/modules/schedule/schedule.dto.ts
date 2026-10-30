@@ -82,6 +82,21 @@ export class ArchiveScheduleEntryDto {
   @IsIn(["ACTIVE", "ARCHIVED"]) status!: "ACTIVE" | "ARCHIVED";
 }
 
+/** Restores selected legacy sessions atomically after explicit slot-conflict decisions. */
+export class RestoreArchivedScheduleEntriesDto {
+  @IsArray()
+  @ArrayMinSize(1)
+  @ArrayMaxSize(200)
+  @IsUUID("4", { each: true })
+  entryIds!: string[];
+
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(500)
+  @IsUUID("4", { each: true })
+  archiveConflictingEntryIds?: string[];
+}
+
 export class CreateScheduleTimeBlockDto {
   @IsUUID() organizationId!: string;
   @IsUUID() groupId!: string;

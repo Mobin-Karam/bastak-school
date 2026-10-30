@@ -14,6 +14,7 @@ import { ok } from "../../common/utils/envelope";
 import { AuthenticatedUser } from "../auth";
 import {
   ArchiveScheduleEntryDto,
+  RestoreArchivedScheduleEntriesDto,
   ApplyScheduleTemplateDto,
   CreateScheduleEntriesDto,
   CreateScheduleTimeBlockGroupDto,
@@ -348,6 +349,14 @@ export class ScheduleController {
     @Body() dto: ArchiveScheduleEntryDto,
   ) {
     return this.schedule.archive(user, id, dto).then(ok);
+  }
+  @Post("archive/restore")
+  @RequireCapabilities("schedule.archive")
+  restoreArchived(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() dto: RestoreArchivedScheduleEntriesDto,
+  ) {
+    return this.schedule.restoreArchivedEntries(user, dto).then(ok);
   }
   @Delete(":id") @RequireCapabilities("schedule.delete") remove(
     @CurrentUser() user: AuthenticatedUser,

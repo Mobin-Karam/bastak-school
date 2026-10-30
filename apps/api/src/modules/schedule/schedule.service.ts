@@ -37,6 +37,7 @@ import { AuthenticatedUser } from "../auth";
 import { AuthorizationService, UserContext } from "../authorization";
 import {
   ArchiveScheduleEntryDto,
+  RestoreArchivedScheduleEntriesDto,
   CreateScheduleTimeBlockDto,
   CreateScheduleTimeBlockGroupDto,
   CreateScheduleTemplateDto,
@@ -2450,6 +2451,12 @@ export class ScheduleService {
   ) {
     const context = this.context(user);
     this.authorization.requireCapability(context, "schedule.archive");
+    if (dto.status === "ACTIVE") {
+      const restored = await this.restoreArchivedEntries(user, {
+        entryIds: [id],
+      });
+      return restored.restored[0];
+    }
     const item = await this.entries.findOne({
       where: { id },
       relations: { organization: true },
@@ -2471,6 +2478,138 @@ export class ScheduleService {
     await this.assertLegacyScheduleWritable(item);
     item.status = dto.status;
     return this.entries.save(item).then((entry) => this.publicEntry(entry));
+  }
+  async restoreArchivedEntries(
+    user: AuthenticatedUser,
+    dto: RestoreArchivedScheduleEntriesDto,
+  ) {
+    const context = this.context(user);
+    this.authorization.requireCapability(context, "schedule.archive");
+    if (!this.isOperator(context))
+      throw new ApiException(403, "FORBIDDEN", "دسترسی کافی ندارید.");
+
+    const requestedIds = [...new Set(dto.entryIds)];
+    const rows = await this.entries.find({
+      where: { id: In(requestedIds) },
+      relations: {
+        organization: true,
+        classroom: true,
+        teacher: true,
+        classBook: true,
+      },
+    });
+    if (rows.length !== requestedIds.length)
+      throw new ApiException(
+        404,
+        "SCHEDULE_NOT_FOUND",
+        "یکی از جلسه‌های انتخاب‌شده پیدا نشد.",
+      );
+    if (rows.some((row) => row.status !== "ARCHIVED" || row.versionId))
+      throw new ApiException(
+        409,
+        "SCHEDULE_RESTORE_INVALID",
+        "فقط جلسه‌های بایگانی‌شده برنامه قدیمی قابل بازیابی هستند.",
+      );
+
+    for (const row of rows) {
+      if (
+        !context.roles.includes("PLATFORM_ADMIN") &&
+        !context.organizationIds.includes(row.organization.id)
+      )
+        throw new ApiException(403, "FORBIDDEN", "دسترسی کافی ندارید.");
+      await this.assertLegacyScheduleWritable(row);
+    }
+
+    const organizationIds = [
+      ...new Set(rows.map((row) => row.organization.id)),
+    ];
+    const activeRows = await this.entries.find({
+      where: {
+        organization: { id: In(organizationIds) },
+        versionId: IsNull(),
+        status: "ACTIVE",
+      },
+      relations: {
+        organization: true,
+        classroom: true,
+        teacher: true,
+        classBook: true,
+      },
+    });
+    const conflicts = rows.flatMap((restoring) =>
+      activeRows
+        .filter((active) =>
+          this.legacyScheduleEntriesConflict(restoring, active),
+        )
+        .map((active) => ({ restoring, active })),
+    );
+    const approvedConflictIds = new Set(dto.archiveConflictingEntryIds ?? []);
+    const unresolved = conflicts.filter(
+      ({ active }) => !approvedConflictIds.has(active.id),
+    );
+    if (unresolved.length)
+      throw new ApiException(
+        409,
+        "SCHEDULE_RESTORE_CONFLICT",
+        "برای بازیابی، ابتدا درباره جلسه‌های هم‌زمان تصمیم بگیرید.",
+        {
+          conflicts: unresolved.map(({ restoring, active }) => ({
+            restoring: this.publicEntry(restoring),
+            active: this.publicEntry(active),
+          })),
+        },
+      );
+
+    const conflictingActiveIds = new Set(
+      conflicts.map(({ active }) => active.id),
+    );
+    const activeToArchive = activeRows.filter(
+      (row) =>
+        conflictingActiveIds.has(row.id) && approvedConflictIds.has(row.id),
+    );
+    await this.entries.manager.transaction(async (manager) => {
+      if (activeToArchive.length) {
+        await manager.update(
+          SchoolScheduleEntry,
+          { id: In(activeToArchive.map((row) => row.id)) },
+          { status: "ARCHIVED" },
+        );
+      }
+      await manager.update(
+        SchoolScheduleEntry,
+        { id: In(rows.map((row) => row.id)) },
+        { status: "ACTIVE" },
+      );
+    });
+    return {
+      restored: rows.map((row) => ({
+        ...this.publicEntry(row),
+        status: "ACTIVE" as const,
+      })),
+      archivedConflictIds: activeToArchive.map((row) => row.id),
+    };
+  }
+  private legacyScheduleEntriesConflict(
+    left: SchoolScheduleEntry,
+    right: SchoolScheduleEntry,
+  ) {
+    if (
+      left.organization.id !== right.organization.id ||
+      left.weekday !== right.weekday
+    )
+      return false;
+    if (left.endTime <= right.startTime || right.endTime <= left.startTime)
+      return false;
+    const sameClass = Boolean(
+      left.classroom?.id && left.classroom.id === right.classroom?.id,
+    );
+    const sameRoom = Boolean(
+      left.room?.trim() && left.room.trim() === right.room?.trim(),
+    );
+    const sameTeacher = Boolean(
+      left.teacher?.id && left.teacher.id === right.teacher?.id,
+    );
+    return sameClass || sameRoom || sameTeacher;
   }
   async remove(user: AuthenticatedUser, id: string) {
     const context = this.context(user);

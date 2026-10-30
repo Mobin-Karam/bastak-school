@@ -60,6 +60,7 @@ import {
   getLegacyAcademicBootstrap,
   reconcileLegacyAcademicCycle,
   previewScheduleImport,
+  restoreArchivedScheduleEntries,
   restoreScheduleTemplate,
   type ScheduleDraft,
   updateScheduleEntry,
@@ -279,6 +280,18 @@ export function LegacySchedulePage() {
     },
     onError: (error) =>
       notify(error instanceof Error ? error.message : "بایگانی جلسه انجام نشد.", "error"),
+  });
+  const restoreArchived = useMutation({
+    mutationFn: restoreArchivedScheduleEntries,
+    onSuccess: (result) => {
+      reload();
+      notify(
+        `${result.restored.length.toLocaleString("fa-IR")} جلسه بازیابی شد${result.archivedConflictIds.length ? ` و ${result.archivedConflictIds.length.toLocaleString("fa-IR")} جلسهٔ متداخل بایگانی شد` : ""}.`,
+        "success",
+      );
+    },
+    onError: (error) =>
+      notify(error instanceof Error ? error.message : "بازیابی جلسه‌ها انجام نشد.", "error"),
   });
   const remove = useMutation({
     mutationFn: deleteScheduleEntry,
@@ -906,6 +919,10 @@ export function LegacySchedulePage() {
             onQuickAdd={() => editEntry()}
             onOpenTools={() => setMobileToolsOpen(true)}
             toolsOpen={mobileToolsOpen}
+            onRestoreEntries={(entryIds, archiveConflictingEntryIds) =>
+              restoreArchived.mutateAsync({ entryIds, archiveConflictingEntryIds })
+            }
+            restoring={restoreArchived.isPending}
           />
         </div>
       </section>
@@ -999,6 +1016,8 @@ type ScheduleWorkspaceProps = {
   onQuickAdd: () => void;
   onOpenTools: () => void;
   toolsOpen: boolean;
+  onRestoreEntries: (entryIds: string[], archiveConflictingEntryIds?: string[]) => Promise<unknown>;
+  restoring: boolean;
 };
 
 function ScheduleSidebarSummary({
@@ -1058,6 +1077,8 @@ function ScheduleWorkspace({
   onQuickAdd,
   onOpenTools,
   toolsOpen,
+  onRestoreEntries,
+  restoring,
 }: ScheduleWorkspaceProps) {
   const viewportShell = useViewportShell();
   const isMobileShell = viewportShell === "mobile";
@@ -1554,8 +1575,10 @@ function ScheduleWorkspace({
             classes={classes}
             selectedClassId={archiveClassId}
             onSelectedClassChange={setArchiveClassId}
+            activeEntries={activeScheduleEntries}
             canArchive={canArchive}
-            onRestore={onArchive}
+            onRestoreEntries={onRestoreEntries}
+            restoring={restoring}
             onOpenDetails={onOpenDetails}
           />
         </>
@@ -1571,8 +1594,10 @@ function ScheduleArchiveDrawer({
   classes,
   selectedClassId,
   onSelectedClassChange,
+  activeEntries,
   canArchive,
-  onRestore,
+  onRestoreEntries,
+  restoring,
   onOpenDetails,
 }: {
   open: boolean;
@@ -1581,10 +1606,19 @@ function ScheduleArchiveDrawer({
   classes: EducationClass[];
   selectedClassId: string | null;
   onSelectedClassChange: (classId: string | null) => void;
+  activeEntries: ScheduleEntry[];
   canArchive: boolean;
-  onRestore: (entry: ScheduleEntry) => void;
+  onRestoreEntries: (entryIds: string[], archiveConflictingEntryIds?: string[]) => Promise<unknown>;
+  restoring: boolean;
   onOpenDetails: (entry: ScheduleEntry) => void;
 }) {
+  const [selectedEntryIds, setSelectedEntryIds] = useState<string[]>([]);
+  const [conflictReview, setConflictReview] = useState<Array<{
+    restoring: ScheduleEntry;
+    active: ScheduleEntry[];
+  }> | null>(null);
+  const [conflictChoices, setConflictChoices] = useState<Record<string, "keep" | "restore">>({});
+  const [pendingRestoreEntries, setPendingRestoreEntries] = useState<ScheduleEntry[]>([]);
   const archiveClasses = useMemo(() => {
     const groups = new Map<string, { id: string; name: string; entries: ScheduleEntry[] }>();
     entries.forEach((entry) => {
@@ -1609,115 +1643,340 @@ function ScheduleArchiveDrawer({
       .sort((left, right) => left.name.localeCompare(right.name, "fa"));
   }, [classes, entries]);
   const selectedClass = archiveClasses.find((group) => group.id === selectedClassId) ?? null;
+  const selectedEntriesForClass = selectedClass
+    ? selectedClass.entries.filter((entry) => selectedEntryIds.includes(entry.id))
+    : [];
+  const conflictsFor = (restoringEntries: ScheduleEntry[]) => {
+    const groups = new Map<string, { restoring: ScheduleEntry; active: ScheduleEntry[] }>();
+    restoringEntries.forEach((restoring) => {
+      activeEntries
+        .filter((active) => legacyScheduleEntriesConflict(restoring, active))
+        .forEach((active) => {
+          const group = groups.get(restoring.id) ?? { restoring, active: [] };
+          group.active.push(active);
+          groups.set(restoring.id, group);
+        });
+    });
+    return [...groups.values()];
+  };
+  const submitRestore = async (
+    restoringEntries: ScheduleEntry[],
+    conflictEntries: ScheduleEntry[] = [],
+  ) => {
+    if (!restoringEntries.length) return;
+    await onRestoreEntries(
+      restoringEntries.map((entry) => entry.id),
+      conflictEntries.map((entry) => entry.id),
+    );
+    setSelectedEntryIds((current) =>
+      current.filter((id) => !restoringEntries.some((entry) => entry.id === id)),
+    );
+    setConflictReview(null);
+    setPendingRestoreEntries([]);
+  };
+  const requestRestore = (restoringEntries: ScheduleEntry[]) => {
+    const conflicts = conflictsFor(restoringEntries);
+    if (!conflicts.length) {
+      void submitRestore(restoringEntries);
+      return;
+    }
+    setConflictChoices(
+      Object.fromEntries(conflicts.map(({ restoring }) => [restoring.id, "keep"])),
+    );
+    setPendingRestoreEntries(restoringEntries);
+    setConflictReview(conflicts);
+  };
+  useEffect(() => {
+    setSelectedEntryIds((current) =>
+      current.filter((id) => entries.some((entry) => entry.id === id)),
+    );
+  }, [entries]);
 
   return (
-    <ResponsiveDrawer
-      open={open}
-      onOpenChange={(nextOpen) => {
-        onOpenChange(nextOpen);
-        if (!nextOpen) onSelectedClassChange(null);
-      }}
-      title={selectedClass ? `بایگانی ${selectedClass.name}` : "بایگانی برنامه"}
-      description={
-        selectedClass
-          ? "جلسه‌ها بر اساس روز هفته و زمان مرتب شده‌اند."
-          : "ابتدا یک کلاس را انتخاب کنید تا جلسه‌های بایگانی‌شده‌اش را ببینید."
-      }
-      desktopSide="bottom"
-      className="max-h-[min(78dvh,52rem)] w-full rounded-t-[1.75rem] border-x-0 border-b-0"
-    >
-      <div className="mx-auto grid w-full max-w-6xl gap-4" dir="rtl">
-        {selectedClass ? (
-          <>
-            <div className="flex items-center justify-between gap-3 rounded-2xl border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-muted))] p-3">
-              <div>
-                <p className="text-sm font-black text-ink">{selectedClass.name}</p>
-                <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-300">
-                  {selectedClass.entries.length.toLocaleString("fa-IR")} جلسه بایگانی‌شده
-                </p>
+    <>
+      <ResponsiveDrawer
+        open={open}
+        onOpenChange={(nextOpen) => {
+          onOpenChange(nextOpen);
+          if (!nextOpen) onSelectedClassChange(null);
+        }}
+        title={selectedClass ? `بایگانی ${selectedClass.name}` : "بایگانی برنامه"}
+        description={
+          selectedClass
+            ? "جلسه‌ها بر اساس روز هفته و زمان مرتب شده‌اند."
+            : "ابتدا یک کلاس را انتخاب کنید تا جلسه‌های بایگانی‌شده‌اش را ببینید."
+        }
+        desktopSide="bottom"
+        className="max-h-[min(78dvh,52rem)] w-full rounded-t-[1.75rem] border-x-0 border-b-0"
+      >
+        <div className="mx-auto grid w-full max-w-6xl gap-4" dir="rtl">
+          {selectedClass ? (
+            <>
+              <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-muted))] p-3">
+                <div>
+                  <p className="text-sm font-black text-ink">{selectedClass.name}</p>
+                  <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-300">
+                    {selectedClass.entries.length.toLocaleString("fa-IR")} جلسه بایگانی‌شده
+                  </p>
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  {canArchive ? (
+                    <>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() =>
+                          setSelectedEntryIds((current) =>
+                            selectedClass.entries.every((entry) => current.includes(entry.id))
+                              ? current.filter(
+                                  (id) => !selectedClass.entries.some((entry) => entry.id === id),
+                                )
+                              : [
+                                  ...new Set([
+                                    ...current,
+                                    ...selectedClass.entries.map((entry) => entry.id),
+                                  ]),
+                                ],
+                          )
+                        }
+                      >
+                        {selectedClass.entries.every((entry) => selectedEntryIds.includes(entry.id))
+                          ? "لغو انتخاب همه"
+                          : "انتخاب همه"}
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="soft"
+                        disabled={!selectedEntriesForClass.length || restoring}
+                        onClick={() => requestRestore(selectedEntriesForClass)}
+                      >
+                        <RotateCcw size={14} /> بازیابی انتخاب‌شده‌ها (
+                        {selectedEntriesForClass.length.toLocaleString("fa-IR")})
+                      </Button>
+                    </>
+                  ) : null}
+                  <Button size="sm" variant="ghost" onClick={() => onSelectedClassChange(null)}>
+                    همه کلاس‌ها
+                  </Button>
+                </div>
               </div>
-              <Button size="sm" variant="ghost" onClick={() => onSelectedClassChange(null)}>
-                همه کلاس‌ها
-              </Button>
-            </div>
-            <div className="grid gap-3 lg:grid-cols-2">
-              {displayWeekdays.map((weekday) => {
-                const dayEntries = selectedClass.entries.filter(
-                  (entry) => entry.weekday === weekday,
-                );
-                if (!dayEntries.length) return null;
-                return (
-                  <section
-                    key={weekday}
-                    className="rounded-2xl border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card))] p-3"
-                    aria-labelledby={`archive-day-${weekday}`}
-                  >
-                    <header className="mb-2 flex items-center justify-between border-b border-[rgb(var(--border-subtle))] pb-2">
-                      <h3 id={`archive-day-${weekday}`} className="text-sm font-black text-ink">
-                        {weekdays[weekday]}
-                      </h3>
-                      <span className="rounded-full bg-[rgb(var(--surface-muted))] px-2 py-0.5 text-[11px] font-bold text-slate-600 dark:text-slate-200">
-                        {dayEntries.length.toLocaleString("fa-IR")} جلسه
-                      </span>
-                    </header>
-                    <div className="grid gap-2">
-                      {dayEntries.map((entry) => (
-                        <article
-                          key={entry.id}
-                          className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-muted))] p-2.5"
-                        >
-                          <button
-                            type="button"
-                            className="min-w-0 text-right outline-none focus-visible:ring-2 focus-visible:ring-brand"
-                            onClick={() => onOpenDetails(entry)}
+              <div className="grid gap-3 lg:grid-cols-2">
+                {displayWeekdays.map((weekday) => {
+                  const dayEntries = selectedClass.entries.filter(
+                    (entry) => entry.weekday === weekday,
+                  );
+                  if (!dayEntries.length) return null;
+                  return (
+                    <section
+                      key={weekday}
+                      className="rounded-2xl border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card))] p-3"
+                      aria-labelledby={`archive-day-${weekday}`}
+                    >
+                      <header className="mb-2 flex items-center justify-between border-b border-[rgb(var(--border-subtle))] pb-2">
+                        <h3 id={`archive-day-${weekday}`} className="text-sm font-black text-ink">
+                          {weekdays[weekday]}
+                        </h3>
+                        <span className="rounded-full bg-[rgb(var(--surface-muted))] px-2 py-0.5 text-[11px] font-bold text-slate-600 dark:text-slate-200">
+                          {dayEntries.length.toLocaleString("fa-IR")} جلسه
+                        </span>
+                      </header>
+                      <div className="grid gap-2">
+                        {dayEntries.map((entry) => (
+                          <article
+                            key={entry.id}
+                            className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-muted))] p-2.5"
                           >
-                            <p className="truncate text-sm font-black text-ink">{entry.title}</p>
-                            <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-300">
-                              {entry.startTime} تا {entry.endTime}
-                              {entry.classBook?.book?.titleFa
-                                ? ` · ${entry.classBook.book.titleFa}`
-                                : ""}
-                            </p>
-                          </button>
-                          {canArchive ? (
-                            <Button size="sm" variant="soft" onClick={() => onRestore(entry)}>
-                              <RotateCcw size={14} /> بازیابی
-                            </Button>
-                          ) : null}
-                        </article>
-                      ))}
-                    </div>
-                  </section>
-                );
-              })}
+                            <div className="flex min-w-0 items-start gap-2">
+                              {canArchive ? (
+                                <input
+                                  type="checkbox"
+                                  checked={selectedEntryIds.includes(entry.id)}
+                                  onChange={(event) =>
+                                    setSelectedEntryIds((current) =>
+                                      event.target.checked
+                                        ? [...new Set([...current, entry.id])]
+                                        : current.filter((id) => id !== entry.id),
+                                    )
+                                  }
+                                  aria-label={`انتخاب ${entry.title} برای بازیابی`}
+                                  className="mt-1 size-5 accent-brand"
+                                />
+                              ) : null}
+                              <button
+                                type="button"
+                                className="min-w-0 text-right outline-none focus-visible:ring-2 focus-visible:ring-brand"
+                                onClick={() => onOpenDetails(entry)}
+                              >
+                                <p className="truncate text-sm font-black text-ink">
+                                  {entry.title}
+                                </p>
+                                <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-300">
+                                  {entry.startTime} تا {entry.endTime}
+                                  {entry.classBook?.book?.titleFa
+                                    ? ` · ${entry.classBook.book.titleFa}`
+                                    : ""}
+                                </p>
+                              </button>
+                            </div>
+                            {canArchive ? (
+                              <Button
+                                size="sm"
+                                variant="soft"
+                                disabled={restoring}
+                                onClick={() => requestRestore([entry])}
+                              >
+                                <RotateCcw size={14} /> بازیابی
+                              </Button>
+                            ) : null}
+                          </article>
+                        ))}
+                      </div>
+                    </section>
+                  );
+                })}
+              </div>
+            </>
+          ) : (
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {archiveClasses.map((group) => (
+                <button
+                  key={group.id}
+                  type="button"
+                  onClick={() => onSelectedClassChange(group.id)}
+                  className="group rounded-2xl border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card))] p-4 text-right shadow-[0_12px_28px_-24px_rgba(15,23,42,.65)] outline-none transition hover:border-brand/55 hover:bg-brand/5 focus-visible:ring-2 focus-visible:ring-brand motion-reduce:transition-none"
+                >
+                  <span className="grid size-10 place-items-center rounded-xl bg-brand/10 text-brand">
+                    <BookOpenCheck size={19} aria-hidden="true" />
+                  </span>
+                  <h3 className="mt-3 text-base font-black text-ink">{group.name}</h3>
+                  <p className="mt-1 text-xs text-slate-500 dark:text-slate-300">
+                    {group.entries.length.toLocaleString("fa-IR")} جلسه در بایگانی
+                  </p>
+                  <span className="mt-3 inline-flex text-xs font-black text-brand group-hover:underline">
+                    مشاهده جلسه‌ها
+                  </span>
+                </button>
+              ))}
             </div>
-          </>
-        ) : (
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {archiveClasses.map((group) => (
-              <button
-                key={group.id}
-                type="button"
-                onClick={() => onSelectedClassChange(group.id)}
-                className="group rounded-2xl border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card))] p-4 text-right shadow-[0_12px_28px_-24px_rgba(15,23,42,.65)] outline-none transition hover:border-brand/55 hover:bg-brand/5 focus-visible:ring-2 focus-visible:ring-brand motion-reduce:transition-none"
-              >
-                <span className="grid size-10 place-items-center rounded-xl bg-brand/10 text-brand">
-                  <BookOpenCheck size={19} aria-hidden="true" />
-                </span>
-                <h3 className="mt-3 text-base font-black text-ink">{group.name}</h3>
-                <p className="mt-1 text-xs text-slate-500 dark:text-slate-300">
-                  {group.entries.length.toLocaleString("fa-IR")} جلسه در بایگانی
-                </p>
-                <span className="mt-3 inline-flex text-xs font-black text-brand group-hover:underline">
-                  مشاهده جلسه‌ها
-                </span>
-              </button>
-            ))}
+          )}
+        </div>
+      </ResponsiveDrawer>
+      <ResponsiveDrawer
+        open={Boolean(conflictReview)}
+        onOpenChange={(nextOpen) => {
+          if (!nextOpen) {
+            setConflictReview(null);
+            setPendingRestoreEntries([]);
+          }
+        }}
+        title="تداخل در جای جلسه‌ها"
+        description="برای هر جایگاه، مشخص کنید جلسهٔ فعال بماند یا با جلسهٔ بایگانی‌شده جایگزین شود."
+        desktopSide="bottom"
+        nested
+        className="max-h-[min(70dvh,42rem)] w-full rounded-t-[1.75rem] border-x-0 border-b-0"
+      >
+        <div className="mx-auto grid w-full max-w-5xl gap-3" dir="rtl">
+          {conflictReview?.map(({ restoring, active }) => (
+            <section
+              key={restoring.id}
+              className="rounded-2xl border border-amber-300/70 bg-amber-50/70 p-3 dark:border-amber-400/30 dark:bg-amber-950/25"
+            >
+              <p className="text-sm font-black text-amber-950 dark:text-amber-100">
+                {weekdays[restoring.weekday]} · {restoring.startTime} تا {restoring.endTime}
+              </p>
+              <div className="mt-3 grid gap-2 md:grid-cols-2">
+                <label className="cursor-pointer rounded-xl border border-emerald-300 bg-emerald-50 p-3 text-sm dark:border-emerald-400/30 dark:bg-emerald-950/30">
+                  <input
+                    type="radio"
+                    name={`restore-conflict-${restoring.id}`}
+                    checked={conflictChoices[restoring.id] === "restore"}
+                    onChange={() =>
+                      setConflictChoices((current) => ({ ...current, [restoring.id]: "restore" }))
+                    }
+                    className="me-2 accent-emerald-600"
+                  />
+                  <b>بازگردانی «{restoring.title}»</b>
+                  <span className="mt-1 block text-xs text-emerald-800 dark:text-emerald-100">
+                    جلسهٔ فعال زیر بایگانی می‌شود.
+                  </span>
+                </label>
+                <label className="cursor-pointer rounded-xl border border-sky-300 bg-sky-50 p-3 text-sm dark:border-sky-400/30 dark:bg-sky-950/30">
+                  <input
+                    type="radio"
+                    name={`restore-conflict-${restoring.id}`}
+                    checked={conflictChoices[restoring.id] === "keep"}
+                    onChange={() =>
+                      setConflictChoices((current) => ({ ...current, [restoring.id]: "keep" }))
+                    }
+                    className="me-2 accent-sky-600"
+                  />
+                  <b>نگه‌داشتن جلسهٔ فعال</b>
+                  <span className="mt-1 block text-xs text-sky-800 dark:text-sky-100">
+                    «{restoring.title}» در بایگانی می‌ماند.
+                  </span>
+                </label>
+              </div>
+              <div className="mt-2 grid gap-2 text-xs text-slate-700 dark:text-slate-200">
+                {active.map((entry) => (
+                  <div
+                    key={entry.id}
+                    className="rounded-lg bg-white/70 px-3 py-2 dark:bg-slate-950/40"
+                  >
+                    جلسهٔ فعال: <b>{entry.title}</b> · {entry.startTime} تا {entry.endTime}
+                    {entry.classroom?.name ? ` · ${entry.classroom.name}` : ""}
+                  </div>
+                ))}
+              </div>
+            </section>
+          ))}
+          <div className="flex flex-wrap justify-end gap-2 border-t border-[rgb(var(--border-subtle))] pt-3">
+            <Button
+              variant="ghost"
+              onClick={() => {
+                setConflictReview(null);
+                setPendingRestoreEntries([]);
+              }}
+              disabled={restoring}
+            >
+              انصراف
+            </Button>
+            <Button
+              disabled={restoring}
+              onClick={() => {
+                const chosenRestoreIds = new Set(
+                  (conflictReview ?? [])
+                    .filter(({ restoring }) => conflictChoices[restoring.id] === "restore")
+                    .map(({ restoring }) => restoring.id),
+                );
+                const conflictedIds = new Set(
+                  (conflictReview ?? []).map(({ restoring }) => restoring.id),
+                );
+                const restoringEntries = pendingRestoreEntries.filter(
+                  (entry) => !conflictedIds.has(entry.id) || chosenRestoreIds.has(entry.id),
+                );
+                const activeToArchive = (conflictReview ?? [])
+                  .filter(({ restoring }) => conflictChoices[restoring.id] === "restore")
+                  .flatMap(({ active }) => active);
+                void submitRestore(restoringEntries, activeToArchive);
+              }}
+            >
+              <RotateCcw size={16} /> اعمال انتخاب‌ها
+            </Button>
           </div>
-        )}
-      </div>
-    </ResponsiveDrawer>
+        </div>
+      </ResponsiveDrawer>
+    </>
   );
+}
+
+function legacyScheduleEntriesConflict(left: ScheduleEntry, right: ScheduleEntry) {
+  if (left.organization.id !== right.organization.id || left.weekday !== right.weekday)
+    return false;
+  if (left.endTime <= right.startTime || right.endTime <= left.startTime) return false;
+  const sameClass = Boolean(left.classroom?.id && left.classroom.id === right.classroom?.id);
+  const sameRoom = Boolean(left.room?.trim() && left.room.trim() === right.room?.trim());
+  const sameTeacher = Boolean(left.teacher?.id && left.teacher.id === right.teacher?.id);
+  return sameClass || sameRoom || sameTeacher;
 }
 
 function ClassTabPicker({

@@ -209,6 +209,14 @@ export const updateScheduleEntry = (id: string, draft: ScheduleDraft) =>
   api.patch<ScheduleEntry>(`/schedule/${encodeURIComponent(id)}`, draft);
 export const archiveScheduleEntry = (id: string, status: "ACTIVE" | "ARCHIVED") =>
   api.patch<ScheduleEntry>(`/schedule/${encodeURIComponent(id)}/archive`, { status });
+export const restoreArchivedScheduleEntries = (body: {
+  entryIds: string[];
+  archiveConflictingEntryIds?: string[];
+}) =>
+  api.post<{ restored: ScheduleEntry[]; archivedConflictIds: string[] }>(
+    "/schedule/archive/restore",
+    body,
+  );
 export const deleteScheduleEntry = (id: string) =>
   api.delete(`/schedule/${encodeURIComponent(id)}`);
 export const listScheduleTimeBlocks = () => api.get<ScheduleTimeBlock[]>("/schedule/time-blocks");
