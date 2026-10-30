@@ -35,6 +35,16 @@ import {
   markTeacherStudentReportSeen,
   type TeacherStudentReport,
 } from "../../reports/api/reports.api";
+import {
+  listTeacherLeaveRequests,
+  reviewTeacherLeaveRequest,
+  reviewTeacherLeaveReturn,
+  type TeacherLeaveRequest,
+} from "../../../academics/schedule/api/teacher-leave.api";
+import {
+  listAcademicTeachers,
+  type AcademicTeacher,
+} from "../../../academics/education/api/academic.api";
 
 type Lists = NonNullable<PrincipalDashboardContract["principalLists"]>;
 type SessionReview = NonNullable<PrincipalDashboardContract["sessionReviews"]>["items"][number];
@@ -96,12 +106,16 @@ export function PrincipalOperationalLists({
   const auth = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
   const requestedDormSessionId = searchParams.get("dormSessionId");
+  const requestedPanel = searchParams.get("panel") as Panel | null;
   const [active, setActive] = useState<Panel | null>(() =>
-    requestedDormSessionId ? "dorm" : null,
+    requestedDormSessionId ? "dorm" : requestedPanel === "leave" ? "leave" : null,
   );
   useEffect(() => {
     if (requestedDormSessionId) setActive("dorm");
   }, [requestedDormSessionId]);
+  useEffect(() => {
+    if (requestedPanel === "leave") setActive("leave");
+  }, [requestedPanel]);
   const [autoArchiveEnabled, setAutoArchiveEnabled] = useState(false);
   const [autoArchiveProgress, setAutoArchiveProgress] = useState<{
     completed: number;
@@ -126,6 +140,16 @@ export function PrincipalOperationalLists({
     queryKey: ["principal", "teacher-reports"],
     queryFn: getTeacherStudentReports,
     enabled: canReviewAttendance,
+  });
+  const teacherLeaves = useQuery({
+    queryKey: ["teacher-leaves", "principal", organizationId],
+    queryFn: listTeacherLeaveRequests,
+    enabled: active === "leave" && auth.can("leave.read"),
+  });
+  const teachers = useQuery({
+    queryKey: ["academic", "teachers", "leave-substitutes", organizationId],
+    queryFn: () => listAcademicTeachers(organizationId!, { limit: 100 }),
+    enabled: active === "leave" && Boolean(organizationId) && auth.can("schedule.publish"),
   });
   const policy = useQuery({
     queryKey: ["attendance-policy", organizationId],
@@ -180,6 +204,33 @@ export function PrincipalOperationalLists({
     onSuccess: () => {
       void client.invalidateQueries({ queryKey: ["principal", "teacher-reports"] });
       void client.invalidateQueries({ queryKey: ["principal-dashboard"] });
+    },
+  });
+  const reviewTeacherLeave = useMutation({
+    mutationFn: ({
+      id,
+      body,
+    }: {
+      id: string;
+      body: {
+        decision: "approved" | "rejected";
+        resolution?: "cancel" | "substitute";
+        substituteTeacherId?: string;
+      };
+    }) => reviewTeacherLeaveRequest(id, body),
+    onSuccess: () => {
+      void client.invalidateQueries({ queryKey: ["teacher-leaves"] });
+      void client.invalidateQueries({ queryKey: ["principal-dashboard"] });
+      void client.invalidateQueries({ queryKey: ["schedule"] });
+    },
+  });
+  const reviewTeacherReturn = useMutation({
+    mutationFn: ({ id, decision }: { id: string; decision: "approved" | "rejected" }) =>
+      reviewTeacherLeaveReturn(id, { decision }),
+    onSuccess: () => {
+      void client.invalidateQueries({ queryKey: ["teacher-leaves"] });
+      void client.invalidateQueries({ queryKey: ["principal-dashboard"] });
+      void client.invalidateQueries({ queryKey: ["schedule"] });
     },
   });
   const runAutoArchive = async (checked: boolean) => {
@@ -270,6 +321,11 @@ export function PrincipalOperationalLists({
           if (requestedDormSessionId) {
             const next = new URLSearchParams(searchParams);
             next.delete("dormSessionId");
+            setSearchParams(next, { replace: true });
+          }
+          if (requestedPanel) {
+            const next = new URLSearchParams(searchParams);
+            next.delete("panel");
             setSearchParams(next, { replace: true });
           }
         }}
@@ -386,28 +442,17 @@ export function PrincipalOperationalLists({
               )}
             </>
           )}
-          {active === "leave" &&
-            (values.teacherLeaveRequests.length ? (
-              values.teacherLeaveRequests.map((item) => (
-                <article
-                  key={`${item.type}:${item.id}`}
-                  className="rounded-2xl border border-[rgb(var(--border-subtle))] p-4"
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <strong>{item.teacherName}</strong>
-                    <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-bold text-amber-900 dark:bg-amber-950 dark:text-amber-100">
-                      {item.type === "return" ? "درخواست بازگشت" : "درخواست مرخصی"}
-                    </span>
-                  </div>
-                  <p className="mt-2 text-sm text-muted-foreground">
-                    {formatDate(item.startDate)} تا {formatDate(item.endDate)}
-                  </p>
-                  <p className="mt-2 text-xs text-muted-foreground">درخواست در صف بررسی است.</p>
-                </article>
-              ))
-            ) : (
-              <Empty text="درخواست مرخصی یا بازگشت استادی در صف نیست." />
-            ))}
+          {active === "leave" && (
+            <TeacherLeaveReviewList
+              rows={teacherLeaves.data ?? []}
+              loading={teacherLeaves.isLoading}
+              error={teacherLeaves.isError}
+              teachers={teachers.data?.items ?? []}
+              busy={reviewTeacherLeave.isPending || reviewTeacherReturn.isPending}
+              onReviewLeave={(id, body) => reviewTeacherLeave.mutate({ id, body })}
+              onReviewReturn={(id, decision) => reviewTeacherReturn.mutate({ id, decision })}
+            />
+          )}
           {active === "groups" &&
             (values.classGroupAttendance.length ? (
               values.classGroupAttendance.map((item) => (
@@ -718,6 +763,138 @@ function ReportRow({
         )}
       </div>
     </article>
+  );
+}
+
+function TeacherLeaveReviewList({
+  rows,
+  loading,
+  error,
+  teachers,
+  busy,
+  onReviewLeave,
+  onReviewReturn,
+}: {
+  rows: TeacherLeaveRequest[];
+  loading: boolean;
+  error: boolean;
+  teachers: AcademicTeacher[];
+  busy: boolean;
+  onReviewLeave: (
+    id: string,
+    body: {
+      decision: "approved" | "rejected";
+      resolution?: "cancel" | "substitute";
+      substituteTeacherId?: string;
+    },
+  ) => void;
+  onReviewReturn: (id: string, decision: "approved" | "rejected") => void;
+}) {
+  const [substitutes, setSubstitutes] = useState<Record<string, string>>({});
+  const pending = rows.filter((row) => row.status === "pending" || row.returnStatus === "pending");
+  if (loading) return <LoadingState label="دریافت درخواست‌های مرخصی استادان…" />;
+  if (error) return <ErrorText onRetry={() => window.location.reload()} />;
+  if (!pending.length) return <Empty text="درخواست مرخصی یا بازگشت استادی در صف نیست." />;
+  return (
+    <div className="grid gap-3">
+      <p className="text-xs text-muted-foreground">
+        تأیید مرخصی فقط رخدادهای همان بازه را منجمد می‌کند. با انتخاب جانشین، همان جلسه‌ها به‌صورت
+        یک‌باره به دبیر منتخب واگذار می‌شوند.
+      </p>
+      {pending.map((row) => {
+        const isReturn = row.returnStatus === "pending";
+        const teacherName =
+          [row.teacher?.firstName, row.teacher?.lastName].filter(Boolean).join(" ") ||
+          row.teacher?.username ||
+          "استاد";
+        return (
+          <article
+            key={`${row.id}:${isReturn ? "return" : "leave"}`}
+            className="grid gap-3 rounded-2xl border border-[rgb(var(--border-subtle))] p-4"
+          >
+            <div className="flex flex-wrap items-start justify-between gap-2">
+              <div>
+                <strong>{teacherName}</strong>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  {isReturn
+                    ? `بازگشت در ${formatDate(row.returnDate ?? row.startDate)}`
+                    : `${formatDate(row.startDate)} تا ${formatDate(row.endDate)}`}
+                </p>
+              </div>
+              <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-bold text-amber-900 dark:bg-amber-950 dark:text-amber-100">
+                {isReturn ? "درخواست بازگشت" : "درخواست مرخصی"}
+              </span>
+            </div>
+            <p className="rounded-xl bg-[rgb(var(--surface-muted))] p-3 text-sm leading-6">
+              {isReturn ? row.returnMessage || "بدون پیام" : row.reason}
+            </p>
+            {isReturn ? (
+              <div className="flex flex-wrap gap-2">
+                <Button disabled={busy} onClick={() => onReviewReturn(row.id, "approved")}>
+                  تأیید بازگشت و فعال‌سازی برنامه
+                </Button>
+                <Button
+                  variant="soft"
+                  disabled={busy}
+                  onClick={() => onReviewReturn(row.id, "rejected")}
+                >
+                  رد درخواست
+                </Button>
+              </div>
+            ) : (
+              <>
+                <label className="grid gap-1 text-sm font-bold">
+                  دبیر جایگزین (اختیاری)
+                  <select
+                    className="h-11 rounded-xl border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface))] px-3 font-normal"
+                    value={substitutes[row.id] ?? ""}
+                    onChange={(event) =>
+                      setSubstitutes((current) => ({ ...current, [row.id]: event.target.value }))
+                    }
+                  >
+                    <option value="">بدون جانشین؛ نمایش لغو جلسه برای دانش‌آموزان</option>
+                    {teachers
+                      .filter((teacher) => teacher.id !== row.teacherId)
+                      .map((teacher) => (
+                        <option key={teacher.id} value={teacher.id}>
+                          {[teacher.firstName, teacher.lastName].filter(Boolean).join(" ") ||
+                            teacher.username}
+                        </option>
+                      ))}
+                  </select>
+                </label>
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    disabled={busy}
+                    onClick={() =>
+                      onReviewLeave(
+                        row.id,
+                        substitutes[row.id]
+                          ? {
+                              decision: "approved",
+                              resolution: "substitute",
+                              substituteTeacherId: substitutes[row.id],
+                            }
+                          : { decision: "approved", resolution: "cancel" },
+                      )
+                    }
+                  >
+                    تأیید مرخصی
+                  </Button>
+                  <Button
+                    variant="soft"
+                    disabled={busy}
+                    onClick={() => onReviewLeave(row.id, { decision: "rejected" })}
+                  >
+                    رد درخواست
+                  </Button>
+                </div>
+              </>
+            )}
+          </article>
+        );
+      })}
+    </div>
   );
 }
 

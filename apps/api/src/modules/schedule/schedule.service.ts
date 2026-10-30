@@ -35,6 +35,8 @@ import { UserRelationship } from "../../database/entities/user-relationship.enti
 import { TeacherLeaveRequest } from "../../database/entities/teacher-leave-request.entity";
 import { AuthenticatedUser } from "../auth";
 import { AuthorizationService, UserContext } from "../authorization";
+import { NotificationsService } from "../notifications";
+import { NotificationType } from "../../database/entities/notification.entity";
 import {
   ArchiveScheduleEntryDto,
   RestoreArchivedScheduleEntriesDto,
@@ -90,6 +92,7 @@ export class ScheduleService {
     private readonly authorization: AuthorizationService,
     @InjectRepository(AuditLog)
     private readonly auditLogs?: Repository<AuditLog>,
+    private readonly notifications?: NotificationsService,
   ) {}
   private async auditAcademicCycle(
     user: AuthenticatedUser,
@@ -993,6 +996,7 @@ export class ScheduleService {
         returnReviewedAt: null,
       }),
     );
+    await this.notifyPrincipalsOfTeacherLeave(row, "leave");
     return this.publicTeacherLeave({
       ...row,
       teacher: { id: user.id } as User,
@@ -1145,7 +1149,51 @@ export class ScheduleService {
     row.returnStatus = "pending";
     row.returnRequestedAt = new Date();
     row.returnReviewedAt = null;
-    return this.publicTeacherLeave(await this.teacherLeaves.save(row));
+    const saved = await this.teacherLeaves.save(row);
+    await this.notifyPrincipalsOfTeacherLeave(saved, "return");
+    return this.publicTeacherLeave(saved);
+  }
+
+  /** Delivers a durable, deduplicated dashboard notification to each school principal. */
+  private async notifyPrincipalsOfTeacherLeave(
+    row: TeacherLeaveRequest,
+    kind: "leave" | "return",
+  ) {
+    if (!this.notifications) return;
+    const memberships = await this.memberships.find({
+      where: {
+        organization: { id: row.organizationId },
+        status: MembershipStatus.ACTIVE,
+      },
+      relations: { user: true, roleAssignments: { role: true } },
+    });
+    const principalIds = memberships
+      .filter((membership) =>
+        membership.roleAssignments.some((assignment) =>
+          ["PRINCIPAL", "ORGANIZATION_ADMIN"].includes(assignment.role.code),
+        ),
+      )
+      .map((membership) => membership.user.id);
+    if (!principalIds.length) return;
+    const teacher = await this.memberships.manager.getRepository(User).findOneBy({ id: row.teacherId });
+    const teacherName = [teacher?.firstName, teacher?.lastName]
+      .filter(Boolean)
+      .join(" ")
+      .trim() || teacher?.username || "استاد";
+    const isReturn = kind === "return";
+    await this.notifications.createForUsers(principalIds, {
+      type: NotificationType.WARNING,
+      category: "teacher-leave-request",
+      priority: "high",
+      title: isReturn ? "درخواست بازگشت استاد" : "درخواست مرخصی استاد",
+      body: isReturn
+        ? `${teacherName} درخواست بازگشت در ${row.returnDate ?? "تاریخ انتخاب‌شده"} را ارسال کرده است.`
+        : `${teacherName} برای ${row.startDate} تا ${row.endDate} درخواست مرخصی ارسال کرده است.`,
+      url: "/admin/dashboard/principal?panel=leave",
+      data: { teacherLeaveRequestId: row.id, kind },
+      organizationId: row.organizationId,
+      dedupeKey: `teacher-leave-request:${row.id}:${kind}:${row.returnRequestedAt?.toISOString() ?? "initial"}`,
+    });
   }
   async reviewTeacherLeaveReturn(
     user: AuthenticatedUser,

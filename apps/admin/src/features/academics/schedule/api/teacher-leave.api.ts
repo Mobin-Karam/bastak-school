@@ -7,6 +7,12 @@ export type TeacherLeaveRequest = {
   startDate: string;
   endDate: string;
   reason: string;
+  academicCycleSnapshots: Array<{
+    academicYearId: string;
+    academicYearName: string | null;
+    termId: string;
+    termName: string | null;
+  }>;
   status: "pending" | "approved" | "rejected";
   resolution: "cancel" | "substitute" | null;
   substituteTeacherId: string | null;
