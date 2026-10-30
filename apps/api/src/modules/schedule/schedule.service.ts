@@ -975,6 +975,8 @@ export class ScheduleService {
     const cycleSnapshots = await this.teacherLeaveCycleSnapshots(
       dto.organizationId,
       user.id,
+      dto.startDate,
+      dto.endDate,
     );
     const row = await this.teacherLeaves.save(
       this.teacherLeaves.create({
@@ -1005,6 +1007,8 @@ export class ScheduleService {
   private async teacherLeaveCycleSnapshots(
     organizationId: string,
     teacherId: string,
+    leaveStartsOn: string,
+    leaveEndsOn: string,
   ) {
     const entries = await this.entries.find({
       where: {
@@ -1032,10 +1036,10 @@ export class ScheduleService {
     const terms = termIds.length
       ? await this.academicTerms.findBy({ id: In(termIds) })
       : [];
-    const termNames = new Map(terms.map((term) => [term.id, term.name]));
-    return [
-      ...new Map(
-        affected.map((entry) => {
+    const termsById = new Map(terms.map((term) => [term.id, term]));
+    const snapshots = affected.flatMap((entry) => {
+          const term = termsById.get(entry.termId!);
+          if (term && (term.startsOn > leaveEndsOn || term.endsOn < leaveStartsOn)) return [];
           const value = {
             academicYearId: entry.academicYearId!,
             academicYearName:
@@ -1044,12 +1048,13 @@ export class ScheduleService {
               null,
             termId: entry.termId!,
             termName:
-              entry.termNameSnapshot ?? termNames.get(entry.termId!) ?? null,
+              entry.termNameSnapshot ?? term?.name ?? null,
+            termStartsOn: term?.startsOn ?? null,
+            termEndsOn: term?.endsOn ?? null,
           };
-          return [`${value.academicYearId}:${value.termId}`, value] as const;
-        }),
-      ).values(),
-    ];
+          return [[`${value.academicYearId}:${value.termId}`, value] as const];
+        });
+    return [...new Map(snapshots).values()];
   }
   async reviewTeacherLeave(
     user: AuthenticatedUser,

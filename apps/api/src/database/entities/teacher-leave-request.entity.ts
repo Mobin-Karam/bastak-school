@@ -31,6 +31,8 @@ export class TeacherLeaveRequest {
     academicYearName: string | null;
     termId: string;
     termName: string | null;
+    termStartsOn?: string | null;
+    termEndsOn?: string | null;
   }> | null;
   @Column({ type: "varchar", length: 16, default: "pending" }) status!:
     "pending" | "approved" | "rejected";

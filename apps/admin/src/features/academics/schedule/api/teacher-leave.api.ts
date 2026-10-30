@@ -12,6 +12,8 @@ export type TeacherLeaveRequest = {
     academicYearName: string | null;
     termId: string;
     termName: string | null;
+    termStartsOn?: string | null;
+    termEndsOn?: string | null;
   }>;
   status: "pending" | "approved" | "rejected";
   resolution: "cancel" | "substitute" | null;

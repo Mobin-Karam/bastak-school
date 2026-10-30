@@ -214,6 +214,21 @@ function TeacherProfile({
   }, new Map());
   const approvedLeaves = leaves.filter((leave) => leave.status === "approved");
   const totalLeaveDays = approvedLeaves.reduce((sum, leave) => sum + leaveDays(leave), 0);
+  const leaveDaysByCycle = approvedLeaves.reduce<Map<string, { label: string; days: number }>>(
+    (result, leave) => {
+      leave.academicCycleSnapshots.forEach((cycle) => {
+        const key = `${cycle.academicYearId}:${cycle.termId}`;
+        const current = result.get(key) ?? {
+          label: `${cycle.academicYearName ?? "سال نامشخص"} · ${cycle.termName ?? "نیم‌سال نامشخص"}`,
+          days: 0,
+        };
+        current.days += leaveDays(leave, cycle.termStartsOn, cycle.termEndsOn);
+        result.set(key, current);
+      });
+      return result;
+    },
+    new Map(),
+  );
   return (
     <div className="grid gap-5 py-4">
       <div className="flex items-center gap-3">
@@ -338,6 +353,19 @@ function TeacherProfile({
             {totalLeaveDays.toLocaleString("fa-IR")} روز تأییدشده
           </span>
         </div>
+        {leaveDaysByCycle.size ? (
+          <ul className="grid gap-2" aria-label="جمع مرخصی بر اساس سال و نیم‌سال">
+            {[...leaveDaysByCycle.values()].map((cycle) => (
+              <li
+                key={cycle.label}
+                className="flex items-center justify-between gap-3 rounded-xl bg-[rgb(var(--surface-muted))] px-3 py-2 text-sm"
+              >
+                <strong>{cycle.label}</strong>
+                <span className="font-black">{cycle.days.toLocaleString("fa-IR")} روز</span>
+              </li>
+            ))}
+          </ul>
+        ) : null}
         {leaves.length ? (
           <ul className="grid gap-2" aria-label="آرشیو درخواست‌های مرخصی استاد">
             {leaves.map((leave) => (
@@ -426,9 +454,13 @@ const formatHours = (minutes: number) =>
     minimumIntegerDigits: 2,
     useGrouping: false,
   })} ساعت`;
-const leaveDays = (leave: TeacherLeaveRequest) => {
-  const start = new Date(`${leave.startDate}T12:00:00Z`);
-  const end = new Date(`${leave.endDate}T12:00:00Z`);
+const leaveDays = (
+  leave: TeacherLeaveRequest,
+  startsOn?: string | null,
+  endsOn?: string | null,
+) => {
+  const start = new Date(`${[leave.startDate, startsOn].filter(Boolean).sort().at(-1)}T12:00:00Z`);
+  const end = new Date(`${[leave.endDate, endsOn].filter(Boolean).sort()[0]}T12:00:00Z`);
   return Math.max(0, Math.round((end.getTime() - start.getTime()) / 86_400_000) + 1);
 };
 const formatLeaveStatus = (status: TeacherLeaveRequest["status"]) =>
