@@ -628,11 +628,9 @@ export const adminRouteObjects = [
           {
             path: "communication/notifications",
             element: (
-              <NonStudentRoute>
-                <RouteScreen>
-                  <NotificationsPage />
-                </RouteScreen>
-              </NonStudentRoute>
+              <RouteScreen>
+                <NotificationsPage />
+              </RouteScreen>
             ),
           },
           {

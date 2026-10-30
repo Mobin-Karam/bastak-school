@@ -23,6 +23,7 @@ describe("student navigation", () => {
       "coin-shop",
       "registration",
       "my-attendance",
+      "communication/notifications",
       "settings",
     ]);
   });
@@ -54,6 +55,10 @@ describe("student navigation", () => {
     expect(resolveAdminNavigation("/admin/achievements", "STUDENT")).toMatchObject({
       section: "پیشرفت و سکه",
       path: "achievements",
+    });
+    expect(resolveAdminNavigation("/admin/communication/notifications", "STUDENT")).toMatchObject({
+      section: "اعلان‌ها",
+      path: "communication/notifications",
     });
   });
 });

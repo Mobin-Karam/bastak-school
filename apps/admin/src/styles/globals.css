@@ -452,6 +452,7 @@
 /* Student home takes the visual cue from Bastak's evening courtyard: a calm
  * navy canvas with bright, actionable learning states rather than decoration. */
 .student-dashboard__hero {
+  isolation: isolate;
   background:
     radial-gradient(circle at 8% 18%, rgb(56 189 248 / 28%), transparent 26%),
     radial-gradient(circle at 92% 92%, rgb(16 185 129 / 24%), transparent 34%),
@@ -461,9 +462,10 @@
 
 .student-dashboard__hero-orb {
   position: absolute;
-  border-radius: 999px;
   pointer-events: none;
-  filter: blur(1px);
+  clip-path: polygon(25% 4%, 75% 4%, 100% 50%, 75% 96%, 25% 96%, 0 50%);
+  filter: drop-shadow(0 12px 14px rgb(2 44 69 / 26%));
+  transform: rotate(18deg);
 }
 
 .student-dashboard__hero-orb--one {
@@ -471,7 +473,7 @@
   height: 10rem;
   inset-inline-end: -4rem;
   top: -5rem;
-  background: rgb(125 211 252 / 18%);
+  background: linear-gradient(145deg, rgb(186 230 253 / 36%), rgb(56 189 248 / 8%));
 }
 
 .student-dashboard__hero-orb--two {
@@ -479,18 +481,70 @@
   height: 8rem;
   inset-inline-start: -3rem;
   bottom: -5rem;
-  background: rgb(110 231 183 / 15%);
+  background: linear-gradient(145deg, rgb(167 243 208 / 30%), rgb(16 185 129 / 6%));
 }
 
 .student-dashboard__surface {
+  position: relative;
+  isolation: isolate;
   border-radius: 1.25rem;
   border-color: rgb(var(--border-subtle));
-  box-shadow: 0 10px 26px rgb(15 23 42 / 6%);
+  box-shadow:
+    0 14px 28px rgb(15 23 42 / 10%),
+    inset 0 1px 0 rgb(255 255 255 / 74%),
+    inset 0 -3px 0 rgb(15 23 42 / 5%);
+}
+
+.student-dashboard__surface::after {
+  position: absolute;
+  z-index: -1;
+  width: 4rem;
+  height: 4rem;
+  inset-block-start: -1.4rem;
+  inset-inline-end: -1.2rem;
+  content: "";
+  pointer-events: none;
+  clip-path: polygon(25% 4%, 75% 4%, 100% 50%, 75% 96%, 25% 96%, 0 50%);
+  background: rgb(255 255 255 / 28%);
+  opacity: 0.7;
+  transform: rotate(16deg);
 }
 
 .student-dashboard__prayer {
+  position: relative;
+  isolation: isolate;
   border-radius: 1.25rem;
-  box-shadow: 0 10px 26px rgb(15 23 42 / 6%);
+  box-shadow:
+    0 14px 28px rgb(15 23 42 / 10%),
+    inset 0 1px 0 rgb(255 255 255 / 74%),
+    inset 0 -3px 0 rgb(15 23 42 / 5%);
+}
+
+.student-dashboard__prayer::after {
+  position: absolute;
+  z-index: -1;
+  width: 3.5rem;
+  height: 3.5rem;
+  inset-block-end: -1.2rem;
+  inset-inline-start: -1rem;
+  content: "";
+  pointer-events: none;
+  clip-path: polygon(25% 4%, 75% 4%, 100% 50%, 75% 96%, 25% 96%, 0 50%);
+  background: rgb(14 165 233 / 14%);
+  transform: rotate(-16deg);
+}
+
+.student-dashboard__hex-grid > * {
+  box-shadow:
+    0 8px 15px rgb(15 23 42 / 14%),
+    inset 0 1px 0 rgb(255 255 255 / 46%),
+    inset 0 -3px 0 rgb(15 23 42 / 10%);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .student-dashboard__hex-grid > * {
+    transition: none !important;
+  }
 }
 
 .admin-role-shell[data-shell="mobile"] .mobile-task-card,
