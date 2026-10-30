@@ -2038,7 +2038,10 @@ export function AttendanceStaffWorkspace({
                           className="text-start hover:text-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 dark:hover:text-blue-300"
                           onClick={() => setSelectedId(session.id)}
                         >
-                          {session.title}
+                          <span className="inline-flex flex-wrap items-center gap-2">
+                            <span>{session.title}</span>
+                            {session.contextType === "dorm" ? <span className={`rounded-lg px-2 py-1 text-[10px] font-black ${session.attendancePeriod === "night" ? "bg-indigo-100 text-indigo-900 dark:bg-indigo-950/50 dark:text-indigo-100" : "bg-amber-100 text-amber-900 dark:bg-amber-950/50 dark:text-amber-100"}`}>{session.attendancePeriod === "night" ? "شب · اصلی" : "روز"}</span> : null}
+                          </span>
                         </button>
                       </td>
                       <td className="px-3 py-3 text-xs text-slate-500">

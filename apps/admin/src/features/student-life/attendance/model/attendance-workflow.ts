@@ -7,6 +7,8 @@ export type AttendanceParticipant = {
   studentNumber: string;
   userId?: string | null;
   status: AttendanceStatus;
+  approvedLeave?: { startsAt: string; endsAt: string } | null;
+  overdueReturn?: boolean;
 };
 
 export type AttendanceFilter = "all" | AttendanceStatus;

@@ -45,11 +45,11 @@ export const listAttendanceContexts = (organizationId?: string) =>
     `/attendance/contexts${organizationId ? `?organizationId=${encodeURIComponent(organizationId)}` : ""}`,
   );
 
-export const getAttendanceParticipants = (contextType: AttendanceContextType, contextId: string) =>
+export const getAttendanceParticipants = (contextType: AttendanceContextType, contextId: string, occurrence?: { date?: string; period?: "day" | "night" }) =>
   api.get<
-    Array<{ id: string; name: string; userId?: string | null; nationalCode?: string | null }>
+    Array<{ id: string; name: string; userId?: string | null; nationalCode?: string | null; approvedLeave?: { startsAt: string; endsAt: string } | null; overdueReturn?: boolean }>
   >(
-    `/attendance/context/${encodeURIComponent(contextType)}/${encodeURIComponent(contextId)}/participants`,
+    `/attendance/context/${encodeURIComponent(contextType)}/${encodeURIComponent(contextId)}/participants${occurrence?.date ? `?${new URLSearchParams({ date: occurrence.date, period: occurrence.period ?? "night" }).toString()}` : ""}`,
   );
 
 export type AttendanceBulkMarkRequest = {
@@ -60,6 +60,7 @@ export type AttendanceBulkMarkRequest = {
   contextType?: AttendanceContextType;
   contextId?: string;
   sessionDate?: string;
+  attendancePeriod?: "day" | "night";
   entries: Array<{
     studentId: string;
     status: "present" | "absent" | "late" | "excused";

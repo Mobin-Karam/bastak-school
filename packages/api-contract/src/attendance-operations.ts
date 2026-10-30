@@ -16,11 +16,21 @@ export type DormAttendanceDelegate = {
   dormWide?: boolean;
 };
 export type DormAttendanceAssignment = DormAttendanceDelegate & {
+  occurrenceId: string;
   nightDate: string;
+  attendancePeriod: "day" | "night";
+  sessionStatus?: "scheduled" | "open" | "submitted" | "finalized" | "cancelled" | null;
+  academicYearName?: string | null;
+  termName?: string | null;
   revision: number;
   canMark: boolean;
-  roster: Array<{ id: string; name: string }>;
-  records: Array<{ studentId: string; status: PhysicalAttendanceStatus }>;
+  roster: Array<{
+    id: string;
+    name: string;
+    approvedLeave?: { startsAt: string; endsAt: string } | null;
+    overdueReturn?: boolean;
+  }>;
+  records: Array<{ studentId: string; status: PhysicalAttendanceStatus | "excused" }>;
 };
 export type DormDelegateDraft = {
   studentId: string;
@@ -31,7 +41,8 @@ export type DormAttendanceWrite = {
   requestId: string;
   expectedRevision: number;
   nightDate: string;
-  entries: Array<{ studentId: string; status: PhysicalAttendanceStatus }>;
+  attendancePeriod?: "day" | "night";
+  entries: Array<{ studentId: string; status: PhysicalAttendanceStatus | "excused" }>;
 };
 export type AttendancePoolDraft = {
   requestId: string;

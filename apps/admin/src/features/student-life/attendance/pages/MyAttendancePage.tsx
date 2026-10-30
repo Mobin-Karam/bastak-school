@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { CalendarCheck2, ChevronDown, CircleSlash2, Clock3, X } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { useAuth } from "../../../identity/auth";
 import { Badge, Button, Card, ErrorState, LoadingState } from "../../../../shared/ui/ui";
 import { ManagementPageHeader } from "../../../../shared/ui/management-workspace";
@@ -13,9 +14,13 @@ import { StudentAttendanceHistoryList } from "../components/StudentAttendanceHis
 /** Student accounts see encouragement and scoped tasks; detailed profiles belong to staff. */
 export function MyAttendancePage() {
   const auth = useAuth();
+  const [searchParams] = useSearchParams();
   const { formatDate } = useLocale();
   const [summaryOpen, setSummaryOpen] = useState(false);
-  const [section, setSection] = useState<"lessons" | "dorm">("lessons");
+  const [section, setSection] = useState<"lessons" | "dorm">(() => searchParams.get("section") === "dorm" ? "dorm" : "lessons");
+  useEffect(() => {
+    if (searchParams.get("section") === "dorm") setSection("dorm");
+  }, [searchParams]);
   const scope = JSON.stringify([
     auth.user?.id,
     auth.activeRole,

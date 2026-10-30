@@ -7,6 +7,15 @@ const Database = require("better-sqlite3");
 // failed rehearsal, not an implicit permission to transform live data. This is
 // intentionally self-contained because production streams this helper to Node.
 const expectations = {
+  DormAttendanceReviewHandoff1762600000000: {
+    "attendance_sessions.attendancePeriod": { nullable: true, value: "null" },
+    "attendance_sessions.dormSupervisorReviewedById": { nullable: true, value: "null" },
+    "attendance_sessions.dormSupervisorReviewedAt": { nullable: true, value: "null" },
+    "attendance_sessions.dormSupervisorNote": { nullable: true, value: "null" },
+    "attendance_sessions.dormForwardedAt": { nullable: true, value: "null" },
+    "attendance_sessions.dormPrincipalReviewedById": { nullable: true, value: "null" },
+    "attendance_sessions.dormPrincipalReviewedAt": { nullable: true, value: "null" },
+  },
   // Existing leave rows have no meal choice or linked movement. The migration is
   // additive: false is the safe meal default and the relationship remains null.
   StudentLeaveTimingAndMeals1762500000000: {

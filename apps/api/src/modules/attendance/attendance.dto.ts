@@ -74,6 +74,7 @@ export class BulkMarkAttendanceDto {
   @IsOptional() @IsUUID() sessionId?: string;
   @IsOptional() @IsIn(["class", "class_group", "dorm"]) contextType?:
     "class" | "class_group" | "dorm";
+  @IsOptional() @IsIn(["day", "night"]) attendancePeriod?: "day" | "night";
   @IsOptional() @IsUUID() contextId?: string;
   @IsOptional() @IsDateString() sessionDate?: string;
   @IsArray()
@@ -144,7 +145,7 @@ export class CreateExceptionalAttendanceSessionDto {
 
 export class SessionAttendanceEntryDto {
   @IsUUID() studentId!: string;
-  @IsIn(["present", "absent", "late"]) status!: "present" | "absent" | "late";
+  @IsIn(["present", "absent", "late", "excused"]) status!: "present" | "absent" | "late" | "excused";
   @IsOptional() @IsString() @MaxLength(500) note?: string;
   @IsOptional() @IsInt() @Min(0) @Max(1440) minutesLate?: number;
   @IsOptional() @IsDateString({ strict: true }) arrivalAt?: string;
@@ -276,6 +277,7 @@ export class DelegatedDormAttendanceDto {
   @Matches(/^\d{4}-\d{2}-\d{2}$/)
   @IsDateString({ strict: true })
   nightDate!: string;
+  @IsOptional() @IsIn(["day", "night"]) attendancePeriod?: "day" | "night";
   @IsArray()
   @ArrayMinSize(1)
   @ArrayMaxSize(500)
@@ -283,6 +285,14 @@ export class DelegatedDormAttendanceDto {
   @ValidateNested({ each: true })
   @Type(() => SessionAttendanceEntryDto)
   entries!: SessionAttendanceEntryDto[];
+}
+
+export class DormAttendanceSupervisorReviewDto {
+  @IsOptional() @IsString() @MaxLength(1000) note?: string;
+}
+export class DormAttendanceReopenDto {
+  @IsIn(["delegate", "supervisor"]) action!: "delegate" | "supervisor";
+  @IsString() @MaxLength(1000) reason!: string;
 }
 export class CreateAttendancePoolDto {
   @IsUUID() requestId!: string;

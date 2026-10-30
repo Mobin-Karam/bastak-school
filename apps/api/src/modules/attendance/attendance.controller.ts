@@ -95,9 +95,11 @@ export class AttendanceController {
     @CurrentUser() user: AuthenticatedUser,
     @Param("contextType") contextType: string,
     @Param("contextId") contextId: string,
+    @Query("date") occurrenceDate?: string,
+    @Query("period") attendancePeriod?: "day" | "night",
   ) {
     return this.attendance
-      .listParticipants(user, contextType, contextId)
+      .listParticipants(user, contextType, contextId, occurrenceDate, attendancePeriod)
       .then(ok);
   }
 

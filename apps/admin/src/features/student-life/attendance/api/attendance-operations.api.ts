@@ -16,6 +16,39 @@ import type {
 } from "@moshaver/api-contract";
 
 export const getAttendanceOverview = () => api.get<AttendanceDailyOverview>("/attendance/overview");
+export type DormAttendanceReviewItem = {
+  id: string;
+  roomId: string;
+  roomName: string;
+  sessionDate: string;
+  operationalDate: string | null;
+  attendancePeriod: "day" | "night";
+  revision: number;
+  total: number;
+  present: number;
+  attention: Array<{ studentId: string; name: string; status: "absent" | "late" | "excused" }>;
+  supervisorNote: string;
+  reviewUrl: string;
+};
+export const getDormAttendanceReviewQueue = () =>
+  api.get<DormAttendanceReviewItem[]>("/attendance/dorm-review-queue");
+export const getDormAttendanceOccurrence = (roomId: string, date: string, period: "day" | "night") =>
+  api.get<AttendanceSessionDetail | null>(`/attendance/dorm-session?${new URLSearchParams({ roomId, date, period }).toString()}`);
+export const forwardDormAttendanceReview = (id: string, note: string) =>
+  api.post<{ sessionId: string; forwardedAt: string }>(
+    `/attendance/dorm-sessions/${encodeURIComponent(id)}/forward-review`,
+    { note },
+  );
+export const reopenDormAttendanceReview = (id: string, action: "delegate" | "supervisor", reason: string) =>
+  api.post<{ sessionId: string; revision: number; reviewUrl: string; reassigned: boolean }>(
+    `/attendance/dorm-sessions/${encodeURIComponent(id)}/reopen`,
+    { action, reason },
+  );
+export const finalizeDormAttendanceReview = (id: string) =>
+  api.post<{ sessionId: string; status: string; reviewedAt: string }>(
+    `/attendance/dorm-sessions/${encodeURIComponent(id)}/final-review`,
+    {},
+  );
 export const getAttendanceReportSummary = (params?: {
   from?: string;
   to?: string;
@@ -67,6 +100,8 @@ export type AttendanceHistorySession = {
   contextType: "class" | "class_group" | "dorm";
   contextId: string;
   title: string;
+  operationalDate?: string | null;
+  attendancePeriod?: "day" | "night" | null;
   teacherName: string | null;
   subjectId: string | null;
   subjectName: string | null;

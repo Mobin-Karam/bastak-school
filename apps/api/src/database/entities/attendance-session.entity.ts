@@ -78,6 +78,20 @@ export class AttendanceSession {
   @Column({ type: "datetime", nullable: true }) scheduledEndAt?: Date | null;
   @Column({ length: 20, default: "open" }) status!: AttendanceSessionStatus;
   @Column({ type: "integer", default: 0 }) revision!: number;
+  @Column({ type: "varchar", length: 8, nullable: true }) attendancePeriod?: "day" | "night" | null;
+  /** Dorm roll-call review handoff; null dates mean the next reviewer has not acted. */
+  @ManyToOne(() => User, { nullable: true, onDelete: "SET NULL" })
+  dormSupervisorReviewedBy?: User | null;
+  @Column({ type: "datetime", nullable: true })
+  dormSupervisorReviewedAt?: Date | null;
+  @Column({ type: "text", nullable: true })
+  dormSupervisorNote?: string | null;
+  @Column({ type: "datetime", nullable: true })
+  dormForwardedAt?: Date | null;
+  @ManyToOne(() => User, { nullable: true, onDelete: "SET NULL" })
+  dormPrincipalReviewedBy?: User | null;
+  @Column({ type: "datetime", nullable: true })
+  dormPrincipalReviewedAt?: Date | null;
   @ManyToOne(() => User, { nullable: true, onDelete: "SET NULL" })
   assignedStaff?: User | null;
   @ManyToOne(() => User, { nullable: true, onDelete: "SET NULL" })

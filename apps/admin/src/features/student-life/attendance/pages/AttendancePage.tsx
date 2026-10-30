@@ -37,6 +37,8 @@ import { useAttendanceDiscard } from "../components/useAttendanceDiscard";
 import { AttendanceRosterView } from "../views/AttendanceRosterView";
 import { PendingCorrectionQueue } from "../components/PendingCorrectionQueue";
 import { AttendanceReviewQueue } from "../components/AttendanceReviewQueue";
+import { DormAttendanceReviewInbox } from "../components/DormAttendanceReviewInbox";
+import { DatePicker } from "../../../../shared/ui/date-picker";
 import { SupervisorAttendancePanel } from "../components/SupervisorAttendancePanel";
 import { SupervisorComparisonPanel } from "../components/SupervisorComparisonPanel";
 import {
@@ -60,6 +62,7 @@ type Participant = AttendanceParticipant;
 type Filter = AttendanceFilter;
 import { prepareAttendanceWrite, type PendingAttendanceWrite } from "../model/attendance-write";
 import { attendanceSessionWindow } from "../model/attendance-session-window";
+import { getDormAttendanceOccurrence } from "../api/attendance-operations.api";
 
 type Notice = { kind: "success" | "warning" | "error" | "info"; text: string };
 
@@ -116,6 +119,14 @@ function sessionTimeLabel(start: string | null, end: string | null) {
   return `${format(start)} تا ${format(end)}`;
 }
 
+function todayInTehran() {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Tehran", year: "numeric", month: "2-digit", day: "2-digit",
+  }).formatToParts(new Date());
+  const get = (type: string) => parts.find((part) => part.type === type)?.value ?? "";
+  return `${get("year")}-${get("month")}-${get("day")}`;
+}
+
 export function AttendancePage() {
   const auth = useAuth();
   const isPrincipal = auth.activeRole === "PRINCIPAL";
@@ -170,6 +181,9 @@ export function AttendancePage() {
   const requestedId = searchParams.get("contextId");
   const requestedType = searchParams.get("contextType");
   const requestedSessionId = searchParams.get("sessionId");
+  const [dormOccurrence, setDormOccurrence] = useState<{
+    sessionId: string; contextId: string; date: string; period: "day" | "night";
+  } | null>(null);
   const [inlineScheduledSession, setInlineScheduledSession] = useState<{
     sessionId: string;
     contextId: string;
@@ -182,9 +196,9 @@ export function AttendancePage() {
     completedEntryId: string;
   } | null>(null);
   const [completedScheduledDate, setCompletedScheduledDate] = useState<string | null>(null);
-  const sessionContextId = inlineScheduledSession?.contextId ?? requestedId;
-  const sessionContextType = inlineScheduledSession ? "class" : requestedType;
-  const activeSessionId = inlineScheduledSession?.sessionId ?? requestedSessionId;
+  const sessionContextId = inlineScheduledSession?.contextId ?? requestedId ?? dormOccurrence?.contextId;
+  const sessionContextType = inlineScheduledSession ? "class" : requestedType ?? (dormOccurrence ? "dorm" : undefined);
+  const activeSessionId = inlineScheduledSession?.sessionId ?? requestedSessionId ?? dormOccurrence?.sessionId;
   const requestedSectionParam = searchParams.get("section");
   // Principals do not get the manual class workspace, but may open one
   // scheduled class occurrence directly from the missing-session calendar.
@@ -243,6 +257,31 @@ export function AttendancePage() {
     [contexts, contextId, contextType],
   );
   const dormAbsenceOnly = selected?.contextType === "dorm";
+  const [dormDate, setDormDate] = useState(() => searchParams.get("date") ?? todayInTehran());
+  const [dormPeriod, setDormPeriod] = useState<"day" | "night">(() => searchParams.get("period") === "day" ? "day" : "night");
+  useEffect(() => {
+    if (!dormAbsenceOnly || !selected || requestedSessionId) {
+      setDormOccurrence(null);
+      return;
+    }
+    let active = true;
+    setDormOccurrence(null);
+    void getDormAttendanceOccurrence(selected.id, dormDate, dormPeriod)
+      .then((session) => {
+        if (active && session) setDormOccurrence({ sessionId: session.id, contextId: selected.id, date: dormDate, period: dormPeriod });
+      })
+      .catch((error) => {
+        if (active) notify(errorText(error, "جلسه اتاق دریافت نشد."), "error");
+      });
+    return () => { active = false; };
+  }, [dormAbsenceOnly, selected, requestedSessionId, dormDate, dormPeriod, scopeKey]);
+  useEffect(() => {
+    if (requestedType !== "dorm") return;
+    const date = searchParams.get("date");
+    const period = searchParams.get("period");
+    if (date) setDormDate(date);
+    if (period === "day" || period === "night") setDormPeriod(period);
+  }, [requestedType, searchParams]);
   useEffect(() => {
     setChosenType(requestedSection);
     if (contextOrder.includes(requestedSection as AttendanceContextType)) {
@@ -286,7 +325,15 @@ export function AttendancePage() {
       },
       {},
     );
-    return Object.entries(grouped);
+    const byRoomNumber = (left: AttendanceContextOption, right: AttendanceContextOption) => {
+      const a = Number(left.name.match(/\d+/)?.[0]);
+      const b = Number(right.name.match(/\d+/)?.[0]);
+      if (Number.isFinite(a) && Number.isFinite(b) && a !== b) return a - b;
+      return left.name.localeCompare(right.name, "fa", { numeric: true, sensitivity: "base" });
+    };
+    return Object.entries(grouped)
+      .map(([building, rooms]) => [building, [...rooms].sort(byRoomNumber)] as [string, AttendanceContextOption[]])
+      .sort(([a], [b]) => a.localeCompare(b, "fa", { numeric: true, sensitivity: "base" }));
   }, [chosenType, visibleContexts]);
   const dirty = participants.some((p) => p.status !== (baseline.current.get(p.id) ?? "unmarked"));
   dirtyRef.current = dirty;
@@ -412,29 +459,44 @@ export function AttendancePage() {
         ? activeSessionId
         : null;
     const fetchRoster = sessionId
-      ? getSavedAttendanceSession(sessionId).then((session) => {
+      ? Promise.all([
+          getSavedAttendanceSession(sessionId),
+          selected.contextType === "dorm" ? getAttendanceParticipants("dorm", selected.id, { date: dormDate, period: dormPeriod }) : Promise.resolve([]),
+        ]).then(([session, currentResidents]) => {
           if (
             session.contextId !== selected.id ||
             session.contextType !== selected.contextType ||
             session.organizationId !== selected.activeOrganizationId
           )
             throw new Error("جلسه متعلق به این کلاس و مدرسه نیست.");
-          if (requestId.current === currentRequest) setLinkedSession(session);
+          if (requestId.current === currentRequest) {
+            setLinkedSession(session);
+            if (session.contextType === "dorm") {
+              setDormDate(session.operationalDate ?? todayInTehran());
+            }
+          }
+          const currentById = new Map(currentResidents.map((person) => [person.id, person]));
           return session.roster.map((person) => ({
             ...person,
+            ...(currentById.get(person.id)?.approvedLeave ? { approvedLeave: currentById.get(person.id)?.approvedLeave, overdueReturn: currentById.get(person.id)?.overdueReturn } : {}),
             status:
-              session.records.find((record) => record.studentId === person.id)?.legacyStatus ??
-              "unmarked",
+              currentById.get(person.id)?.approvedLeave
+                ? "excused"
+                : session.records.find((record) => record.studentId === person.id)?.legacyStatus ?? "unmarked",
           }));
         })
-      : getAttendanceParticipants(selected.contextType, selected.id);
+      : getAttendanceParticipants(selected.contextType, selected.id, selected.contextType === "dorm" ? { date: dormDate, period: dormPeriod } : undefined);
     void fetchRoster
       .then((rows) => {
         if (requestId.current !== currentRequest) return;
         baseline.current = new Map(
           rows.map((row) => [
             row.id,
-            "status" in row ? (row.status as AttendanceStatus) : "unmarked",
+            "status" in row
+              ? (row.status as AttendanceStatus)
+              : dormAbsenceOnly
+                ? (row.approvedLeave ? "excused" : "present")
+                : "unmarked",
           ]),
         );
         setParticipants(
@@ -443,7 +505,13 @@ export function AttendancePage() {
             name: row.name,
             userId: row.userId,
             studentNumber: row.nationalCode || `#${index + 1}`,
-            status: "status" in row ? (row.status as AttendanceStatus) : ("unmarked" as const),
+            approvedLeave: row.approvedLeave ?? null,
+            overdueReturn: row.overdueReturn ?? false,
+            status: "status" in row
+              ? (row.status as AttendanceStatus)
+              : dormAbsenceOnly
+                ? (row.approvedLeave ? "excused" : "present")
+                : ("unmarked" as const),
           })),
         );
       })
@@ -460,7 +528,7 @@ export function AttendancePage() {
     return () => {
       if (requestId.current === currentRequest) requestId.current += 1;
     };
-  }, [selected, rosterVersion, sessionContextId, sessionContextType, activeSessionId]);
+  }, [selected, rosterVersion, sessionContextId, sessionContextType, activeSessionId, dormAbsenceOnly, dormDate, dormPeriod]);
 
   useEffect(() => {
     const handleBeforeUnload = (event: BeforeUnloadEvent) => {
@@ -659,7 +727,7 @@ export function AttendancePage() {
     const entries = dormAbsenceOnly
       ? participants.map((p) => ({
           studentId: p.id,
-          status: (p.status === "absent" ? "absent" : "present") as MarkedStatus,
+          status: (p.approvedLeave ? "excused" : p.status === "unmarked" ? "present" : p.status) as MarkedStatus,
         }))
       : participants
           .filter(
@@ -686,6 +754,8 @@ export function AttendancePage() {
           contextId: selected.id,
           sessionId: linkedSession?.id,
           expectedRevision: linkedSession?.revision,
+          ...(dormAbsenceOnly ? { attendancePeriod: dormPeriod } : {}),
+          ...(dormAbsenceOnly ? { sessionDate: dormDate } : {}),
           entries,
         }),
         () => ({
@@ -694,7 +764,10 @@ export function AttendancePage() {
           contextId: selected.id,
           sessionId: linkedSession?.id,
           expectedRevision: linkedSession?.revision,
-          sessionDate: new Date().toISOString(),
+          sessionDate: dormAbsenceOnly
+            ? new Date(`${dormDate}T${dormPeriod === "day" ? "12:00" : "20:00"}:00+03:30`).toISOString()
+            : new Date().toISOString(),
+          ...(dormAbsenceOnly ? { attendancePeriod: dormPeriod } : {}),
           entries,
         }),
       );
@@ -714,7 +787,10 @@ export function AttendancePage() {
             .map((person) => person.id),
         });
       } else {
-        await bulkMarkAttendance(write.body);
+        const saved = await bulkMarkAttendance(write.body);
+        if (dormAbsenceOnly && selected) {
+          setDormOccurrence({ sessionId: saved.sessionId, contextId: selected.id, date: dormDate, period: dormPeriod });
+        }
       }
       if (scopeRef.current !== scopeKey) return;
       pendingWrite.current = null;
@@ -761,6 +837,7 @@ export function AttendancePage() {
 
   return (
     <section dir={profile.direction} className="mx-auto w-full max-w-7xl space-y-4 pb-8">
+      <DormAttendanceReviewInbox />
       {notice && (
         <div
           role={notice.kind === "error" || notice.kind === "warning" ? "alert" : "status"}
@@ -1080,7 +1157,7 @@ export function AttendancePage() {
                   تلاش مجدد
                 </button>
               ) : null}
-              {selected ? (
+              {selected && !dormAbsenceOnly ? (
                 <>
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <div>
@@ -1104,16 +1181,28 @@ export function AttendancePage() {
                       style={{ width: `${progress}%` }}
                     />
                   </div>
-                  <AttendanceStatusTiles counts={counts} filter={filter} onFilter={setFilter} />
+              {!dormAbsenceOnly ? <AttendanceStatusTiles counts={counts} filter={filter} onFilter={setFilter} /> : null}
                 </>
               ) : null}
               {selected?.contextType === "dorm" && auth.can("attendance.delegate") ? (
                 <DormDelegateEditor roomId={selected.id} members={participants} scope={scopeKey} />
               ) : null}
+              {dormAbsenceOnly ? (
+                <section className="rounded-2xl border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-muted))] p-4" aria-label="تاریخ و نوبت حضور اتاق">
+                  <div className="mb-3"><h3 className="font-black">نوبت حضور اتاق</h3><p className={`mt-1 text-xs ${muted}`}>حضور شب نوبت اصلی است؛ ثبت فقط در محدوده نیم‌سال فعال پذیرفته می‌شود.</p></div>
+                  <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
+                    <label className="block space-y-1 text-xs font-bold">تاریخ جلسه<DatePicker value={dormDate} disabled={saving || Boolean(linkedSession)} onChange={setDormDate} /></label>
+                    <div className="grid grid-cols-2 gap-2" role="group" aria-label="انتخاب نوبت روز یا شب">
+                      <button type="button" disabled={saving || Boolean(linkedSession)} aria-pressed={dormPeriod === "day"} onClick={() => setDormPeriod("day")} className={`min-h-11 rounded-xl border px-4 text-sm font-black ${dormPeriod === "day" ? "border-amber-600 bg-amber-600 text-white" : "border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card))]"}`}>روز</button>
+                      <button type="button" disabled={saving || Boolean(linkedSession)} aria-pressed={dormPeriod === "night"} onClick={() => setDormPeriod("night")} className={`min-h-11 rounded-xl border px-4 text-sm font-black ${dormPeriod === "night" ? "border-indigo-700 bg-indigo-700 text-white" : "border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card))]"}`}>شب · اصلی</button>
+                    </div>
+                  </div>
+                </section>
+              ) : null}
               <AttendanceRosterView
                 canManage={canManage}
                 absenceFirst={Boolean(linkedSession)}
-                absenceOnly={dormAbsenceOnly}
+                dormReviewMode={dormAbsenceOnly}
                 participants={participants}
                 filtered={filtered}
                 selected={Boolean(selected)}
@@ -1172,11 +1261,9 @@ export function AttendancePage() {
               <div className="z-10 shrink-0 border-t border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card))] px-4 py-3 pb-[calc(.75rem+env(safe-area-inset-bottom))] sm:px-5">
                 <div className="mx-auto flex max-w-7xl items-center gap-2">
                   <div className="hidden min-w-0 flex-1 sm:block">
-                    <p className="text-sm font-bold">
-                      {dormAbsenceOnly
-                        ? `${counts.absent.toLocaleString("fa-IR")} غایب از ${participants.length.toLocaleString("fa-IR")} نفر`
-                        : `${marked.toLocaleString("fa-IR")} از ${participants.length.toLocaleString("fa-IR")} تعیین وضعیت`}
-                    </p>
+                    <p className="text-sm font-bold">{dormAbsenceOnly
+                      ? `${counts.absent.toLocaleString("fa-IR")} غایب · ${counts.late.toLocaleString("fa-IR")} تأخیر · ${counts.excused.toLocaleString("fa-IR")} موجه`
+                      : `${marked.toLocaleString("fa-IR")} از ${participants.length.toLocaleString("fa-IR")} تعیین وضعیت`}</p>
                     <p className={`text-xs ${muted}`}>
                       {dirty ? "تغییرات آمادهٔ مرور" : "هنوز تغییری ثبت نشده"}
                     </p>
@@ -1193,7 +1280,7 @@ export function AttendancePage() {
                   </button>
                   <button
                     type="button"
-                    onClick={() => setReviewOpen(true)}
+                    onClick={() => dormAbsenceOnly ? void save() : setReviewOpen(true)}
                     disabled={saving || loadingPeople || !selected || !dirty || conflict}
                     className={`${buttonBase} flex-1 bg-brand text-white hover:brightness-95 sm:flex-none sm:min-w-52`}
                   >
@@ -1205,7 +1292,7 @@ export function AttendancePage() {
                     {saving
                       ? "در حال ثبت…"
                       : dormAbsenceOnly
-                        ? `بررسی و ثبت اتاق ${counts.absent ? `(${counts.absent} غایب)` : ""}`
+                        ? `ثبت اتاق و ارسال به ناظر ${counts.absent || counts.late || counts.excused ? `(${counts.absent + counts.late + counts.excused} مورد)` : ""}`
                         : `بررسی و ثبت حضور ${marked ? `(${marked})` : ""}`}
                   </button>
                 </div>

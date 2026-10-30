@@ -35,6 +35,7 @@ export function AttendanceRosterView({
   canManage,
   absenceFirst = false,
   absenceOnly = false,
+  dormReviewMode = false,
   participants,
   filtered,
   selected,
@@ -57,6 +58,8 @@ export function AttendanceRosterView({
   absenceFirst?: boolean;
   /** Dorm supervisors record only exceptions; untouched residents are saved as present. */
   absenceOnly?: boolean;
+  /** Dorm roster defaults to present; only exceptional states are selectable. */
+  dormReviewMode?: boolean;
   participants: AttendanceParticipant[];
   filtered: AttendanceParticipant[];
   selected: boolean;
@@ -87,7 +90,9 @@ export function AttendanceRosterView({
             </div>
             <p className={`mt-1 max-w-2xl text-xs leading-5 ${muted}`}>
               {canManage
-                ? absenceOnly
+                ? dormReviewMode
+                  ? "همه ساکنان حاضرند؛ فقط غایب، تأخیری و موجه را مشخص کنید."
+                  : absenceOnly
                   ? "فقط غایبان این اتاق را انتخاب کنید؛ هنگام ثبت، سایر ساکنان خودکار حاضر ثبت می‌شوند."
                   : absenceFirst
                     ? "برای ثبت سریع، فقط غایبان و افراد دیررس را مشخص کنید؛ سایر اعضا با تأیید نهایی حاضر ثبت می‌شوند."
@@ -134,7 +139,7 @@ export function AttendanceRosterView({
               ...(!absenceOnly && participants.some((person) => person.status === "excused")
                 ? [{ value: "excused", label: "موجه" }]
                 : []),
-              ...(absenceOnly ? (["absent"] as const) : attendanceStatuses).map((status) => ({
+              ...(dormReviewMode ? (["absent", "late", "excused"] as const) : absenceOnly ? (["absent"] as const) : attendanceStatuses).map((status) => ({
                 value: status,
                 label: attendanceStatusMeta[status].label,
               })),
@@ -188,18 +193,18 @@ export function AttendanceRosterView({
           {filtered.map((student, index) => (
             <div
               key={student.id}
-              className="grid gap-3 px-4 py-4 sm:px-5 lg:grid-cols-[minmax(12rem,1fr)_minmax(15rem,auto)] lg:items-center"
+              className={`grid gap-3 border-2 px-3 py-3 sm:px-4 lg:grid-cols-[minmax(12rem,1fr)_minmax(15rem,auto)] lg:items-center ${student.overdueReturn ? "border-rose-500 bg-rose-50/70 dark:border-rose-700 dark:bg-rose-950/30" : "border-transparent border-b-[rgb(var(--border-subtle))]"} ${student.approvedLeave ? "bg-sky-50/70 dark:bg-sky-950/25" : ""}`}
             >
               <div className="flex min-w-0 flex-1 items-center gap-3">
                 <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-brand/10 text-base font-black text-brand">
                   {student.name.trim().slice(0, 1) || index + 1}
                 </span>
                 <div className="min-w-0">
-                  <p className="truncate text-sm font-bold text-[rgb(var(--color-ink))]">
+                  <p className="truncate text-base font-black text-[rgb(var(--color-ink))]">
                     {student.name}
                   </p>
-                  <p className={`mt-0.5 text-xs ${muted}`} dir="ltr">
-                    {student.studentNumber}
+                  <p className={`mt-0.5 text-xs ${muted}`}>
+                    {student.overdueReturn ? "بازگشت ثبت نشده · نیازمند پیگیری" : student.approvedLeave ? "مرخصی فعال · موجه خودکار" : `ردیف ${String(index + 1).replace(/\d/g, (digit) => "۰۱۲۳۴۵۶۷۸۹"[Number(digit)])}`}
                   </p>
                 </div>
               </div>
@@ -210,7 +215,10 @@ export function AttendanceRosterView({
                     aria-label={`وضعیت ${student.name}`}
                     className="grid min-w-0 flex-1 grid-cols-3 gap-2 sm:flex-none"
                   >
-                    {(absenceOnly
+                    {dormReviewMode && student.status === "present" ? <span className="col-span-full inline-flex min-h-8 items-center gap-1 rounded-lg bg-emerald-100 px-2.5 text-xs font-black text-emerald-900 dark:bg-emerald-950/50 dark:text-emerald-100"><CheckCheck size={14}/> حاضر</span> : null}
+                    {(dormReviewMode
+                      ? (["absent", "late", "excused"] as const)
+                      : absenceOnly
                       ? (["absent"] as const)
                       : absenceFirst
                         ? attendanceStatuses.filter((status) => status !== "present")
@@ -220,9 +228,9 @@ export function AttendanceRosterView({
                         key={status}
                         type="button"
                         aria-pressed={student.status === status}
-                        disabled={saving || conflict}
+                        disabled={saving || conflict || Boolean(student.approvedLeave)}
                         onClick={() =>
-                          onMark(student.id, student.status === status ? "unmarked" : status)
+                          onMark(student.id, student.status === status ? dormReviewMode ? "present" : "unmarked" : status)
                         }
                         className={`mobile-attendance-status min-h-11 rounded-xl border px-3 py-2 text-xs font-bold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand sm:min-w-24 sm:text-sm ${student.status === status ? `${attendanceStatusMeta[status].active} ring-2 ring-current ring-offset-1` : "border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card))] text-[rgb(var(--color-ink))] hover:bg-[rgb(var(--surface-muted))]"}`}
                       >
@@ -230,12 +238,15 @@ export function AttendanceRosterView({
                           <Check size={15} aria-hidden="true" />
                         ) : status === "absent" ? (
                           <Minus size={15} aria-hidden="true" />
+                        ) : status === "excused" ? (
+                          <BadgeCheck size={15} aria-hidden="true" />
                         ) : (
                           <Clock3 size={15} aria-hidden="true" />
                         )}
                         {attendanceStatusMeta[status].label}
                       </button>
                     ))}
+                    {student.approvedLeave ? <span className="col-span-full rounded-lg bg-sky-100 px-2 py-1 text-xs font-bold text-sky-900 dark:bg-sky-900/40 dark:text-sky-100">مرخصی تأییدشده · موجه ثبت می‌شود</span> : null}
                   </div>
                 ) : (
                   <span

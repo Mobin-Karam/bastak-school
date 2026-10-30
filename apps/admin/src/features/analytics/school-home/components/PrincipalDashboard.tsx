@@ -5,6 +5,7 @@ import { Card, LoadingState } from "../../../../shared/ui/ui";
 import "./principal-dashboard-layout.css";
 import { getPrincipalDashboard } from "../api/principal-dashboard.api";
 import { PrincipalOperationalLists } from "./PrincipalOperationalLists";
+import { DormAttendanceReviewInbox } from "../../../student-life/attendance/components/DormAttendanceReviewInbox";
 
 export function PrincipalDashboard() {
   const auth = useAuth();
@@ -31,6 +32,7 @@ export function PrincipalDashboard() {
         sessionReviews={dashboard.data.sessionReviews}
         canReviewAttendance={auth.can("attendance.review")}
       />
+      <DormAttendanceReviewInbox />
     </main>
   );
 }
