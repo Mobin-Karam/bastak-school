@@ -1382,27 +1382,12 @@ function ScheduleWorkspace({
               leaveForEntry={leaveForEntry}
             />
           ) : isMobileShell ? (
-            <div className="grid gap-2 p-3">
-              {activeEntries.map((entry) => (
-                <ScheduleEntryCard
-                  key={entry.id}
-                  entry={entry}
-                  showOrganization={showOrganization}
-                  compact={false}
-                  canEdit={canEdit}
-                  canArchive={canArchive}
-                  canDelete={canDelete}
-                  onEdit={onEdit}
-                  onArchive={onArchive}
-                  onDelete={onDelete}
-                  onOpenPlan={onOpenDetails}
-                  leave={leaveForEntry(entry)}
-                />
-              ))}
-              {!activeEntries.length ? (
-                <EmptyState title={`برای ${weekdays[activeWeekday]} کلاسی ثبت نشده است.`} />
-              ) : null}
-            </div>
+            <MobileDailyScheduleTimeline
+              entries={activeEntries}
+              weekday={activeWeekday}
+              leaveForEntry={leaveForEntry}
+              onOpenDetails={onOpenDetails}
+            />
           ) : (
             <div className="overflow-x-auto p-3">
               {classLanes.length ? (
@@ -1683,6 +1668,106 @@ function ScheduleWorkspace({
           />
         </>
       ) : null}
+    </section>
+  );
+}
+
+const mobileClassAccents = [
+  "bg-sky-600 text-sky-950 ring-sky-300 dark:bg-sky-400 dark:ring-sky-400/40",
+  "bg-teal-600 text-teal-950 ring-teal-300 dark:bg-teal-400 dark:ring-teal-400/40",
+  "bg-violet-600 text-violet-950 ring-violet-300 dark:bg-violet-400 dark:ring-violet-400/40",
+  "bg-fuchsia-600 text-fuchsia-950 ring-fuchsia-300 dark:bg-fuchsia-400 dark:ring-fuchsia-400/40",
+  "bg-cyan-600 text-cyan-950 ring-cyan-300 dark:bg-cyan-400 dark:ring-cyan-400/40",
+] as const;
+
+function mobileClassAccent(entry: ScheduleEntry) {
+  const key = entry.classroom?.id ?? entry.classroom?.name ?? entry.id;
+  const total = [...key].reduce((sum, character) => sum + character.charCodeAt(0), 0);
+  return mobileClassAccents[total % mobileClassAccents.length];
+}
+
+function MobileDailyScheduleTimeline({
+  entries,
+  weekday,
+  leaveForEntry,
+  onOpenDetails,
+}: {
+  entries: ScheduleEntry[];
+  weekday: number;
+  leaveForEntry: (entry: ScheduleEntry) => TeacherLeaveRequest | undefined;
+  onOpenDetails: (entry: ScheduleEntry) => void;
+}) {
+  const groupedByStart = useMemo(() => {
+    const groups = new Map<string, ScheduleEntry[]>();
+    entries.forEach((entry) => {
+      const group = groups.get(entry.startTime) ?? [];
+      group.push(entry);
+      groups.set(entry.startTime, group);
+    });
+    return [...groups.entries()].sort(([left], [right]) => left.localeCompare(right));
+  }, [entries]);
+
+  if (!entries.length)
+    return <EmptyState title={`برای ${weekdays[weekday]} کلاسی ثبت نشده است.`} />;
+
+  return (
+    <section className="schedule-mobile-day p-3" aria-label={`برنامه ${weekdays[weekday]}`}>
+      <header className="mb-3 flex items-center justify-between gap-2">
+        <div>
+          <h3 className="text-base font-black text-ink">{weekdays[weekday]}</h3>
+          <p className="mt-0.5 text-xs font-bold text-slate-500">
+            زمان هر ردیف در کنار جلسه‌ها دیده می‌شود.
+          </p>
+        </div>
+        <span className="rounded-full bg-slate-900 px-2.5 py-1 text-[11px] font-black text-white dark:bg-slate-100 dark:text-slate-900">
+          {entries.length.toLocaleString("fa-IR")} جلسه
+        </span>
+      </header>
+      <ol className="relative grid gap-4 border-s-2 border-slate-300 ps-5 dark:border-white/20">
+        {groupedByStart.map(([startTime, slotEntries]) => (
+          <li key={startTime} className="relative">
+            <span className="absolute -start-[1.72rem] top-3 size-3 rounded-full bg-slate-900 ring-4 ring-white dark:bg-slate-100 dark:ring-slate-950" />
+            <div className="mb-2 flex items-center gap-2">
+              <time
+                dir="ltr"
+                className="rounded-lg bg-slate-900 px-2 py-1 text-sm font-black tabular-nums text-white dark:bg-slate-100 dark:text-slate-900"
+              >
+                {startTime}
+              </time>
+              <span className="text-xs font-bold text-slate-500">تا {slotEntries[0]?.endTime}</span>
+            </div>
+            <div className="grid auto-cols-[minmax(14rem,1fr)] grid-flow-col gap-3 overflow-x-auto pb-2 pe-1 [scrollbar-width:thin]">
+              {slotEntries.map((entry) => {
+                const leave = leaveForEntry(entry);
+                const accent = mobileClassAccent(entry);
+                return (
+                  <button
+                    key={entry.id}
+                    type="button"
+                    onClick={() => onOpenDetails(entry)}
+                    className={`min-h-32 snap-start rounded-2xl border-2 p-3 text-right shadow-sm outline-none transition hover:-translate-y-0.5 focus-visible:ring-2 focus-visible:ring-brand motion-reduce:transform-none ${sessionStateSurface(entry, leave)}`}
+                    aria-label={`جزئیات ${entry.title}، ${entry.classroom?.name ?? "کلاس"}`}
+                  >
+                    <span
+                      className={`mb-3 inline-flex rounded-full px-2.5 py-1 text-xs font-black ring-2 ${accent}`}
+                    >
+                      {entry.classroom?.name ?? "برنامه مدرسه"}
+                    </span>
+                    <strong className="block line-clamp-2 text-base font-black leading-6 text-ink">
+                      {entry.classBook?.book.titleFa || entry.title}
+                    </strong>
+                    <span className="mt-2 block text-sm font-bold text-slate-700 dark:text-slate-200">
+                      {teacherName(entry) || "دبیر ثبت نشده"}
+                    </span>
+                    {leave ? <LeaveFrozenTag leave={leave} compact /> : null}
+                    {!leave ? <TeacherChangedTag entry={entry} compact /> : null}
+                  </button>
+                );
+              })}
+            </div>
+          </li>
+        ))}
+      </ol>
     </section>
   );
 }
