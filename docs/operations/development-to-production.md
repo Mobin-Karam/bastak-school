@@ -62,7 +62,7 @@ cp apps/api/.env.example apps/api/.env
 cp apps/admin/.env.example apps/admin/.env
 ```
 
-The API defaults to the compatibility-preserved SQLite path `apps/api/data/moshaver-v2.sqlite`, port `4000`, and insecure development cookies. The Admin defaults to `/api/v2` and its dev server uses port `8081`. Development seed and reset scripts are for disposable local data only; never run reset/seed commands against production.
+The API defaults to the local SQLite path `apps/api/data/development.sqlite`, port `4000`, and insecure development cookies. The Admin defaults to `/api/v2` and its dev server uses port `8081`. Development seed and reset scripts are for disposable local data only; never run reset/seed commands against production.
 
 ## 3. Run the application locally
 

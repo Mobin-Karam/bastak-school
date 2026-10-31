@@ -8,7 +8,7 @@ import { SafeDatabaseLogger } from "./safe-database-logger";
 
 const databasePath =
   process.env.DATABASE_PATH ||
-  path.resolve(process.cwd(), "data", "moshaver-v2.sqlite");
+  path.resolve(process.cwd(), "data", "development.sqlite");
 
 const dir = path.dirname(databasePath);
 if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
