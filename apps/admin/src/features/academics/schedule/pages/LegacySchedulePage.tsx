@@ -126,6 +126,7 @@ export function LegacySchedulePage() {
   const [scheduleTermId, setScheduleTermId] = useState("");
   const [setupReminderDueAt, setSetupReminderDueAt] = useState<string | null>(null);
   const [setupGateDeferred, setSetupGateDeferred] = useState(false);
+  const [hydratedSetupReminderKey, setHydratedSetupReminderKey] = useState<string | null>(null);
   const [editor, setEditor] = useState<{
     entry?: ScheduleEntry;
     copy: boolean;
@@ -135,6 +136,7 @@ export function LegacySchedulePage() {
   const setupReminderKey = selectedOrganizationId
     ? setupReminderStorageKey(auth.user?.id ?? "anonymous", selectedOrganizationId)
     : null;
+  const setupReminderHydrated = hydratedSetupReminderKey === setupReminderKey;
   const entries = useQuery({
     queryKey: ["schedule", selectedOrganizationId ?? "all"],
     queryFn: listSchedule,
@@ -188,8 +190,10 @@ export function LegacySchedulePage() {
     const dueAt = reminder?.dueAt ?? null;
     setSetupReminderDueAt(dueAt);
     setSetupGateDeferred(Boolean(dueAt && new Date(dueAt).getTime() > Date.now()));
+    setHydratedSetupReminderKey(setupReminderKey);
   }, [setupReminderKey]);
   useEffect(() => {
+    if (!setupReminderHydrated) return;
     if (!scheduleSetupBlocked) {
       if (setupReminderKey) window.localStorage.removeItem(setupReminderKey);
       setSetupReminderDueAt(null);
@@ -212,7 +216,7 @@ export function LegacySchedulePage() {
       notify("یادآور راه‌اندازی سال تحصیلی فرا رسید.", "warning");
     }, remaining);
     return () => window.clearTimeout(timer);
-  }, [scheduleSetupBlocked, setupReminderDueAt, setupReminderKey]);
+  }, [scheduleSetupBlocked, setupReminderDueAt, setupReminderHydrated, setupReminderKey]);
   const deferScheduleSetup = (dueAt: string) => {
     if (new Date(dueAt).getTime() <= Date.now()) {
       notify("زمان یادآور باید در آینده باشد.", "error");
@@ -689,7 +693,7 @@ export function LegacySchedulePage() {
   );
   return (
     <>
-      {scheduleSetupBlocked && !setupGateDeferred ? (
+      {scheduleSetupBlocked && setupReminderHydrated && !setupGateDeferred ? (
         <ScheduleAcademicSetupGate
           canManage={canManageAcademicCycles}
           activeYear={bootstrapActiveYear}
@@ -710,7 +714,7 @@ export function LegacySchedulePage() {
           onDefer={deferScheduleSetup}
         />
       ) : null}
-      {scheduleSetupBlocked && setupGateDeferred && setupReminderDueAt ? (
+      {scheduleSetupBlocked && setupReminderHydrated && setupGateDeferred && setupReminderDueAt ? (
         <section
           className="mb-3 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-amber-300 bg-amber-50 px-4 py-3 text-amber-950 shadow-sm dark:border-amber-700 dark:bg-amber-950/35 dark:text-amber-100"
           dir="rtl"
