@@ -37,6 +37,7 @@ import { AuthenticatedUser } from "../auth";
 import { AuthorizationService, UserContext } from "../authorization";
 import { NotificationsService } from "../notifications";
 import { NotificationType } from "../../database/entities/notification.entity";
+import { ScheduleSetupReminder } from "../../database/entities/schedule-setup-reminder.entity";
 import {
   ArchiveScheduleEntryDto,
   RestoreArchivedScheduleEntriesDto,
@@ -56,6 +57,7 @@ import {
   TeacherLeaveReviewDto,
   TeacherLeaveReturnRequestDto,
   TeacherLeaveReturnReviewDto,
+  SetScheduleSetupReminderDto,
 } from "./schedule.dto";
 
 // Keep this server-side while the teacher displacement workflow is frozen.
@@ -97,6 +99,8 @@ export class ScheduleService {
     @InjectRepository(AuditLog)
     private readonly auditLogs?: Repository<AuditLog>,
     private readonly notifications?: NotificationsService,
+    @InjectRepository(ScheduleSetupReminder)
+    private readonly setupReminders?: Repository<ScheduleSetupReminder>,
   ) {}
   private async auditAcademicCycle(
     user: AuthenticatedUser,
@@ -164,6 +168,118 @@ export class ScheduleService {
         "سال تحصیلی پیدا نشد.",
       );
     return year;
+  }
+  private async setupReminderScope(
+    user: AuthenticatedUser,
+    organizationId?: string,
+  ) {
+    const context = this.context(user);
+    this.authorization.requireCapability(context, "schedule.read");
+    this.assertAcademicManager(context);
+    const org = organizationId ?? context.organizationIds[0];
+    if (
+      !org ||
+      (!context.roles.includes("PLATFORM_ADMIN") &&
+        !context.organizationIds.includes(org))
+    )
+      throw new ApiException(403, "FORBIDDEN", "دسترسی کافی ندارید.");
+    return org;
+  }
+  private reminderView(row: ScheduleSetupReminder | null) {
+    return row
+      ? {
+          id: row.id,
+          dueAt: row.dueAt.toISOString(),
+          status: row.status,
+          deliveredAt: row.deliveredAt?.toISOString() ?? null,
+        }
+      : null;
+  }
+  async getSetupReminder(user: AuthenticatedUser, organizationId?: string) {
+    const org = await this.setupReminderScope(user, organizationId);
+    if (!this.setupReminders) return null;
+    const row = await this.setupReminders.findOne({
+      where: {
+        organization: { id: org },
+        status: In(["scheduled", "delivered"]),
+      },
+      order: { updatedAt: "DESC" },
+    });
+    if (row?.status === "scheduled" && row.dueAt <= new Date()) {
+      row.status = "delivered";
+      row.deliveredAt = new Date();
+      await this.setupReminders.save(row);
+      await this.notifications?.createForUser(user.id, {
+        type: NotificationType.WARNING,
+        category: "schedule-setup",
+        title: "یادآور راه‌اندازی سال تحصیلی",
+        body: "تنظیم سال و نیم‌سال و تطبیق حضورهای قبلی هنوز نیاز به تکمیل دارد.",
+        url: "/admin/schedule",
+        organizationId: org,
+        dedupeKey: `schedule-setup-reminder:${row.id}`,
+      });
+    }
+    return this.reminderView(row);
+  }
+  async setSetupReminder(
+    user: AuthenticatedUser,
+    dto: SetScheduleSetupReminderDto,
+  ) {
+    const org = await this.setupReminderScope(user, dto.organizationId);
+    const dueAt = new Date(dto.dueAt);
+    if (Number.isNaN(dueAt.getTime()) || dueAt <= new Date())
+      throw new ApiException(
+        422,
+        "SCHEDULE_REMINDER_DATE_INVALID",
+        "زمان یادآور باید در آینده باشد.",
+      );
+    if (!this.setupReminders)
+      throw new ApiException(
+        503,
+        "SCHEDULE_REMINDER_UNAVAILABLE",
+        "سامانه یادآور در دسترس نیست.",
+      );
+    const existing = await this.setupReminders.findOne({
+      where: {
+        organization: { id: org },
+        status: In(["scheduled", "delivered"]),
+      },
+      order: { updatedAt: "DESC" },
+    });
+    const row =
+      existing ??
+      this.setupReminders.create({
+        organization: { id: org } as Organization,
+        requestedBy: { id: user.id } as User,
+        dueAt,
+        status: "scheduled",
+      });
+    row.dueAt = dueAt;
+    row.status = "scheduled";
+    row.deliveredAt = null;
+    const saved = await this.setupReminders.save(row);
+    await this.auditAcademicCycle(
+      user,
+      org,
+      "school_academic_year",
+      "setup-reminder-set",
+      saved.id,
+      { dueAt: saved.dueAt.toISOString() },
+    );
+    return this.reminderView(saved);
+  }
+  async clearSetupReminder(user: AuthenticatedUser, organizationId?: string) {
+    const org = await this.setupReminderScope(user, organizationId);
+    if (!this.setupReminders) return { cleared: false };
+    const rows = await this.setupReminders.find({
+      where: {
+        organization: { id: org },
+        status: In(["scheduled", "delivered"]),
+      },
+    });
+    for (const row of rows) row.status = "cancelled";
+    if (rows.length) await this.setupReminders.save(rows);
+    return { cleared: rows.length > 0 };
   }
   async academicYears(user: AuthenticatedUser, organizationId?: string) {
     const context = this.context(user);
@@ -1042,22 +1158,22 @@ export class ScheduleService {
       : [];
     const termsById = new Map(terms.map((term) => [term.id, term]));
     const snapshots = affected.flatMap((entry) => {
-          const term = termsById.get(entry.termId!);
-          if (term && (term.startsOn > leaveEndsOn || term.endsOn < leaveStartsOn)) return [];
-          const value = {
-            academicYearId: entry.academicYearId!,
-            academicYearName:
-              entry.academicYearNameSnapshot ??
-              yearNames.get(entry.academicYearId!) ??
-              null,
-            termId: entry.termId!,
-            termName:
-              entry.termNameSnapshot ?? term?.name ?? null,
-            termStartsOn: term?.startsOn ?? null,
-            termEndsOn: term?.endsOn ?? null,
-          };
-          return [[`${value.academicYearId}:${value.termId}`, value] as const];
-        });
+      const term = termsById.get(entry.termId!);
+      if (term && (term.startsOn > leaveEndsOn || term.endsOn < leaveStartsOn))
+        return [];
+      const value = {
+        academicYearId: entry.academicYearId!,
+        academicYearName:
+          entry.academicYearNameSnapshot ??
+          yearNames.get(entry.academicYearId!) ??
+          null,
+        termId: entry.termId!,
+        termName: entry.termNameSnapshot ?? term?.name ?? null,
+        termStartsOn: term?.startsOn ?? null,
+        termEndsOn: term?.endsOn ?? null,
+      };
+      return [[`${value.academicYearId}:${value.termId}`, value] as const];
+    });
     return [...new Map(snapshots).values()];
   }
   async reviewTeacherLeave(
@@ -1184,11 +1300,16 @@ export class ScheduleService {
       )
       .map((membership) => membership.user.id);
     if (!principalIds.length) return;
-    const teacher = await this.memberships.manager.getRepository(User).findOneBy({ id: row.teacherId });
-    const teacherName = [teacher?.firstName, teacher?.lastName]
-      .filter(Boolean)
-      .join(" ")
-      .trim() || teacher?.username || "استاد";
+    const teacher = await this.memberships.manager
+      .getRepository(User)
+      .findOneBy({ id: row.teacherId });
+    const teacherName =
+      [teacher?.firstName, teacher?.lastName]
+        .filter(Boolean)
+        .join(" ")
+        .trim() ||
+      teacher?.username ||
+      "استاد";
     const isReturn = kind === "return";
     await this.notifications.createForUsers(principalIds, {
       type: NotificationType.WARNING,

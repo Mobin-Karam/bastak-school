@@ -33,6 +33,7 @@ import {
   UpdateLegacyAcademicTermDto,
   LegacyAcademicLifecycleDto,
   ReconcileLegacyAcademicCycleDto,
+  SetScheduleSetupReminderDto,
 } from "./schedule.dto";
 import { ScheduleService } from "./schedule.service";
 
@@ -52,6 +53,28 @@ export class ScheduleController {
     @Query("organizationId") organizationId?: string,
   ) {
     return this.schedule.academicBootstrap(user, organizationId).then(ok);
+  }
+  @Get("setup-reminder") @RequireCapabilities("schedule.read") setupReminder(
+    @CurrentUser() user: AuthenticatedUser,
+    @Query("organizationId") organizationId?: string,
+  ) {
+    return this.schedule.getSetupReminder(user, organizationId).then(ok);
+  }
+  @Post("setup-reminder")
+  @RequireCapabilities("schedule.update")
+  setSetupReminder(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() dto: SetScheduleSetupReminderDto,
+  ) {
+    return this.schedule.setSetupReminder(user, dto).then(ok);
+  }
+  @Delete("setup-reminder")
+  @RequireCapabilities("schedule.update")
+  clearSetupReminder(
+    @CurrentUser() user: AuthenticatedUser,
+    @Query("organizationId") organizationId?: string,
+  ) {
+    return this.schedule.clearSetupReminder(user, organizationId).then(ok);
   }
   @Post("academic-reconciliation")
   @RequireCapabilities("schedule.update")

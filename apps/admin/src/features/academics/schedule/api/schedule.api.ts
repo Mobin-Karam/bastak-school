@@ -157,6 +157,22 @@ export const getLegacyAcademicBootstrap = (organizationId: string) =>
   api.get<LegacyAcademicBootstrap>(
     `/schedule/academic-bootstrap?${new URLSearchParams({ organizationId })}`,
   );
+export type ScheduleSetupReminder = {
+  id: string;
+  dueAt: string;
+  status: "scheduled" | "delivered" | "cancelled" | "completed";
+  deliveredAt: string | null;
+};
+export const getScheduleSetupReminder = (organizationId: string) =>
+  api.get<ScheduleSetupReminder | null>(
+    `/schedule/setup-reminder?${new URLSearchParams({ organizationId })}`,
+  );
+export const setScheduleSetupReminder = (body: { organizationId: string; dueAt: string }) =>
+  api.post<ScheduleSetupReminder>("/schedule/setup-reminder", body);
+export const clearScheduleSetupReminder = (organizationId: string) =>
+  api.delete<{ cleared: boolean }>(
+    `/schedule/setup-reminder?${new URLSearchParams({ organizationId })}`,
+  );
 export const reconcileLegacyAcademicCycle = (body: {
   organizationId: string;
   academicYearId: string;

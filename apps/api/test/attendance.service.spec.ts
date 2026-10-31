@@ -235,10 +235,28 @@ describe("AttendanceService organization boundaries (real SQLite)", () => {
       assignedStaff: staff,
       rosterSnapshot: [],
     });
+    const group = await db.getRepository(StudyGroup).save({
+      organization: orgA,
+      classroom: assignedClass,
+      code: "A-GROUP",
+      name: "گروه کلاس A",
+    });
+    await db.getRepository(AttendanceSession).save({
+      organization: orgA,
+      contextType: "class_group",
+      contextId: group.id,
+      sessionDate: new Date("2026-10-13T08:00:00Z"),
+      titleSnapshot: "حضور گروه کلاس A",
+      rosterSnapshot: [],
+    });
     const principal = { ...actor, capabilities: ["attendance.review"] };
     expect(await service.listSupervisorComparisons(principal)).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ className: "جلسهٔ legacy" }),
+        expect.objectContaining({
+          className: "حضور گروه کلاس A",
+          contextType: "class_group",
+        }),
       ]),
     );
     await expect(
@@ -449,6 +467,24 @@ describe("AttendanceService organization boundaries (real SQLite)", () => {
     expect(await db.getRepository(AttendanceRecord).count()).toBe(1);
     expect(await db.getRepository(AttendanceSession).count()).toBe(1);
     expect(emit).toHaveBeenCalled();
+  });
+
+  it("uses one deterministic manual occurrence per context and operational date", async () => {
+    const body = {
+      organizationId: orgA.id,
+      contextType: "class" as const,
+      contextId: assignedClass.id,
+      sessionDate: "2026-10-15T05:00:00Z",
+    };
+    const first = await service.createSession(actor, body);
+    const second = await service.createSession(actor, body);
+    expect(second.id).toBe(first.id);
+    const stored = await db
+      .getRepository(AttendanceSession)
+      .findOneByOrFail({ id: first.id });
+    expect(stored.occurrenceKey).toBe(
+      `manual-attendance:class:${assignedClass.id}:2026-10-15`,
+    );
   });
 
   it("returns saved records with unknown legacy roster totals rather than today's membership", async () => {

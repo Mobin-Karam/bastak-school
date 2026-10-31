@@ -52,6 +52,9 @@ import {
   listLegacyAcademicYearHistory,
   listLegacyAcademicTermHistory,
   getLegacyAcademicBootstrap,
+  getScheduleSetupReminder,
+  setScheduleSetupReminder,
+  clearScheduleSetupReminder,
   reconcileLegacyAcademicCycle,
   restoreArchivedScheduleEntries,
   restoreScheduleTemplate,
@@ -87,23 +90,6 @@ const blank = (): ScheduleDraft => ({
   endTime: "09:00",
   room: "",
 });
-type ScheduleSetupReminder = { dueAt: string };
-
-const setupReminderStorageKey = (userId: string, organizationId: string) =>
-  `bastak.schedule-academic-setup-reminder:${userId}:${organizationId}`;
-
-const readSetupReminder = (key: string | null): ScheduleSetupReminder | null => {
-  if (!key || typeof window === "undefined") return null;
-  try {
-    const value = JSON.parse(
-      window.localStorage.getItem(key) ?? "null",
-    ) as ScheduleSetupReminder | null;
-    return value && !Number.isNaN(Date.parse(value.dueAt)) ? value : null;
-  } catch {
-    return null;
-  }
-};
-
 const formatSetupReminder = (dueAt: string) =>
   new Intl.DateTimeFormat("fa-IR-u-ca-persian", {
     timeZone: "Asia/Tehran",
@@ -125,19 +111,13 @@ export function LegacySchedulePage() {
   const [bootstrapSessionIds, setBootstrapSessionIds] = useState<string[]>([]);
   const [scheduleAcademicYearId, setScheduleAcademicYearId] = useState("");
   const [scheduleTermId, setScheduleTermId] = useState("");
-  const [setupReminderDueAt, setSetupReminderDueAt] = useState<string | null>(null);
-  const [setupGateDeferred, setSetupGateDeferred] = useState(false);
-  const [hydratedSetupReminderKey, setHydratedSetupReminderKey] = useState<string | null>(null);
+  const [reminderWakeAt, setReminderWakeAt] = useState(0);
   const [editor, setEditor] = useState<{
     entry?: ScheduleEntry;
     copy: boolean;
     initial?: ScheduleDraft;
   } | null>(null);
   const selectedOrganizationId = auth.context?.activeOrganization?.id;
-  const setupReminderKey = selectedOrganizationId
-    ? setupReminderStorageKey(auth.user?.id ?? "anonymous", selectedOrganizationId)
-    : null;
-  const setupReminderHydrated = hydratedSetupReminderKey === setupReminderKey;
   const entries = useQuery({
     queryKey: ["schedule", selectedOrganizationId ?? "all"],
     queryFn: listSchedule,
@@ -172,6 +152,12 @@ export function LegacySchedulePage() {
     queryKey: ["schedule", "academic-bootstrap", selectedOrganizationId],
     queryFn: () => getLegacyAcademicBootstrap(selectedOrganizationId!),
     enabled: !!selectedOrganizationId && auth.can("schedule.read"),
+    refetchInterval: scheduleRefreshInterval,
+  });
+  const setupReminder = useQuery({
+    queryKey: ["schedule", "setup-reminder", selectedOrganizationId],
+    queryFn: () => getScheduleSetupReminder(selectedOrganizationId!),
+    enabled: !!selectedOrganizationId && canManageAcademicCycles,
     refetchInterval: scheduleRefreshInterval,
   });
   const activeAcademicYear = academicCycles.data?.years.find((year) => year.state === "ACTIVE");

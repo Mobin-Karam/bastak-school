@@ -490,10 +490,21 @@ export class AttendanceService {
     );
     if (!ids.length) return [];
     const rows = await this.sessions.find({
-      where: {
-        organization: { id: In(ids) },
-        sourceKind: In(["class_schedule", "legacy_schedule", "legacy_import"]),
-      },
+      where: [
+        {
+          organization: { id: In(ids) },
+          contextType: "class",
+          sourceKind: In([
+            "class_schedule",
+            "legacy_schedule",
+            "legacy_import",
+          ]),
+        },
+        {
+          organization: { id: In(ids) },
+          contextType: In(["class_group", "study_group"]),
+        },
+      ],
       relations: { organization: true, assignedStaff: true, records: true },
       order: { sessionDate: "DESC", id: "DESC" },
       take: 250,
@@ -513,6 +524,12 @@ export class AttendanceService {
       className: session.titleSnapshot,
       bookName: session.subjectNameSnapshot ?? "",
       teacherName: session.assignedStaffNameSnapshot || "—",
+      contextType:
+        session.contextType === "study_group"
+          ? "class_group"
+          : session.contextType,
+      comparisonLabel:
+        session.contextType === "class" ? "ثبت استاد" : "ثبت اصلی گروه",
       sessionDate: session.sessionDate.toISOString(),
       status: session.status,
       teacherSubmittedAt: session.submittedAt?.toISOString() ?? null,
@@ -530,17 +547,25 @@ export class AttendanceService {
   ) {
     this.assertSupervisor(user);
     const session = await this.sessions.findOne({
-      where: {
-        id: sessionId,
-        sourceKind: In(["class_schedule", "legacy_schedule", "legacy_import"]),
-      },
+      where: [
+        {
+          id: sessionId,
+          contextType: "class",
+          sourceKind: In([
+            "class_schedule",
+            "legacy_schedule",
+            "legacy_import",
+          ]),
+        },
+        { id: sessionId, contextType: In(["class_group", "study_group"]) },
+      ],
       relations: { organization: true },
     });
     if (!session)
       throw new ApiException(
         404,
         "ATTENDANCE_SESSION_NOT_FOUND",
-        "جلسه کلاسی پیدا نشد.",
+        "جلسه کلاس یا گروه پیدا نشد.",
       );
     await this.authorizeOrganization(user, session.organization.id);
     const roster = new Set(
@@ -615,10 +640,21 @@ export class AttendanceService {
     );
     if (!ids.length) return [];
     const sessions = await this.sessions.find({
-      where: {
-        organization: { id: In(ids) },
-        sourceKind: In(["class_schedule", "legacy_schedule", "legacy_import"]),
-      },
+      where: [
+        {
+          organization: { id: In(ids) },
+          contextType: "class",
+          sourceKind: In([
+            "class_schedule",
+            "legacy_schedule",
+            "legacy_import",
+          ]),
+        },
+        {
+          organization: { id: In(ids) },
+          contextType: In(["class_group", "study_group"]),
+        },
+      ],
       relations: {
         organization: true,
         assignedStaff: true,
@@ -673,6 +709,12 @@ export class AttendanceService {
         className: session.titleSnapshot,
         bookName: session.subjectNameSnapshot ?? "",
         teacherName: session.assignedStaffNameSnapshot || "—",
+        contextType:
+          session.contextType === "study_group"
+            ? "class_group"
+            : session.contextType,
+        comparisonLabel:
+          session.contextType === "class" ? "ثبت استاد" : "ثبت اصلی گروه",
         sessionDate: session.sessionDate.toISOString(),
         comparisonStatus,
         teacherRecordCount: teacher.size,
@@ -1500,12 +1542,37 @@ export class AttendanceService {
       dto.contextId,
     );
     const date = new Date(dto.sessionDate);
+    if (Number.isNaN(date.getTime()))
+      throw new ApiException(
+        422,
+        "ATTENDANCE_DATE_INVALID",
+        "تاریخ جلسه معتبر نیست.",
+      );
+    // A manual session has no timetable entry to identify it. Context +
+    // operational date is therefore its stable identity; later saves revise
+    // this row instead of silently creating a second roll call.
+    const occurrenceKey = `manual-attendance:${dto.contextType}:${dto.contextId}:${operationalDate(date, "Asia/Tehran", "00:00")}`;
+    const existing = await this.sessions.findOne({
+      where: { organization: { id: organization.id }, occurrenceKey },
+    });
+    if (existing)
+      return {
+        id: existing.id,
+        organizationId: organization.id,
+        contextType: existing.contextType,
+        contextId: existing.contextId,
+        sessionDate: existing.sessionDate.toISOString(),
+        note: existing.note,
+      };
     const row = await this.sessions.save(
       this.sessions.create({
         organization,
         contextType: dto.contextType,
         contextId: dto.contextId,
         sessionDate: date,
+        occurrenceKey,
+        operationalDate: operationalDate(date, "Asia/Tehran", "00:00"),
+        timeZone: "Asia/Tehran",
         titleSnapshot: descriptor.title,
         rosterSnapshot: roster.map((member) => ({
           id: member.id,
@@ -2613,6 +2680,10 @@ export class AttendanceService {
         );
       let dormTerm: SchoolAcademicTerm | null = null;
       let dormOccurrenceKey: string | null = null;
+      const manualOccurrenceKey =
+        !session && contextType !== "dorm"
+          ? `manual-attendance:${contextType}:${contextId}:${operationalDate(sessionDate, "Asia/Tehran", "00:00")}`
+          : null;
       const dormPeriod =
         session?.attendancePeriod ?? dto.attendancePeriod ?? "night";
       // Enforce tenant and role scope before returning term/session details.
@@ -2711,8 +2782,18 @@ export class AttendanceService {
           await this.assertAcademicSessionWritable(manager, session);
         }
       }
+      if (!session && manualOccurrenceKey) {
+        session = await sessions.findOne({
+          where: {
+            organization: { id: organization.id },
+            occurrenceKey: manualOccurrenceKey,
+          },
+          relations: { organization: true, assignedStaff: true },
+        });
+      }
       if (
         session?.occurrenceKey &&
+        !session.occurrenceKey.startsWith("manual-attendance:") &&
         !options.allowOccurrence &&
         !assignedTeacher
       )
@@ -2804,6 +2885,17 @@ export class AttendanceService {
                   academicYearNameSnapshot: dormTerm.academicYear.name,
                   termIdSnapshot: dormTerm.id,
                   termNameSnapshot: dormTerm.name,
+                }
+              : {}),
+            ...(contextType !== "dorm" && manualOccurrenceKey
+              ? {
+                  occurrenceKey: manualOccurrenceKey,
+                  operationalDate: operationalDate(
+                    sessionDate,
+                    "Asia/Tehran",
+                    "00:00",
+                  ),
+                  timeZone: "Asia/Tehran",
                 }
               : {}),
             titleSnapshot: descriptor.title,

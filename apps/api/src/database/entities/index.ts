@@ -70,6 +70,7 @@ export { EducationClass } from "./education-class.entity";
 export { EducationClassBook } from "./education-class-book.entity";
 export { EducationClassEnrollment } from "./education-class-enrollment.entity";
 export { SchoolScheduleEntry } from "./school-schedule-entry.entity";
+export { ScheduleSetupReminder } from "./schedule-setup-reminder.entity";
 export {
   SchoolAcademicYear,
   SchoolAcademicTerm,

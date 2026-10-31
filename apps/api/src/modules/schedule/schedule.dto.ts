@@ -4,6 +4,7 @@ import {
   ArrayMaxSize,
   ArrayMinSize,
   IsInt,
+  IsDateString,
   IsOptional,
   IsString,
   IsUUID,
@@ -68,6 +69,10 @@ export class ReconcileLegacyAcademicCycleDto {
   @ArrayMaxSize(500)
   @IsUUID("4", { each: true })
   attendanceSessionIds!: string[];
+}
+export class SetScheduleSetupReminderDto {
+  @IsUUID() organizationId!: string;
+  @IsDateString() dueAt!: string;
 }
 
 export class CreateScheduleEntriesDto {
