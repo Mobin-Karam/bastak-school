@@ -37,6 +37,7 @@ function controller(status: PushStatus): NotificationContextValue {
     enablePush: vi.fn().mockResolvedValue({ ...status, permission: "granted", registered: true }),
     disablePush: vi.fn().mockResolvedValue({ ...status, registered: false }),
     savePushPreferences: vi.fn().mockResolvedValue(undefined),
+    saveAutoDeletePreferences: vi.fn().mockResolvedValue(undefined),
     testPush: vi.fn().mockResolvedValue(undefined),
     testSound: vi.fn(),
   };
@@ -130,5 +131,33 @@ describe("Web Push settings", () => {
     await waitFor(() => expect(notifications.disablePush).toHaveBeenCalledOnce());
 
     view.unmount();
+  });
+
+  it("persists auto-delete enabled state and retention period", async () => {
+    const status: PushStatus = {
+      supported: true,
+      permission: "granted",
+      registered: true,
+      serverConfigured: true,
+      preferences,
+      autoDelete: { enabled: false, afterHours: 24 },
+    };
+    const notifications = controller(status);
+    render(<NotificationSettings notifications={notifications} />);
+
+    await userEvent.click(await screen.findByRole("switch", { name: "حذف خودکار اعلان‌ها" }));
+    await waitFor(() =>
+      expect(notifications.saveAutoDeletePreferences).toHaveBeenCalledWith({
+        enabled: true,
+        afterHours: 24,
+      }),
+    );
+    await userEvent.selectOptions(screen.getByLabelText("زمان حذف"), "48");
+    await waitFor(() =>
+      expect(notifications.saveAutoDeletePreferences).toHaveBeenLastCalledWith({
+        enabled: true,
+        afterHours: 48,
+      }),
+    );
   });
 });

@@ -268,6 +268,7 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
       enablePush: push.enablePush,
       disablePush: push.disablePush,
       savePushPreferences: push.savePushPreferences,
+      saveAutoDeletePreferences: push.saveAutoDeletePreferences,
       testPush: push.testPush,
       testSound: sound.playSound,
     }),
@@ -295,6 +296,7 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
       push.enablePush,
       push.disablePush,
       push.savePushPreferences,
+      push.saveAutoDeletePreferences,
       push.testPush,
     ],
   );

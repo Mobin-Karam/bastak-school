@@ -1,4 +1,9 @@
-import type { AdminNotification, PushPreferences, PushStatus } from "./notification-model";
+import type {
+  AdminNotification,
+  NotificationAutoDeletePreferences,
+  PushPreferences,
+  PushStatus,
+} from "./notification-model";
 
 export type NotificationContextValue = {
   items: AdminNotification[];
@@ -24,6 +29,7 @@ export type NotificationContextValue = {
   enablePush: () => Promise<PushStatus>;
   disablePush: () => Promise<PushStatus>;
   savePushPreferences: (preferences: PushPreferences) => Promise<void>;
+  saveAutoDeletePreferences: (preferences: NotificationAutoDeletePreferences) => Promise<void>;
   testPush: () => Promise<void>;
   testSound: (chat?: boolean) => void;
 };

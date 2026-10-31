@@ -60,7 +60,9 @@ function repository<T>(items: T[] = []) {
 describe("NotificationsService", () => {
   it("emits the canonical notification event after persistence", async () => {
     const realtime = { emitToUser: jest.fn() };
-    const push = { sendToUser: jest.fn().mockResolvedValue({ sent: 1, removed: 0 }) };
+    const push = {
+      sendToUser: jest.fn().mockResolvedValue({ sent: 1, removed: 0 }),
+    };
     const service = new NotificationsService(
       repository() as any,
       repository() as any,
@@ -103,6 +105,39 @@ describe("NotificationsService", () => {
     expect(notifications.save).toHaveBeenCalledTimes(2);
     expect(notifications.save).toHaveBeenCalledWith(
       expect.objectContaining({ organization: { id: "school-1" } }),
+    );
+  });
+
+  it("sets an expiry for newly created notifications when inbox cleanup is enabled", async () => {
+    const notifications = repository() as any;
+    const preferences = {
+      findOne: jest.fn().mockResolvedValue({
+        autoDeleteEnabled: true,
+        autoDeleteAfterHours: 1,
+      }),
+    };
+    const service = new NotificationsService(
+      notifications,
+      repository() as any,
+      { emitToUser: jest.fn() } as any,
+      repository([{ id: "user-1" }]) as any,
+      undefined,
+      preferences as any,
+    );
+
+    const before = Date.now();
+    await service.createForUser("user-1", {
+      type: NotificationType.MESSAGE,
+      title: "پیام تازه",
+      body: "متن",
+    });
+
+    const saved = notifications.save.mock.calls[0][0];
+    expect(saved.expiresAt.getTime()).toBeGreaterThanOrEqual(
+      before + 60 * 60 * 1000 - 100,
+    );
+    expect(saved.expiresAt.getTime()).toBeLessThanOrEqual(
+      Date.now() + 60 * 60 * 1000 + 100,
     );
   });
 
@@ -163,7 +198,11 @@ describe("NotificationsService", () => {
 
     await expect(
       service.markRead(
-        { id: "staff-1", role: UserRole.ADMIN, activeOrganizationId: "school-1" } as any,
+        {
+          id: "staff-1",
+          role: UserRole.ADMIN,
+          activeOrganizationId: "school-1",
+        } as any,
         "other-school-notification",
       ),
     ).rejects.toMatchObject({
