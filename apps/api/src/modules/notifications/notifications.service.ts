@@ -239,14 +239,18 @@ export class NotificationsService {
       where: { user: { id: userId } },
     });
     if (!preference?.autoDeleteEnabled) return;
+    const now = new Date();
+    const cutoff = new Date(
+      now.getTime() - preference.autoDeleteAfterHours * 60 * 60 * 1000,
+    );
     await this.notifications
       .createQueryBuilder()
       .delete()
       .from(Notification)
-      .where("userId=:userId AND expiresAt IS NOT NULL AND expiresAt <= :now", {
-        userId,
-        now: new Date(),
-      })
+      .where(
+        "userId=:userId AND (createdAt <= :cutoff OR (expiresAt IS NOT NULL AND expiresAt <= :now))",
+        { userId, cutoff, now },
+      )
       .execute();
   }
   private publicNotification(n: Notification) {

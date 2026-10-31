@@ -29,6 +29,12 @@ function repository<T>(items: T[] = []) {
     update: jest.fn(function () {
       return this;
     }),
+    delete: jest.fn(function () {
+      return this;
+    }),
+    from: jest.fn(function () {
+      return this;
+    }),
     set: jest.fn(function () {
       return this;
     }),
@@ -138,6 +144,37 @@ describe("NotificationsService", () => {
     );
     expect(saved.expiresAt.getTime()).toBeLessThanOrEqual(
       Date.now() + 60 * 60 * 1000 + 100,
+    );
+  });
+
+  it("cleans up existing notifications older than the selected retention period", async () => {
+    const notifications = repository() as any;
+    const preferences = {
+      findOne: jest.fn().mockResolvedValue({
+        autoDeleteEnabled: true,
+        autoDeleteAfterHours: 24,
+      }),
+    };
+    const service = new NotificationsService(
+      notifications,
+      repository() as any,
+      {} as any,
+      undefined,
+      undefined,
+      preferences as any,
+    );
+
+    await service.findForUser("user-1");
+
+    const queryBuilder = notifications.createQueryBuilder.mock.results[0].value;
+    expect(queryBuilder.delete).toHaveBeenCalledTimes(1);
+    expect(queryBuilder.where).toHaveBeenCalledWith(
+      "userId=:userId AND (createdAt <= :cutoff OR (expiresAt IS NOT NULL AND expiresAt <= :now))",
+      expect.objectContaining({
+        userId: "user-1",
+        cutoff: expect.any(Date),
+        now: expect.any(Date),
+      }),
     );
   });
 
