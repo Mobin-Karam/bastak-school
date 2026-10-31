@@ -127,6 +127,7 @@ function NotificationSettingsContent({
     setBusy("auto-delete");
     try {
       await notifications.saveAutoDeletePreferences(next);
+      notifications.refresh();
     } catch {
       setStatus(previous);
       notify(copy.savePreferenceFailed, "error");

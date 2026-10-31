@@ -152,6 +152,7 @@ describe("Web Push settings", () => {
         afterHours: 24,
       }),
     );
+    expect(notifications.refresh).toHaveBeenCalled();
     await userEvent.selectOptions(screen.getByLabelText("زمان حذف"), "48");
     await waitFor(() =>
       expect(notifications.saveAutoDeletePreferences).toHaveBeenLastCalledWith({
