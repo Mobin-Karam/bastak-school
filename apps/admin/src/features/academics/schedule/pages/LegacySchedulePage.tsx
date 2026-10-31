@@ -176,9 +176,10 @@ export function LegacySchedulePage() {
     (term) => term.academicYearId === bootstrapActiveYear?.id && term.state === "ACTIVE",
   );
   const selectedBootstrapTermId = bootstrapTermId || bootstrapTerms[0]?.id || "";
+  const scheduleSetupResolved = academicBootstrap.isSuccess;
   const scheduleSetupBlocked = Boolean(
     selectedOrganizationId &&
-    !academicBootstrap.isLoading &&
+    scheduleSetupResolved &&
     (!bootstrapActiveYear ||
       (academicBootstrap.data &&
         (academicBootstrap.data.unassignedScheduleEntries.length > 0 ||
@@ -194,7 +195,10 @@ export function LegacySchedulePage() {
   }, [setupReminderKey]);
   useEffect(() => {
     if (!setupReminderHydrated) return;
-    if (!scheduleSetupBlocked) {
+    // Do not erase a deferred reminder while the bootstrap request is still
+    // loading. On a refresh, that transient state used to clear localStorage
+    // before the API could report that reconciliation is still required.
+    if (scheduleSetupResolved && !scheduleSetupBlocked) {
       if (setupReminderKey) window.localStorage.removeItem(setupReminderKey);
       setSetupReminderDueAt(null);
       setSetupGateDeferred(false);
@@ -216,7 +220,13 @@ export function LegacySchedulePage() {
       notify("یادآور راه‌اندازی سال تحصیلی فرا رسید.", "warning");
     }, remaining);
     return () => window.clearTimeout(timer);
-  }, [scheduleSetupBlocked, setupReminderDueAt, setupReminderHydrated, setupReminderKey]);
+  }, [
+    scheduleSetupBlocked,
+    scheduleSetupResolved,
+    setupReminderDueAt,
+    setupReminderHydrated,
+    setupReminderKey,
+  ]);
   const deferScheduleSetup = (dueAt: string) => {
     if (new Date(dueAt).getTime() <= Date.now()) {
       notify("زمان یادآور باید در آینده باشد.", "error");
