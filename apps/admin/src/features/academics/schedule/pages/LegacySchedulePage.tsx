@@ -18,7 +18,7 @@ import {
   UserRound,
   X,
 } from "lucide-react";
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { listOrganizations } from "../../../identity/access/api/access.api";
 import { useAuth } from "../../../identity/auth";
@@ -26,15 +26,9 @@ import { listClasses, type EducationClass } from "../../education/api/classes.ap
 import { Button, Card, EmptyState, Input, LoadingState } from "../../../../shared/ui/ui";
 import { notify } from "../../../../shared/ui/notifications";
 import {
-  defineSpreadsheet,
-  downloadSpreadsheet,
-  readSpreadsheet,
-} from "../../../../shared/lib/spreadsheet-transfer";
-import {
   archiveScheduleEntry,
   archiveScheduleTemplate,
   applyScheduleTemplate,
-  commitScheduleImport,
   createScheduleEntry,
   createScheduleEntries,
   createScheduleTemplate,
@@ -44,7 +38,6 @@ import {
   deleteScheduleTemplate,
   deleteScheduleTimeBlock,
   deleteScheduleTimeBlockGroup,
-  exportSchedule,
   listSchedule,
   listScheduleTemplates,
   listScheduleTimeBlocks,
@@ -60,7 +53,6 @@ import {
   listLegacyAcademicTermHistory,
   getLegacyAcademicBootstrap,
   reconcileLegacyAcademicCycle,
-  previewScheduleImport,
   restoreArchivedScheduleEntries,
   restoreScheduleTemplate,
   type ScheduleDraft,
@@ -78,8 +70,6 @@ import { TeacherSchedulePage } from "../../../people/teacher-portal";
 import { OrganizationTag } from "../../../../shared/ui/organization-tag";
 import { todayIso } from "../../../../shared/lib/utils";
 import { useModal } from "../../../../shared/ui/modal";
-import { SpreadsheetTransferActions } from "../../../../shared/ui/spreadsheet-transfer-actions";
-import { SpreadsheetTransferLauncher } from "../../../../shared/ui/spreadsheet-transfer-launcher";
 import { useViewportShell } from "../../../../app/layout/lib/viewport-shell";
 import { MobileTabs } from "../../../../shared/ui/mobile";
 import { ResponsiveDrawer } from "../../../../shared/ui/responsive-drawer";
@@ -96,20 +86,6 @@ const blank = (): ScheduleDraft => ({
   endTime: "09:00",
   room: "",
 });
-const spreadsheet = defineSpreadsheet<ScheduleDraft>({
-  sheetName: "برنامه هفتگی",
-  columns: [
-    { key: "organizationId", header: "شناسه مدرسه", required: true },
-    { key: "classroomId", header: "شناسه کلاس" },
-    { key: "teacherId", header: "شناسه دبیر" },
-    { key: "title", header: "عنوان", required: true },
-    { key: "weekday", header: "روز هفته", required: true, read: (value) => Number(value) },
-    { key: "startTime", header: "شروع", required: true },
-    { key: "endTime", header: "پایان", required: true },
-    { key: "room", header: "اتاق" },
-  ],
-});
-
 type ScheduleSetupReminder = { dueAt: string };
 
 const setupReminderStorageKey = (userId: string, organizationId: string) =>
@@ -475,61 +451,6 @@ export function LegacySchedulePage() {
     },
     onError: (e) => notify(e instanceof Error ? e.message : "حذف الگو انجام نشد.", "error"),
   });
-  async function download() {
-    try {
-      const rows = await exportSchedule();
-      await downloadSpreadsheet(
-        spreadsheet,
-        rows.map((item) => ({
-          organizationId: item.organization.id,
-          classroomId: item.classroom?.id || "",
-          teacherId: item.teacher?.id || "",
-          title: item.title,
-          weekday: item.weekday,
-          startTime: item.startTime,
-          endTime: item.endTime,
-          room: item.room,
-        })),
-        "zanin-schedule",
-      );
-    } catch (error) {
-      notify(error instanceof Error ? error.message : "خروجی برنامه انجام نشد.", "error");
-    }
-  }
-  async function importFile(file?: File) {
-    if (!file) return;
-    try {
-      const rows = await readSpreadsheet<ScheduleDraft>(file, spreadsheet);
-      const preview = await previewScheduleImport(rows);
-      if (!preview.valid)
-        throw new Error(
-          preview.errors.map((item) => `ردیف ${item.row}: ${item.message}`).join("\n"),
-        );
-      const result = await commitScheduleImport(rows);
-      reload();
-      notify(`${result.imported} برنامه وارد شد.`, "success");
-    } catch (error) {
-      notify(error instanceof Error ? error.message : "ورود برنامه انجام نشد.", "error");
-    }
-  }
-  async function downloadTemplate() {
-    await downloadSpreadsheet(
-      spreadsheet,
-      [
-        {
-          organizationId: selectedOrganizationId ?? "",
-          classroomId: "",
-          teacherId: "",
-          title: "نمونه جلسه",
-          weekday: 0,
-          startTime: "08:00",
-          endTime: "09:00",
-          room: "کلاس ۱",
-        },
-      ],
-      "schedule-import-template.xlsx",
-    );
-  }
   if (
     entries.isLoading ||
     (canReadOrganizations && organizations.isLoading) ||
@@ -645,26 +566,6 @@ export function LegacySchedulePage() {
     });
   };
   const scheduleEntries = entries.data ?? [];
-  const scheduleToolbar = auth.canAny(["schedule.import", "schedule.export"]) ? (
-    <SpreadsheetTransferLauncher
-      title="ورود و خروجی برنامه"
-      description="نمونه را دریافت کنید، فایل را وارد کنید یا خروجی فعلی را بگیرید. خطاها با شماره ردیف و ستون نمایش داده می‌شوند."
-      trigger="Excel"
-    >
-      <div className="grid gap-3">
-        <p className="text-sm leading-6 text-slate-500">
-          فایل باید ستون‌های برنامه هفتگی را داشته باشد.
-        </p>
-        <SpreadsheetTransferActions
-          canImport={auth.can("schedule.import")}
-          canExport={auth.can("schedule.export")}
-          onImport={(file) => void importFile(file)}
-          onTemplate={() => void downloadTemplate()}
-          onExport={() => void download()}
-        />
-      </div>
-    </SpreadsheetTransferLauncher>
-  ) : null;
   const toolsPanel = (
     <div className="grid gap-3">
       <header className="flex items-center gap-2 px-1">
@@ -681,7 +582,7 @@ export function LegacySchedulePage() {
           </p>
         </div>
       </header>
-      <ScheduleSidebarSummary entries={scheduleEntries} toolbar={scheduleToolbar} />
+      <ScheduleSidebarSummary entries={scheduleEntries} />
       {canCreate ? (
         <Card className="border-brand/15 bg-[rgb(var(--surface-card))] p-4">
           <span className="grid size-10 place-items-center rounded-xl bg-brand/10 text-brand">
@@ -962,13 +863,26 @@ export function LegacySchedulePage() {
           {templatePreview ? (
             <ScheduleTemplatePreview
               template={templatePreview}
-              activeEntries={scheduleEntries.filter((entry) => entry.status === "ACTIVE")}
+              activeEntries={scheduleEntries.filter(
+                (entry) =>
+                  entry.status === "ACTIVE" &&
+                  entry.academicYearId === selectedScheduleYearId &&
+                  entry.termId === (scheduleTermId || availableScheduleTerms[0]?.id),
+              )}
+              academicYearName={
+                academicCycles.data?.years.find((year) => year.id === selectedScheduleYearId)?.name
+              }
+              termName={
+                availableScheduleTerms.find(
+                  (term) => term.id === (scheduleTermId || availableScheduleTerms[0]?.id),
+                )?.name
+              }
               onCancel={() => setTemplatePreview(null)}
               onApply={() =>
                 void modal
                   .confirm({
                     title: "اجرای الگوی برنامه؟",
-                    description: `جلسه‌های فعال فعلی با جلسه‌های «${templatePreview.name}» جایگزین می‌شوند. جلسه‌ای به بایگانی برنامه اضافه نمی‌شود.`,
+                    description: `فقط جلسه‌های فعال ${availableScheduleTerms.find((term) => term.id === (scheduleTermId || availableScheduleTerms[0]?.id))?.name ?? "نیم‌سال انتخاب‌شده"} با جلسه‌های «${templatePreview.name}» جایگزین می‌شوند. برنامهٔ سایر نیم‌سال‌ها تغییری نمی‌کند.`,
                     tone: "danger",
                     confirmLabel: "اجرای الگو",
                     cancelLabel: "انصراف",
@@ -1120,13 +1034,7 @@ type ScheduleWorkspaceProps = {
   restoring: boolean;
 };
 
-function ScheduleSidebarSummary({
-  entries,
-  toolbar,
-}: {
-  entries: ScheduleEntry[];
-  toolbar?: ReactNode;
-}) {
+function ScheduleSidebarSummary({ entries }: { entries: ScheduleEntry[] }) {
   const activeEntries = entries.filter((entry) => entry.status === "ACTIVE");
   const today = legacyWeekdayForIso(todayIso());
   const daysWithSessions = new Set(activeEntries.map((entry) => entry.weekday)).size;
@@ -1141,7 +1049,6 @@ function ScheduleSidebarSummary({
           فعال
         </span>
       </div>
-      {toolbar ? <div className="flex min-w-0 flex-wrap justify-end gap-2">{toolbar}</div> : null}
       <div className="grid grid-cols-3 gap-2" aria-label="خلاصه برنامه هفتگی">
         <ScheduleMetric label="جلسه فعال" value={activeEntries.length} tone="blue" />
         <ScheduleMetric
@@ -3384,11 +3291,15 @@ function ScheduleEditorForm({
 function ScheduleTemplatePreview({
   template,
   activeEntries,
+  academicYearName,
+  termName,
   onCancel,
   onApply,
 }: {
   template: ScheduleTemplate;
   activeEntries: ScheduleEntry[];
+  academicYearName?: string;
+  termName?: string;
   onCancel: () => void;
   onApply: () => void;
 }) {
@@ -3405,7 +3316,9 @@ function ScheduleTemplatePreview({
           <p className="text-xs font-bold text-brand">پیش‌نمایش تغییر برنامه</p>
           <h2 className="mt-1 text-base font-black text-ink">اجرای «{template.name}»</h2>
           <p className="mt-1 text-xs leading-5 text-slate-600 dark:text-slate-300">
-            جلسه‌های فعال فعلی جایگزین می‌شوند و به بایگانی برنامه منتقل نخواهند شد.
+            فقط جلسه‌های فعال {termName ?? "نیم‌سال انتخاب‌شده"}
+            {academicYearName ? ` در ${academicYearName}` : ""} جایگزین می‌شوند؛ سایر نیم‌سال‌ها
+            بدون تغییر می‌مانند.
           </p>
         </div>
         <span className="rounded-full bg-[rgb(var(--surface-card))] px-3 py-1 text-xs font-bold text-brand">

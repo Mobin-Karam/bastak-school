@@ -2204,6 +2204,8 @@ export class ScheduleService {
           organization: { id: template.organization.id },
           versionId: IsNull(),
           status: "ACTIVE",
+          academicYearId: year.id,
+          termId: term.id,
         },
         { status: "REPLACED" },
       );

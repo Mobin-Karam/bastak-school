@@ -253,14 +253,6 @@ export const restoreScheduleTemplate = (id: string) =>
   api.patch<ScheduleTemplate>(`/schedule/templates/${encodeURIComponent(id)}/restore`, {});
 export const deleteScheduleTemplate = (id: string) =>
   api.delete(`/schedule/templates/${encodeURIComponent(id)}`);
-export const previewScheduleImport = (entries: ScheduleDraft[]) =>
-  api.post<{ valid: boolean; errors: Array<{ row: number; message: string }> }>(
-    "/schedule/import/preview",
-    { entries },
-  );
-export const commitScheduleImport = (entries: ScheduleDraft[]) =>
-  api.post<{ imported: number }>("/schedule/import/commit", { entries });
-export const exportSchedule = () => api.get<ScheduleEntry[]>("/schedule/export");
 export const listScheduleSubstitutionRequests = () =>
   api.get<ScheduleSubstitutionRequest[]>("/schedule/substitution-requests");
 export const requestScheduleSubstitution = (body: {

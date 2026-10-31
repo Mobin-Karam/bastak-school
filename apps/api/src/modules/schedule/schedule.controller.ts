@@ -262,12 +262,6 @@ export class ScheduleController {
   ) {
     return this.schedule.removeTemplate(user, id).then(ok);
   }
-  @Get("export") @RequireCapabilities("schedule.export") export(
-    @CurrentUser() user: AuthenticatedUser,
-    @Query("organizationId") organizationId?: string,
-  ) {
-    return this.schedule.export(user, organizationId).then(ok);
-  }
   @Get("time-blocks") @RequireCapabilities("schedule.read") timeBlocks(
     @CurrentUser() user: AuthenticatedUser,
     @Query("organizationId") organizationId?: string,
@@ -323,18 +317,6 @@ export class ScheduleController {
     @Body() dto: CreateScheduleEntriesDto,
   ) {
     return this.schedule.createMany(user, dto.entries).then(ok);
-  }
-  @Post("import/preview") @RequireCapabilities("schedule.import") preview(
-    @CurrentUser() user: AuthenticatedUser,
-    @Body("entries") entries: SaveScheduleEntryDto[],
-  ) {
-    return this.schedule.previewImport(user, entries || []).then(ok);
-  }
-  @Post("import/commit") @RequireCapabilities("schedule.import") commit(
-    @CurrentUser() user: AuthenticatedUser,
-    @Body("entries") entries: SaveScheduleEntryDto[],
-  ) {
-    return this.schedule.commitImport(user, entries || []).then(ok);
   }
   @Patch(":id") @RequireCapabilities("schedule.update") update(
     @CurrentUser() user: AuthenticatedUser,

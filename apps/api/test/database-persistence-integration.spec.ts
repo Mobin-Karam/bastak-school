@@ -1225,6 +1225,15 @@ describe("migration-backed persistence and verified recovery (disposable SQLite 
       termId: secondTerm.id,
     });
     expect(
+      await db
+        .getRepository(SchoolScheduleEntry)
+        .findOneBy({ id: legacyEntry.id }),
+    ).toMatchObject({
+      academicYearId: academicYear.id,
+      termId: academicTerm.id,
+      status: "ACTIVE",
+    });
+    expect(
       await db.getRepository(SchoolScheduleEntry).findOneBy({
         academicYearId: academicYear.id,
         termId: secondTerm.id,
