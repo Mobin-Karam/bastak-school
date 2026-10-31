@@ -16,6 +16,7 @@ export type NotificationContextValue = {
   loadingMore: boolean;
   refreshing: boolean;
   markingAllRead: boolean;
+  removing: boolean;
   soundEnabled: boolean;
   chatSoundEnabled: boolean;
 
@@ -23,6 +24,7 @@ export type NotificationContextValue = {
   setChatSoundEnabled: (value: boolean) => void;
   markRead: (id: string) => void;
   markAllRead: () => void;
+  removeSelected: (ids?: string[]) => Promise<void>;
   loadMore: () => void;
   refresh: () => void;
   pushStatus: () => Promise<PushStatus>;

@@ -1,6 +1,9 @@
 import { useCallback, useRef } from "react";
 import { useStoredBoolean } from "./useStoredBoolean";
 
+// The original 0.12 peak was barely audible on common laptop/mobile output.
+const NOTIFICATION_SOUND_GAIN = 0.12 * 20;
+
 export function useNotificationSound() {
   const [soundEnabled, setSoundEnabled] = useStoredBoolean("admin-notification-sound", true);
 
@@ -42,15 +45,17 @@ export function useNotificationSound() {
         const oscillator = context.createOscillator();
         const gain = context.createGain();
 
-        oscillator.type = "sine";
-        oscillator.frequency.setValueAtTime(chat ? 720 : 560, context.currentTime);
-        oscillator.frequency.exponentialRampToValueAtTime(
-          chat ? 920 : 760,
-          context.currentTime + 0.12,
-        );
+        oscillator.type = chat ? "sine" : "triangle";
+        oscillator.frequency.setValueAtTime(chat ? 720 : 659.25, context.currentTime);
+        if (chat) {
+          oscillator.frequency.exponentialRampToValueAtTime(920, context.currentTime + 0.12);
+        } else {
+          // A two-note E5 → A5 chime makes inbox alerts distinct from chat messages.
+          oscillator.frequency.setValueAtTime(880, context.currentTime + 0.11);
+        }
 
         gain.gain.setValueAtTime(0.0001, context.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.12, context.currentTime + 0.02);
+        gain.gain.exponentialRampToValueAtTime(NOTIFICATION_SOUND_GAIN, context.currentTime + 0.02);
         gain.gain.exponentialRampToValueAtTime(0.0001, context.currentTime + 0.22);
 
         oscillator.connect(gain).connect(context.destination);

@@ -1,6 +1,6 @@
 import { AdaptiveSelect } from "@/shared/ui/adaptive-select";
-import { CheckCheck, Headphones, PlayCircle, RefreshCw } from "lucide-react";
-import { useEffect, useRef, type Dispatch, type SetStateAction } from "react";
+import { CheckCheck, Headphones, PlayCircle, RefreshCw, Trash2 } from "lucide-react";
+import { useEffect, useRef, useState, type Dispatch, type SetStateAction } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useLocale } from "../../../../shared/ui/locale";
 import { notificationCopy } from "../model/notification-copy";
@@ -47,12 +47,39 @@ export function NotificationCenterPanel({
   const navigate = useNavigate();
   const [params] = useSearchParams();
   const focusedAnnouncementId = params.get("announcementId");
-  const focusedItem = useRef<HTMLButtonElement>(null);
+  const focusedItem = useRef<HTMLElement>(null);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const selectedIds = items.map((item) => item.id).filter((id) => selected.has(id));
+
+  useEffect(() => {
+    const visibleIds = new Set(items.map((item) => item.id));
+    setSelected((current) => new Set([...current].filter((id) => visibleIds.has(id))));
+  }, [items]);
 
   useEffect(() => {
     if (!focusedNotificationId || !focusedItem.current) return;
     focusedItem.current.scrollIntoView?.({ block: "center", behavior: "smooth" });
   }, [focusedNotificationId, items]);
+
+  const toggleSelected = (id: string) =>
+    setSelected((current) => {
+      const next = new Set(current);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+
+  const removeSelected = async () => {
+    if (!selectedIds.length) return;
+    await notifications.removeSelected(selectedIds);
+    setSelected(new Set());
+  };
+
+  const removeAll = async () => {
+    if (!window.confirm(copy.removeAllConfirm)) return;
+    await notifications.removeSelected();
+    setSelected(new Set());
+  };
 
   return (
     <AdminList
@@ -168,6 +195,50 @@ export function NotificationCenterPanel({
       <div
         className={`grid h-full min-h-0 overflow-y-auto overscroll-contain [padding-inline-start:0.25rem] [scrollbar-gutter:stable] ${compact ? "gap-2" : "gap-1"}`}
       >
+        {!compact ? (
+          <div className="flex flex-wrap items-center gap-2 border-b border-[rgb(var(--border-subtle))] px-1 py-2">
+            <Button
+              className="h-8 px-2 text-xs"
+              variant="ghost"
+              disabled={notifications.removing}
+              onClick={() =>
+                setSelected(
+                  selectedIds.length === items.length
+                    ? new Set()
+                    : new Set(items.map((item) => item.id)),
+                )
+              }
+            >
+              {selectedIds.length === items.length ? copy.clearSelection : copy.selectAll}
+            </Button>
+            {selectedIds.length ? (
+              <>
+                <span className="text-xs text-slate-500 dark:text-slate-300">
+                  {selectedIds.length.toLocaleString(language === "fa" ? "fa-IR" : "en-US")}{" "}
+                  {copy.selectedCount}
+                </span>
+                <Button
+                  className="h-8 px-2 text-xs"
+                  variant="danger"
+                  loading={notifications.removing}
+                  onClick={() => void removeSelected()}
+                >
+                  <Trash2 size={14} />
+                  {copy.removeSelected}
+                </Button>
+              </>
+            ) : null}
+            <Button
+              className="ms-auto h-8 px-2 text-xs"
+              variant="danger"
+              disabled={notifications.removing}
+              onClick={() => void removeAll()}
+            >
+              <Trash2 size={14} />
+              {copy.removeAll}
+            </Button>
+          </div>
+        ) : null}
         {items.map((item) => {
           const announcement = item.type === "announcement";
           const data = item.data as
@@ -221,7 +292,7 @@ export function NotificationCenterPanel({
             if (!item.isRead) notifications.markRead(item.id);
             navigate(notificationAdminUrl(item.url ?? undefined));
           };
-          return announcement ? (
+          return (
             <article
               key={item.id}
               ref={item.id === focusedNotificationId ? focusedItem : undefined}
@@ -230,26 +301,28 @@ export function NotificationCenterPanel({
                 item.id === focusedNotificationId || selectedAnnouncement ? "true" : undefined
               }
             >
-              <button type="button" className="w-full text-start" onClick={open}>
-                {itemContent}
-              </button>
-              <AnnouncementMedia data={data} title={item.title} />
+              <div className="flex items-start gap-2">
+                <input
+                  type="checkbox"
+                  checked={selected.has(item.id)}
+                  onChange={() => toggleSelected(item.id)}
+                  aria-label={`${copy.notification} ${item.title}`}
+                  className="mt-1 size-4 shrink-0 accent-brand"
+                />
+                <button
+                  type="button"
+                  className="min-w-0 flex-1 text-start"
+                  style={{ contentVisibility: "auto", containIntrinsicSize: "76px" }}
+                  aria-current={
+                    item.id === focusedNotificationId || selectedAnnouncement ? "true" : undefined
+                  }
+                  onClick={open}
+                >
+                  {itemContent}
+                </button>
+              </div>
+              {announcement ? <AnnouncementMedia data={data} title={item.title} /> : null}
             </article>
-          ) : (
-            <button
-              key={item.id}
-              ref={item.id === focusedNotificationId ? focusedItem : undefined}
-              type="button"
-              style={{
-                contentVisibility: "auto",
-                containIntrinsicSize: "76px",
-              }}
-              className={itemClassName}
-              aria-current={item.id === focusedNotificationId ? "true" : undefined}
-              onClick={open}
-            >
-              {itemContent}
-            </button>
           );
         })}
       </div>

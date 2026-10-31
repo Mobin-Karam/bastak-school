@@ -223,6 +223,23 @@ export class NotificationsService {
     const result = await qb.execute();
     return { updated: result.affected || 0 };
   }
+  async removeForUser(user: AuthenticatedUser, ids?: string[]) {
+    const qb = this.notifications
+      .createQueryBuilder()
+      .delete()
+      .from(Notification)
+      .where("userId=:userId", { userId: user.id });
+    if (ids?.length) qb.andWhere("id IN (:...ids)", { ids });
+    if (user.activeOrganizationId)
+      qb.andWhere(
+        "(organizationId IS NULL OR organizationId = :organizationId)",
+        {
+          organizationId: user.activeOrganizationId,
+        },
+      );
+    const result = await qb.execute();
+    return { removed: result.affected || 0 };
+  }
   private async retentionExpiry(userId: string, existing?: Date) {
     const preference = this.preferences
       ? await this.preferences.findOne({ where: { user: { id: userId } } })

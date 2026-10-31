@@ -178,6 +178,32 @@ describe("NotificationsService", () => {
     );
   });
 
+  it("removes only owned notifications in the active school when ids are selected", async () => {
+    const notifications = repository() as any;
+    const service = new NotificationsService(
+      notifications,
+      repository() as any,
+      {} as any,
+    );
+
+    await service.removeForUser(
+      { id: "staff-1", activeOrganizationId: "school-1" } as any,
+      ["notice-1", "notice-2"],
+    );
+
+    const queryBuilder = notifications.createQueryBuilder.mock.results[0].value;
+    expect(queryBuilder.where).toHaveBeenCalledWith("userId=:userId", {
+      userId: "staff-1",
+    });
+    expect(queryBuilder.andWhere).toHaveBeenCalledWith("id IN (:...ids)", {
+      ids: ["notice-1", "notice-2"],
+    });
+    expect(queryBuilder.andWhere).toHaveBeenCalledWith(
+      "(organizationId IS NULL OR organizationId = :organizationId)",
+      { organizationId: "school-1" },
+    );
+  });
+
   it("lists notifications belonging to the authenticated user", async () => {
     const student = { id: "student-1", user: { id: "student-user" } } as any;
     const notification = {

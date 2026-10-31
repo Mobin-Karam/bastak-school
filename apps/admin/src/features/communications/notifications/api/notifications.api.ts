@@ -27,6 +27,10 @@ export function markAllNotificationsRead() {
   return api.put("/notifications/read-all", {});
 }
 
+export function removeNotifications(ids?: string[]) {
+  return api.delete<{ removed: number }>("/notifications", ids?.length ? { ids } : {});
+}
+
 export function getAdvisorInbox(studentId: string) {
   return api.get<AdvisorInbox>(`/students/${encodeURIComponent(studentId)}/advisor-inbox`);
 }

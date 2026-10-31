@@ -11,10 +11,10 @@ import { Button } from "../../../../shared/ui/ui";
 
 function PrincipalPushPrompt({
   enable,
-  onClose,
+  onLater,
 }: {
   enable: () => Promise<void>;
-  onClose: () => void;
+  onLater: () => void;
 }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -34,7 +34,7 @@ function PrincipalPushPrompt({
         </p>
       ) : null}
       <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-        <Button variant="ghost" disabled={busy} onClick={onClose}>
+        <Button variant="ghost" disabled={busy} onClick={onLater}>
           بعداً
         </Button>
         <Button
@@ -44,7 +44,7 @@ function PrincipalPushPrompt({
             setBusy(true);
             setError("");
             void enable()
-              .then(onClose)
+              .then(onLater)
               .catch((nextError: unknown) =>
                 setError(
                   nextError instanceof Error ? nextError.message : "فعال‌سازی اعلان انجام نشد.",
@@ -73,6 +73,7 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
   const push = usePushNotifications(notifications.refresh);
   const shownAbsences = useRef(new Set<string>());
   const promptedPrincipalScopes = useRef(new Set<string>());
+  const principalPromptDismissalKey = `principal-push-prompt-dismissed:${notificationScopeKey}`;
 
   useEffect(() => {
     shownAbsences.current.clear();
@@ -98,6 +99,16 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
         return;
       }
 
+      if (status.permission === "granted") {
+        void push
+          .enablePush()
+          .then(notifications.refresh)
+          .catch(() => undefined);
+        return;
+      }
+
+      if (window.localStorage.getItem(principalPromptDismissalKey) === "1") return;
+
       modal.open({
         title: "اعلان‌های مدیر را فعال کنید",
         description: "برای این دستگاه و نقش مدیر",
@@ -108,7 +119,10 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
               await push.enablePush();
               await notifications.refresh();
             }}
-            onClose={modal.close}
+            onLater={() => {
+              window.localStorage.setItem(principalPromptDismissalKey, "1");
+              modal.close();
+            }}
           />
         ),
       });
@@ -118,6 +132,7 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
     auth.status,
     modal,
     notificationScopeKey,
+    principalPromptDismissalKey,
     notifications.refresh,
     push.enablePush,
     push.pushStatus,
@@ -256,12 +271,14 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
       loadingMore: notifications.inbox.isFetchingNextPage,
       refreshing: notifications.refreshing,
       markingAllRead: notifications.markingAllRead,
+      removing: notifications.removing,
       soundEnabled: sound.soundEnabled,
       chatSoundEnabled: sound.chatSoundEnabled,
       setSoundEnabled: sound.setSoundEnabled,
       setChatSoundEnabled: sound.setChatSoundEnabled,
       markRead: notifications.markRead,
       markAllRead: notifications.markAllRead,
+      removeSelected: notifications.removeSelected,
       loadMore: notifications.loadMore,
       refresh: notifications.refresh,
       pushStatus: push.pushStatus,
@@ -283,8 +300,10 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
       notifications.forbidden,
       notifications.refreshing,
       notifications.markingAllRead,
+      notifications.removing,
       notifications.markRead,
       notifications.markAllRead,
+      notifications.removeSelected,
       notifications.loadMore,
       notifications.refresh,
       sound.soundEnabled,
