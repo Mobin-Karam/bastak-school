@@ -78,6 +78,7 @@ import { useLocale } from "../../../../shared/ui/locale";
 import { listTeacherLeaveRequests, type TeacherLeaveRequest } from "../api/teacher-leave.api";
 
 const weekdays = ["شنبه", "یکشنبه", "دوشنبه", "سه‌شنبه", "چهارشنبه", "پنجشنبه", "جمعه"];
+const scheduleRefreshInterval = 30_000;
 const blank = (): ScheduleDraft => ({
   organizationId: "",
   title: "",
@@ -140,6 +141,7 @@ export function LegacySchedulePage() {
   const entries = useQuery({
     queryKey: ["schedule", selectedOrganizationId ?? "all"],
     queryFn: listSchedule,
+    refetchInterval: scheduleRefreshInterval,
   });
   const canReadOrganizations = auth.can("organization.read");
   const organizations = useQuery({
@@ -164,11 +166,13 @@ export function LegacySchedulePage() {
     queryKey: ["schedule", "academic-cycles", selectedOrganizationId],
     queryFn: () => listLegacyAcademicCycles(selectedOrganizationId!),
     enabled: !!selectedOrganizationId && canManageAcademicCycles,
+    refetchInterval: scheduleRefreshInterval,
   });
   const academicBootstrap = useQuery({
     queryKey: ["schedule", "academic-bootstrap", selectedOrganizationId],
     queryFn: () => getLegacyAcademicBootstrap(selectedOrganizationId!),
     enabled: !!selectedOrganizationId && auth.can("schedule.read"),
+    refetchInterval: scheduleRefreshInterval,
   });
   const activeAcademicYear = academicCycles.data?.years.find((year) => year.state === "ACTIVE");
   const bootstrapActiveYear = academicBootstrap.data?.activeYear;
@@ -297,6 +301,7 @@ export function LegacySchedulePage() {
     queryKey: ["teacher-leaves", selectedOrganizationId],
     queryFn: listTeacherLeaveRequests,
     enabled: auth.can("schedule.publish"),
+    refetchInterval: scheduleRefreshInterval,
   });
   const approvedLeaveByTeacher = useMemo(
     () =>
