@@ -116,15 +116,17 @@ export function TeacherDashboard() {
     onError: (error) =>
       notify(error instanceof Error ? error.message : "ارسال درخواست بازگشت انجام نشد.", "error"),
   });
-  // A leave freezes attendance entry points as well as the visible schedule.
-  const todayEntries = activeLeave ? [] : scheduledTodayEntries;
+  // Keep the teacher's planned classes visible during leave. Opening one is a
+  // deliberate early-return path: attendance stays server-frozen until the
+  // principal approves the return request, then the same session can resume.
+  const todayEntries = scheduledTodayEntries;
   const currentClass =
     todayEntries.find(
       (entry) =>
         currentMinute >= clockMinutes(entry.startTime) &&
         currentMinute < clockMinutes(entry.endTime),
     ) ?? null;
-  const nextClass = activeLeave ? null : nextTeacherScheduleEntry(schedule.data ?? [], now);
+  const nextClass = nextTeacherScheduleEntry(schedule.data ?? [], now);
   const attendanceEntry = currentClass ?? nextClass?.entry ?? null;
   const nextClassDayLabel = !nextClass
     ? "برنامهٔ آینده"

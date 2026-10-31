@@ -1237,7 +1237,9 @@ export class ScheduleService {
     row.reviewedAt = new Date();
     if (dto.decision === "approved")
       await this.applyTeacherLeave(row, user.id, substitute);
-    return this.publicTeacherLeave(await this.teacherLeaves.save(row));
+    const saved = await this.teacherLeaves.save(row);
+    await this.notifyTeacherLeaveDecision(saved, substitute, dto.decision);
+    return this.publicTeacherLeave(saved);
   }
   async requestTeacherLeaveReturn(
     user: AuthenticatedUser,
@@ -1356,7 +1358,162 @@ export class ScheduleService {
     row.returnStatus = dto.decision;
     row.returnReviewedAt = new Date();
     if (dto.decision === "approved") await this.restoreTeacherLeave(row);
-    return this.publicTeacherLeave(await this.teacherLeaves.save(row));
+    const saved = await this.teacherLeaves.save(row);
+    await this.notifyTeacherLeaveReturnDecision(saved, dto.decision);
+    return this.publicTeacherLeave(saved);
+  }
+  /** Notify only the people who have an affected class occurrence in this leave range. */
+  private async affectedTeacherLeaveStudentUserIds(row: TeacherLeaveRequest) {
+    const entries = await this.entries.find({
+      where: {
+        organization: { id: row.organizationId },
+        versionId: IsNull(),
+        status: "ACTIVE",
+      },
+      relations: {
+        classroom: true,
+        teacher: true,
+        classBook: { teacher: true },
+      },
+    });
+    const classIds = new Set<string>();
+    for (let date = row.startDate; date <= row.endDate;) {
+      const next = new Date(`${date}T12:00:00Z`);
+      next.setUTCDate(next.getUTCDate() + 1);
+      for (const entry of entries) {
+        const belongsToTeacher =
+          entry.teacher?.id === row.teacherId ||
+          entry.classBook?.teacher?.id === row.teacherId;
+        if (
+          belongsToTeacher &&
+          entry.classroom?.id &&
+          entry.weekday === this.weekdayForDate(date) &&
+          (!entry.startsOn || entry.startsOn <= date) &&
+          (!entry.endsOn || entry.endsOn >= date)
+        )
+          classIds.add(entry.classroom.id);
+      }
+      date = next.toISOString().slice(0, 10);
+    }
+    if (!classIds.size) return [];
+    const classes = await this.classes.find({
+      where: { id: In([...classIds]) },
+      relations: { enrollments: { student: { user: true } } },
+    });
+    return [
+      ...new Set(
+        classes.flatMap((classroom) =>
+          (classroom.enrollments ?? [])
+            .map((enrollment) => enrollment.student?.user?.id)
+            .filter((id): id is string => Boolean(id)),
+        ),
+      ),
+    ];
+  }
+  private async notifyTeacherLeaveDecision(
+    row: TeacherLeaveRequest,
+    substitute: User | null,
+    decision: "approved" | "rejected",
+  ) {
+    if (!this.notifications) return;
+    const isApproved = decision === "approved";
+    await this.notifications.createForUser(row.teacherId, {
+      type: isApproved ? NotificationType.WARNING : NotificationType.MESSAGE,
+      category: "teacher-leave-request",
+      priority: isApproved ? "high" : "normal",
+      title: isApproved ? "مرخصی استاد تأیید شد" : "درخواست مرخصی رد شد",
+      body: isApproved
+        ? row.resolution === "substitute"
+          ? `مرخصی شما از ${row.startDate} تا ${row.endDate} تأیید شد؛ جلسه‌ها به استاد جایگزین سپرده شد.`
+          : `مرخصی شما از ${row.startDate} تا ${row.endDate} تأیید شد؛ جلسه‌های این بازه منجمد هستند.`
+        : `درخواست مرخصی شما برای ${row.startDate} تا ${row.endDate} تأیید نشد.`,
+      url: "/admin/profile",
+      organizationId: row.organizationId,
+      dedupeKey: `teacher-leave-decision:${row.id}:${decision}`,
+    });
+    if (!isApproved) return;
+    if (substitute)
+      await this.notifications.createForUser(substitute.id, {
+        type: NotificationType.WARNING,
+        category: "teacher-leave-substitution",
+        priority: "high",
+        title: "جلسه‌های جایگزین به شما واگذار شد",
+        body: `جلسه‌های استاد مرخصی‌دار از ${row.startDate} تا ${row.endDate} به برنامه شما افزوده شد.`,
+        url: "/admin/schedule",
+        organizationId: row.organizationId,
+        dedupeKey: `teacher-leave-substitute:${row.id}:${substitute.id}`,
+      });
+    const studentIds = await this.affectedTeacherLeaveStudentUserIds(row);
+    if (studentIds.length)
+      await this.notifications.createForUsers(studentIds, {
+        type: NotificationType.WARNING,
+        category: "schedule-leave-change",
+        priority: "high",
+        title:
+          row.resolution === "substitute"
+            ? "تغییر استاد جلسه"
+            : "جلسه برگزار نمی‌شود",
+        body:
+          row.resolution === "substitute"
+            ? `جلسه‌های شما از ${row.startDate} تا ${row.endDate} با استاد جایگزین برگزار می‌شود.`
+            : `برخی جلسه‌های شما از ${row.startDate} تا ${row.endDate} به علت مرخصی استاد برگزار نمی‌شود.`,
+        url: "/admin/schedule",
+        organizationId: row.organizationId,
+        dedupeKey: `teacher-leave-students:${row.id}:${row.resolution}`,
+      });
+  }
+  private async notifyTeacherLeaveReturnDecision(
+    row: TeacherLeaveRequest,
+    decision: "approved" | "rejected",
+  ) {
+    if (!this.notifications) return;
+    const returnDate = row.returnDate ?? row.startDate;
+    await this.notifications.createForUser(row.teacherId, {
+      type:
+        decision === "approved"
+          ? NotificationType.MESSAGE
+          : NotificationType.WARNING,
+      category: "teacher-leave-return",
+      priority: "high",
+      title:
+        decision === "approved"
+          ? "بازگشت استاد تأیید شد"
+          : "بازگشت استاد رد شد",
+      body:
+        decision === "approved"
+          ? `جلسه‌های شما از ${returnDate} دوباره فعال است.`
+          : "درخواست بازگشت زودتر از مرخصی تأیید نشد.",
+      url: "/admin/schedule",
+      organizationId: row.organizationId,
+      dedupeKey: `teacher-leave-return-decision:${row.id}:${decision}:${returnDate}`,
+    });
+    if (decision !== "approved") return;
+    if (row.substituteTeacherId)
+      await this.notifications.createForUser(row.substituteTeacherId, {
+        type: NotificationType.MESSAGE,
+        category: "teacher-leave-substitution",
+        priority: "high",
+        title: "جلسه‌های جایگزین پایان یافت",
+        body: `جلسه‌های جایگزین از ${returnDate} به استاد اصلی بازگردانده شد.`,
+        url: "/admin/schedule",
+        organizationId: row.organizationId,
+        dedupeKey: `teacher-leave-substitute-return:${row.id}:${returnDate}`,
+      });
+    const studentIds = await this.affectedTeacherLeaveStudentUserIds({
+      ...row,
+      startDate: returnDate,
+    });
+    if (studentIds.length)
+      await this.notifications.createForUsers(studentIds, {
+        type: NotificationType.MESSAGE,
+        category: "schedule-leave-change",
+        priority: "high",
+        title: "جلسه‌های استاد اصلی فعال شد",
+        body: `از ${returnDate} برنامه جلسه‌های شما به استاد اصلی بازگشت.`,
+        url: "/admin/schedule",
+        organizationId: row.organizationId,
+        dedupeKey: `teacher-leave-students-return:${row.id}:${returnDate}`,
+      });
   }
   private async applyTeacherLeave(
     row: TeacherLeaveRequest,
