@@ -29,8 +29,16 @@ import { AttendanceSession } from "../src/database/entities/attendance-session.e
 import { AttendanceRecord } from "../src/database/entities/attendance-record.entity";
 import { AttendanceStatus } from "../src/database/entities/attendance-record.entity";
 import { AttendancePool } from "../src/database/entities/attendance-pool.entity";
+import {
+  ExitPermission,
+  ExitPermissionStatus,
+} from "../src/database/entities/exit-permission.entity";
 import { AttendancePolicy } from "../src/database/entities/attendance-policy.entity";
 import { DormAttendanceDelegate } from "../src/database/entities/dorm-attendance-delegate.entity";
+import {
+  SchoolAcademicTerm,
+  SchoolAcademicYear,
+} from "../src/database/entities/school-academic-year.entity";
 import { AuditLog } from "../src/database/entities/audit-log.entity";
 import {
   AttendanceOperationsService,
@@ -157,16 +165,42 @@ describe("attendance delegation, live pools and staff privacy (SQLite)", () => {
       access,
       {} as AuthorizationService,
       realtime,
-      new RewardsService(db.getRepository(StudentRewardLedger), db.getRepository(Student), db.getRepository(AuditLog), access, {} as AuthorizationService),
+      new RewardsService(
+        db.getRepository(StudentRewardLedger),
+        db.getRepository(Student),
+        db.getRepository(AuditLog),
+        access,
+        {} as AuthorizationService,
+      ),
     );
     operations = new AttendanceOperationsService(
       db.getRepository(AttendanceSession),
       service,
       access,
       realtime,
-      new RewardsService(db.getRepository(StudentRewardLedger), db.getRepository(Student), db.getRepository(AuditLog), access, {} as AuthorizationService),
+      new RewardsService(
+        db.getRepository(StudentRewardLedger),
+        db.getRepository(Student),
+        db.getRepository(AuditLog),
+        access,
+        {} as AuthorizationService,
+      ),
     );
     day = attendanceSummaryWindow().day;
+    const academicYear = await db.getRepository(SchoolAcademicYear).save({
+      organizationId: org.id,
+      name: "Active study year",
+      startsOn: "2026-01-01",
+      endsOn: "2027-12-31",
+      state: "ACTIVE",
+    });
+    await db.getRepository(SchoolAcademicTerm).save({
+      academicYearId: academicYear.id,
+      name: "Active semester",
+      startsOn: "2026-01-01",
+      endsOn: "2027-12-31",
+      state: "ACTIVE",
+    });
   });
   afterEach(async () => {
     await db.destroy();
@@ -196,22 +230,28 @@ describe("attendance delegation, live pools and staff privacy (SQLite)", () => {
       endsOn: day,
     });
     const assignments = await operations.myDormAssignments(studentActor);
-    expect(assignments).toHaveLength(2);
+    expect(assignments).toHaveLength(4);
     const other = assignments.find((row) => row.roomId === otherRoom.id)!;
     expect(other.dormWide).toBe(true);
+    const saved = await operations.markDorm(studentActor, other.id, {
+      requestId: randomUUID(),
+      expectedRevision: 0,
+      nightDate: day,
+      roomId: otherRoom.id,
+      attendancePeriod: "night",
+      entries: [{ studentId: students[2].id, status: "present" }],
+    });
+    expect(saved).toMatchObject({ count: 1 });
+    const savedSession = await db
+      .getRepository(AttendanceSession)
+      .findOneByOrFail({ id: saved.sessionId });
     await expect(
       operations.markDorm(studentActor, other.id, {
         requestId: randomUUID(),
-        expectedRevision: 0,
+        expectedRevision: savedSession.revision,
         nightDate: day,
-        entries: [{ studentId: students[2].id, status: "present" }],
-      }),
-    ).resolves.toMatchObject({ count: 1 });
-    await expect(
-      operations.markDorm(studentActor, other.id, {
-        requestId: randomUUID(),
-        expectedRevision: 1,
-        nightDate: day,
+        roomId: otherRoom.id,
+        attendancePeriod: "night",
         entries: [{ studentId: students[1].id, status: "present" }],
       }),
     ).rejects.toMatchObject({
@@ -224,8 +264,10 @@ describe("attendance delegation, live pools and staff privacy (SQLite)", () => {
     await expect(
       operations.markDorm(studentActor, other.id, {
         requestId: randomUUID(),
-        expectedRevision: 1,
+        expectedRevision: savedSession.revision,
         nightDate: day,
+        roomId: otherRoom.id,
+        attendancePeriod: "night",
         entries: [{ studentId: students[2].id, status: "present" }],
       }),
     ).rejects.toThrow();
@@ -243,7 +285,7 @@ describe("attendance delegation, live pools and staff privacy (SQLite)", () => {
     });
     await operations.revokeDormWideDelegate(staff);
     expect(await operations.myDormAssignments(studentActor)).toEqual([]);
-    expect(await operations.myDormAssignments(otherActor)).toHaveLength(1);
+    expect(await operations.myDormAssignments(otherActor)).toHaveLength(2);
   });
   it("requires staff authority for dorm-wide delegation and preserves room-only grants", async () => {
     await expect(
@@ -264,7 +306,7 @@ describe("attendance delegation, live pools and staff privacy (SQLite)", () => {
       endsOn: day,
     });
     const assignments = await operations.myDormAssignments(studentActor);
-    expect(assignments).toHaveLength(1);
+    expect(assignments).toHaveLength(4);
     expect(assignments[0].roomId).toBe(room.id);
     expect((await operations.myDormAssignments(otherActor))[0].dormWide).toBe(
       false,
@@ -484,7 +526,9 @@ describe("attendance delegation, live pools and staff privacy (SQLite)", () => {
     expect((await service.summary(studentActor)).recent).toEqual([]);
   });
   it("gives a teacher only the profile facts for their assigned class", async () => {
-    const teacher = await db.getRepository(User).findOneByOrFail({ id: staff.id });
+    const teacher = await db
+      .getRepository(User)
+      .findOneByOrFail({ id: staff.id });
     const classroom = await db.getRepository(EducationClass).save({
       organization: org,
       code: "7-A",
@@ -536,14 +580,18 @@ describe("attendance delegation, live pools and staff privacy (SQLite)", () => {
       counts: { present: 1 },
     });
     expect(profile.records).toHaveLength(1);
-    await expect(operations.staffSessions(teacherActor)).resolves.toMatchObject({
-      total: 1,
-      items: [expect.objectContaining({ contextId: classroom.id })],
-    });
-    await expect(operations.dailyOverview(teacherActor)).resolves.toMatchObject({
-      sessions: 1,
-      present: 1,
-    });
+    await expect(operations.staffSessions(teacherActor)).resolves.toMatchObject(
+      {
+        total: 1,
+        items: [expect.objectContaining({ contextId: classroom.id })],
+      },
+    );
+    await expect(operations.dailyOverview(teacherActor)).resolves.toMatchObject(
+      {
+        sessions: 1,
+        present: 1,
+      },
+    );
   });
   it("enforces operation capabilities, DTO limits and check-in self identity over HTTP", async () => {
     const module = await Test.createTestingModule({
@@ -656,20 +704,14 @@ describe("attendance delegation, live pools and staff privacy (SQLite)", () => {
         sessionDate: window.startsAt,
       },
     ]);
-    expect((await operations.dailyOverview(staff)).sessions).toBe(1);
+    expect((await operations.dailyOverview(staff)).sessions).toBe(0);
     expect(await operations.staffSessions(staff)).toMatchObject({
-      total: 2,
-      items: expect.arrayContaining([
-        expect.objectContaining({ contextId: room.id }),
-      ]),
+      total: 0,
+      items: [],
     });
     await expect(
       operations.staffSessions(staff, { page: 1, limit: 1 }),
-    ).resolves.toMatchObject({
-      total: 2,
-      hasNext: true,
-      items: [expect.any(Object)],
-    });
+    ).resolves.toMatchObject({ total: 0, hasNext: false, items: [] });
     expect(await db.getRepository(AttendanceSession).count()).toBe(3);
     expect(
       attendanceSummaryWindow(new Date("2026-10-11T12:29:59.999Z")).day,
@@ -677,6 +719,168 @@ describe("attendance delegation, live pools and staff privacy (SQLite)", () => {
     expect(attendanceSummaryWindow(new Date("2026-10-11T12:30:00Z")).day).toBe(
       "2026-10-11",
     );
+  });
+
+  it("keeps teacher reports on outside students pending principal verification", async () => {
+    const classroom = await db.getRepository(EducationClass).save({
+      organization: org,
+      name: "Class A",
+      code: "A1",
+      schoolYear: "1405",
+      gradeId: 1,
+      educationTypeId: "general",
+      trackId: "general",
+    });
+    const session = await db.getRepository(AttendanceSession).save({
+      organization: org,
+      contextType: "class",
+      contextId: classroom.id,
+      sessionDate: new Date(),
+      status: "submitted",
+      revision: 1,
+      rosterSnapshot: [{ id: students[0].id, name: students[0].name }],
+    });
+    await db.getRepository(AttendanceRecord).save({
+      session,
+      student: students[0],
+      status: AttendanceStatus.PRESENT,
+      revision: 1,
+      recordedBy: { id: staff.id } as User,
+    });
+    await db.getRepository(ExitPermission).save({
+      organization: org,
+      student: students[0],
+      requestedDepartureAt: new Date(Date.now() - 60_000),
+      actualDepartureAt: new Date(Date.now() - 60_000),
+      destination: "Outside school",
+      reason: "Unauthorized departure",
+      note: "Dorm review",
+      origin: "dorm_unauthorized",
+      status: ExitPermissionStatus.APPROVED,
+    });
+
+    const reporter = {
+      ...staff,
+      capabilities: [...(staff.capabilities ?? []), "attendance.class.read"],
+    };
+    const reported = await operations.reportOutsideStudentPresent(
+      reporter,
+      session.id,
+      students[0].id,
+      "Seen in class",
+    );
+    expect(reported.reported).toBe(true);
+    expect(await operations.outsidePresenceReports(staff)).toMatchObject([
+      expect.objectContaining({
+        studentId: students[0].id,
+        note: "Seen in class",
+      }),
+    ]);
+
+    await operations.verifyOutsideStudentPresence(
+      staff,
+      reported.exitPermissionId,
+    );
+    expect(await operations.outsidePresenceReports(staff)).toHaveLength(0);
+    const savedExit = await db.getRepository(ExitPermission).findOneByOrFail({
+      id: reported.exitPermissionId,
+    });
+    expect(savedExit.actualReturnAt).toBeInstanceOf(Date);
+    expect(savedExit.status).toBe(ExitPermissionStatus.COMPLETED);
+  });
+
+  it("loads the school relation when building the principal dorm review queue", async () => {
+    const session = await db.getRepository(AttendanceSession).save({
+      organization: org,
+      contextType: "dorm",
+      contextId: room.id,
+      sessionDate: new Date(),
+      operationalDate: day,
+      attendancePeriod: "night",
+      dormAttendanceRole: "primary",
+      dormForwardedAt: new Date(),
+      status: "submitted",
+      rosterSnapshot: [
+        {
+          id: students[0].id,
+          name: students[0].name,
+          nationalCode: null,
+          userId: null,
+        },
+      ],
+    });
+    await db.getRepository(AttendanceRecord).save({
+      session,
+      student: students[0],
+      status: AttendanceStatus.ABSENT,
+    });
+
+    await expect(operations.dormReviewQueue(staff)).resolves.toMatchObject([
+      {
+        id: session.id,
+        roomId: room.id,
+        total: 1,
+        recorded: 1,
+        absent: 1,
+        attendanceRole: "primary",
+      },
+    ]);
+  });
+
+  it("records an unauthorized dorm departure from the principal review queue", async () => {
+    const session = await db.getRepository(AttendanceSession).save({
+      organization: org,
+      contextType: "dorm",
+      contextId: room.id,
+      sessionDate: new Date(Date.now() - 60_000),
+      operationalDate: day,
+      attendancePeriod: "night",
+      dormAttendanceRole: "primary",
+      dormForwardedAt: new Date(Date.now() - 30_000),
+      status: "submitted",
+      rosterSnapshot: [{ id: students[0].id, name: students[0].name }],
+    });
+    await db.getRepository(AttendanceRecord).save({
+      session,
+      student: students[0],
+      status: AttendanceStatus.ABSENT,
+    });
+
+    const first = await operations.markUnauthorizedDormDeparture(
+      staff,
+      session.id,
+      students[0].id,
+    );
+    await expect(
+      operations.markUnauthorizedDormDeparture(
+        staff,
+        session.id,
+        students[0].id,
+      ),
+    ).resolves.toMatchObject({
+      exitPermissionId: first.exitPermissionId,
+      studentId: students[0].id,
+      origin: "dorm_unauthorized",
+      unauthorizedOutside: 1,
+      currentlyInSchool: 2,
+    });
+    expect(
+      await db.getRepository(ExitPermission).count({
+        where: {
+          student: { id: students[0].id },
+          origin: "dorm_unauthorized",
+        },
+      }),
+    ).toBe(1);
+    await expect(
+      db.getRepository(ExitPermission).findOneByOrFail({
+        student: { id: students[0].id },
+        origin: "dorm_unauthorized",
+      }),
+    ).resolves.toMatchObject({
+      status: ExitPermissionStatus.APPROVED,
+      origin: "dorm_unauthorized",
+    });
   });
 
   it("reports finalized facts only and excludes submitted/cancelled sessions from its denominator", async () => {
@@ -775,7 +979,10 @@ describe("attendance delegation, live pools and staff privacy (SQLite)", () => {
       operations.reportSummary(
         {
           ...staff,
-          capabilities: [...(staff.capabilities ?? []), "attendance.reports.read"],
+          capabilities: [
+            ...(staff.capabilities ?? []),
+            "attendance.reports.read",
+          ],
         },
         "2026-10-31T00:00:00.000Z",
         "2026-10-01T23:59:59.999Z",
@@ -807,12 +1014,22 @@ describe("attendance delegation, live pools and staff privacy (SQLite)", () => {
       },
     ]);
     await db.getRepository(AttendanceRecord).save([
-      { session: matching, student: students[0], status: AttendanceStatus.PRESENT },
+      {
+        session: matching,
+        student: students[0],
+        status: AttendanceStatus.PRESENT,
+      },
       { session: other, student: students[1], status: AttendanceStatus.ABSENT },
     ]);
     await expect(
       operations.reportSummary(
-        { ...staff, capabilities: [...(staff.capabilities ?? []), "attendance.reports.read"] },
+        {
+          ...staff,
+          capabilities: [
+            ...(staff.capabilities ?? []),
+            "attendance.reports.read",
+          ],
+        },
         undefined,
         undefined,
         { academicYearId: "year-a", termId: "term-a" },

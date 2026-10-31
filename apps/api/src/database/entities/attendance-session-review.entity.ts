@@ -29,6 +29,9 @@ export class AttendanceSessionReview {
   @Column({ type: "integer" })
   reviewedRevision!: number;
 
+  @Column({ type: "varchar", length: 500, default: "" })
+  teacherMessage!: string;
+
   @CreateDateColumn({ type: "datetime" })
   reviewedAt!: Date;
 }

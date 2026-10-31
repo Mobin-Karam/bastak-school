@@ -353,6 +353,25 @@ function StudentOnlyRoute({ children }: { children: ReactNode }) {
   return auth.activeRole === "STUDENT" ? <>{children}</> : <Navigate to="/admin" replace />;
 }
 
+/** Teachers take attendance from their own schedule, never from the staff-wide workspace. */
+function StaffAttendanceRoute({ children }: { children: ReactNode }) {
+  const auth = useAuth();
+  return auth.activeRole === "TEACHER" ? (
+    <Navigate to="/admin/schedule" replace />
+  ) : (
+    <>{children}</>
+  );
+}
+
+function StaffClassesRoute({ children }: { children: ReactNode }) {
+  const auth = useAuth();
+  return auth.activeRole === "TEACHER" ? (
+    <Navigate to="/admin/communication/notifications" replace />
+  ) : (
+    <>{children}</>
+  );
+}
+
 function NonStudentRoute({ children }: { children: ReactNode }) {
   const auth = useAuth();
   return auth.activeRole === "STUDENT" ? <Navigate to="/admin" replace /> : <>{children}</>;
@@ -467,11 +486,13 @@ export const adminRouteObjects = [
           {
             path: "classes",
             element: (
-              <CapabilityRoute capability="classes.read">
-                <RouteScreen>
-                  <ClassesPage />
-                </RouteScreen>
-              </CapabilityRoute>
+              <StaffClassesRoute>
+                <CapabilityRoute capability="classes.read">
+                  <RouteScreen>
+                    <ClassesPage />
+                  </RouteScreen>
+                </CapabilityRoute>
+              </StaffClassesRoute>
             ),
           },
           {
@@ -505,12 +526,30 @@ export const adminRouteObjects = [
           {
             path: "attendance",
             element: (
-              <CapabilityRoute capability="attendance.read">
-                <RouteScreen>
-                  <AttendancePage />
-                </RouteScreen>
-              </CapabilityRoute>
+              <StaffAttendanceRoute>
+                <CapabilityRoute capability="attendance.read">
+                  <RouteScreen>
+                    <AttendancePage />
+                  </RouteScreen>
+                </CapabilityRoute>
+              </StaffAttendanceRoute>
             ),
+          },
+          {
+            path: "attendance/classes",
+            element: <Navigate to="/admin/attendance?section=sessions&office=teacher" replace />,
+          },
+          {
+            path: "attendance/class-groups",
+            element: <Navigate to="/admin/attendance?section=sessions&office=groups" replace />,
+          },
+          {
+            path: "attendance/dorm",
+            element: <Navigate to="/admin/attendance?section=sessions&office=dorm" replace />,
+          },
+          {
+            path: "attendance/archive",
+            element: <Navigate to="/admin/attendance?section=sessions&office=history" replace />,
           },
           {
             path: "my-attendance",
@@ -605,11 +644,9 @@ export const adminRouteObjects = [
           {
             path: "communication/notifications",
             element: (
-              <NonStudentRoute>
-                <RouteScreen>
-                  <NotificationsPage />
-                </RouteScreen>
-              </NonStudentRoute>
+              <RouteScreen>
+                <NotificationsPage />
+              </RouteScreen>
             ),
           },
           {

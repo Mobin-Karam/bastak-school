@@ -23,6 +23,7 @@ describe("student navigation", () => {
       "coin-shop",
       "registration",
       "my-attendance",
+      "communication/notifications",
       "settings",
     ]);
   });
@@ -55,6 +56,10 @@ describe("student navigation", () => {
       section: "پیشرفت و سکه",
       path: "achievements",
     });
+    expect(resolveAdminNavigation("/admin/communication/notifications", "STUDENT")).toMatchObject({
+      section: "اعلان‌ها",
+      path: "communication/notifications",
+    });
   });
 });
 
@@ -73,8 +78,7 @@ describe("teacher navigation", () => {
 
     expect(paths).toEqual([
       "schedule",
-      "classes",
-      "attendance",
+      "communication/notifications",
       "teacher-chat",
       "teacher-profile",
       "settings",

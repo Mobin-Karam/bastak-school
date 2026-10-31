@@ -14,6 +14,7 @@ const pending = new Set([
   "TargetedAnnouncementMedia1731500000000",
   "DailyAttendanceSessionReview1731600000000",
   "RepairAttendanceSessionReviewRevision1731700000000",
+  "AttendanceReviewTeacherMessage1762400000000",
 ]);
 
 async function main() {

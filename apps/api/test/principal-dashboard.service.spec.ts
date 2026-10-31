@@ -40,9 +40,12 @@ describe("PrincipalDashboardService", () => {
         if (
           sql.includes("attendance_session_reviews") &&
           sql.includes("COUNT(DISTINCT s.id)")
-        )
+        ) {
+          expect(sql).toContain("absent_record.physicalStatus='absent'");
           return [{ count: 2 }];
-        if (sql.includes("attendance_session_reviews"))
+        }
+        if (sql.includes("attendance_session_reviews")) {
+          expect(sql).toContain("r.physicalStatus='absent'");
           return [
             {
               id: "session-a",
@@ -60,6 +63,7 @@ describe("PrincipalDashboardService", () => {
               lastReviewedAt: null,
             },
           ];
+        }
         if (sql.includes("COUNT(t.id) total"))
           return [{ total: 4, complete: 3 }];
         if (sql.includes("COUNT(DISTINCT ss.studentId) participants"))
@@ -151,12 +155,84 @@ describe("PrincipalDashboardService", () => {
     expect(dashboard).not.toHaveProperty("behaviour");
     expect(dashboard).not.toHaveProperty("queues");
     expect(dashboard).not.toHaveProperty("sessionReviews");
+    expect(dashboard).not.toHaveProperty("principalLists");
     expect(dashboard.operations).toEqual({
       activeStudents: 0,
       currentlyOut: 0,
       scheduleEntries: 0,
       staff: 0,
     });
+  });
+
+  it("puts every completed session in the principal queue when the all-session policy is enabled", async () => {
+    const queries: string[] = [];
+    const service = new PrincipalDashboardService({
+      query: jest.fn(async (sql: string) => {
+        queries.push(sql);
+        if (sql.includes("SELECT principalReviewMode"))
+          return [{ principalReviewMode: "all_sessions" }];
+        if (sql.includes("COUNT(DISTINCT s.id)")) return [{ count: 1 }];
+        if (sql.includes("attendance_session_reviews")) return [];
+        if (sql.includes("COUNT(r.id) total"))
+          return [{ present: 0, absent: 0, late: 0, excused: 0, total: 0 }];
+        return [{ count: 0 }];
+      }),
+    } as never);
+    const dashboard = await service.get(principal, "2026-10-14", "2026-10-20");
+    expect(dashboard.sessionReviews).toMatchObject({
+      mode: "all_sessions",
+      pendingCount: 1,
+    });
+    const reviewCountQuery = queries.find((sql) =>
+      sql.includes("COUNT(DISTINCT s.id)"),
+    );
+    expect(reviewCountQuery).not.toContain("absent_record");
+  });
+
+  it("never exposes operational principal lists to an attendance reader", async () => {
+    const query = jest.fn().mockResolvedValue([]);
+    const service = new PrincipalDashboardService({ query } as never);
+
+    await expect(
+      service.get(
+        {
+          ...principal,
+          roles: ["TEACHER"],
+          role: "TEACHER",
+          capabilities: ["attendance.read"],
+        },
+        "2026-10-14",
+        "2026-10-20",
+      ),
+    ).rejects.toMatchObject({
+      response: { error: { code: "PRINCIPAL_DASHBOARD_FORBIDDEN" } },
+    });
+    expect(query).not.toHaveBeenCalled();
+  });
+
+  it("never exposes the principal dashboard to the religious education manager", async () => {
+    const query = jest.fn().mockResolvedValue([]);
+    const service = new PrincipalDashboardService({ query } as never);
+
+    await expect(
+      service.get(
+        {
+          ...principal,
+          roles: ["RELIGIOUS_EDUCATION_MANAGER"],
+          role: "RELIGIOUS_EDUCATION_MANAGER",
+          capabilities: [
+            "schedule.read.all",
+            "attendance.read",
+            "attendance.manage",
+          ],
+        },
+        "2026-10-14",
+        "2026-10-20",
+      ),
+    ).rejects.toMatchObject({
+      response: { error: { code: "PRINCIPAL_DASHBOARD_FORBIDDEN" } },
+    });
+    expect(query).not.toHaveBeenCalled();
   });
 
   it("requires an explicit active organization and rejects unbounded or invalid date ranges", async () => {

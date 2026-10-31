@@ -7,14 +7,84 @@ import type {
   AttendanceSessionDetail,
   DormAttendanceAssignment,
   DormAttendanceDelegate,
+  DormAttendanceReviewItem,
   DormAttendanceWrite,
   DormDelegateDraft,
   StaffAttendanceProfile,
   StaffAttendanceSession,
   StudentAttendancePool,
+  TeacherStudentClassAttendanceProfile,
 } from "@moshaver/api-contract";
 
+export type { DormAttendanceReviewItem };
+
 export const getAttendanceOverview = () => api.get<AttendanceDailyOverview>("/attendance/overview");
+export const getDormAttendanceReviewQueue = () =>
+  api.get<DormAttendanceReviewItem[]>("/attendance/dorm-review-queue");
+export const getDormAttendanceOccurrence = (
+  roomId: string,
+  date: string,
+  period: "day" | "night",
+) =>
+  api.get<AttendanceSessionDetail | null>(
+    `/attendance/dorm-session?${new URLSearchParams({ roomId, date, period }).toString()}`,
+  );
+export const forwardDormAttendanceReview = (id: string, note: string) =>
+  api.post<{ sessionId: string; forwardedAt: string }>(
+    `/attendance/dorm-sessions/${encodeURIComponent(id)}/forward-review`,
+    { note },
+  );
+export const reopenDormAttendanceReview = (
+  id: string,
+  action: "delegate" | "supervisor",
+  reason: string,
+) =>
+  api.post<{ sessionId: string; revision: number; reviewUrl: string; reassigned: boolean }>(
+    `/attendance/dorm-sessions/${encodeURIComponent(id)}/reopen`,
+    { action, reason },
+  );
+export const markDormStudentUnauthorizedOutside = (
+  sessionId: string,
+  studentId: string,
+  note?: string,
+) =>
+  api.post<{
+    exitPermissionId: string;
+    studentId: string;
+    totalStudents: number;
+    dormResidents: number;
+    currentlyOutside: number;
+    authorizedOutside: number;
+    unauthorizedOutside: number;
+    currentlyInSchool: number;
+  }>(
+    `/attendance/dorm-sessions/${encodeURIComponent(sessionId)}/students/${encodeURIComponent(studentId)}/unauthorized-departure`,
+    { note },
+  );
+export const reportOutsideStudentPresent = (sessionId: string, studentId: string) =>
+  api.post<{ reported: boolean; exitPermissionId: string }>(
+    `/attendance/class-sessions/${encodeURIComponent(sessionId)}/students/${encodeURIComponent(studentId)}/outside-presence-report`,
+    {},
+  );
+export type OutsidePresenceReport = {
+  id: string;
+  studentId: string;
+  studentName: string;
+  requestedAt: string | null;
+  note: string;
+};
+export const getOutsidePresenceReports = () =>
+  api.get<OutsidePresenceReport[]>("/attendance/outside-presence-reports");
+export const verifyOutsidePresenceReport = (id: string) =>
+  api.post<{ verified: boolean; exitPermissionId: string; currentlyInSchool: number }>(
+    `/attendance/outside-presence-reports/${encodeURIComponent(id)}/verify`,
+    {},
+  );
+export const finalizeDormAttendanceReview = (id: string) =>
+  api.post<{ sessionId: string; status: string; reviewedAt: string }>(
+    `/attendance/dorm-sessions/${encodeURIComponent(id)}/final-review`,
+    {},
+  );
 export const getAttendanceReportSummary = (params?: {
   from?: string;
   to?: string;
@@ -48,7 +118,7 @@ export type AttendancePolicy = {
   allowPartialSubmission: boolean;
   lateCountsAsPresent: boolean;
   correctionRequiresReview: boolean;
-  principalReviewMode: "automatic" | "absences_only";
+  principalReviewMode: "all_sessions" | "absences_only";
 };
 export const getAttendancePolicy = () => api.get<AttendancePolicy>("/attendance/policy");
 export const updateAttendancePolicy = (body: AttendancePolicy) =>
@@ -66,12 +136,25 @@ export type AttendanceHistorySession = {
   contextType: "class" | "class_group" | "dorm";
   contextId: string;
   title: string;
+  operationalDate?: string | null;
+  attendancePeriod?: "day" | "night" | null;
+  teacherName: string | null;
   subjectId: string | null;
   subjectName: string | null;
   status: "scheduled" | "open" | "submitted" | "finalized" | "cancelled";
+  revision: number;
+  academicYearId: string | null;
+  academicYearName: string | null;
+  termId: string | null;
+  termName: string | null;
   sessionDate: string;
   marked: number;
   expected: number | null;
+  present: number;
+  absent: number;
+  late: number;
+  excused: number;
+  unmarked: number | null;
 };
 export type AttendanceHistorySessionPage = {
   items: AttendanceHistorySession[];
@@ -80,14 +163,70 @@ export type AttendanceHistorySessionPage = {
   total: number;
   hasNext: boolean;
 };
-export const getAttendanceHistorySessions = (page = 1, limit = 25) => {
-  const search = new URLSearchParams({ page: String(page), limit: String(limit) });
+export type AttendanceHistorySessionFilters = {
+  page?: number;
+  limit?: number;
+  contextType?: "class" | "class_group" | "dorm";
+  contextId?: string;
+  academicYearId?: string;
+  termId?: string;
+};
+export type HistoricalAttendanceCandidate = {
+  entryId: string;
+  date: string;
+  title: string;
+  classroomId: string;
+  classroomName: string;
+  teacherName: string;
+  subjectName: string | null;
+  startTime: string;
+  endTime: string;
+};
+export const getHistoricalAttendanceCandidates = (params: {
+  organizationId: string;
+  academicYearId: string;
+  termId: string;
+  classroomId?: string;
+  from?: string;
+  to?: string;
+}) =>
+  api.get<HistoricalAttendanceCandidate[]>(
+    `/attendance/historical-candidates?${new URLSearchParams(
+      Object.entries(params).filter(([, value]) => Boolean(value)) as Array<[string, string]>,
+    ).toString()}`,
+  );
+export const importLegacyScheduleOccurrence = (body: { entryId: string; date: string }) =>
+  api.post<{ id: string; revision: number; duplicate: boolean }>(
+    "/attendance/legacy-schedule-session",
+    body,
+  );
+export const createHistoricalAttendanceSession = (body: {
+  organizationId: string;
+  academicYearId: string;
+  termId: string;
+  classroomId: string;
+  teacherId?: string;
+  subjectId?: string;
+  subjectName?: string;
+  title: string;
+  date: string;
+  reason: string;
+}) =>
+  api.post<{ id: string; revision: number; duplicate: boolean }>(
+    "/attendance/historical-sessions",
+    body,
+  );
+export const getAttendanceHistorySessions = (filters: AttendanceHistorySessionFilters = {}) => {
+  const search = new URLSearchParams({
+    page: String(filters.page ?? 1),
+    limit: String(filters.limit ?? 25),
+  });
+  if (filters.contextType) search.set("contextType", filters.contextType);
+  if (filters.contextId) search.set("contextId", filters.contextId);
+  if (filters.academicYearId) search.set("academicYearId", filters.academicYearId);
+  if (filters.termId) search.set("termId", filters.termId);
   return api.get<AttendanceHistorySessionPage>(`/attendance/history/sessions?${search.toString()}`);
 };
-export const getStaffAttendanceSessions = (page = 1, limit = 25) =>
-  api.get<StaffAttendanceSessionPage>(
-    `/attendance/staff-sessions?page=${encodeURIComponent(page)}&limit=${encodeURIComponent(limit)}`,
-  );
 export const getSavedAttendanceSession = (id: string) =>
   api.get<AttendanceSessionDetail>(`/attendance/sessions/${encodeURIComponent(id)}`);
 export const submitAttendanceAbsences = (
@@ -97,6 +236,7 @@ export const submitAttendanceAbsences = (
     expectedRevision: number;
     absentStudentIds: string[];
     lateStudentIds?: string[];
+    excusedStudentIds?: string[];
   },
 ) =>
   api.post<{ sessionId: string; revision: number; status: string; count: number }>(
@@ -124,7 +264,7 @@ export const correctAttendanceRecord = (
   body: {
     requestId: string;
     expectedRevision: number;
-    status: "present" | "absent" | "late";
+    status: "present" | "absent" | "late" | "excused";
     reason: string;
     minutesLate?: number;
   },
@@ -164,6 +304,10 @@ export const reviewAttendanceCorrection = (
   );
 export const getAttendanceProfile = (id: string) =>
   api.get<StaffAttendanceProfile>(`/attendance/students/${encodeURIComponent(id)}/profile`);
+export const getTeacherStudentClassProfile = (studentId: string, entryId: string) =>
+  api.get<TeacherStudentClassAttendanceProfile>(
+    `/attendance/teacher-students/${encodeURIComponent(studentId)}/class-profile?entryId=${encodeURIComponent(entryId)}`,
+  );
 export const getDormDelegates = () => api.get<DormAttendanceDelegate[]>("/attendance/delegates");
 export const setDormDelegate = (roomId: string, body: DormDelegateDraft) =>
   api.put<DormAttendanceDelegate>(`/attendance/dorm/${encodeURIComponent(roomId)}/delegate`, body);

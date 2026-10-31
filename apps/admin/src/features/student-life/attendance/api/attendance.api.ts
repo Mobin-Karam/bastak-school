@@ -45,11 +45,26 @@ export const listAttendanceContexts = (organizationId?: string) =>
     `/attendance/contexts${organizationId ? `?organizationId=${encodeURIComponent(organizationId)}` : ""}`,
   );
 
-export const getAttendanceParticipants = (contextType: AttendanceContextType, contextId: string) =>
+export const getAttendanceParticipants = (
+  contextType: AttendanceContextType,
+  contextId: string,
+  occurrence?: { date?: string; period?: "day" | "night" },
+) =>
   api.get<
-    Array<{ id: string; name: string; userId?: string | null; nationalCode?: string | null }>
+    Array<{
+      id: string;
+      name: string;
+      userId?: string | null;
+      nationalCode?: string | null;
+      approvedLeave?: { startsAt: string; endsAt: string } | null;
+      overdueReturn?: boolean;
+      outsideSchool?: boolean;
+      outsideSince?: string | null;
+      outsideExitPermissionId?: string | null;
+      outsidePresenceReported?: boolean;
+    }>
   >(
-    `/attendance/context/${encodeURIComponent(contextType)}/${encodeURIComponent(contextId)}/participants`,
+    `/attendance/context/${encodeURIComponent(contextType)}/${encodeURIComponent(contextId)}/participants${occurrence?.date ? `?${new URLSearchParams({ date: occurrence.date, period: occurrence.period ?? "night" }).toString()}` : ""}`,
   );
 
 export type AttendanceBulkMarkRequest = {
@@ -60,6 +75,7 @@ export type AttendanceBulkMarkRequest = {
   contextType?: AttendanceContextType;
   contextId?: string;
   sessionDate?: string;
+  attendancePeriod?: "day" | "night";
   entries: Array<{
     studentId: string;
     status: "present" | "absent" | "late" | "excused";
@@ -69,6 +85,64 @@ export type AttendanceBulkMarkRequest = {
 
 export const bulkMarkAttendance = (body: AttendanceBulkMarkRequest) =>
   api.post<{ sessionId: string; count: number }>("/attendance/bulk-mark", body);
+
+export type SupervisorAttendanceSession = {
+  id: string;
+  organizationName: string;
+  className: string;
+  bookName: string;
+  teacherName: string;
+  sessionDate: string;
+  status: string;
+  teacherSubmittedAt: string | null;
+  roster: Array<{ id: string; name: string }>;
+  ownCheck: SupervisorAttendanceCheck | null;
+};
+
+export type SupervisorAttendanceCheck = {
+  id: string;
+  revision: number;
+  submittedAt: string | null;
+  entries: AttendanceBulkMarkRequest["entries"];
+};
+
+export const listSupervisorAttendanceSessions = () =>
+  api.get<SupervisorAttendanceSession[]>("/attendance/supervisor-sessions");
+
+export const saveSupervisorAttendanceCheck = (
+  sessionId: string,
+  body: { expectedRevision?: number; entries: AttendanceBulkMarkRequest["entries"] },
+) =>
+  api.post<SupervisorAttendanceCheck>(
+    `/attendance/sessions/${encodeURIComponent(sessionId)}/supervisor-check`,
+    body,
+  );
+
+export type SupervisorComparison = {
+  sessionId: string;
+  organizationName: string;
+  className: string;
+  bookName: string;
+  teacherName: string;
+  sessionDate: string;
+  comparisonStatus: "teacher_missing" | "supervisor_missing" | "mismatch" | "matched";
+  teacherRecordCount: number;
+  roster: Array<{ id: string; name: string }>;
+  supervisorChecks: Array<
+    SupervisorAttendanceCheck & {
+      supervisorName: string;
+      mismatchCount: number;
+      mismatches: Array<{
+        studentId: string;
+        teacherStatus: "present" | "absent" | "late" | "excused" | null;
+        supervisorStatus: "present" | "absent" | "late" | "excused";
+      }>;
+    }
+  >;
+};
+
+export const listSupervisorComparisons = () =>
+  api.get<SupervisorComparison[]>("/attendance/supervisor-comparisons");
 
 export type AttendanceAbsenceReview = {
   id: string;
@@ -87,9 +161,12 @@ export type AttendanceAbsenceReview = {
   teacherName: string;
 };
 
-export const listAttendanceAbsenceReviews = (organizationId?: string) =>
+export const listAttendanceAbsenceReviews = (
+  organizationId?: string,
+  contextType?: AttendanceContextType,
+) =>
   api.get<AttendanceAbsenceReview[]>(
-    `/attendance/absence-reviews${organizationId ? `?organizationId=${encodeURIComponent(organizationId)}` : ""}`,
+    `/attendance/absence-reviews${new URLSearchParams(Object.entries({ organizationId, contextType }).filter(([, value]) => Boolean(value)) as Array<[string, string]>).size ? `?${new URLSearchParams(Object.entries({ organizationId, contextType }).filter(([, value]) => Boolean(value)) as Array<[string, string]>).toString()}` : ""}`,
   );
 
 export const listLiveAttendanceRecords = (organizationId?: string) =>
@@ -102,6 +179,9 @@ export const reviewAttendanceAbsence = (
   body: { decision: "approved" | "rejected"; note?: string },
 ) =>
   api.patch<AttendanceAbsenceReview>(`/attendance/absence-reviews/${encodeURIComponent(id)}`, body);
+
+export const markDormAbsenceOutsideSchool = (id: string, note?: string) =>
+  api.post(`/attendance/absence-reviews/${encodeURIComponent(id)}/outside-school`, { note });
 
 export const listMyAttendanceAbsenceReviews = () =>
   api.get<AttendanceAbsenceReview[]>("/attendance/my-absence-reviews");

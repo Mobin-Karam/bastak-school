@@ -38,6 +38,7 @@ import {
 import { AttendanceCorrection } from "../src/database/entities/attendance-correction.entity";
 import { AttendancePolicy } from "../src/database/entities/attendance-policy.entity";
 import { AttendanceSession } from "../src/database/entities/attendance-session.entity";
+import { AttendanceSupervisorCheck } from "../src/database/entities/attendance-supervisor-check.entity";
 import {
   Organization,
   OrganizationType,
@@ -51,6 +52,12 @@ import { StudyGroup } from "../src/database/entities/study-group.entity";
 import { StudyGroupMembership } from "../src/database/entities/study-group-membership.entity";
 import { DormRoom } from "../src/database/entities/dorm-room.entity";
 import { DormRoomAssignment } from "../src/database/entities/dorm-room-assignment.entity";
+import { EducationBook } from "../src/database/entities/education-book.entity";
+import {
+  SchoolAcademicTerm,
+  SchoolAcademicYear,
+} from "../src/database/entities/school-academic-year.entity";
+import { SchoolScheduleEntry } from "../src/database/entities/school-schedule-entry.entity";
 
 describe("AttendanceService organization boundaries (real SQLite)", () => {
   let db: DataSource;
@@ -62,6 +69,7 @@ describe("AttendanceService organization boundaries (real SQLite)", () => {
   let foreignClass: EducationClass;
   let foreignGroup: StudyGroup;
   let foreignRoom: DormRoom;
+  let staff: User;
   let studentA: Student;
   let studentB: Student;
   const realtime = new RealtimeService();
@@ -82,17 +90,17 @@ describe("AttendanceService organization boundaries (real SQLite)", () => {
       { name: "School A", type: OrganizationType.SCHOOL },
       { name: "School B", type: OrganizationType.SCHOOL },
     ]);
-    const user = await db.getRepository(User).save({
+    staff = await db.getRepository(User).save({
       username: "attendance-test-staff",
       passwordHash: "not-a-login-hash",
       role: UserRole.TEACHER,
     });
     await db
       .getRepository(OrganizationMembership)
-      .save({ organization: orgA, user });
+      .save({ organization: orgA, user: staff });
     actor = {
-      id: user.id,
-      username: user.username,
+      id: staff.id,
+      username: staff.username,
       role: "PRINCIPAL",
       roles: ["PRINCIPAL"],
       capabilities: ["attendance.read", "attendance.manage"],
@@ -115,7 +123,7 @@ describe("AttendanceService organization boundaries (real SQLite)", () => {
           gradeId: 1,
           educationTypeId: "school",
           trackId: "general",
-          advisor: user,
+          advisor: staff,
         },
         {
           organization: orgB,
@@ -164,13 +172,242 @@ describe("AttendanceService organization boundaries (real SQLite)", () => {
       {} as AuthorizationService,
       realtime,
       new RewardsService(
-        db.getRepository(StudentRewardLedger), db.getRepository(Student), db.getRepository(AuditLog),
-        new SchoolAccessService(organizations, db.getRepository(OrganizationMembership)), {} as AuthorizationService,
+        db.getRepository(StudentRewardLedger),
+        db.getRepository(Student),
+        db.getRepository(AuditLog),
+        new SchoolAccessService(
+          organizations,
+          db.getRepository(OrganizationMembership),
+        ),
+        {} as AuthorizationService,
       ),
+      db.getRepository(AttendanceSupervisorCheck),
     );
   });
   afterEach(async () => {
     if (db?.isInitialized) await db.destroy();
+  });
+
+  it("keeps organization-wide academic access separate from dorm access", async () => {
+    const room = await db.getRepository(DormRoom).save({
+      organization: orgA,
+      code: "A-1",
+      name: "Room A",
+    });
+    await db
+      .getRepository(DormRoomAssignment)
+      .save({ room, student: studentA });
+    const academicManager = {
+      ...actor,
+      role: "RELIGIOUS_EDUCATION_MANAGER",
+      roles: ["RELIGIOUS_EDUCATION_MANAGER"],
+    };
+
+    const contexts = await service.listContexts(academicManager);
+    expect(contexts).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ id: assignedClass.id, contextType: "class" }),
+      ]),
+    );
+    expect(contexts).not.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ id: room.id, contextType: "dorm" }),
+      ]),
+    );
+    await expect(
+      service.bulkMark(academicManager, {
+        organizationId: orgA.id,
+        contextType: "dorm",
+        contextId: room.id,
+        entries: [{ studentId: studentA.id, status: "present" }],
+      }),
+    ).rejects.toMatchObject({ response: { error: { code: "FORBIDDEN" } } });
+  });
+
+  it("keeps supervisor comparisons principal-only and includes legacy schedule sessions", async () => {
+    await db.getRepository(AttendanceSession).save({
+      organization: orgA,
+      contextType: "class",
+      contextId: assignedClass.id,
+      sessionDate: new Date("2026-10-12T08:00:00Z"),
+      titleSnapshot: "جلسهٔ legacy",
+      sourceKind: "legacy_schedule",
+      assignedStaff: staff,
+      rosterSnapshot: [],
+    });
+    const principal = { ...actor, capabilities: ["attendance.review"] };
+    expect(await service.listSupervisorComparisons(principal)).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ className: "جلسهٔ legacy" }),
+      ]),
+    );
+    await expect(
+      service.listSupervisorComparisons({
+        ...principal,
+        roles: ["RELIGIOUS_EDUCATION_MANAGER"],
+      }),
+    ).rejects.toMatchObject({ status: 403 });
+  });
+
+  it("audits an attendance occurrence opened from the legacy schedule", async () => {
+    const year = await db.getRepository(SchoolAcademicYear).save({
+      organizationId: orgA.id,
+      name: "۱۴۰۵–۱۴۰۶",
+      startsOn: "2026-09-23",
+      endsOn: "2027-06-22",
+      state: "ACTIVE",
+    });
+    const term = await db.getRepository(SchoolAcademicTerm).save({
+      academicYearId: year.id,
+      name: "نیم‌سال اول",
+      startsOn: "2026-09-23",
+      endsOn: "2027-01-31",
+      state: "ACTIVE",
+    });
+    const entry = await db.getRepository(SchoolScheduleEntry).save({
+      organization: orgA,
+      classroom: assignedClass,
+      teacher: staff,
+      title: "جلسهٔ legacy",
+      weekday: 2,
+      startTime: "08:00",
+      endTime: "09:00",
+      room: "",
+      academicYearId: year.id,
+      termId: term.id,
+    });
+    const opened = await service.openLegacyScheduleSession(
+      { ...actor, id: staff.id, capabilities: ["attendance.class.manage"] },
+      { entryId: entry.id, date: "2026-10-12" },
+    );
+    expect(opened.duplicate).toBe(false);
+    expect(
+      await db
+        .getRepository(AuditLog)
+        .countBy({ action: "attendance.legacy_occurrence.created" }),
+    ).toBe(1);
+  });
+
+  it("persists a manually reconciled historical session with academic snapshots and an audit trail", async () => {
+    const year = await db.getRepository(SchoolAcademicYear).save({
+      organizationId: orgA.id,
+      name: "۱۴۰۵–۱۴۰۶",
+      startsOn: "2026-09-23",
+      endsOn: "2027-06-22",
+      state: "ACTIVE",
+    });
+    const term = await db.getRepository(SchoolAcademicTerm).save({
+      academicYearId: year.id,
+      name: "نیم‌سال اول",
+      startsOn: "2026-09-23",
+      endsOn: "2027-01-31",
+      state: "ACTIVE",
+    });
+    const book = await db.getRepository(EducationBook).save({
+      id: randomUUID(),
+      country: "IR",
+      schoolYear: "1405-1406",
+      grade: 1,
+      level: "school",
+      branch: "general",
+      track: "general",
+      category: "general",
+      titleFa: "کتاب آزمون",
+      titleEn: "Test Book",
+      appliesTo: ["school"],
+      organizationId: orgA.id,
+    });
+    const result = await service.createHistoricalSession(actor, {
+      organizationId: orgA.id,
+      academicYearId: year.id,
+      termId: term.id,
+      classroomId: assignedClass.id,
+      teacherId: staff.id,
+      subjectId: book.id,
+      title: "جلسه جبرانی",
+      date: "2026-10-12",
+      reason: "برنامهٔ قدیمی ثبت نشده بود",
+    });
+    const session = await db
+      .getRepository(AttendanceSession)
+      .findOneByOrFail({ id: result.id });
+    expect(session).toMatchObject({
+      sourceKind: "legacy_import",
+      academicYearIdSnapshot: year.id,
+      academicYearNameSnapshot: year.name,
+      termIdSnapshot: term.id,
+      termNameSnapshot: term.name,
+      subjectIdSnapshot: book.id,
+      subjectNameSnapshot: book.titleFa,
+    });
+    expect(
+      await db
+        .getRepository(AuditLog)
+        .countBy({ action: "attendance.historical_session.created" }),
+    ).toBe(1);
+    await db
+      .getRepository(SchoolAcademicTerm)
+      .update({ id: term.id }, { state: "ARCHIVED", correctionOpen: true });
+    await expect(
+      service.createHistoricalSession(actor, {
+        organizationId: orgA.id,
+        academicYearId: year.id,
+        termId: term.id,
+        classroomId: assignedClass.id,
+        teacherId: staff.id,
+        subjectId: book.id,
+        title: "جلسهٔ جدید ممنوع",
+        date: "2026-10-13",
+        reason: "نباید ثبت شود",
+      }),
+    ).rejects.toMatchObject({ status: 409 });
+  });
+
+  it("keeps a supervisor observation independent and editable for one teacher occurrence", async () => {
+    const session = await db.getRepository(AttendanceSession).save({
+      organization: orgA,
+      contextType: "class",
+      contextId: assignedClass.id,
+      sessionDate: new Date("2026-10-28T08:00:00.000Z"),
+      sourceKind: "class_schedule",
+      occurrenceKey: `supervisor-check:${randomUUID()}`,
+      titleSnapshot: assignedClass.name,
+      rosterSnapshot: [
+        {
+          id: studentA.id,
+          name: studentA.name,
+          nationalCode: null,
+          userId: null,
+        },
+      ],
+    });
+    const supervisor = {
+      ...actor,
+      roles: ["SCHOOL_SUPERVISOR"],
+      role: "SCHOOL_SUPERVISOR",
+    };
+    const created = await service.saveSupervisorCheck(supervisor, session.id, {
+      entries: [{ studentId: studentA.id, status: "absent" }],
+    });
+    const updated = await service.saveSupervisorCheck(supervisor, session.id, {
+      expectedRevision: created.revision,
+      entries: [{ studentId: studentA.id, status: "present" }],
+    });
+
+    expect(updated.revision).toBe(1);
+    expect(updated.entries).toEqual([
+      { studentId: studentA.id, status: "present", note: "" },
+    ]);
+    expect(
+      await db
+        .getRepository(AttendanceRecord)
+        .count({ where: { session: { id: session.id } } }),
+    ).toBe(0);
+    expect(
+      await db
+        .getRepository(AttendanceSupervisorCheck)
+        .count({ where: { session: { id: session.id } } }),
+    ).toBe(1);
   });
 
   it("returns parent class IDs for scoped attendance groups", async () => {
@@ -195,20 +432,23 @@ describe("AttendanceService organization boundaries (real SQLite)", () => {
     );
   });
 
-  it("rejects direct excused marks without creating attendance or bypassing review", async () => {
-    await expect(
-      service.bulkMark(actor, {
-        organizationId: orgA.id,
-        contextType: "class",
-        contextId: assignedClass.id,
-        entries: [{ studentId: studentA.id, status: "excused" }],
-      }),
-    ).rejects.toMatchObject({
-      response: { error: { code: "ATTENDANCE_EXCUSE_REQUIRES_REVIEW" } },
+  it("records a direct excused mark with an optional teacher note", async () => {
+    const marked = await service.bulkMark(actor, {
+      organizationId: orgA.id,
+      contextType: "class",
+      contextId: assignedClass.id,
+      entries: [{ studentId: studentA.id, status: "excused" }],
     });
-    expect(await db.getRepository(AttendanceRecord).count()).toBe(0);
-    expect(await db.getRepository(AttendanceSession).count()).toBe(0);
-    expect(emit).not.toHaveBeenCalled();
+    expect(marked.records).toEqual([
+      expect.objectContaining({
+        studentId: studentA.id,
+        status: "excused",
+        note: "",
+      }),
+    ]);
+    expect(await db.getRepository(AttendanceRecord).count()).toBe(1);
+    expect(await db.getRepository(AttendanceSession).count()).toBe(1);
+    expect(emit).toHaveBeenCalled();
   });
 
   it("returns saved records with unknown legacy roster totals rather than today's membership", async () => {
@@ -829,6 +1069,48 @@ describe("AttendanceService organization boundaries (real SQLite)", () => {
     );
   });
 
+  it("lets the assigned teacher revise a finalized timetable occurrence without reopening it", async () => {
+    const session = await db.getRepository(AttendanceSession).save({
+      organization: orgA,
+      contextType: "class",
+      contextId: assignedClass.id,
+      sessionDate: new Date("2026-10-28T08:00:00.000Z"),
+      sourceKind: "class_schedule",
+      occurrenceKey: `finalized-teacher-edit:${randomUUID()}`,
+      status: "finalized",
+      assignedStaff: staff,
+      rosterSnapshot: [
+        {
+          id: studentA.id,
+          name: studentA.name,
+          nationalCode: null,
+          userId: null,
+        },
+      ],
+    });
+    const teacher = {
+      ...actor,
+      role: "TEACHER",
+      roles: ["TEACHER"],
+      capabilities: ["attendance.class.manage"],
+    };
+
+    const result = await service.submitAbsences(teacher, session.id, {
+      requestId: randomUUID(),
+      expectedRevision: 0,
+      absentStudentIds: [studentA.id],
+    });
+
+    expect(result).toMatchObject({ status: "finalized", revision: 1 });
+    expect(
+      await db
+        .getRepository(AttendanceRecord)
+        .findOneByOrFail({ session: { id: session.id } }),
+    ).toMatchObject({
+      status: AttendanceStatus.ABSENT,
+    });
+  });
+
   it("records daily principal reviews against the exact attendance revision", async () => {
     const marked = await service.bulkMark(actor, {
       organizationId: orgA.id,
@@ -869,6 +1151,37 @@ describe("AttendanceService organization boundaries (real SQLite)", () => {
         marked.sessionId,
       ),
     ).rejects.toMatchObject({ response: { error: { code: "FORBIDDEN" } } });
+  });
+
+  it("requires the principal's explanation for a physically absent student and sends it to review storage", async () => {
+    const marked = await service.bulkMark(actor, {
+      organizationId: orgA.id,
+      contextType: "class",
+      contextId: assignedClass.id,
+      entries: [{ studentId: studentA.id, status: "absent" }],
+    });
+    const reviewer = {
+      ...actor,
+      capabilities: [...(actor.capabilities ?? []), "attendance.review"],
+    };
+
+    await expect(
+      service.reviewSessionEvery24Hours(reviewer, marked.sessionId),
+    ).rejects.toMatchObject({
+      response: { error: { code: "ATTENDANCE_REVIEW_MESSAGE_REQUIRED" } },
+    });
+
+    await service.reviewSessionEvery24Hours(reviewer, marked.sessionId, {
+      message: "لطفاً علت غیبت دانش‌آموز را پیگیری و اعلام کنید.",
+    });
+    expect(
+      await db.query(
+        "SELECT teacherMessage FROM attendance_session_reviews WHERE sessionId=?",
+        [marked.sessionId],
+      ),
+    ).toEqual([
+      { teacherMessage: "لطفاً علت غیبت دانش‌آموز را پیگیری و اعلام کنید." },
+    ]);
   });
 
   it("cancels an unmarked session with an audit trail and prevents absence-first submission", async () => {

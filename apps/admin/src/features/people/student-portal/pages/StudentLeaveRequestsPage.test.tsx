@@ -34,7 +34,7 @@ vi.mock("../api/student-leave.api.ts", () => ({
 }));
 
 describe("StudentLeaveRequestsPage", () => {
-  it("uses the shared calendar and routes each request type without exposing reviewer selection", async () => {
+  it("uses a staged drawer flow and routes each request type without exposing reviewer selection", async () => {
     createStudentLeaveRequest.mockResolvedValue({ id: "request-1" });
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     render(
@@ -46,16 +46,15 @@ describe("StudentLeaveRequestsPage", () => {
     );
 
     expect(await screen.findByRole("heading", { name: "خروج و مرخصی" })).toBeVisible();
-    expect(screen.getByRole("button", { name: /تقویم اشتراکی/ })).toBeVisible();
-    expect(screen.getAllByText("ارسال برای ناظم مدرسه")).toHaveLength(2);
-    expect(screen.getByRole("button", { name: "ارسال برای ناظم مدرسه" })).toBeEnabled();
+    fireEvent.click(screen.getByRole("button", { name: "درخواست جدید" }));
+    expect(await screen.findByRole("button", { name: /تقویم اشتراکی/ })).toBeVisible();
 
     fireEvent.click(screen.getByRole("button", { name: /درخواست مرخصی/ }));
-    expect(screen.getAllByText("ارسال برای مدیر مدرسه")).toHaveLength(2);
     fireEvent.change(screen.getByPlaceholderText("مثلاً بیماری یا امور خانوادگی"), {
       target: { value: "مراجعه خانوادگی" },
     });
-    fireEvent.click(screen.getByRole("button", { name: /ارسال برای مدیر مدرسه/ }));
+    fireEvent.click(screen.getByRole("button", { name: "بازبینی و ارسال" }));
+    fireEvent.click(await screen.findByRole("button", { name: "ارسال برای مدیر مدرسه" }));
 
     await waitFor(() =>
       expect(createStudentLeaveRequest).toHaveBeenCalledWith(

@@ -19,6 +19,7 @@ const STUDENT_PORTAL_ROUTES = new Set([
   "",
   ...STUDENT_ONLY_ROUTES,
   "coin-shop",
+  "communication/notifications",
   "schedule",
   "books",
   "registration",

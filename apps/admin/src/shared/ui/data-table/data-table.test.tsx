@@ -83,6 +83,14 @@ describe("shared DataTable", () => {
     expect(screen.getByRole("table").querySelector("tbody")).toHaveClass("divide-y");
     expect(screen.getByRole("table").querySelector("tbody tr")).toHaveClass("border-b");
     expect(screen.getByRole("region", { name: "Books" })).toHaveClass("overflow-hidden");
+    expect(screen.getByRole("table").parentElement).toHaveClass(
+      "overflow-x-auto",
+      "overflow-y-visible",
+    );
+    expect(screen.getByRole("table").closest(".data-table-workspace__content")).toHaveClass(
+      "overflow-y-auto",
+    );
+    expect(screen.getByLabelText("Books results")).toHaveAttribute("tabindex", "0");
   });
 
   it("grows with a larger page instead of creating a vertical results viewport by default", async () => {

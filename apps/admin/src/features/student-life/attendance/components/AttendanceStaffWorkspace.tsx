@@ -1,19 +1,33 @@
 import { AdaptiveSelect } from "@/shared/ui/adaptive-select";
 import { attendanceRequestId } from "../model/attendance-request-id";
-import { useEffect, useRef, useState } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { PolarAngleAxis, PolarGrid, Radar, RadarChart, ResponsiveContainer } from "recharts";
-import { CalendarCheck2, CircleUserRound, MapPin, UsersRound } from "lucide-react";
+import {
+  CalendarCheck2,
+  CircleUserRound,
+  ClipboardList,
+  History,
+  MapPin,
+  Settings2,
+  UsersRound,
+} from "lucide-react";
 import { useAuth } from "../../../identity/auth";
 import { Card } from "../../../../shared/ui/ui";
 import { AttendanceCoin } from "../../../../shared/ui/attendance-coin";
 import { DatePicker } from "../../../../shared/ui/date-picker";
+import { todayIso } from "../../../../shared/lib/utils";
 import { ResponsiveDrawer } from "../../../../shared/ui/responsive-drawer";
+import { Switch } from "../../../../shared/ui/switch";
 import { AttendanceSelect } from "./AttendanceSelect";
+import { PendingScheduleCalendar, monthBounds } from "./PendingScheduleCalendar";
 import { notify } from "../../../../shared/ui/notifications";
 import { api } from "../../../../shared/api/api";
 import type { AttendanceContextOption } from "../api/attendance.api";
 import { contextLabelMap } from "../api/attendance.api";
+import { listLegacyAcademicCycles } from "../../../academics/schedule/api/schedule.api";
+import { listAcademicTeachers } from "../../../academics/education/api/academic.api";
+import { getEducationBooks } from "../../../academics/subjects/api/subjects.api";
 import {
   closeAttendancePool,
   createAttendancePool,
@@ -21,17 +35,20 @@ import {
   getAttendancePolicy,
   getAttendanceReportSummary,
   getAttendanceHistorySessions,
+  getHistoricalAttendanceCandidates,
+  importLegacyScheduleOccurrence,
+  createHistoricalAttendanceSession,
   getAttendancePools,
   getAttendanceProfile,
   getSavedAttendanceSession,
   getAttendanceSessionHistory,
-  getStaffAttendanceSessions,
   updateAttendancePolicy,
   finalizeAttendanceSession,
   cancelAttendanceSession,
   correctAttendanceRecord,
 } from "../api/attendance-operations.api";
-import type { AttendancePoolDraft, StaffAttendanceSession } from "@moshaver/api-contract";
+import type { AttendancePoolDraft } from "@moshaver/api-contract";
+import type { HistoricalAttendanceCandidate } from "../api/attendance-operations.api";
 
 const field =
   "min-h-12 w-full rounded-xl border border-[rgb(var(--border-subtle))] bg-card px-3 text-sm";
@@ -45,6 +62,51 @@ const statuses = {
   excused: "موجه",
   unmarked: "نامشخص",
 };
+
+function PolicySwitch({
+  name,
+  label,
+  description,
+  defaultChecked,
+  disabled,
+}: {
+  name: string;
+  label: string;
+  description: string;
+  defaultChecked: boolean;
+  disabled?: boolean;
+}) {
+  const id = useId();
+  const [checked, setChecked] = useState(defaultChecked);
+  return (
+    <div className="flex min-h-20 items-center justify-between gap-3 rounded-xl border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card))] p-3 transition-colors hover:border-brand/40 has-[:focus-within]:ring-2 has-[:focus-within]:ring-brand/40 dark:hover:border-brand/60">
+      <label htmlFor={id} className="min-w-0 cursor-pointer">
+        <b className="block text-xs text-ink">{label}</b>
+        <span className="mt-1 block text-xs font-normal leading-5 text-slate-500 dark:text-slate-300">
+          {description}
+        </span>
+      </label>
+      <div className="flex shrink-0 flex-col items-end gap-1.5">
+        <span
+          className={`text-[11px] font-black ${checked ? "text-brand" : "text-slate-500 dark:text-slate-400"}`}
+          aria-live="polite"
+        >
+          {checked ? "روشن" : "خاموش"}
+        </span>
+        <input name={name} type="hidden" value={checked ? "on" : ""} />
+        <Switch
+          id={id}
+          dir="rtl"
+          aria-label={label}
+          className="h-7 w-12 border border-transparent bg-slate-200 p-0.5 data-[state=checked]:bg-brand data-[state=unchecked]:bg-slate-200 focus-visible:ring-brand/50 focus-visible:ring-offset-2 dark:bg-slate-700 dark:data-[state=unchecked]:bg-slate-700"
+          checked={checked}
+          onCheckedChange={setChecked}
+          disabled={disabled}
+        />
+      </div>
+    </div>
+  );
+}
 
 function percent(value: number | null) {
   return value === null ? "—" : `${value.toLocaleString("fa-IR")}٪`;
@@ -286,7 +348,7 @@ function SavedSessionDialog({
   const [correction, setCorrection] = useState<{
     id: string;
     revision: number;
-    status: "present" | "absent" | "late";
+    status: "present" | "absent" | "late" | "excused";
   } | null>(null);
   const [correctionReason, setCorrectionReason] = useState("");
   const [correcting, setCorrecting] = useState(false);
@@ -406,7 +468,71 @@ function SavedSessionDialog({
           </p>
         ) : data ? (
           <div className="space-y-4">
+            <nav
+              aria-label="بخش‌های جزئیات جلسه"
+              className="sticky top-0 z-10 grid grid-cols-3 gap-1 rounded-xl border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card))]/95 p-1 backdrop-blur"
+            >
+              {[
+                ["attendance-session-summary", "خلاصه"],
+                ["attendance-session-members", "اعضا"],
+                ["attendance-session-history", "تاریخچه"],
+              ].map(([target, label]) => (
+                <button
+                  key={target}
+                  type="button"
+                  className="min-h-10 rounded-lg px-2 text-xs font-bold text-slate-700 hover:bg-[rgb(var(--surface-muted))] focus-visible:ring-2 focus-visible:ring-brand/40 dark:text-slate-200"
+                  onClick={() =>
+                    document.getElementById(target)?.scrollIntoView({ block: "start" })
+                  }
+                >
+                  {label}
+                </button>
+              ))}
+            </nav>
+            <section
+              id="attendance-session-summary"
+              className="rounded-2xl border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-muted))]/55 p-3"
+            >
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <p className="text-sm font-black text-ink">وضعیت و مشخصات جلسه</p>
+                  <p className="mt-1 text-xs text-slate-500">
+                    {new Date(data.sessionDate).toLocaleString("fa-IR", {
+                      timeZone: "Asia/Tehran",
+                    })}
+                  </p>
+                </div>
+                <span className="rounded-full bg-brand/10 px-3 py-1 text-xs font-bold text-brand">
+                  {data.status === "finalized"
+                    ? "نهایی‌شده"
+                    : data.status === "cancelled"
+                      ? "لغوشده"
+                      : data.status === "submitted"
+                        ? "در انتظار بازبینی"
+                        : "در حال ثبت"}
+                </span>
+              </div>
+              <dl className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
+                {[
+                  ["ثبت‌شده", data.marked],
+                  ["کل اعضا", data.roster.length],
+                  ["غایب", members.filter((member) => member.status === "absent").length],
+                  ["نامشخص", members.filter((member) => member.status === "unmarked").length],
+                ].map(([label, count]) => (
+                  <div
+                    key={String(label)}
+                    className="rounded-xl bg-[rgb(var(--surface-card))] p-2.5 text-center"
+                  >
+                    <dt className="text-[11px] font-bold text-slate-500">{label}</dt>
+                    <dd className="mt-1 text-lg font-black text-ink">
+                      {Number(count).toLocaleString("fa-IR")}
+                    </dd>
+                  </div>
+                ))}
+              </dl>
+            </section>
             <details
+              id="attendance-session-history"
               className="rounded-xl border border-[rgb(var(--border-subtle))] p-3"
               onToggle={(event) => setHistoryOpen(event.currentTarget.open)}
             >
@@ -529,7 +655,7 @@ function SavedSessionDialog({
                       current
                         ? {
                             ...current,
-                            status: event.target.value as "present" | "absent" | "late",
+                            status: event.target.value as "present" | "absent" | "late" | "excused",
                           }
                         : null,
                     )
@@ -538,6 +664,7 @@ function SavedSessionDialog({
                   <option value="present">حاضر</option>
                   <option value="absent">غایب</option>
                   <option value="late">تأخیر</option>
+                  <option value="excused">موجه</option>
                 </AdaptiveSelect>
                 <textarea
                   aria-label="دلیل اصلاح حضور"
@@ -571,123 +698,127 @@ function SavedSessionDialog({
                 </div>
               </div>
             ) : null}
-            <AttendanceSelect
-              label="فیلتر اعضای جلسه"
-              value={filter}
-              onChange={setFilter}
-              options={[
-                { value: "missing", label: "غایب یا حضور تأییدنشده" },
-                { value: "all", label: "همه اعضا" },
-                { value: "absent", label: "غایب" },
-                { value: "unmarked", label: "حضور تأییدنشده" },
-                { value: "present", label: "حاضر" },
-                { value: "late", label: "تأخیر" },
-              ]}
-            />
-            {!data.rosterComplete ? (
-              <p
-                role="status"
-                className="rounded-xl bg-amber-50 p-3 text-sm text-amber-900 dark:bg-amber-950/30 dark:text-amber-200"
+            <section id="attendance-session-members" className="scroll-mt-16 space-y-3">
+              <AttendanceSelect
+                label="فیلتر اعضای جلسه"
+                value={filter}
+                onChange={setFilter}
+                options={[
+                  { value: "missing", label: "غایب یا حضور تأییدنشده" },
+                  { value: "all", label: "همه اعضا" },
+                  { value: "absent", label: "غایب" },
+                  { value: "unmarked", label: "حضور تأییدنشده" },
+                  { value: "present", label: "حاضر" },
+                  { value: "late", label: "تأخیر" },
+                ]}
+              />
+              {!data.rosterComplete ? (
+                <p
+                  role="status"
+                  className="rounded-xl bg-amber-50 p-3 text-sm text-amber-900 dark:bg-amber-950/30 dark:text-amber-200"
+                >
+                  فهرست کامل این جلسه قدیمی ثبت نشده؛ تعداد افراد با وضعیت نامشخص قابل محاسبه نیست.
+                </p>
+              ) : null}
+              <div
+                className="overflow-x-auto rounded-xl border border-[rgb(var(--border-subtle))]"
+                role="region"
+                aria-label="اعضای جلسه"
+                tabIndex={0}
               >
-                فهرست کامل این جلسه قدیمی ثبت نشده؛ تعداد افراد با وضعیت نامشخص قابل محاسبه نیست.
-              </p>
-            ) : null}
-            <div
-              className="overflow-x-auto rounded-xl border border-[rgb(var(--border-subtle))]"
-              role="region"
-              aria-label="اعضای جلسه"
-              tabIndex={0}
-            >
-              <table className="min-w-[620px] w-full text-start text-sm">
-                <thead className="bg-[rgb(var(--surface-muted))] text-xs text-slate-500">
-                  <tr>
-                    <th className="px-3 py-2 text-start font-bold">دانش‌آموز</th>
-                    <th className="px-3 py-2 text-start font-bold">وضعیت</th>
-                    <th className="px-3 py-2 text-end font-bold">عملیات</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-[rgb(var(--border-subtle))]">
-                  {visible.map((member) => {
-                    const record = data.records.find((item) => item.studentId === member.id);
-                    return (
-                      <tr key={member.id}>
-                        <td className="px-3 py-3 font-bold">{member.name}</td>
-                        <td className="px-3 py-3 text-xs text-slate-500">
-                          {member.status === "unmarked"
-                            ? "حضور تأیید نشده"
-                            : statuses[member.status]}
-                        </td>
-                        <td className="px-3 py-3">
-                          <div className="flex justify-end gap-2">
-                            <button
-                              type="button"
-                              onClick={() => setProfileId(member.id)}
-                              className={`${action} min-h-9 border border-[rgb(var(--border-subtle))] px-3 text-xs`}
-                            >
-                              پرونده حضور
-                            </button>
-                            {auth.can("attendance.correct") && record ? (
+                <table className="min-w-[620px] w-full text-start text-sm">
+                  <thead className="bg-[rgb(var(--surface-muted))] text-xs text-slate-500">
+                    <tr>
+                      <th className="px-3 py-2 text-start font-bold">دانش‌آموز</th>
+                      <th className="px-3 py-2 text-start font-bold">وضعیت</th>
+                      <th className="px-3 py-2 text-end font-bold">عملیات</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-[rgb(var(--border-subtle))]">
+                    {visible.map((member) => {
+                      const record = data.records.find((item) => item.studentId === member.id);
+                      return (
+                        <tr key={member.id}>
+                          <td className="px-3 py-3 font-bold">{member.name}</td>
+                          <td className="px-3 py-3 text-xs text-slate-500">
+                            {member.status === "unmarked"
+                              ? "حضور تأیید نشده"
+                              : statuses[member.status]}
+                          </td>
+                          <td className="px-3 py-3">
+                            <div className="flex justify-end gap-2">
                               <button
                                 type="button"
-                                className={`${action} min-h-9 border border-amber-300 px-3 text-xs text-amber-800 dark:text-amber-200`}
-                                onClick={() => {
-                                  setCorrection({
-                                    id: record.id,
-                                    revision: record.revision,
-                                    status:
-                                      record.physicalStatus === "late" ||
-                                      record.physicalStatus === "absent"
-                                        ? record.physicalStatus
-                                        : "present",
-                                  });
-                                  setCorrectionReason("");
-                                }}
+                                onClick={() => setProfileId(member.id)}
+                                className={`${action} min-h-9 border border-[rgb(var(--border-subtle))] px-3 text-xs`}
                               >
-                                اصلاح
+                                پرونده حضور
                               </button>
-                            ) : null}
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-            {data.rosterComplete && !visible.length ? (
-              <p className="py-4 text-center text-sm text-slate-500">
-                عضوی با این وضعیت وجود ندارد.
-              </p>
-            ) : null}
-            {!data.rosterComplete ? (
-              <ul className="space-y-2">
-                {data.records
-                  .filter(
-                    (record) =>
-                      filter === "all" ||
-                      (filter === "missing"
-                        ? ["absent", "excused"].includes(record.legacyStatus)
-                        : record.legacyStatus === filter),
-                  )
-                  .map((record, index) => (
-                    <li
-                      key={record.id}
-                      className="flex items-center justify-between gap-2 rounded-xl border border-[rgb(var(--border-subtle))] p-3 text-sm"
-                    >
-                      <span>
-                        عضو ثبت‌شده {index + 1} · {statuses[record.legacyStatus]}
-                      </span>
-                      <button
-                        type="button"
-                        className={action}
-                        onClick={() => setProfileId(record.studentId)}
+                              {auth.can("attendance.correct") && record ? (
+                                <button
+                                  type="button"
+                                  className={`${action} min-h-9 border border-amber-300 px-3 text-xs text-amber-800 dark:text-amber-200`}
+                                  onClick={() => {
+                                    setCorrection({
+                                      id: record.id,
+                                      revision: record.revision,
+                                      status:
+                                        record.legacyStatus === "excused"
+                                          ? "excused"
+                                          : record.physicalStatus === "late" ||
+                                              record.physicalStatus === "absent"
+                                            ? record.physicalStatus
+                                            : "present",
+                                    });
+                                    setCorrectionReason("");
+                                  }}
+                                >
+                                  اصلاح
+                                </button>
+                              ) : null}
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+              {data.rosterComplete && !visible.length ? (
+                <p className="py-4 text-center text-sm text-slate-500">
+                  عضوی با این وضعیت وجود ندارد.
+                </p>
+              ) : null}
+              {!data.rosterComplete ? (
+                <ul className="space-y-2">
+                  {data.records
+                    .filter(
+                      (record) =>
+                        filter === "all" ||
+                        (filter === "missing"
+                          ? ["absent", "excused"].includes(record.legacyStatus)
+                          : record.legacyStatus === filter),
+                    )
+                    .map((record, index) => (
+                      <li
+                        key={record.id}
+                        className="flex items-center justify-between gap-2 rounded-xl border border-[rgb(var(--border-subtle))] p-3 text-sm"
                       >
-                        پرونده حضور
-                      </button>
-                    </li>
-                  ))}
-              </ul>
-            ) : null}
+                        <span>
+                          عضو ثبت‌شده {index + 1} · {statuses[record.legacyStatus]}
+                        </span>
+                        <button
+                          type="button"
+                          className={action}
+                          onClick={() => setProfileId(record.studentId)}
+                        >
+                          پرونده حضور
+                        </button>
+                      </li>
+                    ))}
+                </ul>
+              ) : null}
+            </section>
           </div>
         ) : null}
       </ResponsiveDrawer>
@@ -707,18 +838,59 @@ export function AttendanceStaffWorkspace({
   scope,
   refreshVersion,
   onNewSession,
+  onOpenScheduledSession,
+  continueScheduledSession,
+  onScheduledDayComplete,
+  initialSelectedSessionId,
   section,
+  office,
 }: {
   contexts: AttendanceContextOption[];
   scope: string;
   refreshVersion: number;
   onNewSession?: () => void;
+  onOpenScheduledSession?: (target: {
+    sessionId: string;
+    contextId: string;
+    date: string;
+    entryId: string;
+  }) => void;
+  /** After a saved scheduled lesson, opens the next remaining lesson for this day. */
+  continueScheduledSession?: { date: string; completedEntryId: string } | null;
+  onScheduledDayComplete?: (date: string) => void;
+  initialSelectedSessionId?: string | null;
   section: "sessions" | "pool";
+  office?: "teacher" | "groups" | "dorm" | "history";
 }) {
   const auth = useAuth();
   const cache = useQueryClient();
-  const [category, setCategory] = useState<StaffAttendanceSession["contextType"]>("class");
+  const isPrincipal = auth.activeRole === "PRINCIPAL";
+  const [category, setCategory] = useState<"" | "class" | "class_group" | "dorm">(() =>
+    office === "teacher"
+      ? "class"
+      : office === "groups"
+        ? "class_group"
+        : office === "dorm"
+          ? "dorm"
+          : "",
+  );
+  const [officeTab, setOfficeTab] = useState<"teacher" | "groups" | "dorm" | "history" | "reports">(
+    office ?? (isPrincipal ? "history" : "teacher"),
+  );
   const [contextFilter, setContextFilter] = useState("");
+  const [academicYearId, setAcademicYearId] = useState("");
+  const [termId, setTermId] = useState("");
+  const [calendarDate, setCalendarDate] = useState(() => todayIso());
+  const continuedScheduledSession = useRef<string | null>(null);
+  const [manualHistoricalOpen, setManualHistoricalOpen] = useState(false);
+  const [manualHistorical, setManualHistorical] = useState({
+    classroomId: "",
+    teacherId: "",
+    subjectId: "",
+    date: "",
+    title: "",
+    reason: "",
+  });
   const [sessionsPage, setSessionsPage] = useState(1);
   const [poolContextFilter, setPoolContextFilter] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -729,6 +901,7 @@ export function AttendanceStaffWorkspace({
   const [busy, setBusy] = useState(false);
   const [formError, setFormError] = useState("");
   const [policySaving, setPolicySaving] = useState(false);
+  const [policyOpen, setPolicyOpen] = useState(false);
   const [reportFrom, setReportFrom] = useState("");
   const [reportTo, setReportTo] = useState("");
   const pending = useRef<{ fingerprint: string; body: AttendancePoolDraft } | null>(null);
@@ -747,8 +920,14 @@ export function AttendanceStaffWorkspace({
       ),
   });
   const report = useQuery({
-    queryKey: ["attendance-report-summary", scope, reportFrom, reportTo],
-    queryFn: () => getAttendanceReportSummary({ from: reportFrom, to: reportTo }),
+    queryKey: ["attendance-report-summary", scope, reportFrom, reportTo, academicYearId, termId],
+    queryFn: () =>
+      getAttendanceReportSummary({
+        from: reportFrom,
+        to: reportTo,
+        academicYearId: academicYearId || undefined,
+        termId: termId || undefined,
+      }),
     enabled: section === "sessions" && auth.can("attendance.reports.read"),
     refetchInterval: 60000,
   });
@@ -757,23 +936,238 @@ export function AttendanceStaffWorkspace({
     queryFn: getAttendancePolicy,
     enabled: section === "sessions" && auth.can("attendance.settings.manage"),
   });
-  const sessions = useQuery({
-    queryKey: ["attendance-staff-sessions", scope, refreshVersion, sessionsPage],
-    queryFn: () => getStaffAttendanceSessions(sessionsPage),
-    refetchInterval: 15000,
+  const organizationId = auth.context?.activeOrganization?.id;
+  const academicCycles = useQuery({
+    queryKey: ["legacy-academic-cycles", organizationId],
+    queryFn: () => listLegacyAcademicCycles(organizationId!),
+    enabled: section === "sessions" && Boolean(organizationId),
   });
   const history = useQuery({
-    queryKey: ["attendance-session-history", scope, sessionsPage],
-    queryFn: () => getAttendanceHistorySessions(sessionsPage),
+    queryKey: [
+      "attendance-session-history",
+      scope,
+      sessionsPage,
+      category,
+      contextFilter,
+      academicYearId,
+      termId,
+    ],
+    queryFn: () =>
+      getAttendanceHistorySessions({
+        page: sessionsPage,
+        contextType: category || undefined,
+        contextId: contextFilter || undefined,
+        academicYearId: academicYearId || undefined,
+        termId: termId || undefined,
+      }),
     enabled: section === "sessions" && auth.can("attendance.read"),
   });
-  const sessionItems = sessions.data?.items ?? [];
+  const sessionItems = history.data?.items ?? [];
+  const currentTerms = (academicCycles.data?.terms ?? []).filter(
+    (term) => !academicYearId || term.academicYearId === academicYearId,
+  );
+  const selectedAcademicYear = (academicCycles.data?.years ?? []).find(
+    (year) => year.id === academicYearId,
+  );
+  const selectedTerm = currentTerms.find((term) => term.id === termId);
+  useEffect(() => {
+    if (academicYearId) return;
+    const activeYear = (academicCycles.data?.years ?? []).find((year) => year.state === "ACTIVE");
+    if (activeYear) setAcademicYearId(activeYear.id);
+  }, [academicCycles.data?.years, academicYearId]);
+  useEffect(() => {
+    if (!academicYearId || termId) return;
+    const activeTerm = currentTerms.find((term) => term.state === "ACTIVE");
+    if (activeTerm) setTermId(activeTerm.id);
+  }, [academicYearId, currentTerms, termId]);
+  const selectOfficeTab = (tab: "teacher" | "groups" | "dorm" | "history" | "reports") => {
+    setOfficeTab(tab);
+    setCategory(
+      tab === "teacher" ? "class" : tab === "groups" ? "class_group" : tab === "dorm" ? "dorm" : "",
+    );
+    setContextFilter("");
+    setSessionsPage(1);
+  };
+  const officeTabs: Array<["teacher" | "groups" | "dorm" | "history" | "reports", string]> = office
+    ? [
+        [
+          office,
+          (
+            {
+              teacher: "جلسات کلاس‌ها",
+              groups: "حضور گروه‌های کلاس",
+              dorm: "حضور اتاق‌های خوابگاه",
+              history: "آرشیو همه جلسه‌ها",
+            } as const
+          )[office],
+        ],
+      ]
+    : isPrincipal
+      ? [
+          ["history", "همه جلسه‌های مدرسه"],
+          ["reports", "گزارش‌ها"],
+        ]
+      : [
+          ["teacher", "جلسات استاد"],
+          ["groups", "حضور گروه‌ها"],
+          ["dorm", "حضور خوابگاه"],
+          ["history", "تاریخچه"],
+          ["reports", "گزارش‌ها"],
+        ];
+  const officeMeta = office
+    ? {
+        teacher: {
+          title: "حضور کلاس‌ها",
+          description: "جلسه‌های کلاس را بررسی و برای مشاهده جزئیات باز کنید.",
+        },
+        groups: {
+          title: "حضور گروه‌های کلاس",
+          description: "جلسه‌های گروه‌های کلاسی را جداگانه دنبال کنید.",
+        },
+        dorm: {
+          title: "حضور اتاق‌های خوابگاه",
+          description: "جلسه‌های ثبت‌شدهٔ اتاق‌ها و وضعیت آن‌ها را بررسی کنید.",
+        },
+        history: {
+          title: "آرشیو همه جلسه‌ها",
+          description: "تاریخچهٔ کامل جلسه‌های ثبت‌شدهٔ مدرسه.",
+        },
+      }[office]
+    : null;
+  const canReconcileHistoricalAttendance = [
+    "PRINCIPAL",
+    "RELIGIOUS_EDUCATION_MANAGER",
+    "ORGANIZATION_ADMIN",
+    "PLATFORM_ADMIN",
+  ].includes(auth.activeRole ?? "");
+  const historicalCandidates = useQuery({
+    queryKey: [
+      "attendance-historical-candidates",
+      organizationId,
+      academicYearId,
+      termId,
+      contextFilter,
+      monthBounds(calendarDate).start,
+      monthBounds(calendarDate).end,
+    ],
+    queryFn: () =>
+      getHistoricalAttendanceCandidates({
+        organizationId: organizationId!,
+        academicYearId,
+        termId,
+        classroomId: category === "class" ? contextFilter || undefined : undefined,
+        from: monthBounds(calendarDate).start,
+        to: monthBounds(calendarDate).end,
+      }),
+    enabled:
+      canReconcileHistoricalAttendance &&
+      Boolean(section === "sessions" && organizationId && academicYearId && termId),
+  });
+  const academicTeachers = useQuery({
+    queryKey: ["academic-teachers", organizationId],
+    queryFn: () => listAcademicTeachers(organizationId!, { limit: 200 }),
+    enabled: manualHistoricalOpen && Boolean(organizationId),
+  });
+  const educationBooks = useQuery({
+    queryKey: ["education-books", "historical-attendance"],
+    queryFn: getEducationBooks,
+    enabled: manualHistoricalOpen,
+  });
+  const importHistoricalOccurrence = useMutation({
+    mutationFn: importLegacyScheduleOccurrence,
+    onSuccess: () => {
+      void cache.invalidateQueries({ queryKey: ["attendance-session-history", scope] });
+      void cache.invalidateQueries({ queryKey: ["attendance-historical-candidates"] });
+      notify("جلسهٔ تاریخی با تأیید شما ایجاد شد.", "success");
+    },
+    onError: (error) =>
+      notify(error instanceof Error ? error.message : "ایجاد جلسهٔ تاریخی انجام نشد.", "error"),
+  });
+  const openCandidateForAttendance = useCallback(
+    (candidate: HistoricalAttendanceCandidate) => {
+      importHistoricalOccurrence.mutate(
+        { entryId: candidate.entryId, date: candidate.date },
+        {
+          onSuccess: (session) => {
+            onOpenScheduledSession?.({
+              sessionId: session.id,
+              contextId: candidate.classroomId,
+              date: candidate.date,
+              entryId: candidate.entryId,
+            });
+          },
+        },
+      );
+    },
+    [importHistoricalOccurrence, onOpenScheduledSession],
+  );
+  useEffect(() => {
+    if (!continueScheduledSession) {
+      continuedScheduledSession.current = null;
+      return;
+    }
+    const continuationKey = `${continueScheduledSession.date}:${continueScheduledSession.completedEntryId}`;
+    if (continuedScheduledSession.current === continuationKey) return;
+    continuedScheduledSession.current = continuationKey;
+
+    // Do not decide from React Query's cached candidates: it can still include
+    // the occurrence that was just saved. A fresh server response is the only
+    // authority for declaring an entire day complete.
+    void historicalCandidates.refetch().then((result) => {
+      if (result.isError) {
+        notify("فهرست جلسه‌های باقی‌ماندهٔ روز دریافت نشد؛ تکمیل روز تأیید نشد.", "error");
+        return;
+      }
+      const next = (result.data ?? []).find(
+        (candidate) =>
+          candidate.date === continueScheduledSession.date &&
+          candidate.entryId !== continueScheduledSession.completedEntryId,
+      );
+      if (next) {
+        openCandidateForAttendance(next);
+        return;
+      }
+      onScheduledDayComplete?.(continueScheduledSession.date);
+    });
+  }, [
+    continueScheduledSession,
+    historicalCandidates,
+    openCandidateForAttendance,
+    onScheduledDayComplete,
+  ]);
+  const createManualHistoricalSession = useMutation({
+    mutationFn: createHistoricalAttendanceSession,
+    onSuccess: () => {
+      setManualHistoricalOpen(false);
+      setManualHistorical({
+        classroomId: "",
+        teacherId: "",
+        subjectId: "",
+        date: "",
+        title: "",
+        reason: "",
+      });
+      void cache.invalidateQueries({ queryKey: ["attendance-session-history", scope] });
+      void cache.invalidateQueries({ queryKey: ["attendance-historical-candidates"] });
+      notify("جلسهٔ تاریخی دستی ثبت شد.", "success");
+    },
+    onError: (error) =>
+      notify(error instanceof Error ? error.message : "ثبت جلسهٔ تاریخی انجام نشد.", "error"),
+  });
   const pools = useQuery({
     queryKey: ["attendance-pools", scope],
     queryFn: getAttendancePools,
     enabled: section === "pool",
     refetchInterval: 10000,
   });
+  useEffect(() => {
+    void cache.invalidateQueries({ queryKey: ["attendance-overview", scope] });
+    void cache.invalidateQueries({ queryKey: ["attendance-session-history", scope] });
+    void cache.invalidateQueries({ queryKey: ["attendance-pools", scope] });
+  }, [cache, refreshVersion, scope]);
+  useEffect(() => {
+    if (initialSelectedSessionId) setSelectedId(initialSelectedSessionId);
+  }, [initialSelectedSessionId]);
   useEffect(() => {
     setSelectedId(null);
     setSessionsPage(1);
@@ -788,7 +1182,7 @@ export function AttendanceStaffWorkspace({
     const events = api.openEvents((type) => {
       if (type === "attendance.updated") {
         void cache.invalidateQueries({ queryKey: ["attendance-overview", scope] });
-        void cache.invalidateQueries({ queryKey: ["attendance-staff-sessions", scope] });
+        void cache.invalidateQueries({ queryKey: ["attendance-session-history", scope] });
       }
     });
     return () => events.close();
@@ -820,7 +1214,7 @@ export function AttendanceStaffWorkspace({
       setTitle("");
       setPlace("");
       await pools.refetch();
-      await sessions.refetch();
+      await history.refetch();
       notify("فراخوان حضور برای حساب اعضا فعال شد.", "success");
     } catch (error) {
       const message = error instanceof Error ? error.message : "فراخوان ایجاد نشد.";
@@ -855,8 +1249,8 @@ export function AttendanceStaffWorkspace({
         allowPartialSubmission: form.get("allowPartialSubmission") === "on",
         lateCountsAsPresent: form.get("lateCountsAsPresent") === "on",
         correctionRequiresReview: form.get("correctionRequiresReview") === "on",
-        principalReviewMode: String(form.get("principalReviewMode") ?? "absences_only") as
-          "automatic" | "absences_only",
+        principalReviewMode:
+          form.get("principalReviewAllSessions") === "on" ? "all_sessions" : "absences_only",
       });
       await policy.refetch();
       notify("قانون حضور و غیاب مدرسه ذخیره شد.", "success");
@@ -867,29 +1261,121 @@ export function AttendanceStaffWorkspace({
     }
   }
   return (
-    <Card className="space-y-6 rounded-3xl border border-sky-100 p-4 sm:p-6 dark:border-slate-700">
-      <header className="flex flex-wrap items-start justify-between gap-3 border-b border-[rgb(var(--border-subtle))] pb-4">
+    <Card className="space-y-6 rounded-3xl p-4 sm:p-6">
+      <header className="flex flex-wrap items-start justify-between gap-4 rounded-2xl border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-muted))]/60 p-4 sm:p-5">
         <div>
-          <p className="text-xs font-bold text-blue-700 dark:text-blue-300">عملیات حضور و غیاب</p>
-          <h2 className="mt-1 flex items-center gap-2 text-lg font-black text-ink">
+          <p className="text-xs font-bold text-blue-700 dark:text-blue-300">
+            دفتر عملیاتی حضور و غیاب
+          </p>
+          <h2 className="mt-1 flex items-center gap-2 text-xl font-black text-ink">
             <CalendarCheck2 className="text-blue-600" size={22} />
             {section === "pool" ? "حوضچه / فراخوان حضور" : "جلسات حضور"}
           </h2>
-          <p className="mt-2 max-w-2xl text-xs leading-6 text-slate-500">
-            خلاصه روزانه ساعت ۱۶ به وقت تهران از نو آغاز می‌شود. همه جلسات و پرونده‌ها در سوابق باقی
-            می‌مانند.
+          <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600 dark:text-slate-300">
+            مسیر ثبت از جلسهٔ برنامه تا بازبینی و سابقه در یک‌جا نگهداری می‌شود؛ ویرایش‌ها نسخهٔ
+            جدید همان جلسه را ثبت می‌کنند.
           </p>
         </div>
-        {section === "sessions" && onNewSession && auth.can("attendance.manage") ? (
-          <button
-            type="button"
-            onClick={onNewSession}
-            className={`${action} bg-blue-600 text-white`}
-          >
-            ثبت جلسه تازه اکنون
-          </button>
-        ) : null}
+        <div className="flex flex-wrap gap-2">
+          {section === "sessions" && auth.can("attendance.settings.manage") ? (
+            <button
+              type="button"
+              onClick={() => setPolicyOpen(true)}
+              className={`${action} inline-flex items-center gap-2 border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card))] text-ink`}
+            >
+              <Settings2 className="size-4" aria-hidden="true" />
+              تنظیمات حضور
+            </button>
+          ) : null}
+          {section === "sessions" && onNewSession && auth.can("attendance.manage") ? (
+            <button
+              type="button"
+              onClick={onNewSession}
+              className={`${action} bg-blue-600 text-white`}
+            >
+              ثبت جلسه تازه اکنون
+            </button>
+          ) : null}
+        </div>
       </header>
+      {section === "sessions" ? (
+        <section
+          aria-labelledby="attendance-workflow"
+          className="rounded-2xl border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card))] p-3 sm:p-4"
+        >
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h3
+                id="attendance-workflow"
+                className="flex items-center gap-2 text-sm font-black text-ink"
+              >
+                <ClipboardList className="size-4 text-brand" aria-hidden="true" />
+                مسیر کار جلسه
+              </h3>
+              <p className="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-300">
+                ابتدا بازهٔ آموزشی را مشخص کنید، سپس جلسه را ثبت یا انتخاب و در پایان سابقه و
+                بازبینی آن را پیگیری کنید.
+              </p>
+            </div>
+            <span className="rounded-full bg-brand/10 px-3 py-1.5 text-xs font-bold text-brand">
+              {selectedAcademicYear?.name || "همه سال‌ها"} ·{" "}
+              {selectedTerm?.name || "همه نیم‌سال‌ها"}
+            </span>
+          </div>
+          <ol className="mt-4 grid gap-2 md:grid-cols-3">
+            <li className="rounded-xl border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-muted))]/55 p-3">
+              <span className="flex items-center gap-2 text-xs font-black text-ink">
+                <span className="grid size-6 place-items-center rounded-full bg-brand text-white">
+                  ۱
+                </span>
+                انتخاب دوره و کلاس
+              </span>
+              <p className="mt-2 text-xs leading-5 text-slate-600 dark:text-slate-300">
+                فیلتر سال، نیم‌سال و کلاس پایین صفحه، دفتر کار شما را محدود می‌کند.
+              </p>
+            </li>
+            <li className="rounded-xl border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-muted))]/55 p-3">
+              <span className="flex items-center gap-2 text-xs font-black text-ink">
+                <span className="grid size-6 place-items-center rounded-full bg-brand text-white">
+                  ۲
+                </span>
+                ثبت یا تکمیل جلسه
+              </span>
+              <p className="mt-2 text-xs leading-5 text-slate-600 dark:text-slate-300">
+                برای جلسهٔ امروز ثبت تازه بسازید یا از صف تطبیق برای سوابق گذشته استفاده کنید.
+              </p>
+              {onNewSession && auth.can("attendance.manage") ? (
+                <button
+                  type="button"
+                  onClick={onNewSession}
+                  className="mt-3 min-h-9 rounded-lg bg-brand px-3 text-xs font-bold text-white focus-visible:ring-2 focus-visible:ring-brand/40"
+                >
+                  ثبت جلسه
+                </button>
+              ) : null}
+            </li>
+            <li className="rounded-xl border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-muted))]/55 p-3">
+              <span className="flex items-center gap-2 text-xs font-black text-ink">
+                <span className="grid size-6 place-items-center rounded-full bg-brand text-white">
+                  ۳
+                </span>
+                بازبینی و سابقه
+              </span>
+              <p className="mt-2 text-xs leading-5 text-slate-600 dark:text-slate-300">
+                جزئیات جلسه، شمارش حضور و نسخه‌های اصلاح در آرشیو قابل پیگیری هستند.
+              </p>
+              <button
+                type="button"
+                onClick={() => selectOfficeTab("history")}
+                className="mt-3 inline-flex min-h-9 items-center gap-1 rounded-lg border border-[rgb(var(--border-subtle))] px-3 text-xs font-bold text-slate-700 focus-visible:ring-2 focus-visible:ring-brand/40 dark:text-slate-200"
+              >
+                <History className="size-3.5" aria-hidden="true" />
+                رفتن به سابقه
+              </button>
+            </li>
+          </ol>
+        </section>
+      ) : null}
       {overview.isLoading ? (
         <p role="status">در حال دریافت خلاصه…</p>
       ) : overview.isError ? (
@@ -1004,114 +1490,410 @@ export function AttendanceStaffWorkspace({
         ) : null
       ) : null}
       {auth.can("attendance.settings.manage") ? (
-        policy.isLoading ? (
-          <p role="status" className="text-xs text-slate-500">
-            در حال دریافت قوانین حضور…
-          </p>
-        ) : policy.isError ? (
-          <p role="alert" className="text-xs text-rose-700 dark:text-rose-300">
-            قوانین حضور دریافت نشد.{" "}
-            <button
-              type="button"
-              onClick={() => void policy.refetch()}
-              className="font-bold underline"
+        <ResponsiveDrawer
+          open={policyOpen}
+          onOpenChange={setPolicyOpen}
+          title="تنظیمات حضور و غیاب"
+          description="این قوانین برای ثبت‌های بعدی مدرسه اعمال می‌شوند و رفتار بازبینی مدیر را تعیین می‌کنند."
+          desktopSide="left"
+          className="md:w-[min(46rem,96vw)]"
+        >
+          {policy.isLoading ? (
+            <p role="status" className="text-xs text-slate-500">
+              در حال دریافت قوانین حضور…
+            </p>
+          ) : policy.isError ? (
+            <p role="alert" className="text-xs text-rose-700 dark:text-rose-300">
+              قوانین حضور دریافت نشد.{" "}
+              <button
+                type="button"
+                onClick={() => void policy.refetch()}
+                className="font-bold underline"
+              >
+                تلاش دوباره
+              </button>
+            </p>
+          ) : policy.data ? (
+            <form
+              onSubmit={(event) => void savePolicy(event)}
+              className="rounded-2xl border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-muted))]/60 p-3 sm:p-4"
             >
-              تلاش دوباره
-            </button>
-          </p>
-        ) : policy.data ? (
-          <form
-            onSubmit={(event) => void savePolicy(event)}
-            className="grid gap-3 rounded-2xl border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-muted))] p-3 sm:grid-cols-2"
-          >
-            <div className="sm:col-span-2">
-              <p className="text-sm font-black">قوانین حضور و غیاب</p>
-              <p className="mt-1 text-xs text-slate-500">
-                این تنظیمات در backend روی ثبت‌های بعدی اعمال می‌شوند.
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <p className="flex items-center gap-2 text-sm font-black text-ink">
+                    <Settings2 className="size-4 text-brand" aria-hidden="true" />
+                    قوانین حضور و غیاب
+                  </p>
+                  <p className="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-300">
+                    این تنظیمات روی ثبت‌های بعدی اعمال می‌شوند و رفتار صف بازبینی مدیر را مشخص
+                    می‌کنند.
+                  </p>
+                </div>
+                <span className="rounded-full bg-brand/10 px-3 py-1 text-xs font-bold text-brand">
+                  {policy.data.principalReviewMode === "all_sessions"
+                    ? "بازبینی همه جلسه‌ها"
+                    : "بازبینی جلسه‌های دارای غیبت"}
+                </span>
+              </div>
+              <div className="mt-4 grid gap-3 lg:grid-cols-[minmax(12rem,.55fr)_minmax(0,1fr)]">
+                <label className="rounded-xl border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card))] p-3 text-xs font-bold text-ink">
+                  شروع روز آموزشی
+                  <span className="mt-1 block font-normal leading-5 text-slate-500 dark:text-slate-300">
+                    مرز محاسبهٔ روز حضور برای گزارش‌ها و صف‌ها.
+                  </span>
+                  <input
+                    name="dayStartsAt"
+                    type="time"
+                    className={`${field} mt-3`}
+                    defaultValue={policy.data.dayStartsAt}
+                    disabled={policySaving}
+                    required
+                  />
+                </label>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  <PolicySwitch
+                    name="allowPartialSubmission"
+                    label="اجازه ثبت ناقص"
+                    description="ثبت جلسه پیش از مشخص‌شدن وضعیت همهٔ اعضا مجاز باشد."
+                    defaultChecked={policy.data.allowPartialSubmission}
+                    disabled={policySaving}
+                  />
+                  <PolicySwitch
+                    name="lateCountsAsPresent"
+                    label="تأخیر در نرخ حضور"
+                    description="وضعیت تأخیر در محاسبهٔ نرخ حضور، حاضر محسوب شود."
+                    defaultChecked={policy.data.lateCountsAsPresent}
+                    disabled={policySaving}
+                  />
+                  <PolicySwitch
+                    name="correctionRequiresReview"
+                    label="بازبینی اصلاح‌ها"
+                    description="هر اصلاح حضور پیش از اثرگذاری نیازمند تأیید ناظر باشد."
+                    defaultChecked={policy.data.correctionRequiresReview}
+                    disabled={policySaving}
+                  />
+                  <PolicySwitch
+                    name="principalReviewAllSessions"
+                    label="بازبینی همهٔ جلسه‌ها"
+                    description="اگر خاموش باشد، فقط جلسه‌های دارای غیبت در صف بازبینی مدیر قرار می‌گیرند."
+                    defaultChecked={policy.data.principalReviewMode === "all_sessions"}
+                    disabled={policySaving}
+                  />
+                </div>
+              </div>
+              <button
+                type="submit"
+                className={`${action} mt-3 w-full bg-slate-900 text-white sm:w-auto`}
+                disabled={policySaving}
+              >
+                {policySaving ? "در حال ذخیره…" : "ذخیره قوانین حضور"}
+              </button>
+            </form>
+          ) : null}
+        </ResponsiveDrawer>
+      ) : null}
+      {canReconcileHistoricalAttendance ? (
+        <section
+          className="rounded-2xl border border-amber-200 bg-amber-50/60 p-3 dark:border-amber-900 dark:bg-amber-950/20"
+          aria-labelledby="scheduled-attendance-calendar-title"
+        >
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <p id="scheduled-attendance-calendar-title" className="text-sm font-black">
+                تقویم جلسه‌های ثبت‌نشده
+              </p>
+              <p className="mt-1 text-xs leading-5 text-slate-600 dark:text-slate-300">
+                روز را انتخاب کنید، سپس کلاس و درس همان روز را باز کنید تا حضور همان رخداد تاریخ‌دار
+                ثبت شود.
               </p>
             </div>
-            <label className="text-xs font-bold">
-              شروع روز آموزشی
-              <input
-                name="dayStartsAt"
-                type="time"
-                className={`${field} mt-1`}
-                defaultValue={policy.data.dayStartsAt}
-                disabled={policySaving}
-                required
-              />
-            </label>
-            <div className="grid content-center gap-2 text-xs font-bold">
-              <label className="flex items-center gap-2">
-                <input
-                  name="allowPartialSubmission"
-                  type="checkbox"
-                  defaultChecked={policy.data.allowPartialSubmission}
-                  disabled={policySaving}
-                />
-                اجازه ثبت ناقص
-              </label>
-              <label className="flex items-center gap-2">
-                <input
-                  name="lateCountsAsPresent"
-                  type="checkbox"
-                  defaultChecked={policy.data.lateCountsAsPresent}
-                  disabled={policySaving}
-                />
-                تأخیر در نرخ حضور محسوب شود
-              </label>
-              <label className="flex items-center gap-2">
-                <input
-                  name="correctionRequiresReview"
-                  type="checkbox"
-                  defaultChecked={policy.data.correctionRequiresReview}
-                  disabled={policySaving}
-                />
-                اصلاح حضور نیازمند تأیید ناظر باشد
-              </label>
-              <label className="grid gap-1">
-                بازبینی روزانهٔ مدیر
-                <select
-                  name="principalReviewMode"
-                  className={field}
-                  defaultValue={policy.data.principalReviewMode}
-                  disabled={policySaving}
-                >
-                  <option value="automatic">تکمیل خودکار همهٔ جلسه‌ها</option>
-                  <option value="absences_only">فقط جلسه‌های دارای غیبت برای بررسی بیاید</option>
-                </select>
-              </label>
-            </div>
             <button
-              type="submit"
-              className={`${action} bg-slate-900 text-white sm:col-span-2`}
-              disabled={policySaving}
+              type="button"
+              className={`${action} bg-amber-700 text-white hover:bg-amber-800`}
+              disabled={!academicYearId || !termId}
+              onClick={() => setManualHistoricalOpen(true)}
             >
-              {policySaving ? "در حال ذخیره…" : "ذخیره قوانین حضور"}
+              ثبت دستی جلسهٔ گذشته
             </button>
-          </form>
-        ) : null
+          </div>
+          {!academicYearId || !termId ? (
+            <p role="alert" className="mt-3 text-xs text-amber-800 dark:text-amber-200">
+              ابتدا سال تحصیلی و نیم‌سال را در محدودهٔ دفتر انتخاب کنید.
+            </p>
+          ) : null}
+          {academicYearId && termId ? (
+            historicalCandidates.isLoading ? (
+              <p role="status" className="mt-3 text-xs text-slate-500">
+                در حال آماده‌سازی تقویم جلسه‌های ثبت‌نشده…
+              </p>
+            ) : historicalCandidates.isError ? (
+              <p role="alert" className="mt-3 text-xs text-rose-700 dark:text-rose-300">
+                تقویم جلسه‌های ثبت‌نشده دریافت نشد.{" "}
+                <button
+                  type="button"
+                  className="font-bold underline"
+                  onClick={() => void historicalCandidates.refetch()}
+                >
+                  تلاش دوباره
+                </button>
+              </p>
+            ) : (
+              <div className="mt-3 grid gap-3 xl:grid-cols-[minmax(20rem,.9fr)_minmax(0,1.1fr)]">
+                <PendingScheduleCalendar
+                  candidates={historicalCandidates.data ?? []}
+                  selectedDate={calendarDate}
+                  onSelectedDateChange={setCalendarDate}
+                  onMonthChange={setCalendarDate}
+                  disabled={importHistoricalOccurrence.isPending}
+                />
+                <div className="rounded-2xl border border-amber-200/70 bg-white/80 p-3 dark:border-amber-900 dark:bg-slate-950/70">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-sm font-black text-ink">
+                      جلسه‌های{" "}
+                      {new Date(`${calendarDate}T12:00:00Z`).toLocaleDateString(
+                        "fa-IR-u-ca-persian",
+                      )}
+                    </p>
+                    <span className="rounded-full bg-amber-100 px-2 py-1 text-[11px] font-bold text-amber-900 dark:bg-amber-950/50 dark:text-amber-100">
+                      {(historicalCandidates.data ?? [])
+                        .filter((candidate) => candidate.date === calendarDate)
+                        .length.toLocaleString("fa-IR")}{" "}
+                      مورد
+                    </span>
+                  </div>
+                  <ul className="mt-3 grid gap-2" aria-label="جلسه‌های ثبت‌نشده روز انتخاب‌شده">
+                    {(historicalCandidates.data ?? [])
+                      .filter((candidate) => candidate.date === calendarDate)
+                      .map((candidate) => (
+                        <li
+                          key={`${candidate.entryId}:${candidate.date}`}
+                          className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-200/70 bg-white/80 p-3 text-xs dark:border-amber-900 dark:bg-slate-950/70"
+                        >
+                          <span>
+                            <strong className="text-sm">{candidate.title}</strong>
+                            <span className="mt-1 block text-slate-500">
+                              {candidate.classroomName} · {candidate.teacherName} ·{" "}
+                              {candidate.subjectName || "بدون کتاب"} · {candidate.startTime} تا{" "}
+                              {candidate.endTime}
+                            </span>
+                          </span>
+                          <button
+                            type="button"
+                            className={`${action} min-h-10 border border-amber-300 bg-amber-100 text-amber-950 dark:border-amber-800 dark:bg-amber-900/40 dark:text-amber-100`}
+                            disabled={importHistoricalOccurrence.isPending}
+                            onClick={() => openCandidateForAttendance(candidate)}
+                          >
+                            {importHistoricalOccurrence.isPending
+                              ? "در حال بازکردن…"
+                              : "ثبت حضور این جلسه"}
+                          </button>
+                        </li>
+                      ))}
+                    {!(historicalCandidates.data ?? []).some(
+                      (candidate) => candidate.date === calendarDate,
+                    ) ? (
+                      <li className="rounded-xl bg-[rgb(var(--surface-muted))] p-3 text-xs leading-5 text-slate-600 dark:text-slate-300">
+                        برای این روز جلسهٔ برنامهٔ ثبت‌نشده‌ای وجود ندارد. روزی با نشان تعداد جلسه
+                        را انتخاب کنید.
+                      </li>
+                    ) : null}
+                  </ul>
+                </div>
+              </div>
+            )
+          ) : null}
+        </section>
       ) : null}
+      <ResponsiveDrawer
+        open={manualHistoricalOpen}
+        onOpenChange={setManualHistoricalOpen}
+        title="ثبت دستی جلسهٔ حضور گذشته"
+        description="برای جلسه‌ای که در برنامهٔ legacy وجود ندارد، کلاس، استاد، کتاب، تاریخ و علت ثبت تاریخی را مشخص کنید."
+        desktopSide="left"
+      >
+        <form
+          className="grid gap-3"
+          dir="rtl"
+          onSubmit={(event) => {
+            event.preventDefault();
+            const book = (educationBooks.data ?? []).find(
+              (item) => item.id === manualHistorical.subjectId,
+            );
+            if (
+              !organizationId ||
+              !academicYearId ||
+              !termId ||
+              !manualHistorical.classroomId ||
+              !manualHistorical.teacherId ||
+              !book ||
+              !manualHistorical.date ||
+              !manualHistorical.title.trim() ||
+              !manualHistorical.reason.trim()
+            ) {
+              notify("همهٔ اطلاعات جلسهٔ تاریخی را کامل کنید.", "error");
+              return;
+            }
+            createManualHistoricalSession.mutate({
+              organizationId,
+              academicYearId,
+              termId,
+              classroomId: manualHistorical.classroomId,
+              teacherId: manualHistorical.teacherId,
+              subjectId: book.id,
+              subjectName: book.titleFa,
+              date: manualHistorical.date,
+              title: manualHistorical.title.trim(),
+              reason: manualHistorical.reason.trim(),
+            });
+          }}
+        >
+          <label className="grid gap-1 text-sm font-bold">
+            کلاس
+            <select
+              className={field}
+              value={manualHistorical.classroomId}
+              onChange={(event) =>
+                setManualHistorical((value) => ({ ...value, classroomId: event.target.value }))
+              }
+              required
+            >
+              <option value="">انتخاب کلاس</option>
+              {contexts
+                .filter((context) => context.contextType === "class")
+                .map((context) => (
+                  <option key={context.id} value={context.id}>
+                    {context.name}
+                  </option>
+                ))}
+            </select>
+          </label>
+          <label className="grid gap-1 text-sm font-bold">
+            استاد
+            <select
+              className={field}
+              value={manualHistorical.teacherId}
+              onChange={(event) =>
+                setManualHistorical((value) => ({ ...value, teacherId: event.target.value }))
+              }
+              required
+            >
+              <option value="">
+                {academicTeachers.isLoading ? "در حال دریافت استادها…" : "انتخاب استاد"}
+              </option>
+              {(academicTeachers.data?.items ?? []).map((teacher) => (
+                <option key={teacher.id} value={teacher.id}>
+                  {[teacher.firstName, teacher.lastName].filter(Boolean).join(" ") ||
+                    teacher.username}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="grid gap-1 text-sm font-bold">
+            کتاب
+            <select
+              className={field}
+              value={manualHistorical.subjectId}
+              onChange={(event) =>
+                setManualHistorical((value) => ({ ...value, subjectId: event.target.value }))
+              }
+              required
+            >
+              <option value="">
+                {educationBooks.isLoading ? "در حال دریافت کتاب‌ها…" : "انتخاب کتاب"}
+              </option>
+              {(educationBooks.data ?? []).map((book) => (
+                <option key={book.id} value={book.id}>
+                  {book.titleFa}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="grid gap-1 text-sm font-bold">
+            تاریخ جلسه
+            <DatePicker
+              calendar="persian"
+              value={manualHistorical.date}
+              onChange={(date) => setManualHistorical((value) => ({ ...value, date }))}
+              ariaLabel="تاریخ جلسهٔ گذشته"
+              required
+            />
+          </label>
+          <label className="grid gap-1 text-sm font-bold">
+            عنوان جلسه
+            <input
+              className={field}
+              value={manualHistorical.title}
+              onChange={(event) =>
+                setManualHistorical((value) => ({ ...value, title: event.target.value }))
+              }
+              required
+            />
+          </label>
+          <label className="grid gap-1 text-sm font-bold">
+            دلیل ثبت تاریخی
+            <textarea
+              className={`${field} min-h-28 py-3`}
+              value={manualHistorical.reason}
+              onChange={(event) =>
+                setManualHistorical((value) => ({ ...value, reason: event.target.value }))
+              }
+              required
+            />
+          </label>
+          <button
+            type="submit"
+            className={`${action} bg-amber-700 text-white hover:bg-amber-800`}
+            disabled={createManualHistoricalSession.isPending}
+          >
+            {createManualHistoricalSession.isPending ? "در حال ثبت…" : "ثبت جلسهٔ تاریخی"}
+          </button>
+        </form>
+      </ResponsiveDrawer>
       {section === "sessions" ? (
         <section
-          className="space-y-4 rounded-2xl border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-muted))]/40 p-3 sm:p-4"
+          className={`attendance-office space-y-4 rounded-2xl border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-muted))]/40 p-3 sm:p-4 ${office ? `attendance-office--${office}` : ""}`}
           aria-labelledby="attendance-session-archive"
         >
           <div className="flex flex-wrap items-start justify-between gap-2">
             <div>
               <h3 id="attendance-session-archive" className="text-base font-black text-ink">
-                آرشیو جلسات
+                {officeMeta?.title ?? "آرشیو جلسات"}
               </h3>
               <p className="mt-1 text-xs text-slate-500">
-                یک جلسه را برای مرور اعضا، نهایی‌سازی یا اصلاح ثبت‌ها انتخاب کنید.
+                {officeMeta?.description ??
+                  "یک جلسه را برای مرور اعضا، نهایی‌سازی یا اصلاح ثبت‌ها انتخاب کنید."}
               </p>
             </div>
-            {sessions.data ? (
+            {history.data ? (
               <span className="rounded-full bg-white px-2.5 py-1 text-xs font-bold text-slate-600 ring-1 ring-[rgb(var(--border-subtle))] dark:bg-slate-950 dark:text-slate-300">
-                {sessions.data.total.toLocaleString("fa-IR")} جلسه
+                {history.data.total.toLocaleString("fa-IR")} جلسه
               </span>
             ) : null}
           </div>
+          {!office ? (
+            <nav
+              className="grid grid-cols-2 gap-1 rounded-xl border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card))] p-1 sm:flex"
+              aria-label="تب‌های دفتر حضور کلاس"
+              role="tablist"
+            >
+              {officeTabs.map(([tab, label]) => (
+                <button
+                  key={tab}
+                  type="button"
+                  role="tab"
+                  aria-selected={officeTab === tab}
+                  className={`min-h-10 rounded-lg px-3 text-xs font-bold transition-colors focus-visible:ring-2 focus-visible:ring-blue-500 ${
+                    officeTab === tab
+                      ? "bg-blue-600 text-white"
+                      : "text-slate-600 hover:bg-[rgb(var(--surface-muted))] dark:text-slate-300"
+                  }`}
+                  onClick={() => selectOfficeTab(tab)}
+                >
+                  {label}
+                </button>
+              ))}
+            </nav>
+          ) : null}
           {history.isLoading ? (
             <p role="status" className="text-xs text-slate-500">
               در حال دریافت سابقه جامع جلسات…
@@ -1133,75 +1915,162 @@ export function AttendanceStaffWorkspace({
               دسترسی شما
             </p>
           ) : null}
-          <div className="grid gap-2 sm:grid-cols-2">
-            <label className="grid gap-1 text-xs font-bold text-slate-600 dark:text-slate-300">
-              نوع زمینه
-              <AdaptiveSelect
-                aria-label="نوع جلسات حضور"
-                value={category}
-                onChange={(event) => {
-                  setCategory(event.target.value as typeof category);
-                  setContextFilter("");
-                  setSessionsPage(1);
-                }}
-                className={field}
-              >
-                {Object.entries(labels).map(([key, label]) => (
-                  <option key={key} value={key}>
-                    {label}
-                  </option>
-                ))}
-              </AdaptiveSelect>
-            </label>
-            <label className="grid gap-1 text-xs font-bold text-slate-600 dark:text-slate-300">
-              کلاس یا اتاق
-              <AdaptiveSelect
-                aria-label="کلاس یا اتاق جلسات"
-                className={field}
-                value={contextFilter}
-                onChange={(event) => setContextFilter(event.target.value)}
-              >
-                <option value="">همه کلاس‌ها و اتاق‌ها</option>
-                {Array.from(
-                  new Map(
-                    sessionItems
-                      .filter((session) => session.contextType === category)
-                      .map((session) => [
-                        session.contextId,
-                        contexts.find((context) => context.id === session.contextId)?.name ||
-                          session.title,
-                      ]),
-                  ).entries(),
-                ).map(([id, name]) => (
-                  <option key={id} value={id}>
-                    {name}
-                  </option>
-                ))}
-              </AdaptiveSelect>
-            </label>
+          <div className="rounded-xl border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card))] p-3">
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <div>
+                <p className="text-xs font-black text-ink">۱. محدودهٔ دفتر را انتخاب کنید</p>
+                <p className="mt-1 text-xs text-slate-500 dark:text-slate-300">
+                  فیلترها هم آرشیو، هم گزارش نیم‌سال و هم صف تطبیق را هماهنگ می‌کنند.
+                </p>
+              </div>
+              {(academicYearId || termId || contextFilter) && (
+                <button
+                  type="button"
+                  className="min-h-9 rounded-lg px-2 text-xs font-bold text-brand underline focus-visible:ring-2 focus-visible:ring-brand/40"
+                  onClick={() => {
+                    setAcademicYearId("");
+                    setTermId("");
+                    setContextFilter("");
+                    setSessionsPage(1);
+                  }}
+                >
+                  پاک‌کردن فیلترها
+                </button>
+              )}
+            </div>
+            <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+              <label className="grid gap-1 text-xs font-bold text-slate-600 dark:text-slate-300">
+                نوع زمینه
+                <AdaptiveSelect
+                  aria-label="نوع جلسات حضور"
+                  value={category}
+                  onChange={(event) => {
+                    setCategory(event.target.value as typeof category);
+                    setContextFilter("");
+                    setSessionsPage(1);
+                  }}
+                  className={field}
+                >
+                  <option value="">همه نوع جلسه‌ها</option>
+                  {(["class", "class_group", "dorm"] as const).map((key) => (
+                    <option key={key} value={key}>
+                      {labels[key]}
+                    </option>
+                  ))}
+                </AdaptiveSelect>
+              </label>
+              <label className="grid gap-1 text-xs font-bold text-slate-600 dark:text-slate-300">
+                کلاس یا اتاق
+                <AdaptiveSelect
+                  aria-label="کلاس یا اتاق جلسات"
+                  className={field}
+                  value={contextFilter}
+                  onChange={(event) => {
+                    setContextFilter(event.target.value);
+                    setSessionsPage(1);
+                  }}
+                >
+                  <option value="">همه کلاس‌ها و اتاق‌ها</option>
+                  {Array.from(
+                    new Map(
+                      contexts
+                        .filter((context) => context.contextType === category)
+                        .map((context) => [context.id, context.name]),
+                    ).entries(),
+                  ).map(([id, name]) => (
+                    <option key={id} value={id}>
+                      {name}
+                    </option>
+                  ))}
+                </AdaptiveSelect>
+              </label>
+              <label className="grid gap-1 text-xs font-bold text-slate-600 dark:text-slate-300">
+                سال تحصیلی
+                <AdaptiveSelect
+                  aria-label="سال تحصیلی جلسات"
+                  className={field}
+                  value={academicYearId}
+                  onChange={(event) => {
+                    setAcademicYearId(event.target.value);
+                    setTermId("");
+                    setSessionsPage(1);
+                  }}
+                >
+                  <option value="">همه سال‌ها</option>
+                  {(academicCycles.data?.years ?? []).map((year) => (
+                    <option key={year.id} value={year.id}>
+                      {year.name}
+                    </option>
+                  ))}
+                </AdaptiveSelect>
+              </label>
+              <label className="grid gap-1 text-xs font-bold text-slate-600 dark:text-slate-300">
+                نیم‌سال
+                <AdaptiveSelect
+                  aria-label="نیم‌سال جلسات"
+                  className={field}
+                  value={termId}
+                  onChange={(event) => {
+                    setTermId(event.target.value);
+                    setSessionsPage(1);
+                  }}
+                >
+                  <option value="">همه نیم‌سال‌ها</option>
+                  {currentTerms.map((term) => (
+                    <option key={term.id} value={term.id}>
+                      {term.name}
+                    </option>
+                  ))}
+                </AdaptiveSelect>
+              </label>
+            </div>
           </div>
-          {sessions.isLoading ? (
+          {officeTab === "reports" && report.data ? (
+            <div
+              role="tabpanel"
+              className="grid gap-3 rounded-xl border border-emerald-200 bg-emerald-50/60 p-4 text-sm dark:border-emerald-900 dark:bg-emerald-950/20"
+            >
+              <strong>گزارش نیم‌سالِ انتخاب‌شده</strong>
+              <p className="text-xs text-slate-600 dark:text-slate-300">
+                {report.data.finalizedSessions.toLocaleString("fa-IR")} جلسهٔ نهایی ·{" "}
+                {report.data.present.toLocaleString("fa-IR")} حاضر ·{" "}
+                {report.data.absent.toLocaleString("fa-IR")} غایب ·{" "}
+                {report.data.late.toLocaleString("fa-IR")} تأخیر ·{" "}
+                {report.data.excused.toLocaleString("fa-IR")} موجه
+              </p>
+              <p className="text-xs text-slate-600 dark:text-slate-300">
+                نرخ حضور:{" "}
+                {report.data.attendanceRate === null
+                  ? "نامشخص"
+                  : `${report.data.attendanceRate.toLocaleString("fa-IR")}٪`}
+              </p>
+            </div>
+          ) : null}
+          {officeTab !== "reports" && history.isLoading ? (
             <p role="status">در حال دریافت جلسات…</p>
-          ) : sessions.isError ? (
+          ) : officeTab !== "reports" && history.isError ? (
             <p role="alert">
               جلسات دریافت نشد.{" "}
-              <button type="button" onClick={() => void sessions.refetch()}>
+              <button type="button" onClick={() => void history.refetch()}>
                 تلاش مجدد
               </button>
             </p>
-          ) : (
+          ) : officeTab !== "reports" ? (
             <div
               className="overflow-x-auto rounded-2xl border border-[rgb(var(--border-subtle))]"
               role="region"
               aria-label="فهرست جلسات حضور"
               tabIndex={0}
             >
-              <table className="min-w-[720px] w-full text-start text-sm">
+              <table className="min-w-[980px] w-full text-start text-sm">
                 <thead className="bg-[rgb(var(--surface-muted))] text-xs text-slate-500">
                   <tr>
                     <th className="px-3 py-3 text-start font-bold">جلسه</th>
                     <th className="px-3 py-3 text-start font-bold">زمینه</th>
+                    <th className="px-3 py-3 text-start font-bold">استاد / کتاب</th>
+                    <th className="px-3 py-3 text-start font-bold">سال و نیم‌سال</th>
                     <th className="px-3 py-3 text-start font-bold">زمان</th>
+                    <th className="px-3 py-3 text-center font-bold">وضعیت</th>
                     <th className="px-3 py-3 text-center font-bold">حاضر</th>
                     <th className="px-3 py-3 text-center font-bold">غایب</th>
                     <th className="px-3 py-3 text-center font-bold">نامشخص</th>
@@ -1209,55 +2078,76 @@ export function AttendanceStaffWorkspace({
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[rgb(var(--border-subtle))]">
-                  {sessionItems
-                    .filter(
-                      (session) =>
-                        session.contextType === category &&
-                        (!contextFilter || session.contextId === contextFilter),
-                    )
-                    .map((session) => (
-                      <tr key={session.id} className="hover:bg-[rgb(var(--surface-muted))]">
-                        <td className="px-3 py-3 font-bold">
-                          <button
-                            type="button"
-                            className="text-start hover:text-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 dark:hover:text-blue-300"
-                            onClick={() => setSelectedId(session.id)}
-                          >
-                            {session.title}
-                          </button>
-                        </td>
-                        <td className="px-3 py-3 text-xs text-slate-500">
-                          {labels[session.contextType]}
-                        </td>
-                        <td className="px-3 py-3 whitespace-nowrap text-xs text-slate-500">
-                          {new Date(session.sessionDate).toLocaleString("fa-IR", {
-                            timeZone: "Asia/Tehran",
-                          })}
-                        </td>
-                        <td className="px-3 py-3 text-center">{session.present}</td>
-                        <td className="px-3 py-3 text-center">{session.absent}</td>
-                        <td className="px-3 py-3 text-center">{session.unmarked ?? "—"}</td>
-                        <td className="px-3 py-3 text-end">
-                          <button
-                            type="button"
-                            className={`${action} min-h-9 border border-[rgb(var(--border-subtle))] px-3 text-xs`}
-                            onClick={() => setSelectedId(session.id)}
-                          >
-                            مشاهده
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
+                  {sessionItems.map((session) => (
+                    <tr key={session.id} className="hover:bg-[rgb(var(--surface-muted))]">
+                      <td className="px-3 py-3 font-bold">
+                        <button
+                          type="button"
+                          className="text-start hover:text-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 dark:hover:text-blue-300"
+                          onClick={() => setSelectedId(session.id)}
+                        >
+                          <span className="inline-flex flex-wrap items-center gap-2">
+                            <span>{session.title}</span>
+                            {session.contextType === "dorm" ? (
+                              <span
+                                className={`rounded-lg px-2 py-1 text-[10px] font-black ${session.attendancePeriod === "night" ? "bg-indigo-100 text-indigo-900 dark:bg-indigo-950/50 dark:text-indigo-100" : "bg-amber-100 text-amber-900 dark:bg-amber-950/50 dark:text-amber-100"}`}
+                              >
+                                {session.attendancePeriod === "night" ? "شب · اصلی" : "روز"}
+                              </span>
+                            ) : null}
+                          </span>
+                        </button>
+                      </td>
+                      <td className="px-3 py-3 text-xs text-slate-500">
+                        {labels[session.contextType]}
+                      </td>
+                      <td className="px-3 py-3 text-xs text-slate-500">
+                        <div>{session.teacherName || "استاد ثبت نشده"}</div>
+                        <div className="mt-0.5 text-slate-400">
+                          {session.subjectName || "کتاب ثبت نشده"}
+                        </div>
+                      </td>
+                      <td className="px-3 py-3 text-xs text-slate-500">
+                        <div>{session.academicYearName || "بدون سال"}</div>
+                        <div className="mt-0.5 text-slate-400">
+                          {session.termName || "بدون نیم‌سال"}
+                        </div>
+                      </td>
+                      <td className="px-3 py-3 whitespace-nowrap text-xs text-slate-500">
+                        {new Date(session.sessionDate).toLocaleString("fa-IR", {
+                          timeZone: "Asia/Tehran",
+                        })}
+                      </td>
+                      <td className="px-3 py-3 text-center text-xs text-slate-500">
+                        <div>{session.status}</div>
+                        <div className="mt-0.5 text-slate-400">
+                          ویرایش {session.revision.toLocaleString("fa-IR")}
+                        </div>
+                      </td>
+                      <td className="px-3 py-3 text-center">{session.present}</td>
+                      <td className="px-3 py-3 text-center">{session.absent}</td>
+                      <td className="px-3 py-3 text-center">{session.unmarked ?? "—"}</td>
+                      <td className="px-3 py-3 text-end">
+                        <button
+                          type="button"
+                          className={`${action} min-h-9 border border-[rgb(var(--border-subtle))] px-3 text-xs`}
+                          onClick={() => setSelectedId(session.id)}
+                        >
+                          مشاهده
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
             </div>
-          )}
-          {sessions.data && !sessionItems.some((session) => session.contextType === category) ? (
+          ) : null}
+          {officeTab !== "reports" && history.data && !sessionItems.length ? (
             <p className="py-4 text-center text-sm text-slate-500">
               جلسه‌ای در این بخش ثبت نشده است.
             </p>
           ) : null}
-          {sessions.data && sessions.data.total > 0 ? (
+          {officeTab !== "reports" && history.data && history.data.total > 0 ? (
             <nav
               aria-label="صفحه‌بندی سوابق حضور"
               className="flex items-center justify-between gap-2"
@@ -1265,21 +2155,21 @@ export function AttendanceStaffWorkspace({
               <button
                 type="button"
                 className={`${action} border border-[rgb(var(--border-subtle))]`}
-                disabled={sessions.isFetching || sessions.data.page <= 1}
+                disabled={history.isFetching || history.data.page <= 1}
                 onClick={() => setSessionsPage((page) => Math.max(1, page - 1))}
               >
                 جدیدتر
               </button>
               <span className="text-xs text-slate-500">
-                صفحه {sessions.data.page.toLocaleString("fa-IR")} از{" "}
-                {Math.max(1, Math.ceil(sessions.data.total / sessions.data.limit)).toLocaleString(
+                صفحه {history.data.page.toLocaleString("fa-IR")} از{" "}
+                {Math.max(1, Math.ceil(history.data.total / history.data.limit)).toLocaleString(
                   "fa-IR",
                 )}
               </span>
               <button
                 type="button"
                 className={`${action} border border-[rgb(var(--border-subtle))]`}
-                disabled={sessions.isFetching || !sessions.data.hasNext}
+                disabled={history.isFetching || !history.data.hasNext}
                 onClick={() => setSessionsPage((page) => page + 1)}
               >
                 قدیمی‌تر

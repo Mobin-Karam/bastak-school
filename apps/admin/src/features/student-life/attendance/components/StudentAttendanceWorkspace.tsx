@@ -1,6 +1,7 @@
 import { attendanceRequestId } from "../model/attendance-request-id";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useSearchParams } from "react-router-dom";
 import { Check, Radio, Building2 } from "lucide-react";
 import type {
   DormAttendanceAssignment,
@@ -161,7 +162,10 @@ function DormAttendanceEditor({
     ...member,
     studentNumber: "",
     status:
-      assignment.records.find((record) => record.studentId === member.id)?.status ?? "unmarked",
+      member.approvedLeave || member.authorizedExit
+        ? "excused"
+        : (assignment.records.find((record) => record.studentId === member.id)?.status ??
+          "present"),
   })) as AttendanceParticipant[];
   const baseline = useRef(initial);
   const editingRevision = useRef(assignment.revision);
@@ -211,7 +215,7 @@ function DormAttendanceEditor({
   const entries = participants.map((member) => ({
     studentId: member.id,
     status: (member.status === "unmarked" ? "present" : member.status) as
-      "present" | "absent" | "late",
+      "present" | "absent" | "late" | "excused",
   }));
   async function save() {
     if (busy || !assignment.canMark || !entries.length) return;
@@ -219,14 +223,18 @@ function DormAttendanceEditor({
     setError("");
     try {
       const input = {
+        roomId: assignment.roomId,
         nightDate: assignment.nightDate,
+        attendancePeriod: assignment.attendancePeriod,
         expectedRevision: editingRevision.current,
         entries,
       };
       const fingerprint = JSON.stringify(input);
       if (pending.current?.fingerprint !== fingerprint)
         pending.current = { fingerprint, body: { ...input, requestId: attendanceRequestId() } };
-      await markDelegatedDormAttendance(assignment.id, pending.current.body);
+      const request = pending.current;
+      if (!request) throw new Error("درخواست حضور آماده نشد.");
+      await markDelegatedDormAttendance(assignment.id, request.body);
       pending.current = null;
       notify("حضور اتاق ثبت شد.", "success");
       onSaved();
@@ -248,6 +256,49 @@ function DormAttendanceEditor({
         description="مسئولیت شما فقط حضور ساکنان همین اتاق در شب جاری است."
       >
         <div className="space-y-4">
+          <Card className="grid gap-3 border-blue-200 bg-blue-50/70 p-4 dark:border-blue-900 dark:bg-blue-950/30">
+            <div className="flex items-center gap-3">
+              <span className="grid size-12 shrink-0 place-items-center rounded-2xl bg-white text-blue-700 shadow-sm dark:bg-slate-900 dark:text-blue-300">
+                <Building2 size={23} aria-hidden="true" />
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="text-xs font-bold text-blue-800 dark:text-blue-200">
+                  اتاق محل مسئولیت
+                </p>
+                <h2 className="mt-0.5 truncate text-lg font-black text-ink">
+                  {assignment.roomName}
+                </h2>
+              </div>
+              <span className="shrink-0 rounded-xl bg-white px-3 py-2 text-xs font-black text-ink dark:bg-slate-900">
+                شب{" "}
+                {new Intl.DateTimeFormat("fa-IR-u-ca-persian", {
+                  timeZone: "Asia/Tehran",
+                  month: "2-digit",
+                  day: "2-digit",
+                }).format(new Date(`${assignment.nightDate}T12:00:00`))}
+              </span>
+            </div>
+            <div className="grid grid-cols-3 gap-2 text-center">
+              <div className="rounded-xl bg-white/80 p-2 dark:bg-slate-900/80">
+                <p className="text-[10px] text-slate-500">ساکن</p>
+                <p className="text-lg font-black text-ink">
+                  {participants.length.toLocaleString("fa-IR")}
+                </p>
+              </div>
+              <div className="rounded-xl bg-white/80 p-2 dark:bg-slate-900/80">
+                <p className="text-[10px] text-slate-500">غایب</p>
+                <p className="text-lg font-black text-rose-700 dark:text-rose-300">
+                  {counts.absent.toLocaleString("fa-IR")}
+                </p>
+              </div>
+              <div className="rounded-xl bg-white/80 p-2 dark:bg-slate-900/80">
+                <p className="text-[10px] text-slate-500">وضعیت‌نداده</p>
+                <p className="text-lg font-black text-ink">
+                  {counts.unmarked.toLocaleString("fa-IR")}
+                </p>
+              </div>
+            </div>
+          </Card>
           <p className="rounded-xl bg-blue-50 p-3 text-sm leading-6 text-blue-800 dark:bg-blue-950/30 dark:text-blue-200">
             حضور با زمان فعلی ثبت می‌شود. اجازه شما از شب {assignment.startsOn} تا شب{" "}
             {assignment.endsOn} است.
@@ -288,6 +339,7 @@ function DormAttendanceEditor({
             <>
               <AttendanceRosterView
                 canManage={assignment.canMark}
+                dormReviewMode
                 participants={participants}
                 filtered={filtered}
                 selected
@@ -336,6 +388,7 @@ function DormAttendanceEditor({
 }
 
 export function StudentAttendanceWorkspace({ scope }: { scope: string }) {
+  const [searchParams] = useSearchParams();
   const [assignmentId, setAssignmentId] = useState<string | null>(null);
   const [pool, setPool] = useState<StudentAttendancePool | null>(null);
   const assignments = useQuery({
@@ -352,7 +405,36 @@ export function StudentAttendanceWorkspace({ scope }: { scope: string }) {
     setAssignmentId(null);
     setPool(null);
   }, [scope]);
-  const selected = assignments.data?.find((item) => item.id === assignmentId);
+  useEffect(() => {
+    const roomId = searchParams.get("roomId");
+    const date = searchParams.get("date");
+    const period = searchParams.get("period");
+    if (!roomId || !date || (period !== "day" && period !== "night") || !assignments.data) return;
+    const target = assignments.data.find(
+      (item) =>
+        item.roomId === roomId && item.nightDate === date && item.attendancePeriod === period,
+    );
+    if (target?.canMark) setAssignmentId(target.occurrenceId);
+  }, [assignments.data, searchParams]);
+  const selected = assignments.data?.find((item) => item.occurrenceId === assignmentId);
+  const roomGroups = new Map<string, DormAttendanceAssignment[]>();
+  for (const assignment of assignments.data ?? []) {
+    const group = roomGroups.get(assignment.roomName) ?? [];
+    group.push(assignment);
+    roomGroups.set(assignment.roomName, group);
+  }
+  const orderedRoomGroups = [...roomGroups.entries()].sort(([left], [right]) => {
+    const number = (value: string) => Number(value.match(/\d+/)?.[0]);
+    const a = number(left);
+    const b = number(right);
+    return Number.isFinite(a) && Number.isFinite(b) && a !== b
+      ? a - b
+      : left.localeCompare(right, "fa", { numeric: true, sensitivity: "base" });
+  });
+  for (const [, slots] of orderedRoomGroups)
+    slots.sort(
+      (a, b) => a.nightDate.localeCompare(b.nightDate) || (a.attendancePeriod === "day" ? -1 : 1),
+    );
   return (
     <>
       {assignments.isError ? (
@@ -368,25 +450,68 @@ export function StudentAttendanceWorkspace({ scope }: { scope: string }) {
           <h2 className="flex items-center gap-2 font-black">
             <Building2 size={20} /> مسئولیت حضور اتاق
           </h2>
-          {assignments.data.map((assignment) => (
-            <div
-              key={assignment.id}
-              className="rounded-2xl border border-[rgb(var(--border-subtle))] p-4"
-            >
-              <p className="font-bold">{assignment.roomName}</p>
-              <p className="mt-1 text-xs leading-6 text-slate-500">
-                شب‌های {assignment.startsOn} تا {assignment.endsOn} · فقط ساکنان این اتاق
-              </p>
-              <button
-                type="button"
-                disabled={!assignment.canMark}
-                onClick={() => setAssignmentId(assignment.id)}
-                className="mt-3 min-h-12 w-full rounded-xl bg-blue-600 text-sm font-bold text-white disabled:opacity-50"
+          <p className="text-xs leading-5 text-slate-500">
+            اتاق مسئولیت‌دار را انتخاب کنید؛ حضور فقط برای ساکنان همان اتاق ثبت می‌شود.
+          </p>
+          <div className="grid gap-3 sm:grid-cols-2">
+            {orderedRoomGroups.map(([roomName, slots], roomIndex) => (
+              <section
+                key={roomName}
+                className="rounded-2xl border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-muted))] p-3"
               >
-                {assignment.canMark ? "ثبت حضور شب جاری" : "مسئولیت هنوز آغاز نشده است"}
-              </button>
-            </div>
-          ))}
+                <h3 className="mb-2 flex items-center gap-2 text-base font-black text-ink">
+                  <span className="grid size-8 place-items-center rounded-lg bg-blue-100 text-sm text-blue-900 dark:bg-blue-950 dark:text-blue-100">
+                    {(roomIndex + 1).toLocaleString("fa-IR")}
+                  </span>
+                  اتاق {roomName}
+                </h3>
+                <div className="grid grid-cols-2 gap-2">
+                  {slots.map((assignment) => (
+                    <button
+                      key={assignment.occurrenceId}
+                      type="button"
+                      disabled={!assignment.canMark}
+                      onClick={() => setAssignmentId(assignment.occurrenceId)}
+                      className="min-h-24 rounded-xl border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card))] p-2.5 text-right transition hover:border-blue-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand disabled:opacity-60"
+                    >
+                      <span
+                        className={`block text-xs font-black ${assignment.attendancePeriod === "night" ? "text-indigo-700 dark:text-indigo-300" : "text-amber-700 dark:text-amber-300"}`}
+                      >
+                        {assignment.attendancePeriod === "night" ? "شب · اصلی" : "روز"} ·{" "}
+                        {assignment.attendanceRole === "primary"
+                          ? "ثبت اصلی خوابگاه"
+                          : "بازبینی اتاق"}
+                      </span>
+                      <span className="mt-1 block text-sm font-bold text-ink">
+                        {new Intl.DateTimeFormat("fa-IR-u-ca-persian", {
+                          timeZone: "Asia/Tehran",
+                          weekday: "short",
+                          month: "2-digit",
+                          day: "2-digit",
+                        }).format(new Date(`${assignment.nightDate}T12:00:00`))}
+                      </span>
+                      <span className="mt-1 block text-[10px] text-slate-500">
+                        {assignment.academicYearName} · {assignment.termName}
+                      </span>
+                      <span className="mt-1 block text-[11px] font-bold text-brand">
+                        {assignment.canMark
+                          ? assignment.records.length
+                            ? "ویرایش حضور"
+                            : "ثبت حضور"
+                          : assignment.sessionStatus === "submitted"
+                            ? "در انتظار بازبینی ناظر"
+                            : assignment.sessionStatus === "finalized"
+                              ? "نهایی و بایگانی‌شده"
+                              : assignment.sessionStatus === "cancelled"
+                                ? "لغو شده"
+                                : "بازه بسته است"}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </section>
+            ))}
+          </div>
         </Card>
       ) : null}
       {pools.isError ? (
@@ -415,7 +540,7 @@ export function StudentAttendanceWorkspace({ scope }: { scope: string }) {
       ) : null}
       {selected?.canMark ? (
         <DormAttendanceEditor
-          key={`${scope}:${selected.id}:${selected.nightDate}`}
+          key={`${scope}:${selected.occurrenceId}`}
           assignment={selected}
           scope={scope}
           onClose={() => setAssignmentId(null)}

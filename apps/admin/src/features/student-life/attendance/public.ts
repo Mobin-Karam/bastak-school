@@ -11,6 +11,7 @@ export {
   getAttendanceOverview,
   awardAttendancePoints,
   listMyAttendanceAbsenceReviews,
+  getTeacherStudentClassProfile,
 } from "./api";
 export type {
   AttendanceBulkMarkRequest,

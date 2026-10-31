@@ -323,6 +323,9 @@ export function ExitPermissionsPage() {
                 <div className="flex flex-wrap items-center gap-2">
                   <h2 className="font-black text-ink">{row.studentName}</h2>
                   <Badge tone={tones[row.status]}>{labels[row.status]}</Badge>
+                  {row.origin === "dorm_unauthorized" ? (
+                    <Badge tone="red">خروج غیرمجاز</Badge>
+                  ) : null}
                 </div>
                 <p className="mt-1 text-sm font-bold text-brand">{row.destination}</p>
                 <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">{row.reason}</p>

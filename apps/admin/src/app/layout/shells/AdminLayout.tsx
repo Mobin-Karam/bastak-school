@@ -13,6 +13,7 @@ import { useAdminShellModel } from "../hooks/use-admin-shell-model";
 import { useViewportShell } from "../lib/viewport-shell";
 import { currentViewportHeight } from "../lib/viewport-height";
 import { StudentPortalOnboarding } from "../../../features/people/student-portal/components/StudentPortalOnboarding";
+import { PrincipalScheduleSubstitutionInbox } from "../../../features/academics/schedule/components/PrincipalScheduleSubstitutionInbox";
 
 const StudentAttendancePoolPrompt = lazy(() =>
   import("../../../features/student-life/attendance/components/StudentAttendanceWorkspace").then(
@@ -104,6 +105,7 @@ export function AdminLayout() {
     >
       <StudentPortalOnboarding />
       <PrincipalLeaveRequestAlert />
+      <PrincipalScheduleSubstitutionInbox />
       {model.auth.can("attendance.self.read") ? (
         <Suspense fallback={null}>
           <StudentAttendancePoolPrompt />

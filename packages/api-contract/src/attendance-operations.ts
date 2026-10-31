@@ -14,13 +14,36 @@ export type DormAttendanceDelegate = {
   endsOn: string;
   revoked: boolean;
   dormWide?: boolean;
+  assignmentKind?: "dorm_wide" | "room";
 };
 export type DormAttendanceAssignment = DormAttendanceDelegate & {
+  occurrenceId: string;
   nightDate: string;
+  attendancePeriod: "day" | "night";
+  attendanceRole: "primary" | "room_check";
+  sessionStatus?:
+    | "scheduled"
+    | "open"
+    | "draft"
+    | "submitted"
+    | "finalized"
+    | "cancelled"
+    | null;
+  academicYearName?: string | null;
+  termName?: string | null;
   revision: number;
   canMark: boolean;
-  roster: Array<{ id: string; name: string }>;
-  records: Array<{ studentId: string; status: PhysicalAttendanceStatus }>;
+  roster: Array<{
+    id: string;
+    name: string;
+    approvedLeave?: { startsAt: string; endsAt: string } | null;
+    authorizedExit?: boolean;
+    overdueReturn?: boolean;
+  }>;
+  records: Array<{
+    studentId: string;
+    status: PhysicalAttendanceStatus | "excused";
+  }>;
 };
 export type DormDelegateDraft = {
   studentId: string;
@@ -30,8 +53,65 @@ export type DormDelegateDraft = {
 export type DormAttendanceWrite = {
   requestId: string;
   expectedRevision: number;
+  roomId: string;
   nightDate: string;
-  entries: Array<{ studentId: string; status: PhysicalAttendanceStatus }>;
+  attendancePeriod?: "day" | "night";
+  entries: Array<{
+    studentId: string;
+    status: PhysicalAttendanceStatus | "excused";
+  }>;
+};
+export type DormAttendanceComparison = {
+  state: "waiting" | "matched" | "mismatch";
+  roomCheckSessionId: string | null;
+  roomCheckerName: string | null;
+  checkedCount: number;
+  mismatchCount: number;
+  differences: Array<{
+    studentId: string;
+    name: string;
+    primaryStatus: PhysicalAttendanceStatus | "excused" | null;
+    roomCheckStatus: PhysicalAttendanceStatus | "excused" | null;
+  }>;
+};
+export type DormSchoolPresence = {
+  totalStudents: number;
+  dormResidents: number;
+  currentlyOutside: number;
+  authorizedOutside: number;
+  unauthorizedOutside: number;
+  currentlyInSchool: number;
+};
+export type DormAttendanceReviewItem = {
+  id: string;
+  roomId: string;
+  roomName: string;
+  sessionDate: string;
+  operationalDate: string | null;
+  attendancePeriod: "day" | "night";
+  attendanceRole: "primary" | "room_check";
+  delegateStudentId: string | null;
+  delegateStudentName: string | null;
+  revision: number;
+  total: number;
+  recorded: number;
+  present: number;
+  absent: number;
+  late: number;
+  excused: number;
+  authorizedOutside: number;
+  attention: Array<{
+    studentId: string;
+    name: string;
+    status: "absent" | "late" | "excused";
+    authorizedOutside: boolean;
+    illegalDeparture: boolean;
+    exitPermissionId: string | null;
+  }>;
+  schoolPresence: DormSchoolPresence;
+  comparison: DormAttendanceComparison;
+  supervisorNote: string;
+  reviewUrl: string;
 };
 export type AttendancePoolDraft = {
   requestId: string;
@@ -104,6 +184,33 @@ export type StaffAttendanceProfile = {
     sessionDate: string;
     status: PhysicalAttendanceStatus | "excused";
     note: string;
+  }>;
+};
+/** Attendance history and coins for one student in a teacher's class/book assignment. */
+export type TeacherStudentClassAttendanceProfile = {
+  studentId: string;
+  studentName: string;
+  classId: string;
+  className: string;
+  bookId: string;
+  bookName: string;
+  teacherName: string;
+  totalCoins: number;
+  totalSessions: number;
+  counts: {
+    present: number;
+    absent: number;
+    late: number;
+    excused: number;
+    unmarked: number;
+  };
+  sessions: Array<{
+    sessionId: string;
+    sessionDate: string;
+    title: string;
+    status: PhysicalAttendanceStatus | "excused" | "unmarked";
+    note: string;
+    coins: number;
   }>;
 };
 export type AttendanceEncouragement = {

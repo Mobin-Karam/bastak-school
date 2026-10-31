@@ -7,9 +7,10 @@ import { PrincipalDashboardController } from "./principal-dashboard.controller";
 import { PrincipalDashboardService } from "./principal-dashboard.service";
 import { ScheduleModule } from "../schedule/schedule.module";
 import { SchoolHomeModule } from "../school-home/school-home.module";
+import { NotificationsModule } from "../notifications/notifications.module";
 
 @Module({
-  imports: [ScheduleModule, SchoolHomeModule],
+  imports: [ScheduleModule, SchoolHomeModule, NotificationsModule],
   controllers: [
     DashboardHomeController,
     LegacyDashboardController,

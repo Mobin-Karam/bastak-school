@@ -2,6 +2,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { cleanup, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { MemoryRouter } from "react-router-dom";
 import type { PropsWithChildren } from "react";
 import { LocaleProvider } from "../../../../shared/ui/locale";
 import {
@@ -43,7 +44,9 @@ function Providers({ children }: PropsWithChildren) {
     <QueryClientProvider
       client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
     >
-      <LocaleProvider>{children}</LocaleProvider>
+      <MemoryRouter>
+        <LocaleProvider>{children}</LocaleProvider>
+      </MemoryRouter>
     </QueryClientProvider>
   );
 }
@@ -65,6 +68,7 @@ describe("student room responsibility and gathering prompts", () => {
     mocks.assignments.mockResolvedValue([
       {
         id: "delegate",
+        occurrenceId: "occurrence-delegate",
         roomId: "room",
         roomName: "اتاق الف",
         studentId: "student",
@@ -81,13 +85,13 @@ describe("student room responsibility and gathering prompts", () => {
     ]);
     const user = userEvent.setup();
     render(<StudentAttendanceWorkspace scope="student-scope" />, { wrapper: Providers });
-    await user.click(await screen.findByRole("button", { name: "ثبت حضور شب جاری" }));
+    await user.click(await screen.findByRole("button", { name: /ثبت حضور/ }));
     expect(screen.getByRole("combobox", { name: "فیلتر وضعیت" })).toBeInTheDocument();
     expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
     expect(screen.queryByText("تاریخ جلسه")).not.toBeInTheDocument();
     await user.click(
       within(screen.getByRole("group", { name: "وضعیت احمد" })).getByRole("button", {
-        name: "حاضر",
+        name: "غایب",
       }),
     );
     await user.click(screen.getByRole("button", { name: "بررسی و ثبت حضور اتاق" }));
@@ -98,15 +102,16 @@ describe("student room responsibility and gathering prompts", () => {
         expect.objectContaining({
           nightDate: "2026-10-11",
           expectedRevision: 0,
-          entries: [{ studentId: "resident", status: "present" }],
+          entries: [{ studentId: "resident", status: "absent" }],
         }),
       ),
     );
   });
-  it("keeps residents unmarked until confirmation, then records an explicit all-present dorm roster", async () => {
+  it("confirms and records the default present status for every dorm resident", async () => {
     mocks.assignments.mockResolvedValue([
       {
         id: "delegate-all-present",
+        occurrenceId: "occurrence-all-present",
         roomId: "room",
         roomName: "اتاق الف",
         studentId: "student",
@@ -126,8 +131,9 @@ describe("student room responsibility and gathering prompts", () => {
     ]);
     const user = userEvent.setup();
     render(<StudentAttendanceWorkspace scope="student-scope" />, { wrapper: Providers });
-    await user.click(await screen.findByRole("button", { name: "ثبت حضور شب جاری" }));
-    await user.click(screen.getByRole("button", { name: "تأیید حضور همه ساکنان" }));
+    await user.click(await screen.findByRole("button", { name: /ثبت حضور/ }));
+    expect(screen.getAllByText("حاضر", { selector: "span" }).length).toBeGreaterThanOrEqual(2);
+    await user.click(screen.getByRole("button", { name: "بررسی و ثبت حضور اتاق" }));
     expect(
       screen.getByText("هیچ غایب یا تأخیری انتخاب نشده است؛ با تأیید، حضور همه ساکنان ثبت می‌شود."),
     ).toBeInTheDocument();
@@ -148,6 +154,12 @@ describe("student room responsibility and gathering prompts", () => {
     mocks.assignments.mockResolvedValue([
       {
         id: "future",
+        occurrenceId: "occurrence-future",
+        roomId: "room",
+        nightDate: "2026-10-13",
+        attendancePeriod: "night",
+        attendanceRole: "primary",
+        records: [],
         roomName: "اتاق ب",
         startsOn: "2026-10-13",
         endsOn: "2026-10-14",
@@ -155,9 +167,7 @@ describe("student room responsibility and gathering prompts", () => {
       },
     ]);
     render(<StudentAttendanceWorkspace scope="student-scope" />, { wrapper: Providers });
-    expect(
-      await screen.findByRole("button", { name: "مسئولیت هنوز آغاز نشده است" }),
-    ).toBeDisabled();
+    expect(await screen.findByRole("button", { name: /بازه بسته است/ })).toBeDisabled();
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
   it("opens a live gathering prompt and submits only the signed-in student's confirmation", async () => {

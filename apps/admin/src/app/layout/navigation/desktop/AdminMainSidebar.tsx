@@ -1,10 +1,19 @@
-import { ChevronDown, ChevronLeft, ChevronRight, LayoutDashboard, Search } from "lucide-react";
+import {
+  BellRing,
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  LayoutDashboard,
+  Search,
+} from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { NavLink } from "react-router-dom";
 import { adminDestination, localizedNavigationForCapabilities } from "../config/admin-navigation";
 import { useAuth } from "../../../../features/identity/auth";
+import { useAdminNotifications } from "../../../../features/communications/notifications";
 import { rolePortalTitle } from "../../../../shared/lib/role-ui";
 import { useAdminShellCopy, useLocale } from "../../../../shared/ui/locale";
+import { AdminAccountMenu } from "../../components/AdminAccountMenu";
 
 export function AdminMainSidebar({
   collapsed,
@@ -26,6 +35,7 @@ export function AdminMainSidebar({
   viewport?: "tablet" | "desktop";
 }) {
   const auth = useAuth();
+  const { unread } = useAdminNotifications();
   const { language } = useLocale();
   const copy = useAdminShellCopy();
   const navigationGroups = localizedNavigationForCapabilities(
@@ -73,6 +83,12 @@ export function AdminMainSidebar({
   };
   const DashboardIcon = dashboard.icon;
   const dashboardActive = currentPath === "";
+  const showPrincipalNotifications =
+    auth.activeRole === "PRINCIPAL" && auth.can("announcements.read") && unread > 0;
+  const principalNotificationsLabel =
+    language === "en"
+      ? `${Math.min(unread, 99).toLocaleString("en-US")}${unread > 99 ? "+" : ""} unread notifications need your review`
+      : `${Math.min(unread, 99).toLocaleString("fa-IR")}${unread > 99 ? "+" : ""} اعلان خوانده‌نشده برای بررسی دارید`;
   return (
     <aside
       className={`admin-main-rail fixed inset-y-0 start-0 z-50 hidden flex-col border-e border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card))] transition-[width,padding] duration-200 motion-reduce:transition-none ${viewport === "tablet" ? "md:flex min-[1200px]:hidden" : "min-[1200px]:flex"} ${direction === "rtl" ? "shadow-[-1px_0_0_rgb(24_24_27_/_2%)]" : "shadow-[1px_0_0_rgb(24_24_27_/_2%)]"} ${collapsed ? "w-[4.25rem] p-2" : "w-60 p-3"}`}
@@ -119,6 +135,33 @@ export function AdminMainSidebar({
           )}
         </button>
       </div>
+
+      {showPrincipalNotifications ? (
+        <NavLink
+          to={adminDestination("communication/notifications", "ارتباطات", selectedStudentId)}
+          title={principalNotificationsLabel}
+          aria-label={principalNotificationsLabel}
+          className={`mb-3 flex min-h-12 w-full shrink-0 items-center rounded-xl border border-amber-300/70 bg-amber-50 px-3 text-amber-950 outline-none transition hover:border-amber-400 hover:bg-amber-100 focus-visible:ring-2 focus-visible:ring-amber-600 dark:border-amber-400/40 dark:bg-amber-950/60 dark:text-amber-50 dark:hover:bg-amber-950 ${collapsed ? "justify-center px-2" : "gap-2"}`}
+        >
+          <span className="relative grid size-7 shrink-0 place-items-center rounded-lg bg-amber-500 text-amber-950 shadow-sm">
+            <BellRing size={16} strokeWidth={2.4} aria-hidden="true" />
+            <span className="absolute -end-2 -top-2 min-w-5 rounded-full bg-rose-600 px-1 text-center text-[10px] font-black leading-5 text-white">
+              {Math.min(unread, 99).toLocaleString(language === "en" ? "en-US" : "fa-IR")}
+              {unread > 99 ? "+" : ""}
+            </span>
+          </span>
+          {!collapsed ? (
+            <span className="min-w-0 text-start">
+              <span className="block text-xs font-black">
+                {language === "en" ? "Principal inbox" : "صندوق بررسی مدیر"}
+              </span>
+              <span className="block truncate text-[11px] font-semibold text-amber-800 dark:text-amber-200">
+                {principalNotificationsLabel}
+              </span>
+            </span>
+          ) : null}
+        </NavLink>
+      ) : null}
 
       {dashboard ? (
         <NavLink
@@ -229,6 +272,9 @@ export function AdminMainSidebar({
           />
         ) : null}
       </div>
+      <footer className="mt-3 shrink-0 border-t border-[rgb(var(--border-subtle))] pt-3">
+        <AdminAccountMenu compact={collapsed} />
+      </footer>
     </aside>
   );
 }

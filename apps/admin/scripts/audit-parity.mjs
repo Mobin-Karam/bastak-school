@@ -153,6 +153,7 @@ const dynamicConsumers = {
   "const suffix = query.size ?": ["GET /prayer-times"],
   "const query = context ?": ["GET /dashboard/home"],
   getAttendanceReportSummary: ["GET /attendance/reports/summary"],
+  getReviewablePresentSessions: ["GET /attendance/reviewable-present-sessions"],
   'approved ? "approve" : "reject"': [
     "POST /auth/phone-change-requests/:id/approve",
     "POST /auth/phone-change-requests/:id/reject",
@@ -203,6 +204,7 @@ const excluded = (endpoint) =>
 // Exact compatibility projections: current UI obtains these facts through scoped canonical endpoints.
 const equivalentWorkflowRoutes = new Set([
   "GET /students/:id/attendance-summary", // /attendance/students/:id/profile, staff review only
+  "GET /attendance/staff-sessions", // legacy staff summary; the Admin archive uses richer paginated /attendance/history/sessions with the same scope
   "GET /students/:id/profile", // student directory/detail plus separately gated attendance profile
   "PATCH /students/:id/profile", // same UpdateStudentDto as PATCH /students/:id
   "GET /archive/dashboard", // /dashboard/home

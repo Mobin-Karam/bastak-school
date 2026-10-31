@@ -10,10 +10,22 @@ import { EducationClassEnrollment } from "../../database/entities/education-clas
 import { OrganizationMembership } from "../../database/entities/organization-membership.entity";
 import { Organization } from "../../database/entities/organization.entity";
 import { SchoolScheduleEntry } from "../../database/entities/school-schedule-entry.entity";
+import {
+  SchoolAcademicYear,
+  SchoolAcademicTerm,
+} from "../../database/entities/school-academic-year.entity";
 import { SchoolScheduleTimeBlock } from "../../database/entities/school-schedule-time-block.entity";
+import { SchoolScheduleTimeBlockGroup } from "../../database/entities/school-schedule-time-block-group.entity";
 import { SchoolScheduleTemplate } from "../../database/entities/school-schedule-template.entity";
+import {
+  SchoolScheduleOccurrenceOverride,
+  SchoolScheduleSubstitutionRequest,
+} from "../../database/entities/school-schedule-substitution.entity";
 import { EducationClassBook } from "../../database/entities/education-class-book.entity";
 import { UserRelationship } from "../../database/entities/user-relationship.entity";
+import { TeacherLeaveRequest } from "../../database/entities/teacher-leave-request.entity";
+import { AuditLog } from "../../database/entities/audit-log.entity";
+import { AttendanceSession } from "../../database/entities/attendance-session.entity";
 import { ScheduleController } from "./schedule.controller";
 import { ScheduleService } from "./schedule.service";
 @Module({
@@ -23,8 +35,16 @@ import { ScheduleService } from "./schedule.service";
     NotificationsModule,
     TypeOrmModule.forFeature([
       SchoolScheduleEntry,
+      SchoolAcademicYear,
+      SchoolAcademicTerm,
       SchoolScheduleTimeBlock,
+      SchoolScheduleTimeBlockGroup,
       SchoolScheduleTemplate,
+      SchoolScheduleOccurrenceOverride,
+      SchoolScheduleSubstitutionRequest,
+      TeacherLeaveRequest,
+      AuditLog,
+      AttendanceSession,
       EducationClassBook,
       Organization,
       OrganizationMembership,

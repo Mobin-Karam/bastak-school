@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   bulkMarkAttendance,
-  awardAttendancePoints,
+  getTeacherStudentClassProfile,
   getAttendanceParticipants,
   listMyAttendanceAbsenceReviews,
   prepareAttendanceWrite,
@@ -10,23 +10,22 @@ import {
   useAttendanceDiscard,
 } from "../../../student-life/attendance/public";
 import { useAuth } from "../../../identity/auth";
-import {
-  BadgeCheck,
-  Check,
-  CircleCheck,
-  CircleX,
-  Clock3,
-  MessageSquareText,
-  Minus,
-  Plus,
-} from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { BadgeCheck, Check, CircleCheck, CircleX, Clock3, MessageSquareText } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { ScheduleEntry } from "../../../academics/schedule/api/schedule.api";
 import { notify } from "../../../../shared/ui/notifications";
 import { api } from "../../../../shared/api/api";
 import { ResponsiveModal } from "../../../../shared/ui/responsive-modal";
 import { Button, EmptyState, LoadingState } from "../../../../shared/ui/ui";
 import { AttendanceCoin } from "../../../../shared/ui/attendance-coin";
+import { DatePicker } from "../../../../shared/ui/date-picker";
+import { ResponsiveDrawer } from "../../../../shared/ui/responsive-drawer";
+import { TeacherStudentAttendanceProfile } from "./TeacherStudentAttendanceProfile";
+import { reportOutsideStudentPresent } from "../../../student-life/attendance/api/attendance-operations.api";
+import {
+  listTeacherLeaveRequests,
+  requestTeacherLeaveReturn,
+} from "../../../academics/schedule/api/teacher-leave.api";
 
 type AttendanceStatus = SelfAttendanceRecord["status"];
 
@@ -35,15 +34,44 @@ const attendanceActions: Array<{
   label: string;
   activeClassName: string;
 }> = [
-  { status: "present", label: "حاضر", activeClassName: "bg-emerald-600 text-white" },
-  { status: "absent", label: "غایب", activeClassName: "bg-rose-600 text-white" },
+  { status: "present", label: "ح · حاضر", activeClassName: "bg-emerald-600 text-white" },
+  { status: "absent", label: "غ · غایب", activeClassName: "bg-rose-600 text-white" },
   {
     status: "late",
-    label: "تأخیر",
+    label: "ت · تأخیر",
     activeClassName: "bg-amber-100 text-amber-950 dark:bg-amber-950 dark:text-amber-100",
   },
-  { status: "excused", label: "موجه", activeClassName: "bg-sky-600 text-white" },
+  { status: "excused", label: "م · موجه", activeClassName: "bg-sky-600 text-white" },
 ];
+
+const isoDay = (date: Date) => date.toISOString().slice(0, 10);
+export function latestTeacherSessionDate(date: string, weekday: number) {
+  const current = new Date(`${date}T12:00:00Z`);
+  while ((current.getUTCDay() + 1) % 7 !== weekday) current.setUTCDate(current.getUTCDate() - 1);
+  return isoDay(current);
+}
+function nearestSessionDate(date: string, weekday: number, direction: -1 | 1) {
+  const next = new Date(`${date}T12:00:00Z`);
+  do next.setUTCDate(next.getUTCDate() + direction);
+  while ((next.getUTCDay() + 1) % 7 !== weekday);
+  return isoDay(next);
+}
+function firstSessionDateOnOrAfter(date: string, weekday: number) {
+  const first = new Date(`${date}T12:00:00Z`);
+  while ((first.getUTCDay() + 1) % 7 !== weekday) first.setUTCDate(first.getUTCDate() + 1);
+  return isoDay(first);
+}
+function clampTeacherSessionDate(
+  date: string,
+  weekday: number,
+  minimum?: string,
+  maximum?: string,
+) {
+  let aligned = latestTeacherSessionDate(date, weekday);
+  if (minimum && aligned < minimum) aligned = firstSessionDateOnOrAfter(minimum, weekday);
+  if (maximum && aligned > maximum) aligned = latestTeacherSessionDate(maximum, weekday);
+  return aligned;
+}
 
 /** Class roster and physical attendance management for a teacher's own scheduled class. */
 export function TeacherClassAttendanceSheet({
@@ -51,11 +79,17 @@ export function TeacherClassAttendanceSheet({
   open,
   onOpenChange,
   canManage,
+  initialDate,
+  semesterStartsOn,
+  semesterEndsOn,
 }: {
   entry: ScheduleEntry | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   canManage: boolean;
+  initialDate?: string;
+  semesterStartsOn?: string;
+  semesterEndsOn?: string;
 }) {
   const client = useQueryClient();
   const auth = useAuth();
@@ -71,12 +105,13 @@ export function TeacherClassAttendanceSheet({
   const [clearConfirmationOpen, setClearConfirmationOpen] = useState(false);
   const [marks, setMarks] = useState<Record<string, AttendanceStatus>>({});
   const [reasons, setReasons] = useState<Record<string, string>>({});
-  const [pointTarget, setPointTarget] = useState<{
-    id: string;
-    name: string;
-    points: number;
-  } | null>(null);
-  const [pointReason, setPointReason] = useState("");
+  const [savedSessionId, setSavedSessionId] = useState<string | null>(null);
+  const [reportText, setReportText] = useState<Record<string, string>>({});
+  const [reportTarget, setReportTarget] = useState<{ id: string; name: string } | null>(null);
+  const [profileStudentId, setProfileStudentId] = useState<string | null>(null);
+  const [leaveReturnPromptOpen, setLeaveReturnPromptOpen] = useState(false);
+  const [sessionDate, setSessionDate] = useState(() => isoDay(new Date()));
+  const entryWeekday = entry?.weekday;
   const participants = useQuery({
     queryKey: ["attendance", "participants", scopeKey, "class", entry?.classroom?.id],
     queryFn: () => getAttendanceParticipants("class", entry!.classroom!.id),
@@ -87,9 +122,51 @@ export function TeacherClassAttendanceSheet({
     queryFn: listMyAttendanceAbsenceReviews,
     enabled: open,
   });
+  const teacherLeaves = useQuery({
+    queryKey: ["teacher-leaves", "attendance-sheet", scopeKey],
+    queryFn: listTeacherLeaveRequests,
+    enabled: open,
+  });
+  const teacherStudentProfile = useQuery({
+    queryKey: ["teacher", "student-class-profile", scopeKey, entry?.id, profileStudentId],
+    queryFn: () => getTeacherStudentClassProfile(profileStudentId!, entry!.id),
+    enabled: Boolean(profileStudentId && entry?.id),
+  });
   const classReviews = (reviews.data ?? []).filter(
     (review) => review.contextType === "class" && review.contextId === entry?.classroom?.id,
   );
+  const activeLeave = (teacherLeaves.data ?? []).find(
+    (leave) =>
+      leave.status === "approved" &&
+      leave.startDate <= sessionDate &&
+      leave.endDate >= sessionDate &&
+      !(leave.returnStatus === "approved" && leave.returnDate && leave.returnDate <= sessionDate),
+  );
+  const requestLeaveReturn = useMutation({
+    mutationFn: (leaveId: string) =>
+      requestTeacherLeaveReturn(leaveId, { returnDate: sessionDate }),
+    onSuccess: () => {
+      setLeaveReturnPromptOpen(false);
+      void client.invalidateQueries({ queryKey: ["teacher-leaves"] });
+      notify("درخواست بازگشت برای تأیید مدیر ارسال شد.", "success");
+    },
+    onError: (error) =>
+      notify(error instanceof Error ? error.message : "ارسال درخواست بازگشت انجام نشد.", "error"),
+  });
+  const recentAbsenceCounts = useMemo(() => {
+    const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+    return (reviews.data ?? []).reduce<Record<string, number>>((counts, review) => {
+      const sessionTimestamp = Date.parse(review.sessionDate);
+      if (
+        review.status !== "absent" ||
+        !Number.isFinite(sessionTimestamp) ||
+        sessionTimestamp < sevenDaysAgo
+      )
+        return counts;
+      counts[review.studentId] = (counts[review.studentId] ?? 0) + 1;
+      return counts;
+    }, {});
+  }, [reviews.data]);
 
   useEffect(() => {
     setReviewing(false);
@@ -97,9 +174,39 @@ export function TeacherClassAttendanceSheet({
     setMarks({});
     setReasons({});
     pendingWrite.current = null;
-    setPointTarget(null);
-    setPointReason("");
-  }, [entry?.id, open, scopeKey]);
+    setSavedSessionId(null);
+    setReportText({});
+    setReportTarget(null);
+    setProfileStudentId(null);
+    setSessionDate(
+      entryWeekday !== undefined
+        ? clampTeacherSessionDate(
+            initialDate ?? isoDay(new Date()),
+            entryWeekday,
+            semesterStartsOn,
+            semesterEndsOn,
+          )
+        : isoDay(new Date()),
+    );
+  }, [entry?.id, entryWeekday, initialDate, open, scopeKey, semesterStartsOn, semesterEndsOn]);
+
+  useEffect(() => {
+    if (!open || !entry) return;
+    let active = true;
+    void api
+      .get<{ id: string; revision: number } | null>(
+        `/attendance/legacy-schedule-session?entryId=${encodeURIComponent(entry.id)}&date=${encodeURIComponent(sessionDate)}`,
+      )
+      .then((session) => {
+        if (active) setSavedSessionId(session?.id ?? null);
+      })
+      .catch(() => {
+        if (active) setSavedSessionId(null);
+      });
+    return () => {
+      active = false;
+    };
+  }, [entry, open, sessionDate]);
 
   // The roster is an attendance-taking surface: a teacher starts from a full
   // present register and records only exceptions. The API still receives an
@@ -124,45 +231,93 @@ export function TeacherClassAttendanceSheet({
 
   const save = useMutation({
     onMutate: () => ({ scopeKey }),
-    mutationFn: () => {
+    mutationFn: async () => {
       if (!entry?.classroom?.id) throw new Error("این کلاس هنوز به برنامه متصل نشده است.");
       const entries = Object.entries(marks).map(([studentId, status]) => ({
         studentId,
         status,
-        note: status === "absent" ? reasons[studentId]?.trim() || undefined : undefined,
+        note:
+          status === "excused" || status === "absent"
+            ? reasons[studentId]?.trim() || undefined
+            : undefined,
       }));
       if (!entries.length) throw new Error("برای ثبت، وضعیت دست‌کم یک دانش‌آموز را انتخاب کنید.");
+      const scheduled = await api.post<{ id: string; revision: number; duplicate: boolean }>(
+        "/attendance/legacy-schedule-session",
+        { entryId: entry.id, date: sessionDate },
+      );
       const write = prepareAttendanceWrite(
         pendingWrite.current,
         JSON.stringify({
           scopeKey,
           scheduleId: entry.id,
+          sessionId: scheduled.id,
           organizationId: entry.organization.id,
           classroomId: entry.classroom.id,
           entries,
         }),
         () => ({
           organizationId: entry.organization.id,
-          contextType: "class",
-          contextId: entry.classroom!.id,
-          sessionDate: new Date().toISOString(),
+          sessionId: scheduled.id,
+          expectedRevision: scheduled.revision,
           entries,
         }),
       );
       pendingWrite.current = write;
       return bulkMarkAttendance(write.body);
     },
-    onSuccess: (_, __, context) => {
+    onSuccess: (result, __, context) => {
       if (context?.scopeKey !== scopeRef.current) return;
       pendingWrite.current = null;
       void client.invalidateQueries({ queryKey: ["attendance"] });
       notify("حضور و غیاب کلاس ثبت شد.", "success");
-      onOpenChange(false);
+      setSavedSessionId(result.sessionId);
+      setReviewing(false);
     },
     onError: (error, _, context) => {
       if (context?.scopeKey !== scopeRef.current) return;
+      if (error instanceof Error && error.message.includes("مرخصی تأییدشده")) {
+        setLeaveReturnPromptOpen(true);
+      }
       notify(error instanceof Error ? error.message : "ثبت حضور و غیاب انجام نشد.", "error");
     },
+  });
+  const report = useMutation({
+    mutationFn: ({ studentId, message }: { studentId: string; message: string }) => {
+      if (!savedSessionId) throw new Error("ابتدا حضور این جلسه را ثبت کنید.");
+      return api.post(
+        `/attendance/sessions/${encodeURIComponent(savedSessionId)}/students/${encodeURIComponent(studentId)}/reports`,
+        { message },
+      );
+    },
+    onSuccess: (_, values) => {
+      setReportText((current) => ({ ...current, [values.studentId]: "" }));
+      setReportTarget(null);
+      notify("گزارش برای مدیر ارسال شد.", "success");
+    },
+    onError: (error) =>
+      notify(error instanceof Error ? error.message : "ارسال گزارش انجام نشد.", "error"),
+  });
+  const reportOutsidePresence = useMutation({
+    mutationFn: (studentId: string) => {
+      if (!savedSessionId) throw new Error("ابتدا حضور جلسه را ذخیره کنید.");
+      return reportOutsideStudentPresent(savedSessionId, studentId);
+    },
+    onSuccess: (_result, studentId) => {
+      client.setQueryData(
+        ["attendance", "participants", scopeKey, "class", entry?.classroom?.id],
+        (current: typeof participants.data) =>
+          current?.map((student) =>
+            student.id === studentId ? { ...student, outsidePresenceReported: true } : student,
+          ),
+      );
+      notify(
+        "گزارش حضور برای تأیید مدیر ارسال شد؛ آمار مدرسه پس از تأیید تغییر می‌کند.",
+        "success",
+      );
+    },
+    onError: (error) =>
+      notify(error instanceof Error ? error.message : "ارسال گزارش حضور انجام نشد.", "error"),
   });
 
   // A complete "present" register is the starting state, not an unsaved edit.
@@ -183,25 +338,76 @@ export function TeacherClassAttendanceSheet({
     );
     setReasons({});
   };
-  const points = useMutation({
-    mutationFn: () => {
-      if (!entry?.classroom?.id || !pointTarget)
-        throw new Error("دانش‌آموز یا کلاس انتخاب نشده است.");
-      if (pointReason.trim().length < 3) throw new Error("دلیل سکه را وارد کنید.");
-      return awardAttendancePoints({
-        requestId: crypto.randomUUID(),
-        organizationId: entry.organization.id,
-        contextType: "class",
-        contextId: entry.classroom.id,
-        studentId: pointTarget.id,
-        points: pointTarget.points,
-        reason: pointReason.trim(),
-      });
+  const hasMissingExcusedReason = (participants.data ?? []).some(
+    (student) => marks[student.id] === "excused" && !(reasons[student.id] ?? "").trim(),
+  );
+  const canMoveToNextSession = entry
+    ? nearestSessionDate(sessionDate, entry.weekday, 1) <= isoDay(new Date()) &&
+      (!semesterEndsOn || nearestSessionDate(sessionDate, entry.weekday, 1) <= semesterEndsOn)
+    : false;
+  const previousSessionDate = entry ? nearestSessionDate(sessionDate, entry.weekday, -1) : null;
+  const canMoveToPreviousSession = Boolean(
+    previousSessionDate && (!semesterStartsOn || previousSessionDate >= semesterStartsOn),
+  );
+  const canManageSelectedSession =
+    canManage &&
+    sessionDate <= isoDay(new Date()) &&
+    (!semesterStartsOn || sessionDate >= semesterStartsOn) &&
+    (!semesterEndsOn || sessionDate <= semesterEndsOn);
+  const sessionCoins = useQuery({
+    queryKey: ["attendance", "session-coins", savedSessionId],
+    queryFn: () =>
+      api.get<Array<{ studentId: string; coins: number; revision: number }>>(
+        `/attendance/sessions/${encodeURIComponent(savedSessionId!)}/coins`,
+      ),
+    enabled: Boolean(savedSessionId),
+  });
+  const savedAttendance = useQuery({
+    queryKey: ["attendance", "session-detail", savedSessionId],
+    queryFn: () =>
+      api.get<{
+        records: Array<{ studentId: string; legacyStatus: AttendanceStatus; note: string }>;
+      }>(`/attendance/sessions/${encodeURIComponent(savedSessionId!)}`),
+    enabled: Boolean(savedSessionId),
+  });
+  useEffect(() => {
+    if (!savedSessionId || !savedAttendance.data || !participants.data?.length) return;
+    const known = new Map(savedAttendance.data.records.map((record) => [record.studentId, record]));
+    setMarks(
+      Object.fromEntries(
+        participants.data.map((student) => [
+          student.id,
+          known.get(student.id)?.legacyStatus ?? "present",
+        ]),
+      ),
+    );
+    setReasons(
+      Object.fromEntries(
+        savedAttendance.data.records
+          .filter((record) => Boolean(record.note))
+          .map((record) => [record.studentId, record.note]),
+      ),
+    );
+  }, [participants.data, savedAttendance.data, savedSessionId]);
+  const coinsByStudent = useMemo(
+    () => Object.fromEntries((sessionCoins.data ?? []).map((coin) => [coin.studentId, coin])),
+    [sessionCoins.data],
+  );
+  const setCoins = useMutation({
+    mutationFn: ({ studentId, coins }: { studentId: string; coins: number }) => {
+      if (!savedSessionId) throw new Error("ابتدا حضور این جلسه را ثبت کنید.");
+      return api.patch(
+        `/attendance/sessions/${encodeURIComponent(savedSessionId)}/students/${encodeURIComponent(studentId)}/coins`,
+        {
+          requestId: crypto.randomUUID(),
+          coins,
+          expectedRevision: coinsByStudent[studentId]?.revision ?? 0,
+        },
+      );
     },
     onSuccess: () => {
-      notify("سکه کلاسی ثبت شد.", "success");
-      setPointTarget(null);
-      setPointReason("");
+      void client.invalidateQueries({ queryKey: ["attendance", "session-coins", savedSessionId] });
+      notify("سکه جلسه ثبت شد.", "success");
     },
     onError: (error) =>
       notify(error instanceof Error ? error.message : "ثبت سکه انجام نشد.", "error"),
@@ -223,6 +429,47 @@ export function TeacherClassAttendanceSheet({
         }
       >
         <section aria-label="فهرست دانش‌آموزان کلاس">
+          {entry ? (
+            <div className="mt-4 flex flex-wrap items-end gap-2 rounded-xl bg-[rgb(var(--surface-muted))] p-3">
+              <Button
+                size="sm"
+                variant="soft"
+                disabled={!canMoveToPreviousSession}
+                onClick={() => {
+                  if (canMoveToPreviousSession && previousSessionDate)
+                    setSessionDate(previousSessionDate);
+                }}
+              >
+                جلسه قبل
+              </Button>
+              <label className="grid gap-1 text-xs font-bold text-slate-600 dark:text-slate-300">
+                تاریخ جلسه
+                <DatePicker
+                  value={sessionDate}
+                  min={semesterStartsOn}
+                  max={semesterEndsOn}
+                  onChange={(date) =>
+                    setSessionDate(
+                      clampTeacherSessionDate(
+                        date,
+                        entry.weekday,
+                        semesterStartsOn,
+                        semesterEndsOn,
+                      ),
+                    )
+                  }
+                />
+              </label>
+              <Button
+                size="sm"
+                variant="soft"
+                onClick={() => setSessionDate(nearestSessionDate(sessionDate, entry.weekday, 1))}
+                disabled={!canMoveToNextSession}
+              >
+                جلسه بعد
+              </Button>
+            </div>
+          ) : null}
           {!entry?.classroom?.id ? (
             <div className="mt-5">
               <EmptyState title="برای این برنامه کلاس مشخص نشده است." />
@@ -242,11 +489,13 @@ export function TeacherClassAttendanceSheet({
           ) : (
             <>
               <p className="mt-5 text-xs leading-5 text-slate-600 dark:text-slate-300">
-                {canManage
-                  ? reviewing
-                    ? "انتخاب‌های خود را بررسی کنید و سپس ثبت را تأیید کنید."
-                    : "همه دانش‌آموزان حاضر هستند؛ فقط وضعیت استثناها را تغییر دهید و سپس به بررسی بروید."
-                  : "فهرست دانش‌آموزان این کلاس در اختیار شماست."}
+                {sessionDate > isoDay(new Date())
+                  ? "این جلسه هنوز برگزار نشده است؛ حضور و غیاب تا زمان برگزاری غیرفعال است."
+                  : canManage
+                    ? reviewing
+                      ? "انتخاب‌های خود را بررسی کنید و سپس ثبت را تأیید کنید."
+                      : "همه دانش‌آموزان حاضر هستند؛ فقط وضعیت استثناها را تغییر دهید و سپس به بررسی بروید."
+                    : "فهرست دانش‌آموزان این کلاس در اختیار شماست."}
               </p>
               {classReviews.length && !reviewing ? (
                 <div className="mt-3 rounded-xl border border-sky-200 bg-sky-50 p-3 text-xs dark:border-sky-900/60 dark:bg-sky-950/25">
@@ -275,15 +524,57 @@ export function TeacherClassAttendanceSheet({
                 {participants.data.map((student) => (
                   <li
                     key={student.id}
-                    className="rounded-2xl border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-muted))] p-3"
+                    className={`rounded-2xl border bg-[rgb(var(--surface-muted))] p-3 ${student.outsideSchool ? "border-rose-600 ring-2 ring-rose-400/60 dark:border-rose-400 dark:ring-rose-500/50" : recentAbsenceCounts[student.id] ? "border-amber-400 ring-1 ring-amber-300/70 dark:border-amber-500 dark:ring-amber-500/40" : "border-[rgb(var(--border-subtle))]"}`}
                   >
                     <div className="flex items-center justify-between gap-2">
-                      <p className="min-w-0 truncate text-sm font-bold text-ink">{student.name}</p>
-                      <span className="shrink-0 text-[11px] text-slate-600 dark:text-slate-300">
-                        {student.nationalCode || "دانش‌آموز"}
-                      </span>
+                      <div className="flex min-w-0 items-center gap-2">
+                        <p className="truncate text-sm font-bold text-ink">{student.name}</p>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="shrink-0 whitespace-nowrap"
+                          aria-label={`مشاهده پرونده ${student.name}`}
+                          onClick={() => setProfileStudentId(student.id)}
+                        >
+                          پرونده
+                        </Button>
+                      </div>
+                      <div className="flex shrink-0 items-center gap-1.5">
+                        {recentAbsenceCounts[student.id] ? (
+                          <span className="rounded-full bg-amber-100 px-2 py-1 text-[10px] font-black text-amber-900 dark:bg-amber-950/60 dark:text-amber-100">
+                            {recentAbsenceCounts[student.id].toLocaleString("fa-IR")} غیبت در ۷ روز
+                          </span>
+                        ) : null}
+                        <span className="text-[11px] text-slate-600 dark:text-slate-300">
+                          {student.nationalCode || "دانش‌آموز"}
+                        </span>
+                      </div>
                     </div>
-                    {canManage ? (
+                    {student.outsideSchool ? (
+                      <div className="mt-2 flex flex-wrap items-center justify-between gap-2 rounded-lg bg-rose-100 px-3 py-2 text-xs font-black text-rose-950 dark:bg-rose-950/60 dark:text-rose-100">
+                        <span>
+                          {student.outsidePresenceReported
+                            ? "گزارش حضور در انتظار تأیید مدیر"
+                            : "خارج از مدرسه"}
+                        </span>
+                        {student.outsidePresenceReported ? null : marks[student.id] === "present" &&
+                          savedSessionId ? (
+                          <button
+                            type="button"
+                            disabled={reportOutsidePresence.isPending}
+                            onClick={() => reportOutsidePresence.mutate(student.id)}
+                            className="min-h-9 rounded-lg border border-rose-500 bg-white px-3 font-bold text-rose-900 disabled:opacity-50 dark:bg-slate-950 dark:text-rose-100"
+                          >
+                            گزارش حضور به مدیر
+                          </button>
+                        ) : (
+                          <span className="font-medium">
+                            برای گزارش، حضور را ثبت و جلسه را ذخیره کنید.
+                          </span>
+                        )}
+                      </div>
+                    ) : null}
+                    {canManageSelectedSession ? (
                       <div
                         className="mt-3 grid grid-cols-4 gap-1.5"
                         role="group"
@@ -318,9 +609,12 @@ export function TeacherClassAttendanceSheet({
                         })}
                       </div>
                     ) : null}
-                    {canManage && marks[student.id] === "absent" ? (
+                    {canManageSelectedSession &&
+                    (marks[student.id] === "excused" || marks[student.id] === "absent") ? (
                       <label className="mt-2 block text-xs font-bold text-slate-600 dark:text-slate-300">
-                        دلیل غیبت
+                        {marks[student.id] === "excused"
+                          ? "توضیح موجه (اجباری)"
+                          : "توضیح غیبت (اختیاری)"}
                         <input
                           value={reasons[student.id] ?? ""}
                           onChange={(event) =>
@@ -331,42 +625,55 @@ export function TeacherClassAttendanceSheet({
                           }
                           disabled={save.isPending}
                           maxLength={500}
-                          placeholder="دلیل اعلام‌شده توسط دانش‌آموز یا ولی"
+                          placeholder={
+                            marks[student.id] === "excused"
+                              ? "علت موجه‌بودن را بنویسید"
+                              : "در صورت نیاز، توضیح غیبت را بنویسید"
+                          }
                           className="mt-1 min-h-10 w-full rounded-lg border border-[rgb(var(--border-subtle))] bg-card px-3 text-xs font-normal text-ink outline-none focus-visible:ring-2 focus-visible:ring-brand"
                         />
                       </label>
                     ) : null}
-                    {canManage ? (
+                    {canManageSelectedSession && savedSessionId ? (
                       <div className="mt-3 flex items-center gap-2 border-t border-[rgb(var(--border-subtle))] pt-2">
                         <span className="flex items-center gap-1 text-[11px] font-bold text-slate-500">
-                          <AttendanceCoin className="size-4 object-contain" /> سکه کلاسی
+                          <AttendanceCoin className="size-4 object-contain" /> سکه همین جلسه (۰ تا
+                          ۳)
                         </span>
-                        <button
-                          type="button"
-                          disabled={save.isPending || points.isPending}
-                          onClick={() => {
-                            setPointTarget({ id: student.id, name: student.name, points: 1 });
-                            setPointReason("");
-                          }}
-                          aria-label={`افزودن یک سکه برای ${student.name}`}
-                          title="افزودن یک سکه"
-                          className="grid min-h-9 min-w-9 place-items-center rounded-lg bg-emerald-50 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-200"
+                        <div
+                          className="ms-auto flex gap-1"
+                          role="group"
+                          aria-label={`سکه ${student.name}`}
                         >
-                          <Plus size={16} aria-hidden="true" />
-                        </button>
-                        <button
-                          type="button"
-                          disabled={save.isPending || points.isPending}
-                          onClick={() => {
-                            setPointTarget({ id: student.id, name: student.name, points: -1 });
-                            setPointReason("");
-                          }}
-                          aria-label={`کسر یک سکه از ${student.name}`}
-                          title="کسر یک سکه"
-                          className="grid min-h-9 min-w-9 place-items-center rounded-lg bg-rose-50 text-rose-800 dark:bg-rose-950/40 dark:text-rose-200"
+                          {[0, 1, 2, 3].map((coins) => (
+                            <button
+                              key={coins}
+                              type="button"
+                              aria-pressed={(coinsByStudent[student.id]?.coins ?? 0) === coins}
+                              disabled={setCoins.isPending}
+                              onClick={() => setCoins.mutate({ studentId: student.id, coins })}
+                              className={`grid min-h-9 min-w-9 place-items-center rounded-lg text-xs font-black ${
+                                (coinsByStudent[student.id]?.coins ?? 0) === coins
+                                  ? "bg-amber-400 text-amber-950"
+                                  : "bg-[rgb(var(--surface-muted))] text-slate-600 dark:text-slate-300"
+                              }`}
+                            >
+                              {coins}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    ) : null}
+                    {canManageSelectedSession && savedSessionId ? (
+                      <div className="mt-3 flex items-center justify-between border-t border-[rgb(var(--border-subtle))] pt-3">
+                        <span className="text-xs text-slate-500">گزارش خصوصی برای مدیر</span>
+                        <Button
+                          size="sm"
+                          variant="soft"
+                          onClick={() => setReportTarget({ id: student.id, name: student.name })}
                         >
-                          <Minus size={16} aria-hidden="true" />
-                        </button>
+                          گزارش
+                        </Button>
                       </div>
                     ) : null}
                   </li>
@@ -415,7 +722,7 @@ export function TeacherClassAttendanceSheet({
                   ) : null}
                 </div>
               ) : null}
-              {canManage ? (
+              {canManageSelectedSession ? (
                 <div className="sticky bottom-0 mt-4 bg-card pt-3">
                   {clearConfirmationOpen ? (
                     <div
@@ -454,7 +761,9 @@ export function TeacherClassAttendanceSheet({
                     <Button
                       variant="soft"
                       className="flex-1"
-                      disabled={!Object.keys(marks).length || save.isPending}
+                      disabled={
+                        !Object.keys(marks).length || save.isPending || hasMissingExcusedReason
+                      }
                       onClick={() => {
                         if (reviewing) {
                           setReviewing(false);
@@ -487,34 +796,101 @@ export function TeacherClassAttendanceSheet({
         </section>
       </ResponsiveModal>
       {discard.confirmation}
-      <ResponsiveModal
-        open={Boolean(pointTarget)}
-        onOpenChange={(next) => !next && !points.isPending && setPointTarget(null)}
-        title={pointTarget?.points && pointTarget.points > 0 ? "افزودن سکه کلاسی" : "کسر سکه کلاسی"}
-        description={pointTarget?.name ?? ""}
+      <ResponsiveDrawer
+        open={Boolean(profileStudentId)}
+        onOpenChange={(next) => !next && setProfileStudentId(null)}
+        title="کارنامه دانش‌آموز"
+        description={`${entry?.classroom?.name ?? "کلاس"} · ${entry?.classBook?.book.titleFa ?? entry?.title ?? "کتاب"}`}
+        desktopSide="left"
       >
-        <div className="space-y-4" dir="rtl">
-          <p className="text-sm leading-6">
-            برای ثبت {pointTarget?.points ?? 0} سکه، دلیل روشن و قابل پیگیری وارد کنید.
+        {teacherStudentProfile.data ? (
+          <TeacherStudentAttendanceProfile profile={teacherStudentProfile.data} />
+        ) : teacherStudentProfile.isLoading ? (
+          <LoadingState label="در حال دریافت پرونده دانش‌آموز…" />
+        ) : (
+          <EmptyState
+            title={
+              teacherStudentProfile.isError
+                ? "اطلاعات حضور دریافت نشد."
+                : "دانش‌آموزی انتخاب نشده است."
+            }
+            description={
+              teacherStudentProfile.isError
+                ? "دوباره تلاش کنید یا دسترسی این برنامه به کلاس را بررسی کنید."
+                : undefined
+            }
+            action={
+              <Button
+                variant="soft"
+                onClick={() => {
+                  void teacherStudentProfile.refetch();
+                }}
+              >
+                تلاش دوباره
+              </Button>
+            }
+          />
+        )}
+      </ResponsiveDrawer>
+      <ResponsiveModal
+        open={leaveReturnPromptOpen && Boolean(activeLeave)}
+        onOpenChange={setLeaveReturnPromptOpen}
+        title="شما در بازه مرخصی هستید"
+        description="برای ثبت حضور این جلسه، ابتدا درخواست بازگشت خود را برای تأیید مدیر ارسال کنید."
+      >
+        <div className="grid gap-3" dir="rtl">
+          <p className="rounded-xl bg-amber-50 p-3 text-sm leading-6 text-amber-950 dark:bg-amber-950/40 dark:text-amber-100">
+            بازگشت از {sessionDate} درخواست می‌شود. تا تأیید مدیر، جلسه‌های مرخصی‌دار همچنان منجمد
+            هستند.
           </p>
-          <label className="block text-sm font-bold">
-            دلیل
-            <textarea
-              autoFocus
-              value={pointReason}
-              onChange={(event) => setPointReason(event.target.value)}
-              maxLength={500}
-              className="mt-2 min-h-24 w-full rounded-xl border border-[rgb(var(--border-subtle))] bg-card p-3 font-normal"
-            />
-          </label>
-          <Button
-            loading={points.isPending}
-            disabled={pointReason.trim().length < 3}
-            onClick={() => points.mutate()}
-          >
-            ثبت سکه
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              variant="soft"
+              className="flex-1"
+              onClick={() => setLeaveReturnPromptOpen(false)}
+            >
+              فعلاً خیر
+            </Button>
+            <Button
+              className="flex-1"
+              disabled={!activeLeave || requestLeaveReturn.isPending}
+              onClick={() => activeLeave && requestLeaveReturn.mutate(activeLeave.id)}
+            >
+              ارسال درخواست بازگشت
+            </Button>
+          </div>
         </div>
+      </ResponsiveModal>
+      <ResponsiveModal
+        open={Boolean(reportTarget)}
+        onOpenChange={(next) => !next && setReportTarget(null)}
+        title="گزارش خصوصی برای مدیر"
+        description={reportTarget ? `دربارهٔ ${reportTarget.name}` : ""}
+      >
+        {reportTarget ? (
+          <div className="space-y-3" dir="rtl">
+            <textarea
+              value={reportText[reportTarget.id] ?? ""}
+              onChange={(event) =>
+                setReportText((current) => ({ ...current, [reportTarget.id]: event.target.value }))
+              }
+              maxLength={2000}
+              placeholder="مشاهده، نگرانی یا پیگیری مربوط به این دانش‌آموز"
+              className="min-h-32 w-full rounded-xl border border-[rgb(var(--border-subtle))] bg-card p-3 text-sm"
+            />
+            <Button
+              disabled={report.isPending || (reportText[reportTarget.id] ?? "").trim().length < 2}
+              onClick={() =>
+                report.mutate({
+                  studentId: reportTarget.id,
+                  message: reportText[reportTarget.id].trim(),
+                })
+              }
+            >
+              ارسال برای مدیر
+            </Button>
+          </div>
+        ) : null}
       </ResponsiveModal>
     </>
   );

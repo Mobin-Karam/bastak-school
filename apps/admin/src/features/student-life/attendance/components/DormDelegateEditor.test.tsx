@@ -45,7 +45,7 @@ describe("dorm delegation scopes", () => {
   it("assigns a school dorm resident to all rooms through the explicit all-room endpoint", async () => {
     const user = userEvent.setup();
     render(<DormDelegateEditor roomId="all" members={[]} scope="school" />, { wrapper: Providers });
-    await user.click(screen.getByText("مسئول حضور تمام اتاق‌های خوابگاه"));
+    await user.click(screen.getByText("مسئول اصلی حضور همه اتاق‌ها"));
     await screen.findByRole("option", { name: "علی" });
     await user.selectOptions(screen.getByRole("combobox"), "resident");
     await user.click(
@@ -75,7 +75,7 @@ describe("dorm delegation scopes", () => {
     ]);
     const user = userEvent.setup();
     render(<DormDelegateEditor roomId="all" members={[]} scope="school" />, { wrapper: Providers });
-    await user.click(await screen.findByText("مسئول حضور تمام اتاق‌های خوابگاه: علی"));
+    await user.click(await screen.findByText("مسئول اصلی حضور همه اتاق‌ها: علی"));
     await user.click(screen.getByRole("button", { name: "لغو مسئولیت" }));
     await waitFor(() => expect(mocks.revokeAll).toHaveBeenCalledOnce());
     expect(mocks.revokeRoom).not.toHaveBeenCalled();
@@ -91,7 +91,7 @@ describe("dorm delegation scopes", () => {
       />,
       { wrapper: Providers },
     );
-    await screen.findByText("مسئول حضور اتاق");
+    await screen.findByText("مسئول بررسی مستقل این اتاق");
     expect(mocks.residents).not.toHaveBeenCalled();
   });
 });

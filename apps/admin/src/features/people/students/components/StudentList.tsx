@@ -154,7 +154,8 @@ export function StudentList({
         <div className="min-w-0">
           <strong className="block truncate text-ink">{student.name}</strong>
           <span className="mt-1 block truncate text-xs text-slate-500 dark:text-slate-400">
-            {student.grade || copy.educationNotSet}
+            {[student.className, student.grade, student.major].filter(Boolean).join(" · ") ||
+              copy.educationNotSet}
           </span>
         </div>
       ),
@@ -195,6 +196,7 @@ export function StudentList({
           {[student.grade, student.major].filter(Boolean).join(" / ") || copy.educationNotSet}
         </span>
       ),
+      mobileVisible: false,
     },
     {
       id: "classId",
@@ -206,6 +208,7 @@ export function StudentList({
         options: classOptions.map((item) => ({ value: item.id, label: item.name })),
       },
       cell: (student) => student.className || "—",
+      mobileVisible: false,
     },
     {
       id: "guardians",
@@ -218,6 +221,7 @@ export function StudentList({
           {(student.guardians?.length || 0).toLocaleString(locale)}
         </span>
       ),
+      mobileVisible: false,
     },
     {
       id: "completeness",
@@ -225,6 +229,7 @@ export function StudentList({
       value: (student) => getStudentProfileCompleteness(student),
       cell: (student) => <Completeness student={student} language={language} />,
       filter: { type: "select", options: [{ value: "incomplete", label: copy.profileIncomplete }] },
+      mobileVisible: false,
     },
     {
       id: "lastSeen",
@@ -235,6 +240,7 @@ export function StudentList({
           {formatStudentLastSeen(student.last_seen_at, language)}
         </span>
       ),
+      mobileVisible: false,
     },
   ];
   function onQueryChange(next: DataTableQuery) {

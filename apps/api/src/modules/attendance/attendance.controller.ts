@@ -17,9 +17,15 @@ import { AuthenticatedUser } from "../auth";
 import { AttendanceService } from "./attendance.service";
 import {
   BulkMarkAttendanceDto,
+  SaveSupervisorAttendanceCheckDto,
   CreateAttendanceSessionDto,
+  OpenLegacyScheduleAttendanceDto,
+  CreateHistoricalAttendanceSessionDto,
+  HistoricalAttendanceCandidatesQueryDto,
   ReviewAttendanceAbsenceDto,
+  DailyAttendanceReviewDto,
   AwardAttendancePointsDto,
+  SetAttendanceSessionStudentCoinDto,
   SubmitAttendanceAbsencesDto,
   FinalizeAttendanceSessionDto,
   CancelAttendanceSessionDto,
@@ -41,6 +47,28 @@ export class AttendanceController {
     @Param("id") id: string,
   ) {
     return this.attendance.sessionDetail(user, id).then(ok);
+  }
+
+  @Get("attendance/supervisor-sessions")
+  @RequireCapabilities("attendance.read")
+  supervisorSessions(@CurrentUser() user: AuthenticatedUser) {
+    return this.attendance.listSupervisorSessions(user).then(ok);
+  }
+
+  @Post("attendance/sessions/:id/supervisor-check")
+  @RequireCapabilities("attendance.manage")
+  saveSupervisorCheck(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param("id") id: string,
+    @Body() dto: SaveSupervisorAttendanceCheckDto,
+  ) {
+    return this.attendance.saveSupervisorCheck(user, id, dto).then(ok);
+  }
+
+  @Get("attendance/supervisor-comparisons")
+  @RequireCapabilities("attendance.review")
+  supervisorComparisons(@CurrentUser() user: AuthenticatedUser) {
+    return this.attendance.listSupervisorComparisons(user).then(ok);
   }
 
   @Get("attendance/sessions/:id/history")
@@ -67,9 +95,23 @@ export class AttendanceController {
     @CurrentUser() user: AuthenticatedUser,
     @Param("contextType") contextType: string,
     @Param("contextId") contextId: string,
+    @Query("date") occurrenceDate?: string,
+    @Query("period") attendancePeriod?: "day" | "night",
   ) {
     return this.attendance
-      .listParticipants(user, contextType, contextId)
+      .listParticipants(user, contextType, contextId, occurrenceDate, attendancePeriod)
+      .then(ok);
+  }
+
+  @Get("attendance/teacher-students/:studentId/class-profile")
+  @RequireCapabilities("attendance.class.read")
+  teacherStudentClassProfile(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param("studentId") studentId: string,
+    @Query("entryId") entryId: string,
+  ) {
+    return this.attendance
+      .teacherStudentClassProfile(user, studentId, entryId)
       .then(ok);
   }
 
@@ -98,6 +140,39 @@ export class AttendanceController {
     @Body() dto: CreateAttendanceSessionDto,
   ) {
     return this.attendance.createSession(user, dto).then(ok);
+  }
+  @Post("attendance/legacy-schedule-session")
+  @RequireAnyCapabilities("attendance.manage", "attendance.class.manage")
+  openLegacyScheduleSession(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() dto: OpenLegacyScheduleAttendanceDto,
+  ) {
+    return this.attendance.openLegacyScheduleSession(user, dto).then(ok);
+  }
+  @Get("attendance/legacy-schedule-session")
+  @RequireAnyCapabilities("attendance.read", "attendance.class.manage")
+  findLegacyScheduleSession(
+    @CurrentUser() user: AuthenticatedUser,
+    @Query() dto: OpenLegacyScheduleAttendanceDto,
+  ) {
+    return this.attendance.findLegacyScheduleSession(user, dto).then(ok);
+  }
+  @Post("attendance/historical-sessions")
+  @RequireCapabilities("attendance.manage")
+  createHistoricalSession(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() dto: CreateHistoricalAttendanceSessionDto,
+  ) {
+    return this.attendance.createHistoricalSession(user, dto).then(ok);
+  }
+
+  @Get("attendance/historical-candidates")
+  @RequireCapabilities("attendance.manage")
+  historicalCandidates(
+    @CurrentUser() user: AuthenticatedUser,
+    @Query() query: HistoricalAttendanceCandidatesQueryDto,
+  ) {
+    return this.attendance.historicalCandidates(user, query).then(ok);
   }
 
   @Post("attendance/bulk-mark")
@@ -131,8 +206,23 @@ export class AttendanceController {
 
   @Post("attendance/sessions/:id/daily-review")
   @RequireCapabilities("attendance.review")
-  dailyReview(@CurrentUser() user: AuthenticatedUser, @Param("id") id: string) {
-    return this.attendance.reviewSessionEvery24Hours(user, id).then(ok);
+  dailyReview(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param("id") id: string,
+    @Body() dto: DailyAttendanceReviewDto,
+  ) {
+    return this.attendance.reviewSessionEvery24Hours(user, id, dto).then(ok);
+  }
+
+  @Get("attendance/reviewable-present-sessions")
+  @RequireCapabilities("attendance.review")
+  reviewablePresentSessions(
+    @CurrentUser() user: AuthenticatedUser,
+    @Query("organizationId") organizationId?: string,
+  ) {
+    return this.attendance
+      .listReviewablePresentSessions(user, organizationId)
+      .then(ok);
   }
 
   @Post("attendance/sessions/:id/cancel")
@@ -199,8 +289,11 @@ export class AttendanceController {
   absenceReviews(
     @CurrentUser() user: AuthenticatedUser,
     @Query("organizationId") organizationId?: string,
+    @Query("contextType") contextType?: string,
   ) {
-    return this.attendance.listAbsenceReviews(user, organizationId).then(ok);
+    return this.attendance
+      .listAbsenceReviews(user, organizationId, contextType)
+      .then(ok);
   }
 
   @Get("attendance/live-records")
@@ -229,6 +322,32 @@ export class AttendanceController {
     @Body() dto: AwardAttendancePointsDto,
   ) {
     return this.attendance.awardPoints(user, dto).then(ok);
+  }
+
+  @Get("attendance/sessions/:id/coins")
+  @RequireCapabilities("attendance.read")
+  sessionCoins(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param("id") id: string,
+  ) {
+    return this.attendance.listSessionCoins(user, id).then(ok);
+  }
+
+  @Patch("attendance/sessions/:sessionId/students/:studentId/coins")
+  @RequireAnyCapabilities(
+    "attendance.points.adjust",
+    "attendance.class.manage",
+    "attendance.review",
+  )
+  setSessionStudentCoins(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param("sessionId") sessionId: string,
+    @Param("studentId") studentId: string,
+    @Body() dto: SetAttendanceSessionStudentCoinDto,
+  ) {
+    return this.attendance
+      .setSessionStudentCoins(user, sessionId, studentId, dto)
+      .then(ok);
   }
 
   @Get("attendance/my-absence-reviews")

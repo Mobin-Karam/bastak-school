@@ -12,19 +12,27 @@ const mocks = vi.hoisted(() => ({
   policy: vi.fn(),
   updatePolicy: vi.fn(),
   sessions: vi.fn(),
+  historySessions: vi.fn(),
+  historicalCandidates: vi.fn(),
+  importHistoricalOccurrence: vi.fn(),
+  createHistoricalSession: vi.fn(),
   pools: vi.fn(),
   create: vi.fn(),
   detail: vi.fn(),
   profile: vi.fn(),
   history: vi.fn(),
   cancel: vi.fn(),
+  auth: { activeRole: "TEACHER" },
 }));
 vi.mock("../api/attendance-operations.api.ts", () => ({
   getAttendanceOverview: mocks.overview,
   getAttendanceReportSummary: mocks.report,
   getAttendancePolicy: mocks.policy,
   updateAttendancePolicy: mocks.updatePolicy,
-  getStaffAttendanceSessions: mocks.sessions,
+  getAttendanceHistorySessions: mocks.historySessions,
+  getHistoricalAttendanceCandidates: mocks.historicalCandidates,
+  importLegacyScheduleOccurrence: mocks.importHistoricalOccurrence,
+  createHistoricalAttendanceSession: mocks.createHistoricalSession,
   getAttendancePools: mocks.pools,
   createAttendancePool: mocks.create,
   getSavedAttendanceSession: mocks.detail,
@@ -32,7 +40,13 @@ vi.mock("../api/attendance-operations.api.ts", () => ({
   getAttendanceSessionHistory: mocks.history,
   cancelAttendanceSession: mocks.cancel,
 }));
-vi.mock("../../../identity/auth", () => ({ useAuth: () => ({ can: () => true }) }));
+vi.mock("../../../identity/auth", () => ({
+  useAuth: () => ({
+    can: () => true,
+    activeRole: mocks.auth.activeRole,
+    context: { activeOrganization: { id: "org" } },
+  }),
+}));
 vi.mock("../../../../shared/api/api", () => ({ api: { openEvents: () => ({ close: vi.fn() }) } }));
 vi.mock("../../../../shared/ui/responsive-drawer", () => ({
   ResponsiveDrawer: ({ open, title, description, children, onOpenChange }: any) =>
@@ -82,6 +96,7 @@ afterEach(() => {
 });
 beforeEach(() => {
   vi.clearAllMocks();
+  mocks.auth.activeRole = "TEACHER";
   vi.stubGlobal(
     "matchMedia",
     vi.fn(() => ({ matches: false, addEventListener: vi.fn(), removeEventListener: vi.fn() })),
@@ -130,6 +145,49 @@ beforeEach(() => {
     total: 1,
     hasNext: false,
   });
+  mocks.historySessions.mockResolvedValue({
+    items: [
+      {
+        id: "session",
+        organizationId: "org",
+        contextType: "class",
+        contextId: "class",
+        title: "جلسه کلاس الف",
+        teacherName: "استاد الف",
+        subjectId: "book",
+        subjectName: "فقه",
+        status: "submitted",
+        revision: 1,
+        academicYearId: "year",
+        academicYearName: "سال تحصیلی ۱۴۰۵",
+        termId: "term",
+        termName: "نیم‌سال اول",
+        sessionDate: "2026-10-11T10:00:00Z",
+        marked: 2,
+        expected: 3,
+        present: 1,
+        absent: 1,
+        late: 0,
+        excused: 0,
+        unmarked: 1,
+      },
+    ],
+    page: 1,
+    limit: 25,
+    total: 1,
+    hasNext: false,
+  });
+  mocks.historicalCandidates.mockResolvedValue([]);
+  mocks.importHistoricalOccurrence.mockResolvedValue({
+    id: "session",
+    revision: 0,
+    duplicate: false,
+  });
+  mocks.createHistoricalSession.mockResolvedValue({
+    id: "historical-session",
+    revision: 0,
+    duplicate: false,
+  });
   mocks.pools.mockResolvedValue([]);
   mocks.history.mockResolvedValue([]);
   mocks.cancel.mockResolvedValue({ sessionId: "session", revision: 1, status: "cancelled" });
@@ -176,8 +234,15 @@ describe("staff session and pool creation", () => {
       />,
       { wrapper: Providers },
     );
-    const partial = await screen.findByRole("checkbox", { name: "اجازه ثبت ناقص" });
+    await user.click(await screen.findByRole("button", { name: "تنظیمات حضور" }));
+    const partial = await screen.findByRole("switch", { name: "اجازه ثبت ناقص" });
+    expect(partial).toHaveAttribute("data-state", "checked");
+    await user.click(screen.getByText("اجازه ثبت ناقص"));
+    expect(partial).toHaveAttribute("data-state", "unchecked");
     await user.click(partial);
+    expect(partial).toHaveAttribute("data-state", "checked");
+    await user.click(partial);
+    expect(partial).toHaveAttribute("data-state", "unchecked");
     await user.click(screen.getByRole("button", { name: "ذخیره قوانین حضور" }));
     await waitFor(() =>
       expect(mocks.updatePolicy).toHaveBeenCalledWith(
@@ -214,6 +279,81 @@ describe("staff session and pool creation", () => {
     await waitFor(() => expect(mocks.history).toHaveBeenCalledWith("session"));
     expect(await screen.findByText("تغییری برای این جلسه ثبت نشده است.")).toBeInTheDocument();
   });
+  it("shows principals the complete school-session ledger by default", async () => {
+    mocks.auth.activeRole = "PRINCIPAL";
+    render(
+      <AttendanceStaffWorkspace
+        contexts={contexts}
+        scope="principal"
+        refreshVersion={0}
+        section="sessions"
+      />,
+      { wrapper: Providers },
+    );
+
+    expect(await screen.findByRole("tab", { name: "همه جلسه‌های مدرسه" })).toBeInTheDocument();
+    await waitFor(() =>
+      expect(mocks.historySessions).toHaveBeenCalledWith(
+        expect.objectContaining({ contextType: undefined }),
+      ),
+    );
+    expect(screen.getByRole("combobox", { name: "نوع جلسات حضور" })).toHaveValue("");
+  });
+
+  it("reloads the day from the server and opens its next unsaved scheduled lesson", async () => {
+    mocks.auth.activeRole = "PRINCIPAL";
+    mocks.historicalCandidates.mockResolvedValue([
+      {
+        entryId: "already-saved-entry",
+        classroomId: "class",
+        classroomName: "کلاس الف",
+        teacherName: "استاد الف",
+        subjectName: "فقه",
+        title: "جلسه اول",
+        date: "2026-10-11",
+        startTime: "08:00",
+        endTime: "09:00",
+      },
+      {
+        entryId: "next-entry",
+        classroomId: "class",
+        classroomName: "کلاس الف",
+        teacherName: "استاد الف",
+        subjectName: "فقه",
+        title: "جلسه دوم",
+        date: "2026-10-11",
+        startTime: "09:00",
+        endTime: "10:00",
+      },
+    ]);
+    const openNext = vi.fn();
+    const completeDay = vi.fn();
+    render(
+      <AttendanceStaffWorkspace
+        contexts={contexts}
+        scope="principal"
+        refreshVersion={0}
+        section="sessions"
+        continueScheduledSession={{
+          date: "2026-10-11",
+          completedEntryId: "already-saved-entry",
+        }}
+        onOpenScheduledSession={openNext}
+        onScheduledDayComplete={completeDay}
+      />,
+      { wrapper: Providers },
+    );
+
+    await waitFor(() =>
+      expect(openNext).toHaveBeenCalledWith({
+        sessionId: "session",
+        contextId: "class",
+        date: "2026-10-11",
+        entryId: "next-entry",
+      }),
+    );
+    expect(completeDay).not.toHaveBeenCalled();
+  });
   it("renders the immutable academic and subject snapshots for a saved session", async () => {
     const user = userEvent.setup();
     render(
@@ -227,9 +367,11 @@ describe("staff session and pool creation", () => {
     );
     await user.click(await screen.findByText("جلسه کلاس الف"));
     expect(await screen.findByText("سال تحصیلی ۱۴۰۵ · نیم‌سال اول · فقه")).toBeInTheDocument();
+    expect(screen.getByRole("navigation", { name: "بخش‌های جزئیات جلسه" })).toBeInTheDocument();
+    expect(screen.getByText("وضعیت و مشخصات جلسه")).toBeInTheDocument();
   });
   it("pages the staff session archive without requesting an unbounded list", async () => {
-    mocks.sessions
+    mocks.historySessions
       .mockResolvedValueOnce({
         items: [
           {
@@ -237,9 +379,23 @@ describe("staff session and pool creation", () => {
             contextType: "class",
             contextId: "class",
             title: "جلسه جدید",
+            organizationId: "org",
+            teacherName: null,
+            subjectId: null,
+            subjectName: null,
+            status: "submitted",
+            revision: 1,
+            academicYearId: null,
+            academicYearName: null,
+            termId: null,
+            termName: null,
             sessionDate: "2026-10-12T10:00:00Z",
+            marked: 1,
+            expected: 1,
             present: 1,
             absent: 0,
+            late: 0,
+            excused: 0,
             unmarked: 0,
           },
         ],
@@ -255,9 +411,23 @@ describe("staff session and pool creation", () => {
             contextType: "class",
             contextId: "class",
             title: "جلسه قدیمی",
+            organizationId: "org",
+            teacherName: null,
+            subjectId: null,
+            subjectName: null,
+            status: "submitted",
+            revision: 1,
+            academicYearId: null,
+            academicYearName: null,
+            termId: null,
+            termName: null,
             sessionDate: "2026-10-11T10:00:00Z",
+            marked: 1,
+            expected: 1,
             present: 1,
             absent: 0,
+            late: 0,
+            excused: 0,
             unmarked: 0,
           },
         ],
@@ -279,7 +449,7 @@ describe("staff session and pool creation", () => {
     expect(await screen.findByText("جلسه جدید")).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "قدیمی‌تر" }));
     expect(await screen.findByText("جلسه قدیمی")).toBeInTheDocument();
-    expect(mocks.sessions).toHaveBeenNthCalledWith(2, 2);
+    expect(mocks.historySessions).toHaveBeenNthCalledWith(2, expect.objectContaining({ page: 2 }));
   });
   it("creates a class-based pool on HTTP previews and preserves its request ID on retry", async () => {
     const getRandomValues = crypto.getRandomValues.bind(crypto);
@@ -424,5 +594,23 @@ describe("staff session and pool creation", () => {
       rules: { "color-contrast": { enabled: false } },
     });
     expect(result.violations.map((violation) => violation.id)).toEqual([]);
+  });
+
+  it("shows the session workflow and keeps policy decisions as labeled switches", async () => {
+    const user = userEvent.setup();
+    render(
+      <AttendanceStaffWorkspace
+        contexts={contexts}
+        scope="staff"
+        refreshVersion={0}
+        section="sessions"
+      />,
+      { wrapper: Providers },
+    );
+
+    expect(await screen.findByRole("heading", { name: "مسیر کار جلسه" })).toBeInTheDocument();
+    expect(screen.getByText("۱. محدودهٔ دفتر را انتخاب کنید")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "تنظیمات حضور" }));
+    expect(await screen.findByRole("switch", { name: "بازبینی همهٔ جلسه‌ها" })).toBeInTheDocument();
   });
 });

@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { BookOpen, GraduationCap, UserRound } from "lucide-react";
+import { UserRound } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useAuth } from "../../../identity/auth";
 import { DataTable, type DataTableColumn } from "../../../../shared/ui/data-table";
@@ -8,6 +8,11 @@ import { ResponsiveDrawer } from "../../../../shared/ui/responsive-drawer";
 import { Badge, EmptyState, LoadingState } from "../../../../shared/ui/ui";
 import { listAcademicTeachers, type AcademicTeacher } from "../api/academic.api";
 import { listClasses, type EducationClass } from "../api/classes.api";
+import { listSchedule, type ScheduleEntry } from "../../schedule/api/schedule.api";
+import {
+  listTeacherLeaveRequests,
+  type TeacherLeaveRequest,
+} from "../../schedule/api/teacher-leave.api";
 
 const roleLabels: Record<string, string> = {
   TEACHER: "دبیر",
@@ -47,7 +52,26 @@ export function TeachersPage() {
     queryFn: () => listClasses(organizationId),
     enabled: Boolean(organizationId),
   });
+  const schedule = useQuery({
+    queryKey: ["schedule", "teacher-profile", organizationId, selected?.id],
+    queryFn: listSchedule,
+    enabled: Boolean(organizationId && selected),
+  });
+  const leaveRequests = useQuery({
+    queryKey: ["teacher-leaves", organizationId],
+    queryFn: listTeacherLeaveRequests,
+    enabled: Boolean(organizationId && auth.can("schedule.publish")),
+  });
   const teacherRows = teachers.data?.items ?? [];
+  const today = new Date().toISOString().slice(0, 10);
+  const onLeave = (teacherId: string) =>
+    (leaveRequests.data ?? []).some(
+      (leave) =>
+        leave.teacherId === teacherId &&
+        leave.status === "approved" &&
+        leave.startDate <= today &&
+        leave.endDate >= today,
+    );
   const classRows = useMemo(() => classes.data ?? [], [classes.data]);
   const columns = useMemo<DataTableColumn<AcademicTeacher>[]>(
     () => [
@@ -76,8 +100,19 @@ export function TeachersPage() {
         value: (teacher) => assignmentsFor(teacher.id, classRows).length,
         cell: (teacher) => assignmentsFor(teacher.id, classRows).length.toLocaleString("fa-IR"),
       },
+      {
+        id: "leave",
+        label: "وضعیت",
+        value: (teacher) => (onLeave(teacher.id) ? "در مرخصی" : "فعال"),
+        cell: (teacher) =>
+          onLeave(teacher.id) ? (
+            <Badge tone="amber">در مرخصی</Badge>
+          ) : (
+            <Badge tone="green">فعال</Badge>
+          ),
+      },
     ],
-    [classRows],
+    [classRows, leaveRequests.data],
   );
 
   if (!organizationId) {
@@ -121,9 +156,11 @@ export function TeachersPage() {
         {selected ? (
           <TeacherProfile
             teacher={selected}
-            assignments={assignmentsFor(selected.id, classRows)}
-            loading={classes.isLoading}
-            assignmentsError={classes.isError}
+            leaves={(leaveRequests.data ?? []).filter((leave) => leave.teacherId === selected.id)}
+            schedule={schedule.data ?? []}
+            scheduleLoading={schedule.isLoading}
+            scheduleError={schedule.isError}
+            onLeave={onLeave(selected.id)}
           />
         ) : null}
       </ResponsiveDrawer>
@@ -145,15 +182,53 @@ function RoleBadges({ roles }: { roles: string[] }) {
 
 function TeacherProfile({
   teacher,
-  assignments,
-  loading,
-  assignmentsError,
+  leaves,
+  schedule,
+  scheduleLoading,
+  scheduleError,
+  onLeave,
 }: {
   teacher: AcademicTeacher;
-  assignments: Array<{ classroom: string; schoolYear: string; subject: string }>;
-  loading: boolean;
-  assignmentsError: boolean;
+  leaves: TeacherLeaveRequest[];
+  schedule: ScheduleEntry[];
+  scheduleLoading: boolean;
+  scheduleError: boolean;
+  onLeave: boolean;
 }) {
+  const teacherSchedule = schedule
+    .filter(
+      (entry) =>
+        entry.status === "ACTIVE" &&
+        (entry.teacher?.id === teacher.id || entry.classBook?.teacher.id === teacher.id),
+    )
+    .sort(
+      (left, right) =>
+        left.weekday - right.weekday || left.startTime.localeCompare(right.startTime),
+    );
+  const totalMinutes = teacherSchedule.reduce((sum, entry) => sum + durationMinutes(entry), 0);
+  const scheduleByDay = teacherSchedule.reduce<Map<number, ScheduleEntry[]>>((days, entry) => {
+    const entries = days.get(entry.weekday) ?? [];
+    entries.push(entry);
+    days.set(entry.weekday, entries);
+    return days;
+  }, new Map());
+  const approvedLeaves = leaves.filter((leave) => leave.status === "approved");
+  const totalLeaveDays = approvedLeaves.reduce((sum, leave) => sum + leaveDays(leave), 0);
+  const leaveDaysByCycle = approvedLeaves.reduce<Map<string, { label: string; days: number }>>(
+    (result, leave) => {
+      leave.academicCycleSnapshots.forEach((cycle) => {
+        const key = `${cycle.academicYearId}:${cycle.termId}`;
+        const current = result.get(key) ?? {
+          label: `${cycle.academicYearName ?? "سال نامشخص"} · ${cycle.termName ?? "نیم‌سال نامشخص"}`,
+          days: 0,
+        };
+        current.days += leaveDays(leave, cycle.termStartsOn, cycle.termEndsOn);
+        result.set(key, current);
+      });
+      return result;
+    },
+    new Map(),
+  );
   return (
     <div className="grid gap-5 py-4">
       <div className="flex items-center gap-3">
@@ -162,6 +237,7 @@ function TeacherProfile({
         </span>
         <div className="min-w-0">
           <h2 className="truncate text-base font-black text-ink">{fullName(teacher)}</h2>
+          {onLeave ? <Badge tone="amber">در مرخصی</Badge> : null}
           <p className="mt-1 text-sm text-slate-500">
             <bdi dir="ltr">{teacher.username}</bdi>
           </p>
@@ -173,45 +249,219 @@ function TeacherProfile({
         </h3>
         <RoleBadges roles={teacher.roles} />
       </section>
-      <section aria-labelledby="teacher-assignments-title" className="grid gap-2">
-        <h3 id="teacher-assignments-title" className="text-sm font-bold text-ink">
-          تخصیص‌های آموزشی
-        </h3>
-        {loading ? (
+      <section
+        aria-labelledby="teacher-load-title"
+        className="grid gap-3 border-t border-[rgb(var(--border-subtle))] pt-4"
+      >
+        <div>
+          <h3 id="teacher-load-title" className="text-sm font-bold text-ink">
+            بار آموزشی هفتگی
+          </h3>
+          <p className="mt-1 text-xs text-slate-500">جلسه‌های فعال ثبت‌شده در برنامه مدرسه</p>
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+          <div className="rounded-xl bg-brand/10 p-3">
+            <strong className="block text-lg font-black text-brand">
+              {teacherSchedule.length.toLocaleString("fa-IR")}
+            </strong>
+            <span className="text-xs font-bold text-slate-600">جلسه در هفته</span>
+          </div>
+          <div className="rounded-xl bg-sky-500/10 p-3">
+            <strong className="block text-lg font-black text-sky-800">
+              {formatHours(totalMinutes)}
+            </strong>
+            <span className="text-xs font-bold text-slate-600">ساعت در هفته</span>
+          </div>
+        </div>
+        {scheduleLoading ? (
           <p role="status" className="text-sm text-slate-500">
-            در حال دریافت تخصیص‌ها…
+            در حال دریافت برنامه دبیر…
           </p>
         ) : null}
-        {assignmentsError ? (
+        {scheduleError ? (
           <p role="alert" className="text-sm text-rose-700">
-            تخصیص‌های آموزشی دریافت نشدند؛ دوباره تلاش کنید.
+            برنامه دبیر دریافت نشد؛ دوباره تلاش کنید.
           </p>
         ) : null}
-        {!loading && !assignmentsError && !assignments.length ? (
-          <EmptyState title="هنوز درس یا کلاسی به این دبیر تخصیص داده نشده است." />
+        {!scheduleLoading && !scheduleError && !teacherSchedule.length ? (
+          <EmptyState title="جلسه فعالی برای این دبیر ثبت نشده است." />
         ) : null}
-        {!loading && !assignmentsError ? (
-          <ul className="grid gap-2">
-            {assignments.map((assignment, index) => (
+        {!scheduleLoading && !scheduleError && teacherSchedule.length ? (
+          <div className="grid gap-3" aria-label="برنامه هفتگی دبیر">
+            {[...scheduleByDay.entries()].map(([weekday, entries]) => {
+              const style = scheduleDayStyles[weekday] ?? scheduleDayStyles[0];
+              return (
+                <section
+                  key={weekday}
+                  aria-labelledby={`teacher-schedule-day-${weekday}`}
+                  className={`overflow-hidden rounded-2xl border border-[rgb(var(--border-subtle))] border-s-4 ${style.frame}`}
+                >
+                  <div
+                    className={`flex items-center justify-between gap-3 px-3 py-2 ${style.header}`}
+                  >
+                    <h4
+                      id={`teacher-schedule-day-${weekday}`}
+                      className="text-base font-black text-ink"
+                    >
+                      {weekdays[weekday]}
+                    </h4>
+                    <span className="text-xs font-extrabold text-slate-700 dark:text-slate-200">
+                      {entries.length.toLocaleString("fa-IR")} جلسه
+                    </span>
+                  </div>
+                  <ul className="grid gap-px bg-[rgb(var(--border-subtle))]">
+                    {entries.map((entry) => (
+                      <li
+                        key={entry.id}
+                        className="flex items-center justify-between gap-3 bg-[rgb(var(--surface))] px-3 py-3"
+                      >
+                        <span className="min-w-0">
+                          <strong className="block truncate text-base font-black text-ink">
+                            {entry.title}
+                          </strong>
+                          <span className="mt-1 block text-sm font-bold text-slate-600 dark:text-slate-300">
+                            {entry.classroom?.name ?? "کلاس ثبت نشده"}
+                          </span>
+                        </span>
+                        <bdi
+                          dir="ltr"
+                          className={`shrink-0 rounded-lg px-2.5 py-1.5 text-sm font-black ${style.time}`}
+                        >
+                          {entry.startTime}–{entry.endTime}
+                        </bdi>
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+              );
+            })}
+          </div>
+        ) : null}
+      </section>
+      <section
+        aria-labelledby="teacher-leave-history-title"
+        className="grid gap-3 border-t border-[rgb(var(--border-subtle))] pt-4"
+      >
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <h3 id="teacher-leave-history-title" className="text-sm font-bold text-ink">
+              سابقه مرخصی
+            </h3>
+            <p className="mt-1 text-xs text-slate-500">آرشیو درخواست‌های این استاد</p>
+          </div>
+          <span className="rounded-xl bg-amber-100 px-3 py-2 text-sm font-black text-amber-900 dark:bg-amber-950/50 dark:text-amber-100">
+            {totalLeaveDays.toLocaleString("fa-IR")} روز تأییدشده
+          </span>
+        </div>
+        {leaveDaysByCycle.size ? (
+          <ul className="grid gap-2" aria-label="جمع مرخصی بر اساس سال و نیم‌سال">
+            {[...leaveDaysByCycle.values()].map((cycle) => (
               <li
-                key={`${assignment.classroom}-${assignment.subject}-${index}`}
-                className="flex items-center gap-3 rounded-xl border border-[rgb(var(--border-subtle))] p-3"
+                key={cycle.label}
+                className="flex items-center justify-between gap-3 rounded-xl bg-[rgb(var(--surface-muted))] px-3 py-2 text-sm"
               >
-                <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-brand/10 text-brand">
-                  <BookOpen size={17} aria-hidden="true" />
-                </span>
-                <span className="min-w-0">
-                  <strong className="block truncate text-sm text-ink">{assignment.subject}</strong>
-                  <span className="mt-1 flex items-center gap-1 text-xs text-slate-500">
-                    <GraduationCap size={13} aria-hidden="true" />
-                    {assignment.classroom} · {assignment.schoolYear}
-                  </span>
-                </span>
+                <strong>{cycle.label}</strong>
+                <span className="font-black">{cycle.days.toLocaleString("fa-IR")} روز</span>
               </li>
             ))}
           </ul>
         ) : null}
+        {leaves.length ? (
+          <ul className="grid gap-2" aria-label="آرشیو درخواست‌های مرخصی استاد">
+            {leaves.map((leave) => (
+              <li
+                key={leave.id}
+                className="rounded-xl border border-[rgb(var(--border-subtle))] p-3"
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <strong className="text-sm">{formatLeaveStatus(leave.status)}</strong>
+                  <span className="text-xs font-black text-slate-600 dark:text-slate-300">
+                    {leaveDays(leave).toLocaleString("fa-IR")} روز
+                  </span>
+                </div>
+                <p className="mt-1 text-xs text-slate-500">
+                  {leave.startDate} تا {leave.endDate}
+                </p>
+                <p className="mt-2 text-sm leading-6">{leave.reason}</p>
+                {leave.academicCycleSnapshots.length ? (
+                  <p className="mt-2 text-xs text-slate-500">
+                    {leave.academicCycleSnapshots
+                      .map(
+                        (cycle) =>
+                          `${cycle.academicYearName ?? "سال نامشخص"} · ${cycle.termName ?? "نیم‌سال نامشخص"}`,
+                      )
+                      .join("، ")}
+                  </p>
+                ) : null}
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="rounded-xl bg-[rgb(var(--surface-muted))] p-3 text-sm text-muted-foreground">
+            مرخصی ثبت‌شده‌ای برای این استاد وجود ندارد.
+          </p>
+        )}
       </section>
     </div>
   );
 }
+
+const weekdays = ["شنبه", "یکشنبه", "دوشنبه", "سه‌شنبه", "چهارشنبه", "پنجشنبه", "جمعه"];
+const scheduleDayStyles = [
+  {
+    frame: "border-s-blue-600 dark:border-s-blue-400",
+    header: "bg-blue-50 dark:bg-blue-950/40",
+    time: "bg-blue-100 text-blue-900 dark:bg-blue-900/70 dark:text-blue-100",
+  },
+  {
+    frame: "border-s-teal-600 dark:border-s-teal-400",
+    header: "bg-teal-50 dark:bg-teal-950/40",
+    time: "bg-teal-100 text-teal-900 dark:bg-teal-900/70 dark:text-teal-100",
+  },
+  {
+    frame: "border-s-violet-600 dark:border-s-violet-400",
+    header: "bg-violet-50 dark:bg-violet-950/40",
+    time: "bg-violet-100 text-violet-900 dark:bg-violet-900/70 dark:text-violet-100",
+  },
+  {
+    frame: "border-s-rose-600 dark:border-s-rose-400",
+    header: "bg-rose-50 dark:bg-rose-950/40",
+    time: "bg-rose-100 text-rose-900 dark:bg-rose-900/70 dark:text-rose-100",
+  },
+  {
+    frame: "border-s-amber-600 dark:border-s-amber-400",
+    header: "bg-amber-50 dark:bg-amber-950/40",
+    time: "bg-amber-100 text-amber-900 dark:bg-amber-900/70 dark:text-amber-100",
+  },
+  {
+    frame: "border-s-cyan-600 dark:border-s-cyan-400",
+    header: "bg-cyan-50 dark:bg-cyan-950/40",
+    time: "bg-cyan-100 text-cyan-900 dark:bg-cyan-900/70 dark:text-cyan-100",
+  },
+  {
+    frame: "border-s-fuchsia-600 dark:border-s-fuchsia-400",
+    header: "bg-fuchsia-50 dark:bg-fuchsia-950/40",
+    time: "bg-fuchsia-100 text-fuchsia-900 dark:bg-fuchsia-900/70 dark:text-fuchsia-100",
+  },
+];
+const durationMinutes = (entry: ScheduleEntry) => {
+  const [startHour, startMinute] = entry.startTime.split(":").map(Number);
+  const [endHour, endMinute] = entry.endTime.split(":").map(Number);
+  return endHour * 60 + endMinute - startHour * 60 - startMinute;
+};
+const formatHours = (minutes: number) =>
+  `${Math.floor(minutes / 60).toLocaleString("fa-IR")}:${(minutes % 60).toLocaleString("fa-IR", {
+    minimumIntegerDigits: 2,
+    useGrouping: false,
+  })} ساعت`;
+const leaveDays = (
+  leave: TeacherLeaveRequest,
+  startsOn?: string | null,
+  endsOn?: string | null,
+) => {
+  const start = new Date(`${[leave.startDate, startsOn].filter(Boolean).sort().at(-1)}T12:00:00Z`);
+  const end = new Date(`${[leave.endDate, endsOn].filter(Boolean).sort()[0]}T12:00:00Z`);
+  return Math.max(0, Math.round((end.getTime() - start.getTime()) / 86_400_000) + 1);
+};
+const formatLeaveStatus = (status: TeacherLeaveRequest["status"]) =>
+  status === "approved" ? "تأییدشده" : status === "rejected" ? "ردشده" : "در انتظار بررسی";

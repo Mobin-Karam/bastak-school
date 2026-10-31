@@ -42,6 +42,8 @@ export type AttendanceSessionDetail = {
   scheduledStartAt: string | null;
   scheduledEndAt: string | null;
   timeZone: string;
+  /** Optional for compatibility with saved-session clients during the additive rollout. */
+  sourceKind?: string | null;
   status: AttendanceSessionStatus;
   revision: number;
   assignedStaffId: string | null;
@@ -79,6 +81,7 @@ export type SubmitAttendanceAbsences = {
   expectedRevision: number;
   absentStudentIds: string[];
   lateStudentIds?: string[];
+  excusedStudentIds?: string[];
 };
 export type ResolveAttendanceSession = {
   organizationId: string;

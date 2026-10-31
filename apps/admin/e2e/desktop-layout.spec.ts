@@ -36,8 +36,10 @@ for (const direction of ["rtl", "ltr"]) {
         <section class="workspace-actions"><button>Add book</button></section>
         <section class="p-4">Class selector</section>
         <section class="data-table-workspace rounded-xl border overflow-hidden" data-scroll-rows="true">
-          <div class="p-3">Search and filters</div>
-          <div class="data-table-workspace__rows hidden md:block"><div role="region" tabindex="0" aria-label="Books">${rows}</div></div>
+          <div class="data-table-workspace__content" tabindex="0" aria-label="Books results">
+            <div class="p-3">Search and filters</div>
+            <div class="data-table-workspace__rows hidden md:block"><div role="region" tabindex="0" aria-label="Books">${rows}</div></div>
+          </div>
           <div class="p-3" data-pagination><button>Next page</button></div>
         </section></div>`,
       );
@@ -55,10 +57,12 @@ for (const direction of ["rtl", "ltr"]) {
       expect(metrics.scrollWidth).toBeLessThanOrEqual(metrics.width + 1);
       const pagination = await page.locator("[data-pagination]").boundingBox();
       expect(pagination!.y + pagination!.height).toBeLessThanOrEqual(size.height);
-      const region = page.getByRole("region", { name: "Books" });
-      await region.focus();
+      const resultsViewport = page.getByLabel("Books results");
+      await resultsViewport.focus();
       await page.keyboard.press("End");
-      await expect.poll(() => region.evaluate((element) => element.scrollTop)).toBeGreaterThan(0);
+      await expect
+        .poll(() => resultsViewport.evaluate((element) => element.scrollTop))
+        .toBeGreaterThan(0);
       await page.screenshot({ path: test.info().outputPath(`desktop-${direction}.png`) });
     });
   }

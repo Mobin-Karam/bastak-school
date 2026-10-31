@@ -452,6 +452,7 @@
 /* Student home takes the visual cue from Bastak's evening courtyard: a calm
  * navy canvas with bright, actionable learning states rather than decoration. */
 .student-dashboard__hero {
+  isolation: isolate;
   background:
     radial-gradient(circle at 8% 18%, rgb(56 189 248 / 28%), transparent 26%),
     radial-gradient(circle at 92% 92%, rgb(16 185 129 / 24%), transparent 34%),
@@ -461,9 +462,10 @@
 
 .student-dashboard__hero-orb {
   position: absolute;
-  border-radius: 999px;
   pointer-events: none;
-  filter: blur(1px);
+  clip-path: polygon(25% 4%, 75% 4%, 100% 50%, 75% 96%, 25% 96%, 0 50%);
+  filter: drop-shadow(0 12px 14px rgb(2 44 69 / 26%));
+  transform: rotate(18deg);
 }
 
 .student-dashboard__hero-orb--one {
@@ -471,7 +473,7 @@
   height: 10rem;
   inset-inline-end: -4rem;
   top: -5rem;
-  background: rgb(125 211 252 / 18%);
+  background: linear-gradient(145deg, rgb(186 230 253 / 36%), rgb(56 189 248 / 8%));
 }
 
 .student-dashboard__hero-orb--two {
@@ -479,18 +481,102 @@
   height: 8rem;
   inset-inline-start: -3rem;
   bottom: -5rem;
-  background: rgb(110 231 183 / 15%);
+  background: linear-gradient(145deg, rgb(167 243 208 / 30%), rgb(16 185 129 / 6%));
 }
 
 .student-dashboard__surface {
+  position: relative;
+  isolation: isolate;
   border-radius: 1.25rem;
   border-color: rgb(var(--border-subtle));
-  box-shadow: 0 10px 26px rgb(15 23 42 / 6%);
+  box-shadow:
+    0 14px 28px rgb(15 23 42 / 10%),
+    inset 0 1px 0 rgb(255 255 255 / 74%),
+    inset 0 -3px 0 rgb(15 23 42 / 5%);
+}
+
+.student-dashboard__surface::after {
+  position: absolute;
+  z-index: -1;
+  width: 4rem;
+  height: 4rem;
+  inset-block-start: -1.4rem;
+  inset-inline-end: -1.2rem;
+  content: "";
+  pointer-events: none;
+  clip-path: polygon(25% 4%, 75% 4%, 100% 50%, 75% 96%, 25% 96%, 0 50%);
+  background: rgb(255 255 255 / 28%);
+  opacity: 0.7;
+  transform: rotate(16deg);
 }
 
 .student-dashboard__prayer {
+  position: relative;
+  isolation: isolate;
   border-radius: 1.25rem;
-  box-shadow: 0 10px 26px rgb(15 23 42 / 6%);
+  box-shadow:
+    0 14px 28px rgb(15 23 42 / 10%),
+    inset 0 1px 0 rgb(255 255 255 / 74%),
+    inset 0 -3px 0 rgb(15 23 42 / 5%);
+}
+
+.student-dashboard__prayer::after {
+  position: absolute;
+  z-index: -1;
+  width: 3.5rem;
+  height: 3.5rem;
+  inset-block-end: -1.2rem;
+  inset-inline-start: -1rem;
+  content: "";
+  pointer-events: none;
+  clip-path: polygon(25% 4%, 75% 4%, 100% 50%, 75% 96%, 25% 96%, 0 50%);
+  background: rgb(14 165 233 / 14%);
+  transform: rotate(-16deg);
+}
+
+.student-dashboard__hex-grid > * {
+  box-shadow:
+    0 8px 15px rgb(15 23 42 / 14%),
+    inset 0 1px 0 rgb(255 255 255 / 46%),
+    inset 0 -3px 0 rgb(15 23 42 / 10%);
+}
+
+/* Focused supervisor attendance offices: each route has a compact, recognizable
+ * hexagonal marker without turning the session ledger into a tabbed workspace. */
+.attendance-office[class*="attendance-office--"] {
+  position: relative;
+  overflow: hidden;
+}
+
+.attendance-office[class*="attendance-office--"]::before {
+  position: absolute;
+  width: 5rem;
+  height: 5rem;
+  inset-block-start: -2.25rem;
+  inset-inline-end: -1.5rem;
+  content: "";
+  pointer-events: none;
+  clip-path: polygon(25% 4%, 75% 4%, 100% 50%, 75% 96%, 25% 96%, 0 50%);
+  opacity: 0.2;
+}
+
+.attendance-office--teacher::before {
+  background: #2563eb;
+}
+.attendance-office--groups::before {
+  background: #7c3aed;
+}
+.attendance-office--dorm::before {
+  background: #0f766e;
+}
+.attendance-office--history::before {
+  background: #475569;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .student-dashboard__hex-grid > * {
+    transition: none !important;
+  }
 }
 
 .admin-role-shell[data-shell="mobile"] .mobile-task-card,
@@ -1777,9 +1863,8 @@ html.is-scrolling :is(body, .scroll-reveal)::-webkit-scrollbar-thumb,
 }
 
 .admin-sonner-toaster [data-sonner-toast].admin-sonner-toast[data-styled="true"] {
-  --toast-accent: rgb(var(--primary));
-  --toast-tint: rgb(var(--accent));
-  --toast-border: rgb(var(--border));
+  --toast-surface: rgb(var(--primary));
+  --toast-border: rgb(255 255 255 / 28%);
   --toast-action-text: rgb(var(--primary-foreground));
   display: grid;
   grid-template-columns: 2.25rem minmax(0, 1fr) 2.75rem;
@@ -1789,12 +1874,12 @@ html.is-scrolling :is(body, .scroll-reveal)::-webkit-scrollbar-thumb,
   min-height: 5rem;
   padding: 0.875rem 0.9375rem;
   border: 1px solid var(--toast-border);
-  border-inline-start: 4px solid var(--toast-accent);
+  border-inline-start: 4px solid rgb(255 255 255 / 72%);
   border-radius: 1rem;
-  background: linear-gradient(135deg, var(--toast-tint), rgb(var(--popover)) 42%);
-  color: rgb(var(--foreground));
+  background: var(--toast-surface);
+  color: #ffffff;
   box-shadow:
-    0 1.25rem 2.75rem rgb(var(--foreground) / 14%),
+    0 1.25rem 2.75rem rgb(15 23 42 / 24%),
     0 1px 0 rgb(255 255 255 / 18%) inset;
 }
 
@@ -1814,7 +1899,7 @@ html.is-scrolling :is(body, .scroll-reveal)::-webkit-scrollbar-thumb,
 
 .admin-sonner-toaster [data-sonner-toast].admin-sonner-toast .admin-sonner-description {
   margin: 0;
-  color: rgb(var(--muted-foreground));
+  color: rgb(255 255 255 / 88%);
   font-size: 0.8125rem;
   font-weight: 400;
   line-height: 1.6;
@@ -1828,10 +1913,10 @@ html.is-scrolling :is(body, .scroll-reveal)::-webkit-scrollbar-thumb,
   width: 2.25rem;
   height: 2.25rem;
   margin: 0.25rem 0 0;
-  border: 1px solid var(--toast-border);
+  border: 1px solid rgb(255 255 255 / 28%);
   border-radius: 0.75rem;
-  background: rgb(var(--popover));
-  color: var(--toast-accent);
+  background: rgb(255 255 255 / 16%);
+  color: #ffffff;
 }
 
 .admin-sonner-toaster [data-sonner-toast].admin-sonner-toast .admin-sonner-icon svg {
@@ -1852,7 +1937,7 @@ html.is-scrolling :is(body, .scroll-reveal)::-webkit-scrollbar-thumb,
   border: 0;
   border-radius: 0.625rem;
   background: transparent;
-  color: rgb(var(--muted-foreground));
+  color: rgb(255 255 255 / 90%);
   box-shadow: none;
   transform: none;
 }
@@ -1860,8 +1945,8 @@ html.is-scrolling :is(body, .scroll-reveal)::-webkit-scrollbar-thumb,
 .admin-sonner-toaster
   [data-sonner-toast].admin-sonner-toast[data-styled="true"]
   [data-close-button]:hover {
-  background: rgb(var(--surface-muted));
-  color: rgb(var(--color-ink));
+  background: rgb(255 255 255 / 18%);
+  color: #ffffff;
 }
 
 .admin-sonner-toaster [data-sonner-toast].admin-sonner-toast [data-close-button] svg {
@@ -1876,16 +1961,16 @@ html.is-scrolling :is(body, .scroll-reveal)::-webkit-scrollbar-thumb,
   height: auto;
   margin: 0;
   padding: 0.5rem 0.875rem;
-  border: 1px solid var(--toast-accent);
+  border: 1px solid rgb(255 255 255 / 32%);
   border-radius: 0.625rem;
-  background: var(--toast-accent);
+  background: rgb(255 255 255 / 18%);
   color: var(--toast-action-text);
   font-size: 0.8125rem;
   font-weight: 600;
 }
 
 .admin-sonner-toaster [data-sonner-toast].admin-sonner-toast button:focus-visible {
-  outline: 2px solid rgb(var(--color-brand));
+  outline: 2px solid #ffffff;
   outline-offset: 2px;
 }
 
@@ -1900,65 +1985,45 @@ html.is-scrolling :is(body, .scroll-reveal)::-webkit-scrollbar-thumb,
   height: auto;
   margin: 0;
   padding: 0.5rem 0.875rem;
-  border: 1px solid var(--toast-border);
+  border: 1px solid rgb(255 255 255 / 45%);
   border-radius: 0.625rem;
   background: transparent;
-  color: var(--toast-accent);
+  color: #ffffff;
   font-size: 0.8125rem;
   font-weight: 700;
 }
 
 .admin-sonner-toaster [data-sonner-toast].admin-sonner-toast .admin-sonner-cancel:hover {
-  background: var(--toast-tint);
+  background: rgb(255 255 255 / 18%);
 }
 
 .admin-sonner-toaster [data-sonner-toast].admin-sonner-toast[data-type="success"] {
-  --toast-accent: #087f5b;
-  --toast-tint: #e8f8f1;
-  --toast-border: #a7e7ce;
+  --toast-surface: #087f5b;
   --toast-action-text: #ffffff;
 }
 .admin-sonner-toaster [data-sonner-toast].admin-sonner-toast[data-type="info"] {
-  --toast-accent: #087a9b;
-  --toast-tint: #e7f7fb;
-  --toast-border: #a8dfee;
+  --toast-surface: #087a9b;
   --toast-action-text: #ffffff;
 }
 .admin-sonner-toaster [data-sonner-toast].admin-sonner-toast[data-type="warning"] {
-  --toast-accent: #9a6700;
-  --toast-tint: #fff7df;
-  --toast-border: #f3d48a;
+  --toast-surface: #9a6700;
   --toast-action-text: #ffffff;
 }
 .admin-sonner-toaster [data-sonner-toast].admin-sonner-toast[data-type="error"] {
-  --toast-accent: #bd3455;
-  --toast-tint: #fff0f2;
-  --toast-border: #ffc1cc;
+  --toast-surface: #bd3455;
   --toast-action-text: #ffffff;
 }
 .dark .admin-sonner-toaster [data-sonner-toast].admin-sonner-toast[data-type="success"] {
-  --toast-accent: #55d6a5;
-  --toast-tint: #123c33;
-  --toast-border: #287b62;
-  --toast-action-text: #092632;
+  --toast-surface: #07543f;
 }
 .dark .admin-sonner-toaster [data-sonner-toast].admin-sonner-toast[data-type="info"] {
-  --toast-accent: #6bd2ec;
-  --toast-tint: #123744;
-  --toast-border: #28748a;
-  --toast-action-text: #092632;
+  --toast-surface: #075b73;
 }
 .dark .admin-sonner-toaster [data-sonner-toast].admin-sonner-toast[data-type="warning"] {
-  --toast-accent: #f2c45f;
-  --toast-tint: #443617;
-  --toast-border: #866525;
-  --toast-action-text: #092632;
+  --toast-surface: #765000;
 }
 .dark .admin-sonner-toaster [data-sonner-toast].admin-sonner-toast[data-type="error"] {
-  --toast-accent: #ff9daf;
-  --toast-tint: #451f2a;
-  --toast-border: #864051;
-  --toast-action-text: #092632;
+  --toast-surface: #8d2942;
 }
 
 @media (max-width: 1023px) {
@@ -2030,17 +2095,22 @@ html.is-scrolling :is(body, .scroll-reveal)::-webkit-scrollbar-thumb,
     flex-shrink: 0;
   }
 
-  .data-table-workspace[data-scroll-rows="true"] > .data-table-workspace__rows {
+  /* One results viewport owns vertical wheel scrolling. The nested table region
+     remains horizontal-only so a pointer over a row cannot trap vertical input. */
+  .data-table-workspace[data-scroll-rows="true"] > .data-table-workspace__content {
     flex: 1 1 auto;
+    /* Overrides the fixed control-child rule above: this is the one bounded
+       results viewport and must be allowed to shrink inside the workspace. */
+    flex-shrink: 1;
     min-height: 0;
-    overflow: hidden;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior-y: contain;
   }
 
   .data-table-workspace[data-scroll-rows="true"] .data-table-workspace__rows > [role="region"] {
-    height: 100%;
-    max-height: 100%;
-    overflow-y: auto;
-    overscroll-behavior: contain;
+    overflow-x: auto;
+    overflow-y: visible;
   }
 
   .management-master-detail__layout {
