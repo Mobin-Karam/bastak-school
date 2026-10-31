@@ -44,6 +44,9 @@ vi.mock("../../../student-life/attendance/api/attendance-operations.api", () => 
   getOutsidePresenceReports: vi.fn().mockResolvedValue([]),
   verifyOutsidePresenceReport: vi.fn(),
 }));
+vi.mock("../../../student-life/attendance/components/PendingCorrectionQueue", () => ({
+  PendingCorrectionQueue: () => <div>صف اصلاحات حضور</div>,
+}));
 vi.mock("../../reports/api/reports.api", () => ({
   getTeacherStudentReports: vi.fn().mockResolvedValue([]),
   markTeacherStudentReportSeen: vi.fn(),

@@ -165,7 +165,7 @@ describe("AttendancePage", () => {
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 
-  it("mounts both scoped review queues in the sessions workspace", async () => {
+  it("mounts scoped review queues for non-principal reviewers", async () => {
     canMock.mockImplementation((capability: string) => capability === "attendance.review");
     const user = userEvent.setup();
     render(<AttendancePage />, { wrapper: TestProviders });
@@ -191,6 +191,8 @@ describe("AttendancePage", () => {
     expect(screen.queryByRole("button", { name: "گروه کلاس 0 مورد" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "خوابگاه 0 مورد" })).not.toBeInTheDocument();
     expect(screen.queryByText("صف بررسی خوابگاه")).not.toBeInTheDocument();
+    expect(screen.queryByText("صف بررسی غیبت")).not.toBeInTheDocument();
+    expect(screen.queryByText("صف اصلاحات حضور")).not.toBeInTheDocument();
   });
 
   it("redirects an old principal dorm-session link to the dashboard review drawer", async () => {

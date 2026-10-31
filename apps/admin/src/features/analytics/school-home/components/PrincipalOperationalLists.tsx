@@ -25,6 +25,7 @@ import {
   type PrincipalDashboardContract,
 } from "../api/principal-dashboard.api";
 import { DormAttendanceReviewInbox } from "../../../student-life/attendance/components/DormAttendanceReviewInbox";
+import { PendingCorrectionQueue } from "../../../student-life/attendance/components/PendingCorrectionQueue";
 import {
   getDormAttendanceReviewQueue,
   getOutsidePresenceReports,
@@ -107,15 +108,18 @@ export function PrincipalOperationalLists({
   const [searchParams, setSearchParams] = useSearchParams();
   const requestedDormSessionId = searchParams.get("dormSessionId");
   const requestedPanel = searchParams.get("panel") as Panel | null;
+  const validRequestedPanel = cards.some((card) => card.id === requestedPanel)
+    ? requestedPanel
+    : null;
   const [active, setActive] = useState<Panel | null>(() =>
-    requestedDormSessionId ? "dorm" : requestedPanel === "leave" ? "leave" : null,
+    requestedDormSessionId ? "dorm" : validRequestedPanel,
   );
   useEffect(() => {
     if (requestedDormSessionId) setActive("dorm");
   }, [requestedDormSessionId]);
   useEffect(() => {
-    if (requestedPanel === "leave") setActive("leave");
-  }, [requestedPanel]);
+    if (validRequestedPanel) setActive(validRequestedPanel);
+  }, [validRequestedPanel]);
   const [autoArchiveEnabled, setAutoArchiveEnabled] = useState(false);
   const [autoArchiveProgress, setAutoArchiveProgress] = useState<{
     completed: number;
@@ -419,6 +423,7 @@ export function PrincipalOperationalLists({
               ) : (
                 <Empty text="جلسه‌ای برای بررسی باقی نمانده است." />
               )}
+              <PendingCorrectionQueue />
             </>
           )}
           {active === "reports" && (

@@ -1560,7 +1560,7 @@ export function AttendancePage() {
             initialSelectedSessionId={archiveSessionId}
             office={office}
           />
-          {chosenType === "sessions" && auth.can("attendance.review") ? (
+          {chosenType === "sessions" && auth.can("attendance.review") && !isPrincipal ? (
             <div className="grid items-start gap-4 xl:grid-cols-2">
               <AttendanceReviewQueue initialRecordId={requestedReviewRecordId} />
               <PendingCorrectionQueue initialCorrectionId={requestedCorrectionId} />

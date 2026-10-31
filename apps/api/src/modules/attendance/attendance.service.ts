@@ -2165,6 +2165,15 @@ export class AttendanceService {
             )
           )
             continue;
+          const principalReviewer = reviewer.roleAssignments.some(
+            (assignment) =>
+              ["PRINCIPAL", "ORGANIZATION_ADMIN"].includes(
+                assignment.role.code,
+              ),
+          );
+          const reviewUrl = principalReviewer
+            ? "/admin/dashboard/principal?panel=sessions"
+            : `/admin/attendance?section=sessions&correctionId=${encodeURIComponent(correction.id)}`;
           const item = await manager.getRepository(Notification).save(
             manager.create(Notification, {
               user: reviewer.user,
@@ -2173,7 +2182,7 @@ export class AttendanceService {
               category: "attendance_correction",
               title: "درخواست اصلاح حضور جدید",
               body: `اصلاح حضور ${record.student.name} منتظر بررسی شماست.`,
-              url: `/admin/attendance?section=sessions&correctionId=${encodeURIComponent(correction.id)}`,
+              url: reviewUrl,
               priority: "high",
               dedupeKey: `attendance-correction-review:${correction.id}:${reviewer.user.id}`,
             }),
@@ -2184,7 +2193,7 @@ export class AttendanceService {
             title: item.title,
             body: item.body,
             category: item.category,
-            url: item.url ?? "/admin/attendance?section=sessions",
+            url: item.url ?? reviewUrl,
             organizationId: session.organization.id,
           });
         }
@@ -3018,13 +3027,11 @@ export class AttendanceService {
           }),
         );
       const notifications = manager.getRepository(Notification);
-      const reviewRecipients = members
-        .filter((member) =>
-          member.roleAssignments.some((assignment) =>
-            ["PRINCIPAL", "SCHOOL_SUPERVISOR"].includes(assignment.role.code),
-          ),
-        )
-        .map((member) => member.user.id);
+      const reviewRecipients = members.filter((member) =>
+        member.roleAssignments.some((assignment) =>
+          ["PRINCIPAL", "SCHOOL_SUPERVISOR"].includes(assignment.role.code),
+        ),
+      );
       const notificationEvents: Array<{
         userId: string;
         id: string;
@@ -3034,6 +3041,55 @@ export class AttendanceService {
         url: string;
         organizationId: string;
       }> = [];
+      const principalRecipients = reviewRecipients.filter((member) =>
+        member.roleAssignments.some((assignment) =>
+          ["PRINCIPAL", "ORGANIZATION_ADMIN"].includes(assignment.role.code),
+        ),
+      );
+      const hasPhysicalAbsence = saved.some(
+        (record) => record.physicalStatus === "absent",
+      );
+      const dashboardPanel =
+        contextType === "class_group" || contextType === "study_group"
+          ? "groups"
+          : "sessions";
+      const shouldNotifySubmittedSession =
+        options.submit &&
+        (((contextType === "class_group" || contextType === "study_group") &&
+          !hasPhysicalAbsence) ||
+          (contextType === "class" &&
+            policy?.principalReviewMode === "all_sessions" &&
+            !hasPhysicalAbsence));
+      if (shouldNotifySubmittedSession) {
+        for (const principal of principalRecipients) {
+          const item = await notifications.save(
+            notifications.create({
+              user: principal.user,
+              organization,
+              type: NotificationType.WARNING,
+              category: "attendance_session_submitted",
+              title:
+                dashboardPanel === "groups"
+                  ? "حضور گروه کلاسی جدید ثبت شد"
+                  : "جلسهٔ حضور جدید آمادهٔ بازبینی است",
+              body: `${session.titleSnapshot || "جلسه"} ثبت شد و در فهرست مدیر قابل مشاهده است.`,
+              url: `/admin/dashboard/principal?panel=${dashboardPanel}`,
+              priority: "normal",
+              dedupeKey: `attendance-session-submitted:${session.id}:${session.revision}:${principal.user.id}`,
+            }),
+          );
+          notificationEvents.push({
+            userId: principal.user.id,
+            id: item.id,
+            title: item.title,
+            body: item.body,
+            category: item.category,
+            url:
+              item.url ?? `/admin/dashboard/principal?panel=${dashboardPanel}`,
+            organizationId: organization.id,
+          });
+        }
+      }
       for (const record of saved.filter(
         (row) => row.physicalStatus === "absent",
       )) {
@@ -3065,7 +3121,23 @@ export class AttendanceService {
             organizationId: organization.id,
           });
         }
-        for (const reviewerId of reviewRecipients) {
+        for (const reviewer of reviewRecipients) {
+          const reviewerId = reviewer.user.id;
+          const principalReviewer = reviewer.roleAssignments.some(
+            (assignment) =>
+              ["PRINCIPAL", "ORGANIZATION_ADMIN"].includes(
+                assignment.role.code,
+              ),
+          );
+          const panel =
+            contextType === "dorm"
+              ? "dorm"
+              : contextType === "class_group" || contextType === "study_group"
+                ? "groups"
+                : "sessions";
+          const reviewUrl = principalReviewer
+            ? `/admin/dashboard/principal?panel=${panel}`
+            : `/admin/attendance?section=${contextType === "class_group" ? "class_group" : contextType}`;
           const item = await notifications.save(
             notifications.create({
               user: { id: reviewerId } as User,
@@ -3074,8 +3146,9 @@ export class AttendanceService {
               category: "attendance_review",
               title: "درخواست بررسی غیبت جدید",
               body: `غیبت ${record.student.name} توسط معلم ثبت شده و منتظر بررسی است.`,
-              // Reviewers land in the exact workspace and queue item that generated the alert.
-              url: `/admin/attendance?section=sessions&reviewRecordId=${encodeURIComponent(record.id)}`,
+              // Principals review operational attendance in their dashboard;
+              // supervisors retain their scoped attendance workspace.
+              url: reviewUrl,
               priority: "high",
               dedupeKey: `attendance-absence-review:${record.id}:${reviewerId}`,
             }),
@@ -3086,7 +3159,7 @@ export class AttendanceService {
             title: item.title,
             body: item.body,
             category: item.category,
-            url: item.url ?? "/admin/attendance?section=sessions",
+            url: item.url ?? reviewUrl,
             organizationId: organization.id,
           });
         }

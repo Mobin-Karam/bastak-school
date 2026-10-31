@@ -18,6 +18,10 @@ import { CreateTeacherStudentReportDto } from "./dto/create-teacher-student-repo
 import { ActOnTeacherStudentReportDto } from "./dto/act-on-teacher-student-report.dto";
 import { NotificationsService } from "../notifications";
 import { NotificationType } from "../../database/entities/notification.entity";
+import {
+  MembershipStatus,
+  OrganizationMembership,
+} from "../../database/entities/organization-membership.entity";
 
 @Injectable()
 export class ReportsService {
@@ -156,7 +160,7 @@ export class ReportsService {
     });
     if (!student)
       throw new ApiException(404, "STUDENT_NOT_FOUND", "دانش‌آموز پیدا نشد.");
-    return this.teacherReports.save(
+    const report = await this.teacherReports.save(
       this.teacherReports.create({
         organization: session.organization,
         session,
@@ -171,6 +175,55 @@ export class ReportsService {
         seenBy: null,
       }),
     );
+    await this.notifyPrincipalsOfTeacherReport(report, session, student);
+    return report;
+  }
+
+  /** Creates one dashboard notification per principal for a new teacher report. */
+  private async notifyPrincipalsOfTeacherReport(
+    report: TeacherStudentReport,
+    session: AttendanceSession,
+    student: Student,
+  ) {
+    if (!this.notifications) return;
+    const memberships = await this.sessions.manager
+      .getRepository(OrganizationMembership)
+      .find({
+        where: {
+          organization: { id: session.organization.id },
+          status: MembershipStatus.ACTIVE,
+        },
+        relations: { user: true, roleAssignments: { role: true } },
+      });
+    const principalIds = memberships
+      .filter((membership) =>
+        membership.roleAssignments.some((assignment) =>
+          ["PRINCIPAL", "ORGANIZATION_ADMIN"].includes(assignment.role.code),
+        ),
+      )
+      .map((membership) => membership.user.id);
+    if (!principalIds.length) return;
+    const teacherName =
+      [session.assignedStaff?.firstName, session.assignedStaff?.lastName]
+        .filter(Boolean)
+        .join(" ") ||
+      session.assignedStaff?.username ||
+      "استاد";
+    await this.notifications.createForUsers(principalIds, {
+      type: NotificationType.WARNING,
+      category: "teacher-student-report",
+      priority: "high",
+      title: "گزارش جدید استاد درباره دانش‌آموز",
+      body: `${teacherName} دربارهٔ ${student.name} گزارش جدیدی ثبت کرده است.`,
+      url: "/admin/dashboard/principal?panel=reports",
+      data: {
+        teacherReportId: report.id,
+        studentId: student.id,
+        sessionId: session.id,
+      },
+      organizationId: session.organization.id,
+      dedupeKey: `teacher-student-report:${report.id}`,
+    });
   }
 
   async teacherReportsForPrincipal(

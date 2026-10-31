@@ -1003,10 +1003,7 @@ export function AttendanceStaffWorkspace({
         ],
       ]
     : isPrincipal
-      ? [
-          ["history", "همه جلسه‌های مدرسه"],
-          ["reports", "گزارش‌ها"],
-        ]
+      ? [["history", "همه جلسه‌های مدرسه"]]
       : [
           ["teacher", "جلسات استاد"],
           ["groups", "حضور گروه‌ها"],
