@@ -128,7 +128,12 @@ export function PrincipalTeacherSessionCalendar() {
             >
               <strong>{session.title}</strong>
               <small className="mt-1 block">
-                {session.teacherName} · {session.state === "saved" ? "حضور ذخیره شده" : session.state === "missing" ? "حضور ثبت نشده" : "جلسه آینده"}
+                {session.teacherName} ·{" "}
+                {session.state === "saved"
+                  ? "حضور ذخیره شده"
+                  : session.state === "missing"
+                    ? "حضور ثبت نشده"
+                    : "جلسه آینده"}
               </small>
             </div>
           ))}

@@ -59,7 +59,9 @@ export function LeaveRequestsPage() {
   const [teachers, setTeachers] = useState<AcademicTeacher[]>([]);
   const [substitutes, setSubstitutes] = useState<Record<string, string>>({});
   const [selectedStudentRequest, setSelectedStudentRequest] = useState<LeaveRequest | null>(null);
-  const [selectedTeacherLeave, setSelectedTeacherLeave] = useState<TeacherLeaveRequest | null>(null);
+  const [selectedTeacherLeave, setSelectedTeacherLeave] = useState<TeacherLeaveRequest | null>(
+    null,
+  );
   const load = async () => {
     setLoading(true);
     setError("");
@@ -166,7 +168,8 @@ export function LeaveRequestsPage() {
             <p className="text-xs font-black text-brand">میز تصمیم‌گیری مرخصی‌ها</p>
             <h1 className="mt-1 text-xl font-black text-ink sm:text-2xl">مرخصی و بازگشت</h1>
             <p className="mt-1 max-w-2xl text-sm leading-6 text-muted-foreground">
-              ابتدا درخواست را باز کنید، جزئیات بازه و پیام را ببینید، سپس فقط یک تصمیم نهایی ثبت کنید.
+              ابتدا درخواست را باز کنید، جزئیات بازه و پیام را ببینید، سپس فقط یک تصمیم نهایی ثبت
+              کنید.
             </p>
           </div>
           <Button variant="soft" loading={loading} onClick={() => void load()}>
@@ -175,9 +178,24 @@ export function LeaveRequestsPage() {
           </Button>
         </div>
         <div className="mt-4 grid gap-2 sm:grid-cols-3">
-          <QueueMetric icon={UsersRound} label="درخواست دانش‌آموز" value={pendingStudentRequests.length} tone="amber" />
-          <QueueMetric icon={UserRoundCheck} label="مرخصی و بازگشت استاد" value={pendingTeacherLeaves.length} tone="rose" />
-          <QueueMetric icon={Clock3} label="همهٔ موارد قابل پیگیری" value={rows.length + teacherLeaves.length} tone="blue" />
+          <QueueMetric
+            icon={UsersRound}
+            label="درخواست دانش‌آموز"
+            value={pendingStudentRequests.length}
+            tone="amber"
+          />
+          <QueueMetric
+            icon={UserRoundCheck}
+            label="مرخصی و بازگشت استاد"
+            value={pendingTeacherLeaves.length}
+            tone="rose"
+          />
+          <QueueMetric
+            icon={Clock3}
+            label="همهٔ موارد قابل پیگیری"
+            value={rows.length + teacherLeaves.length}
+            tone="blue"
+          />
         </div>
       </section>
       <section className="flex flex-wrap items-start justify-between gap-3">
@@ -384,32 +402,67 @@ export function LeaveRequestsPage() {
       <ResponsiveDrawer
         open={Boolean(selectedStudentRequest)}
         onOpenChange={(open) => !open && setSelectedStudentRequest(null)}
-        title={selectedStudentRequest ? `بررسی درخواست ${selectedStudentRequest.studentName || copy.student}` : "بررسی درخواست"}
+        title={
+          selectedStudentRequest
+            ? `بررسی درخواست ${selectedStudentRequest.studentName || copy.student}`
+            : "بررسی درخواست"
+        }
         description="تصمیم شما برای دانش‌آموز ثبت و از طریق اعلان ارسال می‌شود."
         desktopSide="left"
       >
         {selectedStudentRequest ? (
           <div className="grid gap-4">
             <section className="rounded-2xl bg-[rgb(var(--surface-muted))] p-4 text-sm leading-7">
-              <p><b>بازه:</b> {formatDateTime(selectedStudentRequest.startDate)} تا {formatDateTime(selectedStudentRequest.endDate)}</p>
-              <p><b>نوع:</b> {requestLabel(selectedStudentRequest)}</p>
-              <p><b>دلیل:</b> {selectedStudentRequest.reason}</p>
-              {selectedStudentRequest.leaveType === "LEAVE" ? <p><b>وعده‌ها:</b> {selectedStudentRequest.includesLunch ? "ناهار" : "—"} · {selectedStudentRequest.includesDinner ? "شام" : "—"}</p> : null}
+              <p>
+                <b>بازه:</b> {formatDateTime(selectedStudentRequest.startDate)} تا{" "}
+                {formatDateTime(selectedStudentRequest.endDate)}
+              </p>
+              <p>
+                <b>نوع:</b> {requestLabel(selectedStudentRequest)}
+              </p>
+              <p>
+                <b>دلیل:</b> {selectedStudentRequest.reason}
+              </p>
+              {selectedStudentRequest.leaveType === "LEAVE" ? (
+                <p>
+                  <b>وعده‌ها:</b> {selectedStudentRequest.includesLunch ? "ناهار" : "—"} ·{" "}
+                  {selectedStudentRequest.includesDinner ? "شام" : "—"}
+                </p>
+              ) : null}
             </section>
             <label className="grid gap-2 text-sm font-bold">
-              پیام برای دانش‌آموز <span className="text-xs font-normal text-muted-foreground">(اختیاری)</span>
+              پیام برای دانش‌آموز{" "}
+              <span className="text-xs font-normal text-muted-foreground">(اختیاری)</span>
               <textarea
                 value={reviewNotes[selectedStudentRequest.id] ?? ""}
-                onChange={(event) => setReviewNotes((notes) => ({ ...notes, [selectedStudentRequest.id]: event.target.value }))}
+                onChange={(event) =>
+                  setReviewNotes((notes) => ({
+                    ...notes,
+                    [selectedStudentRequest.id]: event.target.value,
+                  }))
+                }
                 className="min-h-28 rounded-xl border border-[rgb(var(--border-subtle))] bg-transparent p-3 text-sm font-normal"
                 placeholder="شرط تأیید یا دلیل تصمیم را بنویسید…"
               />
             </label>
             <div className="grid gap-2 sm:grid-cols-2">
-              <Button loading={busy === selectedStudentRequest.id} onClick={async () => { await review(selectedStudentRequest, "APPROVED"); setSelectedStudentRequest(null); }}>
+              <Button
+                loading={busy === selectedStudentRequest.id}
+                onClick={async () => {
+                  await review(selectedStudentRequest, "APPROVED");
+                  setSelectedStudentRequest(null);
+                }}
+              >
                 <Check size={16} /> تأیید مرخصی
               </Button>
-              <Button variant="danger" disabled={busy === selectedStudentRequest.id} onClick={async () => { await review(selectedStudentRequest, "REJECTED"); setSelectedStudentRequest(null); }}>
+              <Button
+                variant="danger"
+                disabled={busy === selectedStudentRequest.id}
+                onClick={async () => {
+                  await review(selectedStudentRequest, "REJECTED");
+                  setSelectedStudentRequest(null);
+                }}
+              >
                 <X size={16} /> رد درخواست
               </Button>
             </div>
@@ -426,24 +479,93 @@ export function LeaveRequestsPage() {
         {selectedTeacherLeave ? (
           <div className="grid gap-4">
             <section className="rounded-2xl bg-[rgb(var(--surface-muted))] p-4 text-sm leading-7">
-              <p><b>استاد:</b> {[selectedTeacherLeave.teacher?.firstName, selectedTeacherLeave.teacher?.lastName].filter(Boolean).join(" ") || selectedTeacherLeave.teacher?.username || "استاد"}</p>
-              <p><b>بازه:</b> {formatDate(selectedTeacherLeave.startDate)} تا {formatDate(selectedTeacherLeave.endDate)}</p>
-              <p><b>دلیل:</b> {selectedTeacherLeave.reason}</p>
+              <p>
+                <b>استاد:</b>{" "}
+                {[selectedTeacherLeave.teacher?.firstName, selectedTeacherLeave.teacher?.lastName]
+                  .filter(Boolean)
+                  .join(" ") ||
+                  selectedTeacherLeave.teacher?.username ||
+                  "استاد"}
+              </p>
+              <p>
+                <b>بازه:</b> {formatDate(selectedTeacherLeave.startDate)} تا{" "}
+                {formatDate(selectedTeacherLeave.endDate)}
+              </p>
+              <p>
+                <b>دلیل:</b> {selectedTeacherLeave.reason}
+              </p>
             </section>
-            {selectedTeacherLeave.status === "pending" ? <>
-              <label className="grid gap-2 text-sm font-bold">
-                روش پوشش جلسه‌ها
-                <select className="h-11 rounded-xl border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface))] px-3 font-normal" value={substitutes[selectedTeacherLeave.id] ?? ""} onChange={(event) => setSubstitutes((items) => ({ ...items, [selectedTeacherLeave.id]: event.target.value }))}>
-                  <option value="">بدون جانشین؛ جلسه‌ها منجمد شوند</option>
-                  {teachers.filter((teacher) => teacher.id !== selectedTeacherLeave.teacherId).map((teacher) => <option key={teacher.id} value={teacher.id}>{[teacher.firstName, teacher.lastName].filter(Boolean).join(" ") || teacher.username}</option>)}
-                </select>
-              </label>
+            {selectedTeacherLeave.status === "pending" ? (
+              <>
+                <label className="grid gap-2 text-sm font-bold">
+                  روش پوشش جلسه‌ها
+                  <select
+                    className="h-11 rounded-xl border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface))] px-3 font-normal"
+                    value={substitutes[selectedTeacherLeave.id] ?? ""}
+                    onChange={(event) =>
+                      setSubstitutes((items) => ({
+                        ...items,
+                        [selectedTeacherLeave.id]: event.target.value,
+                      }))
+                    }
+                  >
+                    <option value="">بدون جانشین؛ جلسه‌ها منجمد شوند</option>
+                    {teachers
+                      .filter((teacher) => teacher.id !== selectedTeacherLeave.teacherId)
+                      .map((teacher) => (
+                        <option key={teacher.id} value={teacher.id}>
+                          {[teacher.firstName, teacher.lastName].filter(Boolean).join(" ") ||
+                            teacher.username}
+                        </option>
+                      ))}
+                  </select>
+                </label>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  <Button
+                    loading={busy === `teacher:${selectedTeacherLeave.id}`}
+                    onClick={async () => {
+                      await reviewTeacherLeave(selectedTeacherLeave, "approved");
+                      setSelectedTeacherLeave(null);
+                    }}
+                  >
+                    تأیید و اعمال برنامه
+                  </Button>
+                  <Button
+                    variant="danger"
+                    disabled={Boolean(busy)}
+                    onClick={async () => {
+                      await reviewTeacherLeave(selectedTeacherLeave, "rejected");
+                      setSelectedTeacherLeave(null);
+                    }}
+                  >
+                    رد درخواست
+                  </Button>
+                </div>
+              </>
+            ) : null}
+            {selectedTeacherLeave.returnStatus === "pending" ? (
               <div className="grid gap-2 sm:grid-cols-2">
-                <Button loading={busy === `teacher:${selectedTeacherLeave.id}`} onClick={async () => { await reviewTeacherLeave(selectedTeacherLeave, "approved"); setSelectedTeacherLeave(null); }}>تأیید و اعمال برنامه</Button>
-                <Button variant="danger" disabled={Boolean(busy)} onClick={async () => { await reviewTeacherLeave(selectedTeacherLeave, "rejected"); setSelectedTeacherLeave(null); }}>رد درخواست</Button>
+                <Button
+                  loading={busy === `teacher-return:${selectedTeacherLeave.id}`}
+                  onClick={async () => {
+                    await reviewTeacherReturn(selectedTeacherLeave, "approved");
+                    setSelectedTeacherLeave(null);
+                  }}
+                >
+                  تأیید بازگشت
+                </Button>
+                <Button
+                  variant="danger"
+                  disabled={Boolean(busy)}
+                  onClick={async () => {
+                    await reviewTeacherReturn(selectedTeacherLeave, "rejected");
+                    setSelectedTeacherLeave(null);
+                  }}
+                >
+                  رد بازگشت
+                </Button>
               </div>
-            </> : null}
-            {selectedTeacherLeave.returnStatus === "pending" ? <div className="grid gap-2 sm:grid-cols-2"><Button loading={busy === `teacher-return:${selectedTeacherLeave.id}`} onClick={async () => { await reviewTeacherReturn(selectedTeacherLeave, "approved"); setSelectedTeacherLeave(null); }}>تأیید بازگشت</Button><Button variant="danger" disabled={Boolean(busy)} onClick={async () => { await reviewTeacherReturn(selectedTeacherLeave, "rejected"); setSelectedTeacherLeave(null); }}>رد بازگشت</Button></div> : null}
+            ) : null}
           </div>
         ) : null}
       </ResponsiveDrawer>
@@ -451,11 +573,32 @@ export function LeaveRequestsPage() {
   );
 }
 
-function QueueMetric({ icon: Icon, label, value, tone }: { icon: typeof UsersRound; label: string; value: number; tone: "amber" | "rose" | "blue" }) {
+function QueueMetric({
+  icon: Icon,
+  label,
+  value,
+  tone,
+}: {
+  icon: typeof UsersRound;
+  label: string;
+  value: number;
+  tone: "amber" | "rose" | "blue";
+}) {
   const classes = {
-    amber: "border-amber-300/70 bg-amber-50 text-amber-950 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-100",
+    amber:
+      "border-amber-300/70 bg-amber-50 text-amber-950 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-100",
     rose: "border-rose-300/70 bg-rose-50 text-rose-950 dark:border-rose-800 dark:bg-rose-950/30 dark:text-rose-100",
     blue: "border-sky-300/70 bg-sky-50 text-sky-950 dark:border-sky-800 dark:bg-sky-950/30 dark:text-sky-100",
   }[tone];
-  return <div className={`flex items-center gap-3 rounded-2xl border p-3 ${classes}`}><span className="grid size-10 place-items-center rounded-xl bg-white/70 dark:bg-black/15"><Icon size={20} /></span><span><b className="block text-lg">{value.toLocaleString("fa-IR")}</b><span className="text-xs font-bold">{label}</span></span></div>;
+  return (
+    <div className={`flex items-center gap-3 rounded-2xl border p-3 ${classes}`}>
+      <span className="grid size-10 place-items-center rounded-xl bg-white/70 dark:bg-black/15">
+        <Icon size={20} />
+      </span>
+      <span>
+        <b className="block text-lg">{value.toLocaleString("fa-IR")}</b>
+        <span className="text-xs font-bold">{label}</span>
+      </span>
+    </div>
+  );
 }

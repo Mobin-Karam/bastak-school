@@ -138,7 +138,8 @@
     box-shadow: 0 3px 12px rgb(var(--principal-attention) / 12%);
   }
   50% {
-    box-shadow: 0 0 0 5px rgb(var(--principal-attention) / 13%),
+    box-shadow:
+      0 0 0 5px rgb(var(--principal-attention) / 13%),
       0 10px 24px rgb(var(--principal-attention) / 22%);
   }
 }
