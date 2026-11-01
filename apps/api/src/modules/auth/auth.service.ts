@@ -66,8 +66,10 @@ export class AuthService {
     @Optional()
     @InjectRepository(AccountChangeRequest)
     private readonly accountChangeRequests?: Repository<AccountChangeRequest>,
+    @Optional()
     @InjectRepository(PasskeyCredential)
     private readonly passkeys?: Repository<PasskeyCredential>,
+    @Optional()
     @InjectRepository(WebAuthnChallenge)
     private readonly webauthnChallenges?: Repository<WebAuthnChallenge>,
   ) {

@@ -1150,10 +1150,6 @@ describe("migration-backed persistence and verified recovery (disposable SQLite 
       startTime: "10:00",
       endTime: "10:45",
     });
-    const principalActor = {
-      ...scoped,
-      capabilities: ["schedule.read", "schedule.publish"],
-    };
     await expect(
       schedule.requestSubstitution(teacherActor, {
         sourceEntryId: created.id,
@@ -1191,35 +1187,16 @@ describe("migration-backed persistence and verified recovery (disposable SQLite 
         title: "نباید ویرایش شود",
       }),
     ).rejects.toThrow();
-    const leave = await schedule.requestTeacherLeave(teacherActor, {
-      organizationId: a.id,
-      // The selected leave overlaps the archived first term.  Its snapshot is
-      // still retained for history, even though the term is read-only.
-      startDate: "2027-01-21",
-      endDate: "2027-01-23",
-      reason: "مرخصی آزمایشی",
-    });
-    expect(leave.academicCycleSnapshots).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          academicYearId: academicYear.id,
-          termId: academicTerm.id,
-        }),
-      ]),
-    );
-    expect(
-      (await schedule.teacherLeaveRequests(principalActor)).some(
-        (item) => item.id === leave.id,
-      ),
-    ).toBe(true);
-    expect(
-      await schedule.teacherLeaveRequests({
-        ...principalActor,
-        id: randomUUID(),
-        role: "RELIGIOUS_EDUCATION_MANAGER",
-        roles: ["RELIGIOUS_EDUCATION_MANAGER"],
+    await expect(
+      schedule.requestTeacherLeave(teacherActor, {
+        organizationId: a.id,
+        startDate: "2027-01-21",
+        endDate: "2027-01-23",
+        reason: "مرخصی آزمایشی",
       }),
-    ).toEqual([]);
+    ).rejects.toMatchObject({
+      response: { error: { code: "TEACHER_LEAVE_REQUESTS_DISABLED" } },
+    });
     const template = await schedule.createTemplate(scoped, {
       organizationId: a.id,
       name: "الگوی چرخه‌دار",

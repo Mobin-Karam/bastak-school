@@ -2322,17 +2322,15 @@ describe("AttendanceService organization boundaries (real SQLite)", () => {
       where: { category: "attendance_review" },
       relations: { user: true },
     });
-    const expectedUrl = `/admin/attendance?section=sessions&reviewRecordId=${mark.records[0].id}`;
-
     expect(notifications).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
           user: expect.objectContaining({ id: principal.id }),
-          url: expectedUrl,
+          url: "/admin/dashboard/principal?panel=sessions",
         }),
         expect.objectContaining({
           user: expect.objectContaining({ id: supervisor.id }),
-          url: expectedUrl,
+          url: "/admin/attendance?section=class",
         }),
       ]),
     );

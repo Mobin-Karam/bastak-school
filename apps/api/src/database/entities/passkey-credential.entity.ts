@@ -14,7 +14,7 @@ import { User } from "./user.entity";
 export class PasskeyCredential {
   @PrimaryGeneratedColumn("uuid") id!: string;
 
-  @ManyToOne(() => User, { onDelete: "CASCADE" }) user!: User;
+  @ManyToOne(() => User, { nullable: false, onDelete: "CASCADE" }) user!: User;
 
   @Column({ type: "varchar", length: 1024 }) credentialId!: string;
   /** base64url encoded COSE public key; private key material never reaches this table. */
