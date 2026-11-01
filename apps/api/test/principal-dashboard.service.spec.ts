@@ -58,6 +58,51 @@ describe("PrincipalDashboardService", () => {
     );
   });
 
+  it("alerts both the assigned teacher and principal when an attendance occurrence is missed", async () => {
+    const createForUser = jest.fn().mockResolvedValue({});
+    const db = {
+      query: jest.fn(async (sql: string) => {
+        if (sql.includes("FROM school_schedule_entries e"))
+          return [
+            {
+              id: "entry-1",
+              organizationId: "school-a",
+              teacherId: "teacher-1",
+              title: "فقه",
+              classroomName: "پایه اول",
+              teacherName: "استاد الف",
+            },
+          ];
+        if (sql.includes("FROM organization_memberships membership"))
+          return [{ id: "principal-1" }];
+        return [];
+      }),
+    };
+    const service = new PrincipalDashboardService(db as never, {
+      createForUser,
+    } as never);
+
+    await service.runMissedTeacherAttendanceNotifications(
+      new Date("2026-10-20T08:00:00Z"),
+    );
+
+    expect(createForUser).toHaveBeenCalledTimes(2);
+    expect(createForUser).toHaveBeenCalledWith(
+      "teacher-1",
+      expect.objectContaining({
+        category: "attendance-overdue",
+        title: "حضور و غیاب جلسه ثبت نشده است",
+      }),
+    );
+    expect(createForUser).toHaveBeenCalledWith(
+      "principal-1",
+      expect.objectContaining({
+        category: "attendance-overdue",
+        url: "/admin/dashboard/principal?panel=sessions",
+      }),
+    );
+  });
+
   it("binds every leadership query to the active organization and exposes only enabled sections", async () => {
     const db = {
       query: jest.fn(async (sql: string, parameters: unknown[]) => {

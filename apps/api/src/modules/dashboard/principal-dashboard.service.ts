@@ -193,8 +193,10 @@ export class PrincipalDashboardService implements OnModuleInit, OnModuleDestroy 
   onModuleInit() {
     if (!this.notifications) return;
     void this.runPrincipalQueueReminders();
+    void this.runMissedTeacherAttendanceNotifications();
     this.reminderTimer = setInterval(() => {
       void this.runPrincipalQueueReminders();
+      void this.runMissedTeacherAttendanceNotifications();
     }, 5 * 60 * 1000);
     this.reminderTimer.unref?.();
   }
@@ -256,6 +258,81 @@ export class PrincipalDashboardService implements OnModuleInit, OnModuleDestroy 
     } catch (error) {
       this.logger.error(
         `Principal review reminder sweep failed: ${error instanceof Error ? error.message : "unknown error"}`,
+      );
+    }
+  }
+
+  /**
+   * A missed lesson must reach the teacher and principals even when nobody has
+   * opened the dashboard. Each recipient gets one durable notification for
+   * the missed occurrence on that operational day.
+   */
+  async runMissedTeacherAttendanceNotifications(now = new Date()) {
+    if (!this.notifications) return;
+    const date = this.tehranDate(now);
+    const currentTime = this.tehranTime(now);
+    const weekday = (new Date(`${date}T12:00:00Z`).getUTCDay() + 1) % 7;
+    try {
+      const rows = (await this.db.query(
+        `SELECT e.id, e.organizationId, e.teacherId, e.title, e.endTime,
+          COALESCE(NULLIF(e.classroomNameSnapshot,''),'کلاس') classroomName,
+          TRIM(COALESCE(u.firstName,'') || ' ' || COALESCE(u.lastName,'')) teacherName
+         FROM school_schedule_entries e
+         LEFT JOIN users u ON u.id=e.teacherId
+         WHERE e.status='ACTIVE' AND e.teacherId IS NOT NULL AND e.weekday=?
+           AND e.academicYearId IS NOT NULL AND e.termId IS NOT NULL
+           AND (e.startsOn IS NULL OR e.startsOn<=?) AND (e.endsOn IS NULL OR e.endsOn>=?)
+           AND e.endTime<?
+           AND NOT EXISTS (
+             SELECT 1 FROM attendance_sessions s
+             WHERE s.organizationId=e.organizationId
+               AND s.occurrenceKey=('legacy-schedule:' || e.id || ':' || ?)
+           )`,
+        [weekday, date, date, currentTime, date],
+      )) as Array<Record<string, unknown>>;
+      const principalsByOrganization = new Map<string, string[]>();
+      await Promise.all(
+        rows.map(async (row) => {
+          const organizationId = String(row.organizationId ?? "");
+          const entryId = String(row.id ?? "");
+          const teacherId = String(row.teacherId ?? "");
+          if (!organizationId || !entryId || !teacherId) return;
+          const teacherName = String(row.teacherName ?? "").trim() || "استاد";
+          const body = `${teacherName} برای ${String(row.classroomName ?? "کلاس")} · ${String(row.title ?? "جلسه")} تا پایان زمان جلسه حضور و غیاب ثبت نکرده است.`;
+          await this.notifications!.createForUser(teacherId, {
+            type: NotificationType.WARNING,
+            category: "attendance-overdue",
+            priority: "high",
+            title: "حضور و غیاب جلسه ثبت نشده است",
+            body,
+            url: "/admin",
+            organizationId,
+            dedupeKey: `attendance-overdue:${date}:${entryId}:${teacherId}`,
+          });
+          let principals = principalsByOrganization.get(organizationId);
+          if (!principals) {
+            principals = await this.principalRecipientIds(organizationId);
+            principalsByOrganization.set(organizationId, principals);
+          }
+          await Promise.all(
+            principals.map((principalId) =>
+              this.notifications!.createForUser(principalId, {
+                type: NotificationType.WARNING,
+                category: "attendance-overdue",
+                priority: "high",
+                title: "پیگیری حضور و غیاب استاد",
+                body,
+                url: "/admin/dashboard/principal?panel=sessions",
+                organizationId,
+                dedupeKey: `attendance-overdue:${date}:${entryId}:${principalId}`,
+              }),
+            ),
+          );
+        }),
+      );
+    } catch (error) {
+      this.logger.error(
+        `Missed teacher attendance notification sweep failed: ${error instanceof Error ? error.message : "unknown error"}`,
       );
     }
   }
@@ -337,8 +414,6 @@ export class PrincipalDashboardService implements OnModuleInit, OnModuleDestroy 
         end,
         classId,
       );
-    if (can("attendance.review") && end === this.today())
-      await this.notifyOverdueTeacherSessions(user, organizationId, end);
     if (can("analytics.read") && can("students.read"))
       response.behaviour = await this.behaviour(
         organizationId,
@@ -1116,12 +1191,26 @@ export class PrincipalDashboardService implements OnModuleInit, OnModuleDestroy 
     return Number(row?.count ?? 0);
   }
   private today() {
+    return this.tehranDate(new Date());
+  }
+  private tehranDate(value: Date) {
     return new Intl.DateTimeFormat("en-CA", {
       timeZone: "Asia/Tehran",
       year: "numeric",
       month: "2-digit",
       day: "2-digit",
-    }).format(new Date());
+    }).format(value);
+  }
+  private tehranTime(value: Date) {
+    const time = new Intl.DateTimeFormat("en-GB", {
+      timeZone: "Asia/Tehran",
+      hour: "2-digit",
+      minute: "2-digit",
+      hourCycle: "h23",
+    })
+      .format(value)
+      .replace(":", "");
+    return `${time.slice(0, 2)}:${time.slice(2, 4)}`;
   }
   private daysBefore(date: string, days: number) {
     const value = new Date(`${date}T12:00:00Z`);
