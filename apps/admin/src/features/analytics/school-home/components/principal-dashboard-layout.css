@@ -96,6 +96,57 @@
   font-weight: 900;
   font-variant-numeric: tabular-nums;
 }
+.principal-dashboard__home-card--attention {
+  --principal-attention: 217 119 6;
+  --principal-attention-surface: 255 251 235;
+  border-color: rgb(var(--principal-attention) / 72%);
+  background: rgb(var(--principal-attention-surface));
+  animation: principal-dashboard-attention 2.1s ease-in-out infinite;
+}
+.principal-dashboard__home-card--attention .principal-dashboard__home-icon,
+.principal-dashboard__home-card--attention .principal-dashboard__home-count {
+  border-color: rgb(var(--principal-attention) / 62%);
+  color: rgb(var(--principal-attention));
+  background: rgb(var(--principal-attention) / 13%);
+}
+.principal-dashboard__home-card--dorm,
+.principal-dashboard__home-card--overdue-return {
+  --principal-attention: 190 24 93;
+  --principal-attention-surface: 255 241 242;
+}
+.principal-dashboard__home-card--sessions,
+.principal-dashboard__home-card--groups,
+.principal-dashboard__home-card--comparison {
+  --principal-attention: 3 105 161;
+  --principal-attention-surface: 240 249 255;
+}
+.principal-dashboard__home-card--reports {
+  --principal-attention: 109 40 217;
+  --principal-attention-surface: 250 245 255;
+}
+.dark .principal-dashboard__home-card--attention {
+  background: rgb(var(--principal-attention) / 18%);
+}
+.dark .principal-dashboard__home-card--attention .principal-dashboard__home-icon,
+.dark .principal-dashboard__home-card--attention .principal-dashboard__home-count {
+  color: rgb(255 255 255 / 94%);
+  background: rgb(var(--principal-attention) / 35%);
+}
+@keyframes principal-dashboard-attention {
+  0%,
+  100% {
+    box-shadow: 0 3px 12px rgb(var(--principal-attention) / 12%);
+  }
+  50% {
+    box-shadow: 0 0 0 5px rgb(var(--principal-attention) / 13%),
+      0 10px 24px rgb(var(--principal-attention) / 22%);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .principal-dashboard__home-card--attention {
+    animation: none;
+  }
+}
 .principal-dashboard__drawer {
   max-width: min(46rem, 100vw);
 }

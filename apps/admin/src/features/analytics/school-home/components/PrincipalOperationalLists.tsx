@@ -358,7 +358,11 @@ export function PrincipalOperationalLists({
           <button
             key={id}
             type="button"
-            className="principal-dashboard__home-card"
+            className={`principal-dashboard__home-card ${
+              counts[id] > 0
+                ? `principal-dashboard__home-card--attention principal-dashboard__home-card--${id}`
+                : ""
+            }`}
             onClick={() => setActive(id)}
             aria-haspopup="dialog"
           >
