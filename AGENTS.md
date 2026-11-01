@@ -1,6 +1,88 @@
-# Moshaver AI Engineering Guide
+# My Project AI Engineering Guide
 
 Moshaver is a multi-application monorepo. Treat this file as the primary repository-wide operating contract for AI coding agents.
+
+# CODE SEARCH POLICY — GRAPHIFY FIRST
+
+Graphify is the primary and mandatory mechanism for discovering,
+searching, navigating, and understanding code in this repository.
+
+## Mandatory behavior
+
+For ANY task that requires finding code, symbols, implementations,
+callers, dependencies, architecture, tests, data flow, or relationships:
+
+1. ALWAYS query Graphify first.
+
+2. Use Graphify to identify:
+   - relevant files
+   - symbols/classes/functions
+   - callers and callees
+   - dependencies
+   - execution paths
+   - related tests
+   - affected components
+
+3. Prefer Graphify commands/tools such as:
+   - `graphify query "<question>"`
+   - `graphify explain "<symbol-or-concept>"`
+   - `graphify path "<source>" "<destination>"`
+   - Graphify MCP graph-query tools when available
+
+4. DO NOT initially use repository-wide filesystem search tools for
+   code discovery, including:
+   - grep
+   - rg / ripgrep
+   - git grep
+   - find
+   - fd
+   - glob-based repository scans
+   - recursive directory listing
+   - opening many files to reconstruct architecture
+
+5. Filesystem access is allowed AFTER Graphify identifies the relevant
+   files/symbols. Open only the files/ranges needed to inspect,
+   edit, or verify the implementation.
+
+6. Filesystem SEARCH is only a fallback when:
+   - Graphify is unavailable;
+   - the graph does not exist;
+   - Graphify reports an error;
+   - or at least TWO targeted Graphify queries fail to locate the
+     required information.
+
+7. If filesystem search is used as a fallback, explicitly state:
+   "Graphify fallback: <reason>"
+
+8. Never bypass Graphify merely because grep/rg would be faster.
+
+9. For architecture or dependency questions, NEVER reconstruct the
+   answer by scanning files when Graphify can answer it.
+
+10. After modifying code, update the Graphify graph so subsequent
+    searches use current information.
+
+## Required search workflow
+
+For codebase questions:
+
+Graphify query
+    ↓
+Graphify refine/explain/path if necessary
+    ↓
+Identify exact files + symbols
+    ↓
+Read only those source locations
+    ↓
+Make changes
+    ↓
+Run tests / validation
+    ↓
+Update Graphify graph
+
+Graphify is the source of codebase discovery.
+The filesystem is the source of exact implementation text after
+Graphify has located it.
 
 ## Codex project context
 
