@@ -40,6 +40,42 @@ describe("PrincipalDashboardService", () => {
     ]);
   });
 
+  it("does not label future legacy-schedule lessons as missing and honors the term start", async () => {
+    const query = jest.fn(async (sql: string) => {
+      if (sql.includes("FROM school_schedule_entries e"))
+        return [
+          {
+            id: "entry-1",
+            weekday: 2,
+            title: "فقه",
+            startsOn: null,
+            endsOn: null,
+            termStartsOn: "2026-10-20",
+            termEndsOn: "2027-01-20",
+            academicYearStartsOn: "2026-09-20",
+            academicYearEndsOn: "2027-06-20",
+            teacherName: "استاد الف",
+          },
+        ];
+      return [];
+    });
+    const service = new PrincipalDashboardService({ query } as never);
+    jest
+      .spyOn(service as unknown as { today: () => string }, "today")
+      .mockReturnValue("2026-11-01");
+
+    const calendar = await service.teacherSessionCalendar(
+      principal,
+      "2026-11-01",
+    );
+
+    expect(calendar.days["2026-10-19"]).toBeUndefined();
+    expect(calendar.days["2026-10-26"]?.[0]).toMatchObject({
+      state: "missing",
+    });
+    expect(calendar.days["2026-11-02"]?.[0]).toMatchObject({ state: "future" });
+  });
+
   it("rejects an invalid dashboard calendar month instead of silently changing the range", async () => {
     const service = new PrincipalDashboardService({
       query: jest.fn(),

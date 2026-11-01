@@ -10,7 +10,15 @@ type Data = {
   start: string;
   end: string;
   month: string;
-  days: Record<string, Array<{ id: string; title: string; teacherName: string; saved: boolean }>>;
+  days: Record<
+    string,
+    Array<{
+      id: string;
+      title: string;
+      teacherName: string;
+      state: "saved" | "missing" | "future";
+    }>
+  >;
 };
 const iso = (date: Date) => date.toISOString().slice(0, 10);
 const shiftMonth = (month: string, direction: number) => {
@@ -73,8 +81,9 @@ export function PrincipalTeacherSessionCalendar() {
         >
           {dates.map((date) => {
             const rows = result.data?.days[date] ?? [];
-            const done = rows.filter((item) => item.saved).length;
-            const pending = rows.length - done;
+            const done = rows.filter((item) => item.state === "saved").length;
+            const missing = rows.filter((item) => item.state === "missing").length;
+            const future = rows.filter((item) => item.state === "future").length;
             const outsideMonth = !date.startsWith(month.slice(0, 7));
             return (
               <button
@@ -82,7 +91,7 @@ export function PrincipalTeacherSessionCalendar() {
                 type="button"
                 disabled={!rows.length}
                 onClick={() => setSelected(date)}
-                className={`min-h-[3.1rem] rounded-lg border px-1 py-1 text-center transition focus-visible:ring-2 focus-visible:ring-brand disabled:cursor-default ${outsideMonth ? "opacity-45" : ""} ${pending ? "border-rose-300 bg-rose-50 text-rose-950 dark:border-rose-900 dark:bg-rose-950/25 dark:text-rose-100" : done ? "border-emerald-300 bg-emerald-50 text-emerald-950 dark:border-emerald-900 dark:bg-emerald-950/25 dark:text-emerald-100" : "border-transparent bg-transparent text-slate-500"}`}
+                className={`min-h-[3.1rem] rounded-lg border px-1 py-1 text-center transition focus-visible:ring-2 focus-visible:ring-brand disabled:cursor-default ${outsideMonth ? "opacity-45" : ""} ${missing ? "border-rose-300 bg-rose-50 text-rose-950 dark:border-rose-900 dark:bg-rose-950/25 dark:text-rose-100" : done ? "border-emerald-300 bg-emerald-50 text-emerald-950 dark:border-emerald-900 dark:bg-emerald-950/25 dark:text-emerald-100" : future ? "border-slate-200 bg-slate-50 text-slate-600 dark:border-slate-700 dark:bg-slate-900/40 dark:text-slate-300" : "border-transparent bg-transparent text-slate-500"}`}
               >
                 <time className="block text-sm font-semibold leading-none" dateTime={date}>
                   {new Intl.DateTimeFormat("fa-IR-u-ca-persian", {
@@ -91,9 +100,11 @@ export function PrincipalTeacherSessionCalendar() {
                 </time>
                 {rows.length ? (
                   <b className="mt-1 block text-[10px] leading-none">
-                    {pending
-                      ? `${pending.toLocaleString("fa-IR")} ناتمام`
-                      : `${done.toLocaleString("fa-IR")} ثبت`}
+                    {missing
+                      ? `${missing.toLocaleString("fa-IR")} ناتمام`
+                      : done
+                        ? `${done.toLocaleString("fa-IR")} ثبت`
+                        : `${future.toLocaleString("fa-IR")} برنامه`}
                   </b>
                 ) : (
                   <span className="mt-1 block text-[10px] leading-none">—</span>
@@ -113,11 +124,11 @@ export function PrincipalTeacherSessionCalendar() {
           {sessions.map((session) => (
             <div
               key={`${session.id}-${session.title}`}
-              className={`rounded-lg border p-3 ${session.saved ? "border-emerald-300 bg-emerald-50 dark:border-emerald-900 dark:bg-emerald-950/25" : "border-rose-300 bg-rose-50 dark:border-rose-900 dark:bg-rose-950/25"}`}
+              className={`rounded-lg border p-3 ${session.state === "saved" ? "border-emerald-300 bg-emerald-50 dark:border-emerald-900 dark:bg-emerald-950/25" : session.state === "missing" ? "border-rose-300 bg-rose-50 dark:border-rose-900 dark:bg-rose-950/25" : "border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-900/40"}`}
             >
               <strong>{session.title}</strong>
               <small className="mt-1 block">
-                {session.teacherName} · {session.saved ? "حضور ذخیره شده" : "حضور هنوز ثبت نشده"}
+                {session.teacherName} · {session.state === "saved" ? "حضور ذخیره شده" : session.state === "missing" ? "حضور ثبت نشده" : "جلسه آینده"}
               </small>
             </div>
           ))}

@@ -550,7 +550,15 @@ export class PrincipalDashboardService
     } = this.dashboardCalendarRange(month);
     const [entries, saved] = await Promise.all([
       this.db.query(
-        `SELECT e.id,e.weekday,e.title,e.startsOn,e.endsOn,TRIM(COALESCE(u.firstName,'') || ' ' || COALESCE(u.lastName,'')) teacherName FROM school_schedule_entries e LEFT JOIN users u ON u.id=e.teacherId WHERE e.organizationId=? AND e.status='ACTIVE' AND e.versionId IS NULL`,
+        `SELECT e.id,e.weekday,e.title,e.startsOn,e.endsOn,
+          term.startsOn termStartsOn,term.endsOn termEndsOn,
+          year.startsOn academicYearStartsOn,year.endsOn academicYearEndsOn,
+          TRIM(COALESCE(u.firstName,'') || ' ' || COALESCE(u.lastName,'')) teacherName
+         FROM school_schedule_entries e
+         LEFT JOIN users u ON u.id=e.teacherId
+         LEFT JOIN school_academic_terms term ON term.id=e.termId
+         LEFT JOIN school_academic_years year ON year.id=COALESCE(e.academicYearId,term.academicYearId)
+         WHERE e.organizationId=? AND e.status='ACTIVE' AND e.versionId IS NULL`,
         [organizationId],
       ),
       this.db.query(
@@ -565,15 +573,43 @@ export class PrincipalDashboardService
     );
     const days: Record<
       string,
-      Array<{ id: string; title: string; teacherName: string; saved: boolean }>
+      Array<{
+        id: string;
+        title: string;
+        teacherName: string;
+        state: "saved" | "missing" | "future";
+      }>
     > = {};
+    const today = this.today();
     for (let date = start; date <= end; date = this.daysBefore(date, -1)) {
       const weekday = (new Date(`${date}T12:00:00Z`).getUTCDay() + 1) % 7;
       for (const entry of entries as Array<Record<string, unknown>>) {
+        const startsOn = [
+          entry.academicYearStartsOn,
+          entry.termStartsOn,
+          entry.startsOn,
+        ]
+          .filter(
+            (value): value is string =>
+              typeof value === "string" && Boolean(value),
+          )
+          .sort()
+          .at(-1);
+        const endsOn = [
+          entry.academicYearEndsOn,
+          entry.termEndsOn,
+          entry.endsOn,
+        ]
+          .filter(
+            (value): value is string =>
+              typeof value === "string" && Boolean(value),
+          )
+          .sort()
+          .at(0);
         if (
           Number(entry.weekday) !== weekday ||
-          (entry.startsOn && String(entry.startsOn) > date) ||
-          (entry.endsOn && String(entry.endsOn) < date)
+          (startsOn && startsOn > date) ||
+          (endsOn && endsOn < date)
         )
           continue;
         const id = String(entry.id);
@@ -581,7 +617,11 @@ export class PrincipalDashboardService
           id,
           title: String(entry.title || "جلسه کلاس"),
           teacherName: String(entry.teacherName || "استاد").trim() || "استاد",
-          saved: savedKeys.has(`${id}:${date}`),
+          state: savedKeys.has(`${id}:${date}`)
+            ? "saved"
+            : date > today
+              ? "future"
+              : "missing",
         });
       }
     }
