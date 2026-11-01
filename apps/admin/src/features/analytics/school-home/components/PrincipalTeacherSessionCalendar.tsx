@@ -30,6 +30,13 @@ export function PrincipalTeacherSessionCalendar() {
     [result.data],
   );
   const sessions = selected ? (result.data?.days[selected] ?? []) : [];
+  const caption = result.data
+    ? new Intl.DateTimeFormat("fa-IR-u-ca-persian", {
+        year: "numeric",
+        month: "long",
+        timeZone: "UTC",
+      }).format(new Date(`${result.data.start}T12:00:00Z`))
+    : "";
   return (
     <Card className="p-4 sm:p-5" dir="rtl">
       <div className="mb-3 flex items-center gap-2">
@@ -38,6 +45,9 @@ export function PrincipalTeacherSessionCalendar() {
           <h2 className="font-black">پیگیری ثبت جلسه‌های استاد</h2>
           <p className="text-xs text-slate-500">قرمز: ثبت‌نشده · سبز: حضور جلسه ذخیره شده است.</p>
         </div>
+        <span className="ms-auto rounded-lg border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-muted))] px-3 py-1 text-xs font-bold text-slate-600 dark:text-slate-300">
+          {caption}
+        </span>
       </div>
       {result.isError ? (
         <EmptyState title="تقویم جلسه‌های استاد دریافت نشد" />

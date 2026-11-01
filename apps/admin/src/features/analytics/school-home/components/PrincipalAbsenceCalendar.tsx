@@ -40,6 +40,13 @@ export function PrincipalAbsenceCalendar() {
     );
   }, [calendar.data]);
   const students = selected ? (calendar.data?.days[selected] ?? []) : [];
+  const caption = calendar.data
+    ? new Intl.DateTimeFormat("fa-IR-u-ca-persian", {
+        year: "numeric",
+        month: "long",
+        timeZone: "UTC",
+      }).format(new Date(`${calendar.data.start}T12:00:00Z`))
+    : "";
   return (
     <Card className="principal-absence-calendar p-4 sm:p-5" dir="rtl">
       <div className="mb-3 flex items-center gap-2">
@@ -50,6 +57,9 @@ export function PrincipalAbsenceCalendar() {
             شش هفته؛ هر روز را برای فهرست دانش‌آموزان غایب باز کنید.
           </p>
         </div>
+        <span className="ms-auto rounded-lg border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-muted))] px-3 py-1 text-xs font-bold text-slate-600 dark:text-slate-300">
+          {caption}
+        </span>
       </div>
       {calendar.isError ? (
         <EmptyState title="بایگانی غیبت دریافت نشد" />
