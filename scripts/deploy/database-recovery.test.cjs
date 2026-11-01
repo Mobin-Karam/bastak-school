@@ -103,6 +103,36 @@ test("preserves historical leave requests while adding timed departure details",
   db.close();
 });
 
+test("preserves leave and schedule history while adding explicit leave ownership", () => {
+  const db = new Database(":memory:");
+  db.exec(`
+    CREATE TABLE teacher_leave_requests (id TEXT PRIMARY KEY, reason TEXT NOT NULL);
+    CREATE TABLE school_schedule_entries (id TEXT PRIMARY KEY, title TEXT NOT NULL);
+    CREATE TABLE school_schedule_occurrence_overrides (id TEXT PRIMARY KEY, entryId TEXT NOT NULL);
+    CREATE TABLE migrations (name TEXT);
+    INSERT INTO teacher_leave_requests VALUES ('leave-1', 'Retained reason');
+    INSERT INTO school_schedule_entries VALUES ('entry-1', 'Retained lesson');
+    INSERT INTO school_schedule_occurrence_overrides VALUES ('override-1', 'entry-1');
+  `);
+  const before = inventory(db);
+  db.exec(`
+    ALTER TABLE teacher_leave_requests ADD COLUMN updatedAt datetime;
+    ALTER TABLE school_schedule_entries ADD COLUMN leaveRequestId varchar(36);
+    CREATE INDEX IDX_schedule_entries_leave_request ON school_schedule_entries(leaveRequestId);
+    CREATE INDEX IDX_schedule_occurrence_overrides_leave_request ON school_schedule_occurrence_overrides(entryId);
+    INSERT INTO migrations VALUES ('TeacherLeaveWorkflowIntegrity1763400000000');
+  `);
+  assert.doesNotThrow(() => preserved(before, inventory(db), db));
+  db.prepare(
+    "UPDATE school_schedule_entries SET leaveRequestId='unexpected' WHERE id='entry-1'",
+  ).run();
+  assert.throws(
+    () => preserved(before, inventory(db), db),
+    /non-null value in leaveRequestId/,
+  );
+  db.close();
+});
+
 test("preserves existing authorization rows while adding the school-admin lifecycle grants", () => {
   const db = new Database(":memory:");
   db.exec(`

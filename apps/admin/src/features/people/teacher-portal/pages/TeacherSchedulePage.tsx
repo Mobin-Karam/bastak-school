@@ -7,6 +7,7 @@ import {
   listLegacyAcademicCycles,
   type ScheduleEntry,
 } from "../../../academics/schedule/api/schedule.api";
+import { listTeacherLeaveRequests } from "../../../academics/schedule/api/teacher-leave.api";
 import { Card, EmptyState, LoadingState } from "../../../../shared/ui/ui";
 import { AdaptiveSelect } from "../../../../shared/ui/adaptive-select";
 import { DatePicker } from "../../../../shared/ui/date-picker";
@@ -28,6 +29,11 @@ export function TeacherSchedulePage({ entries: suppliedEntries }: { entries?: Sc
   const cycles = useQuery({
     queryKey: ["schedule", "teacher-academic-cycles", organizationId],
     queryFn: () => listLegacyAcademicCycles(organizationId!),
+    enabled: Boolean(organizationId),
+  });
+  const leaves = useQuery({
+    queryKey: ["teacher-leaves", "schedule", organizationId],
+    queryFn: listTeacherLeaveRequests,
     enabled: Boolean(organizationId),
   });
   const activeYear = cycles.data?.years.find((year) => year.state === "ACTIVE");
@@ -69,6 +75,13 @@ export function TeacherSchedulePage({ entries: suppliedEntries }: { entries?: Sc
     selectedClassYear?.state !== "ARCHIVED" &&
     selectedClassTerm?.state !== "ARCHIVED" &&
     !selectedClassTerm?.correctionOpen;
+  const activeLeave = (leaves.data ?? []).find(
+    (leave) =>
+      leave.status === "approved" &&
+      leave.startDate <= viewDate &&
+      leave.endDate >= viewDate &&
+      !(leave.returnStatus === "approved" && leave.returnDate && leave.returnDate <= viewDate),
+  );
 
   return (
     <section className="mx-auto grid w-full max-w-6xl gap-4" dir="rtl">
@@ -87,6 +100,15 @@ export function TeacherSchedulePage({ entries: suppliedEntries }: { entries?: Sc
           <DatePicker calendar="persian" value={viewDate} onChange={setViewDate} />
         </label>
       </section>
+      {activeLeave ? (
+        <p
+          role="status"
+          className="rounded-2xl border border-amber-500/50 bg-amber-50 px-4 py-3 text-xs font-bold leading-6 text-amber-950 dark:bg-amber-950/35 dark:text-amber-100"
+        >
+          شما در بازهٔ مرخصی تأییدشده هستید؛ جلسه‌های این تاریخ تا تأیید بازگشت زودتر، قابل ثبت حضور
+          نیستند.
+        </p>
+      ) : null}
       <section
         className="grid gap-3 rounded-2xl border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card))] p-3 sm:grid-cols-2"
         aria-label="انتخاب سال تحصیلی و نیم‌سال برنامه"
@@ -152,7 +174,7 @@ export function TeacherSchedulePage({ entries: suppliedEntries }: { entries?: Sc
                         <button
                           type="button"
                           onClick={() => setSelectedClass(entry)}
-                          className="w-full rounded-xl border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-muted))] p-3 text-right outline-none transition hover:border-brand/40 hover:bg-brand/5 focus-visible:ring-2 focus-visible:ring-brand motion-reduce:transition-none"
+                          className={`w-full rounded-xl border bg-[rgb(var(--surface-muted))] p-3 text-right outline-none transition hover:border-brand/40 hover:bg-brand/5 focus-visible:ring-2 focus-visible:ring-brand motion-reduce:transition-none ${activeLeave ? "border-amber-500/70 bg-amber-50/70 dark:bg-amber-950/20" : "border-[rgb(var(--border-subtle))]"}`}
                         >
                           <div className="flex items-center justify-between gap-2">
                             <p className="truncate text-sm font-bold text-ink">{entry.title}</p>
@@ -171,6 +193,11 @@ export function TeacherSchedulePage({ entries: suppliedEntries }: { entries?: Sc
                           {entry.status === "REPLACED" ? (
                             <p className="mt-1 text-[11px] font-bold text-amber-700">
                               جلسه جایگزین یک‌باره · {entry.startsOn}
+                            </p>
+                          ) : null}
+                          {activeLeave && entry.status === "ACTIVE" ? (
+                            <p className="mt-1 text-[11px] font-black text-amber-800 dark:text-amber-200">
+                              مرخصی تأییدشده · ثبت حضور تا تأیید بازگشت غیرفعال است
                             </p>
                           ) : null}
                         </button>

@@ -2590,7 +2590,8 @@ export class AttendanceService {
       // A teacher's own attendance must be frozen for every approved leave day.
       // School-wide staff retain their operational ability to correct history.
       if (!this.schoolWide(user)) {
-        const day = sessionDate.toISOString().slice(0, 10);
+        // Leave dates are school operational dates, never the server's UTC date.
+        const day = operationalDate(sessionDate, "Asia/Tehran");
         const leave = await manager.getRepository(TeacherLeaveRequest).findOne({
           where: {
             organizationId: organization.id,

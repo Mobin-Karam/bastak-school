@@ -10,9 +10,11 @@ import {
 import { SchoolScheduleEntry } from "./school-schedule-entry.entity";
 import { SchoolScheduleTimeBlock } from "./school-schedule-time-block.entity";
 import { User } from "./user.entity";
+import { TeacherLeaveRequest } from "./teacher-leave-request.entity";
 
 @Entity("school_schedule_occurrence_overrides")
 @Index(["entryId", "date"], { unique: true })
+@Index(["leaveRequestId"])
 export class SchoolScheduleOccurrenceOverride {
   @PrimaryGeneratedColumn("uuid") id!: string;
   @Column({ type: "varchar", length: 36 }) entryId!: string;
@@ -27,6 +29,12 @@ export class SchoolScheduleOccurrenceOverride {
   /** Identifies cancellations made by a teacher leave so early return can restore only them. */
   @Column({ type: "varchar", length: 36, nullable: true }) leaveRequestId?:
     string | null;
+  @ManyToOne(() => TeacherLeaveRequest, {
+    nullable: true,
+    onDelete: "RESTRICT",
+  })
+  @JoinColumn({ name: "leaveRequestId" })
+  leaveRequest?: TeacherLeaveRequest | null;
   @Column({ type: "varchar", length: 36 }) changedById!: string;
   @ManyToOne(() => User, { nullable: false, onDelete: "RESTRICT" })
   @JoinColumn({ name: "changedById" })

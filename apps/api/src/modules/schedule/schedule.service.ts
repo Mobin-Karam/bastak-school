@@ -1098,25 +1098,38 @@ export class ScheduleService {
       dto.startDate,
       dto.endDate,
     );
-    const row = await this.teacherLeaves.save(
-      this.teacherLeaves.create({
-        organizationId: dto.organizationId,
-        teacherId: user.id,
-        startDate: dto.startDate,
-        endDate: dto.endDate,
-        reason: dto.reason.trim(),
-        academicCycleSnapshots: cycleSnapshots,
-        status: "pending",
-        resolution: null,
-        substituteTeacherId: null,
-        reviewedById: null,
-        reviewedAt: null,
-        returnDate: null,
-        returnMessage: null,
-        returnStatus: null,
-        returnRequestedAt: null,
-        returnReviewedAt: null,
-      }),
+    const row = await attendanceTransaction(
+      this.entries.manager,
+      async (manager) => {
+        const leaves = manager.getRepository(TeacherLeaveRequest);
+        const created = await leaves.save(
+          leaves.create({
+            organizationId: dto.organizationId,
+            teacherId: user.id,
+            startDate: dto.startDate,
+            endDate: dto.endDate,
+            reason: dto.reason.trim(),
+            academicCycleSnapshots: cycleSnapshots,
+            status: "pending",
+            resolution: null,
+            substituteTeacherId: null,
+            reviewedById: null,
+            reviewedAt: null,
+            returnDate: null,
+            returnMessage: null,
+            returnStatus: null,
+            returnRequestedAt: null,
+            returnReviewedAt: null,
+          }),
+        );
+        await this.auditTeacherLeave(
+          manager,
+          user.id,
+          created,
+          "teacher_leave.requested",
+        );
+        return created;
+      },
     );
     await this.notifyPrincipalsOfTeacherLeave(row, "leave");
     return this.publicTeacherLeave({
@@ -1228,16 +1241,43 @@ export class ScheduleService {
         "TEACHER_SUBSTITUTE_INVALID",
         "دبیر جایگزین باید فرد دیگری باشد.",
       );
-    row.status = dto.decision;
-    row.resolution =
-      dto.decision === "approved" ? (dto.resolution ?? null) : null;
-    row.substituteTeacherId = substitute?.id ?? null;
-    row.substituteTeacher = substitute;
-    row.reviewedById = user.id;
-    row.reviewedAt = new Date();
-    if (dto.decision === "approved")
-      await this.applyTeacherLeave(row, user.id, substitute);
-    const saved = await this.teacherLeaves.save(row);
+    const saved = await attendanceTransaction(
+      this.entries.manager,
+      async (manager) => {
+        const leaves = manager.getRepository(TeacherLeaveRequest);
+        const current = await leaves.findOne({
+          where: { id: row.id },
+          relations: { teacher: true, substituteTeacher: true },
+        });
+        if (!current || current.status !== "pending")
+          throw new ApiException(
+            409,
+            "TEACHER_LEAVE_ALREADY_REVIEWED",
+            "درخواست مرخصی پیش‌تر بررسی شده است.",
+          );
+        current.status = dto.decision;
+        current.resolution =
+          dto.decision === "approved" ? (dto.resolution ?? null) : null;
+        current.substituteTeacherId = substitute?.id ?? null;
+        current.substituteTeacher = substitute;
+        current.reviewedById = user.id;
+        current.reviewedAt = new Date();
+        if (dto.decision === "approved")
+          await this.applyTeacherLeave(current, user.id, substitute, manager);
+        const persisted = await leaves.save(current);
+        await this.auditTeacherLeave(
+          manager,
+          user.id,
+          persisted,
+          `teacher_leave.${dto.decision}`,
+          {
+            resolution: persisted.resolution,
+            substituteTeacherId: persisted.substituteTeacherId,
+          },
+        );
+        return persisted;
+      },
+    );
     await this.notifyTeacherLeaveDecision(saved, substitute, dto.decision);
     return this.publicTeacherLeave(saved);
   }
@@ -1271,12 +1311,37 @@ export class ScheduleService {
         "TEACHER_LEAVE_RETURN_ALREADY_APPROVED",
         "بازگشت این مرخصی پیش‌تر تأیید شده است.",
       );
-    row.returnDate = dto.returnDate;
-    row.returnMessage = dto.returnMessage?.trim() || null;
-    row.returnStatus = "pending";
-    row.returnRequestedAt = new Date();
-    row.returnReviewedAt = null;
-    const saved = await this.teacherLeaves.save(row);
+    const saved = await attendanceTransaction(
+      this.entries.manager,
+      async (manager) => {
+        const leaves = manager.getRepository(TeacherLeaveRequest);
+        const current = await leaves.findOneBy({ id: row.id });
+        if (
+          !current ||
+          current.status !== "approved" ||
+          current.returnStatus === "approved"
+        )
+          throw new ApiException(
+            409,
+            "TEACHER_LEAVE_RETURN_ALREADY_REVIEWED",
+            "وضعیت مرخصی برای درخواست بازگشت تغییر کرده است.",
+          );
+        current.returnDate = dto.returnDate;
+        current.returnMessage = dto.returnMessage?.trim() || null;
+        current.returnStatus = "pending";
+        current.returnRequestedAt = new Date();
+        current.returnReviewedAt = null;
+        const persisted = await leaves.save(current);
+        await this.auditTeacherLeave(
+          manager,
+          user.id,
+          persisted,
+          "teacher_leave.return_requested",
+          { returnDate: persisted.returnDate },
+        );
+        return persisted;
+      },
+    );
     await this.notifyPrincipalsOfTeacherLeave(saved, "return");
     return this.publicTeacherLeave(saved);
   }
@@ -1355,10 +1420,42 @@ export class ScheduleService {
         !context.organizationIds.includes(row.organizationId))
     )
       throw new ApiException(403, "FORBIDDEN", "دسترسی کافی ندارید.");
-    row.returnStatus = dto.decision;
-    row.returnReviewedAt = new Date();
-    if (dto.decision === "approved") await this.restoreTeacherLeave(row);
-    const saved = await this.teacherLeaves.save(row);
+    const saved = await attendanceTransaction(
+      this.entries.manager,
+      async (manager) => {
+        const leaves = manager.getRepository(TeacherLeaveRequest);
+        const current = await leaves.findOne({
+          where: { id: row.id },
+          relations: { teacher: true, substituteTeacher: true },
+        });
+        if (
+          !current ||
+          current.status !== "approved" ||
+          current.returnStatus !== "pending" ||
+          !current.returnDate
+        )
+          throw new ApiException(
+            409,
+            "TEACHER_LEAVE_RETURN_ALREADY_REVIEWED",
+            "درخواست بازگشت پیش‌تر بررسی شده است.",
+          );
+        current.returnStatus = dto.decision;
+        current.returnReviewedAt = new Date();
+        if (dto.decision === "approved")
+          await this.restoreTeacherLeave(current, manager);
+        const persisted = await leaves.save(current);
+        await this.auditTeacherLeave(
+          manager,
+          user.id,
+          persisted,
+          `teacher_leave.return_${dto.decision}`,
+          {
+            returnDate: persisted.returnDate,
+          },
+        );
+        return persisted;
+      },
+    );
     await this.notifyTeacherLeaveReturnDecision(saved, dto.decision);
     return this.publicTeacherLeave(saved);
   }
@@ -1519,8 +1616,13 @@ export class ScheduleService {
     row: TeacherLeaveRequest,
     changedById: string,
     substitute: User | null,
+    manager: EntityManager = this.entries.manager,
   ) {
-    const entries = await this.entries.find({
+    const entriesRepository = manager.getRepository(SchoolScheduleEntry);
+    const overridesRepository = manager.getRepository(
+      SchoolScheduleOccurrenceOverride,
+    );
+    const entries = await entriesRepository.find({
       where: {
         organization: { id: row.organizationId },
         versionId: IsNull(),
@@ -1556,10 +1658,11 @@ export class ScheduleService {
       row,
       occurrences,
       substitute,
+      manager,
     );
     for (const { entry, date } of occurrences) {
-      await this.occurrenceOverrides.save(
-        this.occurrenceOverrides.create({
+      await overridesRepository.save(
+        overridesRepository.create({
           entryId: entry.id,
           date,
           cancelled: true,
@@ -1568,8 +1671,8 @@ export class ScheduleService {
         }),
       );
       if (substitute)
-        await this.entries.save(
-          this.entries.create({
+        await entriesRepository.save(
+          entriesRepository.create({
             ...entry,
             id: undefined,
             teacher: substitute,
@@ -1578,6 +1681,7 @@ export class ScheduleService {
             startsOn: date,
             endsOn: date,
             notes: `جایگزین مرخصی ${row.id}`,
+            leaveRequestId: row.id,
             teacherNameSnapshot:
               `${substitute.firstName ?? ""} ${substitute.lastName ?? ""}`.trim(),
           }),
@@ -1588,20 +1692,21 @@ export class ScheduleService {
     row: TeacherLeaveRequest,
     occurrences: Array<{ entry: SchoolScheduleEntry; date: string }>,
     substitute: User | null,
+    manager: EntityManager = this.entries.manager,
   ) {
     if (!occurrences.length) return;
     const occurrenceKeys = occurrences.map(
       ({ entry, date }) => `legacy-schedule:${entry.id}:${date}`,
     );
     const [attendance, overrides] = await Promise.all([
-      this.attendanceSessions.find({
+      manager.getRepository(AttendanceSession).find({
         where: {
           organization: { id: row.organizationId },
           occurrenceKey: In(occurrenceKeys),
         },
         select: { occurrenceKey: true, status: true },
       }),
-      this.occurrenceOverrides.find({
+      manager.getRepository(SchoolScheduleOccurrenceOverride).find({
         where: occurrences.map(({ entry, date }) => ({
           entryId: entry.id,
           date,
@@ -1624,13 +1729,15 @@ export class ScheduleService {
         "یکی از جلسه‌های این بازه قبلاً جابه‌جا یا لغو شده است.",
       );
     if (!substitute) return;
-    const substituteEntries = await this.entries.find({
-      where: {
-        organization: { id: row.organizationId },
-        teacher: { id: substitute.id },
-        status: In(["ACTIVE", "REPLACED"]),
-      },
-    });
+    const substituteEntries = await manager
+      .getRepository(SchoolScheduleEntry)
+      .find({
+        where: {
+          organization: { id: row.organizationId },
+          teacher: { id: substitute.id },
+          status: In(["ACTIVE", "REPLACED"]),
+        },
+      });
     const overlap = occurrences.find(({ entry, date }) =>
       substituteEntries.some(
         (other) =>
@@ -1660,25 +1767,75 @@ export class ScheduleService {
   ) {
     return startA < endB && startB < endA;
   }
-  private async restoreTeacherLeave(row: TeacherLeaveRequest) {
+  private async restoreTeacherLeave(
+    row: TeacherLeaveRequest,
+    manager: EntityManager = this.entries.manager,
+  ) {
     const restoredFrom = row.returnDate!;
-    const overrides = await this.occurrenceOverrides.find({
+    const overridesRepository = manager.getRepository(
+      SchoolScheduleOccurrenceOverride,
+    );
+    const entriesRepository = manager.getRepository(SchoolScheduleEntry);
+    const overrides = await overridesRepository.find({
       where: { leaveRequestId: row.id },
     });
-    await this.occurrenceOverrides.remove(
-      overrides.filter((override) => override.date >= restoredFrom),
-    );
-    const replacements = await this.entries.find({
+    const replacements = await entriesRepository.find({
       where: { organization: { id: row.organizationId } },
     });
-    await this.entries.save(
-      replacements
-        .filter(
-          (entry) =>
-            entry.notes === `جایگزین مرخصی ${row.id}` &&
-            (entry.startsOn ?? "") >= restoredFrom,
-        )
-        .map((entry) => ({ ...entry, status: "ARCHIVED" as const })),
+    const toArchive = replacements.filter(
+      (entry) =>
+        (entry.leaveRequestId === row.id ||
+          entry.notes === `جایگزین مرخصی ${row.id}`) &&
+        (entry.startsOn ?? "") >= restoredFrom,
+    );
+    const occurrenceKeys = toArchive
+      .filter((entry) => entry.startsOn)
+      .map((entry) => `legacy-schedule:${entry.id}:${entry.startsOn}`);
+    if (occurrenceKeys.length) {
+      const attendance = await manager.getRepository(AttendanceSession).find({
+        where: {
+          organization: { id: row.organizationId },
+          occurrenceKey: In(occurrenceKeys),
+        },
+        select: { occurrenceKey: true },
+      });
+      if (attendance.length)
+        throw new ApiException(
+          409,
+          "TEACHER_LEAVE_RETURN_ATTENDANCE_EXISTS",
+          "برای یکی از جلسه‌های دبیر جایگزین حضور ثبت شده است؛ بازگشت زودتر نمی‌تواند تاریخچه حضور را تغییر دهد.",
+        );
+    }
+    await overridesRepository.remove(
+      overrides.filter((override) => override.date >= restoredFrom),
+    );
+    if (toArchive.length)
+      await entriesRepository.save(
+        toArchive.map((entry) => ({ ...entry, status: "ARCHIVED" as const })),
+      );
+  }
+
+  private async auditTeacherLeave(
+    manager: EntityManager,
+    userId: string,
+    row: TeacherLeaveRequest,
+    action: string,
+    metadata: Record<string, unknown> = {},
+  ) {
+    await manager.getRepository(AuditLog).save(
+      manager.getRepository(AuditLog).create({
+        user: { id: userId } as User,
+        organizationId: row.organizationId,
+        entity: "teacher_leave_request",
+        action,
+        metadata: {
+          leaveRequestId: row.id,
+          teacherId: row.teacherId,
+          startDate: row.startDate,
+          endDate: row.endDate,
+          ...metadata,
+        },
+      }),
     );
   }
   async substitutionSlots(user: AuthenticatedUser, date: string) {

@@ -7,6 +7,12 @@ const Database = require("better-sqlite3");
 // failed rehearsal, not an implicit permission to transform live data. This is
 // intentionally self-contained because production streams this helper to Node.
 const expectations = {
+  // Leave integrity metadata is additive. Existing schedule and leave history
+  // remains untouched until a newly approved leave explicitly owns a row.
+  TeacherLeaveWorkflowIntegrity1763400000000: {
+    "school_schedule_entries.leaveRequestId": { nullable: true, value: "null" },
+    "teacher_leave_requests.updatedAt": { nullable: true, value: "null" },
+  },
   RepairDormAttendancePeriod1762700000000: {
     "attendance_sessions.attendancePeriod": { nullable: true, value: "null" },
   },

@@ -19,6 +19,7 @@ import { LegacyScheduleAcademicCycles1762300000000 } from "../src/database/migra
 import { LegacyScheduleAcademicNameSnapshots1762300400000 } from "../src/database/migrations/1762300400000-LegacyScheduleAcademicNameSnapshots";
 import { TeacherLeaveAcademicCycleSnapshots1762300500000 } from "../src/database/migrations/1762300500000-TeacherLeaveAcademicCycleSnapshots";
 import { PrincipalAttendanceAllSessionsReview1762300600000 } from "../src/database/migrations/1762300600000-PrincipalAttendanceAllSessionsReview";
+import { TeacherLeaveWorkflowIntegrity1763400000000 } from "../src/database/migrations/1763400000000-TeacherLeaveWorkflowIntegrity";
 import { NightAttendance1728234800000 } from "../src/database/migrations/1728234800000-NightAttendance";
 import {
   Organization,
@@ -869,6 +870,9 @@ describe("migration-backed persistence and verified recovery (disposable SQLite 
       new PrincipalAttendanceAllSessionsReview1762300600000().up(
         manager.queryRunner!,
       ),
+    );
+    await db.transaction(async (manager) =>
+      new TeacherLeaveWorkflowIntegrity1763400000000().up(manager.queryRunner!),
     );
     const authorization = new AuthorizationService(
       db.getRepository(UserRoleAssignment),
