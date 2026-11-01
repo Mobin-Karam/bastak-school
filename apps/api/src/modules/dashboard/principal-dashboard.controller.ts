@@ -32,4 +32,10 @@ export class PrincipalDashboardController {
   absenceCalendar(@CurrentUser() user: AuthenticatedUser) {
     return this.dashboard.absenceCalendar(user).then(ok);
   }
+
+  @Get("principal/teacher-session-calendar")
+  @RequireAnyCapabilities("attendance.review")
+  teacherSessionCalendar(@CurrentUser() user: AuthenticatedUser) {
+    return this.dashboard.teacherSessionCalendar(user).then(ok);
+  }
 }

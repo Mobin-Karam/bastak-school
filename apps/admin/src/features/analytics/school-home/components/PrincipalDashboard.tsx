@@ -6,6 +6,7 @@ import "./principal-dashboard-layout.css";
 import { getPrincipalDashboard } from "../api/principal-dashboard.api";
 import { PrincipalOperationalLists } from "./PrincipalOperationalLists";
 import { PrincipalAbsenceCalendar } from "./PrincipalAbsenceCalendar";
+import { PrincipalTeacherSessionCalendar } from "./PrincipalTeacherSessionCalendar";
 
 export function PrincipalDashboard() {
   const auth = useAuth();
@@ -32,6 +33,7 @@ export function PrincipalDashboard() {
         sessionReviews={dashboard.data.sessionReviews}
         canReviewAttendance={auth.can("attendance.review")}
       />
+      <PrincipalTeacherSessionCalendar />
       <PrincipalAbsenceCalendar />
     </main>
   );

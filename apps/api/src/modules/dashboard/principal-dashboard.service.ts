@@ -490,11 +490,7 @@ export class PrincipalDashboardService
         "ORGANIZATION_REQUIRED",
         "مدرسه فعال مشخص نیست.",
       );
-    const today = this.today();
-    const weekday = new Date(`${today}T12:00:00Z`).getUTCDay();
-    const saturdayOffset = (weekday + 1) % 7;
-    const start = this.daysBefore(today, saturdayOffset + 35);
-    const end = this.daysBefore(start, -41);
+    const { start, end } = this.dashboardCalendarRange();
     const rows = await this.db.query(
       `SELECT COALESCE(s.operationalDate,date(s.sessionDate)) date, r.studentId id,
         COALESCE(NULLIF(st.name,''), TRIM(COALESCE(u.firstName,'') || ' ' || COALESCE(u.lastName,'')), 'دانش‌آموز') name,
@@ -519,6 +515,67 @@ export class PrincipalDashboardService
           name: String(row.name),
           context: String(row.context),
         });
+    }
+    return { start, end, days };
+  }
+
+  /** Planned legacy schedule occurrences with their canonical teacher-attendance state. */
+  async teacherSessionCalendar(user: AuthenticatedUser) {
+    const roles = user.roles?.length ? user.roles : [user.role];
+    if (
+      !roles.some((role) =>
+        ["PRINCIPAL", "ORGANIZATION_ADMIN", "PLATFORM_ADMIN"].includes(role),
+      )
+    )
+      throw new ApiException(
+        403,
+        "PRINCIPAL_DASHBOARD_FORBIDDEN",
+        "دسترسی مدیر لازم است.",
+      );
+    const organizationId = user.activeOrganizationId;
+    if (!organizationId)
+      throw new ApiException(
+        403,
+        "ORGANIZATION_REQUIRED",
+        "مدرسه فعال مشخص نیست.",
+      );
+    const { start, end } = this.dashboardCalendarRange();
+    const [entries, saved] = await Promise.all([
+      this.db.query(
+        `SELECT e.id,e.weekday,e.title,e.startsOn,e.endsOn,TRIM(COALESCE(u.firstName,'') || ' ' || COALESCE(u.lastName,'')) teacherName FROM school_schedule_entries e LEFT JOIN users u ON u.id=e.teacherId WHERE e.organizationId=? AND e.status='ACTIVE' AND e.versionId IS NULL`,
+        [organizationId],
+      ),
+      this.db.query(
+        `SELECT sourceScheduleId, COALESCE(operationalDate,date(sessionDate)) sessionDate FROM attendance_sessions WHERE organizationId=? AND contextType='class' AND sourceKind='legacy_schedule' AND COALESCE(operationalDate,date(sessionDate)) BETWEEN ? AND ?`,
+        [organizationId, start, end],
+      ),
+    ]);
+    const savedKeys = new Set(
+      (saved as Array<Record<string, unknown>>).map(
+        (row) => `${row.sourceScheduleId}:${row.sessionDate}`,
+      ),
+    );
+    const days: Record<
+      string,
+      Array<{ id: string; title: string; teacherName: string; saved: boolean }>
+    > = {};
+    for (let date = start; date <= end; date = this.daysBefore(date, -1)) {
+      const weekday = (new Date(`${date}T12:00:00Z`).getUTCDay() + 1) % 7;
+      for (const entry of entries as Array<Record<string, unknown>>) {
+        if (
+          Number(entry.weekday) !== weekday ||
+          (entry.startsOn && String(entry.startsOn) > date) ||
+          (entry.endsOn && String(entry.endsOn) < date)
+        )
+          continue;
+        const id = String(entry.id);
+        (days[date] ??= []).push({
+          id,
+          title: String(entry.title || "جلسه کلاس"),
+          teacherName: String(entry.teacherName || "استاد").trim() || "استاد",
+          saved: savedKeys.has(`${id}:${date}`),
+        });
+      }
     }
     return { start, end, days };
   }
@@ -1265,6 +1322,15 @@ export class PrincipalDashboardService
   }
   private today() {
     return this.tehranDate(new Date());
+  }
+  /** Standard six-week view: leading/trailing dates occupy rows one and six. */
+  private dashboardCalendarRange() {
+    const today = this.today();
+    const firstOfMonth = `${today.slice(0, 8)}01`;
+    const saturdayOffset =
+      (new Date(`${firstOfMonth}T12:00:00Z`).getUTCDay() + 1) % 7;
+    const start = this.daysBefore(firstOfMonth, saturdayOffset + 7);
+    return { start, end: this.daysBefore(start, -41) };
   }
   private tehranDate(value: Date) {
     return new Intl.DateTimeFormat("en-CA", {
