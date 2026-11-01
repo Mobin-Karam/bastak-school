@@ -6,9 +6,14 @@ import {
   UsersRound,
   UserRoundCheck,
   Check,
+  ArrowUpRight,
+  GitCompareArrows,
+  LogOut,
+  Repeat2,
+  Route,
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { useAuth } from "../../../identity/auth";
 import { Button, LoadingState } from "../../../../shared/ui/ui";
 import { ResponsiveDrawer } from "../../../../shared/ui/responsive-drawer";
@@ -46,10 +51,21 @@ import {
   listAcademicTeachers,
   type AcademicTeacher,
 } from "../../../academics/education/api/academic.api";
+import { SupervisorComparisonPanel } from "../../../student-life/attendance/components/SupervisorComparisonPanel";
 
 type Lists = NonNullable<PrincipalDashboardContract["principalLists"]>;
 type SessionReview = NonNullable<PrincipalDashboardContract["sessionReviews"]>["items"][number];
-type Panel = "dorm" | "sessions" | "reports" | "leave" | "groups";
+type Panel =
+  | "dorm"
+  | "sessions"
+  | "reports"
+  | "leave"
+  | "return"
+  | "groups"
+  | "comparison"
+  | "student-leave"
+  | "overdue-return"
+  | "substitution";
 
 const cards: Array<{
   id: Panel;
@@ -87,11 +103,46 @@ const cards: Array<{
     capability: "leave.read",
   },
   {
+    id: "return",
+    title: "بازگشت زودتر استادان",
+    description: "فعال‌سازی دوبارهٔ جلسه‌های آینده پس از تأیید",
+    icon: Repeat2,
+    capability: "leave.read",
+  },
+  {
     id: "groups",
     title: "حضور گروه‌های کلاس",
     description: "جلسه‌ها و سوابق حضور گروهی",
     icon: UsersRound,
     capability: "attendance.review",
+  },
+  {
+    id: "comparison",
+    title: "تطبیق حضور ناظر",
+    description: "ثبت ناظر را با حضور اصلی استاد مقایسه کنید",
+    icon: GitCompareArrows,
+    capability: "attendance.review",
+  },
+  {
+    id: "student-leave",
+    title: "درخواست‌های خروج دانش‌آموز",
+    description: "مرخصی، زمان خروج و بازگشت دانش‌آموزان",
+    icon: LogOut,
+    capability: "leave.read",
+  },
+  {
+    id: "overdue-return",
+    title: "بازگشت‌های معوق",
+    description: "دانش‌آموزان خارج از مدرسه یا نیازمند پیگیری",
+    icon: Route,
+    capability: "attendance.review",
+  },
+  {
+    id: "substitution",
+    title: "جابه‌جایی جلسه‌ها",
+    description: "درخواست‌های یک‌بارهٔ تغییر زمان برنامه",
+    icon: ArrowUpRight,
+    capability: "schedule.publish",
   },
 ];
 
@@ -148,12 +199,15 @@ export function PrincipalOperationalLists({
   const teacherLeaves = useQuery({
     queryKey: ["teacher-leaves", "principal", organizationId],
     queryFn: listTeacherLeaveRequests,
-    enabled: active === "leave" && auth.can("leave.read"),
+    enabled: auth.can("leave.read"),
   });
   const teachers = useQuery({
     queryKey: ["academic", "teachers", "leave-substitutes", organizationId],
     queryFn: () => listAcademicTeachers(organizationId!, { limit: 100 }),
-    enabled: active === "leave" && Boolean(organizationId) && auth.can("schedule.publish"),
+    enabled:
+      (active === "leave" || active === "return") &&
+      Boolean(organizationId) &&
+      auth.can("schedule.publish"),
   });
   const policy = useQuery({
     queryKey: ["attendance-policy", organizationId],
@@ -285,8 +339,15 @@ export function PrincipalOperationalLists({
       values.counts?.reports ??
       reports.data?.filter((report) => !report.seenAt).length ??
       values.teacherReports.filter((report) => !report.seenAt).length,
-    leave: values.counts?.leave ?? values.teacherLeaveRequests.length,
+    leave: (teacherLeaves.data ?? values.teacherLeaveRequests).filter(
+      (row) => row.status === "pending",
+    ).length,
+    return: (teacherLeaves.data ?? []).filter((row) => row.returnStatus === "pending").length,
     groups: values.counts?.groups ?? values.classGroupAttendance.length,
+    comparison: 0,
+    "student-leave": 0,
+    "overdue-return": outsidePresenceReports.data?.length ?? 0,
+    substitution: 0,
   };
   const visibleCards = cards.filter(({ capability }) => auth.can(capability));
 
@@ -456,6 +517,19 @@ export function PrincipalOperationalLists({
               busy={reviewTeacherLeave.isPending || reviewTeacherReturn.isPending}
               onReviewLeave={(id, body) => reviewTeacherLeave.mutate({ id, body })}
               onReviewReturn={(id, decision) => reviewTeacherReturn.mutate({ id, decision })}
+              mode="leave"
+            />
+          )}
+          {active === "return" && (
+            <TeacherLeaveReviewList
+              rows={teacherLeaves.data ?? []}
+              loading={teacherLeaves.isLoading}
+              error={teacherLeaves.isError}
+              teachers={teachers.data?.items ?? []}
+              busy={reviewTeacherLeave.isPending || reviewTeacherReturn.isPending}
+              onReviewLeave={(id, body) => reviewTeacherLeave.mutate({ id, body })}
+              onReviewReturn={(id, decision) => reviewTeacherReturn.mutate({ id, decision })}
+              mode="return"
             />
           )}
           {active === "groups" &&
@@ -481,6 +555,24 @@ export function PrincipalOperationalLists({
             ) : (
               <Empty text="حضور گروهی برای نمایش ثبت نشده است." />
             ))}
+          {active === "comparison" && <SupervisorComparisonPanel />}
+          {active === "overdue-return" && <DormAttendanceReviewInbox compact />}
+          {active === "student-leave" && (
+            <WorkflowLaunch
+              title="بررسی درخواست خروج دانش‌آموز"
+              description="تصمیم مدیر دربارهٔ خروج، بازگشت، وعده‌های روز خروج و اثر آن بر حضور کلاس در صفحهٔ درخواست‌ها نهایی و در پایگاه داده ثبت می‌شود."
+              href="/admin/leave-requests"
+              label="باز کردن صف درخواست‌های دانش‌آموزان"
+            />
+          )}
+          {active === "substitution" && (
+            <WorkflowLaunch
+              title="بررسی جابه‌جایی یک‌بارهٔ جلسه"
+              description="با تأیید یا رد هر درخواست، رخداد اصلی و جایگزین برنامه در همان جریان سرور نهایی می‌شوند."
+              href="/admin/schedule"
+              label="باز کردن صف جابه‌جایی جلسه‌ها"
+            />
+          )}
         </div>
       </ResponsiveDrawer>
       {autoArchiveProgress ? (
@@ -779,6 +871,7 @@ function TeacherLeaveReviewList({
   busy,
   onReviewLeave,
   onReviewReturn,
+  mode,
 }: {
   rows: TeacherLeaveRequest[];
   loading: boolean;
@@ -794,9 +887,12 @@ function TeacherLeaveReviewList({
     },
   ) => void;
   onReviewReturn: (id: string, decision: "approved" | "rejected") => void;
+  mode: "leave" | "return";
 }) {
   const [substitutes, setSubstitutes] = useState<Record<string, string>>({});
-  const pending = rows.filter((row) => row.status === "pending" || row.returnStatus === "pending");
+  const pending = rows.filter((row) =>
+    mode === "leave" ? row.status === "pending" : row.returnStatus === "pending",
+  );
   const archived = rows.filter((row) => !pending.includes(row));
   if (loading) return <LoadingState label="دریافت درخواست‌های مرخصی استادان…" />;
   if (error) return <ErrorText onRetry={() => window.location.reload()} />;
@@ -933,6 +1029,35 @@ function Count({ label, value }: { label: string; value: number }) {
     <span className="rounded-full bg-[rgb(var(--surface-muted))] px-3 py-1">
       {label}: {value.toLocaleString("fa-IR")}
     </span>
+  );
+}
+function WorkflowLaunch({
+  title,
+  description,
+  href,
+  label,
+}: {
+  title: string;
+  description: string;
+  href: string;
+  label: string;
+}) {
+  return (
+    <section className="grid gap-4 rounded-2xl border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-muted))] p-5">
+      <div className="grid gap-2">
+        <h3 className="text-base font-black text-ink">{title}</h3>
+        <p className="text-sm leading-6 text-muted-foreground">{description}</p>
+        <p className="text-xs font-semibold text-muted-foreground">
+          اعلان‌های جدید این روند نیز از مرکز اعلان‌ها به همین صف هدایت می‌شوند.
+        </p>
+      </div>
+      <Link
+        to={href}
+        className="inline-flex min-h-11 items-center justify-center rounded-xl bg-brand px-4 py-2 text-sm font-black text-white outline-none transition hover:brightness-110 focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"
+      >
+        {label}
+      </Link>
+    </section>
   );
 }
 function Empty({ text }: { text: string }) {
