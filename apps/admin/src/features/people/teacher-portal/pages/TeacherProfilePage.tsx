@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { UserRound } from "lucide-react";
+import { LockKeyhole, UserRound } from "lucide-react";
 import { useAuth } from "../../../identity/auth";
 import { getAccountProfile } from "../../../platform/settings/api/settings.api";
 import { ManagementPageHeader } from "../../../../shared/ui/management-workspace";
@@ -95,7 +95,7 @@ export function TeacherProfilePage() {
           </p>
         </div>
       </MobileCard>
-      <MobileCard className="grid gap-3 p-4" dir="rtl">
+      <MobileCard className="relative grid gap-3 overflow-hidden p-4 grayscale" dir="rtl">
         <div>
           <h2 className="text-sm font-black text-ink">درخواست مرخصی</h2>
           <p className="mt-1 text-xs text-slate-500">
@@ -132,9 +132,13 @@ export function TeacherProfilePage() {
         >
           ارسال درخواست مرخصی
         </Button>
+        <LeaveRequestsFrozenOverlay />
       </MobileCard>
       {activeLeave && activeLeave.returnStatus !== "approved" ? (
-        <MobileCard className="grid gap-3 border-amber-300 p-4" dir="rtl">
+        <MobileCard
+          className="relative grid gap-3 overflow-hidden border-amber-300 p-4 grayscale"
+          dir="rtl"
+        >
           <div>
             <h2 className="text-sm font-black text-ink">بازگشت زودتر از مرخصی</h2>
             <p className="mt-1 text-xs text-slate-500">
@@ -173,8 +177,22 @@ export function TeacherProfilePage() {
               </Button>
             </>
           )}
+          <LeaveRequestsFrozenOverlay />
         </MobileCard>
       ) : null}
     </section>
+  );
+}
+
+function LeaveRequestsFrozenOverlay() {
+  return (
+    <div
+      className="absolute inset-0 z-10 grid place-items-center bg-black/55 p-4 text-center text-sm font-black text-white backdrop-grayscale"
+      aria-label="درخواست مرخصی استاد فعلاً غیرفعال است"
+    >
+      <span className="flex items-center gap-2 rounded-full border border-white/40 bg-black/60 px-4 py-2">
+        <LockKeyhole size={16} /> درخواست مرخصی استاد به‌زودی فعال می‌شود
+      </span>
+    </div>
   );
 }

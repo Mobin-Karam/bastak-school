@@ -66,6 +66,8 @@ const teacherSessionDisplacementRequestsEnabled = false;
 
 @Injectable()
 export class ScheduleService {
+  /** Feature flag: preserve leave history/workflow, but do not accept new teacher leave actions yet. */
+  private static readonly TEACHER_LEAVE_REQUESTS_ENABLED = false;
   constructor(
     @InjectRepository(SchoolScheduleEntry)
     private readonly entries: Repository<SchoolScheduleEntry>,
@@ -1075,6 +1077,12 @@ export class ScheduleService {
     user: AuthenticatedUser,
     dto: TeacherLeaveRequestDto,
   ) {
+    if (!ScheduleService.TEACHER_LEAVE_REQUESTS_ENABLED)
+      throw new ApiException(
+        503,
+        "TEACHER_LEAVE_REQUESTS_DISABLED",
+        "درخواست مرخصی استاد فعلاً غیرفعال است.",
+      );
     const context = this.context(user);
     this.authorization.requireCapability(context, "attendance.class.manage");
     if (
@@ -1286,6 +1294,12 @@ export class ScheduleService {
     id: string,
     dto: TeacherLeaveReturnRequestDto,
   ) {
+    if (!ScheduleService.TEACHER_LEAVE_REQUESTS_ENABLED)
+      throw new ApiException(
+        503,
+        "TEACHER_LEAVE_REQUESTS_DISABLED",
+        "درخواست بازگشت مرخصی استاد فعلاً غیرفعال است.",
+      );
     const context = this.context(user);
     this.authorization.requireCapability(context, "attendance.class.manage");
     const row = await this.teacherLeaves.findOneBy({ id });

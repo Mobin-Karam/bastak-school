@@ -162,10 +162,10 @@ export function TeacherDashboard() {
             <Button
               size="sm"
               className="justify-self-start"
-              disabled={requestReturn.isPending}
-              onClick={() => requestReturn.mutate(activeLeave.id)}
+              disabled
+              title="درخواست بازگشت استاد فعلاً غیرفعال است"
             >
-              درخواست بازگشت و بازگرداندن جلسه‌ها
+              درخواست بازگشت به‌زودی فعال می‌شود
             </Button>
           )}
         </Card>
