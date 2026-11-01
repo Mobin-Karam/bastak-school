@@ -26,4 +26,10 @@ export class PrincipalDashboardController {
   ) {
     return this.dashboard.get(user, from, to, classId).then(ok);
   }
+
+  @Get("principal/absence-calendar")
+  @RequireAnyCapabilities("attendance.review")
+  absenceCalendar(@CurrentUser() user: AuthenticatedUser) {
+    return this.dashboard.absenceCalendar(user).then(ok);
+  }
 }

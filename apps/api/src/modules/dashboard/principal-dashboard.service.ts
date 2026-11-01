@@ -181,7 +181,9 @@ type PrincipalReminderRow = {
  * process restarts or more than one API instance is running.
  */
 @Injectable()
-export class PrincipalDashboardService implements OnModuleInit, OnModuleDestroy {
+export class PrincipalDashboardService
+  implements OnModuleInit, OnModuleDestroy
+{
   private readonly logger = new Logger(PrincipalDashboardService.name);
   private reminderTimer?: ReturnType<typeof setInterval>;
 
@@ -194,10 +196,13 @@ export class PrincipalDashboardService implements OnModuleInit, OnModuleDestroy 
     if (!this.notifications) return;
     void this.runPrincipalQueueReminders();
     void this.runMissedTeacherAttendanceNotifications();
-    this.reminderTimer = setInterval(() => {
-      void this.runPrincipalQueueReminders();
-      void this.runMissedTeacherAttendanceNotifications();
-    }, 5 * 60 * 1000);
+    this.reminderTimer = setInterval(
+      () => {
+        void this.runPrincipalQueueReminders();
+        void this.runMissedTeacherAttendanceNotifications();
+      },
+      5 * 60 * 1000,
+    );
     this.reminderTimer.unref?.();
   }
 
@@ -218,7 +223,9 @@ export class PrincipalDashboardService implements OnModuleInit, OnModuleDestroy 
       const pending = await Promise.all(
         queues.map(async (queue) => ({
           queue,
-          rows: (await this.db.query(queue.sql, [threshold])) as PrincipalReminderRow[],
+          rows: (await this.db.query(queue.sql, [
+            threshold,
+          ])) as PrincipalReminderRow[],
         })),
       );
       const recipientCache = new Map<string, string[]>();
@@ -456,6 +463,59 @@ export class PrincipalDashboardService implements OnModuleInit, OnModuleDestroy 
         leaveRead: can("leave.read"),
       });
     return response;
+  }
+
+  /** Six Saturday-first weeks of class-only absences for the principal archive. */
+  async absenceCalendar(user: AuthenticatedUser) {
+    const roles = user.roles?.length ? user.roles : [user.role];
+    if (
+      !roles.some((role) =>
+        ["PRINCIPAL", "ORGANIZATION_ADMIN", "PLATFORM_ADMIN"].includes(role),
+      )
+    )
+      throw new ApiException(
+        403,
+        "PRINCIPAL_DASHBOARD_FORBIDDEN",
+        "دسترسی مدیر لازم است.",
+      );
+    const organizationId = user.activeOrganizationId;
+    if (!organizationId)
+      throw new ApiException(
+        403,
+        "ORGANIZATION_REQUIRED",
+        "مدرسه فعال مشخص نیست.",
+      );
+    const today = this.today();
+    const weekday = new Date(`${today}T12:00:00Z`).getUTCDay();
+    const saturdayOffset = (weekday + 1) % 7;
+    const start = this.daysBefore(today, saturdayOffset + 35);
+    const end = this.daysBefore(start, -41);
+    const rows = await this.db.query(
+      `SELECT COALESCE(s.operationalDate,date(s.sessionDate)) date, r.studentId id,
+        COALESCE(NULLIF(st.name,''), TRIM(COALESCE(u.firstName,'') || ' ' || COALESCE(u.lastName,'')), 'دانش‌آموز') name,
+        COALESCE(NULLIF(s.titleSnapshot,''),'جلسه کلاس') context
+       FROM attendance_records r JOIN attendance_sessions s ON s.id=r.sessionId
+       LEFT JOIN students st ON st.id=r.studentId LEFT JOIN users u ON u.id=st.userId
+       WHERE s.organizationId=? AND s.contextType='class' AND r.status='absent'
+         AND COALESCE(s.operationalDate,date(s.sessionDate)) BETWEEN ? AND ?
+       ORDER BY date DESC, name ASC`,
+      [organizationId, start, end],
+    );
+    const days: Record<
+      string,
+      Array<{ id: string; name: string; context: string }>
+    > = {};
+    for (const row of rows as Array<Record<string, unknown>>) {
+      const date = String(row.date);
+      const list = days[date] ?? (days[date] = []);
+      if (!list.some((item) => item.id === String(row.id)))
+        list.push({
+          id: String(row.id),
+          name: String(row.name),
+          context: String(row.context),
+        });
+    }
+    return { start, end, days };
   }
 
   private async principalLists(
@@ -1096,7 +1156,8 @@ export class PrincipalDashboardService implements OnModuleInit, OnModuleDestroy 
       {
         id: "dorm",
         title: "بازبینی حضور خوابگاه معوق است",
-        body: (count) => `${count} مورد حضور خوابگاه بیش از یک ساعت منتظر بازبینی شما است.`,
+        body: (count) =>
+          `${count} مورد حضور خوابگاه بیش از یک ساعت منتظر بازبینی شما است.`,
         sql: `SELECT s.organizationId organizationId, MIN(s.dormForwardedAt) oldestAnchor, COUNT(DISTINCT s.id) pendingCount
           FROM attendance_sessions s
           WHERE s.contextType='dorm' AND s.dormForwardedAt IS NOT NULL
@@ -1106,7 +1167,8 @@ export class PrincipalDashboardService implements OnModuleInit, OnModuleDestroy 
       {
         id: "sessions",
         title: "بازبینی جلسه‌های کلاس معوق است",
-        body: (count) => `${count} جلسهٔ کلاس بیش از یک ساعت منتظر بازبینی شما است.`,
+        body: (count) =>
+          `${count} جلسهٔ کلاس بیش از یک ساعت منتظر بازبینی شما است.`,
         sql: `${sessionReviewBase("s.contextType='class'")}
           AND (
             COALESCE(p.principalReviewMode,'absences_only')='all_sessions'
@@ -1119,7 +1181,8 @@ export class PrincipalDashboardService implements OnModuleInit, OnModuleDestroy 
       {
         id: "reports",
         title: "گزارش‌های استادان نیازمند بررسی است",
-        body: (count) => `${count} گزارش دانش‌آموز بیش از یک ساعت بدون بررسی مانده است.`,
+        body: (count) =>
+          `${count} گزارش دانش‌آموز بیش از یک ساعت بدون بررسی مانده است.`,
         sql: `SELECT organizationId, MIN(createdAt) oldestAnchor, COUNT(id) pendingCount
           FROM teacher_student_reports
           WHERE seenAt IS NULL AND createdAt<=?
@@ -1128,7 +1191,8 @@ export class PrincipalDashboardService implements OnModuleInit, OnModuleDestroy 
       {
         id: "leave",
         title: "درخواست مرخصی استادان نیازمند تصمیم است",
-        body: (count) => `${count} درخواست مرخصی استاد بیش از یک ساعت منتظر تصمیم شما است.`,
+        body: (count) =>
+          `${count} درخواست مرخصی استاد بیش از یک ساعت منتظر تصمیم شما است.`,
         sql: `SELECT organizationId, MIN(createdAt) oldestAnchor, COUNT(id) pendingCount
           FROM teacher_leave_requests
           WHERE status='pending' AND createdAt<=?
@@ -1137,7 +1201,8 @@ export class PrincipalDashboardService implements OnModuleInit, OnModuleDestroy 
       {
         id: "return",
         title: "درخواست بازگشت استادان نیازمند تصمیم است",
-        body: (count) => `${count} درخواست بازگشت زودتر استاد بیش از یک ساعت منتظر تصمیم شما است.`,
+        body: (count) =>
+          `${count} درخواست بازگشت زودتر استاد بیش از یک ساعت منتظر تصمیم شما است.`,
         sql: `SELECT organizationId, MIN(returnRequestedAt) oldestAnchor, COUNT(id) pendingCount
           FROM teacher_leave_requests
           WHERE returnStatus='pending' AND returnRequestedAt IS NOT NULL AND returnRequestedAt<=?
@@ -1146,14 +1211,16 @@ export class PrincipalDashboardService implements OnModuleInit, OnModuleDestroy 
       {
         id: "groups",
         title: "بازبینی حضور گروه‌های کلاس معوق است",
-        body: (count) => `${count} حضور گروه کلاس بیش از یک ساعت منتظر بازبینی شما است.`,
+        body: (count) =>
+          `${count} حضور گروه کلاس بیش از یک ساعت منتظر بازبینی شما است.`,
         sql: `${sessionReviewBase("s.contextType IN ('class_group','study_group')")}
           GROUP BY s.organizationId`,
       },
       {
         id: "student-leave",
         title: "درخواست خروج دانش‌آموزان نیازمند تصمیم است",
-        body: (count) => `${count} درخواست خروج دانش‌آموز بیش از یک ساعت منتظر تصمیم شما است.`,
+        body: (count) =>
+          `${count} درخواست خروج دانش‌آموز بیش از یک ساعت منتظر تصمیم شما است.`,
         sql: `SELECT organizationId, MIN(createdAt) oldestAnchor, COUNT(id) pendingCount
           FROM leave_requests
           WHERE status='PENDING' AND reviewerRole='PRINCIPAL' AND createdAt<=?
@@ -1162,7 +1229,8 @@ export class PrincipalDashboardService implements OnModuleInit, OnModuleDestroy 
       {
         id: "substitution",
         title: "درخواست جابه‌جایی جلسه‌ها نیازمند تصمیم است",
-        body: (count) => `${count} درخواست جابه‌جایی برنامه بیش از یک ساعت منتظر تصمیم شما است.`,
+        body: (count) =>
+          `${count} درخواست جابه‌جایی برنامه بیش از یک ساعت منتظر تصمیم شما است.`,
         sql: `SELECT source.organizationId organizationId, MIN(request.createdAt) oldestAnchor, COUNT(request.id) pendingCount
           FROM school_schedule_substitution_requests request
           JOIN school_schedule_entries source ON source.id=request.sourceEntryId

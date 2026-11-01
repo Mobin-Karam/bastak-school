@@ -116,10 +116,10 @@ export class AwardAttendancePointsDto {
   @IsString() @MinLength(3) @MaxLength(500) reason!: string;
 }
 
-/** The current coin total is scoped to one saved lesson and student (0–3). */
+/** The current coin total is scoped to one saved lesson and student (-3–3). */
 export class SetAttendanceSessionStudentCoinDto {
   @IsUUID() requestId!: string;
-  @IsInt() @Min(0) @Max(3) coins!: number;
+  @IsInt() @Min(-3) @Max(3) coins!: number;
   @IsInt() @Min(0) expectedRevision!: number;
 }
 

@@ -637,30 +637,53 @@ export function TeacherClassAttendanceSheet({
                     {canManageSelectedSession && savedSessionId ? (
                       <div className="mt-3 flex items-center gap-2 border-t border-[rgb(var(--border-subtle))] pt-2">
                         <span className="flex items-center gap-1 text-[11px] font-bold text-slate-500">
-                          <AttendanceCoin className="size-4 object-contain" /> سکه همین جلسه (۰ تا
-                          ۳)
+                          <AttendanceCoin className="size-4 object-contain" /> امتیاز سکه (۳− تا ۳+)
                         </span>
                         <div
                           className="ms-auto flex gap-1"
                           role="group"
                           aria-label={`سکه ${student.name}`}
                         >
-                          {[0, 1, 2, 3].map((coins) => (
-                            <button
-                              key={coins}
-                              type="button"
-                              aria-pressed={(coinsByStudent[student.id]?.coins ?? 0) === coins}
-                              disabled={setCoins.isPending}
-                              onClick={() => setCoins.mutate({ studentId: student.id, coins })}
-                              className={`grid min-h-9 min-w-9 place-items-center rounded-lg text-xs font-black ${
-                                (coinsByStudent[student.id]?.coins ?? 0) === coins
-                                  ? "bg-amber-400 text-amber-950"
-                                  : "bg-[rgb(var(--surface-muted))] text-slate-600 dark:text-slate-300"
-                              }`}
-                            >
-                              {coins}
-                            </button>
-                          ))}
+                          <button
+                            type="button"
+                            className="grid min-h-9 min-w-9 place-items-center rounded-lg bg-[rgb(var(--surface-muted))] text-base font-black"
+                            aria-label={`کم‌کردن سکه ${student.name}`}
+                            disabled={
+                              setCoins.isPending || (coinsByStudent[student.id]?.coins ?? 0) <= -3
+                            }
+                            onClick={() =>
+                              setCoins.mutate({
+                                studentId: student.id,
+                                coins: Math.max(-3, (coinsByStudent[student.id]?.coins ?? 0) - 1),
+                              })
+                            }
+                          >
+                            −
+                          </button>
+                          <output
+                            className="grid min-h-9 min-w-10 place-items-center rounded-lg bg-amber-400 text-sm font-black text-amber-950"
+                            aria-live="polite"
+                          >
+                            {(coinsByStudent[student.id]?.coins ?? 0).toLocaleString("fa-IR", {
+                              signDisplay: "always",
+                            })}
+                          </output>
+                          <button
+                            type="button"
+                            className="grid min-h-9 min-w-9 place-items-center rounded-lg bg-[rgb(var(--surface-muted))] text-base font-black"
+                            aria-label={`افزودن سکه ${student.name}`}
+                            disabled={
+                              setCoins.isPending || (coinsByStudent[student.id]?.coins ?? 0) >= 3
+                            }
+                            onClick={() =>
+                              setCoins.mutate({
+                                studentId: student.id,
+                                coins: Math.min(3, (coinsByStudent[student.id]?.coins ?? 0) + 1),
+                              })
+                            }
+                          >
+                            +
+                          </button>
                         </div>
                       </div>
                     ) : null}
