@@ -26,6 +26,7 @@ import { hasAllCapabilities, hasAnyCapability, hasCapability } from "../lib/capa
 import { AuthContext } from "../context";
 import { currentAppDomain, preferredRoleForDomain } from "../../../../app/routing/portal-domain";
 import { PasskeyEnrollmentPrompt } from "./PasskeyEnrollmentPrompt";
+import { RoleChooserPrompt } from "./RoleChooserPrompt";
 
 const MAX_RESTORE_ATTEMPTS = 3;
 const RESTORE_RETRY_DELAY_MS = 1_800;
@@ -276,6 +277,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setApiWorkContext(role, context.activeOrganization?.id);
         sessionStorage.setItem(AUTH_SUCCESS_SPLASH_KEY, "1");
         sessionStorage.setItem("bastak.passkey.offer.pending", "1");
+        if (context.roles.length > 1) sessionStorage.setItem("bastak.role-choice.pending", "1");
         setStatus("authenticated");
         restoreAttempts.current = 0;
         lastCheck.current = Date.now();
@@ -290,6 +292,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const data = await verifyPasskeyAuthentication(challengeId, response);
         if (current !== operation.current) return;
         api.setCsrf(data.csrfToken);
+        sessionStorage.setItem("bastak.role-choice.pending", "1");
         await restore();
         sessionStorage.setItem(AUTH_SUCCESS_SPLASH_KEY, "1");
         signalAuthEvent("login");
@@ -407,6 +410,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   return (
     <AuthContext.Provider value={value}>
       {children}
+      <RoleChooserPrompt
+        authenticated={status === "authenticated"}
+        roles={accountContext?.roles ?? []}
+        activeRole={activeRole}
+        choose={value.setActiveRole}
+      />
       <PasskeyEnrollmentPrompt authenticated={status === "authenticated"} />
     </AuthContext.Provider>
   );
