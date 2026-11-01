@@ -38,11 +38,18 @@ describe("PrincipalDashboardService", () => {
         return [];
       }),
     };
-    const service = new PrincipalDashboardService(db as never, {
-      createForUsers,
-    } as never);
+    const service = new PrincipalDashboardService(
+      db as never,
+      {
+        createForUsers,
+      } as never,
+    );
 
     await service.runPrincipalQueueReminders(new Date("2026-10-20T10:00:00Z"));
+
+    expect(db.query).toHaveBeenCalledWith(expect.any(String), [
+      "2026-10-20 09:00:00",
+    ]);
 
     expect(createForUsers).toHaveBeenCalledTimes(1);
     expect(createForUsers).toHaveBeenCalledWith(
@@ -78,9 +85,12 @@ describe("PrincipalDashboardService", () => {
         return [];
       }),
     };
-    const service = new PrincipalDashboardService(db as never, {
-      createForUser,
-    } as never);
+    const service = new PrincipalDashboardService(
+      db as never,
+      {
+        createForUser,
+      } as never,
+    );
 
     await service.runMissedTeacherAttendanceNotifications(
       new Date("2026-10-20T08:00:00Z"),

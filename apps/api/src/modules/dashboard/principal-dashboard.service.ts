@@ -217,7 +217,12 @@ export class PrincipalDashboardService
    */
   async runPrincipalQueueReminders(now = new Date()) {
     if (!this.notifications) return;
-    const threshold = new Date(now.getTime() - 60 * 60 * 1000);
+    // better-sqlite3 cannot bind a JavaScript Date. Keep the same UTC instant
+    // in the SQLite datetime text shape used by TypeORM/CreateDateColumn.
+    const threshold = new Date(now.getTime() - 60 * 60 * 1000)
+      .toISOString()
+      .slice(0, 19)
+      .replace("T", " ");
     try {
       const queues = this.principalReminderQueues();
       const pending = await Promise.all(
