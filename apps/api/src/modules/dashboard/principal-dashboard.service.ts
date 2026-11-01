@@ -1,4 +1,10 @@
-import { Injectable, Optional } from "@nestjs/common";
+import {
+  Injectable,
+  Logger,
+  OnModuleDestroy,
+  OnModuleInit,
+  Optional,
+} from "@nestjs/common";
 import { DataSource } from "typeorm";
 import { ApiException } from "../../common/exceptions/api.exception";
 import { AuthenticatedUser } from "../auth";
@@ -143,12 +149,116 @@ type PrincipalDashboardContract = {
  * organization; capability checks shape the response instead of trusting UI
  * visibility as an authorization boundary.
  */
+type PrincipalReminderQueue = {
+  id:
+    | "dorm"
+    | "sessions"
+    | "reports"
+    | "leave"
+    | "return"
+    | "groups"
+    | "student-leave"
+    | "substitution";
+  title: string;
+  body: (count: number) => string;
+  sql: string;
+};
+
+type PrincipalReminderRow = {
+  organizationId?: string;
+  oldestAnchor?: string;
+  pendingCount?: number | string;
+};
+
+/**
+ * Purpose-built leadership projection. Every query is bound to the active
+ * organization; capability checks shape the response instead of trusting UI
+ * visibility as an authorization boundary.
+ *
+ * The periodic reminder is deliberately server-owned. Dashboard cards may be
+ * left unopened, so browser timers would silently lose an important principal
+ * follow-up. Notification dedupe keys make the five-minute worker safe when a
+ * process restarts or more than one API instance is running.
+ */
 @Injectable()
-export class PrincipalDashboardService {
+export class PrincipalDashboardService implements OnModuleInit, OnModuleDestroy {
+  private readonly logger = new Logger(PrincipalDashboardService.name);
+  private reminderTimer?: ReturnType<typeof setInterval>;
+
   constructor(
     private readonly db: DataSource,
     @Optional() private readonly notifications?: NotificationsService,
   ) {}
+
+  onModuleInit() {
+    if (!this.notifications) return;
+    void this.runPrincipalQueueReminders();
+    this.reminderTimer = setInterval(() => {
+      void this.runPrincipalQueueReminders();
+    }, 5 * 60 * 1000);
+    this.reminderTimer.unref?.();
+  }
+
+  onModuleDestroy() {
+    if (this.reminderTimer) clearInterval(this.reminderTimer);
+  }
+
+  /**
+   * Sends one high-priority reminder per unresolved queue once its oldest item
+   * has waited for an hour. The notification is durable and deep-links to the
+   * matching dashboard drawer; it is not coupled to a browser being open.
+   */
+  async runPrincipalQueueReminders(now = new Date()) {
+    if (!this.notifications) return;
+    const threshold = new Date(now.getTime() - 60 * 60 * 1000);
+    try {
+      const queues = this.principalReminderQueues();
+      const pending = await Promise.all(
+        queues.map(async (queue) => ({
+          queue,
+          rows: (await this.db.query(queue.sql, [threshold])) as PrincipalReminderRow[],
+        })),
+      );
+      const recipientCache = new Map<string, string[]>();
+      for (const { queue, rows } of pending) {
+        for (const row of rows) {
+          const organizationId = String(row.organizationId ?? "");
+          const oldestAnchor = String(row.oldestAnchor ?? "");
+          const count = Number(row.pendingCount ?? 0);
+          if (!organizationId || !oldestAnchor || count < 1) continue;
+          let recipients = recipientCache.get(organizationId);
+          if (!recipients) {
+            recipients = await this.principalRecipientIds(organizationId);
+            recipientCache.set(organizationId, recipients);
+          }
+          if (!recipients.length) continue;
+          await this.notifications.createForUsers(recipients, {
+            type: NotificationType.WARNING,
+            category: "principal-review-reminder",
+            priority: "high",
+            title: queue.title,
+            body: queue.body(count),
+            url: `/admin/dashboard/principal?panel=${queue.id}`,
+            data: {
+              panel: queue.id,
+              pendingCount: count,
+              oldestPendingAt: oldestAnchor,
+              pendingForMinutes: 60,
+            },
+            organizationId,
+            // The oldest unresolved item identifies this pending batch. Once it
+            // is reviewed, the next item must itself wait one hour before a new
+            // reminder can be created.
+            dedupeKey: `principal-review-reminder:${organizationId}:${queue.id}:${oldestAnchor}`,
+          });
+        }
+      }
+    } catch (error) {
+      this.logger.error(
+        `Principal review reminder sweep failed: ${error instanceof Error ? error.message : "unknown error"}`,
+      );
+    }
+  }
 
   async get(
     user: AuthenticatedUser,
@@ -894,6 +1004,112 @@ export class PrincipalDashboardService {
       ),
     );
   }
+
+  private principalReminderQueues(): PrincipalReminderQueue[] {
+    const sessionReviewBase = (contextFilter: string) => `
+      SELECT s.organizationId organizationId, MIN(COALESCE(s.submittedAt,s.updatedAt,s.createdAt)) oldestAnchor, COUNT(DISTINCT s.id) pendingCount
+      FROM attendance_sessions s
+      LEFT JOIN attendance_policies p ON p.organizationId=s.organizationId
+      WHERE ${contextFilter}
+        AND s.status IN ('submitted','finalized')
+        AND COALESCE(s.submittedAt,s.updatedAt,s.createdAt)<=?
+        AND NOT EXISTS (
+          SELECT 1 FROM attendance_session_reviews review
+          WHERE review.sessionId=s.id AND review.reviewedRevision=s.revision
+        )`;
+    return [
+      {
+        id: "dorm",
+        title: "بازبینی حضور خوابگاه معوق است",
+        body: (count) => `${count} مورد حضور خوابگاه بیش از یک ساعت منتظر بازبینی شما است.`,
+        sql: `SELECT s.organizationId organizationId, MIN(s.dormForwardedAt) oldestAnchor, COUNT(DISTINCT s.id) pendingCount
+          FROM attendance_sessions s
+          WHERE s.contextType='dorm' AND s.dormForwardedAt IS NOT NULL
+            AND s.dormPrincipalReviewedAt IS NULL AND s.dormForwardedAt<=?
+          GROUP BY s.organizationId`,
+      },
+      {
+        id: "sessions",
+        title: "بازبینی جلسه‌های کلاس معوق است",
+        body: (count) => `${count} جلسهٔ کلاس بیش از یک ساعت منتظر بازبینی شما است.`,
+        sql: `${sessionReviewBase("s.contextType='class'")}
+          AND (
+            COALESCE(p.principalReviewMode,'absences_only')='all_sessions'
+            OR EXISTS (
+              SELECT 1 FROM attendance_records absent_record
+              WHERE absent_record.sessionId=s.id AND absent_record.physicalStatus='absent'
+            )
+          ) GROUP BY s.organizationId`,
+      },
+      {
+        id: "reports",
+        title: "گزارش‌های استادان نیازمند بررسی است",
+        body: (count) => `${count} گزارش دانش‌آموز بیش از یک ساعت بدون بررسی مانده است.`,
+        sql: `SELECT organizationId, MIN(createdAt) oldestAnchor, COUNT(id) pendingCount
+          FROM teacher_student_reports
+          WHERE seenAt IS NULL AND createdAt<=?
+          GROUP BY organizationId`,
+      },
+      {
+        id: "leave",
+        title: "درخواست مرخصی استادان نیازمند تصمیم است",
+        body: (count) => `${count} درخواست مرخصی استاد بیش از یک ساعت منتظر تصمیم شما است.`,
+        sql: `SELECT organizationId, MIN(createdAt) oldestAnchor, COUNT(id) pendingCount
+          FROM teacher_leave_requests
+          WHERE status='pending' AND createdAt<=?
+          GROUP BY organizationId`,
+      },
+      {
+        id: "return",
+        title: "درخواست بازگشت استادان نیازمند تصمیم است",
+        body: (count) => `${count} درخواست بازگشت زودتر استاد بیش از یک ساعت منتظر تصمیم شما است.`,
+        sql: `SELECT organizationId, MIN(returnRequestedAt) oldestAnchor, COUNT(id) pendingCount
+          FROM teacher_leave_requests
+          WHERE returnStatus='pending' AND returnRequestedAt IS NOT NULL AND returnRequestedAt<=?
+          GROUP BY organizationId`,
+      },
+      {
+        id: "groups",
+        title: "بازبینی حضور گروه‌های کلاس معوق است",
+        body: (count) => `${count} حضور گروه کلاس بیش از یک ساعت منتظر بازبینی شما است.`,
+        sql: `${sessionReviewBase("s.contextType IN ('class_group','study_group')")}
+          GROUP BY s.organizationId`,
+      },
+      {
+        id: "student-leave",
+        title: "درخواست خروج دانش‌آموزان نیازمند تصمیم است",
+        body: (count) => `${count} درخواست خروج دانش‌آموز بیش از یک ساعت منتظر تصمیم شما است.`,
+        sql: `SELECT organizationId, MIN(createdAt) oldestAnchor, COUNT(id) pendingCount
+          FROM leave_requests
+          WHERE status='PENDING' AND reviewerRole='PRINCIPAL' AND createdAt<=?
+          GROUP BY organizationId`,
+      },
+      {
+        id: "substitution",
+        title: "درخواست جابه‌جایی جلسه‌ها نیازمند تصمیم است",
+        body: (count) => `${count} درخواست جابه‌جایی برنامه بیش از یک ساعت منتظر تصمیم شما است.`,
+        sql: `SELECT source.organizationId organizationId, MIN(request.createdAt) oldestAnchor, COUNT(request.id) pendingCount
+          FROM school_schedule_substitution_requests request
+          JOIN school_schedule_entries source ON source.id=request.sourceEntryId
+          WHERE request.status='pending' AND request.createdAt<=?
+          GROUP BY source.organizationId`,
+      },
+    ];
+  }
+
+  private async principalRecipientIds(organizationId: string) {
+    const rows = (await this.db.query(
+      `SELECT DISTINCT membership.userId id
+       FROM organization_memberships membership
+       JOIN user_role_assignments assignment ON assignment.membershipId=membership.id
+       JOIN roles role ON role.id=assignment.roleId
+       WHERE membership.organizationId=? AND membership.status='ACTIVE'
+         AND role.code IN ('PRINCIPAL','ORGANIZATION_ADMIN')`,
+      [organizationId],
+    )) as Array<{ id?: string }>;
+    return rows.map((row) => String(row.id ?? "")).filter(Boolean);
+  }
+
   private async scalar(sql: string, parameters: unknown[]) {
     const row = (await this.db.query(sql, parameters))[0] as
       CountRow | undefined;

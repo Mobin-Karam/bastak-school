@@ -21,6 +21,43 @@ const principal = {
 };
 
 describe("PrincipalDashboardService", () => {
+  it("sends one durable, deep-linked reminder after a principal queue waits an hour", async () => {
+    const createForUsers = jest.fn().mockResolvedValue([]);
+    const db = {
+      query: jest.fn(async (sql: string) => {
+        if (sql.includes("FROM teacher_student_reports"))
+          return [
+            {
+              organizationId: "school-a",
+              oldestAnchor: "2026-10-20 08:00:00",
+              pendingCount: 3,
+            },
+          ];
+        if (sql.includes("FROM organization_memberships membership"))
+          return [{ id: "principal-1" }];
+        return [];
+      }),
+    };
+    const service = new PrincipalDashboardService(db as never, {
+      createForUsers,
+    } as never);
+
+    await service.runPrincipalQueueReminders(new Date("2026-10-20T10:00:00Z"));
+
+    expect(createForUsers).toHaveBeenCalledTimes(1);
+    expect(createForUsers).toHaveBeenCalledWith(
+      ["principal-1"],
+      expect.objectContaining({
+        category: "principal-review-reminder",
+        priority: "high",
+        url: "/admin/dashboard/principal?panel=reports",
+        body: expect.stringContaining("3"),
+        dedupeKey:
+          "principal-review-reminder:school-a:reports:2026-10-20 08:00:00",
+      }),
+    );
+  });
+
   it("binds every leadership query to the active organization and exposes only enabled sections", async () => {
     const db = {
       query: jest.fn(async (sql: string, parameters: unknown[]) => {
