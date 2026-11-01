@@ -19,6 +19,12 @@ const shiftMonth = (month: string, direction: number) => {
   return iso(date);
 };
 const currentMonth = () => `${iso(new Date()).slice(0, 8)}01`;
+const monthCaption = (month: string) =>
+  new Intl.DateTimeFormat("fa-IR-u-ca-persian", {
+    year: "numeric",
+    month: "long",
+    timeZone: "UTC",
+  }).format(new Date(`${month}T12:00:00Z`));
 
 export function PrincipalTeacherSessionCalendar() {
   const [selected, setSelected] = useState<string | null>(null);
@@ -39,13 +45,7 @@ export function PrincipalTeacherSessionCalendar() {
     [result.data],
   );
   const sessions = selected ? (result.data?.days[selected] ?? []) : [];
-  const caption = result.data
-    ? new Intl.DateTimeFormat("fa-IR-u-ca-persian", {
-        year: "numeric",
-        month: "long",
-        timeZone: "UTC",
-      }).format(new Date(`${result.data.month}T12:00:00Z`))
-    : "";
+  const caption = monthCaption(month);
   return (
     <Card className="p-4 sm:p-5" dir="rtl">
       <div className="mb-3 flex items-center gap-2">
@@ -55,7 +55,7 @@ export function PrincipalTeacherSessionCalendar() {
           <p className="text-xs text-slate-500">قرمز: ثبت‌نشده · سبز: حضور جلسه ذخیره شده است.</p>
         </div>
       </div>
-      {result.isError ? (
+      {result.isError && !result.data ? (
         <EmptyState title="تقویم جلسه‌های استاد دریافت نشد" />
       ) : (
         <CompactMonthCalendar
@@ -69,6 +69,7 @@ export function PrincipalTeacherSessionCalendar() {
             setSelected(null);
             setMonth((value) => shiftMonth(value, 1));
           }}
+          loading={result.isLoading || result.isFetching}
         >
           {dates.map((date) => {
             const rows = result.data?.days[date] ?? [];

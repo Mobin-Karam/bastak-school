@@ -33,8 +33,10 @@ export function PrincipalDashboard() {
         sessionReviews={dashboard.data.sessionReviews}
         canReviewAttendance={auth.can("attendance.review")}
       />
-      <PrincipalTeacherSessionCalendar />
-      <PrincipalAbsenceCalendar />
+      <section className="grid items-start gap-4 lg:grid-cols-2" aria-label="تقویم‌های پیگیری حضور">
+        <PrincipalTeacherSessionCalendar />
+        <PrincipalAbsenceCalendar />
+      </section>
     </main>
   );
 }

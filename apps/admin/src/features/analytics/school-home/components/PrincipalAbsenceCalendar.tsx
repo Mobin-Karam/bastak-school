@@ -19,6 +19,12 @@ const shiftMonth = (month: string, direction: number) => {
   return iso(date);
 };
 const currentMonth = () => `${iso(new Date()).slice(0, 8)}01`;
+const monthCaption = (month: string) =>
+  new Intl.DateTimeFormat("fa-IR-u-ca-persian", {
+    year: "numeric",
+    month: "long",
+    timeZone: "UTC",
+  }).format(new Date(`${month}T12:00:00Z`));
 const monthTone = (date: string) => {
   const month = Number(
     new Intl.DateTimeFormat("en-u-ca-persian", { month: "numeric" }).format(
@@ -48,13 +54,7 @@ export function PrincipalAbsenceCalendar() {
     );
   }, [calendar.data]);
   const students = selected ? (calendar.data?.days[selected] ?? []) : [];
-  const caption = calendar.data
-    ? new Intl.DateTimeFormat("fa-IR-u-ca-persian", {
-        year: "numeric",
-        month: "long",
-        timeZone: "UTC",
-      }).format(new Date(`${calendar.data.month}T12:00:00Z`))
-    : "";
+  const caption = monthCaption(month);
   return (
     <Card className="principal-absence-calendar p-4 sm:p-5" dir="rtl">
       <div className="mb-3 flex items-center gap-2">
@@ -66,7 +66,7 @@ export function PrincipalAbsenceCalendar() {
           </p>
         </div>
       </div>
-      {calendar.isError ? (
+      {calendar.isError && !calendar.data ? (
         <EmptyState title="بایگانی غیبت دریافت نشد" />
       ) : (
         <CompactMonthCalendar
@@ -80,6 +80,7 @@ export function PrincipalAbsenceCalendar() {
             setSelected(null);
             setMonth((value) => shiftMonth(value, 1));
           }}
+          loading={calendar.isLoading || calendar.isFetching}
         >
           {dates.map((date) => {
             const count = calendar.data?.days[date]?.length ?? 0;
