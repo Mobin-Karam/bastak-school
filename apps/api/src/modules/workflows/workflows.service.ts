@@ -1,7 +1,7 @@
 import { SchoolAccessService } from "../school-access";
 import { Injectable } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { In, Repository } from "typeorm";
+import { In, IsNull, Repository } from "typeorm";
 import { ApiException } from "../../common/exceptions/api.exception";
 import {
   AttendanceRecord,
@@ -15,6 +15,10 @@ import {
   ExitPermission,
   ExitPermissionStatus,
 } from "../../database/entities/exit-permission.entity";
+import {
+  StudentMovementEvent,
+  StudentMovementEventType,
+} from "../../database/entities/student-movement-event.entity";
 import {
   LeaveRequest,
   LeaveRequestReviewerRole,
@@ -698,11 +702,11 @@ export class WorkflowsService {
         "دلیل مرخصی الزامی است.",
       );
     }
-    const leaveType = this.parseLeaveRequestType(input.leaveType);
-    const reviewerRole =
-      leaveType === LeaveRequestType.SCHOOL_EXIT
-        ? LeaveRequestReviewerRole.SCHOOL_SUPERVISOR
-        : LeaveRequestReviewerRole.PRINCIPAL;
+    // The server owns routing; a client cannot select its reviewer by sending a type.
+    const { leaveType, reviewerRole } = this.classifyLeaveRequest(
+      startDate,
+      endDate,
+    );
     const row = await this.leaveRequests.save(
       this.leaveRequests.create({
         organization,
@@ -728,6 +732,14 @@ export class WorkflowsService {
       `درخواست ${leaveType === LeaveRequestType.SCHOOL_EXIT ? "خروج" : "مرخصی"} برای بررسی ثبت شد.`,
       `/admin/leave-requests?requestId=${row.id}`,
     );
+    await this.recordMovementEvent({
+      organization,
+      student,
+      leaveRequest: row,
+      type: "requested",
+      actorId: user.id,
+    });
+    await this.emitMovementChanged(organization.id, row.id, "requested");
     return this.serializeLeaveRequest(row);
   }
 
@@ -754,32 +766,88 @@ export class WorkflowsService {
     await this.organizationForUser(user, row.organization.id);
     this.assertLeaveRequestReviewer(user, row);
     const status = this.parseLeaveStatus(input.status);
-    row.status = status;
-    row.note = input.note?.trim() || row.note || "";
-    row.approver = { id: user.id } as User;
-    row.reviewedAt = new Date();
     if (
-      status === LeaveRequestStatus.APPROVED &&
-      row.leaveType === LeaveRequestType.LEAVE &&
-      !row.exitPermissionId
-    ) {
-      const exit = await this.exitPermissions.save(
-        this.exitPermissions.create({
-          organization: row.organization,
-          student: row.student,
-          requestedDepartureAt: row.startDate,
-          expectedReturnAt: row.endDate,
-          destination: "مرخصی تأییدشده دانش‌آموز",
-          reason: row.reason,
-          note: row.note,
-          status: ExitPermissionStatus.APPROVED,
-          approver: { id: user.id } as User,
-          reviewedAt: row.reviewedAt,
-        }),
+      status !== LeaveRequestStatus.APPROVED &&
+      status !== LeaveRequestStatus.REJECTED
+    )
+      throw new ApiException(
+        422,
+        "LEAVE_REQUEST_REVIEW_STATUS_INVALID",
+        "در بررسی درخواست فقط تأیید یا رد مجاز است.",
       );
-      row.exitPermissionId = exit.id;
-    }
-    const saved = await this.leaveRequests.save(row);
+    const saved = await this.withWorkflowTransaction(
+      async (leaveRepo, exitRepo) => {
+        const current = await leaveRepo.findOne({
+          where: { id: row.id },
+          relations: {
+            organization: true,
+            student: { user: true },
+            approver: true,
+          },
+        });
+        if (!current)
+          throw new ApiException(
+            404,
+            "LEAVE_REQUEST_NOT_FOUND",
+            "درخواست مرخصی پیدا نشد.",
+          );
+        if (current.status !== LeaveRequestStatus.PENDING)
+          throw new ApiException(
+            409,
+            "LEAVE_REQUEST_ALREADY_REVIEWED",
+            "درخواست مرخصی قبلاً بررسی شده و قابل تغییر نیست.",
+          );
+        current.status = status;
+        current.note = input.note?.trim() || current.note || "";
+        current.approver = { id: user.id } as User;
+        current.reviewedAt = new Date();
+        if (
+          status === LeaveRequestStatus.APPROVED &&
+          !current.exitPermissionId
+        ) {
+          await this.assertNoActiveMovement(
+            exitRepo,
+            current.organization.id,
+            current.student.id,
+          );
+          const exit = await exitRepo.save(
+            exitRepo.create({
+              organization: current.organization,
+              student: current.student,
+              leaveRequest: current,
+              requestedDepartureAt: current.startDate,
+              expectedReturnAt: current.endDate,
+              destination:
+                current.leaveType === LeaveRequestType.SCHOOL_EXIT
+                  ? "خروج کوتاه‌مدت تأییدشده"
+                  : "مرخصی تأییدشده دانش‌آموز",
+              reason: current.reason,
+              note: current.note,
+              origin: "student_request",
+              status: ExitPermissionStatus.APPROVED,
+              approver: { id: user.id } as User,
+              reviewedAt: current.reviewedAt,
+            }),
+          );
+          current.exitPermissionId = exit.id;
+        }
+        return leaveRepo.save(current);
+      },
+    );
+    await this.recordMovementEvent({
+      organization: saved.organization,
+      student: saved.student,
+      leaveRequest: saved,
+      exitPermissionId: saved.exitPermissionId,
+      type: status === LeaveRequestStatus.APPROVED ? "approved" : "rejected",
+      note: saved.note,
+      actorId: user.id,
+    });
+    await this.emitMovementChanged(
+      saved.organization.id,
+      saved.id,
+      status.toLowerCase(),
+    );
     return this.serializeLeaveRequest(saved);
   }
 
@@ -792,21 +860,178 @@ export class WorkflowsService {
       organizationId && organizationIds.includes(organizationId)
         ? organizationId
         : undefined;
+    const scope = this.leaveReviewScope(user);
+    const organization = requestedOrgId
+      ? { id: requestedOrgId }
+      : { id: In(organizationIds) };
     const rows = await this.exitPermissions.find({
-      where: this.canReviewSchoolWorkflows(user)
-        ? requestedOrgId
-          ? { organization: { id: requestedOrgId } }
-          : { organization: { id: In(organizationIds) } }
-        : { student: { user: { id: user.id } } },
+      where:
+        scope === "all"
+          ? requestedOrgId
+            ? { organization }
+            : { organization }
+          : scope === "supervisor"
+            ? [
+                {
+                  organization,
+                  leaveRequest: {
+                    reviewerRole: LeaveRequestReviewerRole.SCHOOL_SUPERVISOR,
+                  },
+                },
+                { organization, leaveRequest: IsNull() },
+              ]
+            : { student: { user: { id: user.id } } },
       relations: {
         organization: true,
         student: { user: true },
+        leaveRequest: true,
         approver: true,
         returnVerifiedBy: true,
       },
       order: { createdAt: "DESC" },
     });
     return rows.map((row) => this.serializeExitPermission(row));
+  }
+
+  /** Unified operational list; the legacy leave/exit pages consume this as filtered views. */
+  async studentMovements(
+    user: AuthenticatedUser,
+    input: {
+      organizationId?: string;
+      state?:
+        | "review"
+        | "awaiting_departure"
+        | "outside"
+        | "overdue"
+        | "archive"
+        | "all";
+    },
+  ) {
+    const [leaves, exits] = await Promise.all([
+      this.listLeaveRequests(user, input.organizationId),
+      this.listExitPermissions(user, input.organizationId),
+    ]);
+    const leaveByExit = new Map(
+      leaves
+        .filter((leave) => leave.exitPermissionId)
+        .map((leave) => [leave.exitPermissionId!, leave]),
+    );
+    const now = Date.now();
+    const items = [
+      ...leaves
+        .filter((leave) => !leave.exitPermissionId)
+        .map((leave) => ({
+          id: `leave:${leave.id}`,
+          kind: "leave" as const,
+          leave,
+          exit: null,
+          state:
+            leave.status === LeaveRequestStatus.PENDING ? "review" : "archive",
+        })),
+      ...exits.map((exit) => {
+        const leave = exit.leaveRequestId
+          ? (leaveByExit.get(exit.id) ?? null)
+          : null;
+        const overdue =
+          exit.status === ExitPermissionStatus.APPROVED &&
+          Boolean(exit.actualDepartureAt) &&
+          !exit.actualReturnAt &&
+          Boolean(exit.expectedReturnAt) &&
+          new Date(exit.expectedReturnAt!).getTime() < now;
+        const state =
+          exit.status === ExitPermissionStatus.PENDING
+            ? "review"
+            : overdue
+              ? "overdue"
+              : exit.status === ExitPermissionStatus.APPROVED &&
+                  !exit.actualDepartureAt
+                ? "awaiting_departure"
+                : exit.status === ExitPermissionStatus.APPROVED &&
+                    !exit.actualReturnAt
+                  ? "outside"
+                  : "archive";
+        return {
+          id: `exit:${exit.id}`,
+          kind: "exit" as const,
+          leave,
+          exit,
+          state,
+        };
+      }),
+    ].sort((a, b) => {
+      const aDate = a.exit?.requestedDepartureAt ?? a.leave?.createdAt ?? "";
+      const bDate = b.exit?.requestedDepartureAt ?? b.leave?.createdAt ?? "";
+      return bDate.localeCompare(aDate);
+    });
+    const filtered =
+      input.state && input.state !== "all"
+        ? items.filter((item) => item.state === input.state)
+        : items;
+    const count = (state: string) =>
+      items.filter((item) => item.state === state).length;
+    return {
+      counts: {
+        pendingLongLeaves: leaves.filter(
+          (leave) =>
+            leave.status === LeaveRequestStatus.PENDING &&
+            leave.reviewerRole === LeaveRequestReviewerRole.PRINCIPAL,
+        ).length,
+        pendingShortExits: leaves.filter(
+          (leave) =>
+            leave.status === LeaveRequestStatus.PENDING &&
+            leave.reviewerRole === LeaveRequestReviewerRole.SCHOOL_SUPERVISOR,
+        ).length,
+        awaitingDeparture: count("awaiting_departure"),
+        currentlyOutside: count("outside") + count("overdue"),
+        overdueReturns: count("overdue"),
+      },
+      items: filtered,
+    };
+  }
+
+  /** Read the immutable, capability-scoped movement ledger for one visible case. */
+  async movementHistory(
+    user: AuthenticatedUser,
+    kind: "leave" | "exit",
+    id: string,
+    organizationId?: string,
+  ) {
+    const movement =
+      kind === "leave"
+        ? (await this.listLeaveRequests(user, organizationId)).find(
+            (row) => row.id === id,
+          )
+        : (await this.listExitPermissions(user, organizationId)).find(
+            (row) => row.id === id,
+          );
+    if (!movement)
+      throw new ApiException(
+        404,
+        "STUDENT_MOVEMENT_NOT_FOUND",
+        "رکورد تردد پیدا نشد یا اجازهٔ مشاهدهٔ آن را ندارید.",
+      );
+    const events = (this.exitPermissions as any).manager?.getRepository?.(
+      StudentMovementEvent,
+    ) as Repository<StudentMovementEvent> | undefined;
+    if (!events) return [];
+    const rows = await events.find({
+      where:
+        kind === "leave"
+          ? { leaveRequest: { id } }
+          : { exitPermission: { id } },
+      relations: { actor: true },
+      order: { createdAt: "ASC" },
+    });
+    return rows.map((row) => ({
+      id: row.id,
+      type: row.type,
+      note: row.note,
+      actorName:
+        [row.actor?.firstName, row.actor?.lastName].filter(Boolean).join(" ") ||
+        row.actor?.username ||
+        null,
+      createdAt: row.createdAt.toISOString(),
+    }));
   }
 
   async createExitPermission(
@@ -843,6 +1068,11 @@ export class WorkflowsService {
         "زمان بازگشت معتبر نیست.",
       );
     }
+    await this.assertNoActiveMovement(
+      this.exitPermissions,
+      organization.id,
+      student.id,
+    );
     const row = await this.exitPermissions.save(
       this.exitPermissions.create({
         organization,
@@ -852,6 +1082,7 @@ export class WorkflowsService {
         requestedDepartureAt: departure,
         expectedReturnAt: expectedReturn,
         note: input.note?.trim() || "",
+        origin: "student_request",
         status: ExitPermissionStatus.PENDING,
       }),
     );
@@ -862,6 +1093,14 @@ export class WorkflowsService {
       "یک درخواست خروج دانش‌آموز برای بررسی ثبت شد.",
       `/admin/exit-permissions?requestId=${row.id}`,
     );
+    await this.recordMovementEvent({
+      organization,
+      student,
+      exitPermissionId: row.id,
+      type: "requested",
+      actorId: user.id,
+    });
+    await this.emitMovementChanged(organization.id, row.id, "requested");
     return this.serializeExitPermission(row);
   }
 
@@ -875,6 +1114,7 @@ export class WorkflowsService {
       relations: {
         organization: true,
         student: { user: true },
+        leaveRequest: true,
         approver: true,
         returnVerifiedBy: true,
       },
@@ -888,12 +1128,40 @@ export class WorkflowsService {
     }
     await this.organizationForUser(user, row.organization.id);
     this.assertWorkflowReviewer(user);
+    this.assertExitPermissionReviewer(user, row);
+    if (row.status !== ExitPermissionStatus.PENDING)
+      throw new ApiException(
+        409,
+        "EXIT_PERMISSION_ALREADY_REVIEWED",
+        "مجوز خروج قبلاً بررسی شده و قابل تغییر نیست.",
+      );
     const status = this.parseExitStatus(input.status);
+    if (
+      status !== ExitPermissionStatus.APPROVED &&
+      status !== ExitPermissionStatus.REJECTED
+    )
+      throw new ApiException(
+        422,
+        "EXIT_PERMISSION_REVIEW_STATUS_INVALID",
+        "در بررسی مجوز خروج فقط تأیید یا رد مجاز است.",
+      );
     row.status = status;
     row.note = input.note?.trim() || row.note || "";
     row.approver = { id: user.id } as User;
     row.reviewedAt = new Date();
     const saved = await this.exitPermissions.save(row);
+    await this.recordMovementEvent({
+      organization: saved.organization,
+      student: saved.student,
+      type: status === ExitPermissionStatus.APPROVED ? "approved" : "rejected",
+      note: saved.note,
+      actorId: user.id,
+    });
+    await this.emitMovementChanged(
+      saved.organization.id,
+      saved.id,
+      status.toLowerCase(),
+    );
     return this.serializeExitPermission(saved);
   }
 
@@ -960,6 +1228,7 @@ export class WorkflowsService {
         note:
           note?.trim() ||
           `غیبت خوابگاه در جلسه ${record.session.id} توسط مدیر بررسی شد.`,
+        origin: "dorm_unauthorized",
         status: ExitPermissionStatus.APPROVED,
         approver: { id: user.id } as User,
         reviewedAt: now,
@@ -969,6 +1238,19 @@ export class WorkflowsService {
       record.session.organization.id,
       saved.id,
       "departure-recorded",
+    );
+    await this.recordMovementEvent({
+      organization: saved.organization,
+      student: saved.student,
+      exitPermissionId: saved.id,
+      type: "outside_school_confirmed",
+      note: saved.note,
+      actorId: user.id,
+    });
+    await this.emitMovementChanged(
+      saved.organization.id,
+      saved.id,
+      "outside-school-confirmed",
     );
     return this.serializeExitPermission(saved);
   }
@@ -1035,6 +1317,19 @@ export class WorkflowsService {
       row.id,
       "return-requested",
     );
+    await this.recordMovementEvent({
+      organization: saved.organization,
+      student: saved.student,
+      exitPermissionId: saved.id,
+      type: "return_requested",
+      note: saved.returnRequestNote,
+      actorId: user.id,
+    });
+    await this.emitMovementChanged(
+      saved.organization.id,
+      saved.id,
+      "return-requested",
+    );
     return this.serializeExitPermission(saved);
   }
 
@@ -1061,6 +1356,11 @@ export class WorkflowsService {
     const student = await this.studentForPhoneInOrganization(
       input.phoneNumber,
       organization.id,
+    );
+    await this.assertNoActiveMovement(
+      this.exitPermissions,
+      organization.id,
+      student.id,
     );
     const existing = await this.exitPermissions
       .createQueryBuilder("exit")
@@ -1108,6 +1408,19 @@ export class WorkflowsService {
       }),
     );
     await this.emitOccupancyUpdate(
+      organization.id,
+      saved.id,
+      "departure-recorded",
+    );
+    await this.recordMovementEvent({
+      organization,
+      student,
+      exitPermissionId: saved.id,
+      type: "departure_recorded",
+      note: saved.note,
+      actorId: user.id,
+    });
+    await this.emitMovementChanged(
       organization.id,
       saved.id,
       "departure-recorded",
@@ -1164,6 +1477,19 @@ export class WorkflowsService {
     const saved = await this.exitPermissions.save(row);
     await this.emitOccupancyUpdate(
       organization.id,
+      saved.id,
+      "return-confirmed",
+    );
+    await this.recordMovementEvent({
+      organization: saved.organization,
+      student: saved.student,
+      exitPermissionId: saved.id,
+      type: "return_confirmed",
+      note: saved.returnRequestNote,
+      actorId: user.id,
+    });
+    await this.emitMovementChanged(
+      saved.organization.id,
       saved.id,
       "return-confirmed",
     );
@@ -1232,6 +1558,187 @@ export class WorkflowsService {
       row.id,
       movement === "departure" ? "departure-recorded" : "return-confirmed",
     );
+    await this.recordMovementEvent({
+      organization: saved.organization,
+      student: saved.student,
+      exitPermissionId: saved.id,
+      type:
+        movement === "departure" ? "departure_recorded" : "return_confirmed",
+      actorId: user.id,
+    });
+    await this.emitMovementChanged(
+      saved.organization.id,
+      saved.id,
+      movement === "departure" ? "departure-recorded" : "return-confirmed",
+    );
+    return this.serializeExitPermission(saved);
+  }
+
+  /** Principal closes an overdue case without giving supervisors a final absence decision. */
+  async resolveOverdueMovement(
+    user: AuthenticatedUser,
+    exitPermissionId: string,
+    input: { outcome: "returned" | "outside_school" | "breach"; note?: string },
+  ) {
+    if (
+      !this.hasAnyRole(user, [
+        "PRINCIPAL",
+        "SCHOOL_ADMIN",
+        "ORGANIZATION_ADMIN",
+        "PLATFORM_ADMIN",
+      ])
+    ) {
+      throw new ApiException(
+        403,
+        "MOVEMENT_OVERDUE_RESOLUTION_FORBIDDEN",
+        "نهایی‌کردن بازگشت معوق فقط برای مدیر مدرسه مجاز است.",
+      );
+    }
+    const row = await this.exitPermissions.findOne({
+      where: { id: exitPermissionId },
+      relations: {
+        organization: true,
+        student: { user: true },
+        approver: true,
+        returnVerifiedBy: true,
+      },
+    });
+    if (!row)
+      throw new ApiException(
+        404,
+        "EXIT_PERMISSION_NOT_FOUND",
+        "مجوز خروج پیدا نشد.",
+      );
+    await this.organizationForUser(user, row.organization.id);
+    if (
+      row.status !== ExitPermissionStatus.APPROVED ||
+      !row.actualDepartureAt ||
+      row.actualReturnAt ||
+      !row.expectedReturnAt ||
+      row.expectedReturnAt.getTime() >= Date.now()
+    ) {
+      throw new ApiException(
+        409,
+        "MOVEMENT_NOT_OVERDUE",
+        "این خروج برای نهایی‌سازی معوق آماده نیست.",
+      );
+    }
+    const note = input.note?.trim() || row.note || "";
+    if (input.outcome === "returned") {
+      row.actualReturnAt = new Date();
+      row.status = ExitPermissionStatus.COMPLETED;
+      row.returnVerifiedBy = { id: user.id } as User;
+      row.returnVerifiedAt = row.actualReturnAt;
+      row.returnRequestNote = note || "بازگشت معوق توسط مدیر تأیید شد.";
+    } else {
+      row.resolution = input.outcome;
+      row.note = note;
+    }
+    const saved = await this.exitPermissions.save(row);
+    await this.recordMovementEvent({
+      organization: saved.organization,
+      student: saved.student,
+      exitPermissionId: saved.id,
+      type:
+        input.outcome === "breach"
+          ? "breach_confirmed"
+          : input.outcome === "outside_school"
+            ? "outside_school_confirmed"
+            : "return_confirmed",
+      note,
+      actorId: user.id,
+    });
+    await this.emitOccupancyUpdate(
+      saved.organization.id,
+      saved.id,
+      input.outcome === "returned" ? "return-confirmed" : "departure-recorded",
+    );
+    await this.emitMovementChanged(
+      saved.organization.id,
+      saved.id,
+      `overdue-${input.outcome}`,
+    );
+    return this.serializeExitPermission(saved);
+  }
+
+  /** A principal can confirm a physical return even when the student did not request check-in. */
+  async confirmStudentInSchool(
+    user: AuthenticatedUser,
+    exitPermissionId: string,
+    note?: string,
+  ) {
+    if (
+      !this.hasAnyRole(user, [
+        "PRINCIPAL",
+        "SCHOOL_ADMIN",
+        "ORGANIZATION_ADMIN",
+        "PLATFORM_ADMIN",
+      ])
+    ) {
+      throw new ApiException(
+        403,
+        "MOVEMENT_IN_SCHOOL_CONFIRMATION_FORBIDDEN",
+        "ثبت حضور دانش‌آموز در مدرسه فقط برای مدیر مدرسه مجاز است.",
+      );
+    }
+    const row = await this.exitPermissions.findOne({
+      where: { id: exitPermissionId },
+      relations: {
+        organization: true,
+        student: { user: true },
+        approver: true,
+        returnVerifiedBy: true,
+      },
+    });
+    if (!row)
+      throw new ApiException(
+        404,
+        "EXIT_PERMISSION_NOT_FOUND",
+        "مجوز خروج پیدا نشد.",
+      );
+    await this.organizationForUser(user, row.organization.id);
+    if (
+      row.status !== ExitPermissionStatus.APPROVED ||
+      !row.actualDepartureAt ||
+      row.actualReturnAt
+    ) {
+      throw new ApiException(
+        409,
+        "MOVEMENT_NOT_OUTSIDE_SCHOOL",
+        "فقط دانش‌آموزی که خروج فیزیکی او ثبت شده و بازگشت ندارد قابل تأیید است.",
+      );
+    }
+
+    const now = new Date();
+    const resolutionNote =
+      note?.trim() ||
+      row.returnRequestNote ||
+      "حضور دانش‌آموز در مدرسه توسط مدیر تأیید شد.";
+    row.actualReturnAt = now;
+    row.returnVerifiedBy = { id: user.id } as User;
+    row.returnVerifiedAt = now;
+    row.returnRequestNote = resolutionNote;
+    row.resolution = null;
+    row.status = ExitPermissionStatus.COMPLETED;
+    const saved = await this.exitPermissions.save(row);
+    await this.recordMovementEvent({
+      organization: saved.organization,
+      student: saved.student,
+      exitPermissionId: saved.id,
+      type: "return_confirmed",
+      note: resolutionNote,
+      actorId: user.id,
+    });
+    await this.emitOccupancyUpdate(
+      saved.organization.id,
+      saved.id,
+      "return-confirmed",
+    );
+    await this.emitMovementChanged(
+      saved.organization.id,
+      saved.id,
+      "principal-confirmed-in-school",
+    );
     return this.serializeExitPermission(saved);
   }
 
@@ -1252,23 +1759,20 @@ export class WorkflowsService {
       // TypeORM's object where cannot express IS NOT NULL and IS NULL together reliably across SQLite versions.
       const rows = await this.exitPermissions
         .createQueryBuilder("exit")
+        .select("COUNT(DISTINCT exit.studentId)", "count")
         .where("exit.organizationId = :id", { id })
         .andWhere("exit.status = :status", {
           status: ExitPermissionStatus.APPROVED,
         })
-        .andWhere(
-          "(exit.actualDepartureAt IS NOT NULL OR exit.requestedDepartureAt <= :now)",
-          {
-            now: new Date().toISOString(),
-          },
-        )
+        .andWhere("exit.actualDepartureAt IS NOT NULL")
         .andWhere("exit.actualReturnAt IS NULL")
-        .getCount();
+        .getRawOne<{ count?: number | string }>();
+      const currentlyOut = Number(rows?.count ?? 0);
       result.push({
         organizationId: id,
         totalStudents: total,
-        currentlyOut: rows,
-        currentlyInSchool: Math.max(0, total - rows),
+        currentlyOut,
+        currentlyInSchool: Math.max(0, total - currentlyOut),
         generatedAt: new Date().toISOString(),
       });
     }
@@ -1283,7 +1787,7 @@ export class WorkflowsService {
       "DISCIPLINARIAN",
       "SCHOOL_ADMIN",
       "SCHOOL_SUPERVISOR",
-    ].some((role) => user.roles?.includes(role) || user.role === role);
+    ].includes(user.role ?? "");
   }
 
   /** Principals retain the school-wide audit view; supervisors receive only gate-exit requests. */
@@ -1325,10 +1829,29 @@ export class WorkflowsService {
     );
   }
 
-  private hasAnyRole(user: AuthenticatedUser, roles: readonly string[]) {
-    return roles.some(
-      (role) => user.roles?.includes(role) || user.role === role,
+  private assertExitPermissionReviewer(
+    user: AuthenticatedUser,
+    permission: ExitPermission,
+  ) {
+    const scope = this.leaveReviewScope(user);
+    if (
+      scope === "all" ||
+      (scope === "supervisor" &&
+        (!permission.leaveRequest ||
+          permission.leaveRequest.reviewerRole ===
+            LeaveRequestReviewerRole.SCHOOL_SUPERVISOR))
+    ) {
+      return;
+    }
+    throw new ApiException(
+      403,
+      "EXIT_PERMISSION_REVIEW_FORBIDDEN",
+      "این مجوز خروج باید توسط مسئول تعیین‌شده بررسی شود.",
     );
+  }
+
+  private hasAnyRole(user: AuthenticatedUser, roles: readonly string[]) {
+    return Boolean(user.role && roles.includes(user.role));
   }
 
   private assertWorkflowReviewer(user: AuthenticatedUser) {
@@ -1747,6 +2270,127 @@ export class WorkflowsService {
     );
   }
 
+  /** Tehran local calendar-day routing for a short, supervisor-owned exit. */
+  private classifyLeaveRequest(startDate: Date, endDate: Date) {
+    const tehranDay = (date: Date) =>
+      new Intl.DateTimeFormat("en-CA", {
+        timeZone: "Asia/Tehran",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+      }).format(date);
+    const durationMs = endDate.getTime() - startDate.getTime();
+    const isShortExit =
+      tehranDay(startDate) === tehranDay(endDate) &&
+      durationMs <= 4 * 60 * 60 * 1000;
+    return {
+      leaveType: isShortExit
+        ? LeaveRequestType.SCHOOL_EXIT
+        : LeaveRequestType.LEAVE,
+      reviewerRole: isShortExit
+        ? LeaveRequestReviewerRole.SCHOOL_SUPERVISOR
+        : LeaveRequestReviewerRole.PRINCIPAL,
+    };
+  }
+
+  private async withWorkflowTransaction<T>(
+    work: (
+      leaveRepo: Repository<LeaveRequest>,
+      exitRepo: Repository<ExitPermission>,
+    ) => Promise<T>,
+  ): Promise<T> {
+    const manager = (this.leaveRequests as any).manager;
+    if (manager?.transaction) {
+      return manager.transaction((transactionalManager: any) =>
+        work(
+          transactionalManager.getRepository(LeaveRequest),
+          transactionalManager.getRepository(ExitPermission),
+        ),
+      );
+    }
+    // Lightweight service tests use repository doubles without an EntityManager.
+    return work(this.leaveRequests, this.exitPermissions);
+  }
+
+  private async assertNoActiveMovement(
+    exitRepo: Repository<ExitPermission>,
+    organizationId: string,
+    studentId: string,
+  ) {
+    const query = (exitRepo as any).createQueryBuilder?.("exit");
+    const existing = query
+      ? await query
+          .where("exit.organizationId = :organizationId", { organizationId })
+          .andWhere("exit.studentId = :studentId", { studentId })
+          .andWhere("exit.status IN (:...statuses)", {
+            statuses: [
+              ExitPermissionStatus.PENDING,
+              ExitPermissionStatus.APPROVED,
+            ],
+          })
+          .andWhere("exit.actualReturnAt IS NULL")
+          .getOne()
+      : await exitRepo.findOne({
+          where: {
+            organization: { id: organizationId },
+            student: { id: studentId },
+          } as any,
+        });
+    if (existing)
+      throw new ApiException(
+        409,
+        "STUDENT_ACTIVE_MOVEMENT_EXISTS",
+        "برای این دانش‌آموز یک خروج یا مرخصی فعال ثبت شده است.",
+      );
+  }
+
+  private async recordMovementEvent(input: {
+    organization: { id: string };
+    student: { id: string };
+    leaveRequest?: LeaveRequest | null;
+    exitPermissionId?: string | null;
+    type: StudentMovementEventType;
+    note?: string;
+    actorId?: string;
+  }) {
+    const manager = (this.exitPermissions as any).manager;
+    const events = manager?.getRepository?.(StudentMovementEvent) as
+      Repository<StudentMovementEvent> | undefined;
+    if (!events) return;
+    await events.save(
+      events.create({
+        organization: input.organization as any,
+        student: input.student as any,
+        leaveRequest: input.leaveRequest ?? null,
+        exitPermission: input.exitPermissionId
+          ? ({ id: input.exitPermissionId } as ExitPermission)
+          : null,
+        type: input.type,
+        note: input.note?.trim() || "",
+        actor: input.actorId ? ({ id: input.actorId } as User) : null,
+      }),
+    );
+  }
+
+  private async emitMovementChanged(
+    organizationId: string,
+    movementId: string,
+    action: string,
+  ) {
+    const memberships = await this.memberships.find({
+      where: {
+        organization: { id: organizationId },
+        status: MembershipStatus.ACTIVE,
+      },
+      relations: { user: true },
+    });
+    this.realtime.emitToUsers(
+      memberships.map((membership) => membership.user.id),
+      "student-movement.changed",
+      { organizationId, movementId, action },
+    );
+  }
+
   private serializeExitPermission(row: ExitPermission) {
     return {
       id: row.id,
@@ -1754,6 +2398,7 @@ export class WorkflowsService {
       organizationName: row.organization.name,
       studentId: row.student.id,
       studentName: row.student.name,
+      leaveRequestId: row.leaveRequest?.id || null,
       destination: row.destination,
       reason: row.reason,
       requestedDepartureAt: row.requestedDepartureAt.toISOString(),
@@ -1766,6 +2411,7 @@ export class WorkflowsService {
       returnVerifiedAt: row.returnVerifiedAt?.toISOString() || null,
       note: row.note,
       origin: row.origin ?? null,
+      resolution: row.resolution ?? null,
       status: row.status,
       approverId: row.approver?.id || null,
       reviewedAt: row.reviewedAt?.toISOString() || null,

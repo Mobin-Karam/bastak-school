@@ -101,7 +101,7 @@ export const componentCatalog = [
   {
     sourcePath: "app/routing/router.tsx",
     kind: "component",
-    exports: ["CapabilityRoute"],
+    exports: ["CapabilityRoute", "PortalHostBoundary"],
     storyPath: null,
   },
   {
@@ -186,6 +186,12 @@ export const componentCatalog = [
     sourcePath: "features/academics/education/pages/EducationOverviewPage.tsx",
     kind: "page",
     exports: ["EducationOverviewPage"],
+    storyPath: null,
+  },
+  {
+    sourcePath: "features/academics/education/pages/TeachersPage.tsx",
+    kind: "page",
+    exports: ["TeachersPage"],
     storyPath: null,
   },
   {
@@ -411,6 +417,12 @@ export const componentCatalog = [
     storyPath: null,
   },
   {
+    sourcePath: "features/academics/schedule/components/PrincipalScheduleSubstitutionInbox.tsx",
+    kind: "component",
+    exports: ["PrincipalScheduleSubstitutionInbox"],
+    storyPath: null,
+  },
+  {
     sourcePath: "features/academics/schedule/components/TimetableDateInput.tsx",
     kind: "component",
     exports: ["TimetableDateInput"],
@@ -497,7 +509,7 @@ export const componentCatalog = [
   {
     sourcePath: "features/achievements/components/AchievementCountdown.tsx",
     kind: "component",
-    exports: ["AchievementCountdown"],
+    exports: ["AchievementCountdown", "STUDENT_FUTURE_FEATURE_RELEASE_AT"],
     storyPath: null,
   },
   {
@@ -675,9 +687,50 @@ export const componentCatalog = [
     storyPath: null,
   },
   {
+    sourcePath: "features/analytics/school-home/components/PrincipalAbsenceCalendar.tsx",
+    kind: "component",
+    exports: ["PrincipalAbsenceCalendar"],
+    storyPath: null,
+  },
+  {
+    sourcePath: "features/analytics/school-home/components/PrincipalAttendanceReviewItem.tsx",
+    kind: "component",
+    exports: ["PrincipalAttendanceReviewItem"],
+    storyPath: null,
+  },
+  {
+    sourcePath: "features/analytics/school-home/components/PrincipalDashboard.tsx",
+    kind: "component",
+    exports: ["PrincipalDashboard"],
+    storyPath: null,
+  },
+  {
+    sourcePath: "features/analytics/school-home/components/PrincipalLandingPage.tsx",
+    kind: "component",
+    exports: ["PrincipalLandingPage"],
+    storyPath: null,
+  },
+  {
+    sourcePath: "features/analytics/school-home/components/PrincipalOperationalLists.tsx",
+    kind: "component",
+    exports: ["PrincipalOperationalLists"],
+    storyPath: null,
+  },
+  {
+    sourcePath: "features/analytics/school-home/components/PrincipalTeacherSessionCalendar.tsx",
+    kind: "component",
+    exports: ["PrincipalTeacherSessionCalendar"],
+    storyPath: null,
+  },
+  {
     sourcePath: "features/analytics/school-home/components/SchoolManagerDashboard.tsx",
     kind: "component",
-    exports: ["SchoolIncomingPanel", "SchoolManagerDashboard", "SupervisorAttendanceLaunchpad"],
+    exports: [
+      "PrincipalWorkspaceDashboard",
+      "SchoolIncomingPanel",
+      "SchoolManagerDashboard",
+      "SupervisorAttendanceLaunchpad",
+    ],
     storyPath: null,
   },
   {
@@ -701,7 +754,12 @@ export const componentCatalog = [
   {
     sourcePath: "features/communications/announcements/AnnouncementPages.tsx",
     kind: "component",
-    exports: ["AnnouncementInboxPage", "AnnouncementManagementPage"],
+    exports: [
+      "AnnouncementInboxPage",
+      "AnnouncementManagementPage",
+      "LegacyAnnouncementInboxPage",
+      "LegacyAnnouncementManagementPage",
+    ],
     storyPath: null,
   },
   {
@@ -830,6 +888,12 @@ export const componentCatalog = [
     sourcePath: "features/communications/chat/pages/ChatPage.tsx",
     kind: "page",
     exports: ["ChatPage"],
+    storyPath: null,
+  },
+  {
+    sourcePath: "features/communications/components/CommunicationFuturePage.tsx",
+    kind: "component",
+    exports: ["CommunicationFuturePage"],
     storyPath: null,
   },
   {
@@ -1109,6 +1173,12 @@ export const componentCatalog = [
     storyPath: null,
   },
   {
+    sourcePath: "features/identity/auth/components/PasskeyEnrollmentPrompt.tsx",
+    kind: "component",
+    exports: ["PasskeyEnrollmentPrompt"],
+    storyPath: null,
+  },
+  {
     sourcePath: "features/identity/auth/components/PlatformBootstrapForm.tsx",
     kind: "component",
     exports: ["PlatformBootstrapForm"],
@@ -1118,6 +1188,12 @@ export const componentCatalog = [
     sourcePath: "features/identity/auth/components/PublicSchoolProfile.tsx",
     kind: "component",
     exports: ["PublicSchoolProfileProvider", "SchoolContactDetails"],
+    storyPath: null,
+  },
+  {
+    sourcePath: "features/identity/auth/components/RoleChooserPrompt.tsx",
+    kind: "component",
+    exports: ["RoleChooserPrompt"],
     storyPath: null,
   },
   {
@@ -1313,6 +1389,12 @@ export const componentCatalog = [
     storyPath: null,
   },
   {
+    sourcePath: "features/people/teacher-portal/components/TeacherStudentAttendanceProfile.tsx",
+    kind: "component",
+    exports: ["TeacherStudentAttendanceProfile"],
+    storyPath: null,
+  },
+  {
     sourcePath: "features/people/teacher-portal/pages/TeacherChatComingSoonPage.tsx",
     kind: "page",
     exports: ["TeacherChatComingSoonPage"],
@@ -1382,6 +1464,18 @@ export const componentCatalog = [
     sourcePath: "features/platform/settings/components/LocationSettings.tsx",
     kind: "component",
     exports: ["LocationSettings"],
+    storyPath: null,
+  },
+  {
+    sourcePath: "features/platform/settings/components/PasskeySettings.tsx",
+    kind: "component",
+    exports: ["PasskeySettings"],
+    storyPath: null,
+  },
+  {
+    sourcePath: "features/platform/settings/components/PasswordSettings.tsx",
+    kind: "component",
+    exports: ["PasswordSettings"],
     storyPath: null,
   },
   {
@@ -1655,9 +1749,39 @@ export const componentCatalog = [
     storyPath: null,
   },
   {
+    sourcePath: "features/rewards/components/RewardTransactionDetails.tsx",
+    kind: "component",
+    exports: ["RewardTransactionDetails"],
+    storyPath: null,
+  },
+  {
+    sourcePath: "features/rewards/pages/MyRewardsPage.tsx",
+    kind: "page",
+    exports: ["MyRewardsPage"],
+    storyPath: null,
+  },
+  {
+    sourcePath: "features/rewards/pages/RewardsPage.tsx",
+    kind: "page",
+    exports: ["RewardsPage"],
+    storyPath: null,
+  },
+  {
+    sourcePath: "features/student-experience/schedule/StudentSchedulePage.tsx",
+    kind: "component",
+    exports: ["StudentSchedulePage"],
+    storyPath: null,
+  },
+  {
     sourcePath: "features/student-life/attendance/components/AttendanceReviewQueue.tsx",
     kind: "component",
     exports: ["AttendanceReviewQueue"],
+    storyPath: null,
+  },
+  {
+    sourcePath: "features/student-life/attendance/components/AttendanceSelect.tsx",
+    kind: "component",
+    exports: ["AttendanceSelect"],
     storyPath: null,
   },
   {
@@ -1673,6 +1797,12 @@ export const componentCatalog = [
     storyPath: null,
   },
   {
+    sourcePath: "features/student-life/attendance/components/DormAttendanceReviewInbox.tsx",
+    kind: "component",
+    exports: ["DormAttendanceReviewInbox"],
+    storyPath: null,
+  },
+  {
     sourcePath: "features/student-life/attendance/components/DormDelegateEditor.tsx",
     kind: "component",
     exports: ["DormDelegateEditor"],
@@ -1685,6 +1815,18 @@ export const componentCatalog = [
     storyPath: null,
   },
   {
+    sourcePath: "features/student-life/attendance/components/PendingScheduleCalendar.tsx",
+    kind: "component",
+    exports: ["PendingScheduleCalendar"],
+    storyPath: null,
+  },
+  {
+    sourcePath: "features/student-life/attendance/components/StudentAttendanceHistoryList.tsx",
+    kind: "component",
+    exports: ["StudentAttendanceHistoryList"],
+    storyPath: null,
+  },
+  {
     sourcePath: "features/student-life/attendance/components/StudentAttendanceProfileDrawer.tsx",
     kind: "component",
     exports: ["StudentAttendanceProfileDrawer"],
@@ -1694,6 +1836,18 @@ export const componentCatalog = [
     sourcePath: "features/student-life/attendance/components/StudentAttendanceWorkspace.tsx",
     kind: "component",
     exports: ["StudentAttendancePoolPrompt", "StudentAttendanceWorkspace"],
+    storyPath: null,
+  },
+  {
+    sourcePath: "features/student-life/attendance/components/SupervisorAttendancePanel.tsx",
+    kind: "component",
+    exports: ["SupervisorAttendancePanel"],
+    storyPath: null,
+  },
+  {
+    sourcePath: "features/student-life/attendance/components/SupervisorComparisonPanel.tsx",
+    kind: "component",
+    exports: ["SupervisorComparisonPanel"],
     storyPath: null,
   },
   {
@@ -1751,6 +1905,18 @@ export const componentCatalog = [
     storyPath: null,
   },
   {
+    sourcePath: "features/student-life/movement-center/StudentMovementCenterPage.tsx",
+    kind: "component",
+    exports: ["StudentMovementCenterPage"],
+    storyPath: null,
+  },
+  {
+    sourcePath: "features/student-life/movement-center/StudentMovementTable.tsx",
+    kind: "component",
+    exports: ["StudentMovementTable"],
+    storyPath: "features/student-life/movement-center/StudentMovementTable.stories.tsx",
+  },
+  {
     sourcePath: "features/student-life/permission-requests/PermissionRequestsPage.tsx",
     kind: "component",
     exports: ["PermissionDecisionModal", "PermissionRequestsPage"],
@@ -1787,6 +1953,12 @@ export const componentCatalog = [
     storyPath: null,
   },
   {
+    sourcePath: "shared/ui/adaptive-select.tsx",
+    kind: "component",
+    exports: ["AdaptiveSelect"],
+    storyPath: null,
+  },
+  {
     sourcePath: "shared/ui/admin-data-table.tsx",
     kind: "component",
     exports: ["AdminDataTable"],
@@ -1811,9 +1983,21 @@ export const componentCatalog = [
     storyPath: null,
   },
   {
+    sourcePath: "shared/ui/chart-container.tsx",
+    kind: "component",
+    exports: ["ChartContainer", "ChartTooltipContent"],
+    storyPath: null,
+  },
+  {
     sourcePath: "shared/ui/collection-toolbar.tsx",
     kind: "component",
     exports: ["CollectionToolbar"],
+    storyPath: null,
+  },
+  {
+    sourcePath: "shared/ui/compact-month-calendar.tsx",
+    kind: "component",
+    exports: ["CompactMonthCalendar", "CompactMonthCalendarSkeleton"],
     storyPath: null,
   },
   {
@@ -2145,11 +2329,16 @@ export const adminStoryRoutes = [
   "/admin/announcements",
   "/admin/announcements/manage",
   "/admin/attendance",
+  "/admin/attendance/archive",
+  "/admin/attendance/class-groups",
+  "/admin/attendance/classes",
+  "/admin/attendance/dorm",
   "/admin/books",
   "/admin/class-groups",
   "/admin/classes",
   "/admin/coin-shop",
   "/admin/communication/notifications",
+  "/admin/dashboard/principal",
   "/admin/dormitory",
   "/admin/exit-permissions",
   "/admin/family",
@@ -2157,19 +2346,23 @@ export const adminStoryRoutes = [
   "/admin/management",
   "/admin/more",
   "/admin/my-attendance",
+  "/admin/my-rewards",
   "/admin/organizations",
   "/admin/permission-requests",
   "/admin/profile",
   "/admin/registration",
+  "/admin/rewards",
   "/admin/schedule",
   "/admin/settings",
   "/admin/sms",
   "/admin/student-leave",
+  "/admin/student-movements",
   "/admin/student-registration",
   "/admin/students",
   "/admin/system",
   "/admin/teacher-chat",
   "/admin/teacher-profile",
+  "/admin/teachers",
   "/admin/users",
   "/login",
   "/register",

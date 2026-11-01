@@ -21,6 +21,19 @@ function Probe() {
 }
 
 beforeEach(() => {
+  Object.defineProperty(window, "matchMedia", {
+    configurable: true,
+    value: vi.fn(() => ({
+      matches: false,
+      media: "",
+      onchange: null,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    })),
+  });
   setApiWorkContext();
   sessionStorage.clear();
   localStorage.clear();
@@ -338,6 +351,28 @@ it("refreshes a proposed school without the previous role and chooses a valid ne
   expect(screen.getByText("school-b")).toBeInTheDocument();
   expect(getApiWorkContextKey()).toBe("PRINCIPAL:school-b");
 });
+
+it("restores a valid persisted role instead of reverting a multi-role account to the first role", async () => {
+  localStorage.setItem("bastak-school:active-role:v1:local:multi:school-a", "SCHOOL_SUPERVISOR");
+  globalThis.fetch = vi.fn(async (input) => {
+    if (String(input).endsWith("/auth/me"))
+      return new Response(JSON.stringify({ ok: true, data: { id: "multi", role: "ADMIN" } }));
+    return new Response(
+      JSON.stringify({
+        ok: true,
+        data: switchContext("school-a", ["TEACHER", "SCHOOL_SUPERVISOR"]),
+      }),
+    );
+  }) as typeof fetch;
+  render(
+    <AuthProvider>
+      <SwitchProbe />
+    </AuthProvider>,
+  );
+  expect(await screen.findByText("SCHOOL_SUPERVISOR")).toBeInTheDocument();
+  expect(getApiWorkContextKey()).toBe("SCHOOL_SUPERVISOR:school-a");
+});
+
 it("keeps the previous role and request headers after a failed role-context refresh", async () => {
   globalThis.fetch = vi.fn(async (input, init) => {
     if (String(input).endsWith("/auth/me"))

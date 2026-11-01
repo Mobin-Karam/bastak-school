@@ -86,6 +86,11 @@ const ExitPermissionsPage = lazy(() =>
     default: m.ExitPermissionsPage,
   })),
 );
+const StudentMovementCenterPage = lazy(() =>
+  import("../../features/student-life/movement-center").then((m) => ({
+    default: m.StudentMovementCenterPage,
+  })),
+);
 const DormitoryPage = lazy(() =>
   import("../../features/student-life/dormitory").then((m) => ({ default: m.DormitoryPage })),
 );
@@ -245,7 +250,7 @@ function ProtectedRoute() {
   return <PortalHostBoundary />;
 }
 
-function PortalHostBoundary() {
+export function PortalHostBoundary() {
   const auth = useAuth();
   const location = useLocation();
   const domain = currentAppDomain();
@@ -260,7 +265,10 @@ function PortalHostBoundary() {
   }
 
   const desiredRole = preferredRoleForDomain(auth.context?.roles ?? [], domain);
-  if (desiredRole && auth.activeRole !== desiredRole) {
+  const activeRoleIsAvailable =
+    auth.activeRole !== null &&
+    preferredRoleForDomain([auth.activeRole], domain) === auth.activeRole;
+  if (desiredRole && !activeRoleIsAvailable) {
     return <PortalRoleSwitch desiredRole={desiredRole} />;
   }
   if (desiredRole) return <Outlet />;
@@ -576,7 +584,7 @@ export const adminRouteObjects = [
             element: (
               <CapabilityRoute capability="leave.read">
                 <RouteScreen>
-                  <LeaveRequestsPage />
+                  <StudentMovementCenterPage defaultState="review" />
                 </RouteScreen>
               </CapabilityRoute>
             ),
@@ -596,7 +604,17 @@ export const adminRouteObjects = [
             element: (
               <CapabilityRoute capability="exit.read">
                 <RouteScreen>
-                  <ExitPermissionsPage />
+                  <StudentMovementCenterPage defaultState="awaiting_departure" />
+                </RouteScreen>
+              </CapabilityRoute>
+            ),
+          },
+          {
+            path: "student-movements",
+            element: (
+              <CapabilityRoute capability="leave.read">
+                <RouteScreen>
+                  <StudentMovementCenterPage />
                 </RouteScreen>
               </CapabilityRoute>
             ),

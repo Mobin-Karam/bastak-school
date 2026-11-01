@@ -306,6 +306,44 @@ describe("AttendanceService organization boundaries (real SQLite)", () => {
     ).toBe(1);
   });
 
+  it("rejects a legacy occurrence before its Tehran scheduled start", async () => {
+    const year = await db.getRepository(SchoolAcademicYear).save({
+      organizationId: orgA.id,
+      name: "۱۴۰۵–۱۴۰۶",
+      startsOn: "2026-09-23",
+      endsOn: "2100-06-22",
+      state: "ACTIVE",
+    });
+    const term = await db.getRepository(SchoolAcademicTerm).save({
+      academicYearId: year.id,
+      name: "نیم‌سال اول",
+      startsOn: "2026-09-23",
+      endsOn: "2100-01-31",
+      state: "ACTIVE",
+    });
+    const entry = await db.getRepository(SchoolScheduleEntry).save({
+      organization: orgA,
+      classroom: assignedClass,
+      teacher: staff,
+      title: "جلسهٔ آینده",
+      weekday: 2,
+      startTime: "08:00",
+      endTime: "09:00",
+      room: "",
+      academicYearId: year.id,
+      termId: term.id,
+    });
+
+    await expect(
+      service.openLegacyScheduleSession(
+        { ...actor, id: staff.id, capabilities: ["attendance.class.manage"] },
+        { entryId: entry.id, date: "2099-10-12" },
+      ),
+    ).rejects.toMatchObject({
+      response: { error: { code: "ATTENDANCE_SESSION_NOT_STARTED" } },
+    });
+  });
+
   it("persists a manually reconciled historical session with academic snapshots and an audit trail", async () => {
     const year = await db.getRepository(SchoolAcademicYear).save({
       organizationId: orgA.id,
@@ -1743,6 +1781,37 @@ describe("AttendanceService organization boundaries (real SQLite)", () => {
     ).rejects.toMatchObject({
       response: { error: { code: "ATTENDANCE_SESSION_NOT_ACTIVE" } },
     });
+  });
+
+  it("allows an assigned teacher to revise a finalized timetable session after it ends", async () => {
+    const created = await service.createSession(actor, {
+      organizationId: orgA.id,
+      contextType: "class",
+      contextId: assignedClass.id,
+      sessionDate: new Date(Date.now() - 2 * 60 * 60_000).toISOString(),
+    });
+    await db.getRepository(AttendanceSession).update(created.id, {
+      sourceKind: "class_schedule",
+      assignedStaff: { id: staff.id },
+      scheduledStartAt: new Date(Date.now() - 2 * 60 * 60_000),
+      scheduledEndAt: new Date(Date.now() - 60 * 60_000),
+      status: "finalized",
+    });
+    const teacher = {
+      ...actor,
+      role: "TEACHER",
+      roles: ["TEACHER"],
+      capabilities: ["attendance.read", "attendance.class.manage"],
+    };
+
+    await expect(
+      service.bulkMark(teacher, {
+        organizationId: orgA.id,
+        sessionId: created.id,
+        expectedRevision: 0,
+        entries: [{ studentId: studentA.id, status: "late" }],
+      }),
+    ).resolves.toMatchObject({ sessionId: created.id, count: 1 });
   });
 
   it("does not reuse active-organization authority in another membership", async () => {

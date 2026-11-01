@@ -71,6 +71,7 @@ export const CAPABILITIES = [
   "school.occupancy.read",
   "student.self.read",
   "student.self.update",
+  "student.movement.resolve",
   "students.delete",
   "students.export",
   "students.import",

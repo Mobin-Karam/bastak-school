@@ -17,6 +17,7 @@ const {
   submitAttendanceAbsencesMock,
   awardAttendancePointsMock,
   getDormAttendanceOccurrenceMock,
+  openTimetableAttendanceMock,
   authState,
 } = vi.hoisted(() => ({
   listAttendanceSessionsMock: vi.fn(),
@@ -29,6 +30,7 @@ const {
   submitAttendanceAbsencesMock: vi.fn(),
   awardAttendancePointsMock: vi.fn(),
   getDormAttendanceOccurrenceMock: vi.fn(),
+  openTimetableAttendanceMock: vi.fn(),
   authState: {
     activeRole: "TEACHER",
     roles: [] as string[],
@@ -48,6 +50,9 @@ vi.mock("../api/attendance-operations.api.ts", () => ({
   getDormAttendanceOccurrence: getDormAttendanceOccurrenceMock,
   submitAttendanceAbsences: submitAttendanceAbsencesMock,
   awardAttendancePoints: awardAttendancePointsMock,
+}));
+vi.mock("../../../academics/schedule/api/timetable.api.ts", () => ({
+  openTimetableAttendance: openTimetableAttendanceMock,
 }));
 
 vi.mock("../../../identity/auth", () => ({
@@ -116,7 +121,7 @@ function TestProviders({ children }: PropsWithChildren) {
 
 function LocationProbe() {
   const location = useLocation();
-  return <output data-testid="current-location">{location.pathname + location.search}</output>;
+  return <span data-testid="current-location">{location.pathname + location.search}</span>;
 }
 
 afterEach(cleanup);
@@ -137,6 +142,10 @@ describe("AttendancePage", () => {
     listAttendanceSessionsMock.mockResolvedValue([]);
     listAttendanceContextsMock.mockResolvedValue([]);
     getDormAttendanceOccurrenceMock.mockResolvedValue(null);
+    openTimetableAttendanceMock.mockResolvedValue({
+      sessionId: "session-open",
+      cancelled: false,
+    });
     getAttendanceParticipantsMock.mockResolvedValue([]);
     bulkMarkAttendanceMock.mockResolvedValue({ sessionId: "mock-session", count: 0 });
     submitAttendanceAbsencesMock.mockResolvedValue({
@@ -856,5 +865,104 @@ describe("AttendancePage", () => {
     expect(screen.queryByRole("button", { name: /بررسی و ثبت حضور/ })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "ثبت‌نشده‌ها حاضر" })).not.toBeInTheDocument();
     expect(bulkMarkAttendanceMock).not.toHaveBeenCalled();
+  });
+
+  it("shows a future scheduled roster without attendance controls, even with general manage access", async () => {
+    canMock.mockImplementation((capability: string) =>
+      ["attendance.manage", "attendance.class.manage"].includes(capability),
+    );
+    listAttendanceContextsMock.mockResolvedValue([
+      {
+        id: "class-1",
+        contextType: "class",
+        code: "A",
+        name: "کلاس",
+        label: "کلاس",
+        total: 1,
+        activeOrganizationId: "org-1",
+      },
+    ]);
+    getAttendanceParticipantsMock.mockResolvedValue([{ id: "student-1", name: "علی" }]);
+    const startsAt = new Date(Date.now() + 60_000).toISOString();
+    const params = new URLSearchParams({
+      section: "class",
+      contextType: "class",
+      contextId: "class-1",
+      scheduleEntryId: "entry-1",
+      scheduleDate: "2026-11-02",
+      scheduleStartsAt: startsAt,
+    });
+    render(
+      <MemoryRouter initialEntries={[`/admin/attendance?${params}`]}>
+        <LocaleProvider>
+          <AttendancePage />
+        </LocaleProvider>
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByText("علی")).toBeVisible();
+    expect(screen.getByText("فهرست اعضا؛ دسترسی شما فقط برای مشاهده است.")).toBeVisible();
+    expect(screen.queryByRole("group", { name: "وضعیت علی" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "ثبت‌نشده‌ها حاضر" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "شروع ثبت حضور" })).not.toBeInTheDocument();
+    expect(openTimetableAttendanceMock).not.toHaveBeenCalled();
+  });
+
+  it("opens the scheduled attendance session after its start time", async () => {
+    canMock.mockImplementation((capability: string) =>
+      ["attendance.manage", "attendance.class.manage"].includes(capability),
+    );
+    listAttendanceContextsMock.mockResolvedValue([
+      {
+        id: "class-1",
+        contextType: "class",
+        code: "A",
+        name: "کلاس",
+        label: "کلاس",
+        total: 1,
+        activeOrganizationId: "org-1",
+      },
+    ]);
+    getAttendanceParticipantsMock.mockResolvedValue([{ id: "student-1", name: "علی" }]);
+    getSavedAttendanceSessionMock.mockResolvedValue({
+      id: "session-open",
+      contextType: "class",
+      contextId: "class-1",
+      title: "کلاس",
+      revision: 0,
+      status: "open",
+      organizationId: "org-1",
+      scheduledStartAt: new Date(Date.now() - 60_000).toISOString(),
+      scheduledEndAt: new Date(Date.now() + 60_000).toISOString(),
+      sourceKind: "class_schedule",
+      assignedStaffId: "teacher-1",
+      roster: [{ id: "student-1", name: "علی" }],
+      records: [],
+    });
+    const startsAt = new Date(Date.now() - 60_000).toISOString();
+    const params = new URLSearchParams({
+      section: "class",
+      contextType: "class",
+      contextId: "class-1",
+      scheduleEntryId: "entry-1",
+      scheduleDate: "2026-11-02",
+      scheduleStartsAt: startsAt,
+    });
+    const user = userEvent.setup();
+    render(
+      <MemoryRouter initialEntries={[`/admin/attendance?${params}`]}>
+        <LocaleProvider>
+          <LocationProbe />
+          <AttendancePage />
+        </LocaleProvider>
+      </MemoryRouter>,
+    );
+
+    await user.click(await screen.findByRole("button", { name: "شروع ثبت حضور" }));
+
+    expect(openTimetableAttendanceMock).toHaveBeenCalledWith("entry-1", "2026-11-02");
+    await waitFor(() =>
+      expect(screen.getByTestId("current-location")).toHaveTextContent("sessionId=session-open"),
+    );
   });
 });

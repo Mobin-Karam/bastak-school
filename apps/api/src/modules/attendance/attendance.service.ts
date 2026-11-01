@@ -901,6 +901,24 @@ export class AttendanceService {
         "ATTENDANCE_LEGACY_WEEKDAY",
         "تاریخ انتخاب‌شده با روز این جلسه هماهنگ نیست.",
       );
+    let startsAt: Date;
+    let endsAt: Date;
+    try {
+      startsAt = schoolLocalInstant(dto.date, entry.startTime, "Asia/Tehran");
+      endsAt = schoolLocalInstant(dto.date, entry.endTime, "Asia/Tehran");
+    } catch {
+      throw new ApiException(
+        422,
+        "ATTENDANCE_LEGACY_SCHEDULE_TIME",
+        "زمان جلسهٔ برنامه معتبر نیست.",
+      );
+    }
+    if (Date.now() < startsAt.getTime())
+      throw new ApiException(
+        409,
+        "ATTENDANCE_SESSION_NOT_STARTED",
+        "ثبت حضور از زمان شروع جلسه مجاز است.",
+      );
     const occurrenceKey = `legacy-schedule:${entry.id}:${dto.date}`;
     const existing = await this.sessions.findOne({
       where: { organization: { id: organizationId }, occurrenceKey },
@@ -912,8 +930,6 @@ export class AttendanceService {
       "class",
       entry.classroom.id,
     );
-    const startsAt = new Date(`${dto.date}T${entry.startTime}:00.000Z`);
-    const endsAt = new Date(`${dto.date}T${entry.endTime}:00.000Z`);
     const row = await this.sessions.save(
       this.sessions.create({
         organization: entry.organization,

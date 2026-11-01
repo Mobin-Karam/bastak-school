@@ -61,8 +61,8 @@ export const educationNavigation = [
   },
   {
     path: "teachers",
-    title: "دبیران",
-    description: "فهرست دبیران فعال مدرسه و نقش‌های هم‌زمان آن‌ها",
+    title: "اساتید",
+    description: "فهرست اساتید فعال مدرسه و نقش‌های هم‌زمان آن‌ها",
     icon: UserRoundCheck,
     capability: "classes.manage",
     allOf: ["classes.read"],
@@ -95,18 +95,11 @@ export const educationNavigation = [
     capability: "attendance.self.read",
   },
   {
-    path: "leave-requests",
-    title: "درخواست‌های مرخصی",
-    description: "مدیریت درخواست‌های مرخصی دانش‌آموزان",
-    icon: ClipboardCheck,
-    capability: "leave.read",
-  },
-  {
-    path: "exit-permissions",
-    title: "خروج و بازگشت",
-    description: "مجوزهای خروج، ثبت حرکت دروازه و آمار حاضرین مدرسه",
+    path: "student-movements",
+    title: "تردد و مرخصی دانش‌آموز",
+    description: "یک صف عملیاتی برای مرخصی، خروج، بازگشت و پیگیری تأخیر",
     icon: DoorOpen,
-    capability: "exit.read",
+    capability: "leave.read",
   },
 ] as const;
 

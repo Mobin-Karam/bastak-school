@@ -129,6 +129,9 @@ export function TimetablePage() {
       (y) => y.id === data.terms.find((t) => t.id === selectedVersion?.termId)?.yearId,
     )?.timeZone ?? "Asia/Tehran";
   const today = timetableToday(timeZone);
+  const detailOccurrence = data?.occurrences.find(
+    (occurrence) => occurrence.id === detail?.id && occurrence.date === today,
+  );
   const editable =
     selectedVersion?.state === "DRAFT" && auth.canAny(["schedule.create", "schedule.update"]);
   useEffect(() => {
@@ -287,6 +290,21 @@ export function TimetablePage() {
     },
     onError: (e) => notify(e.message, "error"),
   });
+  const openOccurrenceRoster = (occurrence: TimetableOccurrence) => {
+    const params = new URLSearchParams({
+      section: "class",
+      contextType: "class",
+      contextId: occurrence.classroomId,
+      scheduleEntryId: occurrence.id,
+      scheduleDate: occurrence.date,
+      scheduleStartsAt: occurrence.startsAt,
+      scheduleEndsAt: occurrence.endsAt,
+    });
+    if (occurrence.attendanceSessionId) {
+      params.set("sessionId", occurrence.attendanceSessionId);
+    }
+    navigate(`/admin/attendance?${params.toString()}`);
+  };
   const undoChange = useMutation({
     mutationFn: () =>
       writeTimetableLesson(
@@ -790,7 +808,17 @@ export function TimetablePage() {
                   key={`${x.id}:${x.date}`}
                   occurrence={x}
                   now={now}
-                  onClick={() => setDetail(x)}
+                  onClick={() => {
+                    if (
+                      auth.can("attendance.class.manage") &&
+                      !x.cancelled &&
+                      Date.parse(x.startsAt) > now
+                    ) {
+                      openOccurrenceRoster(x);
+                      return;
+                    }
+                    setDetail(x);
+                  }}
                   canAttend={auth.can("attendance.class.manage")}
                   onAttend={() => attendance.mutate({ lesson: x, date: x.date })}
                   busy={attendance.isPending}
@@ -1046,7 +1074,10 @@ export function TimetablePage() {
                 استثنا / لغو / استاد جایگزین
               </Button>
             ) : null}
-            {auth.can("attendance.class.manage") ? (
+            {auth.can("attendance.class.manage") &&
+            detailOccurrence &&
+            !detailOccurrence.cancelled &&
+            Date.parse(detailOccurrence.startsAt) <= now ? (
               <Button
                 disabled={attendance.isPending}
                 onClick={() => attendance.mutate({ lesson: detail, date: today })}
@@ -1233,6 +1264,7 @@ function OccurrenceCard({
   busy: boolean;
 }) {
   const current = !x.cancelled && Date.parse(x.startsAt) <= now && Date.parse(x.endsAt) > now;
+  const attendanceNotStarted = Date.parse(x.startsAt) > now;
   const ref = useRef<HTMLDivElement>(null);
   const focused = useRef(false);
   useEffect(() => {
@@ -1274,7 +1306,7 @@ function OccurrenceCard({
             تغییر برنامه: {x.changeReason}
           </p>
         ) : null}
-        {canAttend ? (
+        {canAttend && !attendanceNotStarted ? (
           <Button
             variant="soft"
             disabled={busy || (x.cancelled && !x.attendanceSessionId)}

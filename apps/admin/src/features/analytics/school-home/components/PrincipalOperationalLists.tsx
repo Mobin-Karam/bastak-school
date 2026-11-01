@@ -52,6 +52,8 @@ import {
   type AcademicTeacher,
 } from "../../../academics/education/api/academic.api";
 import { SupervisorComparisonPanel } from "../../../student-life/attendance/components/SupervisorComparisonPanel";
+import { getStudentMovements } from "../../../student-life/movement-center/api/student-movements.api";
+import { StudentMovementCenterPage } from "../../../student-life/movement-center/StudentMovementCenterPage";
 
 type Lists = NonNullable<PrincipalDashboardContract["principalLists"]>;
 type SessionReview = NonNullable<PrincipalDashboardContract["sessionReviews"]>["items"][number];
@@ -201,6 +203,11 @@ export function PrincipalOperationalLists({
     queryFn: listTeacherLeaveRequests,
     enabled: auth.can("leave.read"),
   });
+  const studentMovements = useQuery({
+    queryKey: ["student-movements", "principal", organizationId],
+    queryFn: () => getStudentMovements({ organizationId, state: "all" }),
+    enabled: auth.can("leave.read") && Boolean(organizationId),
+  });
   const teachers = useQuery({
     queryKey: ["academic", "teachers", "leave-substitutes", organizationId],
     queryFn: () => listAcademicTeachers(organizationId!, { limit: 100 }),
@@ -345,8 +352,10 @@ export function PrincipalOperationalLists({
     return: (teacherLeaves.data ?? []).filter((row) => row.returnStatus === "pending").length,
     groups: values.counts?.groups ?? values.classGroupAttendance.length,
     comparison: 0,
-    "student-leave": 0,
-    "overdue-return": outsidePresenceReports.data?.length ?? 0,
+    "student-leave":
+      (studentMovements.data?.counts.pendingLongLeaves ?? 0) +
+      (studentMovements.data?.counts.pendingShortExits ?? 0),
+    "overdue-return": studentMovements.data?.counts.overdueReturns ?? 0,
     substitution: 0,
   };
   const visibleCards = cards.filter(({ capability }) => auth.can(capability));
@@ -560,15 +569,8 @@ export function PrincipalOperationalLists({
               <Empty text="حضور گروهی برای نمایش ثبت نشده است." />
             ))}
           {active === "comparison" && <SupervisorComparisonPanel />}
-          {active === "overdue-return" && <DormAttendanceReviewInbox compact />}
-          {active === "student-leave" && (
-            <WorkflowLaunch
-              title="بررسی درخواست خروج دانش‌آموز"
-              description="تصمیم مدیر دربارهٔ خروج، بازگشت، وعده‌های روز خروج و اثر آن بر حضور کلاس در صفحهٔ درخواست‌ها نهایی و در پایگاه داده ثبت می‌شود."
-              href="/admin/leave-requests"
-              label="باز کردن صف درخواست‌های دانش‌آموزان"
-            />
-          )}
+          {active === "overdue-return" && <StudentMovementCenterPage defaultState="overdue" />}
+          {active === "student-leave" && <StudentMovementCenterPage defaultState="review" />}
           {active === "substitution" && (
             <WorkflowLaunch
               title="بررسی جابه‌جایی یک‌بارهٔ جلسه"

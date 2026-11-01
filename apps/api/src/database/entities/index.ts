@@ -105,6 +105,7 @@ export {
   LeaveRequestType,
 } from "./leave-request.entity";
 export { ExitPermission, ExitPermissionStatus } from "./exit-permission.entity";
+export { StudentMovementEvent } from "./student-movement-event.entity";
 export { RequestLetter, RequestLetterStatus } from "./request-letter.entity";
 
 export { StudentProfile } from "./student-profile.entity";

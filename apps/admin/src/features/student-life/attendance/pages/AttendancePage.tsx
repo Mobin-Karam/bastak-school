@@ -27,7 +27,7 @@ import {
 } from "lucide-react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useLocale } from "../../../../shared/ui/locale";
-import { Card } from "../../../../shared/ui/ui";
+import { Button, Card } from "../../../../shared/ui/ui";
 import { api, ApiError } from "../../../../shared/api/api";
 import { notify } from "../../../../shared/ui/notifications";
 import { ResponsiveDrawer } from "../../../../shared/ui/responsive-drawer";
@@ -49,6 +49,7 @@ import {
   type AttendanceStatus,
   type MarkedAttendanceStatus,
 } from "../model/attendance-workflow";
+import { openTimetableAttendance } from "../../../academics/schedule/api/timetable.api";
 import {
   bulkMarkAttendance,
   getAttendanceParticipants,
@@ -148,30 +149,55 @@ export function AttendancePage() {
   const isSupervisor = auth.context?.roles?.includes("SCHOOL_SUPERVISOR") ?? false;
   const { profile } = useLocale();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const requestedId = searchParams.get("contextId");
+  const requestedType = searchParams.get("contextType");
+  const requestedSessionId = searchParams.get("sessionId");
+  const scheduledEntryId = searchParams.get("scheduleEntryId");
+  const scheduledDate = searchParams.get("scheduleDate");
+  const scheduledStartsAt = searchParams.get("scheduleStartsAt");
+  const scheduledRosterRequest = Boolean(scheduledEntryId && scheduledDate && scheduledStartsAt);
   const [linkedSession, setLinkedSession] = useState<AttendanceSessionDetail | null>(null);
   const [windowNow, setWindowNow] = useState(() => Date.now());
+  const scheduledStartTime = scheduledStartsAt ? Date.parse(scheduledStartsAt) : Number.NaN;
+  const scheduledStartReached =
+    Number.isFinite(scheduledStartTime) && windowNow >= scheduledStartTime;
+  const [openingScheduledAttendance, setOpeningScheduledAttendance] = useState(false);
+  const [scheduledAttendanceError, setScheduledAttendanceError] = useState<string | null>(null);
   useEffect(() => {
-    if (!linkedSession?.scheduledStartAt || !linkedSession.scheduledEndAt) return;
+    if (!scheduledStartsAt && (!linkedSession?.scheduledStartAt || !linkedSession.scheduledEndAt))
+      return;
     setWindowNow(Date.now());
     const timer = window.setInterval(() => setWindowNow(Date.now()), 30_000);
     return () => window.clearInterval(timer);
-  }, [linkedSession?.id, linkedSession?.scheduledStartAt, linkedSession?.scheduledEndAt]);
-  const sessionWindow = linkedSession ? attendanceSessionWindow(linkedSession, windowNow) : null;
-  const sessionWindowActive = !sessionWindow || sessionWindow.active;
+  }, [
+    linkedSession?.id,
+    linkedSession?.scheduledStartAt,
+    linkedSession?.scheduledEndAt,
+    scheduledStartsAt,
+  ]);
   const canEditHistoricalTimetableSession =
-    linkedSession?.sourceKind === "class_schedule" &&
-    linkedSession.assignedStaffId === auth.user?.id &&
+    ["class_schedule", "legacy_schedule"].includes(linkedSession?.sourceKind ?? "") &&
+    linkedSession?.assignedStaffId === auth.user?.id &&
     auth.can("attendance.class.manage");
+  const sessionWindow = linkedSession
+    ? attendanceSessionWindow(linkedSession, windowNow, {
+        allowAfterEnd: canEditHistoricalTimetableSession,
+      })
+    : null;
+  const sessionWindowActive = !sessionWindow || sessionWindow.active;
   const canManageLinkedSession =
     auth.can("attendance.manage") ||
     (linkedSession?.contextType === "class" && auth.can("attendance.class.manage"));
   const canManage = linkedSession
     ? linkedSession.status !== "cancelled" &&
-      (canEditHistoricalTimetableSession ||
-        (linkedSession.status !== "finalized" &&
-          (linkedSession.scheduledStartAt !== null || sessionWindowActive))) &&
+      (canEditHistoricalTimetableSession
+        ? sessionWindowActive
+        : linkedSession.status !== "finalized" && sessionWindowActive) &&
       canManageLinkedSession
-    : auth.can("attendance.manage");
+    : scheduledRosterRequest
+      ? false
+      : auth.can("attendance.manage");
   // Principal operational reviews live on the principal dashboard. This page
   // is their attendance settings and all-session history/archive workspace.
   const sections: AttendanceSection[] = isPrincipal
@@ -192,10 +218,6 @@ export function AttendancePage() {
   ]);
   const scopeRef = useRef(scopeKey);
   scopeRef.current = scopeKey;
-  const [searchParams] = useSearchParams();
-  const requestedId = searchParams.get("contextId");
-  const requestedType = searchParams.get("contextType");
-  const requestedSessionId = searchParams.get("sessionId");
   useEffect(() => {
     if (!isPrincipal || requestedType !== "dorm" || !requestedSessionId) return;
     navigate(`/admin/dashboard/principal?dormSessionId=${encodeURIComponent(requestedSessionId)}`, {
@@ -227,6 +249,11 @@ export function AttendancePage() {
     : (requestedType ?? (dormOccurrence ? "dorm" : undefined));
   const activeSessionId =
     inlineScheduledSession?.sessionId ?? requestedSessionId ?? dormOccurrence?.sessionId;
+  const canOpenScheduledAttendance =
+    scheduledRosterRequest &&
+    !activeSessionId &&
+    scheduledStartReached &&
+    auth.can("attendance.class.manage");
   const requestedSectionParam = searchParams.get("section");
   const requestedOffice = searchParams.get("office");
   const office = ["teacher", "groups", "dorm", "history"].includes(requestedOffice ?? "")
@@ -916,9 +943,58 @@ export function AttendancePage() {
     }
   }
 
+  async function openScheduledAttendance() {
+    if (
+      !scheduledEntryId ||
+      !scheduledDate ||
+      !canOpenScheduledAttendance ||
+      openingScheduledAttendance
+    )
+      return;
+    setOpeningScheduledAttendance(true);
+    setScheduledAttendanceError(null);
+    try {
+      const result = await openTimetableAttendance(scheduledEntryId, scheduledDate);
+      if (result.cancelled) {
+        throw new Error("این جلسه لغو شده و حضور آن قابل ثبت نیست.");
+      }
+      const nextParams = new URLSearchParams(searchParams);
+      nextParams.set("sessionId", result.sessionId);
+      navigate(`/admin/attendance?${nextParams.toString()}`, { replace: true });
+    } catch (error) {
+      const message = errorText(error, "بازکردن جلسه حضور انجام نشد.");
+      setScheduledAttendanceError(message);
+      notify(message, "error");
+    } finally {
+      setOpeningScheduledAttendance(false);
+    }
+  }
+
   return (
     <section dir={profile.direction} className="mx-auto w-full max-w-7xl space-y-4 pb-8">
       {isPrincipal ? null : <DormAttendanceReviewInbox />}
+      {scheduledRosterRequest ? (
+        <Card className="flex flex-wrap items-center justify-between gap-3 p-4" role="status">
+          <p className="text-sm text-muted-foreground">
+            فهرست دانش‌آموزان این جلسه پیش از شروع فقط برای مشاهده است. ثبت حضور از زمان
+            برنامه‌ریزی‌شده فعال می‌شود.
+          </p>
+          {canOpenScheduledAttendance ? (
+            <Button
+              loading={openingScheduledAttendance}
+              disabled={openingScheduledAttendance}
+              onClick={() => void openScheduledAttendance()}
+            >
+              شروع ثبت حضور
+            </Button>
+          ) : null}
+          {scheduledAttendanceError ? (
+            <p role="alert" className="w-full text-sm text-rosewood">
+              {scheduledAttendanceError}
+            </p>
+          ) : null}
+        </Card>
+      ) : null}
       {notice && (
         <div
           role={notice.kind === "error" || notice.kind === "warning" ? "alert" : "status"}

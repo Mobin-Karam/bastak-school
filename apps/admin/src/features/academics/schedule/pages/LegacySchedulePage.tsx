@@ -18,7 +18,7 @@ import {
   UserRound,
   X,
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { type Dispatch, type SetStateAction, useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { listOrganizations } from "../../../identity/access/api/access.api";
 import { useAuth } from "../../../identity/auth";
@@ -176,63 +176,62 @@ export function LegacySchedulePage() {
           academicBootstrap.data.unassignedAttendanceSessions.length > 0 ||
           academicBootstrap.data.pendingAttendanceCount > 0))),
   );
+  const setupReminderDueAt = setupReminder.data?.dueAt ?? null;
+  const setupReminderHydrated = !setupReminder.isLoading;
+  const setupGateDeferred = Boolean(
+    setupReminder.data?.status === "scheduled" &&
+    setupReminderDueAt &&
+    new Date(setupReminderDueAt).getTime() > Date.now(),
+  );
   useEffect(() => {
-    const reminder = readSetupReminder(setupReminderKey);
-    const dueAt = reminder?.dueAt ?? null;
-    setSetupReminderDueAt(dueAt);
-    setSetupGateDeferred(Boolean(dueAt && new Date(dueAt).getTime() > Date.now()));
-    setHydratedSetupReminderKey(setupReminderKey);
-  }, [setupReminderKey]);
-  useEffect(() => {
-    if (!setupReminderHydrated) return;
-    // Do not erase a deferred reminder while the bootstrap request is still
-    // loading. On a refresh, that transient state used to clear localStorage
-    // before the API could report that reconciliation is still required.
     if (scheduleSetupResolved && !scheduleSetupBlocked) {
-      if (setupReminderKey) window.localStorage.removeItem(setupReminderKey);
-      setSetupReminderDueAt(null);
-      setSetupGateDeferred(false);
+      if (setupReminder.data) void clearScheduleSetupReminder(selectedOrganizationId!);
       return;
     }
     if (!setupReminderDueAt) return;
     const remaining = new Date(setupReminderDueAt).getTime() - Date.now();
     if (remaining <= 0) {
-      if (setupReminderKey) window.localStorage.removeItem(setupReminderKey);
-      setSetupReminderDueAt(null);
-      setSetupGateDeferred(false);
-      notify("یادآور راه‌اندازی سال تحصیلی فرا رسید.", "warning");
+      void client.invalidateQueries({
+        queryKey: ["schedule", "setup-reminder", selectedOrganizationId],
+      });
       return;
     }
     const timer = window.setTimeout(() => {
-      if (setupReminderKey) window.localStorage.removeItem(setupReminderKey);
-      setSetupReminderDueAt(null);
-      setSetupGateDeferred(false);
-      notify("یادآور راه‌اندازی سال تحصیلی فرا رسید.", "warning");
+      setReminderWakeAt(Date.now());
+      void client.invalidateQueries({
+        queryKey: ["schedule", "setup-reminder", selectedOrganizationId],
+      });
     }, remaining);
     return () => window.clearTimeout(timer);
   }, [
     scheduleSetupBlocked,
     scheduleSetupResolved,
     setupReminderDueAt,
-    setupReminderHydrated,
-    setupReminderKey,
+    setupReminder.data,
+    selectedOrganizationId,
+    client,
+    reminderWakeAt,
   ]);
-  const deferScheduleSetup = (dueAt: string) => {
+  const deferScheduleSetup = async (dueAt: string) => {
     if (new Date(dueAt).getTime() <= Date.now()) {
       notify("زمان یادآور باید در آینده باشد.", "error");
       return;
     }
-    if (setupReminderKey) {
-      window.localStorage.setItem(setupReminderKey, JSON.stringify({ dueAt }));
+    try {
+      await setScheduleSetupReminder({ organizationId: selectedOrganizationId!, dueAt });
+      await client.invalidateQueries({
+        queryKey: ["schedule", "setup-reminder", selectedOrganizationId],
+      });
+      notify(`یادآور برای ${formatSetupReminder(dueAt)} ثبت شد.`, "success");
+    } catch (error) {
+      notify(error instanceof Error ? error.message : "ثبت یادآور انجام نشد.", "error");
     }
-    setSetupReminderDueAt(dueAt);
-    setSetupGateDeferred(true);
-    notify(`یادآور برای ${formatSetupReminder(dueAt)} ثبت شد.`, "success");
   };
-  const resumeScheduleSetup = () => {
-    if (setupReminderKey) window.localStorage.removeItem(setupReminderKey);
-    setSetupReminderDueAt(null);
-    setSetupGateDeferred(false);
+  const resumeScheduleSetup = async () => {
+    if (selectedOrganizationId) await clearScheduleSetupReminder(selectedOrganizationId);
+    await client.invalidateQueries({
+      queryKey: ["schedule", "setup-reminder", selectedOrganizationId],
+    });
   };
   const reconcileAcademicBootstrap = useMutation({
     mutationFn: () =>
@@ -715,146 +714,29 @@ export function LegacySchedulePage() {
           onDefer={deferScheduleSetup}
         />
       ) : null}
-      {scheduleSetupBlocked && setupReminderHydrated && setupGateDeferred && setupReminderDueAt ? (
-        <section
-          className="mb-3 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-amber-300 bg-amber-50 px-4 py-3 text-amber-950 shadow-sm dark:border-amber-700 dark:bg-amber-950/35 dark:text-amber-100"
-          dir="rtl"
-          role="status"
-          aria-label="یادآور راه‌اندازی برنامه"
-        >
-          <div className="flex min-w-0 items-start gap-3">
-            <BellRing className="mt-0.5 shrink-0" size={20} aria-hidden="true" />
-            <div>
-              <p className="text-sm font-black">راه‌اندازی برنامه به تعویق افتاده است</p>
-              <p className="mt-0.5 text-xs leading-5">
-                یادآور: {formatSetupReminder(setupReminderDueAt)}. تا تکمیل سال و نیم‌سال، تغییرات
-                برنامه از سمت سرور مسدود است.
-              </p>
-            </div>
-          </div>
-          <Button variant="soft" className="min-h-10" onClick={resumeScheduleSetup}>
-            ادامهٔ راه‌اندازی
-          </Button>
-        </section>
-      ) : null}
-      <header
-        className="-mx-3 mb-0 grid gap-3 border-y border-sky-300/70 bg-sky-50/70 px-3 py-3 shadow-[var(--shadow-surface)] dark:border-sky-400/25 dark:bg-sky-950/25 sm:-mx-5 sm:px-5 sm:py-4 lg:-mx-6 lg:px-6 xl:-mx-8 xl:px-8"
-        dir="rtl"
-      >
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex min-w-0 items-center gap-2.5">
-            <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-brand/10 text-brand">
-              <CalendarClock size={21} aria-hidden="true" />
-            </span>
-            <div className="min-w-0">
-              <h1
-                id="schedule-page-title"
-                className="text-base font-black tracking-tight text-ink sm:text-lg"
-              >
-                برنامه هفتگی مدرسه
-              </h1>
-              <p className="mt-0.5 truncate text-xs text-slate-500 dark:text-slate-300">
-                {activeAcademicYear?.name ?? "سال تحصیلی انتخاب نشده"}
-                {availableScheduleTerms[0]
-                  ? ` · ${scheduleTermId ? availableScheduleTerms.find((term) => term.id === scheduleTermId)?.name : availableScheduleTerms[0].name}`
-                  : ""}
-              </p>
-            </div>
-          </div>
-          <Button
-            variant="ghost"
-            className="min-h-10 shrink-0"
-            onClick={() => setHeaderControlsOpen((open) => !open)}
-            aria-expanded={headerControlsOpen}
-            aria-controls="schedule-header-controls"
-          >
-            کنترل‌ها
-            <ChevronDown
-              size={17}
-              aria-hidden="true"
-              className={`transition-transform motion-reduce:transition-none ${headerControlsOpen ? "rotate-180" : ""}`}
-            />
-          </Button>
-        </div>
-        {headerControlsOpen ? (
-          <div
-            id="schedule-header-controls"
-            className="grid gap-3 border-t border-[rgb(var(--border-subtle))] pt-3"
-            aria-label="کنترل‌های برنامه هفتگی"
-          >
-            <div className="flex flex-wrap items-center gap-2">
-              {canManageAcademicCycles ? (
-                <Button
-                  variant="soft"
-                  className="min-h-10"
-                  onClick={() => setAcademicCyclesOpen(true)}
-                >
-                  <GraduationCap size={17} /> مدیریت سال و نیم‌سال
-                </Button>
-              ) : null}
-              <Button
-                variant="soft"
-                className="min-h-10"
-                onClick={() => setMobileToolsOpen(true)}
-                aria-haspopup="dialog"
-                aria-expanded={mobileToolsOpen}
-                aria-controls="legacy-schedule-tools-drawer"
-              >
-                <CalendarClock size={17} /> ابزارهای برنامه
-              </Button>
-              {canCreate ? (
-                <Button className="min-h-10" onClick={() => editEntry()}>
-                  <Plus size={17} /> افزودن جلسه
-                </Button>
-              ) : null}
-            </div>
-            {canWrite && activeAcademicYear ? (
-              <div className="flex flex-wrap items-end gap-3 border-t border-[rgb(var(--border-subtle))] pt-3">
-                <label className="grid min-w-48 gap-1 text-xs font-bold">
-                  سال تحصیلی جلسه‌های جدید
-                  <AdaptiveSelect
-                    value={selectedScheduleYearId}
-                    onChange={(event) => {
-                      setScheduleAcademicYearId(event.target.value);
-                      setScheduleTermId("");
-                    }}
-                  >
-                    {academicCycles.data?.years
-                      .filter((year) => year.state !== "ARCHIVED")
-                      .map((year) => (
-                        <option key={year.id} value={year.id}>
-                          {year.name}
-                        </option>
-                      ))}
-                  </AdaptiveSelect>
-                </label>
-                <label className="grid min-w-48 gap-1 text-xs font-bold">
-                  نیم‌سال جلسه‌های جدید
-                  <AdaptiveSelect
-                    value={scheduleTermId || availableScheduleTerms[0]?.id || ""}
-                    onChange={(event) => setScheduleTermId(event.target.value)}
-                  >
-                    <option value="">انتخاب نیم‌سال</option>
-                    {availableScheduleTerms.map((term) => (
-                      <option key={term.id} value={term.id}>
-                        {term.name}
-                      </option>
-                    ))}
-                  </AdaptiveSelect>
-                </label>
-                <p className="max-w-sm text-xs leading-5 text-slate-500 dark:text-slate-300">
-                  جلسه‌های تازه به سال و نیم‌سال انتخاب‌شده متصل می‌شوند؛ برنامهٔ گذشته تغییر
-                  نمی‌کند.
-                </p>
-              </div>
-            ) : null}
-          </div>
-        ) : null}
-        <div
-          id="schedule-header-tabs"
-          className="min-h-[3.75rem] border-t border-sky-300/70 pt-2 dark:border-sky-400/25"
-        />
-      </header>
+      <SchudelHeader
+        scheduleSetupBlocked={scheduleSetupBlocked}
+        setupReminderHydrated={setupReminderHydrated}
+        setupGateDeferred={setupGateDeferred}
+        setupReminderDueAt={setupReminderDueAt}
+        resumeScheduleSetup={resumeScheduleSetup}
+        activeAcademicYear={activeAcademicYear}
+        availableScheduleTerms={availableScheduleTerms}
+        scheduleTermId={scheduleTermId}
+        headerControlsOpen={headerControlsOpen}
+        setHeaderControlsOpen={setHeaderControlsOpen}
+        canManageAcademicCycles={canManageAcademicCycles}
+        setAcademicCyclesOpen={setAcademicCyclesOpen}
+        mobileToolsOpen={mobileToolsOpen}
+        setMobileToolsOpen={setMobileToolsOpen}
+        canCreate={canCreate}
+        editEntry={editEntry}
+        canWrite={canWrite}
+        selectedScheduleYearId={selectedScheduleYearId}
+        setScheduleAcademicYearId={setScheduleAcademicYearId}
+        setScheduleTermId={setScheduleTermId}
+        academicYears={academicCycles.data?.years ?? []}
+      />
       <section
         className="relative mt-4 grid w-full max-w-none gap-4 pb-[calc(6rem+env(safe-area-inset-bottom))] min-[1200px]:pb-6"
         dir="rtl"
@@ -1008,6 +890,216 @@ export function LegacySchedulePage() {
         ) : null}
       </ResponsiveDrawer>
     </>
+  );
+}
+
+type SchudelHeaderProps = {
+  scheduleSetupBlocked: boolean;
+  setupReminderHydrated: boolean;
+  setupGateDeferred: boolean;
+  setupReminderDueAt: string | null;
+  resumeScheduleSetup: () => void;
+
+  activeAcademicYear:
+    | {
+        id: string;
+        name: string;
+      }
+    | undefined;
+
+  availableScheduleTerms: LegacyAcademicTerm[];
+  scheduleTermId: string;
+
+  headerControlsOpen: boolean;
+  setHeaderControlsOpen: Dispatch<SetStateAction<boolean>>;
+
+  canManageAcademicCycles: boolean;
+  setAcademicCyclesOpen: Dispatch<SetStateAction<boolean>>;
+
+  mobileToolsOpen: boolean;
+  setMobileToolsOpen: Dispatch<SetStateAction<boolean>>;
+
+  canCreate: boolean;
+  canWrite: boolean;
+
+  editEntry: (entry?: ScheduleEntry, copy?: boolean, initial?: ScheduleDraft) => void;
+
+  selectedScheduleYearId: string;
+  setScheduleAcademicYearId: Dispatch<SetStateAction<string>>;
+  setScheduleTermId: Dispatch<SetStateAction<string>>;
+
+  academicYears: Array<{
+    id: string;
+    name: string;
+    state: string;
+  }>;
+};
+
+function SchudelHeader({
+  headerControlsOpen,
+  setHeaderControlsOpen,
+
+  scheduleSetupBlocked,
+  setupReminderHydrated,
+  setupGateDeferred,
+  setupReminderDueAt,
+  resumeScheduleSetup,
+
+  activeAcademicYear,
+  availableScheduleTerms,
+  scheduleTermId,
+
+  canManageAcademicCycles,
+  setAcademicCyclesOpen,
+
+  mobileToolsOpen,
+  setMobileToolsOpen,
+
+  canCreate,
+  canWrite,
+  editEntry,
+
+  selectedScheduleYearId,
+  setScheduleAcademicYearId,
+  setScheduleTermId,
+
+  academicYears,
+}: SchudelHeaderProps) {
+  return (
+    <header
+      className="-mx-3 border-y border-sky-300/70 bg-sky-50/70 shadow-[var(--shadow-surface)] dark:border-sky-400/25 dark:bg-sky-950/25 sm:-mx-5 lg:-mx-6 xl:-mx-8"
+      dir="rtl"
+    >
+      {/* TAB BAR */}
+      <div className="flex min-h-[3.75rem] items-center gap-2 px-3 sm:px-5 lg:px-6 xl:px-8">
+        <div
+          id="schedule-header-tabs"
+          className="min-w-0 flex-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        />
+
+        <Button
+          size="sm"
+          variant="ghost"
+          className="shrink-0"
+          onClick={() => setHeaderControlsOpen((open: any) => !open)}
+          aria-expanded={headerControlsOpen}
+          aria-controls="schedule-header-controls"
+        >
+          کنترل‌ها
+          <ChevronDown
+            size={16}
+            className={`transition-transform ${headerControlsOpen ? "rotate-180" : ""}`}
+          />
+        </Button>
+      </div>
+
+      {/* BELOW TAB BAR */}
+      {headerControlsOpen ? (
+        <div
+          id="schedule-header-controls"
+          className="grid gap-4 border-t border-sky-300/70 px-3 py-4 dark:border-sky-400/25 sm:px-5 lg:px-6 xl:px-8"
+        >
+          {scheduleSetupBlocked &&
+          setupReminderHydrated &&
+          setupGateDeferred &&
+          setupReminderDueAt ? (
+            <section className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-amber-300 bg-amber-50 p-4 dark:border-amber-700 dark:bg-amber-950/30">
+              <div className="flex items-start gap-3">
+                <BellRing size={20} />
+
+                <div>
+                  <p className="text-sm font-black">راه‌اندازی برنامه به تعویق افتاده است</p>
+
+                  <p className="mt-1 text-xs leading-5">
+                    یادآور: {formatSetupReminder(setupReminderDueAt)}
+                  </p>
+                </div>
+              </div>
+
+              <Button variant="soft" onClick={resumeScheduleSetup}>
+                ادامهٔ راه‌اندازی
+              </Button>
+            </section>
+          ) : null}
+
+          <div className="flex flex-wrap items-center gap-2">
+            {canManageAcademicCycles ? (
+              <Button variant="soft" onClick={() => setAcademicCyclesOpen(true)}>
+                <GraduationCap size={17} />
+                مدیریت سال و نیم‌سال
+              </Button>
+            ) : null}
+
+            <Button
+              variant="soft"
+              onClick={() => setMobileToolsOpen(true)}
+              aria-haspopup="dialog"
+              aria-expanded={mobileToolsOpen}
+            >
+              <CalendarClock size={17} />
+              ابزارهای برنامه
+            </Button>
+
+            {canCreate ? (
+              <Button onClick={() => editEntry()}>
+                <Plus size={17} />
+                افزودن جلسه
+              </Button>
+            ) : null}
+          </div>
+
+          {canWrite && activeAcademicYear ? (
+            <div className="grid gap-3 sm:grid-cols-2">
+              <label className="grid gap-1 text-xs font-bold">
+                سال تحصیلی جلسه‌های جدید
+                <AdaptiveSelect
+                  value={selectedScheduleYearId}
+                  onChange={(event) => {
+                    setScheduleAcademicYearId(event.target.value);
+                    setScheduleTermId("");
+                  }}
+                >
+                  {academicYears
+                    .filter((year) => year.state !== "ARCHIVED")
+                    .map((year) => (
+                      <option key={year.id} value={year.id}>
+                        {year.name}
+                      </option>
+                    ))}
+                </AdaptiveSelect>
+              </label>
+
+              <label className="grid gap-1 text-xs font-bold">
+                نیم‌سال جلسه‌های جدید
+                <AdaptiveSelect
+                  value={scheduleTermId || availableScheduleTerms[0]?.id || ""}
+                  onChange={(event) => setScheduleTermId(event.target.value)}
+                >
+                  <option value="">انتخاب نیم‌سال</option>
+
+                  {availableScheduleTerms.map((term) => (
+                    <option key={term.id} value={term.id}>
+                      {term.name}
+                    </option>
+                  ))}
+                </AdaptiveSelect>
+              </label>
+            </div>
+          ) : null}
+
+          <p className="text-xs leading-5 text-slate-500 dark:text-slate-300">
+            {activeAcademicYear?.name ?? "سال تحصیلی انتخاب نشده"}
+            {availableScheduleTerms[0]
+              ? ` · ${
+                  scheduleTermId
+                    ? availableScheduleTerms.find((term) => term.id === scheduleTermId)?.name
+                    : availableScheduleTerms[0].name
+                }`
+              : ""}
+          </p>
+        </div>
+      ) : null}
+    </header>
   );
 }
 

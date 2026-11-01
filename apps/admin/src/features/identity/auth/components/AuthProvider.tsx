@@ -31,12 +31,35 @@ import { RoleChooserPrompt } from "./RoleChooserPrompt";
 const MAX_RESTORE_ATTEMPTS = 3;
 const RESTORE_RETRY_DELAY_MS = 1_800;
 const ACTIVE_SESSION_REFRESH_MS = 10 * 60_000;
+const ACTIVE_ROLE_STORAGE_PREFIX = "bastak-school:active-role:v1";
 
 function portalRole(roles: AccountContext["roles"]) {
   const domain = currentAppDomain();
   if (domain === "student" || domain === "admin")
     return preferredRoleForDomain(roles, domain) ?? adminPortalRole(roles);
   return adminPortalRole(roles);
+}
+
+function activeRoleStorageKey(userId: string, organizationId?: string | null) {
+  return `${ACTIVE_ROLE_STORAGE_PREFIX}:${currentAppDomain()}:${userId}:${organizationId ?? "none"}`;
+}
+
+function storedActiveRole(context: AccountContext): AccountContext["roles"][number] | null {
+  const stored = localStorage.getItem(
+    activeRoleStorageKey(context.user.id, context.activeOrganization?.id),
+  );
+  const candidate = stored as AccountContext["roles"][number] | null;
+  if (!candidate || !context.roles.includes(candidate)) return null;
+  const domain = currentAppDomain();
+  const allowed =
+    domain === "student" || domain === "admin"
+      ? preferredRoleForDomain([candidate], domain) === candidate
+      : adminPortalRole([candidate]) === candidate;
+  return allowed ? candidate : null;
+}
+
+function persistActiveRole(context: AccountContext, role: AccountContext["roles"][number]) {
+  localStorage.setItem(activeRoleStorageKey(context.user.id, context.activeOrganization?.id), role);
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -100,7 +123,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (current !== operation.current) return;
 
-      const role = portalRole(context.roles);
+      const role = storedActiveRole(context) ?? portalRole(context.roles);
       if (!role) {
         try {
           await logoutRequest();
@@ -274,6 +297,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(contextUser);
         setAccountContext(context);
         setActiveRoleState(role);
+        persistActiveRole(context, role);
         setApiWorkContext(role, context.activeOrganization?.id);
         sessionStorage.setItem(AUTH_SUCCESS_SPLASH_KEY, "1");
         sessionStorage.setItem("bastak.passkey.offer.pending", "1");
@@ -368,6 +392,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setAccountContext(refreshed);
           setUser(normalizeUser({ ...refreshed.user, role }));
           setActiveRoleState(role);
+          persistActiveRole(refreshed, role);
           setApiWorkContext(role, refreshed.activeOrganization?.id);
         } finally {
           if (current === operation.current) setStatus("authenticated");
@@ -398,6 +423,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setAccountContext(refreshed);
           setUser(normalizeUser({ ...refreshed.user, role }));
           setActiveRoleState(role);
+          persistActiveRole(refreshed, role);
           setApiWorkContext(role, refreshed.activeOrganization?.id);
         } finally {
           if (current === operation.current) setStatus("authenticated");

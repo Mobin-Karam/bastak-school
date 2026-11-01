@@ -45,6 +45,26 @@ const attendanceActions: Array<{
 ];
 
 const isoDay = (date: Date) => date.toISOString().slice(0, 10);
+
+function tehranNow() {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Tehran",
+    calendar: "gregory",
+    numberingSystem: "latn",
+    hourCycle: "h23",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).formatToParts(new Date());
+  const value = (type: Intl.DateTimeFormatPartTypes) =>
+    parts.find((part) => part.type === type)?.value ?? "00";
+  return {
+    date: `${value("year")}-${value("month")}-${value("day")}`,
+    time: `${value("hour")}:${value("minute")}`,
+  };
+}
 export function latestTeacherSessionDate(date: string, weekday: number) {
   const current = new Date(`${date}T12:00:00Z`);
   while ((current.getUTCDay() + 1) % 7 !== weekday) current.setUTCDate(current.getUTCDate() - 1);
@@ -349,9 +369,13 @@ export function TeacherClassAttendanceSheet({
   const canMoveToPreviousSession = Boolean(
     previousSessionDate && (!semesterStartsOn || previousSessionDate >= semesterStartsOn),
   );
+  const schoolNow = tehranNow();
+  const hasSessionStarted =
+    sessionDate < schoolNow.date ||
+    (sessionDate === schoolNow.date && (entry?.startTime ?? "99:99") <= schoolNow.time);
   const canManageSelectedSession =
     canManage &&
-    sessionDate <= isoDay(new Date()) &&
+    hasSessionStarted &&
     (!semesterStartsOn || sessionDate >= semesterStartsOn) &&
     (!semesterEndsOn || sessionDate <= semesterEndsOn);
   const sessionCoins = useQuery({

@@ -239,6 +239,107 @@ test("preserves authorization history while granting attendance correction to th
   db.close();
 });
 
+test("preserves authorization history while adding principal student-movement resolution grants", () => {
+  const db = new Database(":memory:");
+  db.exec(`
+    CREATE TABLE roles (id TEXT PRIMARY KEY, code TEXT NOT NULL);
+    CREATE TABLE permissions (id TEXT PRIMARY KEY, code TEXT NOT NULL, description TEXT NOT NULL);
+    CREATE TABLE role_permissions (id TEXT PRIMARY KEY, roleId TEXT NOT NULL, permissionId TEXT NOT NULL);
+    CREATE TABLE migrations (name TEXT);
+    INSERT INTO roles VALUES
+      ('principal', 'PRINCIPAL'),
+      ('school-admin', 'SCHOOL_ADMIN'),
+      ('organization-admin', 'ORGANIZATION_ADMIN'),
+      ('platform-admin', 'PLATFORM_ADMIN'),
+      ('supervisor', 'SCHOOL_SUPERVISOR');
+    INSERT INTO permissions VALUES ('retained-permission', 'attendance.read', 'Retained');
+    INSERT INTO role_permissions VALUES ('retained-grant', 'principal', 'retained-permission');
+  `);
+  const before = inventory(db);
+  db.exec(`
+    INSERT INTO permissions VALUES
+      ('movement-resolve', 'student.movement.resolve', 'Confirm a student is physically in school');
+    INSERT INTO role_permissions VALUES
+      ('principal-movement-resolve', 'principal', 'movement-resolve'),
+      ('school-admin-movement-resolve', 'school-admin', 'movement-resolve'),
+      ('admin-movement-resolve', 'organization-admin', 'movement-resolve'),
+      ('platform-movement-resolve', 'platform-admin', 'movement-resolve');
+    INSERT INTO migrations VALUES ('PrincipalStudentMovementResolution1763600200000');
+  `);
+  assert.doesNotThrow(() => preserved(before, inventory(db), db));
+  assert.equal(
+    db
+      .prepare(
+        "SELECT COUNT(*) AS count FROM role_permissions WHERE roleId='supervisor' AND permissionId='movement-resolve'",
+      )
+      .get().count,
+    0,
+  );
+  assert.equal(
+    db
+      .prepare(
+        "SELECT COUNT(*) AS count FROM role_permissions WHERE roleId='school-admin' AND permissionId='movement-resolve'",
+      )
+      .get().count,
+    1,
+  );
+  db.prepare("DELETE FROM role_permissions WHERE id='retained-grant'").run();
+  assert.throws(
+    () => preserved(before, inventory(db), db),
+    /existing logical records changed/,
+  );
+  db.close();
+});
+
+test("preserves retained movement rows while adding school-admin repair indexes and leave-reference guards", () => {
+  const db = new Database(":memory:");
+  db.exec(`
+    CREATE TABLE leave_requests (id TEXT PRIMARY KEY);
+    CREATE TABLE exit_permissions (
+      id TEXT PRIMARY KEY,
+      organizationId TEXT NOT NULL,
+      studentId TEXT NOT NULL,
+      status TEXT NOT NULL,
+      actualReturnAt TEXT,
+      leaveRequestId TEXT,
+      origin TEXT
+    );
+    INSERT INTO leave_requests VALUES ('leave-1');
+    INSERT INTO exit_permissions VALUES ('exit-1', 'org-1', 'student-1', 'COMPLETED', '2026-01-01', 'leave-1', 'student_request');
+  `);
+  const before = inventory(db);
+  db.exec(`
+    CREATE INDEX IDX_exit_permissions_origin ON exit_permissions(origin);
+    CREATE TRIGGER exit_leave_reference_insert
+      BEFORE INSERT ON exit_permissions
+      WHEN NEW.leaveRequestId IS NOT NULL
+        AND NOT EXISTS (SELECT 1 FROM leave_requests WHERE id = NEW.leaveRequestId)
+      BEGIN SELECT RAISE(ABORT, 'EXIT_LEAVE_REQUEST_NOT_FOUND'); END;
+    CREATE TRIGGER exit_leave_reference_update
+      BEFORE UPDATE OF leaveRequestId ON exit_permissions
+      WHEN NEW.leaveRequestId IS NOT NULL
+        AND NOT EXISTS (SELECT 1 FROM leave_requests WHERE id = NEW.leaveRequestId)
+      BEGIN SELECT RAISE(ABORT, 'EXIT_LEAVE_REQUEST_NOT_FOUND'); END;
+  `);
+  assert.doesNotThrow(() => preserved(before, inventory(db), db));
+  assert.throws(
+    () =>
+      db
+        .prepare(
+          "INSERT INTO exit_permissions VALUES ('exit-2', 'org-1', 'student-2', 'PENDING', NULL, 'missing', NULL)",
+        )
+        .run(),
+    /EXIT_LEAVE_REQUEST_NOT_FOUND/,
+  );
+  assert.equal(
+    db
+      .prepare("SELECT leaveRequestId FROM exit_permissions WHERE id='exit-1'")
+      .get().leaveRequestId,
+    "leave-1",
+  );
+  db.close();
+});
+
 test("rejects an unrelated role-assignment removal or change", () => {
   const db = fixture();
   const before = inventory(db);
