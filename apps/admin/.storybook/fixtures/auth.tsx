@@ -55,6 +55,7 @@ export function StorybookAuthProvider({
     canAll: (requested) => requested.every((capability) => capabilities.includes(capability)),
     hasRole: (requestedRole) => requestedRole === role,
     login: async () => undefined,
+    loginWithPasskey: async () => undefined,
     logout: async () => undefined,
     restore: async () => undefined,
     stopRestore: () => undefined,

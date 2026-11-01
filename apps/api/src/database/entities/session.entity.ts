@@ -1,4 +1,11 @@
-import { Column, CreateDateColumn, Entity, Index, ManyToOne, PrimaryGeneratedColumn } from "typeorm";
+import {
+  Column,
+  CreateDateColumn,
+  Entity,
+  Index,
+  ManyToOne,
+  PrimaryGeneratedColumn,
+} from "typeorm";
 import { User } from "./user.entity";
 
 @Entity("sessions")
@@ -27,6 +34,10 @@ export class Session {
   @Index()
   @Column({ type: "datetime", nullable: true })
   refreshExpiresAt!: Date | null;
+
+  /** Updated on authenticated use so the user can identify their current and last active devices. */
+  @Column({ type: "datetime", nullable: true })
+  lastSeenAt!: Date | null;
 
   @CreateDateColumn()
   createdAt!: Date;

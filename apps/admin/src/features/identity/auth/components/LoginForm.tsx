@@ -1,5 +1,5 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Eye, EyeOff } from "lucide-react";
+import { Eye, EyeOff, Fingerprint } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { Button, Field, Input } from "../../../../shared/ui/ui";
@@ -35,6 +35,7 @@ export function LoginForm() {
   }, [step, setFocus]);
 
   const busy = checking || checkingPhone || formState.isSubmitting;
+  const passkeyAvailable = typeof window !== "undefined" && "PublicKeyCredential" in window;
 
   function showLoginError(error: unknown) {
     setPortalUrl(null);
@@ -194,6 +195,18 @@ export function LoginForm() {
                 ? copy.continueLogin
                 : copy.signIn}
       </Button>
+      {passkeyAvailable ? (
+        <Button
+          type="button"
+          variant="soft"
+          className="h-12 w-full"
+          disabled={busy}
+          onClick={() => void auth.loginWithPasskey().catch(showLoginError)}
+        >
+          <Fingerprint size={18} />
+          {direction === "rtl" ? "ورود با اثر انگشت یا قفل دستگاه" : "Sign in with device"}
+        </Button>
+      ) : null}
     </form>
   );
 }

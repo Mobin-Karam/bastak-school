@@ -133,6 +133,26 @@ test("preserves leave and schedule history while adding explicit leave ownership
   db.close();
 });
 
+test("preserves existing sessions while adding nullable activity tracking", () => {
+  const db = new Database(":memory:");
+  db.exec(
+    `CREATE TABLE sessions (id TEXT PRIMARY KEY, tokenHash TEXT NOT NULL, createdAt datetime NOT NULL); CREATE TABLE migrations (name TEXT); INSERT INTO sessions VALUES ('session-1','kept','2026-01-01');`,
+  );
+  const before = inventory(db);
+  db.exec(
+    "ALTER TABLE sessions ADD COLUMN lastSeenAt datetime NULL; INSERT INTO migrations VALUES ('SessionLastSeenAt1763500000000')",
+  );
+  assert.doesNotThrow(() => preserved(before, inventory(db), db));
+  db.prepare(
+    "UPDATE sessions SET tokenHash='changed' WHERE id='session-1'",
+  ).run();
+  assert.throws(
+    () => preserved(before, inventory(db), db),
+    /existing logical records changed/,
+  );
+  db.close();
+});
+
 test("preserves existing authorization rows while adding the school-admin lifecycle grants", () => {
   const db = new Database(":memory:");
   db.exec(`

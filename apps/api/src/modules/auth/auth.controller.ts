@@ -82,6 +82,43 @@ export class AuthController {
     });
   }
 
+  @Post("passkeys/authentication/options")
+  async passkeyAuthenticationOptions(@Req() req: FastifyRequest) {
+    return ok(
+      await this.auth.passkeyAuthenticationOptions(
+        this.requirePasskeyOrigin(req),
+      ),
+    );
+  }
+
+  @Post("passkeys/authentication/verify")
+  async verifyPasskeyAuthentication(
+    @Body() dto: { challengeId?: string; response?: unknown },
+    @Req() req: FastifyRequest,
+    @Res({ passthrough: true }) res: FastifyReply,
+  ) {
+    if (!dto.challengeId || !dto.response)
+      throw new ApiException(
+        422,
+        "PASSKEY_REQUEST_INVALID",
+        "درخواست کلید دستگاه نامعتبر است.",
+      );
+    const result = await this.auth.verifyPasskeyAuthentication(
+      dto.challengeId,
+      dto.response,
+      loginPortalFromOrigin(req.headers.origin),
+    );
+    this.setAuthCookies(res, result);
+    return ok({
+      user: {
+        id: result.user.id,
+        username: result.user.username,
+        role: result.user.role,
+      },
+      csrfToken: result.csrfToken,
+    });
+  }
+
   @Post("refresh")
   async refresh(
     @Req() req: FastifyRequest,
@@ -265,6 +302,56 @@ export class AuthController {
     return this.auth.listSessions(user).then(ok);
   }
 
+  @Get("passkeys")
+  async passkeys(@CurrentUser() user: AuthenticatedUser | null) {
+    if (!user)
+      throw new ApiException(401, "UNAUTHORIZED", "لطفاً وارد حساب شوید.");
+    return this.auth.listPasskeys(user).then(ok);
+  }
+
+  @Post("passkeys/registration/options")
+  async passkeyRegistrationOptions(
+    @CurrentUser() user: AuthenticatedUser | null,
+    @Req() req: FastifyRequest,
+  ) {
+    if (!user)
+      throw new ApiException(401, "UNAUTHORIZED", "لطفاً وارد حساب شوید.");
+    return ok(
+      await this.auth.passkeyRegistrationOptions(
+        user,
+        this.requirePasskeyOrigin(req),
+      ),
+    );
+  }
+
+  @Post("passkeys/registration/verify")
+  async verifyPasskeyRegistration(
+    @CurrentUser() user: AuthenticatedUser | null,
+    @Body() dto: { challengeId?: string; response?: unknown },
+  ) {
+    if (!user)
+      throw new ApiException(401, "UNAUTHORIZED", "لطفاً وارد حساب شوید.");
+    if (!dto.challengeId || !dto.response)
+      throw new ApiException(
+        422,
+        "PASSKEY_REQUEST_INVALID",
+        "درخواست کلید دستگاه نامعتبر است.",
+      );
+    return this.auth
+      .verifyPasskeyRegistration(user, dto.challengeId, dto.response)
+      .then(ok);
+  }
+
+  @Delete("passkeys/:id")
+  async revokePasskey(
+    @CurrentUser() user: AuthenticatedUser | null,
+    @Param("id") id: string,
+  ) {
+    if (!user)
+      throw new ApiException(401, "UNAUTHORIZED", "لطفاً وارد حساب شوید.");
+    return this.auth.revokePasskey(user, id).then(ok);
+  }
+
   @Delete("sessions/:id")
   async revokeSession(
     @CurrentUser() user: AuthenticatedUser | null,
@@ -326,5 +413,21 @@ export class AuthController {
         "درخواست بازیابی نشست معتبر نیست.",
       );
     }
+  }
+
+  private requirePasskeyOrigin(req: FastifyRequest) {
+    const origin = req.headers.origin;
+    const approvedOrigins = this.config.get<string[]>("corsOrigins") || [];
+    if (
+      typeof origin !== "string" ||
+      !isApprovedBrowserOrigin(origin, approvedOrigins) ||
+      !loginPortalFromOrigin(origin)
+    )
+      throw new ApiException(
+        403,
+        "PASSKEY_ORIGIN_FORBIDDEN",
+        "درگاه کلید دستگاه معتبر نیست.",
+      );
+    return origin;
   }
 }

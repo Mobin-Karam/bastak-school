@@ -9,6 +9,8 @@ import {
 } from "../../../../shared/api/api";
 import type { AccountContext, OrganizationSummary, User } from "../../../../shared/types/domain";
 import { getCurrentUser, getAccountContext, loginRequest, logoutRequest } from "../api/auth.api";
+import { passkeyAuthenticationOptions, verifyPasskeyAuthentication } from "../api/auth.api";
+import { startAuthentication } from "@simplewebauthn/browser";
 import {
   AUTH_SIGNAL_KEY,
   AUTH_SUCCESS_SPLASH_KEY,
@@ -23,6 +25,7 @@ import { useOptionalAdminLanguage } from "../../../../shared/ui/locale";
 import { hasAllCapabilities, hasAnyCapability, hasCapability } from "../lib/capabilities";
 import { AuthContext } from "../context";
 import { currentAppDomain, preferredRoleForDomain } from "../../../../app/routing/portal-domain";
+import { PasskeyEnrollmentPrompt } from "./PasskeyEnrollmentPrompt";
 
 const MAX_RESTORE_ATTEMPTS = 3;
 const RESTORE_RETRY_DELAY_MS = 1_800;
@@ -272,9 +275,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setActiveRoleState(role);
         setApiWorkContext(role, context.activeOrganization?.id);
         sessionStorage.setItem(AUTH_SUCCESS_SPLASH_KEY, "1");
+        sessionStorage.setItem("bastak.passkey.offer.pending", "1");
         setStatus("authenticated");
         restoreAttempts.current = 0;
         lastCheck.current = Date.now();
+        signalAuthEvent("login");
+      },
+
+      async loginWithPasskey() {
+        const current = ++operation.current;
+        setMessage("");
+        const { challengeId, options } = await passkeyAuthenticationOptions();
+        const response = await startAuthentication({ optionsJSON: options as never });
+        const data = await verifyPasskeyAuthentication(challengeId, response);
+        if (current !== operation.current) return;
+        api.setCsrf(data.csrfToken);
+        await restore();
+        sessionStorage.setItem(AUTH_SUCCESS_SPLASH_KEY, "1");
         signalAuthEvent("login");
       },
 
@@ -387,5 +404,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [copy, finishLocalLogout, message, restore, status, user, accountContext, activeRole],
   );
 
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  return (
+    <AuthContext.Provider value={value}>
+      {children}
+      <PasskeyEnrollmentPrompt authenticated={status === "authenticated"} />
+    </AuthContext.Provider>
+  );
 }

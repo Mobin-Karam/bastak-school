@@ -7,6 +7,7 @@ export type AuthState = {
   status: AuthStatus;
   message: string;
   login: (username: string, password: string) => Promise<void>;
+  loginWithPasskey: () => Promise<void>;
   logout: () => Promise<void>;
   restore: () => Promise<void>;
   stopRestore: () => void;

@@ -17,6 +17,14 @@ import {
 import { OrganizationStatus } from "../../database/entities/organization.entity";
 import { Organization } from "../../database/entities/organization.entity";
 import { AccountChangeRequest } from "../../database/entities/account-change-request.entity";
+import { PasskeyCredential } from "../../database/entities/passkey-credential.entity";
+import { WebAuthnChallenge } from "../../database/entities/webauthn-challenge.entity";
+import {
+  generateAuthenticationOptions,
+  generateRegistrationOptions,
+  verifyAuthenticationResponse,
+  verifyRegistrationResponse,
+} from "@simplewebauthn/server";
 import { LoginThrottleService } from "./login-throttle.service";
 import {
   isIranianMobile,
@@ -58,6 +66,10 @@ export class AuthService {
     @Optional()
     @InjectRepository(AccountChangeRequest)
     private readonly accountChangeRequests?: Repository<AccountChangeRequest>,
+    @InjectRepository(PasskeyCredential)
+    private readonly passkeys?: Repository<PasskeyCredential>,
+    @InjectRepository(WebAuthnChallenge)
+    private readonly webauthnChallenges?: Repository<WebAuthnChallenge>,
   ) {
     this.credentials = new SessionCredentialService({
       accessTokenTtlMinutes: this.config.get<number>(
@@ -144,6 +156,17 @@ export class AuthService {
         "هیچ زمینه کاری فعال و معتبر برای این حساب وجود ندارد.",
       );
 
+    const { credentials, session } = await this.issueSession(user);
+    await this.throttle?.success(ip, normalizedPhoneNumber);
+    const now = new Date();
+    await this.sessions.delete([
+      { refreshExpiresAt: LessThan(now) },
+      { refreshExpiresAt: IsNull(), expiresAt: LessThan(now) },
+    ]);
+    return { ...credentials, session, user };
+  }
+
+  private async issueSession(user: User) {
     const credentials = this.newCredentials();
     const session = await this.sessions.save(
       this.sessions.create({
@@ -153,15 +176,233 @@ export class AuthService {
         csrfToken: credentials.csrfToken,
         expiresAt: credentials.expiresAt,
         refreshExpiresAt: credentials.refreshExpiresAt,
+        lastSeenAt: new Date(),
       }),
     );
-    await this.throttle?.success(ip, normalizedPhoneNumber);
-    const now = new Date();
-    await this.sessions.delete([
-      { refreshExpiresAt: LessThan(now) },
-      { refreshExpiresAt: IsNull(), expiresAt: LessThan(now) },
-    ]);
-    return { ...credentials, session, user };
+    return { credentials, session };
+  }
+
+  private requirePasskeys() {
+    if (!this.passkeys || !this.webauthnChallenges)
+      throw new ApiException(
+        503,
+        "PASSKEY_UNAVAILABLE",
+        "ورود با کلید دستگاه در دسترس نیست.",
+      );
+    return { passkeys: this.passkeys, challenges: this.webauthnChallenges };
+  }
+
+  private async createChallenge(
+    user: User | null,
+    purpose: "registration" | "authentication",
+    challenge: string,
+    origin: string,
+    rpId: string,
+  ) {
+    const { challenges } = this.requirePasskeys();
+    await challenges.delete({ expiresAt: LessThan(new Date()) });
+    return challenges.save(
+      challenges.create({
+        user,
+        purpose,
+        challenge,
+        origin,
+        rpId,
+        expiresAt: new Date(Date.now() + 5 * 60_000),
+      }),
+    );
+  }
+
+  async passkeyRegistrationOptions(user: AuthenticatedUser, origin: string) {
+    const { passkeys } = this.requirePasskeys();
+    const account = await this.users.findOneBy({ id: user.id });
+    if (!account)
+      throw new ApiException(401, "UNAUTHORIZED", "لطفاً وارد حساب شوید.");
+    const rpId = new URL(origin).hostname;
+    const existing = await passkeys.find({
+      where: { user: { id: user.id } },
+      relations: { user: true },
+    });
+    const options = await generateRegistrationOptions({
+      rpName: "Bastak School",
+      rpID: rpId,
+      userName: account.phoneNumber || account.username,
+      userID: new TextEncoder().encode(account.id),
+      userDisplayName:
+        [account.firstName, account.lastName].filter(Boolean).join(" ") ||
+        account.username,
+      attestationType: "none",
+      excludeCredentials: existing.map((item) => ({
+        id: item.credentialId,
+        transports: (item.transports || []) as never,
+      })),
+      authenticatorSelection: {
+        authenticatorAttachment: "platform",
+        residentKey: "required",
+        userVerification: "required",
+      },
+    });
+    const record = await this.createChallenge(
+      account,
+      "registration",
+      options.challenge,
+      origin,
+      rpId,
+    );
+    return { challengeId: record.id, options };
+  }
+
+  async verifyPasskeyRegistration(
+    user: AuthenticatedUser,
+    challengeId: string,
+    response: any,
+  ) {
+    const { passkeys, challenges } = this.requirePasskeys();
+    const challenge = await challenges.findOne({
+      where: {
+        id: challengeId,
+        purpose: "registration",
+        user: { id: user.id },
+      },
+      relations: { user: true },
+    });
+    if (!challenge || challenge.expiresAt.getTime() < Date.now())
+      throw new ApiException(
+        422,
+        "PASSKEY_CHALLENGE_EXPIRED",
+        "درخواست کلید دستگاه منقضی شده است.",
+      );
+    const result = await verifyRegistrationResponse({
+      response,
+      expectedChallenge: challenge.challenge,
+      expectedOrigin: challenge.origin,
+      expectedRPID: challenge.rpId,
+      requireUserVerification: true,
+    });
+    await challenges.delete({ id: challenge.id });
+    if (!result.verified || !result.registrationInfo)
+      throw new ApiException(
+        422,
+        "PASSKEY_VERIFICATION_FAILED",
+        "تأیید کلید دستگاه ناموفق بود.",
+      );
+    const credential = result.registrationInfo.credential;
+    const saved = await passkeys.save(
+      passkeys.create({
+        user: challenge.user!,
+        credentialId: credential.id,
+        publicKey: Buffer.from(credential.publicKey).toString("base64url"),
+        counter: credential.counter,
+        transports: credential.transports as string[],
+        deviceType: result.registrationInfo.credentialDeviceType,
+        backedUp: result.registrationInfo.credentialBackedUp,
+        lastUsedAt: new Date(),
+      }),
+    );
+    return { id: saved.id, createdAt: saved.createdAt };
+  }
+
+  async passkeyAuthenticationOptions(origin: string) {
+    const rpId = new URL(origin).hostname;
+    const options = await generateAuthenticationOptions({
+      rpID: rpId,
+      userVerification: "required",
+    });
+    const record = await this.createChallenge(
+      null,
+      "authentication",
+      options.challenge,
+      origin,
+      rpId,
+    );
+    return { challengeId: record.id, options };
+  }
+
+  async verifyPasskeyAuthentication(
+    challengeId: string,
+    response: any,
+    portal?: LoginPortal,
+  ) {
+    const { passkeys, challenges } = this.requirePasskeys();
+    const challenge = await challenges.findOneBy({
+      id: challengeId,
+      purpose: "authentication",
+    });
+    if (!challenge || challenge.expiresAt.getTime() < Date.now())
+      throw new ApiException(
+        422,
+        "PASSKEY_CHALLENGE_EXPIRED",
+        "درخواست کلید دستگاه منقضی شده است.",
+      );
+    const credential = await passkeys.findOne({
+      where: { credentialId: response?.id },
+      relations: { user: true },
+    });
+    if (!credential || !credential.user)
+      throw new ApiException(401, "PASSKEY_UNKNOWN", "کلید دستگاه شناخته نشد.");
+    const verified = await verifyAuthenticationResponse({
+      response,
+      expectedChallenge: challenge.challenge,
+      expectedOrigin: challenge.origin,
+      expectedRPID: challenge.rpId,
+      credential: {
+        id: credential.credentialId,
+        publicKey: Buffer.from(credential.publicKey, "base64url"),
+        counter: credential.counter,
+        transports: (credential.transports || []) as never,
+      },
+      requireUserVerification: true,
+    });
+    await challenges.delete({ id: challenge.id });
+    if (!verified.verified)
+      throw new ApiException(
+        401,
+        "PASSKEY_VERIFICATION_FAILED",
+        "تأیید کلید دستگاه ناموفق بود.",
+      );
+    if (portal && (await this.loginPortalFor(credential.user)) !== portal)
+      throw new ApiException(
+        403,
+        "PORTAL_DOMAIN_MISMATCH",
+        "این حساب باید از درگاه دیگری وارد شود.",
+      );
+    if (
+      credential.user.status !== UserStatus.ACTIVE ||
+      !(await this.hasUsableWorkContext(credential.user))
+    )
+      throw new ApiException(
+        403,
+        "ACCOUNT_INACTIVE",
+        "حساب کاربری غیرفعال است.",
+      );
+    credential.counter = verified.authenticationInfo.newCounter;
+    credential.lastUsedAt = new Date();
+    await passkeys.save(credential);
+    const { credentials, session } = await this.issueSession(credential.user);
+    return { ...credentials, session, user: credential.user };
+  }
+
+  async listPasskeys(user: AuthenticatedUser) {
+    const { passkeys } = this.requirePasskeys();
+    const items = await passkeys.find({
+      where: { user: { id: user.id } },
+      relations: { user: true },
+      order: { lastUsedAt: "DESC" },
+    });
+    return items.map((item) => ({
+      id: item.id,
+      createdAt: item.createdAt,
+      lastUsedAt: item.lastUsedAt,
+      deviceType: item.deviceType,
+    }));
+  }
+
+  async revokePasskey(user: AuthenticatedUser, id: string) {
+    const { passkeys } = this.requirePasskeys();
+    const result = await passkeys.delete({ id, user: { id: user.id } });
+    if (!result.affected)
+      throw new ApiException(404, "PASSKEY_NOT_FOUND", "کلید دستگاه پیدا نشد.");
+    return { revoked: true };
   }
 
   private async loginPortalFor(
@@ -258,6 +499,7 @@ export class AuthService {
         csrfToken: session.csrfToken,
         expiresAt: session.expiresAt,
         refreshExpiresAt: session.refreshExpiresAt,
+        lastSeenAt: new Date(),
       },
     );
     if (rotation.affected !== 1)
@@ -913,6 +1155,7 @@ export class AuthService {
       id: session.id,
       createdAt: session.createdAt,
       expiresAt: session.refreshExpiresAt ?? session.expiresAt,
+      lastSeenAt: session.lastSeenAt ?? session.createdAt,
       current: session.id === user.sessionId,
     }));
   }

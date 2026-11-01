@@ -15,6 +15,8 @@ export { Question } from "./question.entity";
 export { QuestionBankItem } from "./question-bank-item.entity";
 export { RecoveryRequest } from "./recovery-request.entity";
 export { Session } from "./session.entity";
+export { PasskeyCredential } from "./passkey-credential.entity";
+export { WebAuthnChallenge } from "./webauthn-challenge.entity";
 export { StudySession } from "./study-session.entity";
 export { Student } from "./student.entity";
 export { StudentRewardLedger } from "./student-reward-ledger.entity";
