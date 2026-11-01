@@ -770,7 +770,7 @@ export class PrincipalDashboardService {
     const base = `FROM attendance_sessions s
       LEFT JOIN attendance_records r ON r.sessionId=s.id
       LEFT JOIN (SELECT sessionId, reviewedRevision, MAX(reviewedAt) reviewedAt FROM attendance_session_reviews GROUP BY sessionId, reviewedRevision) latest ON latest.sessionId=s.id AND latest.reviewedRevision=s.revision
-      WHERE s.organizationId=? AND s.status IN ('submitted','finalized')
+      WHERE s.organizationId=? AND s.contextType='class' AND s.status IN ('submitted','finalized')
         ${mode === "absences_only" ? "AND EXISTS (SELECT 1 FROM attendance_records absent_record WHERE absent_record.sessionId=s.id AND absent_record.physicalStatus='absent')" : ""}
         AND (latest.reviewedAt IS NULL OR latest.reviewedAt<=?)${classFilter}`;
     const pendingCount = await this.scalar(

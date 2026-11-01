@@ -490,21 +490,13 @@ export class AttendanceService {
     );
     if (!ids.length) return [];
     const rows = await this.sessions.find({
-      where: [
-        {
-          organization: { id: In(ids) },
-          contextType: "class",
-          sourceKind: In([
-            "class_schedule",
-            "legacy_schedule",
-            "legacy_import",
-          ]),
-        },
-        {
-          organization: { id: In(ids) },
-          contextType: In(["class_group", "study_group"]),
-        },
-      ],
+      // This is a teacher-versus-supervisor ledger. Group attendance has its
+      // own independent workflow and must never appear as a teacher lesson.
+      where: {
+        organization: { id: In(ids) },
+        contextType: "class",
+        sourceKind: In(["class_schedule", "legacy_schedule", "legacy_import"]),
+      },
       relations: { organization: true, assignedStaff: true, records: true },
       order: { sessionDate: "DESC", id: "DESC" },
       take: 250,

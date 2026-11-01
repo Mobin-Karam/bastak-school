@@ -41,10 +41,12 @@ describe("PrincipalDashboardService", () => {
           sql.includes("attendance_session_reviews") &&
           sql.includes("COUNT(DISTINCT s.id)")
         ) {
+          expect(sql).toContain("s.contextType='class'");
           expect(sql).toContain("absent_record.physicalStatus='absent'");
           return [{ count: 2 }];
         }
         if (sql.includes("attendance_session_reviews")) {
+          expect(sql).toContain("s.contextType='class'");
           expect(sql).toContain("r.physicalStatus='absent'");
           return [
             {
