@@ -4,14 +4,21 @@ import { CalendarDays } from "lucide-react";
 import { api } from "../../../../shared/api/api";
 import { Card, EmptyState } from "../../../../shared/ui/ui";
 import { ResponsiveModal } from "../../../../shared/ui/responsive-modal";
+import { CompactMonthCalendar } from "../../../../shared/ui/compact-month-calendar";
 
 type CalendarData = {
   start: string;
   end: string;
+  month: string;
   days: Record<string, Array<{ id: string; name: string; context: string }>>;
 };
-const weekdayLabels = ["شنبه", "یکشنبه", "دوشنبه", "سه‌شنبه", "چهارشنبه", "پنجشنبه", "جمعه"];
 const iso = (value: Date) => value.toISOString().slice(0, 10);
+const shiftMonth = (month: string, direction: number) => {
+  const date = new Date(`${month}T12:00:00Z`);
+  date.setUTCMonth(date.getUTCMonth() + direction, 1);
+  return iso(date);
+};
+const currentMonth = () => `${iso(new Date()).slice(0, 8)}01`;
 const monthTone = (date: string) => {
   const month = Number(
     new Intl.DateTimeFormat("en-u-ca-persian", { month: "numeric" }).format(
@@ -28,9 +35,10 @@ const monthTone = (date: string) => {
 
 export function PrincipalAbsenceCalendar() {
   const [selected, setSelected] = useState<string | null>(null);
+  const [month, setMonth] = useState(currentMonth);
   const calendar = useQuery({
-    queryKey: ["principal-absence-calendar"],
-    queryFn: () => api.get<CalendarData>("/dashboard/principal/absence-calendar"),
+    queryKey: ["principal-absence-calendar", month],
+    queryFn: () => api.get<CalendarData>(`/dashboard/principal/absence-calendar?month=${month}`),
   });
   const dates = useMemo(() => {
     if (!calendar.data) return [];
@@ -45,7 +53,7 @@ export function PrincipalAbsenceCalendar() {
         year: "numeric",
         month: "long",
         timeZone: "UTC",
-      }).format(new Date(`${calendar.data.start}T12:00:00Z`))
+      }).format(new Date(`${calendar.data.month}T12:00:00Z`))
     : "";
   return (
     <Card className="principal-absence-calendar p-4 sm:p-5" dir="rtl">
@@ -57,44 +65,49 @@ export function PrincipalAbsenceCalendar() {
             شش هفته؛ هر روز را برای فهرست دانش‌آموزان غایب باز کنید.
           </p>
         </div>
-        <span className="ms-auto rounded-lg border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-muted))] px-3 py-1 text-xs font-bold text-slate-600 dark:text-slate-300">
-          {caption}
-        </span>
       </div>
       {calendar.isError ? (
         <EmptyState title="بایگانی غیبت دریافت نشد" />
       ) : (
-        <div className="grid grid-cols-7 gap-1.5" role="grid" aria-label="تقویم غیبت شش هفته">
-          {weekdayLabels.map((label) => (
-            <strong key={label} className="p-1 text-center text-[10px] text-slate-500">
-              {label}
-            </strong>
-          ))}
+        <CompactMonthCalendar
+          label="تقویم غیبت شش هفته"
+          monthLabel={caption}
+          onPreviousMonth={() => {
+            setSelected(null);
+            setMonth((value) => shiftMonth(value, -1));
+          }}
+          onNextMonth={() => {
+            setSelected(null);
+            setMonth((value) => shiftMonth(value, 1));
+          }}
+        >
           {dates.map((date) => {
             const count = calendar.data?.days[date]?.length ?? 0;
+            const outsideMonth = !date.startsWith(month.slice(0, 7));
             return (
               <button
                 key={date}
                 type="button"
                 disabled={!count}
                 onClick={() => setSelected(date)}
-                className={`min-h-16 rounded-lg border p-1 text-start transition focus-visible:ring-2 focus-visible:ring-brand ${monthTone(date)} ${count ? "text-rose-950 ring-1 ring-rose-500/45 dark:text-rose-100" : "text-slate-600 dark:text-slate-300"}`}
+                className={`min-h-[3.1rem] rounded-lg border px-1 py-1 text-center transition focus-visible:ring-2 focus-visible:ring-brand disabled:cursor-default ${monthTone(date)} ${outsideMonth ? "opacity-45" : ""} ${count ? "text-rose-950 ring-1 ring-rose-500/45 dark:text-rose-100" : "text-slate-600 dark:text-slate-300"}`}
               >
-                <time className="block text-[10px]" dateTime={date}>
+                <time className="block text-sm font-semibold leading-none" dateTime={date}>
                   {new Intl.DateTimeFormat("fa-IR-u-ca-persian", {
                     day: "numeric",
-                    month: "numeric",
                   }).format(new Date(`${date}T12:00:00Z`))}
                 </time>
                 {count ? (
-                  <b className="mt-1 block text-base">{count.toLocaleString("fa-IR")} غیبت</b>
+                  <b className="mt-1 block text-[10px] leading-none">
+                    {count.toLocaleString("fa-IR")} غیبت
+                  </b>
                 ) : (
-                  <span className="mt-2 block text-[10px]">—</span>
+                  <span className="mt-1 block text-[10px] leading-none">—</span>
                 )}
               </button>
             );
           })}
-        </div>
+        </CompactMonthCalendar>
       )}
       <ResponsiveModal
         open={Boolean(selected)}

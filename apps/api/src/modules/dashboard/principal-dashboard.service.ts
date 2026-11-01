@@ -471,7 +471,7 @@ export class PrincipalDashboardService
   }
 
   /** Six Saturday-first weeks of class-only absences for the principal archive. */
-  async absenceCalendar(user: AuthenticatedUser) {
+  async absenceCalendar(user: AuthenticatedUser, month?: string) {
     const roles = user.roles?.length ? user.roles : [user.role];
     if (
       !roles.some((role) =>
@@ -490,7 +490,11 @@ export class PrincipalDashboardService
         "ORGANIZATION_REQUIRED",
         "مدرسه فعال مشخص نیست.",
       );
-    const { start, end } = this.dashboardCalendarRange();
+    const {
+      start,
+      end,
+      month: calendarMonth,
+    } = this.dashboardCalendarRange(month);
     const rows = await this.db.query(
       `SELECT COALESCE(s.operationalDate,date(s.sessionDate)) date, r.studentId id,
         COALESCE(NULLIF(st.name,''), TRIM(COALESCE(u.firstName,'') || ' ' || COALESCE(u.lastName,'')), 'دانش‌آموز') name,
@@ -516,11 +520,11 @@ export class PrincipalDashboardService
           context: String(row.context),
         });
     }
-    return { start, end, days };
+    return { start, end, month: calendarMonth, days };
   }
 
   /** Planned legacy schedule occurrences with their canonical teacher-attendance state. */
-  async teacherSessionCalendar(user: AuthenticatedUser) {
+  async teacherSessionCalendar(user: AuthenticatedUser, month?: string) {
     const roles = user.roles?.length ? user.roles : [user.role];
     if (
       !roles.some((role) =>
@@ -539,7 +543,11 @@ export class PrincipalDashboardService
         "ORGANIZATION_REQUIRED",
         "مدرسه فعال مشخص نیست.",
       );
-    const { start, end } = this.dashboardCalendarRange();
+    const {
+      start,
+      end,
+      month: calendarMonth,
+    } = this.dashboardCalendarRange(month);
     const [entries, saved] = await Promise.all([
       this.db.query(
         `SELECT e.id,e.weekday,e.title,e.startsOn,e.endsOn,TRIM(COALESCE(u.firstName,'') || ' ' || COALESCE(u.lastName,'')) teacherName FROM school_schedule_entries e LEFT JOIN users u ON u.id=e.teacherId WHERE e.organizationId=? AND e.status='ACTIVE' AND e.versionId IS NULL`,
@@ -577,7 +585,7 @@ export class PrincipalDashboardService
         });
       }
     }
-    return { start, end, days };
+    return { start, end, month: calendarMonth, days };
   }
 
   private async principalLists(
@@ -1324,13 +1332,19 @@ export class PrincipalDashboardService
     return this.tehranDate(new Date());
   }
   /** Standard six-week view: leading/trailing dates occupy rows one and six. */
-  private dashboardCalendarRange() {
-    const today = this.today();
-    const firstOfMonth = `${today.slice(0, 8)}01`;
+  private dashboardCalendarRange(requestedMonth?: string) {
+    const requested = requestedMonth ? this.isoDate(requestedMonth) : null;
+    if (requestedMonth && (!requested || !requested.endsWith("-01")))
+      throw new ApiException(
+        400,
+        "DASHBOARD_CALENDAR_MONTH_INVALID",
+        "ماه انتخاب‌شده معتبر نیست.",
+      );
+    const firstOfMonth = requested ?? `${this.today().slice(0, 8)}01`;
     const saturdayOffset =
       (new Date(`${firstOfMonth}T12:00:00Z`).getUTCDay() + 1) % 7;
     const start = this.daysBefore(firstOfMonth, saturdayOffset + 7);
-    return { start, end: this.daysBefore(start, -41) };
+    return { month: firstOfMonth, start, end: this.daysBefore(start, -41) };
   }
   private tehranDate(value: Date) {
     return new Intl.DateTimeFormat("en-CA", {

@@ -4,19 +4,28 @@ import { CalendarCheck2 } from "lucide-react";
 import { api } from "../../../../shared/api/api";
 import { Card, EmptyState } from "../../../../shared/ui/ui";
 import { ResponsiveModal } from "../../../../shared/ui/responsive-modal";
+import { CompactMonthCalendar } from "../../../../shared/ui/compact-month-calendar";
 
 type Data = {
   start: string;
   end: string;
+  month: string;
   days: Record<string, Array<{ id: string; title: string; teacherName: string; saved: boolean }>>;
 };
-const labels = ["شنبه", "یکشنبه", "دوشنبه", "سه‌شنبه", "چهارشنبه", "پنجشنبه", "جمعه"];
 const iso = (date: Date) => date.toISOString().slice(0, 10);
+const shiftMonth = (month: string, direction: number) => {
+  const date = new Date(`${month}T12:00:00Z`);
+  date.setUTCMonth(date.getUTCMonth() + direction, 1);
+  return iso(date);
+};
+const currentMonth = () => `${iso(new Date()).slice(0, 8)}01`;
+
 export function PrincipalTeacherSessionCalendar() {
   const [selected, setSelected] = useState<string | null>(null);
+  const [month, setMonth] = useState(currentMonth);
   const result = useQuery({
-    queryKey: ["principal-teacher-session-calendar"],
-    queryFn: () => api.get<Data>("/dashboard/principal/teacher-session-calendar"),
+    queryKey: ["principal-teacher-session-calendar", month],
+    queryFn: () => api.get<Data>(`/dashboard/principal/teacher-session-calendar?month=${month}`),
   });
   const dates = useMemo(
     () =>
@@ -35,7 +44,7 @@ export function PrincipalTeacherSessionCalendar() {
         year: "numeric",
         month: "long",
         timeZone: "UTC",
-      }).format(new Date(`${result.data.start}T12:00:00Z`))
+      }).format(new Date(`${result.data.month}T12:00:00Z`))
     : "";
   return (
     <Card className="p-4 sm:p-5" dir="rtl">
@@ -45,50 +54,53 @@ export function PrincipalTeacherSessionCalendar() {
           <h2 className="font-black">پیگیری ثبت جلسه‌های استاد</h2>
           <p className="text-xs text-slate-500">قرمز: ثبت‌نشده · سبز: حضور جلسه ذخیره شده است.</p>
         </div>
-        <span className="ms-auto rounded-lg border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-muted))] px-3 py-1 text-xs font-bold text-slate-600 dark:text-slate-300">
-          {caption}
-        </span>
       </div>
       {result.isError ? (
         <EmptyState title="تقویم جلسه‌های استاد دریافت نشد" />
       ) : (
-        <div className="grid grid-cols-7 gap-1.5" role="grid">
-          {labels.map((label) => (
-            <strong key={label} className="p-1 text-center text-[10px] text-slate-500">
-              {label}
-            </strong>
-          ))}
+        <CompactMonthCalendar
+          label="تقویم جلسه‌های استاد"
+          monthLabel={caption}
+          onPreviousMonth={() => {
+            setSelected(null);
+            setMonth((value) => shiftMonth(value, -1));
+          }}
+          onNextMonth={() => {
+            setSelected(null);
+            setMonth((value) => shiftMonth(value, 1));
+          }}
+        >
           {dates.map((date) => {
             const rows = result.data?.days[date] ?? [];
             const done = rows.filter((item) => item.saved).length;
             const pending = rows.length - done;
+            const outsideMonth = !date.startsWith(month.slice(0, 7));
             return (
               <button
                 key={date}
                 type="button"
                 disabled={!rows.length}
                 onClick={() => setSelected(date)}
-                className={`min-h-16 rounded-lg border p-1 text-start ${pending ? "border-rose-300 bg-rose-50 text-rose-950 dark:border-rose-900 dark:bg-rose-950/25 dark:text-rose-100" : done ? "border-emerald-300 bg-emerald-50 text-emerald-950 dark:border-emerald-900 dark:bg-emerald-950/25 dark:text-emerald-100" : "border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-muted))] text-slate-500"}`}
+                className={`min-h-[3.1rem] rounded-lg border px-1 py-1 text-center transition focus-visible:ring-2 focus-visible:ring-brand disabled:cursor-default ${outsideMonth ? "opacity-45" : ""} ${pending ? "border-rose-300 bg-rose-50 text-rose-950 dark:border-rose-900 dark:bg-rose-950/25 dark:text-rose-100" : done ? "border-emerald-300 bg-emerald-50 text-emerald-950 dark:border-emerald-900 dark:bg-emerald-950/25 dark:text-emerald-100" : "border-transparent bg-transparent text-slate-500"}`}
               >
-                <time className="block text-[10px]">
+                <time className="block text-sm font-semibold leading-none" dateTime={date}>
                   {new Intl.DateTimeFormat("fa-IR-u-ca-persian", {
                     day: "numeric",
-                    month: "numeric",
                   }).format(new Date(`${date}T12:00:00Z`))}
                 </time>
                 {rows.length ? (
-                  <b className="mt-1 block text-xs">
+                  <b className="mt-1 block text-[10px] leading-none">
                     {pending
-                      ? `${pending.toLocaleString("fa-IR")} ثبت‌نشده`
-                      : `${done.toLocaleString("fa-IR")} ثبت‌شده`}
+                      ? `${pending.toLocaleString("fa-IR")} ناتمام`
+                      : `${done.toLocaleString("fa-IR")} ثبت`}
                   </b>
                 ) : (
-                  <span className="mt-2 block text-[10px]">—</span>
+                  <span className="mt-1 block text-[10px] leading-none">—</span>
                 )}
               </button>
             );
           })}
-        </div>
+        </CompactMonthCalendar>
       )}
       <ResponsiveModal
         open={Boolean(selected)}

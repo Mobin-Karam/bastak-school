@@ -29,13 +29,19 @@ export class PrincipalDashboardController {
 
   @Get("principal/absence-calendar")
   @RequireAnyCapabilities("attendance.review")
-  absenceCalendar(@CurrentUser() user: AuthenticatedUser) {
-    return this.dashboard.absenceCalendar(user).then(ok);
+  absenceCalendar(
+    @CurrentUser() user: AuthenticatedUser,
+    @Query("month") month?: string,
+  ) {
+    return this.dashboard.absenceCalendar(user, month).then(ok);
   }
 
   @Get("principal/teacher-session-calendar")
   @RequireAnyCapabilities("attendance.review")
-  teacherSessionCalendar(@CurrentUser() user: AuthenticatedUser) {
-    return this.dashboard.teacherSessionCalendar(user).then(ok);
+  teacherSessionCalendar(
+    @CurrentUser() user: AuthenticatedUser,
+    @Query("month") month?: string,
+  ) {
+    return this.dashboard.teacherSessionCalendar(user, month).then(ok);
   }
 }

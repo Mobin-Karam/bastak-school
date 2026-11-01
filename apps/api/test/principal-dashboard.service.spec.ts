@@ -21,6 +21,44 @@ const principal = {
 };
 
 describe("PrincipalDashboardService", () => {
+  it("returns the requested Saturday-first six-week range for a dashboard calendar", async () => {
+    const query = jest.fn().mockResolvedValue([]);
+    const service = new PrincipalDashboardService({ query } as never);
+
+    const calendar = await service.absenceCalendar(principal, "2026-11-01");
+
+    expect(calendar).toMatchObject({
+      month: "2026-11-01",
+      start: "2026-10-24",
+      end: "2026-12-04",
+      days: {},
+    });
+    expect(query).toHaveBeenCalledWith(expect.any(String), [
+      "school-a",
+      "2026-10-24",
+      "2026-12-04",
+    ]);
+  });
+
+  it("rejects an invalid dashboard calendar month instead of silently changing the range", async () => {
+    const service = new PrincipalDashboardService({
+      query: jest.fn(),
+    } as never);
+
+    await expect(
+      service.absenceCalendar(principal, "2026-11-02"),
+    ).rejects.toMatchObject({
+      status: 400,
+    });
+    await expect(
+      service.absenceCalendar(principal, "2026-11-02"),
+    ).rejects.toMatchObject({
+      response: {
+        error: { code: "DASHBOARD_CALENDAR_MONTH_INVALID" },
+      },
+    });
+  });
+
   it("sends one durable, deep-linked reminder after a principal queue waits an hour", async () => {
     const createForUsers = jest.fn().mockResolvedValue([]);
     const db = {
