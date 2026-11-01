@@ -1200,6 +1200,29 @@ function ScheduleWorkspace({
       setActiveTab(remainingTabs[tabIndex] ?? remainingTabs[tabIndex - 1] ?? "main");
     }
   };
+  const scheduleTabIds = ["main", ...classTabIds];
+  const handleScheduleTabKeyDown = (
+    event: React.KeyboardEvent<HTMLButtonElement>,
+    tabId: string,
+  ) => {
+    const index = scheduleTabIds.indexOf(tabId);
+    if (index < 0) return;
+    const targetIndex =
+      event.key === "ArrowRight"
+        ? index - 1
+        : event.key === "ArrowLeft"
+          ? index + 1
+          : event.key === "Home"
+            ? 0
+            : event.key === "End"
+              ? scheduleTabIds.length - 1
+              : null;
+    if (targetIndex === null) return;
+    event.preventDefault();
+    const nextId = scheduleTabIds[(targetIndex + scheduleTabIds.length) % scheduleTabIds.length];
+    setActiveTab(nextId);
+    window.requestAnimationFrame(() => document.getElementById(`schedule-tab-${nextId}`)?.focus());
+  };
 
   return (
     <section className="flex flex-col gap-3" aria-label="برنامه هفتگی مدرسه">
@@ -1441,71 +1464,76 @@ function ScheduleWorkspace({
         ? createPortal(
             <nav
               aria-label="برگه‌های فضای کاری برنامه"
-              role="group"
-              className="flex min-h-[3.25rem] items-center gap-2 overflow-x-auto px-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+              className="flex min-h-[3.75rem] items-end gap-2 px-1"
               dir="rtl"
             >
-              <div className="hidden shrink-0 border-e border-[rgb(var(--border-subtle))] pe-3 sm:block">
-                <p className="text-sm font-black text-ink">برنامه هفتگی</p>
-                <p className="mt-0.5 text-[11px] text-slate-500 dark:text-slate-300">
-                  فضای کاری کلاس‌ها
-                </p>
-              </div>
-              <button
-                type="button"
-                id="schedule-main-tab"
-                aria-controls="schedule-workspace-panel"
-                aria-pressed={activeTab === "main"}
-                onClick={() => setActiveTab("main")}
-                aria-current={activeTab === "main" ? "page" : undefined}
-                className={`shrink-0 rounded-t-xl border border-b-0 px-3 py-2.5 text-xs font-black outline-none transition focus-visible:ring-2 focus-visible:ring-brand ${
-                  activeTab === "main"
-                    ? "border-brand bg-brand text-white shadow-sm"
-                    : "border-transparent bg-[rgb(var(--surface-muted))] text-slate-600 hover:border-slate-200 hover:bg-white dark:text-slate-200 dark:hover:border-white/15 dark:hover:bg-white/10"
-                }`}
+              <div
+                className="flex min-w-0 flex-1 items-end gap-1 overflow-x-auto pt-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+                role="tablist"
+                aria-label="برگه‌های برنامه"
               >
-                برنامه اصلی
-              </button>
-              {classTabIds.map((classroomId) => {
-                const classroom = activeClasses.find((item) => item.id === classroomId);
-                if (!classroom) return null;
-                const active = activeTab === classroomId;
-                return (
-                  <span
-                    key={classroomId}
-                    className={`flex shrink-0 items-center gap-1 rounded-t-xl border border-b-0 ps-3 pe-1 py-1.5 text-xs font-black transition ${
-                      active
-                        ? "border-brand bg-brand text-white shadow-sm"
-                        : "border-transparent bg-[rgb(var(--surface-muted))] text-slate-600 hover:border-slate-200 hover:bg-white dark:text-slate-200 dark:hover:border-white/15 dark:hover:bg-white/10"
-                    }`}
-                  >
-                    <button
-                      type="button"
-                      id={`schedule-class-tab-${classroomId}`}
-                      aria-controls="schedule-workspace-panel"
-                      aria-pressed={active}
-                      onClick={() => setActiveTab(classroomId)}
-                      className="rounded-lg px-1 py-1 outline-none focus-visible:ring-2 focus-visible:ring-current"
+                <button
+                  type="button"
+                  role="tab"
+                  id="schedule-tab-main"
+                  aria-controls="schedule-workspace-panel"
+                  aria-selected={activeTab === "main"}
+                  tabIndex={activeTab === "main" ? 0 : -1}
+                  onClick={() => setActiveTab("main")}
+                  onKeyDown={(event) => handleScheduleTabKeyDown(event, "main")}
+                  className={`flex min-h-11 min-w-32 max-w-60 flex-1 basis-0 items-center gap-2 rounded-t-xl border border-b-0 px-3 text-right text-xs font-black outline-none transition focus-visible:ring-2 focus-visible:ring-brand ${
+                    activeTab === "main"
+                      ? "relative z-10 border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card))] text-ink shadow-[0_-5px_12px_-10px_rgba(15,23,42,.7)]"
+                      : "border-transparent bg-slate-200/55 text-slate-600 hover:bg-slate-200/80 dark:bg-white/[.06] dark:text-slate-200 dark:hover:bg-white/[.1]"
+                  }`}
+                >
+                  <CalendarClock size={15} className="shrink-0" aria-hidden="true" />
+                  <span className="truncate">برنامه اصلی</span>
+                </button>
+                {classTabIds.map((classroomId) => {
+                  const classroom = activeClasses.find((item) => item.id === classroomId);
+                  if (!classroom) return null;
+                  const active = activeTab === classroomId;
+                  return (
+                    <div
+                      key={classroomId}
+                      className={`flex min-h-11 min-w-32 max-w-60 flex-1 basis-0 items-center gap-1 rounded-t-xl border border-b-0 ps-3 pe-1 text-xs font-black transition ${
+                        active
+                          ? "relative z-10 border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card))] text-ink shadow-[0_-5px_12px_-10px_rgba(15,23,42,.7)]"
+                          : "border-transparent bg-slate-200/55 text-slate-600 hover:bg-slate-200/80 dark:bg-white/[.06] dark:text-slate-200 dark:hover:bg-white/[.1]"
+                      }`}
                     >
-                      {classroom.name}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => closeClassTab(classroomId)}
-                      className="grid size-7 place-items-center rounded-lg outline-none transition hover:bg-black/10 focus-visible:ring-2 focus-visible:ring-current"
-                      aria-label={`بستن برگه ${classroom.name}`}
-                    >
-                      <X size={14} aria-hidden="true" />
-                    </button>
-                  </span>
-                );
-              })}
+                      <button
+                        type="button"
+                        role="tab"
+                        id={`schedule-tab-${classroomId}`}
+                        aria-controls="schedule-workspace-panel"
+                        aria-selected={active}
+                        tabIndex={active ? 0 : -1}
+                        onClick={() => setActiveTab(classroomId)}
+                        onKeyDown={(event) => handleScheduleTabKeyDown(event, classroomId)}
+                        className="min-w-0 flex-1 truncate rounded-lg px-1 py-2 text-right outline-none focus-visible:ring-2 focus-visible:ring-current"
+                      >
+                        {classroom.name}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => closeClassTab(classroomId)}
+                        className="grid size-7 shrink-0 place-items-center rounded-lg outline-none transition hover:bg-black/10 focus-visible:ring-2 focus-visible:ring-current"
+                        aria-label={`بستن برگه ${classroom.name}`}
+                      >
+                        <X size={14} aria-hidden="true" />
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
               <button
                 type="button"
                 onClick={() => setClassPickerOpen((open) => !open)}
                 aria-expanded={classPickerOpen}
                 aria-controls="schedule-class-picker"
-                className={`ms-auto grid size-9 shrink-0 place-items-center rounded-lg border outline-none transition focus-visible:ring-2 focus-visible:ring-brand ${
+                className={`mb-1 grid size-10 shrink-0 place-items-center rounded-xl border outline-none transition focus-visible:ring-2 focus-visible:ring-brand ${
                   classPickerOpen
                     ? "border-brand bg-brand text-white"
                     : "border-dashed border-brand/45 bg-brand/5 text-brand hover:bg-brand/10"
