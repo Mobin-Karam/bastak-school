@@ -818,6 +818,11 @@ export function TeacherClassAttendanceSheet({
                           </Button>
                         </div>
                         <div className="flex shrink-0 items-center gap-1.5">
+                          <span
+                            className={`rounded-full border px-2 py-1 text-[10px] font-black ${studentAction?.summaryClassName ?? "border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-muted))] text-slate-700 dark:text-slate-200"}`}
+                          >
+                            {studentAction?.label ?? "حاضر"}
+                          </span>
                           {recentAbsenceCounts[student.id] ? (
                             <span className="rounded-full bg-amber-100 px-2 py-1 text-[10px] font-black text-amber-900 dark:bg-amber-950/60 dark:text-amber-100">
                               {recentAbsenceCounts[student.id].toLocaleString("fa-IR")} غیبت در ۷
@@ -1117,6 +1122,11 @@ export function TeacherClassAttendanceSheet({
             تغییر وضعیت دانش‌آموزان، ثبت این جلسه را بازبینی می‌کند. پیش از ادامه، فهرست و دلیل‌های
             غیبت را با دقت بررسی کنید.
           </div>
+          <p className="rounded-xl bg-[rgb(var(--surface-muted))] px-3 py-2 text-xs leading-5 text-slate-700 dark:text-slate-200">
+            با انتخاب «ادامه و ویرایش» فهرست ثبت قبلی و وضعیت هر دانش‌آموز را می‌بینید و می‌توانید
+            آن را اصلاح کنید. اگر «فعلاً فقط مشاهده می‌کنم» را انتخاب کنید، هیچ تغییری در حضور و
+            غیاب ثبت نمی‌شود.
+          </p>
           <section aria-labelledby="previous-attendance-summary" className="grid gap-2">
             <div className="flex items-baseline justify-between gap-2">
               <h2 id="previous-attendance-summary" className="text-sm font-black text-ink">
