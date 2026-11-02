@@ -16,6 +16,7 @@ import { PWAInstallSettingsCard } from "../../pwa";
 import { useAuth } from "../../../identity/auth";
 import { PhoneNumberSettings } from "../components/PhoneNumberSettings";
 import { PasswordSettings } from "../components/PasswordSettings";
+import { PasskeySettings } from "../components/PasskeySettings";
 import { PhoneChangeRequests } from "../components/PhoneChangeRequests";
 import { Button, Card } from "../../../../shared/ui/ui";
 import { MobileSelect } from "../../../../shared/ui/mobile/forms";
@@ -109,6 +110,7 @@ function WorkspaceSettingsPage() {
                 .then((confirmed) => confirmed && revoke.mutate(id))
             }
           />
+          <PasskeySettings />
         </div>
       </section>
       <section id="display" className="settings-section" aria-labelledby="settings-display-title">

@@ -20,5 +20,8 @@ export class AttendancePolicy {
   @Column({ default: true }) lateCountsAsPresent!: boolean;
   /** When enabled, a correction remains evidence-only until an attendance reviewer approves it. */
   @Column({ default: false }) correctionRequiresReview!: boolean;
+  /** Principal's review queue: all completed sessions, or only sessions containing an absence. */
+  @Column({ length: 32, default: "absences_only" })
+  principalReviewMode!: "all_sessions" | "absences_only";
   @UpdateDateColumn() updatedAt!: Date;
 }

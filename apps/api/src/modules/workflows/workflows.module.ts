@@ -4,6 +4,7 @@ import { TypeOrmModule } from "@nestjs/typeorm";
 import { AttendanceRecord } from "../../database/entities/attendance-record.entity";
 import { AttendanceSession } from "../../database/entities/attendance-session.entity";
 import { ExitPermission } from "../../database/entities/exit-permission.entity";
+import { StudentMovementEvent } from "../../database/entities/student-movement-event.entity";
 import { LeaveRequest } from "../../database/entities/leave-request.entity";
 import { OrganizationMembership } from "../../database/entities/organization-membership.entity";
 import { RequestLetter } from "../../database/entities/request-letter.entity";
@@ -30,6 +31,7 @@ import { NotificationsModule } from "../notifications/notifications.module";
       AttendanceRecord,
       LeaveRequest,
       ExitPermission,
+      StudentMovementEvent,
       RequestLetter,
       Student,
       OrganizationMembership,

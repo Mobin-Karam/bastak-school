@@ -1,12 +1,13 @@
 import type { AccountContext, OrganizationSummary, User } from "../../../../shared/types/domain";
 
-export type AuthStatus = "checking" | "authenticated" | "anonymous" | "logging-out";
+export type AuthStatus = "checking" | "authenticated" | "anonymous" | "logging-out" | "unavailable";
 
 export type AuthState = {
   user: User | null;
   status: AuthStatus;
   message: string;
   login: (username: string, password: string) => Promise<void>;
+  loginWithPasskey: () => Promise<void>;
   logout: () => Promise<void>;
   restore: () => Promise<void>;
   stopRestore: () => void;

@@ -11,12 +11,12 @@ export function PWAInstallSettingsCard() {
             src="/app-logo.png"
             width={42}
             height={42}
-            alt="نشان زانین"
+            alt="نشان مدرسه سلطان العماء بستک"
             decoding="async"
             className="size-10 shrink-0 object-contain"
           />
           <div>
-            <h2 className="text-sm font-black text-ink">نصب اپلیکیشن زانین</h2>
+            <h2 className="text-sm font-black text-ink">نصب اپلیکیشن مدرسه سلطان العماء بستک</h2>
             <p className="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-400">
               دسترسی سریع‌تر از صفحه اصلی دستگاه، همراه با راهنمای تصویری Android و iPhone.
             </p>

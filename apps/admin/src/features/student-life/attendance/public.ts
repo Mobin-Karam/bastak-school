@@ -7,16 +7,19 @@ export { useAttendanceDiscard } from "./components/useAttendanceDiscard";
 export {
   bulkMarkAttendance,
   getAttendanceParticipants,
+  getTeacherWeekAttendanceSummary,
   getAttendanceEncouragement,
   getAttendanceOverview,
   awardAttendancePoints,
   listMyAttendanceAbsenceReviews,
+  getTeacherStudentClassProfile,
 } from "./api";
 export type {
   AttendanceBulkMarkRequest,
   AttendanceContextOption,
   AttendanceContextType,
   SelfAttendanceRecord,
+  TeacherWeekAttendanceSummary,
 } from "./api";
 export { prepareAttendanceWrite } from "./model/attendance-write";
 export type { PendingAttendanceWrite } from "./model/attendance-write";

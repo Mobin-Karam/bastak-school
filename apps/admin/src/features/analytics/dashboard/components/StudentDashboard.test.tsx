@@ -73,7 +73,22 @@ vi.mock("../api/dashboard.api.ts", () => ({
     assignedStudents: 0,
     unreadConversations: 0,
     home: {
-      calendar: { date: "2026-10-08", audience: "personal", entries: [] },
+      calendar: {
+        date: "2026-10-08",
+        audience: "personal",
+        entries: [
+          {
+            id: "schedule-next",
+            title: "اخلاق فردا",
+            weekday: 6,
+            startTime: "08:00",
+            endTime: "09:00",
+            room: "کلاس ۲",
+            className: "دهم",
+            classId: "class-1",
+          },
+        ],
+      },
       prayer: {
         organizationId: "org-1",
         date: "2026-10-08",
@@ -142,16 +157,24 @@ describe("StudentDashboard", () => {
     const dashboard = await screen.findByRole("region", { name: "خانه دانش‌آموز" });
     expect(dashboard).toBeVisible();
     expect(dashboard).toHaveClass("student-dashboard");
-    expect(screen.getByRole("region", { name: "کلاس جاری" })).toHaveTextContent("فقه کاربردی");
+    expect(screen.getByRole("region", { name: "کلاس در حال برگزاری" })).toHaveTextContent(
+      "فقه کاربردی",
+    );
+    expect(screen.getByRole("region", { name: "کلاس بعدی" })).toHaveTextContent("اخلاق فردا");
+    expect(screen.getByText("۲ غیبت در این هفته")).toBeVisible();
     expect(
       screen.getByRole("region", { name: "وقت شرعی پیش رو" }).querySelector("time"),
     ).toBeVisible();
     expect(screen.queryByRole("region", { name: "زمان کلاس‌های امروز" })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "خلاصه حضور و غیاب" })).toHaveTextContent("حاضر");
-    expect(screen.getByRole("button", { name: "خلاصه حضور و غیاب" })).toHaveTextContent("۸");
+    expect(screen.getByLabelText("موجودی سکه")).toHaveTextContent("۸");
     expect(screen.queryByRole("heading", { name: "دستاوردهای من" })).not.toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "بازار سکه‌های من" })).not.toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "برنامه" })).toHaveAttribute("href", "/admin/schedule");
+    expect(screen.getAllByRole("link", { name: "برنامه" })).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ href: expect.stringContaining("/admin/schedule") }),
+      ]),
+    );
     fireEvent.click(screen.getByRole("button", { name: /باز کردن ۱ پیام مدرسه/ }));
     expect(screen.getByRole("dialog")).toHaveTextContent("برنامه مراسم صبحگاه");
     expect(screen.queryByRole("link", { name: /مشاهده همه/ })).not.toBeInTheDocument();

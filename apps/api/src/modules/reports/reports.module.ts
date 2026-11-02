@@ -7,9 +7,23 @@ import { ReportsController } from "./reports.controller";
 import { ReportsService } from "./reports.service";
 import { AuthorizationModule } from "../authorization/authorization.module";
 import { User } from "../../database/entities/user.entity";
+import { TeacherStudentReport } from "../../database/entities/teacher-student-report.entity";
+import { AttendanceSession } from "../../database/entities/attendance-session.entity";
+import { NotificationsModule } from "../notifications/notifications.module";
 
 @Module({
-  imports: [TypeOrmModule.forFeature([DailyReport, RecoveryRequest, Student, User]), AuthorizationModule],
+  imports: [
+    TypeOrmModule.forFeature([
+      DailyReport,
+      RecoveryRequest,
+      Student,
+      User,
+      TeacherStudentReport,
+      AttendanceSession,
+    ]),
+    AuthorizationModule,
+    NotificationsModule,
+  ],
   controllers: [ReportsController],
   providers: [ReportsService],
   exports: [ReportsService],

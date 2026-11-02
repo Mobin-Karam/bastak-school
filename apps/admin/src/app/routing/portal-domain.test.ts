@@ -26,6 +26,7 @@ describe("portal-domain", () => {
   it("keeps student-only routes off the administration host", () => {
     expect(adminRouteSegment("/admin/my-attendance?day=today")).toBe("my-attendance");
     expect(isRouteAvailableOnDomain("/admin/my-attendance", "student")).toBe(true);
+    expect(isRouteAvailableOnDomain("/admin/my-rewards", "student")).toBe(true);
     expect(isRouteAvailableOnDomain("/admin/my-attendance", "admin")).toBe(false);
     expect(isRouteAvailableOnDomain("/admin/achievements", "student")).toBe(true);
     expect(isRouteAvailableOnDomain("/admin/achievements", "admin")).toBe(false);
@@ -34,7 +35,7 @@ describe("portal-domain", () => {
     expect(isRouteAvailableOnDomain("/admin/students", "student")).toBe(false);
     expect(isRouteAvailableOnDomain("/admin/students", "admin")).toBe(true);
     expect(isRouteAvailableOnDomain("/admin/schedule", "student")).toBe(true);
-    expect(isRouteAvailableOnDomain("/admin/communication/notifications", "student")).toBe(false);
+    expect(isRouteAvailableOnDomain("/admin/communication/notifications", "student")).toBe(true);
     expect(isRouteAvailableOnDomain("/admin/communication/sms", "student")).toBe(false);
     expect(isRouteAvailableOnDomain("/admin//students", "student")).toBe(false);
     expect(isRouteAvailableOnDomain("/admin/schedule", "admin")).toBe(true);

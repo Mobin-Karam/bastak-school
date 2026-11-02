@@ -552,9 +552,21 @@ assert(residents.status === 200 && residents.payload.data.some(row => row.id ===
 const wide = await request(principal, "/attendance/dorm/delegate-all", {...principalScope, method: "PUT", body: {studentId: studentA.id, startsOn: night, endsOn: night}});
 assert(wide.status === 200 && wide.payload.data.length === 2 && wide.payload.data.every(row => row.dormWide), "principal delegates all school rooms", wide.status, 200, wide.payload);
 const assignments = await request(student, "/student/attendance/dorm-assignments", studentScope);
-assert(assignments.status === 200 && assignments.payload.data.length === 2, "selected student receives all room assignments", assignments.status, 200, assignments.payload);
-const assigned = assignments.payload.data.find(row => row.roster.length === 1);
-const markBody = {requestId: crypto.randomUUID(), expectedRevision: assigned.revision, nightDate: assigned.nightDate, entries: [{studentId: studentA.id, status: "present"}]};
+const nightlyAssignments = assignments.payload?.data?.filter(
+  (row) => row.attendancePeriod === "night",
+) ?? [];
+assert(
+  assignments.status === 200 &&
+    nightlyAssignments.length === 2 &&
+    new Set(nightlyAssignments.map((row) => row.roomId)).size === 2 &&
+    nightlyAssignments.every((row) => row.dormWide),
+  "selected student receives every nightly room assignment",
+  assignments.status,
+  200,
+  assignments.payload,
+);
+const assigned = nightlyAssignments.find(row => row.roster.length === 1);
+const markBody = {requestId: crypto.randomUUID(), expectedRevision: assigned.revision, nightDate: assigned.nightDate, attendancePeriod: "night", entries: [{studentId: studentA.id, status: "present"}]};
 const mark = await request(student, `/student/attendance/dorm-assignments/${assigned.id}/mark`, {...studentScope, method: "POST", body: markBody});
 assert(mark.status === 201, "delegate records own school room attendance", mark.status, 201, mark.payload);
 const foreignMark = await request(studentOther, `/student/attendance/dorm-assignments/${assigned.id}/mark`, {...otherScope, method: "POST", body: {...markBody, requestId: crypto.randomUUID()}});

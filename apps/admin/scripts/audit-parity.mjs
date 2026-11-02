@@ -86,7 +86,8 @@ const routeText = (node) => {
         route.includes("?") ||
         ts.isConditionalExpression(span.expression) ||
         (ts.isCallExpression(span.expression) &&
-          span.expression.expression.getText() === "URLSearchParams")
+          span.expression.expression.getText() === "URLSearchParams") ||
+        (ts.isIdentifier(span.expression) && /(?:query|suffix)$/i.test(span.expression.text))
       ) {
         return route.split("?")[0];
       }
@@ -136,7 +137,14 @@ for (const file of adminFiles) {
   };
   visit(source);
 }
-for (const endpoint of ["POST /auth/refresh", "GET /auth/me", "GET /me/context"])
+// These authenticated requests use dedicated fetch flows to avoid recursive
+// refresh/bootstrap handling, so they are not discoverable as `api.*` calls.
+for (const endpoint of [
+  "POST /auth/refresh",
+  "POST /auth/bootstrap-session",
+  "GET /auth/me",
+  "GET /me/context",
+])
   if (adminSource.includes(endpoint.split(" ")[1])) requests.add(endpoint);
 
 const dynamicConsumers = {
@@ -146,6 +154,7 @@ const dynamicConsumers = {
   "const suffix = query.size ?": ["GET /prayer-times"],
   "const query = context ?": ["GET /dashboard/home"],
   getAttendanceReportSummary: ["GET /attendance/reports/summary"],
+  getReviewablePresentSessions: ["GET /attendance/reviewable-present-sessions"],
   'approved ? "approve" : "reject"': [
     "POST /auth/phone-change-requests/:id/approve",
     "POST /auth/phone-change-requests/:id/reject",
@@ -196,6 +205,7 @@ const excluded = (endpoint) =>
 // Exact compatibility projections: current UI obtains these facts through scoped canonical endpoints.
 const equivalentWorkflowRoutes = new Set([
   "GET /students/:id/attendance-summary", // /attendance/students/:id/profile, staff review only
+  "GET /attendance/staff-sessions", // legacy staff summary; the Admin archive uses richer paginated /attendance/history/sessions with the same scope
   "GET /students/:id/profile", // student directory/detail plus separately gated attendance profile
   "PATCH /students/:id/profile", // same UpdateStudentDto as PATCH /students/:id
   "GET /archive/dashboard", // /dashboard/home

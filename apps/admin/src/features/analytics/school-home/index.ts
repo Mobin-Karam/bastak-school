@@ -1,2 +1,5 @@
-export { SchoolManagerDashboard } from "./components/SchoolManagerDashboard";
+export {
+  PrincipalWorkspaceDashboard,
+  SchoolManagerDashboard,
+} from "./components/SchoolManagerDashboard";
 export { PrincipalDashboard } from "./components/PrincipalDashboard";

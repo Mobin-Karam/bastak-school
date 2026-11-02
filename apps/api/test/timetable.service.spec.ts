@@ -21,6 +21,7 @@ import { AttendanceService } from "../src/modules/attendance";
 import { AuthorizationService } from "../src/modules/authorization";
 import { RealtimeService } from "../src/modules/realtime";
 import { NotificationsService } from "../src/modules/notifications";
+import { RewardsService } from "../src/modules/rewards";
 import type { AuthenticatedUser } from "../src/modules/auth";
 import type { TimetableLessonDto } from "../src/modules/schedule/timetable.dto";
 const {
@@ -196,6 +197,7 @@ describe("versioned timetable integration (migration-built SQLite)", () => {
       access,
       {} as AuthorizationService,
       new RealtimeService(),
+      new RewardsService(db.getRepository(entities.StudentRewardLedger), db.getRepository(Student), db.getRepository(entities.AuditLog), access, {} as AuthorizationService),
     );
     service = new TimetableService(
       db,
@@ -1170,6 +1172,47 @@ describe("versioned timetable integration (migration-built SQLite)", () => {
           })
         ).status,
       ).toBe("cancelled");
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+  it("lets the assigned teacher open attendance from the scheduled start, including on later dates", async () => {
+    jest.useFakeTimers({ doNotFake: ["nextTick", "setImmediate"] });
+    try {
+      const written = (await service.writeLesson(staff, draftId, {
+        expectedRevision: 0,
+        lesson,
+      })) as { id: string };
+      await service.publish(staff, draftId, {
+        expectedRevision: 1,
+        reason: "publish",
+      });
+      const teacher = {
+        ...teacherActor,
+        capabilities: ["schedule.read", "attendance.class.manage"],
+      };
+
+      jest.setSystemTime(new Date("2026-10-11T04:29:00Z"));
+      await expect(
+        service.openAttendance(teacher, written.id, "2026-10-11"),
+      ).rejects.toMatchObject({
+        response: { error: { code: "TIMETABLE_ATTENDANCE_NOT_STARTED" } },
+      });
+      expect(await db.manager.count(TimetableOccurrence)).toBe(0);
+
+      jest.setSystemTime(new Date("2026-10-12T05:00:00Z"));
+      await expect(
+        service.openAttendance(staff, written.id, "2026-10-11"),
+      ).rejects.toMatchObject({
+        response: { error: { code: "TIMETABLE_ATTENDANCE_DATE" } },
+      });
+      const opened = await service.openAttendance(
+        teacher,
+        written.id,
+        "2026-10-11",
+      );
+      expect(opened.sessionId).toEqual(expect.any(String));
+      expect(await db.manager.count(TimetableOccurrence)).toBe(1);
     } finally {
       jest.useRealTimers();
     }

@@ -28,6 +28,8 @@ import { GuardianModule } from "./modules/guardian/guardian.module";
 import { SchoolHomeModule } from "./modules/school-home/school-home.module";
 import { ChatModule } from "./modules/chat/chat.module";
 import { SmsModule } from "./modules/sms/sms.module";
+import { RewardsModule } from "./modules/rewards/rewards.module";
+import { ReportsModule } from "./modules/reports/reports.module";
 
 /**
  * School application composition root. CMB provides reusable platform
@@ -55,7 +57,9 @@ import { SmsModule } from "./modules/sms/sms.module";
     // classes and class groups.  Do not mount ClassesModule separately here:
     // SchoolEducationModule already owns that dependency chain.
     SchoolEducationModule,
+    RewardsModule,
     AttendanceModule, // حضور و غیاب
+    ReportsModule, // گزارش‌های استاد دربارهٔ دانش‌آموز
     WorkflowsModule,
     DormitoryModule, // خوابگاه و ساخت و تقسیم دانش آموزان در بین آنها
     // Guardian/student links are the authority behind guardian-scoped home,

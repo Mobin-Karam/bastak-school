@@ -19,3 +19,9 @@ For Moshaver, trace from Admin/UI symptoms through the API contract and server a
 9. Run targeted and relevant surrounding validation.
 
 Avoid speculative multi-file edits before understanding the failure.
+
+For a failed PR, start with the exact failed job log and current head SHA. Reproduce the narrowest project-defined command, locate the first incorrect classification/state, repair that cause with a regression where practical, rerun the command, then push for fresh CI. Never solve a gate by masking its input, weakening its assertion, or relying on a superseded green run.
+
+## Deployment incident boundary
+
+For release or production failures, use `docs/operations/development-to-production.md` to locate the first failing boundary: PR CI, promotion evidence, source dispatch, private receiver, migration rehearsal, readiness, or authorized smoke. Preserve the exact SHA, backup, receipt, logs, and schema state. Do not bypass a gate, rebuild on the host, reset/seed/delete production data, retry migrations blindly, or run an older image against a migrated database without compatibility rehearsal.

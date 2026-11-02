@@ -7,6 +7,83 @@ const Database = require("better-sqlite3");
 // failed rehearsal, not an implicit permission to transform live data. This is
 // intentionally self-contained because production streams this helper to Node.
 const expectations = {
+  // Historical reviews predate revision idempotency. They remain nullable and
+  // untouched; only reviews created after this migration receive a key.
+  AttendanceRevisionReviewIdempotency1763600400000: {
+    "attendance_session_reviews.dedupeKey": { nullable: true, value: "null" },
+  },
+  // Existing sessions remain valid; activity is populated on their next secure use.
+  SessionLastSeenAt1763500000000: {
+    "sessions.lastSeenAt": { nullable: true, value: "null" },
+  },
+  // Leave integrity metadata is additive. Existing schedule and leave history
+  // remains untouched until a newly approved leave explicitly owns a row.
+  TeacherLeaveWorkflowIntegrity1763400000000: {
+    "school_schedule_entries.leaveRequestId": { nullable: true, value: "null" },
+    "teacher_leave_requests.updatedAt": { nullable: true, value: "null" },
+  },
+  RepairDormAttendancePeriod1762700000000: {
+    "attendance_sessions.attendancePeriod": { nullable: true, value: "null" },
+  },
+  DormAttendancePrimaryAndRoomChecks1762800000000: {
+    "attendance_sessions.dormAttendanceRole": { nullable: true, value: "null" },
+    "attendance_sessions.dormDelegateStudentIdSnapshot": {
+      nullable: true,
+      value: "null",
+    },
+    "attendance_sessions.dormDelegateStudentNameSnapshot": {
+      nullable: true,
+      value: "null",
+    },
+  },
+  DormUnauthorizedDepartureOrigin1762900000000: {
+    "exit_permissions.origin": { nullable: true, value: "null" },
+  },
+  DormAttendanceReviewHandoff1762600000000: {
+    "attendance_sessions.attendancePeriod": { nullable: true, value: "null" },
+    "attendance_sessions.dormSupervisorReviewedById": {
+      nullable: true,
+      value: "null",
+    },
+    "attendance_sessions.dormSupervisorReviewedAt": {
+      nullable: true,
+      value: "null",
+    },
+    "attendance_sessions.dormSupervisorNote": { nullable: true, value: "null" },
+    "attendance_sessions.dormForwardedAt": { nullable: true, value: "null" },
+    "attendance_sessions.dormPrincipalReviewedById": {
+      nullable: true,
+      value: "null",
+    },
+    "attendance_sessions.dormPrincipalReviewedAt": {
+      nullable: true,
+      value: "null",
+    },
+  },
+  // Existing leave rows have no meal choice or linked movement. The migration is
+  // additive: false is the safe meal default and the relationship remains null.
+  StudentLeaveTimingAndMeals1762500000000: {
+    "leave_requests.includesLunch": {
+      nullable: false,
+      default: 0,
+      value: "default",
+    },
+    "leave_requests.includesDinner": {
+      nullable: false,
+      default: 0,
+      value: "default",
+    },
+    "leave_requests.exitPermissionId": { nullable: true, value: "null" },
+  },
+
+  AttendanceReviewTeacherMessage1762400000000: {
+    "attendance_session_reviews.teacherMessage": {
+      nullable: false,
+      default: "",
+      value: "default",
+    },
+  },
+
   AcademicSchedulingFoundation1730900000000: {
     "education_classes.academicYearId": {
       nullable: true,
@@ -101,7 +178,7 @@ const expectations = {
     "school_announcements.mediaUrl": { nullable: true, value: "null" },
     "school_announcements.mediaType": { nullable: true, value: "null" },
   },
-    // Student account-change limits.
+  // Student account-change limits.
   // Existing users begin with zero password changes.
   // Existing account-change requests have no pending password hash.
   StudentAccountChangeLimits1731800300000: {
@@ -116,6 +193,123 @@ const expectations = {
       value: "null",
     },
   },
+  SchoolScheduleTimeBlockGroups1762000000000: {
+    "school_schedule_time_blocks.groupId": {
+      nullable: true,
+      value: "default-time-block-group",
+    },
+  },
+  // Existing private reports acquire no principal action until a principal acts.
+  TeacherStudentReportPrincipalActions1762301000000: {
+    "teacher_student_reports.principalAction": {
+      nullable: true,
+      value: "null",
+    },
+    "teacher_student_reports.principalActionNote": {
+      nullable: false,
+      default: "",
+      value: "default",
+    },
+    "teacher_student_reports.principalActionAt": {
+      nullable: true,
+      value: "null",
+    },
+    "teacher_student_reports.principalActionById": {
+      nullable: true,
+      value: "null",
+    },
+  },
+  // Existing leave and schedule rows predate return and academic-cycle
+  // provenance. They remain null until a new workflow action records it.
+  TeacherLeaveEarlyReturn1762200000000: {
+    "school_schedule_occurrence_overrides.leaveRequestId": {
+      nullable: true,
+      value: "null",
+    },
+    "teacher_leave_requests.returnDate": { nullable: true, value: "null" },
+    "teacher_leave_requests.returnMessage": { nullable: true, value: "null" },
+    "teacher_leave_requests.returnStatus": { nullable: true, value: "null" },
+    "teacher_leave_requests.returnRequestedAt": {
+      nullable: true,
+      value: "null",
+    },
+    "teacher_leave_requests.returnReviewedAt": {
+      nullable: true,
+      value: "null",
+    },
+  },
+  LegacyScheduleAcademicCycles1762300000000: {
+    "school_schedule_entries.academicYearId": { nullable: true, value: "null" },
+    "school_schedule_entries.termId": { nullable: true, value: "null" },
+  },
+  AttendanceHistoricalImportReason1762300200000: {
+    "attendance_sessions.historicalImportReason": {
+      nullable: true,
+      value: "null",
+    },
+  },
+  TeacherStudentReportAcademicSnapshots1762300300000: {
+    "teacher_student_reports.academicYearIdSnapshot": {
+      nullable: true,
+      value: "null",
+    },
+    "teacher_student_reports.academicYearNameSnapshot": {
+      nullable: true,
+      value: "null",
+    },
+    "teacher_student_reports.termIdSnapshot": { nullable: true, value: "null" },
+    "teacher_student_reports.termNameSnapshot": {
+      nullable: true,
+      value: "null",
+    },
+  },
+  LegacyScheduleAcademicNameSnapshots1762300400000: {
+    "school_schedule_entries.academicYearNameSnapshot": {
+      nullable: true,
+      value: "null",
+    },
+    "school_schedule_entries.termNameSnapshot": {
+      nullable: true,
+      value: "null",
+    },
+  },
+  TeacherLeaveAcademicCycleSnapshots1762300500000: {
+    "teacher_leave_requests.academicCycleSnapshots": {
+      nullable: true,
+      value: "null",
+    },
+  },
+  ScheduleTeacherChangeMarker1763100000000: {
+    "school_schedule_entries.previousTeacherNameSnapshot": {
+      nullable: true,
+      value: "null",
+    },
+    "school_schedule_entries.teacherChangedAt": {
+      nullable: true,
+      value: "null",
+    },
+  },
+  NotificationAutoDeletePreferences1763300000000: {
+    "notification_preferences.autoDeleteEnabled": {
+      nullable: false,
+      default: 0,
+      value: "default",
+    },
+    "notification_preferences.autoDeleteAfterHours": {
+      nullable: false,
+      default: 24,
+      value: "default",
+    },
+  },
+  StudentMovementCenter1763600000000: {
+    "exit_permissions.leaveRequestId": { nullable: true, value: "null" },
+    "exit_permissions.resolution": { nullable: true, value: "null" },
+  },
+  // This repair is intentionally able to run after the original movement
+  // migration was recorded on a partially upgraded database.
+  StudentMovementCenterResolution1763600100000: {
+    "exit_permissions.resolution": { nullable: true, value: "null" },
+  },
 };
 
 // A migration may be allowed to change an existing value only when the
@@ -125,6 +319,14 @@ const expectations = {
 const legacyValueTransforms = {
   AttendanceCorrectionReviewIntegrity1731300300000: {
     "attendance_corrections.reviewedById": "null-if-missing-user",
+  },
+  // Existing time blocks retain every original field. Their new group links
+  // point only to the migration-created organization default groups.
+  SchoolScheduleTimeBlockGroups1762000000000: {
+    "school_schedule_time_blocks.groupId": "default-time-block-group",
+  },
+  PrincipalAttendanceAllSessionsReview1762300600000: {
+    "attendance_policies.principalReviewMode": "automatic-to-all-sessions",
   },
 };
 const [command, original, destination] = process.argv.slice(2);
@@ -292,6 +494,26 @@ function preservesOriginalRow(original, upgraded, table, applied, after) {
       );
       if (!referencedUserStillExists) continue;
     }
+    if (
+      transform === "default-time-block-group" &&
+      typeof upgraded[column] === "string"
+    ) {
+      const group = (
+        after.rows.school_schedule_time_block_groups?.records || []
+      ).find((candidate) => candidate.id === upgraded[column]);
+      if (
+        group &&
+        group.organizationId === original.organizationId &&
+        group.name === (original.partOfDay === "PM" ? "عصر" : "صبح")
+      )
+        continue;
+    }
+    if (
+      transform === "automatic-to-all-sessions" &&
+      value === "automatic" &&
+      upgraded[column] === "all_sessions"
+    )
+      continue;
     return false;
   }
   return true;
@@ -399,6 +621,25 @@ function validateAddedColumns(beforeTable, afterTable, table, applied, db) {
           beforeTable,
           afterTable,
         );
+      if (expectation.value === "default-time-block-group") {
+        const group =
+          db
+            .prepare(
+              "SELECT organizationId, name FROM school_schedule_time_block_groups WHERE id = ?",
+            )
+            .get(value) || {};
+        if (
+          typeof value !== "string" ||
+          group.organizationId !== row.organizationId ||
+          group.name !== (row.partOfDay === "PM" ? "عصر" : "صبح")
+        )
+          fail(
+            table,
+            `unexpected default group in ${column.name}`,
+            beforeTable,
+            afterTable,
+          );
+      }
     }
   }
 }

@@ -4,6 +4,7 @@ import {
   loginPortalFromOrigin,
 } from "../src/modules/auth/auth.controller";
 import { normalizeCookieDomain } from "../src/config/auth.config";
+import appConfig from "../src/config/app.config";
 import { resolveTrustedProxy } from "../src/config/trusted-proxy";
 
 function response() {
@@ -84,6 +85,57 @@ describe("API cookie and proxy configuration", () => {
     });
   });
 
+  it("allows session bootstrap only from an approved origin with the custom header", async () => {
+    const auth = {
+      bootstrapSession: jest.fn().mockResolvedValue(loginResult),
+    };
+    const config = {
+      get: (key: string, fallback?: unknown) =>
+        key === "corsOrigins" ? ["https://app.sultano.ir"] : fallback,
+    } as ConfigService;
+    const controller = new AuthController(auth as never, config);
+    const res = response();
+
+    await controller.bootstrapSession(
+      {
+        headers: {
+          origin: "https://app.sultano.ir",
+          "x-auth-session-bootstrap": "1",
+        },
+        cookies: { moshaver_v2_refresh: "refresh-token" },
+      } as never,
+      res as never,
+    );
+
+    expect(auth.bootstrapSession).toHaveBeenCalledWith("refresh-token");
+    expect(res.setCookie).toHaveBeenCalledTimes(2);
+  });
+
+  it("rejects session bootstrap without its trusted browser proof", async () => {
+    const auth = { bootstrapSession: jest.fn() };
+    const config = {
+      get: (key: string, fallback?: unknown) =>
+        key === "corsOrigins" ? ["https://app.sultano.ir"] : fallback,
+    } as ConfigService;
+    const controller = new AuthController(auth as never, config);
+
+    await expect(
+      controller.bootstrapSession(
+        {
+          headers: {
+            origin: "https://evil.example",
+            "x-auth-session-bootstrap": "1",
+          },
+          cookies: { moshaver_v2_refresh: "refresh-token" },
+        } as never,
+        response() as never,
+      ),
+    ).rejects.toMatchObject({
+      response: { error: { code: "SESSION_BOOTSTRAP_FORBIDDEN" } },
+    });
+    expect(auth.bootstrapSession).not.toHaveBeenCalled();
+  });
+
   it("accepts only hostname cookie domains and trusts only local/private proxies", () => {
     expect(normalizeCookieDomain(".sultano.ir")).toBe("sultano.ir");
     expect(normalizeCookieDomain("")).toBeUndefined();
@@ -98,5 +150,11 @@ describe("API cookie and proxy configuration", () => {
       "10.0.0.0/8",
       "127.0.0.1",
     ]);
+  });
+
+  it("allows the local Admin and Student portal hosts to bootstrap a session", () => {
+    const config = appConfig();
+    expect(config.corsOrigins).toContain("http://app.localhost:5173");
+    expect(config.corsOrigins).toContain("http://stud.localhost:5173");
   });
 });

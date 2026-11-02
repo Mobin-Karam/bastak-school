@@ -27,19 +27,21 @@ export function DesktopShell({
       <div
         className={`${adminContentOffsetClass({ showContextRail: false, mainCollapsed: false, contextCollapsed: false, mainHidden: model.desktopSidebarHidden, direction: model.direction })} hidden shrink-0 min-[1200px]:block transition-[margin] duration-200 motion-reduce:transition-none`}
       >
-        <AdminHeader
-          current={model.current}
-          breadcrumbs={model.breadcrumbs}
-          selectedStudentId={model.selectedStudentId}
-          sticky={false}
-          role={model.role}
-          organization={model.organization}
-          multipleRoles={model.multipleRoles}
-          showStudent={model.showStudent}
-          performance={model.performance}
-          mainSidebarHidden={model.desktopSidebarHidden}
-          onShowMainSidebar={() => model.setDesktopSidebarHidden(false)}
-        />
+        {!model.usesScheduleTabHeader ? (
+          <AdminHeader
+            current={model.current}
+            breadcrumbs={model.breadcrumbs}
+            selectedStudentId={model.selectedStudentId}
+            sticky={false}
+            role={model.role}
+            organization={model.organization}
+            multipleRoles={model.multipleRoles}
+            showStudent={model.showStudent}
+            performance={model.performance}
+            mainSidebarHidden={model.desktopSidebarHidden}
+            onShowMainSidebar={() => model.setDesktopSidebarHidden(false)}
+          />
+        ) : null}
       </div>
     </>
   );

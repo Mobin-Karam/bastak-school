@@ -1,6 +1,7 @@
 export {
   bulkMarkAttendance,
   getAttendanceParticipants,
+  getTeacherWeekAttendanceSummary,
   listMyAttendanceAbsenceReviews,
 } from "./attendance.api";
 export type {
@@ -8,9 +9,11 @@ export type {
   AttendanceContextOption,
   AttendanceContextType,
   SelfAttendanceRecord,
+  TeacherWeekAttendanceSummary,
 } from "./attendance.api";
 export {
   awardAttendancePoints,
   getAttendanceEncouragement,
   getAttendanceOverview,
+  getTeacherStudentClassProfile,
 } from "./attendance-operations.api";

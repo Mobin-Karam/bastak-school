@@ -26,6 +26,24 @@ export function loginRequest(phoneNumber: string, password: string) {
   });
 }
 
+export type PasskeyOptions = { challengeId: string; options: Record<string, unknown> };
+
+export function passkeyAuthenticationOptions() {
+  return api.post<PasskeyOptions>("/auth/passkeys/authentication/options", {});
+}
+
+export function verifyPasskeyAuthentication(challengeId: string, response: unknown) {
+  return api.post<LoginResponse>("/auth/passkeys/authentication/verify", { challengeId, response });
+}
+
+export function passkeyRegistrationOptions() {
+  return api.post<PasskeyOptions>("/auth/passkeys/registration/options", {});
+}
+
+export function verifyPasskeyRegistration(challengeId: string, response: unknown) {
+  return api.post("/auth/passkeys/registration/verify", { challengeId, response });
+}
+
 export type PlatformBootstrapInput = {
   phoneNumber: string;
   email: string;

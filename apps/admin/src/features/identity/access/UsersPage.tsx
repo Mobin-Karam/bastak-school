@@ -9,6 +9,7 @@ import { useModal } from "../../../shared/ui/modal";
 import { notify } from "../../../shared/ui/notifications";
 import { useLocale } from "../../../shared/ui/locale";
 import {
+  Badge,
   Button,
   Card,
   EmptyState,
@@ -329,53 +330,7 @@ export function UsersPage() {
     </Card>
   );
   return (
-    <div className="grid gap-3">
-      <section className="flex flex-wrap items-center justify-between gap-2">
-        <div>
-          <h2 className="sr-only">{copy.userList}</h2>
-          <p className="text-xs text-slate-500">
-            {copy.userResults(users.data?.length ?? 0, users.data?.length ?? 0, profile.locale)} ·{" "}
-            {copy.active}:{" "}
-            {(users.data?.filter((user) => user.status === "ACTIVE").length ?? 0).toLocaleString(
-              profile.locale,
-            )}
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          {isPlatform ? (
-            <Select
-              aria-label={copy.organizationScope}
-              className="h-9 max-w-48 text-xs"
-              value={organizationId}
-              onChange={(event) => {
-                setOrganizationId(event.target.value);
-                setSelectedUserId("");
-                setEditing(null);
-                updateTableQuery(defaultTableQuery);
-              }}
-            >
-              <option value="">{copy.platformScope}</option>
-              {organizations.data?.map((org) => (
-                <option key={org.id} value={org.id}>
-                  {org.name}
-                </option>
-              ))}
-            </Select>
-          ) : null}
-          {canManage ? (
-            <Button
-              className="h-9 px-3 text-xs"
-              onClick={() => {
-                setEditing(null);
-                setCreating(true);
-              }}
-            >
-              <Plus size={15} />
-              {copy.newUser}
-            </Button>
-          ) : null}
-        </div>
-      </section>
+    <section className="flex min-h-0 flex-1 flex-col gap-3">
       <ResponsiveDrawer
         open={creating}
         onOpenChange={(open) => {
@@ -501,197 +456,215 @@ export function UsersPage() {
           </form>
         </ResponsiveDrawer>
       ) : null}
-      <section dir="rtl">
-        <Card
-          dir={language === "fa" ? "rtl" : "ltr"}
-          className="min-w-0 overflow-hidden"
-          aria-label={copy.userList}
-        >
-          <DataTable
-            key={`${organizationId}:${auth.context?.user.id}:${auth.activeRole}`}
-            language={language}
-            loading={users.isLoading}
-            error={users.isError}
-            errorMessage={copy.usersFailed}
-            onRefresh={() => void users.refetch()}
-            refreshing={users.isFetching && !users.isLoading}
-            busy={toggle.isPending || archive.isPending || bulkStatus.isPending || save.isPending}
-            preferenceKey={`users:${auth.context?.user.id}:${organizationId}`}
-            data={users.data ?? []}
-            query={tableQuery}
-            onQueryChange={updateTableQuery}
-            getRowId={(user) => user.id}
-            label={copy.userList}
-            onRowClick={(user) => setSelectedUserId(user.id)}
-            selectable={canManage}
-            bulkActions={(selectedRows, clearSelection) => (
-              <>
-                {
-                  <Button
-                    variant="soft"
-                    className="h-9"
-                    loading={bulkStatus.isPending}
-                    disabled={bulkStatus.isPending || selectedRows.some(isProtected)}
-                    onClick={() =>
-                      void modal
-                        .confirm({
-                          title: copy.activateSelectedAccountsTitle,
-                          description: copy.activateSelectedAccountsDescription(
-                            selectedRows.length,
-                            profile.locale,
-                          ),
-                          confirmLabel: copy.activateAccounts,
-                          showCancel: true,
-                        })
-                        .then(
-                          (confirmed) =>
-                            confirmed &&
-                            bulkStatus.mutate(
-                              {
-                                ids: selectedRows.map((user) => user.id),
-                                active: true,
-                              },
-                              { onSuccess: clearSelection },
-                            ),
-                        )
-                    }
-                  >
-                    {copy.activateAccounts}
-                  </Button>
+      <DataTable
+        key={`${organizationId}:${auth.context?.user.id}:${auth.activeRole}`}
+        language={language}
+        loading={users.isLoading}
+        error={users.isError}
+        errorMessage={copy.usersFailed}
+        onRefresh={() => void users.refetch()}
+        refreshing={users.isFetching && !users.isLoading}
+        busy={toggle.isPending || archive.isPending || bulkStatus.isPending || save.isPending}
+        preferenceKey={`users:${auth.context?.user.id}:${organizationId}`}
+        data={users.data ?? []}
+        query={tableQuery}
+        onQueryChange={updateTableQuery}
+        getRowId={(user) => user.id}
+        label={copy.userList}
+        onRowClick={(user) => setSelectedUserId(user.id)}
+        selectable={canManage}
+        scrollRows
+        className="min-h-0 flex-1"
+        toolbar={
+          <UsersTableToolbar
+            copy={copy}
+            organizations={organizations.data ?? []}
+            isPlatform={isPlatform}
+            canManage={canManage}
+            organizationId={organizationId}
+            onOrganizationChange={(nextOrganizationId) => {
+              setOrganizationId(nextOrganizationId);
+              setSelectedUserId("");
+              setEditing(null);
+              updateTableQuery(defaultTableQuery);
+            }}
+            onCreate={() => {
+              setEditing(null);
+              setCreating(true);
+            }}
+          />
+        }
+        bulkActions={(selectedRows, clearSelection) => (
+          <>
+            {
+              <Button
+                variant="soft"
+                className="h-9"
+                loading={bulkStatus.isPending}
+                disabled={bulkStatus.isPending || selectedRows.some(isProtected)}
+                onClick={() =>
+                  void modal
+                    .confirm({
+                      title: copy.activateSelectedAccountsTitle,
+                      description: copy.activateSelectedAccountsDescription(
+                        selectedRows.length,
+                        profile.locale,
+                      ),
+                      confirmLabel: copy.activateAccounts,
+                      showCancel: true,
+                    })
+                    .then(
+                      (confirmed) =>
+                        confirmed &&
+                        bulkStatus.mutate(
+                          {
+                            ids: selectedRows.map((user) => user.id),
+                            active: true,
+                          },
+                          { onSuccess: clearSelection },
+                        ),
+                    )
                 }
-                <Button
-                  variant="soft"
-                  className="h-9"
-                  loading={bulkStatus.isPending}
-                  disabled={bulkStatus.isPending || selectedRows.some(isProtected)}
-                  onClick={() =>
+              >
+                {copy.activateAccounts}
+              </Button>
+            }
+            <Button
+              variant="soft"
+              className="h-9"
+              loading={bulkStatus.isPending}
+              disabled={bulkStatus.isPending || selectedRows.some(isProtected)}
+              onClick={() =>
+                void modal
+                  .confirm({
+                    title: copy.disableSelectedAccountsTitle,
+                    description: copy.disableSelectedAccountsDescription(
+                      selectedRows.length,
+                      profile.locale,
+                    ),
+                    tone: "danger",
+                    confirmLabel: copy.disableAccounts,
+                  })
+                  .then(
+                    (confirmed) =>
+                      confirmed &&
+                      bulkStatus.mutate(
+                        {
+                          ids: selectedRows.map((user) => user.id),
+                          active: false,
+                        },
+                        { onSuccess: clearSelection },
+                      ),
+                  )
+              }
+            >
+              {copy.disableAccounts}
+            </Button>
+          </>
+        )}
+        columns={[
+          {
+            id: "user",
+            label: copy.user,
+            primary: true,
+            value: (user) => `${nameOf(user)} ${user.username} ${user.phoneNumber ?? ""}`,
+            cell: (user) => (
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-2">
+                  <strong>{nameOf(user)}</strong>
+                  {user.isPlatformOwner ? (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-1 text-[11px] font-bold text-amber-900 dark:bg-amber-950 dark:text-amber-200">
+                      <Crown size={12} /> {copy.platformOwner}
+                    </span>
+                  ) : null}
+                </div>
+                <p className="mt-1 text-xs text-slate-500" dir="ltr">
+                  {user.username}
+                </p>
+              </div>
+            ),
+          },
+          {
+            id: "roles",
+            label: copy.roles,
+            value: (user) =>
+              user.assignments.map((item) => roleLabel(item.role, language)).join(", "),
+            cell: (user) => (
+              <UserRoleBadges
+                roles={user.assignments.map((assignment) => assignment.role)}
+                language={language}
+              />
+            ),
+          },
+          {
+            id: "status",
+            label: copy.accountStatus,
+            value: (user) => user.status,
+            cell: (user) => <StatusPill status={user.status} />,
+            filter: {
+              type: "select",
+              options: [
+                { value: "ACTIVE", label: copy.activeStatus },
+                { value: "DISABLED", label: copy.inactiveStatus },
+                { value: "ARCHIVED", label: copy.archivedStatus },
+              ],
+            },
+          },
+        ]}
+        actions={
+          canManage
+            ? [
+                {
+                  id: "edit",
+                  label: copy.edit,
+                  icon: <Pencil size={16} />,
+                  onClick: startEdit,
+                },
+                {
+                  id: "activate",
+                  label: copy.activateAccounts,
+                  visible: (user) => !isProtected(user) && user.status !== "ACTIVE",
+                  onClick: (user) => toggle.mutate({ id: user.id, active: true }),
+                },
+                {
+                  id: "disable",
+                  label: copy.disable,
+                  visible: (user) => !isProtected(user) && user.status === "ACTIVE",
+                  onClick: (user) =>
                     void modal
                       .confirm({
-                        title: copy.disableSelectedAccountsTitle,
-                        description: copy.disableSelectedAccountsDescription(
-                          selectedRows.length,
-                          profile.locale,
-                        ),
+                        title: copy.disableAccountTitle,
+                        description: copy.disableAccountDescription(nameOf(user)),
                         tone: "danger",
                         confirmLabel: copy.disableAccounts,
+                        showCancel: true,
                       })
                       .then(
-                        (confirmed) =>
-                          confirmed &&
-                          bulkStatus.mutate(
-                            {
-                              ids: selectedRows.map((user) => user.id),
-                              active: false,
-                            },
-                            { onSuccess: clearSelection },
-                          ),
-                      )
-                  }
-                >
-                  {copy.disableAccounts}
-                </Button>
-              </>
-            )}
-            columns={[
-              {
-                id: "user",
-                label: copy.user,
-                primary: true,
-                value: (user) => `${nameOf(user)} ${user.username} ${user.phoneNumber ?? ""}`,
-                cell: (user) => (
-                  <div className="min-w-0">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <strong>{nameOf(user)}</strong>
-                      {user.isPlatformOwner ? (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-1 text-[11px] font-bold text-amber-900 dark:bg-amber-950 dark:text-amber-200">
-                          <Crown size={12} /> {copy.platformOwner}
-                        </span>
-                      ) : null}
-                    </div>
-                    <p className="mt-1 text-xs text-slate-500" dir="ltr">
-                      {user.username}
-                    </p>
-                  </div>
-                ),
-              },
-              {
-                id: "roles",
-                label: copy.roles,
-                value: (user) =>
-                  user.assignments.map((item) => roleLabel(item.role, language)).join(", "),
-              },
-              {
-                id: "status",
-                label: copy.accountStatus,
-                value: (user) => user.status,
-                cell: (user) => <StatusPill status={user.status} />,
-                filter: {
-                  type: "select",
-                  options: [
-                    { value: "ACTIVE", label: copy.activeStatus },
-                    { value: "DISABLED", label: copy.inactiveStatus },
-                    { value: "ARCHIVED", label: copy.archivedStatus },
-                  ],
+                        (confirmed) => confirmed && toggle.mutate({ id: user.id, active: false }),
+                      ),
                 },
-              },
-            ]}
-            actions={
-              canManage
-                ? [
-                    {
-                      id: "edit",
-                      label: copy.edit,
-                      icon: <Pencil size={16} />,
-                      onClick: startEdit,
-                    },
-                    {
-                      id: "activate",
-                      label: copy.activateAccounts,
-                      visible: (user) => !isProtected(user) && user.status !== "ACTIVE",
-                      onClick: (user) => toggle.mutate({ id: user.id, active: true }),
-                    },
-                    {
-                      id: "disable",
-                      label: copy.disable,
-                      visible: (user) => !isProtected(user) && user.status === "ACTIVE",
-                      onClick: (user) =>
-                        void modal
-                          .confirm({
-                            title: copy.disableAccountTitle,
-                            description: copy.disableAccountDescription(nameOf(user)),
-                            tone: "danger",
-                            confirmLabel: copy.disableAccounts,
-                            showCancel: true,
-                          })
-                          .then(
-                            (confirmed) =>
-                              confirmed && toggle.mutate({ id: user.id, active: false }),
-                          ),
-                    },
-                    {
-                      id: "archive",
-                      label: copy.archive,
-                      tone: "danger",
-                      visible: (user) => !isProtected(user) && user.status !== "ARCHIVED",
-                      onClick: (user) =>
-                        void modal
-                          .confirm({
-                            title: copy.archiveAccountTitle,
-                            description: copy.archiveAccountDescription(nameOf(user)),
-                            confirmationText: copy.archive,
-                            confirmLabel: copy.archive,
-                            cancelLabel: copy.cancel,
-                            showCancel: true,
-                            tone: "danger",
-                          })
-                          .then((confirmed) => confirmed && archive.mutate(user.id)),
-                    },
-                  ]
-                : []
-            }
-          />
-        </Card>
-      </section>
+                {
+                  id: "archive",
+                  label: copy.archive,
+                  tone: "danger",
+                  visible: (user) => !isProtected(user) && user.status !== "ARCHIVED",
+                  onClick: (user) =>
+                    void modal
+                      .confirm({
+                        title: copy.archiveAccountTitle,
+                        description: copy.archiveAccountDescription(nameOf(user)),
+                        confirmationText: copy.archive,
+                        confirmLabel: copy.archive,
+                        cancelLabel: copy.cancel,
+                        showCancel: true,
+                        tone: "danger",
+                      })
+                      .then((confirmed) => confirmed && archive.mutate(user.id)),
+                },
+              ]
+            : []
+        }
+      />
       <ResponsiveDrawer
         open={Boolean(selectedUser)}
         onOpenChange={(open) => {
@@ -703,7 +676,63 @@ export function UsersPage() {
       >
         {details}
       </ResponsiveDrawer>
-    </div>
+    </section>
+  );
+}
+
+function UsersTableToolbar({
+  copy,
+  organizations,
+  isPlatform,
+  canManage,
+  organizationId,
+  onOrganizationChange,
+  onCreate,
+}: {
+  copy: (typeof accessCopy)["en"];
+  organizations: PortalOrganization[];
+  isPlatform: boolean;
+  canManage: boolean;
+  organizationId: string;
+  onOrganizationChange: (organizationId: string) => void;
+  onCreate: () => void;
+}) {
+  return (
+    <>
+      {isPlatform ? (
+        <Select
+          aria-label={copy.organizationScope}
+          className="h-11 max-w-52 text-sm"
+          value={organizationId}
+          onChange={(event) => onOrganizationChange(event.target.value)}
+        >
+          <option value="">{copy.platformScope}</option>
+          {organizations.map((organization) => (
+            <option key={organization.id} value={organization.id}>
+              {organization.name}
+            </option>
+          ))}
+        </Select>
+      ) : null}
+      {canManage ? (
+        <Button className="h-11 px-3 text-sm" onClick={onCreate}>
+          <Plus size={16} aria-hidden="true" />
+          {copy.newUser}
+        </Button>
+      ) : null}
+    </>
+  );
+}
+
+function UserRoleBadges({ roles, language }: { roles: RoleCode[]; language: "fa" | "en" }) {
+  return (
+    <span className="flex flex-wrap gap-1">
+      {[...new Set(roles)].map((role) => (
+        <Badge key={role} tone={role === "PLATFORM_ADMIN" ? "amber" : "neutral"}>
+          {roleLabel(role, language)}
+        </Badge>
+      ))}
+    </span>
   );
 }
 

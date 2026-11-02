@@ -85,8 +85,14 @@ afterEach(() => {
 });
 it("opens account editing in a dialog from the shared action menu", async () => {
   mount();
-  await screen.findByRole("table");
+  const userTable = await screen.findByRole("table");
   expect(state.listUsers).toHaveBeenCalledWith("school", true);
+  expect(screen.getByRole("region", { name: copy.userList })).toHaveAttribute(
+    "data-scroll-rows",
+    "true",
+  );
+  expect(userTable.querySelector("thead")).toHaveClass("sticky", "top-0");
+  expect(userTable.querySelector("th")).toHaveClass("sticky", "top-0");
   const row = within(screen.getByRole("table")).getByText("Employee").closest("tr")!;
   await userEvent.click(within(row).getByRole("button", { name: /actions/i }));
   await userEvent.click(screen.getByRole("menuitem", { name: copy.edit }));
@@ -146,7 +152,10 @@ it("shows user details in a drawer on mobile", async () => {
 it("shows every account field in the single-step staff creation drawer", async () => {
   mount();
   await screen.findByRole("table");
-  await userEvent.click(screen.getByRole("button", { name: copy.newUser }));
+  const toolbar = screen.getByRole("toolbar", { name: "Search records…" });
+  const createUser = within(toolbar).getByRole("button", { name: copy.newUser });
+  expect(createUser).toHaveClass("h-11");
+  await userEvent.click(createUser);
   const dialog = within(screen.getByRole("dialog", { name: copy.newUser }));
   expect(dialog.getByLabelText(copy.phoneNumber)).toBeInTheDocument();
   await userEvent.type(dialog.getByLabelText(copy.phoneNumber), "09333333333");

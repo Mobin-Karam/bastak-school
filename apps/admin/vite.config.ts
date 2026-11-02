@@ -151,7 +151,7 @@ export default defineConfig({
   // in the initial dependency graph so opening that route cannot invalidate
   // the browser's current optimized-dependency hash mid-session.
   optimizeDeps: {
-    include: ["@base-ui/react/drawer"],
+    include: ["@base-ui/react/drawer", "@radix-ui/react-switch"],
   },
   plugins: [devBackendProxy(), react(), pwaPrecacheManifest()],
   build: {

@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, it, expect, vi } from "vitest";
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { MemoryRouter } from "react-router-dom";
+import { MemoryRouter, useLocation } from "react-router-dom";
 import { ThemeProvider } from "../../../../shared/theme/theme";
 import { LocaleProvider } from "../../../../shared/ui/locale";
 import { readFileSync } from "node:fs";
@@ -13,6 +13,7 @@ import { timetableToday, timetableWeekStart } from "../lib/timetable-time";
 afterEach(cleanup);
 const fixtures = vi.hoisted(() => ({
   full: true,
+  activeRole: "PRINCIPAL",
   capabilities: [
     "schedule.read",
     "schedule.read.all",
@@ -26,7 +27,7 @@ const fixtures = vi.hoisted(() => ({
 }));
 vi.mock("../../../identity/auth", () => ({
   useAuth: () => ({
-    activeRole: fixtures.full ? "PRINCIPAL" : "STUDENT",
+    activeRole: fixtures.activeRole,
     context: { activeOrganization: { id: "org", name: "مدرسه" }, availableOrganizations: [] },
     can: (cap: string) => fixtures.capabilities.includes(cap),
     canAny: (caps: string[]) => caps.some((x) => fixtures.capabilities.includes(x)),
@@ -176,6 +177,7 @@ function data(state = "PUBLISHED") {
 function mount() {
   return render(
     <MemoryRouter>
+      <LocationProbe />
       <QueryClientProvider
         client={
           new QueryClient({
@@ -192,6 +194,10 @@ function mount() {
     </MemoryRouter>,
   );
 }
+function LocationProbe() {
+  const location = useLocation();
+  return <span data-testid="current-location">{location.pathname + location.search}</span>;
+}
 beforeEach(() => {
   window.matchMedia = vi.fn().mockImplementation(() => ({
     matches: false,
@@ -203,6 +209,7 @@ beforeEach(() => {
     dispatchEvent: vi.fn(),
   }));
   fixtures.full = true;
+  fixtures.activeRole = "PRINCIPAL";
   fixtures.capabilities = [
     "schedule.read",
     "schedule.read.all",
@@ -385,6 +392,7 @@ describe("responsive timetable workflows", () => {
   }, 15000);
   it("gives students daily cards without draft controls or school-wide filters", async () => {
     fixtures.full = false;
+    fixtures.activeRole = "STUDENT";
     fixtures.capabilities = ["schedule.read"];
     mount();
     expect(await screen.findByText("درس جاری")).toBeVisible();
@@ -392,6 +400,40 @@ describe("responsive timetable workflows", () => {
     expect(screen.queryByRole("button", { name: "تنظیمات" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "همه کلاس‌ها" })).not.toBeInTheDocument();
     expect(screen.getAllByText("استاد احمد · اتاق یک").length).toBeGreaterThan(0);
+  });
+  it("opens a future teacher roster without showing attendance controls before start", async () => {
+    fixtures.full = false;
+    fixtures.activeRole = "TEACHER";
+    fixtures.capabilities = ["schedule.read", "attendance.class.manage"];
+    const workspace = data();
+    workspace.occurrences[0].startsAt = new Date(Date.now() + 60_000).toISOString();
+    fixtures.get.mockResolvedValue(workspace);
+
+    mount();
+
+    expect(await screen.findByRole("button", { name: /نحو/ })).toBeVisible();
+    expect(screen.queryByRole("button", { name: "ثبت حضور این درس" })).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: /نحو/ }));
+    await waitFor(() => {
+      expect(screen.getByTestId("current-location")).toHaveTextContent(
+        `/admin/attendance?section=class&contextType=class&contextId=class&scheduleEntryId=lesson&scheduleDate=${today}`,
+      );
+    });
+    expect(screen.getByTestId("current-location")).toHaveTextContent("scheduleStartsAt=");
+    expect(fixtures.write).not.toHaveBeenCalled();
+  });
+  it("keeps a teacher's attendance action available after the scheduled end", async () => {
+    fixtures.full = false;
+    fixtures.activeRole = "TEACHER";
+    fixtures.capabilities = ["schedule.read", "attendance.class.manage"];
+    const workspace = data();
+    workspace.occurrences[0].startsAt = new Date(Date.now() - 2 * 60_000).toISOString();
+    workspace.occurrences[0].endsAt = new Date(Date.now() - 60_000).toISOString();
+    fixtures.get.mockResolvedValue(workspace);
+
+    mount();
+
+    expect(await screen.findByRole("button", { name: "ثبت حضور این درس" })).toBeEnabled();
   });
   it("provides retry on a failed school-scoped request", async () => {
     fixtures.get.mockRejectedValueOnce(new Error("ارتباط قطع شد"));

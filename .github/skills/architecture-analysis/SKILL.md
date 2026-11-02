@@ -21,3 +21,7 @@ Use Graphify first when available, then source verification. Apply applications 
 - test architecture
 
 Prioritize concrete problems over stylistic preferences. Tie every finding to evidence and real impact.
+
+## Release topology
+
+When operations are relevant, map the documented path in `docs/operations/ci-cd-pipeline.md`: protected PR, develop qualification, reviewed main promotion, exact artifact, private receiver, isolated migration rehearsal, and production evidence. Identify actual breaks in provenance, trust boundaries, configuration ownership, database compatibility, rollback assumptions, and observability; do not claim private/host activation without evidence.

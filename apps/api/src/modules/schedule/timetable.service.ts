@@ -2538,6 +2538,9 @@ export class TimetableService {
       ).find((x) => x.id === id);
       if (!occurrence)
         this.fail("TIMETABLE_OCCURRENCE", "درس در این تاریخ برگزار نمی‌شود.");
+      const assignedTeacher =
+        user.id === occurrence.teacherId &&
+        user.capabilities?.includes("attendance.class.manage");
       // Reuse the attendance service's resource policy even for an already-created occurrence.
       if (
         !user.capabilities?.includes("schedule.read.all") &&
@@ -2585,16 +2588,22 @@ export class TimetableService {
           "این درس لغو شده است؛ تاریخچه حضور حذف نشده است.",
           409,
         );
+      if (Date.now() < Date.parse(occurrence.startsAt))
+        this.fail(
+          "TIMETABLE_ATTENDANCE_NOT_STARTED",
+          "ثبت حضور از زمان شروع برنامه‌ریزی‌شده درس فعال می‌شود.",
+          409,
+        );
       const today = new Intl.DateTimeFormat("en-CA", {
         timeZone: year.timeZone,
         year: "numeric",
         month: "2-digit",
         day: "2-digit",
       }).format(new Date());
-      if (date !== today)
+      if (date !== today && !assignedTeacher)
         this.fail(
           "TIMETABLE_ATTENDANCE_DATE",
-          "حضور را در روز برگزاری درس ثبت کنید.",
+          "فقط استاد همان درس می‌تواند حضور را پس از روز برگزاری ثبت کند.",
         );
       const session = await this.attendance.createTimetableSession(user, {
         organizationId: year.organizationId,

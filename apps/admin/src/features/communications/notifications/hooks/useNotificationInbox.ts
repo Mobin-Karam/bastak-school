@@ -10,6 +10,7 @@ import {
   getNotificationsPage,
   markAllNotificationsRead,
   markNotificationRead,
+  removeNotifications,
 } from "../api/notifications.api";
 import {
   getHttpStatus,
@@ -118,6 +119,14 @@ export function useNotificationInbox(enabled: boolean, scopeKey: string) {
     },
   });
 
+  const remove = useMutation({
+    mutationFn: (ids?: string[]) => removeNotifications(ids),
+    onSuccess: () => {
+      void inbox.refetch();
+    },
+    onError: () => notify("حذف اعلان انجام نشد.", "error"),
+  });
+
   const refresh = useCallback(() => {
     void inbox.refetch();
   }, [inbox.refetch]);
@@ -137,6 +146,13 @@ export function useNotificationInbox(enabled: boolean, scopeKey: string) {
     }
   }, [readAll.isPending, readAll.mutate, unread]);
 
+  const removeSelected = useCallback(
+    async (ids?: string[]) => {
+      await remove.mutateAsync(ids);
+    },
+    [remove.mutateAsync],
+  );
+
   const status = getHttpStatus(inbox.error);
 
   return {
@@ -149,6 +165,8 @@ export function useNotificationInbox(enabled: boolean, scopeKey: string) {
     markingAllRead: readAll.isPending,
     markRead,
     markAllRead,
+    removeSelected,
+    removing: remove.isPending,
     refresh,
     loadMore,
   };

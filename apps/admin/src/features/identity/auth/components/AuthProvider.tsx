@@ -2,12 +2,15 @@ import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } fro
 import {
   api,
   ApiError,
+  bootstrapSession,
   onAuthFailure,
   refreshSession,
   setApiWorkContext,
 } from "../../../../shared/api/api";
 import type { AccountContext, OrganizationSummary, User } from "../../../../shared/types/domain";
 import { getCurrentUser, getAccountContext, loginRequest, logoutRequest } from "../api/auth.api";
+import { passkeyAuthenticationOptions, verifyPasskeyAuthentication } from "../api/auth.api";
+import { startAuthentication } from "@simplewebauthn/browser";
 import {
   AUTH_SIGNAL_KEY,
   AUTH_SUCCESS_SPLASH_KEY,
@@ -22,16 +25,41 @@ import { useOptionalAdminLanguage } from "../../../../shared/ui/locale";
 import { hasAllCapabilities, hasAnyCapability, hasCapability } from "../lib/capabilities";
 import { AuthContext } from "../context";
 import { currentAppDomain, preferredRoleForDomain } from "../../../../app/routing/portal-domain";
+import { PasskeyEnrollmentPrompt } from "./PasskeyEnrollmentPrompt";
+import { RoleChooserPrompt } from "./RoleChooserPrompt";
 
 const MAX_RESTORE_ATTEMPTS = 3;
 const RESTORE_RETRY_DELAY_MS = 1_800;
 const ACTIVE_SESSION_REFRESH_MS = 10 * 60_000;
+const ACTIVE_ROLE_STORAGE_PREFIX = "bastak-school:active-role:v1";
 
 function portalRole(roles: AccountContext["roles"]) {
   const domain = currentAppDomain();
   if (domain === "student" || domain === "admin")
     return preferredRoleForDomain(roles, domain) ?? adminPortalRole(roles);
   return adminPortalRole(roles);
+}
+
+function activeRoleStorageKey(userId: string, organizationId?: string | null) {
+  return `${ACTIVE_ROLE_STORAGE_PREFIX}:${currentAppDomain()}:${userId}:${organizationId ?? "none"}`;
+}
+
+function storedActiveRole(context: AccountContext): AccountContext["roles"][number] | null {
+  const stored = localStorage.getItem(
+    activeRoleStorageKey(context.user.id, context.activeOrganization?.id),
+  );
+  const candidate = stored as AccountContext["roles"][number] | null;
+  if (!candidate || !context.roles.includes(candidate)) return null;
+  const domain = currentAppDomain();
+  const allowed =
+    domain === "student" || domain === "admin"
+      ? preferredRoleForDomain([candidate], domain) === candidate
+      : adminPortalRole([candidate]) === candidate;
+  return allowed ? candidate : null;
+}
+
+function persistActiveRole(context: AccountContext, role: AccountContext["roles"][number]) {
+  localStorage.setItem(activeRoleStorageKey(context.user.id, context.activeOrganization?.id), role);
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -77,13 +105,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setMessage(copy.sessionChecking);
 
     try {
-      const raw = await getCurrentUser();
-      const context = await getAccountContext();
+      const loadIdentity = async () => {
+        const raw = await getCurrentUser();
+        const context = await getAccountContext();
+        return { raw, context };
+      };
+      let identity: Awaited<ReturnType<typeof loadIdentity>>;
+      try {
+        identity = await loadIdentity();
+      } catch (error) {
+        if (!(error instanceof ApiError) || error.status !== 401) throw error;
+        if (!(await bootstrapSession())) throw error;
+        identity = await loadIdentity();
+      }
+      const { raw, context } = identity;
       const me = normalizeUser({ ...context.user, role: context.roles[0] ?? raw.role });
 
       if (current !== operation.current) return;
 
-      const role = portalRole(context.roles);
+      const role = storedActiveRole(context) ?? portalRole(context.roles);
       if (!role) {
         try {
           await logoutRequest();
@@ -115,7 +155,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       restoreAttempts.current += 1;
 
       if (restoreAttempts.current >= MAX_RESTORE_ATTEMPTS) {
-        finishLocalLogout(copy.serverUnresponsive, false);
+        setStatus("unavailable");
+        setMessage(copy.serverUnresponsive);
         return;
       }
 
@@ -256,11 +297,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(contextUser);
         setAccountContext(context);
         setActiveRoleState(role);
+        persistActiveRole(context, role);
         setApiWorkContext(role, context.activeOrganization?.id);
         sessionStorage.setItem(AUTH_SUCCESS_SPLASH_KEY, "1");
+        sessionStorage.setItem("bastak.passkey.offer.pending", "1");
+        if (context.roles.length > 1) sessionStorage.setItem("bastak.role-choice.pending", "1");
         setStatus("authenticated");
         restoreAttempts.current = 0;
         lastCheck.current = Date.now();
+        signalAuthEvent("login");
+      },
+
+      async loginWithPasskey() {
+        const current = ++operation.current;
+        setMessage("");
+        const { challengeId, options } = await passkeyAuthenticationOptions();
+        const response = await startAuthentication({ optionsJSON: options as never });
+        const data = await verifyPasskeyAuthentication(challengeId, response);
+        if (current !== operation.current) return;
+        api.setCsrf(data.csrfToken);
+        sessionStorage.setItem("bastak.role-choice.pending", "1");
+        await restore();
+        sessionStorage.setItem(AUTH_SUCCESS_SPLASH_KEY, "1");
         signalAuthEvent("login");
       },
 
@@ -334,6 +392,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setAccountContext(refreshed);
           setUser(normalizeUser({ ...refreshed.user, role }));
           setActiveRoleState(role);
+          persistActiveRole(refreshed, role);
           setApiWorkContext(role, refreshed.activeOrganization?.id);
         } finally {
           if (current === operation.current) setStatus("authenticated");
@@ -364,6 +423,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setAccountContext(refreshed);
           setUser(normalizeUser({ ...refreshed.user, role }));
           setActiveRoleState(role);
+          persistActiveRole(refreshed, role);
           setApiWorkContext(role, refreshed.activeOrganization?.id);
         } finally {
           if (current === operation.current) setStatus("authenticated");
@@ -373,5 +433,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [copy, finishLocalLogout, message, restore, status, user, accountContext, activeRole],
   );
 
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  return (
+    <AuthContext.Provider value={value}>
+      {children}
+      <RoleChooserPrompt
+        authenticated={status === "authenticated"}
+        roles={accountContext?.roles ?? []}
+        activeRole={activeRole}
+        choose={value.setActiveRole}
+      />
+      <PasskeyEnrollmentPrompt authenticated={status === "authenticated"} />
+    </AuthContext.Provider>
+  );
 }

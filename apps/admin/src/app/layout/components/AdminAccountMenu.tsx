@@ -11,7 +11,7 @@ import { DevBackendSwitcher } from "../../dev/DevBackendSwitcher";
 import { roleLabel } from "../../../shared/lib/role-ui";
 import { useAdminShellCopy, useLocale } from "../../../shared/ui/locale";
 
-export function AdminAccountMenu() {
+export function AdminAccountMenu({ compact = false }: { compact?: boolean }) {
   const auth = useAuth();
   const modal = useModal();
   const { language } = useLocale();
@@ -48,7 +48,11 @@ export function AdminAccountMenu() {
         <button
           {...props}
           type="button"
-          className="flex min-h-11 min-w-11 items-center gap-2 rounded-xl border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card))] px-2 py-1.5 text-start outline-none transition hover:bg-[rgb(var(--surface-muted))] focus-visible:ring-2 focus-visible:ring-brand min-[1200px]:min-h-16 min-[1200px]:gap-3 min-[1200px]:px-3"
+          className={`flex min-h-11 min-w-11 items-center gap-2 rounded-xl border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card))] px-2 py-1.5 text-start outline-none transition hover:bg-[rgb(var(--surface-muted))] focus-visible:ring-2 focus-visible:ring-brand ${
+            compact
+              ? "justify-center"
+              : "w-full min-[1200px]:min-h-16 min-[1200px]:gap-3 min-[1200px]:px-3"
+          }`}
           aria-label={copy.accountMenu}
           title={displayName}
         >
@@ -58,7 +62,7 @@ export function AdminAccountMenu() {
           >
             {initial}
           </span>
-          <span className="hidden min-w-0 min-[1200px]:block">
+          <span className={`min-w-0 ${compact ? "hidden" : "block"}`}>
             <span className="flex max-w-72 flex-wrap items-baseline gap-x-2 gap-y-0.5">
               <strong className="max-w-40 truncate text-sm">{displayName}</strong>
               {username && username !== displayName ? (
@@ -74,7 +78,7 @@ export function AdminAccountMenu() {
           <ChevronDown
             size={16}
             aria-hidden="true"
-            className="hidden shrink-0 text-slate-500 min-[1200px]:block"
+            className={`shrink-0 text-slate-500 ${compact ? "hidden" : "block"}`}
           />
         </button>
       )}

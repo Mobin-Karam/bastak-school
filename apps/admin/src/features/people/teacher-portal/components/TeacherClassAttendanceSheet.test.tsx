@@ -3,16 +3,24 @@ import { cleanup, render, screen, waitFor, within } from "@testing-library/react
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ScheduleEntry } from "../../../academics/schedule/api/schedule.api";
-import { TeacherClassAttendanceSheet } from "./TeacherClassAttendanceSheet";
+import { LocaleProvider } from "../../../../shared/ui/locale";
+import {
+  latestTeacherSessionDate,
+  TeacherClassAttendanceSheet,
+} from "./TeacherClassAttendanceSheet";
 
 const {
   getAttendanceParticipantsMock,
   listMyAttendanceAbsenceReviewsMock,
   bulkMarkAttendanceMock,
+  createLegacyOccurrenceMock,
+  getMock,
 } = vi.hoisted(() => ({
   getAttendanceParticipantsMock: vi.fn(),
   listMyAttendanceAbsenceReviewsMock: vi.fn(),
   bulkMarkAttendanceMock: vi.fn(),
+  createLegacyOccurrenceMock: vi.fn(),
+  getMock: vi.fn(),
 }));
 
 vi.mock("../../../student-life/attendance/api/attendance.api.ts", () => ({
@@ -30,7 +38,11 @@ vi.mock("../../../identity/auth", () => ({
 }));
 
 vi.mock("../../../../shared/api/api", () => ({
-  api: { openEvents: () => ({ close: vi.fn() }) },
+  api: {
+    openEvents: () => ({ close: vi.fn() }),
+    post: createLegacyOccurrenceMock,
+    get: getMock,
+  },
 }));
 
 vi.mock("../../../../shared/ui/notifications", () => ({ notify: vi.fn() }));
@@ -52,21 +64,31 @@ function renderSheet(onOpenChange = vi.fn()) {
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   });
   return render(
-    <QueryClientProvider client={queryClient}>
-      <TeacherClassAttendanceSheet entry={entry} open onOpenChange={onOpenChange} canManage />
-    </QueryClientProvider>,
+    <LocaleProvider>
+      <QueryClientProvider client={queryClient}>
+        <TeacherClassAttendanceSheet entry={entry} open onOpenChange={onOpenChange} canManage />
+      </QueryClientProvider>
+    </LocaleProvider>,
   );
 }
 
 afterEach(cleanup);
-beforeEach(() =>
+beforeEach(() => {
   vi.stubGlobal(
     "matchMedia",
     vi.fn(() => ({ matches: false, addEventListener: vi.fn(), removeEventListener: vi.fn() })),
-  ),
-);
+  );
+  createLegacyOccurrenceMock.mockResolvedValue({ id: "session-1", revision: 0, duplicate: false });
+  getMock.mockResolvedValue(null);
+});
 
 describe("TeacherClassAttendanceSheet", () => {
+  it("starts a lesson on its latest scheduled weekday instead of an arbitrary current day", () => {
+    // Legacy weekdays are Saturday=0 through Friday=6.
+    expect(latestTeacherSessionDate("2026-10-29", 6)).toBe("2026-10-23");
+    expect(latestTeacherSessionDate("2026-10-30", 6)).toBe("2026-10-30");
+  });
+
   it("uses the shared responsive drawer while retaining the roster query", async () => {
     getAttendanceParticipantsMock.mockResolvedValue([{ id: "student-1", name: "علی رضایی" }]);
     listMyAttendanceAbsenceReviewsMock.mockResolvedValue([]);
@@ -74,7 +96,17 @@ describe("TeacherClassAttendanceSheet", () => {
     renderSheet();
 
     await waitFor(() => {
-      expect(getAttendanceParticipantsMock).toHaveBeenCalledWith("class", "class-1");
+      const scheduledDate = latestTeacherSessionDate(
+        new Date().toISOString().slice(0, 10),
+        entry.weekday,
+      );
+      expect(getAttendanceParticipantsMock).toHaveBeenCalledWith("class", "class-1", {
+        scheduleEntryId: "schedule-1",
+        date: scheduledDate,
+      });
+      expect(getMock).toHaveBeenCalledWith(
+        expect.stringContaining(`date=${encodeURIComponent(scheduledDate)}`),
+      );
     });
 
     const dialog = screen.getByRole("dialog", { name: "ریاضی دهم" });
@@ -84,9 +116,94 @@ describe("TeacherClassAttendanceSheet", () => {
     expect(dialog).toHaveClass("max-w-xl");
     expect(
       within(screen.getByRole("group", { name: "وضعیت حضور علی رضایی" })).getByRole("button", {
-        name: "حاضر",
+        name: "ح · حاضر",
       }),
     ).toHaveAttribute("aria-pressed", "true");
+  });
+  it("hydrates saved marks from the saved roster before enabling revision", async () => {
+    let resolveSavedAttendance!: (value: {
+      roster: Array<{
+        id: string;
+        name: string;
+        nationalCode: string | null;
+        userId: string | null;
+      }>;
+      rosterComplete: boolean;
+      records: Array<{ studentId: string; legacyStatus: "present" | "absent"; note: string }>;
+    }) => void;
+    getMock.mockImplementation((path: string) => {
+      if (path.startsWith("/attendance/legacy-schedule-session?"))
+        return Promise.resolve({ id: "session-1", revision: 3 });
+      if (path === "/attendance/sessions/session-1")
+        return new Promise((resolve) => {
+          resolveSavedAttendance = resolve;
+        });
+      return Promise.resolve([]);
+    });
+    getAttendanceParticipantsMock.mockResolvedValue([
+      { id: "new-student", name: "دانش‌آموز جدید" },
+    ]);
+    listMyAttendanceAbsenceReviewsMock.mockResolvedValue([]);
+
+    renderSheet();
+
+    expect(await screen.findByText("در حال بازیابی وضعیت ثبت‌شدهٔ جلسه…")).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "بررسی و ثبت حضور و غیاب" }),
+    ).not.toBeInTheDocument();
+
+    resolveSavedAttendance({
+      roster: [
+        {
+          id: "former-student",
+          name: "دانش‌آموز سابق",
+          nationalCode: null,
+          userId: null,
+        },
+      ],
+      rosterComplete: true,
+      records: [{ studentId: "former-student", legacyStatus: "absent", note: "غیبت ثبت‌شده" }],
+    });
+
+    const group = await screen.findByRole("group", { name: "وضعیت حضور دانش‌آموز سابق" });
+    expect(within(group).getByRole("button", { name: "غ · غایب" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    expect(screen.queryByText("دانش‌آموز جدید")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "بررسی و ثبت حضور و غیاب" })).toBeEnabled();
+  });
+  it("keeps a cancelled occurrence readable but not editable", async () => {
+    getMock.mockImplementation((path: string) => {
+      if (path.startsWith("/attendance/legacy-schedule-session?"))
+        return Promise.resolve({ id: "session-cancelled", revision: 1 });
+      if (path === "/attendance/sessions/session-cancelled")
+        return Promise.resolve({
+          status: "cancelled",
+          roster: [
+            {
+              id: "student-1",
+              name: "علی رضایی",
+              nationalCode: null,
+              userId: null,
+            },
+          ],
+          rosterComplete: true,
+          records: [{ studentId: "student-1", legacyStatus: "present", note: "" }],
+        });
+      return Promise.resolve([]);
+    });
+    getAttendanceParticipantsMock.mockResolvedValue([{ id: "student-1", name: "علی رضایی" }]);
+    listMyAttendanceAbsenceReviewsMock.mockResolvedValue([]);
+
+    renderSheet();
+
+    expect(await screen.findByText("علی رضایی")).toBeInTheDocument();
+    expect(await screen.findByText("این جلسه لغو شده و فقط قابل مشاهده است.")).toBeInTheDocument();
+    expect(screen.queryByRole("group", { name: "وضعیت حضور علی رضایی" })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "بررسی و ثبت حضور و غیاب" }),
+    ).not.toBeInTheDocument();
   });
   it("preserves the selected mark and exact request when retrying a failed save", async () => {
     bulkMarkAttendanceMock.mockClear();
@@ -99,18 +216,20 @@ describe("TeacherClassAttendanceSheet", () => {
     renderSheet(onOpenChange);
     const user = userEvent.setup();
     const group = await screen.findByRole("group", { name: "وضعیت حضور علی رضایی" });
-    await user.click(within(group).getByRole("button", { name: "حاضر" }));
+    await user.click(within(group).getByRole("button", { name: "ح · حاضر" }));
     await user.click(screen.getByRole("button", { name: "بررسی و ثبت حضور و غیاب" }));
     expect(bulkMarkAttendanceMock).not.toHaveBeenCalled();
     await user.click(screen.getByRole("button", { name: "تأیید و ثبت" }));
     await waitFor(() => expect(screen.getByRole("button", { name: "تأیید و ثبت" })).toBeEnabled());
     expect(onOpenChange).not.toHaveBeenCalled();
-    expect(within(group).getByRole("button", { name: "حاضر", hidden: true })).toHaveAttribute(
+    expect(within(group).getByRole("button", { name: "ح · حاضر", hidden: true })).toHaveAttribute(
       "aria-pressed",
       "true",
     );
     await user.click(screen.getByRole("button", { name: "تأیید و ثبت" }));
-    await waitFor(() => expect(onOpenChange).toHaveBeenCalledWith(false));
+    await waitFor(() => expect(bulkMarkAttendanceMock).toHaveBeenCalledTimes(2));
+    expect(screen.queryByText("مرحله ۲: بررسی و ثبت")).not.toBeInTheDocument();
+    expect(onOpenChange).not.toHaveBeenCalled();
     expect(bulkMarkAttendanceMock.mock.calls[1][0]).toEqual(
       bulkMarkAttendanceMock.mock.calls[0][0],
     );
@@ -130,14 +249,14 @@ describe("TeacherClassAttendanceSheet", () => {
     expect(screen.getByRole("dialog", { name: "ریاضی دهم" })).toBeInTheDocument();
 
     const group = screen.getByRole("group", { name: "وضعیت حضور علی رضایی" });
-    await user.click(within(group).getByRole("button", { name: "غایب" }));
+    await user.click(within(group).getByRole("button", { name: "غ · غایب" }));
     await user.click(screen.getByRole("button", { name: "پاک کردن" }));
 
     expect(screen.getByRole("dialog", { name: "ریاضی دهم" })).toBeInTheDocument();
     expect(screen.getByText("تغییرات حضور و غیاب پاک می‌شوند")).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "بازگشت و حفظ تغییرات" }));
     expect(screen.getByRole("dialog", { name: "ریاضی دهم" })).toBeInTheDocument();
-    expect(within(group).getByRole("button", { name: "غایب" })).toHaveAttribute(
+    expect(within(group).getByRole("button", { name: "غ · غایب" })).toHaveAttribute(
       "aria-pressed",
       "true",
     );
@@ -146,5 +265,28 @@ describe("TeacherClassAttendanceSheet", () => {
     await user.click(screen.getByRole("button", { name: "ادامه و پاک‌کردن" }));
 
     expect(onOpenChange).toHaveBeenCalledWith(false);
+  });
+
+  it("shows a seven-day absence marker only for the affected student", async () => {
+    getAttendanceParticipantsMock.mockResolvedValue([
+      { id: "student-1", name: "علی رضایی" },
+      { id: "student-2", name: "حسن رضایی" },
+    ]);
+    listMyAttendanceAbsenceReviewsMock.mockResolvedValue([
+      {
+        id: "absence-1",
+        studentId: "student-1",
+        studentName: "علی رضایی",
+        status: "absent",
+        sessionDate: new Date().toISOString(),
+        reviewStatus: "pending",
+        contextType: "class",
+        contextId: "class-1",
+      },
+    ]);
+    renderSheet();
+
+    expect(await screen.findByText("۱ غیبت در ۷ روز")).toBeInTheDocument();
+    expect(screen.getByText("حسن رضایی").closest("li")?.className).not.toContain("border-amber");
   });
 });

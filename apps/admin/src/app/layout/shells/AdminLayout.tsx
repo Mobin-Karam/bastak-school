@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
-import { Outlet, useNavigate } from "react-router-dom";
+import { Outlet, useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "../../../features/identity/auth";
 import { AdminCommandPalette } from "../command-palette/AdminCommandPalette";
 import { adminContentOffsetClass } from "../lib/layout-geometry";
@@ -13,6 +13,7 @@ import { useAdminShellModel } from "../hooks/use-admin-shell-model";
 import { useViewportShell } from "../lib/viewport-shell";
 import { currentViewportHeight } from "../lib/viewport-height";
 import { StudentPortalOnboarding } from "../../../features/people/student-portal/components/StudentPortalOnboarding";
+import { PrincipalScheduleSubstitutionInbox } from "../../../features/academics/schedule/components/PrincipalScheduleSubstitutionInbox";
 
 const StudentAttendancePoolPrompt = lazy(() =>
   import("../../../features/student-life/attendance/components/StudentAttendanceWorkspace").then(
@@ -33,9 +34,18 @@ export function AdminLayout() {
   const model = useAdminShellModel();
   const shell = useViewportShell();
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
+  const [searchParams, setSearchParams] = useSearchParams();
 
   const openCommandPalette = useCallback(() => setCommandPaletteOpen(true), []);
   const closeCommandPalette = useCallback(() => setCommandPaletteOpen(false), []);
+
+  useEffect(() => {
+    if (searchParams.get("command") !== "search") return;
+    setCommandPaletteOpen(true);
+    const next = new URLSearchParams(searchParams);
+    next.delete("command");
+    setSearchParams(next, { replace: true });
+  }, [searchParams]);
 
   useEffect(() => {
     document.documentElement.dataset.adminMotion =
@@ -95,6 +105,7 @@ export function AdminLayout() {
     >
       <StudentPortalOnboarding />
       <PrincipalLeaveRequestAlert />
+      <PrincipalScheduleSubstitutionInbox />
       {model.auth.can("attendance.self.read") ? (
         <Suspense fallback={null}>
           <StudentAttendancePoolPrompt />

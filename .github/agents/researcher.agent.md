@@ -20,3 +20,7 @@ For the requested topic, locate:
 - important data/control flow.
 
 Separate verified facts from inference. Reference concrete file paths. Mark unavailable facts as `UNKNOWN`.
+
+## Release-aware research
+
+For release/deployment questions, trace the evidence chain in `docs/operations/ci-cd-pipeline.md` and report each boundary independently: branch/PR, exact-SHA CI, artifact, source dispatch, private receiver, receipt/backup, HTTPS readiness, and authorized production smoke. Verify private repository and host state only through available evidence; otherwise mark it `UNKNOWN`, never infer deployment success from source workflows.

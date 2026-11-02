@@ -109,16 +109,18 @@ describe("AnnouncementInboxPage", () => {
 describe("AnnouncementManagementPage", () => {
   afterEach(cleanup);
 
-  it("keeps announcement management disabled for future use", () => {
+  it("renders the announcement composer for an authorized manager", () => {
     render(
-      <MemoryRouter>
-        <AnnouncementManagementPage />
-      </MemoryRouter>,
+      <QueryClientProvider client={new QueryClient()}>
+        <LocaleProvider>
+          <MemoryRouter>
+            <AnnouncementManagementPage />
+          </MemoryRouter>
+        </LocaleProvider>
+      </QueryClientProvider>,
     );
 
-    expect(
-      screen.getByRole("heading", { name: "مدیریت اطلاعیه‌ها فعلاً غیرفعال است" }),
-    ).toBeInTheDocument();
-    expect(screen.getByText("در آینده به این بخش برمی‌گردیم.")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "ساخت و انتشار اطلاعیه" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "انتشار اطلاعیه" })).toBeInTheDocument();
   });
 });

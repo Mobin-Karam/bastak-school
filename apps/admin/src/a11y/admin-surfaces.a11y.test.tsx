@@ -107,25 +107,20 @@ describe("Admin v2 accessibility smoke", () => {
       <LocaleProvider>
         <StudentList
           students={[{ id: "student-1", name: "دانش‌آموز نمونه", username: "student.demo" }]}
-          total={1}
           filteredTotal={1}
           page={1}
-          pageCount={1}
           pageSize={25}
-          setPage={vi.fn()}
-          setPageSize={vi.fn()}
-          selectedId="student-1"
           search=""
-          setSearch={vi.fn()}
           status="all"
-          counts={{ all: 1, active: 1, inactive: 0, archived: 0 }}
-          incomplete={0}
           profileFilter="all"
           sort="name"
           sortDirection="asc"
-          onSort={vi.fn()}
+          onSearchChange={vi.fn()}
+          onSortChange={vi.fn()}
           onStatusChange={vi.fn()}
-          onIncompleteToggle={vi.fn()}
+          onProfileFilterChange={vi.fn()}
+          onPageChange={vi.fn()}
+          onPageSizeChange={vi.fn()}
           onClearFilters={vi.fn()}
           onSelect={vi.fn()}
         />

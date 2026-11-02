@@ -16,6 +16,8 @@ export type DataTableColumn<TData> = {
   hideable?: boolean;
   /** Keep the primary field visible in mobile cards. */
   primary?: boolean;
+  /** Exclude lower-priority data from the compact mobile-card summary. */
+  mobileVisible?: boolean;
   filter?: { type: "text" } | { type: "select"; options: Array<{ value: string; label: string }> };
 };
 export type DataTableAction<TData> = {
@@ -56,6 +58,10 @@ export type DataTableProps<TData> = {
   preferenceKey?: string;
   /** Exports all filtered client rows, using visible columns. Server exports are feature-owned. */
   exportFilename?: string;
+  /** Opt into a bounded result area; ordinary tables grow with their current page. */
+  scrollRows?: boolean;
+  /** Layout classes for a feature-owned table viewport. */
+  className?: string;
 };
 export const defaultTableQuery: DataTableQuery = {
   search: "",

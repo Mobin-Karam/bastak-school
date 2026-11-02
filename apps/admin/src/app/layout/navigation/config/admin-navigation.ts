@@ -4,6 +4,7 @@ import {
   BookOpen,
   CalendarDays,
   ClipboardCheck,
+  Coins,
   CalendarClock,
   DoorOpen,
   LayoutDashboard,
@@ -59,6 +60,14 @@ export const educationNavigation = [
     capability: "classes.read",
   },
   {
+    path: "teachers",
+    title: "اساتید",
+    description: "فهرست اساتید فعال مدرسه و نقش‌های هم‌زمان آن‌ها",
+    icon: UserRoundCheck,
+    capability: "classes.manage",
+    allOf: ["classes.read"],
+  },
+  {
     path: "books",
     title: "قفسه کتاب‌ها",
     description: "کتاب‌های درسی، کلاس‌های مرتبط و دبیر مسئول",
@@ -86,18 +95,11 @@ export const educationNavigation = [
     capability: "attendance.self.read",
   },
   {
-    path: "leave-requests",
-    title: "درخواست‌های مرخصی",
-    description: "مدیریت درخواست‌های مرخصی دانش‌آموزان",
-    icon: ClipboardCheck,
-    capability: "leave.read",
-  },
-  {
-    path: "exit-permissions",
-    title: "خروج و بازگشت",
-    description: "مجوزهای خروج، ثبت حرکت دروازه و آمار حاضرین مدرسه",
+    path: "student-movements",
+    title: "تردد و مرخصی دانش‌آموز",
+    description: "یک صف عملیاتی برای مرخصی، خروج، بازگشت و پیگیری تأخیر",
     icon: DoorOpen,
-    capability: "exit.read",
+    capability: "leave.read",
   },
 ] as const;
 
@@ -164,6 +166,13 @@ export const adminNavigation = [
         description: "اتاق‌ها، تخصیص طلبه‌ها و حضور شبانه",
         icon: Building2,
         capability: "dormitory.read",
+      },
+      {
+        path: "rewards",
+        title: "سکه‌ها",
+        description: "تراکنش‌ها و موجودی سکه‌های مدرسه",
+        icon: Coins,
+        capability: "rewards.read",
       },
       {
         path: "permission-requests",
@@ -330,6 +339,13 @@ const studentNavigation: readonly NavigationGroup[] = [
     section: "پیشرفت و سکه",
     items: [
       {
+        path: "my-rewards",
+        title: "سکه‌های من",
+        description: "موجودی و تاریخچهٔ سکه‌های مدرسه",
+        icon: Coins,
+        capability: "rewards.self.read",
+      },
+      {
         path: "achievements",
         title: "دستاوردهای من",
         description: "نشان‌ها و مسیر پیشرفت شما؛ به‌زودی",
@@ -353,6 +369,17 @@ const studentNavigation: readonly NavigationGroup[] = [
         description: "خلاصه حضور و ثبت حضور اتاق‌های واگذار شده",
         icon: ClipboardCheck,
         capability: "attendance.self.read",
+      },
+    ],
+  },
+  {
+    section: "اعلان‌ها",
+    items: [
+      {
+        path: "communication/notifications",
+        title: "اعلان‌ها",
+        description: "پیام‌ها و یادآوری‌های شخصی مدرسه",
+        icon: Bell,
       },
     ],
   },
@@ -384,26 +411,13 @@ const teacherNavigation: readonly NavigationGroup[] = [
     ],
   },
   {
-    section: "کلاس‌های من",
+    section: "اعلان‌ها",
     items: [
       {
-        path: "classes",
-        title: "کلاس‌ها و کتاب‌های من",
-        description: "کلاس‌ها، کتاب‌ها و فهرست دانش‌آموزان واگذارشده به شما",
-        icon: School,
-        capability: "classes.read",
-      },
-    ],
-  },
-  {
-    section: "حضور و غیاب",
-    items: [
-      {
-        path: "attendance",
-        title: "حضور و غیاب کلاس",
-        description: "ثبت و پیگیری حضور کلاس‌های واگذارشده به شما",
-        icon: ClipboardCheck,
-        capability: "attendance.read",
+        path: "communication/notifications",
+        title: "اعلان‌ها",
+        description: "پیام‌ها، پیگیری‌ها و اطلاع‌رسانی‌های مدرسه",
+        icon: Bell,
       },
     ],
   },
@@ -442,12 +456,60 @@ const teacherNavigation: readonly NavigationGroup[] = [
   },
 ] as const;
 
+const supervisorAttendanceNavigation: readonly NavigationGroup[] = [
+  {
+    section: "دفتر حضور ناظر",
+    items: [
+      {
+        path: "attendance/classes",
+        title: "حضور کلاس‌ها",
+        description: "جلسه‌های کلاس و پیگیری ثبت حضور",
+        icon: ClipboardCheck,
+        capability: "attendance.read",
+      },
+      {
+        path: "attendance/class-groups",
+        title: "حضور گروه‌های کلاس",
+        description: "جلسه‌ها و سابقه حضور گروه‌ها",
+        icon: UsersRound,
+        capability: "attendance.read",
+      },
+      {
+        path: "attendance/dorm",
+        title: "حضور اتاق‌های خوابگاه",
+        description: "جلسه‌ها و بررسی حضور خوابگاه",
+        icon: Building2,
+        capability: "attendance.read",
+      },
+      {
+        path: "attendance/archive",
+        title: "آرشیو حضور",
+        description: "همه جلسه‌های ثبت‌شده و تاریخچه آن‌ها",
+        icon: CalendarDays,
+        capability: "attendance.read",
+      },
+    ],
+  },
+];
+
 export function navigationForCapabilities(capabilities: readonly string[], role?: string | null) {
   if (role === "STUDENT") {
     return visibleNavigation(studentNavigation, capabilities);
   }
   if (role === "TEACHER") {
     return visibleNavigation([...teacherNavigation, ...registrationNavigation], capabilities);
+  }
+  if (role === "SCHOOL_SUPERVISOR") {
+    return visibleNavigation(
+      [
+        ...adminNavigation.map((group) => ({
+          ...group,
+          items: group.items.filter((item) => item.path !== "attendance"),
+        })),
+        ...supervisorAttendanceNavigation,
+      ],
+      capabilities,
+    );
   }
   const titles = role ? roleTitles[role] : undefined;
   return (adminNavigation as readonly NavigationGroup[])

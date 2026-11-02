@@ -54,7 +54,9 @@ import {
   getStudentProfileCompleteness,
   getStudentStatus,
   getStudentUsername,
+  matchesStudentClass,
   parseStudentPageNumber,
+  studentClassOptions,
   type StudentDetailTab,
   type StudentProfileFilter,
   type StudentSort,
@@ -154,6 +156,7 @@ export function StudentsPage() {
   const [profileFilter, setProfileFilter] = useState<StudentProfileFilter>(() =>
     searchParams.get("profile") === "incomplete" ? "incomplete" : "all",
   );
+  const [classId, setClassId] = useState(() => searchParams.get("classId") || "");
   const [sort, setSortState] = useState<StudentSort>(() => {
     const value = searchParams.get("sort") as StudentSort | null;
     return value && sortValues.includes(value) ? value : "name";
@@ -182,7 +185,6 @@ export function StudentsPage() {
   const [bulkPassword, setBulkPassword] = useState("");
   const [bulkScope, setBulkScope] = useState<"selected" | "filtered">("filtered");
   const [feedback, setFeedback] = useState<StudentEditorFeedback>(null);
-  const [createDiscardOpen, setCreateDiscardOpen] = useState(false);
   const deferredSearch = useDeferredValue(search);
   const { students } = studentStore;
   const qc = useQueryClient();
@@ -228,19 +230,7 @@ export function StudentsPage() {
       ? copy.phoneNumberInvalid
       : undefined;
 
-  const counts = useMemo(
-    () => ({
-      all: students.length,
-      active: students.filter((student) => getStudentStatus(student) === "active").length,
-      inactive: students.filter((student) => getStudentStatus(student) === "inactive").length,
-      archived: students.filter((student) => getStudentStatus(student) === "archived").length,
-    }),
-    [students],
-  );
-  const incompleteCount = useMemo(
-    () => students.filter((student) => getStudentProfileCompleteness(student) < 100).length,
-    [students],
-  );
+  const classOptions = useMemo(() => studentClassOptions(students), [students]);
 
   const filtered = useMemo(() => {
     const needle = normalizePersianText(deferredSearch).trim();
@@ -257,6 +247,7 @@ export function StudentsPage() {
       )
       .filter((student) => status === "all" || getStudentStatus(student) === status)
       .filter((student) => profileFilter === "all" || getStudentProfileCompleteness(student) < 100)
+      .filter((student) => matchesStudentClass(student, classId))
       .slice()
       .sort((a, b) => {
         if (sort === "lastSeen")
@@ -282,7 +273,7 @@ export function StudentsPage() {
           }) * direction
         );
       });
-  }, [deferredSearch, language, profileFilter, sort, sortDirection, status, students]);
+  }, [classId, deferredSearch, language, profileFilter, sort, sortDirection, status, students]);
 
   const pageCount = Math.max(1, Math.ceil(filtered.length / pageSize));
   const activePage = Math.min(page, pageCount);
@@ -346,7 +337,6 @@ export function StudentsPage() {
 
   function startCreate() {
     const run = () => {
-      setCreateDiscardOpen(false);
       setCreating(true);
       setEditing(false);
       setDetailOpen(false);
@@ -384,27 +374,11 @@ export function StudentsPage() {
   }
 
   function discardCreate() {
-    const previous = students.find((student) => student.id === studentStore.studentId) ?? null;
-    setCreateDiscardOpen(false);
-    setCreating(false);
-    setEditing(false);
-    setDetailOpen(false);
-    setMobileDirectory(true);
-    setFeedback(null);
-    if (previous) {
-      setSelectedId(previous.id);
-      setForm(studentToForm(previous));
-      updateStudentContext(previous.id);
-    } else {
-      setSelectedId("");
-      setForm(emptyStudentForm());
-      updateStudentContext("");
-    }
+    finishCreate();
   }
 
   function cancelCreate() {
-    if (!dirty) return discardCreate();
-    setCreateDiscardOpen(true);
+    discardCreate();
   }
 
   function startEdit() {
@@ -453,7 +427,6 @@ export function StudentsPage() {
   }
 
   function finishCreate() {
-    setCreateDiscardOpen(false);
     setCreating(false);
     setEditing(false);
     setDetailOpen(false);
@@ -568,20 +541,24 @@ export function StudentsPage() {
   });
 
   const remove = useMutation({
-    mutationFn: () => archiveStudent(selectedId),
-    onSuccess: () => {
-      patchCachedStudent(selectedId, {
+    mutationFn: (studentId: string) => archiveStudent(studentId),
+
+    onSuccess: (_, studentId) => {
+      patchCachedStudent(studentId, {
         accountStatus: "archived",
         account_status: "archived",
         active: false,
         account_active: false,
       });
+
       setFeedback({
         tone: "success",
         message: copy.studentArchived,
       });
+
       void qc.invalidateQueries({ queryKey: ["students"] });
     },
+
     onError: (error) =>
       setFeedback({
         tone: "error",
@@ -589,24 +566,31 @@ export function StudentsPage() {
       }),
   });
 
+  type LifecycleAction = "activate" | "deactivate" | "restore" | "force-logout";
+
   const lifecycle = useMutation({
-    mutationFn: (action: "activate" | "deactivate" | "restore" | "force-logout") =>
-      studentLifecycle(selectedId, action),
-    onSuccess: (_, action) => {
-      if (action === "activate" || action === "restore")
-        patchCachedStudent(selectedId, {
+    mutationFn: ({ studentId, action }: { studentId: string; action: LifecycleAction }) =>
+      studentLifecycle(studentId, action),
+
+    onSuccess: (_, { studentId, action }) => {
+      if (action === "activate" || action === "restore") {
+        patchCachedStudent(studentId, {
           accountStatus: "active",
           account_status: "active",
           active: true,
           account_active: true,
         });
-      if (action === "deactivate")
-        patchCachedStudent(selectedId, {
+      }
+
+      if (action === "deactivate") {
+        patchCachedStudent(studentId, {
           accountStatus: "inactive",
           account_status: "inactive",
           active: false,
           account_active: false,
         });
+      }
+
       const message =
         action === "force-logout"
           ? copy.sessionsEnded
@@ -615,9 +599,17 @@ export function StudentsPage() {
             : action === "restore"
               ? copy.studentRestored
               : copy.studentActivated;
-      setFeedback({ tone: "success", message });
-      void qc.invalidateQueries({ queryKey: ["students"] });
+
+      setFeedback({
+        tone: "success",
+        message,
+      });
+
+      void qc.invalidateQueries({
+        queryKey: ["students"],
+      });
     },
+
     onError: (error) =>
       setFeedback({
         tone: "error",
@@ -626,14 +618,19 @@ export function StudentsPage() {
   });
 
   const resetPassword = useMutation({
-    mutationFn: () => resetStudentPassword(selectedId, securityPassword),
+    mutationFn: ({ studentId, password }: { studentId: string; password: string }) => {
+      return resetStudentPassword(studentId, password);
+    },
+
     onSuccess: () => {
       setSecurityPassword("");
+
       setFeedback({
         tone: "success",
         message: copy.passwordChanged,
       });
     },
+
     onError: (error) =>
       setFeedback({
         tone: "error",
@@ -766,7 +763,7 @@ export function StudentsPage() {
 
   useEffect(() => {
     setPage(1);
-  }, [profileFilter, deferredSearch, sort, sortDirection, status, pageSize]);
+  }, [classId, profileFilter, deferredSearch, sort, sortDirection, status, pageSize]);
   useEffect(() => {
     if (!visibleDetailTabs.includes(detailTab)) setDetailTab("overview");
   }, [detailTab, visibleDetailTabs]);
@@ -794,6 +791,7 @@ export function StudentsPage() {
         setOrDelete("q", search);
         setOrDelete("status", status, "all");
         setOrDelete("profile", profileFilter, "all");
+        setOrDelete("classId", classId);
         setOrDelete("sort", sort, "name");
         setOrDelete(
           "direction",
@@ -809,6 +807,7 @@ export function StudentsPage() {
     );
   }, [
     detailTab,
+    classId,
     page,
     pageSize,
     profileFilter,
@@ -824,20 +823,17 @@ export function StudentsPage() {
     setForm((current) => ({ ...current, [key]: value }));
   }
 
-  function setSort(value: StudentSort) {
+  function setDirectorySort(value: StudentSort, direction: StudentSortDirection) {
     setPage(1);
-    if (value === sort) {
-      setSortDirection((current) => (current === "asc" ? "desc" : "asc"));
-      return;
-    }
     setSortState(value);
-    setSortDirection(value === "lastSeen" || value === "completeness" ? "desc" : "asc");
+    setSortDirection(direction);
   }
 
   function clearFilters() {
     setSearch("");
     setStatus("all");
     setProfileFilter("all");
+    setClassId("");
     setPage(1);
   }
 
@@ -848,13 +844,16 @@ export function StudentsPage() {
 
   function setDirectoryStatus(next: StudentStatusFilter) {
     setStatus(next);
-    setProfileFilter("all");
     setPage(1);
   }
 
-  function toggleDirectoryIncomplete() {
-    setProfileFilter((current) => (current === "incomplete" ? "all" : "incomplete"));
-    if (profileFilter !== "incomplete") setStatus("all");
+  function setDirectoryClass(next: string) {
+    setClassId(next);
+    setPage(1);
+  }
+
+  function setDirectoryProfile(next: StudentProfileFilter) {
+    setProfileFilter(next);
     setPage(1);
   }
 
@@ -863,13 +862,14 @@ export function StudentsPage() {
     setPage(1);
   }
 
-  function confirmLifecycle(action: "activate" | "deactivate" | "restore" | "force-logout") {
+  function confirmLifecycle(action: LifecycleAction) {
     const lifecycleCopy = {
       activate: [copy.activateTitle, copy.activateDescription, copy.activateAccount],
       deactivate: [copy.deactivateTitle, copy.deactivateDescription, copy.deactivateAccount],
       restore: [copy.restoreTitle, copy.restoreDescription, copy.restoreAccount],
       "force-logout": [copy.forceLogoutTitle, copy.forceLogoutDescription, copy.forceLogout],
     }[action];
+
     void modal
       .confirm({
         title: lifecycleCopy[0],
@@ -878,7 +878,14 @@ export function StudentsPage() {
         confirmationText: action === "restore" ? copy.restoreAccount : undefined,
         tone: action === "deactivate" || action === "force-logout" ? "danger" : "default",
       })
-      .then((ok) => ok && lifecycle.mutate(action));
+      .then((ok) => {
+        if (ok) {
+          lifecycle.mutate({
+            studentId: selectedId,
+            action,
+          });
+        }
+      });
   }
 
   const retryActivity = () =>
@@ -1001,17 +1008,28 @@ export function StudentsPage() {
                   confirmLabel: copy.archiveConfirmation,
                   confirmationText: copy.archiveConfirmation,
                 })
-                .then((ok) => ok && remove.mutate())
+                .then((ok) => {
+                  if (ok) {
+                    remove.mutate(selectedId);
+                  }
+                })
             }
-            onPassword={() =>
+            onPassword={() => {
               void modal
                 .confirm({
                   title: copy.changeStudentPasswordTitle,
                   description: copy.changeStudentPasswordDescription,
                   confirmLabel: copy.changePassword,
                 })
-                .then((ok) => ok && resetPassword.mutate())
-            }
+                .then((ok) => {
+                  if (ok) {
+                    resetPassword.mutate({
+                      studentId: selectedId,
+                      password: securityPassword,
+                    });
+                  }
+                });
+            }}
             onLifecycle={confirmLifecycle}
             canArchive={auth.can("students.archive")}
             busy={{
@@ -1033,25 +1051,23 @@ export function StudentsPage() {
         directory={
           <StudentList
             students={pagedStudents}
-            total={students.length}
             filteredTotal={filtered.length}
             page={activePage}
-            pageCount={pageCount}
             pageSize={pageSize}
-            setPage={setPage}
-            setPageSize={setDirectoryPageSize}
-            selectedId={selectedId}
             search={search}
-            setSearch={setDirectorySearch}
             status={status}
-            counts={counts}
-            incomplete={incompleteCount}
+            classId={classId}
+            classOptions={classOptions}
             profileFilter={profileFilter}
             sort={sort}
             sortDirection={sortDirection}
-            onSort={setSort}
+            onSearchChange={setDirectorySearch}
+            onSortChange={setDirectorySort}
             onStatusChange={setDirectoryStatus}
-            onIncompleteToggle={toggleDirectoryIncomplete}
+            onClassChange={setDirectoryClass}
+            onProfileFilterChange={setDirectoryProfile}
+            onPageChange={setPage}
+            onPageSizeChange={setDirectoryPageSize}
             onClearFilters={clearFilters}
             onSelect={requestSelection}
             directoryActions={
@@ -1101,7 +1117,6 @@ export function StudentsPage() {
             loading={studentStore.isLoading}
             error={studentStore.isError}
             onRetry={() => void studentStore.refetch()}
-            creating={creating}
           />
         }
         detail={
@@ -1111,9 +1126,10 @@ export function StudentsPage() {
               onOpenChange={(open) => !open && cancelCreate()}
               title={copy.createStudent}
               description={copy.createDescription}
-              className="border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card))] text-[rgb(var(--color-ink))]"
+              defaultDesktopExpanded
+              className="max-w-full border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card))] text-[rgb(var(--color-ink))]"
             >
-              <section className="overflow-hidden">
+              <section className="flex min-h-0 flex-1 flex-col overflow-hidden">
                 <div className="border-b border-border p-3 min-[1200px]:hidden">
                   <button
                     type="button"
@@ -1124,7 +1140,7 @@ export function StudentsPage() {
                     {copy.backToDirectory}
                   </button>
                 </div>
-                <div className="min-h-0 p-3 sm:p-4 min-[1200px]:flex-1 min-[1200px]:overflow-y-auto min-[1200px]:overscroll-contain">
+                <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-3 pb-[calc(1rem+env(safe-area-inset-bottom))] sm:p-4 sm:pb-[calc(1rem+env(safe-area-inset-bottom))] min-[1200px]:p-6">
                   <FeedbackBanner
                     feedback={feedback}
                     onDismiss={() => setFeedback(null)}
@@ -1149,23 +1165,6 @@ export function StudentsPage() {
                   </div>
                 </div>
               </section>
-              <ResponsiveDrawer
-                nested
-                open={createDiscardOpen}
-                onOpenChange={setCreateDiscardOpen}
-                title={copy.cancelCreateTitle}
-                description={copy.cancelCreateDescription}
-                className="max-h-[min(26rem,72dvh)]"
-              >
-                <div className="grid gap-3 pt-2 sm:grid-cols-2">
-                  <Button variant="soft" onClick={() => setCreateDiscardOpen(false)}>
-                    {language === "fa" ? "ادامه ویرایش" : "Continue editing"}
-                  </Button>
-                  <Button variant="danger" onClick={discardCreate}>
-                    {copy.cancelCreation}
-                  </Button>
-                </div>
-              </ResponsiveDrawer>
             </ResponsiveDrawer>
             {selected ? (
               <ResponsiveDrawer

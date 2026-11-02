@@ -7,11 +7,19 @@ export type AttendanceParticipant = {
   studentNumber: string;
   userId?: string | null;
   status: AttendanceStatus;
+  approvedLeave?: { startsAt: string; endsAt: string } | null;
+  overdueReturn?: boolean;
 };
 
 export type AttendanceFilter = "all" | AttendanceStatus;
 
-export const attendanceStatuses: MarkedAttendanceStatus[] = ["present", "absent", "late"];
+/** Keep the four statuses together so every roster renders the same choices. */
+export const attendanceStatuses: MarkedAttendanceStatus[] = [
+  "present",
+  "absent",
+  "late",
+  "excused",
+];
 
 export const attendanceStatusMeta: Record<
   MarkedAttendanceStatus,

@@ -9,6 +9,7 @@ import {
 } from "@nestjs/common";
 import { RequireCapabilities } from "../../common/decorators/capabilities.decorator";
 import { CurrentUser } from "../../common/decorators/current-user.decorator";
+import { ApiException } from "../../common/exceptions/api.exception";
 import { ok } from "../../common/utils/envelope";
 import { AuthenticatedUser } from "../auth";
 import { WorkflowsService } from "./workflows.service";
@@ -81,6 +82,44 @@ export class WorkflowsController {
     return ok(await this.service.listExitPermissions(user, organizationId));
   }
 
+  @Get("student-movements")
+  @RequireCapabilities("leave.read")
+  async studentMovements(
+    @CurrentUser() user: AuthenticatedUser,
+    @Query("organizationId") organizationId?: string,
+    @Query("state")
+    state?:
+      | "review"
+      | "awaiting_departure"
+      | "outside"
+      | "overdue"
+      | "archive"
+      | "all",
+  ) {
+    return ok(
+      await this.service.studentMovements(user, { organizationId, state }),
+    );
+  }
+
+  @Get("student-movements/:kind/:id/history")
+  @RequireCapabilities("leave.read")
+  movementHistory(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param("kind") kind: "leave" | "exit",
+    @Param("id") id: string,
+    @Query("organizationId") organizationId?: string,
+  ) {
+    if (kind !== "leave" && kind !== "exit")
+      throw new ApiException(
+        422,
+        "STUDENT_MOVEMENT_KIND_INVALID",
+        "نوع تردد معتبر نیست.",
+      );
+    return this.service
+      .movementHistory(user, kind, id, organizationId)
+      .then(ok);
+  }
+
   @Patch("exit-permissions/:id")
   @RequireCapabilities("exit.manage")
   async reviewExitPermission(
@@ -89,6 +128,19 @@ export class WorkflowsController {
     @Body() body: { status: string; note?: string },
   ) {
     return ok(await this.service.reviewExitPermission(user, id, body as any));
+  }
+
+  /** Principal confirms that a reviewed dorm absence means the student is physically outside school. */
+  @Post("attendance/absence-reviews/:id/outside-school")
+  @RequireCapabilities("exit.manage")
+  markDormAbsenceOutsideSchool(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param("id") id: string,
+    @Body() body: { note?: string },
+  ) {
+    return this.service
+      .markDormAbsenceOutsideSchool(user, id, body?.note)
+      .then(ok);
   }
 
   @Post("student/exit-permissions/:id/return-request")
@@ -106,7 +158,14 @@ export class WorkflowsController {
   @RequireCapabilities("exit.manage")
   gateDeparture(
     @CurrentUser() user: AuthenticatedUser,
-    @Body() body: { organizationId: string; phoneNumber: string; destination?: string; reason?: string; expectedReturnAt?: string },
+    @Body()
+    body: {
+      organizationId: string;
+      phoneNumber: string;
+      destination?: string;
+      reason?: string;
+      expectedReturnAt?: string;
+    },
   ) {
     return this.service.recordGateDeparture(user, body).then(ok);
   }
@@ -116,7 +175,8 @@ export class WorkflowsController {
   @RequireCapabilities("exit.manage")
   gateReturn(
     @CurrentUser() user: AuthenticatedUser,
-    @Body() body: { organizationId: string; phoneNumber: string; note?: string },
+    @Body()
+    body: { organizationId: string; phoneNumber: string; note?: string },
   ) {
     return this.service.recordGateReturn(user, body).then(ok);
   }
@@ -131,6 +191,27 @@ export class WorkflowsController {
   @RequireCapabilities("exit.manage")
   return(@CurrentUser() user: AuthenticatedUser, @Param("id") id: string) {
     return this.service.recordExitMovement(user, id, "return").then(ok);
+  }
+
+  @Post("student-movements/:id/resolve-overdue")
+  @RequireCapabilities("student.movement.resolve")
+  resolveOverdue(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param("id") id: string,
+    @Body()
+    body: { outcome: "returned" | "outside_school" | "breach"; note?: string },
+  ) {
+    return this.service.resolveOverdueMovement(user, id, body).then(ok);
+  }
+
+  @Post("student-movements/:id/confirm-in-school")
+  @RequireCapabilities("student.movement.resolve")
+  confirmStudentInSchool(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param("id") id: string,
+    @Body() body: { note?: string },
+  ) {
+    return this.service.confirmStudentInSchool(user, id, body?.note).then(ok);
   }
 
   @Get("attendance/occupancy")

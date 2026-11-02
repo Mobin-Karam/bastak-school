@@ -21,3 +21,7 @@ For Moshaver, verify API capability checks, organization isolation, `/me/context
 - CI/cloud permissions
 
 Report realistic exploit path, impact, evidence, and remediation. Do not report theoretical categories that the code does not expose.
+
+## Deployment trust boundary
+
+For deployment surfaces, audit `docs/operations/immutable-lan-runbook.md`: protected environments, exact SHA/run/artifact verification, private runner isolation, least-privilege separate tokens, host-owned secrets/TLS, immutable images, and safe backup/recovery. A source dispatch is not trusted deployment proof. Flag privileged PR execution, mutable tags/host rebuilds, secrets in source/logs, and any bypass of migration rehearsal or recovery controls.

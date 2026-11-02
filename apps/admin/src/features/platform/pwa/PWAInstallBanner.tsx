@@ -25,12 +25,12 @@ export function PWAInstallBanner({
           src="/app-logo.png"
           width={44}
           height={44}
-          alt="نشان زانین"
+          alt="نشان مدرسه سلطان العماء بستک"
           decoding="async"
           className="size-11 shrink-0 object-contain"
         />
         <div className="min-w-0 flex-1">
-          <p className="text-sm font-bold">زانین را نصب کنید</p>
+          <p className="text-sm font-bold">مدرسه سلطان العماء بستک را نصب کنید</p>
           <p className="mt-0.5 truncate text-xs text-muted-foreground">
             دسترسی سریع‌تر و تجربه بهتر روی موبایل
           </p>

@@ -23,17 +23,19 @@ export function TabletShell({
         direction={model.direction}
       />
       <div className={`shrink-0 ${model.mainCollapsed ? "md:ms-[4.5rem]" : "md:ms-64"}`}>
-        <AdminHeader
-          current={model.current}
-          breadcrumbs={model.breadcrumbs}
-          selectedStudentId={model.selectedStudentId}
-          sticky={false}
-          role={model.role}
-          organization={model.organization}
-          multipleRoles={model.multipleRoles}
-          showStudent={model.showStudent}
-          performance={model.performance}
-        />
+        {!model.usesScheduleTabHeader ? (
+          <AdminHeader
+            current={model.current}
+            breadcrumbs={model.breadcrumbs}
+            selectedStudentId={model.selectedStudentId}
+            sticky={false}
+            role={model.role}
+            organization={model.organization}
+            multipleRoles={model.multipleRoles}
+            showStudent={model.showStudent}
+            performance={model.performance}
+          />
+        ) : null}
       </div>
     </>
   );

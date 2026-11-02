@@ -19,6 +19,9 @@ export type ExitPermission = {
   returnVerifiedById: string | null;
   returnVerifiedAt: string | null;
   note: string;
+  origin?: "student_request" | "dorm_authorized" | "dorm_unauthorized" | null;
+  leaveRequestId?: string | null;
+  resolution?: "outside_school" | "breach" | null;
   status: ExitPermissionStatus;
   approverId: string | null;
   reviewedAt: string | null;

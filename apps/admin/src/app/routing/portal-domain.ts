@@ -11,6 +11,7 @@ const STUDENT_ONLY_ROUTES = new Set([
   "achievements",
   "family",
   "my-attendance",
+  "my-rewards",
   "profile",
   "student-leave",
 ]);
@@ -18,6 +19,7 @@ const STUDENT_PORTAL_ROUTES = new Set([
   "",
   ...STUDENT_ONLY_ROUTES,
   "coin-shop",
+  "communication/notifications",
   "schedule",
   "books",
   "registration",

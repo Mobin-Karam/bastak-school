@@ -1,6 +1,8 @@
 export { AuditLog } from "./audit-log.entity";
 export { ChatMessage } from "./chat-message.entity";
 export { DailyReport } from "./daily-report.entity";
+export { TeacherStudentReport } from "./teacher-student-report.entity";
+export { AttendanceSessionStudentCoin } from "./attendance-session-student-coin.entity";
 export { ExamAttempt } from "./exam-attempt.entity";
 export { Exam } from "./exam.entity";
 export { Mistake } from "./mistake.entity";
@@ -13,8 +15,11 @@ export { Question } from "./question.entity";
 export { QuestionBankItem } from "./question-bank-item.entity";
 export { RecoveryRequest } from "./recovery-request.entity";
 export { Session } from "./session.entity";
+export { PasskeyCredential } from "./passkey-credential.entity";
+export { WebAuthnChallenge } from "./webauthn-challenge.entity";
 export { StudySession } from "./study-session.entity";
 export { Student } from "./student.entity";
+export { StudentRewardLedger } from "./student-reward-ledger.entity";
 export { SyncMutation } from "./sync-mutation.entity";
 export { Task } from "./task.entity";
 export { TaskComment } from "./task-comment.entity";
@@ -67,7 +72,17 @@ export { EducationClass } from "./education-class.entity";
 export { EducationClassBook } from "./education-class-book.entity";
 export { EducationClassEnrollment } from "./education-class-enrollment.entity";
 export { SchoolScheduleEntry } from "./school-schedule-entry.entity";
+export { ScheduleSetupReminder } from "./schedule-setup-reminder.entity";
+export {
+  SchoolAcademicYear,
+  SchoolAcademicTerm,
+} from "./school-academic-year.entity";
+export {
+  SchoolScheduleOccurrenceOverride,
+  SchoolScheduleSubstitutionRequest,
+} from "./school-schedule-substitution.entity";
 export { SchoolScheduleTimeBlock } from "./school-schedule-time-block.entity";
+export { SchoolScheduleTimeBlockGroup } from "./school-schedule-time-block-group.entity";
 export { SchoolScheduleTemplate } from "./school-schedule-template.entity";
 export { SchoolPrayerTime } from "./school-prayer-time.entity";
 export { SchoolAnnouncement } from "./school-announcement.entity";
@@ -79,6 +94,7 @@ export { DormRoom } from "./dorm-room.entity";
 export { DormRoomAssignment } from "./dorm-room-assignment.entity";
 export { PermissionRequest } from "./permission-request.entity";
 export { AttendanceSession } from "./attendance-session.entity";
+export { AttendanceSupervisorCheck } from "./attendance-supervisor-check.entity";
 export { AttendanceSessionReview } from "./attendance-session-review.entity";
 export { AttendanceRecord, AttendanceStatus } from "./attendance-record.entity";
 export { AttendanceCorrection } from "./attendance-correction.entity";
@@ -89,6 +105,7 @@ export {
   LeaveRequestType,
 } from "./leave-request.entity";
 export { ExitPermission, ExitPermissionStatus } from "./exit-permission.entity";
+export { StudentMovementEvent } from "./student-movement-event.entity";
 export { RequestLetter, RequestLetterStatus } from "./request-letter.entity";
 
 export { StudentProfile } from "./student-profile.entity";
@@ -111,11 +128,15 @@ export {
 export { SmsProviderConfiguration } from "./sms-provider-configuration.entity";
 
 export { AttendancePolicy } from "./attendance-policy.entity";
-export { StudentPointLedger } from "./student-point-ledger.entity";
 export { AttendanceSchedule } from "./attendance-schedule.entity";
 export { DormAttendanceDelegate } from "./dorm-attendance-delegate.entity";
+export {
+  DormRoomAttendanceDelegate,
+  DormWideAttendanceDelegate,
+} from "./dorm-attendance-assignment.entity";
 export { AttendancePool } from "./attendance-pool.entity";
 
 export * from "./timetable.entity";
 
 export * from "./academic-structure.entity";
+export { TeacherLeaveRequest } from "./teacher-leave-request.entity";

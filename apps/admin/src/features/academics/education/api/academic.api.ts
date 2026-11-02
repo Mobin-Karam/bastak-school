@@ -27,6 +27,7 @@ export type AcademicTeacher = {
   lastName: string;
   username: string;
   membershipId?: string;
+  roles: string[];
 };
 export type TeachingAssignmentDraft = Pick<
   AcademicTeachingAssignment,

@@ -4,7 +4,7 @@ import { Button } from "../../../../shared/ui/ui";
 import { notify } from "../../../../shared/ui/notifications";
 import { notificationRequestErrorMessage } from "../lib/api-error";
 import { useAdminNotifications } from "../hooks/useAdminNotifications";
-import type { PushStatus } from "../model/notification-model";
+import type { NotificationAutoDeletePreferences, PushStatus } from "../model/notification-model";
 import type { NotificationContextValue } from "../model/notification.types";
 import { NotificationPreference } from "./NotificationPreference";
 import { notificationCopy } from "../model/notification-copy";
@@ -120,6 +120,22 @@ function NotificationSettingsContent({
     }
   }
 
+  async function saveAutoDelete(next: NotificationAutoDeletePreferences) {
+    if (!status || busy) return;
+    const previous = status;
+    setStatus({ ...status, autoDelete: next });
+    setBusy("auto-delete");
+    try {
+      await notifications.saveAutoDeletePreferences(next);
+      notifications.refresh();
+    } catch {
+      setStatus(previous);
+      notify(copy.savePreferenceFailed, "error");
+    } finally {
+      setBusy("");
+    }
+  }
+
   if (loading) {
     return (
       <div
@@ -225,6 +241,57 @@ function NotificationSettingsContent({
           {copy.testSound}
         </Button>
       </div>
+
+      <section className="grid gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3 dark:border-slate-700 dark:bg-slate-900/60">
+        <div>
+          <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">
+            {copy.autoDeleteTitle}
+          </h3>
+          <p className="mt-1 text-xs leading-5 text-slate-600 dark:text-slate-300">
+            {copy.autoDeleteDescription}
+          </p>
+        </div>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <label className="flex min-h-11 items-center gap-2 text-sm font-medium text-slate-800 dark:text-slate-100">
+            <input
+              type="checkbox"
+              role="switch"
+              checked={status?.autoDelete?.enabled ?? false}
+              disabled={!status || Boolean(busy)}
+              onChange={(event) =>
+                void saveAutoDelete({
+                  enabled: event.target.checked,
+                  afterHours: status?.autoDelete?.afterHours ?? 24,
+                })
+              }
+              aria-label={copy.autoDeleteEnabled}
+              className="size-4 accent-brand"
+            />
+            {copy.autoDeleteEnabled}
+          </label>
+          <label className="grid gap-1 text-sm font-medium text-slate-800 dark:text-slate-100">
+            <span>{copy.autoDeleteAfter}</span>
+            <select
+              value={status?.autoDelete?.afterHours ?? 24}
+              disabled={!status?.autoDelete?.enabled || Boolean(busy)}
+              onChange={(event) =>
+                void saveAutoDelete({
+                  enabled: true,
+                  afterHours: Number(
+                    event.target.value,
+                  ) as NotificationAutoDeletePreferences["afterHours"],
+                })
+              }
+              className="min-h-11 rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-900 outline-none focus-visible:ring-2 focus-visible:ring-brand disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-600 dark:bg-slate-950 dark:text-slate-100"
+            >
+              <option value={1}>{copy.afterOneHour}</option>
+              <option value={24}>{copy.after24Hours}</option>
+              <option value={48}>{copy.after48Hours}</option>
+              <option value={72}>{copy.after72Hours}</option>
+            </select>
+          </label>
+        </div>
+      </section>
 
       <div className="grid gap-2 sm:grid-cols-2">
         <NotificationPreference

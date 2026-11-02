@@ -2,6 +2,7 @@ import { api } from "../../../../shared/api/api";
 import {
   normalizeAdminNotification,
   type NotificationPage,
+  type NotificationAutoDeletePreferences,
   type PushPreferences,
   type PushStatus,
 } from "../model/notification-model";
@@ -24,6 +25,10 @@ export function markNotificationRead(id: string) {
 
 export function markAllNotificationsRead() {
   return api.put("/notifications/read-all", {});
+}
+
+export function removeNotifications(ids?: string[]) {
+  return api.delete<{ removed: number }>("/notifications", ids?.length ? { ids } : {});
 }
 
 export function getAdvisorInbox(studentId: string) {
@@ -67,8 +72,17 @@ export function deletePushSubscription(endpoint: string) {
   return api.delete(`/push/subscriptions?endpoint=${encodeURIComponent(endpoint)}`);
 }
 
-export function updatePushPreferences(preferences: PushPreferences) {
+export function updatePushPreferences(preferences: PushPreferences & { enabled?: boolean }) {
   return api.put("/push/preferences", preferences);
+}
+
+export function updateNotificationAutoDeletePreferences(
+  preferences: NotificationAutoDeletePreferences,
+) {
+  return api.put("/push/preferences", {
+    autoDeleteEnabled: preferences.enabled,
+    autoDeleteAfterHours: preferences.afterHours,
+  });
 }
 
 export function sendTestPush() {

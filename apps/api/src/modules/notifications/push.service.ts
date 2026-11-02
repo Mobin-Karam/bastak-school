@@ -63,6 +63,10 @@ export class PushService {
         exams: categories.exams ?? true,
         announcements: categories.announcements ?? true,
       },
+      autoDelete: {
+        enabled: preference?.autoDeleteEnabled ?? false,
+        afterHours: preference?.autoDeleteAfterHours ?? 24,
+      },
       devices: subscriptions.map((row) => ({
         id: row.id,
         userAgent: row.userAgent || "مرورگر ناشناس",
@@ -116,6 +120,8 @@ export class PushService {
     input: {
       enabled?: boolean;
       categories?: Record<string, boolean>;
+      autoDeleteEnabled?: boolean;
+      autoDeleteAfterHours?: number;
       [key: string]: unknown;
     },
   ) {
@@ -125,6 +131,18 @@ export class PushService {
     });
     row ||= this.preferences.create({ user, enabled: true, categories: {} });
     if (input.enabled !== undefined) row.enabled = input.enabled;
+    if (input.autoDeleteEnabled !== undefined)
+      row.autoDeleteEnabled = input.autoDeleteEnabled;
+    if (input.autoDeleteAfterHours !== undefined) {
+      if (![1, 24, 48, 72].includes(input.autoDeleteAfterHours)) {
+        throw new ApiException(
+          400,
+          "INVALID_NOTIFICATION_RETENTION",
+          "مدت نگهداری اعلان معتبر نیست.",
+        );
+      }
+      row.autoDeleteAfterHours = input.autoDeleteAfterHours;
+    }
     const flat = Object.fromEntries(
       ["lessons", "messages", "exams", "announcements"]
         .filter((k) => typeof input[k] === "boolean")

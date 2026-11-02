@@ -50,6 +50,9 @@ export function useAdminShellModel() {
     )?.items || [];
   const showContextRail = contextual.length > 1;
   const selectedStudentId = readSelectedStudentId(location.search);
+  const usesScheduleTabHeader =
+    sourceCurrent.path === "schedule" &&
+    !["TEACHER", "STUDENT", "GUARDIAN"].includes(auth.activeRole ?? "");
 
   useEffect(() => {
     if (shouldAutoCollapseMainRail(wasContextRailVisible.current, showContextRail)) {
@@ -79,6 +82,7 @@ export function useAdminShellModel() {
     showContextRail,
     showStudent: sourceCurrent.section === "آموزش",
     sourceCurrent,
+    usesScheduleTabHeader,
   };
 }
 

@@ -21,6 +21,172 @@ const principal = {
 };
 
 describe("PrincipalDashboardService", () => {
+  it("returns the requested Saturday-first six-week range for a dashboard calendar", async () => {
+    const query = jest.fn().mockResolvedValue([]);
+    const service = new PrincipalDashboardService({ query } as never);
+
+    const calendar = await service.absenceCalendar(principal, "2026-11-01");
+
+    expect(calendar).toMatchObject({
+      month: "2026-11-01",
+      start: "2026-10-24",
+      end: "2026-12-04",
+      days: {},
+    });
+    expect(query).toHaveBeenCalledWith(expect.any(String), [
+      "school-a",
+      "2026-10-24",
+      "2026-12-04",
+    ]);
+  });
+
+  it("does not label future legacy-schedule lessons as missing and honors the term start", async () => {
+    const query = jest.fn(async (sql: string) => {
+      if (sql.includes("FROM school_schedule_entries e"))
+        return [
+          {
+            id: "entry-1",
+            weekday: 2,
+            title: "فقه",
+            startsOn: null,
+            endsOn: null,
+            termStartsOn: "2026-10-20",
+            termEndsOn: "2027-01-20",
+            academicYearStartsOn: "2026-09-20",
+            academicYearEndsOn: "2027-06-20",
+            teacherName: "استاد الف",
+          },
+        ];
+      return [];
+    });
+    const service = new PrincipalDashboardService({ query } as never);
+    jest
+      .spyOn(service as unknown as { today: () => string }, "today")
+      .mockReturnValue("2026-11-01");
+
+    const calendar = await service.teacherSessionCalendar(
+      principal,
+      "2026-11-01",
+    );
+
+    expect(calendar.days["2026-10-19"]).toBeUndefined();
+    expect(calendar.days["2026-10-26"]?.[0]).toMatchObject({
+      state: "missing",
+    });
+    expect(calendar.days["2026-11-02"]?.[0]).toMatchObject({ state: "future" });
+  });
+
+  it("rejects an invalid dashboard calendar month instead of silently changing the range", async () => {
+    const service = new PrincipalDashboardService({
+      query: jest.fn(),
+    } as never);
+
+    await expect(
+      service.absenceCalendar(principal, "2026-11-02"),
+    ).rejects.toMatchObject({
+      status: 400,
+    });
+    await expect(
+      service.absenceCalendar(principal, "2026-11-02"),
+    ).rejects.toMatchObject({
+      response: {
+        error: { code: "DASHBOARD_CALENDAR_MONTH_INVALID" },
+      },
+    });
+  });
+
+  it("sends one durable, deep-linked reminder after a principal queue waits an hour", async () => {
+    const createForUsers = jest.fn().mockResolvedValue([]);
+    const db = {
+      query: jest.fn(async (sql: string) => {
+        if (sql.includes("FROM teacher_student_reports"))
+          return [
+            {
+              organizationId: "school-a",
+              oldestAnchor: "2026-10-20 08:00:00",
+              pendingCount: 3,
+            },
+          ];
+        if (sql.includes("FROM organization_memberships membership"))
+          return [{ id: "principal-1" }];
+        return [];
+      }),
+    };
+    const service = new PrincipalDashboardService(
+      db as never,
+      {
+        createForUsers,
+      } as never,
+    );
+
+    await service.runPrincipalQueueReminders(new Date("2026-10-20T10:00:00Z"));
+
+    expect(db.query).toHaveBeenCalledWith(expect.any(String), [
+      "2026-10-20 09:00:00",
+    ]);
+
+    expect(createForUsers).toHaveBeenCalledTimes(1);
+    expect(createForUsers).toHaveBeenCalledWith(
+      ["principal-1"],
+      expect.objectContaining({
+        category: "principal-review-reminder",
+        priority: "high",
+        url: "/admin/dashboard/principal?panel=reports",
+        body: expect.stringContaining("3"),
+        dedupeKey:
+          "principal-review-reminder:school-a:reports:2026-10-20 08:00:00",
+      }),
+    );
+  });
+
+  it("alerts both the assigned teacher and principal when an attendance occurrence is missed", async () => {
+    const createForUser = jest.fn().mockResolvedValue({});
+    const db = {
+      query: jest.fn(async (sql: string) => {
+        if (sql.includes("FROM school_schedule_entries e"))
+          return [
+            {
+              id: "entry-1",
+              organizationId: "school-a",
+              teacherId: "teacher-1",
+              title: "فقه",
+              classroomName: "پایه اول",
+              teacherName: "استاد الف",
+            },
+          ];
+        if (sql.includes("FROM organization_memberships membership"))
+          return [{ id: "principal-1" }];
+        return [];
+      }),
+    };
+    const service = new PrincipalDashboardService(
+      db as never,
+      {
+        createForUser,
+      } as never,
+    );
+
+    await service.runMissedTeacherAttendanceNotifications(
+      new Date("2026-10-20T08:00:00Z"),
+    );
+
+    expect(createForUser).toHaveBeenCalledTimes(2);
+    expect(createForUser).toHaveBeenCalledWith(
+      "teacher-1",
+      expect.objectContaining({
+        category: "attendance-overdue",
+        title: "حضور و غیاب جلسه ثبت نشده است",
+      }),
+    );
+    expect(createForUser).toHaveBeenCalledWith(
+      "principal-1",
+      expect.objectContaining({
+        category: "attendance-overdue",
+        url: "/admin/dashboard/principal?panel=sessions",
+      }),
+    );
+  });
+
   it("binds every leadership query to the active organization and exposes only enabled sections", async () => {
     const db = {
       query: jest.fn(async (sql: string, parameters: unknown[]) => {
@@ -40,9 +206,14 @@ describe("PrincipalDashboardService", () => {
         if (
           sql.includes("attendance_session_reviews") &&
           sql.includes("COUNT(DISTINCT s.id)")
-        )
+        ) {
+          expect(sql).toContain("s.contextType='class'");
+          expect(sql).toContain("absent_record.physicalStatus='absent'");
           return [{ count: 2 }];
-        if (sql.includes("attendance_session_reviews"))
+        }
+        if (sql.includes("attendance_session_reviews")) {
+          expect(sql).toContain("s.contextType='class'");
+          expect(sql).toContain("r.physicalStatus='absent'");
           return [
             {
               id: "session-a",
@@ -60,6 +231,7 @@ describe("PrincipalDashboardService", () => {
               lastReviewedAt: null,
             },
           ];
+        }
         if (sql.includes("COUNT(t.id) total"))
           return [{ total: 4, complete: 3 }];
         if (sql.includes("COUNT(DISTINCT ss.studentId) participants"))
@@ -119,6 +291,7 @@ describe("PrincipalDashboardService", () => {
       permissionRequests: 2,
     });
     expect(dashboard.sessionReviews).toEqual({
+      mode: "absences_only",
       pendingCount: 2,
       items: [
         expect.objectContaining({ id: "session-a", marked: 9, absent: 1 }),
@@ -150,12 +323,109 @@ describe("PrincipalDashboardService", () => {
     expect(dashboard).not.toHaveProperty("behaviour");
     expect(dashboard).not.toHaveProperty("queues");
     expect(dashboard).not.toHaveProperty("sessionReviews");
+    expect(dashboard).not.toHaveProperty("principalLists");
     expect(dashboard.operations).toEqual({
       activeStudents: 0,
       currentlyOut: 0,
       scheduleEntries: 0,
       staff: 0,
     });
+  });
+
+  it("puts every completed session in the principal queue when the all-session policy is enabled", async () => {
+    const queries: string[] = [];
+    const service = new PrincipalDashboardService({
+      query: jest.fn(async (sql: string) => {
+        queries.push(sql);
+        if (sql.includes("SELECT principalReviewMode"))
+          return [{ principalReviewMode: "all_sessions" }];
+        if (sql.includes("COUNT(DISTINCT s.id)")) return [{ count: 1 }];
+        if (sql.includes("attendance_session_reviews")) return [];
+        if (sql.includes("COUNT(r.id) total"))
+          return [{ present: 0, absent: 0, late: 0, excused: 0, total: 0 }];
+        return [{ count: 0 }];
+      }),
+    } as never);
+    const dashboard = await service.get(principal, "2026-10-14", "2026-10-20");
+    expect(dashboard.sessionReviews).toMatchObject({
+      mode: "all_sessions",
+      pendingCount: 1,
+    });
+    const reviewCountQuery = queries.find((sql) =>
+      sql.includes("COUNT(DISTINCT s.id)"),
+    );
+    expect(reviewCountQuery).not.toContain("absent_record");
+  });
+
+  it("does not requeue a reviewed attendance revision merely because it is old", async () => {
+    const queries: string[] = [];
+    const service = new PrincipalDashboardService({
+      query: jest.fn(async (sql: string) => {
+        queries.push(sql);
+        if (sql.includes("SELECT principalReviewMode"))
+          return [{ principalReviewMode: "absences_only" }];
+        if (sql.includes("COUNT(DISTINCT s.id)")) return [{ count: 0 }];
+        if (sql.includes("attendance_session_reviews")) return [];
+        if (sql.includes("COUNT(r.id) total"))
+          return [{ present: 0, absent: 0, late: 0, excused: 0, total: 0 }];
+        return [{ count: 0 }];
+      }),
+    } as never);
+
+    await service.get(principal, "2026-10-14", "2026-10-20");
+
+    const reviewQuery = queries.find((sql) =>
+      sql.includes("MAX(reviewedAt) reviewedAt"),
+    );
+    expect(reviewQuery).toContain("latest.reviewedAt IS NULL");
+    expect(reviewQuery).not.toContain("reviewedAt<=");
+    expect(reviewQuery).not.toContain("LIMIT 10");
+  });
+
+  it("never exposes operational principal lists to an attendance reader", async () => {
+    const query = jest.fn().mockResolvedValue([]);
+    const service = new PrincipalDashboardService({ query } as never);
+
+    await expect(
+      service.get(
+        {
+          ...principal,
+          roles: ["TEACHER"],
+          role: "TEACHER",
+          capabilities: ["attendance.read"],
+        },
+        "2026-10-14",
+        "2026-10-20",
+      ),
+    ).rejects.toMatchObject({
+      response: { error: { code: "PRINCIPAL_DASHBOARD_FORBIDDEN" } },
+    });
+    expect(query).not.toHaveBeenCalled();
+  });
+
+  it("never exposes the principal dashboard to the religious education manager", async () => {
+    const query = jest.fn().mockResolvedValue([]);
+    const service = new PrincipalDashboardService({ query } as never);
+
+    await expect(
+      service.get(
+        {
+          ...principal,
+          roles: ["RELIGIOUS_EDUCATION_MANAGER"],
+          role: "RELIGIOUS_EDUCATION_MANAGER",
+          capabilities: [
+            "schedule.read.all",
+            "attendance.read",
+            "attendance.manage",
+          ],
+        },
+        "2026-10-14",
+        "2026-10-20",
+      ),
+    ).rejects.toMatchObject({
+      response: { error: { code: "PRINCIPAL_DASHBOARD_FORBIDDEN" } },
+    });
+    expect(query).not.toHaveBeenCalled();
   });
 
   it("requires an explicit active organization and rejects unbounded or invalid date ranges", async () => {

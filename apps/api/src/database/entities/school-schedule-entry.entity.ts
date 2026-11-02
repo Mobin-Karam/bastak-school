@@ -12,9 +12,11 @@ import { EducationClass } from "./education-class.entity";
 import { EducationClassBook } from "./education-class-book.entity";
 import { Organization } from "./organization.entity";
 import { User } from "./user.entity";
+import { TeacherLeaveRequest } from "./teacher-leave-request.entity";
 
 @Entity("school_schedule_entries")
 @Index(["organization", "weekday", "startTime"])
+@Index(["leaveRequestId"])
 export class SchoolScheduleEntry {
   @PrimaryGeneratedColumn("uuid") id!: string;
   @ManyToOne(() => Organization, { nullable: false, onDelete: "CASCADE" })
@@ -32,6 +34,14 @@ export class SchoolScheduleEntry {
   @Column({ length: 120, default: "" }) room!: string;
   @Column({ length: 20, default: "ACTIVE" }) status!:
     "ACTIVE" | "ARCHIVED" | "REPLACED";
+  @Column({ type: "varchar", length: 36, nullable: true }) academicYearId!:
+    string | null;
+  @Column({ type: "varchar", length: 36, nullable: true }) termId!:
+    string | null;
+  @Column({ type: "varchar", length: 120, nullable: true })
+  academicYearNameSnapshot!: string | null;
+  @Column({ type: "varchar", length: 120, nullable: true }) termNameSnapshot!:
+    string | null;
   @Column({ type: "varchar", length: 36, nullable: true }) versionId!:
     string | null;
   @ManyToOne("TimetableVersion", { nullable: true, onDelete: "RESTRICT" })
@@ -52,6 +62,19 @@ export class SchoolScheduleEntry {
   @Column({ type: "varchar", length: 10, nullable: true }) endsOn!:
     string | null;
   @Column({ type: "text", default: "" }) notes!: string;
+  /** Explicit ownership for the one-off replacement generated for a teacher leave. */
+  @Column({ type: "varchar", length: 36, nullable: true }) leaveRequestId!:
+    string | null;
+  @ManyToOne(() => TeacherLeaveRequest, {
+    nullable: true,
+    onDelete: "RESTRICT",
+  })
+  @JoinColumn({ name: "leaveRequestId" })
+  leaveRequest?: TeacherLeaveRequest | null;
+  /** Retains a visible audit marker when an operator permanently reassigns a lesson. */
+  @Column({ type: "varchar", length: 240, nullable: true })
+  previousTeacherNameSnapshot!: string | null;
+  @Column({ type: "datetime", nullable: true }) teacherChangedAt!: Date | null;
   @Column({ length: 240, default: "" }) classroomNameSnapshot!: string;
   @Column({ length: 240, default: "" }) teacherNameSnapshot!: string;
   @CreateDateColumn() createdAt!: Date;

@@ -25,18 +25,21 @@ function controller(status: PushStatus): NotificationContextValue {
     loadingMore: false,
     refreshing: false,
     markingAllRead: false,
+    removing: false,
     soundEnabled: true,
     chatSoundEnabled: true,
     setSoundEnabled: vi.fn(),
     setChatSoundEnabled: vi.fn(),
     markRead: vi.fn(),
     markAllRead: vi.fn(),
+    removeSelected: vi.fn().mockResolvedValue(undefined),
     loadMore: vi.fn(),
     refresh: vi.fn(),
     pushStatus: vi.fn().mockResolvedValue(status),
     enablePush: vi.fn().mockResolvedValue({ ...status, permission: "granted", registered: true }),
     disablePush: vi.fn().mockResolvedValue({ ...status, registered: false }),
     savePushPreferences: vi.fn().mockResolvedValue(undefined),
+    saveAutoDeletePreferences: vi.fn().mockResolvedValue(undefined),
     testPush: vi.fn().mockResolvedValue(undefined),
     testSound: vi.fn(),
   };
@@ -130,5 +133,34 @@ describe("Web Push settings", () => {
     await waitFor(() => expect(notifications.disablePush).toHaveBeenCalledOnce());
 
     view.unmount();
+  });
+
+  it("persists auto-delete enabled state and retention period", async () => {
+    const status: PushStatus = {
+      supported: true,
+      permission: "granted",
+      registered: true,
+      serverConfigured: true,
+      preferences,
+      autoDelete: { enabled: false, afterHours: 24 },
+    };
+    const notifications = controller(status);
+    render(<NotificationSettings notifications={notifications} />);
+
+    await userEvent.click(await screen.findByRole("switch", { name: "حذف خودکار اعلان‌ها" }));
+    await waitFor(() =>
+      expect(notifications.saveAutoDeletePreferences).toHaveBeenCalledWith({
+        enabled: true,
+        afterHours: 24,
+      }),
+    );
+    expect(notifications.refresh).toHaveBeenCalled();
+    await userEvent.selectOptions(screen.getByLabelText("زمان حذف"), "48");
+    await waitFor(() =>
+      expect(notifications.saveAutoDeletePreferences).toHaveBeenLastCalledWith({
+        enabled: true,
+        afterHours: 48,
+      }),
+    );
   });
 });

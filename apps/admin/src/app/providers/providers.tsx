@@ -18,16 +18,16 @@ export function AppProviders({ children }: { children: ReactNode }) {
     <ThemeProvider>
       <QueryClientProvider client={queryClient}>
         <LocaleProvider>
-          <ModalProvider>
-            <AuthProvider>
+          <AuthProvider>
+            <ModalProvider>
               <NotificationProvider>
                 <FloatingIslandProvider>{children}</FloatingIslandProvider>
                 <PWAProvider />
               </NotificationProvider>
-            </AuthProvider>
 
-            <AppToaster />
-          </ModalProvider>
+              <AppToaster />
+            </ModalProvider>
+          </AuthProvider>
         </LocaleProvider>
       </QueryClientProvider>
     </ThemeProvider>

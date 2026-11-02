@@ -7,11 +7,27 @@ const session = {
 };
 
 describe("attendanceSessionWindow", () => {
-  it("permits the exact start and excludes the exact end", () => {
+  it("permits the scheduled interval and excludes the exact end by default", () => {
     expect(attendanceSessionWindow(session, Date.parse(session.scheduledStartAt)).active).toBe(
       true,
     );
     expect(attendanceSessionWindow(session, Date.parse(session.scheduledEndAt)).active).toBe(false);
+  });
+
+  it("keeps an assigned teacher's attendance available after the scheduled end", () => {
+    expect(
+      attendanceSessionWindow(session, Date.parse(session.scheduledEndAt), {
+        allowAfterEnd: true,
+      }),
+    ).toMatchObject({ active: true, restricted: true, message: null });
+  });
+
+  it("still blocks attendance before the scheduled start for assigned teachers", () => {
+    expect(
+      attendanceSessionWindow(session, Date.parse(session.scheduledStartAt) - 1, {
+        allowAfterEnd: true,
+      }).active,
+    ).toBe(false);
   });
 
   it("does not restrict legacy sessions that have no scheduled range", () => {

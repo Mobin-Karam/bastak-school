@@ -10,6 +10,7 @@ import {
 import { Organization } from "./organization.entity";
 import { Student } from "./student.entity";
 import { User } from "./user.entity";
+import { LeaveRequest } from "./leave-request.entity";
 
 export enum ExitPermissionStatus {
   PENDING = "PENDING",
@@ -31,6 +32,14 @@ export class ExitPermission {
   @Index()
   @ManyToOne(() => Student, { nullable: false, onDelete: "CASCADE" })
   student!: Student;
+
+  /**
+   * The absence approval which authorised this movement.  Direct gate and
+   * dorm-origin movements deliberately keep this empty.
+   */
+  @Index({ unique: true, where: '"leaveRequestId" IS NOT NULL' })
+  @ManyToOne(() => LeaveRequest, { nullable: true, onDelete: "SET NULL" })
+  leaveRequest?: LeaveRequest | null;
 
   @Column({ type: "datetime" })
   requestedDepartureAt!: Date;
@@ -65,6 +74,15 @@ export class ExitPermission {
 
   @Column({ type: "text", default: "" })
   note!: string;
+
+  /** Origin distinguishes a student-approved leave from a dorm breach found in roll call. */
+  @Index()
+  @Column({ type: "varchar", length: 32, nullable: true })
+  origin?: "student_request" | "dorm_authorized" | "dorm_unauthorized" | null;
+
+  /** Principal-only resolution for an overdue physical departure. */
+  @Column({ type: "varchar", length: 32, nullable: true })
+  resolution?: "outside_school" | "breach" | null;
 
   @Column({
     type: "varchar",

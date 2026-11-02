@@ -94,6 +94,7 @@ export class StudentAdministrationService {
       context.roles.includes("PLATFORM_ADMIN") ||
       [
         "ORGANIZATION_ADMIN",
+        "SCHOOL_ADMIN",
         "PRINCIPAL",
         "SCHOOL_SUPERVISOR",
         "DISCIPLINARIAN",

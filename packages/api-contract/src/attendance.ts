@@ -42,12 +42,21 @@ export type AttendanceSessionDetail = {
   scheduledStartAt: string | null;
   scheduledEndAt: string | null;
   timeZone: string;
+  /** Optional for compatibility with saved-session clients during the additive rollout. */
+  sourceKind?: string | null;
   status: AttendanceSessionStatus;
   revision: number;
   assignedStaffId: string | null;
   assignedStaffName: string;
   submittedAt: string | null;
   submittedById: string | null;
+  /** The principal review that applies to this exact attendance revision. */
+  review: {
+    reviewedRevision: number;
+    reviewedAt: string;
+    reviewerId: string | null;
+    teacherMessage: string;
+  } | null;
   roster: AttendanceRosterMember[];
   rosterComplete: boolean;
   records: SavedAttendanceRecord[];
@@ -79,6 +88,7 @@ export type SubmitAttendanceAbsences = {
   expectedRevision: number;
   absentStudentIds: string[];
   lateStudentIds?: string[];
+  excusedStudentIds?: string[];
 };
 export type ResolveAttendanceSession = {
   organizationId: string;

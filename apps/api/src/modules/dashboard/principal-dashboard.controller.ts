@@ -11,10 +11,7 @@ export class PrincipalDashboardController {
 
   @Get("principal")
   @RequireAnyCapabilities(
-    "students.read",
-    "attendance.read",
     "attendance.review",
-    "attendance.reports.read",
     "analytics.read",
     "leave.read",
     "exit.read",
@@ -28,5 +25,23 @@ export class PrincipalDashboardController {
     @Query("classId") classId?: string,
   ) {
     return this.dashboard.get(user, from, to, classId).then(ok);
+  }
+
+  @Get("principal/absence-calendar")
+  @RequireAnyCapabilities("attendance.review")
+  absenceCalendar(
+    @CurrentUser() user: AuthenticatedUser,
+    @Query("month") month?: string,
+  ) {
+    return this.dashboard.absenceCalendar(user, month).then(ok);
+  }
+
+  @Get("principal/teacher-session-calendar")
+  @RequireAnyCapabilities("attendance.review")
+  teacherSessionCalendar(
+    @CurrentUser() user: AuthenticatedUser,
+    @Query("month") month?: string,
+  ) {
+    return this.dashboard.teacherSessionCalendar(user, month).then(ok);
   }
 }
