@@ -598,6 +598,11 @@ export function TeacherClassAttendanceSheet({
     hasSessionStarted &&
     (!semesterStartsOn || sessionDate >= semesterStartsOn) &&
     (!semesterEndsOn || sessionDate <= semesterEndsOn);
+  const canManageSessionCoins =
+    canManage &&
+    attendanceHydrated &&
+    Boolean(savedSessionId) &&
+    savedAttendance.data?.status !== "cancelled";
   const sessionCoins = useQuery({
     queryKey: ["attendance", "session-coins", savedSessionId],
     queryFn: () =>
@@ -922,7 +927,7 @@ export function TeacherClassAttendanceSheet({
                           />
                         </label>
                       ) : null}
-                      {canManageSelectedSession && savedSessionId ? (
+                      {canManageSessionCoins ? (
                         <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-[rgb(var(--border-subtle))] pt-2">
                           <span className="flex items-center gap-1 text-[11px] font-bold text-slate-500">
                             <AttendanceCoin className="size-4 object-contain" /> امتیاز سکه (۳− تا
@@ -974,7 +979,11 @@ export function TeacherClassAttendanceSheet({
                               +
                             </button>
                           </div>
-                          <span className="ms-auto text-[11px] font-bold text-slate-500">
+                        </div>
+                      ) : null}
+                      {canManageSelectedSession && savedSessionId ? (
+                        <div className="mt-2 flex items-center justify-between border-t border-[rgb(var(--border-subtle))] pt-2">
+                          <span className="text-[11px] font-bold text-slate-500">
                             گزارش خصوصی برای مدیر
                           </span>
                           <Button

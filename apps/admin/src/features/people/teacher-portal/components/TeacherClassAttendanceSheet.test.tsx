@@ -190,6 +190,13 @@ describe("TeacherClassAttendanceSheet", () => {
     ).toHaveTextContent("۱غایب");
 
     const user = userEvent.setup();
+    await user.click(screen.getByRole("button", { name: "فعلاً فقط مشاهده می‌کنم" }));
+    expect(
+      screen.queryByRole("group", { name: "وضعیت حضور دانش‌آموز سابق" }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByRole("group", { name: "سکه دانش‌آموز سابق" })).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "ویرایش بازبینی" }));
     await user.click(screen.getByRole("button", { name: "ادامه و ویرایش" }));
 
     const group = await screen.findByRole("group", { name: "وضعیت حضور دانش‌آموز سابق" });
