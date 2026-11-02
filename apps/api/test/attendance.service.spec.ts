@@ -390,64 +390,70 @@ describe("AttendanceService organization boundaries (real SQLite)", () => {
       roles: ["TEACHER"],
       capabilities: ["attendance.read", "attendance.class.manage"],
     };
-    const first = await service.openLegacyScheduleSession(teacher, {
-      entryId: entry.id,
-      date: "2026-10-12",
-    });
-    await db.getRepository(SchoolAcademicYear).update(year.id, {
-      state: "ARCHIVED",
-    });
-    await db.getRepository(SchoolAcademicTerm).update(term.id, {
-      state: "ARCHIVED",
-      correctionOpen: false,
-    });
-
-    await expect(
-      service.openLegacyScheduleSession(teacher, {
-        entryId: entry.id,
-        date: "2026-11-02",
-      }),
-    ).rejects.toMatchObject({
-      response: { error: { code: "ATTENDANCE_SESSION_NOT_STARTED" } },
-    });
-
-    await expect(
-      service.openLegacyScheduleSession(teacher, {
+    jest.useFakeTimers({ doNotFake: ["nextTick", "setImmediate"] });
+    jest.setSystemTime(new Date("2026-10-30T12:00:00.000Z"));
+    try {
+      const first = await service.openLegacyScheduleSession(teacher, {
         entryId: entry.id,
         date: "2026-10-12",
-      }),
-    ).resolves.toEqual({ ...first, duplicate: true });
-    await expect(
-      service.bulkMark(teacher, {
-        organizationId: orgA.id,
-        sessionId: first.id,
-        expectedRevision: first.revision,
-        entries: [{ studentId: studentA.id, status: "absent", note: "غایب" }],
-      }),
-    ).resolves.toMatchObject({ sessionId: first.id, count: 1 });
+      });
+      await db.getRepository(SchoolAcademicYear).update(year.id, {
+        state: "ARCHIVED",
+      });
+      await db.getRepository(SchoolAcademicTerm).update(term.id, {
+        state: "ARCHIVED",
+        correctionOpen: false,
+      });
 
-    await expect(
-      service.openLegacyScheduleSession(teacher, {
-        entryId: entry.id,
-        date: "2026-10-19",
-      }),
-    ).resolves.toMatchObject({ duplicate: false });
-    await expect(
-      service.openLegacyScheduleSession(teacher, {
-        entryId: entry.id,
-        date: "2026-11-02",
-      }),
-    ).rejects.toMatchObject({
-      response: { error: { code: "ATTENDANCE_SESSION_NOT_STARTED" } },
-    });
-    await expect(
-      service.openLegacyScheduleSession(actor, {
-        entryId: entry.id,
-        date: "2026-10-26",
-      }),
-    ).rejects.toMatchObject({
-      response: { error: { code: "ATTENDANCE_TERM_LOCKED" } },
-    });
+      await expect(
+        service.openLegacyScheduleSession(teacher, {
+          entryId: entry.id,
+          date: "2026-11-02",
+        }),
+      ).rejects.toMatchObject({
+        response: { error: { code: "ATTENDANCE_SESSION_NOT_STARTED" } },
+      });
+
+      await expect(
+        service.openLegacyScheduleSession(teacher, {
+          entryId: entry.id,
+          date: "2026-10-12",
+        }),
+      ).resolves.toEqual({ ...first, duplicate: true });
+      await expect(
+        service.bulkMark(teacher, {
+          organizationId: orgA.id,
+          sessionId: first.id,
+          expectedRevision: first.revision,
+          entries: [{ studentId: studentA.id, status: "absent", note: "غایب" }],
+        }),
+      ).resolves.toMatchObject({ sessionId: first.id, count: 1 });
+
+      await expect(
+        service.openLegacyScheduleSession(teacher, {
+          entryId: entry.id,
+          date: "2026-10-19",
+        }),
+      ).resolves.toMatchObject({ duplicate: false });
+      await expect(
+        service.openLegacyScheduleSession(teacher, {
+          entryId: entry.id,
+          date: "2026-11-02",
+        }),
+      ).rejects.toMatchObject({
+        response: { error: { code: "ATTENDANCE_SESSION_NOT_STARTED" } },
+      });
+      await expect(
+        service.openLegacyScheduleSession(actor, {
+          entryId: entry.id,
+          date: "2026-10-26",
+        }),
+      ).rejects.toMatchObject({
+        response: { error: { code: "ATTENDANCE_TERM_LOCKED" } },
+      });
+    } finally {
+      jest.useRealTimers();
+    }
   });
 
   it("persists a manually reconciled historical session with academic snapshots and an audit trail", async () => {
