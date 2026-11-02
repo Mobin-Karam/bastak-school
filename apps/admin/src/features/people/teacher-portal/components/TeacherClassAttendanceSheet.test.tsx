@@ -114,11 +114,12 @@ describe("TeacherClassAttendanceSheet", () => {
     expect(screen.getByText("08:00 تا 09:30 · ۱۰۱")).toBeInTheDocument();
     expect(await screen.findByText("علی رضایی")).toBeInTheDocument();
     expect(dialog).toHaveClass("max-w-xl");
-    expect(
-      within(screen.getByRole("group", { name: "وضعیت حضور علی رضایی" })).getByRole("button", {
-        name: "حاضر",
-      }),
-    ).toHaveAttribute("aria-pressed", "true");
+    const present = within(screen.getByRole("group", { name: "وضعیت حضور علی رضایی" })).getByRole(
+      "button",
+      { name: "حاضر" },
+    );
+    expect(present).toHaveAttribute("aria-pressed", "true");
+    expect(present).toHaveClass("bg-emerald-600");
   });
   it("hydrates saved marks from the saved roster before enabling revision", async () => {
     let resolveSavedAttendance!: (value: {
@@ -165,18 +166,24 @@ describe("TeacherClassAttendanceSheet", () => {
       records: [{ studentId: "former-student", legacyStatus: "absent", note: "غیبت ثبت‌شده" }],
     });
 
+    expect(screen.queryByText("دانش‌آموز جدید")).not.toBeInTheDocument();
+    expect(screen.getByText("بازبینی ثبت‌شده")).toBeInTheDocument();
+    expect(
+      screen.getByText("این جلسه قبلاً ثبت شده است؛ پیش از ویرایش، بازبینی آن را تأیید کنید."),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("group", { name: "وضعیت حضور دانش‌آموز سابق" }),
+    ).not.toBeInTheDocument();
+    expect(await screen.findByRole("dialog", { name: "بازبینی حضور و غیاب" })).toBeInTheDocument();
+
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("button", { name: "ادامه و ویرایش" }));
+
     const group = await screen.findByRole("group", { name: "وضعیت حضور دانش‌آموز سابق" });
     expect(within(group).getByRole("button", { name: "غایب" })).toHaveAttribute(
       "aria-pressed",
       "true",
     );
-    expect(screen.queryByText("دانش‌آموز جدید")).not.toBeInTheDocument();
-    expect(screen.getByText("بازبینی ثبت‌شده")).toBeInTheDocument();
-    expect(
-      screen.getByText(
-        "این جلسه قبلاً ثبت شده است؛ تغییرات شما پس از تأیید، به‌عنوان بازبینی ذخیره می‌شوند.",
-      ),
-    ).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "بررسی و ثبت بازبینی" })).toBeEnabled();
   });
   it("keeps a cancelled occurrence readable but not editable", async () => {
