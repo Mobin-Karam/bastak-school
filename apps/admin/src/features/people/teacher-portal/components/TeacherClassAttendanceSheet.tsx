@@ -34,14 +34,14 @@ const attendanceActions: Array<{
   label: string;
   activeClassName: string;
 }> = [
-  { status: "present", label: "ح · حاضر", activeClassName: "bg-emerald-600 text-white" },
-  { status: "absent", label: "غ · غایب", activeClassName: "bg-rose-600 text-white" },
+  { status: "present", label: "حاضر", activeClassName: "bg-emerald-600 text-white" },
+  { status: "absent", label: "غایب", activeClassName: "bg-rose-600 text-white" },
   {
     status: "late",
-    label: "ت · تأخیر",
+    label: "تأخیر",
     activeClassName: "bg-amber-100 text-amber-950 dark:bg-amber-950 dark:text-amber-100",
   },
-  { status: "excused", label: "م · موجه", activeClassName: "bg-sky-600 text-white" },
+  { status: "excused", label: "موجه", activeClassName: "bg-sky-600 text-white" },
 ];
 
 const isoDay = (date: Date) => date.toISOString().slice(0, 10);
@@ -199,6 +199,7 @@ export function TeacherClassAttendanceSheet({
       open && Boolean(entry?.id) && Boolean(entry && isTeacherScheduleDate(entry, sessionDate)),
   });
   const savedSessionId = savedSessionLookup.data?.id ?? null;
+  const isRevision = Boolean(savedSessionId);
   const savedAttendance = useQuery({
     queryKey: ["attendance", "session-detail", savedSessionId],
     queryFn: () =>
@@ -651,6 +652,19 @@ export function TeacherClassAttendanceSheet({
             </div>
           ) : (
             <>
+              {savedAttendance.data?.status !== "cancelled" ? (
+                <div
+                  role="status"
+                  className={`mt-5 rounded-2xl border p-3 text-xs leading-5 ${isRevision ? "border-sky-300 bg-sky-50 text-sky-950 dark:border-sky-800 dark:bg-sky-950/35 dark:text-sky-100" : "border-emerald-300 bg-emerald-50 text-emerald-950 dark:border-emerald-800 dark:bg-emerald-950/35 dark:text-emerald-100"}`}
+                >
+                  <p className="font-black">{isRevision ? "بازبینی ثبت‌شده" : "ثبت اولیه"}</p>
+                  <p className="mt-1">
+                    {isRevision
+                      ? "این جلسه قبلاً ثبت شده است؛ تغییرات شما پس از تأیید، به‌عنوان بازبینی ذخیره می‌شوند."
+                      : "وضعیت دانش‌آموزان را انتخاب کنید، سپس در مرحلهٔ بعد آن را بررسی و ثبت کنید."}
+                  </p>
+                </div>
+              ) : null}
               <p className="mt-5 text-xs leading-5 text-slate-600 dark:text-slate-300">
                 {savedAttendance.data?.status === "cancelled"
                   ? "این جلسه لغو شده و فقط قابل مشاهده است."
@@ -758,7 +772,7 @@ export function TeacherClassAttendanceSheet({
                                 setMarks((current) => ({ ...current, [student.id]: action.status }))
                               }
                               title={action.label}
-                              className={`grid min-h-11 place-items-center rounded-xl border transition-colors motion-reduce:transition-none ${selected ? action.activeClassName : "border-[rgb(var(--border-subtle))] bg-card text-slate-600 hover:border-brand/40 dark:text-slate-300"}`}
+                              className={`flex min-h-11 items-center justify-center gap-1 rounded-xl border px-1 text-[11px] font-bold transition-colors motion-reduce:transition-none ${selected ? action.activeClassName : "border-[rgb(var(--border-subtle))] bg-card text-slate-600 hover:border-brand/40 dark:text-slate-300"}`}
                             >
                               {action.status === "present" ? (
                                 <CircleCheck size={19} aria-hidden="true" />
@@ -769,6 +783,7 @@ export function TeacherClassAttendanceSheet({
                               ) : (
                                 <BadgeCheck size={19} aria-hidden="true" />
                               )}
+                              <span>{action.label}</span>
                             </button>
                           );
                         })}
@@ -973,8 +988,12 @@ export function TeacherClassAttendanceSheet({
                       {save.isPending
                         ? "در حال ثبت…"
                         : reviewing
-                          ? "تأیید و ثبت"
-                          : "بررسی و ثبت حضور و غیاب"}
+                          ? isRevision
+                            ? "تأیید و ثبت بازبینی"
+                            : "تأیید و ثبت حضور و غیاب"
+                          : isRevision
+                            ? "بررسی و ثبت بازبینی"
+                            : "بررسی و ثبت حضور و غیاب"}
                     </Button>
                   </div>
                 </div>

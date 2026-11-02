@@ -116,7 +116,7 @@ describe("TeacherClassAttendanceSheet", () => {
     expect(dialog).toHaveClass("max-w-xl");
     expect(
       within(screen.getByRole("group", { name: "وضعیت حضور علی رضایی" })).getByRole("button", {
-        name: "ح · حاضر",
+        name: "حاضر",
       }),
     ).toHaveAttribute("aria-pressed", "true");
   });
@@ -166,12 +166,18 @@ describe("TeacherClassAttendanceSheet", () => {
     });
 
     const group = await screen.findByRole("group", { name: "وضعیت حضور دانش‌آموز سابق" });
-    expect(within(group).getByRole("button", { name: "غ · غایب" })).toHaveAttribute(
+    expect(within(group).getByRole("button", { name: "غایب" })).toHaveAttribute(
       "aria-pressed",
       "true",
     );
     expect(screen.queryByText("دانش‌آموز جدید")).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "بررسی و ثبت حضور و غیاب" })).toBeEnabled();
+    expect(screen.getByText("بازبینی ثبت‌شده")).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "این جلسه قبلاً ثبت شده است؛ تغییرات شما پس از تأیید، به‌عنوان بازبینی ذخیره می‌شوند.",
+      ),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "بررسی و ثبت بازبینی" })).toBeEnabled();
   });
   it("keeps a cancelled occurrence readable but not editable", async () => {
     getMock.mockImplementation((path: string) => {
@@ -216,13 +222,13 @@ describe("TeacherClassAttendanceSheet", () => {
     renderSheet(onOpenChange);
     const user = userEvent.setup();
     const group = await screen.findByRole("group", { name: "وضعیت حضور علی رضایی" });
-    await user.click(within(group).getByRole("button", { name: "ح · حاضر" }));
+    await user.click(within(group).getByRole("button", { name: "حاضر" }));
     await user.click(screen.getByRole("button", { name: "بررسی و ثبت حضور و غیاب" }));
     expect(bulkMarkAttendanceMock).not.toHaveBeenCalled();
     await user.click(screen.getByRole("button", { name: "تأیید و ثبت" }));
     await waitFor(() => expect(screen.getByRole("button", { name: "تأیید و ثبت" })).toBeEnabled());
     expect(onOpenChange).not.toHaveBeenCalled();
-    expect(within(group).getByRole("button", { name: "ح · حاضر", hidden: true })).toHaveAttribute(
+    expect(within(group).getByRole("button", { name: "حاضر", hidden: true })).toHaveAttribute(
       "aria-pressed",
       "true",
     );
@@ -249,14 +255,14 @@ describe("TeacherClassAttendanceSheet", () => {
     expect(screen.getByRole("dialog", { name: "ریاضی دهم" })).toBeInTheDocument();
 
     const group = screen.getByRole("group", { name: "وضعیت حضور علی رضایی" });
-    await user.click(within(group).getByRole("button", { name: "غ · غایب" }));
+    await user.click(within(group).getByRole("button", { name: "غایب" }));
     await user.click(screen.getByRole("button", { name: "پاک کردن" }));
 
     expect(screen.getByRole("dialog", { name: "ریاضی دهم" })).toBeInTheDocument();
     expect(screen.getByText("تغییرات حضور و غیاب پاک می‌شوند")).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "بازگشت و حفظ تغییرات" }));
     expect(screen.getByRole("dialog", { name: "ریاضی دهم" })).toBeInTheDocument();
-    expect(within(group).getByRole("button", { name: "غ · غایب" })).toHaveAttribute(
+    expect(within(group).getByRole("button", { name: "غایب" })).toHaveAttribute(
       "aria-pressed",
       "true",
     );

@@ -185,6 +185,17 @@ describe("TeacherSchedulePage", () => {
     });
   });
 
+  it("searches the current week by lesson, class, or room before opening attendance", async () => {
+    renderPage();
+    const user = userEvent.setup();
+
+    await user.type(screen.getByRole("textbox", { name: "جست‌وجو در برنامهٔ هفته" }), "Future");
+
+    expect(screen.getByRole("button", { name: /Future lesson/ })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Completed lesson/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Incomplete lesson/ })).not.toBeInTheDocument();
+  });
+
   it("jumps to the most recent past occurrence missing attendance", async () => {
     renderPage();
     const user = userEvent.setup();
