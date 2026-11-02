@@ -29,7 +29,7 @@
     "@dnd-kit/utilities": "^3.2.2",
     "@fontsource-variable/geist": "^5.3.0",
     "@formkit/drag-and-drop": "^0.2.6",
-    "@hookform/resolvers": "^5.9.2",
+    "@hookform/resolvers": "^6.0.2",
     "@moshaver/admin-workspace-ui": "file:../../packages/admin-workspace-ui",
     "@moshaver/api-contract": "file:../../packages/api-contract",
     "@persian-tools/persian-tools": "^4.0.4",
