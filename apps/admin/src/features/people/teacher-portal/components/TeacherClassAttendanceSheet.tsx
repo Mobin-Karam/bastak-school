@@ -388,11 +388,6 @@ export function TeacherClassAttendanceSheet({
     pendingWrite.current = null;
   }, [sessionDate]);
 
-  useEffect(() => {
-    if (!open || !savedSessionId || !attendanceHydrated || revisionEditingConfirmed) return;
-    setRevisionConfirmationOpen(true);
-  }, [attendanceHydrated, open, revisionEditingConfirmed, savedSessionId]);
-
   const sessionParticipants = useMemo(() => {
     const currentParticipants = participants.data ?? [];
     if (!savedSessionId || !savedAttendance.data?.rosterComplete) return currentParticipants;

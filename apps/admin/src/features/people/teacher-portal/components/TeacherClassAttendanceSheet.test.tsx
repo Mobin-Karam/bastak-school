@@ -177,6 +177,11 @@ describe("TeacherClassAttendanceSheet", () => {
     expect(
       within(screen.getByRole("list", { name: "فهرست دانش‌آموزان کلاس" })).getByText("غایب"),
     ).toBeInTheDocument();
+    expect(screen.queryByRole("dialog", { name: "بازبینی حضور و غیاب" })).not.toBeInTheDocument();
+    expect(screen.getByRole("group", { name: "سکه دانش‌آموز سابق" })).toBeInTheDocument();
+
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("button", { name: "ویرایش بازبینی" }));
     const revisionDrawer = await screen.findByRole("dialog", { name: "بازبینی حضور و غیاب" });
     expect(revisionDrawer).toBeInTheDocument();
     expect(within(revisionDrawer).getByText("خلاصهٔ ثبت قبلی")).toBeInTheDocument();
@@ -189,15 +194,17 @@ describe("TeacherClassAttendanceSheet", () => {
       within(revisionDrawer).getByRole("list", { name: "خلاصه وضعیت ثبت قبلی" }),
     ).toHaveTextContent("۱غایب");
 
-    const user = userEvent.setup();
-    await user.click(screen.getByRole("button", { name: "فعلاً فقط مشاهده می‌کنم" }));
+    await user.click(
+      within(revisionDrawer).getByRole("button", { name: "فعلاً فقط مشاهده می‌کنم" }),
+    );
     expect(
       screen.queryByRole("group", { name: "وضعیت حضور دانش‌آموز سابق" }),
     ).not.toBeInTheDocument();
     expect(screen.getByRole("group", { name: "سکه دانش‌آموز سابق" })).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "ویرایش بازبینی" }));
-    await user.click(screen.getByRole("button", { name: "ادامه و ویرایش" }));
+    const confirmationDrawer = await screen.findByRole("dialog", { name: "بازبینی حضور و غیاب" });
+    await user.click(within(confirmationDrawer).getByRole("button", { name: "ادامه و ویرایش" }));
 
     const group = await screen.findByRole("group", { name: "وضعیت حضور دانش‌آموز سابق" });
     expect(within(group).getByRole("button", { name: "غایب" })).toHaveAttribute(
