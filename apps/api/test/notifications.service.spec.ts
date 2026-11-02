@@ -29,6 +29,12 @@ function repository<T>(items: T[] = []) {
     update: jest.fn(function () {
       return this;
     }),
+    delete: jest.fn(function () {
+      return this;
+    }),
+    from: jest.fn(function () {
+      return this;
+    }),
     set: jest.fn(function () {
       return this;
     }),
@@ -60,7 +66,9 @@ function repository<T>(items: T[] = []) {
 describe("NotificationsService", () => {
   it("emits the canonical notification event after persistence", async () => {
     const realtime = { emitToUser: jest.fn() };
-    const push = { sendToUser: jest.fn().mockResolvedValue({ sent: 1, removed: 0 }) };
+    const push = {
+      sendToUser: jest.fn().mockResolvedValue({ sent: 1, removed: 0 }),
+    };
     const service = new NotificationsService(
       repository() as any,
       repository() as any,
@@ -103,6 +111,96 @@ describe("NotificationsService", () => {
     expect(notifications.save).toHaveBeenCalledTimes(2);
     expect(notifications.save).toHaveBeenCalledWith(
       expect.objectContaining({ organization: { id: "school-1" } }),
+    );
+  });
+
+  it("sets an expiry for newly created notifications when inbox cleanup is enabled", async () => {
+    const notifications = repository() as any;
+    const preferences = {
+      findOne: jest.fn().mockResolvedValue({
+        autoDeleteEnabled: true,
+        autoDeleteAfterHours: 1,
+      }),
+    };
+    const service = new NotificationsService(
+      notifications,
+      repository() as any,
+      { emitToUser: jest.fn() } as any,
+      repository([{ id: "user-1" }]) as any,
+      undefined,
+      preferences as any,
+    );
+
+    const before = Date.now();
+    await service.createForUser("user-1", {
+      type: NotificationType.MESSAGE,
+      title: "پیام تازه",
+      body: "متن",
+    });
+
+    const saved = notifications.save.mock.calls[0][0];
+    expect(saved.expiresAt.getTime()).toBeGreaterThanOrEqual(
+      before + 60 * 60 * 1000 - 100,
+    );
+    expect(saved.expiresAt.getTime()).toBeLessThanOrEqual(
+      Date.now() + 60 * 60 * 1000 + 100,
+    );
+  });
+
+  it("cleans up existing notifications older than the selected retention period", async () => {
+    const notifications = repository() as any;
+    const preferences = {
+      findOne: jest.fn().mockResolvedValue({
+        autoDeleteEnabled: true,
+        autoDeleteAfterHours: 24,
+      }),
+    };
+    const service = new NotificationsService(
+      notifications,
+      repository() as any,
+      {} as any,
+      undefined,
+      undefined,
+      preferences as any,
+    );
+
+    await service.findForUser("user-1");
+
+    const queryBuilder = notifications.createQueryBuilder.mock.results[0].value;
+    expect(queryBuilder.delete).toHaveBeenCalledTimes(1);
+    expect(queryBuilder.where).toHaveBeenCalledWith(
+      "userId=:userId AND (createdAt <= :cutoff OR (expiresAt IS NOT NULL AND expiresAt <= :now))",
+      expect.objectContaining({
+        userId: "user-1",
+        cutoff: expect.any(Date),
+        now: expect.any(Date),
+      }),
+    );
+  });
+
+  it("removes only owned notifications in the active school when ids are selected", async () => {
+    const notifications = repository() as any;
+    const service = new NotificationsService(
+      notifications,
+      repository() as any,
+      {} as any,
+    );
+
+    await service.removeForUser(
+      { id: "staff-1", activeOrganizationId: "school-1" } as any,
+      ["notice-1", "notice-2"],
+    );
+
+    const queryBuilder = notifications.createQueryBuilder.mock.results[0].value;
+    expect(queryBuilder.where).toHaveBeenCalledWith("userId=:userId", {
+      userId: "staff-1",
+    });
+    expect(queryBuilder.andWhere).toHaveBeenCalledWith("id IN (:...ids)", {
+      ids: ["notice-1", "notice-2"],
+    });
+    expect(queryBuilder.andWhere).toHaveBeenCalledWith(
+      "(organizationId IS NULL OR organizationId = :organizationId)",
+      { organizationId: "school-1" },
     );
   });
 
@@ -163,7 +261,11 @@ describe("NotificationsService", () => {
 
     await expect(
       service.markRead(
-        { id: "staff-1", role: UserRole.ADMIN, activeOrganizationId: "school-1" } as any,
+        {
+          id: "staff-1",
+          role: UserRole.ADMIN,
+          activeOrganizationId: "school-1",
+        } as any,
         "other-school-notification",
       ),
     ).rejects.toMatchObject({

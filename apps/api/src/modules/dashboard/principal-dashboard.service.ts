@@ -1,7 +1,15 @@
-import { Injectable } from "@nestjs/common";
+import {
+  Injectable,
+  Logger,
+  OnModuleDestroy,
+  OnModuleInit,
+  Optional,
+} from "@nestjs/common";
 import { DataSource } from "typeorm";
 import { ApiException } from "../../common/exceptions/api.exception";
 import { AuthenticatedUser } from "../auth";
+import { NotificationsService } from "../notifications";
+import { NotificationType } from "../../database/entities/notification.entity";
 
 type CountRow = { count?: number | string };
 type PrincipalDashboardContract = {
@@ -54,7 +62,7 @@ type PrincipalDashboardContract = {
     permissionRequests: number;
   };
   sessionReviews?: {
-    mode: "automatic" | "absences_only";
+    mode: "all_sessions" | "absences_only";
     pendingCount: number;
     items: Array<{
       id: string;
@@ -91,6 +99,49 @@ type PrincipalDashboardContract = {
     startDate: string;
     endDate: string;
   }>;
+  principalLists?: {
+    counts?: { dorm: number; reports: number; leave: number; groups: number };
+    teacherSessions: Array<{
+      id: string;
+      title: string;
+      teacherName: string;
+      sessionDate: string;
+      present: number;
+      absent: number;
+      marked: number;
+    }>;
+    teacherReports: Array<{
+      id: string;
+      teacherName: string;
+      studentName: string;
+      message: string;
+      createdAt: string;
+      seenAt: string | null;
+    }>;
+    dormAttendance: Array<{
+      id: string;
+      name: string;
+      total: number;
+      present: number;
+      absent: number;
+    }>;
+    classGroupAttendance: Array<{
+      id: string;
+      name: string;
+      total: number;
+      present: number;
+      absent: number;
+      sessionDate: string;
+    }>;
+    teacherLeaveRequests: Array<{
+      id: string;
+      teacherName: string;
+      type: "leave" | "return";
+      startDate: string;
+      endDate: string;
+      status: "pending";
+    }>;
+  };
 };
 
 /**
@@ -98,9 +149,205 @@ type PrincipalDashboardContract = {
  * organization; capability checks shape the response instead of trusting UI
  * visibility as an authorization boundary.
  */
+type PrincipalReminderQueue = {
+  id:
+    | "dorm"
+    | "sessions"
+    | "reports"
+    | "leave"
+    | "return"
+    | "groups"
+    | "student-leave"
+    | "substitution";
+  title: string;
+  body: (count: number) => string;
+  sql: string;
+};
+
+type PrincipalReminderRow = {
+  organizationId?: string;
+  oldestAnchor?: string;
+  pendingCount?: number | string;
+};
+
+/**
+ * Purpose-built leadership projection. Every query is bound to the active
+ * organization; capability checks shape the response instead of trusting UI
+ * visibility as an authorization boundary.
+ *
+ * The periodic reminder is deliberately server-owned. Dashboard cards may be
+ * left unopened, so browser timers would silently lose an important principal
+ * follow-up. Notification dedupe keys make the five-minute worker safe when a
+ * process restarts or more than one API instance is running.
+ */
 @Injectable()
-export class PrincipalDashboardService {
-  constructor(private readonly db: DataSource) {}
+export class PrincipalDashboardService
+  implements OnModuleInit, OnModuleDestroy
+{
+  private readonly logger = new Logger(PrincipalDashboardService.name);
+  private reminderTimer?: ReturnType<typeof setInterval>;
+
+  constructor(
+    private readonly db: DataSource,
+    @Optional() private readonly notifications?: NotificationsService,
+  ) {}
+
+  onModuleInit() {
+    if (!this.notifications) return;
+    void this.runPrincipalQueueReminders();
+    void this.runMissedTeacherAttendanceNotifications();
+    this.reminderTimer = setInterval(
+      () => {
+        void this.runPrincipalQueueReminders();
+        void this.runMissedTeacherAttendanceNotifications();
+      },
+      5 * 60 * 1000,
+    );
+    this.reminderTimer.unref?.();
+  }
+
+  onModuleDestroy() {
+    if (this.reminderTimer) clearInterval(this.reminderTimer);
+  }
+
+  /**
+   * Sends one high-priority reminder per unresolved queue once its oldest item
+   * has waited for an hour. The notification is durable and deep-links to the
+   * matching dashboard drawer; it is not coupled to a browser being open.
+   */
+  async runPrincipalQueueReminders(now = new Date()) {
+    if (!this.notifications) return;
+    // better-sqlite3 cannot bind a JavaScript Date. Keep the same UTC instant
+    // in the SQLite datetime text shape used by TypeORM/CreateDateColumn.
+    const threshold = new Date(now.getTime() - 60 * 60 * 1000)
+      .toISOString()
+      .slice(0, 19)
+      .replace("T", " ");
+    try {
+      const queues = this.principalReminderQueues();
+      const pending = await Promise.all(
+        queues.map(async (queue) => ({
+          queue,
+          rows: (await this.db.query(queue.sql, [
+            threshold,
+          ])) as PrincipalReminderRow[],
+        })),
+      );
+      const recipientCache = new Map<string, string[]>();
+      for (const { queue, rows } of pending) {
+        for (const row of rows) {
+          const organizationId = String(row.organizationId ?? "");
+          const oldestAnchor = String(row.oldestAnchor ?? "");
+          const count = Number(row.pendingCount ?? 0);
+          if (!organizationId || !oldestAnchor || count < 1) continue;
+          let recipients = recipientCache.get(organizationId);
+          if (!recipients) {
+            recipients = await this.principalRecipientIds(organizationId);
+            recipientCache.set(organizationId, recipients);
+          }
+          if (!recipients.length) continue;
+          await this.notifications.createForUsers(recipients, {
+            type: NotificationType.WARNING,
+            category: "principal-review-reminder",
+            priority: "high",
+            title: queue.title,
+            body: queue.body(count),
+            url: `/admin/dashboard/principal?panel=${queue.id}`,
+            data: {
+              panel: queue.id,
+              pendingCount: count,
+              oldestPendingAt: oldestAnchor,
+              pendingForMinutes: 60,
+            },
+            organizationId,
+            // The oldest unresolved item identifies this pending batch. Once it
+            // is reviewed, the next item must itself wait one hour before a new
+            // reminder can be created.
+            dedupeKey: `principal-review-reminder:${organizationId}:${queue.id}:${oldestAnchor}`,
+          });
+        }
+      }
+    } catch (error) {
+      this.logger.error(
+        `Principal review reminder sweep failed: ${error instanceof Error ? error.message : "unknown error"}`,
+      );
+    }
+  }
+
+  /**
+   * A missed lesson must reach the teacher and principals even when nobody has
+   * opened the dashboard. Each recipient gets one durable notification for
+   * the missed occurrence on that operational day.
+   */
+  async runMissedTeacherAttendanceNotifications(now = new Date()) {
+    if (!this.notifications) return;
+    const date = this.tehranDate(now);
+    const currentTime = this.tehranTime(now);
+    const weekday = (new Date(`${date}T12:00:00Z`).getUTCDay() + 1) % 7;
+    try {
+      const rows = (await this.db.query(
+        `SELECT e.id, e.organizationId, e.teacherId, e.title, e.endTime,
+          COALESCE(NULLIF(e.classroomNameSnapshot,''),'کلاس') classroomName,
+          TRIM(COALESCE(u.firstName,'') || ' ' || COALESCE(u.lastName,'')) teacherName
+         FROM school_schedule_entries e
+         LEFT JOIN users u ON u.id=e.teacherId
+         WHERE e.status='ACTIVE' AND e.teacherId IS NOT NULL AND e.weekday=?
+           AND e.academicYearId IS NOT NULL AND e.termId IS NOT NULL
+           AND (e.startsOn IS NULL OR e.startsOn<=?) AND (e.endsOn IS NULL OR e.endsOn>=?)
+           AND e.endTime<?
+           AND NOT EXISTS (
+             SELECT 1 FROM attendance_sessions s
+             WHERE s.organizationId=e.organizationId
+               AND s.occurrenceKey=('legacy-schedule:' || e.id || ':' || ?)
+           )`,
+        [weekday, date, date, currentTime, date],
+      )) as Array<Record<string, unknown>>;
+      const principalsByOrganization = new Map<string, string[]>();
+      await Promise.all(
+        rows.map(async (row) => {
+          const organizationId = String(row.organizationId ?? "");
+          const entryId = String(row.id ?? "");
+          const teacherId = String(row.teacherId ?? "");
+          if (!organizationId || !entryId || !teacherId) return;
+          const teacherName = String(row.teacherName ?? "").trim() || "استاد";
+          const body = `${teacherName} برای ${String(row.classroomName ?? "کلاس")} · ${String(row.title ?? "جلسه")} تا پایان زمان جلسه حضور و غیاب ثبت نکرده است.`;
+          await this.notifications!.createForUser(teacherId, {
+            type: NotificationType.WARNING,
+            category: "attendance-overdue",
+            priority: "high",
+            title: "حضور و غیاب جلسه ثبت نشده است",
+            body,
+            url: "/admin",
+            organizationId,
+            dedupeKey: `attendance-overdue:${date}:${entryId}:${teacherId}`,
+          });
+          let principals = principalsByOrganization.get(organizationId);
+          if (!principals) {
+            principals = await this.principalRecipientIds(organizationId);
+            principalsByOrganization.set(organizationId, principals);
+          }
+          await Promise.all(
+            principals.map((principalId) =>
+              this.notifications!.createForUser(principalId, {
+                type: NotificationType.WARNING,
+                category: "attendance-overdue",
+                priority: "high",
+                title: "پیگیری حضور و غیاب استاد",
+                body,
+                url: "/admin/dashboard/principal?panel=sessions",
+                organizationId,
+                dedupeKey: `attendance-overdue:${date}:${entryId}:${principalId}`,
+              }),
+            ),
+          );
+        }),
+      );
+    } catch (error) {
+      this.logger.error(
+        `Missed teacher attendance notification sweep failed: ${error instanceof Error ? error.message : "unknown error"}`,
+      );
+    }
+  }
 
   async get(
     user: AuthenticatedUser,
@@ -108,6 +355,17 @@ export class PrincipalDashboardService {
     to?: string,
     classId?: string,
   ): Promise<PrincipalDashboardContract> {
+    const roles = user.roles?.length ? user.roles : [user.role];
+    if (
+      !roles.some((role) =>
+        ["PRINCIPAL", "ORGANIZATION_ADMIN", "PLATFORM_ADMIN"].includes(role),
+      )
+    )
+      throw new ApiException(
+        403,
+        "PRINCIPAL_DASHBOARD_FORBIDDEN",
+        "میز عملیاتی مدیر فقط برای مدیر مدرسه در دسترس است.",
+      );
     const organizationId = user.activeOrganizationId;
     if (!organizationId)
       throw new ApiException(
@@ -161,11 +419,7 @@ export class PrincipalDashboardService {
       to: end,
     };
 
-    if (
-      can("attendance.read") ||
-      can("attendance.reports.read") ||
-      can("attendance.review")
-    )
+    if (can("attendance.review"))
       response.attendance = await this.attendance(
         organizationId,
         start,
@@ -208,7 +462,344 @@ export class PrincipalDashboardService {
     if (can("leave.read"))
       response.pendingLeaveRequests =
         await this.pendingLeaveRequests(organizationId);
+    if (can("attendance.review") || can("leave.read"))
+      response.principalLists = await this.principalLists(organizationId, end, {
+        attendanceReview: can("attendance.review"),
+        leaveRead: can("leave.read"),
+      });
     return response;
+  }
+
+  /** Six Saturday-first weeks of class-only absences for the principal archive. */
+  async absenceCalendar(user: AuthenticatedUser, month?: string) {
+    const roles = user.roles?.length ? user.roles : [user.role];
+    if (
+      !roles.some((role) =>
+        ["PRINCIPAL", "ORGANIZATION_ADMIN", "PLATFORM_ADMIN"].includes(role),
+      )
+    )
+      throw new ApiException(
+        403,
+        "PRINCIPAL_DASHBOARD_FORBIDDEN",
+        "دسترسی مدیر لازم است.",
+      );
+    const organizationId = user.activeOrganizationId;
+    if (!organizationId)
+      throw new ApiException(
+        403,
+        "ORGANIZATION_REQUIRED",
+        "مدرسه فعال مشخص نیست.",
+      );
+    const {
+      start,
+      end,
+      month: calendarMonth,
+    } = this.dashboardCalendarRange(month);
+    const rows = await this.db.query(
+      `SELECT COALESCE(s.operationalDate,date(s.sessionDate)) date, r.studentId id,
+        COALESCE(NULLIF(st.name,''), TRIM(COALESCE(u.firstName,'') || ' ' || COALESCE(u.lastName,'')), 'دانش‌آموز') name,
+        COALESCE(NULLIF(s.titleSnapshot,''),'جلسه کلاس') context
+       FROM attendance_records r JOIN attendance_sessions s ON s.id=r.sessionId
+       LEFT JOIN students st ON st.id=r.studentId LEFT JOIN users u ON u.id=st.userId
+       WHERE s.organizationId=? AND s.contextType='class' AND r.status='absent'
+         AND COALESCE(s.operationalDate,date(s.sessionDate)) BETWEEN ? AND ?
+       ORDER BY date DESC, name ASC`,
+      [organizationId, start, end],
+    );
+    const days: Record<
+      string,
+      Array<{ id: string; name: string; context: string }>
+    > = {};
+    for (const row of rows as Array<Record<string, unknown>>) {
+      const date = String(row.date);
+      const list = days[date] ?? (days[date] = []);
+      if (!list.some((item) => item.id === String(row.id)))
+        list.push({
+          id: String(row.id),
+          name: String(row.name),
+          context: String(row.context),
+        });
+    }
+    return { start, end, month: calendarMonth, days };
+  }
+
+  /** Planned legacy schedule occurrences with their canonical teacher-attendance state. */
+  async teacherSessionCalendar(user: AuthenticatedUser, month?: string) {
+    const roles = user.roles?.length ? user.roles : [user.role];
+    if (
+      !roles.some((role) =>
+        ["PRINCIPAL", "ORGANIZATION_ADMIN", "PLATFORM_ADMIN"].includes(role),
+      )
+    )
+      throw new ApiException(
+        403,
+        "PRINCIPAL_DASHBOARD_FORBIDDEN",
+        "دسترسی مدیر لازم است.",
+      );
+    const organizationId = user.activeOrganizationId;
+    if (!organizationId)
+      throw new ApiException(
+        403,
+        "ORGANIZATION_REQUIRED",
+        "مدرسه فعال مشخص نیست.",
+      );
+    const {
+      start,
+      end,
+      month: calendarMonth,
+    } = this.dashboardCalendarRange(month);
+    const [entries, saved] = await Promise.all([
+      this.db.query(
+        `SELECT e.id,e.weekday,e.title,e.startsOn,e.endsOn,
+          term.startsOn termStartsOn,term.endsOn termEndsOn,
+          year.startsOn academicYearStartsOn,year.endsOn academicYearEndsOn,
+          TRIM(COALESCE(u.firstName,'') || ' ' || COALESCE(u.lastName,'')) teacherName
+         FROM school_schedule_entries e
+         LEFT JOIN users u ON u.id=e.teacherId
+         LEFT JOIN school_academic_terms term ON term.id=e.termId
+         LEFT JOIN school_academic_years year ON year.id=COALESCE(e.academicYearId,term.academicYearId)
+         WHERE e.organizationId=? AND e.status='ACTIVE' AND e.versionId IS NULL`,
+        [organizationId],
+      ),
+      this.db.query(
+        `SELECT sourceScheduleId, COALESCE(operationalDate,date(sessionDate)) sessionDate FROM attendance_sessions WHERE organizationId=? AND contextType='class' AND sourceKind='legacy_schedule' AND COALESCE(operationalDate,date(sessionDate)) BETWEEN ? AND ?`,
+        [organizationId, start, end],
+      ),
+    ]);
+    const savedKeys = new Set(
+      (saved as Array<Record<string, unknown>>).map(
+        (row) => `${row.sourceScheduleId}:${row.sessionDate}`,
+      ),
+    );
+    const days: Record<
+      string,
+      Array<{
+        id: string;
+        title: string;
+        teacherName: string;
+        state: "saved" | "missing" | "future";
+      }>
+    > = {};
+    const today = this.today();
+    for (let date = start; date <= end; date = this.daysBefore(date, -1)) {
+      const weekday = (new Date(`${date}T12:00:00Z`).getUTCDay() + 1) % 7;
+      for (const entry of entries as Array<Record<string, unknown>>) {
+        const startsOn = [
+          entry.academicYearStartsOn,
+          entry.termStartsOn,
+          entry.startsOn,
+        ]
+          .filter(
+            (value): value is string =>
+              typeof value === "string" && Boolean(value),
+          )
+          .sort()
+          .at(-1);
+        const endsOn = [
+          entry.academicYearEndsOn,
+          entry.termEndsOn,
+          entry.endsOn,
+        ]
+          .filter(
+            (value): value is string =>
+              typeof value === "string" && Boolean(value),
+          )
+          .sort()
+          .at(0);
+        if (
+          Number(entry.weekday) !== weekday ||
+          (startsOn && startsOn > date) ||
+          (endsOn && endsOn < date)
+        )
+          continue;
+        const id = String(entry.id);
+        (days[date] ??= []).push({
+          id,
+          title: String(entry.title || "جلسه کلاس"),
+          teacherName: String(entry.teacherName || "استاد").trim() || "استاد",
+          state: savedKeys.has(`${id}:${date}`)
+            ? "saved"
+            : date > today
+              ? "future"
+              : "missing",
+        });
+      }
+    }
+    return { start, end, month: calendarMonth, days };
+  }
+
+  private async principalLists(
+    organizationId: string,
+    day: string,
+    permissions: { attendanceReview: boolean; leaveRead: boolean },
+  ) {
+    const [
+      teacherSessions,
+      teacherReports,
+      dormAttendance,
+      classGroupAttendance,
+      teacherLeaveRequests,
+      counts,
+    ] = await Promise.all([
+      permissions.attendanceReview
+        ? this.db.query(
+            `SELECT s.id, COALESCE(NULLIF(s.titleSnapshot,''),'جلسه کلاس') title,
+            TRIM(COALESCE(u.firstName,'') || ' ' || COALESCE(u.lastName,'')) teacherName,
+            s.sessionDate,
+            SUM(CASE WHEN r.status='present' THEN 1 ELSE 0 END) present,
+            SUM(CASE WHEN r.status='absent' THEN 1 ELSE 0 END) absent,
+            COUNT(r.id) marked
+           FROM attendance_sessions s
+           LEFT JOIN users u ON u.id=s.assignedStaffId
+           LEFT JOIN attendance_records r ON r.sessionId=s.id
+           WHERE s.organizationId=? AND s.contextType='class'
+             AND COALESCE(s.operationalDate,date(s.sessionDate))=?
+           GROUP BY s.id, u.firstName, u.lastName
+           ORDER BY s.sessionDate DESC LIMIT 12`,
+            [organizationId, day],
+          )
+        : Promise.resolve([]),
+      permissions.attendanceReview
+        ? this.db.query(
+            `SELECT r.id, TRIM(COALESCE(t.firstName,'') || ' ' || COALESCE(t.lastName,'')) teacherName,
+            COALESCE(NULLIF(student.name,''),TRIM(COALESCE(su.firstName,'') || ' ' || COALESCE(su.lastName,'')),'دانش‌آموز') studentName,
+            r.message, r.createdAt, r.seenAt
+           FROM teacher_student_reports r
+           JOIN users t ON t.id=r.teacherId
+           JOIN students student ON student.id=r.studentId
+           LEFT JOIN users su ON su.id=student.userId
+           WHERE r.organizationId=? ORDER BY r.createdAt DESC LIMIT 12`,
+            [organizationId],
+          )
+        : Promise.resolve([]),
+      permissions.attendanceReview
+        ? this.db.query(
+            `SELECT s.contextId id, COALESCE(NULLIF(d.name,''),NULLIF(s.titleSnapshot,''),'اتاق خوابگاه') name,
+            COUNT(r.id) total, SUM(CASE WHEN r.status='present' THEN 1 ELSE 0 END) present,
+            SUM(CASE WHEN r.status='absent' THEN 1 ELSE 0 END) absent
+           FROM attendance_sessions s
+           LEFT JOIN dorm_rooms d ON d.id=s.contextId
+           LEFT JOIN attendance_records r ON r.sessionId=s.id
+           WHERE s.organizationId=? AND s.contextType='dorm'
+             AND COALESCE(s.operationalDate,date(s.sessionDate))=?
+           GROUP BY s.contextId, d.name, s.titleSnapshot ORDER BY absent DESC, total DESC LIMIT 12`,
+            [organizationId, day],
+          )
+        : Promise.resolve([]),
+      permissions.attendanceReview
+        ? this.db.query(
+            `SELECT s.id, COALESCE(NULLIF(g.name,''),NULLIF(s.titleSnapshot,''),'گروه کلاس') name,
+              s.sessionDate, COUNT(r.id) total,
+              SUM(CASE WHEN r.status='present' THEN 1 ELSE 0 END) present,
+              SUM(CASE WHEN r.status='absent' THEN 1 ELSE 0 END) absent
+             FROM attendance_sessions s
+             LEFT JOIN study_groups g ON g.id=s.contextId
+             LEFT JOIN attendance_records r ON r.sessionId=s.id
+             WHERE s.organizationId=? AND s.contextType IN ('class_group','study_group')
+               AND COALESCE(s.operationalDate,date(s.sessionDate))=?
+             GROUP BY s.id, g.name, s.titleSnapshot
+             ORDER BY s.sessionDate DESC LIMIT 12`,
+            [organizationId, day],
+          )
+        : Promise.resolve([]),
+      permissions.leaveRead
+        ? this.db.query(
+            `SELECT l.id, TRIM(COALESCE(u.firstName,'') || ' ' || COALESCE(u.lastName,'')) teacherName,
+            l.startDate, l.endDate, l.returnDate, l.status, l.returnStatus
+           FROM teacher_leave_requests l JOIN users u ON u.id=l.teacherId
+           WHERE l.organizationId=? AND (l.status='pending' OR l.returnStatus='pending')
+           ORDER BY l.createdAt ASC LIMIT 12`,
+            [organizationId],
+          )
+        : Promise.resolve([]),
+      Promise.all([
+        permissions.attendanceReview
+          ? this.scalar(
+              `SELECT COUNT(DISTINCT r.id) count FROM attendance_records r JOIN attendance_sessions s ON s.id=r.sessionId WHERE s.organizationId=? AND s.contextType='dorm' AND r.status='absent' AND r.reviewStatus='pending'`,
+              [organizationId],
+            )
+          : Promise.resolve(0),
+        permissions.attendanceReview
+          ? this.scalar(
+              `SELECT COUNT(id) count FROM teacher_student_reports WHERE organizationId=? AND seenAt IS NULL`,
+              [organizationId],
+            )
+          : Promise.resolve(0),
+        permissions.leaveRead
+          ? this.scalar(
+              `SELECT COUNT(id) count FROM teacher_leave_requests WHERE organizationId=? AND (status='pending' OR returnStatus='pending')`,
+              [organizationId],
+            )
+          : Promise.resolve(0),
+        permissions.attendanceReview
+          ? this.scalar(
+              `SELECT COUNT(DISTINCT s.id) count FROM attendance_sessions s WHERE s.organizationId=? AND s.contextType IN ('class_group','study_group') AND COALESCE(s.operationalDate,date(s.sessionDate))=?`,
+              [organizationId, day],
+            )
+          : Promise.resolve(0),
+      ]),
+    ]);
+    return {
+      counts: {
+        dorm: Number(counts[0] ?? 0),
+        reports: Number(counts[1] ?? 0),
+        leave: Number(counts[2] ?? 0),
+        groups: Number(counts[3] ?? 0),
+      },
+      teacherSessions: teacherSessions.map((row: Record<string, unknown>) => ({
+        id: String(row.id),
+        title: String(row.title),
+        teacherName: String(row.teacherName).trim() || "استاد",
+        sessionDate: String(row.sessionDate),
+        present: Number(row.present ?? 0),
+        absent: Number(row.absent ?? 0),
+        marked: Number(row.marked ?? 0),
+      })),
+      teacherReports: teacherReports.map((row: Record<string, unknown>) => ({
+        id: String(row.id),
+        teacherName: String(row.teacherName).trim() || "استاد",
+        studentName: String(row.studentName),
+        message: String(row.message),
+        createdAt: String(row.createdAt),
+        seenAt: row.seenAt == null ? null : String(row.seenAt),
+      })),
+      dormAttendance: dormAttendance.map((row: Record<string, unknown>) => ({
+        id: String(row.id),
+        name: String(row.name),
+        total: Number(row.total ?? 0),
+        present: Number(row.present ?? 0),
+        absent: Number(row.absent ?? 0),
+      })),
+      classGroupAttendance: classGroupAttendance.map(
+        (row: Record<string, unknown>) => ({
+          id: String(row.id),
+          name: String(row.name),
+          total: Number(row.total ?? 0),
+          present: Number(row.present ?? 0),
+          absent: Number(row.absent ?? 0),
+          sessionDate: String(row.sessionDate),
+        }),
+      ),
+      teacherLeaveRequests: teacherLeaveRequests.map(
+        (row: Record<string, unknown>) => ({
+          id: String(row.id),
+          teacherName: String(row.teacherName).trim() || "استاد",
+          type:
+            row.returnStatus === "pending"
+              ? ("return" as const)
+              : ("leave" as const),
+          startDate:
+            row.returnStatus === "pending"
+              ? String(row.returnDate)
+              : String(row.startDate),
+          endDate:
+            row.returnStatus === "pending"
+              ? String(row.returnDate)
+              : String(row.endDate),
+          status: "pending" as const,
+        }),
+      ),
+    };
   }
 
   private async todayAbsences(organizationId: string, day: string) {
@@ -520,35 +1111,33 @@ export class PrincipalDashboardService {
       "SELECT principalReviewMode FROM attendance_policies WHERE organizationId=? LIMIT 1",
       [organizationId],
     );
-    const mode: "automatic" | "absences_only" =
-      policies[0]?.principalReviewMode === "automatic" ? "automatic" : "absences_only";
-    if (mode === "automatic") return { mode, pendingCount: 0, items: [] };
-    const dueBefore = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+    const mode: "all_sessions" | "absences_only" =
+      policies[0]?.principalReviewMode === "all_sessions"
+        ? "all_sessions"
+        : "absences_only";
     const classFilter = classId
       ? " AND s.contextType='class' AND s.contextId=?"
       : "";
-    const parameters = classId
-      ? [organizationId, dueBefore, classId]
-      : [organizationId, dueBefore];
+    const parameters = classId ? [organizationId, classId] : [organizationId];
     const base = `FROM attendance_sessions s
       LEFT JOIN attendance_records r ON r.sessionId=s.id
       LEFT JOIN (SELECT sessionId, reviewedRevision, MAX(reviewedAt) reviewedAt FROM attendance_session_reviews GROUP BY sessionId, reviewedRevision) latest ON latest.sessionId=s.id AND latest.reviewedRevision=s.revision
-      WHERE s.organizationId=? AND s.status IN ('submitted','finalized')
-        AND EXISTS (SELECT 1 FROM attendance_records absent_record WHERE absent_record.sessionId=s.id AND absent_record.physicalStatus='absent')
-        AND (latest.reviewedAt IS NULL OR latest.reviewedAt<=?)${classFilter}`;
+      WHERE s.organizationId=? AND s.contextType='class' AND s.status IN ('submitted','finalized')
+        ${mode === "absences_only" ? "AND EXISTS (SELECT 1 FROM attendance_records absent_record WHERE absent_record.sessionId=s.id AND absent_record.physicalStatus='absent')" : ""}
+        AND latest.reviewedAt IS NULL${classFilter}`;
     const pendingCount = await this.scalar(
       `SELECT COUNT(DISTINCT s.id) count ${base}`,
       parameters,
     );
     const rows = await this.db.query(
       `SELECT s.id, s.contextType, s.contextId, COALESCE(NULLIF(s.titleSnapshot,''),'جلسه ثبت‌شده') title,
-        s.sessionDate, s.status, json_array_length(s.rosterSnapshot) expected, latest.reviewedAt lastReviewedAt,
+        s.sessionDate, s.status, s.revision, json_array_length(s.rosterSnapshot) expected, latest.reviewedAt lastReviewedAt,
         COUNT(r.id) marked,
         SUM(CASE WHEN r.status='present' THEN 1 ELSE 0 END) present,
-        SUM(CASE WHEN r.status='absent' THEN 1 ELSE 0 END) absent,
+        SUM(CASE WHEN r.physicalStatus='absent' THEN 1 ELSE 0 END) absent,
         SUM(CASE WHEN r.status='late' THEN 1 ELSE 0 END) late,
         SUM(CASE WHEN r.status='excused' THEN 1 ELSE 0 END) excused
-       ${base} GROUP BY s.id ORDER BY s.sessionDate DESC LIMIT 10`,
+       ${base} GROUP BY s.id ORDER BY s.sessionDate DESC`,
       parameters,
     );
     return {
@@ -561,6 +1150,7 @@ export class PrincipalDashboardService {
         title: String(row.title),
         sessionDate: String(row.sessionDate),
         status: String(row.status),
+        revision: Number(row.revision),
         expected: row.expected == null ? null : Number(row.expected),
         marked: Number(row.marked ?? 0),
         present: Number(row.present ?? 0),
@@ -612,18 +1202,206 @@ export class PrincipalDashboardService {
       {}
     );
   }
+  /** Creates one durable notification per missed legacy occurrence and principal. */
+  private async notifyOverdueTeacherSessions(
+    user: AuthenticatedUser,
+    organizationId: string,
+    date: string,
+  ) {
+    if (!this.notifications) return;
+    const notifications = this.notifications;
+    const now = new Intl.DateTimeFormat("en-GB", {
+      timeZone: "Asia/Tehran",
+      hour: "2-digit",
+      minute: "2-digit",
+      hourCycle: "h23",
+    })
+      .format(new Date())
+      .replace(":", "");
+    const currentTime = `${now.slice(0, 2)}:${now.slice(2, 4)}`;
+    const weekday = (new Date(`${date}T12:00:00Z`).getUTCDay() + 1) % 7;
+    const rows = await this.db.query(
+      `SELECT e.id, e.title, e.endTime, COALESCE(NULLIF(e.classroomNameSnapshot,''),'کلاس') classroomName,
+        TRIM(COALESCE(u.firstName,'') || ' ' || COALESCE(u.lastName,'')) teacherName
+       FROM school_schedule_entries e
+       LEFT JOIN users u ON u.id=e.teacherId
+       WHERE e.organizationId=? AND e.status='ACTIVE' AND e.weekday=?
+         AND e.academicYearId IS NOT NULL AND e.termId IS NOT NULL
+         AND (e.startsOn IS NULL OR e.startsOn<=?) AND (e.endsOn IS NULL OR e.endsOn>=?)
+         AND e.endTime<?
+         AND NOT EXISTS (SELECT 1 FROM attendance_sessions s WHERE s.organizationId=e.organizationId AND s.occurrenceKey=('legacy-schedule:' || e.id || ':' || ?))`,
+      [organizationId, weekday, date, date, currentTime, date],
+    );
+    await Promise.all(
+      (rows as Array<Record<string, unknown>>).map((row) =>
+        notifications.createForUser(user.id, {
+          type: NotificationType.WARNING,
+          category: "attendance_overdue",
+          priority: "high",
+          title: "حضور و غیاب استاد ثبت نشده است",
+          body: `${String(row.teacherName).trim() || "استاد"} برای ${String(row.classroomName)} · ${String(row.title)} تا پایان زمان جلسه حضور و غیاب ثبت نکرده است.`,
+          url: "/admin/attendance?section=sessions",
+          organizationId,
+          dedupeKey: `attendance-overdue:${date}:${String(row.id)}:${user.id}`,
+        }),
+      ),
+    );
+  }
+
+  private principalReminderQueues(): PrincipalReminderQueue[] {
+    const sessionReviewBase = (contextFilter: string) => `
+      SELECT s.organizationId organizationId, MIN(COALESCE(s.submittedAt,s.updatedAt,s.createdAt)) oldestAnchor, COUNT(DISTINCT s.id) pendingCount
+      FROM attendance_sessions s
+      LEFT JOIN attendance_policies p ON p.organizationId=s.organizationId
+      WHERE ${contextFilter}
+        AND s.status IN ('submitted','finalized')
+        AND COALESCE(s.submittedAt,s.updatedAt,s.createdAt)<=?
+        AND NOT EXISTS (
+          SELECT 1 FROM attendance_session_reviews review
+          WHERE review.sessionId=s.id AND review.reviewedRevision=s.revision
+        )`;
+    return [
+      {
+        id: "dorm",
+        title: "بازبینی حضور خوابگاه معوق است",
+        body: (count) =>
+          `${count} مورد حضور خوابگاه بیش از یک ساعت منتظر بازبینی شما است.`,
+        sql: `SELECT s.organizationId organizationId, MIN(s.dormForwardedAt) oldestAnchor, COUNT(DISTINCT s.id) pendingCount
+          FROM attendance_sessions s
+          WHERE s.contextType='dorm' AND s.dormForwardedAt IS NOT NULL
+            AND s.dormPrincipalReviewedAt IS NULL AND s.dormForwardedAt<=?
+          GROUP BY s.organizationId`,
+      },
+      {
+        id: "sessions",
+        title: "بازبینی جلسه‌های کلاس معوق است",
+        body: (count) =>
+          `${count} جلسهٔ کلاس بیش از یک ساعت منتظر بازبینی شما است.`,
+        sql: `${sessionReviewBase("s.contextType='class'")}
+          AND (
+            COALESCE(p.principalReviewMode,'absences_only')='all_sessions'
+            OR EXISTS (
+              SELECT 1 FROM attendance_records absent_record
+              WHERE absent_record.sessionId=s.id AND absent_record.physicalStatus='absent'
+            )
+          ) GROUP BY s.organizationId`,
+      },
+      {
+        id: "reports",
+        title: "گزارش‌های استادان نیازمند بررسی است",
+        body: (count) =>
+          `${count} گزارش دانش‌آموز بیش از یک ساعت بدون بررسی مانده است.`,
+        sql: `SELECT organizationId, MIN(createdAt) oldestAnchor, COUNT(id) pendingCount
+          FROM teacher_student_reports
+          WHERE seenAt IS NULL AND createdAt<=?
+          GROUP BY organizationId`,
+      },
+      {
+        id: "leave",
+        title: "درخواست مرخصی استادان نیازمند تصمیم است",
+        body: (count) =>
+          `${count} درخواست مرخصی استاد بیش از یک ساعت منتظر تصمیم شما است.`,
+        sql: `SELECT organizationId, MIN(createdAt) oldestAnchor, COUNT(id) pendingCount
+          FROM teacher_leave_requests
+          WHERE status='pending' AND createdAt<=?
+          GROUP BY organizationId`,
+      },
+      {
+        id: "return",
+        title: "درخواست بازگشت استادان نیازمند تصمیم است",
+        body: (count) =>
+          `${count} درخواست بازگشت زودتر استاد بیش از یک ساعت منتظر تصمیم شما است.`,
+        sql: `SELECT organizationId, MIN(returnRequestedAt) oldestAnchor, COUNT(id) pendingCount
+          FROM teacher_leave_requests
+          WHERE returnStatus='pending' AND returnRequestedAt IS NOT NULL AND returnRequestedAt<=?
+          GROUP BY organizationId`,
+      },
+      {
+        id: "groups",
+        title: "بازبینی حضور گروه‌های کلاس معوق است",
+        body: (count) =>
+          `${count} حضور گروه کلاس بیش از یک ساعت منتظر بازبینی شما است.`,
+        sql: `${sessionReviewBase("s.contextType IN ('class_group','study_group')")}
+          GROUP BY s.organizationId`,
+      },
+      {
+        id: "student-leave",
+        title: "درخواست خروج دانش‌آموزان نیازمند تصمیم است",
+        body: (count) =>
+          `${count} درخواست خروج دانش‌آموز بیش از یک ساعت منتظر تصمیم شما است.`,
+        sql: `SELECT organizationId, MIN(createdAt) oldestAnchor, COUNT(id) pendingCount
+          FROM leave_requests
+          WHERE status='PENDING' AND reviewerRole='PRINCIPAL' AND createdAt<=?
+          GROUP BY organizationId`,
+      },
+      {
+        id: "substitution",
+        title: "درخواست جابه‌جایی جلسه‌ها نیازمند تصمیم است",
+        body: (count) =>
+          `${count} درخواست جابه‌جایی برنامه بیش از یک ساعت منتظر تصمیم شما است.`,
+        sql: `SELECT source.organizationId organizationId, MIN(request.createdAt) oldestAnchor, COUNT(request.id) pendingCount
+          FROM school_schedule_substitution_requests request
+          JOIN school_schedule_entries source ON source.id=request.sourceEntryId
+          WHERE request.status='pending' AND request.createdAt<=?
+          GROUP BY source.organizationId`,
+      },
+    ];
+  }
+
+  private async principalRecipientIds(organizationId: string) {
+    const rows = (await this.db.query(
+      `SELECT DISTINCT membership.userId id
+       FROM organization_memberships membership
+       JOIN user_role_assignments assignment ON assignment.membershipId=membership.id
+       JOIN roles role ON role.id=assignment.roleId
+       WHERE membership.organizationId=? AND membership.status='ACTIVE'
+         AND role.code IN ('PRINCIPAL','ORGANIZATION_ADMIN')`,
+      [organizationId],
+    )) as Array<{ id?: string }>;
+    return rows.map((row) => String(row.id ?? "")).filter(Boolean);
+  }
+
   private async scalar(sql: string, parameters: unknown[]) {
     const row = (await this.db.query(sql, parameters))[0] as
       CountRow | undefined;
     return Number(row?.count ?? 0);
   }
   private today() {
+    return this.tehranDate(new Date());
+  }
+  /** Standard six-week view: leading/trailing dates occupy rows one and six. */
+  private dashboardCalendarRange(requestedMonth?: string) {
+    const requested = requestedMonth ? this.isoDate(requestedMonth) : null;
+    if (requestedMonth && (!requested || !requested.endsWith("-01")))
+      throw new ApiException(
+        400,
+        "DASHBOARD_CALENDAR_MONTH_INVALID",
+        "ماه انتخاب‌شده معتبر نیست.",
+      );
+    const firstOfMonth = requested ?? `${this.today().slice(0, 8)}01`;
+    const saturdayOffset =
+      (new Date(`${firstOfMonth}T12:00:00Z`).getUTCDay() + 1) % 7;
+    const start = this.daysBefore(firstOfMonth, saturdayOffset + 7);
+    return { month: firstOfMonth, start, end: this.daysBefore(start, -41) };
+  }
+  private tehranDate(value: Date) {
     return new Intl.DateTimeFormat("en-CA", {
       timeZone: "Asia/Tehran",
       year: "numeric",
       month: "2-digit",
       day: "2-digit",
-    }).format(new Date());
+    }).format(value);
+  }
+  private tehranTime(value: Date) {
+    const time = new Intl.DateTimeFormat("en-GB", {
+      timeZone: "Asia/Tehran",
+      hour: "2-digit",
+      minute: "2-digit",
+      hourCycle: "h23",
+    })
+      .format(value)
+      .replace(":", "");
+    return `${time.slice(0, 2)}:${time.slice(2, 4)}`;
   }
   private daysBefore(date: string, days: number) {
     const value = new Date(`${date}T12:00:00Z`);

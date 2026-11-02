@@ -29,7 +29,6 @@ import {
   listAnnouncements,
   type SchoolAnnouncement,
 } from "../../analytics/school-home/api/school-home.api";
-import { CommunicationFuturePage } from "../components/CommunicationFuturePage";
 
 function Media({ item }: { item: SchoolAnnouncement }) {
   const island = useFloatingIsland();
@@ -252,15 +251,9 @@ export function LegacyAnnouncementInboxPage() {
 }
 
 export function AnnouncementManagementPage() {
-  return (
-    <CommunicationFuturePage
-      title="مدیریت اطلاعیه‌ها فعلاً غیرفعال است"
-      description="این صفحه برای استفاده آینده نگه داشته شده و در حال حاضر امکان ساخت یا انتشار اطلاعیه از این بخش وجود ندارد."
-    />
-  );
+  return <LegacyAnnouncementManagementPage />;
 }
 
-/** Preserved for the future reactivation of announcement authoring. */
 export function LegacyAnnouncementManagementPage() {
   const auth = useAuth();
   const client = useQueryClient();

@@ -68,6 +68,19 @@ describe("school navigation registry", () => {
     expect(paths).not.toContain("organizations");
     expect(paths).not.toContain("attendance");
   });
+  it("gives school supervisors separate attendance workspaces", () => {
+    const paths = navigationForCapabilities(["attendance.read"], "SCHOOL_SUPERVISOR").flatMap(
+      (group) => group.items.map((item) => item.path),
+    );
+    expect(paths).toEqual(
+      expect.arrayContaining([
+        "attendance/classes",
+        "attendance/class-groups",
+        "attendance/dorm",
+        "attendance/archive",
+      ]),
+    );
+  });
   it("resolves nested school routes and preserves clean destinations", () => {
     expect(normalizeAdminPath("/admin/classes/42?tab=roster")).toBe("classes/42");
     expect(resolveAdminNavigation("/admin/classes/42").path).toBe("classes");

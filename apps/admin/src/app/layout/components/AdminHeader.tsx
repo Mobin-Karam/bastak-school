@@ -5,7 +5,6 @@ import { ThemeSwitcher } from "../../../shared/theme/theme";
 import { WorkContextBar } from "../../../shared/ui/work-context-bar";
 import { PlatformOrganizationPicker } from "../../../shared/ui/platform-organization-picker";
 import { adminDestination, resolveAdminNavigation } from "../navigation/config/admin-navigation";
-import { AdminAccountMenu } from "./AdminAccountMenu";
 import type { AdminBreadcrumb, AdminCurrentNavigation } from "../model/layout-types";
 import { useAdminShellCopy, useLocale } from "../../../shared/ui/locale";
 import type { AdminPerformanceProfile } from "../lib/device-performance";
@@ -120,7 +119,6 @@ export function AdminHeader({
             <ThemeSwitcher />
           </div>
           {/* <HeaderNotifications /> */}
-          <AdminAccountMenu />
         </div>
       </div>
     </header>

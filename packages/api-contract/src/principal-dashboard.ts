@@ -55,6 +55,7 @@ export type PrincipalDashboardContract = {
     permissionRequests: number;
   };
   sessionReviews?: {
+    mode: "all_sessions" | "absences_only";
     pendingCount: number;
     items: Array<{
       id: string;
@@ -63,6 +64,7 @@ export type PrincipalDashboardContract = {
       title: string;
       sessionDate: string;
       status: string;
+      revision: number;
       expected: number | null;
       marked: number;
       present: number;

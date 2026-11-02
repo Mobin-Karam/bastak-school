@@ -71,19 +71,19 @@ const GuardianPage = lazy(() =>
 const SchedulePage = lazy(() =>
   import("../../features/academics/schedule").then((m) => ({ default: m.SchedulePage })),
 );
-const LeaveRequestsPage = lazy(() =>
-  import("../../features/student-life/leave-requests").then((m) => ({
-    default: m.LeaveRequestsPage,
-  })),
-);
+// const LeaveRequestsPage = lazy(() =>
+//   import("../../features/student-life/leave-requests").then((m) => ({
+//     default: m.LeaveRequestsPage,
+//   })),
+// );
 const PermissionRequestsPage = lazy(() =>
   import("../../features/student-life/permission-requests").then((m) => ({
     default: m.PermissionRequestsPage,
   })),
 );
-const ExitPermissionsPage = lazy(() =>
-  import("../../features/student-life/exit-permissions").then((m) => ({
-    default: m.ExitPermissionsPage,
+const StudentMovementCenterPage = lazy(() =>
+  import("../../features/student-life/movement-center").then((m) => ({
+    default: m.StudentMovementCenterPage,
   })),
 );
 const DormitoryPage = lazy(() =>
@@ -245,7 +245,7 @@ function ProtectedRoute() {
   return <PortalHostBoundary />;
 }
 
-function PortalHostBoundary() {
+export function PortalHostBoundary() {
   const auth = useAuth();
   const location = useLocation();
   const domain = currentAppDomain();
@@ -260,7 +260,10 @@ function PortalHostBoundary() {
   }
 
   const desiredRole = preferredRoleForDomain(auth.context?.roles ?? [], domain);
-  if (desiredRole && auth.activeRole !== desiredRole) {
+  const activeRoleIsAvailable =
+    auth.activeRole !== null &&
+    preferredRoleForDomain([auth.activeRole], domain) === auth.activeRole;
+  if (desiredRole && !activeRoleIsAvailable) {
     return <PortalRoleSwitch desiredRole={desiredRole} />;
   }
   if (desiredRole) return <Outlet />;
@@ -351,6 +354,25 @@ export function CapabilityRoute({
 function StudentOnlyRoute({ children }: { children: ReactNode }) {
   const auth = useAuth();
   return auth.activeRole === "STUDENT" ? <>{children}</> : <Navigate to="/admin" replace />;
+}
+
+/** Teachers take attendance from their own schedule, never from the staff-wide workspace. */
+function StaffAttendanceRoute({ children }: { children: ReactNode }) {
+  const auth = useAuth();
+  return auth.activeRole === "TEACHER" ? (
+    <Navigate to="/admin/schedule" replace />
+  ) : (
+    <>{children}</>
+  );
+}
+
+function StaffClassesRoute({ children }: { children: ReactNode }) {
+  const auth = useAuth();
+  return auth.activeRole === "TEACHER" ? (
+    <Navigate to="/admin/communication/notifications" replace />
+  ) : (
+    <>{children}</>
+  );
 }
 
 function NonStudentRoute({ children }: { children: ReactNode }) {
@@ -467,11 +489,13 @@ export const adminRouteObjects = [
           {
             path: "classes",
             element: (
-              <CapabilityRoute capability="classes.read">
-                <RouteScreen>
-                  <ClassesPage />
-                </RouteScreen>
-              </CapabilityRoute>
+              <StaffClassesRoute>
+                <CapabilityRoute capability="classes.read">
+                  <RouteScreen>
+                    <ClassesPage />
+                  </RouteScreen>
+                </CapabilityRoute>
+              </StaffClassesRoute>
             ),
           },
           {
@@ -505,12 +529,30 @@ export const adminRouteObjects = [
           {
             path: "attendance",
             element: (
-              <CapabilityRoute capability="attendance.read">
-                <RouteScreen>
-                  <AttendancePage />
-                </RouteScreen>
-              </CapabilityRoute>
+              <StaffAttendanceRoute>
+                <CapabilityRoute capability="attendance.read">
+                  <RouteScreen>
+                    <AttendancePage />
+                  </RouteScreen>
+                </CapabilityRoute>
+              </StaffAttendanceRoute>
             ),
+          },
+          {
+            path: "attendance/classes",
+            element: <Navigate to="/admin/attendance?section=sessions&office=teacher" replace />,
+          },
+          {
+            path: "attendance/class-groups",
+            element: <Navigate to="/admin/attendance?section=sessions&office=groups" replace />,
+          },
+          {
+            path: "attendance/dorm",
+            element: <Navigate to="/admin/attendance?section=sessions&office=dorm" replace />,
+          },
+          {
+            path: "attendance/archive",
+            element: <Navigate to="/admin/attendance?section=sessions&office=history" replace />,
           },
           {
             path: "my-attendance",
@@ -537,7 +579,7 @@ export const adminRouteObjects = [
             element: (
               <CapabilityRoute capability="leave.read">
                 <RouteScreen>
-                  <LeaveRequestsPage />
+                  <StudentMovementCenterPage defaultState="review" />
                 </RouteScreen>
               </CapabilityRoute>
             ),
@@ -557,7 +599,17 @@ export const adminRouteObjects = [
             element: (
               <CapabilityRoute capability="exit.read">
                 <RouteScreen>
-                  <ExitPermissionsPage />
+                  <StudentMovementCenterPage defaultState="awaiting_departure" />
+                </RouteScreen>
+              </CapabilityRoute>
+            ),
+          },
+          {
+            path: "student-movements",
+            element: (
+              <CapabilityRoute capability="leave.read">
+                <RouteScreen>
+                  <StudentMovementCenterPage />
                 </RouteScreen>
               </CapabilityRoute>
             ),
@@ -605,11 +657,9 @@ export const adminRouteObjects = [
           {
             path: "communication/notifications",
             element: (
-              <NonStudentRoute>
-                <RouteScreen>
-                  <NotificationsPage />
-                </RouteScreen>
-              </NonStudentRoute>
+              <RouteScreen>
+                <NotificationsPage />
+              </RouteScreen>
             ),
           },
           {

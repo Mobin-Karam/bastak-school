@@ -16,6 +16,8 @@ export type DataTableColumn<TData> = {
   hideable?: boolean;
   /** Keep the primary field visible in mobile cards. */
   primary?: boolean;
+  /** Exclude lower-priority data from the compact mobile-card summary. */
+  mobileVisible?: boolean;
   filter?: { type: "text" } | { type: "select"; options: Array<{ value: string; label: string }> };
 };
 export type DataTableAction<TData> = {

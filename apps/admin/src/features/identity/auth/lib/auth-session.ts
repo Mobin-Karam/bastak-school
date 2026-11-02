@@ -38,6 +38,7 @@ export const RELEASED_SCHOOL_PORTAL_ROLES = [
   "STUDENT",
   "TEACHER",
   "GUARDIAN",
+  "RELIGIOUS_EDUCATION_MANAGER",
 ] as const satisfies readonly RoleCode[];
 
 export function isSupportedAdminPortalRole(role?: RoleCode | null) {

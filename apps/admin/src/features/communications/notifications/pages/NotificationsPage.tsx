@@ -17,7 +17,6 @@ import { notificationCopy } from "../model/notification-copy";
 import { useViewportShell } from "../../../../app/layout/lib/viewport-shell";
 import { Button, Input } from "../../../../shared/ui/ui";
 import { SegmentedControl } from "../../../../shared/ui/segmented-control";
-import { CommunicationFuturePage } from "../../components/CommunicationFuturePage";
 
 const notificationTypes = ["all", "message", "exam", "lesson", "announcement"] as const;
 
@@ -37,18 +36,6 @@ export function notificationAccess(capabilities: readonly string[]) {
 }
 
 export function NotificationsPage() {
-  const [params] = useSearchParams();
-  const typeFilter = notificationTypeFilter(params.get("type"));
-
-  if (typeFilter === "announcement") {
-    return (
-      <CommunicationFuturePage
-        title="اعلان‌های اطلاعیه‌ای فعلاً غیرفعال است"
-        description="نمایش و مدیریت اطلاعیه‌های مدرسه در مرکز اعلان‌ها برای استفاده آینده نگه داشته شده است. سایر اعلان‌های شما همچنان در دسترس هستند."
-      />
-    );
-  }
-
   return <ActiveNotificationsPage />;
 }
 

@@ -40,7 +40,7 @@ export type PrincipalDashboardContract = {
     permissionRequests: number;
   };
   sessionReviews?: {
-    mode: "automatic" | "absences_only";
+    mode: "all_sessions" | "absences_only";
     pendingCount: number;
     items: Array<{
       id: string;
@@ -49,6 +49,7 @@ export type PrincipalDashboardContract = {
       title: string;
       sessionDate: string;
       status: string;
+      revision: number;
       expected: number | null;
       marked: number;
       present: number;
@@ -77,6 +78,49 @@ export type PrincipalDashboardContract = {
     startDate: string;
     endDate: string;
   }>;
+  principalLists?: {
+    counts?: { dorm: number; reports: number; leave: number; groups: number };
+    teacherSessions: Array<{
+      id: string;
+      title: string;
+      teacherName: string;
+      sessionDate: string;
+      present: number;
+      absent: number;
+      marked: number;
+    }>;
+    teacherReports: Array<{
+      id: string;
+      teacherName: string;
+      studentName: string;
+      message: string;
+      createdAt: string;
+      seenAt: string | null;
+    }>;
+    dormAttendance: Array<{
+      id: string;
+      name: string;
+      total: number;
+      present: number;
+      absent: number;
+    }>;
+    classGroupAttendance: Array<{
+      id: string;
+      name: string;
+      total: number;
+      present: number;
+      absent: number;
+      sessionDate: string;
+    }>;
+    teacherLeaveRequests: Array<{
+      id: string;
+      teacherName: string;
+      type: "leave" | "return";
+      startDate: string;
+      endDate: string;
+      status: "pending";
+    }>;
+  };
 };
 
 export const getPrincipalDashboard = (range: "7d" | "30d", classId?: string) => {
@@ -87,11 +131,27 @@ export const getPrincipalDashboard = (range: "7d" | "30d", classId?: string) => 
   return api.get<PrincipalDashboardContract>(`/dashboard/principal?${query.toString()}`);
 };
 
-export const reviewAttendanceSession = (sessionId: string) =>
-  api.post<{ sessionId: string; reviewedAt: string }>(
-    `/attendance/sessions/${encodeURIComponent(sessionId)}/daily-review`,
-    {},
-  );
+export const reviewAttendanceSession = (
+  sessionId: string,
+  expectedRevision: number,
+  message?: string,
+) =>
+  api.post<{
+    sessionId: string;
+    revision: number;
+    reviewedAt: string;
+    alreadyReviewed: boolean;
+  }>(`/attendance/sessions/${encodeURIComponent(sessionId)}/daily-review`, {
+    message,
+    expectedRevision,
+  });
 
 export const getAttendanceSessionForReview = (sessionId: string) =>
   api.get<AttendanceSessionDetail>(`/attendance/sessions/${encodeURIComponent(sessionId)}`);
+
+export const getReviewablePresentSessions = (organizationId?: string) => {
+  const query = organizationId ? `?organizationId=${encodeURIComponent(organizationId)}` : "";
+  return api.get<Array<{ id: string; revision: number }>>(
+    `/attendance/reviewable-present-sessions${query}`,
+  );
+};

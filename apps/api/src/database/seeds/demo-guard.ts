@@ -33,9 +33,9 @@ export function requireSafePlatformDatabase(action: "seed" | "reset") {
     );
   const database = path.resolve(
     process.env.DATABASE_PATH ||
-      path.resolve(process.cwd(), "data", "moshaver-v2.sqlite"),
+      path.resolve(process.cwd(), "data", "development.sqlite"),
   );
-  const expected = path.resolve(process.cwd(), "data", "moshaver-v2.sqlite");
+  const expected = path.resolve(process.cwd(), "data", "development.sqlite");
   const inTemp = database.startsWith(`${path.resolve(os.tmpdir())}${path.sep}`);
   if (database !== expected && !inTemp)
     throw new Error(

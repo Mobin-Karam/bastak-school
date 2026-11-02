@@ -16,7 +16,8 @@ export type RealtimeEventType =
   | "attendance.updated"
   | "attendance.reviewed"
   | "school-home.updated"
-  | "school.occupancy.updated";
+  | "school.occupancy.updated"
+  | "student-movement.changed";
 
 export type RealtimeEvent = CmbRealtimeEvent<RealtimeEventType>;
 

@@ -67,4 +67,17 @@ describe("ResponsiveDrawer", () => {
       "true",
     );
   });
+
+  it("supports an upward bottom sheet in the desktop workspace", () => {
+    const { container } = render(
+      <LocaleProvider>
+        <ResponsiveDrawer open onOpenChange={vi.fn()} title="بایگانی برنامه" desktopSide="bottom">
+          جلسه‌های بایگانی‌شده
+        </ResponsiveDrawer>
+      </LocaleProvider>,
+    );
+
+    const panels = container.ownerDocument.querySelectorAll("[role=dialog]");
+    expect(panels[panels.length - 1]).toHaveAttribute("data-swipe-direction", "down");
+  });
 });

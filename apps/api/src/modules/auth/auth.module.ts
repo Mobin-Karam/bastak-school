@@ -12,6 +12,8 @@ import { LoginThrottle } from "../../database/entities/login-throttle.entity";
 import { LoginThrottleService } from "./login-throttle.service";
 import { Organization } from "../../database/entities/organization.entity";
 import { AccountChangeRequest } from "../../database/entities/account-change-request.entity";
+import { PasskeyCredential } from "../../database/entities/passkey-credential.entity";
+import { WebAuthnChallenge } from "../../database/entities/webauthn-challenge.entity";
 
 @Module({
   imports: [
@@ -24,6 +26,8 @@ import { AccountChangeRequest } from "../../database/entities/account-change-req
       LoginThrottle,
       Organization,
       AccountChangeRequest,
+      PasskeyCredential,
+      WebAuthnChallenge,
     ]),
   ],
   controllers: [AuthController, MeController],

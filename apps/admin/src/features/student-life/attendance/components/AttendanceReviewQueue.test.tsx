@@ -3,10 +3,11 @@ import { cleanup, render, screen, within, waitFor } from "@testing-library/react
 import userEvent from "@testing-library/user-event";
 import { beforeEach, afterEach, describe, expect, it, vi } from "vitest";
 import { AttendanceReviewQueue } from "./AttendanceReviewQueue";
-const mocks = vi.hoisted(() => ({ list: vi.fn(), review: vi.fn() }));
+const mocks = vi.hoisted(() => ({ list: vi.fn(), review: vi.fn(), send: vi.fn() }));
 vi.mock("../api/attendance.api.ts", () => ({
   listAttendanceAbsenceReviews: mocks.list,
   reviewAttendanceAbsence: mocks.review,
+  sendAttendanceAbsenceMessage: mocks.send,
 }));
 vi.mock("../../../identity/auth", () => ({
   useAuth: () => ({
@@ -32,11 +33,20 @@ vi.mock("../../../../shared/ui/responsive-drawer", () => ({
 }));
 const record = {
   id: "record",
+  sessionId: "session",
+  studentId: "student",
   studentName: "علی",
   teacherName: "استاد",
   sessionDate: "2026-10-11T08:00:00Z",
   reason: "بیماری",
   reviewStatus: "pending",
+  contextType: "class",
+  contextId: "class",
+  organizationId: "org",
+  organizationName: "مدرسه",
+  status: "absent",
+  reviewNote: "",
+  reviewedAt: null,
 };
 beforeEach(() => {
   vi.clearAllMocks();
@@ -46,6 +56,7 @@ beforeEach(() => {
   );
   mocks.list.mockResolvedValue([record]);
   mocks.review.mockResolvedValue({ ...record, reviewStatus: "approved" });
+  mocks.send.mockResolvedValue({ audience: "student", recipientCount: 1 });
 });
 afterEach(cleanup);
 function mount(initialRecordId?: string) {
@@ -68,7 +79,7 @@ describe("guided absence decisions", () => {
     await user.click(await screen.findByRole("button", { name: "بررسی" }));
     const dialog = screen.getByRole("dialog");
     expect(within(dialog).getByText("بیماری")).toBeInTheDocument();
-    await user.type(within(dialog).getByRole("textbox"), "مدرک بررسی شد");
+    await user.type(within(dialog).getByLabelText("یادداشت بررسی"), "مدرک بررسی شد");
     await user.click(within(dialog).getByRole("button", { name: "پذیرش دلیل" }));
     expect(mocks.review).not.toHaveBeenCalled();
     await user.click(within(dialog).getByRole("button", { name: "تأیید و ثبت تصمیم" }));
@@ -78,14 +89,14 @@ describe("guided absence decisions", () => {
         note: "مدرک بررسی شد",
       }),
     );
-    expect(mocks.list).toHaveBeenCalledWith("org");
+    expect(mocks.list).toHaveBeenCalledWith("org", undefined);
   });
   it("keeps the decision and note available for retry after a failure", async () => {
     mocks.review.mockRejectedValueOnce(new Error("connection failed"));
     mount();
     const user = userEvent.setup();
     await user.click(await screen.findByRole("button", { name: "بررسی" }));
-    await user.type(screen.getByRole("textbox"), "بررسی دلیل");
+    await user.type(screen.getByLabelText("یادداشت بررسی"), "بررسی دلیل");
     await user.click(screen.getByRole("button", { name: "رد دلیل" }));
     await user.click(screen.getByRole("button", { name: "تأیید و ثبت تصمیم" }));
     expect(await screen.findByRole("alert")).toHaveTextContent("connection failed");
@@ -100,5 +111,22 @@ describe("guided absence decisions", () => {
     expect(within(dialog).getByText("بیماری")).toBeInTheDocument();
     await userEvent.setup().click(within(dialog).getByRole("button", { name: "بستن" }));
     await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+  });
+
+  it("sends one message to the teacher about the selected absent students", async () => {
+    mount();
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole("button", { name: "بررسی" }));
+    await user.type(
+      screen.getByPlaceholderText("پیام مدیر برای استاد را بنویسید…"),
+      "پس از زنگ به دفتر مراجعه کنید",
+    );
+    await user.click(screen.getByRole("button", { name: "ارسال پیام به استاد" }));
+    await waitFor(() =>
+      expect(mocks.send).toHaveBeenCalledWith("record", {
+        recordIds: ["record"],
+        message: "پس از زنگ به دفتر مراجعه کنید",
+      }),
+    );
   });
 });

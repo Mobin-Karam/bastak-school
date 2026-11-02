@@ -19,12 +19,18 @@ export type PushPreferences = {
   announcements: boolean;
 };
 
+export type NotificationAutoDeletePreferences = {
+  enabled: boolean;
+  afterHours: 1 | 24 | 48 | 72;
+};
+
 export type PushStatus = {
   supported: boolean;
   permission: NotificationPermission | "unsupported";
   registered: boolean;
   serverConfigured: boolean;
   preferences: PushPreferences;
+  autoDelete?: NotificationAutoDeletePreferences;
   devices?: Array<{
     id: string;
     userAgent: string;

@@ -5,6 +5,7 @@ import { LocaleProvider } from "../../../../shared/ui/locale";
 import { TeachersPage } from "./TeachersPage";
 import { listAcademicTeachers } from "../api/academic.api";
 import { listClasses } from "../api/classes.api";
+import { listSchedule } from "../../schedule/api/schedule.api";
 
 vi.mock("../../../identity/auth", () => ({
   useAuth: () => ({
@@ -14,6 +15,7 @@ vi.mock("../../../identity/auth", () => ({
 }));
 vi.mock("../api/academic.api", () => ({ listAcademicTeachers: vi.fn() }));
 vi.mock("../api/classes.api", () => ({ listClasses: vi.fn() }));
+vi.mock("../../schedule/api/schedule.api", () => ({ listSchedule: vi.fn() }));
 vi.mock("../../../../shared/ui/responsive-drawer", () => ({
   ResponsiveDrawer: ({
     open,
@@ -86,6 +88,44 @@ describe("TeachersPage", () => {
         ],
       },
     ]);
+    vi.mocked(listSchedule).mockResolvedValue([
+      {
+        id: "schedule-one",
+        title: "ریاضی",
+        weekday: 0,
+        startTime: "08:00",
+        endTime: "09:30",
+        room: "",
+        status: "ACTIVE",
+        organization: { id: "school-one", name: "مدرسه" },
+        classroom: { id: "class-one", name: "کلاس اول" },
+        teacher: {
+          id: "teacher-one",
+          username: "teacher.one",
+          firstName: "زهرا",
+          lastName: "محمدی",
+        },
+        classBook: null,
+      },
+      {
+        id: "schedule-two",
+        title: "علوم",
+        weekday: 2,
+        startTime: "10:00",
+        endTime: "11:00",
+        room: "",
+        status: "ACTIVE",
+        organization: { id: "school-one", name: "مدرسه" },
+        classroom: { id: "class-one", name: "کلاس اول" },
+        teacher: {
+          id: "teacher-one",
+          username: "teacher.one",
+          firstName: "زهرا",
+          lastName: "محمدی",
+        },
+        classBook: null,
+      },
+    ]);
   });
 
   afterEach(() => {
@@ -103,7 +143,12 @@ describe("TeachersPage", () => {
     fireEvent.click(within(table).getByText("زهرا محمدی").closest("tr")!);
 
     const drawer = await screen.findByRole("dialog", { name: "زهرا محمدی" });
+    expect(await within(drawer).findByRole("heading", { name: "شنبه" })).toBeInTheDocument();
     expect(within(drawer).getByText("ریاضی")).toBeInTheDocument();
-    expect(within(drawer).getByText(/کلاس اول/)).toBeInTheDocument();
+    expect(within(drawer).getAllByText(/کلاس اول/)).toHaveLength(2);
+    expect(within(drawer).getByRole("heading", { name: "دوشنبه" })).toBeInTheDocument();
+    expect(within(drawer).getByText("علوم")).toBeInTheDocument();
+    expect(await within(drawer).findByText("۲")).toBeInTheDocument();
+    expect(within(drawer).getByText("۲:۳۰ ساعت")).toBeInTheDocument();
   });
 });

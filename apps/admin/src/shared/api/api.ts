@@ -419,6 +419,7 @@ export const api = {
       "attendance.updated",
       "school-home.updated",
       "school.occupancy.updated",
+      "student-movement.changed",
     ];
     names.forEach((name) =>
       source.addEventListener(name, (event) =>

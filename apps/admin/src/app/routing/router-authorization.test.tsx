@@ -1,16 +1,27 @@
 import { cleanup, render, screen } from "@testing-library/react";
+import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { LocaleProvider } from "../../shared/ui/locale";
 
 const can = vi.fn<(capability: string) => boolean>();
 const canAny = vi.fn<(capabilities: readonly string[]) => boolean>();
 const canAll = vi.fn<(capabilities: readonly string[]) => boolean>();
+const authState = vi.hoisted(() => ({
+  activeRole: null as string | null,
+  context: null as { roles: string[] } | null,
+  setActiveRole: vi.fn(async () => {}),
+}));
 vi.mock("../../features/identity/auth", () => ({
   LoginPage: () => null,
-  useAuth: () => ({ can, canAny, canAll }),
+  useAuth: () => ({ ...authState, can, canAny, canAll }),
 }));
 
-import { CapabilityRoute } from "./router";
+vi.mock("./portal-domain", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("./portal-domain")>()),
+  currentAppDomain: () => "admin",
+}));
+
+import { CapabilityRoute, PortalHostBoundary } from "./router";
 
 describe("protected portal routes", () => {
   afterEach(cleanup);
@@ -19,7 +30,31 @@ describe("protected portal routes", () => {
     can.mockReset();
     canAny.mockReset();
     canAll.mockReset();
+    authState.activeRole = null;
+    authState.context = null;
+    authState.setActiveRole.mockReset();
     localStorage.clear();
+  });
+
+  it.each([
+    ["TEACHER", ["RELIGIOUS_EDUCATION_MANAGER", "TEACHER"]],
+    ["RELIGIOUS_EDUCATION_MANAGER", ["TEACHER", "RELIGIOUS_EDUCATION_MANAGER"]],
+  ])("keeps the selected %s role when another Admin role is first", (activeRole, roles) => {
+    authState.activeRole = activeRole;
+    authState.context = { roles };
+
+    render(
+      <MemoryRouter initialEntries={["/admin"]}>
+        <Routes>
+          <Route path="/admin" element={<PortalHostBoundary />}>
+            <Route index element={<span>role-based workspace</span>} />
+          </Route>
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByText("role-based workspace")).toBeInTheDocument();
+    expect(authState.setActiveRole).not.toHaveBeenCalled();
   });
 
   function renderCapabilityRoute(

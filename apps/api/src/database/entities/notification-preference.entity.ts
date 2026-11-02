@@ -18,5 +18,7 @@ export class NotificationPreference {
     boolean
   >;
   @Column({ default: true }) enabled!: boolean;
+  @Column({ default: false }) autoDeleteEnabled!: boolean;
+  @Column({ type: "integer", default: 24 }) autoDeleteAfterHours!: number;
   @UpdateDateColumn() updatedAt!: Date;
 }

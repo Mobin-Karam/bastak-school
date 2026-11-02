@@ -5,11 +5,16 @@ import {
   getPushStatusRemote,
   registerPushSubscription,
   sendTestPush,
+  updateNotificationAutoDeletePreferences,
   updatePushPreferences,
 } from "../api/notifications.api";
 import { defaultPushPreferences, supportsPush, vapidBytes } from "../lib/push";
 import { notificationAdminUrl } from "../model/notification-model";
-import type { PushPreferences, PushStatus } from "../model/notification-model";
+import type {
+  NotificationAutoDeletePreferences,
+  PushPreferences,
+  PushStatus,
+} from "../model/notification-model";
 
 async function currentRegistration() {
   if (!supportsPush()) {
@@ -75,12 +80,14 @@ async function ensureServiceWorkerRegistration() {
 export function usePushNotifications(refreshNotifications: () => void) {
   const pushStatus = useCallback(async (): Promise<PushStatus> => {
     if (!supportsPush()) {
+      const remote = await getPushStatusRemote();
       return {
         supported: false,
         permission: "unsupported",
         registered: false,
         serverConfigured: false,
-        preferences: defaultPushPreferences,
+        preferences: remote.preferences || defaultPushPreferences,
+        autoDelete: remote.autoDelete,
       };
     }
 
@@ -134,6 +141,7 @@ export function usePushNotifications(refreshNotifications: () => void) {
     }
 
     await registerPushSubscription(subscription.toJSON());
+    await updatePushPreferences({ ...defaultPushPreferences, enabled: true });
     return pushStatus();
   }, [pushStatus]);
 
@@ -163,6 +171,13 @@ export function usePushNotifications(refreshNotifications: () => void) {
   const savePushPreferences = useCallback(async (preferences: PushPreferences) => {
     await updatePushPreferences(preferences);
   }, []);
+
+  const saveAutoDeletePreferences = useCallback(
+    async (preferences: NotificationAutoDeletePreferences) => {
+      await updateNotificationAutoDeletePreferences(preferences);
+    },
+    [],
+  );
 
   const testPush = useCallback(async () => {
     await sendTestPush();
@@ -200,6 +215,7 @@ export function usePushNotifications(refreshNotifications: () => void) {
     enablePush,
     disablePush,
     savePushPreferences,
+    saveAutoDeletePreferences,
     testPush,
   };
 }

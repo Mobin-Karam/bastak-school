@@ -541,20 +541,24 @@ export function StudentsPage() {
   });
 
   const remove = useMutation({
-    mutationFn: () => archiveStudent(selectedId),
-    onSuccess: () => {
-      patchCachedStudent(selectedId, {
+    mutationFn: (studentId: string) => archiveStudent(studentId),
+
+    onSuccess: (_, studentId) => {
+      patchCachedStudent(studentId, {
         accountStatus: "archived",
         account_status: "archived",
         active: false,
         account_active: false,
       });
+
       setFeedback({
         tone: "success",
         message: copy.studentArchived,
       });
+
       void qc.invalidateQueries({ queryKey: ["students"] });
     },
+
     onError: (error) =>
       setFeedback({
         tone: "error",
@@ -562,24 +566,31 @@ export function StudentsPage() {
       }),
   });
 
+  type LifecycleAction = "activate" | "deactivate" | "restore" | "force-logout";
+
   const lifecycle = useMutation({
-    mutationFn: (action: "activate" | "deactivate" | "restore" | "force-logout") =>
-      studentLifecycle(selectedId, action),
-    onSuccess: (_, action) => {
-      if (action === "activate" || action === "restore")
-        patchCachedStudent(selectedId, {
+    mutationFn: ({ studentId, action }: { studentId: string; action: LifecycleAction }) =>
+      studentLifecycle(studentId, action),
+
+    onSuccess: (_, { studentId, action }) => {
+      if (action === "activate" || action === "restore") {
+        patchCachedStudent(studentId, {
           accountStatus: "active",
           account_status: "active",
           active: true,
           account_active: true,
         });
-      if (action === "deactivate")
-        patchCachedStudent(selectedId, {
+      }
+
+      if (action === "deactivate") {
+        patchCachedStudent(studentId, {
           accountStatus: "inactive",
           account_status: "inactive",
           active: false,
           account_active: false,
         });
+      }
+
       const message =
         action === "force-logout"
           ? copy.sessionsEnded
@@ -588,9 +599,17 @@ export function StudentsPage() {
             : action === "restore"
               ? copy.studentRestored
               : copy.studentActivated;
-      setFeedback({ tone: "success", message });
-      void qc.invalidateQueries({ queryKey: ["students"] });
+
+      setFeedback({
+        tone: "success",
+        message,
+      });
+
+      void qc.invalidateQueries({
+        queryKey: ["students"],
+      });
     },
+
     onError: (error) =>
       setFeedback({
         tone: "error",
@@ -599,14 +618,19 @@ export function StudentsPage() {
   });
 
   const resetPassword = useMutation({
-    mutationFn: () => resetStudentPassword(selectedId, securityPassword),
+    mutationFn: ({ studentId, password }: { studentId: string; password: string }) => {
+      return resetStudentPassword(studentId, password);
+    },
+
     onSuccess: () => {
       setSecurityPassword("");
+
       setFeedback({
         tone: "success",
         message: copy.passwordChanged,
       });
     },
+
     onError: (error) =>
       setFeedback({
         tone: "error",
@@ -838,13 +862,14 @@ export function StudentsPage() {
     setPage(1);
   }
 
-  function confirmLifecycle(action: "activate" | "deactivate" | "restore" | "force-logout") {
+  function confirmLifecycle(action: LifecycleAction) {
     const lifecycleCopy = {
       activate: [copy.activateTitle, copy.activateDescription, copy.activateAccount],
       deactivate: [copy.deactivateTitle, copy.deactivateDescription, copy.deactivateAccount],
       restore: [copy.restoreTitle, copy.restoreDescription, copy.restoreAccount],
       "force-logout": [copy.forceLogoutTitle, copy.forceLogoutDescription, copy.forceLogout],
     }[action];
+
     void modal
       .confirm({
         title: lifecycleCopy[0],
@@ -853,7 +878,14 @@ export function StudentsPage() {
         confirmationText: action === "restore" ? copy.restoreAccount : undefined,
         tone: action === "deactivate" || action === "force-logout" ? "danger" : "default",
       })
-      .then((ok) => ok && lifecycle.mutate(action));
+      .then((ok) => {
+        if (ok) {
+          lifecycle.mutate({
+            studentId: selectedId,
+            action,
+          });
+        }
+      });
   }
 
   const retryActivity = () =>
@@ -976,17 +1008,28 @@ export function StudentsPage() {
                   confirmLabel: copy.archiveConfirmation,
                   confirmationText: copy.archiveConfirmation,
                 })
-                .then((ok) => ok && remove.mutate())
+                .then((ok) => {
+                  if (ok) {
+                    remove.mutate(selectedId);
+                  }
+                })
             }
-            onPassword={() =>
+            onPassword={() => {
               void modal
                 .confirm({
                   title: copy.changeStudentPasswordTitle,
                   description: copy.changeStudentPasswordDescription,
                   confirmLabel: copy.changePassword,
                 })
-                .then((ok) => ok && resetPassword.mutate())
-            }
+                .then((ok) => {
+                  if (ok) {
+                    resetPassword.mutate({
+                      studentId: selectedId,
+                      password: securityPassword,
+                    });
+                  }
+                });
+            }}
             onLifecycle={confirmLifecycle}
             canArchive={auth.can("students.archive")}
             busy={{

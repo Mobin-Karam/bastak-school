@@ -1,5 +1,5 @@
 import { AdaptiveSelect } from "@/shared/ui/adaptive-select";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { DatePicker } from "../../../../shared/ui/date-picker";
 import { notify } from "../../../../shared/ui/notifications";
@@ -25,6 +25,7 @@ export function DormDelegateEditor({
   const cache = useQueryClient();
   const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Tehran" }).format(new Date());
   const [studentId, setStudentId] = useState("");
+  const [studentSearch, setStudentSearch] = useState("");
   const [startsOn, setStartsOn] = useState(today);
   const [endsOn, setEndsOn] = useState(today);
   const [busy, setBusy] = useState(false);
@@ -38,9 +39,19 @@ export function DormDelegateEditor({
     enabled: roomId === "all",
   });
   const eligible = roomId === "all" ? (residents.data ?? []) : members;
+  const filteredEligible = useMemo(() => {
+    const query = studentSearch.trim().toLocaleLowerCase("fa-IR");
+    return eligible
+      .filter((member) => member.userId)
+      .filter((member) => !query || member.name.toLocaleLowerCase("fa-IR").includes(query));
+  }, [eligible, studentSearch]);
   const label = roomId === "all" ? "تمام اتاق‌های خوابگاه" : "اتاق";
   const delegate = delegates.data?.find(
-    (row) => (roomId === "all" ? row.dormWide : row.roomId === roomId) && !row.revoked,
+    (row) =>
+      (roomId === "all"
+        ? row.assignmentKind === "dorm_wide" || row.dormWide
+        : row.assignmentKind !== "dorm_wide" && !row.dormWide && row.roomId === roomId) &&
+      !row.revoked,
   );
   useEffect(() => {
     setStudentId(delegate?.studentId ?? "");
@@ -64,16 +75,16 @@ export function DormDelegateEditor({
     }
   }
   return (
-    <details className="rounded-2xl border border-blue-100 bg-blue-50/40 p-4 dark:border-blue-900 dark:bg-blue-950/20">
-      <summary className="min-h-11 cursor-pointer font-bold">
-        مسئول حضور {label}
+    <details className="rounded-2xl border border-blue-200 bg-blue-50/60 p-4 dark:border-blue-900 dark:bg-blue-950/30">
+      <summary className="min-h-11 cursor-pointer font-bold text-ink">
+        {roomId === "all" ? "مسئول اصلی حضور همه اتاق‌ها" : "مسئول بررسی مستقل این اتاق"}
         {delegate ? `: ${delegate.studentName}` : ""}
       </summary>
       <p className="mb-3 text-xs leading-6 text-slate-500">
         {roomId === "all"
-          ? "یک طلبه ساکن خوابگاه انتخاب کنید. با ذخیره، مسئولیت تمام اتاق‌های فعال این مدرسه به او واگذار و مسئولیت‌های قبلی جایگزین می‌شود. اتاق‌های جدید نیاز به واگذاری دوباره دارند."
-          : "یک طلبه ساکن این اتاق برای یک شب یا بازه مشخص انتخاب کنید. دسترسی فقط به حضور همین اتاق است."}
-        و هر روز ساعت ۱۶ شب تازه آغاز می‌شود.
+          ? "این دانش‌آموز ثبت اصلی همه اتاق‌ها را انجام می‌دهد. مسئول هر اتاق جداگانه یک ثبت مستقل برای مقایسه می‌فرستد. هر دو ثبت با نام مسئول خود ذخیره می‌شوند."
+          : "این دانش‌آموز فقط ثبت مستقل این اتاق را برای مقایسه انجام می‌دهد و جای ثبت اصلی خوابگاه را نمی‌گیرد."}
+        ثبت هر شب ساعت ۱۶ آغاز می‌شود.
       </p>
       {delegates.isError ? (
         <button type="button" onClick={() => void delegates.refetch()}>
@@ -86,7 +97,17 @@ export function DormDelegateEditor({
         </button>
       ) : null}
       <label className="block text-sm font-semibold">
-        حساب طلبه
+        جست‌وجوی دانش‌آموز
+        <input
+          type="search"
+          inputMode="search"
+          value={studentSearch}
+          onChange={(event) => setStudentSearch(event.target.value)}
+          placeholder="نام دانش‌آموز را بنویسید"
+          aria-label="جست‌وجوی دانش‌آموز برای مسئول حضور"
+          className="mt-2 min-h-12 w-full rounded-xl border border-[rgb(var(--border-subtle))] bg-card px-3"
+        />
+        <span className="mt-3 block">انتخاب دانش‌آموز</span>
         <AdaptiveSelect
           aria-label="مسئول حضور اتاق"
           value={studentId}
@@ -100,14 +121,17 @@ export function DormDelegateEditor({
           className="mt-2 min-h-12 w-full rounded-xl border border-[rgb(var(--border-subtle))] bg-card px-3"
         >
           <option value="">انتخاب طلبه</option>
-          {eligible
-            .filter((member) => member.userId)
-            .map((member) => (
-              <option key={member.id} value={member.id}>
-                {member.name}
-              </option>
-            ))}
+          {filteredEligible.map((member) => (
+            <option key={member.id} value={member.id}>
+              {member.name}
+            </option>
+          ))}
         </AdaptiveSelect>
+        {studentSearch && !filteredEligible.length ? (
+          <span role="status" className="mt-2 block text-xs text-slate-500">
+            دانش‌آموزی با این نام در ساکنان قابل انتخاب پیدا نشد.
+          </span>
+        ) : null}
       </label>
       <div className="mt-3 grid grid-cols-2 gap-3">
         <label className="text-xs font-bold">

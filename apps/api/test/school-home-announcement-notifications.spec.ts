@@ -15,11 +15,12 @@ describe("SchoolHomeService announcement delivery", () => {
       expiresAt: new Date("2026-10-21T08:00:00.000Z"),
       createdAt: new Date("2026-10-20T08:00:00.000Z"),
     };
-    const recipients = [
-      { user: { id: "user-1" } },
-      { user: { id: "user-2" } },
-    ];
+    const recipients = [{ user: { id: "user-1" } }, { user: { id: "user-2" } }];
     const notifications = { createForUsers: jest.fn().mockResolvedValue([]) };
+    const authorization = {
+      requireCapability: jest.fn(),
+      canAccessOrganization: jest.fn().mockReturnValue(true),
+    };
     const service = new SchoolHomeService(
       {
         findOneBy: jest.fn().mockResolvedValue(organization),
@@ -42,10 +43,7 @@ describe("SchoolHomeService announcement delivery", () => {
       {} as any,
       {} as any,
       {} as any,
-      {
-        requireCapability: jest.fn(),
-        canAccessOrganization: jest.fn().mockReturnValue(true),
-      } as any,
+      authorization as any,
       notifications as any,
     );
 
@@ -75,6 +73,15 @@ describe("SchoolHomeService announcement delivery", () => {
         dedupeKey: expect.stringMatching(/^announcement:announcement-1:/),
         data: expect.objectContaining({ announcementId: "announcement-1" }),
       }),
+    );
+    expect(authorization.requireCapability).toHaveBeenCalledWith(
+      expect.anything(),
+      "announcements.manage",
+    );
+    expect(authorization.canAccessOrganization).toHaveBeenCalledWith(
+      expect.anything(),
+      "school-1",
+      "announcements.manage",
     );
   });
 });

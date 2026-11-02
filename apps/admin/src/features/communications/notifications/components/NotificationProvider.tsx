@@ -1,4 +1,4 @@
-import { createContext, useEffect, useMemo, useRef, type ReactNode } from "react";
+import { createContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "../../../identity/auth/hooks/useAuth";
 import { useNotificationInbox } from "../hooks/useNotificationInbox";
@@ -8,6 +8,57 @@ import { usePushNotifications } from "../hooks/usePushNotifications";
 import type { NotificationContextValue } from "../model/notification.types";
 import { useModal } from "../../../../shared/ui/modal";
 import { Button } from "../../../../shared/ui/ui";
+
+function PrincipalPushPrompt({
+  enable,
+  onLater,
+}: {
+  enable: () => Promise<void>;
+  onLater: () => void;
+}) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
+  return (
+    <section className="grid gap-4" dir="rtl">
+      <div className="rounded-xl border border-brand/20 bg-brand/5 p-4 text-sm leading-7 text-slate-700 dark:text-slate-200">
+        درخواست‌های حضور، گزارش‌ها و موارد نیازمند بررسی را روی همین دستگاه دریافت می‌کنید؛ حتی وقتی
+        این صفحه باز نیست.
+      </div>
+      {error ? (
+        <p
+          role="alert"
+          className="rounded-xl bg-rose-50 p-3 text-sm text-rose-800 dark:bg-rose-950/30 dark:text-rose-200"
+        >
+          {error}
+        </p>
+      ) : null}
+      <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+        <Button variant="ghost" disabled={busy} onClick={onLater}>
+          بعداً
+        </Button>
+        <Button
+          loading={busy}
+          loadingLabel="در حال فعال‌سازی…"
+          onClick={() => {
+            setBusy(true);
+            setError("");
+            void enable()
+              .then(onLater)
+              .catch((nextError: unknown) =>
+                setError(
+                  nextError instanceof Error ? nextError.message : "فعال‌سازی اعلان انجام نشد.",
+                ),
+              )
+              .finally(() => setBusy(false));
+          }}
+        >
+          فعال‌کردن اعلان‌های مدیر
+        </Button>
+      </div>
+    </section>
+  );
+}
 
 export const NotificationContext = createContext<NotificationContextValue | null>(null);
 
@@ -21,10 +72,71 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
   const sound = useNotificationSound();
   const push = usePushNotifications(notifications.refresh);
   const shownAbsences = useRef(new Set<string>());
+  const promptedPrincipalScopes = useRef(new Set<string>());
+  const principalPromptDismissalKey = `principal-push-prompt-dismissed:${notificationScopeKey}`;
 
   useEffect(() => {
     shownAbsences.current.clear();
   }, [notificationScopeKey]);
+
+  useEffect(() => {
+    if (
+      auth.status !== "authenticated" ||
+      auth.activeRole !== "PRINCIPAL" ||
+      promptedPrincipalScopes.current.has(notificationScopeKey)
+    ) {
+      return;
+    }
+
+    promptedPrincipalScopes.current.add(notificationScopeKey);
+    void push.pushStatus().then((status) => {
+      if (
+        !status.supported ||
+        !status.serverConfigured ||
+        status.registered ||
+        status.permission === "denied"
+      ) {
+        return;
+      }
+
+      if (status.permission === "granted") {
+        void push
+          .enablePush()
+          .then(notifications.refresh)
+          .catch(() => undefined);
+        return;
+      }
+
+      if (window.localStorage.getItem(principalPromptDismissalKey) === "1") return;
+
+      modal.open({
+        title: "اعلان‌های مدیر را فعال کنید",
+        description: "برای این دستگاه و نقش مدیر",
+        size: "md",
+        content: (
+          <PrincipalPushPrompt
+            enable={async () => {
+              await push.enablePush();
+              await notifications.refresh();
+            }}
+            onLater={() => {
+              window.localStorage.setItem(principalPromptDismissalKey, "1");
+              modal.close();
+            }}
+          />
+        ),
+      });
+    });
+  }, [
+    auth.activeRole,
+    auth.status,
+    modal,
+    notificationScopeKey,
+    principalPromptDismissalKey,
+    notifications.refresh,
+    push.enablePush,
+    push.pushStatus,
+  ]);
 
   useEffect(() => {
     if (!auth.hasRole("STUDENT")) return;
@@ -69,6 +181,40 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
               متوجه شدم
             </Button>
           </div>
+        </section>
+      ),
+    });
+  }, [auth, modal, notificationItems, markNotificationRead]);
+
+  useEffect(() => {
+    if (!auth.hasRole("STUDENT")) return;
+    const summons = notificationItems.find(
+      (item) =>
+        item.category === "principal_student_report" &&
+        item.data?.presentation === "full_screen" &&
+        !item.isRead &&
+        !shownAbsences.current.has(`report:${item.id}`),
+    );
+    if (!summons) return;
+    shownAbsences.current.add(`report:${summons.id}`);
+    modal.open({
+      title: "پیام فوری دفتر مدرسه",
+      description: "پیگیری حضوری لازم است",
+      size: "full",
+      content: (
+        <section className="grid min-h-[60vh] content-center gap-6 p-6 text-center" dir="rtl">
+          <p className="text-2xl font-black text-amber-800 dark:text-amber-200">{summons.title}</p>
+          <p className="mx-auto max-w-md text-base leading-8 text-slate-700 dark:text-slate-200">
+            {summons.body}
+          </p>
+          <Button
+            onClick={() => {
+              markNotificationRead(summons.id);
+              modal.close();
+            }}
+          >
+            متوجه شدم
+          </Button>
         </section>
       ),
     });
@@ -125,18 +271,21 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
       loadingMore: notifications.inbox.isFetchingNextPage,
       refreshing: notifications.refreshing,
       markingAllRead: notifications.markingAllRead,
+      removing: notifications.removing,
       soundEnabled: sound.soundEnabled,
       chatSoundEnabled: sound.chatSoundEnabled,
       setSoundEnabled: sound.setSoundEnabled,
       setChatSoundEnabled: sound.setChatSoundEnabled,
       markRead: notifications.markRead,
       markAllRead: notifications.markAllRead,
+      removeSelected: notifications.removeSelected,
       loadMore: notifications.loadMore,
       refresh: notifications.refresh,
       pushStatus: push.pushStatus,
       enablePush: push.enablePush,
       disablePush: push.disablePush,
       savePushPreferences: push.savePushPreferences,
+      saveAutoDeletePreferences: push.saveAutoDeletePreferences,
       testPush: push.testPush,
       testSound: sound.playSound,
     }),
@@ -151,8 +300,10 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
       notifications.forbidden,
       notifications.refreshing,
       notifications.markingAllRead,
+      notifications.removing,
       notifications.markRead,
       notifications.markAllRead,
+      notifications.removeSelected,
       notifications.loadMore,
       notifications.refresh,
       sound.soundEnabled,
@@ -164,6 +315,7 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
       push.enablePush,
       push.disablePush,
       push.savePushPreferences,
+      push.saveAutoDeletePreferences,
       push.testPush,
     ],
   );

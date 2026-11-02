@@ -16,7 +16,9 @@ export function RegistrationComingSoonPage() {
           <CalendarClock size={26} aria-hidden="true" />
         </span>
         <div>
-          <p className="text-xs font-black tracking-wide text-brand">به‌زودی در زانین</p>
+          <p className="text-xs font-black tracking-wide text-brand">
+            به‌زودی در مدرسه سلطان العماء بستک
+          </p>
           <h2 id="registration-coming-soon-title" className="sr-only">
             ثبت‌نام و پرونده
           </h2>

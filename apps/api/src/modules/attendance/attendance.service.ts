@@ -1,20 +1,49 @@
-import type { AttendanceSessionDetail } from "@moshaver/api-contract";
+import type {
+  AttendanceSessionDetail,
+  TeacherStudentClassAttendanceProfile,
+} from "@moshaver/api-contract";
 import { attendanceTransaction } from "./attendance-transaction";
 import { AuditLog } from "../../database/entities/audit-log.entity";
 import { createHash, randomUUID } from "node:crypto";
 import { AttendanceWriteReceipt } from "../../database/entities/attendance-write-receipt.entity";
+import { AttendanceSessionStudentCoin } from "../../database/entities/attendance-session-student-coin.entity";
+import {
+  operationalDate,
+  schoolLocalInstant,
+  shiftSchoolDate,
+} from "./attendance-time";
 import { AttendancePolicy } from "../../database/entities/attendance-policy.entity";
 import {
   Notification,
   NotificationType,
 } from "../../database/entities/notification.entity";
 import { AttendanceCorrection } from "../../database/entities/attendance-correction.entity";
+import { TeacherLeaveRequest } from "../../database/entities/teacher-leave-request.entity";
+import {
+  LeaveRequest,
+  LeaveRequestStatus,
+  LeaveRequestType,
+} from "../../database/entities/leave-request.entity";
+import {
+  ExitPermission,
+  ExitPermissionStatus,
+} from "../../database/entities/exit-permission.entity";
+import { SchoolScheduleEntry } from "../../database/entities/school-schedule-entry.entity";
+import {
+  SchoolAcademicYear,
+  SchoolAcademicTerm,
+} from "../../database/entities/school-academic-year.entity";
+import {
+  AttendanceSupervisorCheck,
+  SupervisorAttendanceEntry,
+} from "../../database/entities/attendance-supervisor-check.entity";
 import { Injectable } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import {
   Between,
   EntityManager,
   In,
+  IsNull,
   LessThanOrEqual,
   MoreThanOrEqual,
   Repository,
@@ -33,6 +62,7 @@ import { DormRoomAssignment } from "../../database/entities/dorm-room-assignment
 import { DormRoom } from "../../database/entities/dorm-room.entity";
 import { EducationClassEnrollment } from "../../database/entities/education-class-enrollment.entity";
 import { EducationClass } from "../../database/entities/education-class.entity";
+import { EducationBook } from "../../database/entities/education-book.entity";
 import { Student } from "../../database/entities/student.entity";
 import { StudyGroupMembership } from "../../database/entities/study-group-membership.entity";
 import { StudyGroup } from "../../database/entities/study-group.entity";
@@ -49,8 +79,15 @@ import { RewardsService } from "../rewards";
 import {
   BulkMarkAttendanceDto,
   CreateAttendanceSessionDto,
+  OpenLegacyScheduleAttendanceDto,
+  TeacherWeekAttendanceSummaryQueryDto,
+  CreateHistoricalAttendanceSessionDto,
+  HistoricalAttendanceCandidatesQueryDto,
   ReviewAttendanceAbsenceDto,
+  SendAttendanceAbsenceMessageDto,
+  DailyAttendanceReviewDto,
   AwardAttendancePointsDto,
+  SetAttendanceSessionStudentCoinDto,
   SubmitAttendanceAbsencesDto,
   FinalizeAttendanceSessionDto,
   CancelAttendanceSessionDto,
@@ -58,6 +95,7 @@ import {
   ReviewAttendanceCorrectionDto,
   UpdateAttendancePolicyDto,
   AttendanceHistoryQueryDto,
+  SaveSupervisorAttendanceCheckDto,
 } from "./attendance.dto";
 
 const maximumAttendanceBatchSize = 500;
@@ -87,6 +125,10 @@ export class AttendanceService {
     private readonly authorization: AuthorizationService,
     private readonly realtime: RealtimeService,
     private readonly rewards: RewardsService,
+    @InjectRepository(AttendanceSupervisorCheck)
+    private readonly supervisorChecks?: Repository<AttendanceSupervisorCheck>,
+    @InjectRepository(AttendanceSessionStudentCoin)
+    private readonly sessionCoins?: Repository<AttendanceSessionStudentCoin>,
   ) {}
 
   async authorizeOrganization(user: AuthenticatedUser, organizationId: string) {
@@ -173,6 +215,16 @@ export class AttendanceService {
     });
     const roster = session.rosterSnapshot ?? [];
     const expected = session.rosterSnapshot == null ? null : roster.length;
+    const currentReviewRows = (await this.sessions.manager.query(
+      "SELECT reviewedRevision, reviewedAt, reviewerId, teacherMessage FROM attendance_session_reviews WHERE sessionId=? AND reviewedRevision=? ORDER BY reviewedAt DESC LIMIT 1",
+      [session.id, session.revision],
+    )) as Array<{
+      reviewedRevision: number;
+      reviewedAt: string;
+      reviewerId: string | null;
+      teacherMessage: string | null;
+    }>;
+    const currentReview = currentReviewRows[0] ?? null;
     // This detail endpoint is read-only until the revision-based writer is installed.
     const canManage = false;
     return {
@@ -196,12 +248,21 @@ export class AttendanceService {
       scheduledStartAt: session.scheduledStartAt?.toISOString() ?? null,
       scheduledEndAt: session.scheduledEndAt?.toISOString() ?? null,
       timeZone: session.timeZone,
+      sourceKind: session.sourceKind ?? null,
       status: session.status,
       revision: session.revision,
       assignedStaffId: session.assignedStaff?.id ?? null,
       assignedStaffName: session.assignedStaffNameSnapshot || "",
       submittedAt: session.submittedAt?.toISOString() ?? null,
       submittedById: session.submittedBy?.id ?? null,
+      review: currentReview
+        ? {
+            reviewedRevision: Number(currentReview.reviewedRevision),
+            reviewedAt: currentReview.reviewedAt,
+            reviewerId: currentReview.reviewerId ?? null,
+            teacherMessage: currentReview.teacherMessage ?? "",
+          }
+        : null,
       roster,
       rosterComplete: expected !== null,
       records: records.map((record) => ({
@@ -334,7 +395,7 @@ export class AttendanceService {
       }),
     ]);
     const schoolWide = this.schoolWide(user);
-    const canDorm = schoolWide || user.roles?.includes("DISCIPLINARIAN");
+    const canDorm = this.dormWide(user);
     return [
       ...classes
         .filter(
@@ -440,6 +501,241 @@ export class AttendanceService {
       });
   }
 
+  /** The supervisor queue contains saved class occurrences, never the teacher's live context list. */
+  async listSupervisorSessions(user: AuthenticatedUser) {
+    this.assertSupervisor(user);
+    const ids = await this.access.scopedOrganizationIds(
+      this.effectiveUser(user),
+      user.activeOrganizationId || undefined,
+    );
+    if (!ids.length) return [];
+    const rows = await this.sessions.find({
+      // This is a teacher-versus-supervisor ledger. Group attendance has its
+      // own independent workflow and must never appear as a teacher lesson.
+      where: {
+        organization: { id: In(ids) },
+        contextType: "class",
+        sourceKind: In(["class_schedule", "legacy_schedule", "legacy_import"]),
+      },
+      relations: { organization: true, assignedStaff: true, records: true },
+      order: { sessionDate: "DESC", id: "DESC" },
+      take: 250,
+    });
+    const checks = await this.checkRepository().find({
+      where: { supervisor: { id: user.id } },
+      relations: { session: true },
+    });
+    const ownCheckBySession = new Map(
+      checks.map((check) => [check.session.id, check]),
+    );
+    return rows.map((session) => ({
+      id: session.id,
+      organizationId: session.organization.id,
+      organizationName: session.organization.name,
+      classId: session.contextId,
+      className: session.titleSnapshot,
+      bookName: session.subjectNameSnapshot ?? "",
+      teacherName: session.assignedStaffNameSnapshot || "—",
+      contextType:
+        session.contextType === "study_group"
+          ? "class_group"
+          : session.contextType,
+      comparisonLabel:
+        session.contextType === "class" ? "ثبت استاد" : "ثبت اصلی گروه",
+      sessionDate: session.sessionDate.toISOString(),
+      status: session.status,
+      teacherSubmittedAt: session.submittedAt?.toISOString() ?? null,
+      roster: session.rosterSnapshot ?? [],
+      ownCheck: ownCheckBySession.has(session.id)
+        ? this.supervisorCheckView(ownCheckBySession.get(session.id)!)
+        : null,
+    }));
+  }
+
+  async saveSupervisorCheck(
+    user: AuthenticatedUser,
+    sessionId: string,
+    dto: SaveSupervisorAttendanceCheckDto,
+  ) {
+    this.assertSupervisor(user);
+    const session = await this.sessions.findOne({
+      where: [
+        {
+          id: sessionId,
+          contextType: "class",
+          sourceKind: In([
+            "class_schedule",
+            "legacy_schedule",
+            "legacy_import",
+          ]),
+        },
+        { id: sessionId, contextType: In(["class_group", "study_group"]) },
+      ],
+      relations: { organization: true },
+    });
+    if (!session)
+      throw new ApiException(
+        404,
+        "ATTENDANCE_SESSION_NOT_FOUND",
+        "جلسه کلاس یا گروه پیدا نشد.",
+      );
+    await this.authorizeOrganization(user, session.organization.id);
+    const roster = new Set(
+      (session.rosterSnapshot ?? []).map((student) => student.id),
+    );
+    if (!roster.size)
+      throw new ApiException(
+        422,
+        "ATTENDANCE_ROSTER_MISSING",
+        "فهرست دانش‌آموزان جلسه ثبت نشده است.",
+      );
+    if (dto.entries.some((entry) => !roster.has(entry.studentId)))
+      throw new ApiException(
+        422,
+        "SUPERVISOR_CHECK_STUDENT_INVALID",
+        "فقط دانش‌آموزان همان جلسه قابل ثبت هستند.",
+      );
+    const repository = this.checkRepository();
+    let check = await repository.findOne({
+      where: { session: { id: session.id }, supervisor: { id: user.id } },
+      relations: { session: true, supervisor: true, organization: true },
+    });
+    if (
+      check &&
+      dto.expectedRevision !== undefined &&
+      dto.expectedRevision !== check.revision
+    )
+      throw new ApiException(
+        409,
+        "SUPERVISOR_CHECK_REVISION_CONFLICT",
+        "این بررسی توسط شما تغییر کرده است.",
+      );
+    const entries: SupervisorAttendanceEntry[] = dto.entries.map((entry) => ({
+      studentId: entry.studentId,
+      status: entry.status as AttendanceStatus,
+      note: entry.note?.trim() ?? "",
+    }));
+    if (!check) {
+      check = repository.create({
+        organization: session.organization,
+        session,
+        supervisor: { id: user.id } as User,
+        entries,
+        revision: 0,
+        submittedAt: new Date(),
+      });
+    } else {
+      check.entries = entries;
+      check.revision += 1;
+      check.submittedAt = new Date();
+    }
+    const saved = await repository.save(check);
+    return this.supervisorCheckView(saved);
+  }
+
+  async listSupervisorComparisons(user: AuthenticatedUser) {
+    this.assertReviewAccess(user);
+    const roles = user.roles?.length ? user.roles : [user.role];
+    if (
+      !roles.some((role) =>
+        ["PRINCIPAL", "ORGANIZATION_ADMIN", "PLATFORM_ADMIN"].includes(role),
+      )
+    )
+      throw new ApiException(
+        403,
+        "SUPERVISOR_COMPARISONS_PRINCIPAL_ONLY",
+        "تطبیق حضور استاد و ناظر فقط برای مدیر مدرسه در دسترس است.",
+      );
+    const ids = await this.access.scopedOrganizationIds(
+      this.effectiveUser(user),
+      user.activeOrganizationId || undefined,
+    );
+    if (!ids.length) return [];
+    const sessions = await this.sessions.find({
+      where: [
+        {
+          organization: { id: In(ids) },
+          contextType: "class",
+          sourceKind: In([
+            "class_schedule",
+            "legacy_schedule",
+            "legacy_import",
+          ]),
+        },
+        {
+          organization: { id: In(ids) },
+          contextType: In(["class_group", "study_group"]),
+        },
+      ],
+      relations: {
+        organization: true,
+        assignedStaff: true,
+        records: { student: true },
+      },
+      order: { sessionDate: "DESC", id: "DESC" },
+      take: 250,
+    });
+    const checks = await this.checkRepository().find({
+      where: { organization: { id: In(ids) } },
+      relations: { session: true, supervisor: true },
+      order: { updatedAt: "DESC" },
+    });
+    const checksBySession = new Map<string, AttendanceSupervisorCheck[]>();
+    for (const check of checks)
+      checksBySession.set(check.session.id, [
+        ...(checksBySession.get(check.session.id) ?? []),
+        check,
+      ]);
+    return sessions.map((session) => {
+      const teacher = new Map(
+        session.records.map((record) => [record.student.id, record.status]),
+      );
+      const sessionChecks = checksBySession.get(session.id) ?? [];
+      const comparisons = sessionChecks.map((check) => {
+        const observed = new Map(
+          check.entries.map((entry) => [entry.studentId, entry.status]),
+        );
+        const mismatches = [...observed]
+          .filter(([studentId, status]) => teacher.get(studentId) !== status)
+          .map(([studentId, status]) => ({
+            studentId,
+            teacherStatus: teacher.get(studentId) ?? null,
+            supervisorStatus: status,
+          }));
+        return {
+          ...this.supervisorCheckView(check),
+          mismatchCount: mismatches.length,
+          mismatches,
+        };
+      });
+      const comparisonStatus = !session.submittedAt
+        ? "teacher_missing"
+        : !comparisons.length
+          ? "supervisor_missing"
+          : comparisons.some((check) => check.mismatchCount > 0)
+            ? "mismatch"
+            : "matched";
+      return {
+        sessionId: session.id,
+        organizationName: session.organization.name,
+        className: session.titleSnapshot,
+        bookName: session.subjectNameSnapshot ?? "",
+        teacherName: session.assignedStaffNameSnapshot || "—",
+        contextType:
+          session.contextType === "study_group"
+            ? "class_group"
+            : session.contextType,
+        comparisonLabel:
+          session.contextType === "class" ? "ثبت استاد" : "ثبت اصلی گروه",
+        sessionDate: session.sessionDate.toISOString(),
+        comparisonStatus,
+        teacherRecordCount: teacher.size,
+        roster: session.rosterSnapshot ?? [],
+        supervisorChecks: comparisons,
+      };
+    });
+  }
+
   async paginatedSessions(
     user: AuthenticatedUser,
     query: AttendanceHistoryQueryDto,
@@ -477,6 +773,10 @@ export class AttendanceService {
           ...(query.contextType ? { contextType: query.contextType } : {}),
           ...(query.contextId ? { contextId: query.contextId } : {}),
           ...(query.subjectId ? { subjectIdSnapshot: query.subjectId } : {}),
+          ...(query.academicYearId
+            ? { academicYearIdSnapshot: query.academicYearId }
+            : {}),
+          ...(query.termId ? { termIdSnapshot: query.termId } : {}),
           ...(sessionDate ? { sessionDate } : {}),
         }
       : filteredAllowed.flatMap((context) =>
@@ -488,12 +788,16 @@ export class AttendanceService {
             contextType,
             contextId: context.id,
             ...(query.subjectId ? { subjectIdSnapshot: query.subjectId } : {}),
+            ...(query.academicYearId
+              ? { academicYearIdSnapshot: query.academicYearId }
+              : {}),
+            ...(query.termId ? { termIdSnapshot: query.termId } : {}),
             ...(sessionDate ? { sessionDate } : {}),
           })),
         );
     const [rows, total] = await this.sessions.findAndCount({
       where,
-      relations: { organization: true, records: true },
+      relations: { organization: true, records: true, assignedStaff: true },
       order: { sessionDate: "DESC", id: "DESC" },
       skip: (page - 1) * limit,
       take: limit,
@@ -505,12 +809,36 @@ export class AttendanceService {
         row.contextType === "study_group" ? "class_group" : row.contextType,
       contextId: row.contextId,
       title: row.titleSnapshot,
+      operationalDate: row.operationalDate ?? null,
+      attendancePeriod: row.attendancePeriod ?? null,
+      teacherName:
+        row.assignedStaffNameSnapshot ||
+        [row.assignedStaff?.firstName, row.assignedStaff?.lastName]
+          .filter(Boolean)
+          .join(" ") ||
+        row.assignedStaff?.username ||
+        null,
       subjectId: row.subjectIdSnapshot ?? null,
       subjectName: row.subjectNameSnapshot ?? null,
       status: row.status,
+      revision: row.revision,
+      academicYearId: row.academicYearIdSnapshot ?? null,
+      academicYearName: row.academicYearNameSnapshot ?? null,
+      termId: row.termIdSnapshot ?? null,
+      termName: row.termNameSnapshot ?? null,
       sessionDate: row.sessionDate.toISOString(),
       marked: row.records.length,
       expected: row.rosterSnapshot?.length ?? null,
+      present: row.records.filter((record) => record.status === "present")
+        .length,
+      absent: row.records.filter((record) => record.status === "absent").length,
+      late: row.records.filter((record) => record.status === "late").length,
+      excused: row.records.filter((record) => record.status === "excused")
+        .length,
+      unmarked:
+        row.rosterSnapshot?.length == null
+          ? null
+          : Math.max(0, row.rosterSnapshot.length - row.records.length),
     }));
     return {
       items,
@@ -522,6 +850,567 @@ export class AttendanceService {
   }
 
   /** Schedule owns occurrence identity; attendance owns roster and historical snapshots. */
+  private isLegacyScheduleOccurrence(entry: SchoolScheduleEntry, date: string) {
+    const day = new Date(`${date}T12:00:00.000Z`);
+    if ((day.getUTCDay() + 1) % 7 !== entry.weekday) return false;
+    if (
+      (entry.startsOn && date < entry.startsOn) ||
+      (entry.endsOn && date > entry.endsOn)
+    )
+      return false;
+    return (
+      entry.status !== "REPLACED" ||
+      (entry.startsOn === date && entry.endsOn === date)
+    );
+  }
+
+  private isAssignedScheduledTeacher(
+    user: AuthenticatedUser,
+    session: AttendanceSession | null,
+  ) {
+    return Boolean(
+      session &&
+      ["class_schedule", "legacy_schedule"].includes(
+        session.sourceKind ?? "",
+      ) &&
+      session.assignedStaff?.id === user.id &&
+      user.capabilities?.includes("attendance.class.manage"),
+    );
+  }
+
+  async openLegacyScheduleSession(
+    user: AuthenticatedUser,
+    dto: OpenLegacyScheduleAttendanceDto,
+  ) {
+    const entry = await this.sessions.manager
+      .getRepository(SchoolScheduleEntry)
+      .findOne({
+        where: {
+          id: dto.entryId,
+          status: In(["ACTIVE", "REPLACED", "ARCHIVED"]),
+        },
+        relations: {
+          organization: true,
+          classroom: true,
+          teacher: true,
+          classBook: { book: true, teacher: true },
+        },
+      });
+    if (!entry?.organization || !entry.classroom)
+      throw new ApiException(
+        422,
+        "ATTENDANCE_LEGACY_SCHEDULE_SCOPE",
+        "جلسهٔ برنامه باید کلاس، سال و نیم‌سال فعال داشته باشد.",
+      );
+    const organizationId = entry.organization.id;
+    this.assertWorkOrganization(user, organizationId);
+    const teacherId = entry.teacher?.id ?? entry.classBook?.teacher?.id ?? null;
+    const isAssignedTeacher =
+      teacherId === user.id &&
+      user.capabilities?.includes("attendance.class.manage");
+    if (!this.isLegacyScheduleOccurrence(entry, dto.date))
+      throw new ApiException(
+        422,
+        "ATTENDANCE_LEGACY_OCCURRENCE_DATE",
+        "تاریخ انتخاب‌شده خارج از برنامهٔ این جلسه است.",
+      );
+    let startsAt: Date;
+    let endsAt: Date;
+    try {
+      startsAt = schoolLocalInstant(dto.date, entry.startTime, "Asia/Tehran");
+      endsAt = schoolLocalInstant(dto.date, entry.endTime, "Asia/Tehran");
+    } catch {
+      throw new ApiException(
+        422,
+        "ATTENDANCE_LEGACY_SCHEDULE_TIME",
+        "زمان جلسهٔ برنامه معتبر نیست.",
+      );
+    }
+    if (Date.now() < startsAt.getTime())
+      throw new ApiException(
+        409,
+        "ATTENDANCE_SESSION_NOT_STARTED",
+        "ثبت حضور از زمان شروع جلسه مجاز است.",
+      );
+    const occurrenceKey = `legacy-schedule:${entry.id}:${dto.date}`;
+    const existing = await this.sessions.findOne({
+      where: { organization: { id: organizationId }, occurrenceKey },
+      relations: { assignedStaff: true },
+    });
+    const isSavedAssignedTeacher =
+      existing?.sourceKind === "legacy_schedule" &&
+      existing.sourceScheduleId === entry.id &&
+      existing.assignedStaff?.id === user.id &&
+      user.capabilities?.includes("attendance.class.manage");
+    if (!isAssignedTeacher && !isSavedAssignedTeacher)
+      await this.assertContextAccess(
+        user,
+        "class",
+        entry.classroom.id,
+        organizationId,
+        true,
+      );
+    if (existing)
+      return { id: existing.id, revision: existing.revision, duplicate: true };
+    if (!entry.termId || !entry.academicYearId)
+      throw new ApiException(
+        422,
+        "ATTENDANCE_LEGACY_SCHEDULE_SCOPE",
+        "جلسهٔ برنامه باید سال و نیم‌سال داشته باشد.",
+      );
+    const year = await this.sessions.manager
+      .getRepository(SchoolAcademicYear)
+      .findOneBy({ id: entry.academicYearId, organizationId });
+    const term = await this.sessions.manager
+      .getRepository(SchoolAcademicTerm)
+      .findOneBy({ id: entry.termId, academicYearId: entry.academicYearId });
+    if (!year || !term)
+      throw new ApiException(
+        409,
+        "ATTENDANCE_TERM_LOCKED",
+        "سال و نیم‌سال این جلسه در دسترس نیست.",
+      );
+    if (dto.date < term.startsOn || dto.date > term.endsOn)
+      throw new ApiException(
+        422,
+        "ATTENDANCE_TERM_DATE",
+        "تاریخ جلسه خارج از نیم‌سال است.",
+      );
+    if (
+      year.state === "ARCHIVED" ||
+      term.state === "ARCHIVED" ||
+      term.correctionOpen
+    ) {
+      if (!isAssignedTeacher || endsAt.getTime() > Date.now())
+        throw new ApiException(
+          409,
+          "ATTENDANCE_TERM_LOCKED",
+          "نیم‌سال انتخاب‌شده برای ثبت جلسهٔ جدید باز نیست.",
+        );
+    }
+    const roster = await this.listParticipants(
+      user,
+      "class",
+      entry.classroom.id,
+      dto.date,
+      "night",
+      entry.id,
+    );
+    const row = await this.sessions.save(
+      this.sessions.create({
+        organization: entry.organization,
+        contextType: "class",
+        contextId: entry.classroom.id,
+        sessionDate: startsAt,
+        operationalDate: dto.date,
+        scheduledStartAt: startsAt,
+        scheduledEndAt: endsAt,
+        timeZone: "Asia/Tehran",
+        occurrenceKey,
+        sourceKind: "legacy_schedule",
+        sourceScheduleId: entry.id,
+        titleSnapshot: entry.title,
+        subjectIdSnapshot: entry.classBook?.book?.id ?? null,
+        subjectNameSnapshot: entry.classBook?.book?.titleFa ?? null,
+        academicYearIdSnapshot: year.id,
+        academicYearNameSnapshot: year.name,
+        termIdSnapshot: term.id,
+        termNameSnapshot: term.name,
+        assignedStaff: teacherId ? ({ id: teacherId } as User) : null,
+        assignedStaffNameSnapshot:
+          [entry.teacher?.firstName, entry.teacher?.lastName]
+            .filter(Boolean)
+            .join(" ") ||
+          entry.teacher?.username ||
+          [
+            entry.classBook?.teacher?.firstName,
+            entry.classBook?.teacher?.lastName,
+          ]
+            .filter(Boolean)
+            .join(" ") ||
+          entry.classBook?.teacher?.username ||
+          "",
+        rosterSnapshot: roster.map((member) => ({
+          id: member.id,
+          name: member.name,
+          nationalCode: member.nationalCode ?? null,
+          userId: member.userId,
+        })),
+        rosterCapturedAt: new Date(),
+        createdBy: { id: user.id } as User,
+        note: `جلسه برنامه legacy · ${dto.date}`,
+      }),
+    );
+    await this.sessions.manager.getRepository(AuditLog).save({
+      user: { id: user.id } as User,
+      organizationId,
+      action: "attendance.legacy_occurrence.created",
+      entity: "attendance",
+      metadata: {
+        sessionId: row.id,
+        entryId: entry.id,
+        occurrenceKey,
+        academicYearId: year.id,
+        termId: term.id,
+        date: dto.date,
+      },
+    });
+    return { id: row.id, revision: row.revision, duplicate: false };
+  }
+
+  /** Read-only lookup lets a teacher revise a saved occurrence without creating a new one. */
+  async findLegacyScheduleSession(
+    user: AuthenticatedUser,
+    dto: OpenLegacyScheduleAttendanceDto,
+  ) {
+    const entry = await this.sessions.manager
+      .getRepository(SchoolScheduleEntry)
+      .findOne({
+        where: {
+          id: dto.entryId,
+          status: In(["ACTIVE", "REPLACED", "ARCHIVED"]),
+        },
+        relations: {
+          organization: true,
+          classroom: true,
+          teacher: true,
+          classBook: { teacher: true },
+        },
+      });
+    if (!entry?.organization || !entry.classroom)
+      throw new ApiException(
+        404,
+        "SCHEDULE_ENTRY_NOT_FOUND",
+        "جلسه برنامه پیدا نشد.",
+      );
+    this.assertWorkOrganization(user, entry.organization.id);
+    if (!this.isLegacyScheduleOccurrence(entry, dto.date))
+      throw new ApiException(
+        422,
+        "ATTENDANCE_LEGACY_OCCURRENCE_DATE",
+        "تاریخ انتخاب‌شده خارج از برنامهٔ این جلسه است.",
+      );
+    const row = await this.sessions.findOne({
+      where: {
+        organization: { id: entry.organization.id },
+        occurrenceKey: `legacy-schedule:${entry.id}:${dto.date}`,
+      },
+      relations: { assignedStaff: true },
+    });
+    const teacherId = entry.teacher?.id ?? entry.classBook?.teacher?.id;
+    const isSavedAssignedTeacher =
+      row?.sourceKind === "legacy_schedule" &&
+      row.sourceScheduleId === entry.id &&
+      row.assignedStaff?.id === user.id &&
+      user.capabilities?.includes("attendance.class.manage");
+    if (teacherId !== user.id && !isSavedAssignedTeacher)
+      await this.assertContextAccess(
+        user,
+        "class",
+        entry.classroom.id,
+        entry.organization.id,
+        false,
+      );
+    return row ? { id: row.id, revision: row.revision } : null;
+  }
+
+  async createHistoricalSession(
+    user: AuthenticatedUser,
+    dto: CreateHistoricalAttendanceSessionDto,
+  ) {
+    const roles = user.roles?.length ? user.roles : [user.role];
+    if (
+      !roles.some((role) =>
+        [
+          "PRINCIPAL",
+          "RELIGIOUS_EDUCATION_MANAGER",
+          "ORGANIZATION_ADMIN",
+          "PLATFORM_ADMIN",
+        ].includes(role),
+      )
+    )
+      throw new ApiException(
+        403,
+        "ATTENDANCE_HISTORICAL_FORBIDDEN",
+        "ورود حضور گذشته فقط برای مدیر و مسئول آموزش دینی مجاز است.",
+      );
+    this.assertWorkOrganization(user, dto.organizationId);
+    const organization = await this.access.organizationForUser(
+      this.effectiveUser(user),
+      dto.organizationId,
+    );
+    const year = await this.sessions.manager
+      .getRepository(SchoolAcademicYear)
+      .findOneBy({ id: dto.academicYearId, organizationId: organization.id });
+    const term = await this.sessions.manager
+      .getRepository(SchoolAcademicTerm)
+      .findOneBy({ id: dto.termId, academicYearId: dto.academicYearId });
+    if (!year || !term || dto.date < term.startsOn || dto.date > term.endsOn)
+      throw new ApiException(
+        422,
+        "ATTENDANCE_HISTORICAL_TERM",
+        "سال، نیم‌سال و تاریخ جلسه تاریخی باید با هم سازگار باشند.",
+      );
+    if (term.state === "ARCHIVED" || term.correctionOpen)
+      throw new ApiException(
+        409,
+        "ATTENDANCE_TERM_ARCHIVED",
+        "نیم‌سال بایگانی‌شده یا بازگشایی‌شده برای اصلاح، جلسهٔ جدید نمی‌پذیرد.",
+      );
+    const classroom = await this.classes.findOne({
+      where: { id: dto.classroomId, organization: { id: organization.id } },
+    });
+    if (!classroom)
+      throw new ApiException(
+        404,
+        "ATTENDANCE_CONTEXT_NOT_FOUND",
+        "کلاس در مدرسه فعال پیدا نشد.",
+      );
+    const teacherMembership = await this.memberships.findOne({
+      where: {
+        organization: { id: organization.id },
+        user: { id: dto.teacherId },
+        status: MembershipStatus.ACTIVE,
+      },
+    });
+    if (!teacherMembership)
+      throw new ApiException(
+        422,
+        "ATTENDANCE_HISTORICAL_TEACHER",
+        "استاد انتخاب‌شده عضو فعال این مدرسه نیست.",
+      );
+    const book = await this.sessions.manager
+      .getRepository(EducationBook)
+      .findOneBy({ id: dto.subjectId });
+    if (!book)
+      throw new ApiException(
+        422,
+        "ATTENDANCE_HISTORICAL_BOOK",
+        "کتاب انتخاب‌شده پیدا نشد.",
+      );
+    const key = `legacy-import:${dto.classroomId}:${dto.subjectId}:${dto.date}:${dto.title.trim()}`;
+    const existing = await this.sessions.findOne({
+      where: { organization: { id: organization.id }, occurrenceKey: key },
+    });
+    if (existing)
+      return { id: existing.id, revision: existing.revision, duplicate: true };
+    const roster = await this.listParticipants(user, "class", classroom.id);
+    const row = await this.sessions.save(
+      this.sessions.create({
+        organization,
+        contextType: "class",
+        contextId: classroom.id,
+        sessionDate: new Date(`${dto.date}T12:00:00.000Z`),
+        operationalDate: dto.date,
+        occurrenceKey: key,
+        sourceKind: "legacy_import",
+        historicalImportReason: dto.reason.trim(),
+        titleSnapshot: dto.title.trim(),
+        subjectIdSnapshot: book.id,
+        subjectNameSnapshot: book.titleFa,
+        academicYearIdSnapshot: year.id,
+        academicYearNameSnapshot: year.name,
+        termIdSnapshot: term.id,
+        termNameSnapshot: term.name,
+        assignedStaff: { id: dto.teacherId } as User,
+        assignedStaffNameSnapshot: "",
+        rosterSnapshot: roster.map((member) => ({
+          id: member.id,
+          name: member.name,
+          nationalCode: member.nationalCode ?? null,
+          userId: member.userId,
+        })),
+        rosterCapturedAt: new Date(),
+        createdBy: { id: user.id } as User,
+        note: dto.reason.trim(),
+      }),
+    );
+    await this.sessions.manager.getRepository(AuditLog).save({
+      user: { id: user.id } as User,
+      organizationId: organization.id,
+      action: "attendance.historical_session.created",
+      entity: "attendance",
+      metadata: {
+        sessionId: row.id,
+        sourceKind: row.sourceKind,
+        academicYearId: year.id,
+        termId: term.id,
+        classroomId: classroom.id,
+        teacherId: dto.teacherId,
+        bookId: book.id,
+        reason: dto.reason.trim(),
+      },
+    });
+    return { id: row.id, revision: row.revision, duplicate: false };
+  }
+
+  private async assertAcademicSessionWritable(
+    manager: EntityManager,
+    session: AttendanceSession | null,
+    user: AuthenticatedUser,
+  ) {
+    if (!session?.academicYearIdSnapshot || !session.termIdSnapshot) return;
+    const term = await manager.getRepository(SchoolAcademicTerm).findOneBy({
+      id: session.termIdSnapshot,
+      academicYearId: session.academicYearIdSnapshot,
+    });
+    const assignedTeacherCanRevise =
+      this.isAssignedScheduledTeacher(user, session) &&
+      Boolean(
+        session?.scheduledEndAt &&
+        session.scheduledEndAt.getTime() <= Date.now(),
+      );
+    if (
+      !term ||
+      (term.state === "ARCHIVED" &&
+        !term.correctionOpen &&
+        !assignedTeacherCanRevise)
+    )
+      throw new ApiException(
+        409,
+        "ATTENDANCE_TERM_ARCHIVED",
+        "نیم‌سال بایگانی‌شده فقط خواندنی است؛ ابتدا آن را برای اصلاح تاریخی بازگشایی کنید.",
+      );
+  }
+
+  /**
+   * Suggests, but never creates, missed legacy schedule occurrences.  A manager
+   * must explicitly open each candidate through the normal occurrence endpoint.
+   */
+  async historicalCandidates(
+    user: AuthenticatedUser,
+    query: HistoricalAttendanceCandidatesQueryDto,
+  ) {
+    const roles = user.roles?.length ? user.roles : [user.role];
+    if (
+      !roles.some((role) =>
+        [
+          "PRINCIPAL",
+          "RELIGIOUS_EDUCATION_MANAGER",
+          "ORGANIZATION_ADMIN",
+          "PLATFORM_ADMIN",
+        ].includes(role),
+      )
+    )
+      throw new ApiException(
+        403,
+        "ATTENDANCE_HISTORICAL_FORBIDDEN",
+        "تطبیق حضور گذشته فقط برای مدیر و مسئول آموزش دینی مجاز است.",
+      );
+    this.assertWorkOrganization(user, query.organizationId);
+    const year = await this.sessions.manager
+      .getRepository(SchoolAcademicYear)
+      .findOneBy({
+        id: query.academicYearId,
+        organizationId: query.organizationId,
+      });
+    const term = await this.sessions.manager
+      .getRepository(SchoolAcademicTerm)
+      .findOneBy({ id: query.termId, academicYearId: query.academicYearId });
+    if (!year || !term)
+      throw new ApiException(
+        422,
+        "ATTENDANCE_HISTORICAL_TERM",
+        "سال و نیم‌سال انتخاب‌شده با مدرسه سازگار نیست.",
+      );
+    const today = new Date().toISOString().slice(0, 10);
+    const from = [term.startsOn, query.from].filter(Boolean).sort().at(-1)!;
+    const to = [term.endsOn, query.to, today].filter(Boolean).sort()[0]!;
+    if (from > to) return [];
+    const entries = await this.sessions.manager
+      .getRepository(SchoolScheduleEntry)
+      .find({
+        where: {
+          organization: { id: query.organizationId },
+          academicYearId: query.academicYearId,
+          termId: query.termId,
+          status: "ACTIVE",
+          ...(query.classroomId
+            ? { classroom: { id: query.classroomId } }
+            : {}),
+        },
+        relations: {
+          classroom: true,
+          teacher: true,
+          classBook: { book: true, teacher: true },
+        },
+      });
+    const candidates: Array<{
+      entryId: string;
+      date: string;
+      title: string;
+      classroomId: string;
+      classroomName: string;
+      teacherName: string;
+      subjectName: string | null;
+      startTime: string;
+      endTime: string;
+    }> = [];
+    for (const entry of entries) {
+      if (!entry.classroom) continue;
+      const start =
+        entry.startsOn && entry.startsOn > from ? entry.startsOn : from;
+      const end = entry.endsOn && entry.endsOn < to ? entry.endsOn : to;
+      for (
+        let cursor = new Date(`${start}T12:00:00Z`);
+        cursor <= new Date(`${end}T12:00:00Z`);
+        cursor.setUTCDate(cursor.getUTCDate() + 1)
+      ) {
+        const date = cursor.toISOString().slice(0, 10);
+        if ((cursor.getUTCDay() + 1) % 7 !== entry.weekday) continue;
+        candidates.push({
+          entryId: entry.id,
+          date,
+          title: entry.title,
+          classroomId: entry.classroom.id,
+          classroomName: entry.classroom.name,
+          teacherName:
+            entry.teacherNameSnapshot ||
+            [entry.teacher?.firstName, entry.teacher?.lastName]
+              .filter(Boolean)
+              .join(" ") ||
+            entry.teacher?.username ||
+            [
+              entry.classBook?.teacher?.firstName,
+              entry.classBook?.teacher?.lastName,
+            ]
+              .filter(Boolean)
+              .join(" ") ||
+            entry.classBook?.teacher?.username ||
+            "استاد ثبت نشده",
+          subjectName: entry.classBook?.book?.titleFa ?? null,
+          startTime: entry.startTime,
+          endTime: entry.endTime,
+        });
+      }
+    }
+    if (!candidates.length) return [];
+    const existing = await this.sessions.find({
+      where: {
+        organization: { id: query.organizationId },
+        occurrenceKey: In(
+          candidates.map(
+            (candidate) =>
+              `legacy-schedule:${candidate.entryId}:${candidate.date}`,
+          ),
+        ),
+      },
+      select: { occurrenceKey: true },
+    });
+    const saved = new Set(existing.map((session) => session.occurrenceKey));
+    return candidates
+      .filter(
+        (candidate) =>
+          !saved.has(`legacy-schedule:${candidate.entryId}:${candidate.date}`),
+      )
+      .sort(
+        (left, right) =>
+          left.date.localeCompare(right.date) ||
+          left.startTime.localeCompare(right.startTime),
+      )
+      .slice(0, 500);
+  }
+
   async createTimetableSession(
     user: AuthenticatedUser,
     input: {
@@ -754,12 +1643,37 @@ export class AttendanceService {
       dto.contextId,
     );
     const date = new Date(dto.sessionDate);
+    if (Number.isNaN(date.getTime()))
+      throw new ApiException(
+        422,
+        "ATTENDANCE_DATE_INVALID",
+        "تاریخ جلسه معتبر نیست.",
+      );
+    // A manual session has no timetable entry to identify it. Context +
+    // operational date is therefore its stable identity; later saves revise
+    // this row instead of silently creating a second roll call.
+    const occurrenceKey = `manual-attendance:${dto.contextType}:${dto.contextId}:${operationalDate(date, "Asia/Tehran", "00:00")}`;
+    const existing = await this.sessions.findOne({
+      where: { organization: { id: organization.id }, occurrenceKey },
+    });
+    if (existing)
+      return {
+        id: existing.id,
+        organizationId: organization.id,
+        contextType: existing.contextType,
+        contextId: existing.contextId,
+        sessionDate: existing.sessionDate.toISOString(),
+        note: existing.note,
+      };
     const row = await this.sessions.save(
       this.sessions.create({
         organization,
         contextType: dto.contextType,
         contextId: dto.contextId,
         sessionDate: date,
+        occurrenceKey,
+        operationalDate: operationalDate(date, "Asia/Tehran", "00:00"),
+        timeZone: "Asia/Tehran",
         titleSnapshot: descriptor.title,
         rosterSnapshot: roster.map((member) => ({
           id: member.id,
@@ -789,11 +1703,17 @@ export class AttendanceService {
   ) {
     const absent = new Set(dto.absentStudentIds);
     const late = new Set(dto.lateStudentIds ?? []);
-    if ([...absent].some((studentId) => late.has(studentId)))
+    const excused = new Set(dto.excusedStudentIds ?? []);
+    if (
+      [...absent].some(
+        (studentId) => late.has(studentId) || excused.has(studentId),
+      ) ||
+      [...late].some((studentId) => excused.has(studentId))
+    )
       throw new ApiException(
         422,
         "ATTENDANCE_STATUS_CONFLICT",
-        "یک طلبه نمی‌تواند هم‌زمان غایب و دیرآمده باشد.",
+        "هر طلبه فقط می‌تواند یک وضعیت حضور داشته باشد.",
       );
     const session = await this.sessions.findOne({
       where: { id: sessionId },
@@ -811,14 +1731,25 @@ export class AttendanceService {
         "ATTENDANCE_ROSTER_SNAPSHOT_REQUIRED",
         "فهرست قطعی جلسه موجود نیست؛ ثبت غایب‌محور ممکن نیست.",
       );
-    if (session.status === "cancelled" || session.status === "finalized")
+    const assignedTimetableTeacher =
+      session.sourceKind === "class_schedule" &&
+      session.assignedStaff?.id === user.id &&
+      user.capabilities?.includes("attendance.class.manage");
+    if (
+      session.status === "cancelled" ||
+      (session.status === "finalized" && !assignedTimetableTeacher)
+    )
       throw new ApiException(
         409,
         "ATTENDANCE_SESSION_LOCKED",
         "این جلسه لغو یا نهایی شده است.",
       );
     const roster = new Set(session.rosterSnapshot.map((member) => member.id));
-    if ([...absent, ...late].some((studentId) => !roster.has(studentId)))
+    if (
+      [...absent, ...late, ...excused].some(
+        (studentId) => !roster.has(studentId),
+      )
+    )
       throw new ApiException(
         422,
         "ATTENDANCE_STUDENT_NOT_IN_SESSION",
@@ -837,10 +1768,12 @@ export class AttendanceService {
             ? "absent"
             : late.has(member.id)
               ? "late"
-              : "present",
+              : excused.has(member.id)
+                ? "excused"
+                : "present",
         })),
       },
-      { allowOccurrence: true, submit: true },
+      { allowOccurrence: true, allowHistoricalOccurrence: true, submit: true },
     );
   }
 
@@ -872,7 +1805,10 @@ export class AttendanceService {
       allowPartialSubmission: policy?.allowPartialSubmission ?? true,
       lateCountsAsPresent: policy?.lateCountsAsPresent ?? true,
       correctionRequiresReview: policy?.correctionRequiresReview ?? false,
-      principalReviewMode: policy?.principalReviewMode ?? "absences_only",
+      principalReviewMode:
+        policy?.principalReviewMode === "all_sessions"
+          ? "all_sessions"
+          : "absences_only",
     };
   }
 
@@ -907,7 +1843,11 @@ export class AttendanceService {
             dto.correctionRequiresReview ??
             existing?.correctionRequiresReview ??
             false,
-          principalReviewMode: dto.principalReviewMode ?? existing?.principalReviewMode ?? "absences_only",
+          principalReviewMode:
+            dto.principalReviewMode ??
+            (existing?.principalReviewMode === "all_sessions"
+              ? "all_sessions"
+              : "absences_only"),
         }),
       );
       await manager.save(
@@ -939,7 +1879,7 @@ export class AttendanceService {
     dto: FinalizeAttendanceSessionDto,
   ) {
     this.assertReviewAccess(user);
-    return this.attendanceTransaction(async (manager) => {
+    await this.attendanceTransaction(async (manager) => {
       const session = await manager.getRepository(AttendanceSession).findOne({
         where: { id: sessionId },
         relations: { organization: true },
@@ -957,13 +1897,7 @@ export class AttendanceService {
         session.organization.id,
         true,
       );
-      if (session.status === "finalized")
-        return {
-          sessionId: session.id,
-          revision: session.revision,
-          status: session.status,
-        };
-      if (session.status !== "submitted")
+      if (session.status !== "submitted" && session.status !== "finalized")
         throw new ApiException(
           409,
           "ATTENDANCE_SESSION_NOT_SUBMITTED",
@@ -975,32 +1909,21 @@ export class AttendanceService {
           "ATTENDANCE_SESSION_STALE",
           "نسخه جلسه تغییر کرده است؛ دوباره بارگذاری کنید.",
         );
-      session.status = "finalized";
-      session.revision++;
-      await manager.save(session);
-      await manager.save(
-        AuditLog,
-        manager.create(AuditLog, {
-          user: { id: user.id },
-          action: "attendance.session.finalized",
-          entity: "attendance",
-          organizationId: session.organization.id,
-          metadata: {
-            sessionId,
-            requestId: dto.requestId,
-            revision: session.revision,
-          },
-        }),
-      );
-      return {
-        sessionId: session.id,
-        revision: session.revision,
-        status: session.status,
-      };
+      // Finalization is revision review, not an additional session lifecycle
+      // transition. Teachers may later correct the occurrence, which creates a
+      // new revision that must be reviewed independently.
+    });
+    return this.reviewSessionEvery24Hours(user, sessionId, {
+      message: dto.message,
+      expectedRevision: dto.expectedRevision,
     });
   }
 
-  async reviewSessionEvery24Hours(user: AuthenticatedUser, sessionId: string) {
+  async reviewSessionEvery24Hours(
+    user: AuthenticatedUser,
+    sessionId: string,
+    dto: DailyAttendanceReviewDto = {},
+  ) {
     if (!user.capabilities?.includes("attendance.review"))
       throw new ApiException(
         403,
@@ -1010,7 +1933,11 @@ export class AttendanceService {
     return this.attendanceTransaction(async (manager) => {
       const session = await manager.getRepository(AttendanceSession).findOne({
         where: { id: sessionId },
-        relations: { organization: true },
+        relations: {
+          organization: true,
+          assignedStaff: true,
+          submittedBy: true,
+        },
       });
       if (!session)
         throw new ApiException(
@@ -1032,17 +1959,125 @@ export class AttendanceService {
           "فقط جلسه ثبت‌شده قابل بازبینی است.",
         );
 
+      if (
+        dto.expectedRevision !== undefined &&
+        session.revision !== dto.expectedRevision
+      )
+        throw new ApiException(
+          409,
+          "ATTENDANCE_SESSION_STALE",
+          "نسخه جلسه تغییر کرده است؛ دوباره بارگذاری کنید.",
+        );
+
+      const dedupeKey = `attendance-review:${session.id}:${session.revision}`;
+      const existingReview = (await manager.query(
+        "SELECT id, reviewedAt FROM attendance_session_reviews WHERE dedupeKey=? OR (sessionId=? AND reviewedRevision=?) ORDER BY reviewedAt DESC LIMIT 1",
+        [dedupeKey, session.id, session.revision],
+      )) as Array<{ id: string; reviewedAt: string }>;
+      if (existingReview[0])
+        return {
+          sessionId: session.id,
+          revision: session.revision,
+          status: session.status,
+          reviewedAt: existingReview[0].reviewedAt,
+          alreadyReviewed: true,
+        };
+
+      const absentCount = await manager.getRepository(AttendanceRecord).count({
+        where: { session: { id: session.id }, physicalStatus: "absent" },
+      });
+      const teacherMessage = dto.message?.trim().slice(0, 500) ?? "";
+      if (absentCount > 0 && !teacherMessage)
+        throw new ApiException(
+          400,
+          "ATTENDANCE_REVIEW_MESSAGE_REQUIRED",
+          "برای جلسه دارای غیبت، پیام درخواست توضیح از استاد را بنویسید.",
+        );
+      const attentionRecords = await manager
+        .getRepository(AttendanceRecord)
+        .find({
+          where: {
+            session: { id: session.id },
+            physicalStatus: In(["absent", "late"]),
+          },
+          relations: { student: true },
+        });
+      const affectedStudents = attentionRecords.map((record) => ({
+        id: record.student.id,
+        name: record.student.name,
+        status: record.physicalStatus,
+      }));
+
       const reviewedAt = new Date();
+      const reviewId = randomUUID();
       await manager.query(
-        "INSERT INTO attendance_session_reviews(id,sessionId,reviewerId,reviewedRevision,reviewedAt) VALUES(?,?,?,?,?)",
+        "INSERT INTO attendance_session_reviews(id,sessionId,reviewerId,reviewedRevision,reviewedAt,teacherMessage,dedupeKey) VALUES(?,?,?,?,?,?,?) ON CONFLICT(dedupeKey) DO NOTHING",
         [
-          randomUUID(),
+          reviewId,
           session.id,
           user.id,
           session.revision,
           reviewedAt.toISOString(),
+          teacherMessage,
+          dedupeKey,
         ],
       );
+      const persistedReview = (await manager.query(
+        "SELECT id, reviewedAt FROM attendance_session_reviews WHERE dedupeKey=? LIMIT 1",
+        [dedupeKey],
+      )) as Array<{ id: string; reviewedAt: string }>;
+      if (!persistedReview[0] || persistedReview[0].id !== reviewId)
+        return {
+          sessionId: session.id,
+          revision: session.revision,
+          status: session.status,
+          reviewedAt:
+            persistedReview[0]?.reviewedAt ?? reviewedAt.toISOString(),
+          alreadyReviewed: true,
+        };
+      const teacherId = session.assignedStaff?.id ?? session.submittedBy?.id;
+      if (teacherId && teacherMessage) {
+        const studentNames = affectedStudents
+          .map((student) => student.name)
+          .join("، ");
+        const notification = await manager.getRepository(Notification).save(
+          manager.getRepository(Notification).create({
+            user: { id: teacherId },
+            organization: session.organization,
+            type: NotificationType.MESSAGE,
+            category: "attendance-review",
+            title: "پیام مدیر دربارهٔ ورود دانش‌آموزان به کلاس",
+            body: [
+              teacherMessage,
+              studentNames ? `دانش‌آموزان: ${studentNames}` : "",
+              "در صورت حضور دانش‌آموزان، مطابق دستور مدیر اجازهٔ ورود به کلاس را بدهید.",
+            ]
+              .filter(Boolean)
+              .join("\n"),
+            url: "/admin",
+            data: {
+              sessionId: session.id,
+              revision: session.revision,
+              affectedStudents,
+            },
+            priority: "normal",
+          }),
+        );
+        this.realtime.emitToUser(teacherId, "notification.created", {
+          id: notification.id,
+          type: notification.type,
+          category: notification.category,
+          title: notification.title,
+          body: notification.body,
+          url: notification.url,
+          data: notification.data,
+          priority: notification.priority,
+          createdAt: notification.createdAt,
+          organizationId: session.organization.id,
+          readAt: notification.readAt ?? null,
+          isRead: false,
+        });
+      }
       await manager.save(
         AuditLog,
         manager.create(AuditLog, {
@@ -1050,11 +2085,68 @@ export class AttendanceService {
           action: "attendance.session.daily-reviewed",
           entity: "attendance",
           organizationId: session.organization.id,
-          metadata: { sessionId: session.id, status: session.status },
+          metadata: {
+            sessionId: session.id,
+            status: session.status,
+            teacherMessage,
+            affectedStudents,
+          },
         }),
       );
-      return { sessionId: session.id, reviewedAt: reviewedAt.toISOString() };
+      return {
+        sessionId: session.id,
+        revision: session.revision,
+        status: session.status,
+        reviewedAt: reviewedAt.toISOString(),
+        alreadyReviewed: false,
+      };
     });
+  }
+
+  /**
+   * Candidate sessions for the principal's one-time auto-archive action.
+   * A session is eligible only when its saved roster is complete and every
+   * recorded physical observation is present.  The client reviews these one
+   * at a time so cancelling the UI never leaves a background batch running.
+   */
+  async listReviewablePresentSessions(
+    user: AuthenticatedUser,
+    requestedOrganizationId?: string,
+  ) {
+    if (!user.capabilities?.includes("attendance.review"))
+      throw new ApiException(403, "FORBIDDEN", "دسترسی بازبینی حضور لازم است.");
+    const organizationId = requestedOrganizationId || user.activeOrganizationId;
+    if (!organizationId)
+      throw new ApiException(
+        422,
+        "ATTENDANCE_ORGANIZATION_REQUIRED",
+        "مدرسه فعال را انتخاب کنید.",
+      );
+    await this.authorizeOrganization(user, organizationId);
+    const rows = (await this.sessions.manager.query(
+      `SELECT s.id, s.revision
+         FROM attendance_sessions s
+        WHERE s.organizationId=? AND s.contextType='class'
+          AND s.status IN ('submitted','finalized')
+          AND s.rosterSnapshot IS NOT NULL
+          AND json_array_length(s.rosterSnapshot) > 0
+          AND (SELECT COUNT(id) FROM attendance_records r WHERE r.sessionId=s.id) = json_array_length(s.rosterSnapshot)
+          AND NOT EXISTS (
+            SELECT 1 FROM attendance_records r
+             WHERE r.sessionId=s.id AND (r.physicalStatus IS NULL OR r.physicalStatus <> 'present')
+          )
+          AND NOT EXISTS (
+            SELECT 1 FROM attendance_session_reviews ar
+             WHERE ar.sessionId=s.id AND ar.reviewedRevision=s.revision
+          )
+        ORDER BY s.sessionDate ASC, s.id ASC
+        LIMIT 100`,
+      [organizationId],
+    )) as Array<{ id: string; revision: number | string }>;
+    return rows.map((row) => ({
+      id: String(row.id),
+      revision: Number(row.revision),
+    }));
   }
 
   /**
@@ -1202,7 +2294,8 @@ export class AttendanceService {
       };
       const after = {
         status: dto.status,
-        physicalStatus: dto.status,
+        physicalStatus:
+          dto.status === "excused" ? "legacy_unknown" : dto.status,
         minutesLate: dto.status === "late" ? (dto.minutesLate ?? null) : null,
         revision: record.revision + 1,
       };
@@ -1264,6 +2357,15 @@ export class AttendanceService {
             )
           )
             continue;
+          const principalReviewer = reviewer.roleAssignments.some(
+            (assignment) =>
+              ["PRINCIPAL", "ORGANIZATION_ADMIN"].includes(
+                assignment.role.code,
+              ),
+          );
+          const reviewUrl = principalReviewer
+            ? "/admin/dashboard/principal?panel=sessions"
+            : `/admin/attendance?section=sessions&correctionId=${encodeURIComponent(correction.id)}`;
           const item = await manager.getRepository(Notification).save(
             manager.create(Notification, {
               user: reviewer.user,
@@ -1272,7 +2374,7 @@ export class AttendanceService {
               category: "attendance_correction",
               title: "درخواست اصلاح حضور جدید",
               body: `اصلاح حضور ${record.student.name} منتظر بررسی شماست.`,
-              url: `/admin/attendance?section=sessions&correctionId=${encodeURIComponent(correction.id)}`,
+              url: reviewUrl,
               priority: "high",
               dedupeKey: `attendance-correction-review:${correction.id}:${reviewer.user.id}`,
             }),
@@ -1283,7 +2385,7 @@ export class AttendanceService {
             title: item.title,
             body: item.body,
             category: item.category,
-            url: item.url ?? "/admin/attendance?section=sessions",
+            url: item.url ?? reviewUrl,
             organizationId: session.organization.id,
           });
         }
@@ -1299,7 +2401,8 @@ export class AttendanceService {
         };
       }
       record.status = dto.status as AttendanceStatus;
-      record.physicalStatus = dto.status;
+      record.physicalStatus =
+        dto.status === "excused" ? "legacy_unknown" : dto.status;
       record.minutesLate =
         dto.status === "late" ? (dto.minutesLate ?? null) : null;
       record.reviewStatus =
@@ -1422,8 +2525,8 @@ export class AttendanceService {
       correction.reviewedAt = new Date();
       if (dto.decision === "approved") {
         const after = correction.after as {
-          status?: "present" | "absent" | "late";
-          physicalStatus?: "present" | "absent" | "late";
+          status?: "present" | "absent" | "late" | "excused";
+          physicalStatus?: "present" | "absent" | "late" | "legacy_unknown";
           minutesLate?: number | null;
         };
         if (
@@ -1437,7 +2540,9 @@ export class AttendanceService {
           );
         const record = correction.record;
         record.status = after.status as AttendanceStatus;
-        record.physicalStatus = after.physicalStatus ?? after.status;
+        record.physicalStatus =
+          after.physicalStatus ??
+          (after.status === "excused" ? "legacy_unknown" : after.status);
         record.minutesLate =
           after.status === "late" ? (after.minutesLate ?? null) : null;
         record.reviewStatus =
@@ -1481,17 +2586,12 @@ export class AttendanceService {
   async bulkMark(
     user: AuthenticatedUser,
     dto: BulkMarkAttendanceDto,
-    options: { allowOccurrence?: boolean; submit?: boolean } = {},
+    options: {
+      allowOccurrence?: boolean;
+      allowHistoricalOccurrence?: boolean;
+      submit?: boolean;
+    } = {},
   ) {
-    if (
-      dto.entries.some((entry) => entry.status === AttendanceStatus.EXCUSED)
-    ) {
-      throw new ApiException(
-        422,
-        "ATTENDANCE_EXCUSE_REQUIRES_REVIEW",
-        "ابتدا غیبت را ثبت کنید؛ موجه‌بودن دلیل در مرحله بررسی مشخص می‌شود.",
-      );
-    }
     if (!dto.entries.length) {
       throw new ApiException(
         422,
@@ -1582,7 +2682,10 @@ export class AttendanceService {
             relations: { assignedStaff: true },
           });
           const assigned =
-            receiptSession?.sourceKind === "class_schedule" &&
+            !!receiptSession &&
+            ["class_schedule", "legacy_schedule", "legacy_import"].includes(
+              receiptSession?.sourceKind ?? "",
+            ) &&
             receiptSession.assignedStaff?.id === user.id &&
             user.capabilities?.includes("attendance.class.manage");
           if (!assigned)
@@ -1609,6 +2712,34 @@ export class AttendanceService {
           };
         }
       }
+      // A teacher's own attendance must be frozen for every approved leave day.
+      // School-wide staff retain their operational ability to correct history.
+      if (!this.schoolWide(user)) {
+        // Leave dates are school operational dates, never the server's UTC date.
+        const day = operationalDate(sessionDate, "Asia/Tehran");
+        const leave = await manager.getRepository(TeacherLeaveRequest).findOne({
+          where: {
+            organizationId: organization.id,
+            teacherId: user.id,
+            status: "approved",
+            startDate: LessThanOrEqual(day),
+            endDate: MoreThanOrEqual(day),
+          },
+        });
+        if (
+          leave &&
+          !(
+            leave.returnStatus === "approved" &&
+            leave.returnDate &&
+            leave.returnDate <= day
+          )
+        )
+          throw new ApiException(
+            409,
+            "TEACHER_LEAVE_ATTENDANCE_FROZEN",
+            "حضور و غیاب در بازه مرخصی تأییدشده غیرفعال است.",
+          );
+      }
       let session = dto.sessionId
         ? await sessions.findOne({
             where: {
@@ -1624,9 +2755,23 @@ export class AttendanceService {
           "ATTENDANCE_SESSION_NOT_FOUND",
           "جلسه حضور و غیاب پیدا نشد.",
         );
+      const assignedTeacher = this.isAssignedScheduledTeacher(user, session);
+      if (
+        user.capabilities?.includes("attendance.class.manage") &&
+        !user.capabilities.includes("attendance.manage") &&
+        !assignedTeacher
+      )
+        throw new ApiException(
+          403,
+          "FORBIDDEN",
+          "فقط دبیر واگذارشده می‌تواند حضور این جلسه را ثبت یا اصلاح کند.",
+        );
+      await this.assertAcademicSessionWritable(manager, session, user);
       if (
         session &&
-        (session.sourceKind === "class_schedule" ||
+        (["class_schedule", "legacy_schedule", "legacy_import"].includes(
+          session.sourceKind ?? "",
+        ) ||
           dto.expectedRevision !== undefined) &&
         session.revision !== dto.expectedRevision
       )
@@ -1641,13 +2786,20 @@ export class AttendanceService {
           "ATTENDANCE_SESSION_CANCELLED",
           "این درس لغو شده است؛ حضور تاریخی فقط قابل مشاهده است.",
         );
-      this.assertSessionIsActiveForMarking(session);
-      if (session?.occurrenceKey && !options.allowOccurrence)
-        throw new ApiException(
-          409,
-          "ATTENDANCE_SESSION_WORKFLOW_REQUIRED",
-          "برای این جلسه از ثبت حضور جلسه با شماره نسخه استفاده کنید.",
-        );
+      // A timetable occurrence remains the same historical lesson after its
+      // scheduled window closes. Its assigned teacher may correct that saved
+      // roster until a reviewer finalizes or cancels it; generic live attendance
+      // sessions keep the normal time-window rule.
+      if (!(
+        session &&
+        ["class_schedule", "legacy_schedule", "legacy_import"].includes(
+          session.sourceKind ?? "",
+        ) &&
+        session.scheduledEndAt &&
+        session.scheduledEndAt.getTime() <= Date.now() &&
+        (assignedTeacher || options.allowHistoricalOccurrence)
+      ))
+        this.assertSessionIsActiveForMarking(session);
       const contextType = session?.contextType ?? dto.contextType;
       const contextId = session?.contextId ?? dto.contextId;
       if (!contextType || !contextId)
@@ -1656,11 +2808,143 @@ export class AttendanceService {
           "ATTENDANCE_CONTEXT_REQUIRED",
           "کلاس، گروه یا اتاق لازم است.",
         );
-      const assignedTeacher =
-        session?.sourceKind === "class_schedule" &&
-        session.assignedStaff?.id === user.id &&
-        user.capabilities?.includes("attendance.class.manage");
-      if (!assignedTeacher)
+      let dormTerm: SchoolAcademicTerm | null = null;
+      let dormOccurrenceKey: string | null = null;
+      const manualOccurrenceKey =
+        !session && contextType !== "dorm"
+          ? `manual-attendance:${contextType}:${contextId}:${operationalDate(sessionDate, "Asia/Tehran", "00:00")}`
+          : null;
+      const dormPeriod =
+        session?.attendancePeriod ?? dto.attendancePeriod ?? "night";
+      // Enforce tenant and role scope before returning term/session details.
+      // Otherwise callers without dorm access can distinguish configuration
+      // state from authorization failures.
+      if (!assignedTeacher && contextType === "dorm")
+        await this.assertContextAccess(
+          user,
+          contextType,
+          contextId,
+          organization.id,
+          true,
+        );
+      if (contextType === "dorm") {
+        const dormDate = operationalDate(sessionDate, "Asia/Tehran", "00:00");
+        if (session?.termIdSnapshot && session.academicYearIdSnapshot) {
+          dormTerm = await manager.getRepository(SchoolAcademicTerm).findOne({
+            where: {
+              id: session.termIdSnapshot,
+              academicYearId: session.academicYearIdSnapshot,
+            },
+            relations: { academicYear: true },
+          });
+        } else if (!session) {
+          const terms = await manager.getRepository(SchoolAcademicTerm).find({
+            where: {
+              state: "ACTIVE",
+              academicYear: {
+                organizationId: organization.id,
+                state: "ACTIVE",
+              },
+            },
+            relations: { academicYear: true },
+          });
+          dormTerm =
+            terms.find(
+              (term) =>
+                term.academicYear?.state === "ACTIVE" &&
+                term.startsOn <= dormDate &&
+                term.endsOn >= dormDate,
+            ) ?? null;
+        }
+        if (
+          !dormTerm?.academicYear ||
+          (!session &&
+            (dormTerm.state !== "ACTIVE" ||
+              dormTerm.academicYear.state !== "ACTIVE"))
+        )
+          throw new ApiException(
+            409,
+            "ATTENDANCE_DORM_TERM_REQUIRED",
+            "برای این تاریخ باید یک نیم‌سال فعال باشد؛ حضورهای قدیمی باید جداگانه به نیم‌سال متصل شوند.",
+          );
+        dormOccurrenceKey = `dorm-attendance:primary:${contextId}:${dormDate}:${dormPeriod}`;
+        if (!session) {
+          session = await sessions.findOne({
+            where: {
+              organization: { id: organization.id },
+              occurrenceKey: dormOccurrenceKey,
+            },
+            relations: { organization: true, assignedStaff: true },
+          });
+          if (!session)
+            session = await sessions.findOne({
+              where: {
+                organization: { id: organization.id },
+                occurrenceKey: `dorm-delegate:${contextId}:${dormDate}:${dormPeriod}`,
+              },
+              relations: { organization: true, assignedStaff: true },
+            });
+          if (!session && dormPeriod === "night")
+            session = await sessions.findOne({
+              where: {
+                organization: { id: organization.id },
+                occurrenceKey: `dorm-delegate:${contextId}:${dormDate}`,
+              },
+              relations: { organization: true, assignedStaff: true },
+            });
+        }
+        if (session) {
+          if (
+            session.attendancePeriod &&
+            session.attendancePeriod !== dormPeriod
+          )
+            throw new ApiException(
+              409,
+              "ATTENDANCE_DORM_PERIOD_CONFLICT",
+              "نوبت این جلسه با نوبت انتخاب‌شده یکسان نیست.",
+            );
+          session.attendancePeriod = dormPeriod;
+          session.dormAttendanceRole ??= "primary";
+          session.academicYearIdSnapshot ??= dormTerm.academicYear.id;
+          session.academicYearNameSnapshot ??= dormTerm.academicYear.name;
+          session.termIdSnapshot ??= dormTerm.id;
+          session.termNameSnapshot ??= dormTerm.name;
+          await this.assertAcademicSessionWritable(manager, session, user);
+        }
+      }
+      if (!session && manualOccurrenceKey) {
+        session = await sessions.findOne({
+          where: {
+            organization: { id: organization.id },
+            occurrenceKey: manualOccurrenceKey,
+          },
+          relations: { organization: true, assignedStaff: true },
+        });
+      }
+      if (
+        session?.occurrenceKey &&
+        !session.occurrenceKey.startsWith("manual-attendance:") &&
+        !options.allowOccurrence &&
+        !assignedTeacher
+      )
+        throw new ApiException(
+          409,
+          "ATTENDANCE_SESSION_WORKFLOW_REQUIRED",
+          "برای این جلسه از گردش‌کار حضور برنامه استفاده کنید.",
+        );
+      if (session?.status === "finalized" && !assignedTeacher)
+        throw new ApiException(
+          409,
+          "ATTENDANCE_SESSION_LOCKED",
+          "جلسه نهایی‌شده فقط توسط استاد همان درس قابل اصلاح است.",
+        );
+      if (contextType === "dorm" && session?.dormForwardedAt)
+        throw new ApiException(
+          409,
+          "ATTENDANCE_DORM_REVIEW_LOCKED",
+          "جلسه پس از ارسال برای مدیر قفل شده است.",
+        );
+      if (!assignedTeacher && contextType !== "dorm")
         await this.assertContextAccess(
           user,
           contextType,
@@ -1716,6 +3000,34 @@ export class AttendanceService {
             contextType,
             contextId,
             sessionDate,
+            ...(contextType === "dorm" && dormTerm?.academicYear
+              ? {
+                  occurrenceKey: dormOccurrenceKey,
+                  dormAttendanceRole: "primary",
+                  operationalDate: operationalDate(
+                    sessionDate,
+                    "Asia/Tehran",
+                    "00:00",
+                  ),
+                  attendancePeriod: dormPeriod,
+                  timeZone: "Asia/Tehran",
+                  academicYearIdSnapshot: dormTerm.academicYear.id,
+                  academicYearNameSnapshot: dormTerm.academicYear.name,
+                  termIdSnapshot: dormTerm.id,
+                  termNameSnapshot: dormTerm.name,
+                }
+              : {}),
+            ...(contextType !== "dorm" && manualOccurrenceKey
+              ? {
+                  occurrenceKey: manualOccurrenceKey,
+                  operationalDate: operationalDate(
+                    sessionDate,
+                    "Asia/Tehran",
+                    "00:00",
+                  ),
+                  timeZone: "Asia/Tehran",
+                }
+              : {}),
             titleSnapshot: descriptor.title,
             rosterSnapshot: fullRoster.map((student) => ({
               id: student.id,
@@ -1730,10 +3042,36 @@ export class AttendanceService {
           }),
         );
       }
+      // A principal-approved student leave is the authoritative reason for an
+      // absence at this occurrence. Keep the teacher's observed present/late
+      // value intact: that discrepancy is surfaced to the reviewers below.
+      const occurrenceAt = session.scheduledStartAt ?? session.sessionDate;
+      const activeStudentLeaves = await manager
+        .getRepository(LeaveRequest)
+        .find({
+          where: {
+            organization: { id: organization.id },
+            leaveType: LeaveRequestType.LEAVE,
+            status: LeaveRequestStatus.APPROVED,
+            startDate: LessThanOrEqual(occurrenceAt),
+            endDate: MoreThanOrEqual(occurrenceAt),
+          },
+          relations: { student: true },
+        });
+      const leaveByStudentId = new Map(
+        activeStudentLeaves.map((leave) => [leave.student.id, leave]),
+      );
       const saved: AttendanceRecord[] = [];
       const changes: Array<Record<string, unknown>> = [];
       for (const entry of entries) {
         const student = byId.get(entry.studentId)!;
+        const activeLeave = leaveByStudentId.get(student.id);
+        const status =
+          activeLeave && contextType === "dorm"
+            ? AttendanceStatus.EXCUSED
+            : activeLeave && entry.status === AttendanceStatus.ABSENT
+              ? AttendanceStatus.EXCUSED
+              : entry.status;
         let record = await records.findOne({
           where: { session: { id: session.id }, student: { id: student.id } },
           relations: { student: true },
@@ -1746,22 +3084,46 @@ export class AttendanceService {
             }
           : null;
         if (!record) record = records.create({ session, student });
-        record.status = entry.status;
+        record.status = status;
         record.physicalStatus =
-          entry.status === AttendanceStatus.EXCUSED
-            ? "legacy_unknown"
-            : entry.status;
+          status === AttendanceStatus.EXCUSED ? "legacy_unknown" : status;
         record.revision = (record.revision ?? 0) + 1;
-        record.note = entry.note?.trim() || "";
+        record.note =
+          activeLeave &&
+          (contextType === "dorm" || entry.status === AttendanceStatus.ABSENT)
+            ? activeLeave.note || activeLeave.reason
+            : entry.note?.trim() || "";
         record.recordedBy = { id: user.id } as User;
         record.reviewStatus =
-          entry.status === AttendanceStatus.ABSENT
+          status === AttendanceStatus.ABSENT
             ? AttendanceReviewStatus.PENDING
             : null;
         record.reviewNote = "";
         record.reviewedBy = null;
         record.reviewedAt = null;
         const marked = await records.save(record);
+        if (contextType === "dorm" && status === AttendanceStatus.PRESENT) {
+          const openExits = await manager.getRepository(ExitPermission).find({
+            where: {
+              organization: { id: organization.id },
+              student: { id: student.id },
+              status: ExitPermissionStatus.APPROVED,
+              actualReturnAt: IsNull(),
+            },
+          });
+          const openExit = openExits.find(
+            (exit) =>
+              exit.actualDepartureAt ||
+              exit.requestedDepartureAt.getTime() <= Date.now(),
+          );
+          if (openExit) {
+            openExit.actualReturnAt = new Date();
+            openExit.returnVerifiedBy = { id: user.id } as User;
+            openExit.returnVerifiedAt = new Date();
+            openExit.status = ExitPermissionStatus.COMPLETED;
+            await manager.getRepository(ExitPermission).save(openExit);
+          }
+        }
         saved.push(marked);
         changes.push({
           recordId: marked.id,
@@ -1787,31 +3149,60 @@ export class AttendanceService {
             : points < 0
               ? "کسر یک امتیاز برای غیبت در کلاس"
               : "وضعیت حضور بدون تغییر امتیاز";
-        await this.rewards.recordAttendanceOutcome({
-          recordId: record.id,
-          revision: record.revision,
-          student: record.student,
-          organization,
-          points,
-          reason,
-          contextType: session.contextType,
-          contextId: session.contextId,
-          contextName: session.titleSnapshot || null,
-        }, manager);
+        await this.rewards.recordAttendanceOutcome(
+          {
+            recordId: record.id,
+            revision: record.revision,
+            student: record.student,
+            organization,
+            points,
+            reason,
+            contextType: session.contextType,
+            contextId: session.contextId,
+            contextName: session.titleSnapshot || null,
+          },
+          manager,
+        );
       }
       if (options.submit) {
-        if (session.status !== "open" && session.status !== "scheduled")
+        const revisingTimetableOccurrence =
+          ["class_schedule", "legacy_schedule", "legacy_import"].includes(
+            session.sourceKind ?? "",
+          ) &&
+          (session.status === "submitted" || session.status === "finalized") &&
+          session.assignedStaff?.id === user.id &&
+          user.capabilities?.includes("attendance.class.manage");
+        const revisingDormRollCall =
+          session.contextType === "dorm" &&
+          session.status === "submitted" &&
+          !session.dormForwardedAt &&
+          (user.roles ?? [user.role]).includes("SCHOOL_SUPERVISOR");
+        if (
+          !revisingTimetableOccurrence &&
+          !revisingDormRollCall &&
+          session.status !== "open" &&
+          session.status !== "scheduled"
+        )
           throw new ApiException(
             409,
             "ATTENDANCE_SESSION_ALREADY_SUBMITTED",
             "ثبت اولیه این جلسه قبلاً انجام شده است.",
           );
-        session.status = "submitted";
-        session.submittedAt = new Date();
-        session.submittedBy = { id: user.id } as User;
+        if (!revisingTimetableOccurrence && !revisingDormRollCall) {
+          session.status = "submitted";
+          session.submittedAt = new Date();
+          session.submittedBy = { id: user.id } as User;
+        }
       }
       session.revision++;
       await sessions.save(session);
+      if (
+        options.submit &&
+        contextType !== "dorm" &&
+        policy?.principalReviewMode !== "all_sessions"
+      ) {
+        await this.autoReviewIfAbsenceFree(manager, session);
+      }
       await manager.getRepository(AuditLog).save({
         user: { id: user.id },
         action: "attendance.records.marked",
@@ -1858,13 +3249,33 @@ export class AttendanceService {
           }),
         );
       const notifications = manager.getRepository(Notification);
-      const reviewRecipients = members
-        .filter((member) =>
-          member.roleAssignments.some((assignment) =>
-            ["PRINCIPAL", "SCHOOL_SUPERVISOR"].includes(assignment.role.code),
-          ),
+      // A role name is not an authorization decision. Resolve the recipient in
+      // the same organization and work-role context that the dashboard uses,
+      // otherwise a user can receive a review link whose queue is hidden.
+      const reviewRecipients = (
+        await Promise.all(
+          members.map(async (member) => {
+            const reviewRole = member.roleAssignments.find((assignment) =>
+              ["PRINCIPAL", "SCHOOL_SUPERVISOR"].includes(assignment.role.code),
+            )?.role.code;
+            if (!reviewRole) return null;
+            if (typeof this.authorization?.enrich !== "function") return member;
+            const context = await this.authorization.enrich(
+              {
+                id: member.user.id,
+                username: member.user.username,
+                sessionId: `attendance-notification:${session.id}`,
+                role: reviewRole,
+              },
+              reviewRole,
+              organization.id,
+            );
+            return context.capabilities.includes("attendance.review")
+              ? member
+              : null;
+          }),
         )
-        .map((member) => member.user.id);
+      ).filter((member): member is OrganizationMembership => Boolean(member));
       const notificationEvents: Array<{
         userId: string;
         id: string;
@@ -1874,6 +3285,55 @@ export class AttendanceService {
         url: string;
         organizationId: string;
       }> = [];
+      const principalRecipients = reviewRecipients.filter((member) =>
+        member.roleAssignments.some((assignment) =>
+          ["PRINCIPAL", "ORGANIZATION_ADMIN"].includes(assignment.role.code),
+        ),
+      );
+      const hasPhysicalAbsence = saved.some(
+        (record) => record.physicalStatus === "absent",
+      );
+      const dashboardPanel =
+        contextType === "class_group" || contextType === "study_group"
+          ? "groups"
+          : "sessions";
+      const shouldNotifySubmittedSession =
+        options.submit &&
+        (((contextType === "class_group" || contextType === "study_group") &&
+          !hasPhysicalAbsence) ||
+          (contextType === "class" &&
+            policy?.principalReviewMode === "all_sessions" &&
+            !hasPhysicalAbsence));
+      if (shouldNotifySubmittedSession) {
+        for (const principal of principalRecipients) {
+          const item = await notifications.save(
+            notifications.create({
+              user: principal.user,
+              organization,
+              type: NotificationType.WARNING,
+              category: "attendance_session_submitted",
+              title:
+                dashboardPanel === "groups"
+                  ? "حضور گروه کلاسی جدید ثبت شد"
+                  : "جلسهٔ حضور جدید آمادهٔ بازبینی است",
+              body: `${session.titleSnapshot || "جلسه"} ثبت شد و در فهرست مدیر قابل مشاهده است.`,
+              url: `/admin/dashboard/principal?panel=${dashboardPanel}`,
+              priority: "normal",
+              dedupeKey: `attendance-session-submitted:${session.id}:${session.revision}:${principal.user.id}`,
+            }),
+          );
+          notificationEvents.push({
+            userId: principal.user.id,
+            id: item.id,
+            title: item.title,
+            body: item.body,
+            category: item.category,
+            url:
+              item.url ?? `/admin/dashboard/principal?panel=${dashboardPanel}`,
+            organizationId: organization.id,
+          });
+        }
+      }
       for (const record of saved.filter(
         (row) => row.physicalStatus === "absent",
       )) {
@@ -1905,7 +3365,25 @@ export class AttendanceService {
             organizationId: organization.id,
           });
         }
-        for (const reviewerId of reviewRecipients) {
+        for (const reviewer of reviewRecipients) {
+          const reviewerId = reviewer.user.id;
+          const principalReviewer = reviewer.roleAssignments.some(
+            (assignment) =>
+              ["PRINCIPAL", "ORGANIZATION_ADMIN"].includes(
+                assignment.role.code,
+              ),
+          );
+          const panel =
+            contextType === "dorm"
+              ? "dorm"
+              : contextType === "class_group" || contextType === "study_group"
+                ? "groups"
+                : "sessions";
+          const reviewUrl = principalReviewer
+            ? `/admin/dashboard/principal?panel=${
+                contextType === "class" ? "absence-reviews" : panel
+              }`
+            : `/admin/attendance?section=${contextType === "class_group" ? "class_group" : contextType}`;
           const item = await notifications.save(
             notifications.create({
               user: { id: reviewerId } as User,
@@ -1914,10 +3392,14 @@ export class AttendanceService {
               category: "attendance_review",
               title: "درخواست بررسی غیبت جدید",
               body: `غیبت ${record.student.name} توسط معلم ثبت شده و منتظر بررسی است.`,
-              // Reviewers land in the exact workspace and queue item that generated the alert.
-              url: `/admin/attendance?section=sessions&reviewRecordId=${encodeURIComponent(record.id)}`,
+              // Principals review operational attendance in their dashboard;
+              // supervisors retain their scoped attendance workspace.
+              url: reviewUrl,
               priority: "high",
-              dedupeKey: `attendance-absence-review:${record.id}:${reviewerId}`,
+              // A correction keeps the same attendance-record id but creates a
+              // new review obligation. Include the record revision so a
+              // principal receives a fresh actionable notification for it.
+              dedupeKey: `attendance-absence-review:${record.id}:${record.revision}:${reviewerId}`,
             }),
           );
           notificationEvents.push({
@@ -1926,7 +3408,7 @@ export class AttendanceService {
             title: item.title,
             body: item.body,
             category: item.category,
-            url: item.url ?? "/admin/attendance?section=sessions",
+            url: item.url ?? reviewUrl,
             organizationId: organization.id,
           });
         }
@@ -1985,18 +3467,30 @@ export class AttendanceService {
         "دانش‌آموز عضو این کلاس نیست.",
       );
     return this.attendanceTransaction(async (manager) => {
-      const student = await manager
-        .getRepository(Student)
-        .findOne({ where: { id: dto.studentId, organization: { id: organization.id } } });
+      const student = await manager.getRepository(Student).findOne({
+        where: { id: dto.studentId, organization: { id: organization.id } },
+      });
       if (!student)
         throw new ApiException(404, "STUDENT_NOT_FOUND", "دانش‌آموز پیدا نشد.");
-      const context = await this.contextDescriptor(dto.contextType, dto.contextId);
-      const row = await this.rewards.recordTrustedSource({
-        student, organization, awardedById: user.id, points: dto.points,
-        reason: dto.reason, sourceType: "attendance_manual",
-        contextType: dto.contextType, contextId: dto.contextId, contextName: context.title,
-        requestId: dto.requestId,
-      }, manager);
+      const context = await this.contextDescriptor(
+        dto.contextType,
+        dto.contextId,
+      );
+      const row = await this.rewards.recordTrustedSource(
+        {
+          student,
+          organization,
+          awardedById: user.id,
+          points: dto.points,
+          reason: dto.reason,
+          sourceType: "attendance_manual",
+          contextType: dto.contextType,
+          contextId: dto.contextId,
+          contextName: context.title,
+          requestId: dto.requestId,
+        },
+        manager,
+      );
       await manager.getRepository(AuditLog).save({
         user: { id: user.id },
         organizationId: organization.id,
@@ -2019,13 +3513,326 @@ export class AttendanceService {
     });
   }
 
+  async listSessionCoins(user: AuthenticatedUser, sessionId: string) {
+    const session = await this.authorizedSavedSession(user, sessionId);
+    const rows = await this.requireSessionCoins().find({
+      where: { session: { id: session.id } },
+      relations: { student: true, recordedBy: true },
+      order: { updatedAt: "ASC", id: "ASC" },
+    });
+    return rows.map((row) => ({
+      id: row.id,
+      studentId: row.student.id,
+      coins: row.coins,
+      revision: row.revision,
+      recordedById: row.recordedBy?.id ?? null,
+      updatedAt: row.updatedAt.toISOString(),
+    }));
+  }
+
+  async teacherStudentClassProfile(
+    user: AuthenticatedUser,
+    studentId: string,
+    entryId: string,
+  ): Promise<TeacherStudentClassAttendanceProfile> {
+    const roles = user.roles?.length ? user.roles : [user.role];
+    if (
+      !roles.includes("TEACHER") ||
+      !user.capabilities?.includes("attendance.class.read")
+    )
+      throw new ApiException(403, "FORBIDDEN", "دسترسی کافی ندارید.");
+
+    const scheduleEntries =
+      this.sessions.manager.getRepository(SchoolScheduleEntry);
+    const selectedEntry = await scheduleEntries.findOne({
+      where: { id: entryId },
+      relations: {
+        organization: true,
+        classroom: true,
+        teacher: true,
+        classBook: { book: true, teacher: true },
+      },
+    });
+    if (
+      !selectedEntry?.organization ||
+      !selectedEntry.classroom ||
+      !selectedEntry.classBook?.book
+    )
+      throw new ApiException(
+        404,
+        "SCHEDULE_ENTRY_NOT_FOUND",
+        "جلسه برنامه پیدا نشد.",
+      );
+
+    const assignedTeacherId =
+      selectedEntry.teacher?.id ?? selectedEntry.classBook.teacher?.id;
+    if (assignedTeacherId !== user.id)
+      throw new ApiException(
+        404,
+        "SCHEDULE_ENTRY_NOT_FOUND",
+        "جلسه برنامه پیدا نشد.",
+      );
+    await this.authorizeContext(
+      user,
+      "class",
+      selectedEntry.classroom.id,
+      selectedEntry.organization.id,
+      false,
+    );
+
+    const enrollment = await this.enrollments.findOne({
+      where: {
+        student: { id: studentId },
+        classroom: { id: selectedEntry.classroom.id },
+      },
+      relations: { student: true },
+    });
+    if (!enrollment)
+      throw new ApiException(
+        404,
+        "STUDENT_NOT_FOUND",
+        "دانش‌آموز در این کلاس پیدا نشد.",
+      );
+
+    const siblings = await scheduleEntries.find({
+      where: {
+        organization: { id: selectedEntry.organization.id },
+        classroom: { id: selectedEntry.classroom.id },
+        classBook: { id: selectedEntry.classBook.id },
+      },
+      relations: { teacher: true, classBook: { teacher: true } },
+    });
+    const sourceIds = siblings
+      .filter(
+        (entry) =>
+          (entry.teacher?.id ?? entry.classBook?.teacher?.id) === user.id,
+      )
+      .map((entry) => entry.id);
+    if (!sourceIds.includes(entryId)) sourceIds.push(entryId);
+
+    const sessions = await this.sessions.find({
+      where: {
+        organization: { id: selectedEntry.organization.id },
+        contextType: "class",
+        contextId: selectedEntry.classroom.id,
+        sourceKind: "legacy_schedule",
+        sourceScheduleId: In(sourceIds),
+        subjectIdSnapshot: selectedEntry.classBook.book.id,
+        assignedStaff: { id: user.id },
+      },
+      order: { sessionDate: "DESC", id: "DESC" },
+    });
+    const sessionIds = sessions.map((session) => session.id);
+    const [records, coinRows] = sessionIds.length
+      ? await Promise.all([
+          this.records.find({
+            where: {
+              student: { id: studentId },
+              session: { id: In(sessionIds) },
+            },
+            relations: { session: true },
+          }),
+          this.requireSessionCoins().find({
+            where: {
+              student: { id: studentId },
+              session: { id: In(sessionIds) },
+            },
+            relations: { session: true },
+          }),
+        ])
+      : [[], []];
+    const recordsBySession = new Map(
+      records.map((record) => [record.session.id, record]),
+    );
+    const coinsBySession = new Map(
+      coinRows.map((row) => [row.session.id, row.coins]),
+    );
+    const scopedSessions = sessions.filter(
+      (session) =>
+        (session.rosterSnapshot ?? []).some(
+          (member) => member.id === studentId,
+        ) || recordsBySession.has(session.id),
+    );
+    const counts = { present: 0, absent: 0, late: 0, excused: 0, unmarked: 0 };
+    const rows = scopedSessions.map((session) => {
+      const record = recordsBySession.get(session.id);
+      const status: TeacherStudentClassAttendanceProfile["sessions"][number]["status"] =
+        record?.status ?? "unmarked";
+      counts[status] += 1;
+      return {
+        sessionId: session.id,
+        sessionDate:
+          session.operationalDate ?? session.sessionDate.toISOString(),
+        title: session.titleSnapshot || selectedEntry.title,
+        status,
+        note: record?.note ?? "",
+        coins: coinsBySession.get(session.id) ?? 0,
+      };
+    });
+    return {
+      studentId,
+      studentName:
+        enrollment.student?.name ??
+        (await this.students.findOneBy({ id: studentId }))?.name ??
+        "",
+      classId: selectedEntry.classroom.id,
+      className: selectedEntry.classroom.name,
+      bookId: selectedEntry.classBook.book.id,
+      bookName: selectedEntry.classBook.book.titleFa,
+      teacherName:
+        [selectedEntry.teacher?.firstName, selectedEntry.teacher?.lastName]
+          .filter(Boolean)
+          .join(" ") ||
+        selectedEntry.teacher?.username ||
+        [
+          selectedEntry.classBook.teacher?.firstName,
+          selectedEntry.classBook.teacher?.lastName,
+        ]
+          .filter(Boolean)
+          .join(" ") ||
+        selectedEntry.classBook.teacher?.username ||
+        "",
+      totalCoins: rows.reduce((total, row) => total + row.coins, 0),
+      totalSessions: rows.length,
+      counts,
+      sessions: rows,
+    };
+  }
+
+  async setSessionStudentCoins(
+    user: AuthenticatedUser,
+    sessionId: string,
+    studentId: string,
+    dto: SetAttendanceSessionStudentCoinDto,
+  ) {
+    const session = await this.authorizedSavedSession(user, sessionId);
+    const isAssignedTeacher = session.assignedStaff?.id === user.id;
+    const canReview = user.capabilities?.includes("attendance.review") ?? false;
+    const canAdjust =
+      user.capabilities?.includes("attendance.points.adjust") ?? false;
+    if (!isAssignedTeacher && !canReview && !canAdjust)
+      throw new ApiException(
+        403,
+        "ATTENDANCE_SESSION_COIN_FORBIDDEN",
+        "اجازه تغییر سکه این جلسه را ندارید.",
+      );
+    if (
+      !(session.rosterSnapshot ?? []).some(
+        (student) => student.id === studentId,
+      )
+    )
+      throw new ApiException(
+        422,
+        "STUDENT_NOT_IN_SESSION",
+        "دانش‌آموز در فهرست قطعی این جلسه نیست.",
+      );
+    return this.attendanceTransaction(async (manager) => {
+      const coins = manager.getRepository(AttendanceSessionStudentCoin);
+      const current = await coins.findOne({
+        where: { session: { id: session.id }, student: { id: studentId } },
+        relations: { student: true },
+      });
+      if (current && current.revision !== dto.expectedRevision)
+        throw new ApiException(
+          409,
+          "ATTENDANCE_SESSION_COIN_CONFLICT",
+          "سکه این دانش‌آموز هم‌زمان تغییر کرده است؛ صفحه را تازه کنید.",
+        );
+      if (!current && dto.expectedRevision !== 0)
+        throw new ApiException(
+          409,
+          "ATTENDANCE_SESSION_COIN_CONFLICT",
+          "نسخه سکه معتبر نیست؛ صفحه را تازه کنید.",
+        );
+      const student =
+        current?.student ??
+        (await manager.getRepository(Student).findOne({
+          where: {
+            id: studentId,
+            organization: { id: session.organization.id },
+          },
+        }));
+      if (!student)
+        throw new ApiException(404, "STUDENT_NOT_FOUND", "دانش‌آموز پیدا نشد.");
+      const row =
+        current ?? coins.create({ session, student, coins: 0, revision: 0 });
+      if (row.coins === dto.coins)
+        return { studentId, coins: row.coins, revision: row.revision };
+      row.coins = dto.coins;
+      row.revision += 1;
+      row.recordedBy = { id: user.id } as User;
+      const saved = await coins.save(row);
+      await manager.getRepository(AuditLog).save(
+        manager.getRepository(AuditLog).create({
+          user: { id: user.id } as User,
+          action: "attendance.session_coin.updated",
+          entity: "attendance_session_student_coin",
+          organizationId: session.organization.id,
+          metadata: {
+            sessionId,
+            studentId,
+            coins: saved.coins,
+            revision: saved.revision,
+            requestId: dto.requestId,
+          },
+        }),
+      );
+      return {
+        studentId,
+        coins: saved.coins,
+        revision: saved.revision,
+        updatedAt: saved.updatedAt.toISOString(),
+      };
+    });
+  }
+
+  private async autoReviewIfAbsenceFree(
+    manager: EntityManager,
+    session: AttendanceSession,
+  ) {
+    const [absence] = (await manager.query(
+      "SELECT COUNT(id) count FROM attendance_records WHERE sessionId=? AND physicalStatus='absent'",
+      [session.id],
+    )) as Array<{ count: number | string }>;
+    if (Number(absence?.count ?? 0) > 0) return;
+    const [existing] = (await manager.query(
+      "SELECT id FROM attendance_session_reviews WHERE sessionId=? AND reviewedRevision=? LIMIT 1",
+      [session.id, session.revision],
+    )) as Array<{ id: string }>;
+    if (existing) return;
+    await manager.query(
+      "INSERT INTO attendance_session_reviews(id,sessionId,reviewerId,reviewedRevision,reviewedAt,teacherMessage) VALUES(?,?,NULL,?,?,?)",
+      [
+        randomUUID(),
+        session.id,
+        session.revision,
+        new Date().toISOString(),
+        "",
+      ],
+    );
+  }
+
   private attendanceTransaction<T>(
     work: (manager: EntityManager) => Promise<T>,
   ): Promise<T> {
     return attendanceTransaction(this.sessions.manager, work);
   }
 
-  async listAbsenceReviews(user: AuthenticatedUser, organizationId?: string) {
+  private requireSessionCoins() {
+    if (!this.sessionCoins)
+      throw new ApiException(
+        500,
+        "ATTENDANCE_SESSION_COINS_UNAVAILABLE",
+        "زیرساخت سکه جلسه آماده نیست.",
+      );
+    return this.sessionCoins;
+  }
+
+  async listAbsenceReviews(
+    user: AuthenticatedUser,
+    organizationId?: string,
+    contextType?: string,
+  ) {
     this.assertReviewAccess(user);
     const ids = await this.access.scopedOrganizationIds(
       this.effectiveUser(user),
@@ -2036,6 +3843,9 @@ export class AttendanceService {
       where: {
         session: { organization: { id: In(ids) } },
         status: AttendanceStatus.ABSENT,
+        ...(contextType === "dorm"
+          ? { session: { organization: { id: In(ids) }, contextType: "dorm" } }
+          : {}),
       },
       relations: {
         session: { organization: true },
@@ -2347,6 +4157,140 @@ export class AttendanceService {
     return this.reviewView(saved);
   }
 
+  /**
+   * Sends a principal-only operational instruction to the class teacher about
+   * selected absences. Record ids are validated against the saved class
+   * occurrence on the server, never trusted from the browser.
+   */
+  async sendAbsenceMessage(
+    user: AuthenticatedUser,
+    recordId: string,
+    dto: SendAttendanceAbsenceMessageDto,
+  ) {
+    this.assertReviewAccess(user);
+    const outcome = await this.attendanceTransaction(async (manager) => {
+      const record = await manager.getRepository(AttendanceRecord).findOne({
+        where: { id: recordId },
+        relations: {
+          session: { organization: true, assignedStaff: true },
+          student: { user: true },
+          recordedBy: true,
+        },
+      });
+      if (!record)
+        throw new ApiException(
+          404,
+          "ATTENDANCE_RECORD_NOT_FOUND",
+          "رکورد حضور پیدا نشد.",
+        );
+      if (record.session.contextType !== "class")
+        throw new ApiException(
+          409,
+          "ATTENDANCE_MESSAGE_CLASS_ONLY",
+          "پیام گروهی فقط برای حضور کلاس قابل ارسال است.",
+        );
+      await this.authorizeContext(
+        user,
+        record.session.contextType,
+        record.session.contextId,
+        record.session.organization.id,
+        true,
+      );
+      const message = dto.message.trim();
+      const selectedRecords = await manager
+        .getRepository(AttendanceRecord)
+        .find({
+          where: { id: In(dto.recordIds), session: { id: record.session.id } },
+          relations: { student: true },
+        });
+      if (selectedRecords.length !== dto.recordIds.length)
+        throw new ApiException(
+          422,
+          "ATTENDANCE_MESSAGE_RECORD_SCOPE",
+          "همهٔ دانش‌آموزان انتخاب‌شده باید متعلق به همین جلسه باشند.",
+        );
+      if (selectedRecords.some((row) => row.physicalStatus !== "absent"))
+        throw new ApiException(
+          422,
+          "ATTENDANCE_MESSAGE_RECORD_STATUS",
+          "پیام مدیر فقط برای دانش‌آموزان غایب این جلسه قابل ارسال است.",
+        );
+      const teacherId =
+        record.session.assignedStaff?.id ?? record.recordedBy?.id;
+      if (!teacherId)
+        throw new ApiException(
+          409,
+          "ATTENDANCE_MESSAGE_TEACHER_MISSING",
+          "استاد این جلسه برای دریافت پیام مشخص نیست.",
+        );
+      const studentNames = selectedRecords
+        .map((row) => row.student.name)
+        .join("، ");
+      const messageKey = createHash("sha256")
+        .update(message)
+        .digest("hex")
+        .slice(0, 16);
+      const notifications = manager.getRepository(Notification);
+      const dedupeKey = `attendance-principal-message:${record.session.id}:${record.session.revision}:${messageKey}:${teacherId}`;
+      let created = await notifications.findOne({
+        where: { user: { id: teacherId }, dedupeKey },
+      });
+      if (!created)
+        created = await notifications.save(
+          notifications.create({
+            user: { id: teacherId } as User,
+            organization: record.session.organization,
+            type: NotificationType.MESSAGE,
+            category: "attendance-principal-message",
+            title: "پیام مدیر دربارهٔ غیبت دانش‌آموزان کلاس",
+            body: [`دانش‌آموزان: ${studentNames}`, message].join("\n"),
+            url: "/admin",
+            priority: "high",
+            dedupeKey,
+          }),
+        );
+      await manager.save(
+        AuditLog,
+        manager.create(AuditLog, {
+          user: { id: user.id },
+          action: "attendance.absence.message-sent",
+          entity: "attendance",
+          organizationId: record.session.organization.id,
+          metadata: {
+            sessionId: record.session.id,
+            recordId: record.id,
+            teacherId,
+            recordIds: selectedRecords.map((row) => row.id),
+            message,
+          },
+        }),
+      );
+      return {
+        created,
+        organizationId: record.session.organization.id,
+        studentCount: selectedRecords.length,
+      };
+    });
+    this.realtime.emitToUsers(
+      [outcome.created.user.id],
+      "notification.created",
+      {
+        id: outcome.created.id,
+        title: outcome.created.title,
+        body: outcome.created.body,
+        category: outcome.created.category,
+        url: outcome.created.url ?? "/admin",
+        type: outcome.created.type,
+        priority: outcome.created.priority,
+        organizationId: outcome.organizationId,
+        createdAt: outcome.created.createdAt,
+        readAt: outcome.created.readAt ?? null,
+        isRead: Boolean(outcome.created.readAt),
+      },
+    );
+    return { recipientCount: 1, studentCount: outcome.studentCount };
+  }
+
   async listMyAbsenceReviews(user: AuthenticatedUser) {
     if (!user.activeOrganizationId) return [];
     await this.access.organizationForUser(
@@ -2376,6 +4320,9 @@ export class AttendanceService {
     user: AuthenticatedUser,
     contextType: string,
     contextId: string,
+    occurrenceDate?: string,
+    attendancePeriod: "day" | "night" = "night",
+    scheduleEntryId?: string,
   ) {
     const context = this.context(contextType);
     const organizationId = await this.contextOrganizationId(context, contextId);
@@ -2384,20 +4331,101 @@ export class AttendanceService {
       organizationId,
     );
     this.assertWorkOrganization(user, organizationId);
-    await this.assertContextAccess(
-      user,
-      context,
-      contextId,
-      organizationId,
-      false,
-    );
+    if (scheduleEntryId) {
+      const entry =
+        context === "class"
+          ? await this.sessions.manager
+              .getRepository(SchoolScheduleEntry)
+              .findOne({
+                where: {
+                  id: scheduleEntryId,
+                  status: In(["ACTIVE", "REPLACED", "ARCHIVED"]),
+                },
+                relations: {
+                  organization: true,
+                  classroom: true,
+                  teacher: true,
+                  classBook: { teacher: true },
+                },
+              })
+          : null;
+      const assignedTeacherId =
+        entry?.teacher?.id ?? entry?.classBook?.teacher?.id;
+      const savedOccurrence =
+        entry && occurrenceDate
+          ? await this.sessions.findOne({
+              where: {
+                organization: { id: organizationId },
+                occurrenceKey: `legacy-schedule:${entry.id}:${occurrenceDate}`,
+              },
+              relations: { assignedStaff: true },
+            })
+          : null;
+      const savedAssignedTeacher =
+        savedOccurrence?.sourceKind === "legacy_schedule" &&
+        savedOccurrence.sourceScheduleId === entry?.id &&
+        savedOccurrence.assignedStaff?.id === user.id &&
+        user.capabilities?.includes("attendance.class.manage");
+      if (
+        !entry ||
+        entry.classroom?.id !== contextId ||
+        entry.organization.id !== organizationId ||
+        (assignedTeacherId !== user.id && !savedAssignedTeacher) ||
+        (entry.status !== "ACTIVE" &&
+          (!occurrenceDate ||
+            !this.isLegacyScheduleOccurrence(entry, occurrenceDate)))
+      )
+        throw new ApiException(
+          403,
+          "FORBIDDEN",
+          "فقط دبیر واگذارشده به این جلسه می‌تواند فهرست کلاس را ببیند.",
+        );
+    } else {
+      await this.assertContextAccess(
+        user,
+        context,
+        contextId,
+        organizationId,
+        false,
+      );
+    }
     if (context === "class") {
       const rows = await this.enrollments.find({
         where: { classroom: { id: contextId } },
         relations: { student: { user: true } },
         order: { createdAt: "ASC" },
       });
-      return rows.map((row) => this.studentView(row.student));
+      const exits = rows.length
+        ? await this.sessions.manager.getRepository(ExitPermission).find({
+            where: {
+              organization: { id: organizationId },
+              student: { id: In(rows.map((row) => row.student.id)) },
+              status: ExitPermissionStatus.APPROVED,
+            },
+            relations: { student: true },
+          })
+        : [];
+      const openExitByStudent = new Map(
+        exits
+          .filter(
+            (exit) =>
+              !exit.actualReturnAt &&
+              exit.requestedDepartureAt.getTime() <= Date.now(),
+          )
+          .map((exit) => [exit.student.id, exit]),
+      );
+      return rows.map((row) => {
+        const exit = openExitByStudent.get(row.student.id);
+        return {
+          ...this.studentView(row.student),
+          outsideSchool: Boolean(exit),
+          outsideSince: exit?.actualDepartureAt?.toISOString() ?? null,
+          outsideExitPermissionId: exit?.id ?? null,
+          outsidePresenceReported: Boolean(
+            exit?.returnRequestNote.startsWith("teacher-presence:"),
+          ),
+        };
+      });
     }
     if (context === "class_group" || context === "study_group") {
       const rows = await this.groupMemberships.find({
@@ -2412,7 +4440,77 @@ export class AttendanceService {
       relations: { student: { user: true } },
       order: { createdAt: "ASC" },
     });
-    return rows.map((row) => this.studentView(row.student));
+    const residentIds = rows.map((row) => row.student.id);
+    let referenceTime = Date.now();
+    if (context === "dorm" && occurrenceDate) {
+      try {
+        shiftSchoolDate(occurrenceDate, 0);
+      } catch {
+        throw new ApiException(
+          422,
+          "ATTENDANCE_DATE_INVALID",
+          "تاریخ جلسه معتبر نیست.",
+        );
+      }
+      referenceTime = schoolLocalInstant(
+        occurrenceDate,
+        attendancePeriod === "day" ? "12:00" : "20:00",
+        "Asia/Tehran",
+      ).getTime();
+    }
+    const leaves = residentIds.length
+      ? await this.sessions.manager.getRepository(LeaveRequest).find({
+          where: {
+            organization: { id: organizationId },
+            student: { id: In(residentIds) },
+            leaveType: LeaveRequestType.LEAVE,
+            status: LeaveRequestStatus.APPROVED,
+          },
+          relations: { student: true },
+        })
+      : [];
+    const activeLeaveByStudent = new Map(
+      leaves
+        .filter(
+          (leave) =>
+            leave.startDate.getTime() <= referenceTime &&
+            leave.endDate.getTime() >= referenceTime,
+        )
+        .map((leave) => [leave.student.id, leave]),
+    );
+    const exits = residentIds.length
+      ? await this.sessions.manager.getRepository(ExitPermission).find({
+          where: {
+            organization: { id: organizationId },
+            student: { id: In(residentIds) },
+            status: ExitPermissionStatus.APPROVED,
+          },
+          relations: { student: true },
+        })
+      : [];
+    const overdue = new Set(
+      exits
+        .filter(
+          (exit) =>
+            exit.expectedReturnAt &&
+            exit.expectedReturnAt.getTime() < referenceTime &&
+            !exit.actualReturnAt,
+        )
+        .map((exit) => exit.student.id),
+    );
+    return rows.map((row) => {
+      const leave = activeLeaveByStudent.get(row.student.id);
+      return {
+        ...this.studentView(row.student),
+        approvedLeave: leave
+          ? {
+              startsAt: leave.startDate.toISOString(),
+              endsAt: leave.endDate.toISOString(),
+            }
+          : null,
+        overdueReturn: overdue.has(row.student.id),
+      };
+    });
   }
 
   async summary(user: AuthenticatedUser, studentId?: string) {
@@ -2558,6 +4656,218 @@ export class AttendanceService {
     return { items, page, limit, total, hasNext: page * limit < total };
   }
 
+  async teacherWeekAttendanceSummary(
+    user: AuthenticatedUser,
+    query: TeacherWeekAttendanceSummaryQueryDto,
+  ) {
+    this.assertWorkOrganization(user, query.organizationId);
+    await this.access.organizationForUser(
+      this.effectiveUser(user),
+      query.organizationId,
+    );
+    const firstDate = new Date(`${query.weekStart}T12:00:00.000Z`);
+    if (
+      Number.isNaN(firstDate.getTime()) ||
+      (firstDate.getUTCDay() + 1) % 7 !== 0
+    )
+      throw new ApiException(
+        422,
+        "ATTENDANCE_WEEK_START_INVALID",
+        "شروع هفته باید روز شنبه باشد.",
+      );
+    const dates = Array.from({ length: 7 }, (_, index) => {
+      const date = new Date(firstDate);
+      date.setUTCDate(date.getUTCDate() + index);
+      return date.toISOString().slice(0, 10);
+    });
+    const now = new Date();
+    const today = operationalDate(now, "Asia/Tehran");
+    const entries = await this.sessions.manager
+      .getRepository(SchoolScheduleEntry)
+      .find({
+        where: [
+          {
+            organization: { id: query.organizationId },
+            versionId: IsNull(),
+            status: In(["ACTIVE", "REPLACED"]),
+            teacher: { id: user.id },
+          },
+          {
+            organization: { id: query.organizationId },
+            versionId: IsNull(),
+            status: In(["ACTIVE", "REPLACED"]),
+            classBook: { teacher: { id: user.id } },
+          },
+        ],
+        relations: {
+          organization: true,
+          classroom: true,
+          teacher: true,
+          classBook: { teacher: true },
+        },
+      });
+    const termIds = [
+      ...new Set(entries.map((entry) => entry.termId).filter(Boolean)),
+    ];
+    const terms = termIds.length
+      ? await this.sessions.manager.getRepository(SchoolAcademicTerm).find({
+          where: { id: In(termIds) },
+        })
+      : [];
+    const termById = new Map(terms.map((term) => [term.id, term]));
+    const occurrences = entries.flatMap((entry) => {
+      if (!entry.classroom) return [];
+      return dates.flatMap((date) => {
+        const day = new Date(`${date}T12:00:00.000Z`);
+        if ((day.getUTCDay() + 1) % 7 !== entry.weekday) return [];
+        if (
+          entry.status === "REPLACED"
+            ? entry.startsOn !== date || entry.endsOn !== date
+            : Boolean(
+                (entry.startsOn && date < entry.startsOn) ||
+                (entry.endsOn && date > entry.endsOn),
+              )
+        )
+          return [];
+        return [
+          {
+            entry,
+            date,
+            occurrenceKey: `legacy-schedule:${entry.id}:${date}`,
+          },
+        ];
+      });
+    });
+    if (!occurrences.length) return [];
+
+    const pastOccurrences = entries.flatMap((entry) => {
+      if (!entry.classroom || !entry.termId) return [];
+      const term = termById.get(entry.termId);
+      if (!term) return [];
+      const firstTermDay = new Date(`${term.startsOn}T12:00:00.000Z`);
+      const lastTermDay = new Date(`${term.endsOn}T12:00:00.000Z`);
+      const currentDay = new Date(`${today}T12:00:00.000Z`);
+      if (currentDay < firstTermDay) return [];
+      if (currentDay > lastTermDay) currentDay.setTime(lastTermDay.getTime());
+      const missedCandidates: Array<{
+        date: string;
+        occurrenceKey: string;
+        entry: SchoolScheduleEntry;
+      }> = [];
+      for (
+        const cursor = new Date(firstTermDay);
+        cursor <= currentDay;
+        cursor.setUTCDate(cursor.getUTCDate() + 1)
+      ) {
+        const date = cursor.toISOString().slice(0, 10);
+        if (
+          (cursor.getUTCDay() + 1) % 7 !== entry.weekday ||
+          (entry.startsOn && date < entry.startsOn) ||
+          (entry.endsOn && date > entry.endsOn) ||
+          (entry.status === "REPLACED" &&
+            (entry.startsOn !== date || entry.endsOn !== date))
+        )
+          continue;
+        if (
+          schoolLocalInstant(date, entry.startTime, "Asia/Tehran").getTime() >
+          now.getTime()
+        )
+          continue;
+        missedCandidates.push({
+          entry,
+          date,
+          occurrenceKey: `legacy-schedule:${entry.id}:${date}`,
+        });
+      }
+      return missedCandidates;
+    });
+    const occurrenceKeys = [
+      ...new Set([
+        ...occurrences.map((occurrence) => occurrence.occurrenceKey),
+        ...pastOccurrences.map((occurrence) => occurrence.occurrenceKey),
+      ]),
+    ];
+    const sessions = await this.sessions.find({
+      where: {
+        organization: { id: query.organizationId },
+        occurrenceKey: In(occurrenceKeys),
+      },
+    });
+    const sessionByOccurrence = new Map(
+      sessions.map((session) => [session.occurrenceKey, session]),
+    );
+    const sessionIds = sessions.map((session) => session.id);
+    const records = sessionIds.length
+      ? await this.records.find({
+          where: { session: { id: In(sessionIds) } },
+          relations: { session: true, student: true },
+        })
+      : [];
+    const recordsBySession = new Map<string, Set<string>>();
+    for (const record of records) {
+      const ids = recordsBySession.get(record.session.id) ?? new Set<string>();
+      ids.add(record.student.id);
+      recordsBySession.set(record.session.id, ids);
+    }
+    const isAttendanceRecorded = (occurrenceKey: string) => {
+      const session = sessionByOccurrence.get(occurrenceKey);
+      return session
+        ? (recordsBySession.get(session.id)?.size ?? 0) > 0
+        : false;
+    };
+    const missedByEntry = new Map<string, string[]>();
+    for (const occurrence of pastOccurrences) {
+      const session = sessionByOccurrence.get(occurrence.occurrenceKey);
+      if (
+        session?.status === "cancelled" ||
+        isAttendanceRecorded(occurrence.occurrenceKey)
+      )
+        continue;
+      const missedDates = missedByEntry.get(occurrence.entry.id) ?? [];
+      missedDates.push(occurrence.date);
+      missedByEntry.set(occurrence.entry.id, missedDates);
+    }
+    const classroomIds = [
+      ...new Set(occurrences.map(({ entry }) => entry.classroom!.id)),
+    ];
+    const enrollments = await this.enrollments.find({
+      where: { classroom: { id: In(classroomIds) } },
+      relations: { classroom: true, student: true },
+    });
+    const rosterCounts = new Map<string, number>();
+    for (const enrollment of enrollments) {
+      const classroomId = enrollment.classroom.id;
+      rosterCounts.set(classroomId, (rosterCounts.get(classroomId) ?? 0) + 1);
+    }
+
+    return occurrences.map(({ entry, date, occurrenceKey }) => {
+      const session = sessionByOccurrence.get(occurrenceKey);
+      const recordedStudentIds = session
+        ? (recordsBySession.get(session.id) ?? new Set<string>())
+        : new Set<string>();
+      const snapshotIds = session?.rosterSnapshot?.map((student) => student.id);
+      const rosterCount =
+        snapshotIds?.length ?? rosterCounts.get(entry.classroom!.id) ?? 0;
+      const markedCount = snapshotIds
+        ? new Set(snapshotIds.filter((id) => recordedStudentIds.has(id))).size
+        : Math.min(rosterCount, recordedStudentIds.size);
+      const missedDates = missedByEntry.get(entry.id) ?? [];
+      const hasTerm = Boolean(entry.termId && termById.has(entry.termId));
+      return {
+        entryId: entry.id,
+        date,
+        attendanceRecorded: recordedStudentIds.size > 0,
+        rosterCount,
+        unmarkedCount: Math.max(0, rosterCount - markedCount),
+        pastUnmarkedCount: hasTerm ? missedDates.length : null,
+        mostRecentUnmarkedDate: hasTerm
+          ? (missedDates.sort((left, right) => right.localeCompare(left))[0] ??
+            null)
+          : null,
+      };
+    });
+  }
+
   private async participantIds(
     user: AuthenticatedUser,
     type: AttendanceContextType,
@@ -2604,13 +4914,15 @@ export class AttendanceService {
         "کلاس، گروه یا اتاق متعلق به سازمان انتخاب‌شده نیست.",
       );
     }
-    if (this.schoolWide(user)) return;
-    if (type === "dorm")
+    if (type === "dorm") {
+      if (this.dormWide(user)) return;
       throw new ApiException(
         403,
         "FORBIDDEN",
         "دسترسی خوابگاه برای این نقش مجاز نیست.",
       );
+    }
+    if (this.schoolWide(user)) return;
     const classroom =
       type === "class"
         ? await this.classes.findOne({
@@ -2641,6 +4953,40 @@ export class AttendanceService {
     return { ...user, role: user.roles ? (user.roles[0] ?? "") : user.role };
   }
 
+  private checkRepository() {
+    if (!this.supervisorChecks)
+      throw new ApiException(
+        503,
+        "SUPERVISOR_CHECKS_UNAVAILABLE",
+        "ثبت بررسی ناظر در دسترس نیست.",
+      );
+    return this.supervisorChecks;
+  }
+
+  private assertSupervisor(user: AuthenticatedUser) {
+    if ((user.roles ?? [user.role]).includes("SCHOOL_SUPERVISOR")) return;
+    throw new ApiException(
+      403,
+      "SUPERVISOR_ATTENDANCE_FORBIDDEN",
+      "ثبت حضور و غیاب نظارتی فقط برای ناظر مدرسه مجاز است.",
+    );
+  }
+
+  private supervisorCheckView(check: AttendanceSupervisorCheck) {
+    return {
+      id: check.id,
+      supervisorId: check.supervisor?.id ?? null,
+      supervisorName: check.supervisor
+        ? `${check.supervisor.firstName} ${check.supervisor.lastName}`.trim() ||
+          check.supervisor.username
+        : "—",
+      entries: check.entries,
+      revision: check.revision,
+      submittedAt: check.submittedAt?.toISOString() ?? null,
+      updatedAt: check.updatedAt?.toISOString() ?? null,
+    };
+  }
+
   private assertWorkOrganization(
     user: AuthenticatedUser,
     organizationId: string,
@@ -2669,6 +5015,17 @@ export class AttendanceService {
     ].some((role) => (user.roles ?? [user.role]).includes(role));
   }
 
+  /** Academic leaders can be organization-wide for classes, but dorm access is explicit. */
+  private dormWide(user: AuthenticatedUser) {
+    return [
+      "PLATFORM_ADMIN",
+      "ORGANIZATION_ADMIN",
+      "PRINCIPAL",
+      "DISCIPLINARIAN",
+      "SCHOOL_SUPERVISOR",
+    ].some((role) => (user.roles ?? [user.role]).includes(role));
+  }
+
   private assertReviewAccess(user: AuthenticatedUser) {
     if (user.capabilities?.includes("attendance.review")) return;
     if (
@@ -2690,6 +5047,7 @@ export class AttendanceService {
   private reviewView(row: AttendanceRecord) {
     return {
       id: row.id,
+      sessionId: row.session.id,
       studentId: row.student.id,
       studentName: row.student.name,
       status: row.status,
@@ -2765,9 +5123,8 @@ export class AttendanceService {
     );
   }
   /**
-   * A scheduled occurrence can only be marked during its published time.
-   * This is server-side because a disabled Admin control is not a security
-   * boundary. Legacy/manual sessions have no complete range to enforce yet.
+   * Future scheduled occurrences stay closed; assigned teachers can revise a
+   * scheduled occurrence after its end. Legacy/manual sessions have no range.
    */
   private assertSessionIsActiveForMarking(session: AttendanceSession | null) {
     if (!session?.scheduledStartAt || !session.scheduledEndAt) return;

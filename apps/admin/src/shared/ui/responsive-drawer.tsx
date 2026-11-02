@@ -22,8 +22,8 @@ type ResponsiveDrawerProps = {
   description?: ReactNode;
   children: ReactNode;
   className?: string;
-  /** Desktop edge; mobile always uses a bottom sheet. */
-  desktopSide?: "left" | "right";
+  /** Desktop edge; use bottom for a full-width operational sheet. */
+  desktopSide?: "left" | "right" | "bottom";
   /** Enables snap-point behavior on the mobile bottom sheet. */
   snapPoints?: Array<number | string>;
   activeSnapPoint?: number | string | null;
@@ -64,7 +64,15 @@ export function ResponsiveDrawer({
       onOpenChange={(nextOpen) => {
         if (nextOpen || dismissible !== false) onOpenChange(nextOpen);
       }}
-      swipeDirection={isMobile ? "down" : desktopSide === "left" ? "right" : "left"}
+      swipeDirection={
+        isMobile
+          ? "down"
+          : desktopSide === "left"
+            ? "right"
+            : desktopSide === "right"
+              ? "left"
+              : "down"
+      }
       snapPoints={isMobile ? snapPoints : undefined}
       snapPoint={isMobile ? activeSnapPoint : undefined}
       onSnapPointChange={

@@ -1,0 +1,1 @@
+export { StudentMovementCenterPage } from "./StudentMovementCenterPage";

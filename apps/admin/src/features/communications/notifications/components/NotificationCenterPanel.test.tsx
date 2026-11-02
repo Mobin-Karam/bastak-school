@@ -1,5 +1,6 @@
 import { cleanup, render, screen, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
+import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { AdminNotification } from "../model/notification-model";
 import { NotificationCenterPanel } from "./NotificationCenterPanel";
@@ -15,8 +16,10 @@ const mocks = vi.hoisted(() => ({
     loadingMore: false,
     refreshing: false,
     markingAllRead: false,
+    removing: false,
     markRead: vi.fn(),
     markAllRead: vi.fn(),
+    removeSelected: vi.fn().mockResolvedValue(undefined),
     loadMore: vi.fn(),
     refresh: vi.fn(),
   },
@@ -139,5 +142,26 @@ describe("NotificationCenterPanel", () => {
       "aria-current",
       "true",
     );
+  });
+
+  it("removes only the notifications explicitly selected by the user", async () => {
+    render(
+      <MemoryRouter>
+        <NotificationCenterPanel
+          filter="all"
+          setFilter={vi.fn()}
+          typeFilter="all"
+          setTypeFilter={vi.fn()}
+          search=""
+          setSearch={vi.fn()}
+          items={mocks.notifications.items}
+        />
+      </MemoryRouter>,
+    );
+
+    await userEvent.click(screen.getByRole("checkbox", { name: "اعلان پیام جدید" }));
+    await userEvent.click(screen.getByRole("button", { name: "حذف انتخاب‌شده‌ها" }));
+
+    expect(mocks.notifications.removeSelected).toHaveBeenCalledWith(["notice-1"]);
   });
 });
