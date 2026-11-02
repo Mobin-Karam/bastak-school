@@ -48,6 +48,9 @@ export class ScheduleEntryTeacherLeaveForeignKey1763600500000 implements Migrati
     )
       return;
 
+    const triggers = (await queryRunner.query(
+      `SELECT sql FROM sqlite_master WHERE type='trigger' AND tbl_name='${tableName}' AND sql IS NOT NULL`,
+    )) as Array<{ sql: string }>;
     await queryRunner.createForeignKey(
       tableName,
       new TableForeignKey({
@@ -57,6 +60,8 @@ export class ScheduleEntryTeacherLeaveForeignKey1763600500000 implements Migrati
         onDelete: "RESTRICT",
       }),
     );
+    for (const trigger of triggers)
+      if (trigger.sql) await queryRunner.query(trigger.sql);
   }
 
   private async dropLeaveRequestForeignKey(

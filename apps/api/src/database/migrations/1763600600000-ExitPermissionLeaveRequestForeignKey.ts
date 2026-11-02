@@ -20,6 +20,9 @@ export class ExitPermissionLeaveRequestForeignKey1763600600000 implements Migrat
     )
       return;
 
+    const triggers = (await queryRunner.query(
+      "SELECT sql FROM sqlite_master WHERE type='trigger' AND tbl_name='exit_permissions' AND sql IS NOT NULL",
+    )) as Array<{ sql: string }>;
     await queryRunner.createForeignKey(
       "exit_permissions",
       new TableForeignKey({
@@ -29,6 +32,8 @@ export class ExitPermissionLeaveRequestForeignKey1763600600000 implements Migrat
         onDelete: "SET NULL",
       }),
     );
+    for (const trigger of triggers)
+      if (trigger.sql) await queryRunner.query(trigger.sql);
     // TypeORM rebuilds a SQLite table to add a foreign key. Recreate the
     // retained movement guards that SQLite drops with the old table.
     await queryRunner.query(`CREATE TRIGGER IF NOT EXISTS prevent_duplicate_active_exit_insert

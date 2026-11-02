@@ -1,5 +1,6 @@
 import { RepairAttendanceSessionReviewRevision1731700000000 } from "../src/database/migrations/1731700000000-RepairAttendanceSessionReviewRevision";
 import { AttendanceRevisionReviewIdempotency1763600400000 } from "../src/database/migrations/1763600400000-AttendanceRevisionReviewIdempotency";
+import { AttendanceReviewTeacherMessage1762400000000 } from "../src/database/migrations/1762400000000-AttendanceReviewTeacherMessage";
 
 describe("attendance session review revision repair migration", () => {
   it("adds the missing revision column to an already-migrated database", async () => {
@@ -86,6 +87,36 @@ describe("attendance session revision review idempotency migration", () => {
     );
     expect(query).toHaveBeenCalledWith(
       expect.stringContaining("CREATE UNIQUE INDEX IF NOT EXISTS"),
+    );
+  });
+});
+
+describe("attendance review teacher-message migration", () => {
+  it("does not require the optional review table on retained databases", async () => {
+    const query = jest.fn().mockResolvedValue([]);
+
+    await new AttendanceReviewTeacherMessage1762400000000().up({
+      query,
+    } as never);
+
+    expect(query).toHaveBeenCalledTimes(1);
+    expect(query).toHaveBeenCalledWith(
+      "PRAGMA table_info(attendance_session_reviews)",
+    );
+  });
+
+  it("adds the defaulted message only when the review table needs it", async () => {
+    const query = jest
+      .fn()
+      .mockResolvedValueOnce([{ name: "id" }, { name: "reviewedRevision" }])
+      .mockResolvedValue([]);
+
+    await new AttendanceReviewTeacherMessage1762400000000().up({
+      query,
+    } as never);
+
+    expect(query).toHaveBeenCalledWith(
+      "ALTER TABLE attendance_session_reviews ADD COLUMN teacherMessage varchar(500) NOT NULL DEFAULT ''",
     );
   });
 });

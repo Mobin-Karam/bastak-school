@@ -219,6 +219,97 @@ const expectations = {
       value: "null",
     },
   },
+  // Existing leave and schedule rows predate return and academic-cycle
+  // provenance. They remain null until a new workflow action records it.
+  TeacherLeaveEarlyReturn1762200000000: {
+    "school_schedule_occurrence_overrides.leaveRequestId": {
+      nullable: true,
+      value: "null",
+    },
+    "teacher_leave_requests.returnDate": { nullable: true, value: "null" },
+    "teacher_leave_requests.returnMessage": { nullable: true, value: "null" },
+    "teacher_leave_requests.returnStatus": { nullable: true, value: "null" },
+    "teacher_leave_requests.returnRequestedAt": {
+      nullable: true,
+      value: "null",
+    },
+    "teacher_leave_requests.returnReviewedAt": {
+      nullable: true,
+      value: "null",
+    },
+  },
+  LegacyScheduleAcademicCycles1762300000000: {
+    "school_schedule_entries.academicYearId": { nullable: true, value: "null" },
+    "school_schedule_entries.termId": { nullable: true, value: "null" },
+  },
+  AttendanceHistoricalImportReason1762300200000: {
+    "attendance_sessions.historicalImportReason": {
+      nullable: true,
+      value: "null",
+    },
+  },
+  TeacherStudentReportAcademicSnapshots1762300300000: {
+    "teacher_student_reports.academicYearIdSnapshot": {
+      nullable: true,
+      value: "null",
+    },
+    "teacher_student_reports.academicYearNameSnapshot": {
+      nullable: true,
+      value: "null",
+    },
+    "teacher_student_reports.termIdSnapshot": { nullable: true, value: "null" },
+    "teacher_student_reports.termNameSnapshot": {
+      nullable: true,
+      value: "null",
+    },
+  },
+  LegacyScheduleAcademicNameSnapshots1762300400000: {
+    "school_schedule_entries.academicYearNameSnapshot": {
+      nullable: true,
+      value: "null",
+    },
+    "school_schedule_entries.termNameSnapshot": {
+      nullable: true,
+      value: "null",
+    },
+  },
+  TeacherLeaveAcademicCycleSnapshots1762300500000: {
+    "teacher_leave_requests.academicCycleSnapshots": {
+      nullable: true,
+      value: "null",
+    },
+  },
+  ScheduleTeacherChangeMarker1763100000000: {
+    "school_schedule_entries.previousTeacherNameSnapshot": {
+      nullable: true,
+      value: "null",
+    },
+    "school_schedule_entries.teacherChangedAt": {
+      nullable: true,
+      value: "null",
+    },
+  },
+  NotificationAutoDeletePreferences1763300000000: {
+    "notification_preferences.autoDeleteEnabled": {
+      nullable: false,
+      default: 0,
+      value: "default",
+    },
+    "notification_preferences.autoDeleteAfterHours": {
+      nullable: false,
+      default: 24,
+      value: "default",
+    },
+  },
+  StudentMovementCenter1763600000000: {
+    "exit_permissions.leaveRequestId": { nullable: true, value: "null" },
+    "exit_permissions.resolution": { nullable: true, value: "null" },
+  },
+  // This repair is intentionally able to run after the original movement
+  // migration was recorded on a partially upgraded database.
+  StudentMovementCenterResolution1763600100000: {
+    "exit_permissions.resolution": { nullable: true, value: "null" },
+  },
 };
 
 // A migration may be allowed to change an existing value only when the

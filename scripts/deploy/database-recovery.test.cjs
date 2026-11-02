@@ -605,6 +605,89 @@ test("permits only the default/null principal-action columns on retained teacher
   db.close();
 });
 
+test("preserves retained workflow rows while adding nullable return and academic-cycle provenance", () => {
+  const db = new Database(":memory:");
+  db.exec(`
+    CREATE TABLE teacher_leave_requests (id TEXT PRIMARY KEY, reason TEXT NOT NULL);
+    CREATE TABLE school_schedule_entries (id TEXT PRIMARY KEY, title TEXT NOT NULL);
+    CREATE TABLE school_schedule_occurrence_overrides (id TEXT PRIMARY KEY, entryId TEXT NOT NULL);
+    CREATE TABLE attendance_sessions (id TEXT PRIMARY KEY, title TEXT NOT NULL);
+    CREATE TABLE teacher_student_reports (id TEXT PRIMARY KEY, message TEXT NOT NULL);
+    CREATE TABLE migrations (name TEXT);
+    INSERT INTO teacher_leave_requests VALUES ('leave-1', 'Retained leave');
+    INSERT INTO school_schedule_entries VALUES ('entry-1', 'Retained lesson');
+    INSERT INTO school_schedule_occurrence_overrides VALUES ('override-1', 'entry-1');
+    INSERT INTO attendance_sessions VALUES ('session-1', 'Retained attendance');
+    INSERT INTO teacher_student_reports VALUES ('report-1', 'Retained report');
+  `);
+  const before = inventory(db);
+  db.exec(`
+    ALTER TABLE teacher_leave_requests ADD COLUMN returnDate TEXT;
+    ALTER TABLE teacher_leave_requests ADD COLUMN returnMessage TEXT;
+    ALTER TABLE teacher_leave_requests ADD COLUMN returnStatus TEXT;
+    ALTER TABLE teacher_leave_requests ADD COLUMN returnRequestedAt TEXT;
+    ALTER TABLE teacher_leave_requests ADD COLUMN returnReviewedAt TEXT;
+    ALTER TABLE teacher_leave_requests ADD COLUMN academicCycleSnapshots TEXT;
+    ALTER TABLE school_schedule_occurrence_overrides ADD COLUMN leaveRequestId TEXT;
+    ALTER TABLE school_schedule_entries ADD COLUMN academicYearId TEXT;
+    ALTER TABLE school_schedule_entries ADD COLUMN termId TEXT;
+    ALTER TABLE school_schedule_entries ADD COLUMN academicYearNameSnapshot TEXT;
+    ALTER TABLE school_schedule_entries ADD COLUMN termNameSnapshot TEXT;
+    ALTER TABLE school_schedule_entries ADD COLUMN previousTeacherNameSnapshot TEXT;
+    ALTER TABLE school_schedule_entries ADD COLUMN teacherChangedAt TEXT;
+    ALTER TABLE attendance_sessions ADD COLUMN historicalImportReason TEXT;
+    ALTER TABLE teacher_student_reports ADD COLUMN academicYearIdSnapshot TEXT;
+    ALTER TABLE teacher_student_reports ADD COLUMN academicYearNameSnapshot TEXT;
+    ALTER TABLE teacher_student_reports ADD COLUMN termIdSnapshot TEXT;
+    ALTER TABLE teacher_student_reports ADD COLUMN termNameSnapshot TEXT;
+    INSERT INTO migrations VALUES
+      ('TeacherLeaveEarlyReturn1762200000000'),
+      ('LegacyScheduleAcademicCycles1762300000000'),
+      ('AttendanceHistoricalImportReason1762300200000'),
+      ('TeacherStudentReportAcademicSnapshots1762300300000'),
+      ('LegacyScheduleAcademicNameSnapshots1762300400000'),
+      ('TeacherLeaveAcademicCycleSnapshots1762300500000'),
+      ('ScheduleTeacherChangeMarker1763100000000');
+  `);
+  assert.doesNotThrow(() => preserved(before, inventory(db), db));
+  db.prepare("UPDATE teacher_leave_requests SET returnDate='2026-01-01'").run();
+  assert.throws(
+    () => preserved(before, inventory(db), db),
+    /non-null value in returnDate/,
+  );
+  db.close();
+});
+
+test("keeps existing notification and movement rows at their migration defaults", () => {
+  const db = new Database(":memory:");
+  db.exec(`
+    CREATE TABLE notification_preferences (id TEXT PRIMARY KEY, userId TEXT NOT NULL);
+    CREATE TABLE exit_permissions (id TEXT PRIMARY KEY, status TEXT NOT NULL);
+    CREATE TABLE migrations (name TEXT);
+    INSERT INTO notification_preferences VALUES ('preference-1', 'user-1');
+    INSERT INTO exit_permissions VALUES ('exit-1', 'APPROVED');
+  `);
+  const before = inventory(db);
+  db.exec(`
+    ALTER TABLE notification_preferences ADD COLUMN autoDeleteEnabled boolean NOT NULL DEFAULT 0;
+    ALTER TABLE notification_preferences ADD COLUMN autoDeleteAfterHours integer NOT NULL DEFAULT 24;
+    ALTER TABLE exit_permissions ADD COLUMN leaveRequestId TEXT;
+    ALTER TABLE exit_permissions ADD COLUMN resolution TEXT;
+    INSERT INTO migrations VALUES
+      ('NotificationAutoDeletePreferences1763300000000'),
+      ('StudentMovementCenter1763600000000');
+  `);
+  assert.doesNotThrow(() => preserved(before, inventory(db), db));
+  db.prepare(
+    "UPDATE notification_preferences SET autoDeleteAfterHours=72",
+  ).run();
+  assert.throws(
+    () => preserved(before, inventory(db), db),
+    /non-default value in autoDeleteAfterHours/,
+  );
+  db.close();
+});
+
 for (const sql of [
   "ALTER TABLE education_classes ADD COLUMN academicYearId TEXT DEFAULT 'unexpected'",
   "ALTER TABLE education_classes ADD COLUMN academicYearId TEXT; UPDATE education_classes SET academicYearId='unexpected'",

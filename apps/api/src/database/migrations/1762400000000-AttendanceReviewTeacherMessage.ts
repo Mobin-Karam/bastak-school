@@ -5,6 +5,16 @@ export class AttendanceReviewTeacherMessage1762400000000 implements MigrationInt
   name = "AttendanceReviewTeacherMessage1762400000000";
 
   async up(queryRunner: QueryRunner): Promise<void> {
+    const columns = (await queryRunner.query(
+      "PRAGMA table_info(attendance_session_reviews)",
+    )) as Array<{ name: string }>;
+    // Attendance reviews are an optional workflow in retained databases.
+    // Do not prevent an upgrade when its historical table was never created.
+    if (
+      !columns.length ||
+      columns.some((column) => column.name === "teacherMessage")
+    )
+      return;
     await queryRunner.query(
       `ALTER TABLE attendance_session_reviews ADD COLUMN teacherMessage varchar(500) NOT NULL DEFAULT ''`,
     );
