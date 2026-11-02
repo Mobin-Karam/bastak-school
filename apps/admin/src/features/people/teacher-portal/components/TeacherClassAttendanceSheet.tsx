@@ -46,6 +46,7 @@ const attendanceActions: Array<{
   activeClassName: string;
   idleClassName: string;
   rowClassName: string;
+  summaryClassName: string;
 }> = [
   {
     status: "present",
@@ -54,6 +55,8 @@ const attendanceActions: Array<{
     idleClassName:
       "border-emerald-300 bg-emerald-50 text-emerald-950 hover:border-emerald-500 dark:border-emerald-900 dark:bg-emerald-950/35 dark:text-emerald-100",
     rowClassName: "border-s-emerald-600 bg-emerald-50/45 dark:bg-emerald-950/15",
+    summaryClassName:
+      "border-emerald-300 bg-emerald-50 text-emerald-950 dark:border-emerald-900 dark:bg-emerald-950/35 dark:text-emerald-100",
   },
   {
     status: "absent",
@@ -62,6 +65,8 @@ const attendanceActions: Array<{
     idleClassName:
       "border-rose-300 bg-rose-50 text-rose-950 hover:border-rose-500 dark:border-rose-900 dark:bg-rose-950/35 dark:text-rose-100",
     rowClassName: "border-s-rose-600 bg-rose-50/45 dark:bg-rose-950/15",
+    summaryClassName:
+      "border-rose-300 bg-rose-50 text-rose-950 dark:border-rose-900 dark:bg-rose-950/35 dark:text-rose-100",
   },
   {
     status: "late",
@@ -70,6 +75,8 @@ const attendanceActions: Array<{
     idleClassName:
       "border-amber-300 bg-amber-50 text-amber-950 hover:border-amber-500 dark:border-amber-900 dark:bg-amber-950/35 dark:text-amber-100",
     rowClassName: "border-s-amber-500 bg-amber-50/45 dark:bg-amber-950/15",
+    summaryClassName:
+      "border-amber-300 bg-amber-50 text-amber-950 dark:border-amber-900 dark:bg-amber-950/35 dark:text-amber-100",
   },
   {
     status: "excused",
@@ -78,6 +85,8 @@ const attendanceActions: Array<{
     idleClassName:
       "border-sky-300 bg-sky-50 text-sky-950 hover:border-sky-500 dark:border-sky-900 dark:bg-sky-950/35 dark:text-sky-100",
     rowClassName: "border-s-sky-600 bg-sky-50/45 dark:bg-sky-950/15",
+    summaryClassName:
+      "border-sky-300 bg-sky-50 text-sky-950 dark:border-sky-900 dark:bg-sky-950/35 dark:text-sky-100",
   },
 ];
 const attendanceActionByStatus = new Map(
@@ -259,6 +268,20 @@ export function TeacherClassAttendanceSheet({
       }>(`/attendance/sessions/${encodeURIComponent(savedSessionId!)}`),
     enabled: Boolean(savedSessionId),
   });
+  const savedAttendanceSummary = useMemo(() => {
+    const counts: Record<AttendanceStatus, number> = {
+      present: 0,
+      absent: 0,
+      late: 0,
+      excused: 0,
+    };
+    const saved = savedAttendance.data;
+    if (!saved) return attendanceActions.map((action) => ({ ...action, count: 0 }));
+
+    for (const record of saved.records) counts[record.legacyStatus] += 1;
+    counts.present += Math.max(0, saved.roster.length - saved.records.length);
+    return attendanceActions.map((action) => ({ ...action, count: counts[action.status] }));
+  }, [savedAttendance.data]);
   const attendanceLoaded =
     savedSessionLookup.isSuccess && (!savedSessionId || savedAttendance.isSuccess);
   const attendanceHydrated =
@@ -1094,16 +1117,39 @@ export function TeacherClassAttendanceSheet({
             تغییر وضعیت دانش‌آموزان، ثبت این جلسه را بازبینی می‌کند. پیش از ادامه، فهرست و دلیل‌های
             غیبت را با دقت بررسی کنید.
           </div>
+          <section aria-labelledby="previous-attendance-summary" className="grid gap-2">
+            <div className="flex items-baseline justify-between gap-2">
+              <h2 id="previous-attendance-summary" className="text-sm font-black text-ink">
+                خلاصهٔ ثبت قبلی
+              </h2>
+              <span className="text-xs text-slate-500">
+                {savedAttendance.data?.roster.length.toLocaleString("fa-IR") ?? "۰"} دانش‌آموز
+              </span>
+            </div>
+            <ul className="grid grid-cols-2 gap-2 sm:grid-cols-4" aria-label="خلاصه وضعیت ثبت قبلی">
+              {savedAttendanceSummary.map((action) => (
+                <li
+                  key={action.status}
+                  className={`rounded-xl border px-3 py-2 text-center ${action.summaryClassName}`}
+                >
+                  <p className="text-lg font-black leading-5">
+                    {action.count.toLocaleString("fa-IR")}
+                  </p>
+                  <p className="mt-1 text-[11px] font-bold">{action.label}</p>
+                </li>
+              ))}
+            </ul>
+          </section>
           <div className="flex flex-col-reverse gap-2 sm:flex-row">
             <Button
               variant="soft"
-              className="flex-1"
+              className="min-h-11 flex-1 border border-[rgb(var(--border-subtle))]"
               onClick={() => setRevisionConfirmationOpen(false)}
             >
               فعلاً فقط مشاهده می‌کنم
             </Button>
             <Button
-              className="flex-1"
+              className="min-h-11 flex-1 bg-sky-700 text-white hover:bg-sky-800"
               onClick={() => {
                 if (savedSessionId) setRevisionConfirmedSessionId(savedSessionId);
                 setRevisionConfirmationOpen(false);

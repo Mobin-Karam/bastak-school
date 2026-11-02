@@ -174,7 +174,12 @@ describe("TeacherClassAttendanceSheet", () => {
     expect(
       screen.queryByRole("group", { name: "وضعیت حضور دانش‌آموز سابق" }),
     ).not.toBeInTheDocument();
-    expect(await screen.findByRole("dialog", { name: "بازبینی حضور و غیاب" })).toBeInTheDocument();
+    const revisionDrawer = await screen.findByRole("dialog", { name: "بازبینی حضور و غیاب" });
+    expect(revisionDrawer).toBeInTheDocument();
+    expect(within(revisionDrawer).getByText("خلاصهٔ ثبت قبلی")).toBeInTheDocument();
+    expect(
+      within(revisionDrawer).getByRole("list", { name: "خلاصه وضعیت ثبت قبلی" }),
+    ).toHaveTextContent("۱غایب");
 
     const user = userEvent.setup();
     await user.click(screen.getByRole("button", { name: "ادامه و ویرایش" }));
