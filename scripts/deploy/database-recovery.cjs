@@ -155,6 +155,16 @@ const expectations = {
     },
   },
 
+  // Existing attendance policies predate principal review selection. The
+  // migration adds its safe default without changing existing policy data.
+  PrincipalAttendanceReviewPolicy1731910000000: {
+    "attendance_policies.principalReviewMode": {
+      nullable: false,
+      default: "absences_only",
+      value: "default",
+    },
+  },
+
   AttendanceAcademicSnapshots1731300100000: {
     "attendance_sessions.academicYearIdSnapshot": {
       nullable: true,

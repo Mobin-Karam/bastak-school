@@ -579,6 +579,29 @@ test("permits only the explicit automatic-to-all-session review-policy migration
   db.close();
 });
 
+test("permits only the default principal review mode on retained attendance policies", () => {
+  const db = new Database(":memory:");
+  db.exec(`
+    CREATE TABLE attendance_policies (id TEXT PRIMARY KEY);
+    CREATE TABLE migrations (name TEXT);
+    INSERT INTO attendance_policies VALUES ('legacy-policy');
+  `);
+  const before = inventory(db);
+  db.exec(`
+    ALTER TABLE attendance_policies ADD COLUMN principalReviewMode TEXT NOT NULL DEFAULT 'absences_only';
+    INSERT INTO migrations(name) VALUES ('PrincipalAttendanceReviewPolicy1731910000000');
+  `);
+  assert.doesNotThrow(() => preserved(before, inventory(db), db));
+  db.prepare(
+    "UPDATE attendance_policies SET principalReviewMode='all_sessions' WHERE id='legacy-policy'",
+  ).run();
+  assert.throws(
+    () => preserved(before, inventory(db), db),
+    /non-default value/,
+  );
+  db.close();
+});
+
 test("permits only the default/null principal-action columns on retained teacher reports", () => {
   const db = new Database(":memory:");
   db.exec(`
