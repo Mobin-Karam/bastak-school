@@ -31,6 +31,8 @@ flowchart TD
 
 The private workflow checks successful source main-push CI and current main SHA on a hosted runner, waits at the production environment, then rechecks on the private runner. It downloads only the named artifact from that run and rejects missing/expired/digest-mismatched artifacts. Image archives have no production secrets. Canonical image-config digests include runtime configuration and ordered filesystem DiffIDs. Docker classic/containerd stores can report different image IDs for those same bits; the loader verifies exported config digests before accepting such a difference, and records CI and local content IDs in `loaded-images.json`. Artifact retention is finite: archive verified release bundles off-checkout for rollback; rebuilds are a new release, not the same tested image.
 
+Before downloading or stopping a service, the private receiver now verifies that `SOURCE_ARTIFACT_READ_TOKEN` can read exactly one digest-bearing image artifact for the requested run, that all persistent configuration and TLS files exist with private permissions, and that the declared database volume exists. After loading the verified images, the immutable script verifies their receipt provenance and rejects any Compose configuration whose Admin mounts are not exactly the three host-owned configuration mounts. A missing token, config file, volume, image, or mount leaves the current containers running.
+
 ## Read-only production evidence check
 
 After a deployment, or before investigating an incident, verify the persisted release evidence without changing container state:
