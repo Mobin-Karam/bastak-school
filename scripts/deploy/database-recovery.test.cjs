@@ -424,6 +424,42 @@ test("rejects a missing role-assignment table even when every row is an approved
   db.close();
 });
 
+test("permits only a complete declared transfer from the legacy point ledger", () => {
+  const db = new Database(":memory:");
+  db.exec(`
+    CREATE TABLE student_point_ledger (
+      id TEXT PRIMARY KEY, points INTEGER NOT NULL, source TEXT NOT NULL,
+      requestId TEXT, reason TEXT NOT NULL, createdAt TEXT NOT NULL,
+      studentId TEXT NOT NULL, organizationId TEXT NOT NULL,
+      attendanceRecordId TEXT, awardedById TEXT
+    );
+    CREATE TABLE migrations (name TEXT);
+    INSERT INTO student_point_ledger VALUES
+      ('attendance', 2, 'attendance', 'request-a', 'Present', '2026-01-01', 'student-1', 'org-1', 'record-1', 'teacher-1'),
+      ('manual', 3, 'teacher_adjustment', 'request-b', 'Bonus', '2026-01-02', 'student-1', 'org-1', NULL, 'teacher-1');
+  `);
+  const before = inventory(db);
+  db.exec(`
+    CREATE TABLE student_reward_ledger (
+      id TEXT PRIMARY KEY, points INTEGER NOT NULL, sourceType TEXT NOT NULL,
+      sourceId TEXT, requestId TEXT, reason TEXT NOT NULL, createdAt TEXT NOT NULL,
+      studentId TEXT NOT NULL, organizationId TEXT NOT NULL, awardedById TEXT
+    );
+    INSERT INTO student_reward_ledger VALUES
+      ('attendance', 2, 'attendance', 'record-1', 'request-a', 'Present', '2026-01-01', 'student-1', 'org-1', 'teacher-1'),
+      ('manual', 3, 'manual', NULL, 'request-b', 'Bonus', '2026-01-02', 'student-1', 'org-1', 'teacher-1');
+    DROP TABLE student_point_ledger;
+    INSERT INTO migrations VALUES ('RewardsLedgerExtraction1731900000000');
+  `);
+  assert.doesNotThrow(() => preserved(before, inventory(db), db));
+  db.prepare("DELETE FROM student_reward_ledger WHERE id='manual'").run();
+  assert.throws(
+    () => preserved(before, inventory(db), db),
+    /replacement row count mismatch/,
+  );
+  db.close();
+});
+
 for (const sql of [
   "DELETE FROM records WHERE rowid=1",
   "UPDATE records SET value='changed' WHERE rowid=1",
