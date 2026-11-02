@@ -86,7 +86,8 @@ const routeText = (node) => {
         route.includes("?") ||
         ts.isConditionalExpression(span.expression) ||
         (ts.isCallExpression(span.expression) &&
-          span.expression.expression.getText() === "URLSearchParams")
+          span.expression.expression.getText() === "URLSearchParams") ||
+        (ts.isIdentifier(span.expression) && /(?:query|suffix)$/i.test(span.expression.text))
       ) {
         return route.split("?")[0];
       }

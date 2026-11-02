@@ -23,6 +23,10 @@ import { Subject } from "../entities/subject.entity";
 import { TeacherSubjectAssignment } from "../entities/teacher-subject-assignment.entity";
 import { DormRoom } from "../entities/dorm-room.entity";
 import { DormRoomAssignment } from "../entities/dorm-room-assignment.entity";
+import {
+  SchoolAcademicTerm,
+  SchoolAcademicYear,
+} from "../entities/school-academic-year.entity";
 import { seedPhoneNumber } from "./seed-phone";
 
 const password = process.env.E2E_PASSWORD || "Moshaver-e2e-2026!";
@@ -203,6 +207,7 @@ export async function seedSecurityMatrix() {
       if (!(await assignments.findOne({where: {room: {id: room.id}, student: {id: student.id}}}))) await assignments.save(assignments.create({room, student}));
     }
   }
+  await ensureActiveAcademicTerm(orgA);
 
   console.log(
     JSON.stringify(
@@ -368,6 +373,66 @@ export async function seedSecurityMatrix() {
     });
     if (!found)
       await repo.save(repo.create({ teacher, subject, organization }));
+  }
+  async function ensureActiveAcademicTerm(organization: Organization) {
+    const year = new Intl.DateTimeFormat("en-US", {
+      timeZone: "Asia/Tehran",
+      year: "numeric",
+    }).format(new Date());
+    const startsOn = `${year}-01-01`;
+    const endsOn = `${Number(year) + 1}-12-31`;
+    const years = manager.getRepository(SchoolAcademicYear);
+    let academicYear = await years.findOne({
+      where: { organizationId: organization.id, name: `E2E ${year}` },
+    });
+    if (!academicYear)
+      academicYear = await years.save(
+        years.create({
+          organizationId: organization.id,
+          name: `E2E ${year}`,
+          startsOn,
+          endsOn,
+          state: "ACTIVE",
+        }),
+      );
+    else if (
+      academicYear.startsOn !== startsOn ||
+      academicYear.endsOn !== endsOn ||
+      academicYear.state !== "ACTIVE"
+    )
+      academicYear = await years.save({
+        ...academicYear,
+        startsOn,
+        endsOn,
+        state: "ACTIVE",
+      });
+
+    const terms = manager.getRepository(SchoolAcademicTerm);
+    const name = "E2E active term";
+    const existing = await terms.findOne({
+      where: { academicYearId: academicYear.id, name },
+    });
+    if (!existing)
+      await terms.save(
+        terms.create({
+          academicYearId: academicYear.id,
+          name,
+          startsOn,
+          endsOn,
+          state: "ACTIVE",
+        }),
+      );
+    else if (
+      existing.startsOn !== startsOn ||
+      existing.endsOn !== endsOn ||
+      existing.state !== "ACTIVE"
+    )
+      await terms.save({
+        ...existing,
+        startsOn,
+        endsOn,
+        state: "ACTIVE",
+      });
   }
 }
 

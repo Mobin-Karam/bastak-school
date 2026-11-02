@@ -41,13 +41,47 @@ describe("attendance session review revision repair migration", () => {
 
 describe("attendance session revision review idempotency migration", () => {
   it("adds a nullable dedupe key and unique index without rewriting review history", async () => {
-    const query = jest.fn().mockResolvedValue([]);
+    const query = jest
+      .fn()
+      .mockResolvedValueOnce([{ name: "id" }, { name: "sessionId" }])
+      .mockResolvedValue([]);
 
     await new AttendanceRevisionReviewIdempotency1763600400000().up({
       query,
     } as never);
 
     expect(query).toHaveBeenCalledWith(
+      "ALTER TABLE attendance_session_reviews ADD COLUMN dedupeKey varchar(96)",
+    );
+    expect(query).toHaveBeenCalledWith(
+      expect.stringContaining("CREATE UNIQUE INDEX IF NOT EXISTS"),
+    );
+  });
+
+  it("does nothing when the optional review table is absent", async () => {
+    const query = jest.fn().mockResolvedValue([]);
+
+    await new AttendanceRevisionReviewIdempotency1763600400000().up({
+      query,
+    } as never);
+
+    expect(query).toHaveBeenCalledTimes(1);
+    expect(query).toHaveBeenCalledWith(
+      "PRAGMA table_info(attendance_session_reviews)",
+    );
+  });
+
+  it("keeps an already-migrated review table unchanged", async () => {
+    const query = jest
+      .fn()
+      .mockResolvedValueOnce([{ name: "id" }, { name: "dedupeKey" }])
+      .mockResolvedValue([]);
+
+    await new AttendanceRevisionReviewIdempotency1763600400000().up({
+      query,
+    } as never);
+
+    expect(query).not.toHaveBeenCalledWith(
       "ALTER TABLE attendance_session_reviews ADD COLUMN dedupeKey varchar(96)",
     );
     expect(query).toHaveBeenCalledWith(
