@@ -339,6 +339,32 @@ const legacyValueTransforms = {
     "attendance_policies.principalReviewMode": "automatic-to-all-sessions",
   },
 };
+
+// A table may disappear only when a named migration moves every retained row
+// into a declared replacement table. This remains separate from column/value
+// allowances so a migration cannot silently discard a populated table.
+const tableTransfers = {
+  RewardsLedgerExtraction1731900000000: {
+    student_point_ledger: {
+      target: "student_reward_ledger",
+      columns: {
+        id: "id",
+        points: "points",
+        sourceType: {
+          from: "source",
+          values: { teacher_adjustment: "manual" },
+        },
+        sourceId: "attendanceRecordId",
+        requestId: "requestId",
+        reason: "reason",
+        createdAt: "createdAt",
+        studentId: "studentId",
+        organizationId: "organizationId",
+        awardedById: "awardedById",
+      },
+    },
+  },
+};
 const [command, original, destination] = process.argv.slice(2);
 function open(file) {
   const db = new Database(file, { readonly: true, fileMustExist: true });
@@ -483,6 +509,13 @@ function legacyValueTransformFor(applied, table, column) {
   for (const migration of applied) {
     if (legacyValueTransforms[migration]?.[key])
       return legacyValueTransforms[migration][key];
+  }
+  return null;
+}
+function tableTransferFor(applied, table) {
+  for (const migration of applied) {
+    if (tableTransfers[migration]?.[table])
+      return tableTransfers[migration][table];
   }
   return null;
 }
@@ -653,12 +686,49 @@ function validateAddedColumns(beforeTable, afterTable, table, applied, db) {
     }
   }
 }
+function transferredValue(source, rule) {
+  if (typeof rule === "string") return source[rule];
+  return rule.values[source[rule.from]] ?? source[rule.from];
+}
+function validateTableTransfer(beforeTable, transfer, after, table) {
+  const target = after.rows[transfer.target];
+  if (!target)
+    fail(
+      table,
+      `replacement table ${transfer.target} missing`,
+      beforeTable,
+      null,
+    );
+  if (target.records.length !== beforeTable.records.length)
+    fail(
+      table,
+      `replacement row count mismatch in ${transfer.target}`,
+      beforeTable,
+      target,
+    );
+  const available = [...target.records];
+  for (const source of beforeTable.records) {
+    const match = available.findIndex((candidate) =>
+      Object.entries(transfer.columns).every(([targetColumn, rule]) =>
+        same(candidate[targetColumn], transferredValue(source, rule)),
+      ),
+    );
+    if (match < 0)
+      fail(table, `row missing from ${transfer.target}`, beforeTable, target);
+    available.splice(match, 1);
+  }
+}
 function preserved(before, after, db) {
   const applied = appliedMigrationNames(before, after);
   for (const [table, value] of Object.entries(before.rows)) {
     if (table === "migrations") continue;
     const upgraded = after.rows[table];
-    if (!upgraded) fail(table, "table missing after migration", value, null);
+    if (!upgraded) {
+      const transfer = tableTransferFor(applied, table);
+      if (!transfer) fail(table, "table missing after migration", value, null);
+      validateTableTransfer(value, transfer, after, table);
+      continue;
+    }
     const upgradedColumns = new Set(upgraded.columns.map(({ name }) => name));
     if (value.columns.some(({ name }) => !upgradedColumns.has(name)))
       fail(table, "original column missing after migration", value, upgraded);
