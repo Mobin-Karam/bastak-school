@@ -1115,32 +1115,29 @@ export class PrincipalDashboardService
       policies[0]?.principalReviewMode === "all_sessions"
         ? "all_sessions"
         : "absences_only";
-    const dueBefore = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
     const classFilter = classId
       ? " AND s.contextType='class' AND s.contextId=?"
       : "";
-    const parameters = classId
-      ? [organizationId, dueBefore, classId]
-      : [organizationId, dueBefore];
+    const parameters = classId ? [organizationId, classId] : [organizationId];
     const base = `FROM attendance_sessions s
       LEFT JOIN attendance_records r ON r.sessionId=s.id
       LEFT JOIN (SELECT sessionId, reviewedRevision, MAX(reviewedAt) reviewedAt FROM attendance_session_reviews GROUP BY sessionId, reviewedRevision) latest ON latest.sessionId=s.id AND latest.reviewedRevision=s.revision
       WHERE s.organizationId=? AND s.contextType='class' AND s.status IN ('submitted','finalized')
         ${mode === "absences_only" ? "AND EXISTS (SELECT 1 FROM attendance_records absent_record WHERE absent_record.sessionId=s.id AND absent_record.physicalStatus='absent')" : ""}
-        AND (latest.reviewedAt IS NULL OR latest.reviewedAt<=?)${classFilter}`;
+        AND latest.reviewedAt IS NULL${classFilter}`;
     const pendingCount = await this.scalar(
       `SELECT COUNT(DISTINCT s.id) count ${base}`,
       parameters,
     );
     const rows = await this.db.query(
       `SELECT s.id, s.contextType, s.contextId, COALESCE(NULLIF(s.titleSnapshot,''),'جلسه ثبت‌شده') title,
-        s.sessionDate, s.status, json_array_length(s.rosterSnapshot) expected, latest.reviewedAt lastReviewedAt,
+        s.sessionDate, s.status, s.revision, json_array_length(s.rosterSnapshot) expected, latest.reviewedAt lastReviewedAt,
         COUNT(r.id) marked,
         SUM(CASE WHEN r.status='present' THEN 1 ELSE 0 END) present,
         SUM(CASE WHEN r.physicalStatus='absent' THEN 1 ELSE 0 END) absent,
         SUM(CASE WHEN r.status='late' THEN 1 ELSE 0 END) late,
         SUM(CASE WHEN r.status='excused' THEN 1 ELSE 0 END) excused
-       ${base} GROUP BY s.id ORDER BY s.sessionDate DESC LIMIT 10`,
+       ${base} GROUP BY s.id ORDER BY s.sessionDate DESC`,
       parameters,
     );
     return {
@@ -1153,6 +1150,7 @@ export class PrincipalDashboardService
         title: String(row.title),
         sessionDate: String(row.sessionDate),
         status: String(row.status),
+        revision: Number(row.revision),
         expected: row.expected == null ? null : Number(row.expected),
         marked: Number(row.marked ?? 0),
         present: Number(row.present ?? 0),

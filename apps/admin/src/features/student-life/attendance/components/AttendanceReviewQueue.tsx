@@ -8,15 +8,23 @@ import {
   listAttendanceAbsenceReviews,
   markDormAbsenceOutsideSchool,
   reviewAttendanceAbsence,
+  sendAttendanceAbsenceMessage,
   type AttendanceAbsenceReview,
+  type AttendanceContextType,
 } from "../api/attendance.api";
 
 /** Scoped principal/supervisor review: inspect, choose a decision, confirm. */
-export function AttendanceReviewQueue({ initialRecordId }: { initialRecordId?: string | null }) {
+export function AttendanceReviewQueue({
+  initialRecordId,
+  contextType,
+}: {
+  initialRecordId?: string | null;
+  contextType?: AttendanceContextType;
+}) {
   const client = useQueryClient();
   const auth = useAuth();
   const organizationId = auth.context?.activeOrganization?.id;
-  const scope = JSON.stringify([auth.user?.id, auth.activeRole, organizationId]);
+  const scope = JSON.stringify([auth.user?.id, auth.activeRole, organizationId, contextType]);
   const scopeRef = useRef(scope);
   const openedInitialRecordId = useRef<string | null>(null);
   scopeRef.current = scope;
@@ -25,15 +33,19 @@ export function AttendanceReviewQueue({ initialRecordId }: { initialRecordId?: s
   const [note, setNote] = useState("");
   const [notice, setNotice] = useState<string | null>(null);
   const [markOutsideSchool, setMarkOutsideSchool] = useState(false);
+  const [message, setMessage] = useState("");
+  const [messageRecordIds, setMessageRecordIds] = useState<string[]>([]);
   const reviews = useQuery({
     queryKey: ["attendance", "absence-reviews", scope],
-    queryFn: () => listAttendanceAbsenceReviews(organizationId),
+    queryFn: () => listAttendanceAbsenceReviews(organizationId, contextType),
     enabled: auth.can("attendance.review"),
   });
   useEffect(() => {
     setSelected(null);
     setDecision(null);
     setNote("");
+    setMessage("");
+    setMessageRecordIds([]);
     setNotice(null);
   }, [scope]);
   useEffect(() => {
@@ -77,6 +89,24 @@ export function AttendanceReviewQueue({ initialRecordId }: { initialRecordId?: s
       void client.invalidateQueries({ queryKey: ["attendance"] });
     },
   });
+  const messageMutation = useMutation({
+    mutationFn: ({
+      record,
+      recordIds,
+      message,
+    }: {
+      record: AttendanceAbsenceReview;
+      recordIds: string[];
+      message: string;
+    }) => sendAttendanceAbsenceMessage(record.id, { recordIds, message: message.trim() }),
+    onSuccess: (result) => {
+      setMessage("");
+      setMessageRecordIds([]);
+      setNotice(
+        `پیام مدیر دربارهٔ ${result.studentCount.toLocaleString("fa-IR")} دانش‌آموز برای استاد ارسال شد.`,
+      );
+    },
+  });
   const pending = (reviews.data ?? []).filter((review) => review.reviewStatus === "pending");
   const focusedReview = initialRecordId
     ? (pending.find((review) => review.id === initialRecordId) ?? null)
@@ -89,6 +119,8 @@ export function AttendanceReviewQueue({ initialRecordId }: { initialRecordId?: s
     setSelected(focusedReview);
     setDecision(null);
     setNote("");
+    setMessage("");
+    setMessageRecordIds([focusedReview.id]);
     setMarkOutsideSchool(false);
   }, [focusedReview, mutation, selected]);
 
@@ -137,6 +169,8 @@ export function AttendanceReviewQueue({ initialRecordId }: { initialRecordId?: s
                   setSelected(review);
                   setDecision(null);
                   setNote("");
+                  setMessage("");
+                  setMessageRecordIds([review.id]);
                   setMarkOutsideSchool(false);
                 }}
               >
@@ -165,11 +199,98 @@ export function AttendanceReviewQueue({ initialRecordId }: { initialRecordId?: s
               {selected?.reason || "دلیلی ثبت نشده است."}
             </p>
           </div>
+          {selected?.contextType === "class" ? (
+            <section className="grid gap-2 rounded-xl border border-[rgb(var(--border-subtle))] p-3">
+              <div>
+                <p className="text-sm font-bold">پیام مدیر</p>
+                <p className="mt-1 text-xs text-slate-500">
+                  غایبان این جلسه را انتخاب کنید؛ پیام همراه نام آن‌ها برای استاد ارسال می‌شود.
+                </p>
+              </div>
+              {(() => {
+                const sameSession = pending.filter(
+                  (review) => review.sessionId === selected.sessionId,
+                );
+                const allSelected =
+                  sameSession.length > 0 &&
+                  sameSession.every((review) => messageRecordIds.includes(review.id));
+                return (
+                  <>
+                    <label className="flex items-center gap-2 text-xs font-bold">
+                      <input
+                        type="checkbox"
+                        checked={allSelected}
+                        onChange={(event) =>
+                          setMessageRecordIds(
+                            event.target.checked ? sameSession.map((review) => review.id) : [],
+                          )
+                        }
+                      />
+                      انتخاب همهٔ غایبان این جلسه ({sameSession.length.toLocaleString("fa-IR")})
+                    </label>
+                    <div className="grid gap-1">
+                      {sameSession.map((review) => (
+                        <label
+                          key={review.id}
+                          className="flex items-center gap-2 rounded-lg bg-[rgb(var(--surface-muted))] px-2 py-1.5 text-sm"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={messageRecordIds.includes(review.id)}
+                            onChange={(event) =>
+                              setMessageRecordIds((current) =>
+                                event.target.checked
+                                  ? [...new Set([...current, review.id])]
+                                  : current.filter((id) => id !== review.id),
+                              )
+                            }
+                          />
+                          {review.studentName}
+                        </label>
+                      ))}
+                    </div>
+                  </>
+                );
+              })()}
+              <textarea
+                aria-label="پیام مدیر برای استاد"
+                value={message}
+                maxLength={500}
+                onChange={(event) => setMessage(event.target.value)}
+                className="min-h-20 w-full rounded-xl border border-[rgb(var(--border-subtle))] bg-card p-3 text-sm"
+                placeholder="پیام مدیر برای استاد را بنویسید…"
+              />
+              {messageMutation.isError ? (
+                <p role="alert" className="text-xs text-rose-700 dark:text-rose-300">
+                  ارسال پیام انجام نشد. دوباره تلاش کنید.
+                </p>
+              ) : null}
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  variant="soft"
+                  disabled={
+                    !message.trim() || !messageRecordIds.length || messageMutation.isPending
+                  }
+                  onClick={() =>
+                    selected &&
+                    messageMutation.mutate({
+                      record: selected,
+                      recordIds: messageRecordIds,
+                      message,
+                    })
+                  }
+                >
+                  ارسال پیام به استاد
+                </Button>
+              </div>
+            </section>
+          ) : null}
           {!decision ? (
             <>
               <label className="block text-sm font-bold">
                 یادداشت بررسی (اختیاری)
                 <textarea
+                  aria-label="یادداشت بررسی"
                   value={note}
                   maxLength={500}
                   onChange={(event) => setNote(event.target.value)}

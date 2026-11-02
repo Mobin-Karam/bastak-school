@@ -379,6 +379,10 @@ function SavedSessionDialog({
         ? member.status === "absent" || member.status === "excused" || member.status === "unmarked"
         : member.status === filter),
   );
+  const absentCount = members.filter((member) => member.status === "absent").length;
+  const currentRevision = typeof data?.revision === "number" ? data.revision : null;
+  const isCurrentRevisionReviewed =
+    currentRevision !== null && data?.review?.reviewedRevision === currentRevision;
   async function finalize() {
     if (!data || finalizing) return;
     setFinalizing(true);
@@ -390,7 +394,10 @@ function SavedSessionDialog({
       await query.refetch();
       void cache.invalidateQueries({ queryKey: ["attendance-staff-sessions", scope] });
       void cache.invalidateQueries({ queryKey: ["attendance-overview", scope] });
-      notify("جلسه نهایی شد؛ اصلاح بعدی فقط با مسیر مستند انجام می‌شود.", "success");
+      notify(
+        "بازبینی این نسخه از جلسه ثبت شد. اصلاح بعدی استاد یک نسخه تازه برای بازبینی می‌سازد.",
+        "success",
+      );
     } catch (error) {
       notify(error instanceof Error ? error.message : "نهایی‌سازی جلسه انجام نشد.", "error");
     } finally {
@@ -503,13 +510,15 @@ function SavedSessionDialog({
                   </p>
                 </div>
                 <span className="rounded-full bg-brand/10 px-3 py-1 text-xs font-bold text-brand">
-                  {data.status === "finalized"
-                    ? "نهایی‌شده"
-                    : data.status === "cancelled"
-                      ? "لغوشده"
-                      : data.status === "submitted"
-                        ? "در انتظار بازبینی"
-                        : "در حال ثبت"}
+                  {isCurrentRevisionReviewed
+                    ? "بازبینی‌شده"
+                    : data.status === "finalized"
+                      ? "نهایی‌شده"
+                      : data.status === "cancelled"
+                        ? "لغوشده"
+                        : data.status === "submitted"
+                          ? "در انتظار بازبینی"
+                          : "در حال ثبت"}
                 </span>
               </div>
               <dl className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
@@ -575,18 +584,30 @@ function SavedSessionDialog({
                   .join(" · ")}
               </p>
             ) : null}
-            {data.status === "submitted" && auth.can("attendance.review") ? (
+            {data.status === "submitted" &&
+            auth.can("attendance.review") &&
+            !isCurrentRevisionReviewed &&
+            absentCount === 0 ? (
               <button
                 type="button"
                 className={`${action} w-full bg-blue-600 text-white`}
                 disabled={finalizing}
                 onClick={() => void finalize()}
               >
-                {finalizing ? "در حال نهایی‌سازی…" : "نهایی‌سازی جلسه"}
+                {finalizing ? "در حال ثبت بازبینی…" : "ثبت بازبینی جلسه"}
               </button>
-            ) : data.status === "finalized" ? (
+            ) : isCurrentRevisionReviewed ? (
               <p className="rounded-xl bg-emerald-50 p-3 text-sm font-bold text-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-200">
-                این جلسه نهایی و قفل عملیاتی است.
+                بازبینی نسخهٔ {currentRevision!.toLocaleString("fa-IR")} در{" "}
+                {new Date(data.review!.reviewedAt).toLocaleString("fa-IR", {
+                  timeZone: "Asia/Tehran",
+                })}{" "}
+                ثبت شده است.
+              </p>
+            ) : data.status === "submitted" && auth.can("attendance.review") && absentCount > 0 ? (
+              <p className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm font-bold text-amber-950 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-100">
+                این جلسه غیبت دارد. برای ثبت بازبینی و ارسال پیام به استاد، آن را از صف «جلسه‌های
+                استاد» در داشبورد مدیر باز کنید.
               </p>
             ) : null}
             {auth.can("attendance.review") &&

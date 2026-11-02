@@ -357,6 +357,31 @@ describe("PrincipalDashboardService", () => {
     expect(reviewCountQuery).not.toContain("absent_record");
   });
 
+  it("does not requeue a reviewed attendance revision merely because it is old", async () => {
+    const queries: string[] = [];
+    const service = new PrincipalDashboardService({
+      query: jest.fn(async (sql: string) => {
+        queries.push(sql);
+        if (sql.includes("SELECT principalReviewMode"))
+          return [{ principalReviewMode: "absences_only" }];
+        if (sql.includes("COUNT(DISTINCT s.id)")) return [{ count: 0 }];
+        if (sql.includes("attendance_session_reviews")) return [];
+        if (sql.includes("COUNT(r.id) total"))
+          return [{ present: 0, absent: 0, late: 0, excused: 0, total: 0 }];
+        return [{ count: 0 }];
+      }),
+    } as never);
+
+    await service.get(principal, "2026-10-14", "2026-10-20");
+
+    const reviewQuery = queries.find((sql) =>
+      sql.includes("MAX(reviewedAt) reviewedAt"),
+    );
+    expect(reviewQuery).toContain("latest.reviewedAt IS NULL");
+    expect(reviewQuery).not.toContain("reviewedAt<=");
+    expect(reviewQuery).not.toContain("LIMIT 10");
+  });
+
   it("never exposes operational principal lists to an attendance reader", async () => {
     const query = jest.fn().mockResolvedValue([]);
     const service = new PrincipalDashboardService({ query } as never);

@@ -50,6 +50,13 @@ export type AttendanceSessionDetail = {
   assignedStaffName: string;
   submittedAt: string | null;
   submittedById: string | null;
+  /** The principal review that applies to this exact attendance revision. */
+  review: {
+    reviewedRevision: number;
+    reviewedAt: string;
+    reviewerId: string | null;
+    teacherMessage: string;
+  } | null;
   roster: AttendanceRosterMember[];
   rosterComplete: boolean;
   records: SavedAttendanceRecord[];

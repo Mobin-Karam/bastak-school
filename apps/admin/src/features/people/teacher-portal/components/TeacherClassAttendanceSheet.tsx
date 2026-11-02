@@ -93,6 +93,30 @@ function clampTeacherSessionDate(
   return aligned;
 }
 
+function clampTeacherEntryDate(
+  entry: ScheduleEntry,
+  date: string,
+  minimum?: string,
+  maximum?: string,
+) {
+  if (entry.status === "REPLACED" && entry.startsOn && entry.endsOn) return entry.startsOn;
+  const effectiveMinimum = [minimum, entry.startsOn]
+    .filter((value): value is string => Boolean(value))
+    .sort()
+    .at(-1);
+  const effectiveMaximum = [maximum, entry.endsOn]
+    .filter((value): value is string => Boolean(value))
+    .sort()[0];
+  return clampTeacherSessionDate(date, entry.weekday, effectiveMinimum, effectiveMaximum);
+}
+
+function isTeacherScheduleDate(entry: ScheduleEntry, date: string) {
+  const current = new Date(`${date}T12:00:00.000Z`);
+  if ((current.getUTCDay() + 1) % 7 !== entry.weekday) return false;
+  if (entry.status === "REPLACED") return entry.startsOn === date && entry.endsOn === date;
+  return (!entry.startsOn || entry.startsOn <= date) && (!entry.endsOn || entry.endsOn >= date);
+}
+
 /** Class roster and physical attendance management for a teacher's own scheduled class. */
 export function TeacherClassAttendanceSheet({
   entry,
@@ -125,18 +149,76 @@ export function TeacherClassAttendanceSheet({
   const [clearConfirmationOpen, setClearConfirmationOpen] = useState(false);
   const [marks, setMarks] = useState<Record<string, AttendanceStatus>>({});
   const [reasons, setReasons] = useState<Record<string, string>>({});
-  const [savedSessionId, setSavedSessionId] = useState<string | null>(null);
+  const [hydratedSessionId, setHydratedSessionId] = useState<string | null>(null);
   const [reportText, setReportText] = useState<Record<string, string>>({});
   const [reportTarget, setReportTarget] = useState<{ id: string; name: string } | null>(null);
   const [profileStudentId, setProfileStudentId] = useState<string | null>(null);
   const [leaveReturnPromptOpen, setLeaveReturnPromptOpen] = useState(false);
-  const [sessionDate, setSessionDate] = useState(() => isoDay(new Date()));
   const entryWeekday = entry?.weekday;
+  const schoolToday = tehranNow().date;
+  const [sessionDate, setSessionDate] = useState(() =>
+    !entry || entryWeekday === undefined
+      ? schoolToday
+      : clampTeacherEntryDate(entry, initialDate ?? schoolToday, semesterStartsOn, semesterEndsOn),
+  );
+  const participantsQueryKey = [
+    "attendance",
+    "participants",
+    scopeKey,
+    "class",
+    entry?.classroom?.id,
+    entry?.id,
+    sessionDate,
+  ] as const;
   const participants = useQuery({
-    queryKey: ["attendance", "participants", scopeKey, "class", entry?.classroom?.id],
-    queryFn: () => getAttendanceParticipants("class", entry!.classroom!.id),
-    enabled: open && Boolean(entry?.classroom?.id),
+    queryKey: participantsQueryKey,
+    queryFn: () =>
+      getAttendanceParticipants("class", entry!.classroom!.id, {
+        scheduleEntryId: entry!.id,
+        date: sessionDate,
+      }),
+    enabled:
+      open &&
+      Boolean(entry?.classroom?.id) &&
+      Boolean(entry && isTeacherScheduleDate(entry, sessionDate)),
   });
+  const sessionLookupKey = [
+    "attendance",
+    "legacy-schedule-session",
+    scopeKey,
+    entry?.id,
+    sessionDate,
+  ] as const;
+  const savedSessionLookup = useQuery({
+    queryKey: sessionLookupKey,
+    queryFn: () =>
+      api.get<{ id: string; revision: number } | null>(
+        `/attendance/legacy-schedule-session?entryId=${encodeURIComponent(entry!.id)}&date=${encodeURIComponent(sessionDate)}`,
+      ),
+    enabled:
+      open && Boolean(entry?.id) && Boolean(entry && isTeacherScheduleDate(entry, sessionDate)),
+  });
+  const savedSessionId = savedSessionLookup.data?.id ?? null;
+  const savedAttendance = useQuery({
+    queryKey: ["attendance", "session-detail", savedSessionId],
+    queryFn: () =>
+      api.get<{
+        roster: Array<{
+          id: string;
+          name: string;
+          nationalCode: string | null;
+          userId: string | null;
+        }>;
+        status: string;
+        rosterComplete: boolean;
+        records: Array<{ studentId: string; legacyStatus: AttendanceStatus; note: string }>;
+      }>(`/attendance/sessions/${encodeURIComponent(savedSessionId!)}`),
+    enabled: Boolean(savedSessionId),
+  });
+  const attendanceLoaded =
+    savedSessionLookup.isSuccess && (!savedSessionId || savedAttendance.isSuccess);
+  const attendanceHydrated =
+    attendanceLoaded && (!savedSessionId || hydratedSessionId === savedSessionId);
   const reviews = useQuery({
     queryKey: ["attendance", "my-absence-reviews", scopeKey],
     queryFn: listMyAttendanceAbsenceReviews,
@@ -194,51 +276,96 @@ export function TeacherClassAttendanceSheet({
     setMarks({});
     setReasons({});
     pendingWrite.current = null;
-    setSavedSessionId(null);
+    setHydratedSessionId(null);
     setReportText({});
     setReportTarget(null);
     setProfileStudentId(null);
     setSessionDate(
       entryWeekday !== undefined
-        ? clampTeacherSessionDate(
-            initialDate ?? isoDay(new Date()),
-            entryWeekday,
-            semesterStartsOn,
-            semesterEndsOn,
-          )
+        ? entry
+          ? clampTeacherEntryDate(
+              entry,
+              initialDate ?? schoolToday,
+              semesterStartsOn,
+              semesterEndsOn,
+            )
+          : clampTeacherSessionDate(
+              initialDate ?? schoolToday,
+              entryWeekday,
+              semesterStartsOn,
+              semesterEndsOn,
+            )
         : isoDay(new Date()),
     );
-  }, [entry?.id, entryWeekday, initialDate, open, scopeKey, semesterStartsOn, semesterEndsOn]);
+  }, [
+    entry,
+    entryWeekday,
+    initialDate,
+    open,
+    schoolToday,
+    scopeKey,
+    semesterStartsOn,
+    semesterEndsOn,
+  ]);
 
   useEffect(() => {
-    if (!open || !entry) return;
-    let active = true;
-    void api
-      .get<{ id: string; revision: number } | null>(
-        `/attendance/legacy-schedule-session?entryId=${encodeURIComponent(entry.id)}&date=${encodeURIComponent(sessionDate)}`,
-      )
-      .then((session) => {
-        if (active) setSavedSessionId(session?.id ?? null);
-      })
-      .catch(() => {
-        if (active) setSavedSessionId(null);
-      });
-    return () => {
-      active = false;
-    };
-  }, [entry, open, sessionDate]);
+    setReviewing(false);
+    setClearConfirmationOpen(false);
+    setMarks({});
+    setReasons({});
+    setHydratedSessionId(null);
+    pendingWrite.current = null;
+  }, [sessionDate]);
 
-  // The roster is an attendance-taking surface: a teacher starts from a full
-  // present register and records only exceptions. The API still receives an
-  // explicit status for every authorized participant on save.
+  const sessionParticipants = useMemo(() => {
+    const currentParticipants = participants.data ?? [];
+    if (!savedSessionId || !savedAttendance.data?.rosterComplete) return currentParticipants;
+
+    const currentById = new Map(currentParticipants.map((student) => [student.id, student]));
+    return savedAttendance.data.roster.map((snapshot) => ({
+      ...(currentById.get(snapshot.id) ?? {}),
+      ...snapshot,
+    }));
+  }, [participants.data, savedAttendance.data, savedSessionId]);
+
+  // A new occurrence starts with a full present register. Existing occurrences
+  // are hydrated from their saved roster and marks before editing is enabled.
   useEffect(() => {
-    if (!open || !participants.data?.length) return;
+    if (!open || !attendanceLoaded) return;
+    if (savedSessionId && savedAttendance.data) {
+      const saved = savedAttendance.data;
+      const known = new Map(saved.records.map((record) => [record.studentId, record]));
+      setMarks(
+        Object.fromEntries(
+          sessionParticipants.map((student) => [
+            student.id,
+            known.get(student.id)?.legacyStatus ?? "present",
+          ]),
+        ),
+      );
+      setReasons(
+        Object.fromEntries(
+          saved.records
+            .filter((record) => Boolean(record.note))
+            .map((record) => [record.studentId, record.note]),
+        ),
+      );
+      setHydratedSessionId(savedSessionId);
+      return;
+    }
     setMarks((current) =>
       Object.keys(current).length
         ? current
-        : Object.fromEntries(participants.data.map((student) => [student.id, "present"])),
+        : Object.fromEntries(sessionParticipants.map((student) => [student.id, "present"])),
     );
-  }, [open, participants.data]);
+  }, [
+    attendanceLoaded,
+    open,
+    participants.data,
+    savedAttendance.data,
+    savedSessionId,
+    sessionParticipants,
+  ]);
 
   useEffect(() => {
     if (!open) return;
@@ -289,9 +416,12 @@ export function TeacherClassAttendanceSheet({
     onSuccess: (result, __, context) => {
       if (context?.scopeKey !== scopeRef.current) return;
       pendingWrite.current = null;
+      client.setQueryData(sessionLookupKey, {
+        id: result.sessionId,
+        revision: result.revision,
+      });
       void client.invalidateQueries({ queryKey: ["attendance"] });
       notify("حضور و غیاب کلاس ثبت شد.", "success");
-      setSavedSessionId(result.sessionId);
       setReviewing(false);
     },
     onError: (error, _, context) => {
@@ -324,12 +454,10 @@ export function TeacherClassAttendanceSheet({
       return reportOutsideStudentPresent(savedSessionId, studentId);
     },
     onSuccess: (_result, studentId) => {
-      client.setQueryData(
-        ["attendance", "participants", scopeKey, "class", entry?.classroom?.id],
-        (current: typeof participants.data) =>
-          current?.map((student) =>
-            student.id === studentId ? { ...student, outsidePresenceReported: true } : student,
-          ),
+      client.setQueryData(participantsQueryKey, (current: typeof participants.data) =>
+        current?.map((student) =>
+          student.id === studentId ? { ...student, outsidePresenceReported: true } : student,
+        ),
       );
       notify(
         "گزارش حضور برای تأیید مدیر ارسال شد؛ آمار مدرسه پس از تأیید تغییر می‌کند.",
@@ -340,41 +468,55 @@ export function TeacherClassAttendanceSheet({
       notify(error instanceof Error ? error.message : "ارسال گزارش حضور انجام نشد.", "error"),
   });
 
-  // A complete "present" register is the starting state, not an unsaved edit.
-  // This keeps the leave guard for actual exceptions while allowing a teacher to
-  // clear exceptions or return from review without a second drawer competing
-  // with the roster drawer.
+  const savedRecordsByStudent = new Map(
+    (savedAttendance.data?.records ?? []).map((record) => [record.studentId, record]),
+  );
   const hasUnsavedChanges =
-    (participants.data ?? []).some((student) => marks[student.id] !== "present") ||
-    Object.values(reasons).some((reason) => Boolean(reason.trim()));
+    attendanceHydrated &&
+    sessionParticipants.some((student) => {
+      const saved = savedSessionId ? savedRecordsByStudent.get(student.id) : undefined;
+      return (
+        marks[student.id] !== (saved?.legacyStatus ?? "present") ||
+        (reasons[student.id] ?? "").trim() !== (saved?.note ?? "").trim()
+      );
+    });
   const discard = useAttendanceDiscard(
     hasUnsavedChanges,
     save.isPending,
     `${scopeKey}:${entry?.id}:${open}`,
   );
   const resetToPresent = () => {
-    setMarks(
-      Object.fromEntries((participants.data ?? []).map((student) => [student.id, "present"])),
-    );
+    setMarks(Object.fromEntries(sessionParticipants.map((student) => [student.id, "present"])));
     setReasons({});
   };
-  const hasMissingExcusedReason = (participants.data ?? []).some(
+  const hasMissingExcusedReason = sessionParticipants.some(
     (student) => marks[student.id] === "excused" && !(reasons[student.id] ?? "").trim(),
   );
+  const selectSessionDate = (date: string) => {
+    discard.request(() => {
+      setSessionDate(date);
+      setMarks({});
+      setReasons({});
+      setHydratedSessionId(null);
+      setReviewing(false);
+    });
+  };
+  const schoolNow = tehranNow();
   const canMoveToNextSession = entry
-    ? nearestSessionDate(sessionDate, entry.weekday, 1) <= isoDay(new Date()) &&
+    ? nearestSessionDate(sessionDate, entry.weekday, 1) <= schoolNow.date &&
       (!semesterEndsOn || nearestSessionDate(sessionDate, entry.weekday, 1) <= semesterEndsOn)
     : false;
   const previousSessionDate = entry ? nearestSessionDate(sessionDate, entry.weekday, -1) : null;
   const canMoveToPreviousSession = Boolean(
     previousSessionDate && (!semesterStartsOn || previousSessionDate >= semesterStartsOn),
   );
-  const schoolNow = tehranNow();
   const hasSessionStarted =
     sessionDate < schoolNow.date ||
     (sessionDate === schoolNow.date && (entry?.startTime ?? "99:99") <= schoolNow.time);
   const canManageSelectedSession =
     canManage &&
+    attendanceHydrated &&
+    savedAttendance.data?.status !== "cancelled" &&
     hasSessionStarted &&
     (!semesterStartsOn || sessionDate >= semesterStartsOn) &&
     (!semesterEndsOn || sessionDate <= semesterEndsOn);
@@ -386,33 +528,6 @@ export function TeacherClassAttendanceSheet({
       ),
     enabled: Boolean(savedSessionId),
   });
-  const savedAttendance = useQuery({
-    queryKey: ["attendance", "session-detail", savedSessionId],
-    queryFn: () =>
-      api.get<{
-        records: Array<{ studentId: string; legacyStatus: AttendanceStatus; note: string }>;
-      }>(`/attendance/sessions/${encodeURIComponent(savedSessionId!)}`),
-    enabled: Boolean(savedSessionId),
-  });
-  useEffect(() => {
-    if (!savedSessionId || !savedAttendance.data || !participants.data?.length) return;
-    const known = new Map(savedAttendance.data.records.map((record) => [record.studentId, record]));
-    setMarks(
-      Object.fromEntries(
-        participants.data.map((student) => [
-          student.id,
-          known.get(student.id)?.legacyStatus ?? "present",
-        ]),
-      ),
-    );
-    setReasons(
-      Object.fromEntries(
-        savedAttendance.data.records
-          .filter((record) => Boolean(record.note))
-          .map((record) => [record.studentId, record.note]),
-      ),
-    );
-  }, [participants.data, savedAttendance.data, savedSessionId]);
   const coinsByStudent = useMemo(
     () => Object.fromEntries((sessionCoins.data ?? []).map((coin) => [coin.studentId, coin])),
     [sessionCoins.data],
@@ -461,7 +576,7 @@ export function TeacherClassAttendanceSheet({
                 disabled={!canMoveToPreviousSession}
                 onClick={() => {
                   if (canMoveToPreviousSession && previousSessionDate)
-                    setSessionDate(previousSessionDate);
+                    selectSessionDate(previousSessionDate);
                 }}
               >
                 جلسه قبل
@@ -473,13 +588,8 @@ export function TeacherClassAttendanceSheet({
                   min={semesterStartsOn}
                   max={semesterEndsOn}
                   onChange={(date) =>
-                    setSessionDate(
-                      clampTeacherSessionDate(
-                        date,
-                        entry.weekday,
-                        semesterStartsOn,
-                        semesterEndsOn,
-                      ),
+                    selectSessionDate(
+                      clampTeacherEntryDate(entry, date, semesterStartsOn, semesterEndsOn),
                     )
                   }
                 />
@@ -487,7 +597,7 @@ export function TeacherClassAttendanceSheet({
               <Button
                 size="sm"
                 variant="soft"
-                onClick={() => setSessionDate(nearestSessionDate(sessionDate, entry.weekday, 1))}
+                onClick={() => selectSessionDate(nearestSessionDate(sessionDate, entry.weekday, 1))}
                 disabled={!canMoveToNextSession}
               >
                 جلسه بعد
@@ -498,6 +608,13 @@ export function TeacherClassAttendanceSheet({
             <div className="mt-5">
               <EmptyState title="برای این برنامه کلاس مشخص نشده است." />
             </div>
+          ) : !isTeacherScheduleDate(entry, sessionDate) ? (
+            <div className="mt-5" role="alert">
+              <EmptyState
+                title="تاریخ انتخاب‌شده با برنامهٔ این جلسه هماهنگ نیست."
+                description="تاریخ جلسه را دوباره انتخاب کنید یا برنامهٔ کلاس را بررسی کنید."
+              />
+            </div>
           ) : participants.isLoading ? (
             <div className="mt-5">
               <LoadingState label="در حال دریافت فهرست دانش‌آموزان…" />
@@ -506,20 +623,44 @@ export function TeacherClassAttendanceSheet({
             <div className="mt-5">
               <EmptyState title="فهرست دانش‌آموزان دریافت نشد." />
             </div>
-          ) : !participants.data?.length ? (
+          ) : savedSessionLookup.isError || savedAttendance.isError ? (
+            <div className="mt-5" role="alert">
+              <EmptyState
+                title="وضعیت ثبت‌شدهٔ این جلسه بارگذاری نشد."
+                description="برای جلوگیری از بازنویسی اطلاعات قبلی، تا بارگذاری موفق امکان ثبت وجود ندارد."
+                action={
+                  <Button
+                    variant="soft"
+                    onClick={() => {
+                      void savedSessionLookup.refetch();
+                      if (savedSessionId) void savedAttendance.refetch();
+                    }}
+                  >
+                    تلاش دوباره
+                  </Button>
+                }
+              />
+            </div>
+          ) : !attendanceHydrated ? (
+            <div className="mt-5">
+              <LoadingState label="در حال بازیابی وضعیت ثبت‌شدهٔ جلسه…" />
+            </div>
+          ) : !sessionParticipants.length ? (
             <div className="mt-5">
               <EmptyState title="دانش‌آموز فعالی در این کلاس نیست." />
             </div>
           ) : (
             <>
               <p className="mt-5 text-xs leading-5 text-slate-600 dark:text-slate-300">
-                {sessionDate > isoDay(new Date())
-                  ? "این جلسه هنوز برگزار نشده است؛ حضور و غیاب تا زمان برگزاری غیرفعال است."
-                  : canManage
-                    ? reviewing
-                      ? "انتخاب‌های خود را بررسی کنید و سپس ثبت را تأیید کنید."
-                      : "همه دانش‌آموزان حاضر هستند؛ فقط وضعیت استثناها را تغییر دهید و سپس به بررسی بروید."
-                    : "فهرست دانش‌آموزان این کلاس در اختیار شماست."}
+                {savedAttendance.data?.status === "cancelled"
+                  ? "این جلسه لغو شده و فقط قابل مشاهده است."
+                  : sessionDate > schoolNow.date
+                    ? "این جلسه هنوز برگزار نشده است؛ حضور و غیاب تا زمان برگزاری غیرفعال است."
+                    : canManage
+                      ? reviewing
+                        ? "انتخاب‌های خود را بررسی کنید و سپس ثبت را تأیید کنید."
+                        : "همه دانش‌آموزان حاضر هستند؛ فقط وضعیت استثناها را تغییر دهید و سپس به بررسی بروید."
+                      : "فهرست دانش‌آموزان این کلاس در اختیار شماست."}
               </p>
               {classReviews.length && !reviewing ? (
                 <div className="mt-3 rounded-xl border border-sky-200 bg-sky-50 p-3 text-xs dark:border-sky-900/60 dark:bg-sky-950/25">
@@ -545,7 +686,7 @@ export function TeacherClassAttendanceSheet({
                 className={reviewing ? "hidden" : "mt-3 grid gap-2"}
                 aria-label="فهرست دانش‌آموزان کلاس"
               >
-                {participants.data.map((student) => (
+                {sessionParticipants.map((student) => (
                   <li
                     key={student.id}
                     className={`rounded-2xl border bg-[rgb(var(--surface-muted))] p-3 ${student.outsideSchool ? "border-rose-600 ring-2 ring-rose-400/60 dark:border-rose-400 dark:ring-rose-500/50" : recentAbsenceCounts[student.id] ? "border-amber-400 ring-1 ring-amber-300/70 dark:border-amber-500 dark:ring-amber-500/40" : "border-[rgb(var(--border-subtle))]"}`}
@@ -740,11 +881,11 @@ export function TeacherClassAttendanceSheet({
                     </p>
                   ) : null}
                   <p className="text-sm">
-                    {Object.keys(marks).length} از {participants.data.length} نفر تعیین وضعیت
+                    {Object.keys(marks).length} از {sessionParticipants.length} نفر تعیین وضعیت
                     شده‌اند.
                   </p>
                   <ul className="grid gap-2">
-                    {participants.data
+                    {sessionParticipants
                       .filter((student) => marks[student.id])
                       .map((student) => (
                         <li
@@ -762,7 +903,7 @@ export function TeacherClassAttendanceSheet({
                         </li>
                       ))}
                   </ul>
-                  {Object.keys(marks).length < participants.data.length ? (
+                  {Object.keys(marks).length < sessionParticipants.length ? (
                     <p className="rounded-xl bg-amber-50 p-3 text-sm text-amber-900 dark:bg-amber-950 dark:text-amber-100">
                       افراد تعیین‌وضعیت‌نشده غایب محسوب نمی‌شوند و در این ثبت ارسال نمی‌شوند.
                     </p>

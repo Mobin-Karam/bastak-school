@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { ArrowLeft, CalendarClock, Clock3, MapPin } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
@@ -11,7 +11,6 @@ import {
 import { todayIso } from "../../../../shared/lib/utils";
 import { useLocale } from "../../../../shared/ui/locale";
 import { Button, Card, EmptyState, LoadingState } from "../../../../shared/ui/ui";
-import { notify } from "../../../../shared/ui/notifications";
 import { getAdminDashboard } from "../../../analytics/dashboard/api/dashboard.api";
 import { CurrentPrayerCard } from "../../../analytics/school-home/components/CurrentPrayerCard";
 import { TeacherClassAttendanceSheet } from "../components/TeacherClassAttendanceSheet";
@@ -20,10 +19,7 @@ import {
   nextTeacherScheduleEntry,
   tehranDateWithOffset,
 } from "../model/teacher-dashboard-schedule";
-import {
-  listTeacherLeaveRequests,
-  requestTeacherLeaveReturn,
-} from "../../../academics/schedule/api/teacher-leave.api";
+import { listTeacherLeaveRequests } from "../../../academics/schedule/api/teacher-leave.api";
 
 function tehranClockMinutes(date: Date) {
   const parts = new Intl.DateTimeFormat("en-GB", {
@@ -45,7 +41,6 @@ function clockMinutes(time: string) {
 /** The teacher's class-first home; schedule and roster data remain server-scoped. */
 export function TeacherDashboard() {
   const auth = useAuth();
-  const client = useQueryClient();
   const { formatDate } = useLocale();
   const [now, setNow] = useState(() => new Date());
   const [selectedClass, setSelectedClass] = useState<ScheduleEntry | null>(null);
@@ -107,15 +102,6 @@ export function TeacherDashboard() {
       leave.endDate >= today &&
       !(leave.returnStatus === "approved" && leave.returnDate && leave.returnDate <= today),
   );
-  const requestReturn = useMutation({
-    mutationFn: (leaveId: string) => requestTeacherLeaveReturn(leaveId, { returnDate: today }),
-    onSuccess: () => {
-      void client.invalidateQueries({ queryKey: ["teacher-leaves"] });
-      notify("درخواست بازگشت برای بررسی مدیر ارسال شد.", "success");
-    },
-    onError: (error) =>
-      notify(error instanceof Error ? error.message : "ارسال درخواست بازگشت انجام نشد.", "error"),
-  });
   // Keep the teacher's planned classes visible during leave. Opening one is a
   // deliberate early-return path: attendance stays server-frozen until the
   // principal approves the return request, then the same session can resume.
@@ -304,7 +290,7 @@ export function TeacherDashboard() {
         entry={selectedClass}
         open={Boolean(selectedClass)}
         onOpenChange={(open) => !open && setSelectedClass(null)}
-        canManage={auth.can("attendance.manage")}
+        canManage={auth.can("attendance.manage") || auth.can("attendance.class.manage")}
         semesterStartsOn={activeAcademicTerm?.startsOn}
         semesterEndsOn={activeAcademicTerm?.endsOn}
         initialDate={selectedClassDate}

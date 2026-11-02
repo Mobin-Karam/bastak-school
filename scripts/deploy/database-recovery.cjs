@@ -7,6 +7,11 @@ const Database = require("better-sqlite3");
 // failed rehearsal, not an implicit permission to transform live data. This is
 // intentionally self-contained because production streams this helper to Node.
 const expectations = {
+  // Historical reviews predate revision idempotency. They remain nullable and
+  // untouched; only reviews created after this migration receive a key.
+  AttendanceRevisionReviewIdempotency1763600400000: {
+    "attendance_session_reviews.dedupeKey": { nullable: true, value: "null" },
+  },
   // Existing sessions remain valid; activity is populated on their next secure use.
   SessionLastSeenAt1763500000000: {
     "sessions.lastSeenAt": { nullable: true, value: "null" },

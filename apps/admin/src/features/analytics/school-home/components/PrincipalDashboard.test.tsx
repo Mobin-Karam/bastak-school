@@ -15,6 +15,7 @@ import {
   getDormAttendanceReviewQueue,
   updateAttendancePolicy,
 } from "../../../student-life/attendance/api/attendance-operations.api";
+import { listAttendanceAbsenceReviews } from "../../../student-life/attendance/api/attendance.api";
 import { PrincipalDashboard } from "./PrincipalDashboard";
 
 const authCan = vi.hoisted(() => vi.fn((capability: string) => capability === "attendance.review"));
@@ -36,6 +37,7 @@ vi.mock("../../../student-life/attendance/api/attendance.api", () => ({
   listAttendanceAbsenceReviews: vi.fn().mockResolvedValue([]),
   markDormAbsenceOutsideSchool: vi.fn(),
   reviewAttendanceAbsence: vi.fn(),
+  sendAttendanceAbsenceMessage: vi.fn(),
 }));
 vi.mock("../../../student-life/attendance/api/attendance-operations.api", () => ({
   getAttendancePolicy: vi.fn(),
@@ -77,6 +79,7 @@ const sessionDetail = {
   assignedStaffName: "استاد",
   submittedAt: null,
   submittedById: null,
+  review: null,
   roster: [
     { id: "student-a", name: "علی رضایی", nationalCode: null, userId: null },
     { id: "student-b", name: "رضا احمدی", nationalCode: null, userId: null },
@@ -156,6 +159,7 @@ const dashboardData = {
         title: "پایه اول",
         sessionDate: "2026-10-21T08:00:00.000Z",
         status: "submitted",
+        revision: 1,
         expected: 1,
         marked: 1,
         present: 0,
@@ -200,7 +204,9 @@ describe("PrincipalDashboard", () => {
     vi.mocked(getPrincipalDashboard).mockResolvedValue(dashboardData);
     vi.mocked(reviewAttendanceSession).mockResolvedValue({
       sessionId: "session-a",
+      revision: 1,
       reviewedAt: "2026-10-21T09:00:00.000Z",
+      alreadyReviewed: false,
     });
     vi.mocked(getAttendanceSessionForReview).mockResolvedValue(sessionDetail);
     vi.mocked(getReviewablePresentSessions).mockResolvedValue([]);
@@ -309,7 +315,11 @@ describe("PrincipalDashboard", () => {
     await user.click(submit);
 
     await waitFor(() =>
-      expect(reviewAttendanceSession).toHaveBeenCalledWith("session-a", "علت غیبت را پیگیری کنید."),
+      expect(reviewAttendanceSession).toHaveBeenCalledWith(
+        "session-a",
+        1,
+        "علت غیبت را پیگیری کنید.",
+      ),
     );
   });
 
@@ -323,7 +333,34 @@ describe("PrincipalDashboard", () => {
     });
     expect(autoArchive).toBeEnabled();
     await user.click(autoArchive);
-    await waitFor(() => expect(reviewAttendanceSession).toHaveBeenCalledWith("present-a"));
+    await waitFor(() => expect(reviewAttendanceSession).toHaveBeenCalledWith("present-a", 2));
+  });
+
+  it("separates class absence decisions into their own principal queue", async () => {
+    vi.mocked(listAttendanceAbsenceReviews).mockResolvedValue([
+      {
+        id: "absence-a",
+        sessionId: "session-a",
+        studentId: "student-a",
+        studentName: "علی رضایی",
+        status: "absent",
+        reason: "بدون توضیح",
+        reviewStatus: "pending",
+        reviewNote: "",
+        reviewedAt: null,
+        sessionDate: "2026-10-21T08:00:00.000Z",
+        contextType: "class",
+        contextId: "class-a",
+        organizationId: "school-a",
+        organizationName: "مدرسه",
+        teacherName: "استاد",
+      },
+    ]);
+    const user = userEvent.setup();
+    renderDashboard();
+    await user.click(await screen.findByRole("button", { name: /غیبت دانش‌آموزان/ }));
+    expect(await screen.findByText("علی رضایی")).toBeVisible();
+    expect(listAttendanceAbsenceReviews).toHaveBeenCalledWith("school-a", "class");
   });
 
   it("persists the review-mode switch immediately", async () => {

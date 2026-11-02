@@ -96,7 +96,17 @@ describe("TeacherClassAttendanceSheet", () => {
     renderSheet();
 
     await waitFor(() => {
-      expect(getAttendanceParticipantsMock).toHaveBeenCalledWith("class", "class-1");
+      const scheduledDate = latestTeacherSessionDate(
+        new Date().toISOString().slice(0, 10),
+        entry.weekday,
+      );
+      expect(getAttendanceParticipantsMock).toHaveBeenCalledWith("class", "class-1", {
+        scheduleEntryId: "schedule-1",
+        date: scheduledDate,
+      });
+      expect(getMock).toHaveBeenCalledWith(
+        expect.stringContaining(`date=${encodeURIComponent(scheduledDate)}`),
+      );
     });
 
     const dialog = screen.getByRole("dialog", { name: "ریاضی دهم" });
@@ -109,6 +119,91 @@ describe("TeacherClassAttendanceSheet", () => {
         name: "ح · حاضر",
       }),
     ).toHaveAttribute("aria-pressed", "true");
+  });
+  it("hydrates saved marks from the saved roster before enabling revision", async () => {
+    let resolveSavedAttendance!: (value: {
+      roster: Array<{
+        id: string;
+        name: string;
+        nationalCode: string | null;
+        userId: string | null;
+      }>;
+      rosterComplete: boolean;
+      records: Array<{ studentId: string; legacyStatus: "present" | "absent"; note: string }>;
+    }) => void;
+    getMock.mockImplementation((path: string) => {
+      if (path.startsWith("/attendance/legacy-schedule-session?"))
+        return Promise.resolve({ id: "session-1", revision: 3 });
+      if (path === "/attendance/sessions/session-1")
+        return new Promise((resolve) => {
+          resolveSavedAttendance = resolve;
+        });
+      return Promise.resolve([]);
+    });
+    getAttendanceParticipantsMock.mockResolvedValue([
+      { id: "new-student", name: "دانش‌آموز جدید" },
+    ]);
+    listMyAttendanceAbsenceReviewsMock.mockResolvedValue([]);
+
+    renderSheet();
+
+    expect(await screen.findByText("در حال بازیابی وضعیت ثبت‌شدهٔ جلسه…")).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "بررسی و ثبت حضور و غیاب" }),
+    ).not.toBeInTheDocument();
+
+    resolveSavedAttendance({
+      roster: [
+        {
+          id: "former-student",
+          name: "دانش‌آموز سابق",
+          nationalCode: null,
+          userId: null,
+        },
+      ],
+      rosterComplete: true,
+      records: [{ studentId: "former-student", legacyStatus: "absent", note: "غیبت ثبت‌شده" }],
+    });
+
+    const group = await screen.findByRole("group", { name: "وضعیت حضور دانش‌آموز سابق" });
+    expect(within(group).getByRole("button", { name: "غ · غایب" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    expect(screen.queryByText("دانش‌آموز جدید")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "بررسی و ثبت حضور و غیاب" })).toBeEnabled();
+  });
+  it("keeps a cancelled occurrence readable but not editable", async () => {
+    getMock.mockImplementation((path: string) => {
+      if (path.startsWith("/attendance/legacy-schedule-session?"))
+        return Promise.resolve({ id: "session-cancelled", revision: 1 });
+      if (path === "/attendance/sessions/session-cancelled")
+        return Promise.resolve({
+          status: "cancelled",
+          roster: [
+            {
+              id: "student-1",
+              name: "علی رضایی",
+              nationalCode: null,
+              userId: null,
+            },
+          ],
+          rosterComplete: true,
+          records: [{ studentId: "student-1", legacyStatus: "present", note: "" }],
+        });
+      return Promise.resolve([]);
+    });
+    getAttendanceParticipantsMock.mockResolvedValue([{ id: "student-1", name: "علی رضایی" }]);
+    listMyAttendanceAbsenceReviewsMock.mockResolvedValue([]);
+
+    renderSheet();
+
+    expect(await screen.findByText("علی رضایی")).toBeInTheDocument();
+    expect(await screen.findByText("این جلسه لغو شده و فقط قابل مشاهده است.")).toBeInTheDocument();
+    expect(screen.queryByRole("group", { name: "وضعیت حضور علی رضایی" })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "بررسی و ثبت حضور و غیاب" }),
+    ).not.toBeInTheDocument();
   });
   it("preserves the selected mark and exact request when retrying a failed save", async () => {
     bulkMarkAttendanceMock.mockClear();

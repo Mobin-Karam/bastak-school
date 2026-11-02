@@ -33,6 +33,12 @@ export class OpenLegacyScheduleAttendanceDto {
   @IsDateString({ strict: true })
   date!: string;
 }
+export class TeacherWeekAttendanceSummaryQueryDto {
+  @IsUUID() organizationId!: string;
+  @Matches(/^\d{4}-\d{2}-\d{2}$/)
+  @IsDateString({ strict: true })
+  weekStart!: string;
+}
 export class CreateHistoricalAttendanceSessionDto {
   @IsUUID() organizationId!: string;
   @IsUUID() academicYearId!: string;
@@ -103,6 +109,18 @@ export class ReviewAttendanceAbsenceDto {
   decision!: "approved" | "rejected";
 
   @IsOptional() @IsString() @MaxLength(500) note?: string;
+}
+
+/** A principal's operational message about selected absences in one class session. */
+export class SendAttendanceAbsenceMessageDto {
+  @IsArray()
+  @ArrayMinSize(1)
+  @ArrayMaxSize(500)
+  @ArrayUnique()
+  @IsUUID("4", { each: true })
+  recordIds!: string[];
+
+  @IsString() @MinLength(1) @MaxLength(500) message!: string;
 }
 
 export class AwardAttendancePointsDto {
@@ -200,6 +218,7 @@ export class SubmitAttendanceAbsencesDto {
 export class FinalizeAttendanceSessionDto {
   @IsUUID() requestId!: string;
   @IsInt() @Min(0) expectedRevision!: number;
+  @IsOptional() @IsString() @MaxLength(500) message?: string;
 }
 
 /** Cancelling preserves the session/audit evidence but blocks all marking. */
@@ -232,6 +251,8 @@ export class UpdateAttendancePolicyDto {
 
 export class DailyAttendanceReviewDto {
   @IsOptional() @IsString() @MaxLength(500) message?: string;
+  /** Used by the legacy finalization endpoint to preserve optimistic locking. */
+  @IsOptional() @IsInt() @Min(0) expectedRevision?: number;
 }
 
 export class ReviewAttendanceCorrectionDto {

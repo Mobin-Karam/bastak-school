@@ -29,6 +29,16 @@ export type AttendanceContextOption = {
   floor?: number;
 };
 
+export type TeacherWeekAttendanceSummary = {
+  entryId: string;
+  date: string;
+  attendanceRecorded: boolean;
+  rosterCount: number;
+  unmarkedCount: number;
+  pastUnmarkedCount: number | null;
+  mostRecentUnmarkedDate: string | null;
+};
+
 export const contextLabelMap: Record<AttendanceContextType | "pool" | "night", string> = {
   class: "کلاس",
   class_group: "گروه کلاس",
@@ -45,12 +55,28 @@ export const listAttendanceContexts = (organizationId?: string) =>
     `/attendance/contexts${organizationId ? `?organizationId=${encodeURIComponent(organizationId)}` : ""}`,
   );
 
+export const getTeacherWeekAttendanceSummary = (organizationId: string, weekStart: string) =>
+  api.get<TeacherWeekAttendanceSummary[]>(
+    `/attendance/teacher-week-summary?${new URLSearchParams({ organizationId, weekStart })}`,
+  );
+
 export const getAttendanceParticipants = (
   contextType: AttendanceContextType,
   contextId: string,
-  occurrence?: { date?: string; period?: "day" | "night" },
-) =>
-  api.get<
+  occurrence?: {
+    date?: string;
+    period?: "day" | "night";
+    scheduleEntryId?: string;
+  },
+) => {
+  const query = new URLSearchParams();
+  if (occurrence?.date) {
+    query.set("date", occurrence.date);
+    query.set("period", occurrence.period ?? "night");
+  }
+  if (occurrence?.scheduleEntryId) query.set("scheduleEntryId", occurrence.scheduleEntryId);
+  const search = query.toString();
+  return api.get<
     Array<{
       id: string;
       name: string;
@@ -64,8 +90,9 @@ export const getAttendanceParticipants = (
       outsidePresenceReported?: boolean;
     }>
   >(
-    `/attendance/context/${encodeURIComponent(contextType)}/${encodeURIComponent(contextId)}/participants${occurrence?.date ? `?${new URLSearchParams({ date: occurrence.date, period: occurrence.period ?? "night" }).toString()}` : ""}`,
+    `/attendance/context/${encodeURIComponent(contextType)}/${encodeURIComponent(contextId)}/participants${search ? `?${search}` : ""}`,
   );
+};
 
 export type AttendanceBulkMarkRequest = {
   expectedRevision?: number;
@@ -84,7 +111,7 @@ export type AttendanceBulkMarkRequest = {
 };
 
 export const bulkMarkAttendance = (body: AttendanceBulkMarkRequest) =>
-  api.post<{ sessionId: string; count: number }>("/attendance/bulk-mark", body);
+  api.post<{ sessionId: string; revision: number; count: number }>("/attendance/bulk-mark", body);
 
 export type SupervisorAttendanceSession = {
   id: string;
@@ -146,6 +173,7 @@ export const listSupervisorComparisons = () =>
 
 export type AttendanceAbsenceReview = {
   id: string;
+  sessionId: string;
   studentId: string;
   studentName: string;
   status: "present" | "absent" | "late" | "excused";
@@ -179,6 +207,15 @@ export const reviewAttendanceAbsence = (
   body: { decision: "approved" | "rejected"; note?: string },
 ) =>
   api.patch<AttendanceAbsenceReview>(`/attendance/absence-reviews/${encodeURIComponent(id)}`, body);
+
+export const sendAttendanceAbsenceMessage = (
+  id: string,
+  body: { recordIds: string[]; message: string },
+) =>
+  api.post<{ recipientCount: number; studentCount: number }>(
+    `/attendance/absence-reviews/${encodeURIComponent(id)}/message`,
+    body,
+  );
 
 export const markDormAbsenceOutsideSchool = (id: string, note?: string) =>
   api.post(`/attendance/absence-reviews/${encodeURIComponent(id)}/outside-school`, { note });

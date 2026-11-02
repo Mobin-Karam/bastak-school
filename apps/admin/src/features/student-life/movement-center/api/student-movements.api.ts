@@ -29,6 +29,14 @@ export type StudentMovement = {
   exit: ExitPermission | null;
 };
 
+/**
+ * A linked leave and exit have different identifiers. History must always use
+ * the identifier belonging to the endpoint kind; otherwise an exit history
+ * lookup can accidentally send the linked leave-request id.
+ */
+export const movementHistoryId = (movement: Pick<StudentMovement, "kind" | "leave" | "exit">) =>
+  movement.kind === "leave" ? (movement.leave?.id ?? null) : (movement.exit?.id ?? null);
+
 export type StudentMovementResult = {
   counts: {
     pendingLongLeaves: number;

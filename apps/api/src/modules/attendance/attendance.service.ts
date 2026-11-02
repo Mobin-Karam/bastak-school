@@ -80,9 +80,11 @@ import {
   BulkMarkAttendanceDto,
   CreateAttendanceSessionDto,
   OpenLegacyScheduleAttendanceDto,
+  TeacherWeekAttendanceSummaryQueryDto,
   CreateHistoricalAttendanceSessionDto,
   HistoricalAttendanceCandidatesQueryDto,
   ReviewAttendanceAbsenceDto,
+  SendAttendanceAbsenceMessageDto,
   DailyAttendanceReviewDto,
   AwardAttendancePointsDto,
   SetAttendanceSessionStudentCoinDto,
@@ -213,6 +215,16 @@ export class AttendanceService {
     });
     const roster = session.rosterSnapshot ?? [];
     const expected = session.rosterSnapshot == null ? null : roster.length;
+    const currentReviewRows = (await this.sessions.manager.query(
+      "SELECT reviewedRevision, reviewedAt, reviewerId, teacherMessage FROM attendance_session_reviews WHERE sessionId=? AND reviewedRevision=? ORDER BY reviewedAt DESC LIMIT 1",
+      [session.id, session.revision],
+    )) as Array<{
+      reviewedRevision: number;
+      reviewedAt: string;
+      reviewerId: string | null;
+      teacherMessage: string | null;
+    }>;
+    const currentReview = currentReviewRows[0] ?? null;
     // This detail endpoint is read-only until the revision-based writer is installed.
     const canManage = false;
     return {
@@ -243,6 +255,14 @@ export class AttendanceService {
       assignedStaffName: session.assignedStaffNameSnapshot || "",
       submittedAt: session.submittedAt?.toISOString() ?? null,
       submittedById: session.submittedBy?.id ?? null,
+      review: currentReview
+        ? {
+            reviewedRevision: Number(currentReview.reviewedRevision),
+            reviewedAt: currentReview.reviewedAt,
+            reviewerId: currentReview.reviewerId ?? null,
+            teacherMessage: currentReview.teacherMessage ?? "",
+          }
+        : null,
       roster,
       rosterComplete: expected !== null,
       records: records.map((record) => ({
@@ -830,6 +850,34 @@ export class AttendanceService {
   }
 
   /** Schedule owns occurrence identity; attendance owns roster and historical snapshots. */
+  private isLegacyScheduleOccurrence(entry: SchoolScheduleEntry, date: string) {
+    const day = new Date(`${date}T12:00:00.000Z`);
+    if ((day.getUTCDay() + 1) % 7 !== entry.weekday) return false;
+    if (
+      (entry.startsOn && date < entry.startsOn) ||
+      (entry.endsOn && date > entry.endsOn)
+    )
+      return false;
+    return (
+      entry.status !== "REPLACED" ||
+      (entry.startsOn === date && entry.endsOn === date)
+    );
+  }
+
+  private isAssignedScheduledTeacher(
+    user: AuthenticatedUser,
+    session: AttendanceSession | null,
+  ) {
+    return Boolean(
+      session &&
+      ["class_schedule", "legacy_schedule"].includes(
+        session.sourceKind ?? "",
+      ) &&
+      session.assignedStaff?.id === user.id &&
+      user.capabilities?.includes("attendance.class.manage"),
+    );
+  }
+
   async openLegacyScheduleSession(
     user: AuthenticatedUser,
     dto: OpenLegacyScheduleAttendanceDto,
@@ -837,7 +885,10 @@ export class AttendanceService {
     const entry = await this.sessions.manager
       .getRepository(SchoolScheduleEntry)
       .findOne({
-        where: { id: dto.entryId, status: "ACTIVE" },
+        where: {
+          id: dto.entryId,
+          status: In(["ACTIVE", "REPLACED", "ARCHIVED"]),
+        },
         relations: {
           organization: true,
           classroom: true,
@@ -845,12 +896,7 @@ export class AttendanceService {
           classBook: { book: true, teacher: true },
         },
       });
-    if (
-      !entry?.organization ||
-      !entry.classroom ||
-      !entry.termId ||
-      !entry.academicYearId
-    )
+    if (!entry?.organization || !entry.classroom)
       throw new ApiException(
         422,
         "ATTENDANCE_LEGACY_SCHEDULE_SCOPE",
@@ -862,44 +908,11 @@ export class AttendanceService {
     const isAssignedTeacher =
       teacherId === user.id &&
       user.capabilities?.includes("attendance.class.manage");
-    if (!isAssignedTeacher)
-      await this.assertContextAccess(
-        user,
-        "class",
-        entry.classroom.id,
-        organizationId,
-        true,
-      );
-    const year = await this.sessions.manager
-      .getRepository(SchoolAcademicYear)
-      .findOneBy({ id: entry.academicYearId, organizationId });
-    const term = await this.sessions.manager
-      .getRepository(SchoolAcademicTerm)
-      .findOneBy({ id: entry.termId, academicYearId: entry.academicYearId });
-    if (
-      !year ||
-      !term ||
-      year.state === "ARCHIVED" ||
-      term.state === "ARCHIVED" ||
-      term.correctionOpen
-    )
-      throw new ApiException(
-        409,
-        "ATTENDANCE_TERM_LOCKED",
-        "نیم‌سال انتخاب‌شده برای ثبت جلسهٔ جدید باز نیست.",
-      );
-    if (dto.date < term.startsOn || dto.date > term.endsOn)
+    if (!this.isLegacyScheduleOccurrence(entry, dto.date))
       throw new ApiException(
         422,
-        "ATTENDANCE_TERM_DATE",
-        "تاریخ جلسه خارج از نیم‌سال است.",
-      );
-    const weekday = (new Date(`${dto.date}T12:00:00Z`).getUTCDay() + 1) % 7;
-    if (weekday !== entry.weekday)
-      throw new ApiException(
-        422,
-        "ATTENDANCE_LEGACY_WEEKDAY",
-        "تاریخ انتخاب‌شده با روز این جلسه هماهنگ نیست.",
+        "ATTENDANCE_LEGACY_OCCURRENCE_DATE",
+        "تاریخ انتخاب‌شده خارج از برنامهٔ این جلسه است.",
       );
     let startsAt: Date;
     let endsAt: Date;
@@ -922,13 +935,66 @@ export class AttendanceService {
     const occurrenceKey = `legacy-schedule:${entry.id}:${dto.date}`;
     const existing = await this.sessions.findOne({
       where: { organization: { id: organizationId }, occurrenceKey },
+      relations: { assignedStaff: true },
     });
+    const isSavedAssignedTeacher =
+      existing?.sourceKind === "legacy_schedule" &&
+      existing.sourceScheduleId === entry.id &&
+      existing.assignedStaff?.id === user.id &&
+      user.capabilities?.includes("attendance.class.manage");
+    if (!isAssignedTeacher && !isSavedAssignedTeacher)
+      await this.assertContextAccess(
+        user,
+        "class",
+        entry.classroom.id,
+        organizationId,
+        true,
+      );
     if (existing)
       return { id: existing.id, revision: existing.revision, duplicate: true };
+    if (!entry.termId || !entry.academicYearId)
+      throw new ApiException(
+        422,
+        "ATTENDANCE_LEGACY_SCHEDULE_SCOPE",
+        "جلسهٔ برنامه باید سال و نیم‌سال داشته باشد.",
+      );
+    const year = await this.sessions.manager
+      .getRepository(SchoolAcademicYear)
+      .findOneBy({ id: entry.academicYearId, organizationId });
+    const term = await this.sessions.manager
+      .getRepository(SchoolAcademicTerm)
+      .findOneBy({ id: entry.termId, academicYearId: entry.academicYearId });
+    if (!year || !term)
+      throw new ApiException(
+        409,
+        "ATTENDANCE_TERM_LOCKED",
+        "سال و نیم‌سال این جلسه در دسترس نیست.",
+      );
+    if (dto.date < term.startsOn || dto.date > term.endsOn)
+      throw new ApiException(
+        422,
+        "ATTENDANCE_TERM_DATE",
+        "تاریخ جلسه خارج از نیم‌سال است.",
+      );
+    if (
+      year.state === "ARCHIVED" ||
+      term.state === "ARCHIVED" ||
+      term.correctionOpen
+    ) {
+      if (!isAssignedTeacher || endsAt.getTime() > Date.now())
+        throw new ApiException(
+          409,
+          "ATTENDANCE_TERM_LOCKED",
+          "نیم‌سال انتخاب‌شده برای ثبت جلسهٔ جدید باز نیست.",
+        );
+    }
     const roster = await this.listParticipants(
       user,
       "class",
       entry.classroom.id,
+      dto.date,
+      "night",
+      entry.id,
     );
     const row = await this.sessions.save(
       this.sessions.create({
@@ -1000,7 +1066,10 @@ export class AttendanceService {
     const entry = await this.sessions.manager
       .getRepository(SchoolScheduleEntry)
       .findOne({
-        where: { id: dto.entryId },
+        where: {
+          id: dto.entryId,
+          status: In(["ACTIVE", "REPLACED", "ARCHIVED"]),
+        },
         relations: {
           organization: true,
           classroom: true,
@@ -1015,8 +1084,26 @@ export class AttendanceService {
         "جلسه برنامه پیدا نشد.",
       );
     this.assertWorkOrganization(user, entry.organization.id);
+    if (!this.isLegacyScheduleOccurrence(entry, dto.date))
+      throw new ApiException(
+        422,
+        "ATTENDANCE_LEGACY_OCCURRENCE_DATE",
+        "تاریخ انتخاب‌شده خارج از برنامهٔ این جلسه است.",
+      );
+    const row = await this.sessions.findOne({
+      where: {
+        organization: { id: entry.organization.id },
+        occurrenceKey: `legacy-schedule:${entry.id}:${dto.date}`,
+      },
+      relations: { assignedStaff: true },
+    });
     const teacherId = entry.teacher?.id ?? entry.classBook?.teacher?.id;
-    if (teacherId !== user.id)
+    const isSavedAssignedTeacher =
+      row?.sourceKind === "legacy_schedule" &&
+      row.sourceScheduleId === entry.id &&
+      row.assignedStaff?.id === user.id &&
+      user.capabilities?.includes("attendance.class.manage");
+    if (teacherId !== user.id && !isSavedAssignedTeacher)
       await this.assertContextAccess(
         user,
         "class",
@@ -1024,12 +1111,6 @@ export class AttendanceService {
         entry.organization.id,
         false,
       );
-    const row = await this.sessions.findOne({
-      where: {
-        organization: { id: entry.organization.id },
-        occurrenceKey: `legacy-schedule:${entry.id}:${dto.date}`,
-      },
-    });
     return row ? { id: row.id, revision: row.revision } : null;
   }
 
@@ -1166,13 +1247,25 @@ export class AttendanceService {
   private async assertAcademicSessionWritable(
     manager: EntityManager,
     session: AttendanceSession | null,
+    user: AuthenticatedUser,
   ) {
     if (!session?.academicYearIdSnapshot || !session.termIdSnapshot) return;
     const term = await manager.getRepository(SchoolAcademicTerm).findOneBy({
       id: session.termIdSnapshot,
       academicYearId: session.academicYearIdSnapshot,
     });
-    if (!term || (term.state === "ARCHIVED" && !term.correctionOpen))
+    const assignedTeacherCanRevise =
+      this.isAssignedScheduledTeacher(user, session) &&
+      Boolean(
+        session?.scheduledEndAt &&
+        session.scheduledEndAt.getTime() <= Date.now(),
+      );
+    if (
+      !term ||
+      (term.state === "ARCHIVED" &&
+        !term.correctionOpen &&
+        !assignedTeacherCanRevise)
+    )
       throw new ApiException(
         409,
         "ATTENDANCE_TERM_ARCHIVED",
@@ -1786,7 +1879,7 @@ export class AttendanceService {
     dto: FinalizeAttendanceSessionDto,
   ) {
     this.assertReviewAccess(user);
-    return this.attendanceTransaction(async (manager) => {
+    await this.attendanceTransaction(async (manager) => {
       const session = await manager.getRepository(AttendanceSession).findOne({
         where: { id: sessionId },
         relations: { organization: true },
@@ -1804,13 +1897,7 @@ export class AttendanceService {
         session.organization.id,
         true,
       );
-      if (session.status === "finalized")
-        return {
-          sessionId: session.id,
-          revision: session.revision,
-          status: session.status,
-        };
-      if (session.status !== "submitted")
+      if (session.status !== "submitted" && session.status !== "finalized")
         throw new ApiException(
           409,
           "ATTENDANCE_SESSION_NOT_SUBMITTED",
@@ -1822,28 +1909,13 @@ export class AttendanceService {
           "ATTENDANCE_SESSION_STALE",
           "نسخه جلسه تغییر کرده است؛ دوباره بارگذاری کنید.",
         );
-      session.status = "finalized";
-      session.revision++;
-      await manager.save(session);
-      await manager.save(
-        AuditLog,
-        manager.create(AuditLog, {
-          user: { id: user.id },
-          action: "attendance.session.finalized",
-          entity: "attendance",
-          organizationId: session.organization.id,
-          metadata: {
-            sessionId,
-            requestId: dto.requestId,
-            revision: session.revision,
-          },
-        }),
-      );
-      return {
-        sessionId: session.id,
-        revision: session.revision,
-        status: session.status,
-      };
+      // Finalization is revision review, not an additional session lifecycle
+      // transition. Teachers may later correct the occurrence, which creates a
+      // new revision that must be reviewed independently.
+    });
+    return this.reviewSessionEvery24Hours(user, sessionId, {
+      message: dto.message,
+      expectedRevision: dto.expectedRevision,
     });
   }
 
@@ -1887,6 +1959,30 @@ export class AttendanceService {
           "فقط جلسه ثبت‌شده قابل بازبینی است.",
         );
 
+      if (
+        dto.expectedRevision !== undefined &&
+        session.revision !== dto.expectedRevision
+      )
+        throw new ApiException(
+          409,
+          "ATTENDANCE_SESSION_STALE",
+          "نسخه جلسه تغییر کرده است؛ دوباره بارگذاری کنید.",
+        );
+
+      const dedupeKey = `attendance-review:${session.id}:${session.revision}`;
+      const existingReview = (await manager.query(
+        "SELECT id, reviewedAt FROM attendance_session_reviews WHERE dedupeKey=? OR (sessionId=? AND reviewedRevision=?) ORDER BY reviewedAt DESC LIMIT 1",
+        [dedupeKey, session.id, session.revision],
+      )) as Array<{ id: string; reviewedAt: string }>;
+      if (existingReview[0])
+        return {
+          sessionId: session.id,
+          revision: session.revision,
+          status: session.status,
+          reviewedAt: existingReview[0].reviewedAt,
+          alreadyReviewed: true,
+        };
+
       const absentCount = await manager.getRepository(AttendanceRecord).count({
         where: { session: { id: session.id }, physicalStatus: "absent" },
       });
@@ -1913,17 +2009,32 @@ export class AttendanceService {
       }));
 
       const reviewedAt = new Date();
+      const reviewId = randomUUID();
       await manager.query(
-        "INSERT INTO attendance_session_reviews(id,sessionId,reviewerId,reviewedRevision,reviewedAt,teacherMessage) VALUES(?,?,?,?,?,?)",
+        "INSERT INTO attendance_session_reviews(id,sessionId,reviewerId,reviewedRevision,reviewedAt,teacherMessage,dedupeKey) VALUES(?,?,?,?,?,?,?) ON CONFLICT(dedupeKey) DO NOTHING",
         [
-          randomUUID(),
+          reviewId,
           session.id,
           user.id,
           session.revision,
           reviewedAt.toISOString(),
           teacherMessage,
+          dedupeKey,
         ],
       );
+      const persistedReview = (await manager.query(
+        "SELECT id, reviewedAt FROM attendance_session_reviews WHERE dedupeKey=? LIMIT 1",
+        [dedupeKey],
+      )) as Array<{ id: string; reviewedAt: string }>;
+      if (!persistedReview[0] || persistedReview[0].id !== reviewId)
+        return {
+          sessionId: session.id,
+          revision: session.revision,
+          status: session.status,
+          reviewedAt:
+            persistedReview[0]?.reviewedAt ?? reviewedAt.toISOString(),
+          alreadyReviewed: true,
+        };
       const teacherId = session.assignedStaff?.id ?? session.submittedBy?.id;
       if (teacherId && teacherMessage) {
         const studentNames = affectedStudents
@@ -1982,7 +2093,13 @@ export class AttendanceService {
           },
         }),
       );
-      return { sessionId: session.id, reviewedAt: reviewedAt.toISOString() };
+      return {
+        sessionId: session.id,
+        revision: session.revision,
+        status: session.status,
+        reviewedAt: reviewedAt.toISOString(),
+        alreadyReviewed: false,
+      };
     });
   }
 
@@ -2638,7 +2755,18 @@ export class AttendanceService {
           "ATTENDANCE_SESSION_NOT_FOUND",
           "جلسه حضور و غیاب پیدا نشد.",
         );
-      await this.assertAcademicSessionWritable(manager, session);
+      const assignedTeacher = this.isAssignedScheduledTeacher(user, session);
+      if (
+        user.capabilities?.includes("attendance.class.manage") &&
+        !user.capabilities.includes("attendance.manage") &&
+        !assignedTeacher
+      )
+        throw new ApiException(
+          403,
+          "FORBIDDEN",
+          "فقط دبیر واگذارشده می‌تواند حضور این جلسه را ثبت یا اصلاح کند.",
+        );
+      await this.assertAcademicSessionWritable(manager, session, user);
       if (
         session &&
         (["class_schedule", "legacy_schedule", "legacy_import"].includes(
@@ -2658,13 +2786,6 @@ export class AttendanceService {
           "ATTENDANCE_SESSION_CANCELLED",
           "این درس لغو شده است؛ حضور تاریخی فقط قابل مشاهده است.",
         );
-      const assignedTeacher =
-        !!session &&
-        ["class_schedule", "legacy_schedule"].includes(
-          session.sourceKind ?? "",
-        ) &&
-        session.assignedStaff?.id === user.id &&
-        user.capabilities?.includes("attendance.class.manage");
       // A timetable occurrence remains the same historical lesson after its
       // scheduled window closes. Its assigned teacher may correct that saved
       // roster until a reviewer finalizes or cancels it; generic live attendance
@@ -2788,7 +2909,7 @@ export class AttendanceService {
           session.academicYearNameSnapshot ??= dormTerm.academicYear.name;
           session.termIdSnapshot ??= dormTerm.id;
           session.termNameSnapshot ??= dormTerm.name;
-          await this.assertAcademicSessionWritable(manager, session);
+          await this.assertAcademicSessionWritable(manager, session, user);
         }
       }
       if (!session && manualOccurrenceKey) {
@@ -3128,11 +3249,33 @@ export class AttendanceService {
           }),
         );
       const notifications = manager.getRepository(Notification);
-      const reviewRecipients = members.filter((member) =>
-        member.roleAssignments.some((assignment) =>
-          ["PRINCIPAL", "SCHOOL_SUPERVISOR"].includes(assignment.role.code),
-        ),
-      );
+      // A role name is not an authorization decision. Resolve the recipient in
+      // the same organization and work-role context that the dashboard uses,
+      // otherwise a user can receive a review link whose queue is hidden.
+      const reviewRecipients = (
+        await Promise.all(
+          members.map(async (member) => {
+            const reviewRole = member.roleAssignments.find((assignment) =>
+              ["PRINCIPAL", "SCHOOL_SUPERVISOR"].includes(assignment.role.code),
+            )?.role.code;
+            if (!reviewRole) return null;
+            if (typeof this.authorization?.enrich !== "function") return member;
+            const context = await this.authorization.enrich(
+              {
+                id: member.user.id,
+                username: member.user.username,
+                sessionId: `attendance-notification:${session.id}`,
+                role: reviewRole,
+              },
+              reviewRole,
+              organization.id,
+            );
+            return context.capabilities.includes("attendance.review")
+              ? member
+              : null;
+          }),
+        )
+      ).filter((member): member is OrganizationMembership => Boolean(member));
       const notificationEvents: Array<{
         userId: string;
         id: string;
@@ -3237,7 +3380,9 @@ export class AttendanceService {
                 ? "groups"
                 : "sessions";
           const reviewUrl = principalReviewer
-            ? `/admin/dashboard/principal?panel=${panel}`
+            ? `/admin/dashboard/principal?panel=${
+                contextType === "class" ? "absence-reviews" : panel
+              }`
             : `/admin/attendance?section=${contextType === "class_group" ? "class_group" : contextType}`;
           const item = await notifications.save(
             notifications.create({
@@ -3251,7 +3396,10 @@ export class AttendanceService {
               // supervisors retain their scoped attendance workspace.
               url: reviewUrl,
               priority: "high",
-              dedupeKey: `attendance-absence-review:${record.id}:${reviewerId}`,
+              // A correction keeps the same attendance-record id but creates a
+              // new review obligation. Include the record revision so a
+              // principal receives a fresh actionable notification for it.
+              dedupeKey: `attendance-absence-review:${record.id}:${record.revision}:${reviewerId}`,
             }),
           );
           notificationEvents.push({
@@ -4009,6 +4157,140 @@ export class AttendanceService {
     return this.reviewView(saved);
   }
 
+  /**
+   * Sends a principal-only operational instruction to the class teacher about
+   * selected absences. Record ids are validated against the saved class
+   * occurrence on the server, never trusted from the browser.
+   */
+  async sendAbsenceMessage(
+    user: AuthenticatedUser,
+    recordId: string,
+    dto: SendAttendanceAbsenceMessageDto,
+  ) {
+    this.assertReviewAccess(user);
+    const outcome = await this.attendanceTransaction(async (manager) => {
+      const record = await manager.getRepository(AttendanceRecord).findOne({
+        where: { id: recordId },
+        relations: {
+          session: { organization: true, assignedStaff: true },
+          student: { user: true },
+          recordedBy: true,
+        },
+      });
+      if (!record)
+        throw new ApiException(
+          404,
+          "ATTENDANCE_RECORD_NOT_FOUND",
+          "رکورد حضور پیدا نشد.",
+        );
+      if (record.session.contextType !== "class")
+        throw new ApiException(
+          409,
+          "ATTENDANCE_MESSAGE_CLASS_ONLY",
+          "پیام گروهی فقط برای حضور کلاس قابل ارسال است.",
+        );
+      await this.authorizeContext(
+        user,
+        record.session.contextType,
+        record.session.contextId,
+        record.session.organization.id,
+        true,
+      );
+      const message = dto.message.trim();
+      const selectedRecords = await manager
+        .getRepository(AttendanceRecord)
+        .find({
+          where: { id: In(dto.recordIds), session: { id: record.session.id } },
+          relations: { student: true },
+        });
+      if (selectedRecords.length !== dto.recordIds.length)
+        throw new ApiException(
+          422,
+          "ATTENDANCE_MESSAGE_RECORD_SCOPE",
+          "همهٔ دانش‌آموزان انتخاب‌شده باید متعلق به همین جلسه باشند.",
+        );
+      if (selectedRecords.some((row) => row.physicalStatus !== "absent"))
+        throw new ApiException(
+          422,
+          "ATTENDANCE_MESSAGE_RECORD_STATUS",
+          "پیام مدیر فقط برای دانش‌آموزان غایب این جلسه قابل ارسال است.",
+        );
+      const teacherId =
+        record.session.assignedStaff?.id ?? record.recordedBy?.id;
+      if (!teacherId)
+        throw new ApiException(
+          409,
+          "ATTENDANCE_MESSAGE_TEACHER_MISSING",
+          "استاد این جلسه برای دریافت پیام مشخص نیست.",
+        );
+      const studentNames = selectedRecords
+        .map((row) => row.student.name)
+        .join("، ");
+      const messageKey = createHash("sha256")
+        .update(message)
+        .digest("hex")
+        .slice(0, 16);
+      const notifications = manager.getRepository(Notification);
+      const dedupeKey = `attendance-principal-message:${record.session.id}:${record.session.revision}:${messageKey}:${teacherId}`;
+      let created = await notifications.findOne({
+        where: { user: { id: teacherId }, dedupeKey },
+      });
+      if (!created)
+        created = await notifications.save(
+          notifications.create({
+            user: { id: teacherId } as User,
+            organization: record.session.organization,
+            type: NotificationType.MESSAGE,
+            category: "attendance-principal-message",
+            title: "پیام مدیر دربارهٔ غیبت دانش‌آموزان کلاس",
+            body: [`دانش‌آموزان: ${studentNames}`, message].join("\n"),
+            url: "/admin",
+            priority: "high",
+            dedupeKey,
+          }),
+        );
+      await manager.save(
+        AuditLog,
+        manager.create(AuditLog, {
+          user: { id: user.id },
+          action: "attendance.absence.message-sent",
+          entity: "attendance",
+          organizationId: record.session.organization.id,
+          metadata: {
+            sessionId: record.session.id,
+            recordId: record.id,
+            teacherId,
+            recordIds: selectedRecords.map((row) => row.id),
+            message,
+          },
+        }),
+      );
+      return {
+        created,
+        organizationId: record.session.organization.id,
+        studentCount: selectedRecords.length,
+      };
+    });
+    this.realtime.emitToUsers(
+      [outcome.created.user.id],
+      "notification.created",
+      {
+        id: outcome.created.id,
+        title: outcome.created.title,
+        body: outcome.created.body,
+        category: outcome.created.category,
+        url: outcome.created.url ?? "/admin",
+        type: outcome.created.type,
+        priority: outcome.created.priority,
+        organizationId: outcome.organizationId,
+        createdAt: outcome.created.createdAt,
+        readAt: outcome.created.readAt ?? null,
+        isRead: Boolean(outcome.created.readAt),
+      },
+    );
+    return { recipientCount: 1, studentCount: outcome.studentCount };
+  }
+
   async listMyAbsenceReviews(user: AuthenticatedUser) {
     if (!user.activeOrganizationId) return [];
     await this.access.organizationForUser(
@@ -4040,6 +4322,7 @@ export class AttendanceService {
     contextId: string,
     occurrenceDate?: string,
     attendancePeriod: "day" | "night" = "night",
+    scheduleEntryId?: string,
   ) {
     const context = this.context(contextType);
     const organizationId = await this.contextOrganizationId(context, contextId);
@@ -4048,13 +4331,64 @@ export class AttendanceService {
       organizationId,
     );
     this.assertWorkOrganization(user, organizationId);
-    await this.assertContextAccess(
-      user,
-      context,
-      contextId,
-      organizationId,
-      false,
-    );
+    if (scheduleEntryId) {
+      const entry =
+        context === "class"
+          ? await this.sessions.manager
+              .getRepository(SchoolScheduleEntry)
+              .findOne({
+                where: {
+                  id: scheduleEntryId,
+                  status: In(["ACTIVE", "REPLACED", "ARCHIVED"]),
+                },
+                relations: {
+                  organization: true,
+                  classroom: true,
+                  teacher: true,
+                  classBook: { teacher: true },
+                },
+              })
+          : null;
+      const assignedTeacherId =
+        entry?.teacher?.id ?? entry?.classBook?.teacher?.id;
+      const savedOccurrence =
+        entry && occurrenceDate
+          ? await this.sessions.findOne({
+              where: {
+                organization: { id: organizationId },
+                occurrenceKey: `legacy-schedule:${entry.id}:${occurrenceDate}`,
+              },
+              relations: { assignedStaff: true },
+            })
+          : null;
+      const savedAssignedTeacher =
+        savedOccurrence?.sourceKind === "legacy_schedule" &&
+        savedOccurrence.sourceScheduleId === entry?.id &&
+        savedOccurrence.assignedStaff?.id === user.id &&
+        user.capabilities?.includes("attendance.class.manage");
+      if (
+        !entry ||
+        entry.classroom?.id !== contextId ||
+        entry.organization.id !== organizationId ||
+        (assignedTeacherId !== user.id && !savedAssignedTeacher) ||
+        (entry.status !== "ACTIVE" &&
+          (!occurrenceDate ||
+            !this.isLegacyScheduleOccurrence(entry, occurrenceDate)))
+      )
+        throw new ApiException(
+          403,
+          "FORBIDDEN",
+          "فقط دبیر واگذارشده به این جلسه می‌تواند فهرست کلاس را ببیند.",
+        );
+    } else {
+      await this.assertContextAccess(
+        user,
+        context,
+        contextId,
+        organizationId,
+        false,
+      );
+    }
     if (context === "class") {
       const rows = await this.enrollments.find({
         where: { classroom: { id: contextId } },
@@ -4322,6 +4656,218 @@ export class AttendanceService {
     return { items, page, limit, total, hasNext: page * limit < total };
   }
 
+  async teacherWeekAttendanceSummary(
+    user: AuthenticatedUser,
+    query: TeacherWeekAttendanceSummaryQueryDto,
+  ) {
+    this.assertWorkOrganization(user, query.organizationId);
+    await this.access.organizationForUser(
+      this.effectiveUser(user),
+      query.organizationId,
+    );
+    const firstDate = new Date(`${query.weekStart}T12:00:00.000Z`);
+    if (
+      Number.isNaN(firstDate.getTime()) ||
+      (firstDate.getUTCDay() + 1) % 7 !== 0
+    )
+      throw new ApiException(
+        422,
+        "ATTENDANCE_WEEK_START_INVALID",
+        "شروع هفته باید روز شنبه باشد.",
+      );
+    const dates = Array.from({ length: 7 }, (_, index) => {
+      const date = new Date(firstDate);
+      date.setUTCDate(date.getUTCDate() + index);
+      return date.toISOString().slice(0, 10);
+    });
+    const now = new Date();
+    const today = operationalDate(now, "Asia/Tehran");
+    const entries = await this.sessions.manager
+      .getRepository(SchoolScheduleEntry)
+      .find({
+        where: [
+          {
+            organization: { id: query.organizationId },
+            versionId: IsNull(),
+            status: In(["ACTIVE", "REPLACED"]),
+            teacher: { id: user.id },
+          },
+          {
+            organization: { id: query.organizationId },
+            versionId: IsNull(),
+            status: In(["ACTIVE", "REPLACED"]),
+            classBook: { teacher: { id: user.id } },
+          },
+        ],
+        relations: {
+          organization: true,
+          classroom: true,
+          teacher: true,
+          classBook: { teacher: true },
+        },
+      });
+    const termIds = [
+      ...new Set(entries.map((entry) => entry.termId).filter(Boolean)),
+    ];
+    const terms = termIds.length
+      ? await this.sessions.manager.getRepository(SchoolAcademicTerm).find({
+          where: { id: In(termIds) },
+        })
+      : [];
+    const termById = new Map(terms.map((term) => [term.id, term]));
+    const occurrences = entries.flatMap((entry) => {
+      if (!entry.classroom) return [];
+      return dates.flatMap((date) => {
+        const day = new Date(`${date}T12:00:00.000Z`);
+        if ((day.getUTCDay() + 1) % 7 !== entry.weekday) return [];
+        if (
+          entry.status === "REPLACED"
+            ? entry.startsOn !== date || entry.endsOn !== date
+            : Boolean(
+                (entry.startsOn && date < entry.startsOn) ||
+                (entry.endsOn && date > entry.endsOn),
+              )
+        )
+          return [];
+        return [
+          {
+            entry,
+            date,
+            occurrenceKey: `legacy-schedule:${entry.id}:${date}`,
+          },
+        ];
+      });
+    });
+    if (!occurrences.length) return [];
+
+    const pastOccurrences = entries.flatMap((entry) => {
+      if (!entry.classroom || !entry.termId) return [];
+      const term = termById.get(entry.termId);
+      if (!term) return [];
+      const firstTermDay = new Date(`${term.startsOn}T12:00:00.000Z`);
+      const lastTermDay = new Date(`${term.endsOn}T12:00:00.000Z`);
+      const currentDay = new Date(`${today}T12:00:00.000Z`);
+      if (currentDay < firstTermDay) return [];
+      if (currentDay > lastTermDay) currentDay.setTime(lastTermDay.getTime());
+      const missedCandidates: Array<{
+        date: string;
+        occurrenceKey: string;
+        entry: SchoolScheduleEntry;
+      }> = [];
+      for (
+        const cursor = new Date(firstTermDay);
+        cursor <= currentDay;
+        cursor.setUTCDate(cursor.getUTCDate() + 1)
+      ) {
+        const date = cursor.toISOString().slice(0, 10);
+        if (
+          (cursor.getUTCDay() + 1) % 7 !== entry.weekday ||
+          (entry.startsOn && date < entry.startsOn) ||
+          (entry.endsOn && date > entry.endsOn) ||
+          (entry.status === "REPLACED" &&
+            (entry.startsOn !== date || entry.endsOn !== date))
+        )
+          continue;
+        if (
+          schoolLocalInstant(date, entry.startTime, "Asia/Tehran").getTime() >
+          now.getTime()
+        )
+          continue;
+        missedCandidates.push({
+          entry,
+          date,
+          occurrenceKey: `legacy-schedule:${entry.id}:${date}`,
+        });
+      }
+      return missedCandidates;
+    });
+    const occurrenceKeys = [
+      ...new Set([
+        ...occurrences.map((occurrence) => occurrence.occurrenceKey),
+        ...pastOccurrences.map((occurrence) => occurrence.occurrenceKey),
+      ]),
+    ];
+    const sessions = await this.sessions.find({
+      where: {
+        organization: { id: query.organizationId },
+        occurrenceKey: In(occurrenceKeys),
+      },
+    });
+    const sessionByOccurrence = new Map(
+      sessions.map((session) => [session.occurrenceKey, session]),
+    );
+    const sessionIds = sessions.map((session) => session.id);
+    const records = sessionIds.length
+      ? await this.records.find({
+          where: { session: { id: In(sessionIds) } },
+          relations: { session: true, student: true },
+        })
+      : [];
+    const recordsBySession = new Map<string, Set<string>>();
+    for (const record of records) {
+      const ids = recordsBySession.get(record.session.id) ?? new Set<string>();
+      ids.add(record.student.id);
+      recordsBySession.set(record.session.id, ids);
+    }
+    const isAttendanceRecorded = (occurrenceKey: string) => {
+      const session = sessionByOccurrence.get(occurrenceKey);
+      return session
+        ? (recordsBySession.get(session.id)?.size ?? 0) > 0
+        : false;
+    };
+    const missedByEntry = new Map<string, string[]>();
+    for (const occurrence of pastOccurrences) {
+      const session = sessionByOccurrence.get(occurrence.occurrenceKey);
+      if (
+        session?.status === "cancelled" ||
+        isAttendanceRecorded(occurrence.occurrenceKey)
+      )
+        continue;
+      const missedDates = missedByEntry.get(occurrence.entry.id) ?? [];
+      missedDates.push(occurrence.date);
+      missedByEntry.set(occurrence.entry.id, missedDates);
+    }
+    const classroomIds = [
+      ...new Set(occurrences.map(({ entry }) => entry.classroom!.id)),
+    ];
+    const enrollments = await this.enrollments.find({
+      where: { classroom: { id: In(classroomIds) } },
+      relations: { classroom: true, student: true },
+    });
+    const rosterCounts = new Map<string, number>();
+    for (const enrollment of enrollments) {
+      const classroomId = enrollment.classroom.id;
+      rosterCounts.set(classroomId, (rosterCounts.get(classroomId) ?? 0) + 1);
+    }
+
+    return occurrences.map(({ entry, date, occurrenceKey }) => {
+      const session = sessionByOccurrence.get(occurrenceKey);
+      const recordedStudentIds = session
+        ? (recordsBySession.get(session.id) ?? new Set<string>())
+        : new Set<string>();
+      const snapshotIds = session?.rosterSnapshot?.map((student) => student.id);
+      const rosterCount =
+        snapshotIds?.length ?? rosterCounts.get(entry.classroom!.id) ?? 0;
+      const markedCount = snapshotIds
+        ? new Set(snapshotIds.filter((id) => recordedStudentIds.has(id))).size
+        : Math.min(rosterCount, recordedStudentIds.size);
+      const missedDates = missedByEntry.get(entry.id) ?? [];
+      const hasTerm = Boolean(entry.termId && termById.has(entry.termId));
+      return {
+        entryId: entry.id,
+        date,
+        attendanceRecorded: recordedStudentIds.size > 0,
+        rosterCount,
+        unmarkedCount: Math.max(0, rosterCount - markedCount),
+        pastUnmarkedCount: hasTerm ? missedDates.length : null,
+        mostRecentUnmarkedDate: hasTerm
+          ? (missedDates.sort((left, right) => right.localeCompare(left))[0] ??
+            null)
+          : null,
+      };
+    });
+  }
+
   private async participantIds(
     user: AuthenticatedUser,
     type: AttendanceContextType,
@@ -4501,6 +5047,7 @@ export class AttendanceService {
   private reviewView(row: AttendanceRecord) {
     return {
       id: row.id,
+      sessionId: row.session.id,
       studentId: row.student.id,
       studentName: row.student.name,
       status: row.status,
@@ -4576,9 +5123,8 @@ export class AttendanceService {
     );
   }
   /**
-   * A scheduled occurrence can only be marked during its published time.
-   * This is server-side because a disabled Admin control is not a security
-   * boundary. Legacy/manual sessions have no complete range to enforce yet.
+   * Future scheduled occurrences stay closed; assigned teachers can revise a
+   * scheduled occurrence after its end. Legacy/manual sessions have no range.
    */
   private assertSessionIsActiveForMarking(session: AttendanceSession | null) {
     if (!session?.scheduledStartAt || !session.scheduledEndAt) return;

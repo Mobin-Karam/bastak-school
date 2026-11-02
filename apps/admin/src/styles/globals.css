@@ -207,6 +207,194 @@
 }
 
 /* =========================================================
+   SCHEDULE-ONLY THEMES
+   =========================================================
+   The schedule is an operational workspace with dense visual scanning needs.
+   These variables intentionally stay below .schedule-theme-workspace so a
+   user's chosen schedule palette never changes the rest of Admin.
+*/
+.schedule-theme-workspace {
+  --schedule-accent: 0 122 112;
+  --schedule-accent-strong: 0 82 83;
+  --schedule-accent-soft: 218 244 239;
+  --schedule-surface: 240 253 250;
+  --schedule-border: 94 234 212;
+  --color-brand: var(--schedule-accent);
+  --color-brand-strong: var(--schedule-accent-strong);
+  --color-brand-soft: var(--schedule-accent-soft);
+}
+
+.schedule-theme-workspace[data-schedule-theme="ocean"] {
+  --schedule-accent: 37 99 235;
+  --schedule-accent-strong: 30 64 175;
+  --schedule-accent-soft: 219 234 254;
+  --schedule-surface: 239 246 255;
+  --schedule-border: 147 197 253;
+}
+
+.schedule-theme-workspace[data-schedule-theme="violet"] {
+  --schedule-accent: 124 58 237;
+  --schedule-accent-strong: 91 33 182;
+  --schedule-accent-soft: 237 233 254;
+  --schedule-surface: 245 243 255;
+  --schedule-border: 196 181 253;
+}
+
+.schedule-theme-workspace[data-schedule-theme="forest"] {
+  --schedule-accent: 21 128 61;
+  --schedule-accent-strong: 22 101 52;
+  --schedule-accent-soft: 220 252 231;
+  --schedule-surface: 240 253 244;
+  --schedule-border: 134 239 172;
+}
+
+.schedule-theme-workspace[data-schedule-theme="amber"] {
+  --schedule-accent: 180 83 9;
+  --schedule-accent-strong: 146 64 14;
+  --schedule-accent-soft: 254 243 199;
+  --schedule-surface: 255 251 235;
+  --schedule-border: 252 211 77;
+}
+
+.schedule-theme-workspace[data-schedule-theme="midnight"] {
+  --schedule-accent: 51 65 85;
+  --schedule-accent-strong: 30 41 59;
+  --schedule-accent-soft: 226 232 240;
+  --schedule-surface: 248 250 252;
+  --schedule-border: 148 163 184;
+}
+
+:root.dark .schedule-theme-workspace[data-schedule-theme="standard"] {
+  --schedule-surface: 8 47 48;
+  --schedule-border: 45 212 191;
+}
+
+:root.dark .schedule-theme-workspace[data-schedule-theme="ocean"] {
+  --schedule-surface: 20 45 84;
+  --schedule-border: 96 165 250;
+}
+
+:root.dark .schedule-theme-workspace[data-schedule-theme="violet"] {
+  --schedule-surface: 55 31 102;
+  --schedule-border: 196 181 253;
+}
+
+:root.dark .schedule-theme-workspace[data-schedule-theme="forest"] {
+  --schedule-surface: 20 83 45;
+  --schedule-border: 134 239 172;
+}
+
+:root.dark .schedule-theme-workspace[data-schedule-theme="amber"] {
+  --schedule-surface: 92 45 8;
+  --schedule-border: 252 211 77;
+}
+
+:root.dark .schedule-theme-workspace[data-schedule-theme="midnight"] {
+  --schedule-surface: 30 41 59;
+  --schedule-border: 148 163 184;
+}
+
+.schedule-themed-header {
+  border-color: rgb(var(--schedule-border) / 72%);
+  background: rgb(var(--schedule-surface) / 78%);
+}
+
+.schedule-themed-surface {
+  border-color: rgb(var(--schedule-border) / 55%);
+  background: rgb(var(--schedule-surface) / 42%);
+}
+
+.schedule-themed-surface > :first-child,
+.schedule-themed-surface > :nth-child(2) {
+  border-color: rgb(var(--schedule-border) / 55%);
+}
+
+.schedule-themed-table-head tr {
+  background: rgb(var(--schedule-surface) / 92%);
+  color: rgb(var(--color-ink));
+}
+
+.schedule-theme-picker {
+  display: grid;
+  gap: 0.5rem;
+  min-inline-size: 0;
+  border: 1px solid rgb(var(--schedule-border) / 62%);
+  border-radius: 1rem;
+  background: rgb(var(--schedule-surface) / 58%);
+  padding: 0.75rem;
+}
+
+.schedule-theme-picker__label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  color: rgb(var(--color-ink));
+  font-size: 0.75rem;
+  font-weight: 800;
+}
+
+.schedule-theme-picker__choices {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.375rem;
+}
+
+.schedule-theme-picker__choice {
+  display: inline-flex;
+  min-block-size: 2.35rem;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 0.45rem;
+  border: 1px solid rgb(var(--border-subtle));
+  border-radius: 0.7rem;
+  background: rgb(var(--surface-card));
+  color: rgb(var(--color-ink));
+  padding-inline: 0.625rem;
+  font-size: 0.75rem;
+  font-weight: 750;
+  transition:
+    border-color 160ms ease,
+    background-color 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.schedule-theme-picker__choice:hover {
+  border-color: rgb(var(--schedule-accent) / 65%);
+}
+
+.schedule-theme-picker__choice[data-selected] {
+  border-color: rgb(var(--schedule-accent));
+  background: rgb(var(--schedule-accent-soft) / 68%);
+  box-shadow: 0 0 0 2px rgb(var(--schedule-accent) / 15%);
+}
+
+.schedule-theme-picker__choice:focus-visible {
+  outline: 0;
+  box-shadow: 0 0 0 3px rgb(var(--schedule-accent) / 42%);
+}
+
+.schedule-theme-picker__swatch {
+  inline-size: 0.9rem;
+  block-size: 0.9rem;
+  flex: none;
+  border: 2px solid rgb(var(--surface-card));
+  border-radius: 999px;
+  box-shadow: 0 0 0 1px rgb(var(--color-ink) / 24%);
+}
+
+@media (min-width: 48rem) {
+  .schedule-theme-picker__choices {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .schedule-theme-picker__choice {
+    transition: none;
+  }
+}
+
+/* =========================================================
    ROLE ACCENTS
    ========================================================= */
 

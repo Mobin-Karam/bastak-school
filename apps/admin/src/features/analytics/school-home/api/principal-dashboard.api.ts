@@ -49,6 +49,7 @@ export type PrincipalDashboardContract = {
       title: string;
       sessionDate: string;
       status: string;
+      revision: number;
       expected: number | null;
       marked: number;
       present: number;
@@ -130,11 +131,20 @@ export const getPrincipalDashboard = (range: "7d" | "30d", classId?: string) => 
   return api.get<PrincipalDashboardContract>(`/dashboard/principal?${query.toString()}`);
 };
 
-export const reviewAttendanceSession = (sessionId: string, message?: string) =>
-  api.post<{ sessionId: string; reviewedAt: string }>(
-    `/attendance/sessions/${encodeURIComponent(sessionId)}/daily-review`,
-    { message },
-  );
+export const reviewAttendanceSession = (
+  sessionId: string,
+  expectedRevision: number,
+  message?: string,
+) =>
+  api.post<{
+    sessionId: string;
+    revision: number;
+    reviewedAt: string;
+    alreadyReviewed: boolean;
+  }>(`/attendance/sessions/${encodeURIComponent(sessionId)}/daily-review`, {
+    message,
+    expectedRevision,
+  });
 
 export const getAttendanceSessionForReview = (sessionId: string) =>
   api.get<AttendanceSessionDetail>(`/attendance/sessions/${encodeURIComponent(sessionId)}`);

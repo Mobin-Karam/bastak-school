@@ -12,12 +12,17 @@ import { ResponsiveDrawer } from "./responsive-drawer";
 import { useOptionalAdminLanguage } from "./locale";
 
 const mobileQuery = "(max-width: 767px)";
+const getMobileMediaQuery = () =>
+  typeof window !== "undefined" && typeof window.matchMedia === "function"
+    ? window.matchMedia(mobileQuery)
+    : null;
 const subscribe = (onChange: () => void) => {
-  const query = window.matchMedia(mobileQuery);
+  const query = getMobileMediaQuery();
+  if (!query) return () => undefined;
   query.addEventListener("change", onChange);
   return () => query.removeEventListener("change", onChange);
 };
-const snapshot = () => window.matchMedia(mobileQuery).matches;
+const snapshot = () => getMobileMediaQuery()?.matches ?? false;
 export function useMobileDialog() {
   return useSyncExternalStore(subscribe, snapshot, () => false);
 }

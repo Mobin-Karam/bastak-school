@@ -282,9 +282,22 @@ describe("AttendanceService organization boundaries (real SQLite)", () => {
       endsOn: "2027-01-31",
       state: "ACTIVE",
     });
+    const teacherClass = await db.getRepository(EducationClass).save({
+      organization: orgA,
+      code: "TEACHER-OWN",
+      name: "Teacher scheduled class",
+      schoolYear: "1405",
+      gradeId: 1,
+      educationTypeId: "school",
+      trackId: "general",
+    });
+    await db.getRepository(EducationClassEnrollment).save({
+      classroom: teacherClass,
+      student: studentA,
+    });
     const entry = await db.getRepository(SchoolScheduleEntry).save({
       organization: orgA,
-      classroom: assignedClass,
+      classroom: teacherClass,
       teacher: staff,
       title: "جلسهٔ legacy",
       weekday: 2,
@@ -341,6 +354,99 @@ describe("AttendanceService organization boundaries (real SQLite)", () => {
       ),
     ).rejects.toMatchObject({
       response: { error: { code: "ATTENDANCE_SESSION_NOT_STARTED" } },
+    });
+  });
+
+  it("lets the assigned teacher create past occurrences and revise saved attendance after the term is archived", async () => {
+    const year = await db.getRepository(SchoolAcademicYear).save({
+      organizationId: orgA.id,
+      name: "۱۴۰۵–۱۴۰۶",
+      startsOn: "2026-09-23",
+      endsOn: "2027-06-22",
+      state: "ACTIVE",
+    });
+    const term = await db.getRepository(SchoolAcademicTerm).save({
+      academicYearId: year.id,
+      name: "نیم‌سال اول",
+      startsOn: "2026-09-23",
+      endsOn: "2027-01-31",
+      state: "ACTIVE",
+    });
+    const entry = await db.getRepository(SchoolScheduleEntry).save({
+      organization: orgA,
+      classroom: assignedClass,
+      teacher: staff,
+      title: "جلسهٔ بایگانی‌شده",
+      weekday: 2,
+      startTime: "08:00",
+      endTime: "09:00",
+      room: "",
+      academicYearId: year.id,
+      termId: term.id,
+    });
+    const teacher = {
+      ...actor,
+      role: "TEACHER",
+      roles: ["TEACHER"],
+      capabilities: ["attendance.read", "attendance.class.manage"],
+    };
+    const first = await service.openLegacyScheduleSession(teacher, {
+      entryId: entry.id,
+      date: "2026-10-12",
+    });
+    await db.getRepository(SchoolAcademicYear).update(year.id, {
+      state: "ARCHIVED",
+    });
+    await db.getRepository(SchoolAcademicTerm).update(term.id, {
+      state: "ARCHIVED",
+      correctionOpen: false,
+    });
+
+    await expect(
+      service.openLegacyScheduleSession(teacher, {
+        entryId: entry.id,
+        date: "2026-11-02",
+      }),
+    ).rejects.toMatchObject({
+      response: { error: { code: "ATTENDANCE_SESSION_NOT_STARTED" } },
+    });
+
+    await expect(
+      service.openLegacyScheduleSession(teacher, {
+        entryId: entry.id,
+        date: "2026-10-12",
+      }),
+    ).resolves.toEqual({ ...first, duplicate: true });
+    await expect(
+      service.bulkMark(teacher, {
+        organizationId: orgA.id,
+        sessionId: first.id,
+        expectedRevision: first.revision,
+        entries: [{ studentId: studentA.id, status: "absent", note: "غایب" }],
+      }),
+    ).resolves.toMatchObject({ sessionId: first.id, count: 1 });
+
+    await expect(
+      service.openLegacyScheduleSession(teacher, {
+        entryId: entry.id,
+        date: "2026-10-19",
+      }),
+    ).resolves.toMatchObject({ duplicate: false });
+    await expect(
+      service.openLegacyScheduleSession(teacher, {
+        entryId: entry.id,
+        date: "2026-11-02",
+      }),
+    ).rejects.toMatchObject({
+      response: { error: { code: "ATTENDANCE_SESSION_NOT_STARTED" } },
+    });
+    await expect(
+      service.openLegacyScheduleSession(actor, {
+        entryId: entry.id,
+        date: "2026-10-26",
+      }),
+    ).rejects.toMatchObject({
+      response: { error: { code: "ATTENDANCE_TERM_LOCKED" } },
     });
   });
 
@@ -1070,7 +1176,7 @@ describe("AttendanceService organization boundaries (real SQLite)", () => {
     expect(await db.getRepository(AttendanceRecord).count()).toBe(0);
   });
 
-  it("finalizes a submitted session and records a revisioned correction without reopening it", async () => {
+  it("finalizes the current revision without changing the teacher-editable session lifecycle", async () => {
     const marked = await service.bulkMark(actor, {
       organizationId: orgA.id,
       contextType: "class",
@@ -1087,9 +1193,10 @@ describe("AttendanceService organization boundaries (real SQLite)", () => {
       {
         requestId: randomUUID(),
         expectedRevision: 1,
+        message: "لطفاً علت غیبت دانش‌آموز را پیگیری و اعلام کنید.",
       },
     );
-    expect(finalized).toMatchObject({ status: "finalized", revision: 2 });
+    expect(finalized).toMatchObject({ status: "submitted", revision: 1 });
     const correctedRequestId = randomUUID();
     const corrected = await service.correctRecord(
       {
@@ -1105,7 +1212,7 @@ describe("AttendanceService organization boundaries (real SQLite)", () => {
         reason: "ثبت زمان ورود",
       },
     );
-    expect(corrected).toMatchObject({ revision: 2, sessionRevision: 3 });
+    expect(corrected).toMatchObject({ revision: 2, sessionRevision: 2 });
     await expect(
       service.correctRecord(
         {
@@ -1129,15 +1236,17 @@ describe("AttendanceService organization boundaries (real SQLite)", () => {
       expect.objectContaining({ reason: "ثبت زمان ورود" }),
     ]);
     expect(await service.sessionDetail(actor, marked.sessionId)).toMatchObject({
-      status: "finalized",
-      revision: 3,
+      status: "submitted",
+      revision: 2,
       records: [
         expect.objectContaining({ physicalStatus: "late", minutesLate: 10 }),
       ],
     });
     expect(await service.sessionHistory(actor, marked.sessionId)).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ action: "attendance.session.finalized" }),
+        expect.objectContaining({
+          action: "attendance.session.daily-reviewed",
+        }),
         expect.objectContaining({ action: "attendance.record.corrected" }),
       ]),
     );
@@ -1207,6 +1316,18 @@ describe("AttendanceService organization boundaries (real SQLite)", () => {
         "SELECT sessionId,reviewedRevision FROM attendance_session_reviews",
       ),
     ).toEqual([{ sessionId: marked.sessionId, reviewedRevision: 1 }]);
+
+    const repeated = await service.reviewSessionEvery24Hours(
+      reviewer,
+      marked.sessionId,
+    );
+    expect(repeated).toMatchObject({ alreadyReviewed: true, revision: 1 });
+    expect(
+      await db.query(
+        "SELECT COUNT(*) count FROM attendance_session_reviews WHERE sessionId=? AND reviewedRevision=1",
+        [marked.sessionId],
+      ),
+    ).toEqual([{ count: 1 }]);
 
     const session = await db
       .getRepository(AttendanceSession)
@@ -1570,6 +1691,240 @@ describe("AttendanceService organization boundaries (real SQLite)", () => {
       response: { error: { code: "ORGANIZATION_FORBIDDEN" } },
     });
   });
+  it("summarizes saved attendance and unmarked roster counts for a teacher week", async () => {
+    const year = await db.getRepository(SchoolAcademicYear).save({
+      organizationId: orgA.id,
+      name: "1405",
+      startsOn: "2026-10-01",
+      endsOn: "2026-10-31",
+      state: "ACTIVE",
+    });
+    const term = await db.getRepository(SchoolAcademicTerm).save({
+      academicYearId: year.id,
+      name: "October",
+      startsOn: "2026-10-01",
+      endsOn: "2026-10-31",
+      state: "ACTIVE",
+    });
+    const secondStudent = await db.getRepository(Student).save({
+      name: "Student A2",
+      organization: orgA,
+    });
+    await db.getRepository(EducationClassEnrollment).save({
+      classroom: assignedClass,
+      student: secondStudent,
+    });
+    const savedEntry = await db.getRepository(SchoolScheduleEntry).save({
+      organization: orgA,
+      classroom: assignedClass,
+      teacher: staff,
+      title: "Saturday lesson",
+      weekday: 0,
+      startTime: "08:00",
+      endTime: "09:00",
+      academicYearId: year.id,
+      termId: term.id,
+    });
+    const futureEntry = await db.getRepository(SchoolScheduleEntry).save({
+      organization: orgA,
+      classroom: assignedClass,
+      teacher: staff,
+      title: "Sunday lesson",
+      weekday: 1,
+      startTime: "08:00",
+      endTime: "09:00",
+      academicYearId: year.id,
+      termId: term.id,
+    });
+    const session = await db.getRepository(AttendanceSession).save({
+      organization: orgA,
+      contextType: "class",
+      contextId: assignedClass.id,
+      sessionDate: new Date("2026-10-10T04:30:00.000Z"),
+      operationalDate: "2026-10-10",
+      occurrenceKey: `legacy-schedule:${savedEntry.id}:2026-10-10`,
+      sourceKind: "legacy_schedule",
+      sourceScheduleId: savedEntry.id,
+      assignedStaff: staff,
+      rosterSnapshot: [
+        {
+          id: studentA.id,
+          name: studentA.name,
+          nationalCode: null,
+          userId: null,
+        },
+        {
+          id: secondStudent.id,
+          name: secondStudent.name,
+          nationalCode: null,
+          userId: null,
+        },
+      ],
+    });
+    await db.getRepository(AttendanceRecord).save({
+      session,
+      student: studentA,
+      status: AttendanceStatus.PRESENT,
+      recordedBy: staff,
+    });
+
+    jest.useFakeTimers({ doNotFake: ["nextTick", "setImmediate"] });
+    jest.setSystemTime(new Date("2026-10-11T12:00:00.000Z"));
+    try {
+      await expect(
+        service.teacherWeekAttendanceSummary(actor, {
+          organizationId: orgA.id,
+          weekStart: "2026-10-10",
+        }),
+      ).resolves.toEqual(
+        expect.arrayContaining([
+          {
+            entryId: savedEntry.id,
+            date: "2026-10-10",
+            attendanceRecorded: true,
+            rosterCount: 2,
+            unmarkedCount: 1,
+            pastUnmarkedCount: 1,
+            mostRecentUnmarkedDate: "2026-10-03",
+          },
+          {
+            entryId: futureEntry.id,
+            date: "2026-10-11",
+            attendanceRecorded: false,
+            rosterCount: 2,
+            unmarkedCount: 2,
+            pastUnmarkedCount: 2,
+            mostRecentUnmarkedDate: "2026-10-11",
+          },
+        ]),
+      );
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+  it("rejects a teacher-week attendance summary outside the school organization", async () => {
+    await expect(
+      service.teacherWeekAttendanceSummary(actor, {
+        organizationId: orgB.id,
+        weekStart: "2026-10-10",
+      }),
+    ).rejects.toMatchObject({
+      response: { error: { code: "ATTENDANCE_WORK_CONTEXT_MISMATCH" } },
+    });
+  });
+  it("requires the requested teacher attendance week to start on Saturday", async () => {
+    await expect(
+      service.teacherWeekAttendanceSummary(actor, {
+        organizationId: orgA.id,
+        weekStart: "2026-10-11",
+      }),
+    ).rejects.toMatchObject({
+      response: { error: { code: "ATTENDANCE_WEEK_START_INVALID" } },
+    });
+  });
+  it("allows a teacher to read the roster for their assigned schedule entry", async () => {
+    assignedClass.advisor = null;
+    await db.getRepository(EducationClass).save(assignedClass);
+    const entry = await db.getRepository(SchoolScheduleEntry).save({
+      organization: orgA,
+      classroom: assignedClass,
+      teacher: staff,
+      title: "Assigned lesson",
+      weekday: 2,
+      startTime: "08:00",
+      endTime: "09:00",
+    });
+
+    await expect(
+      service.listParticipants(
+        {
+          ...actor,
+          role: "TEACHER",
+          roles: ["TEACHER"],
+          capabilities: ["attendance.read"],
+        },
+        "class",
+        assignedClass.id,
+        undefined,
+        undefined,
+        entry.id,
+      ),
+    ).resolves.toEqual(
+      expect.arrayContaining([expect.objectContaining({ id: studentA.id })]),
+    );
+  });
+  it("denies roster access when the supplied schedule entry belongs to another teacher", async () => {
+    const otherTeacher = await db.getRepository(User).save({
+      username: "attendance-test-other-teacher",
+      passwordHash: "not-a-login-hash",
+      role: UserRole.TEACHER,
+    });
+    const entry = await db.getRepository(SchoolScheduleEntry).save({
+      organization: orgA,
+      classroom: assignedClass,
+      teacher: otherTeacher,
+      title: "Another teacher's lesson",
+      weekday: 2,
+      startTime: "08:00",
+      endTime: "09:00",
+    });
+
+    await expect(
+      service.listParticipants(
+        {
+          ...actor,
+          role: "TEACHER",
+          roles: ["TEACHER"],
+          capabilities: ["attendance.read"],
+        },
+        "class",
+        assignedClass.id,
+        undefined,
+        undefined,
+        entry.id,
+      ),
+    ).rejects.toMatchObject({
+      response: { error: { code: "FORBIDDEN" } },
+    });
+  });
+  it("does not allow a teacher to use another class's schedule entry for roster access", async () => {
+    const anotherClass = await db.getRepository(EducationClass).save({
+      organization: orgA,
+      code: "A2",
+      name: "Another class",
+      schoolYear: "1405",
+      gradeId: 1,
+      educationTypeId: "school",
+      trackId: "general",
+    });
+    const entry = await db.getRepository(SchoolScheduleEntry).save({
+      organization: orgA,
+      classroom: assignedClass,
+      teacher: staff,
+      title: "Assigned lesson",
+      weekday: 2,
+      startTime: "08:00",
+      endTime: "09:00",
+    });
+
+    await expect(
+      service.listParticipants(
+        {
+          ...actor,
+          role: "TEACHER",
+          roles: ["TEACHER"],
+          capabilities: ["attendance.read"],
+        },
+        "class",
+        anotherClass.id,
+        undefined,
+        undefined,
+        entry.id,
+      ),
+    ).rejects.toMatchObject({
+      response: { error: { code: "FORBIDDEN" } },
+    });
+  });
   it("validates every student before creating a session", async () => {
     await expect(
       service.bulkMark(actor, {
@@ -1783,6 +2138,38 @@ describe("AttendanceService organization boundaries (real SQLite)", () => {
     });
   });
 
+  it("does not allow a teacher to create attendance for a future scheduled session", async () => {
+    const startsAt = new Date(Date.now() + 60 * 60_000);
+    const session = await db.getRepository(AttendanceSession).save({
+      organization: orgA,
+      contextType: "class",
+      contextId: assignedClass.id,
+      sessionDate: startsAt,
+      scheduledStartAt: startsAt,
+      scheduledEndAt: new Date(startsAt.getTime() + 60 * 60_000),
+      sourceKind: "legacy_schedule",
+      occurrenceKey: `future-teacher:${randomUUID()}`,
+      assignedStaff: staff,
+    });
+    const teacher = {
+      ...actor,
+      role: "TEACHER",
+      roles: ["TEACHER"],
+      capabilities: ["attendance.read", "attendance.class.manage"],
+    };
+
+    await expect(
+      service.bulkMark(teacher, {
+        organizationId: orgA.id,
+        sessionId: session.id,
+        expectedRevision: 0,
+        entries: [{ studentId: studentA.id, status: "present" }],
+      }),
+    ).rejects.toMatchObject({
+      response: { error: { code: "ATTENDANCE_SESSION_NOT_ACTIVE" } },
+    });
+  });
+
   it("allows an assigned teacher to revise a finalized timetable session after it ends", async () => {
     const created = await service.createSession(actor, {
       organizationId: orgA.id,
@@ -1898,6 +2285,54 @@ describe("AttendanceService organization boundaries (real SQLite)", () => {
       });
       expect(allowed.statusCode).toBe(201);
       expect(allowed.json()).toMatchObject({ ok: true, data: { count: 1 } });
+      const teacherSession = await db.getRepository(AttendanceSession).save({
+        organization: orgA,
+        contextType: "class",
+        contextId: assignedClass.id,
+        sessionDate: new Date(Date.now() - 60 * 60_000),
+        scheduledStartAt: new Date(Date.now() - 60 * 60_000),
+        scheduledEndAt: new Date(Date.now() - 30 * 60_000),
+        sourceKind: "legacy_schedule",
+        occurrenceKey: `http-teacher:${randomUUID()}`,
+        assignedStaff: staff,
+        rosterSnapshot: [
+          {
+            id: studentA.id,
+            name: studentA.name,
+            nationalCode: null,
+            userId: null,
+          },
+        ],
+      });
+      actor = {
+        ...actor,
+        role: "TEACHER",
+        roles: ["TEACHER"],
+        capabilities: ["attendance.read", "attendance.class.manage"],
+      };
+      const teacherWrite = await app.inject({
+        method: "POST",
+        url: "/api/v2/attendance/bulk-mark",
+        payload: {
+          ...body,
+          sessionId: teacherSession.id,
+          expectedRevision: 0,
+        },
+      });
+      expect(teacherWrite.statusCode).toBe(201);
+      expect(teacherWrite.json()).toMatchObject({
+        ok: true,
+        data: { sessionId: teacherSession.id, count: 1 },
+      });
+      expect(
+        (
+          await app.inject({
+            method: "POST",
+            url: "/api/v2/attendance/bulk-mark",
+            payload: body,
+          })
+        ).statusCode,
+      ).toBe(403);
       actor = {
         ...actor,
         role: "STUDENT",
@@ -1921,7 +2356,7 @@ describe("AttendanceService organization boundaries (real SQLite)", () => {
           })
         ).statusCode,
       ).toBe(403);
-      expect(await db.getRepository(AttendanceRecord).count()).toBe(1);
+      expect(await db.getRepository(AttendanceRecord).count()).toBe(2);
     } finally {
       await app.close();
     }
@@ -2326,11 +2761,22 @@ describe("AttendanceService organization boundaries (real SQLite)", () => {
       expect.arrayContaining([
         expect.objectContaining({
           user: expect.objectContaining({ id: principal.id }),
-          url: "/admin/dashboard/principal?panel=sessions",
+          url: "/admin/dashboard/principal?panel=absence-reviews",
         }),
         expect.objectContaining({
           user: expect.objectContaining({ id: supervisor.id }),
           url: "/admin/attendance?section=class",
+        }),
+      ]),
+    );
+    expect(notifications).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          dedupeKey: expect.stringMatching(
+            new RegExp(
+              `^attendance-absence-review:${mark.records[0].id}:1:${principal.id}$`,
+            ),
+          ),
         }),
       ]),
     );

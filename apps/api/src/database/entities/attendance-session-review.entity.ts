@@ -16,6 +16,9 @@ import { User } from "./user.entity";
   "reviewedAt",
 ])
 @Index("IDX_attendance_session_review_date", ["reviewedAt"])
+@Index("IDX_attendance_session_review_dedupe", ["dedupeKey"], {
+  unique: true,
+})
 export class AttendanceSessionReview {
   @PrimaryGeneratedColumn("uuid")
   id!: string;
@@ -28,6 +31,13 @@ export class AttendanceSessionReview {
 
   @Column({ type: "integer" })
   reviewedRevision!: number;
+
+  /**
+   * Stable identity for a review of one attendance revision. Existing review
+   * history predates this field and deliberately remains nullable.
+   */
+  @Column({ type: "varchar", length: 96, nullable: true }) dedupeKey?:
+    string | null;
 
   @Column({ type: "varchar", length: 500, default: "" })
   teacherMessage!: string;

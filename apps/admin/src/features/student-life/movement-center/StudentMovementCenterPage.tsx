@@ -21,6 +21,7 @@ import {
   confirmStudentInSchool,
   getStudentMovementHistory,
   getStudentMovements,
+  movementHistoryId,
   resolveOverdueMovement,
   type MovementState,
   type StudentMovement,
@@ -316,16 +317,11 @@ function MovementDrawer({
   const reason = item.leave?.reason ?? item.exit?.reason ?? "";
   const isReview = item.state === "review";
   const canReview = item.leave ? canManageLeave : canManageExit;
+  const historyId = movementHistoryId(item);
   const history = useQuery({
-    queryKey: [
-      "student-movement-history",
-      organizationId,
-      item.kind,
-      item.leave?.id ?? item.exit?.id,
-    ],
-    queryFn: () =>
-      getStudentMovementHistory(item.kind, item.leave?.id ?? item.exit?.id ?? "", organizationId),
-    enabled: Boolean(item.leave?.id ?? item.exit?.id),
+    queryKey: ["student-movement-history", organizationId, item.kind, historyId],
+    queryFn: () => getStudentMovementHistory(item.kind, historyId ?? "", organizationId),
+    enabled: Boolean(historyId),
   });
   return (
     <div className="grid gap-4" dir="rtl">

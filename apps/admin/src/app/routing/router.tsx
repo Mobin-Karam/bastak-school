@@ -71,19 +71,14 @@ const GuardianPage = lazy(() =>
 const SchedulePage = lazy(() =>
   import("../../features/academics/schedule").then((m) => ({ default: m.SchedulePage })),
 );
-const LeaveRequestsPage = lazy(() =>
-  import("../../features/student-life/leave-requests").then((m) => ({
-    default: m.LeaveRequestsPage,
-  })),
-);
+// const LeaveRequestsPage = lazy(() =>
+//   import("../../features/student-life/leave-requests").then((m) => ({
+//     default: m.LeaveRequestsPage,
+//   })),
+// );
 const PermissionRequestsPage = lazy(() =>
   import("../../features/student-life/permission-requests").then((m) => ({
     default: m.PermissionRequestsPage,
-  })),
-);
-const ExitPermissionsPage = lazy(() =>
-  import("../../features/student-life/exit-permissions").then((m) => ({
-    default: m.ExitPermissionsPage,
   })),
 );
 const StudentMovementCenterPage = lazy(() =>

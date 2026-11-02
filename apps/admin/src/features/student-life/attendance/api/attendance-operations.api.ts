@@ -245,12 +245,15 @@ export const submitAttendanceAbsences = (
   );
 export const finalizeAttendanceSession = (
   id: string,
-  body: { requestId: string; expectedRevision: number },
+  body: { requestId: string; expectedRevision: number; message?: string },
 ) =>
-  api.post<{ sessionId: string; revision: number; status: "finalized" }>(
-    `/attendance/sessions/${encodeURIComponent(id)}/finalize`,
-    body,
-  );
+  api.post<{
+    sessionId: string;
+    revision: number;
+    status: "submitted" | "finalized";
+    reviewedAt: string;
+    alreadyReviewed: boolean;
+  }>(`/attendance/sessions/${encodeURIComponent(id)}/finalize`, body);
 export const cancelAttendanceSession = (
   id: string,
   body: { requestId: string; expectedRevision: number; reason: string },

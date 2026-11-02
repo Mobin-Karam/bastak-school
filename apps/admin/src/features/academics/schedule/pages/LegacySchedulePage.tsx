@@ -12,6 +12,7 @@ import {
   GraduationCap,
   MapPin,
   Pencil,
+  Palette,
   Plus,
   RotateCcw,
   Trash2,
@@ -82,6 +83,23 @@ import { listTeacherLeaveRequests, type TeacherLeaveRequest } from "../api/teach
 
 const weekdays = ["شنبه", "یکشنبه", "دوشنبه", "سه‌شنبه", "چهارشنبه", "پنجشنبه", "جمعه"];
 const scheduleRefreshInterval = 30_000;
+const scheduleThemeStorageKey = "bastak.schedule.theme";
+const scheduleThemes = [
+  { id: "standard", label: "استاندارد", swatch: "#0f766e" },
+  { id: "ocean", label: "دریای عمیق", swatch: "#2563eb" },
+  { id: "violet", label: "یاس", swatch: "#7c3aed" },
+  { id: "forest", label: "جنگل", swatch: "#15803d" },
+  { id: "amber", label: "کهربا", swatch: "#b45309" },
+  { id: "midnight", label: "شب تاب", swatch: "#334155" },
+] as const;
+type ScheduleTheme = (typeof scheduleThemes)[number]["id"];
+
+function readScheduleTheme(): ScheduleTheme {
+  if (typeof window === "undefined") return "standard";
+  const saved = window.localStorage.getItem(scheduleThemeStorageKey);
+  return scheduleThemes.some((theme) => theme.id === saved) ? (saved as ScheduleTheme) : "standard";
+}
+
 const blank = (): ScheduleDraft => ({
   organizationId: "",
   title: "",
@@ -105,6 +123,7 @@ export function LegacySchedulePage() {
   const [templatePreview, setTemplatePreview] = useState<ScheduleTemplate | null>(null);
   const [mobileToolsOpen, setMobileToolsOpen] = useState(false);
   const [headerControlsOpen, setHeaderControlsOpen] = useState(false);
+  const [scheduleTheme, setScheduleTheme] = useState<ScheduleTheme>(readScheduleTheme);
   const [academicCyclesOpen, setAcademicCyclesOpen] = useState(false);
   const [bootstrapTermId, setBootstrapTermId] = useState("");
   const [bootstrapEntryIds, setBootstrapEntryIds] = useState<string[]>([]);
@@ -118,6 +137,9 @@ export function LegacySchedulePage() {
     initial?: ScheduleDraft;
   } | null>(null);
   const selectedOrganizationId = auth.context?.activeOrganization?.id;
+  useEffect(() => {
+    window.localStorage.setItem(scheduleThemeStorageKey, scheduleTheme);
+  }, [scheduleTheme]);
   const entries = useQuery({
     queryKey: ["schedule", selectedOrganizationId ?? "all"],
     queryFn: listSchedule,
@@ -692,7 +714,7 @@ export function LegacySchedulePage() {
     </div>
   );
   return (
-    <>
+    <div className="schedule-theme-workspace" data-schedule-theme={scheduleTheme}>
       {scheduleSetupBlocked && setupReminderHydrated && !setupGateDeferred ? (
         <ScheduleAcademicSetupGate
           canManage={canManageAcademicCycles}
@@ -736,6 +758,8 @@ export function LegacySchedulePage() {
         setScheduleAcademicYearId={setScheduleAcademicYearId}
         setScheduleTermId={setScheduleTermId}
         academicYears={academicCycles.data?.years ?? []}
+        scheduleTheme={scheduleTheme}
+        setScheduleTheme={setScheduleTheme}
       />
       <section
         className="relative mt-4 grid w-full max-w-none gap-4 pb-[calc(6rem+env(safe-area-inset-bottom))] min-[1200px]:pb-6"
@@ -889,7 +913,7 @@ export function LegacySchedulePage() {
           />
         ) : null}
       </ResponsiveDrawer>
-    </>
+    </div>
   );
 }
 
@@ -933,6 +957,8 @@ type SchudelHeaderProps = {
     name: string;
     state: string;
   }>;
+  scheduleTheme: ScheduleTheme;
+  setScheduleTheme: Dispatch<SetStateAction<ScheduleTheme>>;
 };
 
 function SchudelHeader({
@@ -964,10 +990,12 @@ function SchudelHeader({
   setScheduleTermId,
 
   academicYears,
+  scheduleTheme,
+  setScheduleTheme,
 }: SchudelHeaderProps) {
   return (
     <header
-      className="-mx-3 border-y border-sky-300/70 bg-sky-50/70 shadow-[var(--shadow-surface)] dark:border-sky-400/25 dark:bg-sky-950/25 sm:-mx-5 lg:-mx-6 xl:-mx-8"
+      className="schedule-themed-header -mx-3 border-y shadow-[var(--shadow-surface)] sm:-mx-5 lg:-mx-6 xl:-mx-8"
       dir="rtl"
     >
       {/* TAB BAR */}
@@ -1047,6 +1075,40 @@ function SchudelHeader({
               </Button>
             ) : null}
           </div>
+
+          <fieldset className="schedule-theme-picker" aria-label="پوستهٔ صفحهٔ برنامه">
+            <legend className="sr-only">پوستهٔ صفحهٔ برنامه</legend>
+            <span className="schedule-theme-picker__label">
+              <Palette size={16} aria-hidden="true" /> پوستهٔ برنامه
+            </span>
+            <div
+              className="schedule-theme-picker__choices"
+              role="radiogroup"
+              aria-label="انتخاب پوستهٔ برنامه"
+            >
+              {scheduleThemes.map((theme) => {
+                const selected = theme.id === scheduleTheme;
+                return (
+                  <button
+                    key={theme.id}
+                    type="button"
+                    role="radio"
+                    aria-checked={selected}
+                    className="schedule-theme-picker__choice"
+                    data-selected={selected || undefined}
+                    onClick={() => setScheduleTheme(theme.id)}
+                  >
+                    <span
+                      className="schedule-theme-picker__swatch"
+                      style={{ backgroundColor: theme.swatch }}
+                      aria-hidden="true"
+                    />
+                    {theme.label}
+                  </button>
+                );
+              })}
+            </div>
+          </fieldset>
 
           {canWrite && activeAcademicYear ? (
             <div className="grid gap-3 sm:grid-cols-2">
@@ -1337,7 +1399,7 @@ function ScheduleWorkspace({
           onOpenDetails={onOpenDetails}
         />
       ) : (
-        <Card className="overflow-hidden border-sky-200/80 bg-sky-50/30 p-0 shadow-[0_16px_28px_-26px_rgba(18,52,86,.45)] dark:border-sky-400/20 dark:bg-sky-950/10">
+        <Card className="schedule-themed-surface overflow-hidden p-0 shadow-[0_16px_28px_-26px_rgba(18,52,86,.45)]">
           <div className="flex items-center justify-between gap-3 border-b border-sky-200/80 px-3 py-3 sm:px-4 dark:border-sky-400/20">
             <div className="flex min-w-0 items-center gap-2">
               <CalendarClock size={19} className="shrink-0 text-brand" aria-hidden="true" />
@@ -1437,7 +1499,7 @@ function ScheduleWorkspace({
                   className="w-full min-w-[72rem] table-fixed overflow-hidden rounded-xl border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card))] text-right text-xs text-ink"
                   aria-label="دفتر برنامه هفتگی کلاس‌ها"
                 >
-                  <thead className="sticky top-0 z-20">
+                  <thead className="schedule-themed-table-head sticky top-0 z-20">
                     <tr className="bg-sky-100/70 text-sky-950 dark:bg-sky-950/45 dark:text-sky-50">
                       <th
                         scope="col"
@@ -2869,7 +2931,7 @@ function ScheduleTimeBlockBoard({
   );
 }
 
-function ScheduleEntryCard({
+function _ScheduleEntryCard({
   entry,
   leave,
   showOrganization,

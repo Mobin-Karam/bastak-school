@@ -7,6 +7,7 @@ export { useAttendanceDiscard } from "./components/useAttendanceDiscard";
 export {
   bulkMarkAttendance,
   getAttendanceParticipants,
+  getTeacherWeekAttendanceSummary,
   getAttendanceEncouragement,
   getAttendanceOverview,
   awardAttendancePoints,
@@ -18,6 +19,7 @@ export type {
   AttendanceContextOption,
   AttendanceContextType,
   SelfAttendanceRecord,
+  TeacherWeekAttendanceSummary,
 } from "./api";
 export { prepareAttendanceWrite } from "./model/attendance-write";
 export type { PendingAttendanceWrite } from "./model/attendance-write";

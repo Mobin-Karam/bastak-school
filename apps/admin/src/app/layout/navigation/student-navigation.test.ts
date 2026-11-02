@@ -112,7 +112,17 @@ describe("supervisor navigation", () => {
     ).flatMap((group) => group.items.map((item) => item.path));
 
     expect(paths).toEqual(
-      expect.arrayContaining(["schedule", "classes", "attendance", "students", "registration"]),
+      expect.arrayContaining([
+        "schedule",
+        "classes",
+        "attendance/classes",
+        "attendance/class-groups",
+        "attendance/dorm",
+        "attendance/archive",
+        "students",
+        "registration",
+      ]),
     );
+    expect(paths).not.toContain("attendance");
   });
 });

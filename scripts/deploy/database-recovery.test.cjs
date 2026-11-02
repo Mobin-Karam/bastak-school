@@ -78,6 +78,30 @@ test("allows only the empty teacher-message default added to prior attendance re
   db.close();
 });
 
+test("preserves historical attendance reviews while adding nullable revision dedupe keys", () => {
+  const db = new Database(":memory:");
+  db.exec(`
+    CREATE TABLE attendance_session_reviews (id TEXT PRIMARY KEY, reviewedRevision INTEGER NOT NULL);
+    CREATE TABLE migrations (name TEXT);
+    INSERT INTO attendance_session_reviews VALUES ('review-1', 2);
+  `);
+  const before = inventory(db);
+  db.exec(`
+    ALTER TABLE attendance_session_reviews ADD COLUMN dedupeKey varchar(96);
+    CREATE UNIQUE INDEX IDX_attendance_session_review_dedupe ON attendance_session_reviews(dedupeKey);
+    INSERT INTO migrations VALUES ('AttendanceRevisionReviewIdempotency1763600400000');
+  `);
+  assert.doesNotThrow(() => preserved(before, inventory(db), db));
+  db.prepare(
+    "UPDATE attendance_session_reviews SET dedupeKey='unexpected' WHERE id='review-1'",
+  ).run();
+  assert.throws(
+    () => preserved(before, inventory(db), db),
+    /non-null value in dedupeKey/,
+  );
+  db.close();
+});
+
 test("preserves historical leave requests while adding timed departure details", () => {
   const db = new Database(":memory:");
   db.exec(`

@@ -30,11 +30,13 @@ import {
   type PrincipalDashboardContract,
 } from "../api/principal-dashboard.api";
 import { DormAttendanceReviewInbox } from "../../../student-life/attendance/components/DormAttendanceReviewInbox";
+import { AttendanceReviewQueue } from "../../../student-life/attendance/components/AttendanceReviewQueue";
 import { PendingCorrectionQueue } from "../../../student-life/attendance/components/PendingCorrectionQueue";
 import {
   getDormAttendanceReviewQueue,
   getOutsidePresenceReports,
 } from "../../../student-life/attendance/api/attendance-operations.api";
+import { listAttendanceAbsenceReviews } from "../../../student-life/attendance/api/attendance.api";
 import {
   actOnTeacherStudentReport,
   getTeacherStudentReports,
@@ -60,6 +62,7 @@ type SessionReview = NonNullable<PrincipalDashboardContract["sessionReviews"]>["
 type Panel =
   | "dorm"
   | "sessions"
+  | "absence-reviews"
   | "reports"
   | "leave"
   | "return"
@@ -88,6 +91,13 @@ const cards: Array<{
     title: "جلسه‌های کلاس",
     description: "حضور ثبت‌شدهٔ استادان را بررسی کنید",
     icon: CalendarCheck2,
+    capability: "attendance.review",
+  },
+  {
+    id: "absence-reviews",
+    title: "غیبت دانش‌آموزان",
+    description: "هر غیبت کلاس را جداگانه بررسی و تعیین تکلیف کنید",
+    icon: UserRoundCheck,
     capability: "attendance.review",
   },
   {
@@ -198,6 +208,11 @@ export function PrincipalOperationalLists({
     queryFn: getTeacherStudentReports,
     enabled: canReviewAttendance,
   });
+  const classAbsenceReviews = useQuery({
+    queryKey: ["attendance", "absence-reviews", "principal-class", organizationId],
+    queryFn: () => listAttendanceAbsenceReviews(organizationId, "class"),
+    enabled: canReviewAttendance && Boolean(organizationId),
+  });
   const teacherLeaves = useQuery({
     queryKey: ["teacher-leaves", "principal", organizationId],
     queryFn: listTeacherLeaveRequests,
@@ -244,8 +259,8 @@ export function PrincipalOperationalLists({
     },
   });
   const reviewSession = useMutation({
-    mutationFn: ({ id, message }: { id: string; message?: string }) =>
-      reviewAttendanceSession(id, message),
+    mutationFn: ({ id, revision, message }: { id: string; revision: number; message?: string }) =>
+      reviewAttendanceSession(id, revision, message),
     onSuccess: () => {
       void client.invalidateQueries({ queryKey: ["principal-dashboard"] });
       void client.invalidateQueries({ queryKey: ["attendance"] });
@@ -314,7 +329,7 @@ export function PrincipalOperationalLists({
     try {
       for (const session of candidates) {
         if (autoArchiveCancelled.current) break;
-        await reviewAttendanceSession(session.id);
+        await reviewAttendanceSession(session.id, session.revision);
         completed += 1;
         setAutoArchiveProgress({ completed, total: candidates.length });
       }
@@ -342,6 +357,9 @@ export function PrincipalOperationalLists({
       (dormQueue.data?.length ?? values.counts?.dorm ?? 0) +
       (outsidePresenceReports.data?.length ?? 0),
     sessions: sessionReviews?.pendingCount ?? sessions.length,
+    "absence-reviews": (classAbsenceReviews.data ?? []).filter(
+      (review) => review.reviewStatus === "pending",
+    ).length,
     reports:
       values.counts?.reports ??
       reports.data?.filter((report) => !report.seenAt).length ??
@@ -490,7 +508,13 @@ export function PrincipalOperationalLists({
                   <SessionReviewRow
                     key={session.id}
                     session={session}
-                    onReview={(message) => reviewSession.mutate({ id: session.id, message })}
+                    onReview={(message) =>
+                      reviewSession.mutate({
+                        id: session.id,
+                        revision: session.revision,
+                        message,
+                      })
+                    }
                     busy={reviewSession.isPending}
                   />
                 ))
@@ -500,6 +524,7 @@ export function PrincipalOperationalLists({
               <PendingCorrectionQueue />
             </>
           )}
+          {active === "absence-reviews" && <AttendanceReviewQueue contextType="class" />}
           {active === "reports" && (
             <>
               {reports.isLoading ? (
@@ -628,7 +653,10 @@ function SessionReviewRow({
   busy: boolean;
 }) {
   const detail = useQuery({
-    queryKey: ["principal-attendance-review-detail", session.id],
+    // A teacher correction keeps the session id but changes the attendance
+    // revision. A revision-specific key prevents an old roster/absence view
+    // from being reused when the principal opens the new review obligation.
+    queryKey: ["principal-attendance-review-detail", session.id, session.revision],
     queryFn: () => getAttendanceSessionForReview(session.id),
     enabled: false,
   });

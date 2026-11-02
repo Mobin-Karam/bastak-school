@@ -20,9 +20,11 @@ import {
   SaveSupervisorAttendanceCheckDto,
   CreateAttendanceSessionDto,
   OpenLegacyScheduleAttendanceDto,
+  TeacherWeekAttendanceSummaryQueryDto,
   CreateHistoricalAttendanceSessionDto,
   HistoricalAttendanceCandidatesQueryDto,
   ReviewAttendanceAbsenceDto,
+  SendAttendanceAbsenceMessageDto,
   DailyAttendanceReviewDto,
   AwardAttendancePointsDto,
   SetAttendanceSessionStudentCoinDto,
@@ -89,6 +91,15 @@ export class AttendanceController {
     return this.attendance.listContexts(user, organizationId).then(ok);
   }
 
+  @Get("attendance/teacher-week-summary")
+  @RequireCapabilities("attendance.read")
+  teacherWeekSummary(
+    @CurrentUser() user: AuthenticatedUser,
+    @Query() query: TeacherWeekAttendanceSummaryQueryDto,
+  ) {
+    return this.attendance.teacherWeekAttendanceSummary(user, query).then(ok);
+  }
+
   @Get("attendance/context/:contextType/:contextId/participants")
   @RequireCapabilities("attendance.read")
   participants(
@@ -97,9 +108,17 @@ export class AttendanceController {
     @Param("contextId") contextId: string,
     @Query("date") occurrenceDate?: string,
     @Query("period") attendancePeriod?: "day" | "night",
+    @Query("scheduleEntryId") scheduleEntryId?: string,
   ) {
     return this.attendance
-      .listParticipants(user, contextType, contextId, occurrenceDate, attendancePeriod)
+      .listParticipants(
+        user,
+        contextType,
+        contextId,
+        occurrenceDate,
+        attendancePeriod,
+        scheduleEntryId,
+      )
       .then(ok);
   }
 
@@ -176,7 +195,7 @@ export class AttendanceController {
   }
 
   @Post("attendance/bulk-mark")
-  @RequireCapabilities("attendance.manage")
+  @RequireAnyCapabilities("attendance.manage", "attendance.class.manage")
   bulk(
     @CurrentUser() user: AuthenticatedUser,
     @Body() dto: BulkMarkAttendanceDto,
@@ -313,6 +332,16 @@ export class AttendanceController {
     @Body() dto: ReviewAttendanceAbsenceDto,
   ) {
     return this.attendance.reviewAbsence(user, id, dto).then(ok);
+  }
+
+  @Post("attendance/absence-reviews/:id/message")
+  @RequireCapabilities("attendance.review")
+  messageAbsenceAudience(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param("id") id: string,
+    @Body() dto: SendAttendanceAbsenceMessageDto,
+  ) {
+    return this.attendance.sendAbsenceMessage(user, id, dto).then(ok);
   }
 
   @Post("attendance/points")
