@@ -175,11 +175,11 @@ fi
 if [[ "$1" == inspect ]]; then
   case "$2" in
     backend) cat <<JSON
-[{"State":{"Running":true,"Health":{"Status":"healthy"}},"Image":"sha256:$(printf 'b%.0s' {1..64})","Config":{"Labels":{"org.opencontainers.image.revision":"''' + SHA + '''"}},"Mounts":[{"Type":"volume","Name":"fixture_volume","Destination":"/data"}]}]
+[{"State":{"Running":true,"Health":{"Status":"healthy"}},"Image":"sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb","Config":{"Labels":{"org.opencontainers.image.revision":"''' + SHA + '''"}},"Mounts":[{"Type":"volume","Name":"fixture_volume","Destination":"/data"}]}]
 JSON
       ;;
     admin) cat <<JSON
-[{"State":{"Running":true,"Health":{"Status":"healthy"}},"Image":"sha256:$(printf 'b%.0s' {1..64})","Config":{"Labels":{"org.opencontainers.image.revision":"''' + SHA + '''"}},"Mounts":[{"Type":"bind","Source":"$PRODUCTION_CONFIG_DIR/nginx.conf.template","Destination":"/etc/nginx/templates/default.conf.template"},{"Type":"bind","Source":"$PRODUCTION_CONFIG_DIR/tls","Destination":"/etc/nginx/tls"},{"Type":"bind","Source":"$PRODUCTION_CONFIG_DIR/tls/ca.crt","Destination":"/usr/share/nginx/html/bastak-school-ca.crt"}]}]
+[{"State":{"Running":true,"Health":{"Status":"healthy"}},"Image":"sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb","Config":{"Labels":{"org.opencontainers.image.revision":"''' + SHA + '''"}},"Mounts":[{"Type":"bind","Source":"$PRODUCTION_CONFIG_DIR/nginx.conf.template","Destination":"/etc/nginx/templates/default.conf.template"},{"Type":"bind","Source":"$PRODUCTION_CONFIG_DIR/tls","Destination":"/etc/nginx/tls"},{"Type":"bind","Source":"$PRODUCTION_CONFIG_DIR/tls/ca.crt","Destination":"/usr/share/nginx/html/bastak-school-ca.crt"}]}]
 JSON
       ;;
   esac
