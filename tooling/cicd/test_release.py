@@ -183,6 +183,7 @@ JSON
 JSON
       ;;
   esac
+  exit 0
 fi
 exit 1
 ''')
