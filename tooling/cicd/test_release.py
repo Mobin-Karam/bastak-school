@@ -144,5 +144,57 @@ fi
                 if mode=='locked':self.assertEqual(calls,'')
                 self.assertNotIn('down',calls);self.assertNotIn('prune',calls)
 
+    def test_production_evidence_verifies_only_receipt_and_running_contract(self):
+        with tempfile.TemporaryDirectory() as d:
+            p = pathlib.Path(d)
+            config = p / 'config'
+            (config / 'tls').mkdir(parents=True)
+            for name in ['production.env', 'nginx.conf.template', 'tls/server.key', 'tls/server.crt', 'tls/ca.crt']:
+                path = config / name
+                path.write_text('fixture')
+                path.chmod(0o600)
+            backup = p / 'backup.sqlite'
+            for path in [backup, pathlib.Path(str(backup) + '.restored'), pathlib.Path(str(backup) + '.verification.json')]:
+                path.write_text('{}')
+                path.chmod(0o600)
+            receipt = manifest()
+            receipt.update(backup=str(backup), healthyAt='2026-11-02T00:00:00+00:00')
+            receipt_path = p / 'release.json'
+            receipt_path.write_text(json.dumps(receipt))
+            receipt_path.chmod(0o600)
+            bin_dir = p / 'bin'
+            bin_dir.mkdir()
+            (bin_dir / 'docker').write_text('''#!/bin/bash
+set -eu
+if [[ "$1" == ps ]]; then
+  for arg in "$@"; do
+    [[ "$arg" == *service=backend-v2 ]] && { echo backend; exit 0; }
+    [[ "$arg" == *service=admin-v2 ]] && { echo admin; exit 0; }
+  done
+fi
+if [[ "$1" == inspect ]]; then
+  case "$2" in
+    backend) cat <<JSON
+[{"State":{"Running":true,"Health":{"Status":"healthy"}},"Image":"sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb","Config":{"Labels":{"org.opencontainers.image.revision":"''' + SHA + '''"}},"Mounts":[{"Type":"volume","Name":"fixture_volume","Destination":"/data"}]}]
+JSON
+      ;;
+    admin) cat <<JSON
+[{"State":{"Running":true,"Health":{"Status":"healthy"}},"Image":"sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb","Config":{"Labels":{"org.opencontainers.image.revision":"''' + SHA + '''"}},"Mounts":[{"Type":"bind","Source":"$PRODUCTION_CONFIG_DIR/nginx.conf.template","Destination":"/etc/nginx/templates/default.conf.template"},{"Type":"bind","Source":"$PRODUCTION_CONFIG_DIR/tls","Destination":"/etc/nginx/tls"},{"Type":"bind","Source":"$PRODUCTION_CONFIG_DIR/tls/ca.crt","Destination":"/usr/share/nginx/html/bastak-school-ca.crt"}]}]
+JSON
+      ;;
+  esac
+  exit 0
+fi
+exit 1
+''')
+            (bin_dir / 'docker').chmod(0o700)
+            env = dict(os.environ, PATH=str(bin_dir) + os.pathsep + os.environ['PATH'],
+                       PRODUCTION_CONFIG_DIR=str(config), PRODUCTION_RECEIPT=str(receipt_path),
+                       PRODUCTION_DATA_VOLUME='fixture_volume')
+            result = subprocess.run([str(ROOT / 'scripts/deploy/verify-production-evidence.sh')], env=env,
+                                    capture_output=True, text=True)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertIn(f'release SHA: {SHA}', result.stdout)
+
 
 if __name__=='__main__':unittest.main()
