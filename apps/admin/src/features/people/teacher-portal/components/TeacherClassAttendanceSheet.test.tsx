@@ -114,11 +114,12 @@ describe("TeacherClassAttendanceSheet", () => {
     expect(screen.getByText("08:00 تا 09:30 · ۱۰۱")).toBeInTheDocument();
     expect(await screen.findByText("علی رضایی")).toBeInTheDocument();
     expect(dialog).toHaveClass("max-w-xl");
-    expect(
-      within(screen.getByRole("group", { name: "وضعیت حضور علی رضایی" })).getByRole("button", {
-        name: "ح · حاضر",
-      }),
-    ).toHaveAttribute("aria-pressed", "true");
+    const present = within(screen.getByRole("group", { name: "وضعیت حضور علی رضایی" })).getByRole(
+      "button",
+      { name: "حاضر" },
+    );
+    expect(present).toHaveAttribute("aria-pressed", "true");
+    expect(present).toHaveClass("bg-emerald-600");
   });
   it("hydrates saved marks from the saved roster before enabling revision", async () => {
     let resolveSavedAttendance!: (value: {
@@ -165,13 +166,50 @@ describe("TeacherClassAttendanceSheet", () => {
       records: [{ studentId: "former-student", legacyStatus: "absent", note: "غیبت ثبت‌شده" }],
     });
 
+    expect(screen.queryByText("دانش‌آموز جدید")).not.toBeInTheDocument();
+    expect(await screen.findByText("بازبینی ثبت‌شده")).toBeInTheDocument();
+    expect(
+      screen.getByText("این جلسه قبلاً ثبت شده است؛ پیش از ویرایش، بازبینی آن را تأیید کنید."),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("group", { name: "وضعیت حضور دانش‌آموز سابق" }),
+    ).not.toBeInTheDocument();
+    expect(
+      within(screen.getByRole("list", { name: "فهرست دانش‌آموزان کلاس" })).getByText("غایب"),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("dialog", { name: "بازبینی حضور و غیاب" })).not.toBeInTheDocument();
+    expect(screen.getByRole("group", { name: "سکه دانش‌آموز سابق" })).toBeInTheDocument();
+
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("button", { name: "ویرایش بازبینی" }));
+    const revisionDrawer = await screen.findByRole("dialog", { name: "بازبینی حضور و غیاب" });
+    expect(revisionDrawer).toBeInTheDocument();
+    expect(within(revisionDrawer).getByText("خلاصهٔ ثبت قبلی")).toBeInTheDocument();
+    expect(revisionDrawer).toHaveTextContent(
+      "اگر «فعلاً فقط مشاهده می‌کنم» را انتخاب کنید، هیچ تغییری در حضور و غیاب ثبت نمی‌شود.",
+    );
+    expect(
+      within(revisionDrawer).getByRole("list", { name: "خلاصه وضعیت ثبت قبلی" }),
+    ).toHaveTextContent("۱غایب");
+
+    await user.click(
+      within(revisionDrawer).getByRole("button", { name: "فعلاً فقط مشاهده می‌کنم" }),
+    );
+    expect(
+      screen.queryByRole("group", { name: "وضعیت حضور دانش‌آموز سابق" }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByRole("group", { name: "سکه دانش‌آموز سابق" })).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "ویرایش بازبینی" }));
+    const confirmationDrawer = await screen.findByRole("dialog", { name: "بازبینی حضور و غیاب" });
+    await user.click(within(confirmationDrawer).getByRole("button", { name: "ادامه و ویرایش" }));
+
     const group = await screen.findByRole("group", { name: "وضعیت حضور دانش‌آموز سابق" });
-    expect(within(group).getByRole("button", { name: "غ · غایب" })).toHaveAttribute(
+    expect(within(group).getByRole("button", { name: "غایب" })).toHaveAttribute(
       "aria-pressed",
       "true",
     );
-    expect(screen.queryByText("دانش‌آموز جدید")).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "بررسی و ثبت حضور و غیاب" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "بررسی و ثبت بازبینی" })).toBeEnabled();
   });
   it("keeps a cancelled occurrence readable but not editable", async () => {
     getMock.mockImplementation((path: string) => {
@@ -216,17 +254,19 @@ describe("TeacherClassAttendanceSheet", () => {
     renderSheet(onOpenChange);
     const user = userEvent.setup();
     const group = await screen.findByRole("group", { name: "وضعیت حضور علی رضایی" });
-    await user.click(within(group).getByRole("button", { name: "ح · حاضر" }));
+    await user.click(within(group).getByRole("button", { name: "حاضر" }));
     await user.click(screen.getByRole("button", { name: "بررسی و ثبت حضور و غیاب" }));
     expect(bulkMarkAttendanceMock).not.toHaveBeenCalled();
-    await user.click(screen.getByRole("button", { name: "تأیید و ثبت" }));
-    await waitFor(() => expect(screen.getByRole("button", { name: "تأیید و ثبت" })).toBeEnabled());
+    await user.click(screen.getByRole("button", { name: "تأیید و ثبت حضور و غیاب" }));
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "تأیید و ثبت حضور و غیاب" })).toBeEnabled(),
+    );
     expect(onOpenChange).not.toHaveBeenCalled();
-    expect(within(group).getByRole("button", { name: "ح · حاضر", hidden: true })).toHaveAttribute(
+    expect(within(group).getByRole("button", { name: "حاضر", hidden: true })).toHaveAttribute(
       "aria-pressed",
       "true",
     );
-    await user.click(screen.getByRole("button", { name: "تأیید و ثبت" }));
+    await user.click(screen.getByRole("button", { name: "تأیید و ثبت حضور و غیاب" }));
     await waitFor(() => expect(bulkMarkAttendanceMock).toHaveBeenCalledTimes(2));
     expect(screen.queryByText("مرحله ۲: بررسی و ثبت")).not.toBeInTheDocument();
     expect(onOpenChange).not.toHaveBeenCalled();
@@ -249,14 +289,14 @@ describe("TeacherClassAttendanceSheet", () => {
     expect(screen.getByRole("dialog", { name: "ریاضی دهم" })).toBeInTheDocument();
 
     const group = screen.getByRole("group", { name: "وضعیت حضور علی رضایی" });
-    await user.click(within(group).getByRole("button", { name: "غ · غایب" }));
+    await user.click(within(group).getByRole("button", { name: "غایب" }));
     await user.click(screen.getByRole("button", { name: "پاک کردن" }));
 
     expect(screen.getByRole("dialog", { name: "ریاضی دهم" })).toBeInTheDocument();
     expect(screen.getByText("تغییرات حضور و غیاب پاک می‌شوند")).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "بازگشت و حفظ تغییرات" }));
     expect(screen.getByRole("dialog", { name: "ریاضی دهم" })).toBeInTheDocument();
-    expect(within(group).getByRole("button", { name: "غ · غایب" })).toHaveAttribute(
+    expect(within(group).getByRole("button", { name: "غایب" })).toHaveAttribute(
       "aria-pressed",
       "true",
     );

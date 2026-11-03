@@ -35,6 +35,7 @@ export function ResponsiveModal({
   description,
   children,
   size = "default",
+  modal = true,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -42,6 +43,8 @@ export function ResponsiveModal({
   description: ReactNode;
   children: ReactNode;
   size?: "default" | "wide";
+  /** Allows a nested portal surface to receive pointer and keyboard events. */
+  modal?: boolean;
 }) {
   const mobile = useMobileDialog();
   const language = useOptionalAdminLanguage();
@@ -52,12 +55,13 @@ export function ResponsiveModal({
         onOpenChange={onOpenChange}
         title={title}
         description={description}
+        modal={modal}
       >
         {children}
       </ResponsiveDrawer>
     );
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={onOpenChange} modal={modal}>
       <DialogContent
         showCloseButton={false}
         dir={language === "fa" ? "rtl" : "ltr"}
