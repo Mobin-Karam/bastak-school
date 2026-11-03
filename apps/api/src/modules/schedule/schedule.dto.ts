@@ -8,6 +8,7 @@ import {
   IsOptional,
   IsString,
   IsUUID,
+  IsBoolean,
   Matches,
   Max,
   Min,
@@ -117,10 +118,41 @@ export class CreateScheduleTemplateDto {
   @IsUUID() organizationId!: string;
   @IsString() name!: string;
   @IsOptional() @IsUUID() sourceTemplateId?: string;
+  @IsOptional() @IsUUID() academicYearId?: string;
+  @IsOptional() @IsUUID() termId?: string;
 }
 export class ApplyScheduleTemplateDto {
   @IsUUID() academicYearId!: string;
   @IsUUID() termId!: string;
+  @IsString() @MinLength(16) previewFingerprint!: string;
+}
+export class PreviewScheduleTemplateDto {
+  @IsUUID() academicYearId!: string;
+  @IsUUID() termId!: string;
+}
+export class SetScheduleSafeguardDto {
+  @IsBoolean() active!: boolean;
+  @IsString() @MinLength(3) reason!: string;
+  @IsOptional() @IsInt() @Min(1) @Max(120) durationMinutes?: number;
+}
+export class ExtendScheduleSafeguardDto {
+  @IsString() @MinLength(3) reason!: string;
+  @IsInt() @Min(1) @Max(120) durationMinutes!: number;
+}
+export class CreateScheduleSafeguardOverrideDto {
+  @IsUUID() organizationId!: string;
+  @IsIn([
+    "ENTRY_CREATE",
+    "ENTRY_UPDATE",
+    "ENTRY_ARCHIVE",
+    "ENTRY_DELETE",
+    "TIME_BLOCK_MANAGE",
+    "ACADEMIC_CYCLE_MANAGE",
+    "RECONCILIATION",
+  ])
+  action!: string;
+  @IsString() @MinLength(3) reason!: string;
+  @IsOptional() @IsInt() @Min(1) @Max(30) durationMinutes?: number;
 }
 export class ScheduleSubstitutionRequestDto {
   @IsUUID() sourceEntryId!: string;

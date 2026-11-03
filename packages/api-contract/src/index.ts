@@ -182,6 +182,7 @@ export const CAPABILITIES = [
   "schedule.archive",
   "schedule.import",
   "schedule.export",
+  "schedule.safeguard.manage",
   "prayer_times.read",
   "prayer_times.manage",
   "announcements.read",

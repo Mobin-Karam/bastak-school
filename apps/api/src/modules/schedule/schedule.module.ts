@@ -27,6 +27,10 @@ import { TeacherLeaveRequest } from "../../database/entities/teacher-leave-reque
 import { AuditLog } from "../../database/entities/audit-log.entity";
 import { AttendanceSession } from "../../database/entities/attendance-session.entity";
 import { ScheduleSetupReminder } from "../../database/entities/schedule-setup-reminder.entity";
+import {
+  ScheduleChangeSafeguard,
+  ScheduleChangeSafeguardOverride,
+} from "../../database/entities/schedule-change-safeguard.entity";
 import { ScheduleController } from "./schedule.controller";
 import { ScheduleService } from "./schedule.service";
 @Module({
@@ -47,6 +51,8 @@ import { ScheduleService } from "./schedule.service";
       AuditLog,
       AttendanceSession,
       ScheduleSetupReminder,
+      ScheduleChangeSafeguard,
+      ScheduleChangeSafeguardOverride,
       EducationClassBook,
       Organization,
       OrganizationMembership,

@@ -6,6 +6,7 @@ import {
   Param,
   Patch,
   Post,
+  Put,
   Query,
 } from "@nestjs/common";
 import { CurrentUser } from "../../common/decorators/current-user.decorator";
@@ -34,6 +35,10 @@ import {
   LegacyAcademicLifecycleDto,
   ReconcileLegacyAcademicCycleDto,
   SetScheduleSetupReminderDto,
+  CreateScheduleSafeguardOverrideDto,
+  ExtendScheduleSafeguardDto,
+  PreviewScheduleTemplateDto,
+  SetScheduleSafeguardDto,
 } from "./schedule.dto";
 import { ScheduleService } from "./schedule.service";
 
@@ -260,6 +265,47 @@ export class ScheduleController {
     @Body() dto: ApplyScheduleTemplateDto,
   ) {
     return this.schedule.applyTemplate(user, id, dto).then(ok);
+  }
+  @Post("templates/:id/preview")
+  @RequireCapabilities("schedule.read")
+  previewTemplate(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param("id") id: string,
+    @Body() dto: PreviewScheduleTemplateDto,
+  ) {
+    return this.schedule.previewTemplate(user, id, dto).then(ok);
+  }
+  @Get("safeguard") @RequireCapabilities("schedule.read") safeguard(
+    @CurrentUser() user: AuthenticatedUser,
+    @Query("organizationId") organizationId?: string,
+  ) {
+    return this.schedule.getSafeguard(user, organizationId).then(ok);
+  }
+  @Put("safeguard/:organizationId")
+  @RequireCapabilities("schedule.safeguard.manage")
+  setSafeguard(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param("organizationId") organizationId: string,
+    @Body() dto: SetScheduleSafeguardDto,
+  ) {
+    return this.schedule.setSafeguard(user, organizationId, dto).then(ok);
+  }
+  @Post("safeguard/:organizationId/extend")
+  @RequireCapabilities("schedule.safeguard.manage")
+  extendSafeguard(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param("organizationId") organizationId: string,
+    @Body() dto: ExtendScheduleSafeguardDto,
+  ) {
+    return this.schedule.extendSafeguard(user, organizationId, dto).then(ok);
+  }
+  @Post("safeguard/overrides")
+  @RequireCapabilities("schedule.safeguard.manage")
+  createSafeguardOverride(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() dto: CreateScheduleSafeguardOverrideDto,
+  ) {
+    return this.schedule.createSafeguardOverride(user, dto).then(ok);
   }
   @Patch("templates/:id/archive")
   @RequireCapabilities("schedule.archive")

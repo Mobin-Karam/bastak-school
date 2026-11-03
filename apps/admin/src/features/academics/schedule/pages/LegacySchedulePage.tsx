@@ -32,9 +32,11 @@ import {
   archiveScheduleEntry,
   archiveScheduleTemplate,
   applyScheduleTemplate,
+  createScheduleSafeguardOverride,
   createScheduleEntry,
   createScheduleEntries,
   createScheduleTemplate,
+  getScheduleSafeguard,
   createScheduleTimeBlock,
   createScheduleTimeBlockGroup,
   deleteScheduleEntry,
@@ -43,6 +45,7 @@ import {
   deleteScheduleTimeBlockGroup,
   listSchedule,
   listScheduleTemplates,
+  previewScheduleTemplate,
   listScheduleTimeBlocks,
   listScheduleTimeBlockGroups,
   listLegacyAcademicCycles,
@@ -61,7 +64,10 @@ import {
   reconcileLegacyAcademicCycle,
   restoreArchivedScheduleEntries,
   restoreScheduleTemplate,
+  setScheduleSafeguard,
   type ScheduleDraft,
+  type ScheduleSafeguard,
+  type ScheduleTemplatePreview,
   updateScheduleEntry,
 } from "../api/schedule.api";
 import type {
@@ -313,6 +319,37 @@ export function LegacySchedulePage() {
     queryFn: listScheduleTemplates,
     enabled: canManageTemplates,
   });
+  const canManageSafeguard = auth.can("schedule.safeguard.manage");
+  const safeguard = useQuery({
+    queryKey: ["schedule", "safeguard", selectedOrganizationId],
+    queryFn: () => getScheduleSafeguard(selectedOrganizationId!),
+    enabled: Boolean(selectedOrganizationId) && auth.can("schedule.read"),
+    refetchInterval: 15_000,
+  });
+  const templateReview = useQuery({
+    queryKey: [
+      "schedule",
+      "template-preview",
+      templatePreview?.id,
+      selectedScheduleYearId,
+      scheduleTermId || availableScheduleTerms[0]?.id,
+    ],
+    queryFn: () =>
+      previewScheduleTemplate(templatePreview!.id, {
+        academicYearId: selectedScheduleYearId,
+        termId: scheduleTermId || availableScheduleTerms[0]!.id,
+      }),
+    enabled: Boolean(
+      templatePreview &&
+      selectedScheduleYearId &&
+      (scheduleTermId || availableScheduleTerms[0]?.id),
+    ),
+  });
+  const scheduleMutationsAllowed = safeguard.data?.active !== true;
+  const canCreateSchedule = canCreate && scheduleMutationsAllowed;
+  const canEditSchedule = canEdit && scheduleMutationsAllowed;
+  const canArchiveSchedule = canArchive && scheduleMutationsAllowed;
+  const canDeleteSchedule = canDelete && scheduleMutationsAllowed;
   const isTeacher = auth.activeRole === "TEACHER";
   const teacherLeaves = useQuery({
     queryKey: ["teacher-leaves", selectedOrganizationId],
@@ -451,17 +488,49 @@ export function LegacySchedulePage() {
       id,
       academicYearId,
       termId,
+      previewFingerprint,
     }: {
       id: string;
       academicYearId: string;
       termId: string;
-    }) => applyScheduleTemplate(id, { academicYearId, termId }),
+      previewFingerprint: string;
+    }) => applyScheduleTemplate(id, { academicYearId, termId, previewFingerprint }),
     onSuccess: (result) => {
       setTemplatePreview(null);
       templateReload();
       notify(`${result.applied} جلسه از الگو اجرا شد.`, "success");
     },
     onError: (e) => notify(e instanceof Error ? e.message : "اجرای الگو انجام نشد.", "error"),
+  });
+  const updateSafeguard = useMutation({
+    mutationFn: ({
+      active,
+      reason,
+      durationMinutes,
+    }: {
+      active: boolean;
+      reason: string;
+      durationMinutes?: number;
+    }) => setScheduleSafeguard(selectedOrganizationId!, { active, reason, durationMinutes }),
+    onSuccess: () => {
+      void client.invalidateQueries({
+        queryKey: ["schedule", "safeguard", selectedOrganizationId],
+      });
+      notify("وضعیت محافظت سراسری برنامه به‌روزرسانی شد.", "success");
+    },
+    onError: (error) =>
+      notify(error instanceof Error ? error.message : "تغییر محافظت برنامه انجام نشد.", "error"),
+  });
+  const createSafeguardOverride = useMutation({
+    mutationFn: createScheduleSafeguardOverride,
+    onSuccess: () => {
+      void client.invalidateQueries({
+        queryKey: ["schedule", "safeguard", selectedOrganizationId],
+      });
+      notify("مجوز محدود و زمان‌دار ثبت شد.", "success");
+    },
+    onError: (error) =>
+      notify(error instanceof Error ? error.message : "ثبت مجوز موقت انجام نشد.", "error"),
   });
   const archiveTemplate = useMutation({
     mutationFn: archiveScheduleTemplate,
@@ -576,10 +645,10 @@ export function LegacySchedulePage() {
           entry={entry}
           leave={leave}
           showOrganization={auth.hasRole("PLATFORM_ADMIN")}
-          canEdit={canEdit}
-          canCreate={canCreate}
-          canArchive={canArchive}
-          canDelete={canDelete}
+          canEdit={canEditSchedule}
+          canCreate={canCreateSchedule}
+          canArchive={canArchiveSchedule}
+          canDelete={canDeleteSchedule}
           onClose={modal.close}
           onEdit={() => {
             modal.close();
@@ -619,7 +688,7 @@ export function LegacySchedulePage() {
         </div>
       </header>
       <ScheduleSidebarSummary entries={scheduleEntries} />
-      {canCreate ? (
+      {canCreateSchedule ? (
         <Card className="border-brand/15 bg-[rgb(var(--surface-card))] p-4">
           <span className="grid size-10 place-items-center rounded-xl bg-brand/10 text-brand">
             <Plus size={20} />
@@ -633,7 +702,7 @@ export function LegacySchedulePage() {
           </Button>
         </Card>
       ) : null}
-      {canEdit ? (
+      {canEditSchedule ? (
         <ScheduleTimeBlocks
           blocks={timeBlocks.data ?? []}
           groups={timeBlockGroups.data ?? []}
@@ -674,7 +743,12 @@ export function LegacySchedulePage() {
           organizationId={selectedOrganizationId}
           onCreate={(name) =>
             selectedOrganizationId &&
-            createTemplate.mutate({ organizationId: selectedOrganizationId, name })
+            createTemplate.mutate({
+              organizationId: selectedOrganizationId,
+              name,
+              academicYearId: selectedScheduleYearId || undefined,
+              termId: scheduleTermId || availableScheduleTerms[0]?.id,
+            })
           }
           onCopy={(template) =>
             selectedOrganizationId &&
@@ -757,16 +831,47 @@ export function LegacySchedulePage() {
         scheduleTermId={scheduleTermId}
         headerControlsOpen={headerControlsOpen}
         setHeaderControlsOpen={setHeaderControlsOpen}
-        canManageAcademicCycles={canManageAcademicCycles && scheduleEditingEnabled}
+        canManageAcademicCycles={
+          canManageAcademicCycles && scheduleEditingEnabled && scheduleMutationsAllowed
+        }
         canToggleScheduleEditing={canToggleScheduleEditing}
         scheduleEditingLocked={scheduleEditingLocked}
         onScheduleEditingLockChange={setScheduleEditingLocked}
+        safeguard={safeguard.data}
+        canManageSafeguard={canManageSafeguard}
+        safeguardPending={updateSafeguard.isPending}
+        onSafeguardChange={(active, reason, durationMinutes) =>
+          void modal
+            .confirm({
+              title: active ? "فعال‌سازی محافظت سراسری؟" : "پایان محافظت سراسری؟",
+              description: active
+                ? "همه تغییرات برنامه برای این مدرسه تا پایان زمان انتخاب‌شده متوقف می‌شود."
+                : "تغییرات برنامه دوباره برای کاربران مجاز در دسترس قرار می‌گیرد.",
+              confirmLabel: active ? "فعال‌سازی محافظت" : "پایان محافظت",
+              cancelLabel: "انصراف",
+              tone: active ? "danger" : "default",
+              softConfirm: active,
+            })
+            .then(
+              (confirmed) =>
+                confirmed && updateSafeguard.mutate({ active, reason, durationMinutes }),
+            )
+        }
+        onCreateSafeguardOverride={(action, reason, durationMinutes) =>
+          selectedOrganizationId &&
+          createSafeguardOverride.mutate({
+            organizationId: selectedOrganizationId,
+            action,
+            reason,
+            durationMinutes,
+          })
+        }
         setAcademicCyclesOpen={setAcademicCyclesOpen}
         mobileToolsOpen={mobileToolsOpen}
         setMobileToolsOpen={setMobileToolsOpen}
-        canCreate={canCreate}
+        canCreate={canCreateSchedule}
         editEntry={editEntry}
-        canWrite={canWrite}
+        canWrite={canWrite && scheduleMutationsAllowed}
         selectedScheduleYearId={selectedScheduleYearId}
         setScheduleAcademicYearId={setScheduleAcademicYearId}
         setScheduleTermId={setScheduleTermId}
@@ -784,59 +889,18 @@ export function LegacySchedulePage() {
           id="schedule-workspace-panel"
           aria-labelledby="schedule-page-title"
         >
-          {templatePreview ? (
-            <ScheduleTemplatePreview
-              template={templatePreview}
-              activeEntries={scheduleEntries.filter(
-                (entry) =>
-                  entry.status === "ACTIVE" &&
-                  entry.academicYearId === selectedScheduleYearId &&
-                  entry.termId === (scheduleTermId || availableScheduleTerms[0]?.id),
-              )}
-              academicYearName={
-                academicCycles.data?.years.find((year) => year.id === selectedScheduleYearId)?.name
-              }
-              termName={
-                availableScheduleTerms.find(
-                  (term) => term.id === (scheduleTermId || availableScheduleTerms[0]?.id),
-                )?.name
-              }
-              onCancel={() => setTemplatePreview(null)}
-              onApply={() =>
-                void modal
-                  .confirm({
-                    title: "اجرای الگوی برنامه؟",
-                    description: `فقط جلسه‌های فعال ${availableScheduleTerms.find((term) => term.id === (scheduleTermId || availableScheduleTerms[0]?.id))?.name ?? "نیم‌سال انتخاب‌شده"} با جلسه‌های «${templatePreview.name}» جایگزین می‌شوند. برنامهٔ سایر نیم‌سال‌ها تغییری نمی‌کند.`,
-                    tone: "danger",
-                    confirmLabel: "اجرای الگو",
-                    cancelLabel: "انصراف",
-                    softConfirm: true,
-                  })
-                  .then((ok) =>
-                    ok &&
-                    selectedScheduleYearId &&
-                    (scheduleTermId || availableScheduleTerms[0]?.id)
-                      ? applyTemplate.mutate({
-                          id: templatePreview.id,
-                          academicYearId: selectedScheduleYearId,
-                          termId: scheduleTermId || availableScheduleTerms[0]!.id,
-                        })
-                      : notify("پیش از اجرای الگو، سال و نیم‌سال را انتخاب کنید.", "error"),
-                  )
-              }
-            />
-          ) : null}
+          {safeguard.data?.active ? <ScheduleSafeguardBanner safeguard={safeguard.data} /> : null}
           <ScheduleWorkspace
             entries={scheduleEntries}
             classes={classes.data ?? []}
             timeBlocks={timeBlocks.data ?? []}
             activeWeekday={activeWeekday}
             onWeekdayChange={setActiveWeekday}
-            canEdit={canEdit}
-            canArchive={canArchive}
+            canEdit={canEditSchedule}
+            canArchive={canArchiveSchedule}
             showOrganization={auth.hasRole("PLATFORM_ADMIN")}
-            canDelete={canDelete}
-            canCreate={canCreate}
+            canDelete={canDeleteSchedule}
+            canCreate={canCreateSchedule}
             onAdd={(classroom, weekday) =>
               editEntry(undefined, false, {
                 ...blank(),
@@ -851,7 +915,8 @@ export function LegacySchedulePage() {
             onDelete={confirmDelete}
             onOpenDetails={openDetails}
             onMove={(entry, weekday) => {
-              if (scheduleEditingEnabled) move.mutate({ entry, weekday });
+              if (scheduleEditingEnabled && scheduleMutationsAllowed)
+                move.mutate({ entry, weekday });
             }}
             leaveForEntry={(entry) =>
               approvedLeaveByTeacher.get(entry.teacher?.id ?? entry.classBook?.teacher.id ?? "")
@@ -866,6 +931,52 @@ export function LegacySchedulePage() {
           />
         </div>
       </section>
+      <ResponsiveDrawer
+        open={Boolean(templatePreview)}
+        onOpenChange={(open) => !open && setTemplatePreview(null)}
+        title="بررسی تغییرات الگوی برنامه"
+        description="پیش از جایگزینی، برنامهٔ مقصد و مراجع الگو در سرور بررسی می‌شوند."
+        desktopSide="left"
+        className="w-full max-w-2xl"
+      >
+        {templatePreview ? (
+          <ScheduleTemplateReview
+            template={templatePreview}
+            preview={templateReview.data}
+            loading={templateReview.isLoading}
+            error={templateReview.error}
+            applying={applyTemplate.isPending}
+            onClose={() => setTemplatePreview(null)}
+            onApply={() => {
+              const targetTermId = scheduleTermId || availableScheduleTerms[0]?.id;
+              if (!targetTermId || !selectedScheduleYearId || !templateReview.data) {
+                notify("پیش از اجرای الگو، سال و نیم‌سال را انتخاب کنید.", "error");
+                return;
+              }
+              void modal
+                .confirm({
+                  title: "محافظت و اجرای الگو؟",
+                  description:
+                    "جلسه‌های فعال نیم‌سال مقصد به‌صورت کامل جایگزین می‌شوند. هنگام اجرا، محافظت سراسری موقت فعال است.",
+                  tone: "danger",
+                  confirmLabel: "محافظت و اجرای الگو",
+                  cancelLabel: "انصراف",
+                  softConfirm: true,
+                })
+                .then(
+                  (confirmed) =>
+                    confirmed &&
+                    applyTemplate.mutate({
+                      id: templatePreview.id,
+                      academicYearId: selectedScheduleYearId,
+                      termId: targetTermId,
+                      previewFingerprint: templateReview.data.previewFingerprint,
+                    }),
+                );
+            }}
+          />
+        ) : null}
+      </ResponsiveDrawer>
       <ResponsiveDrawer
         open={mobileToolsOpen}
         onOpenChange={setMobileToolsOpen}
@@ -956,6 +1067,22 @@ type SchudelHeaderProps = {
   canToggleScheduleEditing: boolean;
   scheduleEditingLocked: boolean;
   onScheduleEditingLockChange: Dispatch<SetStateAction<boolean>>;
+  safeguard?: ScheduleSafeguard;
+  canManageSafeguard: boolean;
+  safeguardPending: boolean;
+  onSafeguardChange: (active: boolean, reason: string, durationMinutes?: number) => void;
+  onCreateSafeguardOverride: (
+    action:
+      | "ENTRY_CREATE"
+      | "ENTRY_UPDATE"
+      | "ENTRY_ARCHIVE"
+      | "ENTRY_DELETE"
+      | "TIME_BLOCK_MANAGE"
+      | "ACADEMIC_CYCLE_MANAGE"
+      | "RECONCILIATION",
+    reason: string,
+    durationMinutes?: number,
+  ) => void;
   setAcademicCyclesOpen: Dispatch<SetStateAction<boolean>>;
 
   mobileToolsOpen: boolean;
@@ -997,6 +1124,11 @@ function SchudelHeader({
   canToggleScheduleEditing,
   scheduleEditingLocked,
   onScheduleEditingLockChange,
+  safeguard,
+  canManageSafeguard,
+  safeguardPending,
+  onSafeguardChange,
+  onCreateSafeguardOverride,
   setAcademicCyclesOpen,
 
   mobileToolsOpen,
@@ -1014,6 +1146,19 @@ function SchudelHeader({
   scheduleTheme,
   setScheduleTheme,
 }: SchudelHeaderProps) {
+  const [safeguardReason, setSafeguardReason] = useState("");
+  const [safeguardMinutes, setSafeguardMinutes] = useState("120");
+  const [overrideReason, setOverrideReason] = useState("");
+  const [overrideAction, setOverrideAction] = useState<
+    | "ENTRY_CREATE"
+    | "ENTRY_UPDATE"
+    | "ENTRY_ARCHIVE"
+    | "ENTRY_DELETE"
+    | "TIME_BLOCK_MANAGE"
+    | "ACADEMIC_CYCLE_MANAGE"
+    | "RECONCILIATION"
+  >("ENTRY_UPDATE");
+  const globallyProtected = safeguard?.active === true;
   return (
     <header
       className="schedule-themed-header -mx-3 border-y shadow-[var(--shadow-surface)] sm:-mx-5 lg:-mx-6 xl:-mx-8"
@@ -1060,6 +1205,33 @@ function SchudelHeader({
             </span>
           </Button>
         ) : null}
+        {canManageSafeguard ? (
+          <div className="flex shrink-0 items-center gap-2">
+            <button
+              type="button"
+              role="switch"
+              aria-checked={globallyProtected}
+              disabled={safeguardPending}
+              onClick={() => {
+                if (globallyProtected)
+                  onSafeguardChange(false, safeguard?.reason || "پایان کار محافظت‌شده");
+                else if (safeguardReason.trim())
+                  onSafeguardChange(true, safeguardReason.trim(), Number(safeguardMinutes) || 120);
+              }}
+              className={`relative h-7 w-12 rounded-full transition ${globallyProtected ? "bg-rose-600" : "bg-slate-300 dark:bg-slate-700"}`}
+              aria-label="قفل تغییرات برنامه"
+            >
+              <span
+                className={`absolute top-1 size-5 rounded-full bg-white shadow transition ${globallyProtected ? "start-6" : "start-1"}`}
+              />
+            </button>
+            <span
+              className={`hidden text-xs font-black sm:inline ${globallyProtected ? "text-rose-700 dark:text-rose-300" : "text-slate-600 dark:text-slate-300"}`}
+            >
+              قفل تغییرات برنامه
+            </span>
+          </div>
+        ) : null}
       </div>
 
       {/* BELOW TAB BAR */}
@@ -1068,6 +1240,94 @@ function SchudelHeader({
           id="schedule-header-controls"
           className="grid gap-4 border-t border-sky-300/70 px-3 py-4 dark:border-sky-400/25 sm:px-5 lg:px-6 xl:px-8"
         >
+          {canManageSafeguard ? (
+            <section
+              className={`grid gap-3 rounded-2xl border p-4 ${globallyProtected ? "border-rose-300 bg-rose-50 dark:border-rose-900 dark:bg-rose-950/30" : "border-slate-200 bg-[rgb(var(--surface-card))] dark:border-slate-700"}`}
+            >
+              <div>
+                <p className="text-sm font-black">قفل تغییرات سراسری برنامه</p>
+                <p className="mt-1 text-xs leading-5 text-slate-600 dark:text-slate-300">
+                  این کنترل با قفل شخصی ویرایش فرق دارد و همهٔ تغییرات API مدرسه را متوقف می‌کند.
+                </p>
+              </div>
+              {safeguard?.active ? (
+                <div className="grid gap-2">
+                  <p className="text-xs font-bold text-rose-800 dark:text-rose-200">
+                    فعال تا{" "}
+                    {new Intl.DateTimeFormat("fa-IR", {
+                      timeStyle: "short",
+                      dateStyle: "short",
+                    }).format(new Date(safeguard.expiresAt))}{" "}
+                    · {safeguard.reason}
+                  </p>
+                  <div className="grid gap-2 sm:grid-cols-[11rem_1fr_auto]">
+                    <select
+                      aria-label="نوع مجوز موقت"
+                      value={overrideAction}
+                      onChange={(event) =>
+                        setOverrideAction(event.target.value as typeof overrideAction)
+                      }
+                      className="rounded-xl border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card))] px-3 text-xs"
+                    >
+                      <option value="ENTRY_CREATE">ساخت جلسه</option>
+                      <option value="ENTRY_UPDATE">ویرایش جلسه</option>
+                      <option value="ENTRY_ARCHIVE">بایگانی جلسه</option>
+                      <option value="ENTRY_DELETE">حذف جلسه</option>
+                      <option value="TIME_BLOCK_MANAGE">مدیریت بازه زمانی</option>
+                      <option value="ACADEMIC_CYCLE_MANAGE">مدیریت سال/نیم‌سال</option>
+                      <option value="RECONCILIATION">تطبیق سوابق</option>
+                    </select>
+                    <Input
+                      aria-label="دلیل مجوز موقت"
+                      value={overrideReason}
+                      onChange={(event) => setOverrideReason(event.target.value)}
+                      placeholder="دلیل مجوز محدود ۱۵ دقیقه‌ای"
+                    />
+                    <Button
+                      variant="soft"
+                      disabled={!overrideReason.trim()}
+                      onClick={() => {
+                        onCreateSafeguardOverride(overrideAction, overrideReason.trim(), 15);
+                        setOverrideReason("");
+                      }}
+                    >
+                      مجوز ۱۵ دقیقه‌ای
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <div className="grid gap-2 sm:grid-cols-[1fr_9rem_auto]">
+                  <Input
+                    aria-label="دلیل محافظت"
+                    value={safeguardReason}
+                    onChange={(event) => setSafeguardReason(event.target.value)}
+                    placeholder="دلیل محافظت از تغییرات"
+                  />
+                  <Input
+                    aria-label="مدت محافظت به دقیقه"
+                    type="number"
+                    min="1"
+                    max="120"
+                    value={safeguardMinutes}
+                    onChange={(event) => setSafeguardMinutes(event.target.value)}
+                  />
+                  <Button
+                    variant="soft"
+                    disabled={!safeguardReason.trim() || safeguardPending}
+                    onClick={() =>
+                      onSafeguardChange(
+                        true,
+                        safeguardReason.trim(),
+                        Number(safeguardMinutes) || 120,
+                      )
+                    }
+                  >
+                    فعال‌سازی
+                  </Button>
+                </div>
+              )}
+            </section>
+          ) : null}
           {scheduleSetupBlocked &&
           setupReminderHydrated &&
           setupGateDeferred &&
@@ -3516,27 +3776,81 @@ function ScheduleEditorForm({
   );
 }
 
-function ScheduleTemplatePreview({
+function ScheduleSafeguardBanner({
+  safeguard,
+}: {
+  safeguard: Extract<ScheduleSafeguard, { active: true }>;
+}) {
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(Date.now()), 30_000);
+    return () => window.clearInterval(timer);
+  }, []);
+  const remaining = Math.max(0, new Date(safeguard.expiresAt).getTime() - now);
+  const minutes = Math.ceil(remaining / 60_000).toLocaleString("fa-IR");
+  return (
+    <aside
+      className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-rose-300 bg-rose-50 px-4 py-3 text-rose-950 dark:border-rose-900 dark:bg-rose-950/35 dark:text-rose-100"
+      role="status"
+    >
+      <div>
+        <p className="text-sm font-black">قفل تغییرات برنامه فعال است</p>
+        <p className="mt-1 text-xs">
+          {safeguard.reason} · {safeguard.owner?.name ?? "سیستم"}
+        </p>
+        {safeguard.override ? (
+          <p className="mt-1 text-xs font-bold text-amber-800 dark:text-amber-200">
+            مجوز موقت: {safeguard.override.action} · {safeguard.override.reason}
+          </p>
+        ) : null}
+      </div>
+      <span className="rounded-full bg-white/70 px-3 py-1 text-xs font-black dark:bg-black/20">
+        {minutes} دقیقه باقی‌مانده
+      </span>
+    </aside>
+  );
+}
+
+function ScheduleTemplateReview({
   template,
-  activeEntries,
-  academicYearName,
-  termName,
-  onCancel,
+  preview,
+  loading,
+  error,
+  applying,
+  onClose,
   onApply,
 }: {
   template: ScheduleTemplate;
-  activeEntries: ScheduleEntry[];
-  academicYearName?: string;
-  termName?: string;
-  onCancel: () => void;
+  preview?: ScheduleTemplatePreview;
+  loading: boolean;
+  error: unknown;
+  applying: boolean;
+  onClose: () => void;
   onApply: () => void;
 }) {
-  const orderedTemplateEntries = [...template.entries].sort(
-    (left, right) => left.weekday - right.weekday || left.startTime.localeCompare(right.startTime),
-  );
-  const orderedActiveEntries = [...activeEntries].sort(
-    (left, right) => left.weekday - right.weekday || left.startTime.localeCompare(right.startTime),
-  );
+  if (loading)
+    return (
+      <div className="grid gap-4 p-1" aria-live="polite">
+        <div className="h-1.5 overflow-hidden rounded-full bg-brand/10">
+          <div className="h-full w-2/3 animate-pulse rounded-full bg-brand" />
+        </div>
+        <p className="text-sm font-bold text-ink">
+          در حال بررسی مقصد، جلسه‌های فعلی، جلسه‌های الگو و مراجع…
+        </p>
+      </div>
+    );
+  if (error || !preview)
+    return (
+      <EmptyState
+        title="بررسی الگو انجام نشد"
+        description={
+          error instanceof Error
+            ? error.message
+            : "دوباره تلاش کنید؛ هیچ تغییری در برنامه اعمال نشده است."
+        }
+      />
+    );
+  const blocked = preview.blockingConflicts.length > 0;
   return (
     <Card className="border-brand/25 bg-brand/5 p-4" aria-live="polite">
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -3544,70 +3858,56 @@ function ScheduleTemplatePreview({
           <p className="text-xs font-bold text-brand">پیش‌نمایش تغییر برنامه</p>
           <h2 className="mt-1 text-base font-black text-ink">اجرای «{template.name}»</h2>
           <p className="mt-1 text-xs leading-5 text-slate-600 dark:text-slate-300">
-            فقط جلسه‌های فعال {termName ?? "نیم‌سال انتخاب‌شده"}
-            {academicYearName ? ` در ${academicYearName}` : ""} جایگزین می‌شوند؛ سایر نیم‌سال‌ها
-            بدون تغییر می‌مانند.
+            مقصد:{" "}
+            {preview.target
+              ? `${preview.target.academicYearName} · ${preview.target.termName}`
+              : "نامعتبر"}
+            . فقط جلسه‌های همان نیم‌سال جایگزین می‌شوند.
           </p>
         </div>
         <span className="rounded-full bg-[rgb(var(--surface-card))] px-3 py-1 text-xs font-bold text-brand">
-          {template.entries.length.toLocaleString("fa-IR")} جلسه جدید
+          {preview.checked.templateSessions.toLocaleString("fa-IR")} جلسه بررسی شد
         </span>
       </div>
-      <div className="mt-4 grid gap-3 lg:grid-cols-2">
-        <ScheduleTemplatePreviewColumn
-          title={`جلسه‌های فعلی (${activeEntries.length.toLocaleString("fa-IR")})`}
-          entries={orderedActiveEntries.map((entry) => ({
-            key: entry.id,
-            label: entry.title,
-            meta: `${weekdays[entry.weekday]} · ${entry.startTime} تا ${entry.endTime}${entry.room ? ` · ${entry.room}` : ""}`,
-          }))}
-          empty="جلسه فعالی وجود ندارد."
-        />
-        <ScheduleTemplatePreviewColumn
-          title={`جلسه‌های الگو (${template.entries.length.toLocaleString("fa-IR")})`}
-          entries={orderedTemplateEntries.map((entry, index) => ({
-            key: `${entry.weekday}-${entry.startTime}-${entry.title}-${index}`,
-            label: entry.title,
-            meta: `${weekdays[entry.weekday]} · ${entry.startTime} تا ${entry.endTime}${entry.room ? ` · ${entry.room}` : ""}`,
-          }))}
-          empty="این الگو جلسه‌ای ندارد."
-        />
+      <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
+        {[
+          ["بدون تغییر", preview.summary.unchanged, "text-emerald-700"],
+          ["افزوده", preview.summary.additions, "text-sky-700"],
+          ["حذف‌شده", preview.summary.removals, "text-rose-700"],
+          ["تغییر", preview.summary.changes, "text-amber-700"],
+        ].map(([label, value, color]) => (
+          <div key={String(label)} className="rounded-xl bg-[rgb(var(--surface-card))] p-3">
+            <p className="text-[11px] text-slate-500">{label}</p>
+            <p className={`mt-1 text-lg font-black ${color}`}>
+              {Number(value).toLocaleString("fa-IR")}
+            </p>
+          </div>
+        ))}
       </div>
+      {blocked ? (
+        <details
+          className="mt-4 rounded-xl border border-rose-200 bg-rose-50 p-3 text-rose-900 dark:border-rose-900 dark:bg-rose-950/30 dark:text-rose-100"
+          open
+        >
+          <summary className="cursor-pointer text-sm font-black">
+            {preview.blockingConflicts.length.toLocaleString("fa-IR")} مانع اجرای امن
+          </summary>
+          <ul className="mt-2 grid gap-1 text-xs">
+            {preview.blockingConflicts.map((conflict, index) => (
+              <li key={`${conflict.code}-${index}`}>{conflict.message}</li>
+            ))}
+          </ul>
+        </details>
+      ) : null}
       <div className="mt-4 flex flex-wrap justify-end gap-2">
-        <Button variant="ghost" onClick={onCancel}>
+        <Button variant="ghost" onClick={onClose}>
           انصراف
         </Button>
-        <Button onClick={onApply}>تأیید و اجرای الگو</Button>
+        <Button onClick={onApply} disabled={blocked || applying}>
+          {applying ? "در حال اجرای ایمن…" : "محافظت و اجرای الگو"}
+        </Button>
       </div>
     </Card>
-  );
-}
-
-function ScheduleTemplatePreviewColumn({
-  title,
-  entries,
-  empty,
-}: {
-  title: string;
-  entries: Array<{ key: string; label: string; meta: string }>;
-  empty: string;
-}) {
-  return (
-    <section className="rounded-xl border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card))] p-3">
-      <h3 className="text-xs font-black text-ink">{title}</h3>
-      {entries.length ? (
-        <ul className="mt-2 grid max-h-44 gap-1 overflow-y-auto pe-1">
-          {entries.map((entry) => (
-            <li key={entry.key} className="rounded-lg bg-[rgb(var(--surface-muted))] px-2.5 py-2">
-              <p className="truncate text-xs font-bold text-ink">{entry.label}</p>
-              <p className="mt-0.5 truncate text-[11px] text-slate-500">{entry.meta}</p>
-            </li>
-          ))}
-        </ul>
-      ) : (
-        <p className="mt-2 text-xs text-slate-500">{empty}</p>
-      )}
-    </section>
   );
 }
 
@@ -3675,10 +3975,18 @@ function ScheduleTemplates({
               <p className="text-[11px] text-slate-500 dark:text-slate-300">
                 {template.entries.length.toLocaleString("fa-IR")} جلسه در الگو
               </p>
+              <p className="text-[11px] text-slate-500 dark:text-slate-300">
+                {template.sourceAcademicYearName && template.sourceTermName
+                  ? `${template.sourceAcademicYearName} · ${template.sourceTermName}`
+                  : "نسخهٔ قدیمی بدون محدودهٔ ثبت‌شده"}
+                {template.capturedAt
+                  ? ` · ${new Intl.DateTimeFormat("fa-IR", { dateStyle: "short" }).format(new Date(template.capturedAt))}`
+                  : ""}
+              </p>
               <div className="flex flex-wrap gap-1">
                 {template.state === "ACTIVE" ? (
                   <Button size="sm" variant="soft" onClick={() => onPreview(template)}>
-                    <Eye size={13} /> بررسی
+                    <Eye size={13} /> بررسی تغییرات
                   </Button>
                 ) : (
                   <Button size="sm" variant="soft" onClick={() => onRestore(template)}>
