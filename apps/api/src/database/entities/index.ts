@@ -84,6 +84,10 @@ export {
 export { SchoolScheduleTimeBlock } from "./school-schedule-time-block.entity";
 export { SchoolScheduleTimeBlockGroup } from "./school-schedule-time-block-group.entity";
 export { SchoolScheduleTemplate } from "./school-schedule-template.entity";
+export {
+  ScheduleChangeSafeguard,
+  ScheduleChangeSafeguardOverride,
+} from "./schedule-change-safeguard.entity";
 export { SchoolPrayerTime } from "./school-prayer-time.entity";
 export { SchoolAnnouncement } from "./school-announcement.entity";
 export { SchoolAnnouncementRecipient } from "./school-announcement-recipient.entity";

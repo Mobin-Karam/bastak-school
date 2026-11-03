@@ -1200,10 +1200,21 @@ describe("migration-backed persistence and verified recovery (disposable SQLite 
     const template = await schedule.createTemplate(scoped, {
       organizationId: a.id,
       name: "الگوی چرخه‌دار",
+      academicYearId: academicYear.id,
+      termId: secondTerm.id,
     });
+    const templatePreview = await schedule.previewTemplate(
+      scoped,
+      template.id,
+      {
+        academicYearId: academicYear.id,
+        termId: secondTerm.id,
+      },
+    );
     await schedule.applyTemplate(scoped, template.id, {
       academicYearId: academicYear.id,
       termId: secondTerm.id,
+      previewFingerprint: templatePreview.previewFingerprint,
     });
     expect(
       await db

@@ -2,6 +2,7 @@ import { attendanceTransaction } from "../attendance";
 import { ImportHistory } from "../../database/entities/import-history.entity";
 import { AuditLog } from "../../database/entities/audit-log.entity";
 import { EntityManager } from "typeorm";
+import { createHash } from "node:crypto";
 import { Injectable } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { In, IsNull, Repository } from "typeorm";
@@ -39,6 +40,11 @@ import { NotificationsService } from "../notifications";
 import { NotificationType } from "../../database/entities/notification.entity";
 import { ScheduleSetupReminder } from "../../database/entities/schedule-setup-reminder.entity";
 import {
+  ScheduleChangeSafeguard,
+  ScheduleChangeSafeguardOverride,
+  type ScheduleSafeguardAction,
+} from "../../database/entities/schedule-change-safeguard.entity";
+import {
   ArchiveScheduleEntryDto,
   RestoreArchivedScheduleEntriesDto,
   CreateScheduleTimeBlockDto,
@@ -58,6 +64,10 @@ import {
   TeacherLeaveReturnRequestDto,
   TeacherLeaveReturnReviewDto,
   SetScheduleSetupReminderDto,
+  CreateScheduleSafeguardOverrideDto,
+  ExtendScheduleSafeguardDto,
+  PreviewScheduleTemplateDto,
+  SetScheduleSafeguardDto,
 } from "./schedule.dto";
 
 // Keep this server-side while the teacher displacement workflow is frozen.
@@ -103,6 +113,10 @@ export class ScheduleService {
     private readonly notifications?: NotificationsService,
     @InjectRepository(ScheduleSetupReminder)
     private readonly setupReminders?: Repository<ScheduleSetupReminder>,
+    @InjectRepository(ScheduleChangeSafeguard)
+    private readonly safeguards?: Repository<ScheduleChangeSafeguard>,
+    @InjectRepository(ScheduleChangeSafeguardOverride)
+    private readonly safeguardOverrides?: Repository<ScheduleChangeSafeguardOverride>,
   ) {}
   private async auditAcademicCycle(
     user: AuthenticatedUser,
@@ -484,6 +498,10 @@ export class ScheduleService {
     user: AuthenticatedUser,
     dto: ReconcileLegacyAcademicCycleDto,
   ) {
+    await this.assertScheduleMutationAllowed(
+      dto.organizationId,
+      "RECONCILIATION",
+    );
     const context = this.context(user);
     this.authorization.requireCapability(context, "schedule.update");
     this.assertAcademicManager(context);
@@ -590,6 +608,10 @@ export class ScheduleService {
     user: AuthenticatedUser,
     dto: CreateLegacyAcademicYearDto,
   ) {
+    await this.assertScheduleMutationAllowed(
+      dto.organizationId,
+      "ACADEMIC_CYCLE_MANAGE",
+    );
     const context = this.context(user);
     this.authorization.requireCapability(context, "schedule.create");
     this.assertAcademicManager(context);
@@ -627,6 +649,10 @@ export class ScheduleService {
     dto: CreateLegacyAcademicTermDto,
   ) {
     const year = await this.scopedAcademicYear(user, dto.academicYearId);
+    await this.assertScheduleMutationAllowed(
+      year.organizationId,
+      "ACADEMIC_CYCLE_MANAGE",
+    );
     if (
       year.state === "ARCHIVED" ||
       dto.startsOn < year.startsOn ||
@@ -679,6 +705,10 @@ export class ScheduleService {
     dto: UpdateLegacyAcademicYearDto,
   ) {
     const year = await this.scopedAcademicYear(user, id);
+    await this.assertScheduleMutationAllowed(
+      year.organizationId,
+      "ACADEMIC_CYCLE_MANAGE",
+    );
     if (year.state === "ARCHIVED" || dto.endsOn < dto.startsOn)
       throw new ApiException(
         422,
@@ -731,6 +761,10 @@ export class ScheduleService {
         "نیم‌سال پیدا نشد.",
       );
     const year = await this.scopedAcademicYear(user, term.academicYearId);
+    await this.assertScheduleMutationAllowed(
+      year.organizationId,
+      "ACADEMIC_CYCLE_MANAGE",
+    );
     if (
       (term.state === "ARCHIVED" && !term.correctionOpen) ||
       dto.endsOn < dto.startsOn ||
@@ -788,6 +822,10 @@ export class ScheduleService {
     dto: LegacyAcademicLifecycleDto,
   ) {
     const year = await this.scopedAcademicYear(user, id);
+    await this.assertScheduleMutationAllowed(
+      year.organizationId,
+      "ACADEMIC_CYCLE_MANAGE",
+    );
     if (dto.action === "activate") {
       const terms = await this.academicTerms.findBy({
         academicYearId: year.id,
@@ -845,7 +883,11 @@ export class ScheduleService {
         "SCHEDULE_ACADEMIC_TERM_NOT_FOUND",
         "نیم‌سال پیدا نشد.",
       );
-    await this.scopedAcademicYear(user, term.academicYearId);
+    const scopedYear = await this.scopedAcademicYear(user, term.academicYearId);
+    await this.assertScheduleMutationAllowed(
+      scopedYear.organizationId,
+      "ACADEMIC_CYCLE_MANAGE",
+    );
     if (dto.action === "archive") {
       term.state = "ARCHIVED";
       term.correctionOpen = false;
@@ -2535,14 +2577,229 @@ export class ScheduleService {
       throw new ApiException(404, "ORGANIZATION_NOT_FOUND", "مدرسه پیدا نشد.");
     return organization;
   }
+  private async auditScheduleSafeguard(
+    user: AuthenticatedUser,
+    organizationId: string,
+    action: string,
+    metadata: Record<string, unknown>,
+  ) {
+    if (!this.auditLogs) return;
+    await this.auditLogs.save(
+      this.auditLogs.create({
+        user: { id: user.id } as User,
+        organizationId,
+        action,
+        entity: "schedule_change_safeguard",
+        metadata,
+      }),
+    );
+  }
+  private async safeguardForOrganization(organizationId: string) {
+    const safeguard = await this.safeguards?.findOne({
+      where: { organizationId },
+      relations: { activatedBy: true },
+    });
+    if (!safeguard || safeguard.expiresAt <= new Date()) return null;
+    return safeguard;
+  }
+  private async assertScheduleMutationAllowed(
+    organizationId: string,
+    action: ScheduleSafeguardAction,
+  ) {
+    const safeguard = await this.safeguardForOrganization(organizationId);
+    if (!safeguard) return;
+    const override = await this.safeguardOverrides?.findOne({
+      where: { organizationId, action },
+      order: { expiresAt: "DESC" },
+    });
+    if (override && override.expiresAt > new Date()) return;
+    throw new ApiException(
+      423,
+      "SCHEDULE_CHANGE_SAFEGUARD_ACTIVE",
+      "تغییرات برنامه تا پایان محافظت سازمانی متوقف شده است.",
+      {
+        action,
+        reason: safeguard.reason,
+        expiresAt: safeguard.expiresAt,
+        mode: safeguard.mode,
+      },
+    );
+  }
+  private async safeguardManagerScope(
+    user: AuthenticatedUser,
+    organizationId: string,
+  ) {
+    const organization = await this.templateScope(
+      user,
+      organizationId,
+      "schedule.safeguard.manage",
+    );
+    const context = this.context(user);
+    if (!context.roles.includes("PRINCIPAL"))
+      throw new ApiException(
+        403,
+        "SCHEDULE_SAFEGUARD_PRINCIPAL_ONLY",
+        "فقط مدیر مدرسه می‌تواند محافظت سراسری برنامه را مدیریت کند.",
+      );
+    return organization;
+  }
+  async getSafeguard(user: AuthenticatedUser, organizationId?: string) {
+    const id = organizationId ?? user.activeOrganizationId;
+    if (!id)
+      throw new ApiException(
+        422,
+        "ORGANIZATION_REQUIRED",
+        "مدرسه فعال را انتخاب کنید.",
+      );
+    await this.templateScope(user, id, "schedule.read");
+    const safeguard = await this.safeguardForOrganization(id);
+    if (!safeguard) return { active: false as const };
+    const override = await this.safeguardOverrides?.findOne({
+      where: { organizationId: id },
+      order: { expiresAt: "DESC" },
+    });
+    return {
+      active: true as const,
+      id: safeguard.id,
+      mode: safeguard.mode,
+      reason: safeguard.reason,
+      activatedAt: safeguard.activatedAt,
+      expiresAt: safeguard.expiresAt,
+      owner: safeguard.activatedBy
+        ? {
+            id: safeguard.activatedBy.id,
+            name:
+              [safeguard.activatedBy.firstName, safeguard.activatedBy.lastName]
+                .filter(Boolean)
+                .join(" ") || safeguard.activatedBy.username,
+          }
+        : null,
+      override:
+        override && override.expiresAt > new Date()
+          ? {
+              action: override.action,
+              reason: override.reason,
+              expiresAt: override.expiresAt,
+            }
+          : null,
+    };
+  }
+  async setSafeguard(
+    user: AuthenticatedUser,
+    organizationId: string,
+    dto: SetScheduleSafeguardDto,
+  ) {
+    const organization = await this.safeguardManagerScope(user, organizationId);
+    const existing = await this.safeguards!.findOne({
+      where: { organizationId },
+    });
+    if (!dto.active) {
+      if (existing) await this.safeguards!.remove(existing);
+      await this.auditScheduleSafeguard(
+        user,
+        organizationId,
+        "schedule.safeguard.deactivated",
+        { reason: dto.reason.trim() },
+      );
+      return { active: false as const };
+    }
+    const now = new Date();
+    const expiresAt = new Date(
+      now.getTime() + (dto.durationMinutes ?? 120) * 60_000,
+    );
+    const safeguard =
+      existing ?? this.safeguards!.create({ organizationId, organization });
+    Object.assign(safeguard, {
+      mode: "MANUAL" as const,
+      reason: dto.reason.trim(),
+      activatedById: user.id,
+      activatedAt: now,
+      expiresAt,
+    });
+    await this.safeguards!.save(safeguard);
+    await this.auditScheduleSafeguard(
+      user,
+      organizationId,
+      "schedule.safeguard.activated",
+      { reason: safeguard.reason, expiresAt },
+    );
+    return this.getSafeguard(user, organizationId);
+  }
+  async extendSafeguard(
+    user: AuthenticatedUser,
+    organizationId: string,
+    dto: ExtendScheduleSafeguardDto,
+  ) {
+    await this.safeguardManagerScope(user, organizationId);
+    const safeguard = await this.safeguardForOrganization(organizationId);
+    if (!safeguard || safeguard.mode !== "MANUAL")
+      throw new ApiException(
+        409,
+        "SCHEDULE_SAFEGUARD_NOT_ACTIVE",
+        "محافظت دستی فعالی برای تمدید وجود ندارد.",
+      );
+    safeguard.reason = dto.reason.trim();
+    safeguard.expiresAt = new Date(
+      Math.max(safeguard.expiresAt.getTime(), Date.now()) +
+        dto.durationMinutes * 60_000,
+    );
+    await this.safeguards!.save(safeguard);
+    await this.auditScheduleSafeguard(
+      user,
+      organizationId,
+      "schedule.safeguard.extended",
+      { reason: safeguard.reason, expiresAt: safeguard.expiresAt },
+    );
+    return this.getSafeguard(user, organizationId);
+  }
+  async createSafeguardOverride(
+    user: AuthenticatedUser,
+    dto: CreateScheduleSafeguardOverrideDto,
+  ) {
+    const organization = await this.safeguardManagerScope(
+      user,
+      dto.organizationId,
+    );
+    const safeguard = await this.safeguardForOrganization(organization.id);
+    if (!safeguard || safeguard.mode !== "MANUAL")
+      throw new ApiException(
+        409,
+        "SCHEDULE_SAFEGUARD_NOT_ACTIVE",
+        "برای مجوز موقت ابتدا محافظت سراسری را فعال کنید.",
+      );
+    const expiresAt = new Date(
+      Date.now() + (dto.durationMinutes ?? 15) * 60_000,
+    );
+    const override = await this.safeguardOverrides!.save(
+      this.safeguardOverrides!.create({
+        organizationId: organization.id,
+        organization,
+        action: dto.action as ScheduleSafeguardAction,
+        reason: dto.reason.trim(),
+        grantedById: user.id,
+        expiresAt,
+      }),
+    );
+    await this.auditScheduleSafeguard(
+      user,
+      organization.id,
+      "schedule.safeguard.override.created",
+      { action: override.action, reason: override.reason, expiresAt },
+    );
+    return override;
+  }
   private async templateSnapshot(
     organizationId: string,
+    academicYearId: string,
+    termId: string,
   ): Promise<ScheduleTemplateEntry[]> {
     const rows = await this.entries.find({
       where: {
         organization: { id: organizationId },
         versionId: IsNull(),
         status: "ACTIVE",
+        academicYearId,
+        termId,
       },
       relations: { classroom: true, classBook: true, teacher: true },
     });
@@ -2573,14 +2830,43 @@ export class ScheduleService {
         "SCHEDULE_TEMPLATE_NAME_REQUIRED",
         "نام الگو لازم است.",
       );
-    const entries = dto.sourceTemplateId
-      ? (
-          await this.templateForOrganization(
-            dto.sourceTemplateId,
-            organization.id,
-          )
-        ).entries
-      : await this.templateSnapshot(organization.id);
+    let sourceYear: SchoolAcademicYear | null = null;
+    let sourceTerm: SchoolAcademicTerm | null = null;
+    if (!dto.sourceTemplateId) {
+      if (!dto.academicYearId || !dto.termId)
+        throw new ApiException(
+          422,
+          "SCHEDULE_TEMPLATE_SCOPE_REQUIRED",
+          "برای ساخت نسخه برنامه، سال و نیم‌سال را انتخاب کنید.",
+        );
+      sourceYear = await this.academicYearRepo.findOneBy({
+        id: dto.academicYearId,
+        organizationId: organization.id,
+      });
+      sourceTerm = await this.academicTerms.findOneBy({
+        id: dto.termId,
+        academicYearId: dto.academicYearId,
+      });
+      if (!sourceYear || !sourceTerm)
+        throw new ApiException(
+          422,
+          "SCHEDULE_TEMPLATE_SCOPE_INVALID",
+          "سال و نیم‌سال الگو برای این مدرسه معتبر نیست.",
+        );
+    }
+    const sourceTemplate = dto.sourceTemplateId
+      ? await this.templateForOrganization(
+          dto.sourceTemplateId,
+          organization.id,
+        )
+      : null;
+    const entries =
+      sourceTemplate?.entries ??
+      (await this.templateSnapshot(
+        organization.id,
+        sourceYear!.id,
+        sourceTerm!.id,
+      ));
     if (!entries.length)
       throw new ApiException(
         422,
@@ -2588,7 +2874,19 @@ export class ScheduleService {
         "برنامه فعالی برای ساخت الگو وجود ندارد.",
       );
     return this.templates.save(
-      this.templates.create({ organization, name, entries }),
+      this.templates.create({
+        organization,
+        name,
+        entries,
+        sourceAcademicYearId:
+          sourceYear?.id ?? sourceTemplate?.sourceAcademicYearId ?? null,
+        sourceTermId: sourceTerm?.id ?? sourceTemplate?.sourceTermId ?? null,
+        sourceAcademicYearName:
+          sourceYear?.name ?? sourceTemplate?.sourceAcademicYearName ?? null,
+        sourceTermName:
+          sourceTerm?.name ?? sourceTemplate?.sourceTermName ?? null,
+        capturedAt: new Date(),
+      }),
     );
   }
   private async templateForOrganization(id: string, organizationId: string) {
@@ -2604,10 +2902,315 @@ export class ScheduleService {
       );
     return template;
   }
+  private templateEntryKey(entry: ScheduleTemplateEntry) {
+    return [
+      entry.classroomId ?? "",
+      entry.classBookId ?? "",
+      entry.teacherId ?? "",
+      entry.title.trim(),
+      entry.weekday,
+      entry.startTime,
+      entry.endTime,
+      entry.room.trim(),
+    ].join("|");
+  }
+  private templateComparableEntry(entry: ScheduleTemplateEntry) {
+    return {
+      classroomId: entry.classroomId ?? null,
+      classBookId: entry.classBookId ?? null,
+      teacherId: entry.teacherId ?? null,
+      title: entry.title.trim(),
+      weekday: entry.weekday,
+      startTime: entry.startTime,
+      endTime: entry.endTime,
+      room: entry.room.trim(),
+    };
+  }
+  private fingerprint(value: unknown) {
+    return createHash("sha256").update(JSON.stringify(value)).digest("hex");
+  }
+  async previewTemplate(
+    user: AuthenticatedUser,
+    id: string,
+    dto: PreviewScheduleTemplateDto,
+    writeAudit = true,
+  ) {
+    const template = await this.templates.findOne({
+      where: { id },
+      relations: { organization: true },
+    });
+    if (!template)
+      throw new ApiException(
+        404,
+        "SCHEDULE_TEMPLATE_NOT_FOUND",
+        "الگوی برنامه پیدا نشد.",
+      );
+    await this.templateScope(user, template.organization.id, "schedule.read");
+    const year = await this.academicYearRepo.findOneBy({
+      id: dto.academicYearId,
+      organizationId: template.organization.id,
+    });
+    const term = await this.academicTerms.findOneBy({
+      id: dto.termId,
+      academicYearId: dto.academicYearId,
+    });
+    const blockingConflicts: Array<{
+      code: string;
+      entryIndex?: number;
+      message: string;
+    }> = [];
+    if (template.state === "ARCHIVED")
+      blockingConflicts.push({
+        code: "TEMPLATE_ARCHIVED",
+        message: "الگوی بایگانی‌شده قابل اجرا نیست.",
+      });
+    if (
+      !year ||
+      !term ||
+      year.state === "ARCHIVED" ||
+      term.state === "ARCHIVED" ||
+      term.correctionOpen
+    )
+      blockingConflicts.push({
+        code: "TARGET_TERM_LOCKED",
+        message: "سال و نیم‌سال مقصد قابل استفاده نیست.",
+      });
+    const classroomIds = [
+      ...new Set(
+        template.entries.flatMap((entry) =>
+          entry.classroomId ? [entry.classroomId] : [],
+        ),
+      ),
+    ];
+    const classBookIds = [
+      ...new Set(
+        template.entries.flatMap((entry) =>
+          entry.classBookId ? [entry.classBookId] : [],
+        ),
+      ),
+    ];
+    const teacherIds = [
+      ...new Set(
+        template.entries.flatMap((entry) =>
+          entry.teacherId ? [entry.teacherId] : [],
+        ),
+      ),
+    ];
+    const [classes, books, teachers] = await Promise.all([
+      classroomIds.length
+        ? this.classes.find({
+            where: { id: In(classroomIds) },
+            relations: { organization: true },
+          })
+        : [],
+      classBookIds.length
+        ? this.classBooks.find({
+            where: { id: In(classBookIds) },
+            relations: { classroom: { organization: true } },
+          })
+        : [],
+      teacherIds.length
+        ? this.memberships.find({
+            where: {
+              user: { id: In(teacherIds) },
+              organization: { id: template.organization.id },
+              status: MembershipStatus.ACTIVE,
+            },
+            relations: { user: true },
+          })
+        : [],
+    ]);
+    const validClasses = new Set(
+      classes
+        .filter((entry) => entry.organization.id === template.organization.id)
+        .map((entry) => entry.id),
+    );
+    const validBooks = new Set(
+      books
+        .filter(
+          (entry) =>
+            entry.classroom.organization.id === template.organization.id,
+        )
+        .map((entry) => entry.id),
+    );
+    const validTeachers = new Set(teachers.map((entry) => entry.user.id));
+    const seen = new Set<string>();
+    template.entries.forEach((entry, entryIndex) => {
+      const key = this.templateEntryKey(entry);
+      if (seen.has(key))
+        blockingConflicts.push({
+          code: "DUPLICATE_TEMPLATE_SESSION",
+          entryIndex,
+          message: "جلسه تکراری در الگو وجود دارد.",
+        });
+      seen.add(key);
+      if (entry.classroomId && !validClasses.has(entry.classroomId))
+        blockingConflicts.push({
+          code: "CLASS_NOT_AVAILABLE",
+          entryIndex,
+          message: "کلاس الگو در مدرسه مقصد قابل استفاده نیست.",
+        });
+      if (entry.classBookId && !validBooks.has(entry.classBookId))
+        blockingConflicts.push({
+          code: "CLASS_BOOK_NOT_AVAILABLE",
+          entryIndex,
+          message: "درس/کتاب الگو در مدرسه مقصد قابل استفاده نیست.",
+        });
+      if (entry.teacherId && !validTeachers.has(entry.teacherId))
+        blockingConflicts.push({
+          code: "TEACHER_NOT_AVAILABLE",
+          entryIndex,
+          message: "دبیر الگو عضو فعال مدرسه مقصد نیست.",
+        });
+    });
+    const current =
+      year && term
+        ? await this.templateSnapshot(
+            template.organization.id,
+            year.id,
+            term.id,
+          )
+        : [];
+    const currentKeys = new Set(
+      current.map((entry) => this.templateEntryKey(entry)),
+    );
+    const templateKeys = new Set(
+      template.entries.map((entry) => this.templateEntryKey(entry)),
+    );
+    const additions = template.entries.filter(
+      (entry) => !currentKeys.has(this.templateEntryKey(entry)),
+    );
+    const removals = current.filter(
+      (entry) => !templateKeys.has(this.templateEntryKey(entry)),
+    );
+    const unchanged = template.entries.filter((entry) =>
+      currentKeys.has(this.templateEntryKey(entry)),
+    );
+    const changes = Math.min(additions.length, removals.length);
+    const fingerprint = this.fingerprint({
+      template: {
+        id: template.id,
+        updatedAt: template.updatedAt.toISOString(),
+        entries: template.entries
+          .map((entry) => this.templateComparableEntry(entry))
+          .sort((left, right) =>
+            JSON.stringify(left).localeCompare(JSON.stringify(right)),
+          ),
+      },
+      target: {
+        academicYearId: dto.academicYearId,
+        termId: dto.termId,
+        current: current
+          .map((entry) => this.templateComparableEntry(entry))
+          .sort((left, right) =>
+            JSON.stringify(left).localeCompare(JSON.stringify(right)),
+          ),
+      },
+    });
+    if (writeAudit)
+      await this.auditScheduleSafeguard(
+        user,
+        template.organization.id,
+        "schedule.template.previewed",
+        {
+          templateId: template.id,
+          academicYearId: dto.academicYearId,
+          termId: dto.termId,
+          blockingConflicts: blockingConflicts.length,
+          previewFingerprint: fingerprint,
+        },
+      );
+    return {
+      template: {
+        id: template.id,
+        name: template.name,
+        sourceAcademicYearId: template.sourceAcademicYearId,
+        sourceTermId: template.sourceTermId,
+        sourceAcademicYearName: template.sourceAcademicYearName,
+        sourceTermName: template.sourceTermName,
+        capturedAt: template.capturedAt ?? template.createdAt,
+      },
+      target:
+        year && term
+          ? {
+              academicYearId: year.id,
+              academicYearName: year.name,
+              termId: term.id,
+              termName: term.name,
+            }
+          : null,
+      checked: {
+        currentSessions: current.length,
+        templateSessions: template.entries.length,
+        references:
+          classroomIds.length + classBookIds.length + teacherIds.length,
+      },
+      summary: {
+        unchanged: unchanged.length,
+        additions: additions.length,
+        removals: removals.length,
+        changes,
+      },
+      blockingConflicts,
+      previewFingerprint: fingerprint,
+    };
+  }
+  private async acquireTemplateApplySafeguard(
+    user: AuthenticatedUser,
+    organization: Organization,
+  ) {
+    const stored = await this.safeguards!.findOne({
+      where: { organizationId: organization.id },
+    });
+    if (stored && stored.expiresAt > new Date()) {
+      const existing = stored;
+      if (existing.mode === "MANUAL" && existing.activatedById === user.id)
+        return null;
+      throw new ApiException(
+        423,
+        "SCHEDULE_CHANGE_SAFEGUARD_ACTIVE",
+        "برنامه اکنون محافظت شده است؛ اجرای هم‌زمان الگو ممکن نیست.",
+        {
+          reason: existing.reason,
+          expiresAt: existing.expiresAt,
+          mode: existing.mode,
+        },
+      );
+    }
+    const safeguard =
+      stored ??
+      this.safeguards!.create({
+        organization,
+        organizationId: organization.id,
+      });
+    Object.assign(safeguard, {
+      mode: "TEMPLATE_APPLY" as const,
+      reason: "اجرای ایمن الگوی برنامه",
+      activatedById: user.id,
+      activatedAt: new Date(),
+      expiresAt: new Date(Date.now() + 5 * 60_000),
+    });
+    try {
+      const saved = await this.safeguards!.save(safeguard);
+      await this.auditScheduleSafeguard(
+        user,
+        organization.id,
+        "schedule.template.apply.protected",
+        { templateApply: true },
+      );
+      return saved;
+    } catch {
+      throw new ApiException(
+        423,
+        "SCHEDULE_CHANGE_SAFEGUARD_ACTIVE",
+        "برنامه در حال اجرای الگو است؛ دوباره تلاش کنید.",
+      );
+    }
+  }
   async applyTemplate(
     user: AuthenticatedUser,
     id: string,
-    dto: { academicYearId: string; termId: string },
+    dto: { academicYearId: string; termId: string; previewFingerprint: string },
   ) {
     const template = await this.templates.findOne({
       where: { id },
@@ -2626,62 +3229,105 @@ export class ScheduleService {
         "SCHEDULE_TEMPLATE_ARCHIVED",
         "الگوی بایگانی‌شده قابل اجرا نیست.",
       );
-    const year = await this.academicYearRepo.findOneBy({
-      id: dto.academicYearId,
-      organizationId: template.organization.id,
-    });
-    const term = await this.academicTerms.findOneBy({
-      id: dto.termId,
-      academicYearId: dto.academicYearId,
-    });
-    if (
-      !year ||
-      !term ||
-      year.state === "ARCHIVED" ||
-      term.state === "ARCHIVED" ||
-      term.correctionOpen
-    )
+    const preview = await this.previewTemplate(user, id, dto);
+    if (preview.blockingConflicts.length)
       throw new ApiException(
         409,
-        "SCHEDULE_ACADEMIC_TERM_LOCKED",
-        "برای اجرای الگو، سال و نیم‌سال قابل استفاده را انتخاب کنید.",
+        "SCHEDULE_TEMPLATE_CONFLICT",
+        "پیش از اجرا، خطاهای الگو را برطرف کنید.",
+        { conflicts: preview.blockingConflicts },
       );
-    return attendanceTransaction(this.entries.manager, async (manager) => {
-      await manager.update(
-        SchoolScheduleEntry,
-        {
-          organization: { id: template.organization.id },
-          versionId: IsNull(),
-          status: "ACTIVE",
-          academicYearId: year.id,
-          termId: term.id,
+    if (preview.previewFingerprint !== dto.previewFingerprint)
+      throw new ApiException(
+        409,
+        "SCHEDULE_TEMPLATE_PREVIEW_STALE",
+        "برنامه یا الگو پس از بررسی تغییر کرده است؛ دوباره بررسی کنید.",
+      );
+    const acquired = await this.acquireTemplateApplySafeguard(
+      user,
+      template.organization,
+    );
+    try {
+      return await attendanceTransaction(
+        this.entries.manager,
+        async (manager) => {
+          const checked = await this.previewTemplate(user, id, dto, false);
+          if (
+            checked.previewFingerprint !== dto.previewFingerprint ||
+            checked.blockingConflicts.length
+          )
+            throw new ApiException(
+              409,
+              "SCHEDULE_TEMPLATE_PREVIEW_STALE",
+              "نتیجه بررسی دیگر معتبر نیست؛ دوباره بررسی کنید.",
+            );
+          const year = await this.academicYearRepo.findOneByOrFail({
+            id: dto.academicYearId,
+            organizationId: template.organization.id,
+          });
+          const term = await this.academicTerms.findOneByOrFail({
+            id: dto.termId,
+            academicYearId: dto.academicYearId,
+          });
+          await manager.update(
+            SchoolScheduleEntry,
+            {
+              organization: { id: template.organization.id },
+              versionId: IsNull(),
+              status: "ACTIVE",
+              academicYearId: year.id,
+              termId: term.id,
+            },
+            { status: "REPLACED" },
+          );
+          const rows = template.entries.map((entry) =>
+            manager.create(SchoolScheduleEntry, {
+              ...entry,
+              organization: template.organization,
+              classroom: entry.classroomId
+                ? ({ id: entry.classroomId } as EducationClass)
+                : null,
+              classBook: entry.classBookId
+                ? ({ id: entry.classBookId } as EducationClassBook)
+                : null,
+              teacher: entry.teacherId
+                ? ({ id: entry.teacherId } as User)
+                : null,
+              academicYearId: year.id,
+              termId: term.id,
+              academicYearNameSnapshot: year.name,
+              termNameSnapshot: term.name,
+              status: "ACTIVE",
+            }),
+          );
+          await manager.save(rows);
+          const result = {
+            applied: rows.length,
+            template: { id: template.id, name: template.name },
+          };
+          if (this.auditLogs)
+            await manager.getRepository(AuditLog).save(
+              manager.getRepository(AuditLog).create({
+                user: { id: user.id } as User,
+                organizationId: template.organization.id,
+                entity: "schedule_template",
+                action: "schedule.template.applied",
+                metadata: {
+                  templateId: template.id,
+                  academicYearId: year.id,
+                  termId: term.id,
+                  applied: rows.length,
+                  previewFingerprint: dto.previewFingerprint,
+                },
+              }),
+            );
+          return result;
         },
-        { status: "REPLACED" },
       );
-      const rows = template.entries.map((entry) =>
-        manager.create(SchoolScheduleEntry, {
-          ...entry,
-          organization: template.organization,
-          classroom: entry.classroomId
-            ? ({ id: entry.classroomId } as EducationClass)
-            : null,
-          classBook: entry.classBookId
-            ? ({ id: entry.classBookId } as EducationClassBook)
-            : null,
-          teacher: entry.teacherId ? ({ id: entry.teacherId } as User) : null,
-          academicYearId: year.id,
-          termId: term.id,
-          academicYearNameSnapshot: year.name,
-          termNameSnapshot: term.name,
-          status: "ACTIVE",
-        }),
-      );
-      await manager.save(rows);
-      return {
-        applied: rows.length,
-        template: { id: template.id, name: template.name },
-      };
-    });
+    } finally {
+      if (acquired)
+        await this.safeguards!.remove(acquired).catch(() => undefined);
+    }
   }
   async archiveTemplate(user: AuthenticatedUser, id: string) {
     const template = await this.templates.findOne({
@@ -2740,6 +3386,10 @@ export class ScheduleService {
     user: AuthenticatedUser,
     dto: CreateScheduleTimeBlockDto,
   ) {
+    await this.assertScheduleMutationAllowed(
+      dto.organizationId,
+      "TIME_BLOCK_MANAGE",
+    );
     const context = this.context(user);
     this.authorization.requireCapability(context, "schedule.update");
     if (
@@ -2809,6 +3459,10 @@ export class ScheduleService {
       dto.organizationId,
       "schedule.update",
     );
+    await this.assertScheduleMutationAllowed(
+      organization.id,
+      "TIME_BLOCK_MANAGE",
+    );
     const name = dto.name.trim();
     if (!name)
       throw new ApiException(
@@ -2848,6 +3502,10 @@ export class ScheduleService {
         !context.organizationIds.includes(group.organization.id))
     )
       throw new ApiException(403, "FORBIDDEN", "دسترسی کافی ندارید.");
+    await this.assertScheduleMutationAllowed(
+      group.organization.id,
+      "TIME_BLOCK_MANAGE",
+    );
     const hasBlocks = await this.timeBlocks.exist({
       where: { group: { id: group.id } },
     });
@@ -2879,6 +3537,10 @@ export class ScheduleService {
         !context.organizationIds.includes(block.organization.id))
     )
       throw new ApiException(403, "FORBIDDEN", "دسترسی کافی ندارید.");
+    await this.assertScheduleMutationAllowed(
+      block.organization.id,
+      "TIME_BLOCK_MANAGE",
+    );
     await this.timeBlocks.remove(block);
     return { deleted: true };
   }
@@ -2887,6 +3549,10 @@ export class ScheduleService {
     dto: SaveScheduleEntryDto,
     manager?: EntityManager,
   ) {
+    await this.assertScheduleMutationAllowed(
+      dto.organizationId,
+      "ENTRY_CREATE",
+    );
     const context = this.context(user);
     this.authorization.requireCapability(context, "schedule.create");
     if (
@@ -3018,6 +3684,10 @@ export class ScheduleService {
         !context.organizationIds.includes(item.organization.id))
     )
       throw new ApiException(403, "FORBIDDEN", "دسترسی کافی ندارید.");
+    await this.assertScheduleMutationAllowed(
+      item.organization.id,
+      "ENTRY_UPDATE",
+    );
     if (item.versionId)
       throw new ApiException(
         409,
@@ -3101,6 +3771,10 @@ export class ScheduleService {
         !context.organizationIds.includes(item.organization.id))
     )
       throw new ApiException(403, "FORBIDDEN", "دسترسی کافی ندارید.");
+    await this.assertScheduleMutationAllowed(
+      item.organization.id,
+      "ENTRY_ARCHIVE",
+    );
     if (item.versionId)
       throw new ApiException(
         409,
@@ -3150,6 +3824,10 @@ export class ScheduleService {
       )
         throw new ApiException(403, "FORBIDDEN", "دسترسی کافی ندارید.");
       await this.assertLegacyScheduleWritable(row);
+      await this.assertScheduleMutationAllowed(
+        row.organization.id,
+        "ENTRY_ARCHIVE",
+      );
     }
 
     const organizationIds = [
@@ -3258,6 +3936,10 @@ export class ScheduleService {
         !context.organizationIds.includes(item.organization.id))
     )
       throw new ApiException(403, "FORBIDDEN", "دسترسی کافی ندارید.");
+    await this.assertScheduleMutationAllowed(
+      item.organization.id,
+      "ENTRY_DELETE",
+    );
     if (item.versionId)
       throw new ApiException(
         409,
