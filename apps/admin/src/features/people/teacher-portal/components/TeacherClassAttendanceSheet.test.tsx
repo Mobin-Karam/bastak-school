@@ -167,7 +167,7 @@ describe("TeacherClassAttendanceSheet", () => {
     });
 
     expect(screen.queryByText("دانش‌آموز جدید")).not.toBeInTheDocument();
-    expect(screen.getByText("بازبینی ثبت‌شده")).toBeInTheDocument();
+    expect(await screen.findByText("بازبینی ثبت‌شده")).toBeInTheDocument();
     expect(
       screen.getByText("این جلسه قبلاً ثبت شده است؛ پیش از ویرایش، بازبینی آن را تأیید کنید."),
     ).toBeInTheDocument();
@@ -259,14 +259,16 @@ describe("TeacherClassAttendanceSheet", () => {
     await user.click(within(group).getByRole("button", { name: "حاضر" }));
     await user.click(screen.getByRole("button", { name: "بررسی و ثبت حضور و غیاب" }));
     expect(bulkMarkAttendanceMock).not.toHaveBeenCalled();
-    await user.click(screen.getByRole("button", { name: "تأیید و ثبت" }));
-    await waitFor(() => expect(screen.getByRole("button", { name: "تأیید و ثبت" })).toBeEnabled());
+    await user.click(screen.getByRole("button", { name: "تأیید و ثبت حضور و غیاب" }));
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "تأیید و ثبت حضور و غیاب" })).toBeEnabled(),
+    );
     expect(onOpenChange).not.toHaveBeenCalled();
     expect(within(group).getByRole("button", { name: "حاضر", hidden: true })).toHaveAttribute(
       "aria-pressed",
       "true",
     );
-    await user.click(screen.getByRole("button", { name: "تأیید و ثبت" }));
+    await user.click(screen.getByRole("button", { name: "تأیید و ثبت حضور و غیاب" }));
     await waitFor(() => expect(bulkMarkAttendanceMock).toHaveBeenCalledTimes(2));
     expect(screen.queryByText("مرحله ۲: بررسی و ثبت")).not.toBeInTheDocument();
     expect(onOpenChange).not.toHaveBeenCalled();
