@@ -185,11 +185,9 @@ describe("TeacherClassAttendanceSheet", () => {
     const revisionDrawer = await screen.findByRole("dialog", { name: "بازبینی حضور و غیاب" });
     expect(revisionDrawer).toBeInTheDocument();
     expect(within(revisionDrawer).getByText("خلاصهٔ ثبت قبلی")).toBeInTheDocument();
-    expect(
-      within(revisionDrawer).getByText(
-        "اگر «فعلاً فقط مشاهده می‌کنم» را انتخاب کنید، هیچ تغییری در حضور و غیاب ثبت نمی‌شود.",
-      ),
-    ).toBeInTheDocument();
+    expect(revisionDrawer).toHaveTextContent(
+      "اگر «فعلاً فقط مشاهده می‌کنم» را انتخاب کنید، هیچ تغییری در حضور و غیاب ثبت نمی‌شود.",
+    );
     expect(
       within(revisionDrawer).getByRole("list", { name: "خلاصه وضعیت ثبت قبلی" }),
     ).toHaveTextContent("۱غایب");
