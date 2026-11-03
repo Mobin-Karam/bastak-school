@@ -89,7 +89,7 @@ class ReleaseTests(unittest.TestCase):
                         self.assertFalse((p/'loaded-images.json').exists())
 
     def test_deploy_failure_boundaries_and_lock(self):
-        for mode in ['preflight','replacement','healthy','locked','environment-mutated']:
+        for mode in ['preflight','mount-preflight','replacement','healthy','locked','environment-mutated']:
             with self.subTest(mode=mode), tempfile.TemporaryDirectory() as d:
                 p=pathlib.Path(d); deploy=p/'scripts/deploy';deploy.mkdir(parents=True)
                 (deploy/'lan-immutable.sh').write_text((ROOT/'scripts/deploy/lan-immutable.sh').read_text())
@@ -98,7 +98,8 @@ class ReleaseTests(unittest.TestCase):
                 bundle=p/'bundle';bundle.mkdir();(bundle/'manifest.json').write_text(json.dumps(manifest()))
                 (bundle/'loaded-images.json').write_text(json.dumps(manifest()))
                 config=p/'config';(config/'tls').mkdir(parents=True)
-                for name in ['production.env','nginx.conf.template','tls/server.key','tls/server.crt']:(config/name).write_text('fixture')
+                for name in ['production.env','nginx.conf.template','tls/server.key','tls/server.crt','tls/ca.crt']:
+                    path=config/name;path.write_text('CORS_ORIGINS=https://admin.example.test' if name=='production.env' else 'fixture');path.chmod(0o600)
                 bin_dir=p/'bin';bin_dir.mkdir()
                 (bin_dir/'git').write_text('#!/bin/bash\necho '+SHA+'\n')
                 (bin_dir/'openssl').write_text('#!/bin/bash\nexit 0\n')
@@ -112,6 +113,15 @@ if [[ "$1" == inspect ]]; then
 fi
 if [[ "$1" == compose ]]; then
  for arg in "$@"; do
+  if [[ "$arg" == config ]]; then
+   if [[ "$*" != *"--format json"* ]]; then exit 0; fi
+   if [[ "$MODE" == mount-preflight ]]; then
+    echo '{"services":{"backend-v2":{"volumes":[{"type":"volume","source":"moshaver_v2_sqlite","target":"/data"}]},"admin-v2":{"volumes":[{"type":"bind","source":"/runner/.run/production/tls","target":"/etc/nginx/tls"}]}}}'
+   else
+    echo '{"services":{"backend-v2":{"volumes":[{"type":"volume","source":"moshaver_v2_sqlite","target":"/data"}]},"admin-v2":{"volumes":[{"type":"bind","source":"'"$PRODUCTION_CONFIG_DIR"'/nginx.conf.template","target":"/etc/nginx/templates/default.conf.template"},{"type":"bind","source":"'"$PRODUCTION_CONFIG_DIR"'/tls","target":"/etc/nginx/tls"},{"type":"bind","source":"'"$PRODUCTION_CONFIG_DIR"'/tls/ca.crt","target":"/usr/share/nginx/html/bastak-school-ca.crt"}]}}}'
+   fi
+   exit 0
+  fi
   if [[ "$arg" == ps ]]; then echo "${@: -1}"; exit 0; fi
   if [[ "$arg" == up && "$MODE" == environment-mutated ]]; then
    printf 'unexpected=change\n' > "$PRODUCTION_CONFIG_DIR/production.env"
@@ -119,6 +129,7 @@ if [[ "$1" == compose ]]; then
   if [[ "$arg" == up && "$MODE" == replacement ]]; then exit 1; fi
  done
 fi
+if [[ "$1" == image && "$2" == inspect ]]; then exit 0; fi
 if [[ "$1" == run ]]; then
  if [[ "$MODE" == preflight ]]; then exit 1; fi
  for arg in "$@"; do
@@ -140,9 +151,62 @@ fi
                 if mode=='healthy':self.assertEqual(result.returncode,0,result.stderr);self.assertTrue((p/'release.json').exists())
                 else:self.assertNotEqual(result.returncode,0);self.assertFalse((p/'release.json').exists())
                 if mode=='preflight':self.assertIn('start backend-v2 admin-v2',calls);self.assertNotIn(' up ',calls)
+                if mode=='mount-preflight':self.assertNotIn('stop -t 30 admin-v2 backend-v2',calls)
                 if mode=='replacement':self.assertIn('stop admin-v2',calls);self.assertNotIn('start backend-v2 admin-v2',calls)
                 if mode=='locked':self.assertEqual(calls,'')
                 self.assertNotIn('down',calls);self.assertNotIn('prune',calls)
+
+    def test_production_evidence_verifies_only_receipt_and_running_contract(self):
+        with tempfile.TemporaryDirectory() as d:
+            p = pathlib.Path(d)
+            config = p / 'config'
+            (config / 'tls').mkdir(parents=True)
+            for name in ['production.env', 'nginx.conf.template', 'tls/server.key', 'tls/server.crt', 'tls/ca.crt']:
+                path = config / name
+                path.write_text('fixture')
+                path.chmod(0o600)
+            backup = p / 'backup.sqlite'
+            for path in [backup, pathlib.Path(str(backup) + '.restored'), pathlib.Path(str(backup) + '.verification.json')]:
+                path.write_text('{}')
+                path.chmod(0o600)
+            receipt = manifest()
+            receipt.update(backup=str(backup), healthyAt='2026-11-02T00:00:00+00:00')
+            receipt_path = p / 'release.json'
+            receipt_path.write_text(json.dumps(receipt))
+            receipt_path.chmod(0o600)
+            bin_dir = p / 'bin'
+            bin_dir.mkdir()
+            (bin_dir / 'docker').write_text('''#!/bin/bash
+set -eu
+if [[ "$1" == ps ]]; then
+  for arg in "$@"; do
+    [[ "$arg" == *service=backend-v2 ]] && { echo backend; exit 0; }
+    [[ "$arg" == *service=admin-v2 ]] && { echo admin; exit 0; }
+  done
+fi
+if [[ "$1" == inspect ]]; then
+  case "$2" in
+    backend) cat <<JSON
+[{"State":{"Running":true,"Health":{"Status":"healthy"}},"Image":"sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb","Config":{"Labels":{"org.opencontainers.image.revision":"''' + SHA + '''"}},"Mounts":[{"Type":"volume","Name":"fixture_volume","Destination":"/data"}]}]
+JSON
+      ;;
+    admin) cat <<JSON
+[{"State":{"Running":true,"Health":{"Status":"healthy"}},"Image":"sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb","Config":{"Labels":{"org.opencontainers.image.revision":"''' + SHA + '''"}},"Mounts":[{"Type":"bind","Source":"$PRODUCTION_CONFIG_DIR/nginx.conf.template","Destination":"/etc/nginx/templates/default.conf.template"},{"Type":"bind","Source":"$PRODUCTION_CONFIG_DIR/tls","Destination":"/etc/nginx/tls"},{"Type":"bind","Source":"$PRODUCTION_CONFIG_DIR/tls/ca.crt","Destination":"/usr/share/nginx/html/bastak-school-ca.crt"}]}]
+JSON
+      ;;
+  esac
+  exit 0
+fi
+exit 1
+''')
+            (bin_dir / 'docker').chmod(0o700)
+            env = dict(os.environ, PATH=str(bin_dir) + os.pathsep + os.environ['PATH'],
+                       PRODUCTION_CONFIG_DIR=str(config), PRODUCTION_RECEIPT=str(receipt_path),
+                       PRODUCTION_DATA_VOLUME='fixture_volume')
+            result = subprocess.run([str(ROOT / 'scripts/deploy/verify-production-evidence.sh')], env=env,
+                                    capture_output=True, text=True)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertIn(f'release SHA: {SHA}', result.stdout)
 
 
 if __name__=='__main__':unittest.main()

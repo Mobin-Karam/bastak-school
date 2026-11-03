@@ -10,7 +10,18 @@ import {
   useAttendanceDiscard,
 } from "../../../student-life/attendance/public";
 import { useAuth } from "../../../identity/auth";
-import { BadgeCheck, Check, CircleCheck, CircleX, Clock3, MessageSquareText } from "lucide-react";
+import {
+  BadgeCheck,
+  CalendarDays,
+  Check,
+  ChevronLeft,
+  ChevronRight,
+  CircleCheck,
+  CircleX,
+  Clock3,
+  MessageSquareText,
+  PencilLine,
+} from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { ScheduleEntry } from "../../../academics/schedule/api/schedule.api";
 import { notify } from "../../../../shared/ui/notifications";
@@ -33,16 +44,54 @@ const attendanceActions: Array<{
   status: AttendanceStatus;
   label: string;
   activeClassName: string;
+  idleClassName: string;
+  rowClassName: string;
+  summaryClassName: string;
 }> = [
-  { status: "present", label: "ح · حاضر", activeClassName: "bg-emerald-600 text-white" },
-  { status: "absent", label: "غ · غایب", activeClassName: "bg-rose-600 text-white" },
+  {
+    status: "present",
+    label: "حاضر",
+    activeClassName: "border-emerald-700 bg-emerald-600 text-white",
+    idleClassName:
+      "border-emerald-300 bg-emerald-50 text-emerald-950 hover:border-emerald-500 dark:border-emerald-900 dark:bg-emerald-950/35 dark:text-emerald-100",
+    rowClassName: "border-s-emerald-600 bg-emerald-50/45 dark:bg-emerald-950/15",
+    summaryClassName:
+      "border-emerald-300 bg-emerald-50 text-emerald-950 dark:border-emerald-900 dark:bg-emerald-950/35 dark:text-emerald-100",
+  },
+  {
+    status: "absent",
+    label: "غایب",
+    activeClassName: "border-rose-700 bg-rose-600 text-white",
+    idleClassName:
+      "border-rose-300 bg-rose-50 text-rose-950 hover:border-rose-500 dark:border-rose-900 dark:bg-rose-950/35 dark:text-rose-100",
+    rowClassName: "border-s-rose-600 bg-rose-50/45 dark:bg-rose-950/15",
+    summaryClassName:
+      "border-rose-300 bg-rose-50 text-rose-950 dark:border-rose-900 dark:bg-rose-950/35 dark:text-rose-100",
+  },
   {
     status: "late",
-    label: "ت · تأخیر",
-    activeClassName: "bg-amber-100 text-amber-950 dark:bg-amber-950 dark:text-amber-100",
+    label: "تأخیر",
+    activeClassName: "border-amber-600 bg-amber-400 text-amber-950",
+    idleClassName:
+      "border-amber-300 bg-amber-50 text-amber-950 hover:border-amber-500 dark:border-amber-900 dark:bg-amber-950/35 dark:text-amber-100",
+    rowClassName: "border-s-amber-500 bg-amber-50/45 dark:bg-amber-950/15",
+    summaryClassName:
+      "border-amber-300 bg-amber-50 text-amber-950 dark:border-amber-900 dark:bg-amber-950/35 dark:text-amber-100",
   },
-  { status: "excused", label: "م · موجه", activeClassName: "bg-sky-600 text-white" },
+  {
+    status: "excused",
+    label: "موجه",
+    activeClassName: "border-sky-700 bg-sky-600 text-white",
+    idleClassName:
+      "border-sky-300 bg-sky-50 text-sky-950 hover:border-sky-500 dark:border-sky-900 dark:bg-sky-950/35 dark:text-sky-100",
+    rowClassName: "border-s-sky-600 bg-sky-50/45 dark:bg-sky-950/15",
+    summaryClassName:
+      "border-sky-300 bg-sky-50 text-sky-950 dark:border-sky-900 dark:bg-sky-950/35 dark:text-sky-100",
+  },
 ];
+const attendanceActionByStatus = new Map(
+  attendanceActions.map((action) => [action.status, action]),
+);
 
 const isoDay = (date: Date) => date.toISOString().slice(0, 10);
 
@@ -150,6 +199,8 @@ export function TeacherClassAttendanceSheet({
   const [marks, setMarks] = useState<Record<string, AttendanceStatus>>({});
   const [reasons, setReasons] = useState<Record<string, string>>({});
   const [hydratedSessionId, setHydratedSessionId] = useState<string | null>(null);
+  const [revisionConfirmationOpen, setRevisionConfirmationOpen] = useState(false);
+  const [revisionConfirmedSessionId, setRevisionConfirmedSessionId] = useState<string | null>(null);
   const [reportText, setReportText] = useState<Record<string, string>>({});
   const [reportTarget, setReportTarget] = useState<{ id: string; name: string } | null>(null);
   const [profileStudentId, setProfileStudentId] = useState<string | null>(null);
@@ -199,6 +250,8 @@ export function TeacherClassAttendanceSheet({
       open && Boolean(entry?.id) && Boolean(entry && isTeacherScheduleDate(entry, sessionDate)),
   });
   const savedSessionId = savedSessionLookup.data?.id ?? null;
+  const isRevision = Boolean(savedSessionId);
+  const revisionEditingConfirmed = !savedSessionId || revisionConfirmedSessionId === savedSessionId;
   const savedAttendance = useQuery({
     queryKey: ["attendance", "session-detail", savedSessionId],
     queryFn: () =>
@@ -215,6 +268,20 @@ export function TeacherClassAttendanceSheet({
       }>(`/attendance/sessions/${encodeURIComponent(savedSessionId!)}`),
     enabled: Boolean(savedSessionId),
   });
+  const savedAttendanceSummary = useMemo(() => {
+    const counts: Record<AttendanceStatus, number> = {
+      present: 0,
+      absent: 0,
+      late: 0,
+      excused: 0,
+    };
+    const saved = savedAttendance.data;
+    if (!saved) return attendanceActions.map((action) => ({ ...action, count: 0 }));
+
+    for (const record of saved.records) counts[record.legacyStatus] += 1;
+    counts.present += Math.max(0, saved.roster.length - saved.records.length);
+    return attendanceActions.map((action) => ({ ...action, count: counts[action.status] }));
+  }, [savedAttendance.data]);
   const attendanceLoaded =
     savedSessionLookup.isSuccess && (!savedSessionId || savedAttendance.isSuccess);
   const attendanceHydrated =
@@ -277,6 +344,8 @@ export function TeacherClassAttendanceSheet({
     setReasons({});
     pendingWrite.current = null;
     setHydratedSessionId(null);
+    setRevisionConfirmationOpen(false);
+    setRevisionConfirmedSessionId(null);
     setReportText({});
     setReportTarget(null);
     setProfileStudentId(null);
@@ -314,6 +383,8 @@ export function TeacherClassAttendanceSheet({
     setMarks({});
     setReasons({});
     setHydratedSessionId(null);
+    setRevisionConfirmationOpen(false);
+    setRevisionConfirmedSessionId(null);
     pendingWrite.current = null;
   }, [sessionDate]);
 
@@ -420,6 +491,7 @@ export function TeacherClassAttendanceSheet({
         id: result.sessionId,
         revision: result.revision,
       });
+      setRevisionConfirmedSessionId(result.sessionId);
       void client.invalidateQueries({ queryKey: ["attendance"] });
       notify("حضور و غیاب کلاس ثبت شد.", "success");
       setReviewing(false);
@@ -516,10 +588,16 @@ export function TeacherClassAttendanceSheet({
   const canManageSelectedSession =
     canManage &&
     attendanceHydrated &&
+    revisionEditingConfirmed &&
     savedAttendance.data?.status !== "cancelled" &&
     hasSessionStarted &&
     (!semesterStartsOn || sessionDate >= semesterStartsOn) &&
     (!semesterEndsOn || sessionDate <= semesterEndsOn);
+  const canManageSessionCoins =
+    canManage &&
+    attendanceHydrated &&
+    Boolean(savedSessionId) &&
+    savedAttendance.data?.status !== "cancelled";
   const sessionCoins = useQuery({
     queryKey: ["attendance", "session-coins", savedSessionId],
     queryFn: () =>
@@ -556,6 +634,7 @@ export function TeacherClassAttendanceSheet({
     <>
       <ResponsiveModal
         open={open}
+        modal={!revisionConfirmationOpen}
         onOpenChange={(next) => {
           if (next) onOpenChange(true);
           else discard.request(() => onOpenChange(false));
@@ -569,20 +648,24 @@ export function TeacherClassAttendanceSheet({
       >
         <section aria-label="فهرست دانش‌آموزان کلاس">
           {entry ? (
-            <div className="mt-4 flex flex-wrap items-end gap-2 rounded-xl bg-[rgb(var(--surface-muted))] p-3">
+            <div className="mt-4 grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 rounded-2xl border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-muted))] p-2">
               <Button
                 size="sm"
                 variant="soft"
+                aria-label="رفتن به جلسه قبل"
                 disabled={!canMoveToPreviousSession}
                 onClick={() => {
                   if (canMoveToPreviousSession && previousSessionDate)
                     selectSessionDate(previousSessionDate);
                 }}
               >
-                جلسه قبل
+                <ChevronRight size={17} aria-hidden="true" />
+                <span className="hidden sm:inline">جلسه قبل</span>
               </Button>
-              <label className="grid gap-1 text-xs font-bold text-slate-600 dark:text-slate-300">
-                تاریخ جلسه
+              <label className="grid justify-items-center gap-0.5 text-center text-[11px] font-bold text-slate-600 dark:text-slate-300">
+                <span className="flex items-center gap-1">
+                  <CalendarDays size={14} aria-hidden="true" /> تاریخ جلسه
+                </span>
                 <DatePicker
                   value={sessionDate}
                   min={semesterStartsOn}
@@ -597,10 +680,12 @@ export function TeacherClassAttendanceSheet({
               <Button
                 size="sm"
                 variant="soft"
+                aria-label="رفتن به جلسه بعد"
                 onClick={() => selectSessionDate(nearestSessionDate(sessionDate, entry.weekday, 1))}
                 disabled={!canMoveToNextSession}
               >
-                جلسه بعد
+                <span className="hidden sm:inline">جلسه بعد</span>
+                <ChevronLeft size={17} aria-hidden="true" />
               </Button>
             </div>
           ) : null}
@@ -651,6 +736,31 @@ export function TeacherClassAttendanceSheet({
             </div>
           ) : (
             <>
+              {savedAttendance.data?.status !== "cancelled" ? (
+                <div
+                  role="status"
+                  className={`mt-5 rounded-2xl border p-3 text-xs leading-5 ${isRevision ? "border-sky-300 bg-sky-50 text-sky-950 dark:border-sky-800 dark:bg-sky-950/35 dark:text-sky-100" : "border-emerald-300 bg-emerald-50 text-emerald-950 dark:border-emerald-800 dark:bg-emerald-950/35 dark:text-emerald-100"}`}
+                >
+                  <p className="font-black">{isRevision ? "بازبینی ثبت‌شده" : "ثبت اولیه"}</p>
+                  <p className="mt-1">
+                    {isRevision
+                      ? revisionEditingConfirmed
+                        ? "حالت بازبینی فعال است؛ تغییرات شما پس از تأیید، به‌عنوان بازبینی ذخیره می‌شوند."
+                        : "این جلسه قبلاً ثبت شده است؛ پیش از ویرایش، بازبینی آن را تأیید کنید."
+                      : "وضعیت دانش‌آموزان را انتخاب کنید، سپس در مرحلهٔ بعد آن را بررسی و ثبت کنید."}
+                  </p>
+                  {isRevision && !revisionEditingConfirmed ? (
+                    <Button
+                      size="sm"
+                      variant="soft"
+                      className="mt-2"
+                      onClick={() => setRevisionConfirmationOpen(true)}
+                    >
+                      <PencilLine size={15} aria-hidden="true" /> ویرایش بازبینی
+                    </Button>
+                  ) : null}
+                </div>
+              ) : null}
               <p className="mt-5 text-xs leading-5 text-slate-600 dark:text-slate-300">
                 {savedAttendance.data?.status === "cancelled"
                   ? "این جلسه لغو شده و فقط قابل مشاهده است."
@@ -686,186 +796,204 @@ export function TeacherClassAttendanceSheet({
                 className={reviewing ? "hidden" : "mt-3 grid gap-2"}
                 aria-label="فهرست دانش‌آموزان کلاس"
               >
-                {sessionParticipants.map((student) => (
-                  <li
-                    key={student.id}
-                    className={`rounded-2xl border bg-[rgb(var(--surface-muted))] p-3 ${student.outsideSchool ? "border-rose-600 ring-2 ring-rose-400/60 dark:border-rose-400 dark:ring-rose-500/50" : recentAbsenceCounts[student.id] ? "border-amber-400 ring-1 ring-amber-300/70 dark:border-amber-500 dark:ring-amber-500/40" : "border-[rgb(var(--border-subtle))]"}`}
-                  >
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="flex min-w-0 items-center gap-2">
-                        <p className="truncate text-sm font-bold text-ink">{student.name}</p>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          className="shrink-0 whitespace-nowrap"
-                          aria-label={`مشاهده پرونده ${student.name}`}
-                          onClick={() => setProfileStudentId(student.id)}
-                        >
-                          پرونده
-                        </Button>
-                      </div>
-                      <div className="flex shrink-0 items-center gap-1.5">
-                        {recentAbsenceCounts[student.id] ? (
-                          <span className="rounded-full bg-amber-100 px-2 py-1 text-[10px] font-black text-amber-900 dark:bg-amber-950/60 dark:text-amber-100">
-                            {recentAbsenceCounts[student.id].toLocaleString("fa-IR")} غیبت در ۷ روز
+                {sessionParticipants.map((student) => {
+                  const studentAction = attendanceActionByStatus.get(
+                    marks[student.id] ?? "present",
+                  );
+                  return (
+                    <li
+                      key={student.id}
+                      className={`rounded-xl border border-s-4 p-2.5 ${student.outsideSchool ? "border-rose-600 bg-rose-50 ring-2 ring-rose-400/60 dark:border-rose-400 dark:bg-rose-950/25 dark:ring-rose-500/50" : recentAbsenceCounts[student.id] ? "border-amber-500 bg-amber-50 ring-1 ring-amber-300/70 dark:border-amber-500 dark:bg-amber-950/25 dark:ring-amber-500/40" : (studentAction?.rowClassName ?? "border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-muted))]")}`}
+                    >
+                      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
+                        <div className="flex min-w-0 items-center gap-2">
+                          <p className="truncate text-sm font-bold text-ink">{student.name}</p>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="shrink-0 whitespace-nowrap"
+                            aria-label={`مشاهده پرونده ${student.name}`}
+                            onClick={() => setProfileStudentId(student.id)}
+                          >
+                            پرونده
+                          </Button>
+                        </div>
+                        <div className="flex shrink-0 items-center gap-1.5">
+                          <span
+                            className={`rounded-full border px-2 py-1 text-[10px] font-black ${studentAction?.summaryClassName ?? "border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-muted))] text-slate-700 dark:text-slate-200"}`}
+                          >
+                            {studentAction?.label ?? "حاضر"}
                           </span>
-                        ) : null}
-                        <span className="text-[11px] text-slate-600 dark:text-slate-300">
-                          {student.nationalCode || "دانش‌آموز"}
-                        </span>
-                      </div>
-                    </div>
-                    {student.outsideSchool ? (
-                      <div className="mt-2 flex flex-wrap items-center justify-between gap-2 rounded-lg bg-rose-100 px-3 py-2 text-xs font-black text-rose-950 dark:bg-rose-950/60 dark:text-rose-100">
-                        <span>
-                          {student.outsidePresenceReported
-                            ? "گزارش حضور در انتظار تأیید مدیر"
-                            : "خارج از مدرسه"}
-                        </span>
-                        {student.outsidePresenceReported ? null : marks[student.id] === "present" &&
-                          savedSessionId ? (
-                          <button
-                            type="button"
-                            disabled={reportOutsidePresence.isPending}
-                            onClick={() => reportOutsidePresence.mutate(student.id)}
-                            className="min-h-9 rounded-lg border border-rose-500 bg-white px-3 font-bold text-rose-900 disabled:opacity-50 dark:bg-slate-950 dark:text-rose-100"
-                          >
-                            گزارش حضور به مدیر
-                          </button>
-                        ) : (
-                          <span className="font-medium">
-                            برای گزارش، حضور را ثبت و جلسه را ذخیره کنید.
+                          {recentAbsenceCounts[student.id] ? (
+                            <span className="rounded-full bg-amber-100 px-2 py-1 text-[10px] font-black text-amber-900 dark:bg-amber-950/60 dark:text-amber-100">
+                              {recentAbsenceCounts[student.id].toLocaleString("fa-IR")} غیبت در ۷
+                              روز
+                            </span>
+                          ) : null}
+                          <span className="text-[11px] text-slate-600 dark:text-slate-300">
+                            {student.nationalCode || "دانش‌آموز"}
                           </span>
-                        )}
-                      </div>
-                    ) : null}
-                    {canManageSelectedSession ? (
-                      <div
-                        className="mt-3 grid grid-cols-4 gap-1.5"
-                        role="group"
-                        aria-label={`وضعیت حضور ${student.name}`}
-                      >
-                        {attendanceActions.map((action) => {
-                          const selected = marks[student.id] === action.status;
-                          return (
-                            <button
-                              key={action.status}
-                              type="button"
-                              aria-label={action.label}
-                              aria-pressed={selected}
-                              disabled={save.isPending}
-                              onClick={() =>
-                                setMarks((current) => ({ ...current, [student.id]: action.status }))
-                              }
-                              title={action.label}
-                              className={`grid min-h-11 place-items-center rounded-xl border transition-colors motion-reduce:transition-none ${selected ? action.activeClassName : "border-[rgb(var(--border-subtle))] bg-card text-slate-600 hover:border-brand/40 dark:text-slate-300"}`}
-                            >
-                              {action.status === "present" ? (
-                                <CircleCheck size={19} aria-hidden="true" />
-                              ) : action.status === "absent" ? (
-                                <CircleX size={19} aria-hidden="true" />
-                              ) : action.status === "late" ? (
-                                <Clock3 size={19} aria-hidden="true" />
-                              ) : (
-                                <BadgeCheck size={19} aria-hidden="true" />
-                              )}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    ) : null}
-                    {canManageSelectedSession &&
-                    (marks[student.id] === "excused" || marks[student.id] === "absent") ? (
-                      <label className="mt-2 block text-xs font-bold text-slate-600 dark:text-slate-300">
-                        {marks[student.id] === "excused"
-                          ? "توضیح موجه (اجباری)"
-                          : "توضیح غیبت (اختیاری)"}
-                        <input
-                          value={reasons[student.id] ?? ""}
-                          onChange={(event) =>
-                            setReasons((current) => ({
-                              ...current,
-                              [student.id]: event.target.value,
-                            }))
-                          }
-                          disabled={save.isPending}
-                          maxLength={500}
-                          placeholder={
-                            marks[student.id] === "excused"
-                              ? "علت موجه‌بودن را بنویسید"
-                              : "در صورت نیاز، توضیح غیبت را بنویسید"
-                          }
-                          className="mt-1 min-h-10 w-full rounded-lg border border-[rgb(var(--border-subtle))] bg-card px-3 text-xs font-normal text-ink outline-none focus-visible:ring-2 focus-visible:ring-brand"
-                        />
-                      </label>
-                    ) : null}
-                    {canManageSelectedSession && savedSessionId ? (
-                      <div className="mt-3 flex items-center gap-2 border-t border-[rgb(var(--border-subtle))] pt-2">
-                        <span className="flex items-center gap-1 text-[11px] font-bold text-slate-500">
-                          <AttendanceCoin className="size-4 object-contain" /> امتیاز سکه (۳− تا ۳+)
-                        </span>
-                        <div
-                          className="ms-auto flex gap-1"
-                          role="group"
-                          aria-label={`سکه ${student.name}`}
-                        >
-                          <button
-                            type="button"
-                            className="grid min-h-9 min-w-9 place-items-center rounded-lg bg-[rgb(var(--surface-muted))] text-base font-black"
-                            aria-label={`کم‌کردن سکه ${student.name}`}
-                            disabled={
-                              setCoins.isPending || (coinsByStudent[student.id]?.coins ?? 0) <= -3
-                            }
-                            onClick={() =>
-                              setCoins.mutate({
-                                studentId: student.id,
-                                coins: Math.max(-3, (coinsByStudent[student.id]?.coins ?? 0) - 1),
-                              })
-                            }
-                          >
-                            −
-                          </button>
-                          <output
-                            className="grid min-h-9 min-w-10 place-items-center rounded-lg bg-amber-400 text-sm font-black text-amber-950"
-                            aria-live="polite"
-                          >
-                            {(coinsByStudent[student.id]?.coins ?? 0).toLocaleString("fa-IR", {
-                              signDisplay: "always",
-                            })}
-                          </output>
-                          <button
-                            type="button"
-                            className="grid min-h-9 min-w-9 place-items-center rounded-lg bg-[rgb(var(--surface-muted))] text-base font-black"
-                            aria-label={`افزودن سکه ${student.name}`}
-                            disabled={
-                              setCoins.isPending || (coinsByStudent[student.id]?.coins ?? 0) >= 3
-                            }
-                            onClick={() =>
-                              setCoins.mutate({
-                                studentId: student.id,
-                                coins: Math.min(3, (coinsByStudent[student.id]?.coins ?? 0) + 1),
-                              })
-                            }
-                          >
-                            +
-                          </button>
                         </div>
                       </div>
-                    ) : null}
-                    {canManageSelectedSession && savedSessionId ? (
-                      <div className="mt-3 flex items-center justify-between border-t border-[rgb(var(--border-subtle))] pt-3">
-                        <span className="text-xs text-slate-500">گزارش خصوصی برای مدیر</span>
-                        <Button
-                          size="sm"
-                          variant="soft"
-                          onClick={() => setReportTarget({ id: student.id, name: student.name })}
+                      {student.outsideSchool ? (
+                        <div className="mt-2 flex flex-wrap items-center justify-between gap-2 rounded-lg bg-rose-100 px-3 py-2 text-xs font-black text-rose-950 dark:bg-rose-950/60 dark:text-rose-100">
+                          <span>
+                            {student.outsidePresenceReported
+                              ? "گزارش حضور در انتظار تأیید مدیر"
+                              : "خارج از مدرسه"}
+                          </span>
+                          {student.outsidePresenceReported ? null : marks[student.id] ===
+                              "present" && savedSessionId ? (
+                            <button
+                              type="button"
+                              disabled={reportOutsidePresence.isPending}
+                              onClick={() => reportOutsidePresence.mutate(student.id)}
+                              className="min-h-9 rounded-lg border border-rose-500 bg-white px-3 font-bold text-rose-900 disabled:opacity-50 dark:bg-slate-950 dark:text-rose-100"
+                            >
+                              گزارش حضور به مدیر
+                            </button>
+                          ) : (
+                            <span className="font-medium">
+                              برای گزارش، حضور را ثبت و جلسه را ذخیره کنید.
+                            </span>
+                          )}
+                        </div>
+                      ) : null}
+                      {canManageSelectedSession ? (
+                        <div
+                          className="grid w-full grid-cols-4 gap-1.5 sm:ms-auto sm:w-[21rem]"
+                          role="group"
+                          aria-label={`وضعیت حضور ${student.name}`}
                         >
-                          گزارش
-                        </Button>
-                      </div>
-                    ) : null}
-                  </li>
-                ))}
+                          {attendanceActions.map((action) => {
+                            const selected = marks[student.id] === action.status;
+                            return (
+                              <button
+                                key={action.status}
+                                type="button"
+                                aria-label={action.label}
+                                aria-pressed={selected}
+                                disabled={save.isPending}
+                                onClick={() =>
+                                  setMarks((current) => ({
+                                    ...current,
+                                    [student.id]: action.status,
+                                  }))
+                                }
+                                title={action.label}
+                                className={`flex min-h-11 items-center justify-center gap-1 rounded-lg border px-1 text-[11px] font-bold transition-colors motion-reduce:transition-none ${selected ? action.activeClassName : action.idleClassName}`}
+                              >
+                                {action.status === "present" ? (
+                                  <CircleCheck size={19} aria-hidden="true" />
+                                ) : action.status === "absent" ? (
+                                  <CircleX size={19} aria-hidden="true" />
+                                ) : action.status === "late" ? (
+                                  <Clock3 size={19} aria-hidden="true" />
+                                ) : (
+                                  <BadgeCheck size={19} aria-hidden="true" />
+                                )}
+                                <span>{action.label}</span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      ) : null}
+                      {canManageSelectedSession &&
+                      (marks[student.id] === "excused" || marks[student.id] === "absent") ? (
+                        <label className="mt-2 block text-xs font-bold text-slate-600 dark:text-slate-300">
+                          {marks[student.id] === "excused"
+                            ? "توضیح موجه (اجباری)"
+                            : "توضیح غیبت (اختیاری)"}
+                          <input
+                            value={reasons[student.id] ?? ""}
+                            onChange={(event) =>
+                              setReasons((current) => ({
+                                ...current,
+                                [student.id]: event.target.value,
+                              }))
+                            }
+                            disabled={save.isPending}
+                            maxLength={500}
+                            placeholder={
+                              marks[student.id] === "excused"
+                                ? "علت موجه‌بودن را بنویسید"
+                                : "در صورت نیاز، توضیح غیبت را بنویسید"
+                            }
+                            className="mt-1 min-h-10 w-full rounded-lg border border-[rgb(var(--border-subtle))] bg-card px-3 text-xs font-normal text-ink outline-none focus-visible:ring-2 focus-visible:ring-brand"
+                          />
+                        </label>
+                      ) : null}
+                      {canManageSessionCoins ? (
+                        <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-[rgb(var(--border-subtle))] pt-2">
+                          <span className="flex items-center gap-1 text-[11px] font-bold text-slate-500">
+                            <AttendanceCoin className="size-4 object-contain" /> امتیاز سکه (۳− تا
+                            ۳+)
+                          </span>
+                          <div
+                            className="flex gap-1"
+                            role="group"
+                            aria-label={`سکه ${student.name}`}
+                          >
+                            <button
+                              type="button"
+                              className="grid min-h-9 min-w-9 place-items-center rounded-lg bg-[rgb(var(--surface-muted))] text-base font-black"
+                              aria-label={`کم‌کردن سکه ${student.name}`}
+                              disabled={
+                                setCoins.isPending || (coinsByStudent[student.id]?.coins ?? 0) <= -3
+                              }
+                              onClick={() =>
+                                setCoins.mutate({
+                                  studentId: student.id,
+                                  coins: Math.max(-3, (coinsByStudent[student.id]?.coins ?? 0) - 1),
+                                })
+                              }
+                            >
+                              −
+                            </button>
+                            <output
+                              className="grid min-h-9 min-w-10 place-items-center rounded-lg bg-amber-400 text-sm font-black text-amber-950"
+                              aria-live="polite"
+                            >
+                              {(coinsByStudent[student.id]?.coins ?? 0).toLocaleString("fa-IR", {
+                                signDisplay: "always",
+                              })}
+                            </output>
+                            <button
+                              type="button"
+                              className="grid min-h-9 min-w-9 place-items-center rounded-lg bg-[rgb(var(--surface-muted))] text-base font-black"
+                              aria-label={`افزودن سکه ${student.name}`}
+                              disabled={
+                                setCoins.isPending || (coinsByStudent[student.id]?.coins ?? 0) >= 3
+                              }
+                              onClick={() =>
+                                setCoins.mutate({
+                                  studentId: student.id,
+                                  coins: Math.min(3, (coinsByStudent[student.id]?.coins ?? 0) + 1),
+                                })
+                              }
+                            >
+                              +
+                            </button>
+                          </div>
+                        </div>
+                      ) : null}
+                      {canManageSelectedSession && savedSessionId ? (
+                        <div className="mt-2 flex items-center justify-between border-t border-[rgb(var(--border-subtle))] pt-2">
+                          <span className="text-[11px] font-bold text-slate-500">
+                            گزارش خصوصی برای مدیر
+                          </span>
+                          <Button
+                            size="sm"
+                            variant="soft"
+                            onClick={() => setReportTarget({ id: student.id, name: student.name })}
+                          >
+                            گزارش
+                          </Button>
+                        </div>
+                      ) : null}
+                    </li>
+                  );
+                })}
               </ul>
               {reviewing ? (
                 <div className="mt-4 space-y-3">
@@ -973,8 +1101,12 @@ export function TeacherClassAttendanceSheet({
                       {save.isPending
                         ? "در حال ثبت…"
                         : reviewing
-                          ? "تأیید و ثبت"
-                          : "بررسی و ثبت حضور و غیاب"}
+                          ? isRevision
+                            ? "تأیید و ثبت بازبینی"
+                            : "تأیید و ثبت حضور و غیاب"
+                          : isRevision
+                            ? "بررسی و ثبت بازبینی"
+                            : "بررسی و ثبت حضور و غیاب"}
                     </Button>
                   </div>
                 </div>
@@ -983,6 +1115,67 @@ export function TeacherClassAttendanceSheet({
           )}
         </section>
       </ResponsiveModal>
+      <ResponsiveDrawer
+        nested
+        open={revisionConfirmationOpen}
+        onOpenChange={setRevisionConfirmationOpen}
+        title="بازبینی حضور و غیاب"
+        description="این جلسه قبلاً ثبت شده است"
+        desktopSide="bottom"
+      >
+        <div className="grid gap-4" dir="rtl">
+          <div className="rounded-2xl border border-sky-300 bg-sky-50 p-4 text-sm leading-6 text-sky-950 dark:border-sky-800 dark:bg-sky-950/35 dark:text-sky-100">
+            تغییر وضعیت دانش‌آموزان، ثبت این جلسه را بازبینی می‌کند. پیش از ادامه، فهرست و دلیل‌های
+            غیبت را با دقت بررسی کنید.
+          </div>
+          <p className="rounded-xl bg-[rgb(var(--surface-muted))] px-3 py-2 text-xs leading-5 text-slate-700 dark:text-slate-200">
+            با انتخاب «ادامه و ویرایش» فهرست ثبت قبلی و وضعیت هر دانش‌آموز را می‌بینید و می‌توانید
+            آن را اصلاح کنید. اگر «فعلاً فقط مشاهده می‌کنم» را انتخاب کنید، هیچ تغییری در حضور و
+            غیاب ثبت نمی‌شود.
+          </p>
+          <section aria-labelledby="previous-attendance-summary" className="grid gap-2">
+            <div className="flex items-baseline justify-between gap-2">
+              <h2 id="previous-attendance-summary" className="text-sm font-black text-ink">
+                خلاصهٔ ثبت قبلی
+              </h2>
+              <span className="text-xs text-slate-500">
+                {savedAttendance.data?.roster.length.toLocaleString("fa-IR") ?? "۰"} دانش‌آموز
+              </span>
+            </div>
+            <ul className="grid grid-cols-2 gap-2 sm:grid-cols-4" aria-label="خلاصه وضعیت ثبت قبلی">
+              {savedAttendanceSummary.map((action) => (
+                <li
+                  key={action.status}
+                  className={`rounded-xl border px-3 py-2 text-center ${action.summaryClassName}`}
+                >
+                  <p className="text-lg font-black leading-5">
+                    {action.count.toLocaleString("fa-IR")}
+                  </p>
+                  <p className="mt-1 text-[11px] font-bold">{action.label}</p>
+                </li>
+              ))}
+            </ul>
+          </section>
+          <div className="flex flex-col-reverse gap-2 sm:flex-row">
+            <Button
+              variant="soft"
+              className="min-h-11 flex-1 border border-[rgb(var(--border-subtle))]"
+              onClick={() => setRevisionConfirmationOpen(false)}
+            >
+              فعلاً فقط مشاهده می‌کنم
+            </Button>
+            <Button
+              className="min-h-11 flex-1 bg-sky-700 text-white hover:bg-sky-800"
+              onClick={() => {
+                if (savedSessionId) setRevisionConfirmedSessionId(savedSessionId);
+                setRevisionConfirmationOpen(false);
+              }}
+            >
+              <PencilLine size={16} aria-hidden="true" /> ادامه و ویرایش
+            </Button>
+          </div>
+        </div>
+      </ResponsiveDrawer>
       {discard.confirmation}
       <ResponsiveDrawer
         open={Boolean(profileStudentId)}

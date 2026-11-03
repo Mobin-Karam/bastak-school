@@ -59,14 +59,37 @@ jobs:
         run: |
           set -euo pipefail
           [[ -n "$GH_TOKEN" ]] || { echo 'Configure read-only SOURCE_ARTIFACT_READ_TOKEN in the private production environment.'; exit 1; }
+          [[ "$RELEASE_SHA" =~ ^[a-f0-9]{40}$ && "$RUN_ID" =~ ^[0-9]+$ ]]
           current=$(gh api repos/Mobin-Karam/bastak-school/git/ref/heads/main --jq .object.sha)
           [[ "$current" == "$RELEASE_SHA" ]] || { echo 'Skipping superseded release.'; exit 0; }
           test "$(git rev-parse HEAD)" = "$RELEASE_SHA"
-          config=/home/bastak-server/.config/bastak-production
-          test -d "$config/tls"
-          test -f "$config/production.env"
+          config=$PRODUCTION_CONFIG_DIR
+          for required in "$config/production.env" "$config/nginx.conf.template" "$config/tls/server.key" "$config/tls/server.crt" "$config/tls/ca.crt"; do
+            test -f "$required" || { echo "Required persistent production configuration is missing: $required"; exit 1; }
+          done
+          for protected in "$config/production.env" "$config/tls/server.key"; do
+            mode=$(stat -c '%a' "$protected")
+            (( (8#$mode & 8#077) == 0 )) || { echo "Production secret has group or other permissions: $protected"; exit 1; }
+          done
+          docker volume inspect "$PRODUCTION_DATA_VOLUME" >/dev/null
+          artifacts=$(gh api "repos/Mobin-Karam/bastak-school/actions/runs/$RUN_ID/artifacts?per_page=100")
+          ARTIFACTS="$artifacts" python3 - "$RELEASE_SHA" <<'PY'
+          import json
+          import os
+          import re
+          import sys
+
+          try:
+              release_sha = sys.argv[1]
+              artifacts = json.loads(os.environ["ARTIFACTS"])["artifacts"]
+              matches = [artifact for artifact in artifacts if artifact.get("name") == f"production-images-{release_sha}" and not artifact.get("expired")]
+              if len(matches) != 1 or not re.fullmatch(r"sha256:[a-f0-9]{64}", matches[0].get("digest", "")):
+                  raise ValueError
+          except Exception:
+              print("SOURCE_ARTIFACT_READ_TOKEN cannot read one verified production image artifact.", file=sys.stderr)
+              raise SystemExit(1)
+          PY
           umask 077
-          test -f "$config/nginx.conf.template"
           mkdir -p "$config/releases"
           export RELEASE_BUNDLE
           RELEASE_BUNDLE="$config/releases/$RELEASE_SHA-$RUN_ID-$GITHUB_RUN_ATTEMPT"

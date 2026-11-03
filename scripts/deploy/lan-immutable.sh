@@ -12,11 +12,20 @@ cd "$(dirname "$0")/../.."
 : "${PRODUCTION_RECEIPT:?Persistent receipt required}"
 : "${PRODUCTION_DATA_VOLUME:?Existing database volume required}"
 [[ "$PRODUCTION_DATA_VOLUME" =~ ^[a-zA-Z0-9][a-zA-Z0-9_.-]+$ ]]
-[[ "$PRODUCTION_CONFIG_DIR" == /* && "$PRODUCTION_BACKUP_DIR" == /* && "$RELEASE_BUNDLE" == /* ]]
-test "$(git rev-parse HEAD)" = "$RELEASE_SHA"
-test -f "$PRODUCTION_CONFIG_DIR/production.env"
-test -f "$PRODUCTION_CONFIG_DIR/nginx.conf.template"
-test -f "$PRODUCTION_CONFIG_DIR/tls/server.key"
+[[ "$PRODUCTION_CONFIG_DIR" == /* && "$PRODUCTION_BACKUP_DIR" == /* && "$RELEASE_BUNDLE" == /* && "$PRODUCTION_LOCK_FILE" == /* && "$PRODUCTION_RECEIPT" == /* ]]
+test "$(git rev-parse HEAD)" = "$RELEASE_SHA" || { echo 'Checked-out source does not match the verified release SHA.' >&2; exit 1; }
+for required in \
+  "$PRODUCTION_CONFIG_DIR/production.env" \
+  "$PRODUCTION_CONFIG_DIR/nginx.conf.template" \
+  "$PRODUCTION_CONFIG_DIR/tls/server.key" \
+  "$PRODUCTION_CONFIG_DIR/tls/server.crt" \
+  "$PRODUCTION_CONFIG_DIR/tls/ca.crt"; do
+  test -f "$required" || { echo "Required persistent production configuration is missing: $required" >&2; exit 1; }
+done
+for protected in "$PRODUCTION_CONFIG_DIR/production.env" "$PRODUCTION_CONFIG_DIR/tls/server.key"; do
+  mode=$(stat -c '%a' "$protected")
+  (( (8#$mode & 8#077) == 0 )) || { echo "Production secret has group or other permissions: $protected" >&2; exit 1; }
+done
 openssl x509 -checkend 604800 -noout -in "$PRODUCTION_CONFIG_DIR/tls/server.crt"
 
 # Runtime configuration is host-owned. Deployments may read it, but must never
@@ -36,9 +45,61 @@ python3 tooling/cicd/release_bundle.py load "$RELEASE_BUNDLE" "$RELEASE_SHA"
 export BACKEND_IMAGE ADMIN_IMAGE
 BACKEND_IMAGE=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["images"]["backend-v2"]["id"])' "$RELEASE_BUNDLE/loaded-images.json")
 ADMIN_IMAGE=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["images"]["admin-v2"]["id"])' "$RELEASE_BUNDLE/loaded-images.json")
+python3 - "$RELEASE_BUNDLE/loaded-images.json" "$RELEASE_SHA" "$BACKEND_IMAGE" "$ADMIN_IMAGE" <<'PY'
+import json
+import re
+import sys
+
+try:
+    receipt = json.load(open(sys.argv[1], encoding="utf-8"))
+    release_sha, backend_image, admin_image = sys.argv[2:]
+    if receipt.get("format") != 1 or receipt.get("source") != "Mobin-Karam/bastak-school" or receipt.get("sha") != release_sha:
+        raise ValueError
+    images = receipt["images"]
+    if set(images) != {"backend-v2", "admin-v2"}:
+        raise ValueError
+    for service, image in images.items():
+        if image.get("ref") != f"bastak-school/{service}:sha-{release_sha}":
+            raise ValueError
+        if not re.fullmatch(r"sha256:[a-f0-9]{64}", image.get("id", "")):
+            raise ValueError
+    if images["backend-v2"]["id"] != backend_image or images["admin-v2"]["id"] != admin_image:
+        raise ValueError
+except Exception:
+    print("Loaded release images do not match immutable provenance.", file=sys.stderr)
+    raise SystemExit(1)
+PY
+docker image inspect "$BACKEND_IMAGE" "$ADMIN_IMAGE" >/dev/null
 export PRODUCTION_CONFIG_DIR PRODUCTION_DATA_VOLUME RELEASE_SHA
 compose=(docker compose --env-file "$PRODUCTION_CONFIG_DIR/production.env" -f docker-compose.production.yml -f deployment/lan/compose.yml -f deployment/lan/immutable.yml -p bastak-school)
 "${compose[@]}" config --quiet
+compose_config=$("${compose[@]}" config --format json)
+COMPOSE_CONFIG="$compose_config" python3 - "$PRODUCTION_CONFIG_DIR" <<'PY'
+import json
+import os
+import sys
+
+try:
+    config_dir = sys.argv[1]
+    services = json.loads(os.environ["COMPOSE_CONFIG"])["services"]
+    backend_mounts = services["backend-v2"].get("volumes", [])
+    if not any(mount.get("type") == "volume" and mount.get("target") == "/data" for mount in backend_mounts):
+        raise ValueError("backend data volume is not mounted at /data")
+    expected_admin_mounts = sorted([
+        ("bind", config_dir + "/nginx.conf.template", "/etc/nginx/templates/default.conf.template"),
+        ("bind", config_dir + "/tls", "/etc/nginx/tls"),
+        ("bind", config_dir + "/tls/ca.crt", "/usr/share/nginx/html/bastak-school-ca.crt"),
+    ])
+    actual_admin_mounts = sorted(
+        (mount.get("type"), mount.get("source"), mount.get("target"))
+        for mount in services["admin-v2"].get("volumes", [])
+    )
+    if actual_admin_mounts != expected_admin_mounts:
+        raise ValueError("admin mounts are not the approved persistent configuration contract")
+except Exception as error:
+    print(f"Compose mount preflight failed: {error}", file=sys.stderr)
+    raise SystemExit(1)
+PY
 backend=$("${compose[@]}" ps --status running -q backend-v2)
 admin=$("${compose[@]}" ps --status running -q admin-v2)
 [[ -n "$backend" && -n "$admin" ]] || { echo 'Expected existing running production stack; bootstrap is a separate operation.' >&2; exit 1; }

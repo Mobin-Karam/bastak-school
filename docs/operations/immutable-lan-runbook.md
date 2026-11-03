@@ -31,6 +31,21 @@ flowchart TD
 
 The private workflow checks successful source main-push CI and current main SHA on a hosted runner, waits at the production environment, then rechecks on the private runner. It downloads only the named artifact from that run and rejects missing/expired/digest-mismatched artifacts. Image archives have no production secrets. Canonical image-config digests include runtime configuration and ordered filesystem DiffIDs. Docker classic/containerd stores can report different image IDs for those same bits; the loader verifies exported config digests before accepting such a difference, and records CI and local content IDs in `loaded-images.json`. Artifact retention is finite: archive verified release bundles off-checkout for rollback; rebuilds are a new release, not the same tested image.
 
+Before downloading or stopping a service, the private receiver now verifies that `SOURCE_ARTIFACT_READ_TOKEN` can read exactly one digest-bearing image artifact for the requested run, that all persistent configuration and TLS files exist with private permissions, and that the declared database volume exists. After loading the verified images, the immutable script verifies their receipt provenance and rejects any Compose configuration whose Admin mounts are not exactly the three host-owned configuration mounts. A missing token, config file, volume, image, or mount leaves the current containers running.
+
+## Read-only production evidence check
+
+After a deployment, or before investigating an incident, verify the persisted release evidence without changing container state:
+
+```bash
+PRODUCTION_CONFIG_DIR=/home/bastak-server/.config/bastak-production \
+PRODUCTION_RECEIPT=/absolute/persistent/path/to/release-receipt.json \
+PRODUCTION_DATA_VOLUME=bastak-school_moshaver_v2_sqlite \
+./scripts/deploy/verify-production-evidence.sh
+```
+
+Replace `PRODUCTION_RECEIPT` with the same persistent receipt path used by the private deployment workflow. The command reads only the receipt, backup artifacts, persisted configuration metadata, and Docker inspection data. It requires the receipt SHA, both running image digests and revision labels, healthy Compose-labelled containers, the approved database-volume mount, and the three approved host-owned Admin mounts to agree. It does not run Compose, recreate containers, make HTTP requests, read expanded environment values, or print secrets.
+
 `scripts/deploy/lan-immutable.sh` takes the persistent host lock also used by the legacy script. It verifies archive checksum, image IDs and revision labels, loads the tested images, validates Compose without printing expanded environment values, and verifies the expected current database mount. It stops ingress and the API, copies the stopped database file set into backup storage and creates an online-library snapshot using the previous image, verifies a restored copy including integrity/FKs/schema/all logical rows, rehearses candidate migrations against that copy, and rejects loss/change of existing non-migration rows. It then starts the candidate with `--no-build --pull never`, verifies running image IDs, Nginx syntax, TLS, SPA/proxy/API readiness and writes an atomic release receipt. Existing volume identity and records are retained; no volume deletion, reset, seed or schema synchronization occurs in production. Expect maintenance downtime.
 
 Pre-replacement failure restarts the existing stopped containers. Once candidate startup may have migrated the live database, failure stops ingress and requires operator assessment; there is no blind automatic rollback. A restrictive migration compatibility check may reject an intentionally data-transforming migration: require a reviewed policy and rehearsal rather than bypassing preservation checks casually.
