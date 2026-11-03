@@ -1115,6 +1115,7 @@ export function TeacherClassAttendanceSheet({
         </section>
       </ResponsiveModal>
       <ResponsiveDrawer
+        nested
         open={revisionConfirmationOpen}
         onOpenChange={setRevisionConfirmationOpen}
         title="بازبینی حضور و غیاب"
