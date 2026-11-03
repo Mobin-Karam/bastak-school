@@ -12,7 +12,7 @@ import {
   getTeacherWeekAttendanceSummary,
   type TeacherWeekAttendanceSummary,
 } from "../../../student-life/attendance/public";
-import { Card, EmptyState, LoadingState } from "../../../../shared/ui/ui";
+import { Card, EmptyState, Input, LoadingState } from "../../../../shared/ui/ui";
 import { AdaptiveSelect } from "../../../../shared/ui/adaptive-select";
 import { DatePicker } from "../../../../shared/ui/date-picker";
 import { TeacherClassAttendanceSheet } from "../components/TeacherClassAttendanceSheet";
@@ -105,6 +105,7 @@ export function TeacherSchedulePage({
   const [yearSelection, setYearSelection] = useState("");
   const [termSelection, setTermSelection] = useState<string | null>(null);
   const [viewDate, setViewDate] = useState(weekOfDate ?? isoToday);
+  const [sessionQuery, setSessionQuery] = useState("");
   useEffect(() => {
     if (suppliedNow) return;
     const timer = window.setInterval(() => setCurrentTime(new Date()), 30_000);
@@ -162,6 +163,16 @@ export function TeacherSchedulePage({
       (date) => entry.weekday === schoolWeekday(date) && entryOccursOnDate(entry, date),
     ),
   );
+  const normalizedSessionQuery = sessionQuery.trim().toLocaleLowerCase("fa-IR");
+  const visibleWeeklyEntries = normalizedSessionQuery
+    ? weeklyEntries.filter((entry) =>
+        [entry.title, entry.classroom?.name, entry.room]
+          .filter(Boolean)
+          .join(" ")
+          .toLocaleLowerCase("fa-IR")
+          .includes(normalizedSessionQuery),
+      )
+    : weeklyEntries;
   const selectedClassTerm = cycles.data?.terms.find((term) => term.id === selectedClass?.termId);
   const canManageSelectedClass =
     auth.can("attendance.manage") || auth.can("attendance.class.manage");
@@ -184,7 +195,7 @@ export function TeacherSchedulePage({
         <div>
           <h2 className="sr-only">برنامه هفتگی من</h2>
           <p className="mt-1 text-xs leading-5 text-slate-500">
-            برای دیدن دانش‌آموزان و ثبت حضور، یک کلاس را انتخاب کنید.
+            ۱. کلاس را پیدا کنید. ۲. جلسه را باز کنید. ۳. حضور را ثبت یا بازبینی کنید.
           </p>
         </div>
         <label className="ms-auto grid gap-1 text-xs font-bold text-slate-600">
@@ -254,6 +265,14 @@ export function TeacherSchedulePage({
           </p>
         ) : null}
       </section>
+      <label className="grid gap-1 rounded-2xl border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card))] p-3 text-xs font-bold text-ink">
+        جست‌وجو در برنامهٔ هفته
+        <Input
+          value={sessionQuery}
+          onChange={(event) => setSessionQuery(event.target.value)}
+          placeholder="نام درس، کلاس یا اتاق"
+        />
+      </label>
       {suppliedEntries === undefined && (schedule.isLoading || cycles.isLoading) ? (
         <LoadingState label="در حال دریافت برنامه هفتگی…" />
       ) : suppliedEntries === undefined && (schedule.isError || cycles.isError) ? (
@@ -264,7 +283,7 @@ export function TeacherSchedulePage({
         <div className="grid gap-3 sm:grid-cols-2 min-[1200px]:grid-cols-3">
           {weekdays.map((day, weekday) => {
             const occurrenceDate = weekDates[weekday];
-            const dayEntries = weeklyEntries.filter(
+            const dayEntries = visibleWeeklyEntries.filter(
               (entry) => entry.weekday === weekday && entryOccursOnDate(entry, occurrenceDate),
             );
             return (
@@ -298,7 +317,7 @@ export function TeacherSchedulePage({
                         status === "future"
                           ? "آینده"
                           : status === "complete"
-                            ? "حضور ثبت شد"
+                            ? "ثبت‌شده · بازبینی"
                             : status === "incomplete"
                               ? "حضور ثبت نشده"
                               : "وضعیت در حال دریافت";
@@ -386,7 +405,7 @@ export function TeacherSchedulePage({
                   </ul>
                 ) : (
                   <p className="mt-3 rounded-xl bg-[rgb(var(--surface-muted))] px-3 py-4 text-center text-xs text-slate-500">
-                    کلاسی ندارید
+                    {normalizedSessionQuery ? "جلسه‌ای مطابق جست‌وجو ندارید" : "کلاسی ندارید"}
                   </p>
                 )}
               </Card>
