@@ -634,6 +634,7 @@ export function TeacherClassAttendanceSheet({
     <>
       <ResponsiveModal
         open={open}
+        modal={!revisionConfirmationOpen}
         onOpenChange={(next) => {
           if (next) onOpenChange(true);
           else discard.request(() => onOpenChange(false));
