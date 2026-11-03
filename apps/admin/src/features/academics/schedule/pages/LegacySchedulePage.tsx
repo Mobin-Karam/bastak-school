@@ -10,12 +10,14 @@ import {
   Copy,
   Eye,
   GraduationCap,
+  Lock,
   MapPin,
   Pencil,
   Palette,
   Plus,
   RotateCcw,
   Trash2,
+  Unlock,
   UserRound,
   X,
 } from "lucide-react";
@@ -123,6 +125,7 @@ export function LegacySchedulePage() {
   const [templatePreview, setTemplatePreview] = useState<ScheduleTemplate | null>(null);
   const [mobileToolsOpen, setMobileToolsOpen] = useState(false);
   const [headerControlsOpen, setHeaderControlsOpen] = useState(false);
+  const [scheduleEditingLocked, setScheduleEditingLocked] = useState(true);
   const [scheduleTheme, setScheduleTheme] = useState<ScheduleTheme>(readScheduleTheme);
   const [academicCyclesOpen, setAcademicCyclesOpen] = useState(false);
   const [bootstrapTermId, setBootstrapTermId] = useState("");
@@ -154,11 +157,18 @@ export function LegacySchedulePage() {
   const organizationOptions = canReadOrganizations
     ? (organizations.data ?? [])
     : (auth.context?.availableOrganizations ?? []);
-  const canCreate = auth.can("schedule.create");
-  const canEdit = auth.can("schedule.update");
-  const canArchive = auth.can("schedule.archive");
-  const canDelete = auth.can("schedule.delete");
-  const canWrite = canCreate || canEdit;
+  const canCreateCapability = auth.can("schedule.create");
+  const canEditCapability = auth.can("schedule.update");
+  const canArchiveCapability = auth.can("schedule.archive");
+  const canDeleteCapability = auth.can("schedule.delete");
+  const canWrite = canCreateCapability || canEditCapability;
+  const canToggleScheduleEditing =
+    auth.hasRole("PRINCIPAL") || auth.hasRole("RELIGIOUS_EDUCATION_MANAGER");
+  const scheduleEditingEnabled = !canToggleScheduleEditing || !scheduleEditingLocked;
+  const canCreate = canCreateCapability && scheduleEditingEnabled;
+  const canEdit = canEditCapability && scheduleEditingEnabled;
+  const canArchive = canArchiveCapability && scheduleEditingEnabled;
+  const canDelete = canDeleteCapability && scheduleEditingEnabled;
   const canManageAcademicCycles =
     canWrite &&
     ["PRINCIPAL", "RELIGIOUS_EDUCATION_MANAGER", "ORGANIZATION_ADMIN", "PLATFORM_ADMIN"].some(
@@ -717,7 +727,7 @@ export function LegacySchedulePage() {
     <div className="schedule-theme-workspace" data-schedule-theme={scheduleTheme}>
       {scheduleSetupBlocked && setupReminderHydrated && !setupGateDeferred ? (
         <ScheduleAcademicSetupGate
-          canManage={canManageAcademicCycles}
+          canManage={canManageAcademicCycles && scheduleEditingEnabled}
           activeYear={bootstrapActiveYear}
           terms={bootstrapTerms}
           selectedTermId={selectedBootstrapTermId}
@@ -747,7 +757,10 @@ export function LegacySchedulePage() {
         scheduleTermId={scheduleTermId}
         headerControlsOpen={headerControlsOpen}
         setHeaderControlsOpen={setHeaderControlsOpen}
-        canManageAcademicCycles={canManageAcademicCycles}
+        canManageAcademicCycles={canManageAcademicCycles && scheduleEditingEnabled}
+        canToggleScheduleEditing={canToggleScheduleEditing}
+        scheduleEditingLocked={scheduleEditingLocked}
+        onScheduleEditingLockChange={setScheduleEditingLocked}
         setAcademicCyclesOpen={setAcademicCyclesOpen}
         mobileToolsOpen={mobileToolsOpen}
         setMobileToolsOpen={setMobileToolsOpen}
@@ -837,7 +850,9 @@ export function LegacySchedulePage() {
             onArchive={confirmArchive}
             onDelete={confirmDelete}
             onOpenDetails={openDetails}
-            onMove={(entry, weekday) => move.mutate({ entry, weekday })}
+            onMove={(entry, weekday) => {
+              if (scheduleEditingEnabled) move.mutate({ entry, weekday });
+            }}
             leaveForEntry={(entry) =>
               approvedLeaveByTeacher.get(entry.teacher?.id ?? entry.classBook?.teacher.id ?? "")
             }
@@ -938,6 +953,9 @@ type SchudelHeaderProps = {
   setHeaderControlsOpen: Dispatch<SetStateAction<boolean>>;
 
   canManageAcademicCycles: boolean;
+  canToggleScheduleEditing: boolean;
+  scheduleEditingLocked: boolean;
+  onScheduleEditingLockChange: Dispatch<SetStateAction<boolean>>;
   setAcademicCyclesOpen: Dispatch<SetStateAction<boolean>>;
 
   mobileToolsOpen: boolean;
@@ -976,6 +994,9 @@ function SchudelHeader({
   scheduleTermId,
 
   canManageAcademicCycles,
+  canToggleScheduleEditing,
+  scheduleEditingLocked,
+  onScheduleEditingLockChange,
   setAcademicCyclesOpen,
 
   mobileToolsOpen,
@@ -1019,6 +1040,26 @@ function SchudelHeader({
             className={`transition-transform ${headerControlsOpen ? "rotate-180" : ""}`}
           />
         </Button>
+        {canToggleScheduleEditing ? (
+          <Button
+            type="button"
+            size="sm"
+            variant={scheduleEditingLocked ? "soft" : "ghost"}
+            className={
+              scheduleEditingLocked
+                ? "shrink-0 border border-amber-300 bg-amber-50 text-amber-950 hover:bg-amber-100 dark:border-amber-700 dark:bg-amber-950/35 dark:text-amber-100 dark:hover:bg-amber-950/55"
+                : "shrink-0"
+            }
+            aria-pressed={scheduleEditingLocked}
+            aria-label={scheduleEditingLocked ? "باز کردن ویرایش برنامه" : "قفل کردن ویرایش برنامه"}
+            onClick={() => onScheduleEditingLockChange((locked) => !locked)}
+          >
+            {scheduleEditingLocked ? <Lock size={16} /> : <Unlock size={16} />}
+            <span className="hidden sm:inline">
+              {scheduleEditingLocked ? "ویرایش قفل است" : "ویرایش باز است"}
+            </span>
+          </Button>
+        ) : null}
       </div>
 
       {/* BELOW TAB BAR */}
@@ -1555,7 +1596,7 @@ function ScheduleWorkspace({
                                 if (canEdit) event.preventDefault();
                               }}
                               onDrop={() => {
-                                if (draggedEntry && draggedEntry.weekday !== weekday)
+                                if (canEdit && draggedEntry && draggedEntry.weekday !== weekday)
                                   onMove(draggedEntry, weekday);
                                 setDraggedEntry(null);
                               }}
