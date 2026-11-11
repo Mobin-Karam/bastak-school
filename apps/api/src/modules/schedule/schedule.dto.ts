@@ -29,6 +29,7 @@ export class SaveScheduleEntryDto {
   @IsOptional() @IsString() room?: string;
   @IsOptional() @IsUUID() academicYearId?: string;
   @IsOptional() @IsUUID() termId?: string;
+  @IsOptional() @IsUUID() timeBlockId?: string;
 }
 export class CreateLegacyAcademicYearDto {
   @IsUUID() organizationId!: string;
@@ -113,6 +114,71 @@ export class CreateScheduleTimeBlockDto {
 export class CreateScheduleTimeBlockGroupDto {
   @IsUUID() organizationId!: string;
   @IsString() name!: string;
+}
+export class UpdateScheduleTimeBlockGroupDto {
+  @IsString() @MinLength(1) name!: string;
+}
+export class UpdateScheduleTimeBlockDto {
+  @IsUUID() groupId!: string;
+  @IsString() @MinLength(1) name!: string;
+  @Matches(/^([01]\d|2[0-3]):[0-5]\d$/) startTime!: string;
+  @Matches(/^([01]\d|2[0-3]):[0-5]\d$/) endTime!: string;
+}
+export class BulkSessionTimeChangeDto {
+  @IsUUID() organizationId!: string;
+  @IsUUID() academicYearId!: string;
+  @IsUUID() termId!: string;
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(500)
+  @IsUUID("4", { each: true })
+  entryIds?: string[];
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(7)
+  @IsInt({ each: true })
+  @Min(0, { each: true })
+  @Max(6, { each: true })
+  weekdays?: number[];
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(100)
+  @IsUUID("4", { each: true })
+  classroomIds?: string[];
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(100)
+  @IsUUID("4", { each: true })
+  teacherIds?: string[];
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(100)
+  @IsUUID("4", { each: true })
+  classBookIds?: string[];
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(100)
+  @IsString({ each: true })
+  rooms?: string[];
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(100)
+  @IsUUID("4", { each: true })
+  timeBlockGroupIds?: string[];
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(100)
+  @IsUUID("4", { each: true })
+  timeBlockIds?: string[];
+  @IsIn(["SHIFT", "SET_TIME", "APPLY_BLOCK"]) operation!:
+    "SHIFT" | "SET_TIME" | "APPLY_BLOCK";
+  @IsOptional() @IsInt() @Min(-720) @Max(720) offsetMinutes?: number;
+  @IsOptional() @Matches(/^([01]\d|2[0-3]):[0-5]\d$/) startTime?: string;
+  @IsOptional() @Matches(/^([01]\d|2[0-3]):[0-5]\d$/) endTime?: string;
+  @IsOptional() @IsUUID() targetTimeBlockId?: string;
+}
+export class ApplyBulkSessionTimeChangeDto extends BulkSessionTimeChangeDto {
+  @IsString() @MinLength(16) previewFingerprint!: string;
 }
 export class CreateScheduleTemplateDto {
   @IsUUID() organizationId!: string;

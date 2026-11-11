@@ -6,8 +6,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { LocaleProvider } from "../../../../shared/ui/locale";
 import { ModalProvider } from "../../../../shared/ui/modal";
 import { ClassesPage } from "./ClassesPage";
+import { getStudentProfile } from "../../../people/students/api/students.api";
 import {
   getClassOptions,
+  getClassBookGrades,
   listClasses,
   updateClass,
   setClassEnrollments,
@@ -42,8 +44,17 @@ vi.mock("../api/classes.api.ts", () => ({
   deleteClass: vi.fn(),
   setClassBooks: vi.fn(),
   setClassEnrollments: vi.fn(),
+  getClassBookGrades: vi.fn(),
+  saveClassBookGrade: vi.fn(),
+  deleteClassBookGrade: vi.fn(),
 }));
 vi.mock("../../../../shared/ui/notifications", () => ({ notify: vi.fn() }));
+vi.mock("../../../people/students/api/students.api", () => ({ getStudentProfile: vi.fn() }));
+vi.mock("../../../people/students/components/StudentOverview", () => ({
+  StudentOverview: ({ student }: { student: { name: string } }) => (
+    <div>Profile: {student.name}</div>
+  ),
+}));
 
 const classroom = (id: string, overrides: Partial<EducationClass> = {}): EducationClass => ({
   id,
@@ -132,6 +143,39 @@ beforeEach(() => {
       advisors: [],
       eligibleStudents: [],
     }));
+  vi.mocked(getClassBookGrades)
+    .mockReset()
+    .mockResolvedValue({
+      classBookId: "link",
+      className: "Beta",
+      bookTitle: "Math",
+      teacher: { id: "teacher", name: "Teacher", username: "teacher" },
+      students: [{ id: "student", name: "Student" }],
+      sessions: [
+        {
+          id: "session",
+          title: "Quiz",
+          heldOn: "2026-11-11",
+          description: "",
+          grades: [
+            {
+              id: "grade",
+              studentId: "student",
+              score: 16,
+              note: "",
+              principalEdited: true,
+              principalEditedAt: "2026-11-11",
+              updatedAt: "2026-11-11",
+            },
+          ],
+        },
+      ],
+    });
+  vi.mocked(getStudentProfile)
+    .mockReset()
+    .mockResolvedValue({ id: "student", name: "Sara" } as Awaited<
+      ReturnType<typeof getStudentProfile>
+    >);
   vi.mocked(updateClass)
     .mockReset()
     .mockImplementation(async (id, change) => {
@@ -172,13 +216,56 @@ describe("classes workspace", () => {
     expect(screen.queryByRole("button", { name: "Manage students" })).not.toBeInTheDocument();
   });
 
+  it("opens the teacher and book grade drawer for REM with read-only grades", async () => {
+    authority.role = "RELIGIOUS_EDUCATION_MANAGER";
+    authority.capabilities = ["classes.read", "class_grades.read"];
+    const user = userEvent.setup();
+    mount();
+    await user.click(await screen.findByRole("button", { name: /Beta/ }));
+    await user.click(screen.getByRole("button", { name: /Books and teachers/ }));
+    await user.click(screen.getByRole("button", { name: "Teacher · Math" }));
+    const drawer = await screen.findByRole("dialog", { name: "Teacher" });
+    expect(within(drawer).getByText("Student")).toBeVisible();
+    expect(within(drawer).getByText("16 / 20")).toBeVisible();
+    expect(within(drawer).getByText("Edited by principal")).toBeVisible();
+    expect(within(drawer).queryByRole("spinbutton")).not.toBeInTheDocument();
+    await user.click(within(drawer).getByRole("button", { name: "Back to books" }));
+    expect(
+      within(screen.getByRole("dialog", { name: "Books and teachers" })).getByRole("button", {
+        name: "Teacher · Math",
+      }),
+    ).toBeVisible();
+  });
+
   it("opens the selected class in a mobile detail sheet", async () => {
     const originalWidth = window.innerWidth;
     Object.defineProperty(window, "innerWidth", { configurable: true, value: 390 });
     try {
+      rows = [
+        classroom("one", {
+          students: [
+            {
+              id: "student",
+              name: "Sara",
+              grade: "12",
+              major: "Science",
+              phoneNumber: "09123456789",
+            },
+          ],
+        }),
+      ];
       const user = userEvent.setup();
       mount();
       await user.click(await screen.findByRole("button", { name: /Alpha/ }));
+      expect(await screen.findByRole("dialog", { name: "Alpha" })).toBeVisible();
+      await user.click(screen.getByRole("button", { name: /Class students/ }));
+      const roster = await screen.findByRole("dialog", { name: "Class students" });
+      expect(within(roster).getByText("Sara")).toBeVisible();
+      expect(within(roster).getByRole("link", { name: /Sara: 09123456789/ })).toHaveAttribute(
+        "href",
+        "tel:09123456789",
+      );
+      await user.click(within(roster).getByRole("button", { name: "Close" }));
       expect(await screen.findByRole("dialog", { name: "Alpha" })).toBeVisible();
     } finally {
       Object.defineProperty(window, "innerWidth", { configurable: true, value: originalWidth });
@@ -201,6 +288,42 @@ describe("classes workspace", () => {
     await user.click(await screen.findByRole("button", { name: /Alpha/ }));
     expect(screen.getByRole("button", { name: "Edit class" })).toBeVisible();
     expect(screen.queryByRole("button", { name: "Manage books" })).not.toBeInTheDocument();
+  });
+
+  it("sends only update fields when editing a class and keeps the dialog open on failure", async () => {
+    const user = userEvent.setup();
+    vi.mocked(updateClass).mockRejectedValueOnce(new Error("Could not update class"));
+    mount();
+    await user.click(await screen.findByRole("button", { name: /Alpha/ }));
+    await user.click(screen.getByRole("button", { name: "Edit class" }));
+    const dialog = await screen.findByRole("dialog", { name: "Edit class" });
+    await user.clear(within(dialog).getByRole("textbox", { name: "Class name" }));
+    await user.type(within(dialog).getByRole("textbox", { name: "Class name" }), "Alpha revised");
+    await user.click(within(dialog).getByRole("button", { name: "Save changes" }));
+    expect(updateClass).toHaveBeenCalledWith("one", { name: "Alpha revised" });
+    expect(await within(dialog).findByRole("alert")).toHaveTextContent("Could not update class");
+    expect(within(dialog).getByRole("textbox", { name: "Class name" })).toHaveValue(
+      "Alpha revised",
+    );
+    await user.click(within(dialog).getByRole("button", { name: "Save changes" }));
+    expect(await screen.findByRole("heading", { name: "Alpha revised" })).toBeVisible();
+  });
+
+  it("edits a legacy class without resending its old school year", async () => {
+    rows = [classroom("one", { schoolYear: "1404-1405" })];
+    const user = userEvent.setup();
+    mount();
+    await user.click(await screen.findByRole("button", { name: /Alpha/ }));
+    await user.click(screen.getByRole("button", { name: "Edit class" }));
+    const dialog = await screen.findByRole("dialog", { name: "Edit class" });
+    expect(within(dialog).getByRole("button", { name: "1404–1405" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    await user.clear(within(dialog).getByRole("textbox", { name: "Class name" }));
+    await user.type(within(dialog).getByRole("textbox", { name: "Class name" }), "Legacy revised");
+    await user.click(within(dialog).getByRole("button", { name: "Save changes" }));
+    expect(updateClass).toHaveBeenCalledWith("one", { name: "Legacy revised" });
   });
 
   it("archives and restores through the existing update endpoint", async () => {
@@ -247,6 +370,7 @@ describe("classes workspace", () => {
   });
 
   it("loads a linked class without requesting edit options for read-only users", async () => {
+    const user = userEvent.setup();
     authority.capabilities = ["classes.read", "students.read"];
     rows = [
       classroom("one", {
@@ -254,11 +378,15 @@ describe("classes workspace", () => {
       }),
     ];
     mount("/admin/classes?classId=one");
-    expect(await screen.findByText("Sara")).toBeVisible();
+    await user.click(await screen.findByRole("button", { name: /Student profiles/ }));
+    const roster = await screen.findByRole("dialog", { name: "Class students" });
+    await user.click(within(roster).getByRole("button", { name: "Sara" }));
+    expect(await within(roster).findByText("Profile: Sara")).toBeVisible();
+    expect(getStudentProfile).toHaveBeenCalledWith("student");
+    expect(screen.getByTestId("location")).not.toHaveTextContent("/students");
+    expect(within(roster).getByRole("button", { name: /Back to students/ })).toHaveFocus();
+    await user.click(within(roster).getByRole("button", { name: /Back to students/ }));
+    expect(within(roster).getByRole("button", { name: "Sara" })).toHaveFocus();
     expect(getClassOptions).not.toHaveBeenCalled();
-    expect(screen.getByRole("link", { name: /Student profiles/ })).toHaveAttribute(
-      "href",
-      "/admin/students?classId=one",
-    );
   });
 });

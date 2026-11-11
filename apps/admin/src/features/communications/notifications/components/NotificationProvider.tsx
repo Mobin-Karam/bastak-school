@@ -72,11 +72,13 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
   const sound = useNotificationSound();
   const push = usePushNotifications(notifications.refresh);
   const shownAbsences = useRef(new Set<string>());
+  const shownTeacherAttendanceMessages = useRef(new Set<string>());
   const promptedPrincipalScopes = useRef(new Set<string>());
   const principalPromptDismissalKey = `principal-push-prompt-dismissed:${notificationScopeKey}`;
 
   useEffect(() => {
     shownAbsences.current.clear();
+    shownTeacherAttendanceMessages.current.clear();
   }, [notificationScopeKey]);
 
   useEffect(() => {
@@ -179,6 +181,52 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
               }}
             >
               متوجه شدم
+            </Button>
+          </div>
+        </section>
+      ),
+    });
+  }, [auth, modal, notificationItems, markNotificationRead]);
+
+  useEffect(() => {
+    if (!auth.hasRole("TEACHER")) return;
+    const message = notificationItems.find(
+      (item) =>
+        (item.category === "attendance-principal-message" ||
+          item.category === "attendance-review") &&
+        !item.isRead &&
+        !shownTeacherAttendanceMessages.current.has(item.id),
+    );
+    if (!message) return;
+    shownTeacherAttendanceMessages.current.add(message.id);
+    modal.open({
+      title: "بازبینی حضور توسط مدیر",
+      description: "پیام مربوط به حضور دانش‌آموزان کلاس شما",
+      size: "full",
+      content: (
+        <section
+          className="grid min-h-[60vh] content-center gap-6 rounded-3xl border border-brand/20 bg-brand/5 p-6 text-center backdrop-blur-sm"
+          dir="rtl"
+        >
+          <p className="text-2xl font-black text-brand">{message.title}</p>
+          <p className="mx-auto max-w-2xl whitespace-pre-wrap text-base leading-8 text-slate-800 dark:text-slate-100">
+            {message.body}
+          </p>
+          <p className="mx-auto max-w-xl text-sm leading-7 text-slate-600 dark:text-slate-300">
+            این پیام در کارت‌های داشبورد شما باقی می‌ماند و جزئیات بازبینی در سابقهٔ حضور همان
+            دانش‌آموز دیده می‌شود.
+          </p>
+          <div className="flex flex-wrap justify-center gap-2">
+            <Button
+              onClick={() => {
+                markNotificationRead(message.id);
+                modal.close();
+              }}
+            >
+              متوجه شدم
+            </Button>
+            <Button variant="ghost" onClick={modal.close}>
+              بعداً بررسی می‌کنم
             </Button>
           </div>
         </section>

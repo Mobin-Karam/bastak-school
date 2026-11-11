@@ -70,6 +70,8 @@ export { StudentSyncHealth } from "./student-sync-health.entity";
 export { EducationBook } from "./education-book.entity";
 export { EducationClass } from "./education-class.entity";
 export { EducationClassBook } from "./education-class-book.entity";
+export { ClassBookGrade } from "./class-book-grade.entity";
+export { ClassBookGradeSession } from "./class-book-grade-session.entity";
 export { EducationClassEnrollment } from "./education-class-enrollment.entity";
 export { SchoolScheduleEntry } from "./school-schedule-entry.entity";
 export { ScheduleSetupReminder } from "./schedule-setup-reminder.entity";

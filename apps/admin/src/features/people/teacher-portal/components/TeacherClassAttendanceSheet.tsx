@@ -472,12 +472,14 @@ export function TeacherClassAttendanceSheet({
           sessionId: scheduled.id,
           organizationId: entry.organization.id,
           classroomId: entry.classroom.id,
+          submit: true,
           entries,
         }),
         () => ({
           organizationId: entry.organization.id,
           sessionId: scheduled.id,
           expectedRevision: scheduled.revision,
+          submit: true,
           entries,
         }),
       );

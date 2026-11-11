@@ -13,6 +13,7 @@ import { EducationClassBook } from "./education-class-book.entity";
 import { Organization } from "./organization.entity";
 import { User } from "./user.entity";
 import { TeacherLeaveRequest } from "./teacher-leave-request.entity";
+import { SchoolScheduleTimeBlock } from "./school-schedule-time-block.entity";
 
 @Entity("school_schedule_entries")
 @Index(["organization", "weekday", "startTime"])
@@ -31,6 +32,14 @@ export class SchoolScheduleEntry {
   @Column({ type: "integer" }) weekday!: number;
   @Column({ length: 5 }) startTime!: string;
   @Column({ length: 5 }) endTime!: string;
+  @Column({ type: "varchar", length: 36, nullable: true }) timeBlockId!:
+    string | null;
+  @ManyToOne(() => SchoolScheduleTimeBlock, {
+    nullable: true,
+    onDelete: "RESTRICT",
+  })
+  @JoinColumn({ name: "timeBlockId" })
+  timeBlock?: SchoolScheduleTimeBlock | null;
   @Column({ length: 120, default: "" }) room!: string;
   @Column({ length: 20, default: "ACTIVE" }) status!:
     "ACTIVE" | "ARCHIVED" | "REPLACED";

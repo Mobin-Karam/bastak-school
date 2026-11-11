@@ -116,6 +116,16 @@ const StudentTextbooksPage = lazy(() =>
     default: m.StudentTextbooksPage,
   })),
 );
+const StudentGradesPage = lazy(() =>
+  import("../../features/people/student-portal/pages/StudentGradesPage").then((m) => ({
+    default: m.StudentGradesPage,
+  })),
+);
+const TeacherGradebookPage = lazy(() =>
+  import("../../features/people/teacher-portal/pages/TeacherGradebookPage").then((m) => ({
+    default: m.TeacherGradebookPage,
+  })),
+);
 const TeacherProfilePage = lazy(() =>
   import("../../features/people/teacher-portal").then((m) => ({ default: m.TeacherProfilePage })),
 );
@@ -474,6 +484,28 @@ export const adminRouteObjects = [
                   <TeacherProfilePage />
                 </RouteScreen>
               </TeacherOnlyRoute>
+            ),
+          },
+          {
+            path: "gradebook",
+            element: (
+              <TeacherOnlyRoute>
+                <CapabilityRoute capability="class_grades.read" allOf={["classes.read"]}>
+                  <RouteScreen>
+                    <TeacherGradebookPage />
+                  </RouteScreen>
+                </CapabilityRoute>
+              </TeacherOnlyRoute>
+            ),
+          },
+          {
+            path: "my-grades",
+            element: (
+              <CapabilityRoute capability="class_grades.self.read">
+                <RouteScreen>
+                  <StudentGradesPage />
+                </RouteScreen>
+              </CapabilityRoute>
             ),
           },
           {

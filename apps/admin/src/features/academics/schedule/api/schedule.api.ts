@@ -25,6 +25,14 @@ export type ScheduleEntry = {
     teacher: { id: string; firstName?: string; lastName?: string; username: string };
   } | null;
   teacher?: { id: string; firstName?: string; lastName?: string; username: string } | null;
+  timeBlockId?: string | null;
+  timeBlock?: {
+    id: string;
+    name: string;
+    startTime: string;
+    endTime: string;
+    group?: { id: string; name: string };
+  } | null;
 };
 export type ScheduleDraft = {
   organizationId: string;
@@ -38,6 +46,7 @@ export type ScheduleDraft = {
   room?: string;
   academicYearId?: string;
   termId?: string;
+  timeBlockId?: string;
 };
 export type LegacyAcademicYear = {
   id: string;
@@ -286,6 +295,49 @@ export const createScheduleTimeBlock = (draft: {
 }) => api.post<ScheduleTimeBlock>("/schedule/time-blocks", draft);
 export const deleteScheduleTimeBlock = (id: string) =>
   api.delete(`/schedule/time-blocks/${encodeURIComponent(id)}`);
+export const updateScheduleTimeBlock = (
+  id: string,
+  body: { groupId: string; name: string; startTime: string; endTime: string },
+) => api.patch<ScheduleTimeBlock>(`/schedule/time-blocks/${encodeURIComponent(id)}`, body);
+export const updateScheduleTimeBlockGroup = (id: string, body: { name: string }) =>
+  api.patch<ScheduleTimeBlockGroup>(`/schedule/time-block-groups/${encodeURIComponent(id)}`, body);
+export type BulkSessionTimeChange = {
+  organizationId: string;
+  academicYearId: string;
+  termId: string;
+  entryIds?: string[];
+  weekdays?: number[];
+  classroomIds?: string[];
+  teacherIds?: string[];
+  classBookIds?: string[];
+  rooms?: string[];
+  timeBlockGroupIds?: string[];
+  timeBlockIds?: string[];
+  operation: "SHIFT" | "SET_TIME" | "APPLY_BLOCK";
+  offsetMinutes?: number;
+  startTime?: string;
+  endTime?: string;
+  targetTimeBlockId?: string;
+};
+export type BulkSessionTimeChangePreview = {
+  selected: Array<{
+    id: string;
+    title: string;
+    weekday: number;
+    classroomName: string;
+    teacherName: string;
+    before: { startTime: string; endTime: string; timeBlockId?: string | null };
+    after: { startTime: string; endTime: string; timeBlockId?: string | null };
+  }>;
+  conflicts: Array<{ entryId: string; withEntryId: string; reason: string }>;
+  summary: { selected: number; conflicts: number };
+  previewFingerprint: string;
+};
+export const previewBulkSessionTimeChange = (body: BulkSessionTimeChange) =>
+  api.post<BulkSessionTimeChangePreview>("/schedule/session-time-changes/preview", body);
+export const applyBulkSessionTimeChange = (
+  body: BulkSessionTimeChange & { previewFingerprint: string },
+) => api.post<{ updated: number }>("/schedule/session-time-changes/apply", body);
 export const listScheduleTimeBlockGroups = () =>
   api.get<ScheduleTimeBlockGroup[]>("/schedule/time-block-groups");
 export const createScheduleTimeBlockGroup = (draft: { organizationId: string; name: string }) =>

@@ -2434,6 +2434,16 @@ html.is-scrolling :is(body, .scroll-reveal)::-webkit-scrollbar-thumb,
   min-width: 0;
   background: rgb(var(--surface-muted));
 }
+.classes-student-row {
+  min-height: 3.5rem;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  padding-block: 0.75rem;
+  font-size: 1rem;
+}
+.classes-student-row a {
+  margin-inline-start: auto;
+}
 @media (prefers-reduced-motion: reduce) {
   .classes-overview-tile,
   .classes-class-item {

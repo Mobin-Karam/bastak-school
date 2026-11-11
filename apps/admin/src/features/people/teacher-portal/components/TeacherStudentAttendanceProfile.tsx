@@ -115,6 +115,43 @@ export function TeacherStudentAttendanceProfile({
                     <span className="max-w-full text-muted-foreground">{session.note}</span>
                   ) : null}
                 </div>
+                {session.review ? (
+                  <section
+                    className="grid gap-1 rounded-lg border border-brand/20 bg-brand/5 p-2.5 text-xs leading-5 text-slate-700 dark:text-slate-200"
+                    aria-label="بازبینی مدیر برای این جلسه"
+                  >
+                    <p className="font-black text-brand">بازبینی مدیر</p>
+                    {session.review.teacherMessage ? (
+                      <p className="whitespace-pre-wrap">
+                        پیام برای استاد: {session.review.teacherMessage}
+                      </p>
+                    ) : null}
+                    {session.review.decision ? (
+                      <p>
+                        تصمیم دربارهٔ غیبت:{" "}
+                        {session.review.decision === "approved"
+                          ? "پذیرفته"
+                          : session.review.decision === "rejected"
+                            ? "رد شده"
+                            : "در انتظار بررسی"}
+                        {session.review.note ? ` · ${session.review.note}` : ""}
+                      </p>
+                    ) : null}
+                    {(session.review.reviewerName || session.review.sessionReviewedAt) && (
+                      <p className="text-[11px] text-muted-foreground">
+                        {session.review.reviewerName
+                          ? `بازبین: ${session.review.reviewerName}`
+                          : ""}
+                        {session.review.reviewerName && session.review.sessionReviewedAt
+                          ? " · "
+                          : ""}
+                        {session.review.sessionReviewedAt
+                          ? `زمان بازبینی: ${formatDate(session.review.sessionReviewedAt)}`
+                          : ""}
+                      </p>
+                    )}
+                  </section>
+                ) : null}
               </li>
             ))}
           </ol>

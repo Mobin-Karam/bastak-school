@@ -1,7 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   BedDouble,
-  CalendarCheck2,
   FileWarning,
   UsersRound,
   UserRoundCheck,
@@ -30,13 +29,11 @@ import {
   type PrincipalDashboardContract,
 } from "../api/principal-dashboard.api";
 import { DormAttendanceReviewInbox } from "../../../student-life/attendance/components/DormAttendanceReviewInbox";
-import { AttendanceReviewQueue } from "../../../student-life/attendance/components/AttendanceReviewQueue";
 import { PendingCorrectionQueue } from "../../../student-life/attendance/components/PendingCorrectionQueue";
 import {
   getDormAttendanceReviewQueue,
   getOutsidePresenceReports,
 } from "../../../student-life/attendance/api/attendance-operations.api";
-import { listAttendanceAbsenceReviews } from "../../../student-life/attendance/api/attendance.api";
 import {
   actOnTeacherStudentReport,
   getTeacherStudentReports,
@@ -62,7 +59,6 @@ type SessionReview = NonNullable<PrincipalDashboardContract["sessionReviews"]>["
 type Panel =
   | "dorm"
   | "sessions"
-  | "absence-reviews"
   | "reports"
   | "leave"
   | "return"
@@ -88,15 +84,8 @@ const cards: Array<{
   },
   {
     id: "sessions",
-    title: "جلسه‌های کلاس",
-    description: "حضور ثبت‌شدهٔ استادان را بررسی کنید",
-    icon: CalendarCheck2,
-    capability: "attendance.review",
-  },
-  {
-    id: "absence-reviews",
-    title: "غیبت دانش‌آموزان",
-    description: "هر غیبت کلاس را جداگانه بررسی و تعیین تکلیف کنید",
+    title: "بازبینی حضور کلاس‌ها",
+    description: "هر جلسهٔ دارای غیبت، تأخیر یا موجه را یکجا بررسی کنید",
     icon: UserRoundCheck,
     capability: "attendance.review",
   },
@@ -207,11 +196,6 @@ export function PrincipalOperationalLists({
     queryKey: ["principal", "teacher-reports"],
     queryFn: getTeacherStudentReports,
     enabled: canReviewAttendance,
-  });
-  const classAbsenceReviews = useQuery({
-    queryKey: ["attendance", "absence-reviews", "principal-class", organizationId],
-    queryFn: () => listAttendanceAbsenceReviews(organizationId, "class"),
-    enabled: canReviewAttendance && Boolean(organizationId),
   });
   const teacherLeaves = useQuery({
     queryKey: ["teacher-leaves", "principal", organizationId],
@@ -357,9 +341,6 @@ export function PrincipalOperationalLists({
       (dormQueue.data?.length ?? values.counts?.dorm ?? 0) +
       (outsidePresenceReports.data?.length ?? 0),
     sessions: sessionReviews?.pendingCount ?? sessions.length,
-    "absence-reviews": (classAbsenceReviews.data ?? []).filter(
-      (review) => review.reviewStatus === "pending",
-    ).length,
     reports:
       values.counts?.reports ??
       reports.data?.filter((report) => !report.seenAt).length ??
@@ -466,7 +447,9 @@ export function PrincipalOperationalLists({
                 <label className="flex items-center justify-between gap-4 rounded-2xl border border-[rgb(var(--border-subtle))] p-4">
                   <span>
                     <strong className="block">نمایش همهٔ جلسه‌ها</strong>
-                    <small className="text-muted-foreground">خاموش: فقط جلسه‌های دارای غیبت</small>
+                    <small className="text-muted-foreground">
+                      خاموش: فقط جلسه‌های دارای غیبت، تأخیر یا وضعیت موجه
+                    </small>
                   </span>
                   <Switch
                     checked={policy.data.principalReviewMode === "all_sessions"}
@@ -524,7 +507,6 @@ export function PrincipalOperationalLists({
               <PendingCorrectionQueue />
             </>
           )}
-          {active === "absence-reviews" && <AttendanceReviewQueue contextType="class" />}
           {active === "reports" && (
             <>
               {reports.isLoading ? (
@@ -668,16 +650,23 @@ function SessionReviewRow({
     [detail.data?.roster],
   );
   const absentRecords = useMemo(
-    () => (detail.data?.records ?? []).filter((record) => record.physicalStatus === "absent"),
+    () =>
+      (detail.data?.records ?? []).filter(
+        (record) => record.physicalStatus === "absent" && record.legacyStatus !== "excused",
+      ),
     [detail.data?.records],
   );
   const delayedRecords = useMemo(
     () => (detail.data?.records ?? []).filter((record) => record.physicalStatus === "late"),
     [detail.data?.records],
   );
+  const excusedRecords = useMemo(
+    () => (detail.data?.records ?? []).filter((record) => record.legacyStatus === "excused"),
+    [detail.data?.records],
+  );
   const reviewRecords = useMemo(
-    () => [...absentRecords, ...delayedRecords],
-    [absentRecords, delayedRecords],
+    () => [...absentRecords, ...delayedRecords, ...excusedRecords],
+    [absentRecords, delayedRecords, excusedRecords],
   );
   const visibleRecords = useMemo(() => {
     const normalizedQuery = studentQuery.trim().toLocaleLowerCase("fa-IR");
@@ -690,8 +679,9 @@ function SessionReviewRow({
   }, [reviewRecords, rosterNames, studentQuery]);
   const absentCount = detail.data ? absentRecords.length : session.absent;
   const delayedCount = detail.data ? delayedRecords.length : session.late;
+  const excusedCount = detail.data ? excusedRecords.length : session.excused;
   const messageRequired = absentCount > 0;
-  const canMessageTeacher = absentCount > 0 || delayedCount > 0;
+  const canMessageTeacher = absentCount > 0 || delayedCount > 0 || excusedCount > 0;
   return (
     <article className="rounded-2xl border border-[rgb(var(--border-subtle))] p-4">
       <button
@@ -714,10 +704,15 @@ function SessionReviewRow({
                 {delayedCount.toLocaleString("fa-IR")} تأخیر
               </span>
             ) : null}
+            {excusedCount > 0 ? (
+              <span className="rounded-full bg-sky-100 px-2 py-1 text-xs font-bold text-sky-950 dark:bg-sky-950 dark:text-sky-100">
+                {excusedCount.toLocaleString("fa-IR")} موجه
+              </span>
+            ) : null}
           </span>
         </span>
         <small className="mt-1 block text-muted-foreground">
-          {formatDate(session.sessionDate)} · فقط غیبت‌های نیازمند پیگیری
+          {formatDate(session.sessionDate)} · بازبینی یکجای وضعیت‌های غیرحاضر
         </small>
       </button>
       {open && (
@@ -754,6 +749,7 @@ function SessionReviewRow({
                 <div className="principal-dashboard__session-totals" aria-label="خلاصه غیبت‌ها">
                   <Count label="غایبِ نیازمند پیگیری" value={absentCount} />
                   <Count label="تأخیر" value={delayedCount} />
+                  <Count label="موجه" value={excusedCount} />
                 </div>
               </section>
               <label className="principal-dashboard__student-search">
@@ -766,23 +762,24 @@ function SessionReviewRow({
                 />
               </label>
               <p className="text-sm font-bold">
-                دانش‌آموزان غایب و دارای تأخیر ({visibleRecords.length.toLocaleString("fa-IR")})
+                دانش‌آموزان نیازمند پیگیری ({visibleRecords.length.toLocaleString("fa-IR")})
               </p>
               <ul className="grid gap-2">
                 {visibleRecords.map((record) => {
                   const delayed = record.physicalStatus === "late";
+                  const excused = record.legacyStatus === "excused";
                   return (
                     <li
                       key={record.id}
                       className={
-                        delayed
+                        delayed || excused
                           ? "principal-dashboard__late-student-row"
                           : "principal-dashboard__absent-student-row"
                       }
                     >
                       <span
                         className={
-                          delayed
+                          delayed || excused
                             ? "principal-dashboard__late-student-name"
                             : "principal-dashboard__absent-student-name"
                         }
@@ -801,7 +798,11 @@ function SessionReviewRow({
                             : "principal-dashboard__absent-student-badge"
                         }
                       >
-                        {delayed ? "تأخیر · نیازمند پیگیری" : "غایب · نیازمند پیگیری"}
+                        {excused
+                          ? "موجه · نیازمند بازبینی"
+                          : delayed
+                            ? "تأخیر · نیازمند پیگیری"
+                            : "غایب · نیازمند پیگیری"}
                       </span>
                     </li>
                   );
@@ -840,6 +841,8 @@ function SessionReviewRow({
                       : "این جلسه بدون غیبت، پس از بازبینی در آرشیو نگهداری می‌شود."}
                 </small>
                 <Button
+                  loading={busy}
+                  loadingLabel="در حال ثبت…"
                   disabled={busy || (messageRequired && !message.trim())}
                   onClick={() => onReview(message.trim())}
                 >

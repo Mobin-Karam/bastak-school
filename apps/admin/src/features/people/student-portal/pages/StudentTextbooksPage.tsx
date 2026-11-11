@@ -1,10 +1,15 @@
 import { useQuery } from "@tanstack/react-query";
 import { BookOpen, GraduationCap, Tag } from "lucide-react";
+import { Link } from "react-router-dom";
 import { ManagementPageHeader } from "../../../../shared/ui/management-workspace";
 import { Card, EmptyState } from "../../../../shared/ui/ui";
+import { useLocale } from "../../../../shared/ui/locale";
+import { useAuth } from "../../../identity/auth";
 import { getStudentTextbooks } from "../api/student-textbooks.api";
 
 export function StudentTextbooksPage() {
+  const auth = useAuth();
+  const language = useLocale().language;
   const textbooks = useQuery({
     queryKey: ["student", "textbooks"],
     queryFn: getStudentTextbooks,
@@ -39,6 +44,15 @@ export function StudentTextbooksPage() {
         title="کتاب‌های درسی من"
         description="فقط کتاب‌های متناسب با پایه و رشته ثبت‌شده در پرونده شما نمایش داده می‌شوند."
       />
+      {auth.can("class_grades.self.read") ? (
+        <Link
+          to="/admin/my-grades"
+          className="inline-flex min-h-11 items-center justify-center justify-self-start rounded-lg border border-brand/30 bg-brand/5 px-4 text-sm font-bold text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+        >
+          <GraduationCap size={17} aria-hidden="true" />
+          <span className="ms-2">{language === "fa" ? "نمره‌های من" : "My grades"}</span>
+        </Link>
+      ) : null}
       <Card className="flex flex-wrap items-center gap-3 p-4 text-sm">
         <span className="grid size-10 place-items-center rounded-xl bg-brand/10 text-brand">
           <GraduationCap size={20} aria-hidden="true" />

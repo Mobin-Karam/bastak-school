@@ -60,8 +60,8 @@ export function ClassBooksModal({
         </h3>
         <p>
           {fa
-            ? "این کتاب از کاتالوگ، صفحه کتاب‌ها و همه کلاس‌های متصل حذف می‌شود. کتاب‌های استفاده‌شده در برنامه درسی قابل حذف نیستند. ادامه می‌دهید؟"
-            : "This deletes the book from the catalog, Books page, and every linked class. Books used by timetables cannot be deleted. Continue?"}
+            ? "این کتاب از کاتالوگ، صفحه کتاب‌ها و همه کلاس‌های متصل حذف می‌شود. کتاب‌های دارای نمره یا سابقهٔ برنامه درسی قابل حذف نیستند. ادامه می‌دهید؟"
+            : "This deletes the book from the catalog, Books page, and every linked class. Books with grades or timetable history cannot be deleted. Continue?"}
         </p>
         {error ? <p role="alert">{error}</p> : null}
         <div className="flex flex-wrap justify-end gap-2">

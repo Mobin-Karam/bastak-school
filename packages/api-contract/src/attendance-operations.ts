@@ -211,6 +211,14 @@ export type TeacherStudentClassAttendanceProfile = {
     status: PhysicalAttendanceStatus | "excused" | "unmarked";
     note: string;
     coins: number;
+    review: {
+      decision: "pending" | "approved" | "rejected" | null;
+      note: string;
+      reviewedAt: string | null;
+      reviewerName: string;
+      teacherMessage: string;
+      sessionReviewedAt: string | null;
+    } | null;
   }>;
 };
 export type AttendanceEncouragement = {

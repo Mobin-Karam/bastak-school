@@ -76,6 +76,8 @@ export class AttendanceEntryDto {
 export class BulkMarkAttendanceDto {
   @IsOptional() @IsInt() @Min(0) expectedRevision?: number;
   @IsOptional() @IsUUID() requestId?: string;
+  /** Final teacher confirmation makes this occurrence available for principal review. */
+  @IsOptional() @IsBoolean() submit?: boolean;
   @IsUUID() organizationId!: string;
   @IsOptional() @IsUUID() sessionId?: string;
   @IsOptional() @IsIn(["class", "class_group", "dorm"]) contextType?:

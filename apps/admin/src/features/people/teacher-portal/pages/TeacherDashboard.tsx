@@ -20,6 +20,7 @@ import {
   tehranDateWithOffset,
 } from "../model/teacher-dashboard-schedule";
 import { listTeacherLeaveRequests } from "../../../academics/schedule/api/teacher-leave.api";
+import { useAdminNotifications } from "../../../communications/notifications";
 
 function tehranClockMinutes(date: Date) {
   const parts = new Intl.DateTimeFormat("en-GB", {
@@ -41,6 +42,7 @@ function clockMinutes(time: string) {
 /** The teacher's class-first home; schedule and roster data remain server-scoped. */
 export function TeacherDashboard() {
   const auth = useAuth();
+  const notifications = useAdminNotifications();
   const { formatDate } = useLocale();
   const [now, setNow] = useState(() => new Date());
   const [selectedClass, setSelectedClass] = useState<ScheduleEntry | null>(null);
@@ -121,6 +123,11 @@ export function TeacherDashboard() {
       : nextClass.dayOffset === 1
         ? "فردا"
         : `${nextClass.dayOffset.toLocaleString("fa-IR")} روز دیگر`;
+  const principalAttendanceMessages = (notifications.items ?? []).filter(
+    (item) =>
+      !item.isRead &&
+      (item.category === "attendance-principal-message" || item.category === "attendance-review"),
+  );
 
   if ((schedule.isLoading || academicCycles.isLoading) && home.isLoading)
     return <LoadingState label="در حال آماده‌سازی میز استاد…" />;
@@ -136,6 +143,44 @@ export function TeacherDashboard() {
           {formatDate(todayIso(), { dateStyle: "full" })}
         </h1>
       </header>
+      {principalAttendanceMessages.length ? (
+        <section aria-labelledby="principal-attendance-messages" className="grid gap-2">
+          <div className="flex items-center justify-between gap-3 px-1">
+            <div>
+              <p className="text-xs font-bold text-brand">پیام‌های تازه مدیر</p>
+              <h2 id="principal-attendance-messages" className="text-sm font-black text-ink">
+                پیگیری حضور و غیبت کلاس‌ها
+              </h2>
+            </div>
+            <span className="text-xs text-slate-500">برای دیدن همه، کارت‌ها را ورق بزنید</span>
+          </div>
+          <div
+            className="flex snap-x snap-mandatory gap-3 overflow-x-auto pb-1 [scrollbar-width:thin]"
+            aria-label="کارت‌های پیام مدیر درباره حضور"
+          >
+            {principalAttendanceMessages.map((item) => (
+              <article
+                key={item.id}
+                className="grid min-w-[17rem] snap-start gap-2 rounded-2xl border border-brand/25 bg-brand/5 p-4 text-right sm:min-w-[21rem]"
+              >
+                <p className="text-sm font-black text-ink">{item.title}</p>
+                <p className="whitespace-pre-wrap text-xs leading-6 text-slate-700 dark:text-slate-200">
+                  {item.body}
+                </p>
+                <div className="flex justify-end">
+                  <Button
+                    size="sm"
+                    onClick={() => notifications.markRead(item.id)}
+                    aria-label={`خواندم: ${item.title}`}
+                  >
+                    خواندم
+                  </Button>
+                </div>
+              </article>
+            ))}
+          </div>
+        </section>
+      ) : null}
       {activeLeave ? (
         <Card className="grid gap-3 border-amber-300 bg-amber-50 p-3 text-sm font-bold text-amber-900 dark:bg-amber-950/30 dark:text-amber-100">
           <p>

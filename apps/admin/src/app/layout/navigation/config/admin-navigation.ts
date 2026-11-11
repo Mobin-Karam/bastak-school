@@ -7,6 +7,7 @@ import {
   Coins,
   CalendarClock,
   DoorOpen,
+  GraduationCap,
   LayoutDashboard,
   MessageCircle,
   MessageSquareText,
@@ -309,6 +310,13 @@ const studentNavigation: readonly NavigationGroup[] = [
         description: "مرور کتاب‌های درسی مدرسه",
         icon: BookOpen,
       },
+      {
+        path: "my-grades",
+        title: "نمره‌های من",
+        description: "نمره‌های کتاب‌های کلاس من",
+        icon: GraduationCap,
+        capability: "class_grades.self.read",
+      },
     ],
   },
   {
@@ -398,6 +406,19 @@ const studentNavigation: readonly NavigationGroup[] = [
 
 /** Teachers get a deliberately small, class-first workspace on every device. */
 const teacherNavigation: readonly NavigationGroup[] = [
+  {
+    section: "آموزش",
+    items: [
+      {
+        path: "gradebook",
+        title: "دفتر نمره",
+        description: "ثبت و ویرایش نمرهٔ کتاب‌های کلاس من",
+        icon: GraduationCap,
+        capability: "class_grades.read",
+        allOf: ["classes.read"],
+      },
+    ],
+  },
   {
     section: "برنامه من",
     items: [
@@ -641,6 +662,10 @@ const en: Record<string, string> = {
   "گروه‌های کلاس": "Class groups",
   کتابخانه: "Library",
   "قفسه کتاب‌ها": "Book shelves",
+  "نمره‌های من": "My grades",
+  "نمره‌های کتاب‌های کلاس من": "Grades for my class books",
+  "دفتر نمره": "Gradebook",
+  "ثبت و ویرایش نمرهٔ کتاب‌های کلاس من": "Manage grades for my class books",
   "کتاب‌های درسی، کلاس‌های مرتبط و دبیر مسئول":
     "Textbooks, their classes, and responsible teachers",
   "مرور کتاب‌های درسی مدرسه": "Browse the school's textbooks",

@@ -517,6 +517,28 @@ test("permits only the default group link created for legacy time blocks", () =>
   db.close();
 });
 
+test("permits only unique legacy schedule time-block links", () => {
+  const db = new Database(":memory:");
+  db.exec(`
+    CREATE TABLE school_schedule_entries (id TEXT PRIMARY KEY, organizationId TEXT NOT NULL, startTime TEXT NOT NULL, endTime TEXT NOT NULL);
+    CREATE TABLE school_schedule_time_blocks (id TEXT PRIMARY KEY, organizationId TEXT NOT NULL, startTime TEXT NOT NULL, endTime TEXT NOT NULL);
+    CREATE TABLE migrations (name TEXT);
+    INSERT INTO school_schedule_entries VALUES ('entry-1', 'school-1', '08:00', '08:45');
+    INSERT INTO school_schedule_time_blocks VALUES ('block-1', 'school-1', '08:00', '08:45');
+  `);
+  const before = inventory(db);
+  db.exec(
+    `ALTER TABLE school_schedule_entries ADD COLUMN timeBlockId TEXT; UPDATE school_schedule_entries SET timeBlockId='block-1'; INSERT INTO migrations VALUES ('ScheduleEntryTimeBlocks1763600800000');`,
+  );
+  assert.doesNotThrow(() => preserved(before, inventory(db), db));
+  db.prepare("UPDATE school_schedule_entries SET timeBlockId='other'").run();
+  assert.throws(
+    () => preserved(before, inventory(db), db),
+    /unexpected time block link/,
+  );
+  db.close();
+});
+
 test("permits only null subject and academic snapshots for existing attendance sessions", () => {
   const db = new Database(":memory:");
   db.exec(`

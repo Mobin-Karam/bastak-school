@@ -10,8 +10,31 @@ type CalendarData = {
   start: string;
   end: string;
   month: string;
-  days: Record<string, Array<{ id: string; name: string; context: string }>>;
+  days: Record<
+    string,
+    Array<{
+      id: string;
+      studentId: string;
+      name: string;
+      context: string;
+      status: "absent" | "late" | "excused";
+    }>
+  >;
 };
+const statusCopy = {
+  absent: {
+    label: "غایب",
+    tone: "border-rose-200 bg-rose-50 text-rose-950 dark:border-rose-900 dark:bg-rose-950/30 dark:text-rose-100",
+  },
+  late: {
+    label: "با تأخیر",
+    tone: "border-amber-200 bg-amber-50 text-amber-950 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-100",
+  },
+  excused: {
+    label: "موجه",
+    tone: "border-sky-200 bg-sky-50 text-sky-950 dark:border-sky-900 dark:bg-sky-950/30 dark:text-sky-100",
+  },
+} as const;
 const iso = (value: Date) => value.toISOString().slice(0, 10);
 const shiftMonth = (month: string, direction: number) => {
   const date = new Date(`${month}T12:00:00Z`);
@@ -60,17 +83,17 @@ export function PrincipalAbsenceCalendar() {
       <div className="mb-3 flex items-center gap-2">
         <CalendarDays className="text-rose-700" />
         <div>
-          <h2 className="font-black">بایگانی غیبت کلاس‌ها</h2>
+          <h2 className="font-black">بایگانی وضعیت‌های نیازمند پیگیری</h2>
           <p className="text-xs text-slate-500">
-            شش هفته؛ هر روز را برای فهرست دانش‌آموزان غایب باز کنید.
+            شش هفته؛ غیبت، تأخیر و وضعیت موجه را در هر روز ببینید.
           </p>
         </div>
       </div>
       {calendar.isError && !calendar.data ? (
-        <EmptyState title="بایگانی غیبت دریافت نشد" />
+        <EmptyState title="بایگانی حضور دریافت نشد" />
       ) : (
         <CompactMonthCalendar
-          label="تقویم غیبت شش هفته"
+          label="تقویم وضعیت‌های حضور شش هفته"
           monthLabel={caption}
           onPreviousMonth={() => {
             setSelected(null);
@@ -100,7 +123,7 @@ export function PrincipalAbsenceCalendar() {
                 </time>
                 {count ? (
                   <b className="mt-1 block text-[10px] leading-none">
-                    {count.toLocaleString("fa-IR")} غیبت
+                    {count.toLocaleString("fa-IR")} مورد
                   </b>
                 ) : (
                   <span className="mt-1 block text-[10px] leading-none">—</span>
@@ -113,7 +136,7 @@ export function PrincipalAbsenceCalendar() {
       <ResponsiveModal
         open={Boolean(selected)}
         onOpenChange={(open) => !open && setSelected(null)}
-        title="دانش‌آموزان غایب"
+        title="دانش‌آموزان نیازمند پیگیری"
         description={
           selected
             ? new Intl.DateTimeFormat("fa-IR-u-ca-persian", { dateStyle: "full" }).format(
@@ -127,14 +150,19 @@ export function PrincipalAbsenceCalendar() {
             students.map((student) => (
               <div
                 key={student.id}
-                className="rounded-lg border border-rose-200 bg-rose-50 p-3 text-sm font-bold text-rose-950 dark:border-rose-900 dark:bg-rose-950/30 dark:text-rose-100"
+                className={`rounded-lg border p-3 text-sm font-bold ${statusCopy[student.status].tone}`}
               >
-                <div>{student.name}</div>
+                <div className="flex items-center justify-between gap-2">
+                  <span>{student.name}</span>
+                  <span className="rounded-full bg-white/60 px-2 py-0.5 text-[11px] dark:bg-black/10">
+                    {statusCopy[student.status].label}
+                  </span>
+                </div>
                 <small className="font-normal opacity-75">{student.context}</small>
               </div>
             ))
           ) : (
-            <EmptyState title="غیبتی ثبت نشده است" />
+            <EmptyState title="وضعیت نیازمند پیگیری ثبت نشده است" />
           )}
         </div>
       </ResponsiveModal>

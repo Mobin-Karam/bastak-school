@@ -11,6 +11,10 @@ import { UserRoleAssignment } from "../../database/entities/user-role-assignment
 import { User } from "../../database/entities/user.entity";
 import { ClassesController } from "./classes.controller";
 import { ClassesService } from "./classes.service";
+import { ClassGradesService } from "./class-grades.service";
+import { ClassBookGrade } from "../../database/entities/class-book-grade.entity";
+import { ClassBookGradeSession } from "../../database/entities/class-book-grade-session.entity";
+import { AttendanceSession } from "../../database/entities/attendance-session.entity";
 import { EducationCatalogModule } from "../education-catalog/education-catalog.module";
 
 @Module({
@@ -18,6 +22,9 @@ import { EducationCatalogModule } from "../education-catalog/education-catalog.m
     TypeOrmModule.forFeature([
       EducationClass,
       EducationClassBook,
+      ClassBookGrade,
+      ClassBookGradeSession,
+      AttendanceSession,
       EducationClassEnrollment,
       EducationBook,
       Organization,
@@ -29,6 +36,6 @@ import { EducationCatalogModule } from "../education-catalog/education-catalog.m
     EducationCatalogModule,
   ],
   controllers: [ClassesController],
-  providers: [ClassesService],
+  providers: [ClassesService, ClassGradesService],
 })
 export class ClassesModule {}

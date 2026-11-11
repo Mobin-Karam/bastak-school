@@ -1,5 +1,6 @@
 import { AdaptiveSelect } from "@/shared/ui/adaptive-select";
 import { ClassBooksModal } from "../components/ClassBooksModal";
+import { ClassBookGradePanel } from "../components/ClassBookGradePanel";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   BookOpen,
@@ -7,6 +8,8 @@ import {
   ClipboardCheck,
   GraduationCap,
   Archive,
+  ArrowLeft,
+  ArrowRight,
   ArrowUpLeft,
   Pencil,
   Plus,
@@ -16,7 +19,9 @@ import {
 } from "lucide-react";
 import { useMemo, useState, type ReactNode } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { ApiError } from "../../../../shared/api/api";
+import { ApiError, getApiWorkContextKey } from "../../../../shared/api/api";
+import { getStudentProfile } from "../../../people/students/api/students.api";
+import { StudentOverview } from "../../../people/students/components/StudentOverview";
 import { listOrganizations } from "../../../identity/access/api/access.api";
 import { useAuth } from "../../../identity/auth";
 import { useModal } from "../../../../shared/ui/modal";
@@ -36,6 +41,7 @@ import {
   setClassBooks,
   setClassEnrollments,
   type ClassDraft,
+  type ClassUpdate,
   type EducationClass,
   updateClass,
 } from "../api/classes.api";
@@ -98,8 +104,16 @@ export function ClassesPage() {
   });
   const refresh = () => client.invalidateQueries({ queryKey: ["classes"] });
   const save = useMutation({
-    mutationFn: ({ id, draft }: { id: string | null; draft: ClassDraft }) =>
-      id ? updateClass(id, draft) : createClass(draft),
+    mutationFn: ({ original, draft }: { original: EducationClass | null; draft: ClassDraft }) => {
+      if (!original) return createClass(draft);
+      const change: ClassUpdate = {};
+      if (draft.code.trim() !== original.code) change.code = draft.code;
+      if (draft.name.trim() !== original.name) change.name = draft.name;
+      if (draft.schoolYear !== normalizeSchoolYear(original.schoolYear))
+        change.schoolYear = draft.schoolYear;
+      if (draft.capacity !== original.capacity) change.capacity = draft.capacity;
+      return updateClass(original.id, change);
+    },
     onSuccess: async (row) => {
       await refresh();
       setSelectedId(row.id);
@@ -182,7 +196,7 @@ export function ClassesPage() {
           organizations={organizationOptions}
           onClose={modal.close}
           onSave={async (next) => {
-            await save.mutateAsync({ id: row?.id || null, draft: next });
+            await save.mutateAsync({ original: row || null, draft: next });
             modal.close();
           }}
         />
@@ -226,13 +240,17 @@ export function ClassesPage() {
     try {
       await remove.mutateAsync(selected.id);
     } catch (error) {
-      if (error instanceof ApiError && error.code === "CLASS_TIMETABLE_REFERENCED") {
+      if (
+        error instanceof ApiError &&
+        ["CLASS_TIMETABLE_REFERENCED", "CLASS_GRADE_REFERENCED"].includes(error.code)
+      ) {
         notify(copy.archiveInstead, "error");
       } else notify(error instanceof Error ? error.message : copy.deleteFailed, "error");
     }
   };
   const detail = (
     <ClassDetail
+      key={selected?.id ?? "none"}
       classroom={selected}
       options={options.data}
       loading={options.isLoading}
@@ -245,6 +263,7 @@ export function ClassesPage() {
       canReadAttendance={auth.can("attendance.read")}
       canReadStudents={auth.can("students.read")}
       canReadGroups={auth.can("class_groups.read")}
+      canReadGrades={auth.can("class_grades.read")}
       onBooks={(books) => saveBooks.mutateAsync(books).then(() => undefined)}
       onRoster={(ids) => saveRoster.mutateAsync(ids).then(() => undefined)}
       onAdvisor={(advisorId) => saveAdvisor.mutateAsync(advisorId).then(() => undefined)}
@@ -481,6 +500,7 @@ function ClassDetail({
   canReadAttendance,
   canReadStudents,
   canReadGroups,
+  canReadGrades,
   onBooks,
   onRoster,
   onAdvisor,
@@ -502,6 +522,7 @@ function ClassDetail({
   canReadAttendance: boolean;
   canReadStudents: boolean;
   canReadGroups: boolean;
+  canReadGrades: boolean;
   onBooks: (books: Array<{ bookId: string; teacherId: string }>) => Promise<void>;
   onRoster: (ids: string[]) => Promise<void>;
   onAdvisor: (advisorId: string | null) => Promise<void>;
@@ -513,6 +534,14 @@ function ClassDetail({
 }) {
   const modal = useModal();
   const copy = useClassesCopy();
+  const isMobile = useIsMobile();
+  const [listDrawer, setListDrawer] = useState<"books" | "students" | null>(null);
+  const [teacherBookId, setTeacherBookId] = useState<string | null>(null);
+  const [profileStudentId, setProfileStudentId] = useState<string | null>(null);
+  const [lastProfileStudentId, setLastProfileStudentId] = useState<string | null>(null);
+  const teacherBook = classroom?.books.find((book) => book.id === teacherBookId) ?? null;
+  const profileStudent =
+    classroom?.students.find((student) => student.id === profileStudentId) ?? null;
   if (!classroom)
     return (
       <Card className="p-3">
@@ -674,14 +703,19 @@ function ClassDetail({
       </div>
       <nav className="flex flex-wrap gap-2" aria-label={copy.relatedSections}>
         {canReadStudents ? (
-          <Link
+          <button
+            type="button"
             className="classes-related-link"
-            to={`/admin/students?classId=${encodeURIComponent(classroom.id)}`}
+            onClick={() => {
+              setProfileStudentId(null);
+              setLastProfileStudentId(null);
+              setListDrawer("students");
+            }}
           >
             <UsersRound size={14} />
             {copy.viewStudentProfiles}
-            <ArrowUpLeft size={13} aria-hidden="true" />
-          </Link>
+            <ArrowRight size={13} className="rtl:rotate-180" aria-hidden="true" />
+          </button>
         ) : null}
         {canReadGroups ? (
           <Link
@@ -728,37 +762,58 @@ function ClassDetail({
           </Button>
         </p>
       ) : null}
-      <section className="grid gap-2 border-t border-[rgb(var(--border-subtle))] pt-3">
-        <h3 className="flex items-center gap-1 text-xs font-bold">
-          <BookOpen size={14} />
-          {copy.booksAndTeachers}
-        </h3>
-        {classroom.books.map((book) => (
-          <div key={book.id} className="classes-record-row">
-            <BookOpen size={15} aria-hidden="true" />
-            <span className="min-w-0 flex-1 truncate font-medium">{book.title}</span>
-            <span className="text-slate-500">{book.teacher.name}</span>
-          </div>
-        ))}
-        {!classroom.books.length ? (
-          <p className="text-xs text-slate-500">{copy.noTeachers}</p>
-        ) : null}
-      </section>
-      <section className="grid gap-2 border-t pt-3 dark:border-slate-800">
-        <h3 className="flex items-center gap-1 text-xs font-black">
-          <UsersRound size={14} />
-          {copy.eligibleStudents}
-        </h3>
-        {classroom.students.map((student) => (
-          <div key={student.id} className="classes-record-row">
-            <UsersRound size={15} aria-hidden="true" />
-            <span className="min-w-0 flex-1 truncate font-medium">{student.name}</span>
-            <span className="text-slate-500">{student.grade}</span>
-          </div>
-        ))}
-        {!classroom.students.length ? (
-          <p className="text-xs text-slate-500">{copy.noStudents}</p>
-        ) : null}
+      <section
+        className="grid gap-2 border-t border-[rgb(var(--border-subtle))] pt-3 sm:grid-cols-2"
+        aria-label={copy.classLists}
+      >
+        <button
+          type="button"
+          className="flex min-h-20 items-center gap-3 rounded-xl border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card))] p-3 text-start transition-colors hover:border-brand/50 hover:bg-brand/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+          onClick={() => {
+            setTeacherBookId(null);
+            setListDrawer("books");
+          }}
+        >
+          <span className="grid size-10 shrink-0 place-items-center rounded-lg bg-brand/10 text-brand">
+            <BookOpen size={19} aria-hidden="true" />
+          </span>
+          <span className="min-w-0 flex-1">
+            <strong className="block text-sm">{copy.viewBooksTeachers}</strong>
+            <small className="mt-1 block text-xs text-slate-500">
+              {copy.bookCount(classroom.books.length)}
+            </small>
+          </span>
+          <ArrowRight
+            size={16}
+            className="shrink-0 text-slate-400 rtl:rotate-180"
+            aria-hidden="true"
+          />
+        </button>
+        <button
+          type="button"
+          className="flex min-h-20 items-center gap-3 rounded-xl border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card))] p-3 text-start transition-colors hover:border-brand/50 hover:bg-brand/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+          onClick={() => {
+            setTeacherBookId(null);
+            setProfileStudentId(null);
+            setLastProfileStudentId(null);
+            setListDrawer("students");
+          }}
+        >
+          <span className="grid size-10 shrink-0 place-items-center rounded-lg bg-brand/10 text-brand">
+            <UsersRound size={19} aria-hidden="true" />
+          </span>
+          <span className="min-w-0 flex-1">
+            <strong className="block text-sm">{copy.viewClassStudents}</strong>
+            <small className="mt-1 block text-xs text-slate-500">
+              {copy.studentCount(classroom.students.length)}
+            </small>
+          </span>
+          <ArrowRight
+            size={16}
+            className="shrink-0 text-slate-400 rtl:rotate-180"
+            aria-hidden="true"
+          />
+        </button>
       </section>
       {canManage ? (
         <Button
@@ -783,8 +838,168 @@ function ClassDetail({
           {copy.deleteClass}
         </Button>
       ) : null}
+      <ResponsiveDrawer
+        open={listDrawer !== null}
+        onOpenChange={(open) => {
+          if (!open) {
+            setListDrawer(null);
+            setTeacherBookId(null);
+            setProfileStudentId(null);
+            setLastProfileStudentId(null);
+          }
+        }}
+        title={
+          profileStudent
+            ? profileStudent.name
+            : teacherBook
+              ? teacherBook.teacher.name
+              : listDrawer === "books"
+                ? copy.booksAndTeachers
+                : copy.eligibleStudents
+        }
+        description={teacherBook ? `${classroom.name} · ${teacherBook.title}` : classroom.name}
+        nested={isMobile}
+        className="w-full max-w-xl"
+      >
+        {teacherBook ? (
+          <div className="grid gap-4">
+            <Button
+              size="sm"
+              variant="ghost"
+              className="justify-self-start"
+              onClick={() => setTeacherBookId(null)}
+            >
+              <ArrowLeft size={15} className="rtl:rotate-180" aria-hidden="true" />
+              {copy.backToBooks}
+            </Button>
+            <ClassBookGradePanel
+              classBookId={teacherBook.id}
+              allowEdit={classroom.status === "ACTIVE"}
+            />
+          </div>
+        ) : null}
+        {listDrawer === "books" && !teacherBook ? (
+          <div className="grid gap-2">
+            {classroom.books.map((book) =>
+              canReadGrades ? (
+                <button
+                  key={book.id}
+                  type="button"
+                  className="classes-record-row w-full text-start focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+                  onClick={() => setTeacherBookId(book.id)}
+                  aria-label={`${book.teacher.name} · ${book.title}`}
+                >
+                  <BookOpen size={15} aria-hidden="true" />
+                  <span className="min-w-0 flex-1 truncate font-medium">{book.title}</span>
+                  <span className="text-slate-500">{book.teacher.name}</span>
+                  <ArrowRight
+                    size={14}
+                    className="text-slate-400 rtl:rotate-180"
+                    aria-hidden="true"
+                  />
+                </button>
+              ) : (
+                <div key={book.id} className="classes-record-row">
+                  <BookOpen size={15} aria-hidden="true" />
+                  <span className="min-w-0 flex-1 truncate font-medium">{book.title}</span>
+                  <span className="text-slate-500">{book.teacher.name}</span>
+                </div>
+              ),
+            )}
+            {!classroom.books.length ? (
+              <p className="text-sm text-slate-500">{copy.noTeachers}</p>
+            ) : null}
+          </div>
+        ) : null}
+        {listDrawer === "students" && profileStudent ? (
+          <div className="grid gap-3">
+            <Button
+              size="sm"
+              variant="ghost"
+              className="justify-self-start"
+              autoFocus
+              onClick={() => setProfileStudentId(null)}
+            >
+              <ArrowLeft size={15} className="rtl:rotate-180" aria-hidden="true" />
+              {copy.backToStudents}
+            </Button>
+            <ClassStudentProfile
+              studentId={profileStudent.id}
+              loadingCopy={copy.studentProfileLoading}
+              errorCopy={copy.studentProfileFailed}
+              retryCopy={copy.retry}
+            />
+          </div>
+        ) : null}
+        {listDrawer === "students" && !profileStudent ? (
+          <div className="grid gap-2">
+            {classroom.students.map((student) => (
+              <div key={student.id} className="classes-record-row classes-student-row">
+                <UsersRound size={19} aria-hidden="true" />
+                {canReadStudents ? (
+                  <button
+                    type="button"
+                    autoFocus={lastProfileStudentId === student.id}
+                    className="min-w-0 flex-1 text-start font-semibold hover:underline focus-visible:outline focus-visible:outline-2"
+                    onClick={() => {
+                      setLastProfileStudentId(student.id);
+                      setProfileStudentId(student.id);
+                    }}
+                  >
+                    {student.name}
+                  </button>
+                ) : (
+                  <span className="min-w-0 flex-1 font-semibold">{student.name}</span>
+                )}
+                <span className="text-sm text-slate-500">{student.grade}</span>
+                {student.phoneNumber ? (
+                  <a
+                    className="rounded-lg px-2 py-1 text-sm font-medium text-primary-700 hover:underline focus-visible:outline focus-visible:outline-2"
+                    href={`tel:${student.phoneNumber.replace(/[^+\d]/g, "")}`}
+                    aria-label={`${student.name}: ${student.phoneNumber}`}
+                    dir="ltr"
+                  >
+                    {student.phoneNumber}
+                  </a>
+                ) : null}
+              </div>
+            ))}
+            {!classroom.students.length ? (
+              <p className="text-sm text-slate-500">{copy.noStudents}</p>
+            ) : null}
+          </div>
+        ) : null}
+      </ResponsiveDrawer>
     </Card>
   );
+}
+
+function ClassStudentProfile({
+  studentId,
+  loadingCopy,
+  errorCopy,
+  retryCopy,
+}: {
+  studentId: string;
+  loadingCopy: string;
+  errorCopy: string;
+  retryCopy: string;
+}) {
+  const profile = useQuery({
+    queryKey: ["student-profile", getApiWorkContextKey(), studentId],
+    queryFn: () => getStudentProfile(studentId),
+  });
+  if (profile.isLoading) return <LoadingState label={loadingCopy} />;
+  if (profile.isError || !profile.data)
+    return (
+      <div role="alert" className="grid gap-2">
+        <p>{errorCopy}</p>
+        <Button variant="soft" onClick={() => void profile.refetch()}>
+          {retryCopy}
+        </Button>
+      </div>
+    );
+  return <StudentOverview student={profile.data} profile={profile.data} />;
 }
 
 function ClassSetupStep({ label, complete }: { label: string; complete: boolean }) {
@@ -860,13 +1075,14 @@ function ClassEditorModal({
             ))}
           </AdaptiveSelect>
         </Field>
-        <Field label={copy.schoolYear}>
+        <div className="grid gap-1 text-xs font-bold text-slate-700 dark:text-slate-200">
+          <span>{copy.schoolYear}</span>
           <ClassYearPicker
             value={draft.schoolYear}
             onChange={(schoolYear) => setDraft({ ...draft, schoolYear })}
             label={copy.schoolYear}
           />
-        </Field>
+        </div>
         <Field label={copy.className}>
           <Input
             required
@@ -1110,8 +1326,9 @@ function ClassYearPicker({
   onChange: (year: string) => void;
   label: string;
 }) {
-  const years = Array.from({ length: 26 }, (_, index) => String(1405 + index));
   const start = value.split("-")[0];
+  const availableYears = Array.from({ length: 26 }, (_, index) => String(1405 + index));
+  const years = availableYears.includes(start) ? availableYears : [start, ...availableYears];
   const end = Number(start) + 1;
   return (
     <div className="grid gap-2" aria-label={label}>

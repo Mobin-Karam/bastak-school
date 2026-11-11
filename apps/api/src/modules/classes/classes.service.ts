@@ -14,6 +14,8 @@ import { SchoolScheduleEntry } from "../../database/entities/school-schedule-ent
 import { TimetableAllocation } from "../../database/entities/timetable.entity";
 import { EducationBook } from "../../database/entities/education-book.entity";
 import { EducationClassBook } from "../../database/entities/education-class-book.entity";
+import { ClassBookGrade } from "../../database/entities/class-book-grade.entity";
+import { ClassBookGradeSession } from "../../database/entities/class-book-grade-session.entity";
 import { EducationClassEnrollment } from "../../database/entities/education-class-enrollment.entity";
 import { EducationClass } from "../../database/entities/education-class.entity";
 import {
@@ -83,7 +85,7 @@ export class ClassesService {
         organization: true,
         advisor: true,
         books: { book: true, teacher: true },
-        enrollments: { student: true },
+        enrollments: { student: { user: true } },
       },
       order: { schoolYear: "DESC", name: "ASC" },
     });
@@ -95,6 +97,7 @@ export class ClassesService {
           context.roles.length === 1 && context.roles[0] === "TEACHER"
             ? context.id
             : undefined,
+          context.capabilities.includes("students.read"),
         ),
       );
   }
@@ -367,6 +370,16 @@ export class ClassesService {
         "CLASS_TIMETABLE_REFERENCED",
         "این کلاس در سابقه برنامه درسی استفاده شده است؛ به‌جای حذف، کلاس را بایگانی کنید.",
       );
+    if (
+      await this.classes.manager.exists(ClassBookGradeSession, {
+        where: { classBook: { classroom: { id } } },
+      })
+    )
+      throw new ApiException(
+        409,
+        "CLASS_GRADE_REFERENCED",
+        "این کلاس نمرهٔ ثبت‌شده دارد؛ به‌جای حذف، آن را بایگانی کنید.",
+      );
     await this.classes.remove(classroom);
     return { deleted: true };
   }
@@ -488,6 +501,16 @@ export class ClassesService {
             "CLASS_BOOK_TIMETABLE_REFERENCED",
             "کتاب‌های استفاده‌شده در برنامه درسی قابل حذف نیستند؛ اتصال‌های موجود را حفظ کنید.",
           );
+        if (
+          await manager.exists(ClassBookGradeSession, {
+            where: { classBook: { id: In(ids) } },
+          })
+        )
+          throw new ApiException(
+            409,
+            "CLASS_BOOK_GRADE_REFERENCED",
+            "برای این کتاب نمره ثبت شده است؛ اتصال کتاب را حفظ کنید.",
+          );
         await manager.delete(EducationClassBook, ids);
       }
       if (requested.length)
@@ -545,6 +568,23 @@ export class ClassesService {
       });
       const beforeStudentIds = before.map((row) => row.student.id).sort();
       const afterStudentIds = [...studentIds].sort();
+      const removedStudentIds = beforeStudentIds.filter(
+        (studentId) => !studentIds.includes(studentId),
+      );
+      if (
+        removedStudentIds.length &&
+        (await manager.exists(ClassBookGrade, {
+          where: {
+            session: { classBook: { classroom: { id } } },
+            student: { id: In(removedStudentIds) },
+          },
+        }))
+      )
+        throw new ApiException(
+          409,
+          "CLASS_STUDENT_GRADE_REFERENCED",
+          "برای این دانش‌آموز در کلاس نمره ثبت شده است؛ ابتدا نمره‌ها را بررسی و حذف کنید.",
+        );
       if (JSON.stringify(beforeStudentIds) !== JSON.stringify(afterStudentIds))
         await manager.save(
           ClassEnrollmentHistory,
@@ -634,7 +674,7 @@ export class ClassesService {
         organization: true,
         advisor: true,
         books: { book: true, teacher: true },
-        enrollments: { student: true },
+        enrollments: { student: { user: true } },
       },
     });
     if (!classroom)
@@ -859,7 +899,11 @@ export class ClassesService {
         "دانش‌آموز متعلق به مدرسه این کلاس نیست.",
       );
   }
-  private view(classroom: EducationClass, assignedTeacherId?: string) {
+  private view(
+    classroom: EducationClass,
+    assignedTeacherId?: string,
+    includeStudentPhones = false,
+  ) {
     const hasCurriculumProfile = this.hasCurriculumProfile(classroom);
     return {
       id: classroom.id,
@@ -909,6 +953,9 @@ export class ClassesService {
       students: classroom.enrollments.map((item) => ({
         id: item.student.id,
         name: item.student.name,
+        phoneNumber: includeStudentPhones
+          ? (item.student.user?.phoneNumber ?? null)
+          : null,
         grade: item.student.grade,
         major: item.student.major,
       })),

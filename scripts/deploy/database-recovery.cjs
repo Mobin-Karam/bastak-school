@@ -209,6 +209,12 @@ const expectations = {
       value: "default-time-block-group",
     },
   },
+  ScheduleEntryTimeBlocks1763600800000: {
+    "school_schedule_entries.timeBlockId": {
+      nullable: true,
+      value: "unique-time-block-range",
+    },
+  },
   // Existing private reports acquire no principal action until a principal acts.
   TeacherStudentReportPrincipalActions1762301000000: {
     "teacher_student_reports.principalAction": {
@@ -664,6 +670,21 @@ function validateAddedColumns(beforeTable, afterTable, table, applied, db) {
           beforeTable,
           afterTable,
         );
+      if (expectation.value === "unique-time-block-range") {
+        if (value === null) continue;
+        const matches = db
+          .prepare(
+            "SELECT id FROM school_schedule_time_blocks WHERE organizationId = ? AND startTime = ? AND endTime = ?",
+          )
+          .all(row.organizationId, row.startTime, row.endTime);
+        if (matches.length !== 1 || matches[0].id !== value)
+          fail(
+            table,
+            `unexpected time block link in ${column.name}`,
+            beforeTable,
+            afterTable,
+          );
+      }
       if (expectation.value === "default-time-block-group") {
         const group =
           db

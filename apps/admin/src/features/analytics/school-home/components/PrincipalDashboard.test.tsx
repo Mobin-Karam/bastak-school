@@ -15,7 +15,6 @@ import {
   getDormAttendanceReviewQueue,
   updateAttendancePolicy,
 } from "../../../student-life/attendance/api/attendance-operations.api";
-import { listAttendanceAbsenceReviews } from "../../../student-life/attendance/api/attendance.api";
 import { PrincipalDashboard } from "./PrincipalDashboard";
 
 const authCan = vi.hoisted(() => vi.fn((capability: string) => capability === "attendance.review"));
@@ -32,12 +31,6 @@ vi.mock("../api/principal-dashboard.api", () => ({
   getAttendanceSessionForReview: vi.fn(),
   getReviewablePresentSessions: vi.fn(),
   reviewAttendanceSession: vi.fn(),
-}));
-vi.mock("../../../student-life/attendance/api/attendance.api", () => ({
-  listAttendanceAbsenceReviews: vi.fn().mockResolvedValue([]),
-  markDormAbsenceOutsideSchool: vi.fn(),
-  reviewAttendanceAbsence: vi.fn(),
-  sendAttendanceAbsenceMessage: vi.fn(),
 }));
 vi.mock("../../../student-life/attendance/api/attendance-operations.api", () => ({
   getAttendancePolicy: vi.fn(),
@@ -233,13 +226,15 @@ describe("PrincipalDashboard", () => {
 
   it("shows only capability-authorized dashboard cards", async () => {
     renderDashboard();
-    expect(await screen.findByRole("button", { name: /جلسه‌های کلاس/ })).toBeVisible();
+    expect(await screen.findByRole("button", { name: /بازبینی حضور کلاس‌ها/ })).toBeVisible();
     expect(screen.getByRole("button", { name: /بازبینی حضور خوابگاه/ })).toBeVisible();
     expect(screen.queryByRole("button", { name: /درخواست‌های مرخصی استادان/ })).toBeNull();
     authCan.mockImplementation(() => false);
     cleanup();
     renderDashboard();
-    await waitFor(() => expect(screen.queryByRole("button", { name: /جلسه‌های کلاس/ })).toBeNull());
+    await waitFor(() =>
+      expect(screen.queryByRole("button", { name: /بازبینی حضور کلاس‌ها/ })).toBeNull(),
+    );
   });
 
   it("opens a dorm review notification link directly in the principal dorm drawer", async () => {
@@ -300,14 +295,14 @@ describe("PrincipalDashboard", () => {
   it("opens session review in a drawer and requires a teacher message for absences", async () => {
     const user = userEvent.setup();
     renderDashboard();
-    await user.click(await screen.findByRole("button", { name: /جلسه‌های کلاس/ }));
+    await user.click(await screen.findByRole("button", { name: /بازبینی حضور کلاس‌ها/ }));
     const sessionButton = await screen.findByRole("button", { name: /پایه اول.*غایب/ });
     await user.click(sessionButton);
     expect(await screen.findByText("علی رضایی")).toBeVisible();
     expect(screen.getByText("رضا احمدی")).toBeVisible();
     expect(screen.getByText("حسن موسوی")).toBeVisible();
     expect(screen.getByText("تأخیر · نیازمند پیگیری")).toBeVisible();
-    expect(screen.getByText("غایبِ نیازمند پیگیری: ۲")).toBeVisible();
+    expect(screen.getByText("غایبِ نیازمند پیگیری: ۱")).toBeVisible();
     const submit = screen.getByRole("button", { name: /ثبت بازبینی و انتقال به آرشیو/ });
     expect(submit).toBeDisabled();
     await user.type(screen.getByLabelText(/پیام مدیر برای استاد/), "علت غیبت را پیگیری کنید.");
@@ -327,7 +322,7 @@ describe("PrincipalDashboard", () => {
     vi.mocked(getReviewablePresentSessions).mockResolvedValue([{ id: "present-a", revision: 2 }]);
     const user = userEvent.setup();
     renderDashboard();
-    await user.click(await screen.findByRole("button", { name: /جلسه‌های کلاس/ }));
+    await user.click(await screen.findByRole("button", { name: /بازبینی حضور کلاس‌ها/ }));
     const autoArchive = await screen.findByRole("switch", {
       name: "بایگانی خودکار جلسه‌های کاملاً حاضر",
     });
@@ -336,31 +331,15 @@ describe("PrincipalDashboard", () => {
     await waitFor(() => expect(reviewAttendanceSession).toHaveBeenCalledWith("present-a", 2));
   });
 
-  it("separates class absence decisions into their own principal queue", async () => {
-    vi.mocked(listAttendanceAbsenceReviews).mockResolvedValue([
-      {
-        id: "absence-a",
-        sessionId: "session-a",
-        studentId: "student-a",
-        studentName: "علی رضایی",
-        status: "absent",
-        reason: "بدون توضیح",
-        reviewStatus: "pending",
-        reviewNote: "",
-        reviewedAt: null,
-        sessionDate: "2026-10-21T08:00:00.000Z",
-        contextType: "class",
-        contextId: "class-a",
-        organizationId: "school-a",
-        organizationName: "مدرسه",
-        teacherName: "استاد",
-      },
-    ]);
+  it("keeps absence, late, and excused records in one session-led principal queue", async () => {
     const user = userEvent.setup();
     renderDashboard();
-    await user.click(await screen.findByRole("button", { name: /غیبت دانش‌آموزان/ }));
+    await user.click(await screen.findByRole("button", { name: /بازبینی حضور کلاس‌ها/ }));
+    await user.click(await screen.findByRole("button", { name: /پایه اول.*غایب/ }));
     expect(await screen.findByText("علی رضایی")).toBeVisible();
-    expect(listAttendanceAbsenceReviews).toHaveBeenCalledWith("school-a", "class");
+    expect(screen.getByText("رضا احمدی")).toBeVisible();
+    expect(screen.getByText("حسن موسوی")).toBeVisible();
+    expect(screen.getByText("موجه · نیازمند بازبینی")).toBeVisible();
   });
 
   it("persists the review-mode switch immediately", async () => {
@@ -370,7 +349,7 @@ describe("PrincipalDashboard", () => {
     );
     const user = userEvent.setup();
     renderDashboard();
-    await user.click(await screen.findByRole("button", { name: /جلسه‌های کلاس/ }));
+    await user.click(await screen.findByRole("button", { name: /بازبینی حضور کلاس‌ها/ }));
     await user.click(
       await screen.findByRole("switch", { name: "نمایش همهٔ جلسه‌ها برای بازبینی" }),
     );

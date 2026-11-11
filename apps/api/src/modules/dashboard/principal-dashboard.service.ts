@@ -470,7 +470,7 @@ export class PrincipalDashboardService
     return response;
   }
 
-  /** Six Saturday-first weeks of class-only absences for the principal archive. */
+  /** Six Saturday-first weeks of class attendance that needs Principal attention. */
   async absenceCalendar(user: AuthenticatedUser, month?: string) {
     const roles = user.roles?.length ? user.roles : [user.role];
     if (
@@ -496,28 +496,40 @@ export class PrincipalDashboardService
       month: calendarMonth,
     } = this.dashboardCalendarRange(month);
     const rows = await this.db.query(
-      `SELECT COALESCE(s.operationalDate,date(s.sessionDate)) date, r.studentId id,
+      `SELECT COALESCE(s.operationalDate,date(s.sessionDate)) date, r.id recordId, r.studentId studentId,
         COALESCE(NULLIF(st.name,''), TRIM(COALESCE(u.firstName,'') || ' ' || COALESCE(u.lastName,'')), 'دانش‌آموز') name,
-        COALESCE(NULLIF(s.titleSnapshot,''),'جلسه کلاس') context
+        COALESCE(NULLIF(s.titleSnapshot,''),'جلسه کلاس') context,
+        CASE WHEN r.status='excused' THEN 'excused'
+             WHEN r.physicalStatus='late' THEN 'late'
+             ELSE 'absent' END status
        FROM attendance_records r JOIN attendance_sessions s ON s.id=r.sessionId
        LEFT JOIN students st ON st.id=r.studentId LEFT JOIN users u ON u.id=st.userId
-       WHERE s.organizationId=? AND s.contextType='class' AND r.status='absent'
+       WHERE s.organizationId=? AND s.contextType='class'
+         AND (r.physicalStatus IN ('absent','late') OR r.status='excused')
          AND COALESCE(s.operationalDate,date(s.sessionDate)) BETWEEN ? AND ?
        ORDER BY date DESC, name ASC`,
       [organizationId, start, end],
     );
     const days: Record<
       string,
-      Array<{ id: string; name: string; context: string }>
+      Array<{
+        id: string;
+        studentId: string;
+        name: string;
+        context: string;
+        status: "absent" | "late" | "excused";
+      }>
     > = {};
     for (const row of rows as Array<Record<string, unknown>>) {
       const date = String(row.date);
       const list = days[date] ?? (days[date] = []);
-      if (!list.some((item) => item.id === String(row.id)))
+      if (!list.some((item) => item.id === String(row.recordId)))
         list.push({
-          id: String(row.id),
+          id: String(row.recordId),
+          studentId: String(row.studentId),
           name: String(row.name),
           context: String(row.context),
+          status: String(row.status) as "absent" | "late" | "excused",
         });
     }
     return { start, end, month: calendarMonth, days };
@@ -1123,7 +1135,7 @@ export class PrincipalDashboardService
       LEFT JOIN attendance_records r ON r.sessionId=s.id
       LEFT JOIN (SELECT sessionId, reviewedRevision, MAX(reviewedAt) reviewedAt FROM attendance_session_reviews GROUP BY sessionId, reviewedRevision) latest ON latest.sessionId=s.id AND latest.reviewedRevision=s.revision
       WHERE s.organizationId=? AND s.contextType='class' AND s.status IN ('submitted','finalized')
-        ${mode === "absences_only" ? "AND EXISTS (SELECT 1 FROM attendance_records absent_record WHERE absent_record.sessionId=s.id AND absent_record.physicalStatus='absent')" : ""}
+        ${mode === "absences_only" ? "AND EXISTS (SELECT 1 FROM attendance_records attention_record WHERE attention_record.sessionId=s.id AND (attention_record.physicalStatus IN ('absent','late') OR attention_record.status='excused'))" : ""}
         AND latest.reviewedAt IS NULL${classFilter}`;
     const pendingCount = await this.scalar(
       `SELECT COUNT(DISTINCT s.id) count ${base}`,

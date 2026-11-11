@@ -27,6 +27,8 @@ describe("portal-domain", () => {
     expect(adminRouteSegment("/admin/my-attendance?day=today")).toBe("my-attendance");
     expect(isRouteAvailableOnDomain("/admin/my-attendance", "student")).toBe(true);
     expect(isRouteAvailableOnDomain("/admin/my-rewards", "student")).toBe(true);
+    expect(isRouteAvailableOnDomain("/admin/my-grades", "student")).toBe(true);
+    expect(isRouteAvailableOnDomain("/admin/my-grades", "admin")).toBe(false);
     expect(isRouteAvailableOnDomain("/admin/my-attendance", "admin")).toBe(false);
     expect(isRouteAvailableOnDomain("/admin/achievements", "student")).toBe(true);
     expect(isRouteAvailableOnDomain("/admin/achievements", "admin")).toBe(false);

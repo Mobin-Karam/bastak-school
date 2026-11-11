@@ -200,7 +200,9 @@ export class AttendanceController {
     @CurrentUser() user: AuthenticatedUser,
     @Body() dto: BulkMarkAttendanceDto,
   ) {
-    return this.attendance.bulkMark(user, dto).then(ok);
+    return this.attendance
+      .bulkMark(user, dto, { submit: dto.submit === true })
+      .then(ok);
   }
 
   @Post("attendance/sessions/:id/submit-absences")

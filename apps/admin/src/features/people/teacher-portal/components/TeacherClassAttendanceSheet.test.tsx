@@ -259,6 +259,11 @@ describe("TeacherClassAttendanceSheet", () => {
     expect(bulkMarkAttendanceMock).not.toHaveBeenCalled();
     await user.click(screen.getByRole("button", { name: "تأیید و ثبت حضور و غیاب" }));
     await waitFor(() =>
+      expect(bulkMarkAttendanceMock).toHaveBeenCalledWith(
+        expect.objectContaining({ submit: true }),
+      ),
+    );
+    await waitFor(() =>
       expect(screen.getByRole("button", { name: "تأیید و ثبت حضور و غیاب" })).toBeEnabled(),
     );
     expect(onOpenChange).not.toHaveBeenCalled();
