@@ -2347,6 +2347,100 @@ html.is-scrolling :is(body, .scroll-reveal)::-webkit-scrollbar-thumb,
   }
 }
 
+/* Class records follow FarsiUI's Item composition (farsiui.ir/docs/components/base/item). */
+.classes-overview-tile {
+  display: flex;
+  min-height: 4.25rem;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.35rem;
+  border: 1px solid rgb(var(--border-subtle));
+  border-radius: 0.75rem;
+  background: rgb(var(--surface-muted));
+  padding: 0.65rem 0.8rem;
+  text-align: start;
+  transition:
+    border-color 160ms ease,
+    background-color 160ms ease;
+}
+.classes-overview-tile:hover,
+.classes-overview-tile--selected {
+  border-color: rgb(var(--color-brand) / 55%);
+  background: rgb(var(--color-brand) / 7%);
+}
+.classes-overview-tile:focus-visible,
+.classes-class-item:focus-visible,
+.classes-related-link:focus-visible {
+  outline: 2px solid rgb(var(--color-brand));
+  outline-offset: 2px;
+}
+.classes-class-item {
+  display: grid;
+  min-height: 7.75rem;
+  gap: 0.55rem;
+  border: 1px solid rgb(var(--border-subtle));
+  border-radius: 0.8rem;
+  background: rgb(var(--surface-card));
+  padding: 0.8rem;
+  text-align: start;
+  transition:
+    border-color 160ms ease,
+    background-color 160ms ease;
+}
+.classes-class-item:hover,
+.classes-class-item--selected {
+  border-color: rgb(var(--color-brand) / 60%);
+  background: rgb(var(--color-brand) / 5%);
+}
+.classes-class-item--selected {
+  box-shadow: inset 3px 0 0 rgb(var(--color-brand));
+}
+[dir="rtl"] .classes-class-item--selected {
+  box-shadow: inset -3px 0 0 rgb(var(--color-brand));
+}
+.classes-capacity-track {
+  display: block;
+  width: 100%;
+  height: 0.35rem;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgb(var(--border-subtle));
+}
+.classes-capacity-track > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: rgb(var(--color-brand));
+}
+.classes-related-link,
+.classes-record-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  border: 1px solid rgb(var(--border-subtle));
+  border-radius: 0.6rem;
+  padding: 0.55rem 0.7rem;
+  font-size: 0.75rem;
+}
+.classes-related-link {
+  min-height: 2.5rem;
+  color: rgb(var(--color-brand));
+}
+.classes-related-link:hover {
+  background: rgb(var(--color-brand) / 6%);
+}
+.classes-record-row {
+  min-width: 0;
+  background: rgb(var(--surface-muted));
+}
+@media (prefers-reduced-motion: reduce) {
+  .classes-overview-tile,
+  .classes-class-item {
+    transition: none;
+  }
+}
+
 /* Container queries account for both expanded navigation rails. */
 @container (min-width: 52rem) {
   .dashboard-workspace__panels {

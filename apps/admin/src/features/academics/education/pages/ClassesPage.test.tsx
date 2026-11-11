@@ -1,7 +1,7 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { cleanup, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { MemoryRouter } from "react-router-dom";
+import { MemoryRouter, useLocation } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { LocaleProvider } from "../../../../shared/ui/locale";
 import { ModalProvider } from "../../../../shared/ui/modal";
@@ -64,16 +64,21 @@ const classroom = (id: string, overrides: Partial<EducationClass> = {}): Educati
   ...overrides,
 });
 let rows: EducationClass[];
-function mount() {
+function LocationProbe() {
+  const location = useLocation();
+  return <output data-testid="location">{location.search}</output>;
+}
+function mount(initialEntry = "/admin/classes") {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   });
   return render(
     <QueryClientProvider client={client}>
       <LocaleProvider>
-        <MemoryRouter>
+        <MemoryRouter initialEntries={[initialEntry]}>
           <ModalProvider>
             <ClassesPage />
+            <LocationProbe />
           </ModalProvider>
         </MemoryRouter>
       </LocaleProvider>
@@ -146,7 +151,7 @@ describe("classes workspace", () => {
   it("lets a principal find classes by name, year and status and see setup counts", async () => {
     const user = userEvent.setup();
     mount();
-    expect(await screen.findByText(/No teacher:/)).toBeVisible();
+    expect(await screen.findByRole("button", { name: /No teacher/ })).toBeVisible();
     await user.type(screen.getByRole("searchbox", { name: /Search name/ }), "Alpha");
     expect(screen.getByRole("button", { name: /Alpha/ })).toBeVisible();
     expect(screen.queryByRole("button", { name: /Beta/ })).not.toBeInTheDocument();
@@ -207,7 +212,10 @@ describe("classes workspace", () => {
       within(await screen.findByRole("dialog")).getByRole("button", { name: "Archive class" }),
     );
     expect(updateClass).toHaveBeenCalledWith("one", { status: "ARCHIVED" });
-    expect(await screen.findByRole("combobox", { name: "Status" })).toHaveValue("ARCHIVED");
+    expect(await screen.findByRole("button", { name: "Archived" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
     await user.click(await screen.findByRole("button", { name: "Restore class" }));
     await user.click(
       within(await screen.findByRole("dialog")).getByRole("button", { name: "Restore class" }),
@@ -226,5 +234,31 @@ describe("classes workspace", () => {
     expect(await within(dialog).findByRole("alert")).toHaveTextContent("Save failed");
     await user.click(within(dialog).getByRole("button", { name: "Save roster" }));
     expect(setClassEnrollments).toHaveBeenCalledTimes(2);
+  });
+
+  it("filters classes needing attention and keeps selection in the URL", async () => {
+    const user = userEvent.setup();
+    mount();
+    await user.click(await screen.findByRole("button", { name: /No teacher/ }));
+    expect(screen.getByRole("button", { name: /Alpha/ })).toBeVisible();
+    expect(screen.queryByRole("button", { name: /Beta/ })).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /Alpha/ }));
+    expect(screen.getByTestId("location")).toHaveTextContent("classId=one");
+  });
+
+  it("loads a linked class without requesting edit options for read-only users", async () => {
+    authority.capabilities = ["classes.read", "students.read"];
+    rows = [
+      classroom("one", {
+        students: [{ id: "student", name: "Sara", grade: "12", major: "Science" }],
+      }),
+    ];
+    mount("/admin/classes?classId=one");
+    expect(await screen.findByText("Sara")).toBeVisible();
+    expect(getClassOptions).not.toHaveBeenCalled();
+    expect(screen.getByRole("link", { name: /Student profiles/ })).toHaveAttribute(
+      "href",
+      "/admin/students?classId=one",
+    );
   });
 });

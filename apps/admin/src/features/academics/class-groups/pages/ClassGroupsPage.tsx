@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Layers3, Pencil, Plus, Trash2, Users } from "lucide-react";
 import { useAuth } from "../../../identity/auth";
@@ -45,7 +46,8 @@ function ClassGroupsWorkspace() {
   const canManage = auth.can("class_groups.manage");
   const organizationId = auth.context?.activeOrganization?.id;
   const scope = [auth.context?.user?.id, auth.activeRole, organizationId];
-  const [classId, setClassId] = useState("");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const classId = searchParams.get("classId") || "";
   const [search, setSearch] = useState("");
   const [drawerGroup, setDrawerGroup] = useState<ClassGroupSummary | null>(null);
   const [deletingId, setDeletingId] = useState("");
@@ -173,7 +175,14 @@ function ClassGroupsWorkspace() {
             value={classroom?.id ?? ""}
             disabled={classes.isLoading || Boolean(drawerGroup)}
             onChange={(event) => {
-              setClassId(event.target.value);
+              setSearchParams(
+                (current) => {
+                  const next = new URLSearchParams(current);
+                  next.set("classId", event.target.value);
+                  return next;
+                },
+                { replace: true },
+              );
               setSearch("");
             }}
           >
