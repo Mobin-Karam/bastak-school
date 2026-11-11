@@ -6,6 +6,7 @@ import {
   Check,
   ClipboardCheck,
   GraduationCap,
+  Archive,
   Pencil,
   Plus,
   Save,
@@ -14,6 +15,7 @@ import {
 } from "lucide-react";
 import { useMemo, useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
+import { ApiError } from "../../../../shared/api/api";
 import { listOrganizations } from "../../../identity/access/api/access.api";
 import { useAuth } from "../../../identity/auth";
 import { useModal } from "../../../../shared/ui/modal";
@@ -21,6 +23,9 @@ import { notify } from "../../../../shared/ui/notifications";
 import { OrganizationTag } from "../../../../shared/ui/organization-tag";
 import { SpreadsheetTransferLauncher } from "../../../../shared/ui/spreadsheet-transfer-launcher";
 import { Badge, Button, Card, EmptyState, Input, LoadingState } from "../../../../shared/ui/ui";
+import { CollectionToolbar } from "../../../../shared/ui/collection-toolbar";
+import { ResponsiveDrawer } from "../../../../shared/ui/responsive-drawer";
+import { useIsMobile } from "../../../../shared/hooks/use-mobile";
 import {
   createClass,
   deleteClass,
@@ -48,8 +53,10 @@ export function ClassesPage() {
   const client = useQueryClient();
   const modal = useModal();
   const copy = useClassesCopy();
+  const isMobile = useIsMobile();
   const canManage = auth.can("classes.manage");
   const canRoster = auth.can("classes.roster.manage");
+  const canManageBooks = auth.can("education.catalog.manage");
   const canReadOrganizations = auth.can("organization.read");
   const organizations = useQuery({
     queryKey: ["organizations", "classes"],
@@ -65,60 +72,64 @@ export function ClassesPage() {
     ? (organizations.data ?? [])
     : (auth.context?.availableOrganizations ?? []);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
+  const [year, setYear] = useState("all");
+  const [status, setStatus] = useState("ACTIVE");
   const selected = (classes.data || []).find((item) => item.id === selectedId) || null;
   const options = useQuery({
     queryKey: ["class-options", selectedId],
     queryFn: () => getClassOptions(selectedId!),
     enabled: !!selectedId,
   });
-  const refresh = () => void client.invalidateQueries({ queryKey: ["classes"] });
+  const refresh = () => client.invalidateQueries({ queryKey: ["classes"] });
   const save = useMutation({
     mutationFn: ({ id, draft }: { id: string | null; draft: ClassDraft }) =>
       id ? updateClass(id, draft) : createClass(draft),
-    onSuccess: (row) => {
-      refresh();
+    onSuccess: async (row) => {
+      await refresh();
       setSelectedId(row.id);
-      modal.close();
       notify(copy.saved, "success");
     },
-    onError: (error) => notify(error instanceof Error ? error.message : copy.saveFailed, "error"),
   });
   const remove = useMutation({
     mutationFn: deleteClass,
-    onSuccess: () => {
-      refresh();
+    onSuccess: async () => {
+      await refresh();
       setSelectedId(null);
       notify(copy.deleted, "success");
     },
-    onError: () => notify(copy.deleteFailed, "error"),
+  });
+  const changeStatus = useMutation({
+    mutationFn: ({ id, status }: { id: string; status: EducationClass["status"] }) =>
+      updateClass(id, { status }),
+    onSuccess: async (row) => {
+      await refresh();
+      setSelectedId(row.id);
+      setStatus(row.status);
+      notify(row.status === "ARCHIVED" ? copy.archivedNotice : copy.restoredNotice, "success");
+    },
   });
   const saveBooks = useMutation({
     mutationFn: (books: Array<{ bookId: string; teacherId: string }>) =>
       setClassBooks(selectedId!, books),
-    onSuccess: () => {
-      refresh();
-      void options.refetch();
+    onSuccess: async () => {
+      await Promise.all([refresh(), options.refetch()]);
       notify(copy.booksSaved, "success");
     },
-    onError: (error) => notify(error instanceof Error ? error.message : copy.saveFailed, "error"),
   });
   const saveRoster = useMutation({
     mutationFn: (studentIds: string[]) => setClassEnrollments(selectedId!, studentIds),
-    onSuccess: () => {
-      refresh();
-      void options.refetch();
+    onSuccess: async () => {
+      await Promise.all([refresh(), options.refetch()]);
       notify(copy.rosterSaved, "success");
     },
-    onError: (error) => notify(error instanceof Error ? error.message : copy.saveFailed, "error"),
   });
   const saveAdvisor = useMutation({
     mutationFn: (advisorId: string | null) => updateClass(selectedId!, { advisorId }),
-    onSuccess: () => {
-      refresh();
-      void options.refetch();
+    onSuccess: async () => {
+      await Promise.all([refresh(), options.refetch()]);
       notify(copy.advisorSaved, "success");
     },
-    onError: (error) => notify(error instanceof Error ? error.message : copy.saveFailed, "error"),
   });
   const openEditor = (row?: EducationClass) => {
     const draft: ClassDraft = row
@@ -142,29 +153,88 @@ export function ClassesPage() {
           initialDraft={draft}
           editingId={row?.id || null}
           organizations={organizationOptions}
-          saving={save.isPending}
           onClose={modal.close}
-          onSave={(next) => save.mutate({ id: row?.id || null, draft: next })}
+          onSave={async (next) => {
+            await save.mutateAsync({ id: row?.id || null, draft: next });
+            modal.close();
+          }}
         />
       ),
     });
   };
-  const visible = useMemo(() => classes.data || [], [classes.data]);
+  const rows = useMemo(() => classes.data || [], [classes.data]);
+  const years = useMemo(() => [...new Set(rows.map((row) => row.schoolYear))], [rows]);
+  const visible = useMemo(
+    () =>
+      rows.filter((row) => {
+        const term = search.trim().toLocaleLowerCase();
+        return (
+          (year === "all" || row.schoolYear === year) &&
+          (status === "all" || row.status === status) &&
+          (!term ||
+            [
+              row.name,
+              row.code,
+              row.advisor?.name,
+              ...row.books.map((book) => book.teacher.name),
+            ].some((value) => value?.toLocaleLowerCase().includes(term)))
+        );
+      }),
+    [rows, search, year, status],
+  );
+  const needsStudents = rows.filter(
+    (row) => row.status === "ACTIVE" && !row.students.length,
+  ).length;
+  const needsTeacher = rows.filter((row) => row.status === "ACTIVE" && !row.books.length).length;
+  const needsAdvisor = rows.filter((row) => row.status === "ACTIVE" && !row.advisor).length;
+  const deleteSelected = async () => {
+    if (!selected) return;
+    try {
+      await remove.mutateAsync(selected.id);
+    } catch (error) {
+      if (error instanceof ApiError && error.code === "CLASS_TIMETABLE_REFERENCED") {
+        notify(copy.archiveInstead, "error");
+      } else notify(error instanceof Error ? error.message : copy.deleteFailed, "error");
+    }
+  };
+  const detail = (
+    <ClassDetail
+      classroom={selected}
+      options={options.data}
+      loading={options.isLoading}
+      optionsError={options.isError}
+      onRetryOptions={() => void options.refetch()}
+      canManage={canManage}
+      canManageBooks={canManageBooks}
+      canRoster={canRoster}
+      canTakeAttendance={auth.can("attendance.manage")}
+      onBooks={(books) => saveBooks.mutateAsync(books).then(() => undefined)}
+      onRoster={(ids) => saveRoster.mutateAsync(ids).then(() => undefined)}
+      onAdvisor={(advisorId) => saveAdvisor.mutateAsync(advisorId).then(() => undefined)}
+      onEdit={() => selected && openEditor(selected)}
+      onDelete={deleteSelected}
+      onStatusChange={(next) =>
+        selected
+          ? changeStatus.mutateAsync({ id: selected.id, status: next }).then(() => undefined)
+          : Promise.resolve()
+      }
+      changingStatus={changeStatus.isPending}
+      deleting={remove.isPending}
+    />
+  );
   if (classes.isLoading || (canReadOrganizations && organizations.isLoading))
     return <LoadingState label={copy.loading} />;
-  if (classes.isError || (canReadOrganizations && organizations.isError))
-    return <EmptyState title={copy.loadFailed} />;
   if (!auth.can("classes.read")) return <EmptyState title={copy.noAccess} />;
   return (
     <section className="classes-workspace grid min-w-0 gap-3">
-      <Card className="min-w-0 p-3">
-        <div className="mb-3 flex items-center justify-between">
+      <Card className="classes-directory min-w-0 p-3">
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
           <div>
             <h2 className="text-sm font-bold">{copy.organizationClasses}</h2>
             <p className="mt-1 text-xs text-slate-500">{copy.listDescription}</p>
           </div>
           <div className="flex items-center gap-2">
-            <Badge tone="blue">{visible.length.toLocaleString(copy.locale)}</Badge>
+            <Badge tone="blue">{rows.length.toLocaleString(copy.locale)}</Badge>
             {canManage ? (
               <SpreadsheetTransferLauncher
                 title={copy.transferTitle}
@@ -175,7 +245,7 @@ export function ClassesPage() {
                   organizationId={selectedOrganizationId ?? ""}
                   canImport={canManage}
                   canExport={canManage}
-                  onCompleted={refresh}
+                  onCompleted={() => void refresh()}
                 />
               </SpreadsheetTransferLauncher>
             ) : null}
@@ -187,52 +257,125 @@ export function ClassesPage() {
             ) : null}
           </div>
         </div>
-        <div className="grid gap-2">
-          {visible.map((row) => (
-            <button
-              key={row.id}
-              type="button"
-              onClick={() => setSelectedId(row.id)}
-              className={`grid min-h-24 gap-2 rounded-lg border p-3 text-start shadow-[var(--shadow-surface)] transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 ${selectedId === row.id ? "border-brand bg-brand/5 ring-1 ring-brand/15" : "border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card))] hover:border-brand/40"}`}
-            >
-              <span className="flex items-center justify-between gap-2">
-                <span className="flex items-center gap-2">
-                  <span className="grid size-8 place-items-center rounded-md bg-brand/10 text-brand">
-                    <GraduationCap size={18} />
+        <div className="mb-3 flex flex-wrap gap-2 text-xs" aria-label={copy.needsAttention}>
+          <span>
+            {copy.needsStudents}: <b>{needsStudents.toLocaleString(copy.locale)}</b>
+          </span>
+          <span>
+            {copy.needsTeacher}: <b>{needsTeacher.toLocaleString(copy.locale)}</b>
+          </span>
+          <span>
+            {copy.needsAdvisor}: <b>{needsAdvisor.toLocaleString(copy.locale)}</b>
+          </span>
+        </div>
+        <CollectionToolbar
+          search={search}
+          onSearchChange={setSearch}
+          searchLabel={copy.searchClasses}
+          placeholder={copy.searchClasses}
+          resultLabel={copy.results(visible.length)}
+          onClear={() => {
+            setSearch("");
+            setYear("all");
+            setStatus("ACTIVE");
+          }}
+          filters={
+            <>
+              <label className="flex items-center gap-1 text-xs">
+                {copy.schoolYear}
+                <select
+                  aria-label={copy.schoolYear}
+                  value={year}
+                  onChange={(event) => setYear(event.target.value)}
+                  className="rounded border bg-transparent px-2 py-1.5"
+                >
+                  <option value="all">{copy.allYears}</option>
+                  {years.map((value) => (
+                    <option key={value} value={value}>
+                      {value}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="flex items-center gap-1 text-xs">
+                {copy.status}
+                <select
+                  aria-label={copy.status}
+                  value={status}
+                  onChange={(event) => setStatus(event.target.value)}
+                  className="rounded border bg-transparent px-2 py-1.5"
+                >
+                  <option value="ACTIVE">{copy.active}</option>
+                  <option value="ARCHIVED">{copy.archived}</option>
+                  <option value="all">{copy.allStatuses}</option>
+                </select>
+              </label>
+            </>
+          }
+        />
+        {classes.isError || (canReadOrganizations && organizations.isError) ? (
+          <EmptyState
+            title={copy.loadFailed}
+            action={
+              <Button
+                onClick={() => {
+                  void classes.refetch();
+                  void organizations.refetch();
+                }}
+              >
+                {copy.retry}
+              </Button>
+            }
+          />
+        ) : null}
+        <div className="classes-directory__results grid gap-2">
+          {!classes.isError &&
+            visible.map((row) => (
+              <button
+                key={row.id}
+                type="button"
+                onClick={() => setSelectedId(row.id)}
+                aria-pressed={selectedId === row.id}
+                className={`grid min-h-24 gap-2 rounded-lg border p-3 text-start shadow-[var(--shadow-surface)] transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 ${selectedId === row.id ? "border-brand bg-brand/5 ring-1 ring-brand/15" : "border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card))] hover:border-brand/40"}`}
+              >
+                <span className="flex items-center justify-between gap-2">
+                  <span className="flex items-center gap-2">
+                    <span className="grid size-8 place-items-center rounded-md bg-brand/10 text-brand">
+                      <GraduationCap size={18} />
+                    </span>
+                    <span>
+                      <strong className="block text-sm">{row.name}</strong>
+                      <small className="text-xs text-slate-500">
+                        {row.organization.name} · {row.schoolYear}
+                      </small>
+                      {auth.hasRole("PLATFORM_ADMIN") ? (
+                        <span className="mt-1 block">
+                          <OrganizationTag organization={row.organization} compact />
+                        </span>
+                      ) : null}
+                    </span>
                   </span>
-                  <span>
-                    <strong className="block text-sm">{row.name}</strong>
-                    <small className="text-xs text-slate-500">
-                      {row.organization.name} · {row.schoolYear}
-                    </small>
-                    {auth.hasRole("PLATFORM_ADMIN") ? (
-                      <span className="mt-1 block">
-                        <OrganizationTag organization={row.organization} compact />
-                      </span>
-                    ) : null}
-                  </span>
+                  <Badge tone={row.status === "ACTIVE" ? "green" : "neutral"}>
+                    {row.status === "ACTIVE" ? copy.active : copy.archived}
+                  </Badge>
                 </span>
-                <Badge tone={row.status === "ACTIVE" ? "green" : "neutral"}>
-                  {row.status === "ACTIVE" ? copy.active : copy.archived}
-                </Badge>
-              </span>
-              <span className="flex flex-wrap items-center gap-1">
-                <small className="ms-auto flex items-center gap-1 text-xs text-slate-500">
-                  <UsersRound size={13} />
-                  {row.enrollmentCount}/{row.capacity}
+                <span className="flex flex-wrap items-center gap-1">
+                  <small className="ms-auto flex items-center gap-1 text-xs text-slate-500">
+                    <UsersRound size={13} />
+                    {row.enrollmentCount}/{row.capacity}
+                  </small>
+                </span>
+                <small className="text-xs text-slate-500">
+                  {copy.advisor}: {row.advisor?.name || copy.notAssigned} ·{" "}
+                  {row.books.length.toLocaleString(copy.locale)} {copy.books}
                 </small>
-              </span>
-              <small className="text-xs text-slate-500">
-                {copy.advisor}: {row.advisor?.name || copy.notAssigned} ·{" "}
-                {row.books.length.toLocaleString(copy.locale)} {copy.books}
-              </small>
-            </button>
-          ))}
-          {!visible.length ? (
+              </button>
+            ))}
+          {!classes.isError && !visible.length ? (
             <EmptyState
-              title={copy.noClasses}
+              title={rows.length ? copy.noMatches : copy.noClasses}
               action={
-                canManage ? (
+                canManage && !rows.length ? (
                   <Button variant="soft" onClick={() => openEditor()}>
                     {copy.createClass}
                   </Button>
@@ -242,24 +385,18 @@ export function ClassesPage() {
           ) : null}
         </div>
       </Card>
-      <ClassDetail
-        classroom={selected}
-        options={options.data}
-        loading={options.isLoading}
-        canManage={canManage}
-        canDeleteBooks={auth.can("education.catalog.manage")}
-        canRoster={canRoster}
-        canTakeAttendance={auth.can("attendance.manage")}
-        onBooks={(rows) => saveBooks.mutate(rows)}
-        onRoster={(ids) => saveRoster.mutate(ids)}
-        onAdvisor={(advisorId) => saveAdvisor.mutate(advisorId)}
-        onEdit={() => selected && openEditor(selected)}
-        onDelete={() => selected && remove.mutate(selected.id)}
-        savingBooks={saveBooks.isPending}
-        savingRoster={saveRoster.isPending}
-        savingAdvisor={saveAdvisor.isPending}
-        deleting={remove.isPending}
-      />
+      {isMobile ? (
+        <ResponsiveDrawer
+          open={!!selected}
+          onOpenChange={(open) => !open && setSelectedId(null)}
+          title={selected?.name || copy.selectClass}
+          description={selected ? `${selected.code} · ${selected.schoolYear}` : undefined}
+        >
+          {selected ? detail : null}
+        </ResponsiveDrawer>
+      ) : (
+        detail
+      )}
     </section>
   );
 }
@@ -274,8 +411,10 @@ function ClassDetail({
   classroom,
   options,
   loading,
+  optionsError,
+  onRetryOptions,
   canManage,
-  canDeleteBooks,
+  canManageBooks,
   canRoster,
   canTakeAttendance,
   onBooks,
@@ -283,26 +422,26 @@ function ClassDetail({
   onAdvisor,
   onEdit,
   onDelete,
-  savingBooks,
-  savingRoster,
-  savingAdvisor,
+  onStatusChange,
+  changingStatus,
   deleting,
 }: {
   classroom: EducationClass | null;
   options?: Awaited<ReturnType<typeof getClassOptions>>;
   loading: boolean;
+  optionsError?: boolean;
+  onRetryOptions?: () => void;
   canManage: boolean;
-  canDeleteBooks: boolean;
+  canManageBooks: boolean;
   canRoster: boolean;
   canTakeAttendance: boolean;
-  onBooks: (books: Array<{ bookId: string; teacherId: string }>) => void;
-  onRoster: (ids: string[]) => void;
-  onAdvisor: (advisorId: string | null) => void;
+  onBooks: (books: Array<{ bookId: string; teacherId: string }>) => Promise<void>;
+  onRoster: (ids: string[]) => Promise<void>;
+  onAdvisor: (advisorId: string | null) => Promise<void>;
   onEdit: () => void;
-  onDelete: () => void;
-  savingBooks: boolean;
-  savingRoster: boolean;
-  savingAdvisor: boolean;
+  onDelete: () => Promise<void>;
+  onStatusChange: (status: EducationClass["status"]) => Promise<void>;
+  changingStatus: boolean;
   deleting: boolean;
 }) {
   const modal = useModal();
@@ -325,8 +464,7 @@ function ClassDetail({
           classroom={classroom}
           onSave={onBooks}
           onClose={modal.close}
-          saving={savingBooks}
-          canDeleteBooks={canDeleteBooks}
+          canDeleteBooks={canManageBooks}
         />
       ),
     });
@@ -342,7 +480,6 @@ function ClassDetail({
           classroom={classroom}
           onSave={onRoster}
           onClose={modal.close}
-          saving={savingRoster}
         />
       ),
     });
@@ -355,7 +492,6 @@ function ClassDetail({
         <ClassAdvisorModal
           advisors={options.advisors}
           value={classroom.advisor?.id || null}
-          saving={savingAdvisor}
           onSave={onAdvisor}
           onClose={modal.close}
         />
@@ -370,6 +506,23 @@ function ClassDetail({
       confirmationText: classroom.name,
     });
     if (confirmed) onDelete();
+  };
+  const confirmStatus = async () => {
+    const archiving = classroom.status === "ACTIVE";
+    const confirmed = await modal.confirm({
+      title: archiving ? copy.archiveClass : copy.restoreClass,
+      description: archiving
+        ? copy.archiveDescription(classroom.name)
+        : copy.restoreDescription(classroom.name),
+      confirmLabel: archiving ? copy.archiveClass : copy.restoreClass,
+    });
+    if (confirmed) {
+      try {
+        await onStatusChange(archiving ? "ARCHIVED" : "ACTIVE");
+      } catch (error) {
+        notify(error instanceof Error ? error.message : copy.saveFailed, "error");
+      }
+    }
   };
   const hasStudents = classroom.students.length > 0;
   const hasTeacher = classroom.books.length > 0;
@@ -400,7 +553,7 @@ function ClassDetail({
             {copy.classAdvisor}
           </Button>
         ) : null}
-        {canManage ? (
+        {canManageBooks ? (
           <Button size="sm" variant="soft" disabled={!options} onClick={openBooks}>
             <BookOpen size={14} />
             {copy.manageBooks}
@@ -412,7 +565,7 @@ function ClassDetail({
             {copy.manageStudents}
           </Button>
         ) : null}
-        {canTakeAttendance && readyForAttendance ? (
+        {canTakeAttendance && classroom.status === "ACTIVE" && readyForAttendance ? (
           <Link
             to={`/admin/attendance?contextType=class&contextId=${encodeURIComponent(classroom.id)}`}
             className="col-span-2 inline-flex h-9 items-center justify-center gap-2 rounded-lg bg-brand px-3 text-xs font-semibold text-white transition hover:brightness-95 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand/20"
@@ -420,7 +573,7 @@ function ClassDetail({
             <ClipboardCheck size={14} />
             {copy.takeAttendance}
           </Link>
-        ) : canTakeAttendance ? (
+        ) : canTakeAttendance && classroom.status === "ACTIVE" ? (
           <Button className="col-span-2" size="sm" disabled title={copy.attendanceLocked}>
             <ClipboardCheck size={14} />
             {copy.takeAttendance}
@@ -434,6 +587,15 @@ function ClassDetail({
       ) : null}
       {loading ? (
         <LoadingState label={copy.loadingOptions} />
+      ) : optionsError ? (
+        <EmptyState
+          title={copy.optionsFailed}
+          action={
+            <Button variant="soft" onClick={onRetryOptions}>
+              {copy.retry}
+            </Button>
+          }
+        />
       ) : options ? (
         <>
           <section className="grid gap-2 border-t border-[rgb(var(--border-subtle))] pt-3">
@@ -470,6 +632,17 @@ function ClassDetail({
               <p className="text-xs text-slate-500">{copy.noStudents}</p>
             ) : null}
           </section>
+          {canManage ? (
+            <Button
+              size="sm"
+              variant="ghost"
+              loading={changingStatus}
+              onClick={() => void confirmStatus()}
+            >
+              <Archive size={14} />
+              {classroom.status === "ACTIVE" ? copy.archiveClass : copy.restoreClass}
+            </Button>
+          ) : null}
           {canManage ? (
             <Button
               size="sm"
@@ -512,23 +685,35 @@ function ClassEditorModal({
   organizations,
   onSave,
   onClose,
-  saving,
 }: {
   initialDraft: ClassDraft;
   editingId: string | null;
   organizations: Array<{ id: string; name: string }>;
-  onSave: (draft: ClassDraft) => void;
+  onSave: (draft: ClassDraft) => Promise<void>;
   onClose: () => void;
-  saving: boolean;
 }) {
   const copy = useClassesCopy();
   const [draft, setDraft] = useState(initialDraft);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  const submit = async () => {
+    if (saving) return;
+    setSaving(true);
+    setError("");
+    try {
+      await onSave(draft);
+    } catch (failure) {
+      setError(failure instanceof Error ? failure.message : copy.saveFailed);
+    } finally {
+      setSaving(false);
+    }
+  };
   return (
     <form
       className="grid gap-3"
       onSubmit={(event) => {
         event.preventDefault();
-        onSave(draft);
+        void submit();
       }}
     >
       <div className="grid gap-3 sm:grid-cols-2">
@@ -583,8 +768,13 @@ function ClassEditorModal({
           />
         </Field>
       </div>
+      {error ? (
+        <p role="alert" className="text-sm text-rose-700">
+          {error}
+        </p>
+      ) : null}
       <div className="flex justify-end gap-2 border-t pt-3 dark:border-slate-800">
-        <Button type="button" variant="ghost" onClick={onClose}>
+        <Button type="button" variant="ghost" disabled={saving} onClick={onClose}>
           {copy.cancel}
         </Button>
         <Button
@@ -605,16 +795,16 @@ function ClassRosterModal({
   classroom,
   onSave,
   onClose,
-  saving,
 }: {
   options: Awaited<ReturnType<typeof getClassOptions>>;
   classroom: EducationClass;
-  onSave: (studentIds: string[]) => void;
+  onSave: (studentIds: string[]) => Promise<void>;
   onClose: () => void;
-  saving: boolean;
 }) {
   const copy = useClassesCopy();
   const [selected, setSelected] = useState(() => classroom.students.map((student) => student.id));
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
   const toggle = (id: string) =>
     setSelected((rows) => (rows.includes(id) ? rows.filter((item) => item !== id) : [...rows, id]));
   return (
@@ -653,16 +843,28 @@ function ClassRosterModal({
         })}
       </div>
       {!options.eligibleStudents.length ? <EmptyState title={copy.noEligible} /> : null}
+      {error ? (
+        <p role="alert" className="text-sm text-rose-700">
+          {error}
+        </p>
+      ) : null}
       <div className="flex justify-end gap-2 border-t pt-3 dark:border-slate-800">
-        <Button variant="ghost" onClick={onClose}>
+        <Button variant="ghost" disabled={saving} onClick={onClose}>
           {copy.cancel}
         </Button>
         <Button
           loading={saving}
-          disabled={selected.length > classroom.capacity}
+          disabled={saving || selected.length > classroom.capacity}
           onClick={() => {
-            onSave(selected);
-            onClose();
+            if (saving) return;
+            setSaving(true);
+            setError("");
+            void onSave(selected)
+              .then(onClose)
+              .catch((failure) =>
+                setError(failure instanceof Error ? failure.message : copy.saveFailed),
+              )
+              .finally(() => setSaving(false));
           }}
         >
           <Save size={15} />
@@ -676,18 +878,18 @@ function ClassRosterModal({
 function ClassAdvisorModal({
   advisors,
   value,
-  saving,
   onSave,
   onClose,
 }: {
   advisors: Array<{ id: string; name: string; roles: string[] }>;
   value: string | null;
-  saving: boolean;
-  onSave: (advisorId: string | null) => void;
+  onSave: (advisorId: string | null) => Promise<void>;
   onClose: () => void;
 }) {
   const copy = useClassesCopy();
   const [advisorId, setAdvisorId] = useState(value || "");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
   return (
     <div className="grid gap-3">
       <div className="grid gap-2 sm:grid-cols-2">
@@ -719,15 +921,28 @@ function ClassAdvisorModal({
           </label>
         ))}
       </div>
+      {error ? (
+        <p role="alert" className="text-sm text-rose-700">
+          {error}
+        </p>
+      ) : null}
       <div className="flex justify-end gap-2 border-t pt-3 dark:border-slate-800">
-        <Button variant="ghost" onClick={onClose}>
+        <Button variant="ghost" disabled={saving} onClick={onClose}>
           {copy.cancel}
         </Button>
         <Button
           loading={saving}
+          disabled={saving}
           onClick={() => {
-            onSave(advisorId || null);
-            onClose();
+            if (saving) return;
+            setSaving(true);
+            setError("");
+            void onSave(advisorId || null)
+              .then(onClose)
+              .catch((failure) =>
+                setError(failure instanceof Error ? failure.message : copy.saveFailed),
+              )
+              .finally(() => setSaving(false));
           }}
         >
           <Save size={15} />

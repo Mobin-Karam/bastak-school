@@ -2330,6 +2330,21 @@ html.is-scrolling :is(body, .scroll-reveal)::-webkit-scrollbar-thumb,
     overflow: auto;
     overscroll-behavior: contain;
   }
+
+  .classes-workspace > .classes-directory {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .classes-directory__results {
+    flex: 1;
+    min-height: 0;
+    align-content: start;
+    overflow-y: auto;
+    overscroll-behavior-y: contain;
+    padding-block-start: 0.75rem;
+  }
 }
 
 /* Container queries account for both expanded navigation rails. */

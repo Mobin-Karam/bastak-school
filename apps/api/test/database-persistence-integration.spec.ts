@@ -20,6 +20,7 @@ import { LegacyScheduleAcademicNameSnapshots1762300400000 } from "../src/databas
 import { TeacherLeaveAcademicCycleSnapshots1762300500000 } from "../src/database/migrations/1762300500000-TeacherLeaveAcademicCycleSnapshots";
 import { PrincipalAttendanceAllSessionsReview1762300600000 } from "../src/database/migrations/1762300600000-PrincipalAttendanceAllSessionsReview";
 import { TeacherLeaveWorkflowIntegrity1763400000000 } from "../src/database/migrations/1763400000000-TeacherLeaveWorkflowIntegrity";
+import { ScheduleTemplateSafeguard1763600700000 } from "../src/database/migrations/1763600700000-ScheduleTemplateSafeguard";
 import { NightAttendance1728234800000 } from "../src/database/migrations/1728234800000-NightAttendance";
 import {
   Organization,
@@ -64,6 +65,10 @@ import {
 import { SchoolScheduleTimeBlock } from "../src/database/entities/school-schedule-time-block.entity";
 import { SchoolScheduleTimeBlockGroup } from "../src/database/entities/school-schedule-time-block-group.entity";
 import { SchoolScheduleTemplate } from "../src/database/entities/school-schedule-template.entity";
+import {
+  ScheduleChangeSafeguard,
+  ScheduleChangeSafeguardOverride,
+} from "../src/database/entities/schedule-change-safeguard.entity";
 import {
   SchoolScheduleOccurrenceOverride,
   SchoolScheduleSubstitutionRequest,
@@ -874,6 +879,9 @@ describe("migration-backed persistence and verified recovery (disposable SQLite 
     await db.transaction(async (manager) =>
       new TeacherLeaveWorkflowIntegrity1763400000000().up(manager.queryRunner!),
     );
+    await db.transaction(async (manager) =>
+      new ScheduleTemplateSafeguard1763600700000().up(manager.queryRunner!),
+    );
     const authorization = new AuthorizationService(
       db.getRepository(UserRoleAssignment),
       db.getRepository(OrganizationMembership),
@@ -897,6 +905,10 @@ describe("migration-backed persistence and verified recovery (disposable SQLite 
       db.getRepository(EducationClassBook),
       authorization,
       db.getRepository(AuditLog),
+      undefined,
+      undefined,
+      db.getRepository(ScheduleChangeSafeguard),
+      db.getRepository(ScheduleChangeSafeguardOverride),
     );
     const teacher = await db
       .getRepository(User)
@@ -1200,10 +1212,21 @@ describe("migration-backed persistence and verified recovery (disposable SQLite 
     const template = await schedule.createTemplate(scoped, {
       organizationId: a.id,
       name: "الگوی چرخه‌دار",
+      academicYearId: academicYear.id,
+      termId: academicTerm.id,
     });
+    const templatePreview = await schedule.previewTemplate(
+      scoped,
+      template.id,
+      {
+        academicYearId: academicYear.id,
+        termId: secondTerm.id,
+      },
+    );
     await schedule.applyTemplate(scoped, template.id, {
       academicYearId: academicYear.id,
       termId: secondTerm.id,
+      previewFingerprint: templatePreview.previewFingerprint,
     });
     expect(
       await db

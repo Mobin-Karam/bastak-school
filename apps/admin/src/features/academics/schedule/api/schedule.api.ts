@@ -111,7 +111,46 @@ export type ScheduleTemplate = {
   state: "ACTIVE" | "ARCHIVED";
   entries: ScheduleTemplateEntry[];
   updatedAt: string;
+  sourceAcademicYearId?: string | null;
+  sourceTermId?: string | null;
+  sourceAcademicYearName?: string | null;
+  sourceTermName?: string | null;
+  capturedAt?: string | null;
 };
+export type ScheduleTemplatePreview = {
+  template: Pick<
+    ScheduleTemplate,
+    | "id"
+    | "name"
+    | "sourceAcademicYearId"
+    | "sourceTermId"
+    | "sourceAcademicYearName"
+    | "sourceTermName"
+    | "capturedAt"
+  >;
+  target: {
+    academicYearId: string;
+    academicYearName: string;
+    termId: string;
+    termName: string;
+  } | null;
+  checked: { currentSessions: number; templateSessions: number; references: number };
+  summary: { unchanged: number; additions: number; removals: number; changes: number };
+  blockingConflicts: Array<{ code: string; entryIndex?: number; message: string }>;
+  previewFingerprint: string;
+};
+export type ScheduleSafeguard =
+  | { active: false }
+  | {
+      active: true;
+      id: string;
+      mode: "MANUAL" | "TEMPLATE_APPLY";
+      reason: string;
+      activatedAt: string;
+      expiresAt: string;
+      owner: { id: string; name: string } | null;
+      override: { action: string; reason: string; expiresAt: string } | null;
+    };
 export type ScheduleSubstitutionRequest = {
   id: string;
   sourceEntryId: string;
@@ -258,11 +297,45 @@ export const createScheduleTemplate = (draft: {
   organizationId: string;
   name: string;
   sourceTemplateId?: string;
+  academicYearId?: string;
+  termId?: string;
 }) => api.post<ScheduleTemplate>("/schedule/templates", draft);
-export const applyScheduleTemplate = (
+export const previewScheduleTemplate = (
   id: string,
   body: { academicYearId: string; termId: string },
+) =>
+  api.post<ScheduleTemplatePreview>(`/schedule/templates/${encodeURIComponent(id)}/preview`, body);
+export const applyScheduleTemplate = (
+  id: string,
+  body: { academicYearId: string; termId: string; previewFingerprint: string },
 ) => api.post<{ applied: number }>(`/schedule/templates/${encodeURIComponent(id)}/apply`, body);
+export const getScheduleSafeguard = (organizationId: string) =>
+  api.get<ScheduleSafeguard>(`/schedule/safeguard?${new URLSearchParams({ organizationId })}`);
+export const setScheduleSafeguard = (
+  organizationId: string,
+  body: { active: boolean; reason: string; durationMinutes?: number },
+) => api.put<ScheduleSafeguard>(`/schedule/safeguard/${encodeURIComponent(organizationId)}`, body);
+export const extendScheduleSafeguard = (
+  organizationId: string,
+  body: { reason: string; durationMinutes: number },
+) =>
+  api.post<ScheduleSafeguard>(
+    `/schedule/safeguard/${encodeURIComponent(organizationId)}/extend`,
+    body,
+  );
+export const createScheduleSafeguardOverride = (body: {
+  organizationId: string;
+  action:
+    | "ENTRY_CREATE"
+    | "ENTRY_UPDATE"
+    | "ENTRY_ARCHIVE"
+    | "ENTRY_DELETE"
+    | "TIME_BLOCK_MANAGE"
+    | "ACADEMIC_CYCLE_MANAGE"
+    | "RECONCILIATION";
+  reason: string;
+  durationMinutes?: number;
+}) => api.post("/schedule/safeguard/overrides", body);
 export const archiveScheduleTemplate = (id: string) =>
   api.patch<ScheduleTemplate>(`/schedule/templates/${encodeURIComponent(id)}/archive`, {});
 export const restoreScheduleTemplate = (id: string) =>

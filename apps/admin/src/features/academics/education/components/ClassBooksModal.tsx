@@ -12,14 +12,13 @@ export function ClassBooksModal({
   classroom,
   onSave,
   onClose,
-  saving,
   canDeleteBooks,
 }: {
   options: Awaited<ReturnType<typeof getClassOptions>>;
   classroom: EducationClass;
-  onSave: (books: Array<{ bookId: string; teacherId: string }>) => void;
+  onSave: (books: Array<{ bookId: string; teacherId: string }>) => Promise<void> | void;
   onClose: () => void;
-  saving: boolean;
+  saving?: boolean;
   canDeleteBooks: boolean;
 }) {
   const copy = useClassesCopy();
@@ -29,6 +28,7 @@ export function ClassBooksModal({
   const [pendingDelete, setPendingDelete] = useState<{ id: string; title: string } | null>(null);
   const [removed, setRemoved] = useState<string[]>([]);
   const [error, setError] = useState("");
+  const [saving, setSaving] = useState(false);
   const deleteBook = useMutation({
     mutationFn: (id: string) => deleteEducationBook(id),
     onSuccess: async (_, id) => {
@@ -160,16 +160,29 @@ export function ClassBooksModal({
             );
           })}
       </div>
+      {error ? (
+        <p role="alert" className="text-sm text-rose-700">
+          {error}
+        </p>
+      ) : null}
       <div className="flex shrink-0 flex-wrap justify-end gap-2 border-t pt-3 dark:border-slate-800">
-        <Button variant="ghost" onClick={onClose}>
+        <Button variant="ghost" disabled={saving} onClick={onClose}>
           {copy.cancel}
         </Button>
         <Button
           loading={saving}
-          disabled={selected.some((item) => !item.teacherId)}
+          disabled={saving || selected.some((item) => !item.teacherId)}
           onClick={() => {
-            onSave(selected);
-            onClose();
+            if (saving) return;
+            setSaving(true);
+            setError("");
+            void Promise.resolve()
+              .then(() => onSave(selected))
+              .then(onClose)
+              .catch((failure) =>
+                setError(failure instanceof Error ? failure.message : copy.saveFailed),
+              )
+              .finally(() => setSaving(false));
           }}
         >
           <Save size={15} />

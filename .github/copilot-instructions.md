@@ -14,6 +14,8 @@
 - Never disable authentication, authorization, CSRF, validation, tenant isolation, or security checks to fix functionality.
 - For bugs: trace the failure, identify root cause, implement the smallest fix, and add a regression test when practical.
 - For database changes: inspect schema, migrations, indexes, constraints, consumers, rollback and rollout safety.
+- For a migration, inventory the production migration loader plus explicit migration arrays, baseline allowlists, and fixtures that manually invoke migrations; update every applicable runner and prove the historical path with a focused test.
+- For shared DTO, route, entity, or service changes, use Graphify to enumerate concrete callers (including tests and scripts), update them in the same change, and run the narrowest runtime test before relying on typecheck or full CI.
 - For UI changes: preserve design tokens and handle loading, empty, error, disabled, accessibility, responsive, keyboard, theme, localization and RTL states where relevant.
 - For API changes: verify actual request/response/error/auth contracts and identify both admin and student consumers.
 - For capability-sensitive Admin work, use `/me/context` and capability gates; role-name UI checks never replace API authorization or organization scoping.
