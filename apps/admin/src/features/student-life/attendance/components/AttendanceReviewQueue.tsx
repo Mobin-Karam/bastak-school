@@ -127,9 +127,11 @@ export function AttendanceReviewQueue({
   return (
     <Card id="attendance-absence-reviews" className="space-y-3 p-4">
       <header>
-        <h2 className="font-black">دلیل‌های غیبت</h2>
+        <p className="text-xs font-bold text-brand">گام ۲ از ۲ · پس از ثبت استاد</p>
+        <h2 className="mt-1 font-black">بررسی غیبت‌های نیازمند پیگیری</h2>
         <p className="mt-1 text-sm text-slate-500">
-          یک مورد را باز کنید، دلیل را بخوانید و سپس تصمیم خود را ثبت کنید.
+          برای هر دانش‌آموز، دلیل را ببینید، در صورت نیاز پیام روشن برای استاد بفرستید و سپس تصمیم
+          را ثبت کنید. لغو کردن هیچ تغییری ایجاد نمی‌کند.
         </p>
       </header>
       {notice ? (
@@ -157,7 +159,12 @@ export function AttendanceReviewQueue({
               className="flex items-center justify-between gap-3 rounded-xl border border-[rgb(var(--border-subtle))] p-3"
             >
               <div className="min-w-0">
-                <p className="font-bold">{review.studentName}</p>
+                <div className="flex flex-wrap items-center gap-2">
+                  <p className="font-bold">{review.studentName}</p>
+                  <span className="rounded-full bg-rose-100 px-2 py-0.5 text-[11px] font-black text-rose-800 dark:bg-rose-950/50 dark:text-rose-200">
+                    غیبت
+                  </span>
+                </div>
                 <p className="mt-1 text-xs text-slate-500">
                   {review.teacherName} · {new Date(review.sessionDate).toLocaleDateString("fa-IR")}
                 </p>
@@ -188,8 +195,8 @@ export function AttendanceReviewQueue({
         onOpenChange={(open) => {
           if (!open && !mutation.isPending) setSelected(null);
         }}
-        title={decision ? "مرحله ۲: تأیید تصمیم" : "مرحله ۱: بررسی دلیل غیبت"}
-        description={selected?.studentName ?? "بررسی غیبت"}
+        title={decision ? "تأیید تصمیم نهایی" : "بررسی حضور ثبت‌شده"}
+        description={selected ? `${selected.studentName} · ${selected.teacherName}` : "بررسی غیبت"}
         desktopSide="left"
       >
         <div className="space-y-4">
@@ -268,6 +275,8 @@ export function AttendanceReviewQueue({
               <div className="flex flex-wrap gap-2">
                 <Button
                   variant="soft"
+                  loading={messageMutation.isPending}
+                  loadingLabel="در حال ارسال…"
                   disabled={
                     !message.trim() || !messageRecordIds.length || messageMutation.isPending
                   }

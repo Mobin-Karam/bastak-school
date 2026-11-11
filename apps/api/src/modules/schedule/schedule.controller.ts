@@ -20,6 +20,10 @@ import {
   CreateScheduleEntriesDto,
   CreateScheduleTimeBlockGroupDto,
   CreateScheduleTimeBlockDto,
+  UpdateScheduleTimeBlockDto,
+  UpdateScheduleTimeBlockGroupDto,
+  BulkSessionTimeChangeDto,
+  ApplyBulkSessionTimeChangeDto,
   CreateScheduleTemplateDto,
   ScheduleSubstitutionDecisionDto,
   ScheduleSubstitutionRequestDto,
@@ -353,6 +357,15 @@ export class ScheduleController {
   ) {
     return this.schedule.createTimeBlockGroup(user, dto).then(ok);
   }
+  @Patch("time-block-groups/:id")
+  @RequireCapabilities("schedule.update")
+  updateTimeBlockGroup(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param("id") id: string,
+    @Body() dto: UpdateScheduleTimeBlockGroupDto,
+  ) {
+    return this.schedule.updateTimeBlockGroup(user, id, dto).then(ok);
+  }
   @Delete("time-block-groups/:id")
   @RequireCapabilities("schedule.update")
   removeTimeBlockGroup(
@@ -366,6 +379,31 @@ export class ScheduleController {
     @Body() dto: CreateScheduleTimeBlockDto,
   ) {
     return this.schedule.createTimeBlock(user, dto).then(ok);
+  }
+  @Patch("time-blocks/:id")
+  @RequireCapabilities("schedule.update")
+  updateTimeBlock(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param("id") id: string,
+    @Body() dto: UpdateScheduleTimeBlockDto,
+  ) {
+    return this.schedule.updateTimeBlock(user, id, dto).then(ok);
+  }
+  @Post("session-time-changes/preview")
+  @RequireCapabilities("schedule.update")
+  previewSessionTimeChange(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() dto: BulkSessionTimeChangeDto,
+  ) {
+    return this.schedule.previewSessionTimeChange(user, dto).then(ok);
+  }
+  @Post("session-time-changes/apply")
+  @RequireCapabilities("schedule.update")
+  applySessionTimeChange(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() dto: ApplyBulkSessionTimeChangeDto,
+  ) {
+    return this.schedule.applySessionTimeChange(user, dto).then(ok);
   }
   @Delete("time-blocks/:id")
   @RequireCapabilities("schedule.update")

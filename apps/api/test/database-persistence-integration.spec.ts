@@ -21,6 +21,7 @@ import { TeacherLeaveAcademicCycleSnapshots1762300500000 } from "../src/database
 import { PrincipalAttendanceAllSessionsReview1762300600000 } from "../src/database/migrations/1762300600000-PrincipalAttendanceAllSessionsReview";
 import { TeacherLeaveWorkflowIntegrity1763400000000 } from "../src/database/migrations/1763400000000-TeacherLeaveWorkflowIntegrity";
 import { ScheduleTemplateSafeguard1763600700000 } from "../src/database/migrations/1763600700000-ScheduleTemplateSafeguard";
+import { ScheduleEntryTimeBlocks1763600800000 } from "../src/database/migrations/1763600800000-ScheduleEntryTimeBlocks";
 import { NightAttendance1728234800000 } from "../src/database/migrations/1728234800000-NightAttendance";
 import {
   Organization,
@@ -882,6 +883,9 @@ describe("migration-backed persistence and verified recovery (disposable SQLite 
     await db.transaction(async (manager) =>
       new ScheduleTemplateSafeguard1763600700000().up(manager.queryRunner!),
     );
+    await db.transaction(async (manager) =>
+      new ScheduleEntryTimeBlocks1763600800000().up(manager.queryRunner!),
+    );
     const authorization = new AuthorizationService(
       db.getRepository(UserRoleAssignment),
       db.getRepository(OrganizationMembership),
@@ -1149,6 +1153,26 @@ describe("migration-backed persistence and verified recovery (disposable SQLite 
         (item) => item.id === block.id,
       )?.group?.id,
     ).toBe(group.id);
+    const timeChangePreview = await schedule.previewSessionTimeChange(scoped, {
+      organizationId: a.id,
+      academicYearId: academicYear.id,
+      termId: academicTerm.id,
+      entryIds: [created.id],
+      operation: "SHIFT",
+      offsetMinutes: 5,
+    });
+    expect(timeChangePreview.conflicts).toEqual([]);
+    await expect(
+      schedule.applySessionTimeChange(scoped, {
+        organizationId: a.id,
+        academicYearId: academicYear.id,
+        termId: academicTerm.id,
+        entryIds: [created.id],
+        operation: "SHIFT",
+        offsetMinutes: 5,
+        previewFingerprint: timeChangePreview.previewFingerprint,
+      }),
+    ).resolves.toMatchObject({ updated: 1 });
     const teacherActor = {
       ...scoped,
       role: "TEACHER" as const,

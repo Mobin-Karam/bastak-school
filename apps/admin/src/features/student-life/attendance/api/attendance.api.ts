@@ -97,6 +97,7 @@ export const getAttendanceParticipants = (
 export type AttendanceBulkMarkRequest = {
   expectedRevision?: number;
   requestId?: string;
+  submit?: boolean;
   organizationId: string;
   sessionId?: string;
   contextType?: AttendanceContextType;

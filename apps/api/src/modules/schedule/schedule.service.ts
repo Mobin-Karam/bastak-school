@@ -68,6 +68,10 @@ import {
   ExtendScheduleSafeguardDto,
   PreviewScheduleTemplateDto,
   SetScheduleSafeguardDto,
+  UpdateScheduleTimeBlockDto,
+  UpdateScheduleTimeBlockGroupDto,
+  BulkSessionTimeChangeDto,
+  ApplyBulkSessionTimeChangeDto,
 } from "./schedule.dto";
 
 // Keep this server-side while the teacher displacement workflow is frozen.
@@ -358,6 +362,7 @@ export class ScheduleService {
           classroom: true,
           teacher: true,
           classBook: { book: true, teacher: true },
+          timeBlock: { group: true },
         },
         order: { weekday: "ASC", startTime: "ASC" },
         take: 500,
@@ -2288,6 +2293,7 @@ export class ScheduleService {
           classroom: true,
           teacher: true,
           classBook: { book: true, teacher: true },
+          timeBlock: { group: true },
         },
         order: { weekday: "ASC", startTime: "ASC" },
       });
@@ -2309,6 +2315,7 @@ export class ScheduleService {
           classroom: true,
           teacher: true,
           classBook: { book: true, teacher: true },
+          timeBlock: { group: true },
         },
         order: { weekday: "ASC", startTime: "ASC" },
       });
@@ -2345,6 +2352,7 @@ export class ScheduleService {
           classroom: true,
           teacher: true,
           classBook: { book: true, teacher: true },
+          timeBlock: { group: true },
         },
         order: { weekday: "ASC", startTime: "ASC" },
       });
@@ -3518,6 +3526,374 @@ export class ScheduleService {
     await this.timeBlockGroups.remove(group);
     return { deleted: true };
   }
+  async updateTimeBlockGroup(
+    user: AuthenticatedUser,
+    id: string,
+    dto: UpdateScheduleTimeBlockGroupDto,
+  ) {
+    const group = await this.timeBlockGroups.findOne({
+      where: { id },
+      relations: { organization: true },
+    });
+    if (!group)
+      throw new ApiException(
+        404,
+        "TIME_BLOCK_GROUP_NOT_FOUND",
+        "گروه بازه زمانی پیدا نشد.",
+      );
+    await this.templateScope(user, group.organization.id, "schedule.update");
+    await this.assertScheduleMutationAllowed(
+      group.organization.id,
+      "TIME_BLOCK_MANAGE",
+    );
+    const name = dto.name.trim();
+    if (!name)
+      throw new ApiException(
+        422,
+        "TIME_BLOCK_GROUP_NAME_REQUIRED",
+        "نام گروه لازم است.",
+      );
+    const duplicate = await this.timeBlockGroups.findOne({
+      where: { organization: { id: group.organization.id }, name },
+    });
+    if (duplicate && duplicate.id !== id)
+      throw new ApiException(
+        409,
+        "TIME_BLOCK_GROUP_NAME_EXISTS",
+        "این گروه قبلاً ثبت شده است.",
+      );
+    group.name = name;
+    return this.timeBlockGroups.save(group);
+  }
+  async updateTimeBlock(
+    user: AuthenticatedUser,
+    id: string,
+    dto: UpdateScheduleTimeBlockDto,
+  ) {
+    const block = await this.timeBlocks.findOne({
+      where: { id },
+      relations: { organization: true, group: true },
+    });
+    if (!block)
+      throw new ApiException(
+        404,
+        "TIME_BLOCK_NOT_FOUND",
+        "بازه زمانی پیدا نشد.",
+      );
+    await this.templateScope(user, block.organization.id, "schedule.update");
+    await this.assertScheduleMutationAllowed(
+      block.organization.id,
+      "TIME_BLOCK_MANAGE",
+    );
+    if (dto.endTime <= dto.startTime)
+      throw new ApiException(
+        422,
+        "INVALID_TIME_RANGE",
+        "زمان پایان باید بعد از شروع باشد.",
+      );
+    const group = await this.timeBlockGroups.findOne({
+      where: { id: dto.groupId },
+      relations: { organization: true },
+    });
+    if (!group || group.organization.id !== block.organization.id)
+      throw new ApiException(
+        422,
+        "TIME_BLOCK_GROUP_INVALID",
+        "گروه بازه زمانی برای این مدرسه معتبر نیست.",
+      );
+    const name = dto.name.trim();
+    const duplicate = await this.timeBlocks.findOne({
+      where: {
+        organization: { id: block.organization.id },
+        group: { id: group.id },
+        name,
+      },
+    });
+    if (duplicate && duplicate.id !== block.id)
+      throw new ApiException(
+        409,
+        "TIME_BLOCK_NAME_EXISTS",
+        "این نام بازه زمانی در همین گروه قبلاً ثبت شده است.",
+      );
+    Object.assign(block, {
+      group,
+      name,
+      startTime: dto.startTime,
+      endTime: dto.endTime,
+      partOfDay: dto.startTime < "12:00" ? "AM" : "PM",
+    });
+    return this.timeBlocks.save(block);
+  }
+  private minutes(value: string) {
+    const [hours, minutes] = value.split(":").map(Number);
+    return hours * 60 + minutes;
+  }
+  private clock(value: number) {
+    const safe = ((value % 1440) + 1440) % 1440;
+    return `${String(Math.floor(safe / 60)).padStart(2, "0")}:${String(safe % 60).padStart(2, "0")}`;
+  }
+  private async bulkTimeChangeRows(
+    user: AuthenticatedUser,
+    dto: BulkSessionTimeChangeDto,
+  ) {
+    const organization = await this.templateScope(
+      user,
+      dto.organizationId,
+      "schedule.update",
+    );
+    await this.assertScheduleMutationAllowed(organization.id, "ENTRY_UPDATE");
+    const year = await this.academicYearRepo.findOneBy({
+      id: dto.academicYearId,
+      organizationId: organization.id,
+      state: "ACTIVE",
+    });
+    const term = await this.academicTerms.findOneBy({
+      id: dto.termId,
+      academicYearId: dto.academicYearId,
+      state: "ACTIVE",
+    });
+    if (!year || !term || term.correctionOpen)
+      throw new ApiException(
+        409,
+        "SCHEDULE_BULK_ACTIVE_TERM_REQUIRED",
+        "تغییر گروهی فقط برای نیم‌سال فعال مجاز است.",
+      );
+    const rows = await this.entries.find({
+      where: {
+        organization: { id: organization.id },
+        academicYearId: dto.academicYearId,
+        termId: dto.termId,
+        status: "ACTIVE",
+        versionId: IsNull(),
+      },
+      relations: {
+        organization: true,
+        classroom: true,
+        teacher: true,
+        classBook: true,
+        timeBlock: { group: true },
+      },
+      order: { weekday: "ASC", startTime: "ASC" },
+    });
+    const wanted = (values?: string[]) =>
+      !values?.length ? null : new Set(values);
+    const entryIds = wanted(dto.entryIds),
+      weekdays = dto.weekdays?.length ? new Set(dto.weekdays) : null;
+    const classrooms = wanted(dto.classroomIds),
+      teachers = wanted(dto.teacherIds),
+      books = wanted(dto.classBookIds),
+      rooms = wanted(dto.rooms),
+      blocks = wanted(dto.timeBlockIds),
+      groups = wanted(dto.timeBlockGroupIds);
+    const selected = rows.filter(
+      (row) =>
+        (!entryIds || entryIds.has(row.id)) &&
+        (!weekdays || weekdays.has(row.weekday)) &&
+        (!classrooms ||
+          (row.classroom?.id && classrooms.has(row.classroom.id))) &&
+        (!teachers || (row.teacher?.id && teachers.has(row.teacher.id))) &&
+        (!books || (row.classBook?.id && books.has(row.classBook.id))) &&
+        (!rooms || rooms.has(row.room)) &&
+        (!blocks || (row.timeBlock?.id && blocks.has(row.timeBlock.id))) &&
+        (!groups ||
+          (row.timeBlock?.group?.id && groups.has(row.timeBlock.group.id))),
+    );
+    if (!selected.length)
+      throw new ApiException(
+        422,
+        "SCHEDULE_BULK_EMPTY",
+        "هیچ جلسه فعالی با فیلتر انتخاب‌شده پیدا نشد.",
+      );
+    return { organization, rows, selected };
+  }
+  private async bulkTimeChangePreview(
+    user: AuthenticatedUser,
+    dto: BulkSessionTimeChangeDto,
+  ) {
+    const { organization, rows, selected } = await this.bulkTimeChangeRows(
+      user,
+      dto,
+    );
+    let targetBlock: SchoolScheduleTimeBlock | null = null;
+    if (dto.operation === "APPLY_BLOCK") {
+      if (!dto.targetTimeBlockId)
+        throw new ApiException(
+          422,
+          "SCHEDULE_BULK_BLOCK_REQUIRED",
+          "بازه زمانی مقصد لازم است.",
+        );
+      targetBlock = await this.timeBlocks.findOne({
+        where: {
+          id: dto.targetTimeBlockId,
+          organization: { id: organization.id },
+        },
+        relations: { group: true },
+      });
+      if (!targetBlock)
+        throw new ApiException(
+          422,
+          "SCHEDULE_TIME_BLOCK_INVALID",
+          "بازه زمانی مقصد معتبر نیست.",
+        );
+    }
+    if (dto.operation === "SHIFT" && !dto.offsetMinutes)
+      throw new ApiException(
+        422,
+        "SCHEDULE_BULK_OFFSET_REQUIRED",
+        "مقدار جابه‌جایی زمانی لازم است.",
+      );
+    if (
+      dto.operation === "SET_TIME" &&
+      (!dto.startTime || !dto.endTime || dto.endTime <= dto.startTime)
+    )
+      throw new ApiException(
+        422,
+        "INVALID_TIME_RANGE",
+        "زمان شروع و پایان معتبر لازم است.",
+      );
+    const changes = selected.map((row) => {
+      const startTime =
+        dto.operation === "SHIFT"
+          ? this.clock(this.minutes(row.startTime) + (dto.offsetMinutes ?? 0))
+          : dto.operation === "SET_TIME"
+            ? dto.startTime!
+            : targetBlock!.startTime;
+      const endTime =
+        dto.operation === "SHIFT"
+          ? this.clock(this.minutes(row.endTime) + (dto.offsetMinutes ?? 0))
+          : dto.operation === "SET_TIME"
+            ? dto.endTime!
+            : targetBlock!.endTime;
+      if (endTime <= startTime)
+        throw new ApiException(
+          422,
+          "INVALID_TIME_RANGE",
+          "تغییر زمان از نیمه‌شب عبور می‌کند یا پایان آن معتبر نیست.",
+        );
+      return {
+        row,
+        startTime,
+        endTime,
+        timeBlockId: targetBlock?.id ?? row.timeBlockId,
+      };
+    });
+    const changed = new Map(changes.map((change) => [change.row.id, change]));
+    const conflicts: Array<{
+      entryId: string;
+      withEntryId: string;
+      reason: string;
+    }> = [];
+    for (const change of changes)
+      for (const other of rows) {
+        if (change.row.id === other.id) continue;
+        const otherChange = changed.get(other.id);
+        if (otherChange && change.row.id > other.id) continue;
+        const left = Object.assign(
+          Object.create(Object.getPrototypeOf(change.row)),
+          change.row,
+          { startTime: change.startTime, endTime: change.endTime },
+        );
+        const right = otherChange
+          ? Object.assign(Object.create(Object.getPrototypeOf(other)), other, {
+              startTime: otherChange.startTime,
+              endTime: otherChange.endTime,
+            })
+          : other;
+        if (this.legacyScheduleEntriesConflict(left, right))
+          conflicts.push({
+            entryId: change.row.id,
+            withEntryId: other.id,
+            reason: "هم‌پوشانی کلاس، دبیر یا اتاق",
+          });
+      }
+    const source = changes
+      .map(({ row }) => `${row.id}:${row.updatedAt.toISOString()}`)
+      .sort()
+      .join("|");
+    const fingerprint = createHash("sha256")
+      .update(JSON.stringify({ dto, source }))
+      .digest("hex");
+    return {
+      selected: changes.map(({ row, startTime, endTime, timeBlockId }) => ({
+        id: row.id,
+        title: row.title,
+        weekday: row.weekday,
+        classroomName: row.classroom?.name ?? "",
+        teacherName: row.teacher?.username ?? "",
+        before: {
+          startTime: row.startTime,
+          endTime: row.endTime,
+          timeBlockId: row.timeBlockId,
+        },
+        after: { startTime, endTime, timeBlockId },
+      })),
+      conflicts,
+      summary: { selected: changes.length, conflicts: conflicts.length },
+      previewFingerprint: fingerprint,
+      targetBlock: targetBlock
+        ? { id: targetBlock.id, name: targetBlock.name }
+        : null,
+    };
+  }
+  async previewSessionTimeChange(
+    user: AuthenticatedUser,
+    dto: BulkSessionTimeChangeDto,
+  ) {
+    return this.bulkTimeChangePreview(user, dto);
+  }
+  async applySessionTimeChange(
+    user: AuthenticatedUser,
+    dto: ApplyBulkSessionTimeChangeDto,
+  ) {
+    const { previewFingerprint, ...request } = dto;
+    const preview = await this.bulkTimeChangePreview(user, request);
+    if (preview.previewFingerprint !== previewFingerprint)
+      throw new ApiException(
+        409,
+        "SCHEDULE_BULK_PREVIEW_STALE",
+        "پیش‌نمایش تغییر کرده است؛ دوباره بررسی کنید.",
+      );
+    if (preview.conflicts.length)
+      throw new ApiException(
+        409,
+        "SCHEDULE_BULK_CONFLICT",
+        "جلسه‌های متداخل را از انتخاب خارج کنید.",
+        { conflicts: preview.conflicts },
+      );
+    return attendanceTransaction(this.entries.manager, async (manager) => {
+      const ids = preview.selected.map((item) => item.id);
+      const rows = await manager.find(SchoolScheduleEntry, {
+        where: { id: In(ids) },
+      });
+      for (const row of rows) {
+        const change = preview.selected.find((item) => item.id === row.id)!;
+        row.startTime = change.after.startTime;
+        row.endTime = change.after.endTime;
+        row.timeBlockId = change.after.timeBlockId;
+      }
+      await manager.save(rows);
+      if (this.auditLogs)
+        await manager.save(
+          AuditLog,
+          manager.create(AuditLog, {
+            user: { id: user.id } as User,
+            organizationId: request.organizationId,
+            action: "schedule.bulk_time_change",
+            entity: "school_schedule_entry",
+            metadata: {
+              operation: request.operation,
+              entryIds: ids,
+              changes: preview.selected.map((item) => ({
+                id: item.id,
+                before: item.before,
+                after: item.after,
+              })),
+            },
+          }),
+        );
+      return { updated: rows.length, entries: preview.selected };
+    });
+  }
   async removeTimeBlock(user: AuthenticatedUser, id: string) {
     const context = this.context(user);
     this.authorization.requireCapability(context, "schedule.update");
@@ -3541,6 +3917,16 @@ export class ScheduleService {
       block.organization.id,
       "TIME_BLOCK_MANAGE",
     );
+    const linked = await this.entries.count({
+      where: { timeBlockId: block.id },
+    });
+    if (linked)
+      throw new ApiException(
+        409,
+        "TIME_BLOCK_IN_USE",
+        "این بازه به جلسه‌های برنامه متصل است؛ ابتدا جلسه‌ها را به بازه دیگری منتقل کنید.",
+        { linked },
+      );
     await this.timeBlocks.remove(block);
     return { deleted: true };
   }
@@ -3617,6 +4003,10 @@ export class ScheduleService {
           "سال یا نیم‌سال انتخاب‌شده برای جلسه جدید قابل استفاده نیست.",
         );
     }
+    const timeBlock = await this.timeBlockForOrganization(
+      dto.timeBlockId,
+      organization.id,
+    );
     const classroom = await this.classroomForOrganization(
       dto.classroomId,
       organization.id,
@@ -3643,6 +4033,8 @@ export class ScheduleService {
           ...dto,
           room: dto.room?.trim() || "",
           organization,
+          timeBlock,
+          timeBlockId: timeBlock?.id ?? null,
           classroom,
           classBook,
           teacher,
@@ -3707,6 +4099,10 @@ export class ScheduleService {
         "INVALID_TIME_RANGE",
         "زمان پایان باید بعد از شروع باشد.",
       );
+    const timeBlock = await this.timeBlockForOrganization(
+      dto.timeBlockId,
+      item.organization.id,
+    );
     const classroom = await this.classroomForOrganization(
       dto.classroomId,
       item.organization.id,
@@ -3729,6 +4125,8 @@ export class ScheduleService {
       startTime: dto.startTime,
       endTime: dto.endTime,
       room: dto.room?.trim() || "",
+      timeBlock,
+      timeBlockId: timeBlock?.id ?? null,
       classroom,
       classBook,
       teacher,
@@ -4062,6 +4460,24 @@ export class ScheduleService {
         ? { ...entry.classBook, teacher: teacher(entry.classBook.teacher) }
         : null,
     };
+  }
+
+  private async timeBlockForOrganization(
+    timeBlockId: string | undefined,
+    organizationId: string,
+  ) {
+    if (!timeBlockId) return null;
+    const block = await this.timeBlocks.findOne({
+      where: { id: timeBlockId, organization: { id: organizationId } },
+      relations: { group: true },
+    });
+    if (!block)
+      throw new ApiException(
+        422,
+        "SCHEDULE_TIME_BLOCK_INVALID",
+        "بازه زمانی این مدرسه معتبر نیست.",
+      );
+    return block;
   }
 
   private async teacherForOrganization(

@@ -8,7 +8,13 @@ export type EducationClassBook = {
   code: string;
   teacher: { id: string; name: string };
 };
-export type EducationClassStudent = { id: string; name: string; grade: string; major: string };
+export type EducationClassStudent = {
+  id: string;
+  name: string;
+  grade: string;
+  major: string;
+  phoneNumber?: string | null;
+};
 export type EducationClass = {
   id: string;
   organization: { id: string; name: string; type?: string; status?: string };
@@ -89,3 +95,88 @@ export const getClassEnrollmentHistory = (id: string, offset = 0, limit = 50) =>
   api.get<AcademicPage<AcademicEnrollmentHistory>>(
     `/classes/${encodeURIComponent(id)}/enrollments/history?offset=${offset}&limit=${limit}`,
   );
+
+export type ClassBookGrade = {
+  id: string;
+  studentId: string;
+  score: number;
+  note: string;
+  principalEdited: boolean;
+  principalEditedAt: string | null;
+  updatedAt: string;
+};
+export type ClassBookGrades = {
+  classBookId: string;
+  className: string;
+  bookTitle: string;
+  teacher: { id: string; name: string; username: string };
+  students: Array<{ id: string; name: string }>;
+  sessions: Array<{
+    id: string;
+    title: string;
+    heldOn: string;
+    description: string;
+    grades: ClassBookGrade[];
+  }>;
+};
+export type MyClassBookGrade = ClassBookGrade & {
+  sessionTitle: string;
+  heldOn: string;
+  className: string;
+  schoolYear: string;
+  bookTitle: string;
+  teacherName: string;
+};
+export const getClassBookGrades = (id: string) =>
+  api.get<ClassBookGrades>(`/class-books/${encodeURIComponent(id)}/grades`);
+export const createClassBookGradeSession = (
+  id: string,
+  body: { title: string; heldOn: string; description?: string },
+) =>
+  api.post<ClassBookGrades["sessions"][number]>(
+    `/class-books/${encodeURIComponent(id)}/grade-sessions`,
+    body,
+  );
+export const updateClassBookGradeSession = (
+  id: string,
+  sessionId: string,
+  body: { title?: string; heldOn?: string; description?: string },
+) =>
+  api.patch<ClassBookGrades["sessions"][number]>(
+    `/class-books/${encodeURIComponent(id)}/grade-sessions/${encodeURIComponent(sessionId)}`,
+    body,
+  );
+export const deleteClassBookGradeSession = (id: string, sessionId: string) =>
+  api.delete(
+    `/class-books/${encodeURIComponent(id)}/grade-sessions/${encodeURIComponent(sessionId)}`,
+  );
+export const saveClassBookGrade = (
+  id: string,
+  sessionId: string,
+  body: { studentId: string; score: number; note: string },
+) =>
+  api.put<ClassBookGrade>(
+    `/class-books/${encodeURIComponent(id)}/grade-sessions/${encodeURIComponent(sessionId)}/grades`,
+    body,
+  );
+export const deleteClassBookGrade = (id: string, sessionId: string, studentId: string) =>
+  api.delete(
+    `/class-books/${encodeURIComponent(id)}/grade-sessions/${encodeURIComponent(sessionId)}/grades/${encodeURIComponent(studentId)}`,
+  );
+export type BookAttendancePage = {
+  page: number;
+  total: number;
+  hasNext: boolean;
+  items: Array<{
+    id: string;
+    title: string;
+    date: string;
+    status: string;
+    records: Array<{ studentId: string; status: string }>;
+  }>;
+};
+export const getClassBookAttendance = (id: string, page = 1) =>
+  api.get<BookAttendancePage>(
+    `/class-books/${encodeURIComponent(id)}/attendance-sessions?page=${page}`,
+  );
+export const getMyClassBookGrades = () => api.get<MyClassBookGrade[]>("/class-grades/mine");

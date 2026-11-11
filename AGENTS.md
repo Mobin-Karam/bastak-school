@@ -352,6 +352,17 @@ PR failure handling is head-SHA-specific and fail-closed:
 - After pushing, re-query the PR. A local pass or a green run for an older SHA is not merge evidence. Do not report the PR fixed, ready, or merged until the replacement SHA has its own successful required checks and no dependent gate remains failed.
 - If a user requests manual merge, leave auto-merge disabled. If checks are pending, unavailable, or failed, report the exact job and state and leave the PR open; never bypass branch protection.
 
+### Lessons from Classes and gradebook PR #196
+
+Before pushing a change that adds capabilities, changes a leaf lockfile, adds a migration, or mounts a new Admin route, apply these checks. They address failures found while preparing and validating PR #196:
+
+- New API or Admin capability keys must also be declared in `packages/api-contract/src/index.ts`. Run `npm run contracts:check` before pushing; a working feature and passing typecheck did not catch the missing `class_grades.*` declarations.
+- Preserve the `link: true` entries for local `@moshaver/*` packages in `apps/admin/package-lock.json`. After any lockfile change, run `npm ci` in that leaf or `node tooling/workspace/run.mjs bootstrap --project=admin-v2`. A locally installed dependency can mask a lockfile that fails clean CI with `Missing: ... from lock file`.
+- For a new Admin route, run the full Admin test suite as well as focused page tests. A Student textbook test exposed a global provider composition error outside the new Classes tests; reproduce provider errors with the real app composition before fixing them.
+- For SQLite table rebuilds, inspect foreign keys and triggers on the existing populated table, then run the complete API suite and migration/recovery checks. The schedule time block migration initially missed a foreign key and needed its triggers preserved through the rebuild.
+- Do not run `npm ci`, including `npm ci --dry-run`, while tests or other commands are using the same leaf `node_modules`; it can change the install mid-run and cause misleading module-not-found failures. Run install and validation sequentially for a given leaf project.
+- Treat failing `CI Gate` and downstream jobs as consequences until their own logs show a root error. In this PR the initial root CI failures were the shared capability contract and Admin lockfile; after fixing them, verify every required check on the replacement head SHA before reporting success.
+
 ## Branch and release lifecycle
 
 For new work, start from current `origin/develop` and use a normal local branch in the existing checkout. Codex must apply the branch-first and task-completion rules above before and after repository-affecting work. Follow the branch names in Codex Workspace and Git Rules above; repository lifecycle scripts currently accept `feat/`, `fix/`, `chore/`, or `ci/`. Use `scripts/cicd/start-work.sh` only for supported branch names and without a worktree path. If the checkout is dirty, preserve existing edits before switching branches; never create a separate worktree. When explicitly asked to switch to `develop`, fast-forward it to `origin/develop` without overwriting existing work. Commit only the task's changes. Use `scripts/cicd/finish-work.sh` to push, create the develop PR, wait for CI, and merge only when GitHub checks and configured reviews permit it. Do not bypass protection or force push.

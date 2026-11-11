@@ -2,6 +2,7 @@ import axe from "axe-core";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { cleanup, render, screen, within, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { ModalProvider } from "../../../../shared/ui/modal";
 import { LocaleProvider } from "../../../../shared/ui/locale";
@@ -46,17 +47,19 @@ const alpha = {
   memberCount: 1,
 };
 const beta = { ...alpha, id: "group-b", name: "Beta", code: "beta", classId: "class-b" };
-function mount() {
+function mount(initialEntry = "/admin/class-groups") {
   return render(
     <QueryClientProvider
       client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
     >
       <LocaleProvider>
-        <ModalProvider>
-          <main>
-            <ClassGroupsPage />
-          </main>
-        </ModalProvider>
+        <MemoryRouter initialEntries={[initialEntry]}>
+          <ModalProvider>
+            <main>
+              <ClassGroupsPage />
+            </main>
+          </ModalProvider>
+        </MemoryRouter>
       </LocaleProvider>
     </QueryClientProvider>,
   );
@@ -172,6 +175,11 @@ it("keeps class switches isolated from late responses for the previous class", a
     expect(screen.queryByRole("heading", { name: "Alpha" })).not.toBeInTheDocument(),
   );
   expect(screen.getByRole("heading", { name: "Beta" })).toBeInTheDocument();
+});
+it("opens the class selected from a class overview link", async () => {
+  mount("/admin/class-groups?classId=class-b");
+  expect(await screen.findByRole("heading", { name: "Beta" })).toBeVisible();
+  expect(screen.getByRole("combobox", { name: "Class" })).toHaveValue("class-b");
 });
 it("creates and edits group details in a modal with normalized input", async () => {
   mount();

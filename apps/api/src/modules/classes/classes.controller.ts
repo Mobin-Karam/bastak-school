@@ -23,10 +23,88 @@ import {
   UpdateEducationClassDto,
 } from "./classes.dto";
 import { ClassesService } from "./classes.service";
+import { ClassGradesService } from "./class-grades.service";
+import {
+  CreateClassBookGradeSessionDto,
+  SaveClassBookGradeDto,
+  UpdateClassBookGradeSessionDto,
+} from "./class-grades.dto";
 
 @Controller()
 export class ClassesController {
-  constructor(private readonly classes: ClassesService) {}
+  constructor(
+    private readonly classes: ClassesService,
+    private readonly grades: ClassGradesService,
+  ) {}
+  @Get("class-grades/mine")
+  @RequireCapabilities("class_grades.self.read")
+  myGrades(@CurrentUser() actor: AuthenticatedUser) {
+    return this.grades.mine(actor).then(ok);
+  }
+  @Get("class-books/:id/grades")
+  @RequireCapabilities("class_grades.read")
+  bookGrades(@CurrentUser() actor: AuthenticatedUser, @Param("id") id: string) {
+    return this.grades.list(actor, id).then(ok);
+  }
+  @Post("class-books/:id/grade-sessions")
+  @RequireCapabilities("class_grades.manage")
+  createGradeSession(
+    @CurrentUser() actor: AuthenticatedUser,
+    @Param("id") id: string,
+    @Body() dto: CreateClassBookGradeSessionDto,
+  ) {
+    return this.grades.createSession(actor, id, dto).then(ok);
+  }
+  @Patch("class-books/:id/grade-sessions/:sessionId")
+  @RequireCapabilities("class_grades.manage")
+  updateGradeSession(
+    @CurrentUser() actor: AuthenticatedUser,
+    @Param("id") id: string,
+    @Param("sessionId") sessionId: string,
+    @Body() dto: UpdateClassBookGradeSessionDto,
+  ) {
+    return this.grades.updateSession(actor, id, sessionId, dto).then(ok);
+  }
+  @Delete("class-books/:id/grade-sessions/:sessionId")
+  @RequireCapabilities("class_grades.manage")
+  removeGradeSession(
+    @CurrentUser() actor: AuthenticatedUser,
+    @Param("id") id: string,
+    @Param("sessionId") sessionId: string,
+  ) {
+    return this.grades.removeSession(actor, id, sessionId).then(ok);
+  }
+  @Get("class-books/:id/attendance-sessions")
+  @RequireCapabilities("class_grades.read", "attendance.read")
+  bookAttendance(
+    @CurrentUser() actor: AuthenticatedUser,
+    @Param("id") id: string,
+    @Query("page") page?: string,
+  ) {
+    return this.grades
+      .attendanceSessions(actor, id, Number(page ?? 1))
+      .then(ok);
+  }
+  @Put("class-books/:id/grade-sessions/:sessionId/grades")
+  @RequireCapabilities("class_grades.manage")
+  saveGrade(
+    @CurrentUser() actor: AuthenticatedUser,
+    @Param("id") id: string,
+    @Param("sessionId") sessionId: string,
+    @Body() dto: SaveClassBookGradeDto,
+  ) {
+    return this.grades.save(actor, id, sessionId, dto).then(ok);
+  }
+  @Delete("class-books/:id/grade-sessions/:sessionId/grades/:studentId")
+  @RequireCapabilities("class_grades.manage")
+  removeGrade(
+    @CurrentUser() actor: AuthenticatedUser,
+    @Param("id") id: string,
+    @Param("sessionId") sessionId: string,
+    @Param("studentId") studentId: string,
+  ) {
+    return this.grades.remove(actor, id, sessionId, studentId).then(ok);
+  }
   @Get("classes") @RequireCapabilities("classes.read") list(
     @CurrentUser() actor: AuthenticatedUser,
     @Query("organizationId") organizationId?: string,

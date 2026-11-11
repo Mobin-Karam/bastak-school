@@ -2622,6 +2622,7 @@ export class AttendanceService {
           organizationId: dto.organizationId,
           sessionId: dto.sessionId,
           expectedRevision: dto.expectedRevision,
+          submit: dto.submit === true,
           contextType: dto.contextType,
           contextId: dto.contextId,
           sessionDate: dto.sessionDate,
@@ -3623,14 +3624,14 @@ export class AttendanceService {
       order: { sessionDate: "DESC", id: "DESC" },
     });
     const sessionIds = sessions.map((session) => session.id);
-    const [records, coinRows] = sessionIds.length
+    const [records, coinRows, sessionReviews] = sessionIds.length
       ? await Promise.all([
           this.records.find({
             where: {
               student: { id: studentId },
               session: { id: In(sessionIds) },
             },
-            relations: { session: true },
+            relations: { session: true, reviewedBy: true },
           }),
           this.requireSessionCoins().find({
             where: {
@@ -3639,13 +3640,38 @@ export class AttendanceService {
             },
             relations: { session: true },
           }),
+          this.sessions.manager.query(
+            `SELECT review.sessionId AS sessionId,
+                    review.teacherMessage AS teacherMessage,
+                    review.reviewedAt AS reviewedAt,
+                    reviewer.firstName AS reviewerFirstName,
+                    reviewer.lastName AS reviewerLastName,
+                    reviewer.username AS reviewerUsername
+               FROM attendance_session_reviews review
+               LEFT JOIN users reviewer ON reviewer.id = review.reviewerId
+              WHERE review.sessionId IN (${sessionIds.map(() => "?").join(",")})
+              ORDER BY review.reviewedAt DESC`,
+            sessionIds,
+          ) as Promise<
+            Array<{
+              sessionId: string;
+              teacherMessage: string;
+              reviewedAt: string;
+              reviewerFirstName: string | null;
+              reviewerLastName: string | null;
+              reviewerUsername: string | null;
+            }>
+          >,
         ])
-      : [[], []];
+      : [[], [], []];
     const recordsBySession = new Map(
       records.map((record) => [record.session.id, record]),
     );
     const coinsBySession = new Map(
       coinRows.map((row) => [row.session.id, row.coins]),
+    );
+    const reviewsBySession = new Map(
+      sessionReviews.map((review) => [review.sessionId, review]),
     );
     const scopedSessions = sessions.filter(
       (session) =>
@@ -3659,6 +3685,17 @@ export class AttendanceService {
       const status: TeacherStudentClassAttendanceProfile["sessions"][number]["status"] =
         record?.status ?? "unmarked";
       counts[status] += 1;
+      const sessionReview = reviewsBySession.get(session.id);
+      const reviewerName =
+        [
+          record?.reviewedBy?.firstName ?? sessionReview?.reviewerFirstName,
+          record?.reviewedBy?.lastName ?? sessionReview?.reviewerLastName,
+        ]
+          .filter(Boolean)
+          .join(" ") ||
+        record?.reviewedBy?.username ||
+        sessionReview?.reviewerUsername ||
+        "";
       return {
         sessionId: session.id,
         sessionDate:
@@ -3667,6 +3704,17 @@ export class AttendanceService {
         status,
         note: record?.note ?? "",
         coins: coinsBySession.get(session.id) ?? 0,
+        review:
+          record?.reviewStatus || sessionReview
+            ? {
+                decision: record?.reviewStatus ?? null,
+                note: record?.reviewNote ?? "",
+                reviewedAt: record?.reviewedAt?.toISOString() ?? null,
+                reviewerName,
+                teacherMessage: sessionReview?.teacherMessage ?? "",
+                sessionReviewedAt: sessionReview?.reviewedAt ?? null,
+              }
+            : null,
       };
     });
     return {
@@ -4245,6 +4293,18 @@ export class AttendanceService {
             title: "پیام مدیر دربارهٔ غیبت دانش‌آموزان کلاس",
             body: [`دانش‌آموزان: ${studentNames}`, message].join("\n"),
             url: "/admin",
+            data: {
+              sessionId: record.session.id,
+              sessionDate:
+                record.session.operationalDate ??
+                record.session.sessionDate.toISOString(),
+              sessionTitle: record.session.titleSnapshot,
+              students: selectedRecords.map((row) => ({
+                id: row.student.id,
+                name: row.student.name,
+                status: row.physicalStatus,
+              })),
+            },
             priority: "high",
             dedupeKey,
           }),

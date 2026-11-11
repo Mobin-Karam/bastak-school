@@ -40,6 +40,45 @@ describe("PrincipalDashboardService", () => {
     ]);
   });
 
+  it("keeps absent, late, and excused class records distinct in the principal calendar", async () => {
+    const service = new PrincipalDashboardService({
+      query: jest.fn().mockResolvedValue([
+        {
+          date: "2026-11-02",
+          recordId: "record-absent",
+          studentId: "student-a",
+          name: "دانش‌آموز الف",
+          context: "ریاضی",
+          status: "absent",
+        },
+        {
+          date: "2026-11-02",
+          recordId: "record-late",
+          studentId: "student-a",
+          name: "دانش‌آموز الف",
+          context: "علوم",
+          status: "late",
+        },
+        {
+          date: "2026-11-02",
+          recordId: "record-excused",
+          studentId: "student-b",
+          name: "دانش‌آموز ب",
+          context: "ادبیات",
+          status: "excused",
+        },
+      ]),
+    } as never);
+
+    const calendar = await service.absenceCalendar(principal, "2026-11-01");
+
+    expect(calendar.days["2026-11-02"]).toEqual([
+      expect.objectContaining({ id: "record-absent", status: "absent" }),
+      expect.objectContaining({ id: "record-late", status: "late" }),
+      expect.objectContaining({ id: "record-excused", status: "excused" }),
+    ]);
+  });
+
   it("does not label future legacy-schedule lessons as missing and honors the term start", async () => {
     const query = jest.fn(async (sql: string) => {
       if (sql.includes("FROM school_schedule_entries e"))
@@ -208,12 +247,16 @@ describe("PrincipalDashboardService", () => {
           sql.includes("COUNT(DISTINCT s.id)")
         ) {
           expect(sql).toContain("s.contextType='class'");
-          expect(sql).toContain("absent_record.physicalStatus='absent'");
+          expect(sql).toContain("attention_record.physicalStatus IN ('absent','late')");
+          expect(sql).toContain("attention_record.status='excused'");
           return [{ count: 2 }];
         }
         if (sql.includes("attendance_session_reviews")) {
           expect(sql).toContain("s.contextType='class'");
-          expect(sql).toContain("r.physicalStatus='absent'");
+          expect(sql).toContain(
+            "attention_record.physicalStatus IN ('absent','late')",
+          );
+          expect(sql).toContain("attention_record.status='excused'");
           return [
             {
               id: "session-a",
@@ -380,6 +423,52 @@ describe("PrincipalDashboardService", () => {
     expect(reviewQuery).toContain("latest.reviewedAt IS NULL");
     expect(reviewQuery).not.toContain("reviewedAt<=");
     expect(reviewQuery).not.toContain("LIMIT 10");
+  });
+
+  it("keeps historical submitted sessions with a non-present record in the principal queue", async () => {
+    const queries: string[] = [];
+    const service = new PrincipalDashboardService({
+      query: jest.fn(async (sql: string) => {
+        queries.push(sql);
+        if (sql.includes("SELECT principalReviewMode"))
+          return [{ principalReviewMode: "absences_only" }];
+        if (sql.includes("COUNT(DISTINCT s.id)")) return [{ count: 1 }];
+        if (sql.includes("attendance_session_reviews"))
+          return [
+            {
+              id: "historic-session",
+              contextType: "class",
+              contextId: "class-a",
+              title: "جلسهٔ مهر",
+              sessionDate: "2026-09-01 08:00:00",
+              status: "submitted",
+              revision: 0,
+              expected: 20,
+              marked: 20,
+              present: 19,
+              absent: 0,
+              late: 1,
+              excused: 0,
+              lastReviewedAt: null,
+            },
+          ];
+        if (sql.includes("COUNT(r.id) total"))
+          return [{ present: 0, absent: 0, late: 0, excused: 0, total: 0 }];
+        return [{ count: 0 }];
+      }),
+    } as never);
+
+    const dashboard = await service.get(principal, "2026-11-01", "2026-11-03");
+
+    expect(dashboard.sessionReviews?.items).toEqual([
+      expect.objectContaining({ id: "historic-session", late: 1 }),
+    ]);
+    const reviewQuery = queries.find((sql) =>
+      sql.includes("ORDER BY s.sessionDate DESC"),
+    );
+    expect(reviewQuery).toContain("s.status IN ('submitted','finalized')");
+    expect(reviewQuery).not.toContain("s.sessionDate>=");
+    expect(reviewQuery).not.toContain("s.sessionDate<=");
   });
 
   it("never exposes operational principal lists to an attendance reader", async () => {

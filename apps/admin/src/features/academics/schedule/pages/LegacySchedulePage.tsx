@@ -69,6 +69,12 @@ import {
   type ScheduleSafeguard,
   type ScheduleTemplatePreview,
   updateScheduleEntry,
+  updateScheduleTimeBlock,
+  updateScheduleTimeBlockGroup,
+  previewBulkSessionTimeChange,
+  applyBulkSessionTimeChange,
+  type BulkSessionTimeChange,
+  type BulkSessionTimeChangePreview,
 } from "../api/schedule.api";
 import type {
   ScheduleEntry,
@@ -130,6 +136,9 @@ export function LegacySchedulePage() {
   const [activeWeekday, setActiveWeekday] = useState(() => legacyWeekdayForIso(todayIso()));
   const [templatePreview, setTemplatePreview] = useState<ScheduleTemplate | null>(null);
   const [mobileToolsOpen, setMobileToolsOpen] = useState(false);
+  const [timeBlockManagerOpen, setTimeBlockManagerOpen] = useState(false);
+  const [bulkTimeChangeOpen, setBulkTimeChangeOpen] = useState(false);
+  const [bulkPrefillBlockId, setBulkPrefillBlockId] = useState<string | undefined>();
   const [headerControlsOpen, setHeaderControlsOpen] = useState(false);
   const [scheduleEditingLocked, setScheduleEditingLocked] = useState(true);
   const [scheduleTheme, setScheduleTheme] = useState<ScheduleTheme>(readScheduleTheme);
@@ -176,10 +185,7 @@ export function LegacySchedulePage() {
   const canArchive = canArchiveCapability && scheduleEditingEnabled;
   const canDelete = canDeleteCapability && scheduleEditingEnabled;
   const canManageAcademicCycles =
-    canWrite &&
-    ["PRINCIPAL", "RELIGIOUS_EDUCATION_MANAGER", "ORGANIZATION_ADMIN", "PLATFORM_ADMIN"].some(
-      (role) => auth.hasRole(role as Parameters<typeof auth.hasRole>[0]),
-    );
+    auth.can("schedule.read") && (canCreateCapability || canEditCapability);
   const academicCycles = useQuery({
     queryKey: ["schedule", "academic-cycles", selectedOrganizationId],
     queryFn: () => listLegacyAcademicCycles(selectedOrganizationId!),
@@ -447,6 +453,31 @@ export function LegacySchedulePage() {
     onError: (error) =>
       notify(error instanceof Error ? error.message : "ذخیره بازه زمانی انجام نشد.", "error"),
   });
+  const updateTimeBlock = useMutation({
+    mutationFn: ({
+      id,
+      body,
+    }: {
+      id: string;
+      body: { groupId: string; name: string; startTime: string; endTime: string };
+    }) => updateScheduleTimeBlock(id, body),
+    onSuccess: () => {
+      void client.invalidateQueries({ queryKey: ["schedule", "time-blocks"] });
+      notify("بازه زمانی به‌روزرسانی شد.", "success");
+    },
+    onError: (error) =>
+      notify(error instanceof Error ? error.message : "ویرایش بازه انجام نشد.", "error"),
+  });
+  const updateTimeBlockGroup = useMutation({
+    mutationFn: ({ id, name }: { id: string; name: string }) =>
+      updateScheduleTimeBlockGroup(id, { name }),
+    onSuccess: () => {
+      void client.invalidateQueries({ queryKey: ["schedule", "time-block-groups"] });
+      notify("گروه به‌روزرسانی شد.", "success");
+    },
+    onError: (error) =>
+      notify(error instanceof Error ? error.message : "ویرایش گروه انجام نشد.", "error"),
+  });
   const removeTimeBlock = useMutation({
     mutationFn: deleteScheduleTimeBlock,
     onSuccess: () => {
@@ -703,39 +734,27 @@ export function LegacySchedulePage() {
         </Card>
       ) : null}
       {canEditSchedule ? (
-        <ScheduleTimeBlocks
-          blocks={timeBlocks.data ?? []}
-          groups={timeBlockGroups.data ?? []}
-          organizationId={selectedOrganizationId}
-          saving={saveTimeBlock.isPending || saveTimeBlockGroup.isPending}
-          removing={removeTimeBlock.isPending || removeTimeBlockGroup.isPending}
-          onCreate={(draft) => saveTimeBlock.mutate(draft)}
-          onCreateGroup={(draft) => saveTimeBlockGroup.mutate(draft)}
-          onRemove={(block) =>
-            void modal
-              .confirm({
-                title: "حذف بازه زمانی؟",
-                description: `«${block.name}» از فهرست بازه‌های قابل‌استفاده حذف می‌شود؛ جلسه‌های قبلی تغییری نمی‌کنند.`,
-                tone: "danger",
-                confirmLabel: "حذف بازه",
-                cancelLabel: "انصراف",
-                softConfirm: true,
-              })
-              .then((confirmed) => confirmed && removeTimeBlock.mutate(block.id))
-          }
-          onRemoveGroup={(group) =>
-            void modal
-              .confirm({
-                title: "حذف گروه بازه زمانی؟",
-                description: `«${group.name}» فقط در صورتی حذف می‌شود که بازه‌ای در آن نمانده باشد.`,
-                tone: "danger",
-                confirmLabel: "حذف گروه",
-                cancelLabel: "انصراف",
-                softConfirm: true,
-              })
-              .then((confirmed) => confirmed && removeTimeBlockGroup.mutate(group.id))
-          }
-        />
+        <Card className="p-4" dir="rtl">
+          <div className="flex items-center gap-3">
+            <span className="grid size-10 place-items-center rounded-xl bg-brand/10 text-brand">
+              <Clock3 size={18} />
+            </span>
+            <div className="min-w-0">
+              <h3 className="font-black text-ink">مدیریت بازه‌های زمانی</h3>
+              <p className="text-xs text-slate-500">
+                گروه‌ها، زنگ‌ها و تغییر گروهی جلسه‌ها را جداگانه مدیریت کنید.
+              </p>
+            </div>
+          </div>
+          <div className="mt-3 grid gap-2 sm:grid-cols-2">
+            <Button variant="soft" onClick={() => setTimeBlockManagerOpen(true)}>
+              <Clock3 size={16} /> باز کردن بازه‌ها
+            </Button>
+            <Button variant="soft" onClick={() => setBulkTimeChangeOpen(true)}>
+              <Pencil size={16} /> تغییر گروهی جلسه‌ها
+            </Button>
+          </div>
+        </Card>
       ) : null}
       {canManageTemplates ? (
         <ScheduleTemplates
@@ -801,7 +820,7 @@ export function LegacySchedulePage() {
     <div className="schedule-theme-workspace" data-schedule-theme={scheduleTheme}>
       {scheduleSetupBlocked && setupReminderHydrated && !setupGateDeferred ? (
         <ScheduleAcademicSetupGate
-          canManage={canManageAcademicCycles && scheduleEditingEnabled}
+          canManage={canManageAcademicCycles && scheduleMutationsAllowed}
           activeYear={bootstrapActiveYear}
           terms={bootstrapTerms}
           selectedTermId={selectedBootstrapTermId}
@@ -831,9 +850,7 @@ export function LegacySchedulePage() {
         scheduleTermId={scheduleTermId}
         headerControlsOpen={headerControlsOpen}
         setHeaderControlsOpen={setHeaderControlsOpen}
-        canManageAcademicCycles={
-          canManageAcademicCycles && scheduleEditingEnabled && scheduleMutationsAllowed
-        }
+        canManageAcademicCycles={canManageAcademicCycles && scheduleMutationsAllowed}
         canToggleScheduleEditing={canToggleScheduleEditing}
         scheduleEditingLocked={scheduleEditingLocked}
         onScheduleEditingLockChange={setScheduleEditingLocked}
@@ -977,6 +994,76 @@ export function LegacySchedulePage() {
           />
         ) : null}
       </ResponsiveDrawer>
+      <ResponsiveDrawer
+        open={timeBlockManagerOpen}
+        onOpenChange={setTimeBlockManagerOpen}
+        title="گروه‌ها و بازه‌های زمانی"
+        description="بازه‌های قابل استفاده در جلسه‌ها را بر اساس گروه مدیریت کنید."
+        desktopSide="left"
+        className="w-full max-w-2xl"
+      >
+        <ScheduleTimeBlocks
+          blocks={timeBlocks.data ?? []}
+          groups={timeBlockGroups.data ?? []}
+          organizationId={selectedOrganizationId}
+          saving={
+            saveTimeBlock.isPending ||
+            saveTimeBlockGroup.isPending ||
+            updateTimeBlock.isPending ||
+            updateTimeBlockGroup.isPending
+          }
+          removing={removeTimeBlock.isPending || removeTimeBlockGroup.isPending}
+          onCreate={(draft) => saveTimeBlock.mutate(draft)}
+          onCreateGroup={(draft) => saveTimeBlockGroup.mutate(draft)}
+          onUpdate={(id, body) => updateTimeBlock.mutate({ id, body })}
+          onUpdateGroup={(id, name) => updateTimeBlockGroup.mutate({ id, name })}
+          onApplyBlock={(id) => {
+            setBulkPrefillBlockId(id);
+            setTimeBlockManagerOpen(false);
+            setBulkTimeChangeOpen(true);
+          }}
+          onRemove={(block) =>
+            void modal
+              .confirm({
+                title: "حذف بازه زمانی؟",
+                description: `«${block.name}» فقط وقتی حذف می‌شود که جلسه‌ای به آن متصل نباشد.`,
+                tone: "danger",
+                confirmLabel: "حذف بازه",
+                cancelLabel: "انصراف",
+                softConfirm: true,
+              })
+              .then((confirmed) => confirmed && removeTimeBlock.mutate(block.id))
+          }
+          onRemoveGroup={(group) =>
+            void modal
+              .confirm({
+                title: "حذف گروه بازه زمانی؟",
+                description: `«${group.name}» فقط در صورت خالی بودن حذف می‌شود.`,
+                tone: "danger",
+                confirmLabel: "حذف گروه",
+                cancelLabel: "انصراف",
+                softConfirm: true,
+              })
+              .then((confirmed) => confirmed && removeTimeBlockGroup.mutate(group.id))
+          }
+        />
+      </ResponsiveDrawer>
+      <BulkSessionTimeChangeDrawer
+        open={bulkTimeChangeOpen}
+        onOpenChange={setBulkTimeChangeOpen}
+        organizationId={selectedOrganizationId}
+        academicYearId={scheduleAcademicYearId || activeAcademicYear?.id}
+        termId={scheduleTermId || availableScheduleTerms[0]?.id}
+        entries={scheduleEntries}
+        blocks={timeBlocks.data ?? []}
+        groups={timeBlockGroups.data ?? []}
+        classes={classes.data ?? []}
+        initialBlockId={bulkPrefillBlockId}
+        onApplied={() => {
+          setBulkPrefillBlockId(undefined);
+          reload();
+        }}
+      />
       <ResponsiveDrawer
         open={mobileToolsOpen}
         onOpenChange={setMobileToolsOpen}
@@ -3727,7 +3814,7 @@ function ScheduleEditorForm({
                 disabled={!selectedTimeBlockGroup || !visibleTimeBlocks.length}
                 onChange={(event) => {
                   const block = timeBlocks.find((item) => item.id === event.target.value);
-                  if (block)
+                  if (block) {
                     setOccurrences((items) =>
                       items.map((item, index) =>
                         index === items.length - 1
@@ -3735,6 +3822,8 @@ function ScheduleEditorForm({
                           : item,
                       ),
                     );
+                    update({ timeBlockId: block.id });
+                  }
                 }}
                 className="h-11 rounded-xl border border-[rgb(var(--border-subtle))] bg-[rgb(var(--surface-card))] px-3 text-sm text-ink focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20"
               >
@@ -4028,6 +4117,9 @@ function ScheduleTimeBlocks({
   removing,
   onCreate,
   onCreateGroup,
+  onUpdate,
+  onUpdateGroup,
+  onApplyBlock,
   onRemove,
   onRemoveGroup,
 }: {
@@ -4044,6 +4136,12 @@ function ScheduleTimeBlocks({
     endTime: string;
   }) => void;
   onCreateGroup: (draft: { organizationId: string; name: string }) => void;
+  onUpdate: (
+    id: string,
+    body: { groupId: string; name: string; startTime: string; endTime: string },
+  ) => void;
+  onUpdateGroup: (id: string, name: string) => void;
+  onApplyBlock: (id: string) => void;
   onRemove: (block: ScheduleTimeBlock) => void;
   onRemoveGroup: (group: ScheduleTimeBlockGroup) => void;
 }) {
@@ -4052,6 +4150,8 @@ function ScheduleTimeBlocks({
   const [name, setName] = useState("");
   const [startTime, setStartTime] = useState("08:00");
   const [endTime, setEndTime] = useState("09:00");
+  const [editingBlockId, setEditingBlockId] = useState<string | null>(null);
+  const [editingGroupId, setEditingGroupId] = useState<string | null>(null);
   const valid = Boolean(organizationId && groupId && name.trim() && startTime < endTime);
   useEffect(() => {
     if (groupId && groups.some((group) => group.id === groupId)) return;
@@ -4164,9 +4264,34 @@ function ScheduleTimeBlocks({
               <section key={group.id} aria-labelledby={`time-block-group-${group.id}`}>
                 <div className="mb-2 flex items-center gap-2">
                   <span className="size-2 rounded-full bg-brand" aria-hidden="true" />
-                  <h4 id={`time-block-group-${group.id}`} className="text-xs font-black text-ink">
-                    {group.name}
-                  </h4>
+                  {editingGroupId === group.id ? (
+                    <Input
+                      autoFocus
+                      defaultValue={group.name}
+                      aria-label={`نام گروه ${group.name}`}
+                      onBlur={(event) => {
+                        const name = event.target.value.trim();
+                        if (name && name !== group.name) onUpdateGroup(group.id, name);
+                        setEditingGroupId(null);
+                      }}
+                      onKeyDown={(event) => {
+                        if (event.key === "Escape") setEditingGroupId(null);
+                      }}
+                      className="h-7 max-w-44 text-xs"
+                    />
+                  ) : (
+                    <h4 id={`time-block-group-${group.id}`} className="text-xs font-black text-ink">
+                      {group.name}
+                    </h4>
+                  )}
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    aria-label={`ویرایش گروه ${group.name}`}
+                    onClick={() => setEditingGroupId(group.id)}
+                  >
+                    <Pencil size={13} />
+                  </Button>
                   <span className="text-[11px] font-bold text-slate-400">
                     {groupBlocks.length.toLocaleString("fa-IR")} بازه
                   </span>
@@ -4189,22 +4314,86 @@ function ScheduleTimeBlocks({
                         key={block.id}
                         className="flex items-center justify-between gap-2 rounded-lg bg-[rgb(var(--surface-muted))] px-2 py-1.5 text-xs"
                       >
-                        <span className="min-w-0 truncate font-bold text-ink">
-                          {block.name}{" "}
-                          <b className="font-normal text-slate-500" dir="ltr">
-                            {block.startTime}–{block.endTime}
-                          </b>
-                        </span>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          className="text-rose-700 hover:bg-rose-50 hover:text-rose-800 dark:text-rose-300 dark:hover:bg-rose-950/30"
-                          disabled={removing}
-                          aria-label={`حذف بازه ${block.name}`}
-                          onClick={() => onRemove(block)}
-                        >
-                          <Trash2 size={13} />
-                        </Button>
+                        {editingBlockId === block.id ? (
+                          <form
+                            className="grid flex-1 grid-cols-4 gap-1"
+                            onSubmit={(event) => {
+                              event.preventDefault();
+                              const data = new FormData(event.currentTarget);
+                              const name = String(data.get("name") ?? "").trim();
+                              const startTime = String(data.get("startTime") ?? "");
+                              const endTime = String(data.get("endTime") ?? "");
+                              const groupId = String(data.get("groupId") ?? "");
+                              if (name && startTime < endTime) {
+                                onUpdate(block.id, { name, startTime, endTime, groupId });
+                                setEditingBlockId(null);
+                              }
+                            }}
+                          >
+                            <Input name="name" defaultValue={block.name} className="h-7 text-xs" />
+                            <Input
+                              name="startTime"
+                              type="time"
+                              defaultValue={block.startTime}
+                              className="h-7 text-xs"
+                            />
+                            <Input
+                              name="endTime"
+                              type="time"
+                              defaultValue={block.endTime}
+                              className="h-7 text-xs"
+                            />
+                            <select
+                              name="groupId"
+                              defaultValue={block.group.id}
+                              className="rounded border bg-transparent text-xs"
+                            >
+                              {groups.map((item) => (
+                                <option key={item.id} value={item.id}>
+                                  {item.name}
+                                </option>
+                              ))}
+                            </select>
+                            <Button type="submit" size="sm" variant="soft" className="col-span-4">
+                              ذخیره
+                            </Button>
+                          </form>
+                        ) : (
+                          <span className="min-w-0 truncate font-bold text-ink">
+                            {block.name}{" "}
+                            <b className="font-normal text-slate-500" dir="ltr">
+                              {block.startTime}–{block.endTime}
+                            </b>
+                          </span>
+                        )}
+                        <div className="flex shrink-0 gap-1">
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            aria-label={`ویرایش بازه ${block.name}`}
+                            onClick={() => setEditingBlockId(block.id)}
+                          >
+                            <Pencil size={13} />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            aria-label={`اعمال بازه ${block.name} روی جلسه‌ها`}
+                            onClick={() => onApplyBlock(block.id)}
+                          >
+                            <CalendarClock size={13} />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="text-rose-700 hover:bg-rose-50 hover:text-rose-800 dark:text-rose-300 dark:hover:bg-rose-950/30"
+                            disabled={removing}
+                            aria-label={`حذف بازه ${block.name}`}
+                            onClick={() => onRemove(block)}
+                          >
+                            <Trash2 size={13} />
+                          </Button>
+                        </div>
                       </li>
                     ))}
                   </ul>
@@ -4608,6 +4797,7 @@ function AcademicCycleManager({
   onChanged: () => void;
 }) {
   const { formatDate } = useLocale();
+  const modal = useModal();
   const [yearName, setYearName] = useState("");
   const [yearStart, setYearStart] = useState("");
   const [yearEnd, setYearEnd] = useState("");
@@ -4713,6 +4903,119 @@ function AcademicCycleManager({
   const years = data?.years ?? [];
   const currentYearId =
     yearId || years.find((year) => year.state === "ACTIVE")?.id || years[0]?.id || "";
+  const confirmYearSave = () => {
+    const updating = Boolean(editingYearId);
+    void modal
+      .confirm({
+        title: updating ? "ذخیره تغییرهای سال تحصیلی؟" : "ایجاد سال تحصیلی پیش‌نویس؟",
+        description: updating
+          ? `نام یا بازهٔ «${yearName}» تغییر می‌کند. نیم‌سال‌ها باید همچنان در بازهٔ سال بمانند.`
+          : `«${yearName}» به‌صورت پیش‌نویس ایجاد می‌شود و تا فعال‌سازی، برنامهٔ جاری را تغییر نمی‌دهد.`,
+        confirmLabel: updating ? "ذخیره تغییرها" : "ایجاد پیش‌نویس",
+        cancelLabel: "انصراف",
+      })
+      .then((confirmed) => {
+        if (!confirmed) return;
+        if (editingYearId)
+          updateYear.mutate({
+            id: editingYearId,
+            name: yearName,
+            startsOn: yearStart,
+            endsOn: yearEnd,
+          });
+        else
+          createYear.mutate({
+            organizationId,
+            name: yearName,
+            startsOn: yearStart,
+            endsOn: yearEnd,
+          });
+      });
+  };
+  const confirmTermSave = () => {
+    const updating = Boolean(editingTermId);
+    void modal
+      .confirm({
+        title: updating ? "ذخیره تغییرهای نیم‌سال؟" : "افزودن نیم‌سال؟",
+        description: updating
+          ? `نام یا بازهٔ «${termName}» تغییر می‌کند. تاریخ‌ها باید در بازهٔ سال و بدون هم‌پوشانی بمانند.`
+          : `«${termName}» به‌صورت پیش‌نویس به سال انتخاب‌شده افزوده می‌شود.`,
+        confirmLabel: updating ? "ذخیره تغییرها" : "افزودن نیم‌سال",
+        cancelLabel: "انصراف",
+      })
+      .then((confirmed) => {
+        if (!confirmed) return;
+        if (editingTermId)
+          updateTerm.mutate({
+            id: editingTermId,
+            name: termName,
+            startsOn: termStart,
+            endsOn: termEnd,
+          });
+        else
+          createTerm.mutate({
+            academicYearId: currentYearId,
+            name: termName,
+            startsOn: termStart,
+            endsOn: termEnd,
+          });
+      });
+  };
+  const confirmYearLifecycle = (year: (typeof years)[number]) => {
+    const activating = year.state !== "ACTIVE";
+    void modal
+      .confirm({
+        title: activating ? "فعال‌سازی سال تحصیلی؟" : "بایگانی سال تحصیلی؟",
+        description: activating
+          ? `«${year.name}» سال فعال مدرسه می‌شود و سال فعال قبلی بایگانی خواهد شد. دست‌کم دو نیم‌سال لازم است.`
+          : `«${year.name}» و نیم‌سال‌هایش بایگانی می‌شوند. سوابق برنامه و حضور حذف نمی‌شوند.`,
+        confirmLabel: activating ? "فعال‌سازی سال" : "بایگانی سال",
+        cancelLabel: "انصراف",
+        tone: activating ? "default" : "danger",
+        softConfirm: !activating,
+      })
+      .then(
+        (confirmed) =>
+          confirmed &&
+          changeYear.mutate({
+            id: year.id,
+            action: activating ? "activate" : "archive",
+          }),
+      );
+  };
+  const confirmTermLifecycle = (term: LegacyAcademicTerm) => {
+    const action = term.correctionOpen
+      ? "close-correction"
+      : term.state === "ARCHIVED"
+        ? "reopen"
+        : "archive";
+    const labels = {
+      archive: {
+        title: "بایگانی نیم‌سال؟",
+        description: `«${term.name}» بایگانی می‌شود؛ سوابق برنامه و حضور حذف نمی‌شوند.`,
+        confirmLabel: "بایگانی نیم‌سال",
+        tone: "danger" as const,
+        softConfirm: true,
+      },
+      reopen: {
+        title: "بازگشایی اصلاح تاریخی؟",
+        description: `ویرایش «${term.name}» فقط برای اصلاح سوابق تاریخی موقتاً مجاز می‌شود.`,
+        confirmLabel: "بازگشایی برای اصلاح",
+        tone: "default" as const,
+        softConfirm: false,
+      },
+      "close-correction": {
+        title: "بستن اصلاح تاریخی؟",
+        description: `امکان اصلاح «${term.name}» دوباره بسته می‌شود.`,
+        confirmLabel: "بستن اصلاح",
+        tone: "default" as const,
+        softConfirm: false,
+      },
+    }[action];
+    void modal
+      .confirm({ ...labels, cancelLabel: "انصراف" })
+      .then((confirmed) => confirmed && changeTerm.mutate({ id: term.id, action }));
+  };
   return (
     <div className="grid gap-5" dir="rtl">
       <Card className="grid gap-3 p-4">
@@ -4749,21 +5052,9 @@ function AcademicCycleManager({
             createYear.isPending ||
             updateYear.isPending
           }
-          onClick={() =>
-            editingYearId
-              ? updateYear.mutate({
-                  id: editingYearId,
-                  name: yearName,
-                  startsOn: yearStart,
-                  endsOn: yearEnd,
-                })
-              : createYear.mutate({
-                  organizationId,
-                  name: yearName,
-                  startsOn: yearStart,
-                  endsOn: yearEnd,
-                })
-          }
+          onClick={confirmYearSave}
+          loading={createYear.isPending || updateYear.isPending}
+          loadingLabel="در حال ذخیره…"
         >
           {editingYearId ? "ذخیره تغییرهای سال" : "ایجاد سال پیش‌نویس"}
         </Button>
@@ -4814,21 +5105,9 @@ function AcademicCycleManager({
             createTerm.isPending ||
             updateTerm.isPending
           }
-          onClick={() =>
-            editingTermId
-              ? updateTerm.mutate({
-                  id: editingTermId,
-                  name: termName,
-                  startsOn: termStart,
-                  endsOn: termEnd,
-                })
-              : createTerm.mutate({
-                  academicYearId: currentYearId,
-                  name: termName,
-                  startsOn: termStart,
-                  endsOn: termEnd,
-                })
-          }
+          onClick={confirmTermSave}
+          loading={createTerm.isPending || updateTerm.isPending}
+          loadingLabel="در حال ذخیره…"
         >
           {editingTermId ? "ذخیره تغییرهای نیم‌سال" : "افزودن نیم‌سال"}
         </Button>
@@ -4846,12 +5125,9 @@ function AcademicCycleManager({
               <Button
                 variant="soft"
                 disabled={changeYear.isPending}
-                onClick={() =>
-                  changeYear.mutate({
-                    id: year.id,
-                    action: year.state === "ACTIVE" ? "archive" : "activate",
-                  })
-                }
+                onClick={() => confirmYearLifecycle(year)}
+                loading={changeYear.isPending}
+                loadingLabel="در حال ثبت…"
               >
                 {year.state === "ACTIVE" ? "بایگانی" : "فعال‌سازی"}
               </Button>
@@ -4885,25 +5161,27 @@ function AcademicCycleManager({
                   >
                     <span>
                       {term.name} · {term.startsOn} تا {term.endsOn}
+                      {term.correctionOpen ? (
+                        <span className="ms-2 rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-black text-amber-800 dark:bg-amber-950/50 dark:text-amber-100">
+                          فقط اصلاح تاریخی
+                        </span>
+                      ) : term.state === "ARCHIVED" ? (
+                        <span className="ms-2 rounded-full bg-slate-200 px-2 py-0.5 text-[11px] font-black text-slate-700 dark:bg-slate-800 dark:text-slate-200">
+                          بایگانی‌شده
+                        </span>
+                      ) : null}
                     </span>
                     <Button
                       variant="ghost"
                       disabled={changeTerm.isPending}
-                      onClick={() =>
-                        changeTerm.mutate({
-                          id: term.id,
-                          action: term.correctionOpen
-                            ? "close-correction"
-                            : term.state === "ARCHIVED"
-                              ? "reopen"
-                              : "archive",
-                        })
-                      }
+                      onClick={() => confirmTermLifecycle(term)}
+                      loading={changeTerm.isPending}
+                      loadingLabel="در حال ثبت…"
                     >
                       {term.correctionOpen
                         ? "بستن اصلاح"
                         : term.state === "ARCHIVED"
-                          ? "اصلاح تاریخی"
+                          ? "بازگشایی برای اصلاح"
                           : "بایگانی"}
                     </Button>
                     {term.state !== "ARCHIVED" || term.correctionOpen ? (
@@ -4984,6 +5262,7 @@ function draftFromEntry(entry: ScheduleEntry): ScheduleDraft {
     startTime: entry.startTime,
     endTime: entry.endTime,
     room: entry.room,
+    timeBlockId: entry.timeBlockId ?? undefined,
   };
 }
 
@@ -5040,4 +5319,299 @@ function teacherName(entry: ScheduleEntry) {
 
 function isSchoolWidePlan(entry: ScheduleEntry) {
   return !entry.classroom && !entry.room;
+}
+
+function BulkSessionTimeChangeDrawer({
+  open,
+  onOpenChange,
+  organizationId,
+  academicYearId,
+  termId,
+  entries,
+  blocks,
+  groups,
+  classes,
+  initialBlockId,
+  onApplied,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  organizationId?: string;
+  academicYearId?: string;
+  termId?: string;
+  entries: ScheduleEntry[];
+  blocks: ScheduleTimeBlock[];
+  groups: ScheduleTimeBlockGroup[];
+  classes: EducationClass[];
+  initialBlockId?: string;
+  onApplied: () => void;
+}) {
+  const [groupId, setGroupId] = useState("");
+  const [blockId, setBlockId] = useState("");
+  const [weekday, setWeekday] = useState("");
+  const [classroomId, setClassroomId] = useState("");
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [operation, setOperation] = useState<BulkSessionTimeChange["operation"]>("SHIFT");
+  const [offsetMinutes, setOffsetMinutes] = useState("10");
+  const [startTime, setStartTime] = useState("08:00");
+  const [endTime, setEndTime] = useState("09:00");
+  const [targetTimeBlockId, setTargetTimeBlockId] = useState("");
+  const [preview, setPreview] = useState<BulkSessionTimeChangePreview | null>(null);
+  const [loading, setLoading] = useState(false);
+  useEffect(() => {
+    if (open) {
+      setBlockId(initialBlockId ?? "");
+      setTargetTimeBlockId(initialBlockId ?? "");
+      setPreview(null);
+    }
+  }, [open, initialBlockId]);
+  const visible = entries.filter(
+    (entry) =>
+      entry.status === "ACTIVE" &&
+      (!weekday || entry.weekday === Number(weekday)) &&
+      (!classroomId || entry.classroom?.id === classroomId) &&
+      (!groupId || entry.timeBlock?.group?.id === groupId) &&
+      (!blockId || entry.timeBlockId === blockId),
+  );
+  const request = (): BulkSessionTimeChange | null => {
+    if (!organizationId || !academicYearId || !termId || !selectedIds.length) return null;
+    return {
+      organizationId,
+      academicYearId,
+      termId,
+      entryIds: selectedIds,
+      operation,
+      ...(operation === "SHIFT"
+        ? { offsetMinutes: Number(offsetMinutes) }
+        : operation === "SET_TIME"
+          ? { startTime, endTime }
+          : { targetTimeBlockId }),
+    };
+  };
+  const runPreview = async () => {
+    const body = request();
+    if (!body) return;
+    setLoading(true);
+    try {
+      setPreview(await previewBulkSessionTimeChange(body));
+    } finally {
+      setLoading(false);
+    }
+  };
+  const apply = async () => {
+    const body = request();
+    if (!body || !preview || preview.conflicts.length) return;
+    setLoading(true);
+    try {
+      const result = await applyBulkSessionTimeChange({
+        ...body,
+        previewFingerprint: preview.previewFingerprint,
+      });
+      notify(`${result.updated.toLocaleString("fa-IR")} جلسه به‌روزرسانی شد.`, "success");
+      onApplied();
+      onOpenChange(false);
+    } catch (error) {
+      notify(error instanceof Error ? error.message : "تغییر گروهی انجام نشد.", "error");
+    } finally {
+      setLoading(false);
+    }
+  };
+  return (
+    <ResponsiveDrawer
+      open={open}
+      onOpenChange={onOpenChange}
+      title="تغییر گروهی زمان جلسه‌ها"
+      description="ابتدا جلسه‌ها را انتخاب کنید، سپس پیش‌نمایش بدون خطا را تأیید کنید."
+      desktopSide="left"
+      className="w-full max-w-3xl"
+    >
+      <div className="grid gap-4" dir="rtl">
+        {!organizationId || !academicYearId || !termId ? (
+          <EmptyState title="سال و نیم‌سال فعال را انتخاب کنید." />
+        ) : (
+          <>
+            <div className="grid gap-2 sm:grid-cols-4">
+              <select
+                value={groupId}
+                onChange={(e) => {
+                  setGroupId(e.target.value);
+                  setBlockId("");
+                }}
+                className="h-10 rounded-xl border bg-transparent px-2 text-sm"
+              >
+                <option value="">همه گروه‌ها</option>
+                {groups.map((group) => (
+                  <option key={group.id} value={group.id}>
+                    {group.name}
+                  </option>
+                ))}
+              </select>
+              <select
+                value={blockId}
+                onChange={(e) => setBlockId(e.target.value)}
+                className="h-10 rounded-xl border bg-transparent px-2 text-sm"
+              >
+                <option value="">همه بازه‌ها</option>
+                {blocks
+                  .filter((block) => !groupId || block.group.id === groupId)
+                  .map((block) => (
+                    <option key={block.id} value={block.id}>
+                      {block.name} · {block.startTime}
+                    </option>
+                  ))}
+              </select>
+              <select
+                value={weekday}
+                onChange={(e) => setWeekday(e.target.value)}
+                className="h-10 rounded-xl border bg-transparent px-2 text-sm"
+              >
+                <option value="">همه روزها</option>
+                {weekdays.map((name, index) => (
+                  <option key={name} value={index}>
+                    {name}
+                  </option>
+                ))}
+              </select>
+              <select
+                value={classroomId}
+                onChange={(e) => setClassroomId(e.target.value)}
+                className="h-10 rounded-xl border bg-transparent px-2 text-sm"
+              >
+                <option value="">همه کلاس‌ها</option>
+                {classes.map((item) => (
+                  <option key={item.id} value={item.id}>
+                    {item.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="max-h-52 overflow-y-auto rounded-xl border">
+              <label className="flex gap-2 border-b p-2 text-xs font-bold">
+                <input
+                  type="checkbox"
+                  checked={
+                    visible.length > 0 && visible.every((item) => selectedIds.includes(item.id))
+                  }
+                  onChange={(e) =>
+                    setSelectedIds(e.target.checked ? visible.map((item) => item.id) : [])
+                  }
+                />{" "}
+                انتخاب همهٔ نتیجه‌ها ({visible.length.toLocaleString("fa-IR")})
+              </label>
+              {visible.map((entry) => (
+                <label key={entry.id} className="flex items-center gap-2 border-b p-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={selectedIds.includes(entry.id)}
+                    onChange={(e) =>
+                      setSelectedIds((ids) =>
+                        e.target.checked ? [...ids, entry.id] : ids.filter((id) => id !== entry.id),
+                      )
+                    }
+                  />
+                  <span className="min-w-0 flex-1 truncate">
+                    {entry.title} · {weekdays[entry.weekday]} · {entry.startTime}–{entry.endTime}
+                  </span>
+                  <span className="text-xs text-slate-500">
+                    {entry.classroom?.name ?? "بدون کلاس"}
+                  </span>
+                </label>
+              ))}
+            </div>
+            <div className="grid gap-2 rounded-xl bg-[rgb(var(--surface-muted))] p-3 sm:grid-cols-4">
+              <select
+                value={operation}
+                onChange={(e) => {
+                  setOperation(e.target.value as BulkSessionTimeChange["operation"]);
+                  setPreview(null);
+                }}
+                className="h-10 rounded-xl border bg-transparent px-2 text-sm"
+              >
+                <option value="SHIFT">جابجایی دقیقه‌ای</option>
+                <option value="SET_TIME">زمان ثابت</option>
+                <option value="APPLY_BLOCK">اعمال بازه آماده</option>
+              </select>
+              {operation === "SHIFT" ? (
+                <Input
+                  type="number"
+                  value={offsetMinutes}
+                  onChange={(e) => setOffsetMinutes(e.target.value)}
+                  aria-label="دقیقه جابه‌جایی"
+                />
+              ) : operation === "SET_TIME" ? (
+                <>
+                  <Input
+                    type="time"
+                    value={startTime}
+                    onChange={(e) => setStartTime(e.target.value)}
+                    aria-label="شروع"
+                  />
+                  <Input
+                    type="time"
+                    value={endTime}
+                    onChange={(e) => setEndTime(e.target.value)}
+                    aria-label="پایان"
+                  />
+                </>
+              ) : (
+                <select
+                  value={targetTimeBlockId}
+                  onChange={(e) => setTargetTimeBlockId(e.target.value)}
+                  className="h-10 rounded-xl border bg-transparent px-2 text-sm"
+                >
+                  <option value="">بازه مقصد</option>
+                  {blocks.map((block) => (
+                    <option key={block.id} value={block.id}>
+                      {block.name} · {block.startTime}–{block.endTime}
+                    </option>
+                  ))}
+                </select>
+              )}
+              <Button
+                variant="soft"
+                disabled={loading || !selectedIds.length}
+                onClick={() => void runPreview()}
+              >
+                پیش‌نمایش
+              </Button>
+            </div>
+            {preview ? (
+              <section className="rounded-xl border p-3">
+                <p className="font-black">
+                  {preview.summary.selected.toLocaleString("fa-IR")} جلسه برای تغییر
+                </p>
+                {preview.conflicts.length ? (
+                  <p className="mt-2 text-sm font-bold text-rose-700">
+                    {preview.summary.conflicts.toLocaleString("fa-IR")} تداخل پیدا شد. جلسه‌های
+                    متداخل را از انتخاب حذف کنید.
+                  </p>
+                ) : (
+                  <>
+                    <p className="mt-1 text-sm text-emerald-700">تداخلی پیدا نشد.</p>
+                    <div className="mt-2 max-h-32 overflow-y-auto text-xs">
+                      {preview.selected.map((item) => (
+                        <div key={item.id}>
+                          {item.title}:{" "}
+                          <span dir="ltr">
+                            {item.before.startTime}–{item.before.endTime}
+                          </span>{" "}
+                          ←{" "}
+                          <span dir="ltr">
+                            {item.after.startTime}–{item.after.endTime}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                    <Button className="mt-3" disabled={loading} onClick={() => void apply()}>
+                      تأیید تغییر {preview.summary.selected.toLocaleString("fa-IR")} جلسه
+                    </Button>
+                  </>
+                )}
+              </section>
+            ) : null}
+          </>
+        )}
+      </div>
+    </ResponsiveDrawer>
+  );
 }
