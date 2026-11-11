@@ -134,4 +134,25 @@ describe("class book deletion", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent("Book used in timetable history");
     expect(screen.getByRole("alertdialog")).toBeInTheDocument();
   });
+  it("keeps book choices open after a failed save", async () => {
+    const onClose = vi.fn();
+    const onSave = vi.fn().mockRejectedValue(new Error("Could not save books"));
+    render(
+      <QueryClientProvider client={new QueryClient()}>
+        <LocaleProvider>
+          <ClassBooksModal
+            classroom={classroom}
+            options={options}
+            onSave={onSave}
+            onClose={onClose}
+            canDeleteBooks={false}
+          />
+        </LocaleProvider>
+      </QueryClientProvider>,
+    );
+    await userEvent.click(screen.getByRole("button", { name: "Save books" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("Could not save books");
+    expect(screen.getByRole("checkbox")).toBeChecked();
+    expect(onClose).not.toHaveBeenCalled();
+  });
 });
